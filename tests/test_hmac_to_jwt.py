@@ -18,6 +18,7 @@ def test_invalid_auth_content(client):
 def test_valid_request(client, hmac_header):
     headers = hmac_header('/userapi', 'GET')
     r = client.get('/userapi', headers=headers)
+    print r.json
     access_token = r.json['access_token']
     decoded = decode_jwt(
         encoded_token=access_token,
