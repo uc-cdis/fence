@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, session, redirect, request
+from flask import Flask, jsonify, request
 from flask.ext.cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_sqlalchemy_session import flask_scoped_session
@@ -24,8 +24,10 @@ def app_sessions(app):
     app.db = SQLAlchemyDriver(app.config['DB'])
     session = flask_scoped_session(app.db.Session, app)  # noqa
 
+
 def init_jwt(app):
     jwt = JWTManager(app)
+
 
 def app_init(app, settings='fence.settings'):
     app_config(app, settings)
@@ -35,7 +37,12 @@ def app_init(app, settings='fence.settings'):
 
 @app.route('/<service>')
 def root(service):
+    """
+    Exchange aws hmacv4 authorization header with JWT access_token for
+    a service
+    """
     return hmac_to_jwt(request, service)
+
 
 @app.errorhandler(Exception)
 def user_error(error):
