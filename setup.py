@@ -1,0 +1,48 @@
+from setuptools import setup, find_packages
+
+setup(
+    name='fence',
+    version='0.1.0',
+    install_requires=[
+        "mock==2.0.0",
+        "awsauth==0.3.3",
+        "Werkzeug==0.12.2",
+        "boto3==1.4.7",
+        "boto==2.48.0",
+        "oauthlib==2.0.6",
+        "temps==0.3.0",
+        "botocore==1.7.36",
+        "requests==2.18.4",
+        "cryptography==2.1.2",
+        "Flask_OAuthlib==0.9.4",
+        "Flask-CORS==3.0.3",
+        "pytest==3.2.3",
+        "Flask_SQLAlchemy_Session==1.1",
+        "Flask==0.10.1",
+        "SQLAlchemy==0.9.9",
+        "pysftp==0.2.9",
+        "setuptools==36.6.0",
+        "httplib2==0.10.3",
+        "addict==2.1.1",
+        "pytest-flask==0.10.0",
+        "python_bcrypt==0.3.2",
+        "python_dateutil==2.6.1",
+        "PyJWT==1.5.3",
+        "python_keystoneclient==3.13.0",
+        "moto==1.1.24",
+        "google_api_python_client==1.6.4",
+    ],
+    dependency_links=[
+        "git+https://github.com/uc-cdis/flask-postgres-session.git@0.1.3#egg=flask_postgres_session",
+        "git+https://github.com/uc-cdis/userdatamodel.git@1.0.2#egg=userdatamodel",
+        "git+https://github.com/uc-cdis/storage-client.git@0.1.2#egg=storageclient"
+    ],
+    scripts=[
+        "bin/fence-create",
+    ],
+    data_files=[
+        ('keys', ['keys/jwt_private_key.pem', 'keys/jwt_public_key.pem'])
+    ],
+    include_package_data=True,
+    packages=find_packages(),
+)
