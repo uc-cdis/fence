@@ -125,8 +125,8 @@ class Token(Base):
     # currently only bearer is supported
     token_type = Column(String(40))
 
-    access_token = Column(String(255), unique=True)
-    refresh_token = Column(String(255), unique=True)
+    access_token = Column(String, unique=True)
+    refresh_token = Column(String, unique=True)
     expires = Column(DateTime)
     _scopes = Column(Text)
 
