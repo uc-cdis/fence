@@ -31,7 +31,6 @@ app.register_blueprint(credentials, url_prefix='/credentials')
 app.register_blueprint(admin, url_prefix='/admin')
 app.register_blueprint(login, url_prefix='/login')
 
-
 def app_config(app, settings='fence.settings'):
     """
     Set up the config for the Flask app.
@@ -39,7 +38,7 @@ def app_config(app, settings='fence.settings'):
     app.config.from_object(settings)
     keys = []
     root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    for kid, public, private in app.config['JWT_KEYPAIR_FILES']:
+    for kid, (public, private) in app.config['JWT_KEYPAIR_FILES'].iteritems():
         public_filepath = os.path.join(root_dir, public)
         private_filepath = os.path.join(root_dir, private)
         with open(public_filepath, 'r') as f:
@@ -50,6 +49,8 @@ def app_config(app, settings='fence.settings'):
         keys.append(entry)
     app.keys = OrderedDict(keys)
 
+app_config(app)
+init_oauth(app)
 
 def app_sessions(app):
     app.url_map.strict_slashes = False
@@ -68,9 +69,7 @@ def app_sessions(app):
 
 
 def app_init(app, settings='fence.settings'):
-    app_config(app, settings)
     app_sessions(app)
-    init_oauth(app)
 
 
 def generate_csrf_token():
