@@ -28,8 +28,9 @@ def decode_signed_token(token, public_key=None):
 class JWTValidator(flask_oauthlib.provider.OAuth2RequestValidator):
     """
     Validator for JWTs used in the OAuth2 procedure. This class provides a
-    validator for Flask's OAuth component, redefining certain methods of
-    ``flask_oauthlib.oauth2.OAuth2RequestValidator`` to use JWT instead.
+    validator for Flask's OAuth component, redefining bearer and refresh token
+    validation of ``flask_oauthlib.oauth2.OAuth2RequestValidator`` to use JWT
+    instead.
 
     .. code-block:: python
 

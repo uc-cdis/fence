@@ -1,5 +1,7 @@
-from local_settings import *
+from collections import OrderedDict
 from datetime import timedelta
+
+from local_settings import *
 
 APPLICATION_ROOT = '/user'
 DEBUG = True
@@ -19,3 +21,11 @@ SESSION_TIMEOUT = timedelta(seconds=1800)
 # max session lifetime
 SESSION_LIFETIME = timedelta(seconds=28800)
 SESSION_COOKIE_NAME = "fence_session"
+
+# ``JWT_KEYPAIRS`` is an ordered dictionary of entries ``kid:
+# (public_key_filename, private_key_filename)`` mapping key ids to keypairs
+# used for signing and verifying JWTs issued by fence. NOTE that the filenames
+# should be relative to the root directory in fence.
+JWT_KEYPAIR_FILES = OrderedDict([
+    ('default', ('keys/jwt_public_key.pem', 'keys/jwt_private_key.pem')),
+])
