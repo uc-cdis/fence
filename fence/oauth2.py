@@ -1,7 +1,6 @@
 from __future__ import print_function
 
 from datetime import datetime, timedelta
-import os
 import uuid
 
 from cdispyutils.log import get_logger
@@ -117,62 +116,127 @@ oauth._validator = JWTValidator(
 )
 
 
-def signed_token_generator(private_key, **kwargs):
-    def signed_token_generator(request):
-        request.claims = kwargs
-        return oauthlib.common.generate_signed_token(private_key, request)
-    return signed_token_generator
-
-
-def generate_signed_token(private_key, request):
+def signed_access_token_generator(private_key, **kwargs):
     """
-    Generate a JWT from the given request, and output a UTF-8 string of the JWT
-    encoded using the private key.
+    Return a function which takes in an oauthlib request and generates a signed
+    JWT access token. This function should be assigned as the access token
+    generator for the flask app:
+
+    .. code-block:: python
+
+        app.config['OAUTH2_PROVIDER_TOKEN_GENERATOR'] = (
+            signed_access_token_generator(private_key)
+        )
+
+    Return:
+        Callable[[oauthlib.common.Request], str]
+    """
+    def signed_access_token_generator(request):
+        """
+        Args:
+            request (oauthlib.common.Request)
+
+        Return:
+            str: encoded JWT signed with ``private_key``
+        """
+        return generate_signed_access_token(private_key, request)
+    return signed_access_token_generator
+
+
+def signed_refresh_token_generator(private_key, **kwargs):
+    """
+    Return a function which takes in an oauthlib request and generates a signed
+    JWT refresh token. This function should be assigned as the refresh token
+    generator for the flask app:
+
+    .. code-block:: python
+
+        app.config['OAUTH2_PROVIDER_REFRESH_TOKEN_GENERATOR'] = (
+            signed_refresh_token_generator(private_key)
+        )
+
+    Return:
+        Callable[[oauthlib.common.Request], str]
+    """
+    def signed_refresh_token_generator(request):
+        """
+        Args:
+            request (oauthlib.common.Request)
+
+        Return:
+            str: encoded JWT signed with ``private_key``
+        """
+        return generate_signed_refresh_token(private_key, request)
+    return signed_refresh_token_generator
+
+
+def generate_signed_refresh_token(private_key, request):
+    """
+    Generate a JWT refresh token from the given request, and output a UTF-8
+    string of the encoded JWT signed with the private key.
 
     Args:
         private_key (str): RSA private key to sign and encode the JWT with
-        request (oauthlib.common.Request): TODO
+        request (oauthlib.common.Request): token request to handle
+
+    Return:
+        str: encoded JWT signed with ``private_key``
     """
-    now = datetime.datetime.utcnow()
-    for p in dir(request):
-        log.exception(p, ': ', getattr(request, p))
-    # TODO: JWT fields
-    TODO = 'TODO'
+    now = datetime.utcnow()
     claims = {
-        'sub': TODO,
-        'iss': TODO,
+        'sub': request.user.id,
+        'iss': flask.current_app.config.get('HOST_NAME'),
         'iat': now,
-        'exp': now + datetime.timedelta(seconds=request.expires_in),
+        'exp': now + timedelta(seconds=request.expires_in),
         'jti': str(uuid.uuid4()),
-        'aud': TODO,
-        'scopes': request.scopes,
         'context': {
-            'user': request.user,
-        }
+            'user': {
+                'name': request.user,
+            }
+        },
     }
     claims.update(request.claims)
-    raise RuntimeError('JWT: ' + str(claims))
-    token = jwt.encode(claims, private_key, 'RS256')
+    token = jwt.encode(claims, private_key, algorithm='RS256')
+    token = oauthlib.common.to_unicode(token, 'UTF-8')
+    return token
+
+
+def generate_signed_access_token(private_key, request):
+    """
+    Generate a JWT refresh token from the given request, and output a UTF-8
+    string of the encoded JWT signed with the private key.
+
+    Args:
+        private_key (str): RSA private key to sign and encode the JWT with
+        request (oauthlib.common.Request): token request to handle
+    """
+    now = datetime.utcnow()
+    raise RuntimeError(str(request))
+    claims = {
+        'sub': request.user.id,
+        'iss': flask.current_app.config.get('HOST_NAME'),
+        'iat': now,
+        'exp': now + timedelta(seconds=request.expires_in),
+        'jti': str(uuid.uuid4()),
+        'context': {
+            'user': {
+                'name': request.user,
+            }
+        },
+    }
+    claims.update(request.claims)
+    token = jwt.encode(claims, private_key, algorithm='RS256')
     token = oauthlib.common.to_unicode(token, 'UTF-8')
     return token
 
 
 def init_oauth(app):
-    parent = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    keys_dir = os.path.join(parent, 'keys')
-    public_key_filename = os.path.join(keys_dir, 'jwt_public_key.pem')
-    private_key_filename = os.path.join(keys_dir, 'jwt_private_key.pem')
-    with open(public_key_filename, 'r') as f:
-        app.config['JWT_PUBLIC_KEY'] = f.read()
-    with open(private_key_filename, 'r') as f:
-        app.config['JWT_PRIVATE_KEY'] = f.read()
-    private_key = app.config['JWT_PRIVATE_KEY']
-
+    private_key = app.keys.items()[0][1]
     app.config['OAUTH2_PROVIDER_REFRESH_TOKEN_GENERATOR'] = (
-        signed_token_generator(private_key)
+        signed_refresh_token_generator(private_key)
     )
     app.config['OAUTH2_PROVIDER_TOKEN_GENERATOR'] = (
-        signed_token_generator(private_key)
+        signed_access_token_generator(private_key)
     )
     app.config['OAUTH2_PROVIDER_TOKEN_EXPIRES_IN'] = 3600
     oauth.init_app(app)
