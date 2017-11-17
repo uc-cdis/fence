@@ -116,8 +116,10 @@ def public_keys():
     Return the public keys which can be used to verify JWTs signed by fence.
     """
     return flask.jsonify({
-        kid: public_key
-        for (kid, (public_key, _)) in app.keys.iteritems()
+        'keys': [
+            (kid, public_key)
+            for (kid, (public_key, _)) in app.keys.iteritems()
+        ]
     })
 
 
