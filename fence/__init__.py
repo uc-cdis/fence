@@ -31,6 +31,7 @@ app.register_blueprint(credentials, url_prefix='/credentials')
 app.register_blueprint(admin, url_prefix='/admin')
 app.register_blueprint(login, url_prefix='/login')
 
+
 def app_config(app, settings='fence.settings'):
     """
     Set up the config for the Flask app.
@@ -49,8 +50,10 @@ def app_config(app, settings='fence.settings'):
         keys.append(entry)
     app.keys = OrderedDict(keys)
 
+
 app_config(app)
 init_oauth(app)
+
 
 def app_sessions(app):
     app.url_map.strict_slashes = False
@@ -114,7 +117,7 @@ def public_keys():
     """
     return flask.jsonify({
         kid: public_key
-        for (kid, (public_key, _)) in app.keys
+        for (kid, (public_key, _)) in app.keys.iteritems()
     })
 
 

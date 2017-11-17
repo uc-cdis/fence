@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 from datetime import datetime, timedelta
+import json
 import uuid
 
 from cdispyutils.log import get_logger
@@ -170,6 +171,24 @@ def signed_refresh_token_generator(private_key, **kwargs):
     return signed_refresh_token_generator
 
 
+def issued_and_expiration_times(seconds_to_expire):
+    """
+    Return the times in unix time that a token is being issued and will be
+    expired (the issuing time being now, and the expiration being
+    ``seconds_to_expire`` seconds after that). Used for constructing JWTs.
+
+    Args:
+        seconds_to_expire (int): lifetime in seconds
+
+    Return:
+        Tuple[int, int]: (issued, expired) times in unix time
+    """
+    now = datetime.now()
+    iat = int(now.strftime('%s'))
+    exp = int((now + timedelta(seconds=seconds_to_expire)).strftime('%s'))
+    return (iat, exp)
+
+
 def generate_signed_refresh_token(private_key, request):
     """
     Generate a JWT refresh token from the given request, and output a UTF-8
@@ -180,22 +199,31 @@ def generate_signed_refresh_token(private_key, request):
         request (oauthlib.common.Request): token request to handle
 
     Return:
-        str: encoded JWT signed with ``private_key``
+        str: encoded JWT refresh token signed with ``private_key``
     """
-    now = datetime.utcnow()
+    grant = load_grant(request.body.get('client_id'), request.body.get('code'))
+    user = grant.user
+    iat, exp = issued_and_expiration_times(request.expires_in)
     claims = {
-        'sub': request.user.id,
+        'aud': [
+            'refresh',
+        ],
+        'sub': str(user.id),
         'iss': flask.current_app.config.get('HOST_NAME'),
-        'iat': now,
-        'exp': now + timedelta(seconds=request.expires_in),
+        'iat': iat,
+        'exp': exp,
         'jti': str(uuid.uuid4()),
         'context': {
             'user': {
-                'name': request.user,
-            }
+                'name': user.username,
+                'projects': dict(user.project_access),
+            },
         },
     }
-    claims.update(request.claims)
+    flask.current_app.logger.info(claims)
+    flask.current_app.logger.info(
+        'issuing JWT refresh token\n' + json.dumps(claims, indent=4)
+    )
     token = jwt.encode(claims, private_key, algorithm='RS256')
     token = oauthlib.common.to_unicode(token, 'UTF-8')
     return token
@@ -209,29 +237,43 @@ def generate_signed_access_token(private_key, request):
     Args:
         private_key (str): RSA private key to sign and encode the JWT with
         request (oauthlib.common.Request): token request to handle
+
+    Return:
+        str: encoded JWT access token signed with ``private_key``
     """
-    now = datetime.utcnow()
-    raise RuntimeError(str(request))
+    grant = load_grant(request.body.get('client_id'), request.body.get('code'))
+    user = grant.user
+    iat, exp = issued_and_expiration_times(request.expires_in)
     claims = {
-        'sub': request.user.id,
+        'aud': [
+            'access',
+        ],
+        'sub': str(user.id),
         'iss': flask.current_app.config.get('HOST_NAME'),
-        'iat': now,
-        'exp': now + timedelta(seconds=request.expires_in),
+        'iat': iat,
+        'exp': exp,
         'jti': str(uuid.uuid4()),
         'context': {
             'user': {
-                'name': request.user,
-            }
+                'name': user.username,
+                'projects': dict(user.project_access),
+            },
         },
     }
-    claims.update(request.claims)
+    flask.current_app.logger.info(
+        'issuing JWT access token\n' + json.dumps(claims, indent=4)
+    )
     token = jwt.encode(claims, private_key, algorithm='RS256')
     token = oauthlib.common.to_unicode(token, 'UTF-8')
     return token
 
 
 def init_oauth(app):
-    private_key = app.keys.items()[0][1]
+    # app.keys is an ordered dictionary mapping key ids to keypairs; for
+    # signing new access and refresh tokens, use the private key (`[1]`) from
+    # the first keypair (`[0]`) in the list of keypairs fence is holding
+    # (`app.keys`).
+    private_key = app.keys.values()[0][1]
     app.config['OAUTH2_PROVIDER_REFRESH_TOKEN_GENERATOR'] = (
         signed_refresh_token_generator(private_key)
     )
