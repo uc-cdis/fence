@@ -117,7 +117,7 @@ oauth._validator = JWTValidator(
 )
 
 
-def signed_access_token_generator(private_key, **kwargs):
+def signed_access_token_generator(kid, private_key, **kwargs):
     """
     Return a function which takes in an oauthlib request and generates a signed
     JWT access token. This function should be assigned as the access token
@@ -140,11 +140,11 @@ def signed_access_token_generator(private_key, **kwargs):
         Return:
             str: encoded JWT signed with ``private_key``
         """
-        return generate_signed_access_token(private_key, request)
+        return generate_signed_access_token(kid, private_key, request)
     return signed_access_token_generator
 
 
-def signed_refresh_token_generator(private_key, **kwargs):
+def signed_refresh_token_generator(kid, private_key, **kwargs):
     """
     Return a function which takes in an oauthlib request and generates a signed
     JWT refresh token. This function should be assigned as the refresh token
@@ -167,7 +167,7 @@ def signed_refresh_token_generator(private_key, **kwargs):
         Return:
             str: encoded JWT signed with ``private_key``
         """
-        return generate_signed_refresh_token(private_key, request)
+        return generate_signed_refresh_token(kid, private_key, request)
     return signed_refresh_token_generator
 
 
@@ -189,7 +189,7 @@ def issued_and_expiration_times(seconds_to_expire):
     return (iat, exp)
 
 
-def generate_signed_refresh_token(private_key, request):
+def generate_signed_refresh_token(kid, private_key, request):
     """
     Generate a JWT refresh token from the given request, and output a UTF-8
     string of the encoded JWT signed with the private key.
@@ -203,11 +203,10 @@ def generate_signed_refresh_token(private_key, request):
     """
     grant = load_grant(request.body.get('client_id'), request.body.get('code'))
     user = grant.user
+    headers = {'kid': kid}
     iat, exp = issued_and_expiration_times(request.expires_in)
     claims = {
-        'aud': [
-            'refresh',
-        ],
+        'aud': ['refresh'],
         'sub': str(user.id),
         'iss': flask.current_app.config.get('HOST_NAME'),
         'iat': iat,
@@ -220,16 +219,15 @@ def generate_signed_refresh_token(private_key, request):
             },
         },
     }
-    flask.current_app.logger.info(claims)
     flask.current_app.logger.info(
         'issuing JWT refresh token\n' + json.dumps(claims, indent=4)
     )
-    token = jwt.encode(claims, private_key, algorithm='RS256')
+    token = jwt.encode(claims, private_key, headers=headers, algorithm='RS256')
     token = oauthlib.common.to_unicode(token, 'UTF-8')
     return token
 
 
-def generate_signed_access_token(private_key, request):
+def generate_signed_access_token(kid, private_key, request):
     """
     Generate a JWT refresh token from the given request, and output a UTF-8
     string of the encoded JWT signed with the private key.
@@ -243,11 +241,10 @@ def generate_signed_access_token(private_key, request):
     """
     grant = load_grant(request.body.get('client_id'), request.body.get('code'))
     user = grant.user
+    headers = {'kid': kid}
     iat, exp = issued_and_expiration_times(request.expires_in)
     claims = {
-        'aud': [
-            'access',
-        ],
+        'aud': request.scopes + ['access'],
         'sub': str(user.id),
         'iss': flask.current_app.config.get('HOST_NAME'),
         'iat': iat,
@@ -263,7 +260,7 @@ def generate_signed_access_token(private_key, request):
     flask.current_app.logger.info(
         'issuing JWT access token\n' + json.dumps(claims, indent=4)
     )
-    token = jwt.encode(claims, private_key, algorithm='RS256')
+    token = jwt.encode(claims, private_key, headers=headers, algorithm='RS256')
     token = oauthlib.common.to_unicode(token, 'UTF-8')
     return token
 
@@ -273,12 +270,12 @@ def init_oauth(app):
     # signing new access and refresh tokens, use the private key (`[1]`) from
     # the first keypair (`[0]`) in the list of keypairs fence is holding
     # (`app.keys`).
-    private_key = app.keys.values()[0][1]
+    (kid, (_, private_key)) = app.keys.items()[0]
     app.config['OAUTH2_PROVIDER_REFRESH_TOKEN_GENERATOR'] = (
-        signed_refresh_token_generator(private_key)
+        signed_refresh_token_generator(kid, private_key)
     )
     app.config['OAUTH2_PROVIDER_TOKEN_GENERATOR'] = (
-        signed_access_token_generator(private_key)
+        signed_access_token_generator(kid, private_key)
     )
     app.config['OAUTH2_PROVIDER_TOKEN_EXPIRES_IN'] = 3600
     oauth.init_app(app)

@@ -1,28 +1,8 @@
 import datetime
 
+from cdispyutils import auth
 import flask
 import flask_oauthlib
-import jwt
-
-
-def decode_signed_token(token, public_key=None):
-    """
-    Decode a JWT (in string form), which should have been previously signed by
-    the server, into JSON.
-
-    Args:
-        token (str): the JWT to decode
-        public_key (Optional[str]): key to decode the JWT with
-
-    Return:
-        dict: JWT decoded into JSON
-
-    Raises:
-        KeyError: if flask app was not configured with public key
-    """
-    if public_key is None:
-        public_key = flask.current_app.config['JWT_PUBLIC_KEY']
-    return jwt.decode(token, public_key, algorithm='RS256')
 
 
 class JWTValidator(flask_oauthlib.provider.OAuth2RequestValidator):
@@ -67,7 +47,7 @@ class JWTValidator(flask_oauthlib.provider.OAuth2RequestValidator):
     def validate_bearer_token(self, token, scopes, request):
         """
         Define ``flask_oauthlib.oauth2.OAuth2Provider.validate_bearer_token``
-        to validate a JWT.
+        to validate a JWT access token.
 
         Per `flask_oauthlib`, validate:
         #. if the token is available
@@ -86,17 +66,17 @@ class JWTValidator(flask_oauthlib.provider.OAuth2RequestValidator):
         if not token:
             msg = 'No token provided.'
             request.error_message = msg
-            print(msg)
+            flask.current_app.logger.exception(msg)
             return False
 
-        decoded_jwt = decode_signed_token(token)
+        decoded_jwt = auth.jwt.validate_request_jwt(aud={'access'})
 
         # Validate expiration.
         expiration = decoded_jwt.get('exp', False)
         if not expiration or datetime.datetime.utcnow() >= expiration:
             msg = 'Token is expired.'
             request.error_message = msg
-            print(msg)
+            flask.current_app.logger.exception(msg)
             return False
 
         # TODO: check scopes?
@@ -120,17 +100,17 @@ class JWTValidator(flask_oauthlib.provider.OAuth2RequestValidator):
         if not refresh_token:
             msg = 'No token provided.'
             request.error_message = msg
-            print(msg)
+            flask.current_app.logger.exception(msg)
             return False
 
-        decoded_jwt = decode_signed_token(refresh_token)
+        decoded_jwt = auth.jwt.validate_refresh_jwt(aud={'refresh'})
 
         # Validate expiration.
         expiration = decoded_jwt.get('exp', False)
         if not expiration or datetime.datetime.utcnow() >= expiration:
             msg = 'Token is expired.'
             request.error_message = msg
-            print(msg)
+            flask.current_app.logger.exception(msg)
             return False
 
         # TODO: check scopes?
