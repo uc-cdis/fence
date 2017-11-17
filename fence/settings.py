@@ -27,5 +27,5 @@ SESSION_COOKIE_NAME = "fence_session"
 # used for signing and verifying JWTs issued by fence. NOTE that the filenames
 # should be relative to the root directory in fence.
 JWT_KEYPAIR_FILES = OrderedDict([
-    ('default', ('keys/jwt_public_key.pem', 'keys/jwt_private_key.pem')),
+    ('key-01', ('keys/jwt_public_key.pem', 'keys/jwt_private_key.pem')),
 ])
