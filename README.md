@@ -2,9 +2,13 @@
 
 ## JWT
 
-Example JWT issued by fence:
+Example JWT access token issued by fence:
 ```
 {
+    "aud": [
+        "user",
+        "access"
+    ],
     "exp": 1510858227,
     "sub": "25",
     "iss": "http://api.bloodpac-data.org",
@@ -25,6 +29,8 @@ Example JWT issued by fence:
     "iat": 1510854627
 }
 ```
+(Refresh tokens should have just `["refresh"]` for the `aud` field, since a
+ refresh token itself is not used for authentication with a service.)
 
 ### Keypair Configuration
 
