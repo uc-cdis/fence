@@ -28,6 +28,7 @@ class JWTValidator(flask_oauthlib.provider.OAuth2RequestValidator):
             "exp": 1459487258,
             "jti": "f8733984-8164-4689-9c25-56707962d7e0",
             "aud": [
+                "access",
                 "data",
                 "iam",
             ],
@@ -57,7 +58,7 @@ class JWTValidator(flask_oauthlib.provider.OAuth2RequestValidator):
         Args:
             token (str): in this implementation, an encoded JWT
             scopes (TODO): TODO
-            request (oauthlib.common.Request): TODO
+            request (oauthlib.common.Request): oauth request to serve
 
         Return:
             bool: whether token is valid
@@ -69,18 +70,18 @@ class JWTValidator(flask_oauthlib.provider.OAuth2RequestValidator):
             flask.current_app.logger.exception(msg)
             return False
 
-        decoded_jwt = auth.jwt.validate_request_jwt(aud={'access'})
-
-        # Validate expiration.
-        expiration = decoded_jwt.get('exp', False)
-        if not expiration or datetime.datetime.utcnow() >= expiration:
-            msg = 'Token is expired.'
-            request.error_message = msg
-            flask.current_app.logger.exception(msg)
+        aud = scopes
+        aud.update('access')
+        try:
+            decoded_jwt = auth.validate_request_jwt(aud)
+        except auth.JWTValidationError as e:
+            request.error_message = str(e)
+            flask.current_app.logger.exception(e)
             return False
 
-        # TODO: check scopes?
-
+        flask.current_app.logger.info(
+            'validated access token: ' + str(decoded_jwt)
+        )
         return True
 
     def validate_refresh_token(
@@ -114,5 +115,8 @@ class JWTValidator(flask_oauthlib.provider.OAuth2RequestValidator):
             return False
 
         # TODO: check scopes?
+        flask.current_app.logger.info(
+            'validated refresh token: ' + str(decoded_jwt)
+        )
 
         return True

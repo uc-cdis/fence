@@ -34,16 +34,6 @@ def load_grant(client_id, code):
     )
 
 
-@oauth.clientgetter
-def load_client(client_id):
-    return (
-        current_session
-        .query(models.Client)
-        .filter_by(client_id=client_id)
-        .first()
-    )
-
-
 @oauth.grantsetter
 def save_grant(client_id, code, request, *args, **kwargs):
     # decide the expires time yourself
@@ -59,6 +49,34 @@ def save_grant(client_id, code, request, *args, **kwargs):
     current_session.add(grant)
     current_session.commit()
     return grant
+
+
+@oauth.clientgetter
+def load_client(client_id):
+    return (
+        current_session
+        .query(models.Client)
+        .filter_by(client_id=client_id)
+        .first()
+    )
+
+
+@oauth.tokengetter
+def load_token(access_token=None, refresh_token=None):
+    if access_token:
+        return (
+            current_session
+            .query(models.Token)
+            .filter_by(access_token=access_token)
+            .first()
+        )
+    elif refresh_token:
+        return (
+            current_session
+            .query(models.Token)
+            .filter_by(refresh_token=refresh_token)
+            .first()
+        )
 
 
 @oauth.tokensetter
@@ -85,24 +103,6 @@ def save_token(token, request, *args, **kwargs):
     current_session.add(tok)
     current_session.commit()
     return tok
-
-
-@oauth.tokengetter
-def load_token(access_token=None, refresh_token=None):
-    if access_token:
-        return (
-            current_session
-            .query(models.Token)
-            .filter_by(access_token=access_token)
-            .first()
-        )
-    elif refresh_token:
-        return (
-            current_session
-            .query(models.Token)
-            .filter_by(refresh_token=refresh_token)
-            .first()
-        )
 
 
 # Redefine the request validator used by the OAuth provider, using the
