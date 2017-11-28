@@ -1,0 +1,274 @@
+swagger: '2.0'
+info:
+  title: Fence OpenAPI Specification
+  version: 0.1.0
+  description: >-
+    Access management for CDIS data commons. Code is available on
+    [GitHub](https://github.com/uc-cdis/fence).
+  termsOfService: 'http://cdis.uchicago.edu/terms/'
+  contact:
+    email: cdis@uchicago.edu
+  license:
+    name: Apache 2.0
+    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
+host: example.domain
+basePath: /
+tags:
+  - name: oauth2
+    description: Authorization and Token Management
+  - name: user
+    description: ''
+  - name: data
+    description: ''
+  - name: link
+    description: ''
+schemes:
+  - https
+securityDefinitions:
+  OAuth2:
+    type: oauth2
+    flow: accessCode
+    authorizationUrl: '/oauth/authorize'
+    tokenUrl: '/oauth/token'
+    scopes:
+      user: generic user access
+paths:
+  '/oauth2/authorize':
+    get:
+      tags:
+        - oauth2
+      summary: Perform OAuth2 authorization
+      description: >-
+        Obtain an authorization grant through the OAuth2 protocol. To handle
+        this request, render a page for the user to confirm the OAuth2 grant
+        (through e.g. Google). Redirect user to `redirect_uri` with an added
+        `code` parameter obtained from the authorization provider.
+      operationId: authorize
+      produces:
+        - application/json
+      parameters:
+        - name: client_id
+          required: true
+          type: string
+          in: query
+          description: The client's ID, issued by authorization server
+        - name: response_type
+          required: true
+          type: string
+          in: query
+          description: >-
+            For an authorization request using the access code flow, the
+            response type must be "code". If this is missing from the request
+            then the authorization server must return an error.
+        - name: redirect_uri
+          required: true
+          type: string
+          in: query
+          description: Page to redirect to after access has been granted
+        - name: scope
+          required: false
+          type: string
+          in: query
+          description: Requested authorization scope
+      responses:
+        '200':
+          description: successful operation
+    post:
+      tags:
+        - oauth2
+      summary: Perform OAuth2 authorization
+      description: >-
+        Obtain an authorization grant through the OAuth2 protocol. To handle
+        this request, render a page for the user to confirm the OAuth2 grant
+        (through e.g. Google). Redirect user to `redirect_uri` with an added
+        `code` parameter obtained from the authorization provider. A POST will
+        not render a page for the user; this implementation checks the `confirm`
+        value in the request.
+      operationId: authorize_post
+      consumes:
+        - application/x-www-form-urlencoded
+      produces:
+        - application/json
+      parameters:
+        - name: client_id
+          required: true
+          type: string
+          in: formData
+          description: The client's ID, issued by authorization server
+        - name: response_type
+          required: true
+          type: string
+          enum: code, token
+          in: formData
+          description: >-
+            For an authorization request using the access code flow, the
+            response type must be "code". If this is missing from the request
+            then the authorization server must return an error.
+        - name: redirect_uri
+          required: true
+          type: string
+          in: formData
+          description: Page to redirect to after access has been granted
+        - name: confirm
+          required: false
+          type: string
+          in: formData
+          description: whether to confirm the OAuth2 grant (should be 'yes')
+        - name: scope
+          required: false
+          type: string
+          in: formData
+          description: Requested authorization scope
+      responses:
+        '200':
+          description: successful operation
+  '/oauth2/token':
+    post:
+      tags:
+        - oauth2
+      summary: Exchange code for or refresh the access token.
+      description: >-
+        Exchange the `code` obtained from OAuth2 for an access token, or refresh
+        the access token using a refresh token.
+      operationId: token
+      consumes:
+        - application/x-www-form-urlencoded
+      produces:
+        - application/json
+      parameters:
+        - name: grant_type
+          required: true
+          type: string
+          in: formData
+          description: >-
+            Value MUST be `"authorization_code"` (which is the authorization
+            flow used in this implementation)
+        - name: code
+          required: true
+          type: string
+          in: formData
+          description: The authorization code returned from the OAuth2 authorization request
+        - name: redirect_uri
+          required: true
+          type: string
+          in: formData
+          description: >-
+            Must be identical to the `"redirect_uri"` included in the original
+            authorization request
+        - name: client_id
+          required: true
+          type: string
+          in: formData
+      responses:
+        '200':
+          description: successful operation
+  '/oauth2/revoke':
+    post:
+      tags:
+        - oauth2
+      summary: Revoke a token
+      description: Revoke the access or refresh token granted to a user.
+      operationId: revoke
+      consumes:
+        - application/x-www-form-urlencoded
+      parameters:
+        - name: token
+          required: true
+          type: string
+          in: formData
+          description: Token that the user wants to revoke
+      responses:
+        '200':
+          description: successful operation, OR invalid token submitted
+  '/user':
+    get:
+      tags:
+        - user
+      summary: Return info about the current user
+      security:
+        - OAuth2: [user]
+      operationId: getUserInfo
+      responses:
+        '200':
+          description: successful operation
+          schema:
+            $ref: '#/definitions/UserInfo'
+  '/data/{uuid,location}':
+    get:
+      tags:
+        - data
+      summary: Create a presigned URL for data
+      description: >-
+        Allow users to get a pre-signed URL given the location of preference.
+      security:
+        - OAuth2: [user]
+      operationId: getPresignedURL
+      parameters:
+        - name: uuid
+          required: true
+          type: string
+          in: path
+          description: data UUID
+        - name: location
+          required: true
+          type: string
+          in: query
+          description: location (as in cloud provider) to use
+          enum: aws, google
+      responses:
+        '200':
+          description: successful operation
+          schema:
+            $ref: '#/definitions/PresignedURL'
+        '400':
+          description: Invalid input: UUID not found or invalid location
+  '/link/google/':
+    post:
+      tags:
+        - link
+      summary: Link Google identity
+      description: >-
+        Allows users to use standard data access tools provided by Google after
+        linking users’ Google identity. User’s identity will be added to a
+        proxy group owned by GDC, the proxy group will then be added to project
+        specific groups and the Google groups will be added to buckets ACLs.
+      operationId: linkCloudIdentity
+      responses:
+        '200':
+          description: successful operation
+          schema: null
+definitions:
+  UserInfo:
+    type: object
+    required: [pdc_id, username, resources_granted, project_access, certificates_uploaded, email, message]
+    properties:
+      pdc_id:
+        type: string
+      username:
+        type: string
+        description: ''
+      resources_granted:
+        type: array
+        items:
+          type: string
+      project_access:
+        type: object
+        additionalProperties:
+          type: string
+      certificates_uploaded:
+        type: array
+        items:
+          type: string
+      email:
+        type: string
+        description: ''
+      message:
+        type: string
+  PresignedURL:
+    type: object
+    properties:
+      url:
+        type: string
+        description: the presigned url issued to
+  OAuthHTML:
+    type: string
