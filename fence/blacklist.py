@@ -13,8 +13,10 @@ import uuid
 
 import flask
 import jwt
-from sqlalchemy import Column, String
+from sqlalchemy import BigInteger, Column, String
 from userdatamodel import Base
+
+from . import keys
 
 
 class BlacklistedToken(Base):
@@ -24,59 +26,44 @@ class BlacklistedToken(Base):
 
     __tablename__ = 'blacklisted_token'
 
-    # The JWT id `jti` is a UUID4.
+    # The JWT id `jti`, a UUID4.
     jti = Column(String(36), primary_key=True)
+    # The expiration in unix time.
+    exp = Column(BigInteger)
 
 
-def jti_of_token(token):
-    """
-    Return just the ``jti`` field from a JWT.
-
-    Args:
-        token (str): encoded JWT
-
-    Return:
-        str: ``jti`` header from token
-
-    Raises:
-        KeyError: if token headers did not contain ``jti`` field
-    """
-    return jwt.get_unverified_header(token)['jti']
-
-
-def blacklist_jti(jti):
+def blacklist_token(token, private_key=None):
     """
     Add the JWT id ``jti`` to the blacklist.
 
     Args:
-        jti (str): key id of token to blacklist; must be UUID4
+        token (str): encoded form of token to blacklist
+        private_key (Optional[str]): private key to decode with
 
     Return:
         None
 
     Raises:
-        ValueError: if ``jti`` is not a UUID4
+        - ValueError: if ``jti`` is not a UUID4
+        - jwt.InvalidTokenError: if token decoding fails
 
     Side Effects:
         - Add entry with ``jti`` to ``BlacklistedToken`` table
     """
-    # Check that JWT id is UUID4.
+    private_key = private_key or keys.get_default_private_key()
+    decoded_token = jwt.decode(token, private_key, algorithm='RS256')
+    exp = decoded_token['exp']
+    jti = decoded_token['jti']
+    # Check that JWT id is UUID4 (this raises a ValueError otherwise).
     uuid.UUID(jti, version=4)
-    # Return if JWT id is already blacklisted.
+    # Do nothing if JWT id is already blacklisted.
     with flask.current_app.db.sesion as session:
         if session.query(BlacklistedToken).filter_by(jti=jti).first():
             return
     # Add JWT id to blacklist table.
     with flask.current_app.db.session as session:
-        session.add(BlacklistedToken(jti=jti))
+        session.add(BlacklistedToken(jti=jti, exp=exp))
         session.commit()
-
-
-def blacklist_token(token):
-    """
-    Compose ``blacklist_jti`` and ``jti_of_token`` to blacklist a token.
-    """
-    blacklist_jti(jti_of_token(token))
 
 
 def is_blacklisted(jti):

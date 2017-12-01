@@ -321,10 +321,13 @@ def access_token(*args, **kwargs):
 @blueprint.route('/revoke', methods=['POST'])
 def revoke_token():
     """
-    Revoke the access given to an application.
+    Revoke a refresh token.
 
-    The operation is handled by the ``oauth.revoke_handler`` decorator, so this
-    function just passes.
+    If the operation is successful, return an empty response with a 204 status
+    code. Otherwise, return error message in JSON with a 400 code.
+
+    Return:
+        Tuple[str, int]: JSON response and status code
     """
     try:
         token = flask.request.form['token']
@@ -334,6 +337,8 @@ def revoke_token():
         blacklist.blacklist_token(token)
     except KeyError:
         return (flask.jsonify({'errors': 'token missing JWT id'}), 400)
+    except jwt.InvalidTokenError:
+        return (flask.jsonify({'errors': 'invalid token'}), 400)
     return ('', 204)
 
 
