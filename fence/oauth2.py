@@ -12,6 +12,7 @@ from flask_sqlalchemy_session import current_session
 import jwt
 import oauthlib
 
+from . import blacklist
 from . import models
 from .auth import get_current_user
 from .jwt_validator import JWTValidator
@@ -318,7 +319,6 @@ def access_token(*args, **kwargs):
 
 
 @blueprint.route('/revoke', methods=['POST'])
-@oauth.revoke_handler
 def revoke_token():
     """
     Revoke the access given to an application.
@@ -326,7 +326,15 @@ def revoke_token():
     The operation is handled by the ``oauth.revoke_handler`` decorator, so this
     function just passes.
     """
-    pass
+    try:
+        token = flask.request.form['token']
+    except KeyError:
+        return (flask.jsonify({'errors': 'no token provided'}), 400)
+    try:
+        blacklist.blacklist_token(token)
+    except KeyError:
+        return (flask.jsonify({'errors': 'token missing JWT id'}), 400)
+    return ('', 204)
 
 
 @blueprint.route('/errors', methods=['GET'])
