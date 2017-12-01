@@ -71,6 +71,8 @@ class JWTValidator(flask_oauthlib.provider.OAuth2RequestValidator):
             return False
 
         aud = scopes
+        # The token must contain an `'access'` audience (i.e. be an access, not
+        # refresh token).
         aud.update('access')
         try:
             decoded_jwt = auth.validate_request_jwt(aud)
@@ -104,6 +106,7 @@ class JWTValidator(flask_oauthlib.provider.OAuth2RequestValidator):
             flask.current_app.logger.exception(msg)
             return False
 
+        # Must contain just a `'refresh'` audience for a refresh token.
         decoded_jwt = auth.jwt.validate_refresh_jwt(aud={'refresh'})
 
         # Validate expiration.
