@@ -58,34 +58,36 @@ class JWTValidator(flask_oauthlib.provider.OAuth2RequestValidator):
         #. if the scopes are available
 
         Args:
-            token (str): in this implementation, an encoded JWT
-            scopes (TODO): TODO
+            token (str): in this implementation, an encoded access JWT
+            scopes (List[str]): list of scopes
             request (oauthlib.common.Request): oauth request to serve
 
         Return:
             bool: whether token is valid
         """
-        # Validate token existing.
-        if not token:
-            msg = 'No token provided.'
+
+        def fail_with(msg):
             request.error_message = msg
             flask.current_app.logger.exception(msg)
             return False
 
-        aud = scopes
+        # Validate token existing.
+        if not token:
+            return fail_with('No token provided.')
+
+        aud = set(scopes)
         # The token must contain an `'access'` audience (i.e. be an access, not
         # refresh token).
         aud.update('access')
         try:
             decoded_jwt = auth.validate_request_jwt(aud)
         except auth.JWTValidationError as e:
-            request.error_message = str(e)
-            flask.current_app.logger.exception(e)
-            return False
+            return fail_with(str(e))
 
         flask.current_app.logger.info(
             'validated access token: ' + str(decoded_jwt)
         )
+
         return True
 
     def validate_refresh_token(
@@ -94,17 +96,13 @@ class JWTValidator(flask_oauthlib.provider.OAuth2RequestValidator):
         Validate a JWT refresh token.
 
         Args:
-            refresh_token (str): encoded JWT refresh token
-            client (TODO): TODO
-            request (oauthlib.common.Request): TODO
+            refresh_token (str): in this implementation, an encoded refresh JWT
+            client (Client): the client
+            request (oauthlib.common.Request): OAuth HTTP request to serve
 
         Return:
             bool: whether token is valid
         """
-        flask.current_app.logger.info(str(client))
-        flask.current_app.logger.info(dir(client))
-        flask.current_app.logger.info(str(request))
-        flask.current_app.logger.info(dir(request))
 
         def fail_with(msg):
             request.error_message = msg
