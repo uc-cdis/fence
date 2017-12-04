@@ -80,7 +80,7 @@ def blacklist_encoded_token(encoded_token, public_key=None):
         - Add entry with ``jti`` to ``BlacklistedToken`` table
     """
     # Decode token and get claims.
-    public_key = public_key or keys.get_default_private_key()
+    public_key = public_key or keys.default_private_key()
     token = jwt.decode(encoded_token, public_key, algorithm='RS256')
     jti = token['jti']
     exp = token['exp']

@@ -35,11 +35,11 @@ def default_public_key(app=flask.current_app):
     """
     Return the default (first) public key for the given app.
     """
-    return app.keypairs.values()[0].public_key
+    return app.keypairs[0].public_key
 
 
 def default_private_key(app=flask.current_app):
     """
     Return the default (first) private key for the given app.
     """
-    return app.keypairs.values()[0].private_key
+    return app.keypairs[0].private_key

@@ -4,6 +4,8 @@ from cdispyutils import auth
 import flask
 import flask_oauthlib
 
+from .blacklist import BlacklistedToken
+
 
 class JWTValidator(flask_oauthlib.provider.OAuth2RequestValidator):
     """
@@ -99,25 +101,36 @@ class JWTValidator(flask_oauthlib.provider.OAuth2RequestValidator):
         Return:
             bool: whether token is valid
         """
-        # Validate token existing.
-        if not refresh_token:
-            msg = 'No token provided.'
+        flask.current_app.logger.info(str(client))
+        flask.current_app.logger.info(dir(client))
+        flask.current_app.logger.info(str(request))
+        flask.current_app.logger.info(dir(request))
+
+        def fail_with(msg):
             request.error_message = msg
             flask.current_app.logger.exception(msg)
             return False
+
+        # Validate token existing.
+        if not refresh_token:
+            return fail_with('No token provided.')
 
         # Must contain just a `'refresh'` audience for a refresh token.
         decoded_jwt = auth.jwt.validate_refresh_jwt(aud={'refresh'})
 
         # Validate expiration.
-        expiration = decoded_jwt.get('exp', False)
+        expiration = decoded_jwt.get('exp')
         if not expiration or datetime.datetime.utcnow() >= expiration:
-            msg = 'Token is expired.'
-            request.error_message = msg
-            flask.current_app.logger.exception(msg)
-            return False
+            return fail_with('Token is expired.')
 
-        # TODO: check scopes?
+        # Validate jti and make sure refresh token is not blacklisted.
+        jti = decoded_jwt.get('jti')
+        if not jti:
+            return fail_with('Token missing jti claim.')
+        with flask.current_app.db.session as session:
+            if session.query(BlacklistedToken).filter_by(jti=jti).first():
+                return fail_with('Token is blacklisted.')
+
         flask.current_app.logger.info(
             'validated refresh token: ' + str(decoded_jwt)
         )

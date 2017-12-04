@@ -267,16 +267,12 @@ def generate_signed_access_token(kid, private_key, request):
 
 
 def init_oauth(app):
-    # app.keys is an ordered dictionary mapping key ids to keypairs; for
-    # signing new access and refresh tokens, use the private key (`[1]`) from
-    # the first keypair (`[0]`) in the list of keypairs fence is holding
-    # (`app.keys`).
-    (kid, (_, private_key)) = app.keys.items()[0]
+    keypair = app.keypairs[0]
     app.config['OAUTH2_PROVIDER_REFRESH_TOKEN_GENERATOR'] = (
-        signed_refresh_token_generator(kid, private_key)
+        signed_refresh_token_generator(keypair.kid, keypair.private_key)
     )
     app.config['OAUTH2_PROVIDER_TOKEN_GENERATOR'] = (
-        signed_access_token_generator(kid, private_key)
+        signed_access_token_generator(keypair.kid, keypair.private_key)
     )
     app.config['OAUTH2_PROVIDER_TOKEN_EXPIRES_IN'] = 3600
     oauth.init_app(app)
