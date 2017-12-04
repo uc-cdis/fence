@@ -32,30 +32,20 @@ class BlacklistedToken(Base):
     exp = Column(BigInteger)
 
 
-def blacklist_token(token, private_key=None):
+def blacklist_token(jti, exp):
     """
-    Add the JWT id ``jti`` to the blacklist.
+    Blacklist a token with the JWT id ``jti`` and expiration ``exp``.
 
     Args:
-        token (str): encoded form of token to blacklist
-        private_key (Optional[str]): private key to decode with
+        jti (str): JWT id, which must be a UUID4
+        exp (int): the expiration time of the token
 
     Return:
         None
 
-    Raises:
-        - ValueError: if ``jti`` is not a UUID4
-        - jwt.InvalidTokenError: if token decoding fails
-
     Side Effects:
         - Add entry with ``jti`` to ``BlacklistedToken`` table
     """
-    private_key = private_key or keys.get_default_private_key()
-    decoded_token = jwt.decode(token, private_key, algorithm='RS256')
-    exp = decoded_token['exp']
-    jti = decoded_token['jti']
-    # Check that JWT id is UUID4 (this raises a ValueError otherwise).
-    uuid.UUID(jti, version=4)
     # Do nothing if JWT id is already blacklisted.
     with flask.current_app.db.sesion as session:
         if session.query(BlacklistedToken).filter_by(jti=jti).first():
@@ -64,6 +54,46 @@ def blacklist_token(token, private_key=None):
     with flask.current_app.db.session as session:
         session.add(BlacklistedToken(jti=jti, exp=exp))
         session.commit()
+
+
+def blacklist_encoded_token(encoded_token, public_key=None):
+    """
+    Given an encoded refresh JWT ``encoded_token``, add it to the blacklist
+    using its JWT id ``jti`` and expiration ``exp``.
+
+    This just wraps ``blacklist_token`` by decoding the token first. The token
+    _must_ be a refresh token; only refresh tokens may be blacklisted.
+
+    Args:
+        encoded_token (str): the token
+        public_key (Optional[str]): public key to decode token with
+
+    Return:
+        None
+
+    Raises:
+        - KeyError: if token is missing a claim (``aud``, ``exp``, or ``jti``)
+        - ValueError: if ``jti`` is not UUID4, ``exp`` not provided
+        - jwt.InvalidTokenError: if token decoding fails
+
+    Side Effects:
+        - Add entry with ``jti`` to ``BlacklistedToken`` table
+    """
+    # Decode token and get claims.
+    public_key = public_key or keys.get_default_private_key()
+    token = jwt.decode(encoded_token, public_key, algorithm='RS256')
+    jti = token['jti']
+    exp = token['exp']
+    aud = token['aud']
+
+    # Do checks.
+    # Check that JWT id is UUID4 (this raises a ValueError otherwise).
+    uuid.UUID(jti, version=4)
+    # Must be refresh token.
+    if 'refresh' not in aud:
+        raise ValueError('can only blacklist refresh tokens')
+
+    blacklist_token(jti, exp)
 
 
 def is_blacklisted(jti):

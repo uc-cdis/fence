@@ -329,16 +329,24 @@ def revoke_token():
     Return:
         Tuple[str, int]: JSON response and status code
     """
+    # Try to get token from form data.
     try:
-        token = flask.request.form['token']
+        encoded_token = flask.request.form['token']
     except KeyError:
         return (flask.jsonify({'errors': 'no token provided'}), 400)
+
+    # Try to blacklist the token; see possible exceptions raised in
+    # ``blacklist_encoded_token``.
     try:
-        blacklist.blacklist_token(token)
-    except KeyError:
-        return (flask.jsonify({'errors': 'token missing JWT id'}), 400)
+        blacklist.blacklist_encoded_token(encoded_token)
     except jwt.InvalidTokenError:
         return (flask.jsonify({'errors': 'invalid token'}), 400)
+    except KeyError as e:
+        msg = 'token missing claim: {}'.format(str(e))
+        return (flask.jsonify({'errors': msg}), 400)
+    except ValueError as e:
+        return (flask.jsonify({'errors': str(e)}), 400)
+
     return ('', 204)
 
 
