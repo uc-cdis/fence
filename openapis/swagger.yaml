@@ -184,7 +184,7 @@ paths:
           description: successful operation, OR invalid token submitted
         '400':
           description: 'invalid token provided: not a refresh token, or token was missing a claim, or token could not be validated'
-  '/keys':
+  '/jwt/keys':
     get:
       tags:
         - keys
