@@ -30,9 +30,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY . /fence
 WORKDIR /fence
-RUN ln -s /fence/wsgi.py /var/www/fence/wsgi.py \
-    && python setup.py install \
-    && echo '<VirtualHost *:80>\n\
+RUN ln -s /fence/wsgi.py /var/www/fence/wsgi.py
+RUN python setup.py install
+RUN echo '<VirtualHost *:80>\n\
     WSGIDaemonProcess /fence processes=1 threads=1 python-path=/var/www/fence/:/fence/:/usr/bin/python\n\
     WSGIScriptAlias / /var/www/fence/wsgi.py\n\
     WSGIPassAuthorization On\n\
@@ -47,11 +47,11 @@ RUN ln -s /fence/wsgi.py /var/www/fence/wsgi.py \
     LogLevel warn\n\
     CustomLog ${APACHE_LOG_DIR}/access.log combined\n\
 </VirtualHost>\n'\
->> /etc/apache2/sites-available/fence.conf \
-    && a2dissite 000-default \
-    && a2ensite fence \
-    && ln -sf /dev/stdout /var/log/apache2/access.log \
-    && ln -sf /dev/stderr /var/log/apache2/error.log
+>> /etc/apache2/sites-available/fence.conf
+RUN a2dissite 000-default
+RUN a2ensite fence
+RUN ln -sf /dev/stdout /var/log/apache2/access.log
+RUN ln -sf /dev/stderr /var/log/apache2/error.log
 
 EXPOSE 80
 WORKDIR /var/www/fence/
