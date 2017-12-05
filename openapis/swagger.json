@@ -17,16 +17,19 @@
   "basePath" : "/",
   "tags" : [ {
     "name" : "oauth2",
-    "description" : "Authorization and Token Management"
+    "description" : "Authorization and token management"
   }, {
     "name" : "user",
-    "description" : ""
+    "description" : "User information"
   }, {
     "name" : "data",
-    "description" : ""
+    "description" : "Generate pre-signed URLs"
   }, {
     "name" : "link",
-    "description" : ""
+    "description" : "Link access identities"
+  }, {
+    "name" : "keys",
+    "description" : "Get public keys used to validate JWTs issued by fence"
   } ],
   "schemes" : [ "https" ],
   "paths" : {
@@ -86,7 +89,8 @@
           "in" : "formData",
           "description" : "For an authorization request using the access code flow, the response type must be \"code\". If this is missing from the request then the authorization server must return an error.",
           "required" : true,
-          "type" : "string"
+          "type" : "string",
+          "enum" : [ "code", "token" ]
         }, {
           "name" : "redirect_uri",
           "in" : "formData",
@@ -169,6 +173,25 @@
         "responses" : {
           "200" : {
             "description" : "successful operation, OR invalid token submitted"
+          },
+          "400" : {
+            "description" : "invalid token provided: not a refresh token, or token was missing a claim, or token could not be validated"
+          }
+        }
+      }
+    },
+    "/keys" : {
+      "get" : {
+        "tags" : [ "keys" ],
+        "summary" : "Return the public keys which can be used to validate JWTs issued and signed by fence",
+        "operationId" : "getKeys",
+        "parameters" : [ ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/PublicKeys"
+            }
           }
         }
       }
@@ -192,7 +215,7 @@
         } ]
       }
     },
-    "/data/{uuid,location}" : {
+    "/data/{uuid}" : {
       "get" : {
         "tags" : [ "data" ],
         "summary" : "Create a presigned URL for data",
@@ -209,7 +232,8 @@
           "in" : "query",
           "description" : "location (as in cloud provider) to use",
           "required" : true,
-          "type" : "string"
+          "type" : "string",
+          "enum" : [ "aws", "google" ]
         } ],
         "responses" : {
           "200" : {
@@ -219,7 +243,7 @@
             }
           },
           "400" : {
-            "description" : "Invalid input"
+            "description" : "Invalid input: UUID not found or invalid location"
           }
         },
         "security" : [ {
@@ -231,7 +255,7 @@
       "post" : {
         "tags" : [ "link" ],
         "summary" : "Link Google identity",
-        "description" : "Allows users to use standard data access tools provided by Google after linking users’ Google identity. User’s identity will be added to a proxy group owned by GDC, the proxy group will then be added to project specific groups and the Google groups will be added to buckets ACLs.",
+        "description" : "Allow users to use standard data access tools provided by Google after linking users’ Google identity. User’s identity will be added to a proxy group owned by GDC, the proxy group will then be added to project specific groups and the Google groups will be added to buckets ACLs.",
         "operationId" : "linkCloudIdentity",
         "parameters" : [ ],
         "responses" : {
@@ -299,6 +323,25 @@
           "type" : "string",
           "description" : "the presigned url issued to"
         }
+      }
+    },
+    "PublicKeys" : {
+      "type" : "object",
+      "properties" : {
+        "keys" : {
+          "type" : "array",
+          "description" : "array of single-entry dictionaries mapping from key id to public key",
+          "items" : {
+            "type" : "object",
+            "description" : "single-entry mapping `key_id: public_key`",
+            "properties" : { }
+          }
+        }
+      },
+      "example" : {
+        "keys" : [ {
+          "public_key_01" : "-----BEGIN PUBLIC KEY----- ... -----END PUBLIC KEY-----"
+        } ]
       }
     },
     "OAuthHTML" : {
