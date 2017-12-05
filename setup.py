@@ -40,9 +40,6 @@ setup(
     scripts=[
         "bin/fence-create",
     ],
-    data_files=[
-        ('keys', ['keys/jwt_private_key.pem', 'keys/jwt_public_key.pem'])
-    ],
     include_package_data=True,
     packages=find_packages(),
 )
