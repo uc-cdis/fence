@@ -168,8 +168,8 @@ paths:
     post:
       tags:
         - oauth2
-      summary: Revoke a token
-      description: Revoke the access or refresh token granted to a user.
+      summary: Revoke a refresh token
+      description: Revoke a refresh (not access) token granted to a user.
       operationId: revoke
       consumes:
         - application/x-www-form-urlencoded
@@ -178,7 +178,7 @@ paths:
           required: true
           type: string
           in: formData
-          description: Token that the user wants to revoke
+          description: Refresh token that the user wants to revoke
       responses:
         '200':
           description: successful operation, OR invalid token submitted
