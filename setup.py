@@ -31,14 +31,12 @@ setup(
         "python_keystoneclient==3.13.0",
         "requests==2.18.4",
         "setuptools==36.6.0",
-        "storageclient",
         "temps==0.3.0",
         "userdatamodel",
     ],
     dependency_links=[
         "git+https://github.com/uc-cdis/flask-postgres-session.git@0.1.3#egg=flask_postgres_session-0.1.3",
         "git+https://github.com/uc-cdis/userdatamodel.git@1.0.2#egg=userdatamodel-1.0.2",
-        "git+https://github.com/uc-cdis/storage-client.git@0.1.2#egg=storageclient-0.1.2"
     ],
     scripts=[
         "bin/fence-create",
