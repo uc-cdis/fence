@@ -17,7 +17,6 @@ from .login import blueprint as login
 from .models import UserSession
 from .oauth2 import init_oauth
 from .oauth2 import blueprint as oauth2
-from .resources.aws.boto_manager import BotoManager
 from .resources.openid.google_oauth2 import Oauth2Client
 from .storage_creds import blueprint as credentials
 from .user import blueprint as user
@@ -60,7 +59,6 @@ def app_sessions(app):
     app.url_map.strict_slashes = False
     app.db = SQLAlchemyDriver(app.config['DB'])
     session = flask_scoped_session(app.db.Session, app)  # noqa
-    app.boto = BotoManager(app.config['AWS'])
     app.jinja_env.globals['csrf_token'] = generate_csrf_token
     if ('OPENID_CONNECT' in app.config
         and 'google' in app.config['OPENID_CONNECT']):

@@ -1,9 +1,7 @@
 Flask==0.10.1
-boto==2.46.1
 requests==2.5.2
 pysftp==0.2.8
 Flask_SQLAlchemy_Session==1.1
-boto3==1.4.4
 SQLAlchemy==0.9.9
 requests_aws==0.1.8
 Werkzeug==0.12.2

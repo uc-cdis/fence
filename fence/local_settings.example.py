@@ -1,6 +1,3 @@
-from boto.s3.connection import OrdinaryCallingFormat
-
-
 DB = 'postgresql://test:test@localhost:5432/fence'
 
 MOCK_AUTH = False
@@ -14,35 +11,6 @@ EMAIL_SERVER = 'localhost'
 SEND_FROM = 'phillis.tt@gmail.com'
 
 SEND_TO = 'phillis.tt@gmail.com'
-
-STORAGE_CREDENTIALS = {
-    "cleversafe": {
-        'aws_access_key_id': '',
-        'aws_secret_access_key': '',
-        'host': 'somemanager.osdc.io',
-        'public_host': 'someobjstore.datacommons.io',
-        'port': 443,
-        'is_secure': True,
-        'username': 'someone',
-        'password': 'somepass',
-        "calling_format": OrdinaryCallingFormat(),
-        "is_mocked": True
-    }
-}
-
-CEPH = {
-    'aws_access_key_id': '',
-    'aws_secret_access_key': '',
-    'host': '',
-    'port': 443,
-    'is_secure': True,
-    "calling_format": OrdinaryCallingFormat()
-}
-
-AWS = {
-    'aws_access_key_id': '',
-    'aws_secret_access_key': '',
-}
 
 HMAC_ENCRYPTION_KEY = ''
 
