@@ -29,7 +29,6 @@ setup(
         "pytest==3.2.3",
         "python_bcrypt==0.3.2",
         "python_dateutil==2.6.1",
-        "python_keystoneclient==3.13.0",
         "requests==2.13.0",
         "setuptools==36.6.0",
         "temps==0.3.0",

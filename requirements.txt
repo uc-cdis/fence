@@ -16,5 +16,4 @@ awsauth==0.3.3
 python_bcrypt==0.3.2
 python_dateutil==2.6.1
 PyJWT==1.5.3
-python_keystoneclient==3.13.0
 google_api_python_client==1.6.4
