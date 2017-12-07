@@ -16,6 +16,7 @@ setup(
         "boto3==1.4.7",
         "boto==2.48.0",
         "botocore==1.7.36",
+        "cdispyutils",
         "cryptography==2.1.2",
         "flask_postgres_session",
         "google_api_python_client==1.6.4",
@@ -29,7 +30,7 @@ setup(
         "python_bcrypt==0.3.2",
         "python_dateutil==2.6.1",
         "python_keystoneclient==3.13.0",
-        "requests==2.18.4",
+        "requests==2.13.0",
         "setuptools==36.6.0",
         "temps==0.3.0",
         "userdatamodel",
@@ -37,6 +38,7 @@ setup(
     dependency_links=[
         "git+https://github.com/uc-cdis/flask-postgres-session.git@0.1.3#egg=flask_postgres_session-0.1.3",
         "git+https://github.com/uc-cdis/userdatamodel.git@1.0.2#egg=userdatamodel-1.0.2",
+        "git+https://github.com/uc-cdis/cdis-python-utils.git@9ce2843cc472b7b0f5c1e531e8473a7d9433e39c#egg=cdispyutils",
     ],
     scripts=[
         "bin/fence-create",
