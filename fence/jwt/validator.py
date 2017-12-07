@@ -1,12 +1,10 @@
 import datetime
-
-from cdispyutils import auth
 import flask
 import flask_oauthlib
 import jwt
 
-from fence import keys
-from fence.blacklist import BlacklistedToken
+from cdispyutils import auth
+from .blacklist import BlacklistedToken
 
 
 class JWTValidator(flask_oauthlib.provider.OAuth2RequestValidator):

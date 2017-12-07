@@ -1,4 +1,4 @@
-from fence.models import HMACKeyPair
+from fence.data_model.models import HMACKeyPair
 import datetime
 from cryptography.fernet import Fernet
 from ...utils import random_str
@@ -40,9 +40,9 @@ def create_keypair(user, current_session, encryption_key, expire=86400):
 def delete_keypair(user, current_session, access_key):
     result = (
         current_session.query(HMACKeyPair)
-        .filter(HMACKeyPair.access_key == access_key)
-        .filter(HMACKeyPair.user_id == user.id)
-        .first())
+            .filter(HMACKeyPair.access_key == access_key)
+            .filter(HMACKeyPair.user_id == user.id)
+            .first())
     if not result:
         raise NotFound("Access key doesn't exist")
     result.archive_keypair(current_session)

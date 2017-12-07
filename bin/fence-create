@@ -16,7 +16,7 @@ from userdatamodel.models import (
 )
 
 from fence.utils import create_client, drop_client
-from fence.resources.storage.cdis import create_keypair
+from fence.resources.storage.cdis_hmac import create_keypair
 
 
 def create_client_action(DB, username=None, client=None, urls=None):

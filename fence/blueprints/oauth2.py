@@ -16,22 +16,17 @@ stateless.
 
 from __future__ import print_function
 
-from datetime import datetime, timedelta
-import json
-import uuid
-
-from cdispyutils.log import get_logger
 import flask
 from flask_oauthlib.provider import OAuth2Provider
 from flask_sqlalchemy_session import current_session
-import jwt
-import oauthlib
 
-from fence import blacklist
-from fence import models
+from datetime import datetime, timedelta
+from cdispyutils.log import get_logger
+from fence.data_model import models
 from fence.auth import get_current_user
-from fence.jwt_validator import JWTValidator
+from fence.jwt.validator import JWTValidator
 from fence.utils import hash_secret
+from fence.jwt import token
 
 
 log = get_logger('fence')
@@ -118,6 +113,12 @@ oauth._validator = JWTValidator(
 )
 
 
+def get_user(request):
+    grant = load_grant(request.body.get('client_id'), request.body.get('code'))
+    user = grant.user
+    return user
+
+
 def signed_access_token_generator(kid, private_key, **kwargs):
     """
     Return a function which takes in an oauthlib request and generates a signed
@@ -147,7 +148,8 @@ def signed_access_token_generator(kid, private_key, **kwargs):
         Return:
             str: encoded JWT signed with ``private_key``
         """
-        return generate_signed_access_token(kid, private_key, request)
+        return token.generate_signed_access_token(kid, private_key, get_user(request),
+                                                  request.expires_in, request.scopes)
     return generate_signed_access_token_from_request
 
 
@@ -180,103 +182,8 @@ def signed_refresh_token_generator(kid, private_key, **kwargs):
         Return:
             str: encoded JWT signed with ``private_key``
         """
-        return generate_signed_refresh_token(kid, private_key, request)
+        return token.generate_signed_refresh_token(kid, private_key, get_user(request), request.expires_in)
     return generate_signed_refresh_token_from_request
-
-
-def issued_and_expiration_times(seconds_to_expire):
-    """
-    Return the times in unix time that a token is being issued and will be
-    expired (the issuing time being now, and the expiration being
-    ``seconds_to_expire`` seconds after that). Used for constructing JWTs.
-
-    Args:
-        seconds_to_expire (int): lifetime in seconds
-
-    Return:
-        Tuple[int, int]: (issued, expired) times in unix time
-    """
-    now = datetime.now()
-    iat = int(now.strftime('%s'))
-    exp = int((now + timedelta(seconds=seconds_to_expire)).strftime('%s'))
-    return (iat, exp)
-
-
-def generate_signed_refresh_token(kid, private_key, request):
-    """
-    Generate a JWT refresh token from the given request, and output a UTF-8
-    string of the encoded JWT signed with the private key.
-
-    Args:
-        private_key (str): RSA private key to sign and encode the JWT with
-        request (oauthlib.common.Request): token request to handle
-
-    Return:
-        str: encoded JWT refresh token signed with ``private_key``
-    """
-    grant = load_grant(request.body.get('client_id'), request.body.get('code'))
-    user = grant.user
-    headers = {'kid': kid}
-    iat, exp = issued_and_expiration_times(request.expires_in)
-    claims = {
-        'aud': ['refresh'],
-        'sub': str(user.id),
-        'iss': flask.current_app.config.get('HOST_NAME'),
-        'iat': iat,
-        'exp': exp,
-        'jti': str(uuid.uuid4()),
-        'access_aud': request.scopes,
-        'context': {
-            'user': {
-                'name': user.username,
-                'projects': dict(user.project_access),
-            },
-        },
-    }
-    flask.current_app.logger.info(
-        'issuing JWT refresh token\n' + json.dumps(claims, indent=4)
-    )
-    token = jwt.encode(claims, private_key, headers=headers, algorithm='RS256')
-    token = oauthlib.common.to_unicode(token, 'UTF-8')
-    return token
-
-
-def generate_signed_access_token(kid, private_key, request):
-    """
-    Generate a JWT refresh token from the given request, and output a UTF-8
-    string of the encoded JWT signed with the private key.
-
-    Args:
-        private_key (str): RSA private key to sign and encode the JWT with
-        request (oauthlib.common.Request): token request to handle
-
-    Return:
-        str: encoded JWT access token signed with ``private_key``
-    """
-    grant = load_grant(request.body.get('client_id'), request.body.get('code'))
-    user = grant.user
-    headers = {'kid': kid}
-    iat, exp = issued_and_expiration_times(request.expires_in)
-    claims = {
-        'aud': request.scopes + ['access'],
-        'sub': str(user.id),
-        'iss': flask.current_app.config.get('HOST_NAME'),
-        'iat': iat,
-        'exp': exp,
-        'jti': str(uuid.uuid4()),
-        'context': {
-            'user': {
-                'name': user.username,
-                'projects': dict(user.project_access),
-            },
-        },
-    }
-    flask.current_app.logger.info(
-        'issuing JWT access token\n' + json.dumps(claims, indent=4)
-    )
-    token = jwt.encode(claims, private_key, headers=headers, algorithm='RS256')
-    flask.current_app.logger.info(str(token))
-    return token
 
 
 def init_oauth(app):
@@ -359,19 +266,7 @@ def revoke_token():
     except KeyError:
         return (flask.jsonify({'errors': 'no token provided'}), 400)
 
-    # Try to blacklist the token; see possible exceptions raised in
-    # ``blacklist_encoded_token``.
-    try:
-        blacklist.blacklist_encoded_token(encoded_token)
-    except jwt.InvalidTokenError as e:
-        return (flask.jsonify({'errors': 'invalid token: {}'.format(e)}), 400)
-    except KeyError as e:
-        msg = 'token missing claim: {}'.format(str(e))
-        return (flask.jsonify({'errors': msg}), 400)
-    except ValueError as e:
-        return (flask.jsonify({'errors': str(e)}), 400)
-
-    return ('', 204)
+    return token.revoke_token(encoded_token)
 
 
 @blueprint.route('/errors', methods=['GET'])

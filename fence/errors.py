@@ -24,3 +24,9 @@ class NotFound(APIError):
     def __init__(self, message):
         self.message = str(message)
         self.code = 404
+
+
+class NotSupported(APIError):
+    def __init__(self, message):
+        self.message = str(message)
+        self.code = 400

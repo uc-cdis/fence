@@ -5,29 +5,26 @@ import flask
 from flask.ext.cors import CORS
 from flask_postgres_session import PostgresSessionInterface
 from flask_sqlalchemy_session import flask_scoped_session
-from userdatamodel.driver import SQLAlchemyDriver
 
-from . import keys
-from . import settings as fence_settings
-from .admin import blueprint as admin
-from .auth import logout
-from .errors import APIError
-from .errors import UserError
-from .hmac_auth import blueprint as hmac
-from .login import blueprint as login
-from .models import UserSession, migrate
-from .oauth2 import init_oauth
-from .oauth2 import blueprint as oauth2
-from .resources.openid.google_oauth2 import Oauth2Client
-from .storage_creds import blueprint as credentials
-from .user import blueprint as user
-from .utils import random_str
+from fence.auth import logout
+from fence.blueprints.admin import blueprint as admin
+from fence.blueprints.login import blueprint as login
+from fence.blueprints.oauth2 import init_oauth
+from fence.blueprints.oauth2 import blueprint as oauth2
+from fence.blueprints.storage_creds import blueprint as credentials
+from fence.blueprints.user import blueprint as user
+from fence.errors import APIError, UserError
+from fence.data_model.models import UserSession, migrate
+from fence.jwt import keys
+from fence.resources.openid.google_oauth2 import Oauth2Client
+from fence.utils import random_str
+
+from userdatamodel.driver import SQLAlchemyDriver
 
 app = flask.Flask(__name__)
 CORS(app=app, headers=['content-type', 'accept'], expose_headers='*')
 app.register_blueprint(oauth2, url_prefix='/oauth2')
 app.register_blueprint(user, url_prefix='/user')
-app.register_blueprint(hmac, url_prefix='/hmac')
 app.register_blueprint(credentials, url_prefix='/credentials')
 app.register_blueprint(admin, url_prefix='/admin')
 app.register_blueprint(login, url_prefix='/login')
@@ -65,6 +62,7 @@ def app_sessions(app):
     migrate(app.db)
     session = flask_scoped_session(app.db.Session, app)  # noqa
     app.jinja_env.globals['csrf_token'] = generate_csrf_token
+    app.storage_manager = StorageManager(app.config['STORAGE_CREDENTIALS'])
     if ('OPENID_CONNECT' in app.config
         and 'google' in app.config['OPENID_CONNECT']):
         app.google_client = Oauth2Client(

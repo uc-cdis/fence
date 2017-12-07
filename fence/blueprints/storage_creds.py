@@ -1,11 +1,9 @@
-from auth import login_required
+from fence.auth import login_required
 import flask
 from flask import current_app as capp
 from flask import g, request, jsonify
 from flask_sqlalchemy_session import current_session
-from .resources.storage.cdis import create_keypair as cdis_create_keypair
-from .resources.storage.cdis import delete_keypair as cdis_delete_keypair
-from .resources.storage.cdis import list_keypairs as cdis_list_keypairs
+from fence.resources.storage.cdis_jwt import create_refresh_token, list_refresh_tokens, revoke_refresh_token
 import json
 
 blueprint = flask.Blueprint('credentials', __name__)
@@ -46,9 +44,9 @@ def list_sources():
 
 @blueprint.route('/<backend>/', methods=['GET'])
 @login_required({'credentials'})
-def list_keypairs(backend):
+def list_credentials(backend):
     '''
-    List access keys for user
+    List all existing credentials (keypairs/tokens) for user
 
     **Example:**
     .. code-block:: http
@@ -67,17 +65,18 @@ def list_keypairs(backend):
 
     '''
     if backend == 'cdis':
-        result = cdis_list_keypairs(g.user, current_session)
+        result = list_refresh_tokens(g.user)
+        return jsonify(dict(tokens=result))
     else:
         result = capp.storage_manager.list_keypairs(backend, g.user)
-    return jsonify(dict(access_keys=result))
+        return jsonify(dict(access_keys=result))
 
 
 @blueprint.route('/<backend>/', methods=['POST'])
 @login_required({'credentials'})
-def create_keypairs(backend):
+def create_credential(backend):
     '''
-    Generate a hmac keypair for user
+    Generate a credential (keypair/token) for user
 
     :query expire: expiration time in seconds, default to 3600
 
@@ -89,29 +88,31 @@ def create_keypairs(backend):
            Accept: application/json
 
     .. code-block:: JavaScript
-
+        cdis:
+        {
+            "token_value"
+        }
+        non-cdis:
         {
             "access_key": "8DGW9LyC0D4nByoWo6pp",
             "secret_key": "1lnkGScEH8Vr4EC6QnoqLK1PqRWPNqIBJkH6Vpgx"
         }
     '''
     if backend == 'cdis':
-        result = cdis_create_keypair(
-            g.user, current_session,
-            capp.config['HMAC_ENCRYPTION_KEY'],
-            request.args.get('expire', 86400))
-
-        return jsonify(result)
+        result = create_refresh_token(
+            g.user, capp.keypairs[0],
+            request.args.get('expire', 2592000))
+        return jsonify(dict(token=result))
     else:
         return jsonify(capp.storage_manager.create_keypair(backend, g.user))
 
 
 @blueprint.route('/<backend>/<access_key>', methods=['DELETE'])
 @login_required({'credentials'})
-def delete_keypair(backend, access_key):
+def delete_credential(backend, access_key):
     '''
     .. http:get: /hmac/(string: access_key)
-    Delete a hmac keypair for user
+    Revoke a credential (keypair/token) for user
 
     :param access_key: existing access key belongs to this user
 
@@ -120,7 +121,7 @@ def delete_keypair(backend, access_key):
 
     '''
     if backend == 'cdis':
-        cdis_delete_keypair(g.user, current_session, access_key)
+        revoke_refresh_token(access_key)
     else:
         capp.storage_manager.delete_keypair(backend, g.user, access_key)
     return '', 201
