@@ -262,7 +262,7 @@ def generate_signed_access_token(kid, private_key, request):
         'issuing JWT access token\n' + json.dumps(claims, indent=4)
     )
     token = jwt.encode(claims, private_key, headers=headers, algorithm='RS256')
-    token = oauthlib.common.to_unicode(token, 'UTF-8')
+    flask.current_app.logger.info(str(token))
     return token
 
 

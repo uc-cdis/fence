@@ -68,7 +68,9 @@ def login_required(scope=None):
                 eppn = 'test'
             # if there is authorization header for oauth
             if 'Authorization' in request.headers:
-                has_oauth(request.headers['Authorization'], scope=scope)
+                import flask
+                flask.current_app.logger.info(scope)
+                has_oauth(scope=scope)
                 return f(*args, **kwargs)
             # if there is shibboleth session, then create user session and
             # log user in
@@ -88,9 +90,11 @@ def login_required(scope=None):
 
 def has_oauth(scope=None):
     scope = scope or set()
-    scope.update('access')
+    scope.update({'access'})
     try:
-        access_token = auth.validate_request_jwt(aud=scope)
+        access_token = auth.validate_request_jwt(
+            aud=scope, attempt_refresh=False
+        )
     except auth.JWTValidationError as e:
         raise Unauthorized('failed to validate token: {}'.format(e))
     user_id = access_token['sub']

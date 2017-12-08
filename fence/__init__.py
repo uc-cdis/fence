@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import os
 
 import flask
@@ -48,6 +49,10 @@ def app_config(app, settings='fence.settings'):
         app.keypairs.append(keys.Keypair(
             kid=kid, public_key=public_key, private_key=private_key
         ))
+    app.jwt_public_keys = OrderedDict([
+        (keypair.kid, keypair.public_key)
+        for keypair in app.keypairs
+    ])
 
 
 app_config(app)
