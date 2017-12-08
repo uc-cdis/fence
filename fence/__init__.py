@@ -109,7 +109,7 @@ def logout_endpoint():
     return flask.redirect(logout(next_url=next_url))
 
 
-@app.route('/keys')
+@app.route('/jwt/keys')
 def public_keys():
     """
     Return the public keys which can be used to verify JWTs signed by fence.
