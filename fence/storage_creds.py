@@ -1,4 +1,4 @@
-from auth import login_required, check_scope
+from auth import login_required
 import flask
 from flask import current_app as capp
 from flask import g, request, jsonify
@@ -19,8 +19,7 @@ ALL_RESOURCES = {
 
 
 @blueprint.route('/', methods=['GET'])
-@login_required
-@check_scope("credentials")
+@login_required({'credentials'})
 def list_sources():
     '''
     List different resources user can have credentials
@@ -46,8 +45,7 @@ def list_sources():
 
 
 @blueprint.route('/<backend>/', methods=['GET'])
-@login_required
-@check_scope("credentials")
+@login_required({'credentials'})
 def list_keypairs(backend):
     '''
     List access keys for user
@@ -76,8 +74,7 @@ def list_keypairs(backend):
 
 
 @blueprint.route('/<backend>/', methods=['POST'])
-@login_required
-@check_scope("credentials")
+@login_required({'credentials'})
 def create_keypairs(backend):
     '''
     Generate a hmac keypair for user
@@ -110,8 +107,7 @@ def create_keypairs(backend):
 
 
 @blueprint.route('/<backend>/<access_key>', methods=['DELETE'])
-@login_required
-@check_scope("credentials")
+@login_required({'credentials'})
 def delete_keypair(backend, access_key):
     '''
     .. http:get: /hmac/(string: access_key)

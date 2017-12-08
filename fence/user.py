@@ -1,5 +1,5 @@
 import flask
-from auth import login_required, check_scope
+from auth import login_required
 from flask import jsonify, g, make_response
 from flask_oauthlib.provider import OAuth2Provider
 from errors import UserError, NotFound
@@ -24,15 +24,13 @@ blueprint = flask.Blueprint('user', __name__)
 
 
 @blueprint.route('/', methods=['GET'])
-@login_required
-@check_scope("user")
+@login_required({'user'})
 def user_info():
     return get_current_user_info()
 
 
 @blueprint.route('/cert', methods=['GET'])
-@login_required
-@check_scope("user")
+@login_required({'user'})
 def missing_certificate():
     g.user = current_session.merge(g.user)
     if not g.user.application:
@@ -44,8 +42,7 @@ def missing_certificate():
 
 
 @blueprint.route('/cert/<certificate>', methods=['PUT'])
-@login_required
-@check_scope("user")
+@login_required({'user'})
 def upload_certificate(certificate):
     extension = request.args.get('extension')
     allowed_extension = ['pdf', 'png', 'jpg', 'jpeg', 'txt']
@@ -93,8 +90,7 @@ def upload_certificate(certificate):
 
 
 @blueprint.route('/cert/<certificate>', methods=['GET'])
-@login_required
-@check_scope("user")
+@login_required({'user'})
 def download_certificate(certificate):
     if not g.user.application:
         g.user.application = Application()

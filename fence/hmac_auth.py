@@ -1,4 +1,4 @@
-from auth import login_required, check_scope
+from auth import login_required
 import flask
 from flask import current_app as capp
 from flask import g, request, jsonify
@@ -12,8 +12,7 @@ blueprint = flask.Blueprint('hmac', __name__)
 
 
 @blueprint.route('/', methods=['GET'])
-@login_required
-@check_scope("hmac")
+@login_required({'hmac'})
 def list_hmac_keypairs():
     '''
     List all keypairs with UTC expiration time for user
@@ -43,8 +42,7 @@ def list_hmac_keypairs():
 
 
 @blueprint.route('/', methods=['POST'])
-@login_required
-@check_scope("hmac")
+@login_required({'hmac'})
 def generate_hmac_keypairs():
     '''
     Generate a hmac keypair for user
@@ -70,8 +68,7 @@ def generate_hmac_keypairs():
 
 
 @blueprint.route('/<access_key>', methods=['DELETE'])
-@login_required
-@check_scope("hmac")
+@login_required({'hmac'})
 def delete_hmac_keypair(access_key):
     '''
     .. http:get: /hmac/(string: access_key)
