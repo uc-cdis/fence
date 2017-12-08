@@ -1,7 +1,9 @@
 from flask import current_app as capp
 from flask_postgres_session import user_session_model
 from flask_sqlalchemy_session import current_session
-from sqlalchemy import Integer, String, Column, Boolean, Text, DateTime
+from sqlalchemy import (
+    Integer, String, Column, Boolean, Text, DateTime, MetaData, Table
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import ForeignKey
 
@@ -130,6 +132,7 @@ class Token(Base):
     expires = Column(DateTime)
     _scopes = Column(Text)
 
+
     def delete(self):
         with capp.db.session as session:
             session.delete(self)
@@ -141,3 +144,22 @@ class Token(Base):
         if self._scopes:
             return self._scopes.split()
         return []
+
+
+def migrate(driver):
+    if not driver.engine.dialect.supports_alter:
+        print("This engine dialect doesn't support altering so we are not migrating even if necessary!")
+        return
+
+    md = MetaData()
+    table = Table(Token.__tablename__, md, autoload=True, autoload_with=driver.engine)
+
+    if str(table.c.access_token.type) != 'VARCHAR':
+        print("Altering table %s access_token to String" % (Token.__tablename__))
+        with driver.session as session:
+            session.execute("ALTER TABLE %s ALTER COLUMN access_token TYPE VARCHAR;" % (Token.__tablename__))
+
+    if str(table.c.refresh_token.type) != 'VARCHAR':
+        print("Altering table %s refresh_token to String" % (Token.__tablename__))
+        with driver.session as session:
+            session.execute("ALTER TABLE %s ALTER COLUMN refresh_token TYPE VARCHAR;" % (Token.__tablename__))

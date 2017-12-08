@@ -1,4 +1,3 @@
-from collections import OrderedDict
 import os
 
 import flask
@@ -14,7 +13,7 @@ from .errors import APIError
 from .errors import UserError
 from .hmac_auth import blueprint as hmac
 from .login import blueprint as login
-from .models import UserSession
+from .models import UserSession, migrate
 from .oauth2 import init_oauth
 from .oauth2 import blueprint as oauth2
 from .resources.openid.google_oauth2 import Oauth2Client
@@ -58,6 +57,7 @@ init_oauth(app)
 def app_sessions(app):
     app.url_map.strict_slashes = False
     app.db = SQLAlchemyDriver(app.config['DB'])
+    migrate(app.db)
     session = flask_scoped_session(app.db.Session, app)  # noqa
     app.jinja_env.globals['csrf_token'] = generate_csrf_token
     if ('OPENID_CONNECT' in app.config
