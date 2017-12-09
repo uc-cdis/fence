@@ -4,6 +4,10 @@ setup(
     name='fence',
     version='0.1.0',
     install_requires=[
+        "cdispyutils",
+        "flask_postgres_session",
+        "userdatamodel",
+        "six==1.11.0",
         "Flask-CORS==3.0.3",
         "Flask==0.10.1",
         "Flask_OAuthlib==0.9.4",
@@ -13,9 +17,7 @@ setup(
         "Werkzeug==0.12.2",
         "addict==2.1.1",
         "awsauth==0.3.3",
-        "cdispyutils",
         "cryptography==2.1.2",
-        "flask_postgres_session",
         "google_api_python_client==1.6.4",
         "httplib2==0.10.3",
         "mock==2.0.0",
@@ -29,7 +31,6 @@ setup(
         "requests==2.13.0",
         "setuptools==36.6.0",
         "temps==0.3.0",
-        "userdatamodel",
     ],
     dependency_links=[
         "git+https://github.com/uc-cdis/flask-postgres-session.git@0.1.3#egg=flask_postgres_session-0.1.3",
