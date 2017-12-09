@@ -1,3 +1,4 @@
+from fence import keys
 from fence.blacklist import (
     blacklist_token,
     is_blacklisted,
@@ -26,6 +27,7 @@ def test_normal_token_not_blacklisted(app, encoded_jwt_refresh_token):
     Test that a (refresh) token which was not blacklisted returns not
     blacklisted.
     """
+    print keys.default_public_key()
     assert not is_token_blacklisted(encoded_jwt_refresh_token)
 
 

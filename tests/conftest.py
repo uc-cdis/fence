@@ -128,7 +128,11 @@ def encoded_jwt(claims, private_key):
     Return:
         str: JWT containing claims encoded with private key
     """
-    return jwt.encode(claims, key=private_key, algorithm='RS256')
+    kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
+    headers = {'kid': kid}
+    return jwt.encode(
+        claims, key=private_key, headers=headers, algorithm='RS256'
+    )
 
 
 @pytest.fixture(scope='session')
@@ -144,7 +148,11 @@ def encoded_jwt_refresh_token(claims_refresh, private_key):
     Return:
         str: JWT refresh token containing claims encoded with private key
     """
-    return jwt.encode(claims_refresh, key=private_key, algorithm='RS256')
+    kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
+    headers = {'kid': kid}
+    return jwt.encode(
+        claims_refresh, key=private_key, headers=headers, algorithm='RS256'
+    )
 
 
 @pytest.fixture()

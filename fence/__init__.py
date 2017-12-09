@@ -123,7 +123,7 @@ def public_keys():
     """
     return flask.jsonify({
         'keys': [
-            {keypair.kid: keypair.public_key}
+            (keypair.kid, keypair.public_key)
             for keypair in app.keypairs
         ]
     })
