@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-import os
 import uuid
 
 from addict import Dict
@@ -7,9 +6,11 @@ import jwt
 import pytest
 from userdatamodel import Base
 
-from . import test_settings
 import fence
 from fence import models
+
+from . import test_settings
+from . import utils
 
 
 def check_auth_positive(cls, backend, user):
@@ -97,10 +98,7 @@ def public_key():
     """
     Return a public key for testing.
     """
-    os.path.dirname(os.path.realpath(__file__))
-    here = os.path.dirname(os.path.realpath(__file__))
-    with open(os.path.join(here, 'keys/test_public_key.pem')) as f:
-        return f.read()
+    return utils.read_file('keys/test_public_key.pem')
 
 
 @pytest.fixture(scope='session')
@@ -109,10 +107,7 @@ def private_key():
     Return a private key for testing. (Use only a private key that is
     specifically set aside for testing, and never actually used for auth.)
     """
-    os.path.dirname(os.path.realpath(__file__))
-    here = os.path.dirname(os.path.realpath(__file__))
-    with open(os.path.join(here, 'keys/test_private_key.pem')) as f:
-        return f.read()
+    return utils.read_file('keys/test_private_key.pem')
 
 
 @pytest.fixture(scope='session')
