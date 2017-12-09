@@ -251,7 +251,6 @@ paths:
       responses:
         '200':
           description: successful operation
-          schema: null
 definitions:
   UserInfo:
     type: object
@@ -292,10 +291,12 @@ definitions:
         type: array
         description: array of single-entry dictionaries mapping from key id to public key
         items:
-          type: object
-          description: "single-entry mapping of `key_id: public_key`"
+          type: array
+          description: "tuple of `(key_id, public_key)`"
+          items:
+            type: string
     example:
       keys:
-        - "public_key_01": "-----BEGIN PUBLIC KEY----- ... -----END PUBLIC KEY-----"
+        - ["public_key_01", "-----BEGIN PUBLIC KEY----- ... -----END PUBLIC KEY-----"]
   OAuthHTML:
     type: string
