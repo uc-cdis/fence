@@ -8,6 +8,7 @@ from flask_sqlalchemy_session import flask_scoped_session
 from userdatamodel.driver import SQLAlchemyDriver
 
 from . import keys
+from . import settings as fence_settings
 from .admin import blueprint as admin
 from .auth import logout
 from .errors import APIError
@@ -32,13 +33,13 @@ app.register_blueprint(admin, url_prefix='/admin')
 app.register_blueprint(login, url_prefix='/login')
 
 
-def app_config(app, settings='fence.settings'):
+def app_config(app, settings=fence_settings):
     """
     Set up the config for the Flask app.
     """
     app.config.from_object(settings)
     app.keypairs = []
-    root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    root_dir = os.path.dirname(os.path.realpath(settings.__file__))
     for kid, (public, private) in app.config['JWT_KEYPAIR_FILES'].iteritems():
         public_filepath = os.path.join(root_dir, public)
         private_filepath = os.path.join(root_dir, private)
@@ -49,14 +50,13 @@ def app_config(app, settings='fence.settings'):
         app.keypairs.append(keys.Keypair(
             kid=kid, public_key=public_key, private_key=private_key
         ))
+    # The fence app implements ``app.jwt_public_keys`` in the same fashion as
+    # the clients, so that fence can also call the validation functions in
+    # ``cdispyutils``.
     app.jwt_public_keys = OrderedDict([
         (keypair.kid, keypair.public_key)
         for keypair in app.keypairs
     ])
-
-
-app_config(app)
-init_oauth(app)
 
 
 def app_sessions(app):
@@ -76,6 +76,8 @@ def app_sessions(app):
 
 
 def app_init(app, settings='fence.settings'):
+    app_config(app, settings=settings)
+    init_oauth(app)
     app_sessions(app)
 
 

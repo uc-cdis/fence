@@ -1,5 +1,11 @@
 # Fence
 
+## Setup
+
+```bash
+
+```
+
 ## JWT
 
 Example JWT access token issued by fence:
@@ -65,3 +71,17 @@ JWT_KEYPAIR_FILES = OrderedDict([
 ```
 Fence will use the first keypair in the list to sign the tokens it issues
 through OAuth.
+
+
+## Notes for Development
+
+If a token contains audiences---as the ones issued by fence always
+will---`jwt.decode` should always contain an audience, because (as required by
+the specification) the validator of any given JWT must identify itself with at
+least one of the audiences in the claims of the token. Therefore, all uses of
+`jwt.decode` should look like this (where `access` indicates any access token):
+```python
+token = jwt.decode(
+    encoded_token, public_key, algorithm='RS256', audience='refresh'
+)
+```

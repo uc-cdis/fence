@@ -47,7 +47,7 @@ def blacklist_token(jti, exp):
         - Add entry with ``jti`` to ``BlacklistedToken`` table
     """
     # Do nothing if JWT id is already blacklisted.
-    with flask.current_app.db.sesion as session:
+    with flask.current_app.db.session as session:
         if session.query(BlacklistedToken).filter_by(jti=jti).first():
             return
     # Add JWT id to blacklist table.
@@ -80,8 +80,10 @@ def blacklist_encoded_token(encoded_token, public_key=None):
         - Add entry with ``jti`` to ``BlacklistedToken`` table
     """
     # Decode token and get claims.
-    public_key = public_key or keys.default_private_key()
-    token = jwt.decode(encoded_token, public_key, algorithm='RS256')
+    public_key = public_key or keys.default_public_key()
+    token = jwt.decode(
+        encoded_token, public_key, algorithm='RS256', audience='refresh'
+    )
     jti = token['jti']
     exp = token['exp']
     aud = token['aud']
@@ -108,3 +110,21 @@ def is_blacklisted(jti):
     """
     with flask.current_app.db.session as session:
         return bool(session.query(BlacklistedToken).filter_by(jti=jti).first())
+
+
+def is_token_blacklisted(encoded_token, public_key=None):
+    """
+    Decode an encoded token and check if it is blacklisted.
+
+    Args:
+        encoded_token (str): JWT to check
+        public key (Optional[str]): key to decode JWT with
+
+    Return:
+        bool: whether JWT is blacklisted
+    """
+    public_key = public_key or keys.default_public_key()
+    token = jwt.decode(
+        encoded_token, public_key, algorithm='RS256', audience='refresh'
+    )
+    return is_blacklisted(token['jti'])

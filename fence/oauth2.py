@@ -335,8 +335,8 @@ def revoke_token():
     # ``blacklist_encoded_token``.
     try:
         blacklist.blacklist_encoded_token(encoded_token)
-    except jwt.InvalidTokenError:
-        return (flask.jsonify({'errors': 'invalid token'}), 400)
+    except jwt.InvalidTokenError as e:
+        return (flask.jsonify({'errors': 'invalid token: {}'.format(e)}), 400)
     except KeyError as e:
         msg = 'token missing claim: {}'.format(str(e))
         return (flask.jsonify({'errors': msg}), 400)
