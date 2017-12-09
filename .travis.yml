@@ -4,13 +4,24 @@ python: "2.7"
 
 sudo: false
 
+cache: pip
+
+addons:
+  - postgresql: '9.4'
+
 install:
-  - pip uninstall -y six
+  - pip uninstall -y six || true
+  - pip uninstall -y userdatamodel || true
   - pip install -r dev-requirements.txt
   - python setup.py install
+  - psql -U postgres  -c "create database fence_test"
+  - userdatamodel-init --db fence_test
+
+before_script:
+  - cp fence/local_settings.example.py fence/local_settings.py
 
 script:
-- py.test -vv --cov=fence --cov-report xml tests
+  - py.test -vv --cov=fence --cov-report xml tests
 
 after_script:
-- python-codacy-coverage -r coverage.xml
+  - python-codacy-coverage -r coverage.xml
