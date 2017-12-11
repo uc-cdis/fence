@@ -22,8 +22,8 @@ def test_keys_endpoint(app, client):
 
 def test_reconstruct_keys_dict(app, client):
     """
-    Test that reconstructing the dictionary mapping key ids to public keys from
-    the return value from the public keys endpoint.
+    Test reconstructing the dictionary mapping key ids to public keys from the
+    return value from the public keys endpoint.
     """
     response = client.get('/jwt/keys')
     public_keys_dict = OrderedDict(response.json['keys'])

@@ -31,4 +31,4 @@ HTTP_PROXY = None
 STORAGES = ['/cleversafe']
 ITRUST_GLOBAL_LOGOUT = 'https://itrusteauth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl='
 SESSION_COOKIE_SECURE = False
-ENABLE_CSRF_PROTECTION = True 
+ENABLE_CSRF_PROTECTION = True

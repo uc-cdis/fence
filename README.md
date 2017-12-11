@@ -15,6 +15,7 @@ Example JWT access token issued by fence:
         "user",
         "access"
     ],
+    "iat": 1510854627,
     "exp": 1510858227,
     "sub": "25",
     "iss": "http://api.bloodpac-data.org",
@@ -31,8 +32,7 @@ Example JWT access token issued by fence:
                 ],
             }
         }
-    },
-    "iat": 1510854627
+    }
 }
 ```
 (Refresh tokens should have just `["refresh"]` for the `aud` field, since a
