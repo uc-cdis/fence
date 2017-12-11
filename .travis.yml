@@ -1,13 +1,17 @@
 language: python
 
-python: "2.7"
+python: 2.7
 
 sudo: false
 
 cache: pip
 
 addons:
-  - postgresql: '9.4'
+  - postgresql: 9.4.13
+
+before_install:
+  - psql --version
+  - psql -c 'SELECT version();' -U postgres
 
 install:
   - pip uninstall -y six || true
