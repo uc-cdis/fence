@@ -7,6 +7,7 @@ import pytest
 from userdatamodel import Base
 
 import fence
+from fence import blacklist
 from fence import models
 
 from . import test_settings
@@ -15,14 +16,6 @@ from . import utils
 
 def check_auth_positive(cls, backend, user):
     return True
-
-
-@pytest.fixture(scope='function')
-def app(request):
-    fence.app_init(fence.app, test_settings)
-    yield fence.app
-    for tbl in reversed(Base.metadata.sorted_tables):
-        fence.app.db.engine.execute(tbl.delete())
 
 
 @pytest.fixture(scope='session')
@@ -150,25 +143,32 @@ def encoded_jwt_refresh_token(claims_refresh, private_key):
     )
 
 
-@pytest.fixture()
-def oauth_client(app, request):
-    url = 'https://test.com'
+@pytest.fixture(scope='function')
+def app(request):
+    fence.app_init(fence.app, test_settings)
+    yield fence.app
+    for tbl in reversed(Base.metadata.sorted_tables):
+        fence.app.db.engine.execute(tbl.delete())
+
+
+@pytest.fixture(scope='function')
+def oauth_client(app):
+    url = 'https://test.net'
     client_id, client_secret = fence.utils.create_client(
         username='test', urls=url, DB=app.config['DB']
     )
-
-    def fin():
-        with app.db.session as s:
+    yield Dict(client_id=client_id, client_secret=client_secret, url=url)
+    with app.db.session as session:
+        # Don't flush until everything is finished, otherwise this will break
+        # because of (for example) foreign key references between the tables.
+        with session.no_autoflush:
             all_models = [
-                models.BlacklistedToken,
+                blacklist.BlacklistedToken,
                 models.Client,
                 models.Grant,
                 models.Token,
                 models.User,
             ]
             for cls in all_models:
-                for obj in s.query(cls).all():
-                    s.delete(obj)
-
-    request.addfinalizer(fin)
-    return Dict(client_id=client_id, client_secret=client_secret, url=url)
+                for obj in session.query(cls).all():
+                    session.delete(obj)
