@@ -1,4 +1,4 @@
-# Swagger
+# OpenAPI/Swagger
 
 This uses the [swagger-codegen](https://github.com/swagger-api) project to generate documentation.
 
