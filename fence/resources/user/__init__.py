@@ -53,7 +53,7 @@ def get_current_user_info():
 
 def get_user_info(user, session):
     info = {
-        'pdc_id': user.id,
+        'user_id': user.id,
         'username': user.username,
         'resources_granted': [],
         'project_access': dict(user.project_access),
