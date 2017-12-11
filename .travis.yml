@@ -7,7 +7,9 @@ sudo: false
 cache: pip
 
 addons:
-  - postgresql: 9.4.13
+  apt:
+    packages:
+      - postgresql-9.4
 
 before_install:
   - psql --version
