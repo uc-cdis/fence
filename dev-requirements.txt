@@ -1,2 +1,5 @@
 pytest-cov==2.5.1
 codacy-coverage
+mock==2.0.0
+moto==1.1.24
+-e git+https://github.com/uc-cdis/cdisutils-test.git@0.0.1#egg=cdisutilstest

@@ -1,10 +1,10 @@
 import flask
-from fence.auth import login_required
+from ..auth import login_required
 from flask import jsonify, g, make_response
 from flask_oauthlib.provider import OAuth2Provider
-from fence.errors import UserError, NotFound
+from ..errors import UserError, NotFound
 from userdatamodel.models import *  # noqa
-from fence.resources.user import send_mail, get_current_user_info
+from ..resources.user import send_mail, get_current_user_info
 from flask import current_app as capp
 from flask import request
 from flask_sqlalchemy_session import current_session

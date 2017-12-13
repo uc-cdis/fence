@@ -6,18 +6,20 @@ from flask.ext.cors import CORS
 from flask_postgres_session import PostgresSessionInterface
 from flask_sqlalchemy_session import flask_scoped_session
 
-from fence.auth import logout
-from fence.blueprints.admin import blueprint as admin
-from fence.blueprints.login import blueprint as login
-from fence.blueprints.oauth2 import init_oauth
-from fence.blueprints.oauth2 import blueprint as oauth2
-from fence.blueprints.storage_creds import blueprint as credentials
-from fence.blueprints.user import blueprint as user
-from fence.errors import APIError, UserError
-from fence.data_model.models import UserSession, migrate
-from fence.jwt import keys
-from fence.resources.openid.google_oauth2 import Oauth2Client
-from fence.utils import random_str
+from . import settings as fence_settings
+from .auth import logout
+from .blueprints.admin import blueprint as admin
+from .blueprints.login import blueprint as login
+from .blueprints.oauth2 import init_oauth
+from .blueprints.oauth2 import blueprint as oauth2
+from .blueprints.storage_creds import blueprint as credentials
+from .resources.storage import StorageManager
+from .blueprints.user import blueprint as user
+from .errors import APIError, UserError
+from .data_model.models import UserSession, migrate
+from .jwt import keys
+from .resources.openid.google_oauth2 import Oauth2Client
+from .utils import random_str
 
 from userdatamodel.driver import SQLAlchemyDriver
 

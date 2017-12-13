@@ -1,4 +1,4 @@
-from fence.jwt import token
+from ...jwt import token
 from flask import current_app as capp
 
 

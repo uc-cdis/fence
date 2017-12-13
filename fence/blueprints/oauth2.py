@@ -22,11 +22,11 @@ from flask_sqlalchemy_session import current_session
 
 from datetime import datetime, timedelta
 from cdispyutils.log import get_logger
-from fence.data_model import models
-from fence.auth import get_current_user
-from fence.jwt.validator import JWTValidator
-from fence.utils import hash_secret
-from fence.jwt import token
+from ..data_model import models
+from ..auth import get_current_user
+from ..jwt.validator import JWTValidator
+from ..utils import hash_secret
+from ..jwt import token
 
 
 log = get_logger('fence')
@@ -83,22 +83,14 @@ def load_client(client_id):
     )
 
 
-@oauth.tokensetter
-def save_token(token, request, *args, **kwargs):
-    """
-    Tokens are signed JWTs, so there is no need for fence to save the tokens;
-    just pass.
-    """
-    pass
-
-
 @oauth.tokengetter
 def load_token(access_token=None, refresh_token=None):
-    """
-    Tokens aren't saved by fence (see ``save_token`` above), so just return the
-    token itself.
-    """
-    return access_token or refresh_token
+    return token.load_token(access_token, revoke_token)
+
+
+@oauth.tokensetter
+def save_token(token_to_save, request, *args, **kwargs):
+    return token.save_token(token_to_save, request.client.client_id, request.user.id, *args, **kwargs)
 
 
 # Redefine the request validator used by the OAuth provider, using the

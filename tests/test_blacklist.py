@@ -1,4 +1,4 @@
-from fence.blacklist import (
+from fence.jwt.blacklist import (
     blacklist_token,
     is_blacklisted,
     is_token_blacklisted,

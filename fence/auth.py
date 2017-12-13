@@ -6,7 +6,7 @@ from flask import current_app as capp
 from flask_sqlalchemy_session import current_session
 
 from .errors import Unauthorized, InternalError
-from fence.data_model.models import User, IdentityProvider
+from .data_model.models import User, IdentityProvider
 
 
 def login_user(request, username, provider):

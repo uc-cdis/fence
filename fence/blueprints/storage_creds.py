@@ -1,4 +1,4 @@
-from fence.auth import login_required
+from ..auth import login_required
 import flask
 from flask import current_app as capp
 from flask import g, request, jsonify

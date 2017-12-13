@@ -7,8 +7,7 @@ import blacklist
 
 from datetime import datetime, timedelta
 from flask_sqlalchemy_session import current_session
-from fence.data_model import models
-from fence.auth import get_current_user
+from ..data_model import models
 
 
 def issued_and_expiration_times(seconds_to_expire):
@@ -159,10 +158,9 @@ def authorize(method, confirm, **kwargs):
             .first()
         )
         if client.auto_approve:
-            return True
-        kwargs['client'] = client
-        return False
-    return confirm == 'yes'
+            return True, None
+        return False, client
+    return confirm == 'yes', None
 
 
 def access_token(*args, **kwargs):

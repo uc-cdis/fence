@@ -1,8 +1,8 @@
 import flask
-from errors import UserError
+from fence.errors import UserError
 from flask import request
-from auth import login_required
-from resources.user import get_info_by_username, update_user_resource
+from fence.auth import login_required
+from fence.resources.user import get_info_by_username, update_user_resource
 
 blueprint = flask.Blueprint('admin', __name__)
 
