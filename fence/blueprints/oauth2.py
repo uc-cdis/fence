@@ -85,12 +85,12 @@ def load_client(client_id):
 
 @oauth.tokengetter
 def load_token(access_token=None, refresh_token=None):
-    return token.load_token(access_token, revoke_token)
+    return access_token or refresh_token
 
 
 @oauth.tokensetter
 def save_token(token_to_save, request, *args, **kwargs):
-    return token.save_token(token_to_save, request.client.client_id, request.user.id, *args, **kwargs)
+    pass
 
 
 # Redefine the request validator used by the OAuth provider, using the

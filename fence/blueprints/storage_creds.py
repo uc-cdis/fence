@@ -3,7 +3,8 @@ import flask
 from flask import current_app as capp
 from flask import g, request, jsonify
 from flask_sqlalchemy_session import current_session
-from fence.resources.storage.cdis_jwt import create_refresh_token, list_refresh_tokens, revoke_refresh_token
+from fence.resources.storage.cdis_jwt import create_refresh_token, list_refresh_tokens,\
+    revoke_refresh_token, create_access_token
 import json
 
 blueprint = flask.Blueprint('credentials', __name__)
@@ -42,7 +43,7 @@ def list_sources():
     return jsonify({k: ALL_RESOURCES[k] for k in services})
 
 
-@blueprint.route('/<backend>/', methods=['GET'])
+@blueprint.route('/<backend>', methods=['GET'])
 @login_required({'credentials'})
 def list_credentials(backend):
     '''
@@ -72,7 +73,7 @@ def list_credentials(backend):
         return jsonify(dict(access_keys=result))
 
 
-@blueprint.route('/<backend>/', methods=['POST'])
+@blueprint.route('/<backend>', methods=['POST'])
 @login_required({'credentials'})
 def create_credential(backend):
     '''
@@ -90,7 +91,7 @@ def create_credential(backend):
     .. code-block:: JavaScript
         cdis:
         {
-            "token_value"
+            "token": "token_value"
         }
         non-cdis:
         {
@@ -103,6 +104,41 @@ def create_credential(backend):
             g.user, capp.keypairs[0],
             request.args.get('expire', 2592000))
         return jsonify(dict(token=result))
+    else:
+        return jsonify(capp.storage_manager.create_keypair(backend, g.user))
+
+
+@blueprint.route('/<backend>', methods=['PUT'])
+@login_required({'credentials'})
+def create_access_token_api(backend):
+    '''
+    Generate a credential (keypair/token) for user
+
+    :query expire: expiration time in seconds, default to 3600
+
+    **Example:**
+    .. code-block:: http
+
+           POST /hmac/ HTTP/1.1
+           Content-Type: application/json
+           Accept: application/json
+
+    .. code-block:: JavaScript
+        cdis:
+        {
+            "access_token" "token_value"
+        }
+        non-cdis:
+        {
+            "access_key": "8DGW9LyC0D4nByoWo6pp",
+            "secret_key": "1lnkGScEH8Vr4EC6QnoqLK1PqRWPNqIBJkH6Vpgx"
+        }
+    '''
+    if backend == 'cdis':
+        result = create_access_token(
+            g.user, capp.keypairs[0],
+            request.args.get('expire', 2592000))
+        return jsonify(dict(access_token=result))
     else:
         return jsonify(capp.storage_manager.create_keypair(backend, g.user))
 

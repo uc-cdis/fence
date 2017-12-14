@@ -1,5 +1,4 @@
 from ...jwt import token
-from flask import current_app as capp
 
 
 def create_refresh_token(user, keypair, expires_in):

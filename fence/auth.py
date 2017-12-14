@@ -58,6 +58,7 @@ def login_required(scope=None):
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
+            print("Check login")
             if session.get('username'):
                 login_user(request, session['username'], session['provider'])
                 return f(*args, **kwargs)
@@ -79,6 +80,7 @@ def login_required(scope=None):
                 session['username'] = username
                 session['provider'] = IdentityProvider.itrust
                 login_user(request, username, session['provider'])
+                print(g.user)
                 return f(*args, **kwargs)
             else:
                 raise Unauthorized("Please login")

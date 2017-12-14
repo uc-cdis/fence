@@ -70,8 +70,11 @@ def generate_signed_access_token(kid, private_key, user, expires_in, scopes):
     string of the encoded JWT signed with the private key.
 
     Args:
+        kid: key id of the generated token
         private_key (str): RSA private key to sign and encode the JWT with
-        request (oauthlib.common.Request): token request to handle
+        user:
+        expires_in:
+        scopes
 
     Return:
         str: encoded JWT access token signed with ``private_key``
@@ -161,16 +164,6 @@ def authorize(method, confirm, **kwargs):
             return True, None
         return False, client
     return confirm == 'yes', None
-
-
-def access_token(*args, **kwargs):
-    """
-    Handle exchanging and refreshing the access token.
-
-    The operation here is handled entirely by the ``oauth.token_handler``
-    decorator, so this function only needs to pass.
-    """
-    pass
 
 
 def revoke_token(encoded_token):

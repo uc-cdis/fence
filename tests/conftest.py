@@ -13,8 +13,8 @@ from fence.data_model import models
 from fence import app_init
 from userdatamodel import Base
 
-from tests import test_settings
-from tests import utils
+from . import test_settings
+from . import oauth2_utils
 
 
 def check_auth_positive(cls, backend, user):
@@ -33,7 +33,7 @@ def public_key():
     """
     Return a public key for testing.
     """
-    return utils.read_file('keys/test_public_key.pem')
+    return oauth2_utils.read_file('keys/test_public_key.pem')
 
 
 @pytest.fixture(scope='session')
@@ -42,7 +42,7 @@ def private_key():
     Return a private key for testing. (Use only a private key that is
     specifically set aside for testing, and never actually used for auth.)
     """
-    return utils.read_file('keys/test_private_key.pem')
+    return oauth2_utils.read_file('keys/test_private_key.pem')
 
 
 @pytest.fixture(scope='session')
