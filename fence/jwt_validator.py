@@ -3,8 +3,10 @@ import datetime
 from cdispyutils import auth
 import flask
 import flask_oauthlib
+import jwt
 
-from .blacklist import BlacklistedToken
+from fence import keys
+from fence.blacklist import BlacklistedToken
 
 
 class JWTValidator(flask_oauthlib.provider.OAuth2RequestValidator):
@@ -114,12 +116,12 @@ class JWTValidator(flask_oauthlib.provider.OAuth2RequestValidator):
             return fail_with('No token provided.')
 
         # Must contain just a `'refresh'` audience for a refresh token.
-        decoded_jwt = auth.jwt.validate_refresh_jwt(aud={'refresh'})
-
-        # Validate expiration.
-        expiration = decoded_jwt.get('exp')
-        if not expiration or datetime.datetime.utcnow() >= expiration:
-            return fail_with('Token is expired.')
+        decoded_jwt = auth.validate_jwt(
+            encoded_token=refresh_token,
+            public_key=keys.default_public_key(),
+            aud={'refresh'},
+            iss=flask.current_app.config['HOST_NAME'],
+        )
 
         # Validate jti and make sure refresh token is not blacklisted.
         jti = decoded_jwt.get('jti')
@@ -134,3 +136,20 @@ class JWTValidator(flask_oauthlib.provider.OAuth2RequestValidator):
         )
 
         return True
+
+    def get_original_scopes(self, refresh_token, request, *args, **kwargs):
+        """
+        The docs on this method from flask-oauthlib:
+
+            Get the list of scopes associated with the refresh token.
+
+            This method is used in the refresh token grant flow. We return the
+            scope of the token to be refreshed so it can be applied to the new
+            access token.
+
+        This method is slightly weird in the JWT implementation, firstly since
+        the token is just a string (so does not have a ``scopes`` attribute),
+        and also because the ``scopes`` are translated into the ``aud`` field
+        in the JWT.
+        """
+        return jwt.decode(refresh_token, verify=False)['access_aud']

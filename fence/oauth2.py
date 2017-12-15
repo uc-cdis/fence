@@ -62,48 +62,22 @@ def load_client(client_id):
     )
 
 
-@oauth.tokengetter
-def load_token(access_token=None, refresh_token=None):
-    if access_token:
-        return (
-            current_session
-            .query(models.Token)
-            .filter_by(access_token=access_token)
-            .first()
-        )
-    elif refresh_token:
-        return (
-            current_session
-            .query(models.Token)
-            .filter_by(refresh_token=refresh_token)
-            .first()
-        )
-
-
 @oauth.tokensetter
 def save_token(token, request, *args, **kwargs):
-    toks = current_session.query(models.Token).filter_by(
-        client_id=request.client.client_id,
-        user_id=request.user.id)
-    # make sure that every client has only one token connected to a user
-    for t in toks:
-        current_session.delete(t)
+    """
+    Tokens are signed JWTs, so there is no need for fence to save the tokens;
+    just pass.
+    """
+    pass
 
-    expires_in = token.get('expires_in')
-    expires = datetime.utcnow() + timedelta(seconds=expires_in)
 
-    tok = models.Token(
-        access_token=token['access_token'],
-        refresh_token=token['refresh_token'],
-        token_type=token['token_type'],
-        _scopes=token['scope'],
-        expires=expires,
-        client_id=request.client.client_id,
-        user_id=request.user.id,
-    )
-    current_session.add(tok)
-    current_session.commit()
-    return tok
+@oauth.tokengetter
+def load_token(access_token=None, refresh_token=None):
+    """
+    Tokens aren't saved by fence (see ``save_token`` above), so just return the
+    token itself.
+    """
+    return access_token or refresh_token
 
 
 # Redefine the request validator used by the OAuth provider, using the
@@ -117,6 +91,8 @@ oauth._validator = JWTValidator(
     grantsetter=oauth._grantsetter,
 )
 
+#oauth.server.refresh_grant = JWTRefreshTokenGrant(oauth._validator)
+
 
 def signed_access_token_generator(kid, private_key, **kwargs):
     """
@@ -129,6 +105,12 @@ def signed_access_token_generator(kid, private_key, **kwargs):
         app.config['OAUTH2_PROVIDER_TOKEN_GENERATOR'] = (
             signed_access_token_generator(private_key)
         )
+
+    (This is the reason for the particular return type of this function.)
+
+    Args:
+        kid (str): key ID, name of the keypair used to sign/verify the token
+        private_key (str): the private key used to sign the token
 
     Return:
         Callable[[oauthlib.common.Request], str]
@@ -156,6 +138,12 @@ def signed_refresh_token_generator(kid, private_key, **kwargs):
         app.config['OAUTH2_PROVIDER_REFRESH_TOKEN_GENERATOR'] = (
             signed_refresh_token_generator(private_key)
         )
+
+    (This is the reason for the particular return type of this function.)
+
+    Args:
+        kid (str): key ID, name of the keypair used to sign/verify the token
+        private_key (str): the private key used to sign the token
 
     Return:
         Callable[[oauthlib.common.Request], str]
@@ -213,6 +201,7 @@ def generate_signed_refresh_token(kid, private_key, request):
         'iat': iat,
         'exp': exp,
         'jti': str(uuid.uuid4()),
+        'access_aud': request.scopes,
         'context': {
             'user': {
                 'name': user.username,
@@ -306,10 +295,13 @@ def authorize(*args, **kwargs):
 @oauth.token_handler
 def access_token(*args, **kwargs):
     """
-    Handle exchanging and refreshing the access token.
+    Handle exchanging code for and refreshing the access token.
 
     The operation here is handled entirely by the ``oauth.token_handler``
     decorator, so this function only needs to pass.
+
+    See the OpenAPI documentation for detailed specification, and the OAuth2
+    tests for examples of some operation and correct behavior.
     """
     pass
 
