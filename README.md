@@ -72,6 +72,14 @@ JWT_KEYPAIR_FILES = OrderedDict([
 Fence will use the first keypair in the list to sign the tokens it issues
 through OAuth.
 
+## OAuth 2
+
+See the [OAuth2 specification](https://tools.ietf.org/html/rfc6749) for details.
+
+This implementation diverges slightly from the recommendations (but not
+requirements!) of the specification, primarily where flask-oauthlib diverges.
+
+- https://github.com/lepture/flask-oauthlib/issues/184
 
 ## Notes for Development
 
