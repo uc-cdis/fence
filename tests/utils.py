@@ -1,4 +1,6 @@
+from datetime import datetime, timedelta
 import os
+import uuid
 
 
 def read_file(filename):
@@ -6,6 +8,51 @@ def read_file(filename):
     root_dir = os.path.dirname(os.path.realpath(__file__))
     with open(os.path.join(root_dir, filename), 'r') as f:
         return f.read()
+
+
+def new_jti():
+    """
+    Return a fresh jti (JWT token ID).
+    """
+    return str(uuid.uuid4())
+
+
+def iat_and_exp():
+    """
+    Return ``iat`` and ``exp`` claims for a JWT.
+    """
+    now = datetime.now()
+    iat = int(now.strftime('%s'))
+    exp = int((now + timedelta(seconds=60)).strftime('%s'))
+    return (iat, exp)
+
+
+def default_claims():
+    """
+    Return a generic claims dictionary to put in a JWT.
+
+    Return:
+        dict: dictionary of claims
+    """
+    aud = ['access', 'user']
+    iss = 'https://user-api.test.net'
+    jti = new_jti()
+    iat, exp = iat_and_exp()
+    return {
+        'aud': aud,
+        'sub': '1234',
+        'iss': iss,
+        'iat': iat,
+        'exp': exp,
+        'jti': jti,
+        'context': {
+            'user': {
+                'name': 'test-user',
+                'projects': [
+                ],
+            },
+        },
+    }
 
 
 def oauth_post_authorize(client, oauth_client, scope='user'):
@@ -46,6 +93,23 @@ def code_from_authorize_response(response):
     return response.headers['Location'].split('code=')[-1]
 
 
+def get_access_code(client, oauth_client, scope='user'):
+    """
+    Do all steps to get an authorization code from ``/oauth2/authorize``
+
+    Args:
+        client: client fixture
+        oauth_client: oauth client fixture
+        scope: scope to request
+
+    Return:
+        str: the authorization code
+    """
+    return code_from_authorize_response(oauth_post_authorize(
+        client, oauth_client, scope
+    ))
+
+
 def oauth_post_token(client, oauth_client, code):
     """
     Return the response from ``POST /oauth2/token``.
@@ -59,28 +123,23 @@ def oauth_post_token(client, oauth_client, code):
         pytest_flask.plugin.JSONResponse: the response
     """
     data = {
-        'code': code,
         'client_id': oauth_client.client_id,
         'client_secret': oauth_client.client_secret,
-        'redirect_uri': oauth_client.url,
+        'code': code,
         'grant_type': 'authorization_code',
+        'redirect_uri': oauth_client.url,
     }
     return client.post('/oauth2/token', data=data)
 
 
-def get_access_token(client, oauth_client):
+def get_token_response(client, oauth_client):
     """
-    Return an access token from going through the OAuth procedure.
-
     Args:
         client: client fixture
         oauth_client: oauth client fixture
 
     Return:
-        str: an access token
+        pytest_flask.plugin.JSONResponse: the response from ``/oauth2/token``
     """
-    code = code_from_authorize_response(oauth_post_authorize(
-        client, oauth_client
-    ))
-    response = oauth_post_token(client, oauth_client, code)
-    return response.json['access_token']
+    code = get_access_code(client, oauth_client)
+    return oauth_post_token(client, oauth_client, code)

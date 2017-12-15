@@ -1,6 +1,3 @@
-from datetime import datetime, timedelta
-import uuid
-
 from addict import Dict
 import jwt
 import pytest
@@ -10,8 +7,8 @@ import fence
 from fence import blacklist
 from fence import models
 
-from . import test_settings
-from . import utils
+from tests import test_settings
+from tests import utils
 
 
 def check_auth_positive(cls, backend, user):
@@ -19,69 +16,8 @@ def check_auth_positive(cls, backend, user):
 
 
 @pytest.fixture(scope='session')
-def iss():
-    """
-    Return the token issuer.
-    """
-    return 'https://user-api.test.net'
-
-
-@pytest.fixture(scope='session')
-def aud():
-    """
-    Return some default audiences to put in the claims of a JWT.
-    """
-    return ['access', 'user']
-
-
-@pytest.fixture(scope='session')
-def jti():
-    """
-    Return a JWT identifier (``jti``).
-    """
-    return str(uuid.uuid4())
-
-
-@pytest.fixture(scope='session')
-def iat_and_exp():
-    """
-    Return ``iat`` and ``exp`` claims for a JWT.
-    """
-    now = datetime.now()
-    iat = int(now.strftime('%s'))
-    exp = int((now + timedelta(seconds=60)).strftime('%s'))
-    return (iat, exp)
-
-
-@pytest.fixture(scope='session')
-def claims(aud, iat_and_exp, iss, jti):
-    """
-    Return a generic claims dictionary to put in a JWT.
-
-    Return:
-        dict: dictionary of claims
-    """
-    iat, exp = iat_and_exp
-    return {
-        'aud': aud,
-        'sub': '1234',
-        'iss': iss,
-        'iat': iat,
-        'exp': exp,
-        'jti': jti,
-        'context': {
-            'user': {
-                'name': 'test-user',
-                'projects': [
-                ],
-            },
-        },
-    }
-
-
-@pytest.fixture(scope='session')
-def claims_refresh(claims):
-    new_claims = claims.copy()
+def claims_refresh():
+    new_claims = utils.default_claims()
     new_claims['aud'] = ['refresh']
     return new_claims
 
@@ -104,7 +40,7 @@ def private_key():
 
 
 @pytest.fixture(scope='session')
-def encoded_jwt(claims, private_key):
+def encoded_jwt(private_key):
     """
     Return an example JWT containing the claims and encoded with the private
     key.
@@ -119,7 +55,33 @@ def encoded_jwt(claims, private_key):
     kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
     headers = {'kid': kid}
     return jwt.encode(
-        claims, key=private_key, headers=headers, algorithm='RS256'
+        utils.default_claims(),
+        key=private_key,
+        headers=headers,
+        algorithm='RS256',
+    )
+
+
+@pytest.fixture(scope='session')
+def encoded_jwt_expired(claims, private_key):
+    """
+    Return an example JWT that has already expired.
+
+    Args:
+        claims (dict): fixture
+        private_key (str): fixture
+
+    Return:
+        str: JWT containing claims encoded with private key
+    """
+    kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
+    headers = {'kid': kid}
+    claims_expired = utils.default_claims()
+    # Move `exp` and `iat` into the past.
+    claims_expired['exp'] -= 10000
+    claims_expired['iat'] -= 10000
+    return jwt.encode(
+        claims_expired, key=private_key, headers=headers, algorithm='RS256'
     )
 
 

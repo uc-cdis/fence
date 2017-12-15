@@ -12,11 +12,11 @@ from flask_sqlalchemy_session import current_session
 import jwt
 import oauthlib
 
-from . import blacklist
-from . import models
-from .auth import get_current_user
-from .jwt_validator import JWTValidator
-from .utils import hash_secret
+from fence import blacklist
+from fence import models
+from fence.auth import get_current_user
+from fence.jwt_validator import JWTValidator
+from fence.utils import hash_secret
 
 
 log = get_logger('fence')
