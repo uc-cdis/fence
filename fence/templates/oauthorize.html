@@ -1,0 +1,75 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>PDC oauth</title>
+
+  <!-- <link rel="stylesheet" href="css/styles.css?v=1.0"> -->
+  <link rel="stylesheet" href="/api/static/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+   <script src="/api/static/js/bootstrap.min.js"></script>
+
+  <!--[if lt IE 9]>
+</head>
+
+<body>
+  <!-- // <script src="js/scripts.js"></script> -->
+  <main>
+    <aside>
+        Bionimbus Cloud
+    </aside>
+    <section>
+      <form method='post'>
+          <div> Authorize {{client.name}} to access your {{scopes[0]}} resources?</div>
+         <input name=_csrf_token type=hidden value="{{ csrf_token }}">
+         <button id="yes" class='btn btn-success'>Yes </button>
+         <button id="no" class='btn btn-default'>No</button>
+      </form>
+    </section>
+  </main>
+</body>
+<style>
+main {
+    width: 50%;
+    margin: auto;
+    margin-top: 5em;
+    overflow: hidden;
+    background: #ffffff;
+}
+body {
+}
+main aside {
+    /*float: left;
+    width: 30%;*/
+    font-size: 2em;
+    margin-bottom: 1em;
+}
+main section {
+    /*
+    float: right;
+    width:70%;*/
+}
+main div {
+    margin-bottom: 1em;
+}
+</style>
+<script>
+    $(document).ready(function(){
+        var form = $("form")
+        $("#yes").click(function(){
+            var input = $("<input>").attr("type", "hidden").attr("name", "confirm").val("yes");
+            form.append(input);
+            form.submit();
+        })
+
+        $("#no").click(function(){
+            var input = $("<input>").attr("type", "hidden").attr("name", "confirm").val("no");
+            form.append(input);
+            form.submit();
+        })
+
+     })
+</script>
+</html>

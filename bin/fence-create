@@ -1,0 +1,224 @@
+#!/usr/bin/env python
+import argparse
+import os
+import sys
+import yaml
+
+from userdatamodel.driver import SQLAlchemyDriver
+from userdatamodel.models import (
+    AccessPrivilege,
+    CloudProvider,
+    IdentityProvider,
+    Project,
+    ResearchGroup,
+    StorageAccess,
+    User,
+)
+
+from fence.utils import create_client, drop_client
+from fence.resources.storage.cdis import create_keypair
+
+
+def create_client_action(DB, username=None, client=None, urls=None):
+    try:
+        print create_client(username, urls, DB, name=client, auto_approve=True)
+    except Exception as e:
+        print e.message
+
+
+def delete_client_action(DB, client):
+    try:
+        drop_client(client, DB)
+        print 'Client {} deleted'.format(client)
+    except Exception as e:
+        print e.message
+
+
+def create_sample_data(yaml_input):
+    with open(yaml_input, 'r') as f:
+        data = yaml.load(f)
+
+    create_group(data)
+    create_users_with_group(data)
+
+
+def create_group(data):
+    db = SQLAlchemyDriver(DB)
+    with db.session as s:
+        create_cloud_providers(s, data['cloud_providers'])
+        for group_name, fields in data['groups'].iteritems():
+            projects = fields.get('projects', [])
+            group = s.query(ResearchGroup).filter(ResearchGroup.name == group_name).first()
+            if not group:
+                group = ResearchGroup(name=group_name)
+            for project_data in projects:
+                grant_project_to_group_or_user(s, project_data, group)
+
+
+def grant_project_to_group_or_user(s, project_data, group=None, user=None):
+    privilege = project_data['privilege']
+    p_id = project_data['auth_id']
+    p_name = project_data.get('name', p_id)
+    project = s.query(Project).filter(
+        Project.name == p_name, Project.auth_id == p_id).first()
+    if not project:
+        project = Project(name=p_name, auth_id=p_id)
+        s.add(project)
+    if 'storage_accesses' in project_data:
+        sa_list = project_data['storage_accesses']
+        for sa_name in sa_list:
+            sa = (
+                s.query(StorageAccess).join(StorageAccess.provider, StorageAccess.project)
+                .filter(Project.name == project.name)
+                .filter(CloudProvider.name == sa_name).first())
+            c_provider = s.query(CloudProvider).filter(CloudProvider.name==sa_name).first()
+            if not sa:
+                sa = StorageAccess(provider=c_provider, project=project)
+                s.add(sa)
+                print ('created storage access for {} to {}'
+                       .format(project.name, c_provider.name))
+    if group:
+        ap = s.query(AccessPrivilege).join(AccessPrivilege.project)\
+            .join(AccessPrivilege.research_group)\
+            .filter(Project.name == p_name, ResearchGroup.name == group.name).first()
+        name = group.name
+    elif user:
+        ap = s.query(AccessPrivilege).join(AccessPrivilege.project)\
+            .join(AccessPrivilege.user)\
+            .filter(Project.name == p_name, User.username == user.username).first()
+        name = user.username
+    else:
+        raise Exception("need to provide either a user or group")
+    if not ap:
+        if group:
+            ap = AccessPrivilege(project=project, research_group=group, privilege=privilege)
+        elif user:
+            ap = AccessPrivilege(project=project, user=user, privilege=privilege)
+        else:
+            raise Exception("need to provide either a user or group")
+        s.add(ap)
+        print ('created access privilege {} of project {} to {}'
+               .format(privilege, p_name, name))
+    else:
+        ap.privilege = privilege
+        print ('updated access privilege {} of project {} to {}'
+               .format(privilege, p_name, name))
+
+
+def create_cloud_providers(s, cloud_data):
+    for name, fields, in cloud_data.iteritems():
+        cloud_provider = s.query(CloudProvider).filter(
+            CloudProvider.name == name
+        ).first()
+        if not cloud_provider:
+            cloud_provider = CloudProvider(name=name, backend=fields.get('backend', 'cleversafe'), service=fields.get('service', 'storage'))
+            s.add(cloud_provider)
+
+
+def create_users_with_group(data):
+    db = SQLAlchemyDriver(DB)
+    providers = {}
+    data_groups = data['groups']
+    with db.session as s:
+        for username, data in data['users'].iteritems():
+            is_existing_user = True
+            user = s.query(User).filter(User.username == username).first()
+            admin = data.get('admin', False)
+
+            if not user:
+                is_existing_user = False
+                provider_name = data.get('provider', 'google')
+                provider = providers.get(provider_name)
+                if not provider:
+                    provider = s.query(IdentityProvider).filter(
+                        IdentityProvider.name == provider_name).first()
+                    providers[provider_name] = provider
+                    if not provider:
+                        raise Exception(
+                            "provider {} not found".format(provider_name))
+
+                user = User(
+                    username=username, idp_id=provider.id, is_admin=admin)
+            user.is_admin = admin
+            group_names = data.get('groups', [])
+            for group_name in group_names:
+                assign_group_to_user(s, user, group_name, data_groups[group_name])
+            projects = data.get('projects', [])
+            for project in projects:
+                grant_project_to_group_or_user(s, project, user=user)
+            if not is_existing_user:
+                s.add(user)
+            for client in data.get('clients', []):
+                create_client_action(DB, username=username, **client)
+
+
+def assign_group_to_user(s, user, group_name, group_data):
+    group = s.query(ResearchGroup).filter(ResearchGroup.name == group_name).first()
+    if not group:
+        group = ResearchGroup(name=group_name)
+        s.add(group)
+        user.research_groups.append(group)
+    if group not in user.research_groups:
+        user.research_groups.append(group)
+
+
+def create_hmac(DB, yaml_input, encryption_key):
+    with open(yaml_input, 'r') as f:
+        users = yaml.load(f)
+
+    db = SQLAlchemyDriver(DB)
+    output = {}
+    with db.session as s:
+        for username in users['users']:
+            user = s.query(User).filter(User.username == username).first()
+            if not user:
+                print "User {} doesn't exist".format(username)
+                continue
+            output[username] = create_keypair(user, s, encryption_key)
+    print output
+    return output
+
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        '--path',
+        default='/var/www/fence-api/',
+        help='path to find local_settings.py',
+    )
+    subparsers = parser.add_subparsers(title='action', dest='action')
+    create = subparsers.add_parser('create')
+    c_create = subparsers.add_parser('client-create')
+    c_delete = subparsers.add_parser('client-delete')
+    hmac_create = subparsers.add_parser('hmac-create')
+    hmac_create.add_argument('yaml-input')
+    create.add_argument('yaml-input')
+    c_create.add_argument('--client', required=True)
+    c_create.add_argument('--urls', required=True)
+    c_create.add_argument('--username', required=True)
+    c_delete.add_argument('--client', required=True)
+    args = parser.parse_args()
+
+    sys.path.append(args.path)
+    if os.environ.get('FENCE_DB'):
+        DB = os.environ['FENCE_DB']
+    else:
+        from local_settings import DB
+    if os.environ.get('HMAC_ENCRYPTION_KEY'):
+        HMAC_ENCRYPTION_KEY = os.environ['HMAC_ENCRYPTION_KEY']
+    else:
+        from local_settings import HMAC_ENCRYPTION_KEY
+
+    if args.action == 'create':
+        yaml_input = args.__dict__['yaml-input']
+        create_sample_data(yaml_input)
+    elif args.action == 'client-create':
+        create_client_action(
+            DB, username=args.username, client=args.client,
+            urls=args.urls)
+    elif args.action == 'client-delete':
+        delete_client_action(DB, args.client)
+    elif args.action == 'hmac-create':
+        create_hmac(DB, args.__dict__['yaml-input'], HMAC_ENCRYPTION_KEY)
