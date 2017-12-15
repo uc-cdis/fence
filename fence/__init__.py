@@ -120,6 +120,16 @@ def logout_endpoint():
 def public_keys():
     """
     Return the public keys which can be used to verify JWTs signed by fence.
+
+    The return value should look like this:
+
+        {
+            "keys": [
+                {
+                    "key-01": " ... [public key here] ... "
+                }
+            ]
+        }
     """
     return flask.jsonify({
         'keys': [
