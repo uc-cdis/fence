@@ -4,22 +4,22 @@ from fence.jwt.blacklist import (
     is_token_blacklisted,
 )
 
-from tests import utils
+from tests import oauth2_utils
 
 
 def test_jti_not_blacklisted(app):
     """
     Test checking a ``jti`` which has not been blacklisted.
     """
-    assert not is_blacklisted(utils.new_jti())
+    assert not is_blacklisted(oauth2_utils.new_jti())
 
 
 def test_blacklist(app):
     """
     Test blacklisting a ``jti`` directly.
     """
-    _, exp = utils.iat_and_exp()
-    jti = utils.new_jti()
+    _, exp = oauth2_utils.iat_and_exp()
+    jti = oauth2_utils.new_jti()
     blacklist_token(jti, exp)
     assert is_blacklisted(jti)
 

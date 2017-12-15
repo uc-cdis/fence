@@ -23,7 +23,7 @@ def check_auth_positive(cls, backend, user):
 
 @pytest.fixture(scope='session')
 def claims_refresh():
-    new_claims = utils.default_claims()
+    new_claims = oauth2_utils.default_claims()
     new_claims['aud'] = ['refresh']
     return new_claims
 
@@ -61,7 +61,7 @@ def encoded_jwt(private_key):
     kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
     headers = {'kid': kid}
     return jwt.encode(
-        utils.default_claims(),
+        oauth2_utils.default_claims(),
         key=private_key,
         headers=headers,
         algorithm='RS256',
@@ -82,7 +82,7 @@ def encoded_jwt_expired(claims, private_key):
     """
     kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
     headers = {'kid': kid}
-    claims_expired = utils.default_claims()
+    claims_expired = oauth2_utils.default_claims()
     # Move `exp` and `iat` into the past.
     claims_expired['exp'] -= 10000
     claims_expired['iat'] -= 10000

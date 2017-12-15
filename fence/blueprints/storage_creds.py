@@ -102,7 +102,9 @@ def create_credential(backend):
     if backend == 'cdis':
         result = create_refresh_token(
             g.user, capp.keypairs[0],
-            request.args.get('expire', 2592000))
+            request.args.get('expire', 2592000),
+            request.args.get('scope', [])
+        )
         return jsonify(dict(token=result))
     else:
         return jsonify(capp.storage_manager.create_keypair(backend, g.user))
@@ -135,9 +137,12 @@ def create_access_token_api(backend):
         }
     '''
     if backend == 'cdis':
+        print("In create access token api")
         result = create_access_token(
             g.user, capp.keypairs[0],
-            request.args.get('expire', 2592000))
+            request.args.get('expire', 2592000),
+            request.args.get('scope', [])
+        )
         return jsonify(dict(access_token=result))
     else:
         return jsonify(capp.storage_manager.create_keypair(backend, g.user))

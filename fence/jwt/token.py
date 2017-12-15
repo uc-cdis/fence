@@ -28,7 +28,7 @@ def issued_and_expiration_times(seconds_to_expire):
     return (iat, exp)
 
 
-def generate_signed_refresh_token(kid, private_key, user, expires_in):
+def generate_signed_refresh_token(kid, private_key, user, expires_in, scopes):
     """
     Generate a JWT refresh token from the given request, and output a UTF-8
     string of the encoded JWT signed with the private key.
@@ -49,6 +49,7 @@ def generate_signed_refresh_token(kid, private_key, user, expires_in):
         'iat': iat,
         'exp': exp,
         'jti': str(uuid.uuid4()),
+        'access_aud': scopes,
         'context': {
             'user': {
                 'name': user.username,
@@ -81,6 +82,11 @@ def generate_signed_access_token(kid, private_key, user, expires_in, scopes):
     """
     headers = {'kid': kid}
     iat, exp = issued_and_expiration_times(expires_in)
+    print("In generate. scopes: {0}".format(scopes))
+    print("In generate. user: {0}".format(user))
+    print("In generate. project_access: {0}".format(user.project_access))
+    print("In generate. iat: {0}".format(iat))
+    print("In generate. exp: {0}".format(exp))
     claims = {
         'aud': scopes + ['access'],
         'sub': str(user.id),
@@ -95,6 +101,7 @@ def generate_signed_access_token(kid, private_key, user, expires_in, scopes):
             },
         },
     }
+    print("In generate access_token: {0}".format(claims))
     flask.current_app.logger.info(
         'issuing JWT access token\n' + json.dumps(claims, indent=4)
     )

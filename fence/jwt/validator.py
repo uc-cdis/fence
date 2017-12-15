@@ -3,6 +3,7 @@ import flask
 import flask_oauthlib
 import jwt
 
+from . import keys
 from cdispyutils import auth
 from .blacklist import BlacklistedToken
 

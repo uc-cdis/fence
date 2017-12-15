@@ -1,12 +1,12 @@
 from ...jwt import token
 
 
-def create_refresh_token(user, keypair, expires_in):
-    return token.generate_signed_refresh_token(keypair.kid, keypair.private_key, user, expires_in)
+def create_refresh_token(user, keypair, expires_in, scopes):
+    return token.generate_signed_refresh_token(keypair.kid, keypair.private_key, user, expires_in, scopes)
 
 
-def create_access_token(user, keypair, scope, expires_in):
-    return token.generate_signed_access_token(keypair.kid, keypair.private_key, user, expires_in, scope)
+def create_access_token(user, keypair, expires_in, scopes):
+    return token.generate_signed_access_token(keypair.kid, keypair.private_key, user, expires_in, scopes)
 
 
 def list_refresh_tokens(user):

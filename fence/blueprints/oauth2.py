@@ -174,7 +174,8 @@ def signed_refresh_token_generator(kid, private_key, **kwargs):
         Return:
             str: encoded JWT signed with ``private_key``
         """
-        return token.generate_signed_refresh_token(kid, private_key, get_user(request), request.expires_in)
+        return token.generate_signed_refresh_token(kid, private_key, get_user(request),
+                                                   request.expires_in, request.scopes)
     return generate_signed_refresh_token_from_request
 
 

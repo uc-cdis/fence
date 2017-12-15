@@ -19,7 +19,11 @@ def test_cdis_get_access_token(client, oauth_client):
     path = (
         '/credentials/cdis'
     )
-    response = client.post(path)
+    data = {
+        'refresh_token': refresh_token,
+    }
+    response = client.put(path, data=data)
+    assert 'access_token' in response.json
 
 #
 #
