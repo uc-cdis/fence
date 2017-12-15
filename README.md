@@ -1,10 +1,34 @@
 # Fence
 
+[![Build Status](https://travis-ci.org/uc-cdis/fence.svg?branch=master)](https://travis-ci.org/uc-cdis/fence)
+[![Codacy Quality Badge](https://api.codacy.com/project/badge/Grade/1cb2ec9cc64049488d140f44027c4422)](https://www.codacy.com/app/uc-cdis/fence?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=uc-cdis/fence&amp;utm_campaign=Badge_Grade)
+[![Codacy Coverage Badge](https://api.codacy.com/project/badge/Coverage/1cb2ec9cc64049488d140f44027c4422)](https://www.codacy.com/app/uc-cdis/fence?utm_source=github.com&utm_medium=referral&utm_content=uc-cdis/fence&utm_campaign=Badge_Coverage)
+
 ## Setup
 
 ```bash
-
+# Install requirements.
+pip install -r requirements.txt
+# Install fence in your preferred manner.
+python setup.py develop
+# Create test database.
+psql -U test postgres -c 'create database fence_test'
+# Initialize models in test database.
+userdatamodel-init --db fence_test
+# Create UA file.
+fence-create --path fence create ua.yaml
+# Register OAuth client (example).
+fence-create --path fence client-create --client gdcapi --urls http://localhost/api/v0/oauth2/authorize --username test
+# That command should output: (client_id, client_secret) which must be saved so
+# that gdcapi (for example) can be run as an OAuth client to use with fence.
 ```
+
+## API Documentation
+
+[OpenAPI documentation available here.](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/uc-cdis/fence/master/openapi/swagger.yaml)
+
+YAML file for the OpenAPI documentation is found in the `openapi` folder (in
+the root directory); see the README in that folder for more details.
 
 ## JWT
 
@@ -72,7 +96,7 @@ JWT_KEYPAIR_FILES = OrderedDict([
 Fence will use the first keypair in the list to sign the tokens it issues
 through OAuth.
 
-## OAuth 2
+## OAuth2
 
 See the [OAuth2 specification](https://tools.ietf.org/html/rfc6749) for details.
 
