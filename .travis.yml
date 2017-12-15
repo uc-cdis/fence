@@ -7,20 +7,14 @@ sudo: false
 cache: pip
 
 addons:
-  apt:
-    packages:
-      - postgresql-9.4
-
-before_install:
-  - psql --version
-  - psql -c 'SELECT version();' -U postgres
+  postgresql: "9.4"
 
 install:
   - pip uninstall -y six || true # travis installs wrong version
   - pip uninstall -y userdatamodel || true
   - pip install -r dev-requirements.txt
   - python setup.py install
-  - psql -U postgres  -c "create database fence_test"
+  - psql -U postgres -c "create database fence_test"
   - userdatamodel-init --db fence_test
 
 before_script:
