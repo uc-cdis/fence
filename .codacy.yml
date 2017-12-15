@@ -1,0 +1,5 @@
+---
+coverage:
+  enabled: true
+  exclude_paths:
+    - tests
