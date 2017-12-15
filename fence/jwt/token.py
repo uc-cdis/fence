@@ -3,10 +3,13 @@ import uuid
 import oauthlib
 import jwt
 import json
-import blacklist
 
 from datetime import datetime, timedelta
 from flask_sqlalchemy_session import current_session
+
+from cdispyutils import auth
+from . import blacklist, errors, keys
+from .blacklist import BlacklistedToken
 from ..data_model import models
 
 
@@ -82,11 +85,6 @@ def generate_signed_access_token(kid, private_key, user, expires_in, scopes):
     """
     headers = {'kid': kid}
     iat, exp = issued_and_expiration_times(expires_in)
-    print("In generate. scopes: {0}".format(scopes))
-    print("In generate. user: {0}".format(user))
-    print("In generate. project_access: {0}".format(user.project_access))
-    print("In generate. iat: {0}".format(iat))
-    print("In generate. exp: {0}".format(exp))
     claims = {
         'aud': scopes + ['access'],
         'sub': str(user.id),
@@ -101,7 +99,6 @@ def generate_signed_access_token(kid, private_key, user, expires_in, scopes):
             },
         },
     }
-    print("In generate access_token: {0}".format(claims))
     flask.current_app.logger.info(
         'issuing JWT access token\n' + json.dumps(claims, indent=4)
     )
@@ -110,67 +107,28 @@ def generate_signed_access_token(kid, private_key, user, expires_in, scopes):
     return token
 
 
-def load_token(access_token=None, refresh_token=None):
-    if access_token:
-        return (
-            current_session
-            .query(models.Token)
-            .filter_by(access_token=access_token)
-            .first()
-        )
-    elif refresh_token:
-        return (
-            current_session
-            .query(models.Token)
-            .filter_by(refresh_token=refresh_token)
-            .first()
-        )
+def validate_refresh_token(refresh_token):
+    # Validate token existing.
+    if not refresh_token:
+        raise errors.JWTError('No token provided.')
 
-
-def list_tokens(user):
-    return (
-        current_session.query(models.Token).filter_by(user_id=user.id).all()
+    # Must contain just a `'refresh'` audience for a refresh token.
+    decoded_jwt = auth.validate_jwt(
+        encoded_token=refresh_token,
+        public_key=keys.default_public_key(),
+        aud={'refresh'},
+        iss=flask.current_app.config['HOST_NAME'],
     )
 
+    # Validate jti and make sure refresh token is not blacklisted.
+    jti = decoded_jwt.get('jti')
+    if not jti:
+        errors.JWTError('Token missing jti claim.')
+    with flask.current_app.db.session as session:
+        if session.query(BlacklistedToken).filter_by(jti=jti).first():
+            raise errors.JWTError('Token is blacklisted.')
 
-def save_token(token, client_id, user_id, *args, **kwargs):
-    toks = current_session.query(models.Token).filter_by(
-        client_id=client_id,
-        user_id=user_id)
-    # make sure that every client has only one token connected to a user
-    for t in toks:
-        current_session.delete(t)
-
-    expires_in = token.get('expires_in')
-    expires = datetime.utcnow() + timedelta(seconds=expires_in)
-
-    tok = models.Token(
-        access_token=token['access_token'],
-        refresh_token=token['refresh_token'],
-        token_type=token['token_type'],
-        _scopes=token['scope'],
-        expires=expires,
-        client_id=client_id,
-        user_id=user_id,
-    )
-    current_session.add(tok)
-    current_session.commit()
-    return tok
-
-
-def authorize(method, confirm, **kwargs):
-    if method == 'GET':
-        client_id = kwargs.get('client_id')
-        client = (
-            current_session
-            .query(models.Client)
-            .filter_by(client_id=client_id)
-            .first()
-        )
-        if client.auto_approve:
-            return True, None
-        return False, client
-    return confirm == 'yes', None
+    return decoded_jwt
 
 
 def revoke_token(encoded_token):
@@ -189,11 +147,9 @@ def revoke_token(encoded_token):
     try:
         blacklist.blacklist_encoded_token(encoded_token)
     except jwt.InvalidTokenError:
-        return (flask.jsonify({'errors': 'invalid token'}), 400)
+        raise errors.JWTError('invalid token', 400)
     except KeyError as e:
         msg = 'token missing claim: {}'.format(str(e))
-        return (flask.jsonify({'errors': msg}), 400)
+        raise errors.JWTError(msg, 400)
     except ValueError as e:
-        return (flask.jsonify({'errors': str(e)}), 400)
-
-    return ('', 204)
+        raise errors.JWTError(str(e), 400)

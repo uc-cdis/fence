@@ -14,7 +14,7 @@ from fence import app_init
 from userdatamodel import Base
 
 from . import test_settings
-from . import oauth2_utils
+from .utils import oauth2 as utils
 
 
 def check_auth_positive(cls, backend, user):
@@ -23,7 +23,7 @@ def check_auth_positive(cls, backend, user):
 
 @pytest.fixture(scope='session')
 def claims_refresh():
-    new_claims = oauth2_utils.default_claims()
+    new_claims = utils.default_claims()
     new_claims['aud'] = ['refresh']
     return new_claims
 
@@ -33,7 +33,7 @@ def public_key():
     """
     Return a public key for testing.
     """
-    return oauth2_utils.read_file('keys/test_public_key.pem')
+    return utils.read_file('keys/test_public_key.pem')
 
 
 @pytest.fixture(scope='session')
@@ -42,7 +42,7 @@ def private_key():
     Return a private key for testing. (Use only a private key that is
     specifically set aside for testing, and never actually used for auth.)
     """
-    return oauth2_utils.read_file('keys/test_private_key.pem')
+    return utils.read_file('keys/test_private_key.pem')
 
 
 @pytest.fixture(scope='session')
@@ -61,7 +61,7 @@ def encoded_jwt(private_key):
     kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
     headers = {'kid': kid}
     return jwt.encode(
-        oauth2_utils.default_claims(),
+        utils.default_claims(),
         key=private_key,
         headers=headers,
         algorithm='RS256',
@@ -82,7 +82,7 @@ def encoded_jwt_expired(claims, private_key):
     """
     kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
     headers = {'kid': kid}
-    claims_expired = oauth2_utils.default_claims()
+    claims_expired = utils.default_claims()
     # Move `exp` and `iat` into the past.
     claims_expired['exp'] -= 10000
     claims_expired['iat'] -= 10000
@@ -149,7 +149,6 @@ def oauth_client(app, request):
     client_id, client_secret = fence.utils.create_client(
         username='test', urls=url, DB=app.config['DB']
     )
-    # yield Dict(client_id=client_id, client_secret=client_secret, url=url)
 
     def fin():
         with app.db.session as session:

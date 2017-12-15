@@ -24,9 +24,9 @@ from datetime import datetime, timedelta
 from cdispyutils.log import get_logger
 from ..data_model import models
 from ..auth import get_current_user
-from ..jwt.validator import JWTValidator
+from ..jwt.oauth_validator import OAuthValidator
 from ..utils import hash_secret
-from ..jwt import token
+from ..jwt import token, errors
 
 
 log = get_logger('fence')
@@ -95,7 +95,7 @@ def save_token(token_to_save, request, *args, **kwargs):
 
 # Redefine the request validator used by the OAuth provider, using the
 # JWTValidator which redefines bearer and refresh token validation to use JWT.
-oauth._validator = JWTValidator(
+oauth._validator = OAuthValidator(
     clientgetter=oauth._clientgetter,
     tokengetter=oauth._tokengetter,
     grantgetter=oauth._grantgetter,
@@ -259,7 +259,11 @@ def revoke_token():
     except KeyError:
         return (flask.jsonify({'errors': 'no token provided'}), 400)
 
-    return token.revoke_token(encoded_token)
+    try:
+        token.revoke_token(encoded_token)
+    except errors.JWTError as e:
+        return (e.message, e.code)
+    return ('', 204)
 
 
 @blueprint.route('/errors', methods=['GET'])

@@ -1,6 +1,6 @@
 from collections import OrderedDict
 
-from . import oauth2_utils
+from .utils import oauth2 as utils
 from .test_settings import JWT_KEYPAIR_FILES
 
 
@@ -17,7 +17,7 @@ def test_keys_endpoint(app, client):
     comparison = zip(public_keys, JWT_KEYPAIR_FILES.items())
     for (kid, public_key), (settings_kid, (public_key_file, _)) in comparison:
         assert kid == settings_kid
-        assert public_key == oauth2_utils.read_file(public_key_file)
+        assert public_key == utils.read_file(public_key_file)
 
 
 def test_reconstruct_keys_dict(app, client):

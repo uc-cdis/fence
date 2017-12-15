@@ -2,10 +2,8 @@ from ..auth import login_required
 import flask
 from flask import current_app as capp
 from flask import g, request, jsonify
-from flask_sqlalchemy_session import current_session
-from fence.resources.storage.cdis_jwt import create_refresh_token, list_refresh_tokens,\
+from fence.resources.storage.cdis_jwt import create_refresh_token,\
     revoke_refresh_token, create_access_token
-import json
 
 blueprint = flask.Blueprint('credentials', __name__)
 
@@ -43,7 +41,7 @@ def list_sources():
     return jsonify({k: ALL_RESOURCES[k] for k in services})
 
 
-@blueprint.route('/<backend>', methods=['GET'])
+@blueprint.route('/<backend>/', methods=['GET'])
 @login_required({'credentials'})
 def list_credentials(backend):
     '''
@@ -65,15 +63,12 @@ def list_credentials(backend):
         ]
 
     '''
-    if backend == 'cdis':
-        result = list_refresh_tokens(g.user)
-        return jsonify(dict(tokens=result))
-    else:
+    if backend != 'cdis':
         result = capp.storage_manager.list_keypairs(backend, g.user)
         return jsonify(dict(access_keys=result))
 
 
-@blueprint.route('/<backend>', methods=['POST'])
+@blueprint.route('/<backend>/', methods=['POST'])
 @login_required({'credentials'})
 def create_credential(backend):
     '''
@@ -110,7 +105,7 @@ def create_credential(backend):
         return jsonify(capp.storage_manager.create_keypair(backend, g.user))
 
 
-@blueprint.route('/<backend>', methods=['PUT'])
+@blueprint.route('/<backend>/', methods=['PUT'])
 @login_required({'credentials'})
 def create_access_token_api(backend):
     '''
@@ -137,9 +132,9 @@ def create_access_token_api(backend):
         }
     '''
     if backend == 'cdis':
-        print("In create access token api")
         result = create_access_token(
             g.user, capp.keypairs[0],
+            request.form['refresh_token'],
             request.args.get('expire', 2592000),
             request.args.get('scope', [])
         )
@@ -148,7 +143,7 @@ def create_access_token_api(backend):
         return jsonify(capp.storage_manager.create_keypair(backend, g.user))
 
 
-@blueprint.route('/<backend>/<access_key>', methods=['DELETE'])
+@blueprint.route('/<backend>/<access_key>/', methods=['DELETE'])
 @login_required({'credentials'})
 def delete_credential(backend, access_key):
     '''
@@ -162,7 +157,7 @@ def delete_credential(backend, access_key):
 
     '''
     if backend == 'cdis':
-        revoke_refresh_token(access_key)
+        return revoke_refresh_token(access_key)
     else:
         capp.storage_manager.delete_keypair(backend, g.user, access_key)
     return '', 201

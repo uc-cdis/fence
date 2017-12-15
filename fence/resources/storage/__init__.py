@@ -15,7 +15,7 @@ def check_exist(f):
     return wrapper
 
 
-privileges = [
+PRIVILEGES = [
     "read-storage",
     "write-storage",
     "admin"
@@ -110,7 +110,7 @@ class StorageManager(object):
         :param backend: storage backend
         :param session: sqlalchemy session
         """
-        access = [acc for acc in access if acc in privileges]
+        access = [acc for acc in access if acc in PRIVILEGES]
         self.clients[backend].get_or_create_user(user.username)
         buckets = project.buckets.all()
         for b in buckets:
@@ -223,7 +223,7 @@ class StorageManager(object):
         """
         if access is None:
             access = []
-        access = [acc for acc in access if acc in privileges]
+        access = [acc for acc in access if acc in PRIVILEGES]
         self.clients[backend].get_or_create_user(user.username)
         buckets = project.buckets.all()
         for b in buckets:

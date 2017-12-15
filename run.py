@@ -1,4 +1,4 @@
-from userapi import app, app_config, app_sessions
+from fence import app, app_config, app_sessions
 from mock import patch
 from cdisutilstest.code.storage_client_mock import get_client
 
