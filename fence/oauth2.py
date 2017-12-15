@@ -1,3 +1,19 @@
+# pylint: disable=protected-access,unused-argument
+"""
+Define the ``OAuth2Provider`` used by fence and set its related handler
+functions for storing and loading ``Grant`` models and loading ``Client``
+models.
+
+In the implementation here with JWT, a grant is a thin wrapper around the
+client from which an authorization request was issued, and the code being used
+for a specific request; additionally, the grant is able to throw itself away
+when the procedure is completed or after a short timeout.
+
+The token setter and getter functions for the OAuth provider do pretty much
+nothing, since the JWTs contain all the necessary information and are
+stateless.
+"""
+
 from __future__ import print_function
 
 from datetime import datetime, timedelta
@@ -6,7 +22,6 @@ import uuid
 
 from cdispyutils.log import get_logger
 import flask
-from flask import render_template, jsonify, request
 from flask_oauthlib.provider import OAuth2Provider
 from flask_sqlalchemy_session import current_session
 import jwt
@@ -21,12 +36,15 @@ from fence.utils import hash_secret
 
 log = get_logger('fence')
 
-
 oauth = OAuth2Provider()
 
 
 @oauth.grantgetter
 def load_grant(client_id, code):
+    """
+    Load in a ``Grant`` model from the table for this client and authorization
+    code.
+    """
     return (
         current_session
         .query(models.Grant)
@@ -37,6 +55,11 @@ def load_grant(client_id, code):
 
 @oauth.grantsetter
 def save_grant(client_id, code, request, *args, **kwargs):
+    """
+    Save a ``Grant`` to the table originating from the given request, using the
+    client id and code provided to initialize the grant as well as the scopes
+    from the request. The grant expires after a short timeout.
+    """
     # decide the expires time yourself
     expires = datetime.utcnow() + timedelta(seconds=100)
     grant = models.Grant(
@@ -54,6 +77,9 @@ def save_grant(client_id, code, request, *args, **kwargs):
 
 @oauth.clientgetter
 def load_client(client_id):
+    """
+    Look up a ``Client`` in the database.
+    """
     return (
         current_session
         .query(models.Client)
@@ -91,8 +117,6 @@ oauth._validator = JWTValidator(
     grantsetter=oauth._grantsetter,
 )
 
-#oauth.server.refresh_grant = JWTRefreshTokenGrant(oauth._validator)
-
 
 def signed_access_token_generator(kid, private_key, **kwargs):
     """
@@ -115,7 +139,7 @@ def signed_access_token_generator(kid, private_key, **kwargs):
     Return:
         Callable[[oauthlib.common.Request], str]
     """
-    def signed_access_token_generator(request):
+    def generate_signed_access_token_from_request(request):
         """
         Args:
             request (oauthlib.common.Request)
@@ -124,7 +148,7 @@ def signed_access_token_generator(kid, private_key, **kwargs):
             str: encoded JWT signed with ``private_key``
         """
         return generate_signed_access_token(kid, private_key, request)
-    return signed_access_token_generator
+    return generate_signed_access_token_from_request
 
 
 def signed_refresh_token_generator(kid, private_key, **kwargs):
@@ -148,7 +172,7 @@ def signed_refresh_token_generator(kid, private_key, **kwargs):
     Return:
         Callable[[oauthlib.common.Request], str]
     """
-    def signed_refresh_token_generator(request):
+    def generate_signed_refresh_token_from_request(request):
         """
         Args:
             request (oauthlib.common.Request)
@@ -157,7 +181,7 @@ def signed_refresh_token_generator(kid, private_key, **kwargs):
             str: encoded JWT signed with ``private_key``
         """
         return generate_signed_refresh_token(kid, private_key, request)
-    return signed_refresh_token_generator
+    return generate_signed_refresh_token_from_request
 
 
 def issued_and_expiration_times(seconds_to_expire):
@@ -256,6 +280,12 @@ def generate_signed_access_token(kid, private_key, request):
 
 
 def init_oauth(app):
+    """
+    Initialize the OAuth provider on the given app, with
+    ``signed_access_token_generator`` and ``signed_refresh_token_generator``
+    (using the key ID and private first keypair) as the token generating
+    functions for the provider.
+    """
     keypair = app.keypairs[0]
     app.config['OAUTH2_PROVIDER_REFRESH_TOKEN_GENERATOR'] = (
         signed_refresh_token_generator(keypair.kid, keypair.private_key)
@@ -273,7 +303,13 @@ blueprint = flask.Blueprint('oauth2', __name__)
 @blueprint.route('/authorize', methods=['GET', 'POST'])
 @oauth.authorize_handler
 def authorize(*args, **kwargs):
-    if request.method == 'GET':
+    """
+    Handle the first step in the OAuth procedure.
+
+    If the method is ``GET``, render a confirmation page. For ``POST``, check
+    that the value of ``confirm`` in the form data is exactly ``"yes"``.
+    """
+    if flask.request.method == 'GET':
         client_id = kwargs.get('client_id')
         client = (
             current_session
@@ -284,16 +320,16 @@ def authorize(*args, **kwargs):
         if client.auto_approve:
             return True
         kwargs['client'] = client
-        return render_template('oauthorize.html', **kwargs)
+        return flask.render_template('oauthorize.html', **kwargs)
 
-    confirm = request.form.get('confirm', 'no')
+    confirm = flask.request.form.get('confirm', 'no')
     return confirm == 'yes'
 
 
 @blueprint.route('/token', methods=['POST'])
 @hash_secret
 @oauth.token_handler
-def access_token(*args, **kwargs):
+def get_access_token(*args, **kwargs):
     """
     Handle exchanging code for and refreshing the access token.
 
@@ -340,4 +376,7 @@ def revoke_token():
 
 @blueprint.route('/errors', methods=['GET'])
 def display_error():
-    return jsonify(request.args)
+    """
+    Define the errors endpoint for the OAuth provider.
+    """
+    return flask.jsonify(flask.request.args)
