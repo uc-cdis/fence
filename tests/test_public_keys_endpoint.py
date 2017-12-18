@@ -1,7 +1,7 @@
 from collections import OrderedDict
-
-from . import utils
 from .test_settings import JWT_KEYPAIR_FILES
+
+import utils as utils
 
 
 def test_keys_endpoint(app, client):

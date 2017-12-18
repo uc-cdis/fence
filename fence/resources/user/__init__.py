@@ -3,7 +3,7 @@ from flask import current_app as capp
 from flask import jsonify, g
 
 from fence.errors import NotFound, UserError, InternalError
-from fence.models import User
+from fence.data_model.models import User
 
 import smtplib
 from email.mime.application import MIMEApplication

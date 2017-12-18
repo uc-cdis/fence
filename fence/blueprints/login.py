@@ -2,9 +2,9 @@ import urllib
 import flask
 from flask import session, redirect, request, jsonify
 from flask import current_app as capp
-from .auth import login_user
-from .errors import UserError
-from .models import IdentityProvider
+from fence.auth import login_user
+from fence.errors import UserError
+from fence.data_model.models import IdentityProvider
 
 
 blueprint = flask.Blueprint('login', __name__)

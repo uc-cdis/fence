@@ -1,6 +1,6 @@
 import urllib
 
-from . import utils
+from .utils import oauth2 as utils
 
 
 def test_oauth2_authorize_get(client, oauth_client):

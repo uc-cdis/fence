@@ -1,3 +1,4 @@
+from boto.s3.connection import OrdinaryCallingFormat
 DB = 'postgresql://test:test@localhost:5432/fence'
 
 MOCK_AUTH = False
@@ -21,6 +22,22 @@ OPENID_CONNECT = {
         'redirect_url': ''
     }
 }
+
+STORAGE_CREDENTIALS = {
+    "cleversafe": {
+        'aws_access_key_id': '',
+        'aws_secret_access_key': '',
+        'host': 'somemanager.osdc.io',
+        'public_host': 'someobjstore.datacommons.io',
+        'port': 443,
+        'is_secure': True,
+        'username': 'someone',
+        'password': 'somepass',
+        "calling_format": OrdinaryCallingFormat(),
+        "is_mocked": True
+    }
+}
+
 
 '''
 If the api is behind firewall that need to set http proxy:

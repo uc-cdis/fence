@@ -1,15 +1,14 @@
 import datetime
-
-from cdispyutils import auth
 import flask
 import flask_oauthlib
 import jwt
 
-from fence import keys
-from fence.blacklist import BlacklistedToken
+from . import keys, token, errors
+from cdispyutils import auth
+from .blacklist import BlacklistedToken
 
 
-class JWTValidator(flask_oauthlib.provider.OAuth2RequestValidator):
+class OAuthValidator(flask_oauthlib.provider.OAuth2RequestValidator):
     """
     Validator for JWTs used in the OAuth2 procedure. This class provides a
     validator for Flask's OAuth component, redefining bearer and refresh token
@@ -111,25 +110,10 @@ class JWTValidator(flask_oauthlib.provider.OAuth2RequestValidator):
             flask.current_app.logger.exception(msg)
             return False
 
-        # Validate token existing.
-        if not refresh_token:
-            return fail_with('No token provided.')
-
-        # Must contain just a `'refresh'` audience for a refresh token.
-        decoded_jwt = auth.validate_jwt(
-            encoded_token=refresh_token,
-            public_key=keys.default_public_key(),
-            aud={'refresh'},
-            iss=flask.current_app.config['HOST_NAME'],
-        )
-
-        # Validate jti and make sure refresh token is not blacklisted.
-        jti = decoded_jwt.get('jti')
-        if not jti:
-            return fail_with('Token missing jti claim.')
-        with flask.current_app.db.session as session:
-            if session.query(BlacklistedToken).filter_by(jti=jti).first():
-                return fail_with('Token is blacklisted.')
+        try:
+            decoded_jwt = token.validate_refresh_token(refresh_token)
+        except errors.JWTError as e:
+            return fail_with(e.message)
 
         flask.current_app.logger.info(
             'validated refresh token: ' + str(decoded_jwt)

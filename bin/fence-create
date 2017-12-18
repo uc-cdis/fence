@@ -16,7 +16,6 @@ from userdatamodel.models import (
 )
 
 from fence.utils import create_client, drop_client
-from fence.resources.storage.cdis import create_keypair
 
 
 def create_client_action(DB, username=None, client=None, urls=None):
@@ -160,23 +159,6 @@ def assign_group_to_user(s, user, group_name, group_data):
         user.research_groups.append(group)
     if group not in user.research_groups:
         user.research_groups.append(group)
-
-
-def create_hmac(DB, yaml_input, encryption_key):
-    with open(yaml_input, 'r') as f:
-        users = yaml.load(f)
-
-    db = SQLAlchemyDriver(DB)
-    output = {}
-    with db.session as s:
-        for username in users['users']:
-            user = s.query(User).filter(User.username == username).first()
-            if not user:
-                print "User {} doesn't exist".format(username)
-                continue
-            output[username] = create_keypair(user, s, encryption_key)
-    print output
-    return output
 
 
 if __name__ == '__main__':

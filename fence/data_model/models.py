@@ -10,12 +10,10 @@ from sqlalchemy.schema import ForeignKey
 from userdatamodel import Base
 from userdatamodel.models import *
 
-
 UserSession = user_session_model('fence_user_session', Base=Base)
 
 
 class Client(Base):
-
     __tablename__ = "client"
 
     # human readable name, not required
@@ -72,7 +70,6 @@ class Client(Base):
 
 
 class Grant(Base):
-
     __tablename__ = "grant"
 
     id = Column(Integer, primary_key=True)
@@ -108,7 +105,6 @@ class Grant(Base):
 
 
 class Token(Base):
-
     __tablename__ = "token"
 
     id = Column(Integer, primary_key=True)
@@ -131,7 +127,6 @@ class Token(Base):
     refresh_token = Column(String, unique=True)
     expires = Column(DateTime)
     _scopes = Column(Text)
-
 
     def delete(self):
         with capp.db.session as session:

@@ -35,3 +35,6 @@ JWT_KEYPAIR_FILES = OrderedDict([
         ('keys/test_public_key_2.pem', 'keys/test_private_key_2.pem'),
     ),
 ])
+
+STORAGE_CREDENTIALS = {
+}
