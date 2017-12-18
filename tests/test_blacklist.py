@@ -4,7 +4,7 @@ from fence.jwt.blacklist import (
     is_token_blacklisted,
 )
 
-from tests.utils import oauth2 as utils
+import utils as utils
 
 
 def test_jti_not_blacklisted(app):

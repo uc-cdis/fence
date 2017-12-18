@@ -1,10 +1,9 @@
 import fence
 import jwt
 import pytest
-import uuid
+import utils as utils
 
 from addict import Dict
-from datetime import datetime, timedelta
 from mock import patch
 
 from cdisutilstest.code.storage_client_mock import StorageClientMocker, get_client
@@ -14,7 +13,6 @@ from fence import app_init
 from userdatamodel import Base
 
 from . import test_settings
-from .utils import oauth2 as utils
 
 
 def check_auth_positive(cls, backend, user):
