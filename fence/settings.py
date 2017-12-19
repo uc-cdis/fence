@@ -7,7 +7,6 @@ APPLICATION_ROOT = '/user'
 DEBUG = True
 OAUTH2_PROVIDER_ERROR_URI = "/api/oauth2/errors"
 
-
 HOST_NAME = 'http://localhost:8000'
 SHIBBOLETH_HEADER = 'persistent_id'
 SSO_URL = 'https://itrusteauth.nih.gov/affwebservices/public/saml2sso?SPID=https://bionimbus-pdc.opensciencedatacloud.org/shibboleth&RelayState='

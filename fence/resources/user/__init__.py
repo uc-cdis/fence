@@ -59,7 +59,8 @@ def get_user_info(user, session):
         'project_access': dict(user.project_access),
         'certificates_uploaded': [],
         'email': user.email,
-        'message': ""}
+        'message': ''
+    }
     if user.application:
         info['resources_granted'] = user.application.resources_granted
         info['certificates_uploaded'] = [
