@@ -1,18 +1,23 @@
-import fence
-import jwt
-import pytest
-import utils as utils
+# pylint: disable=redefined-outer-name
+"""
+Define pytest fixtures.
+"""
 
 from addict import Dict
+import jwt
 from mock import patch
+import pytest
 
-from cdisutilstest.code.storage_client_mock import StorageClientMocker, get_client
+
+from cdisutilstest.code.storage_client_mock import get_client
+import fence
 from fence.jwt import blacklist
 from fence.data_model import models
 from fence import app_init
 from userdatamodel import Base
 
 from . import test_settings
+from . import utils
 
 
 def check_auth_positive(cls, backend, user):
@@ -150,8 +155,9 @@ def oauth_client(app, request):
 
     def fin():
         with app.db.session as session:
-            # Don't flush until everything is finished, otherwise this will break
-            # because of (for example) foreign key references between the tables.
+            # Don't flush until everything is finished, otherwise this will
+            # break because of (for example) foreign key references between the
+            # tables.
             with session.no_autoflush:
                 all_models = [
                     blacklist.BlacklistedToken,
@@ -166,3 +172,30 @@ def oauth_client(app, request):
 
     request.addfinalizer(fin)
     return Dict(client_id=client_id, client_secret=client_secret, url=url)
+
+
+@pytest.fixture(scope='function')
+def token_response(client, oauth_client):
+    """
+    Return the token response from the end of the OAuth procedure from
+    ``/oauth2/token``.
+    """
+    return utils.get_token_response(client, oauth_client)
+
+
+@pytest.fixture(scope='function')
+def access_token(client, oauth_client):
+    """
+    Return just an access token obtained from ``/oauth2/token``.
+    """
+    token_response = utils.get_token_response(client, oauth_client)
+    return token_response.json['access_token']
+
+
+@pytest.fixture(scope='function')
+def refresh_token(client, oauth_client):
+    """
+    Return just a refresh token obtained from ``/oauth2/token``.
+    """
+    token_response = utils.get_token_response(client, oauth_client)
+    return token_response.json['refresh_token']
