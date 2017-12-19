@@ -3,6 +3,8 @@ import tests
 from datetime import datetime, timedelta
 import uuid
 
+import tests.utils.oauth2
+
 
 def read_file(filename):
     """Read the contents of a file in the tests directory."""

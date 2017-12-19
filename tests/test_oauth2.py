@@ -2,13 +2,11 @@
 Test the endpoints in the ``/oauth2`` blueprint.
 """
 
-from cdispyutils import auth
-import pytest
 import urllib
 
 import fence
 
-from . import utils
+from tests import utils
 
 
 def test_oauth2_authorize_get(client, oauth_client):
@@ -34,7 +32,7 @@ def test_oauth2_authorize_post(client, oauth_client):
     """
     Test ``POST /oauth2/authorize``.
     """
-    response = utils.oauth.oauth_post_authorize(client, oauth_client)
+    response = utils.oauth2.oauth_post_authorize(client, oauth_client)
     assert response.status_code == 302
     location = response.headers['Location']
     assert location.startswith(oauth_client.url)
@@ -44,8 +42,8 @@ def test_oauth2_token_post(client, oauth_client):
     """
     Test ``POST /oauth2/token`` with a code from ``POST /oauth2/authorize``.
     """
-    code = utils.oauth.get_access_code(client, oauth_client)
-    response = utils.oauth.oauth_post_token(client, oauth_client, code)
+    code = utils.oauth2.get_access_code(client, oauth_client)
+    response = utils.oauth2.oauth_post_token(client, oauth_client, code)
     assert 'access_token' in response.json
     assert 'refresh_token' in response.json
 
@@ -55,7 +53,7 @@ def test_oauth2_token_refresh(client, oauth_client, refresh_token):
     Obtain refresh and access tokens, and test using the refresh token to
     obtain a new access token.
     """
-    code = utils.oauth.get_access_code(client, oauth_client)
+    code = utils.oauth2.get_access_code(client, oauth_client)
     data = {
         'client_id': oauth_client.client_id,
         'client_secret': oauth_client.client_secret,
@@ -78,7 +76,7 @@ def test_oauth2_token_post_revoke(client, oauth_client, refresh_token):
     # Revoke refresh token.
     client.post('/oauth2/revoke', data={'token': refresh_token})
     # Try to use refresh token.
-    code = utils.oauth.get_access_code(client, oauth_client)
+    code = utils.oauth2.get_access_code(client, oauth_client)
     data = {
         'client_id': oauth_client.client_id,
         'client_secret': oauth_client.client_secret,
@@ -106,26 +104,12 @@ def test_protected_endpoint(app, client, monkeypatch):
     Try to make a request to a (fake) protected endpoint without an access
     token and test that it fails.
     """
-
-    @app.route('/protected')
-    @fence.auth.login_required({'access'})
-    def protected_endpoint(methods=['GET']):
-        """Should not get here."""
-        return 'foo'
-
     monkeypatch.setitem(app.config, 'MOCK_AUTH', False)
     response = client.get('/protected')
     assert response.status_code == 401
 
 
 def test_malformed_auth_header_fails(app, client, access_token, monkeypatch):
-
-    @app.route('/protected')
-    @fence.auth.login_required({'access'})
-    def protected_endpoint(methods=['GET']):
-        """Should not get here."""
-        return 'foo'
-
     monkeypatch.setitem(app.config, 'MOCK_AUTH', False)
     headers = {'Authorization': access_token}
     response = client.get('/protected', headers=headers)

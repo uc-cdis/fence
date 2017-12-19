@@ -140,8 +140,18 @@ def app(request):
         for tbl in reversed(Base.metadata.sorted_tables):
             fence.app.db.engine.execute(tbl.delete())
         mocker.unmock_functions()
+
     request.addfinalizer(fin)
     return fence.app
+
+
+@fence.app.route('/protected')
+@fence.auth.login_required({'access'})
+def protected_endpoint(methods=['GET']):
+    """
+    Add a protected endpoint to the app for testing.
+    """
+    return 'Got to protected endpoint'
 
 
 @pytest.fixture(scope='function')
@@ -180,7 +190,7 @@ def token_response(client, oauth_client):
     Return the token response from the end of the OAuth procedure from
     ``/oauth2/token``.
     """
-    return utils.get_token_response(client, oauth_client)
+    return utils.oauth2.get_token_response(client, oauth_client)
 
 
 @pytest.fixture(scope='function')
@@ -188,7 +198,7 @@ def access_token(client, oauth_client):
     """
     Return just an access token obtained from ``/oauth2/token``.
     """
-    token_response = utils.get_token_response(client, oauth_client)
+    token_response = utils.oauth2.get_token_response(client, oauth_client)
     return token_response.json['access_token']
 
 
@@ -197,5 +207,5 @@ def refresh_token(client, oauth_client):
     """
     Return just a refresh token obtained from ``/oauth2/token``.
     """
-    token_response = utils.get_token_response(client, oauth_client)
+    token_response = utils.oauth2.get_token_response(client, oauth_client)
     return token_response.json['refresh_token']
