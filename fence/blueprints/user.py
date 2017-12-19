@@ -1,7 +1,6 @@
 import flask
 from ..auth import login_required
 from flask import jsonify, g, make_response
-from flask_oauthlib.provider import OAuth2Provider
 from ..errors import UserError, NotFound
 from userdatamodel.models import *  # noqa
 from ..resources.user import send_mail, get_current_user_info
@@ -9,11 +8,6 @@ from flask import current_app as capp
 from flask import request
 from flask_sqlalchemy_session import current_session
 
-oauth = OAuth2Provider()
-
-
-def init_oauth(app):
-    oauth.init_app(app)
 
 
 REQUIRED_CERTIFICATES = {

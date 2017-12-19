@@ -1,9 +1,9 @@
 from functools import wraps
 
 from cdispyutils import auth
-from flask import session, g, request
-from flask import current_app as capp
+import flask
 from flask_sqlalchemy_session import current_session
+import jwt
 
 from .errors import Unauthorized, InternalError
 from .data_model.models import User, IdentityProvider
@@ -23,17 +23,17 @@ def login_user(request, username, provider):
         user.identity_provider = idp
         current_session.add(user)
         current_session.commit()
-    g.user = user
-    g.scopes = ["_all"]
+    flask.g.user = user
+    flask.g.scopes = ["_all"]
 
 
 def logout(next_url=None):
     # Call get_current_user (but ignore the result) just to check that either
     # the user is logged in or that authorization is mocked.
     get_current_user()
-    if session['provider'] == IdentityProvider.itrust:
-        next_url = capp.config['ITRUST_GLOBAL_LOGOUT'] + next_url
-    session.clear()
+    if flask.session['provider'] == IdentityProvider.itrust:
+        next_url = flask.current_app.config['ITRUST_GLOBAL_LOGOUT'] + next_url
+    flask.session.clear()
     return next_url
 
 
@@ -41,7 +41,7 @@ def check_scope(scope):
     def wrapper(f):
         @wraps(f)
         def check_scope_and_call(*args, **kwargs):
-            if '_all' in g.scopes or scope in g.scopes:
+            if '_all' in flask.g.scopes or scope in flask.g.scopes:
                 return f(*args, **kwargs)
             else:
                 raise Unauthorized(
@@ -55,30 +55,36 @@ def login_required(scope=None):
     """
     Create decorator to require a user session in shibboleth.
     """
+
     def decorator(f):
+
         @wraps(f)
         def wrapper(*args, **kwargs):
-            if session.get('username'):
-                login_user(request, session['username'], session['provider'])
+            if flask.session.get('username'):
+                login_user(
+                    flask.request,
+                    flask.session['username'],
+                    flask.session['provider'],
+                )
                 return f(*args, **kwargs)
 
-            eppn = request.headers.get(capp.config['SHIBBOLETH_HEADER'])
+            eppn = flask.request.headers.get(
+                flask.current_app.config['SHIBBOLETH_HEADER']
+            )
 
-            if capp.config.get('MOCK_AUTH') is True:
+            if flask.current_app.config.get('MOCK_AUTH') is True:
                 eppn = 'test'
             # if there is authorization header for oauth
-            if 'Authorization' in request.headers:
-                import flask
-                flask.current_app.logger.info(scope)
+            if 'Authorization' in flask.request.headers:
                 has_oauth(scope=scope)
                 return f(*args, **kwargs)
             # if there is shibboleth session, then create user session and
             # log user in
             elif eppn:
                 username = eppn.split('!')[-1]
-                session['username'] = username
-                session['provider'] = IdentityProvider.itrust
-                login_user(request, username, session['provider'])
+                flask.session['username'] = username
+                flask.session['provider'] = IdentityProvider.itrust
+                login_user(flask.request, username, flask.session['provider'])
                 return f(*args, **kwargs)
             else:
                 raise Unauthorized("Please login")
@@ -93,7 +99,9 @@ def has_oauth(scope=None):
     scope.update({'access'})
     try:
         access_token = auth.validate_request_jwt(
-            aud=scope, attempt_refresh=False
+            aud=scope,
+            user_api=flask.current_app.config['HOST_NAME'],
+            attempt_refresh=False,
         )
     except auth.JWTValidationError as e:
         raise Unauthorized('failed to validate token: {}'.format(e))
@@ -106,14 +114,16 @@ def has_oauth(scope=None):
     )
     if not user:
         raise Unauthorized('no user found with id {}'.format(user_id))
-    g.user = user
+    flask.g.user = user
 
 
 def get_current_user():
-    username = session.get('username')
+    username = flask.session.get('username')
     if not username:
-        eppn = request.headers.get(capp.config['SHIBBOLETH_HEADER'])
-        if capp.config.get('MOCK_AUTH') is True:
+        eppn = flask.request.headers.get(
+            flask.current_app.config['SHIBBOLETH_HEADER']
+        )
+        if flask.current_app.config.get('MOCK_AUTH') is True:
             eppn = 'test'
         if eppn:
             username = eppn.split('!')[-1]
