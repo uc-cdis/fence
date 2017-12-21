@@ -1,7 +1,7 @@
 from collections import OrderedDict
 from datetime import timedelta
 
-from .local_settings import *
+from local_settings import *
 
 APPLICATION_ROOT = '/user'
 DEBUG = True

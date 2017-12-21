@@ -5,8 +5,8 @@ import flask
 from flask.ext.cors import CORS
 from flask_postgres_session import PostgresSessionInterface
 from flask_sqlalchemy_session import flask_scoped_session
+import importlib
 
-from . import settings as fence_settings
 from .auth import logout
 from .blueprints.admin import blueprint as admin
 from .blueprints.login import blueprint as login
@@ -32,13 +32,15 @@ app.register_blueprint(admin, url_prefix='/admin')
 app.register_blueprint(login, url_prefix='/login')
 
 
-def app_config(app, settings=fence_settings):
+def app_config(app, settings='fence.settings', root_dir=None):
     """
     Set up the config for the Flask app.
     """
     app.config.from_object(settings)
     app.keypairs = []
-    root_dir = os.path.dirname(os.path.realpath(settings.__file__))
+    if root_dir is None:
+        root_dir = os.path.dirname(
+                os.path.dirname(os.path.realpath(__file__)))
     for kid, (public, private) in app.config['JWT_KEYPAIR_FILES'].iteritems():
         public_filepath = os.path.join(root_dir, public)
         private_filepath = os.path.join(root_dir, private)
@@ -75,8 +77,8 @@ def app_sessions(app):
     app.session_interface = PostgresSessionInterface(UserSession)  # noqa
 
 
-def app_init(app, settings='fence.settings'):
-    app_config(app, settings=settings)
+def app_init(app, settings='fence.settings', root_dir=None):
+    app_config(app, settings=settings, root_dir=root_dir)
     init_oauth(app)
     app_sessions(app)
 
