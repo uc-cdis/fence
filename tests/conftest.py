@@ -7,6 +7,7 @@ from addict import Dict
 import jwt
 from mock import patch
 import pytest
+import os
 
 
 from cdisutilstest.code.storage_client_mock import get_client
@@ -134,7 +135,8 @@ class Mocker(object):
 def app(request):
     mocker = Mocker()
     mocker.mock_functions()
-    app_init(fence.app, test_settings)
+    root_dir = os.path.dirname(os.path.realpath(__file__))
+    app_init(fence.app, test_settings, root_dir=root_dir)
 
     def fin():
         for tbl in reversed(Base.metadata.sorted_tables):
