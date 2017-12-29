@@ -141,7 +141,8 @@ def signed_access_token_generator(kid, private_key, **kwargs):
             str: encoded JWT signed with ``private_key``
         """
         return token.generate_signed_access_token(kid, private_key, get_user(request),
-                                                  request.expires_in, request.scopes)
+                                                  request.expires_in, request.scopes,
+                                                  client_id=request.body.get('client_id'))
     return generate_signed_access_token_from_request
 
 
@@ -175,7 +176,8 @@ def signed_refresh_token_generator(kid, private_key, **kwargs):
             str: encoded JWT signed with ``private_key``
         """
         return token.generate_signed_refresh_token(kid, private_key, get_user(request),
-                                                   request.expires_in, request.scopes)
+                                                   request.expires_in, request.scopes,
+                                                   client_id=request.body.get('client_id'))
     return generate_signed_refresh_token_from_request
 
 

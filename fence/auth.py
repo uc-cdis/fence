@@ -112,7 +112,10 @@ def has_oauth(scope=None):
     )
     if not user:
         raise Unauthorized('no user found with id {}'.format(user_id))
+    # set some application context for current user and client id
     flask.g.user = user
+    # client_id should be None if the field doesn't exist or is empty
+    flask.g.client_id = access_token.get('azp', None) or None
 
 
 def get_current_user():
