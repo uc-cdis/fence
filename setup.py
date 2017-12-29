@@ -4,9 +4,10 @@ setup(
     name='fence',
     version='0.1.0',
     install_requires=[
+        "oauth2client<4.0dev,>=2.0.0",
         "addict==2.1.1",
-        "cdispyutils",
         "cirrus",
+        "cdispyutils",
         "cryptography==2.1.2",
         "Flask==0.10.1",
         "Flask-CORS==3.0.3",
@@ -22,7 +23,7 @@ setup(
         "python_bcrypt==0.3.2",
         "python_dateutil==2.6.1",
         "PyJWT==1.5.3",
-        "requests==2.13.0",
+        "requests==2.18.4",
         "setuptools==36.6.0",
         "six==1.11.0",
         "SQLAlchemy==0.9.9",
@@ -33,9 +34,9 @@ setup(
     ],
     dependency_links=[
         "git+https://github.com/uc-cdis/flask-postgres-session.git@68bf5a9723a351729855c429eca8a0f4bbb830c7#egg=flask_postgres_session-0.1.3",
-        "git+https://github.com/uc-cdis/storage-client.git@b4ae32788754bf399a13ee67eeecc822cabd85ae#egg=storageclient-0.1.4",
+        "git+https://github.com/uc-cdis/storage-client.git@d95bc45001f059994d774b455b5572bd3a38f50a#egg=storageclient-0.1.4",
         "git+https://github.com/uc-cdis/userdatamodel.git@1.0.2#egg=userdatamodel",
-        "git+https://github.com/uc-cdis/cdis-python-utils.git@4112a98ff0e5bc45a4c86981cf051eab2fb9578a#egg=cdispyutils",
+        "git+https://github.com/uc-cdis/cdis-python-utils.git@b4760e4ec05176a23c1a9f0854cdf980a26c9762#egg=cdispyutils",
         "git+https://github.com/uc-cdis/cirrus.git@1a40b1518606d3963f6d40f8ac611fde1d95c814#egg=cirrus",
     ],
     scripts=[
