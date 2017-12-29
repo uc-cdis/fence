@@ -6,6 +6,7 @@ setup(
     install_requires=[
         "addict==2.1.1",
         "cdispyutils",
+        "cirrus",
         "cryptography==2.1.2",
         "Flask==0.10.1",
         "Flask-CORS==3.0.3",
@@ -35,6 +36,7 @@ setup(
         "git+https://github.com/uc-cdis/storage-client.git@b4ae32788754bf399a13ee67eeecc822cabd85ae#egg=storageclient-0.1.4",
         "git+https://github.com/uc-cdis/userdatamodel.git@1.0.2#egg=userdatamodel",
         "git+https://github.com/uc-cdis/cdis-python-utils.git@4112a98ff0e5bc45a4c86981cf051eab2fb9578a#egg=cdispyutils",
+        "git+https://github.com/uc-cdis/cirrus.git@1a40b1518606d3963f6d40f8ac611fde1d95c814#egg=cirrus",
     ],
     scripts=[
         "bin/fence-create",
