@@ -1,3 +1,12 @@
+"""
+Models for `fence` service
+
+The models here inherit from the `Base` in userdatamodel, so
+when the fence app is initialized, the resulting db session includes
+everything from userdatamodel and this file. There is also
+a `migrate` function in this file that gets called every init.
+"""
+
 from flask import current_app as capp
 from flask_postgres_session import user_session_model
 from flask_sqlalchemy_session import current_session
@@ -139,6 +148,46 @@ class Token(Base):
         if self._scopes:
             return self._scopes.split()
         return []
+
+
+class GoogleServiceAccount(Base):
+    __tablename__ = "google_service_account"
+
+    id = Column(Integer, primary_key=True)
+
+    # The uniqueId google provides to resources is ONLY unique within
+    # the given project, so we shouldn't rely on that for a primary key (in
+    # case we're ever juggling mult. projects)
+    google_unique_id = Column(
+        String,
+        unique=True,
+        nullable=False
+    )
+
+    client_id = Column(
+        String(40),
+        ForeignKey('client.client_id')
+    )
+    client = relationship('Client')
+
+    user_id = Column(
+        Integer,
+        ForeignKey(User.id),
+        nullable=False
+    )
+    user = relationship('User')
+
+    email = Column(
+        String,
+        unique=True,
+        nullable=False
+    )
+
+    def delete(self):
+        with capp.db.session as session:
+            session.delete(self)
+            session.commit()
+            return self
 
 
 def migrate(driver):
