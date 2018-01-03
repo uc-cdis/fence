@@ -30,7 +30,8 @@ setup(
         "temps==0.3.0",
         "userdatamodel",
         "Werkzeug==0.12.2",
-        "storageclient"
+        "storageclient",
+        "pyyaml"
     ],
     dependency_links=[
         "git+https://github.com/uc-cdis/flask-postgres-session.git@68bf5a9723a351729855c429eca8a0f4bbb830c7#egg=flask_postgres_session-0.1.3",
