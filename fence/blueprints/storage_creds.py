@@ -229,14 +229,14 @@ def delete_credential(backend, access_key):
                 if access_key in [key["name"].split("/")[-1] for key in keys_for_account]:
                     g_cloud.delete_service_account_key(service_account.google_unique_id,
                                                        access_key)
-                    status = '', 201
+                    status = '', 200
                 else:
-                    abort(403, "Cannot delete keys you don't own.")
+                    abort(404, "Could not delete key " + access_key + ". Not found for current user.")
             else:
                 abort(404, "Could not find service account for current user.")
     else:
         capp.storage_manager.delete_keypair(backend, g.user, access_key)
-        status = '', 201
+        status = '', 200
 
     return status
 
