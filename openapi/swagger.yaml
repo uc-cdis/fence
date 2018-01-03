@@ -1,302 +1,1410 @@
+---
 swagger: '2.0'
 info:
-  title: Fence OpenAPI Specification
-  version: 0.1.0
-  description: >-
-    Access management for CDIS data commons. Code is available on
-    [GitHub](https://github.com/uc-cdis/fence).
-  termsOfService: 'http://cdis.uchicago.edu/terms/'
-  contact:
-    email: cdis@uchicago.edu
+  description: ego API Documentation
+  version: '0.01'
+  title: ego Service API
+  contact: {}
   license:
-    name: Apache 2.0
-    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
-host: example.domain
-basePath: /
+    name: Apache License Version 2.0
+host: demo.ego.kfdrc.org
+basePath: "/"
 tags:
-  - name: oauth2
-    description: Authorization and token management
-  - name: user
-    description: User information
-  - name: data
-    description: Generate pre-signed URLs
-  - name: link
-    description: Link access identities
-  - name: keys
-    description: Get public keys used to validate JWTs issued by fence
-schemes:
-  - https
-securityDefinitions:
-  OAuth2:
-    type: oauth2
-    flow: accessCode
-    authorizationUrl: '/oauth/authorize'
-    tokenUrl: '/oauth/token'
-    scopes:
-      user: generic user access
+- name: auth-controller
+  description: Auth Controller
+- name: user-controller
+  description: User Controller
+- name: group-controller
+  description: Group Controller
+- name: application-controller
+  description: Application Controller
 paths:
-  '/oauth2/authorize':
+  "/applications":
     get:
       tags:
-        - oauth2
-      summary: Perform OAuth2 authorization
-      description: >-
-        Obtain an authorization grant through the OAuth2 protocol. To handle
-        this request, render a page for the user to confirm the OAuth2 grant
-        (through e.g. Google). Redirect user to `redirect_uri` with an added
-        `code` parameter obtained from the authorization provider.
-      operationId: authorize
-      produces:
-        - application/json
-      parameters:
-        - name: client_id
-          required: true
-          type: string
-          in: query
-          description: The client's ID, issued by authorization server
-        - name: response_type
-          required: true
-          type: string
-          in: query
-          description: >-
-            For an authorization request using the access code flow, the
-            response type must be "code". If this is missing from the request
-            then the authorization server must return an error.
-        - name: redirect_uri
-          required: true
-          type: string
-          in: query
-          description: Page to redirect to after access has been granted
-        - name: scope
-          required: false
-          type: string
-          in: query
-          description: Requested authorization scope
-      responses:
-        '200':
-          description: successful operation
-    post:
-      tags:
-        - oauth2
-      summary: Perform OAuth2 authorization
-      description: >-
-        Obtain an authorization grant through the OAuth2 protocol. To handle
-        this request, render a page for the user to confirm the OAuth2 grant
-        (through e.g. Google). Redirect user to `redirect_uri` with an added
-        `code` parameter obtained from the authorization provider. A POST will
-        not render a page for the user; this implementation checks the `confirm`
-        value in the request.
-      operationId: authorize_post
+      - application-controller
+      summary: getApplicationsList
+      operationId: getApplicationsListUsingGET
       consumes:
-        - application/x-www-form-urlencoded
+      - application/json
       produces:
-        - application/json
+      - "*/*"
       parameters:
-        - name: client_id
-          required: true
-          type: string
-          in: formData
-          description: The client's ID, issued by authorization server
-        - name: response_type
-          required: true
-          type: string
-          enum: [code, token]
-          in: formData
-          description: >-
-            For an authorization request using the access code flow, the
-            response type must be "code". If this is missing from the request
-            then the authorization server must return an error.
-        - name: redirect_uri
-          required: true
-          type: string
-          in: formData
-          description: Page to redirect to after access has been granted
-        - name: confirm
-          required: false
-          type: string
-          in: formData
-          description: whether to confirm the OAuth2 grant (should be 'yes')
-        - name: scope
-          required: false
-          type: string
-          in: formData
-          description: Requested authorization scope
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: query
+        in: query
+        description: query
+        required: false
+        type: string
+      - name: limit
+        in: query
+        description: Results page you want to retrieve (0..N)
+        required: false
+        type: string
+      - name: offset
+        in: query
+        description: Target Page number
+        required: false
+        type: string
+      - name: sort
+        in: query
+        description: Field to sort on
+        required: false
+        type: string
+      - name: sortOrder
+        in: query
+        description: 'Sorting order: ASC|DESC. Default order: DESC'
+        required: false
+        type: string
+      - name: status
+        in: query
+        description: 'Filter by status. You could also specify filters on any field
+          of the entity being queried as query parameters in this format: name=something'
+        required: false
+        type: string
       responses:
         '200':
-          description: successful operation
-  '/oauth2/token':
+          description: Page of applications
+          schema:
+            "$ref": "#/definitions/PageDTO"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
     post:
       tags:
-        - oauth2
-      summary: Exchange code for or refresh the access token.
-      description: >-
-        Exchange the `code` obtained from OAuth2 for an access token, or refresh
-        the access token using a refresh token.
-      operationId: token
+      - application-controller
+      summary: create
+      operationId: createUsingPOST
       consumes:
-        - application/x-www-form-urlencoded
+      - application/json
       produces:
-        - application/json
+      - "*/*"
       parameters:
-        - name: grant_type
-          required: true
-          type: string
-          in: formData
-          description: >-
-            Value MUST be `"authorization_code"` (which is the authorization
-            flow used in this implementation)
-        - name: code
-          required: true
-          type: string
-          in: formData
-          description: The authorization code returned from the OAuth2 authorization request
-        - name: redirect_uri
-          required: true
-          type: string
-          in: formData
-          description: >-
-            Must be identical to the `"redirect_uri"` included in the original
-            authorization request
-        - name: client_id
-          required: true
-          type: string
-          in: formData
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - in: body
+        name: applicationInfo
+        description: applicationInfo
+        required: true
+        schema:
+          "$ref": "#/definitions/Application"
       responses:
         '200':
-          description: successful operation
-  '/oauth2/revoke':
-    post:
+          description: New Application
+          schema:
+            "$ref": "#/definitions/Application"
+        '201':
+          description: Created
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/applications/{id}":
+    get:
       tags:
-        - oauth2
-      summary: Revoke a refresh token
-      description: Revoke a refresh (not access) token granted to a user.
-      operationId: revoke
+      - application-controller
+      summary: get
+      operationId: getUsingGET
       consumes:
-        - application/x-www-form-urlencoded
+      - application/json
+      produces:
+      - "*/*"
       parameters:
-        - name: token
-          required: true
-          type: string
-          in: formData
-          description: Refresh token that the user wants to revoke
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
       responses:
         '200':
-          description: successful operation, OR invalid token submitted
-        '400':
-          description: 'invalid token provided: not a refresh token, or token was missing a claim, or token could not be validated'
-  '/jwt/keys':
-    get:
-      tags:
-        - keys
-      summary: Return the public keys which can be used to validate JWTs issued and signed by fence
-      operationId: getKeys
-      responses:
-        '200':
-          description: successful operation
+          description: Application Details
           schema:
-            "$ref": '#/definitions/PublicKeys'
-  '/user':
-    get:
+            "$ref": "#/definitions/Application"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    put:
       tags:
-        - user
-      summary: Return info about the current user
-      security:
-        - OAuth2: [user]
-      operationId: getUserInfo
-      responses:
-        '200':
-          description: successful operation
-          schema:
-            "$ref": '#/definitions/UserInfo'
-  '/data/{uuid}':
-    get:
-      tags:
-        - data
-      summary: Create a presigned URL for data
-      description: >-
-        Allow users to get a pre-signed URL given the location of preference.
-      security:
-        - OAuth2: [user]
-      operationId: getPresignedURL
+      - application-controller
+      summary: updateApplication
+      operationId: updateApplicationUsingPUT
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
       parameters:
-        - name: uuid
-          required: true
-          type: string
-          in: path
-          description: data UUID
-        - name: location
-          required: true
-          type: string
-          in: query
-          description: location (as in cloud provider) to use
-          enum: [aws, google]
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - in: body
+        name: updatedApplicationInfo
+        description: updatedApplicationInfo
+        required: true
+        schema:
+          "$ref": "#/definitions/Application"
       responses:
         '200':
-          description: successful operation
+          description: Updated application info
           schema:
-            "$ref": '#/definitions/PresignedURL'
-        '400':
-          description: 'Invalid input: UUID not found or invalid location'
-  '/link/google/':
+            "$ref": "#/definitions/Application"
+        '201':
+          description: Created
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    delete:
+      tags:
+      - application-controller
+      summary: deleteApplication
+      operationId: deleteApplicationUsingDELETE
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
+      responses:
+        '200':
+          description: OK
+        '204':
+          description: No Content
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+  "/applications/{id}/groups":
+    get:
+      tags:
+      - application-controller
+      summary: getApplicationsGroups
+      operationId: getApplicationsGroupsUsingGET
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
+      - name: query
+        in: query
+        description: query
+        required: false
+        type: string
+      - name: limit
+        in: query
+        description: Results page you want to retrieve (0..N)
+        required: false
+        type: string
+      - name: offset
+        in: query
+        description: Target Page number
+        required: false
+        type: string
+      - name: sort
+        in: query
+        description: Field to sort on
+        required: false
+        type: string
+      - name: sortOrder
+        in: query
+        description: 'Sorting order: ASC|DESC. Default order: DESC'
+        required: false
+        type: string
+      - name: status
+        in: query
+        description: 'Filter by status. You could also specify filters on any field
+          of the entity being queried as query parameters in this format: name=something'
+        required: false
+        type: string
+      responses:
+        '200':
+          description: Page of applications of group
+          schema:
+            "$ref": "#/definitions/PageDTO"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/applications/{id}/users":
+    get:
+      tags:
+      - application-controller
+      summary: getApplicationUsers
+      operationId: getApplicationUsersUsingGET
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
+      - name: query
+        in: query
+        description: query
+        required: false
+        type: string
+      - name: limit
+        in: query
+        description: Results page you want to retrieve (0..N)
+        required: false
+        type: string
+      - name: offset
+        in: query
+        description: Target Page number
+        required: false
+        type: string
+      - name: sort
+        in: query
+        description: Field to sort on
+        required: false
+        type: string
+      - name: sortOrder
+        in: query
+        description: 'Sorting order: ASC|DESC. Default order: DESC'
+        required: false
+        type: string
+      - name: status
+        in: query
+        description: 'Filter by status. You could also specify filters on any field
+          of the entity being queried as query parameters in this format: name=something'
+        required: false
+        type: string
+      responses:
+        '200':
+          description: Page of users of group
+          schema:
+            "$ref": "#/definitions/PageDTO"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/groups":
+    get:
+      tags:
+      - group-controller
+      summary: getGroupsList
+      operationId: getGroupsListUsingGET
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: query
+        in: query
+        description: query
+        required: false
+        type: string
+      - name: limit
+        in: query
+        description: Results page you want to retrieve (0..N)
+        required: false
+        type: string
+      - name: offset
+        in: query
+        description: Target Page number
+        required: false
+        type: string
+      - name: sort
+        in: query
+        description: Field to sort on
+        required: false
+        type: string
+      - name: sortOrder
+        in: query
+        description: 'Sorting order: ASC|DESC. Default order: DESC'
+        required: false
+        type: string
+      - name: status
+        in: query
+        description: 'Filter by status. You could also specify filters on any field
+          of the entity being queried as query parameters in this format: name=something'
+        required: false
+        type: string
+      responses:
+        '200':
+          description: Page of groups
+          schema:
+            "$ref": "#/definitions/PageDTO"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
     post:
       tags:
-        - link
-      summary: Link Google identity
-      description: >-
-        Allow users to use standard data access tools provided by Google after
-        linking users’ Google identity. User’s identity will be added to a
-        proxy group owned by GDC, the proxy group will then be added to project
-        specific groups and the Google groups will be added to buckets ACLs.
-      operationId: linkCloudIdentity
+      - group-controller
+      summary: createGroup
+      operationId: createGroupUsingPOST
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - in: body
+        name: groupInfo
+        description: groupInfo
+        required: true
+        schema:
+          "$ref": "#/definitions/Group"
       responses:
         '200':
-          description: successful operation
-definitions:
-  UserInfo:
-    type: object
-    required: [pdc_id, username, resources_granted, project_access, certificates_uploaded, email, message]
-    properties:
-      pdc_id:
+          description: New Group
+          schema:
+            "$ref": "#/definitions/Group"
+        '201':
+          description: Created
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/groups/{id}":
+    get:
+      tags:
+      - group-controller
+      summary: getGroup
+      operationId: getGroupUsingGET
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
         type: string
-      username:
+      - name: id
+        in: path
+        description: id
+        required: true
         type: string
-        description: ''
-      resources_granted:
-        type: array
-        items:
-          type: string
-      project_access:
-        type: object
-        additionalProperties:
-          type: string
-      certificates_uploaded:
-        type: array
-        items:
-          type: string
-      email:
+      responses:
+        '200':
+          description: Group Details
+          schema:
+            "$ref": "#/definitions/Group"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    put:
+      tags:
+      - group-controller
+      summary: updateGroup
+      operationId: updateGroupUsingPUT
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
         type: string
-        description: ''
-      message:
+      - in: body
+        name: updatedGroupInfo
+        description: updatedGroupInfo
+        required: true
+        schema:
+          "$ref": "#/definitions/Group"
+      responses:
+        '200':
+          description: Updated group info
+          schema:
+            "$ref": "#/definitions/Group"
+        '201':
+          description: Created
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    delete:
+      tags:
+      - group-controller
+      summary: deleteGroup
+      operationId: deleteGroupUsingDELETE
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
         type: string
-  PresignedURL:
-    type: object
-    properties:
-      url:
+      - name: id
+        in: path
+        description: id
+        required: true
         type: string
-        description: the presigned url issued to
-  PublicKeys:
-    type: object
-    properties:
-      keys:
-        type: array
-        description: array of single-entry dictionaries mapping from key id to public key
-        items:
+      responses:
+        '200':
+          description: OK
+        '204':
+          description: No Content
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+  "/groups/{id}/applications":
+    get:
+      tags:
+      - group-controller
+      summary: getGroupsApplications
+      operationId: getGroupsApplicationsUsingGET
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
+      - name: query
+        in: query
+        description: query
+        required: false
+        type: string
+      - name: limit
+        in: query
+        description: Results page you want to retrieve (0..N)
+        required: false
+        type: string
+      - name: offset
+        in: query
+        description: Target Page number
+        required: false
+        type: string
+      - name: sort
+        in: query
+        description: Field to sort on
+        required: false
+        type: string
+      - name: sortOrder
+        in: query
+        description: 'Sorting order: ASC|DESC. Default order: DESC'
+        required: false
+        type: string
+      - name: status
+        in: query
+        description: 'Filter by status. You could also specify filters on any field
+          of the entity being queried as query parameters in this format: name=something'
+        required: false
+        type: string
+      responses:
+        '200':
+          description: Page of applications of group
+          schema:
+            "$ref": "#/definitions/PageDTO"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    post:
+      tags:
+      - group-controller
+      summary: addAppsToGroups
+      operationId: addAppsToGroupsUsingPOST
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
+      - in: body
+        name: apps
+        description: apps
+        required: true
+        schema:
           type: array
-          description: "tuple of `(key_id, public_key)`"
           items:
             type: string
-    example:
-      keys:
-        - ["public_key_01", "-----BEGIN PUBLIC KEY----- ... -----END PUBLIC KEY-----"]
-  OAuthHTML:
-    type: string
+      responses:
+        '200':
+          description: Add Apps to Group
+          schema:
+            type: string
+        '201':
+          description: Created
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/groups/{id}/applications/{appIDs}":
+    delete:
+      tags:
+      - group-controller
+      summary: deleteAppsFromGroup
+      operationId: deleteAppsFromGroupUsingDELETE
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
+      - name: appIDs
+        in: path
+        description: appIDs
+        required: true
+        type: string
+      responses:
+        '200':
+          description: Delete Apps from Group
+        '204':
+          description: No Content
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+  "/groups/{id}/users":
+    get:
+      tags:
+      - group-controller
+      summary: getGroupsUsers
+      operationId: getGroupsUsersUsingGET
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
+      - name: query
+        in: query
+        description: query
+        required: false
+        type: string
+      - name: limit
+        in: query
+        description: Results page you want to retrieve (0..N)
+        required: false
+        type: string
+      - name: offset
+        in: query
+        description: Target Page number
+        required: false
+        type: string
+      - name: sort
+        in: query
+        description: Field to sort on
+        required: false
+        type: string
+      - name: sortOrder
+        in: query
+        description: 'Sorting order: ASC|DESC. Default order: DESC'
+        required: false
+        type: string
+      - name: status
+        in: query
+        description: 'Filter by status. You could also specify filters on any field
+          of the entity being queried as query parameters in this format: name=something'
+        required: false
+        type: string
+      responses:
+        '200':
+          description: Page of users of group
+          schema:
+            "$ref": "#/definitions/PageDTO"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/oauth/facebook/token":
+    get:
+      tags:
+      - auth-controller
+      summary: exchangeFacebookTokenForAuth
+      operationId: exchangeFacebookTokenForAuthUsingGET
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: token
+        in: header
+        description: token
+        required: true
+        type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/oauth/google/token":
+    get:
+      tags:
+      - auth-controller
+      summary: exchangeGoogleTokenForAuth
+      operationId: exchangeGoogleTokenForAuthUsingGET
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: token
+        in: header
+        description: token
+        required: true
+        type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/oauth/token/public_key":
+    get:
+      tags:
+      - auth-controller
+      summary: getPublicKey
+      operationId: getPublicKeyUsingGET
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/oauth/token/verify":
+    get:
+      tags:
+      - auth-controller
+      summary: verifyJWToken
+      operationId: verifyJWTokenUsingGET
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: token
+        in: header
+        description: token
+        required: true
+        type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: boolean
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/users":
+    get:
+      tags:
+      - user-controller
+      summary: getUsersList
+      operationId: getUsersListUsingGET
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: query
+        in: query
+        description: Query string compares to users Name, Email, First Name, and Last
+          Name fields.
+        required: false
+        type: string
+      - name: limit
+        in: query
+        description: Results page you want to retrieve (0..N)
+        required: false
+        type: string
+      - name: offset
+        in: query
+        description: Target Page number
+        required: false
+        type: string
+      - name: sort
+        in: query
+        description: Field to sort on
+        required: false
+        type: string
+      - name: sortOrder
+        in: query
+        description: 'Sorting order: ASC|DESC. Default order: DESC'
+        required: false
+        type: string
+      - name: status
+        in: query
+        description: 'Filter by status. You could also specify filters on any field
+          of the entity being queried as query parameters in this format: name=something'
+        required: false
+        type: string
+      responses:
+        '200':
+          description: Page of users
+          schema:
+            "$ref": "#/definitions/PageDTO"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    post:
+      tags:
+      - user-controller
+      summary: create
+      operationId: createUsingPOST_1
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - in: body
+        name: userInfo
+        description: userInfo
+        required: true
+        schema:
+          "$ref": "#/definitions/User"
+      responses:
+        '200':
+          description: Create new user
+          schema:
+            "$ref": "#/definitions/User"
+        '201':
+          description: Created
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/users/{id}":
+    get:
+      tags:
+      - user-controller
+      summary: getUser
+      operationId: getUserUsingGET
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
+      responses:
+        '200':
+          description: User Details
+          schema:
+            "$ref": "#/definitions/User"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    put:
+      tags:
+      - user-controller
+      summary: updateUser
+      operationId: updateUserUsingPUT
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - in: body
+        name: updatedUserInfo
+        description: updatedUserInfo
+        required: true
+        schema:
+          "$ref": "#/definitions/User"
+      responses:
+        '200':
+          description: Updated user info
+          schema:
+            "$ref": "#/definitions/User"
+        '201':
+          description: Created
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    delete:
+      tags:
+      - user-controller
+      summary: deleteUser
+      operationId: deleteUserUsingDELETE
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
+      responses:
+        '200':
+          description: OK
+        '204':
+          description: No Content
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+  "/users/{id}/applications":
+    get:
+      tags:
+      - user-controller
+      summary: getUsersApplications
+      operationId: getUsersApplicationsUsingGET
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
+      - name: query
+        in: query
+        description: query
+        required: false
+        type: string
+      - name: limit
+        in: query
+        description: Results page you want to retrieve (0..N)
+        required: false
+        type: string
+      - name: offset
+        in: query
+        description: Target Page number
+        required: false
+        type: string
+      - name: sort
+        in: query
+        description: Field to sort on
+        required: false
+        type: string
+      - name: sortOrder
+        in: query
+        description: 'Sorting order: ASC|DESC. Default order: DESC'
+        required: false
+        type: string
+      - name: status
+        in: query
+        description: 'Filter by status. You could also specify filters on any field
+          of the entity being queried as query parameters in this format: name=something'
+        required: false
+        type: string
+      responses:
+        '200':
+          description: Page of apps of user
+          schema:
+            "$ref": "#/definitions/PageDTO"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    post:
+      tags:
+      - user-controller
+      summary: addAppsToUser
+      operationId: addAppsToUserUsingPOST
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
+      - in: body
+        name: appIDs
+        description: appIDs
+        required: true
+        schema:
+          type: array
+          items:
+            type: string
+      responses:
+        '200':
+          description: Add applications to user
+          schema:
+            type: string
+        '201':
+          description: Created
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/users/{id}/applications/{appIDs}":
+    delete:
+      tags:
+      - user-controller
+      summary: deleteAppFromUser
+      operationId: deleteAppFromUserUsingDELETE
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
+      - name: appIDs
+        in: path
+        description: appIDs
+        required: true
+        type: string
+      responses:
+        '200':
+          description: Delete Applications from User
+        '204':
+          description: No Content
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+  "/users/{id}/groups":
+    get:
+      tags:
+      - user-controller
+      summary: getUsersGroups
+      operationId: getUsersGroupsUsingGET
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
+      - name: query
+        in: query
+        description: query
+        required: false
+        type: string
+      - name: limit
+        in: query
+        description: Results page you want to retrieve (0..N)
+        required: false
+        type: string
+      - name: offset
+        in: query
+        description: Target Page number
+        required: false
+        type: string
+      - name: sort
+        in: query
+        description: Field to sort on
+        required: false
+        type: string
+      - name: sortOrder
+        in: query
+        description: 'Sorting order: ASC|DESC. Default order: DESC'
+        required: false
+        type: string
+      - name: status
+        in: query
+        description: 'Filter by status. You could also specify filters on any field
+          of the entity being queried as query parameters in this format: name=something'
+        required: false
+        type: string
+      responses:
+        '200':
+          description: Page of groups of user
+          schema:
+            "$ref": "#/definitions/PageDTO"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    post:
+      tags:
+      - user-controller
+      summary: addGroupsToUser
+      operationId: addGroupsToUserUsingPOST
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
+      - in: body
+        name: groupIDs
+        description: groupIDs
+        required: true
+        schema:
+          type: array
+          items:
+            type: string
+      responses:
+        '200':
+          description: Add groups to user
+          schema:
+            type: string
+        '201':
+          description: Created
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/users/{id}/groups/{groupIDs}":
+    delete:
+      tags:
+      - user-controller
+      summary: deleteGroupFromUser
+      operationId: deleteGroupFromUserUsingDELETE
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
+      - name: groupIDs
+        in: path
+        description: groupIDs
+        required: true
+        type: string
+      responses:
+        '200':
+          description: Delete Groups from User
+        '204':
+          description: No Content
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+definitions:
+  Group:
+    type: object
+    properties:
+      description:
+        type: string
+      id:
+        type: integer
+        format: int32
+      name:
+        type: string
+      status:
+        type: string
+  PageDTO«Application»:
+    type: object
+    properties:
+      count:
+        type: integer
+        format: int64
+      limit:
+        type: integer
+        format: int32
+      offset:
+        type: integer
+        format: int32
+      resultSet:
+        type: array
+        items:
+          "$ref": "#/definitions/Application"
+  User:
+    type: object
+    properties:
+      createdAt:
+        type: string
+      email:
+        type: string
+      firstName:
+        type: string
+      id:
+        type: integer
+        format: int32
+      lastLogin:
+        type: string
+      lastName:
+        type: string
+      name:
+        type: string
+      preferredLanguage:
+        type: string
+      role:
+        type: string
+      status:
+        type: string
+  PageDTO:
+    type: object
+    properties:
+      count:
+        type: integer
+        format: int64
+      limit:
+        type: integer
+        format: int32
+      offset:
+        type: integer
+        format: int32
+      resultSet:
+        type: array
+        items:
+          type: object
+  PageDTO«User»:
+    type: object
+    properties:
+      count:
+        type: integer
+        format: int64
+      limit:
+        type: integer
+        format: int32
+      offset:
+        type: integer
+        format: int32
+      resultSet:
+        type: array
+        items:
+          "$ref": "#/definitions/User"
+  Application:
+    type: object
+    properties:
+      clientId:
+        type: string
+      clientSecret:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+        format: int32
+      name:
+        type: string
+      redirectUri:
+        type: string
+      status:
+        type: string
+  PageDTO«Group»:
+    type: object
+    properties:
+      count:
+        type: integer
+        format: int64
+      limit:
+        type: integer
+        format: int32
+      offset:
+        type: integer
+        format: int32
+      resultSet:
+        type: array
+        items:
+          "$ref": "#/definitions/Group"
