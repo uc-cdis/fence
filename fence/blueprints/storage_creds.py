@@ -1,13 +1,15 @@
 from fence.auth import login_required
 from fence.data_model.models import GoogleServiceAccount
+from fence.data_model.models import GoogleProxyGroup
 import flask
-from cirrus import GoogleCloudManager
 from flask import current_app as capp
 from flask import g, request, jsonify
 from flask import abort
+from flask_sqlalchemy_session import current_session
+
+from cirrus import GoogleCloudManager
 from fence.resources.storage.cdis_jwt import create_refresh_token,\
     revoke_refresh_token, create_access_token
-from flask_sqlalchemy_session import current_session
 
 blueprint = flask.Blueprint('credentials', __name__)
 
@@ -316,20 +318,31 @@ def _create_google_service_account_for_client(g_cloud_manager):
         fence.data_model.models.GoogleServiceAccount: New service account
     """
     # create service account, add to db
-    user_google_group = g.user.google_group_id
-    client_id = getattr(g, "client_id", None)
-    new_service_account = (
-        g_cloud_manager.create_service_account_for_proxy_group(user_google_group,
-                                                               account_id=client_id)
+    proxy_group = (
+        current_session
+        .query(GoogleProxyGroup)
+        .filter_by(user_id=g.user.id)
+        .first()
     )
-    # TODO: catch 409 (account already exists) and attempt to retrieve and add to db?
-    service_account = GoogleServiceAccount(
-        google_unique_id=new_service_account["uniqueId"],
-        client_id=client_id,
-        user_id=g.user.id,
-        email=new_service_account["email"]
-    )
-    current_session.add(service_account)
-    current_session.commit()
+
+    if proxy_group:
+        client_id = getattr(g, "client_id", None)
+        new_service_account = (
+            g_cloud_manager.create_service_account_for_proxy_group(proxy_group.id,
+                                                                   account_id=client_id)
+        )
+
+        service_account = GoogleServiceAccount(
+            google_unique_id=new_service_account["uniqueId"],
+            client_id=client_id,
+            user_id=g.user.id,
+            email=new_service_account["email"]
+        )
+        current_session.add(service_account)
+        current_session.commit()
+    else:
+        # TODO Should we create a group here if one doesn't exist for some reason?
+        # These groups *should* get created during dpbap sync
+        abort(404, "Could not find Google proxy group for current user.")
 
     return service_account

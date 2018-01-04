@@ -190,6 +190,26 @@ class GoogleServiceAccount(Base):
             return self
 
 
+class GoogleProxyGroup(Base):
+    __tablename__ = "google_proxy_group"
+
+    id = Column(String(90), primary_key=True)
+
+    user_id = Column(
+        Integer,
+        ForeignKey(User.id),
+        nullable=False,
+        unique=True
+    )
+    user = relationship('User')
+
+    def delete(self):
+        with capp.db.session as session:
+            session.delete(self)
+            session.commit()
+            return self
+
+
 def migrate(driver):
     if not driver.engine.dialect.supports_alter:
         print("This engine dialect doesn't support altering so we are not migrating even if necessary!")

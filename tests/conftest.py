@@ -179,6 +179,7 @@ def oauth_client(app, request):
                     models.Token,
                     models.User,
                     models.GoogleServiceAccount,
+                    models.GoogleProxyGroup,
                 ]
                 for cls in all_models:
                     for obj in session.query(cls).all():
