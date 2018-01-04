@@ -66,7 +66,10 @@ def app_sessions(app):
     migrate(app.db)
     session = flask_scoped_session(app.db.Session, app)  # noqa
     app.jinja_env.globals['csrf_token'] = generate_csrf_token
-    app.storage_manager = StorageManager(app.config['STORAGE_CREDENTIALS'])
+    app.storage_manager = StorageManager(
+        app.config['STORAGE_CREDENTIALS'],
+        logger=app.logger
+    )
     if ('OPENID_CONNECT' in app.config
         and 'google' in app.config['OPENID_CONNECT']):
         app.google_client = Oauth2Client(
