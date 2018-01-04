@@ -12,8 +12,7 @@ from userdatamodel.models import (
     Project,
     ResearchGroup,
     StorageAccess,
-    User,
-    GoogleServiceAccount,
+    User
 )
 
 from fence.utils import create_client, drop_client
