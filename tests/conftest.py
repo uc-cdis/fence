@@ -187,6 +187,36 @@ def oauth_client(app, request):
 
 
 @pytest.fixture(scope='function')
+def oauth_client_with_admin(app, request):
+    mocker = Mocker()
+    mocker.mock_functions()
+    url = 'https://admin.test.net'
+    client_id, client_secret = fence.utils.create_client(
+        username='test', urls=url, DB=app.config['DB'], is_admin=True
+    )
+
+    def fin():
+        with app.db.session as session:
+            # Don't flush until everything is finished, otherwise this will
+            # break because of (for example) foreign key references between the
+            # tables.
+            with session.no_autoflush:
+                all_models = [
+                    blacklist.BlacklistedToken,
+                    models.Client,
+                    models.Grant,
+                    models.Token,
+                    models.User,
+                ]
+                for cls in all_models:
+                    for obj in session.query(cls).all():
+                        session.delete(obj)
+
+    request.addfinalizer(fin)
+    return Dict(client_id=client_id, client_secret=client_secret, url=url)
+
+
+@pytest.fixture(scope='function')
 def token_response(client, oauth_client):
     """
     Return the token response from the end of the OAuth procedure from

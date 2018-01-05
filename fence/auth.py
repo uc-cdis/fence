@@ -99,7 +99,9 @@ def has_oauth(scope=None):
     scope.update({'access'})
     try:
         access_token = auth.validate_request_jwt(
-            aud=scope
+            aud=scope,
+            user_api=flask.current_app.config['HOST_NAME'],
+            attempt_refresh=False,
         )
     except auth.JWTValidationError as e:
         raise Unauthorized('failed to validate token: {}'.format(e))
