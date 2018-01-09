@@ -13,6 +13,8 @@ from ..resources.storage import get_endpoints_descriptions
 from fence.resources.storage.cdis_jwt import create_refresh_token,\
     revoke_refresh_token, create_access_token
 
+from fence.data_model.models import UserRefreshToken
+
 blueprint = flask.Blueprint('credentials', __name__)
 
 ALL_RESOURCES = {
@@ -99,7 +101,14 @@ def list_keypairs(provider):
         }
 
     '''
-    if provider == 'google':
+    if provider == 'cdis':
+        with capp.db.session as session:
+            jtis = session.query(UserRefreshToken.jti) \
+                .filter_by(userid=g.user.id).order_by(UserRefreshToken.expires.desc()).all()
+            result = {
+                'jtis':
+                    [{'jti': item} for item in jtis]}
+    elif provider == 'google':
         with GoogleCloudManager() as g_cloud_manager:
             service_account = _get_google_service_account_for_client(g_cloud_manager)
 
@@ -108,15 +117,12 @@ def list_keypairs(provider):
                 result = {'access_keys': keys}
             else:
                 result = {'access_keys': []}
-    elif provider != 'cdis':
+    else:
         result = capp.storage_manager.list_keypairs(provider, g.user)
         keys = {
             'access_keys':
-            [{'access_key': item['access_key']} for item in result]}
+                [{'access_key': item['access_key']} for item in result]}
         result = keys
-    else:
-        result = {'error': 'not supported'}
-
     return jsonify(result)
 
 
