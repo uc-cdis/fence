@@ -1,14 +1,20 @@
+from datetime import datetime, timedelta
 from flask import current_app as cur_app
 from ...jwt import token, errors
 from flask import jsonify
+import jwt
 
 from fence.data_model.models import RefreshToken
 
 
 def create_refresh_token(user, keypair, expires_in, scopes):
     return_token = token.generate_signed_refresh_token(keypair.kid, keypair.private_key, user, expires_in, scopes)
+    payload = jwt.decode(return_token, keypair.public_key, audience='refresh', algorithms=['RS256'])
+    jti = payload['jti']
+    expires = datetime.fromtimestamp(payload['exp']).isoformat()
+
     with cur_app.db.session as session:
-        session.add(RefreshToken(token=return_token, userid=user.id))
+        session.add(RefreshToken(jti=jti, token=return_token, userid=user.id, expires=expires))
         session.commit()
     return return_token
 

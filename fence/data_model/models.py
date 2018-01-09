@@ -81,9 +81,10 @@ class Client(Base):
 class RefreshToken(Base):
     __tablename__ = "refresh_token"
 
-    token = Column(String, primary_key=True)
+    jti = Column(String, primary_key=True)
+    token = Column(String)
     userid = Column(Integer)
-    created_time = Column(DateTime, default=datetime.datetime.utcnow().isoformat)
+    expires = Column(DateTime)
 
     def delete(self):
         with capp.db.session as session:
