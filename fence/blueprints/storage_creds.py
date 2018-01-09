@@ -109,6 +109,18 @@ def create_credential(backend):
         }
         google:
         {
+            "name": string,
+            "privateKeyType": enum(ServiceAccountPrivateKeyType),
+            "keyAlgorithm": enum(ServiceAccountKeyAlgorithm),
+            "privateKeyData": string,
+            "publicKeyData": string,
+            "validAfterTime": string,
+            "validBeforeTime": string,
+        }
+
+        "privateKeyData" contains base64-encoded string that represents
+        a JSON key in Google Credentials File format:
+        {
             "type": "service_account",
             "project_id": "project-id",
             "private_key_id": "some_number",
@@ -165,6 +177,18 @@ def create_access_token_api(backend):
             "access_token" "token_value"
         }
         google:
+        {
+            "name": string,
+            "privateKeyType": enum(ServiceAccountPrivateKeyType),
+            "keyAlgorithm": enum(ServiceAccountKeyAlgorithm),
+            "privateKeyData": string,
+            "publicKeyData": string,
+            "validAfterTime": string,
+            "validBeforeTime": string,
+        }
+
+        "privateKeyData" contains base64-encoded string that represents
+        a JSON key in Google Credentials File format:
         {
             "type": "service_account",
             "project_id": "project-id",
@@ -254,6 +278,18 @@ def _get_google_access_key(g_cloud_manager):
     Returns:
         .. code-block:: JavaScript
 
+            {
+                "name": string,
+                "privateKeyType": enum(ServiceAccountPrivateKeyType),
+                "keyAlgorithm": enum(ServiceAccountKeyAlgorithm),
+                "privateKeyData": string,
+                "publicKeyData": string,
+                "validAfterTime": string,
+                "validBeforeTime": string,
+            }
+
+            "privateKeyData" contains base64-encoded string that represents
+            a JSON key in Google Credentials File format:
             {
                 "type": "service_account",
                 "project_id": "project-id",
