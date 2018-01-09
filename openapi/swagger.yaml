@@ -484,12 +484,464 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden
+  "/applications/{id}/groups":
+    get:
+      tags:
+      - application-controller
+      summary: getApplicationsGroups
+      operationId: getApplicationsGroupsUsingGET
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
+      - name: query
+        in: query
+        description: query
+        required: false
+        type: string
+      - name: limit
+        in: query
+        description: Results page you want to retrieve (0..N)
+        required: false
+        type: string
+      - name: offset
+        in: query
+        description: Target Page number
+        required: false
+        type: string
+      - name: sort
+        in: query
+        description: Field to sort on
+        required: false
+        type: string
+      - name: sortOrder
+        in: query
+        description: 'Sorting order: ASC|DESC. Default order: DESC'
+        required: false
+        type: string
+      - name: status
+        in: query
+        description: 'Filter by status. You could also specify filters on any field
+          of the entity being queried as query parameters in this format: name=something'
+        required: false
+        type: string
+      responses:
+        '200':
+          description: Page of applications of group
+          schema:
+            "$ref": "#/definitions/PageDTO"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
   "/applications/{id}/users":
     get:
       tags:
       - application-controller
       summary: getApplicationUsers
       operationId: getApplicationUsersUsingGET
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
+      - name: query
+        in: query
+        description: query
+        required: false
+        type: string
+      - name: limit
+        in: query
+        description: Results page you want to retrieve (0..N)
+        required: false
+        type: string
+      - name: offset
+        in: query
+        description: Target Page number
+        required: false
+        type: string
+      - name: sort
+        in: query
+        description: Field to sort on
+        required: false
+        type: string
+      - name: sortOrder
+        in: query
+        description: 'Sorting order: ASC|DESC. Default order: DESC'
+        required: false
+        type: string
+      - name: status
+        in: query
+        description: 'Filter by status. You could also specify filters on any field
+          of the entity being queried as query parameters in this format: name=something'
+        required: false
+        type: string
+      responses:
+        '200':
+          description: Page of users of group
+          schema:
+            "$ref": "#/definitions/PageDTO"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/groups":
+    get:
+      tags:
+      - group-controller
+      summary: getGroupsList
+      operationId: getGroupsListUsingGET
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: query
+        in: query
+        description: query
+        required: false
+        type: string
+      - name: limit
+        in: query
+        description: Results page you want to retrieve (0..N)
+        required: false
+        type: string
+      - name: offset
+        in: query
+        description: Target Page number
+        required: false
+        type: string
+      - name: sort
+        in: query
+        description: Field to sort on
+        required: false
+        type: string
+      - name: sortOrder
+        in: query
+        description: 'Sorting order: ASC|DESC. Default order: DESC'
+        required: false
+        type: string
+      - name: status
+        in: query
+        description: 'Filter by status. You could also specify filters on any field
+          of the entity being queried as query parameters in this format: name=something'
+        required: false
+        type: string
+      responses:
+        '200':
+          description: Page of groups
+          schema:
+            "$ref": "#/definitions/PageDTO"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    post:
+      tags:
+      - group-controller
+      summary: createGroup
+      operationId: createGroupUsingPOST
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - in: body
+        name: groupInfo
+        description: groupInfo
+        required: true
+        schema:
+          "$ref": "#/definitions/Group"
+      responses:
+        '200':
+          description: New Group
+          schema:
+            "$ref": "#/definitions/Group"
+        '201':
+          description: Created
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/groups/{id}":
+    get:
+      tags:
+      - group-controller
+      summary: getGroup
+      operationId: getGroupUsingGET
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
+      responses:
+        '200':
+          description: Group Details
+          schema:
+            "$ref": "#/definitions/Group"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    put:
+      tags:
+      - group-controller
+      summary: updateGroup
+      operationId: updateGroupUsingPUT
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - in: body
+        name: updatedGroupInfo
+        description: updatedGroupInfo
+        required: true
+        schema:
+          "$ref": "#/definitions/Group"
+      responses:
+        '200':
+          description: Updated group info
+          schema:
+            "$ref": "#/definitions/Group"
+        '201':
+          description: Created
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    delete:
+      tags:
+      - group-controller
+      summary: deleteGroup
+      operationId: deleteGroupUsingDELETE
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
+      responses:
+        '200':
+          description: OK
+        '204':
+          description: No Content
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+  "/groups/{id}/applications":
+    get:
+      tags:
+      - group-controller
+      summary: getGroupsApplications
+      operationId: getGroupsApplicationsUsingGET
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
+      - name: query
+        in: query
+        description: query
+        required: false
+        type: string
+      - name: limit
+        in: query
+        description: Results page you want to retrieve (0..N)
+        required: false
+        type: string
+      - name: offset
+        in: query
+        description: Target Page number
+        required: false
+        type: string
+      - name: sort
+        in: query
+        description: Field to sort on
+        required: false
+        type: string
+      - name: sortOrder
+        in: query
+        description: 'Sorting order: ASC|DESC. Default order: DESC'
+        required: false
+        type: string
+      - name: status
+        in: query
+        description: 'Filter by status. You could also specify filters on any field
+          of the entity being queried as query parameters in this format: name=something'
+        required: false
+        type: string
+      responses:
+        '200':
+          description: Page of applications of group
+          schema:
+            "$ref": "#/definitions/PageDTO"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    post:
+      tags:
+      - group-controller
+      summary: addAppsToGroups
+      operationId: addAppsToGroupsUsingPOST
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
+      - in: body
+        name: apps
+        description: apps
+        required: true
+        schema:
+          type: array
+          items:
+            type: string
+      responses:
+        '200':
+          description: Add Apps to Group
+          schema:
+            type: string
+        '201':
+          description: Created
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/groups/{id}/applications/{appIDs}":
+    delete:
+      tags:
+      - group-controller
+      summary: deleteAppsFromGroup
+      operationId: deleteAppsFromGroupUsingDELETE
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
+      - name: appIDs
+        in: path
+        description: appIDs
+        required: true
+        type: string
+      responses:
+        '200':
+          description: Delete Apps from Group
+        '204':
+          description: No Content
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+  "/groups/{id}/users":
+    get:
+      tags:
+      - group-controller
+      summary: getGroupsUsers
+      operationId: getGroupsUsersUsingGET
       consumes:
       - application/json
       produces:
@@ -887,6 +1339,145 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden
+  "/users/{id}/groups":
+    get:
+      tags:
+      - user-controller
+      summary: getUsersGroups
+      operationId: getUsersGroupsUsingGET
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
+      - name: query
+        in: query
+        description: query
+        required: false
+        type: string
+      - name: limit
+        in: query
+        description: Results page you want to retrieve (0..N)
+        required: false
+        type: string
+      - name: offset
+        in: query
+        description: Target Page number
+        required: false
+        type: string
+      - name: sort
+        in: query
+        description: Field to sort on
+        required: false
+        type: string
+      - name: sortOrder
+        in: query
+        description: 'Sorting order: ASC|DESC. Default order: DESC'
+        required: false
+        type: string
+      - name: status
+        in: query
+        description: 'Filter by status. You could also specify filters on any field
+          of the entity being queried as query parameters in this format: name=something'
+        required: false
+        type: string
+      responses:
+        '200':
+          description: Page of groups of user
+          schema:
+            "$ref": "#/definitions/PageDTO"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    post:
+      tags:
+      - user-controller
+      summary: addGroupsToUser
+      operationId: addGroupsToUserUsingPOST
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
+      - in: body
+        name: groupIDs
+        description: groupIDs
+        required: true
+        schema:
+          type: array
+          items:
+            type: string
+      responses:
+        '200':
+          description: Add groups to user
+          schema:
+            type: string
+        '201':
+          description: Created
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/users/{id}/groups/{groupIDs}":
+    delete:
+      tags:
+      - user-controller
+      summary: deleteGroupFromUser
+      operationId: deleteGroupFromUserUsingDELETE
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        required: true
+        type: string
+      - name: id
+        in: path
+        description: id
+        required: true
+        type: string
+      - name: groupIDs
+        in: path
+        description: groupIDs
+        required: true
+        type: string
+      responses:
+        '200':
+          description: Delete Groups from User
+        '204':
+          description: No Content
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
   '/data/{uuid}':
     get:
       tags:
@@ -931,6 +1522,18 @@ paths:
         '200':
           description: successful operation
 definitions:
+  Group:
+    type: object
+    properties:
+      description:
+        type: string
+      id:
+        type: integer
+        format: int32
+      name:
+        type: string
+      status:
+        type: string
   PageDTO«Application»:
     type: object
     properties:
@@ -1003,6 +1606,22 @@ definitions:
         type: array
         items:
           "$ref": "#/definitions/User"
+  PageDTO«Group»:
+    type: object
+    properties:
+      count:
+        type: integer
+        format: int64
+      limit:
+        type: integer
+        format: int32
+      offset:
+        type: integer
+        format: int32
+      resultSet:
+        type: array
+        items:
+          "$ref": "#/definitions/Group"
   Application:
     type: object
     properties:
