@@ -19,7 +19,7 @@ setup(
         "google_api_python_client==1.6.4",
         "httplib2==0.10.3",
         "oauthlib==2.0.6",
-        "psycopg2==2.6.1",
+        "psycopg2==2.7.3.2",
         "pysftp==0.2.9",
         "pytest-flask==0.10.0",
         "pytest==3.2.3",
