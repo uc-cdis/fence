@@ -78,11 +78,11 @@ class Client(Base):
         scopes = scopes[0].split(',')
         return all(scope in self._scopes for scope in scopes)
 
-class RefreshToken(Base):
-    __tablename__ = "refresh_token"
+
+class UserRefreshToken(Base):
+    __tablename__ = "user_refresh_token"
 
     jti = Column(String, primary_key=True)
-    token = Column(String)
     userid = Column(Integer)
     expires = Column(DateTime)
 

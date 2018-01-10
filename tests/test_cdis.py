@@ -30,5 +30,5 @@ def test_cdis_list_refresh_token(client, oauth_client):
         '/credentials/cdis/'
     )
     response = client.get(path)
-    assert 'token' in response.json
+    assert 'jti' in response.json
     assert response.status_code == 200

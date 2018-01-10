@@ -90,7 +90,11 @@ def list_keypairs(provider):
     other:
 
     .. code-block:: JavaScript
-
+        cdis
+        {
+            "jti": "e9d58890-99b0-44f0-88bd-3ebc370b1329"
+        }
+        non-cdis
         {
             "access_keys":
             [
