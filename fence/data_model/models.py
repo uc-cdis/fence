@@ -8,7 +8,6 @@ a `migrate` function in this file that gets called every init.
 """
 
 from flask import current_app as capp
-from flask_postgres_session import user_session_model
 from flask_sqlalchemy_session import current_session
 from sqlalchemy import (
     Integer, String, Column, Boolean, Text, DateTime, MetaData, Table
@@ -18,8 +17,6 @@ from sqlalchemy.schema import ForeignKey
 
 from userdatamodel import Base
 from userdatamodel.models import *
-
-UserSession = user_session_model('fence_user_session', Base=Base)
 
 
 class Client(Base):

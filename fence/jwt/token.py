@@ -5,12 +5,10 @@ import jwt
 import json
 
 from datetime import datetime, timedelta
-from flask_sqlalchemy_session import current_session
 
 from cdispyutils import auth
 from . import blacklist, errors, keys
 from .blacklist import BlacklistedToken
-from ..data_model import models
 
 
 def issued_and_expiration_times(seconds_to_expire):
@@ -25,10 +23,59 @@ def issued_and_expiration_times(seconds_to_expire):
     Return:
         Tuple[int, int]: (issued, expired) times in unix time
     """
-    now = datetime.now()
+    now = datetime.utcnow()
     iat = int(now.strftime('%s'))
     exp = int((now + timedelta(seconds=seconds_to_expire)).strftime('%s'))
     return (iat, exp)
+
+
+def generate_signed_session_token(kid, private_key, expires_in,
+                                  scopes, client_id, username=None,
+                                  session_started=None, provider=None,
+                                  redirect=None):
+    """
+    Generate a JWT session token from the given request, and output a UTF-8
+    string of the encoded JWT signed with the private key.
+
+    Args:
+        private_key (str): RSA private key to sign and encode the JWT with
+        request (oauthlib.common.Request): token request to handle
+        session_started (int): unix time the original session token was provided
+
+    Return:
+        str: encoded JWT session token signed with ``private_key``
+    """
+    headers = {'kid': kid}
+    iat, exp = issued_and_expiration_times(expires_in)
+
+    # Create context based on provided information
+    context = {
+        'session_started': session_started or iat,  # Provided time or issued time
+    }
+    if username:
+        context["username"] = username
+    if provider:
+        context["provider"] = provider
+    if redirect:
+        context["redirect"] = redirect
+
+    claims = {
+        'aud': ['session'],
+        'sub': '',  # TODO what should this be?
+        'iss': flask.current_app.config.get('HOST_NAME'),
+        'iat': iat,
+        'exp': exp,
+        'jti': str(uuid.uuid4()),
+        'access_aud': scopes,
+        'context': context,
+        'azp': client_id or ''
+    }
+    flask.current_app.logger.info(
+        'issuing JWT session token\n' + json.dumps(claims, indent=4)
+    )
+    token = jwt.encode(claims, private_key, headers=headers, algorithm='RS256')
+    token = oauthlib.common.to_unicode(token, 'UTF-8')
+    return token
 
 
 def generate_signed_refresh_token(kid, private_key, user, expires_in,

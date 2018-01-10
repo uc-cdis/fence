@@ -19,7 +19,7 @@ BIONIMBUS_ACCOUNT_ID = 655886864976
 SESSION_TIMEOUT = timedelta(seconds=1800)
 # max session lifetime
 SESSION_LIFETIME = timedelta(seconds=28800)
-SESSION_COOKIE_NAME = "fence_session"
+SESSION_COOKIE_NAME = "fence"
 
 # ``JWT_KEYPAIRS`` is an ordered dictionary of entries ``kid:
 # (public_key_filename, private_key_filename)`` mapping key ids to keypairs
