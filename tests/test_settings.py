@@ -24,6 +24,7 @@ SESSION_TIMEOUT = timedelta(seconds=1800)
 SESSION_LIFETIME = timedelta(seconds=28800)
 HMAC_ENCRYPTION_KEY = Fernet.generate_key()
 ENABLE_CSRF_PROTECTION = False
+SESSION_COOKIE_NAME = "fence"
 
 JWT_KEYPAIR_FILES = OrderedDict([
     (
