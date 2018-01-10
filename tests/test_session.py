@@ -32,8 +32,6 @@ def test_valid_session(app):
     test_session_jwt = create_session_token(
         app.keypairs[0],
         app.config.get("SESSION_TIMEOUT").seconds,
-        scopes=[],
-        client_id=None,
         username=username
     )
 
@@ -53,8 +51,6 @@ def test_valid_session_modified(app):
     test_session_jwt = create_session_token(
         app.keypairs[0],
         app.config.get("SESSION_TIMEOUT").seconds,
-        scopes=[],
-        client_id=None,
         username=username
     )
 
@@ -82,8 +78,6 @@ def test_expired_session_lifetime(app):
     test_session_jwt = create_session_token(
         app.keypairs[0],
         app.config.get("SESSION_TIMEOUT").seconds,
-        scopes=[],
-        client_id=None,
         session_started=one_lifetime_ago,
         username=username
     )
@@ -112,8 +106,6 @@ def test_expired_session_timeout(app):
     test_session_jwt = create_session_token(
         app.keypairs[0],
         jwt_expiration,
-        scopes=[],
-        client_id=None,
         session_started=last_active,
         username=username
     )

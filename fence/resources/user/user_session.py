@@ -87,9 +87,7 @@ class UserSessionInterface(SessionInterface):
         if not jwt:
             jwt = create_session_token(
                 current_app.keypairs[0],
-                app.config.get('SESSION_TIMEOUT').seconds,
-                scopes=[],
-                client_id=None
+                app.config.get('SESSION_TIMEOUT').seconds
             )
 
         session = UserSession(jwt)
@@ -112,8 +110,6 @@ class UserSessionInterface(SessionInterface):
         token = create_session_token(
             current_app.keypairs[0],
             timeout.seconds,
-            scopes=session.jwt["access_aud"],
-            client_id=session.jwt["azp"],
             session_started=session.get("session_started", None),
             username=session.get("username", None),
             provider=session.get("provider", None),

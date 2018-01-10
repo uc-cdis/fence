@@ -30,9 +30,8 @@ def issued_and_expiration_times(seconds_to_expire):
 
 
 def generate_signed_session_token(kid, private_key, expires_in,
-                                  scopes, client_id, username=None,
-                                  session_started=None, provider=None,
-                                  redirect=None):
+                                  username=None, session_started=None,
+                                  provider=None, redirect=None):
     """
     Generate a JWT session token from the given request, and output a UTF-8
     string of the encoded JWT signed with the private key.
@@ -66,9 +65,7 @@ def generate_signed_session_token(kid, private_key, expires_in,
         'iat': iat,
         'exp': exp,
         'jti': str(uuid.uuid4()),
-        'access_aud': scopes,
         'context': context,
-        'azp': client_id or ''
     }
     flask.current_app.logger.info(
         'issuing JWT session token\n' + json.dumps(claims, indent=4)
