@@ -16,14 +16,28 @@ except ImportError:
     from mock import call
 
 
+def test_session_cookie_creation_unecessary(app):
+    # Test that when we don't modify the session at all,
+    # we don't save it in a JWT
+    with app.test_client() as client:
+        with client.session_transaction() as _:
+            pass
+        client_cookies = [cookie.name for cookie in client.cookie_jar]
+        assert SESSION_COOKIE_NAME not in client_cookies
+
+
 def test_session_cookie_creation(app):
-    # Test that when no session cookie exists, we create one and
-    # can access information from the JWT (like session_started time)
+    # Test that when no session cookie exists, we create one that
+    # doesn't have anything in it
     with app.test_client() as client:
         with client.session_transaction() as session:
-            assert session.get("session_started") is not None
+            session["username"] = "Captain Janeway"
+
         client_cookies = [cookie.name for cookie in client.cookie_jar]
         assert SESSION_COOKIE_NAME in client_cookies
+        session_cookie = [cookie for cookie in client.cookie_jar if cookie.name == SESSION_COOKIE_NAME]
+        assert len(session_cookie) == 1
+        assert session_cookie[0].value  # Make sure it's not empty
 
 
 def test_valid_session(app):

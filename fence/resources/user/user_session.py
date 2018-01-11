@@ -31,6 +31,28 @@ from fence.resources.storage.cdis_jwt import create_session_token
 class UserSession(SessionMixin):
     def __init__(self, jwt):
         self._encoded_jwt = jwt
+
+        if jwt:
+            jwt_info = validate_jwt(
+                jwt,
+                public_key=default_public_key(),
+                aud={"session"},
+                iss=current_app.config["HOST_NAME"]
+            )
+        else:
+            jwt_info = {"context": {}}
+
+        self.jwt = jwt_info
+
+        self.modified = False
+        super(UserSession, self).__init__()
+
+    def create_initial_token(self):
+        jwt = create_session_token(
+            current_app.keypairs[0],
+            current_app.config.get('SESSION_TIMEOUT').seconds
+        )
+        self._encoded_jwt = jwt
         self.jwt = validate_jwt(
             jwt,
             public_key=default_public_key(),
@@ -38,8 +60,21 @@ class UserSession(SessionMixin):
             iss=current_app.config["HOST_NAME"]
         )
 
-        self.modified = False
-        super(UserSession, self).__init__()
+    def get_updated_token(self, app):
+        if self._encoded_jwt:
+            timeout = app.config.get('SESSION_TIMEOUT')
+
+            token = create_session_token(
+                current_app.keypairs[0],
+                timeout.seconds,
+                session_started=self.get("session_started", None),
+                username=self.get("username", None),
+                provider=self.get("provider", None),
+                redirect=self.get("redirect", None)
+            )
+            self._encoded_jwt = token
+
+        return self._encoded_jwt
 
     def get(self, key, *args):
         """
@@ -51,16 +86,33 @@ class UserSession(SessionMixin):
         """
         clear current session
         """
-        # jwt fields outside of context are maintained for
-        # creating another empty session with the same
-        # authorized party and scopes
         self._encoded_jwt = None
-        self.jwt["context"] = dict()
+        self.jwt = {"context": {}}
+
+    def clear_if_expired(self, app):
+        if self._encoded_jwt:
+            lifetime = app.config.get('SESSION_LIFETIME')
+
+            now = int(datetime.utcnow().strftime('%s'))
+            is_expired = (self.jwt["exp"] <= now)
+            end_of_life = self.jwt["context"]["session_started"] + lifetime.seconds
+
+            lifetime_over = (end_of_life <= now)
+            if is_expired or lifetime_over:
+                self.clear()
+        else:
+            # if there's no current token set, clear data to be sure
+            self.clear()
 
     def __getitem__(self, key):
         return self.jwt["context"][key]
 
     def __setitem__(self, key, value):
+        # If token doesn't exists, create the first session token when
+        # data in the session is attempting to be set
+        if not self._encoded_jwt:
+            self.create_initial_token()
+
         self.jwt["context"][key] = value
         self.modified = True
 
@@ -83,43 +135,27 @@ class UserSessionInterface(SessionInterface):
 
     def open_session(self, app, request):
         jwt = request.cookies.get(app.session_cookie_name)
-        # If no jwt, create an empty one
-        if not jwt:
-            jwt = create_session_token(
-                current_app.keypairs[0],
-                app.config.get('SESSION_TIMEOUT').seconds
-            )
-
         session = UserSession(jwt)
 
         # NOTE: If we did the expiration check in save_session
         # then an expired token could be used for a single request
         # (on open_session) before it's invalidated for being expired
-        _clear_session_if_expired(app, session)
+        session.clear_if_expired(app)
 
         return session
 
     def get_expiration_time(self, app, session):
-        timeout = app.config.get('SESSION_TIMEOUT')
-        return datetime.utcnow() + timeout
+        timeout = datetime.utcnow() + app.config.get('SESSION_TIMEOUT')
+        return timeout
 
     def save_session(self, app, session, response):
         domain = self.get_cookie_domain(app)
-        timeout = app.config.get('SESSION_TIMEOUT')
-
-        token = create_session_token(
-            current_app.keypairs[0],
-            timeout.seconds,
-            session_started=session.get("session_started", None),
-            username=session.get("username", None),
-            provider=session.get("provider", None),
-            redirect=session.get("redirect", None)
-        )
-
-        response.set_cookie(
-            app.session_cookie_name, token,
-            expires=self.get_expiration_time(app, session),
-            httponly=True, domain=domain)
+        token = session.get_updated_token(app)
+        if token:
+            response.set_cookie(
+                app.session_cookie_name, token,
+                expires=self.get_expiration_time(app, session),
+                httponly=True, domain=domain)
 
 
 def _clear_session_if_expired(app, session):

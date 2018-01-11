@@ -60,7 +60,7 @@ def generate_signed_session_token(kid, private_key, expires_in,
 
     claims = {
         'aud': ['session'],
-        'sub': '',  # TODO what should this be?
+        'sub': username or '',
         'iss': flask.current_app.config.get('HOST_NAME'),
         'iat': iat,
         'exp': exp,
