@@ -3,9 +3,14 @@ Sessions by using a JWT.
 
 Implementation Details:
 
-Every request, a new JWT is created and stored in a cookie.
+Every request where the Flask session is modified internally (e.g. by a
+user logging in) a new JWT is created and stored in a cookie.
+
 The session timeout relies on the expiration functionality of the JWT, as
-after each request, the expiration gets extended by SESSION_TIMEOUT.
+after each request, the expiration gets extended by SESSION_TIMEOUT. Note
+that the cookie expiration is also used to mirror the JWT timeout, though
+we are not solely relying on the browser or application to ignore the expired
+cookie since that is out of our control.
 
 While the session is NOT expired, a `session_started` time is kept between
 the issuing of new JWTs with new expiration times. This absolute
@@ -155,6 +160,17 @@ class UserSessionInterface(SessionInterface):
             response.set_cookie(
                 app.session_cookie_name, token,
                 expires=self.get_expiration_time(app, session),
+                httponly=True, domain=domain)
+        else:
+            # If there isn't a session token, we should set the cookie
+            # to nothing and expire it immediately.
+            #
+            # This supports the case where the user logs out partially
+            # into their timeout window and the session gets cleared. We
+            # also need to clear the cookie in this case.
+            response.set_cookie(
+                app.session_cookie_name,
+                expires=0,
                 httponly=True, domain=domain)
 
 

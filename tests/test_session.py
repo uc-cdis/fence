@@ -1,8 +1,5 @@
-from fence.resources.user.user_session import UserSessionInterface
 from datetime import datetime
 from fence.resources.storage.cdis_jwt import create_session_token
-from requests import Request
-from flask import Response
 from fence.settings import SESSION_COOKIE_NAME
 
 # Python 2 and 3 compatible
@@ -20,7 +17,7 @@ def test_session_cookie_creation_unecessary(app):
     # Test that when we don't modify the session at all,
     # we don't save it in a JWT
     with app.test_client() as client:
-        with client.session_transaction() as _:
+        with client.session_transaction():
             pass
         client_cookies = [cookie.name for cookie in client.cookie_jar]
         assert SESSION_COOKIE_NAME not in client_cookies
@@ -131,3 +128,25 @@ def test_expired_session_timeout(app):
             # make sure we don't have the username when opening
             # the session, since it has expired
             assert session.get("username") != username
+
+
+def test_session_cleared(app):
+    username = "Captain Janeway"
+
+    test_session_jwt = create_session_token(
+        app.keypairs[0],
+        app.config.get("SESSION_TIMEOUT").seconds,
+        username=username
+    )
+
+    # Test that once the session is started, we have access to
+    # the username
+    with app.test_client() as client:
+        # manually set cookie for initial session
+        client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
+        with client.session_transaction() as session:
+            session["username"] == username
+            session.clear()
+            assert session.get("username") != username
+        client_cookies = [cookie.name for cookie in client.cookie_jar]
+        assert SESSION_COOKIE_NAME not in client_cookies
