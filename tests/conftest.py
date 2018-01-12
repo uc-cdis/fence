@@ -2,6 +2,7 @@
 """
 Define pytest fixtures.
 """
+import json
 
 from addict import Dict
 import jwt
@@ -17,13 +18,29 @@ from fence.jwt import blacklist
 from fence.data_model import models
 from fence import app_init
 from userdatamodel import Base
-
+from moto import mock_s3, mock_sts
 from . import test_settings
 from . import utils
 
 
 def check_auth_positive(cls, backend, user):
     return True
+
+
+def indexd_get(file_id):
+    return json.dumps({
+                'did': '',
+                'baseid': '',
+                'rev': '',
+                'size': 10,
+                'file_name': 'file1',
+                'urls': ['s3://url.com/path/to_file'],
+                'hashes': {},
+                'metadata': {'acls': 'phs000178,phs000218'},
+                'form': '',
+                'created_date': '',
+                "updated_date": ''
+    })
 
 
 @pytest.fixture(scope='session')
@@ -124,15 +141,27 @@ class Mocker(object):
         self.auth_patcher = patch(
             'fence.resources.storage.StorageManager.check_auth',
             check_auth_positive)
-        self.auth_patcher.start()
+        self.indexd_patcher = patch(
+            'fence.blueprints.data.get_index_document',
+            indexd_get)
+        # self.user_from_jwt_patcher = patch(
+        #     'fence.blueprints.data.get_user_auth_ids',
+        #     get_user_jwt)
         self.patcher.start()
+        self.auth_patcher.start()
+        self.indexd_patcher.start()
+        # self.user_from_jwt_patcher.start()
 
     def unmock_functions(self):
         self.patcher.stop()
         self.auth_patcher.stop()
+        self.indexd_patcher.stop()
+        # self.user_from_jwt_patcher.stop()
 
 
 @pytest.fixture(scope='function')
+@mock_s3
+@mock_sts
 def app(request):
     mocker = Mocker()
     mocker.mock_functions()
@@ -184,6 +213,7 @@ def oauth_client(app, request):
                 for cls in all_models:
                     for obj in session.query(cls).all():
                         session.delete(obj)
+        mocker.unmock_functions()
 
     request.addfinalizer(fin)
     return Dict(client_id=client_id, client_secret=client_secret, url=url)

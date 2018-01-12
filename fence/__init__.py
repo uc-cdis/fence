@@ -10,14 +10,16 @@ import importlib
 from .auth import logout
 from .blueprints.admin import blueprint as admin
 from .blueprints.login import blueprint as login
-from .blueprints.oauth2 import init_oauth
+from .blueprints.data import blueprint as data
 from .blueprints.oauth2 import blueprint as oauth2
 from .blueprints.storage_creds import blueprint as credentials
+from .blueprints.oauth2 import init_oauth
 from .resources.storage import StorageManager
 from .blueprints.user import blueprint as user
 from .errors import APIError, UserError
 from .data_model.models import UserSession, migrate
 from .jwt import keys
+from .resources.aws.boto_manager import BotoManager
 from .resources.openid.google_oauth2 import Oauth2Client
 from .utils import random_str
 
@@ -25,11 +27,12 @@ from userdatamodel.driver import SQLAlchemyDriver
 
 app = flask.Flask(__name__)
 CORS(app=app, headers=['content-type', 'accept'], expose_headers='*')
+app.register_blueprint(admin, url_prefix='/admin')
+app.register_blueprint(credentials, url_prefix='/credentials')
+app.register_blueprint(login, url_prefix='/login')
 app.register_blueprint(oauth2, url_prefix='/oauth2')
 app.register_blueprint(user, url_prefix='/user')
-app.register_blueprint(credentials, url_prefix='/credentials')
-app.register_blueprint(admin, url_prefix='/admin')
-app.register_blueprint(login, url_prefix='/login')
+app.register_blueprint(data, url_prefix='/data')
 
 
 def app_config(app, settings='fence.settings', root_dir=None):
@@ -41,6 +44,7 @@ def app_config(app, settings='fence.settings', root_dir=None):
     if root_dir is None:
         root_dir = os.path.dirname(
                 os.path.dirname(os.path.realpath(__file__)))
+    app.boto = BotoManager(app.config['AWS'])
     for kid, (public, private) in app.config['JWT_KEYPAIR_FILES'].iteritems():
         public_filepath = os.path.join(root_dir, public)
         private_filepath = os.path.join(root_dir, private)
