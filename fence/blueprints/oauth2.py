@@ -14,221 +14,45 @@ nothing, since the JWTs contain all the necessary information and are
 stateless.
 """
 
-from __future__ import print_function
-
 import flask
-from flask_oauthlib.provider import OAuth2Provider
-from flask_sqlalchemy_session import current_session
 
-from datetime import datetime, timedelta
-from cdispyutils.log import get_logger
-from ..data_model import models
-from ..auth import get_current_user
-from ..jwt.oauth_validator import OAuthValidator
-from ..utils import hash_secret
-from ..jwt import token, errors
-
-
-log = get_logger('fence')
-
-oauth = OAuth2Provider()
-
-
-@oauth.grantgetter
-def load_grant(client_id, code):
-    """
-    Load in a ``Grant`` model from the table for this client and authorization
-    code.
-    """
-    return (
-        current_session
-        .query(models.Grant)
-        .filter_by(client_id=client_id, code=code)
-        .first()
-    )
-
-
-@oauth.grantsetter
-def save_grant(client_id, code, request, *args, **kwargs):
-    """
-    Save a ``Grant`` to the table originating from the given request, using the
-    client id and code provided to initialize the grant as well as the scopes
-    from the request. The grant expires after a short timeout.
-    """
-    # decide the expires time yourself
-    expires = datetime.utcnow() + timedelta(seconds=100)
-    grant = models.Grant(
-        client_id=client_id,
-        code=code['code'],
-        redirect_uri=request.redirect_uri,
-        _scopes=' '.join(request.scopes),
-        user=get_current_user(),
-        expires=expires
-    )
-    current_session.add(grant)
-    current_session.commit()
-    return grant
-
-
-@oauth.clientgetter
-def load_client(client_id):
-    """
-    Look up a ``Client`` in the database.
-    """
-    return (
-        current_session
-        .query(models.Client)
-        .filter_by(client_id=client_id)
-        .first()
-    )
-
-
-@oauth.tokengetter
-def load_token(access_token=None, refresh_token=None):
-    return access_token or refresh_token
-
-
-@oauth.tokensetter
-def save_token(token_to_save, request, *args, **kwargs):
-    pass
-
-
-# Redefine the request validator used by the OAuth provider, using the
-# JWTValidator which redefines bearer and refresh token validation to use JWT.
-oauth._validator = OAuthValidator(
-    clientgetter=oauth._clientgetter,
-    tokengetter=oauth._tokengetter,
-    grantgetter=oauth._grantgetter,
-    usergetter=None,
-    tokensetter=oauth._tokensetter,
-    grantsetter=oauth._grantsetter,
-)
-
-
-def get_user(request):
-    grant = load_grant(request.body.get('client_id'), request.body.get('code'))
-    user = grant.user
-    return user
-
-
-def signed_access_token_generator(kid, private_key, **kwargs):
-    """
-    Return a function which takes in an oauthlib request and generates a signed
-    JWT access token. This function should be assigned as the access token
-    generator for the flask app:
-
-    .. code-block:: python
-
-        app.config['OAUTH2_PROVIDER_TOKEN_GENERATOR'] = (
-            signed_access_token_generator(private_key)
-        )
-
-    (This is the reason for the particular return type of this function.)
-
-    Args:
-        kid (str): key ID, name of the keypair used to sign/verify the token
-        private_key (str): the private key used to sign the token
-
-    Return:
-        Callable[[oauthlib.common.Request], str]
-    """
-    def generate_signed_access_token_from_request(request):
-        """
-        Args:
-            request (oauthlib.common.Request)
-
-        Return:
-            str: encoded JWT signed with ``private_key``
-        """
-        return token.generate_signed_access_token(kid, private_key, get_user(request),
-                                                  request.expires_in, request.scopes)
-    return generate_signed_access_token_from_request
-
-
-def signed_refresh_token_generator(kid, private_key, **kwargs):
-    """
-    Return a function which takes in an oauthlib request and generates a signed
-    JWT refresh token. This function should be assigned as the refresh token
-    generator for the flask app:
-
-    .. code-block:: python
-
-        app.config['OAUTH2_PROVIDER_REFRESH_TOKEN_GENERATOR'] = (
-            signed_refresh_token_generator(private_key)
-        )
-
-    (This is the reason for the particular return type of this function.)
-
-    Args:
-        kid (str): key ID, name of the keypair used to sign/verify the token
-        private_key (str): the private key used to sign the token
-
-    Return:
-        Callable[[oauthlib.common.Request], str]
-    """
-    def generate_signed_refresh_token_from_request(request):
-        """
-        Args:
-            request (oauthlib.common.Request)
-
-        Return:
-            str: encoded JWT signed with ``private_key``
-        """
-        return token.generate_signed_refresh_token(kid, private_key, get_user(request),
-                                                   request.expires_in, request.scopes)
-    return generate_signed_refresh_token_from_request
-
-
-def init_oauth(app):
-    """
-    Initialize the OAuth provider on the given app, with
-    ``signed_access_token_generator`` and ``signed_refresh_token_generator``
-    (using the key ID and private first keypair) as the token generating
-    functions for the provider.
-    """
-    keypair = app.keypairs[0]
-    app.config['OAUTH2_PROVIDER_REFRESH_TOKEN_GENERATOR'] = (
-        signed_refresh_token_generator(keypair.kid, keypair.private_key)
-    )
-    app.config['OAUTH2_PROVIDER_TOKEN_GENERATOR'] = (
-        signed_access_token_generator(keypair.kid, keypair.private_key)
-    )
-    app.config['OAUTH2_PROVIDER_TOKEN_EXPIRES_IN'] = 3600
-    oauth.init_app(app)
+from fence.jwt import token, errors
+from fence.models import Client
+from fence.oauth2.server import server
+from fence.user import get_current_user
 
 
 blueprint = flask.Blueprint('oauth2', __name__)
 
 
 @blueprint.route('/authorize', methods=['GET', 'POST'])
-@oauth.authorize_handler
 def authorize(*args, **kwargs):
-    """
-    Handle the first step in the OAuth procedure.
+    user = get_current_user()
+    grant = server.validate_authorization_request()
 
-    If the method is ``GET``, render a confirmation page. For ``POST``, check
-    that the value of ``confirm`` in the form data is exactly ``"yes"``.
-    """
-    if flask.request.method == 'GET':
-        client_id = kwargs.get('client_id')
+    client_id = grant.params.get('client_id')
+    with flask.current_app.db.session as session:
         client = (
-            current_session
-            .query(models.Client)
+            session
+            .query(Client)
             .filter_by(client_id=client_id)
             .first()
         )
-        if client.auto_approve:
-            return True
-        kwargs['client'] = client
-        return flask.render_template('oauthorize.html', **kwargs)
 
-    confirm = flask.request.form.get('confirm', 'no')
-    return confirm == 'yes'
+    if flask.request.method == 'GET':
+        scope = flask.request.args.get('scope')
+        return flask.render_template(
+            'oauthorize.html', grant=grant, user=user, client=client,
+            scope=scope
+        )
+
+    if flask.request.form.get('confirm'):
+        return server.create_authorization_response(user)
+    else:
+        return server.create_authorization_response(None)
 
 
 @blueprint.route('/token', methods=['POST'])
-@hash_secret
-@oauth.token_handler
 def get_access_token(*args, **kwargs):
     """
     Handle exchanging code for and refreshing the access token.
@@ -239,7 +63,7 @@ def get_access_token(*args, **kwargs):
     See the OpenAPI documentation for detailed specification, and the OAuth2
     tests for examples of some operation and correct behavior.
     """
-    pass
+    return server.create_token_response()
 
 
 @blueprint.route('/revoke', methods=['POST'])
@@ -253,6 +77,10 @@ def revoke_token():
     Return:
         Tuple[str, int]: JSON response and status code
     """
+    return server.create_revocation_response()
+
+
+def do_revoke():
     # Try to get token from form data.
     try:
         encoded_token = flask.request.form['token']

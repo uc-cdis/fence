@@ -3,10 +3,9 @@ from functools import wraps
 from cdispyutils import auth
 import flask
 from flask_sqlalchemy_session import current_session
-import jwt
 
 from .errors import Unauthorized, InternalError
-from .data_model.models import User, IdentityProvider
+from fence.models import User, IdentityProvider
 
 
 def login_user(request, username, provider):

@@ -1,16 +1,15 @@
-import flask
-import uuid
-import oauthlib
-import jwt
+from datetime import datetime, timedelta
 import json
 
-from datetime import datetime, timedelta
-from flask_sqlalchemy_session import current_session
-
 from cdispyutils import auth
-from . import blacklist, errors, keys
-from .blacklist import BlacklistedToken
-from ..data_model import models
+import flask
+import jwt
+import oauthlib
+import uuid
+
+
+from fence.jwt import blacklist, errors, keys
+from fence.jwt.blacklist import BlacklistedToken
 
 
 def issued_and_expiration_times(seconds_to_expire):

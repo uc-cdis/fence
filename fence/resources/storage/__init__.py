@@ -1,8 +1,9 @@
-from storageclient import get_client
-from fence.errors import Unauthorized
-from fence.data_model.models import CloudProvider, Bucket
 from functools import wraps
-from fence.errors import NotSupported
+
+from storageclient import get_client
+
+from fence.errors import NotSupported, Unauthorized
+from fence.models import CloudProvider, Bucket
 
 
 def check_exist(f):

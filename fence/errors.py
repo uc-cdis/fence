@@ -2,6 +2,10 @@ class APIError(Exception):
     pass
 
 
+class AuthError(APIError):
+    pass
+
+
 class UserError(APIError):
     def __init__(self, message):
         self.message = str(message)

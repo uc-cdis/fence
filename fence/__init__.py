@@ -5,23 +5,22 @@ import flask
 from flask.ext.cors import CORS
 from flask_postgres_session import PostgresSessionInterface
 from flask_sqlalchemy_session import flask_scoped_session
-import importlib
-
-from .auth import logout
-from .blueprints.admin import blueprint as admin
-from .blueprints.login import blueprint as login
-from .blueprints.oauth2 import init_oauth
-from .blueprints.oauth2 import blueprint as oauth2
-from .blueprints.storage_creds import blueprint as credentials
-from .resources.storage import StorageManager
-from .blueprints.user import blueprint as user
-from .errors import APIError, UserError
-from .data_model.models import UserSession, migrate
-from .jwt import keys
-from .resources.openid.google_oauth2 import Oauth2Client
-from .utils import random_str
-
 from userdatamodel.driver import SQLAlchemyDriver
+
+from fence.auth import logout
+from fence.blueprints.admin import blueprint as admin
+from fence.blueprints.login import blueprint as login
+from fence.blueprints.oauth2 import blueprint as oauth2
+from fence.blueprints.storage_creds import blueprint as credentials
+from fence.blueprints.user import blueprint as user
+import fence.client
+from fence.errors import APIError, UserError
+from fence.models import UserSession, migrate
+from fence.jwt import keys
+from fence.resources.openid.google_oauth2 import Oauth2Client
+from fence.resources.storage import StorageManager
+from fence.oauth2.server import server
+from fence.utils import random_str
 
 app = flask.Flask(__name__)
 CORS(app=app, headers=['content-type', 'accept'], expose_headers='*')
@@ -79,7 +78,7 @@ def app_sessions(app):
 
 def app_init(app, settings='fence.settings', root_dir=None):
     app_config(app, settings=settings, root_dir=root_dir)
-    init_oauth(app)
+    server.init_app(app)
     app_sessions(app)
 
 
