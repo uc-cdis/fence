@@ -62,13 +62,22 @@ def drop_client(client_id, db):
 def hash_secret(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        if request.form and 'client_secret' in request.form and 'client_id' in request.form:
+        has_secret = 'client_secret' in request.form
+        has_client_id = 'client_id' in request.form
+        if request.form and has_secret and has_client_id:
             form = request.form.to_dict()
             with capp.db.session as s:
-                client = s.query(Client).filter(Client.client_id == form['client_id']).first()
+                client = (
+                    s
+                    .query(Client)
+                    .filter(Client.client_id == form['client_id'])
+                    .first()
+                )
                 if client:
-                    form['client_secret'] = bcrypt.hashpw(form['client_secret'].encode('utf-8'),
-                                                          client.client_secret.encode('utf-8'))
+                    form['client_secret'] = bcrypt.hashpw(
+                        form['client_secret'].encode('utf-8'),
+                        client.client_secret.encode('utf-8')
+                    )
                 request.form = ImmutableMultiDict(form)
 
         return f(*args, **kwargs)

@@ -17,32 +17,39 @@ stateless.
 import flask
 
 from fence.jwt import token, errors
+from fence.models import Client
+from fence.oidc.server import server
 from fence.user import get_current_user
 
 
 blueprint = flask.Blueprint('oauth2', __name__)
 
 
-@blueprint.route('/authorize', methods=['GET'])
+@blueprint.route('/authorize', methods=['GET', 'POST'])
 def authorize(*args, **kwargs):
-    # TODO: validate request, find grant
+    user = get_current_user()
+    grant = server.validate_authorization_request()
 
-    scope = flask.request.args.get('scope')
-
+    client_id = grant.params.get('client_id')
     with flask.current_app.db.session as session:
-        # TODO: get client
-        client = None
-        pass
+        client = (
+            session
+            .query(Client)
+            .filter_by(client_id=client_id)
+            .first()
+        )
 
-    return flask.render_template(
-        'oauthorize.html', user=get_current_user(), client=client, scope=scope
-    )
+    if flask.request.method == 'GET':
+        scope = flask.request.args.get('scope')
+        return flask.render_template(
+            'oauthorize.html', grant=grant, user=user, client=client,
+            scope=scope
+        )
 
-
-@blueprint.route('/authorize', methods=['POST'])
-def authorize_post():
-    confirm = flask.request.form.get('confirm')
-    # TODO
+    if flask.request.form.get('confirm'):
+        return server.create_authorization_response(user)
+    else:
+        return server.create_authorization_response(None)
 
 
 @blueprint.route('/token', methods=['POST'])
@@ -56,8 +63,7 @@ def get_access_token(*args, **kwargs):
     See the OpenAPI documentation for detailed specification, and the OAuth2
     tests for examples of some operation and correct behavior.
     """
-    # TODO
-    pass
+    return server.create_token_response()
 
 
 @blueprint.route('/revoke', methods=['POST'])
@@ -71,8 +77,7 @@ def revoke_token():
     Return:
         Tuple[str, int]: JSON response and status code
     """
-    # TODO
-    pass
+    return server.create_revocation_response()
 
 
 def do_revoke():

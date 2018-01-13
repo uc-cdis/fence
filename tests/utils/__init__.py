@@ -17,13 +17,13 @@ def new_jti():
     return str(uuid.uuid4())
 
 
-def iat_and_exp():
+def iat_and_exp(expires_in=600):
     """
     Return ``iat`` and ``exp`` claims for a JWT.
     """
-    now = datetime.now()
+    now = datetime.utcnow()
     iat = int(now.strftime('%s'))
-    exp = int((now + timedelta(seconds=60)).strftime('%s'))
+    exp = int((now + timedelta(seconds=expires_in)).strftime('%s'))
     return (iat, exp)
 
 

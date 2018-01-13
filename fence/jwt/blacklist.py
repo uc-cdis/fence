@@ -16,7 +16,8 @@ import jwt
 from sqlalchemy import BigInteger, Column, String
 from userdatamodel import Base
 
-from . import keys
+from fence.errors import BlacklistingError
+from fence.jwt import keys
 
 
 class BlacklistedToken(Base):
@@ -72,28 +73,37 @@ def blacklist_encoded_token(encoded_token, public_key=None):
         None
 
     Raises:
-        - KeyError: if token is missing a claim (``aud``, ``exp``, or ``jti``)
-        - ValueError: if ``jti`` is not UUID4, ``exp`` not provided
-        - jwt.InvalidTokenError: if token decoding fails
+        - BlacklistingError:
+            - ``jti`` is not UUID4
+            - ``exp`` not provided
+            - token is missing a claim (``aud``, ``exp``, or ``jti``)
+            - token decoding fails
+            - token is missing
 
     Side Effects:
         - Add entry with ``jti`` to ``BlacklistedToken`` table
     """
     # Decode token and get claims.
     public_key = public_key or keys.default_public_key()
-    token = jwt.decode(
-        encoded_token, public_key, algorithm='RS256', audience='refresh'
-    )
-    jti = token['jti']
-    exp = token['exp']
-    aud = token['aud']
+    try:
+        token = jwt.decode(
+            encoded_token, public_key, algorithm='RS256', audience='refresh'
+        )
+    except jwt.InvalidTokenError as e:
+        raise BlacklistingError('failed to decode token: {}'.format(e))
+    try:
+        jti = token['jti']
+        exp = token['exp']
+        aud = token['aud']
+    except KeyError as e:
+        raise BlacklistingError('token missing claim: {}'.format(e))
 
     # Do checks.
     # Check that JWT id is UUID4 (this raises a ValueError otherwise).
     uuid.UUID(jti, version=4)
     # Must be refresh token.
     if 'refresh' not in aud:
-        raise ValueError('can only blacklist refresh tokens')
+        raise BlacklistingError('can only blacklist refresh tokens')
 
     blacklist_token(jti, exp)
 

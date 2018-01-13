@@ -1,5 +1,8 @@
 class APIError(Exception):
-    pass
+
+    def __init__(self, message):
+        super(APIError, self).__init__(message)
+        self.status_code = 400
 
 
 class AuthError(APIError):
@@ -10,6 +13,10 @@ class UserError(APIError):
     def __init__(self, message):
         self.message = str(message)
         self.code = 400
+
+
+class BlacklistingError(APIError):
+    pass
 
 
 class InternalError(APIError):

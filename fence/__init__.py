@@ -11,14 +11,16 @@ from fence.auth import logout
 from fence.errors import APIError, UserError
 from fence.jwt import keys
 from fence.models import UserSession, migrate
+from fence.oidc.server import server
 from fence.resources.openid.google_oauth2 import Oauth2Client
 from fence.resources.storage import StorageManager
 from fence.utils import random_str
 import fence.blueprints.admin
-import fence.blueprints.storage_creds
 import fence.blueprints.login
 import fence.blueprints.oauth2
+import fence.blueprints.storage_creds
 import fence.blueprints.user
+import fence.client
 
 
 app = flask.Flask(__name__)
@@ -77,7 +79,7 @@ def app_sessions(app):
 
 def app_init(app, settings='fence.settings', root_dir=None):
     app_config(app, settings=settings, root_dir=root_dir)
-    # TODO: init OIDC server
+    server.init_app(app)
     app_sessions(app)
 
 

@@ -1,3 +1,7 @@
+from authlib.flask.oauth2.sqla import (
+    OAuth2AuthorizationCodeMixin,
+    OAuth2ClientMixin,
+)
 import flask
 from flask_postgres_session import user_session_model
 from sqlalchemy import (
@@ -12,7 +16,7 @@ from userdatamodel.models import *
 UserSession = user_session_model('fence_user_session', Base=Base)
 
 
-class Client(Base):
+class Client(Base, OAuth2ClientMixin):
 
     __tablename__ = 'client'
 
@@ -80,7 +84,7 @@ class Client(Base):
         return all(scope in self._scopes for scope in scopes)
 
 
-class Token(Base):
+class Token(Base, OAuth2ClientMixin):
 
     __tablename__ = 'token'
 
@@ -119,11 +123,11 @@ class Token(Base):
         return []
 
 
-class AuthorizationCode(Base):
+class AuthorizationCode(Base, OAuth2AuthorizationCodeMixin):
 
     __tablename__ = 'authorization_code'
 
-    code = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True)
 
     user_id = Column(
         Integer, ForeignKey('User.id', ondelete='CASCADE')
