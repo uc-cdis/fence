@@ -108,18 +108,7 @@ def create_credential(backend):
             "token": "token_value"
         }
         google:
-        {
-            "name": string,
-            "privateKeyType": enum(ServiceAccountPrivateKeyType),
-            "keyAlgorithm": enum(ServiceAccountKeyAlgorithm),
-            "privateKeyData": string,
-            "publicKeyData": string,
-            "validAfterTime": string,
-            "validBeforeTime": string,
-        }
-
-        "privateKeyData" contains base64-encoded string that represents
-        a JSON key in Google Credentials File format:
+        JSON key in Google Credentials File format:
         {
             "type": "service_account",
             "project_id": "project-id",
@@ -176,19 +165,7 @@ def create_access_token_api(backend):
         {
             "access_token" "token_value"
         }
-        google:
-        {
-            "name": string,
-            "privateKeyType": enum(ServiceAccountPrivateKeyType),
-            "keyAlgorithm": enum(ServiceAccountKeyAlgorithm),
-            "privateKeyData": string,
-            "publicKeyData": string,
-            "validAfterTime": string,
-            "validBeforeTime": string,
-        }
-
-        "privateKeyData" contains base64-encoded string that represents
-        a JSON key in Google Credentials File format:
+        JSON key in Google Credentials File format:
         {
             "type": "service_account",
             "project_id": "project-id",
@@ -235,6 +212,17 @@ def delete_credential(backend, access_key):
 
     :param access_key: existing access key belongs to this user
 
+    For Google:
+        The access_key can be constructed from
+        data in the response from creating the key.
+
+        access_key should be a string:
+        `projects/{PROJECT_ID}/serviceAccounts/{ACCOUNT}/keys/{KEY}`
+        which can be constructed with the information from POST/PUT `credentials/google`
+        Use `project_id` for {PROJECT_ID},
+            `client_email` for {ACCOUNT},
+            `private_key_id` for {KEY}
+
     :statuscode 201 Success
     :statuscode 403 Forbidden to delete access key
     :statuscode 404 Access key doesn't exist
@@ -278,18 +266,7 @@ def _get_google_access_key(g_cloud_manager):
     Returns:
         .. code-block:: JavaScript
 
-            {
-                "name": string,
-                "privateKeyType": enum(ServiceAccountPrivateKeyType),
-                "keyAlgorithm": enum(ServiceAccountKeyAlgorithm),
-                "privateKeyData": string,
-                "publicKeyData": string,
-                "validAfterTime": string,
-                "validBeforeTime": string,
-            }
-
-            "privateKeyData" contains base64-encoded string that represents
-            a JSON key in Google Credentials File format:
+            JSON key in Google Credentials File format:
             {
                 "type": "service_account",
                 "project_id": "project-id",
