@@ -145,7 +145,7 @@ def test_session_cleared(app):
         # manually set cookie for initial session
         client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
         with client.session_transaction() as session:
-            session["username"] == username
+            session["username"] = username
             session.clear()
             assert session.get("username") != username
         client_cookies = [cookie.name for cookie in client.cookie_jar]
