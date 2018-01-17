@@ -57,6 +57,7 @@ def generate_signed_refresh_token(kid, private_key, user, expires_in,
         'context': {
             'user': {
                 'name': user.username,
+                'is_admin': user.is_admin,
                 'projects': dict(user.project_access),
             }
         },
@@ -98,6 +99,7 @@ def generate_signed_access_token(kid, private_key, user, expires_in,
         'context': {
             'user': {
                 'name': user.username,
+                'is_admin': user.is_admin,
                 'projects': dict(user.project_access),
             }
         },

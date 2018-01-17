@@ -8,6 +8,8 @@ from flask import abort
 from flask_sqlalchemy_session import current_session
 
 from cirrus import GoogleCloudManager
+from ..resources.storage import get_endpoints_descriptions
+
 from fence.resources.storage.cdis_jwt import create_refresh_token,\
     revoke_refresh_token, create_access_token
 
@@ -46,14 +48,14 @@ def list_sources():
         }
     '''
     services = capp.config.get('STORAGES', [])
-    return jsonify({k: ALL_RESOURCES[k] for k in services})
+    return jsonify(get_endpoints_descriptions(services, current_session))
 
 
-@blueprint.route('/<backend>/', methods=['GET'])
+@blueprint.route('/<provider>/', methods=['GET'])
 @login_required({'credentials'})
-def list_credentials(backend):
+def list_keypairs(provider):
     '''
-    List all existing credentials (keypairs/tokens) for user
+    List access keys for user
 
     **Example:**
     .. code-block:: http
@@ -64,16 +66,17 @@ def list_credentials(backend):
 
     .. code-block:: JavaScript
 
-        [
-            {
-                'access_key': '8DGW9LyC0D4nByoWo6pp',
-            }
-        ]
+        {
+            "access_keys":
+            [
+                {
+                    "access_key": "8DGW9LyC0D4nByoWo6pp",
+                }
+            ]
+        }
 
     '''
-    if backend == 'cdis':
-        result = cdis_list_keypairs(g.user, current_session)
-    elif backend == 'google':
+    if provider == 'google':
         with GoogleCloudManager() as g_cloud_manager:
             service_account = _get_google_service_account_for_client(g_cloud_manager)
 
@@ -81,17 +84,23 @@ def list_credentials(backend):
                 result = g_cloud_manager.get_service_account_keys_info(service_account.google_unique_id)
             else:
                 result = {}
+    elif provider != cdis:
+        result = capp.storage_manager.list_keypairs(provider, g.user)
+        keys = {
+            'access_keys':
+            [{'access_key': item['access_key']} for item in result]}
+        result = jsonify(keys)
     else:
-        result = capp.storage_manager.list_keypairs(backend, g.user)
+        result = jsonify({'error': 'not supported'})
 
-    return jsonify(dict(access_keys=result))
+    return result
 
 
-@blueprint.route('/<backend>/', methods=['POST'])
+@blueprint.route('/<provider>/', methods=['POST'])
 @login_required({'credentials'})
-def create_credential(backend):
+def create_keypairs(provider):
     '''
-    Generate a credential (keypair/token) for user
+    Generate a keypair for user
 
     :query expire: expiration time in seconds, default to 3600
 
@@ -105,7 +114,7 @@ def create_credential(backend):
     .. code-block:: JavaScript
         cdis:
         {
-            "token": "token_value"
+            "token" "token_value"
         }
         google:
         JSON key in Google Credentials File format:
@@ -129,25 +138,27 @@ def create_credential(backend):
         }
     '''
     client_id = getattr(g, "client_id", None)
-    if backend == 'cdis':
+    if provider == 'cdis':
+        scopes = request.args.get('scopes', [])
+        if not isinstance(scopes, list):
+            scopes = scopes.split(',')
         result = create_refresh_token(
             g.user, capp.keypairs[0],
             request.args.get('expire', 2592000),
-            request.args.get('scope', []),
-            client_id
+            scopes, client_id
         )
         return jsonify(dict(token=result))
-    elif backend == 'google':
+    elif provider == 'google':
         with GoogleCloudManager() as g_cloud:
             key = _get_google_access_key(g_cloud)
         return jsonify(key)
     else:
-        return jsonify(capp.storage_manager.create_keypair(backend, g.user))
+        return jsonify(capp.storage_manager.create_keypair(provider, g.user))
 
 
-@blueprint.route('/<backend>/', methods=['PUT'])
+@blueprint.route('/<provider>/', methods=['PUT'])
 @login_required({'credentials'})
-def create_access_token_api(backend):
+def create_access_token_api(provider):
     '''
     Generate a credential (keypair/token) for user
 
@@ -186,29 +197,31 @@ def create_access_token_api(backend):
         }
     '''
     client_id = getattr(g, "client_id", None)
-    if backend == 'cdis':
+    if provider == 'cdis':
+        scopes = request.args.get('scopes', [])
+        if not isinstance(scopes, list):
+            scopes = scopes.split(',')
         result = create_access_token(
             g.user, capp.keypairs[0],
             request.form['refresh_token'],
             request.args.get('expire', 2592000),
-            request.args.get('scope', []),
-            client_id
+            scopes, client_id
         )
         return jsonify(dict(access_token=result))
-    elif backend == 'google':
+    elif provider == 'google':
         with GoogleCloudManager() as g_cloud:
             key = _get_google_access_key(g_cloud)
         return jsonify(key)
     else:
-        return jsonify(capp.storage_manager.create_keypair(backend, g.user))
+        return jsonify(capp.storage_manager.create_keypair(provider, g.user))
 
 
-@blueprint.route('/<backend>/<access_key>/', methods=['DELETE'])
+@blueprint.route('/<provider>/<access_key>', methods=['DELETE'])
 @login_required({'credentials'})
-def delete_credential(backend, access_key):
+def delete_keypair(provider, access_key):
     '''
-    .. http:get: /hmac/(string: access_key)
-    Revoke a credential for user
+    .. http:get: /<provider>/(string: access_key)
+    Delete a keypair for user
 
     :param access_key: existing access key belongs to this user
 
@@ -228,9 +241,9 @@ def delete_credential(backend, access_key):
     :statuscode 404 Access key doesn't exist
 
     '''
-    if backend == 'cdis':
+    if provider == 'cdis':
         status = revoke_refresh_token(access_key)
-    elif backend == 'google':
+    elif provider == 'google':
         with GoogleCloudManager() as g_cloud:
             service_account = _get_google_service_account_for_client(g_cloud)
 
@@ -249,7 +262,7 @@ def delete_credential(backend, access_key):
             else:
                 abort(404, "Could not find service account for current user.")
     else:
-        capp.storage_manager.delete_keypair(backend, g.user, access_key)
+        capp.storage_manager.delete_keypair(provider, g.user, access_key)
         status = '', 200
 
     return status

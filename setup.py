@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='fence',
-    version='0.1.0',
+    version='0.2.0',
     install_requires=[
         "oauth2client<4.0dev,>=2.0.0",
         "addict==2.1.1",
