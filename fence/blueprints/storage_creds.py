@@ -16,11 +16,11 @@ from fence.resources.storage.cdis_jwt import create_refresh_token,\
 blueprint = flask.Blueprint('credentials', __name__)
 
 ALL_RESOURCES = {
-    "/cdis": "access to CDIS APIs",
-    "/ceph": "access to Ceph storage",
-    "/cleversafe": "access to cleversafe storage",
-    "/aws-s3": "access to AWS S3 storage",
-    "/google": "access to Google storage"
+    '/cdis': 'access to CDIS APIs',
+    '/ceph': 'access to Ceph storage',
+    '/cleversafe': 'access to cleversafe storage',
+    '/aws-s3': 'access to AWS S3 storage',
+    '/google': 'access to Google storage'
 }
 
 
@@ -84,7 +84,7 @@ def list_keypairs(provider):
                 result = g_cloud_manager.get_service_account_keys_info(service_account.google_unique_id)
             else:
                 result = {}
-    elif provider != cdis:
+    elif provider != 'cdis':
         result = capp.storage_manager.list_keypairs(provider, g.user)
         keys = {
             'access_keys':
@@ -137,7 +137,7 @@ def create_keypairs(provider):
             "secret_key": "1lnkGScEH8Vr4EC6QnoqLK1PqRWPNqIBJkH6Vpgx"
         }
     '''
-    client_id = getattr(g, "client_id", None)
+    client_id = getattr(g, 'client_id', None)
     if provider == 'cdis':
         scopes = request.args.get('scopes', [])
         if not isinstance(scopes, list):
@@ -196,7 +196,7 @@ def create_access_token_api(provider):
             "secret_key": "1lnkGScEH8Vr4EC6QnoqLK1PqRWPNqIBJkH6Vpgx"
         }
     '''
-    client_id = getattr(g, "client_id", None)
+    client_id = getattr(g, 'client_id', None)
     if provider == 'cdis':
         scopes = request.args.get('scopes', [])
         if not isinstance(scopes, list):
@@ -253,14 +253,14 @@ def delete_keypair(provider, access_key):
                 )
 
                 # Only delete the requested key if is owned by current client's SA
-                if access_key in [key["name"].split("/")[-1] for key in keys_for_account]:
+                if access_key in [key['name'].split('/')[-1] for key in keys_for_account]:
                     g_cloud.delete_service_account_key(service_account.google_unique_id,
                                                        access_key)
                     status = '', 200
                 else:
-                    abort(404, "Could not delete key " + access_key + ". Not found for current user.")
+                    abort(404, 'Could not delete key ' + access_key + '. Not found for current user.')
             else:
-                abort(404, "Could not find service account for current user.")
+                abort(404, 'Could not find service account for current user.')
     else:
         capp.storage_manager.delete_keypair(provider, g.user, access_key)
         status = '', 200
@@ -320,7 +320,7 @@ def _get_google_service_account_for_client(g_cloud_manager):
     Returns:
         fence.data_model.models.GoogleServiceAccount: Client's service account
     """
-    client_id = getattr(g, "client_id", None)
+    client_id = getattr(g, 'client_id', None)
     service_account = (
         current_session
         .query(GoogleServiceAccount)
@@ -352,23 +352,23 @@ def _create_google_service_account_for_client(g_cloud_manager):
     )
 
     if proxy_group:
-        client_id = getattr(g, "client_id", None)
+        client_id = getattr(g, 'client_id', None)
         new_service_account = (
             g_cloud_manager.create_service_account_for_proxy_group(proxy_group.id,
                                                                    account_id=client_id)
         )
 
         service_account = GoogleServiceAccount(
-            google_unique_id=new_service_account["uniqueId"],
+            google_unique_id=new_service_account['uniqueId'],
             client_id=client_id,
             user_id=g.user.id,
-            email=new_service_account["email"]
+            email=new_service_account['email']
         )
         current_session.add(service_account)
         current_session.commit()
     else:
         # TODO Should we create a group here if one doesn't exist for some reason?
         # These groups *should* get created during dpbap sync
-        abort(404, "Could not find Google proxy group for current user.")
+        abort(404, 'Could not find Google proxy group for current user.')
 
     return service_account

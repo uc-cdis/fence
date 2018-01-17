@@ -258,7 +258,7 @@ def test_google_delete_owned_access_token(app, client,
     service_account_id = "123456789"
     proxy_group_id = "proxy_group_0"
     path = (
-        "/credentials/google/" + service_account_key + "/"
+        "/credentials/google/" + service_account_key
     )
 
     def get_account_keys(*args, **kwargs):
