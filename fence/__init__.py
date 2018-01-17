@@ -5,22 +5,21 @@ import flask
 from flask.ext.cors import CORS
 from flask_sqlalchemy_session import flask_scoped_session
 
-from .auth import logout
-from .blueprints.admin import blueprint as admin
-from .blueprints.login import blueprint as login
-from .blueprints.data import blueprint as data
-from .blueprints.oauth2 import blueprint as oauth2
-from .blueprints.storage_creds import blueprint as credentials
-from .blueprints.oauth2 import init_oauth
-from .resources.storage import StorageManager
-from .resources.user.user_session import UserSessionInterface
-from .blueprints.user import blueprint as user
-from .errors import APIError, UserError
-from .data_model.models import migrate
-from .jwt import keys
-from .resources.aws.boto_manager import BotoManager
-from .resources.openid.google_oauth2 import Oauth2Client
-from .utils import random_str
+from fence.auth import logout
+from fence.blueprints.admin import blueprint as admin
+from fence.blueprints.login import blueprint as login
+from fence.blueprints.oauth2 import init_oauth
+from fence.blueprints.oauth2 import blueprint as oauth2
+from fence.blueprints.storage_creds import blueprint as credentials
+from fence.resources.storage import StorageManager
+from fence.resources.user.user_session import UserSessionInterface
+from fence.blueprints.user import blueprint as user
+from fence.errors import APIError, UserError
+from fence.data_model.models import migrate
+from fence.jwt import keys
+from fence.resources.aws.boto_manager import BotoManager
+from fence.resources.openid.google_oauth2 import Oauth2Client
+from fence.utils import random_str
 
 from userdatamodel.driver import SQLAlchemyDriver
 

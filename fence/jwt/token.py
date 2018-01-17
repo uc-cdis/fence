@@ -7,8 +7,8 @@ import json
 from datetime import datetime, timedelta
 
 from cdispyutils import auth
-from . import blacklist, errors, keys
-from .blacklist import BlacklistedToken
+from fence.jwt import blacklist, errors, keys
+from fence.jwt.blacklist import BlacklistedToken
 
 
 def issued_and_expiration_times(seconds_to_expire):
@@ -29,9 +29,9 @@ def issued_and_expiration_times(seconds_to_expire):
     return (iat, exp)
 
 
-def generate_signed_session_token(kid, private_key, expires_in,
-                                  username=None, session_started=None,
-                                  provider=None, redirect=None):
+def generate_signed_session_token(
+        kid, private_key, expires_in, username=None, session_started=None,
+        provider=None, redirect=None):
     """
     Generate a JWT session token from the given request, and output a UTF-8
     string of the encoded JWT signed with the private key.

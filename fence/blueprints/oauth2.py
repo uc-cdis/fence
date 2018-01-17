@@ -22,11 +22,11 @@ from flask_sqlalchemy_session import current_session
 
 from datetime import datetime, timedelta
 from cdispyutils.log import get_logger
-from ..data_model import models
-from ..auth import get_current_user
-from ..jwt.oauth_validator import OAuthValidator
-from ..utils import hash_secret
-from ..jwt import token, errors
+from fence.data_model import models
+from fence.auth import get_current_user
+from fence.jwt.oauth_validator import OAuthValidator
+from fence.utils import hash_secret
+from fence.jwt import token, errors
 
 
 log = get_logger('fence')

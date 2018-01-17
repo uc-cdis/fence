@@ -16,7 +16,7 @@ import jwt
 from sqlalchemy import BigInteger, Column, String
 from userdatamodel import Base
 
-from . import keys
+from fence.jwt import keys
 
 
 class BlacklistedToken(Base):
