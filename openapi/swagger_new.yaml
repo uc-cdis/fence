@@ -1,0 +1,683 @@
+swagger: '2.0'
+info:
+  title: Fence OpenAPI Specification
+  version: 0.1.0
+  description: >-
+    Access management for CDIS data commons. Code is available on
+    [GitHub](https://github.com/uc-cdis/fence).
+  termsOfService: 'http://cdis.uchicago.edu/terms/'
+  contact:
+    email: cdis@uchicago.edu
+  license:
+    name: Apache 2.0
+    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
+host: example.domain
+basePath: /
+tags:
+  - name: oauth2
+    description: Authorization and token management
+  - name: user
+    description: User information
+  - name: data
+    description: Generate pre-signed URLs
+  - name: link
+    description: Link access identities
+  - name: keys
+    description: Get public keys used to validate JWTs issued by fence
+schemes:
+  - https
+securityDefinitions:
+  OAuth2:
+    type: oauth2
+    flow: accessCode
+    authorizationUrl: '/oauth/authorize'
+    tokenUrl: '/oauth/token'
+    scopes:
+      user: generic user access
+paths:
+  "/admin/user/{username}":
+    get:
+      tags:
+      - user-controller
+      summary: get user information from given a username
+      operationId: get_user
+      consumes:
+      - "*.*"
+      produces:
+      - application/json
+      parameters:
+      - name: username
+        in: path
+        description: username of the user whose info we want to retrieve
+        required: true
+        type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    put:
+      tags:
+      - user-controller
+      summary: update user information for given a username
+      operationId: update_user
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: username
+        in: path
+        description: username of the user whose info we want to retrieve
+        required: true
+        type: string
+      - name: token
+        in: headers
+        description: admin token required to access this data
+        required: true
+        type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/shib":
+    get:
+      tags:
+      - login-controller
+      summary: redirection for SSO on shibboleth
+      operationId: login_from_shibboleth
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/google":
+    get:
+      tags:
+      - login-controller
+      summary: redirection for google sign in
+      operationId: redirect_to_google
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: redirect
+        in: headers
+        description: url used for redirection
+        required: true
+        type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/google/login":
+    get:
+      tags:
+      - login-controller
+      summary: redirection for google sign in
+      operationId: redirect_to_google
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: code
+        in: path
+        description: TODO
+        required: true
+        type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/authorize":
+    get:
+      tags:
+      - auth-controller
+      summary: Handle the first step in the OAuth procedure. Render a confirmation page.
+      operationId: authorize
+      consumes:
+      - "*/*"
+      produces:
+      - "*/*"
+      parameters:
+      - name: client_id
+        in: header
+        description: TODO
+        required: true
+        type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    post:
+      tags:
+      - auth-controller
+      summary: Handle the first step in the OAuth procedure. check that the value of ``confirm`` in the form data is exactly ``"yes"``
+      operationId: authorize
+      consumes:
+      - "*/*"
+      produces:
+      - "*/*"
+      parameters:
+      - name: confirm
+        in: formData
+        description: TODO
+        required: true
+        type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/token":
+    post:
+      tags:
+      - auth-controller
+      summary: Handle exchanging code for and refreshing the access token.
+      operationId: get_access_token
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/revoke":
+    post:
+      tags:
+      - auth-controller
+      summary: Revoke a refresh token.
+      operationId: revoke_token
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: token
+        in: formData
+        description: TODO
+        required: true
+        type: string
+      responses:
+        '204':
+          description: OK
+          schema:
+            type: string
+        '400':
+          description: no token provided
+  "/errors":
+    get:
+      tags:
+      - auth-controller
+      summary: Define the errors endpoint for the OAuth provider.
+      operationId: revoke_token
+      consumes:
+      - "*/*"
+      produces:
+      - "*/*"
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/credentials":
+    get:
+      tags:
+      - storage-controller
+      summary: List different resources user can have credentials
+      operationId: list_sources
+      consumes:
+      - "*/*"
+      produces:
+      - application/json
+      responses:
+        '204':
+          description: OK
+          schema:
+            type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+"/credentials/{backend}":
+  get:
+    tags:
+    - storage-controller
+    summary: List all existing credentials (keypairs/tokens) for user
+    operationId: list_credentials
+    consumes:
+    - "*/*"
+    produces:
+    - application/json
+    parameters:
+    - name: backend
+      in: path
+      description: TODO
+      required: true
+      type: string
+    responses:
+      '200':
+        description: OK
+        schema:
+          type: string
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden
+      '404':
+        description: Not Found
+  post:
+    tags:
+    - storage-controller
+    summary: Generate a credential (keypair/token) for user
+    operationId: create_credentials
+    consumes:
+    - application/json
+    produces:
+    - application/json
+    parameters:
+    - name: backend
+      in: path
+      description: TODO
+      required: true
+      type: string
+    responses:
+      '200':
+        description: OK
+        schema:
+          type: string
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden
+      '404':
+        description: Not Found
+  put:
+    tags:
+    - storage-controller
+    summary: Refresh token for user
+    operationId: create_access_token_api
+    consumes:
+    - "*/*"
+    produces:
+    - application/json
+    parameters:
+    - name: backend
+      in: path
+      description: TODO
+      required: true
+      type: string
+    responses:
+      '200':
+        description: OK
+        schema:
+          type: string
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden
+      '404':
+        description: Not Found
+"/credentials/{backend}/{access_key}":
+  delete:
+    tags:
+    - storage-controller
+    summary: List all existing credentials (keypairs/tokens) for user
+    operationId: delete_credential
+    consumes:
+    - "*/*"
+    produces:
+    - application/json
+    parameters:
+    - name: backend
+      in: path
+      description: TODO
+      required: true
+      type: string
+    - name: access_key
+      in: body
+      description: TODO
+      required: true
+      type: string
+    responses:
+      '201':
+        description: Success
+        schema:
+          type: string
+      '404':
+        description: Key Doesn't Exist
+"/user":
+  get:
+    tags:
+    - user-controller
+    summary: Get current user info
+    operationId: user_info
+    consumes:
+    - "*/*"
+    produces:
+    - application/json
+    responses:
+      '201':
+        description: Success
+        schema:
+          type: string
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden
+      '404':
+        description: Not Found
+"/user/cert":
+  put:
+    tags:
+    - user-controller
+    summary: TODO
+    operationId: missing_certificate
+    consumes:
+    - "*/*"
+    produces:
+    - application/json
+    responses:
+      '201':
+        description: Success
+        schema:
+          type: string
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden
+      '404':
+        description: Not Found
+"/user/cert/{certificate}":
+  put:
+    tags:
+    - user-controller
+    summary: TODO
+    operationId: upload_certificate
+    consumes:
+    - "*/*"
+    produces:
+    - application/json
+    parameters:
+  - name: certificate
+    in: path
+    description: certificate name
+    required: true
+    type: string
+  - name: extension
+    in: headers
+    description: TODO
+    required: true
+    type: string
+    responses:
+      '201':
+        description: Success
+        schema:
+          type: string
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden
+      '404':
+        description: Not Found
+  get:
+    tags:
+    - user-controller
+    summary: TODO
+    operationId: download_certificate
+    consumes:
+    - "*/*"
+    produces:
+    - application/json
+    parameters:
+  - name: certificate
+    in: path
+    description: certificate name
+    required: true
+    type: string
+    responses:
+      '201':
+        description: Success
+        schema:
+          type: string
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden
+      '404':
+        description: Not Found
+definitions:
+  Group:
+    type: object
+    properties:
+      description:
+        type: string
+      id:
+        type: integer
+        format: int32
+      name:
+        type: string
+      status:
+        type: string
+  PageDTO«Project»:
+    type: object
+    properties:
+      count:
+        type: integer
+        format: int64
+      limit:
+        type: integer
+        format: int32
+      offset:
+        type: integer
+        format: int32
+      resultSet:
+        type: array
+        items:
+          "$ref": "#/definitions/Project"
+  User:
+    type: object
+    properties:
+      createdAt:
+        type: string
+      email:
+        type: string
+      firstName:
+        type: string
+      id:
+        type: integer
+        format: int32
+      lastLogin:
+        type: string
+      lastName:
+        type: string
+      name:
+        type: string
+      preferredLanguage:
+        type: string
+      role:
+        type: string
+      status:
+        type: string
+  PageDTO:
+    type: object
+    properties:
+      count:
+        type: integer
+        format: int64
+      limit:
+        type: integer
+        format: int32
+      offset:
+        type: integer
+        format: int32
+      resultSet:
+        type: array
+        items:
+          type: object
+  PageDTO«User»:
+    type: object
+    properties:
+      count:
+        type: integer
+        format: int64
+      limit:
+        type: integer
+        format: int32
+      offset:
+        type: integer
+        format: int32
+      resultSet:
+        type: array
+        items:
+          "$ref": "#/definitions/User"
+  PageDTO«Group»:
+    type: object
+    properties:
+      count:
+        type: integer
+        format: int64
+      limit:
+        type: integer
+        format: int32
+      offset:
+        type: integer
+        format: int32
+      resultSet:
+        type: array
+        items:
+          "$ref": "#/definitions/Group"
+  Project:
+    type: object
+    properties:
+      clientId:
+        type: string
+      clientSecret:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+        format: int32
+      name:
+        type: string
+      redirectUri:
+        type: string
+      status:
+        type: string
+  UserInfo:
+    type: object
+    required: [pdc_id, username, resources_granted, project_access, certificates_uploaded, email, message]
+    properties:
+      pdc_id:
+        type: string
+      username:
+        type: string
+        description: ''
+      resources_granted:
+        type: array
+        items:
+          type: string
+      project_access:
+        type: object
+        additionalProperties:
+          type: string
+      certificates_uploaded:
+        type: array
+        items:
+          type: string
+      email:
+        type: string
+        description: ''
+      message:
+        type: string
+  PresignedURL:
+    type: object
+    properties:
+      url:
+        type: string
+        description: the presigned url issued to
+  PublicKeys:
+    type: object
+    properties:
+      keys:
+        type: array
+        description: array of single-entry dictionaries mapping from key id to public key
+        items:
+          type: array
+          description: "tuple of `(key_id, public_key)`"
+          items:
+            type: string
+    example:
+      keys:
+        - ["public_key_01", "-----BEGIN PUBLIC KEY----- ... -----END PUBLIC KEY-----"]
+  OAuthHTML:
+    type: string
