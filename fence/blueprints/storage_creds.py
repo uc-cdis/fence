@@ -2,6 +2,9 @@ from ..auth import login_required
 import flask
 from flask import current_app as capp
 from flask import g, request, jsonify
+from flask_sqlalchemy_session import current_session
+
+from ..resources.storage import get_endpoints_descriptions
 from fence.resources.storage.cdis_jwt import create_refresh_token,\
     revoke_refresh_token, create_access_token
 
@@ -38,14 +41,14 @@ def list_sources():
         }
     '''
     services = capp.config.get('STORAGES', [])
-    return jsonify({k: ALL_RESOURCES[k] for k in services})
+    return jsonify(get_endpoints_descriptions(services, current_session))
 
 
-@blueprint.route('/<backend>/', methods=['GET'])
+@blueprint.route('/<provider>/', methods=['GET'])
 @login_required({'credentials'})
-def list_credentials(backend):
+def list_keypairs(provider):
     '''
-    List all existing credentials (keypairs/tokens) for user
+    List access keys for user
 
     **Example:**
     .. code-block:: http
@@ -56,23 +59,30 @@ def list_credentials(backend):
 
     .. code-block:: JavaScript
 
-        [
-            {
-                'access_key': '8DGW9LyC0D4nByoWo6pp',
-            }
-        ]
+        {
+            "access_keys":
+            [
+                {
+                    "access_key": "8DGW9LyC0D4nByoWo6pp",
+                }
+            ]
+        }
 
     '''
-    if backend != 'cdis':
-        result = capp.storage_manager.list_keypairs(backend, g.user)
-        return jsonify(dict(access_keys=result))
+    if provider != 'cdis':
+        result = capp.storage_manager.list_keypairs(provider, g.user)
+        keys = {
+            'access_keys':
+            [{'access_key': item['access_key']} for item in result]}
+        return jsonify(keys)
+    return jsonify({'error': 'not supported'})
 
 
-@blueprint.route('/<backend>/', methods=['POST'])
+@blueprint.route('/<provider>/', methods=['POST'])
 @login_required({'credentials'})
-def create_credential(backend):
+def create_keypairs(provider):
     '''
-    Generate a credential (keypair/token) for user
+    Generate a keypair for user
 
     :query expire: expiration time in seconds, default to 3600
 
@@ -86,7 +96,7 @@ def create_credential(backend):
     .. code-block:: JavaScript
         cdis:
         {
-            "token": "token_value"
+            "token" "token_value"
         }
         non-cdis:
         {
@@ -94,20 +104,23 @@ def create_credential(backend):
             "secret_key": "1lnkGScEH8Vr4EC6QnoqLK1PqRWPNqIBJkH6Vpgx"
         }
     '''
-    if backend == 'cdis':
+    if provider == 'cdis':
+        scopes = request.args.get('scopes', [])
+        if not isinstance(scopes, list):
+            scopes = scopes.split(',')
         result = create_refresh_token(
             g.user, capp.keypairs[0],
             request.args.get('expire', 2592000),
-            request.args.get('scope', [])
+            scopes
         )
         return jsonify(dict(token=result))
     else:
-        return jsonify(capp.storage_manager.create_keypair(backend, g.user))
+        return jsonify(capp.storage_manager.create_keypair(provider, g.user))
 
 
-@blueprint.route('/<backend>/', methods=['PUT'])
+@blueprint.route('/<provider>/', methods=['PUT'])
 @login_required({'credentials'})
-def create_access_token_api(backend):
+def create_access_token_api(provider):
     '''
     Generate a credential (keypair/token) for user
 
@@ -131,24 +144,27 @@ def create_access_token_api(backend):
             "secret_key": "1lnkGScEH8Vr4EC6QnoqLK1PqRWPNqIBJkH6Vpgx"
         }
     '''
-    if backend == 'cdis':
+    if provider == 'cdis':
+        scopes = request.args.get('scopes', [])
+        if not isinstance(scopes, list):
+            scopes = scopes.split(',')
         result = create_access_token(
             g.user, capp.keypairs[0],
             request.form['refresh_token'],
             request.args.get('expire', 2592000),
-            request.args.get('scope', [])
+            scopes
         )
         return jsonify(dict(access_token=result))
     else:
-        return jsonify(capp.storage_manager.create_keypair(backend, g.user))
+        return jsonify(capp.storage_manager.create_keypair(provider, g.user))
 
 
-@blueprint.route('/<backend>/<access_key>/', methods=['DELETE'])
+@blueprint.route('/<provider>/<access_key>', methods=['DELETE'])
 @login_required({'credentials'})
-def delete_credential(backend, access_key):
+def delete_keypair(provider, access_key):
     '''
-    .. http:get: /hmac/(string: access_key)
-    Revoke a credential (keypair/token) for user
+    .. http:get: /<provider>/(string: access_key)
+    Delete a keypair for user
 
     :param access_key: existing access key belongs to this user
 
@@ -156,8 +172,8 @@ def delete_credential(backend, access_key):
     :statuscode 404 access key doesn't exist
 
     '''
-    if backend == 'cdis':
+    if provider == 'cdis':
         return revoke_refresh_token(access_key)
     else:
-        capp.storage_manager.delete_keypair(backend, g.user, access_key)
+        capp.storage_manager.delete_keypair(provider, g.user, access_key)
     return '', 201

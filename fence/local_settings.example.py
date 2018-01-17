@@ -24,7 +24,8 @@ OPENID_CONNECT = {
 }
 
 STORAGE_CREDENTIALS = {
-    "cleversafe": {
+    "cleversafe-server-a": {
+        'backend': 'cleversafe',
         'aws_access_key_id': '',
         'aws_secret_access_key': '',
         'host': 'somemanager.osdc.io',
@@ -45,7 +46,7 @@ If the api is behind firewall that need to set http proxy:
 '''
 HTTP_PROXY = None
 
-STORAGES = ['/cleversafe']
+STORAGES = ['cleversafe-server-a']
 ITRUST_GLOBAL_LOGOUT = 'https://itrusteauth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl='
 SESSION_COOKIE_SECURE = False
 ENABLE_CSRF_PROTECTION = True
