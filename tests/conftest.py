@@ -3,147 +3,35 @@
 Define pytest fixtures.
 """
 
-from addict import Dict
-import jwt
 from mock import patch
-import pytest
 import os
 
-
+from addict import Dict
+import bcrypt
 from cdisutilstest.code.storage_client_mock import get_client
+import pytest
+
 import fence
-from fence.jwt import blacklist
-from fence.data_model import models
 from fence import app_init
-from userdatamodel import Base
+from fence import models
 
-from . import test_settings
-from . import utils
-
-
-def check_auth_positive(cls, backend, user):
-    return True
+import tests
+from tests import test_settings
 
 
 @pytest.fixture(scope='session')
 def claims_refresh():
-    new_claims = utils.default_claims()
+    new_claims = tests.utils.default_claims()
     new_claims['aud'] = ['refresh']
     return new_claims
 
 
 @pytest.fixture(scope='session')
-def public_key():
-    """
-    Return a public key for testing.
-    """
-    return utils.read_file('keys/test_public_key.pem')
-
-
-@pytest.fixture(scope='session')
-def private_key():
-    """
-    Return a private key for testing. (Use only a private key that is
-    specifically set aside for testing, and never actually used for auth.)
-    """
-    return utils.read_file('keys/test_private_key.pem')
-
-
-@pytest.fixture(scope='session')
-def encoded_jwt(private_key):
-    """
-    Return an example JWT containing the claims and encoded with the private
-    key.
-
-    Args:
-        claims (dict): fixture
-        private_key (str): fixture
-
-    Return:
-        str: JWT containing claims encoded with private key
-    """
-    kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
-    headers = {'kid': kid}
-    return jwt.encode(
-        utils.default_claims(),
-        key=private_key,
-        headers=headers,
-        algorithm='RS256',
-    )
-
-
-@pytest.fixture(scope='session')
-def encoded_jwt_expired(claims, private_key):
-    """
-    Return an example JWT that has already expired.
-
-    Args:
-        claims (dict): fixture
-        private_key (str): fixture
-
-    Return:
-        str: JWT containing claims encoded with private key
-    """
-    kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
-    headers = {'kid': kid}
-    claims_expired = utils.default_claims()
-    # Move `exp` and `iat` into the past.
-    claims_expired['exp'] -= 10000
-    claims_expired['iat'] -= 10000
-    return jwt.encode(
-        claims_expired, key=private_key, headers=headers, algorithm='RS256'
-    )
-
-
-@pytest.fixture(scope='session')
-def encoded_jwt_refresh_token(claims_refresh, private_key):
-    """
-    Return an example JWT refresh token containing the claims and encoded with
-    the private key.
-
-    Args:
-        claims_refresh (dict): fixture
-        private_key (str): fixture
-
-    Return:
-        str: JWT refresh token containing claims encoded with private key
-    """
-    kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
-    headers = {'kid': kid}
-    return jwt.encode(
-        claims_refresh, key=private_key, headers=headers, algorithm='RS256'
-    )
-
-
-class Mocker(object):
-    def mock_functions(self):
-        self.patcher = patch(
-            'fence.resources.storage.get_client',
-            get_client)
-        self.auth_patcher = patch(
-            'fence.resources.storage.StorageManager.check_auth',
-            check_auth_positive)
-        self.auth_patcher.start()
-        self.patcher.start()
-
-    def unmock_functions(self):
-        self.patcher.stop()
-        self.auth_patcher.stop()
-
-
-@pytest.fixture(scope='function')
-def app(request):
+def app():
     mocker = Mocker()
     mocker.mock_functions()
     root_dir = os.path.dirname(os.path.realpath(__file__))
     app_init(fence.app, test_settings, root_dir=root_dir)
-
-    def fin():
-        for tbl in reversed(Base.metadata.sorted_tables):
-            fence.app.db.engine.execute(tbl.delete())
-        mocker.unmock_functions()
-
-    request.addfinalizer(fin)
     return fence.app
 
 
@@ -156,58 +44,100 @@ def protected_endpoint(methods=['GET']):
     return 'Got to protected endpoint'
 
 
+def check_auth_positive(cls, backend, user):
+    return True
+
+
+class Mocker(object):
+    def mock_functions(self):
+        self.patcher = patch(
+            'fence.resources.storage.get_client',
+            get_client
+        )
+        self.auth_patcher = patch(
+            'fence.resources.storage.StorageManager.check_auth',
+            check_auth_positive)
+        self.auth_patcher.start()
+        self.patcher.start()
+
+    def unmock_functions(self):
+        self.patcher.stop()
+        self.auth_patcher.stop()
+
+
+@pytest.fixture(scope='session')
+def db(app, request):
+    """
+    Define pytest fixture for database engine (session-scoped).
+
+    When the tests are over, drop everything from the test database.
+    """
+
+    def drop_all():
+        models.Base.metadata.drop_all(app.db.engine)
+
+    request.addfinalizer(drop_all)
+
+    return app.db
+
+
 @pytest.fixture(scope='function')
-def oauth_client(app, request):
-    mocker = Mocker()
-    mocker.mock_functions()
-    url = 'https://test.net'
-    client_id, client_secret = fence.utils.create_client(
-        username='test', urls=url, DB=app.config['DB']
-    )
+def db_session(db, request, patch_app_db_session, monkeypatch):
+    """
+    Define fixture for database session (function-scoped).
 
-    def fin():
-        with app.db.session as session:
-            # Don't flush until everything is finished, otherwise this will
-            # break because of (for example) foreign key references between the
-            # tables.
-            with session.no_autoflush:
-                all_models = [
-                    blacklist.BlacklistedToken,
-                    models.Client,
-                    models.Grant,
-                    models.Token,
-                    models.User,
-                ]
-                for cls in all_models:
-                    for obj in session.query(cls).all():
-                        session.delete(obj)
+    At the end of the function, roll back the session to its initial state.
+    """
+    connection = db.engine.connect()
+    transaction = connection.begin()
+    session = db.Session(bind=connection)
 
-    request.addfinalizer(fin)
+    def rollback():
+        """
+        After using the session, roll back any changes made (including
+        commits.
+        """
+        session.close()
+        transaction.rollback()
+        connection.close()
+
+    request.addfinalizer(rollback)
+
+    patch_app_db_session(session)
+
+    return session
+
+
+@pytest.fixture(scope='function')
+def patch_app_db_session(app, monkeypatch):
+    """
+    TODO
+    """
+
+    def do_patch(session):
+        monkeypatch.setattr(
+            app.db, 'Session', lambda: session
+        )
+        monkeypatch.setattr(
+            'fence.user.current_session', session
+        )
+
+    return do_patch
+
+
+@pytest.fixture(scope='function')
+def oauth_client(app, request, db_session):
+    url = 'https://oauth-test-client.net'
+    client_id = 'test-client'
+    client_secret = fence.utils.random_str(50)
+    hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
+    test_user = models.User(username='test', is_admin=False)
+
+    db_session.add(test_user)
+    db_session.add(models.Client(
+        client_id=client_id, client_secret=hashed_secret, user=test_user,
+        _redirect_uris=url, description=''
+    ))
+    db_session.commit()
+
     return Dict(client_id=client_id, client_secret=client_secret, url=url)
-
-
-@pytest.fixture(scope='function')
-def token_response(client, oauth_client):
-    """
-    Return the token response from the end of the OAuth procedure from
-    ``/oauth2/token``.
-    """
-    return utils.oauth2.get_token_response(client, oauth_client)
-
-
-@pytest.fixture(scope='function')
-def access_token(client, oauth_client):
-    """
-    Return just an access token obtained from ``/oauth2/token``.
-    """
-    token_response = utils.oauth2.get_token_response(client, oauth_client)
-    return token_response.json['access_token']
-
-
-@pytest.fixture(scope='function')
-def refresh_token(client, oauth_client):
-    """
-    Return just a refresh token obtained from ``/oauth2/token``.
-    """
-    token_response = utils.oauth2.get_token_response(client, oauth_client)
-    return token_response.json['refresh_token']

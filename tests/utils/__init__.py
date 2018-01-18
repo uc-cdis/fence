@@ -1,14 +1,11 @@
 import os
-import tests
 from datetime import datetime, timedelta
 import uuid
-
-import tests.utils.oauth2
 
 
 def read_file(filename):
     """Read the contents of a file in the tests directory."""
-    root_dir = os.path.dirname(os.path.realpath(tests.__file__))
+    root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     with open(os.path.join(root_dir, filename), 'r') as f:
         return f.read()
 

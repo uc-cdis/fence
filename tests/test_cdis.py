@@ -13,6 +13,7 @@ def test_cdis_get_access_token(client, oauth_client):
     Test ``PUT /credentials/cdis``.
     """
     response = utils.get_refresh_token(client)
+    assert 'token' in response.json
     refresh_token = response.json['token']
     path = (
         '/credentials/cdis/'

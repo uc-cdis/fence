@@ -96,7 +96,32 @@ JWT_KEYPAIR_FILES = OrderedDict([
 Fence will use the first keypair in the list to sign the tokens it issues
 through OAuth.
 
-## OAuth2
+## OIDC & OAuth2
+
+### OIDC
+
+### OAuth2
+
+#### Example Flow: Fence as Client
+
+Example:
+
+- Google IAM is the OP
+- Fence is the client
+- Google Calendar API is the resource provider
+
+#### Example Flow: Fence as OP
+
+- Fence is the OP
+- A third-party application is the client
+- Our microservices (e.g. sheepdog) are resource providers
+
+If third-party application doesn't need to use any Gen3 resources, after the
+handshake is finished they just get need information in ID token. If they want
+to use gen3 resources like fence/sheepdog/peregrine, they call those services
+with `access_token` passed in the header.
+
+#### Notes
 
 See the [OAuth2 specification](https://tools.ietf.org/html/rfc6749) for details.
 

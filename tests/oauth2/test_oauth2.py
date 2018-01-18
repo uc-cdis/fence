@@ -4,9 +4,7 @@ Test the endpoints in the ``/oauth2`` blueprint.
 
 import urllib
 
-import fence
-
-from tests import utils
+import tests.utils.oauth2
 
 
 def test_oauth2_authorize_get(client, oauth_client):
@@ -32,7 +30,7 @@ def test_oauth2_authorize_post(client, oauth_client):
     """
     Test ``POST /oauth2/authorize``.
     """
-    response = utils.oauth2.oauth_post_authorize(client, oauth_client)
+    response = tests.utils.oauth2.post_authorize(client, oauth_client)
     assert response.status_code == 302
     location = response.headers['Location']
     assert location.startswith(oauth_client.url)
@@ -42,8 +40,8 @@ def test_oauth2_token_post(client, oauth_client):
     """
     Test ``POST /oauth2/token`` with a code from ``POST /oauth2/authorize``.
     """
-    code = utils.oauth2.get_access_code(client, oauth_client)
-    response = utils.oauth2.oauth_post_token(client, oauth_client, code)
+    code = tests.utils.oauth2.get_access_code(client, oauth_client)
+    response = tests.utils.oauth2.post_token(client, oauth_client, code)
     assert 'access_token' in response.json
     assert 'refresh_token' in response.json
 
@@ -53,7 +51,7 @@ def test_oauth2_token_refresh(client, oauth_client, refresh_token):
     Obtain refresh and access tokens, and test using the refresh token to
     obtain a new access token.
     """
-    code = utils.oauth2.get_access_code(client, oauth_client)
+    code = tests.utils.oauth2.get_access_code(client, oauth_client)
     data = {
         'client_id': oauth_client.client_id,
         'client_secret': oauth_client.client_secret,
@@ -76,7 +74,7 @@ def test_oauth2_token_post_revoke(client, oauth_client, refresh_token):
     # Revoke refresh token.
     client.post('/oauth2/revoke', data={'token': refresh_token})
     # Try to use refresh token.
-    code = utils.oauth2.get_access_code(client, oauth_client)
+    code = tests.utils.oauth2.get_access_code(client, oauth_client)
     data = {
         'client_id': oauth_client.client_id,
         'client_secret': oauth_client.client_secret,

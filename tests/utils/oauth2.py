@@ -1,4 +1,21 @@
-def oauth_post_authorize(client, oauth_client, scope='user'):
+import fence.utils
+
+
+def make_query_string(params):
+    if not params:
+        return ''
+    params_str = '&'.join(
+        '{}={}'.format(key, value)
+        for key, value in params.iteritems()
+    )
+    return '?' + params_str
+
+
+def path_for_authorize(params=None):
+    return '/oauth2/authorize' + make_query_string(params)
+
+
+def post_authorize(client, oauth_client, data=None):
     """
     Args:
         client: client fixture
@@ -8,19 +25,18 @@ def oauth_post_authorize(client, oauth_client, scope='user'):
     Return:
         pytest_flask.plugin.JSONResponse: the response from /oauth2/authorize
     """
-    path = (
-        '/oauth2/authorize'
-        '?client_id={client_id}'
-        '&response_type=code'
-        '&scope={scope}'
-        '&redirect_uri={redirect_uri}'
-    )
-    path = path.format(
-        client_id=oauth_client.client_id,
-        scope=scope,
-        redirect_uri=oauth_client.url,
-    )
-    return client.post(path, data={'confirm': 'yes'})
+    data = data or {}
+    default_data = {
+        'client_id': oauth_client.client_id,
+        'redirect_uri': oauth_client.url,
+        'response_type': 'code',
+        'scope': 'openid',
+        'state': fence.utils.random_str(10),
+        'confirm': 'yes',
+    }
+    default_data.update(data)
+    data = default_data
+    return client.post(path_for_authorize(), data=data)
 
 
 def code_from_authorize_response(response):
@@ -36,7 +52,7 @@ def code_from_authorize_response(response):
     return response.headers['Location'].split('code=')[-1]
 
 
-def get_access_code(client, oauth_client, scope='user'):
+def get_access_code(client, oauth_client, scope='openid'):
     """
     Do all steps to get an authorization code from ``/oauth2/authorize``
 
@@ -48,12 +64,16 @@ def get_access_code(client, oauth_client, scope='user'):
     Return:
         str: the authorization code
     """
-    return code_from_authorize_response(oauth_post_authorize(
-        client, oauth_client, scope
+    data = {
+        'confirm': 'yes',
+        'scope': scope,
+    }
+    return code_from_authorize_response(post_authorize(
+        client, oauth_client, data=data
     ))
 
 
-def oauth_post_token(client, oauth_client, code):
+def post_token(client, oauth_client, code):
     """
     Return the response from ``POST /oauth2/token``.
 
@@ -85,4 +105,4 @@ def get_token_response(client, oauth_client):
         pytest_flask.plugin.JSONResponse: the response from ``/oauth2/token``
     """
     code = get_access_code(client, oauth_client)
-    return oauth_post_token(client, oauth_client, code)
+    return post_token(client, oauth_client, code)

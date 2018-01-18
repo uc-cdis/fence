@@ -25,9 +25,11 @@ def json_res(data):
     return Response(json.dumps(data), mimetype='application/json')
 
 
-def create_client(username, urls, DB, name='', description='', auto_approve=False, is_admin=False):
+def create_client(
+        username, urls, DB, name='', description='', auto_approve=False,
+        is_admin=False):
     driver = SQLAlchemyDriver(DB)
-    client_id = random_str(40)
+    client_id = 'test-client'
     client_secret = random_str(55)
     hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
     with driver.session as s:

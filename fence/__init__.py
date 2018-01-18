@@ -8,27 +8,26 @@ from flask_sqlalchemy_session import flask_scoped_session
 from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.auth import logout
-from fence.blueprints.admin import blueprint as admin
-from fence.blueprints.login import blueprint as login
-from fence.blueprints.oauth2 import blueprint as oauth2
-from fence.blueprints.storage_creds import blueprint as credentials
-from fence.blueprints.user import blueprint as user
-import fence.client
 from fence.errors import APIError, UserError
-from fence.models import UserSession, migrate
 from fence.jwt import keys
+from fence.models import UserSession, migrate
 from fence.resources.openid.google_oauth2 import Oauth2Client
 from fence.resources.storage import StorageManager
-from fence.oauth2.server import server
 from fence.utils import random_str
+import fence.blueprints.admin
+import fence.blueprints.storage_creds
+import fence.blueprints.login
+import fence.blueprints.oauth2
+import fence.blueprints.user
+
 
 app = flask.Flask(__name__)
 CORS(app=app, headers=['content-type', 'accept'], expose_headers='*')
-app.register_blueprint(oauth2, url_prefix='/oauth2')
-app.register_blueprint(user, url_prefix='/user')
-app.register_blueprint(credentials, url_prefix='/credentials')
-app.register_blueprint(admin, url_prefix='/admin')
-app.register_blueprint(login, url_prefix='/login')
+app.register_blueprint(fence.blueprints.oauth2.blueprint, url_prefix='/oauth2')
+app.register_blueprint(fence.blueprints.user.blueprint, url_prefix='/user')
+app.register_blueprint(fence.blueprints.storage_creds.blueprint, url_prefix='/credentials')
+app.register_blueprint(fence.blueprints.admin.blueprint, url_prefix='/admin')
+app.register_blueprint(fence.blueprints.login.blueprint, url_prefix='/login')
 
 
 def app_config(app, settings='fence.settings', root_dir=None):
@@ -78,7 +77,7 @@ def app_sessions(app):
 
 def app_init(app, settings='fence.settings', root_dir=None):
     app_config(app, settings=settings, root_dir=root_dir)
-    server.init_app(app)
+    # TODO: init OIDC server
     app_sessions(app)
 
 

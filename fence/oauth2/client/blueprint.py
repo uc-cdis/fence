@@ -10,7 +10,10 @@ def get_authorization_url():
 
 
 @blueprint.route('/authorize', methods=['GET'])
-def do_authorize():
-    code = flask.request.args.get('code')
-    # TODO
-    pass
+def authorize():
+    return flask.current_app.oauth2.authorize_redirect()
+
+
+@blueprint.route('/token', methods=['GET'])
+def token():
+    return flask.current_app.oauth2.authorize_access_token()
