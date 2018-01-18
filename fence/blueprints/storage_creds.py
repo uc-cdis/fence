@@ -64,6 +64,29 @@ def list_keypairs(provider):
            Content-Type: application/json
            Accept: application/json
 
+
+    google:
+    Info from Google API /serviceAccounts/<account>/keys endpoint
+    TODO: In the future we should probably add in our expiration time, when
+          we start monitoring and deleting after x amount of time
+
+    .. code-block:: JavaScript
+
+        {
+            "access_keys":
+            [
+                {
+                    "keyAlgorithm": enum(ServiceAccountKeyAlgorithm),
+                    "validBeforeTime": string,
+                    "name": string,
+                    "validAfterTime": string,
+                },
+                ...
+            ]
+        }
+
+    other:
+
     .. code-block:: JavaScript
 
         {
@@ -81,19 +104,20 @@ def list_keypairs(provider):
             service_account = _get_google_service_account_for_client(g_cloud_manager)
 
             if service_account:
-                result = g_cloud_manager.get_service_account_keys_info(service_account.google_unique_id)
+                keys = g_cloud_manager.get_service_account_keys_info(service_account.google_unique_id)
+                result = {'access_keys': keys}
             else:
-                result = {}
+                result = {'access_keys': []}
     elif provider != 'cdis':
         result = capp.storage_manager.list_keypairs(provider, g.user)
         keys = {
             'access_keys':
             [{'access_key': item['access_key']} for item in result]}
-        result = jsonify(keys)
+        result = keys
     else:
-        result = jsonify({'error': 'not supported'})
+        result = {'error': 'not supported'}
 
-    return result
+    return jsonify(result)
 
 
 @blueprint.route('/<provider>/', methods=['POST'])
@@ -111,13 +135,19 @@ def create_keypairs(provider):
            Content-Type: application/json
            Accept: application/json
 
+    cdis:
+
     .. code-block:: JavaScript
-        cdis:
+
         {
             "token" "token_value"
         }
-        google:
-        JSON key in Google Credentials File format:
+
+    google:
+    (JSON key in Google Credentials File format)
+
+    .. code-block:: JavaScript
+
         {
             "type": "service_account",
             "project_id": "project-id",
@@ -131,7 +161,11 @@ def create_keypairs(provider):
             "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
             "client_x509_cert_url": "https://www.googleapis.com/...<api-name>api%40project-id.iam.gserviceaccount.com"
         }
-        other:
+
+    other:
+
+    .. code-block:: JavaScript
+
         {
             "access_key": "8DGW9LyC0D4nByoWo6pp",
             "secret_key": "1lnkGScEH8Vr4EC6QnoqLK1PqRWPNqIBJkH6Vpgx"
@@ -171,12 +205,19 @@ def create_access_token_api(provider):
            Content-Type: application/json
            Accept: application/json
 
+    cdis:
+
     .. code-block:: JavaScript
-        cdis:
+
         {
-            "access_token" "token_value"
+            "token" "token_value"
         }
-        JSON key in Google Credentials File format:
+
+    google:
+    (JSON key in Google Credentials File format)
+
+    .. code-block:: JavaScript
+
         {
             "type": "service_account",
             "project_id": "project-id",
@@ -190,7 +231,11 @@ def create_access_token_api(provider):
             "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
             "client_x509_cert_url": "https://www.googleapis.com/...<api-name>api%40project-id.iam.gserviceaccount.com"
         }
-        other:
+
+    other:
+
+    .. code-block:: JavaScript
+
         {
             "access_key": "8DGW9LyC0D4nByoWo6pp",
             "secret_key": "1lnkGScEH8Vr4EC6QnoqLK1PqRWPNqIBJkH6Vpgx"
@@ -277,9 +322,11 @@ def _get_google_access_key(g_cloud_manager):
         cloud manager to use
 
     Returns:
+
+        JSON key in Google Credentials File format:
+
         .. code-block:: JavaScript
 
-            JSON key in Google Credentials File format:
             {
                 "type": "service_account",
                 "project_id": "project-id",
