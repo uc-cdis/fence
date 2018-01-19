@@ -5,7 +5,6 @@ import flask
 from flask.ext.cors import CORS
 from flask_postgres_session import PostgresSessionInterface
 from flask_sqlalchemy_session import flask_scoped_session
-import importlib
 
 from .auth import logout
 from .blueprints.admin import blueprint as admin

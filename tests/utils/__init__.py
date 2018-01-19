@@ -90,7 +90,7 @@ def unauthorized_context_claims():
     }
 
 
-def authorized_context_claims():
+def authorized_download_context_claims():
     """
     Return a generic claims dictionary to put in a JWT.
 
@@ -114,6 +114,36 @@ def authorized_context_claims():
                 'projects': {
                     "phs000178": ["read"],
                     "phs000218": ["read", "read-storage"],
+                },
+            },
+        },
+    }
+
+
+def authorized_upload_context_claims():
+    """
+    Return a generic claims dictionary to put in a JWT.
+
+    Return:
+        dict: dictionary of claims
+    """
+    aud = ['access', 'user']
+    iss = 'https://user-api.test.net'
+    jti = new_jti()
+    iat, exp = iat_and_exp()
+    return {
+        'aud': aud,
+        'sub': '1234',
+        'iss': iss,
+        'iat': iat,
+        'exp': exp,
+        'jti': jti,
+        'context': {
+            'user': {
+                'name': 'test-user',
+                'projects': {
+                    "phs000178": ["read"],
+                    "phs000218": ["read", "write-storage"],
                 },
             },
         },

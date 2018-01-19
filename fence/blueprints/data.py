@@ -2,12 +2,21 @@ import flask
 import jwt
 import json
 import requests
-from ..auth import login_required
-from ..errors import UnavailableError, NotFound, Unauthorized
+from ..errors import UnavailableError, NotFound, Unauthorized, NotSupported
 from flask import current_app as capp
-from flask import jsonify
+from flask import jsonify, request
 from urlparse import urlparse
-from ..utils import hash_secret
+
+action_dict = {
+  "s3": {
+    "upload": "put_object",
+    "download": "get_object"
+  },
+  "http": {
+    "upload": "put_object",
+    "download": "get_object"
+  }
+}
 
 
 def get_index_document(file_id):
@@ -34,58 +43,76 @@ blueprint = flask.Blueprint('data', __name__)
 
 
 @blueprint.route('/download/<file_id>', methods=['GET'])
-@hash_secret
 def download_file(file_id):
     '''
-    TODO: switch to be allowable by normal users and check authorization
-    info against gdcapi
+    Get a presigned url to download a file given by file_id.
     '''
-    return get_file('get_object', file_id)
+    return get_file('download', file_id)
 
 
 @blueprint.route('/upload/<file_id>', methods=['GET'])
-@hash_secret
 def upload_file(file_id):
     '''
-    TODO: switch to be allowable by normal users and check authorization
-    info against gdcapi
+    Get a presigned url to upload a file given by file_id.
     '''
-    return get_file('put_object', file_id)
+    return get_file('upload', file_id)
+
+
+SUPPORTED_PROTOCOLS = ['s3', 'http']
+
+
+def check_protocol(protocol, scheme):
+    if protocol is None:
+        return True
+    if protocol == 'http' and scheme in ['http', 'https']:
+        return True
+    if protocol == 's3' and scheme == 's3':
+        return True
+    return False
+
+
+def resolve_url(location, protocol, expired_in, action):
+    if protocol == 's3':
+        path = location.path.split('/', 2)
+        location = capp.boto.presigned_url(path[1], path[2], expired_in, action_dict[protocol][action])
+    return jsonify(dict(url=location))
+
+
+def return_link(action, urls):
+    protocol = request.args.get('protocol', None)
+    expired_in = request.args.get('expired_in', None)
+    if (protocol is not None) and (protocol not in SUPPORTED_PROTOCOLS):
+        raise NotSupported("The specified protocol is not supported")
+    for url in urls:
+        location = urlparse(url)
+        if check_protocol(protocol, location.scheme):
+            return resolve_url(location, protocol, expired_in, action)
+    raise NotFound("Can't find a location for the data")
 
 
 def get_file(action, file_id):
     doc = json.loads(get_index_document(file_id))
-    if not check_authorization(doc):
-        raise Unauthorized("You don't have access permission on this file")
-    urls = doc['urls']
-    if len(urls) != 0:
-        # TODO: better way to decide which url to return
-        for url in urls:
-            location = urlparse(url)
-            if location.scheme == 'http' or location.scheme == 'https':
-                return url
-            elif location.scheme == 's3':
-                path = location.path.split('/', 2)
-                url = capp.boto.presigned_url(path[1], path[2], action)
-                return jsonify(dict(url=url))
-    raise NotFound("Can't find a downloadable location for the data")
-
-
-def get_user_auth_ids():
     token = jwt.decode(flask.request.headers['Authorization'].split(' ')[-1], verify=False)
-    return token['context']['user']['projects']
+    if not check_authorization(action, doc, token):
+        raise Unauthorized("You don't have access permission on this file")
+    return return_link(action, doc['urls'])
 
 
-def filter_auth_ids(list_auth_ids):
+def filter_auth_ids(action, list_auth_ids):
+    checked_permission = ''
+    if action == 'download':
+        checked_permission = 'read-storage'
+    elif action == 'upload':
+        checked_permission = 'write-storage'
     authorized_dbgaps = []
     for key, values in list_auth_ids.items():
-        if ('read-storage' in values):
+        if (checked_permission in values):
             authorized_dbgaps.append(key)
     return authorized_dbgaps
 
 
-def check_authorization(doc):
+def check_authorization(action, doc, token):
     metadata = doc['metadata']
     set_dbgaps = set(metadata['acls'].split(','))
-    dbgap_accession_numbers = set(filter_auth_ids(get_user_auth_ids()))
+    dbgap_accession_numbers = set(filter_auth_ids(action, token['context']['user']['projects']))
     return len(set_dbgaps & dbgap_accession_numbers) > 0

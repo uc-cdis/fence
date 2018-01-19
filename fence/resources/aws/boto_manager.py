@@ -16,9 +16,13 @@ class BotoManager(object):
             RoleArn=role_arn, ExternalId=external_id, DurationSeconds=duration_seconds,
             RoleSessionName=role_session_name)
 
-    def presigned_url(self, bucket, key, method='get_object'):
+    def presigned_url(self, bucket, key, expired_in, method='get_object'):
         if method not in ['get_object', 'put_object']:
             raise UserError('method {} not allowed'.format(method))
+        if expired_in is None:
+            expired_in = 1800
+        elif expired_in > 3600 * 24:
+            expired_in = 3600 * 24
 
         url = self.s3_client.generate_presigned_url(
             ClientMethod=method,
@@ -30,7 +34,7 @@ class BotoManager(object):
                 'Key': key,
                 'ServerSideEncryption': 'AES256'
             },
-            ExpiresIn=3600*24
+            ExpiresIn=expired_in
         )
         return url
 
@@ -82,7 +86,7 @@ class BotoManager(object):
     def create_user_group(self, group_name, path=None):
         try:
             group = self.iam.create_group(GroupName=group_name)["Group"]
-            policy = self.__create_policy__(group_name, self.__get_policy_document_by_group_name__(group_name))
+            self.__create_policy__(group_name, self.__get_policy_document_by_group_name__(group_name))
         except Exception as ex:
             self.logger.exception(ex)
             raise UserError("Fail to create group {}: {}".format(group_name, ex.message))
