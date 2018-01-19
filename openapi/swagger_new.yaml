@@ -38,7 +38,7 @@ paths:
   "/admin/user/{username}":
     get:
       tags:
-      - user-controller
+      - admin-controller
       summary: get user information from given a username
       operationId: get_user
       consumes:
@@ -64,9 +64,9 @@ paths:
           description: Not Found
     put:
       tags:
-      - user-controller
-      summary: update user information for given a username
-      operationId: update_user
+      - admin-controller
+      summary: create or update user information for given a username
+      operationId: create_user
       consumes:
       - application/json
       produces:
@@ -74,12 +74,7 @@ paths:
       parameters:
       - name: username
         in: path
-        description: username of the user whose info we want to retrieve
-        required: true
-        type: string
-      - name: token
-        in: headers
-        description: admin token required to access this data
+        description: username of the user that we want to create or update
         required: true
         type: string
       responses:
@@ -93,7 +88,118 @@ paths:
           description: Forbidden
         '404':
           description: Not Found
-  "/shib":
+    delete:
+      tags:
+      - admin-controller
+      summary: delete user information for given a username
+      operationId: delete_user
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: username
+        in: path
+        description: username of the user that we want to delete
+        required: true
+        type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/admin/project/{projectname}":
+    get:
+      tags:
+      - admin-controller
+      summary: get project information from given a username
+      operationId: get_project
+      consumes:
+      - "*.*"
+      produces:
+      - application/json
+      parameters:
+      - name: projectname
+        in: path
+        description: name of the project whose info we want to retrieve
+        required: true
+        type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  put:
+    tags:
+    - admin-controller
+    summary: create or update a project
+    operationId: create_project
+    consumes:
+    - "*.*"
+    produces:
+    - application/json
+    parameters:
+    - name: projectname
+      in: path
+      description: name of the project we want to create or update
+      required: true
+      type: string
+    - name: projectinfo
+      in: body
+      description: name of the project we want to create or update
+      required: true
+      schema:
+        "$ref": '#/definitions/Project'
+    responses:
+      '200':
+        description: OK
+        schema:
+          type: string
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden
+      '404':
+        description: Not Found
+  delete:
+    tags:
+    - admin-controller
+    summary: delete project information from given a username
+    operationId: delete_project
+    consumes:
+    - "*.*"
+    produces:
+    - application/json
+    parameters:
+    - name: projectname
+      in: path
+      description: name of the project whose info we want to delete
+      required: true
+      type: string
+    responses:
+      '200':
+        description: OK
+        schema:
+          type: string
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden
+      '404':
+        description: Not Found
+  "/login/shib":
     get:
       tags:
       - login-controller
@@ -114,7 +220,7 @@ paths:
           description: Forbidden
         '404':
           description: Not Found
-  "/google":
+  "/login/google":
     get:
       tags:
       - login-controller
@@ -141,7 +247,7 @@ paths:
           description: Forbidden
         '404':
           description: Not Found
-  "/google/login":
+  "/login/google/login":
     get:
       tags:
       - login-controller
@@ -168,7 +274,7 @@ paths:
           description: Forbidden
         '404':
           description: Not Found
-  "/authorize":
+  "/oauth2/authorize":
     get:
       tags:
       - auth-controller
@@ -221,7 +327,7 @@ paths:
           description: Forbidden
         '404':
           description: Not Found
-  "/token":
+  "/oauth2/token":
     post:
       tags:
       - auth-controller
@@ -242,7 +348,7 @@ paths:
           description: Forbidden
         '404':
           description: Not Found
-  "/revoke":
+  "/oauth2/revoke":
     post:
       tags:
       - auth-controller
@@ -265,7 +371,7 @@ paths:
             type: string
         '400':
           description: no token provided
-  "/errors":
+  "/oauth2/errors":
     get:
       tags:
       - auth-controller
@@ -307,213 +413,214 @@ paths:
           description: Forbidden
         '404':
           description: Not Found
-"/credentials/{backend}":
-  get:
-    tags:
-    - storage-controller
-    summary: List all existing credentials (keypairs/tokens) for user
-    operationId: list_credentials
-    consumes:
-    - "*/*"
-    produces:
-    - application/json
-    parameters:
-    - name: backend
-      in: path
-      description: TODO
-      required: true
-      type: string
-    responses:
-      '200':
-        description: OK
-        schema:
-          type: string
-      '401':
-        description: Unauthorized
-      '403':
-        description: Forbidden
-      '404':
-        description: Not Found
-  post:
-    tags:
-    - storage-controller
-    summary: Generate a credential (keypair/token) for user
-    operationId: create_credentials
-    consumes:
-    - application/json
-    produces:
-    - application/json
-    parameters:
-    - name: backend
-      in: path
-      description: TODO
-      required: true
-      type: string
-    responses:
-      '200':
-        description: OK
-        schema:
-          type: string
-      '401':
-        description: Unauthorized
-      '403':
-        description: Forbidden
-      '404':
-        description: Not Found
-  put:
-    tags:
-    - storage-controller
-    summary: Refresh token for user
-    operationId: create_access_token_api
-    consumes:
-    - "*/*"
-    produces:
-    - application/json
-    parameters:
-    - name: backend
-      in: path
-      description: TODO
-      required: true
-      type: string
-    responses:
-      '200':
-        description: OK
-        schema:
-          type: string
-      '401':
-        description: Unauthorized
-      '403':
-        description: Forbidden
-      '404':
-        description: Not Found
-"/credentials/{backend}/{access_key}":
-  delete:
-    tags:
-    - storage-controller
-    summary: List all existing credentials (keypairs/tokens) for user
-    operationId: delete_credential
-    consumes:
-    - "*/*"
-    produces:
-    - application/json
-    parameters:
-    - name: backend
-      in: path
-      description: TODO
-      required: true
-      type: string
-    - name: access_key
-      in: body
-      description: TODO
-      required: true
-      type: string
-    responses:
-      '201':
-        description: Success
-        schema:
-          type: string
-      '404':
-        description: Key Doesn't Exist
-"/user":
-  get:
-    tags:
-    - user-controller
-    summary: Get current user info
-    operationId: user_info
-    consumes:
-    - "*/*"
-    produces:
-    - application/json
-    responses:
-      '201':
-        description: Success
-        schema:
-          type: string
-      '401':
-        description: Unauthorized
-      '403':
-        description: Forbidden
-      '404':
-        description: Not Found
-"/user/cert":
-  put:
-    tags:
-    - user-controller
-    summary: TODO
-    operationId: missing_certificate
-    consumes:
-    - "*/*"
-    produces:
-    - application/json
-    responses:
-      '201':
-        description: Success
-        schema:
-          type: string
-      '401':
-        description: Unauthorized
-      '403':
-        description: Forbidden
-      '404':
-        description: Not Found
-"/user/cert/{certificate}":
-  put:
-    tags:
-    - user-controller
-    summary: TODO
-    operationId: upload_certificate
-    consumes:
-    - "*/*"
-    produces:
-    - application/json
-    parameters:
-  - name: certificate
-    in: path
-    description: certificate name
-    required: true
-    type: string
-  - name: extension
-    in: headers
-    description: TODO
-    required: true
-    type: string
-    responses:
-      '201':
-        description: Success
-        schema:
-          type: string
-      '401':
-        description: Unauthorized
-      '403':
-        description: Forbidden
-      '404':
-        description: Not Found
-  get:
-    tags:
-    - user-controller
-    summary: TODO
-    operationId: download_certificate
-    consumes:
-    - "*/*"
-    produces:
-    - application/json
-    parameters:
-  - name: certificate
-    in: path
-    description: certificate name
-    required: true
-    type: string
-    responses:
-      '201':
-        description: Success
-        schema:
-          type: string
-      '401':
-        description: Unauthorized
-      '403':
-        description: Forbidden
-      '404':
-        description: Not Found
+  "/credentials/{backend}":
+    get:
+      tags:
+      - storage-controller
+      summary: List all existing credentials (keypairs/tokens) for user
+      operationId: list_credentials
+      consumes:
+      - "*/*"
+      produces:
+      - application/json
+      parameters:
+      - name: backend
+        in: path
+        description: TODO
+        required: true
+        type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    post:
+      tags:
+      - storage-controller
+      summary: Generate a credential (keypair/token) for user
+      operationId: create_credentials
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - name: backend
+        in: path
+        description: TODO
+        required: true
+        type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    put:
+      tags:
+      - storage-controller
+      summary: Refresh token for user
+      operationId: create_access_token_api
+      consumes:
+      - "*/*"
+      produces:
+      - application/json
+      parameters:
+      - name: backend
+        in: path
+        description: TODO
+        required: true
+        type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/credentials/{backend}/{access_key}":
+    delete:
+      tags:
+      - storage-controller
+      summary: List all existing credentials (keypairs/tokens) for user
+      operationId: delete_credential
+      consumes:
+      - "*/*"
+      produces:
+      - application/json
+      parameters:
+      - name: backend
+        in: path
+        description: TODO
+        required: true
+        type: string
+      - name: access_key
+        in: body
+        description: TODO
+        required: true
+        type: string
+      responses:
+        '201':
+          description: Success
+          schema:
+            type: string
+        '404':
+          description: Key Doesn't Exist
+  "/user":
+    get:
+      tags:
+      - user-controller
+      summary: Get current user info
+      operationId: user_info
+      consumes:
+      - "*/*"
+      produces:
+      - application/json
+      responses:
+        '201':
+          description: Success
+          schema:
+            type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/user/cert":
+    put:
+      tags:
+      - user-controller
+      summary: TODO
+      operationId: missing_certificate
+      consumes:
+      - "*/*"
+      produces:
+      - application/json
+      responses:
+        '201':
+          description: Success
+          schema:
+            type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/user/cert/{certificate}":
+    put:
+      tags:
+      - user-controller
+      summary: TODO
+      operationId: upload_certificate
+      consumes:
+      - "*/*"
+      produces:
+      - application/json
+      parameters:
+      - name: certificate
+        in: path
+        description: certificate name
+        required: true
+        type: string
+      - name: extension
+        in: headers
+        description: TODO
+        required: true
+        type: string
+      responses:
+        '201':
+          description: Success
+          schema:
+            type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    get:
+      tags:
+      - user-controller
+      summary: TODO
+      operationId: download_certificate
+      consumes:
+      - "*/*"
+      produces:
+      - application/json
+      parameters:
+      - name: certificate
+        in: path
+        description: certificate name
+        required: true
+        type: string
+      responses:
+        '201':
+          description: Success
+          schema:
+            type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+
 definitions:
   Group:
     type: object
