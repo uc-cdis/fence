@@ -31,7 +31,6 @@ app.register_blueprint(credentials, url_prefix='/credentials')
 app.register_blueprint(login, url_prefix='/login')
 app.register_blueprint(oauth2, url_prefix='/oauth2')
 app.register_blueprint(user, url_prefix='/user')
-app.register_blueprint(data, url_prefix='/data')
 
 
 def app_config(app, settings='fence.settings', root_dir=None):
@@ -43,7 +42,9 @@ def app_config(app, settings='fence.settings', root_dir=None):
     if root_dir is None:
         root_dir = os.path.dirname(
                 os.path.dirname(os.path.realpath(__file__)))
-    app.boto = BotoManager(app.config['AWS'])
+    if app.config.has_key('AWS'):
+        app.boto = BotoManager(app.config['AWS'])
+        app.register_blueprint(data, url_prefix='/data')
     for kid, (public, private) in app.config['JWT_KEYPAIR_FILES'].iteritems():
         public_filepath = os.path.join(root_dir, public)
         private_filepath = os.path.join(root_dir, private)

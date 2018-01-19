@@ -1,13 +1,13 @@
 import flask
-import jwt
 import json
 import requests
-from ..errors import UnavailableError, NotFound, Unauthorized, NotSupported
-from flask import current_app as capp
+from ..errors import UnavailableError, NotFound, Unauthorized, NotSupported, InternalError
 from flask import jsonify, request
 from urlparse import urlparse
+from fence.auth import login_required
+from flask import current_app as capp
 
-action_dict = {
+ACTION_DICT = {
   "s3": {
     "upload": "put_object",
     "download": "get_object"
@@ -18,6 +18,8 @@ action_dict = {
   }
 }
 
+SUPPORTED_PROTOCOLS = ['s3', 'http']
+
 
 def get_index_document(file_id):
     indexd_server = (
@@ -27,13 +29,21 @@ def get_index_document(file_id):
     try:
         res = requests.get(url + file_id)
     except Exception as e:
-        capp.logger.exception("fail to reach indexd: {0}".format(e))
+        capp.logger.error("fail to reach indexd at {0}: {1}".format(url + file_id, e))
         raise UnavailableError(
             "Fail to reach id service to find data location")
     if res.status_code == 200:
-        return res.json()
+        try:
+            json_response = res.json()
+            if 'urls' not in json_response or 'metadata' not in json_response:
+                capp.logger.error("urls and metadata are not included in indexd's response {0}".format(url + file_id))
+                raise InternalError("Urls and metadata not found")
+            return res.json()
+        except Exception as e:
+            capp.logger.error("indexd return a response without JSON field {0}: {1}".format(url + file_id, e))
+            raise InternalError("Internal error from indexd")
     elif res.status_code == 404:
-        capp.logger.exception("fail to reach indexd: {0}".format(res.text))
+        capp.logger.error("indexd can't find {0}: {1}".format(url + file_id, res.text))
         raise NotFound("Can't find a location for the data")
     else:
         raise UnavailableError(res.text)
@@ -43,6 +53,7 @@ blueprint = flask.Blueprint('data', __name__)
 
 
 @blueprint.route('/download/<file_id>', methods=['GET'])
+@login_required({'data'})
 def download_file(file_id):
     '''
     Get a presigned url to download a file given by file_id.
@@ -51,14 +62,12 @@ def download_file(file_id):
 
 
 @blueprint.route('/upload/<file_id>', methods=['GET'])
+@login_required({'data'})
 def upload_file(file_id):
     '''
     Get a presigned url to upload a file given by file_id.
     '''
     return get_file('upload', file_id)
-
-
-SUPPORTED_PROTOCOLS = ['s3', 'http']
 
 
 def check_protocol(protocol, scheme):
@@ -74,7 +83,7 @@ def check_protocol(protocol, scheme):
 def resolve_url(location, protocol, expired_in, action):
     if protocol == 's3':
         path = location.path.split('/', 2)
-        location = capp.boto.presigned_url(path[1], path[2], expired_in, action_dict[protocol][action])
+        location = capp.boto.presigned_url(path[1], path[2], expired_in, ACTION_DICT[protocol][action])
     return jsonify(dict(url=location))
 
 
@@ -83,17 +92,18 @@ def return_link(action, urls):
     expired_in = request.args.get('expired_in', None)
     if (protocol is not None) and (protocol not in SUPPORTED_PROTOCOLS):
         raise NotSupported("The specified protocol is not supported")
+    if len(urls) == 0:
+        raise NotFound("Can't find any location for the data")
     for url in urls:
         location = urlparse(url)
         if check_protocol(protocol, location.scheme):
             return resolve_url(location, protocol, expired_in, action)
-    raise NotFound("Can't find a location for the data")
+    raise NotFound("Can't find a location for the data with given request arguments.")
 
 
 def get_file(action, file_id):
     doc = json.loads(get_index_document(file_id))
-    token = jwt.decode(flask.request.headers['Authorization'].split(' ')[-1], verify=False)
-    if not check_authorization(action, doc, token):
+    if not check_authorization(action, doc):
         raise Unauthorized("You don't have access permission on this file")
     return return_link(action, doc['urls'])
 
@@ -111,8 +121,11 @@ def filter_auth_ids(action, list_auth_ids):
     return authorized_dbgaps
 
 
-def check_authorization(action, doc, token):
+def check_authorization(action, doc):
     metadata = doc['metadata']
-    set_dbgaps = set(metadata['acls'].split(','))
-    dbgap_accession_numbers = set(filter_auth_ids(action, token['context']['user']['projects']))
-    return len(set_dbgaps & dbgap_accession_numbers) > 0
+    set_acls = set(metadata['acls'].split(','))
+    if flask.g.token is None:
+        given_acls = set(filter_auth_ids(action, flask.g.user.project_access))
+    else:
+        given_acls = set(filter_auth_ids(action, flask.g.token['context']['user']['projects']))
+    return len(set_acls & given_acls) > 0

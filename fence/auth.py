@@ -3,10 +3,10 @@ from functools import wraps
 from cdispyutils import auth
 import flask
 from flask_sqlalchemy_session import current_session
-import jwt
 
 from .errors import Unauthorized, InternalError
 from .data_model.models import User, IdentityProvider
+from flask import current_app as capp
 
 
 def login_user(request, username, provider):
@@ -25,6 +25,7 @@ def login_user(request, username, provider):
         current_session.commit()
     flask.g.user = user
     flask.g.scopes = ["_all"]
+    flask.g.token = None
 
 
 def logout(next_url=None):
@@ -48,20 +49,6 @@ def check_scope(scope):
                     "Requested scope {} can't access this endpoint"
                     .format(scope))
         return check_scope_and_call
-    return wrapper
-
-
-def admin_required(f):
-    """
-    Require user to be an admin user.
-    """
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        if not hasattr(g, 'user'):
-            raise Unauthorized("Require login")
-        if g.user.is_admin is not True:
-            raise Unauthorized("Require admin user")
-        return f(*args, **kwargs)
     return wrapper
 
 
@@ -112,8 +99,9 @@ def has_oauth(scope=None):
     scope = scope or set()
     scope.update({'access'})
     try:
+        user_api = capp.config['USER_API'] if capp.config.has_key('USER_API') else capp.config['HOST_NAME']
         access_token = auth.validate_request_jwt(
-            aud=scope
+            aud=scope, user_api=user_api
         )
     except auth.JWTValidationError as e:
         raise Unauthorized('failed to validate token: {}'.format(e))
@@ -130,6 +118,7 @@ def has_oauth(scope=None):
     flask.g.user = user
     # client_id should be None if the field doesn't exist or is empty
     flask.g.client_id = access_token.get('azp') or None
+    flask.g.token = access_token
 
 
 def get_current_user():
