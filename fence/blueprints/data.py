@@ -80,11 +80,18 @@ def check_protocol(protocol, scheme):
     return False
 
 
-def resolve_url(location, protocol, expired_in, action):
+def resolve_url(url, location, expired_in, action):
+    protocol = location.scheme
     if protocol == 's3':
-        path = location.path.split('/', 2)
-        location = capp.boto.presigned_url(path[1], path[2], expired_in, ACTION_DICT[protocol][action])
-    return jsonify(dict(url=location))
+        url = capp.boto.presigned_url(
+            location.netloc,
+            location.path.strip('/'),
+            expired_in, ACTION_DICT[protocol][action])
+    elif protocol not in ['http', 'https']:
+        raise NotSupported(
+            "protocol {} in url {} is not supported"
+            .format(protocol, url))
+    return jsonify(dict(url=url))
 
 
 def return_link(action, urls):
@@ -97,12 +104,12 @@ def return_link(action, urls):
     for url in urls:
         location = urlparse(url)
         if check_protocol(protocol, location.scheme):
-            return resolve_url(location, protocol, expired_in, action)
+            return resolve_url(url, location, expired_in, action)
     raise NotFound("Can't find a location for the data with given request arguments.")
 
 
 def get_file(action, file_id):
-    doc = json.loads(get_index_document(file_id))
+    doc = get_index_document(file_id)
     if not check_authorization(action, doc):
         raise Unauthorized("You don't have access permission on this file")
     return return_link(action, doc['urls'])

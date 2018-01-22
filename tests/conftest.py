@@ -25,19 +25,19 @@ def check_auth_positive(cls, backend, user):
 
 
 def indexd_get(file_id):
-    return json.dumps({
-                'did': '',
-                'baseid': '',
-                'rev': '',
-                'size': 10,
-                'file_name': 'file1',
-                'urls': ['s3://url.com/path/to_file'],
-                'hashes': {},
-                'metadata': {'acls': 'phs000178,phs000218'},
-                'form': '',
-                'created_date': '',
-                "updated_date": ''
-    })
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s3://url.com/path/to_file'],
+        'hashes': {},
+        'metadata': {'acls': 'phs000178,phs000218'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
 
 
 @pytest.fixture(scope='session')
