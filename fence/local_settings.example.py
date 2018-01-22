@@ -1,3 +1,4 @@
+import os
 from boto.s3.connection import OrdinaryCallingFormat
 DB = 'postgresql://test:test@localhost:5432/fence'
 
@@ -38,6 +39,16 @@ STORAGE_CREDENTIALS = {
         "is_mocked": True
     }
 }
+
+# Configuration necessary for cirrus (Cloud Management Library)
+# https://github.com/uc-cdis/cirrus
+# will eventually be passed as params but cirrus looks for env vars right now
+os.environ["GOOGLE_API_KEY"] = ""
+os.environ["GOOGLE_PROJECT_ID"] = ""
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = ""
+os.environ["GOOGLE_ADMIN_EMAIL"] = ""
+os.environ["GOOGLE_IDENTITY_DOMAIN"] = ""
+os.environ["GOOGLE_CLOUD_IDENTITY_ADMIN_EMAIL"] = ""
 
 
 '''

@@ -41,6 +41,7 @@ def default_claims():
     iss = 'https://user-api.test.net'
     jti = new_jti()
     iat, exp = iat_and_exp()
+    azp = ''
     return {
         'aud': aud,
         'sub': '1234',
@@ -48,6 +49,7 @@ def default_claims():
         'iat': iat,
         'exp': exp,
         'jti': jti,
+        'azp': azp,
         'context': {
             'user': {
                 'name': 'test-user',

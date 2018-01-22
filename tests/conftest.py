@@ -6,6 +6,7 @@ Define pytest fixtures.
 from addict import Dict
 import jwt
 from mock import patch
+from mock import MagicMock
 import pytest
 import os
 
@@ -177,6 +178,8 @@ def oauth_client(app, request):
                     models.Grant,
                     models.Token,
                     models.User,
+                    models.GoogleServiceAccount,
+                    models.GoogleProxyGroup,
                 ]
                 for cls in all_models:
                     for obj in session.query(cls).all():
@@ -211,3 +214,9 @@ def refresh_token(client, oauth_client):
     """
     token_response = utils.oauth2.get_token_response(client, oauth_client)
     return token_response.json['refresh_token']
+
+@pytest.fixture(scope='function')
+def cloud_manager():
+    manager = MagicMock()
+    patch('fence.blueprints.storage_creds.GoogleCloudManager', manager).start()
+    return manager
