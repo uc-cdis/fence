@@ -1,5 +1,4 @@
 import flask
-import json
 import requests
 from ..errors import UnavailableError, NotFound, Unauthorized, NotSupported, InternalError
 from flask import jsonify, request
@@ -8,14 +7,14 @@ from fence.auth import login_required
 from flask import current_app as capp
 
 ACTION_DICT = {
-  "s3": {
-    "upload": "put_object",
-    "download": "get_object"
-  },
-  "http": {
-    "upload": "put_object",
-    "download": "get_object"
-  }
+    "s3": {
+        "upload": "put_object",
+        "download": "get_object"
+    },
+    "http": {
+        "upload": "put_object",
+        "download": "get_object"
+    }
 }
 
 SUPPORTED_PROTOCOLS = ['s3', 'http']
@@ -23,8 +22,8 @@ SUPPORTED_PROTOCOLS = ['s3', 'http']
 
 def get_index_document(file_id):
     indexd_server = (
-        capp.config.get('INDEXD') or
-        capp.config['HOSTNAME'] + '/index')
+            capp.config.get('INDEXD') or
+            capp.config['HOSTNAME'] + '/index')
     url = indexd_server + '/index/'
     try:
         res = requests.get(url + file_id)
@@ -83,14 +82,24 @@ def check_protocol(protocol, scheme):
 def resolve_url(url, location, expired_in, action):
     protocol = location.scheme
     if protocol == 's3':
+        if 'AWS_CREDENTIALS' in capp.config and len(capp.config['AWS_CREDENTIALS']) > 0:
+            if location.netloc not in capp.config['S3_BUCKETS'].keys():
+                raise Unauthorized("We don't have permission on this bucket")
+            if location.netloc in capp.config['S3_BUCKETS'].keys() and \
+                    capp.config['S3_BUCKETS'][location.netloc] not in capp.config['AWS_CREDENTIALS']:
+                raise Unauthorized("We don't have credential on this bucket")
+        credential_key = capp.config['S3_BUCKETS'][location.netloc]
         url = capp.boto.presigned_url(
             location.netloc,
             location.path.strip('/'),
-            expired_in, ACTION_DICT[protocol][action])
+            expired_in,
+            capp.config['AWS_CREDENTIALS'][credential_key],
+            ACTION_DICT[protocol][action]
+        )
     elif protocol not in ['http', 'https']:
         raise NotSupported(
             "protocol {} in url {} is not supported"
-            .format(protocol, url))
+                .format(protocol, url))
     return jsonify(dict(url=url))
 
 
@@ -130,6 +139,8 @@ def filter_auth_ids(action, list_auth_ids):
 
 def check_authorization(action, doc):
     metadata = doc['metadata']
+    if 'acls' not in metadata:
+        raise Unauthorized("You don't have access permission on this file")
     set_acls = set(metadata['acls'].split(','))
     if flask.g.token is None:
         given_acls = set(filter_auth_ids(action, flask.g.user.project_access))

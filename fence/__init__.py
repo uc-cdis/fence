@@ -42,8 +42,9 @@ def app_config(app, settings='fence.settings', root_dir=None):
     if root_dir is None:
         root_dir = os.path.dirname(
                 os.path.dirname(os.path.realpath(__file__)))
-    if app.config.has_key('AWS'):
-        app.boto = BotoManager(app.config['AWS'])
+    if 'AWS_CREDENTIALS' in app.config and len(app.config['AWS_CREDENTIALS']) > 0:
+        value = app.config['AWS_CREDENTIALS'].values()[0]
+        app.boto = BotoManager(value)
         app.register_blueprint(data, url_prefix='/data')
     for kid, (public, private) in app.config['JWT_KEYPAIR_FILES'].iteritems():
         public_filepath = os.path.join(root_dir, public)

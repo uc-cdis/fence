@@ -16,7 +16,9 @@ class BotoManager(object):
             RoleArn=role_arn, ExternalId=external_id, DurationSeconds=duration_seconds,
             RoleSessionName=role_session_name)
 
-    def presigned_url(self, bucket, key, expired_in, method='get_object'):
+    def presigned_url(self, bucket, key, expired_in, config, method='get_object'):
+        if config.has_key('aws_access_key_id'):
+            self.s3_client = client('s3', **config)
         if method not in ['get_object', 'put_object']:
             raise UserError('method {} not allowed'.format(method))
         if expired_in is None:
@@ -37,7 +39,6 @@ class BotoManager(object):
             ExpiresIn=expired_in
         )
         return url
-
 
     def get_all_groups(self, list_group_name):
         '''

@@ -24,14 +24,30 @@ def check_auth_positive(cls, backend, user):
     return True
 
 
-def indexd_get(file_id):
+def indexd_get_available_bucket(file_id):
     return {
         'did': '',
         'baseid': '',
         'rev': '',
         'size': 10,
         'file_name': 'file1',
-        'urls': ['s3://url.com/path/to_file'],
+        'urls': ['s3://bucket1/key'],
+        'hashes': {},
+        'metadata': {'acls': 'phs000178,phs000218'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_unavailable_bucket(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s3://bucket5/key'],
         'hashes': {},
         'metadata': {'acls': 'phs000178,phs000218'},
         'form': '',
@@ -138,22 +154,20 @@ class Mocker(object):
         self.auth_patcher = patch(
             'fence.resources.storage.StorageManager.check_auth',
             check_auth_positive)
-        self.indexd_patcher = patch(
-            'fence.blueprints.data.get_index_document',
-            indexd_get)
-        # self.user_from_jwt_patcher = patch(
-        #     'fence.blueprints.data.get_user_auth_ids',
-        #     get_user_jwt)
         self.patcher.start()
         self.auth_patcher.start()
-        self.indexd_patcher.start()
-        # self.user_from_jwt_patcher.start()
+        self.additional_patchers = []
 
     def unmock_functions(self):
         self.patcher.stop()
         self.auth_patcher.stop()
-        self.indexd_patcher.stop()
+        for patcher in self.additional_patchers:
+            patcher.stop()
         # self.user_from_jwt_patcher.stop()
+
+    def add_mock(self, patcher):
+        patcher.start()
+        self.additional_patchers.append(patcher)
 
 
 def flush(app):
@@ -168,6 +182,8 @@ def flush(app):
                 models.Grant,
                 models.Token,
                 models.User,
+                models.GoogleServiceAccount,
+                models.GoogleProxyGroup,
             ]
             for cls in all_models:
                 for obj in session.query(cls).all():
@@ -229,6 +245,38 @@ def unauthorized_user_client(app, request):
 
     request.addfinalizer(fin)
     return Dict(username=username, user_id=user_id)
+
+
+@pytest.fixture(scope='function')
+def indexd_client(app, request):
+    mocker = Mocker()
+    mocker.mock_functions()
+    indexd_patcher = patch(
+        'fence.blueprints.data.get_index_document',
+        indexd_get_available_bucket)
+    mocker.add_mock(indexd_patcher)
+
+    def fin():
+        flush(app)
+        mocker.unmock_functions()
+
+    request.addfinalizer(fin)
+
+
+@pytest.fixture(scope='function')
+def unauthorized_indexd_client(app, request):
+    mocker = Mocker()
+    mocker.mock_functions()
+    indexd_patcher = patch(
+        'fence.blueprints.data.get_index_document',
+        indexd_get_unavailable_bucket)
+    mocker.add_mock(indexd_patcher)
+
+    def fin():
+        flush(app)
+        mocker.unmock_functions()
+
+    request.addfinalizer(fin)
 
 
 @pytest.fixture(scope='function')

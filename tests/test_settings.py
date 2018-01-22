@@ -41,3 +41,20 @@ STORAGE_CREDENTIALS = {
         'backend': 'cleversafe'
     }
 }
+
+AWS_CREDENTIALS = {
+    "CRED1": {
+        'aws_access_key_id': '',
+        'aws_secret_access_key': ''
+    },
+    "CRED2": {
+        'aws_access_key_id': '',
+        'aws_secret_access_key': ''
+    }
+}
+
+S3_BUCKETS = {
+    "bucket1": "CRED1",
+    "bucket2": "CRED2",
+    "bucket3": "CRED1"
+}
