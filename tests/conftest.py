@@ -181,6 +181,7 @@ def flush(app):
                 models.Client,
                 models.Grant,
                 models.Token,
+                models.UserRefreshToken,
                 models.User,
                 models.GoogleServiceAccount,
                 models.GoogleProxyGroup,

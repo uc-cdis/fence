@@ -4,12 +4,11 @@ from fence.data_model.models import GoogleProxyGroup
 import flask
 from flask import current_app as capp
 from flask import g, request, jsonify
+from ..resources.storage import get_endpoints_descriptions
 from flask import abort
 from flask_sqlalchemy_session import current_session
 
 from cirrus import GoogleCloudManager
-from ..resources.storage import get_endpoints_descriptions
-
 from fence.resources.storage.cdis_jwt import create_refresh_token,\
     revoke_refresh_token, create_access_token
 
@@ -92,7 +91,12 @@ def list_keypairs(provider):
     .. code-block:: JavaScript
         cdis
         {
-            "jti": "e9d58890-99b0-44f0-88bd-3ebc370b1329"
+            "jtis":
+            [
+                {
+                    "jti": "e9d58890-99b0-44f0-88bd-3ebc370b1329"
+                }
+            ]
         }
         non-cdis
         {

@@ -14,6 +14,7 @@ from userdatamodel.models import (
     StorageAccess,
     User,
     Bucket,
+    GoogleServiceAccount,
 )
 
 from fence.utils import create_client, drop_client

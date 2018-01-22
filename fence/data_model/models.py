@@ -6,8 +6,6 @@ when the fence app is initialized, the resulting db session includes
 everything from userdatamodel and this file. There is also
 a `migrate` function in this file that gets called every init.
 """
-import datetime
-
 from flask import current_app as capp
 from flask_postgres_session import user_session_model
 from flask_sqlalchemy_session import current_session
