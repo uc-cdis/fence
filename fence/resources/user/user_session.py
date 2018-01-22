@@ -197,7 +197,6 @@ class UserSessionInterface(SessionInterface):
                 httponly=True, domain=domain)
 
 
-
 def _clear_session_if_expired(app, session):
     lifetime = app.config.get('SESSION_LIFETIME')
 
@@ -216,7 +215,7 @@ def _create_access_token_cookie(app, response, user):
     access_token = generate_signed_access_token(
         keypair.kid, keypair.private_key, user,
         app.config.get('ACCESS_TOKEN_LIFETIME').seconds, scopes,
-        # client_id=user.id  TODO add when feat/google-creds gets merged
+        client_id=user.id
     )
     timeout = datetime.utcnow() + app.config.get('ACCESS_TOKEN_LIFETIME')
     domain = app.session_interface.get_cookie_domain(app)
