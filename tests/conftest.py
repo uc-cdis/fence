@@ -2,28 +2,58 @@
 """
 Define pytest fixtures.
 """
-
-from addict import Dict
+import json
 import jwt
-from mock import patch
-from mock import MagicMock
 import pytest
 import os
-
-
-from cdisutilstest.code.storage_client_mock import get_client
 import fence
+
+from addict import Dict
+from cdisutilstest.code.storage_client_mock import get_client
 from fence.jwt import blacklist
 from fence.data_model import models
 from fence import app_init
+from mock import patch, MagicMock
+from moto import mock_s3, mock_sts
 from userdatamodel import Base
-
 from . import test_settings
 from . import utils
 
 
 def check_auth_positive(cls, backend, user):
     return True
+
+
+def indexd_get_available_bucket(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s3://bucket1/key'],
+        'hashes': {},
+        'metadata': {'acls': 'phs000178,phs000218'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_unavailable_bucket(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s3://bucket5/key'],
+        'hashes': {},
+        'metadata': {'acls': 'phs000178,phs000218'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
 
 
 @pytest.fixture(scope='session')
@@ -38,7 +68,7 @@ def public_key():
     """
     Return a public key for testing.
     """
-    return utils.read_file('keys/test_public_key.pem')
+    return utils.read_file('resources/keys/test_public_key.pem')
 
 
 @pytest.fixture(scope='session')
@@ -47,7 +77,7 @@ def private_key():
     Return a private key for testing. (Use only a private key that is
     specifically set aside for testing, and never actually used for auth.)
     """
-    return utils.read_file('keys/test_private_key.pem')
+    return utils.read_file('resources/keys/test_private_key.pem')
 
 
 @pytest.fixture(scope='session')
@@ -124,15 +154,45 @@ class Mocker(object):
         self.auth_patcher = patch(
             'fence.resources.storage.StorageManager.check_auth',
             check_auth_positive)
-        self.auth_patcher.start()
         self.patcher.start()
+        self.auth_patcher.start()
+        self.additional_patchers = []
 
     def unmock_functions(self):
         self.patcher.stop()
         self.auth_patcher.stop()
+        for patcher in self.additional_patchers:
+            patcher.stop()
+        # self.user_from_jwt_patcher.stop()
+
+    def add_mock(self, patcher):
+        patcher.start()
+        self.additional_patchers.append(patcher)
+
+
+def flush(app):
+    with app.db.session as session:
+        # Don't flush until everything is finished, otherwise this will
+        # break because of (for example) foreign key references between the
+        # tables.
+        with session.no_autoflush:
+            all_models = [
+                blacklist.BlacklistedToken,
+                models.Client,
+                models.Grant,
+                models.Token,
+                models.User,
+                models.GoogleServiceAccount,
+                models.GoogleProxyGroup,
+            ]
+            for cls in all_models:
+                for obj in session.query(cls).all():
+                    session.delete(obj)
 
 
 @pytest.fixture(scope='function')
+@mock_s3
+@mock_sts
 def app(request):
     mocker = Mocker()
     mocker.mock_functions()
@@ -158,32 +218,79 @@ def protected_endpoint(methods=['GET']):
 
 
 @pytest.fixture(scope='function')
-def oauth_client(app, request):
+def user_client(app, request):
+    mocker = Mocker()
+    mocker.mock_functions()
+    users = dict(json.loads(utils.read_file('resources/authorized_users.json')))
+    user_id, username = utils.create_user(users, DB=app.config['DB'], is_admin=True)
+
+    def fin():
+        flush(app)
+        mocker.unmock_functions()
+
+    request.addfinalizer(fin)
+    return Dict(username=username, user_id=user_id)
+
+
+@pytest.fixture(scope='function')
+def unauthorized_user_client(app, request):
+    mocker = Mocker()
+    mocker.mock_functions()
+    users = dict(json.loads(utils.read_file('resources/unauthorized_users.json')))
+    user_id, username = utils.create_user(users, DB=app.config['DB'], is_admin=True)
+
+    def fin():
+        flush(app)
+        mocker.unmock_functions()
+
+    request.addfinalizer(fin)
+    return Dict(username=username, user_id=user_id)
+
+
+@pytest.fixture(scope='function')
+def indexd_client(app, request):
+    mocker = Mocker()
+    mocker.mock_functions()
+    indexd_patcher = patch(
+        'fence.blueprints.data.get_index_document',
+        indexd_get_available_bucket)
+    mocker.add_mock(indexd_patcher)
+
+    def fin():
+        flush(app)
+        mocker.unmock_functions()
+
+    request.addfinalizer(fin)
+
+
+@pytest.fixture(scope='function')
+def unauthorized_indexd_client(app, request):
+    mocker = Mocker()
+    mocker.mock_functions()
+    indexd_patcher = patch(
+        'fence.blueprints.data.get_index_document',
+        indexd_get_unavailable_bucket)
+    mocker.add_mock(indexd_patcher)
+
+    def fin():
+        flush(app)
+        mocker.unmock_functions()
+
+    request.addfinalizer(fin)
+
+
+@pytest.fixture(scope='function')
+def oauth_client(app, request, user_client):
     mocker = Mocker()
     mocker.mock_functions()
     url = 'https://test.net'
     client_id, client_secret = fence.utils.create_client(
-        username='test', urls=url, DB=app.config['DB']
+        username=user_client.username, urls=url, DB=app.config['DB']
     )
 
     def fin():
-        with app.db.session as session:
-            # Don't flush until everything is finished, otherwise this will
-            # break because of (for example) foreign key references between the
-            # tables.
-            with session.no_autoflush:
-                all_models = [
-                    blacklist.BlacklistedToken,
-                    models.Client,
-                    models.Grant,
-                    models.Token,
-                    models.User,
-                    models.GoogleServiceAccount,
-                    models.GoogleProxyGroup,
-                ]
-                for cls in all_models:
-                    for obj in session.query(cls).all():
-                        session.delete(obj)
+        flush(app)
+        mocker.unmock_functions()
 
     request.addfinalizer(fin)
     return Dict(client_id=client_id, client_secret=client_secret, url=url)

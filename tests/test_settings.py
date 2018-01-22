@@ -28,11 +28,11 @@ ENABLE_CSRF_PROTECTION = False
 JWT_KEYPAIR_FILES = OrderedDict([
     (
         'key-test',
-        ('keys/test_public_key.pem', 'keys/test_private_key.pem'),
+        ('resources/keys/test_public_key.pem', 'resources/keys/test_private_key.pem'),
     ),
     (
         'key-test-2',
-        ('keys/test_public_key_2.pem', 'keys/test_private_key_2.pem'),
+        ('resources/keys/test_public_key_2.pem', 'resources/keys/test_private_key_2.pem'),
     ),
 ])
 
@@ -40,4 +40,21 @@ STORAGE_CREDENTIALS = {
     'test-cleversafe': {
         'backend': 'cleversafe'
     }
+}
+
+AWS_CREDENTIALS = {
+    "CRED1": {
+        'aws_access_key_id': '',
+        'aws_secret_access_key': ''
+    },
+    "CRED2": {
+        'aws_access_key_id': '',
+        'aws_secret_access_key': ''
+    }
+}
+
+S3_BUCKETS = {
+    "bucket1": "CRED1",
+    "bucket2": "CRED2",
+    "bucket3": "CRED1"
 }
