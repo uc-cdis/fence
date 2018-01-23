@@ -6,7 +6,6 @@ when the fence app is initialized, the resulting db session includes
 everything from userdatamodel and this file. There is also
 a `migrate` function in this file that gets called every init.
 """
-
 from flask import current_app as capp
 from flask_sqlalchemy_session import current_session
 from sqlalchemy import (
@@ -73,6 +72,19 @@ class Client(Base):
     def validate_scopes(self, scopes):
         scopes = scopes[0].split(',')
         return all(scope in self._scopes for scope in scopes)
+
+
+class UserRefreshToken(Base):
+    __tablename__ = "user_refresh_token"
+
+    jti = Column(String, primary_key=True)
+    userid = Column(Integer)
+    expires = Column(DateTime)
+
+    def delete(self):
+        with capp.db.session as session:
+            session.delete(self)
+            session.commit()
 
 
 class Grant(Base):
