@@ -1,6 +1,7 @@
 from authlib.flask.oauth2.sqla import (
     OAuth2AuthorizationCodeMixin,
     OAuth2ClientMixin,
+    OAuth2TokenMixin,
 )
 import flask
 from flask_postgres_session import user_session_model
@@ -104,7 +105,7 @@ class Client(Base, OAuth2ClientMixin):
         return all(scope in self._scopes for scope in scopes)
 
 
-class Token(Base, OAuth2ClientMixin):
+class Token(Base, OAuth2TokenMixin):
 
     __tablename__ = 'token'
 

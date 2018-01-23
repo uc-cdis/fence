@@ -36,10 +36,12 @@ def post_authorize(client, oauth_client, data=None):
         'client_id': oauth_client.client_id,
         'redirect_uri': oauth_client.url,
         'response_type': 'code',
-        'scope': 'openid',
+        'scope': 'openid user',
         'state': fence.utils.random_str(10),
         'confirm': 'yes',
     }
+    if isinstance(data['scope'], list):
+        data['scope'] = ' '.join(data['scope'])
     default_data.update(data)
     data = default_data
     return client.post(path_for_authorize(), data=data)
@@ -65,7 +67,7 @@ def code_from_authorize_response(response):
         )
 
 
-def get_access_code(client, oauth_client, scope=None):
+def get_access_code(client, oauth_client, data=None):
     """
     Do all steps to get an authorization code from ``/oauth2/authorize``
 
@@ -77,13 +79,6 @@ def get_access_code(client, oauth_client, scope=None):
     Return:
         str: the authorization code
     """
-    scope = scope or ['openid', 'user']
-    if isinstance(scope, list):
-        scope = ' '.join(scope)
-    data = {
-        'confirm': 'yes',
-        'scope': scope,
-    }
     return code_from_authorize_response(post_authorize(
         client, oauth_client, data=data
     ))
@@ -112,7 +107,7 @@ def post_token(client, oauth_client, code):
     return client.post('/oauth2/token', headers=headers, data=data)
 
 
-def get_token_response(client, oauth_client, scope='openid'):
+def get_token_response(client, oauth_client, code_request_data=None):
     """
     Args:
         client: client fixture
@@ -121,7 +116,7 @@ def get_token_response(client, oauth_client, scope='openid'):
     Return:
         pytest_flask.plugin.JSONResponse: the response from ``/oauth2/token``
     """
-    code = get_access_code(client, oauth_client, scope=scope)
+    code = get_access_code(client, oauth_client, data=code_request_data)
     return post_token(client, oauth_client, code)
 
 

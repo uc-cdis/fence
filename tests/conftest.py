@@ -9,7 +9,6 @@ import os
 from addict import Dict
 import bcrypt
 from cdisutilstest.code.storage_client_mock import get_client
-import flask_sqlalchemy_session
 import jwt
 import pytest
 
@@ -219,10 +218,49 @@ def oauth_client(app, request, db_session):
     hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
     test_user = models.User(username='test', is_admin=False)
 
-    db_session.add(test_user)
+    test_user = (
+        db_session
+        .query(models.User)
+        .filter_by(username='test')
+        .first()
+    )
+    if not test_user:
+        test_user = models.User(username='test', is_admin=False)
+        db_session.add(test_user)
     db_session.add(models.Client(
         client_id=client_id, client_secret=hashed_secret, user=test_user,
-        allowed_scopes=['openid', 'user'], _redirect_uris=url, description=''
+        allowed_scopes=['openid', 'user'], _redirect_uris=url, description='',
+        is_confidential=True
+    ))
+    db_session.commit()
+
+    return Dict(client_id=client_id, client_secret=client_secret, url=url)
+
+
+@pytest.fixture(scope='function')
+def oauth_client_B(app, request, db_session):
+    """
+    Create a second, different OAuth2 client and add it to the database along
+    with a test user for the client.
+    """
+    url = 'https://oauth-test-client-B.net'
+    client_id = 'test-client-B'
+    client_secret = fence.utils.random_str(50)
+    hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
+
+    test_user = (
+        db_session
+        .query(models.User)
+        .filter_by(username='test')
+        .first()
+    )
+    if not test_user:
+        test_user = models.User(username='test', is_admin=False)
+        db_session.add(test_user)
+    db_session.add(models.Client(
+        client_id=client_id, client_secret=hashed_secret, user=test_user,
+        allowed_scopes=['openid', 'user'], _redirect_uris=url, description='',
+        is_confidential=True
     ))
     db_session.commit()
 

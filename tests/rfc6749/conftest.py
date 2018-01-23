@@ -17,8 +17,10 @@ def access_token(client, oauth_client):
     """
     Return just an access token obtained from ``/oauth2/token``.
     """
+    scope = ['openid', 'user']
+    data = {'scope': scope}
     token_response = tests.utils.oauth2.get_token_response(
-        client, oauth_client, scope=['openid', 'user']
+        client, oauth_client, code_request_data=data
     )
     return token_response.json['access_token']
 
