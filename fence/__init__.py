@@ -7,6 +7,7 @@ from flask_sqlalchemy_session import flask_scoped_session
 
 from fence.auth import logout
 from fence.blueprints.admin import blueprint as admin
+from fence.blueprints.data import blueprint as data
 from fence.blueprints.login import blueprint as login
 from fence.blueprints.oauth2 import init_oauth
 from fence.blueprints.oauth2 import blueprint as oauth2
