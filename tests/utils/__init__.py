@@ -71,7 +71,7 @@ def default_claims():
         dict: dictionary of claims
     """
     aud = ['access', 'user']
-    iss = capp.config['HOST_NAME']
+    iss = capp.config['HOSTNAME']
     jti = new_jti()
     iat, exp = iat_and_exp()
     azp = ''
@@ -101,7 +101,7 @@ def unauthorized_context_claims(user_name, user_id):
         dict: dictionary of claims
     """
     aud = ['access', 'data', 'user']
-    iss = capp.config['HOST_NAME']
+    iss = capp.config['HOSTNAME']
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
@@ -131,7 +131,7 @@ def authorized_download_context_claims(user_name, user_id):
         dict: dictionary of claims
     """
     aud = ['access', 'data', 'user']
-    iss = capp.config['HOST_NAME']
+    iss = capp.config['HOSTNAME']
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
@@ -161,7 +161,7 @@ def authorized_upload_context_claims(user_name, user_id):
         dict: dictionary of claims
     """
     aud = ['access', 'data', 'user']
-    iss = capp.config['HOST_NAME']
+    iss = capp.config['HOSTNAME']
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
