@@ -228,13 +228,13 @@ paths:
           required: false
           type: string
           in: query
-          description: a protocol provided by storage provider
-          enum: [http, s3, gs]
-        - name: expired_in_mins
+          description: a protocol provided by storage provider, currently supports 'http' and 's3' protocols
+          enum: [http, s3]
+        - name: expires
           required: false
           type: int
           in: query
-          description: default 30, maximum is 1440
+          description: the time (in seconds) in which return url is valid. Default 1800, maximum is 86400
       responses:
         '200':
           description: successful operation
@@ -262,13 +262,13 @@ paths:
           required: false
           type: string
           in: query
-          description: a protocol provided by storage provider
-          enum: [http, s3, gs]
-        - name: expired_in_mins
+          description: a protocol provided by storage provider, currently supports 'http' and 's3' protocols
+          enum: [http, s3]
+        - name: expires
           required: false
-          type: string
+          type: int
           in: query
-          description: default 30, maximum is 1440
+          description: the time (in seconds) in which return url is valid. Default 1800, maximum is 86400
       responses:
         '200':
           description: successful operation
