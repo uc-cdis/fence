@@ -94,7 +94,6 @@ def login_required(scope=None):
 
 
 def has_oauth(scope=None):
-    import pdb; pdb.set_trace()
     scope = scope or set()
     scope.update({'access'})
     try:
