@@ -1,2 +1,0 @@
-import flask
-from flask_pyoidc.flask_pyoidc import OIDCAuthentication
