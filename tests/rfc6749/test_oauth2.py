@@ -52,6 +52,7 @@ def test_oauth2_token_refresh(client, oauth_client, refresh_token):
     obtain a new access token.
     """
     code = tests.utils.oauth2.get_access_code(client, oauth_client)
+    headers = tests.utils.oauth2.create_basic_header_for_client(oauth_client)
     data = {
         'client_id': oauth_client.client_id,
         'client_secret': oauth_client.client_secret,
@@ -59,7 +60,7 @@ def test_oauth2_token_refresh(client, oauth_client, refresh_token):
         'grant_type': 'refresh_token',
         'refresh_token': refresh_token,
     }
-    response = client.post('/oauth2/token', data=data)
+    response = client.post('/oauth2/token', headers=headers, data=data)
     assert response.status_code == 200, response.json
 
 

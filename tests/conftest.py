@@ -232,7 +232,8 @@ def oauth_client(app, request, db_session):
         db_session.add(test_user)
     db_session.add(models.Client(
         client_id=client_id, client_secret=hashed_secret, user=test_user,
-        allowed_scopes=['openid', 'user'], _redirect_uris=url, description=''
+        allowed_scopes=['openid', 'user'], _redirect_uris=url, description='',
+        is_confidential=True
     ))
     db_session.commit()
 
@@ -261,7 +262,8 @@ def oauth_client_B(app, request, db_session):
         db_session.add(test_user)
     db_session.add(models.Client(
         client_id=client_id, client_secret=hashed_secret, user=test_user,
-        allowed_scopes=['openid', 'user'], _redirect_uris=url, description=''
+        allowed_scopes=['openid', 'user'], _redirect_uris=url, description='',
+        is_confidential=True
     ))
     db_session.commit()
 

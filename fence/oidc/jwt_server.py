@@ -42,6 +42,8 @@ class JWT(BearerToken):
             scopes=scope,
         )
 
+        expires_in = self.ACCESS_TOKEN_EXPIRES_IN
+
         return {
             'token_type': 'Bearer',
             'access_token': access_token,

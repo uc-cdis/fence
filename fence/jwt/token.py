@@ -86,8 +86,9 @@ def generate_signed_access_token(kid, private_key, user, expires_in, scopes):
     """
     headers = {'kid': kid}
     iat, exp = issued_and_expiration_times(expires_in)
+    aud = list(set(scopes).union({'access'}))
     claims = {
-        'aud': scopes + ['access'],
+        'aud': aud,
         'sub': str(user.id),
         'iss': flask.current_app.config.get('HOST_NAME'),
         'iat': iat,
