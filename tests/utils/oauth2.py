@@ -150,5 +150,6 @@ def check_token_response(token_response):
     """
     Do some basic checks on a token response.
     """
-    assert 'access_token' in token_response.json
-    assert 'refresh_token' in token_response.json
+    #assert 'id_token' in token_response.json, token_response.json
+    assert 'access_token' in token_response.json, token_response.json
+    assert 'refresh_token' in token_response.json, token_response.json
