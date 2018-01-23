@@ -14,13 +14,14 @@ import uuid
 import flask
 import jwt
 from sqlalchemy import BigInteger, Column, String
-from userdatamodel import Base
+import userdatamodel
 
 from fence.errors import BlacklistingError
 from fence.jwt import keys
+from fence.jwt.errors import JWTError
 
 
-class BlacklistedToken(Base):
+class BlacklistedToken(userdatamodel.Base):
     """
     Table listing the key ids of tokens to blacklist.
     """
@@ -134,7 +135,13 @@ def is_token_blacklisted(encoded_token, public_key=None):
         bool: whether JWT is blacklisted
     """
     public_key = public_key or keys.default_public_key()
-    token = jwt.decode(
-        encoded_token, public_key, algorithm='RS256', audience='refresh'
-    )
+    try:
+        token = jwt.decode(
+            encoded_token, public_key, algorithm='RS256', audience='refresh'
+        )
+    except jwt.exceptions.InvalidTokenError as e:
+        raise JWTError(
+            'could not decode tokne to check blacklisting: {}'
+            .format(e)
+        )
     return is_blacklisted(token['jti'])

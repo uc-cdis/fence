@@ -94,6 +94,7 @@ def login_required(scope=None):
 
 
 def has_oauth(scope=None):
+    import pdb; pdb.set_trace()
     scope = scope or set()
     scope.update({'access'})
     try:
@@ -103,14 +104,9 @@ def has_oauth(scope=None):
     except auth.JWTValidationError as e:
         raise Unauthorized('failed to validate token: {}'.format(e))
     user_id = access_token['sub']
-    user = (
-        current_session
-        .query(User)
-        .filter_by(id=user_id)
-        .first()
-    )
+    user = current_session.query(User).filter_by(id=int(user_id)).first()
     if not user:
-        raise Unauthorized('no user found with id {}'.format(user_id))
+        raise Unauthorized('no user found with id: {}'.format(user_id))
     flask.g.user = user
 
 

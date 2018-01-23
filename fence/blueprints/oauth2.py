@@ -28,19 +28,19 @@ blueprint = flask.Blueprint('oauth2', __name__)
 @blueprint.route('/authorize', methods=['GET', 'POST'])
 def authorize(*args, **kwargs):
     user = get_current_user()
-    grant = server.validate_authorization_request()
-
-    client_id = grant.params.get('client_id')
-    with flask.current_app.db.session as session:
-        client = (
-            session
-            .query(Client)
-            .filter_by(client_id=client_id)
-            .first()
-        )
 
     if flask.request.method == 'GET':
-        scope = flask.request.args.get('scope')
+        grant = server.validate_authorization_request()
+
+        client_id = grant.params.get('client_id')
+        with flask.current_app.db.session as session:
+            client = (
+                session
+                .query(Client)
+                .filter_by(client_id=client_id)
+                .first()
+            )
+            scope = flask.request.args.get('scope')
         return flask.render_template(
             'oauthorize.html', grant=grant, user=user, client=client,
             scope=scope

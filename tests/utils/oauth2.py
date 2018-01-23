@@ -1,6 +1,8 @@
 import base64
+import urlparse
 
 from authlib.common.encoding import to_bytes, to_unicode
+from authlib.common.urls import url_decode
 
 import fence.utils
 
@@ -53,10 +55,17 @@ def code_from_authorize_response(response):
     Return:
         str: the code
     """
-    return response.headers['Location'].split('code=')[-1]
+    location = response.headers['Location']
+    try:
+        return dict(url_decode(urlparse.urlparse(location).query))['code']
+    except KeyError:
+        raise ValueError(
+            'response did not contain a code; got headers:\n{}'
+            .format(response.headers)
+        )
 
 
-def get_access_code(client, oauth_client, scope='openid'):
+def get_access_code(client, oauth_client, scope=None):
     """
     Do all steps to get an authorization code from ``/oauth2/authorize``
 
@@ -68,6 +77,9 @@ def get_access_code(client, oauth_client, scope='openid'):
     Return:
         str: the authorization code
     """
+    scope = scope or ['openid', 'user']
+    if isinstance(scope, list):
+        scope = ' '.join(scope)
     data = {
         'confirm': 'yes',
         'scope': scope,
@@ -89,6 +101,7 @@ def post_token(client, oauth_client, code):
     Return:
         pytest_flask.plugin.JSONResponse: the response
     """
+    headers = create_basic_header_for_client(oauth_client)
     data = {
         'client_id': oauth_client.client_id,
         'client_secret': oauth_client.client_secret,
@@ -96,10 +109,10 @@ def post_token(client, oauth_client, code):
         'grant_type': 'authorization_code',
         'redirect_uri': oauth_client.url,
     }
-    return client.post('/oauth2/token', data=data)
+    return client.post('/oauth2/token', headers=headers, data=data)
 
 
-def get_token_response(client, oauth_client):
+def get_token_response(client, oauth_client, scope='openid'):
     """
     Args:
         client: client fixture
@@ -108,7 +121,7 @@ def get_token_response(client, oauth_client):
     Return:
         pytest_flask.plugin.JSONResponse: the response from ``/oauth2/token``
     """
-    code = get_access_code(client, oauth_client)
+    code = get_access_code(client, oauth_client, scope=scope)
     return post_token(client, oauth_client, code)
 
 

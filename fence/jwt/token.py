@@ -1,10 +1,10 @@
 from datetime import datetime, timedelta
 import json
 
+import authlib
 from cdispyutils import auth
 import flask
 import jwt
-import oauthlib
 import uuid
 
 
@@ -64,7 +64,8 @@ def generate_signed_refresh_token(kid, private_key, user, expires_in, scopes):
         'issuing JWT refresh token\n' + json.dumps(claims, indent=4)
     )
     token = jwt.encode(claims, private_key, headers=headers, algorithm='RS256')
-    token = oauthlib.common.to_unicode(token, 'UTF-8')
+    flask.current_app.logger.debug(str(token))
+    token = authlib.common.encoding.to_unicode(token, 'UTF-8')
     return token
 
 
@@ -104,7 +105,8 @@ def generate_signed_access_token(kid, private_key, user, expires_in, scopes):
         'issuing JWT access token\n' + json.dumps(claims, indent=4)
     )
     token = jwt.encode(claims, private_key, headers=headers, algorithm='RS256')
-    flask.current_app.logger.info(str(token))
+    flask.current_app.logger.debug(str(token))
+    token = authlib.common.encoding.to_unicode(token, 'UTF-8')
     return token
 
 

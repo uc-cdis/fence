@@ -10,7 +10,12 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import ForeignKey
 from userdatamodel import Base
-from userdatamodel.models import *
+from userdatamodel.models import (
+    AccessPrivilege, Application, AuthorizationProvider, Bucket, Certificate,
+    CloudProvider, ComputeAccess, HMACKeyPair, HMACKeyPairArchive,
+    IdentityProvider, Project, ProjectToBucket, ResearchGroup, S3Credential,
+    StorageAccess, User, UserToBucket
+)
 
 
 UserSession = user_session_model('fence_user_session', Base=Base)
@@ -40,9 +45,24 @@ class Client(Base, OAuth2ClientMixin):
     # public or confidential
     is_confidential = Column(Boolean)
 
+    _allowed_scopes = Column(Text, nullable=False, default='')
+
     _redirect_uris = Column(Text)
     _default_scopes = Column(Text)
     _scopes = ['compute', 'storage', 'user']
+
+    def __init__(self, **kwargs):
+        if 'allowed_scopes' in kwargs:
+            allowed_scopes = kwargs.pop('allowed_scopes')
+            if isinstance(allowed_scopes, list):
+                kwargs['_allowed_scopes'] = ' '.join(allowed_scopes)
+            else:
+                kwargs['_allowed_scopes'] = allowed_scopes
+        super(Client, self).__init__(**kwargs)
+
+    @property
+    def allowed_scopes(self):
+        return self._allowed_scopes.split(' ')
 
     @property
     def client_type(self):
@@ -77,7 +97,7 @@ class Client(Base, OAuth2ClientMixin):
             )
 
     def check_requested_scopes(self, scopes):
-        return all(scope in self._scopes for scope in scopes)
+        return set(self.allowed_scopes).issuperset(scopes)
 
     def validate_scopes(self, scopes):
         scopes = scopes[0].split(',')
@@ -133,6 +153,21 @@ class AuthorizationCode(Base, OAuth2AuthorizationCodeMixin):
         Integer, ForeignKey('User.id', ondelete='CASCADE')
     )
     user = relationship('User')
+
+    _scope = Column(Text, default='')
+
+    def __init__(self, **kwargs):
+        if 'scope' in kwargs:
+            scope = kwargs.pop('scope')
+            if isinstance(scope, list):
+                kwargs['_scope'] = ' '.join(scope)
+            else:
+                kwargs['_scope'] = scope
+        super(AuthorizationCode, self).__init__(**kwargs)
+
+    @property
+    def scope(self):
+        return self._scope.split(' ')
 
 
 def migrate(driver):

@@ -9,6 +9,7 @@ import os
 from addict import Dict
 import bcrypt
 from cdisutilstest.code.storage_client_mock import get_client
+import flask_sqlalchemy_session
 import jwt
 import pytest
 
@@ -203,12 +204,9 @@ def patch_app_db_session(app, monkeypatch):
     """
 
     def do_patch(session):
-        monkeypatch.setattr(
-            app.db, 'Session', lambda: session
-        )
-        monkeypatch.setattr(
-            'fence.user.current_session', session
-        )
+        monkeypatch.setattr(app.db, 'Session', lambda: session)
+        monkeypatch.setattr('fence.auth.current_session', session)
+        monkeypatch.setattr('fence.user.current_session', session)
 
     return do_patch
 
@@ -224,7 +222,7 @@ def oauth_client(app, request, db_session):
     db_session.add(test_user)
     db_session.add(models.Client(
         client_id=client_id, client_secret=hashed_secret, user=test_user,
-        _redirect_uris=url, description=''
+        allowed_scopes=['openid', 'user'], _redirect_uris=url, description=''
     ))
     db_session.commit()
 

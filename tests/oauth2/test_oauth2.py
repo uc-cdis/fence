@@ -31,9 +31,9 @@ def test_oauth2_authorize_post(client, oauth_client):
     Test ``POST /oauth2/authorize``.
     """
     response = tests.utils.oauth2.post_authorize(client, oauth_client)
-    assert response.status_code == 302
+    assert response.status_code == 302, response
     location = response.headers['Location']
-    assert location.startswith(oauth_client.url)
+    assert location.startswith(oauth_client.url), location
 
 
 def test_oauth2_token_post(client, oauth_client):
@@ -83,7 +83,7 @@ def test_oauth2_token_post_revoke(client, oauth_client, refresh_token):
         'refresh_token': refresh_token,
     }
     response = client.post('/oauth2/token', data=data)
-    assert response.status_code == 401
+    assert response.status_code == 400
 
 
 def test_validate_oauth2_token(app, client, access_token, monkeypatch):
@@ -113,4 +113,4 @@ def test_malformed_auth_header_fails(app, client, access_token, monkeypatch):
     monkeypatch.setitem(app.config, 'USER_API', app.config['HOST_NAME'])
     headers = {'Authorization': access_token}
     response = client.get('/protected', headers=headers)
-    assert response.status_code == 401
+    assert response.status_code == 401, response
