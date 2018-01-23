@@ -12,8 +12,11 @@ pip install -r requirements.txt
 # Install fence in your preferred manner.
 python setup.py develop
 # Create test database.
+# Depending on how you have postgres setup, you may need to change the configuration in pb_hba.conf to allow those users to connect without password
+# Also user test may need to be created
 psql -U test postgres -c 'create database fence_test'
 # Initialize models in test database.
+# YOu need a local_settings.py file in that directory. If you want to use the example one, remove 'example' form the name, and modify DB's value to '[...]/fence_test'
 userdatamodel-init --db fence_test
 # Create UA file.
 fence-create --path fence create ua.yaml
