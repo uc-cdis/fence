@@ -11,6 +11,12 @@ from fence.jwt import blacklist, errors, keys
 from fence.jwt.blacklist import BlacklistedToken
 
 
+# Allowed scopes for user requested token and oauth2 client requested token
+# TODO: this should be more discoverable and configurable
+USER_ALLOWED_SCOPES = ['user', 'credentials', 'data']
+CLIENT_ALLOWED_SCOPES = ['user', 'data']
+
+
 def issued_and_expiration_times(seconds_to_expire):
     """
     Return the times in unix time that a token is being issued and will be
