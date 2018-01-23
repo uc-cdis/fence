@@ -84,7 +84,7 @@ def test_oauth2_token_post_revoke(client, oauth_client, refresh_token):
         'refresh_token': refresh_token,
     }
     response = client.post('/oauth2/token', data=data)
-    assert response.status_code == 400
+    assert response.status_code == 401
 
 
 def test_validate_oauth2_token(app, client, access_token, monkeypatch):
