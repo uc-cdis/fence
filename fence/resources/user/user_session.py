@@ -29,6 +29,7 @@ from flask.sessions import SessionInterface
 from flask.sessions import SessionMixin
 from flask import current_app
 from datetime import datetime
+import time
 
 from cdispyutils.auth.jwt_validation import validate_jwt
 from fence.jwt.keys import default_public_key
@@ -48,7 +49,7 @@ class UserSession(SessionMixin):
                 session_token,
                 public_key=default_public_key(),
                 aud={"session"},
-                iss=current_app.config["HOST_NAME"]
+                iss=current_app.config["HOSTNAME"]
             )
         else:
             jwt_info = {"context": {}}
@@ -68,7 +69,7 @@ class UserSession(SessionMixin):
             session_token,
             public_key=default_public_key(),
             aud={"session"},
-            iss=current_app.config["HOST_NAME"]
+            iss=current_app.config["HOSTNAME"]
         )
 
     def get_updated_token(self, app):
@@ -82,10 +83,10 @@ class UserSession(SessionMixin):
             token = create_session_token(
                 current_app.keypairs[0],
                 timeout.seconds,
-                session_started=self.get("session_started", None),
-                username=self.get("username", None),
-                provider=self.get("provider", None),
-                redirect=self.get("redirect", None)
+                session_started=self.get("session_started"),
+                username=self.get("username"),
+                provider=self.get("provider"),
+                redirect=self.get("redirect")
             )
             self._encoded_token = token
 
@@ -108,7 +109,7 @@ class UserSession(SessionMixin):
         if self._encoded_token:
             lifetime = app.config.get('SESSION_LIFETIME')
 
-            now = int(datetime.utcnow().strftime('%s'))
+            now = int(time.time())
             is_expired = (self.session_token["exp"] <= now)
             end_of_life = self.session_token["context"]["session_started"] + lifetime.seconds
 
@@ -162,7 +163,7 @@ class UserSessionInterface(SessionInterface):
         return session
 
     def get_expiration_time(self, app, session):
-        timeout = datetime.utcnow() + app.config.get('SESSION_TIMEOUT')
+        timeout = datetime.now() + app.config.get('SESSION_TIMEOUT')
         return timeout
 
     def save_session(self, app, session, response):
@@ -205,7 +206,7 @@ class UserSessionInterface(SessionInterface):
 def _clear_session_if_expired(app, session):
     lifetime = app.config.get('SESSION_LIFETIME')
 
-    now = int(datetime.utcnow().strftime('%s'))
+    now = int(time.time())
     is_expired = (session.session_token["exp"] <= now)
     end_of_life = session["session_started"] + lifetime.seconds
 
@@ -217,7 +218,7 @@ def _clear_session_if_expired(app, session):
 def _create_access_token_cookie(app, response, user):
     keypair = app.keypairs[0]
     scopes = USER_ALLOWED_SCOPES
-    timeout = datetime.utcnow() + app.config.get('ACCESS_TOKEN_LIFETIME')
+    timeout = datetime.now() + app.config.get('ACCESS_TOKEN_LIFETIME')
     expiration = int(timeout.strftime('%s'))
 
     access_token = generate_signed_access_token(

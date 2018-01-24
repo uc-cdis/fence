@@ -29,7 +29,7 @@ def issued_and_expiration_times(seconds_to_expire):
     Return:
         Tuple[int, int]: (issued, expired) times in unix time
     """
-    now = datetime.utcnow()
+    now = datetime.now()
     iat = int(now.strftime('%s'))
     exp = int((now + timedelta(seconds=seconds_to_expire)).strftime('%s'))
     return (iat, exp)
@@ -67,7 +67,7 @@ def generate_signed_session_token(
     claims = {
         'aud': ['session'],
         'sub': username or '',
-        'iss': flask.current_app.config.get('HOST_NAME'),
+        'iss': flask.current_app.config.get('HOSTNAME'),
         'iat': iat,
         'exp': exp,
         'jti': str(uuid.uuid4()),
