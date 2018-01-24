@@ -29,6 +29,7 @@ from flask.sessions import SessionInterface
 from flask.sessions import SessionMixin
 from flask import current_app
 from datetime import datetime
+import pytz
 import time
 
 from cdispyutils.auth.jwt_validation import validate_jwt
@@ -163,7 +164,8 @@ class UserSessionInterface(SessionInterface):
         return session
 
     def get_expiration_time(self, app, session):
-        timeout = datetime.now() + app.config.get('SESSION_TIMEOUT')
+        token_expiration = session.session_token["exp"]
+        timeout = datetime.fromtimestamp(token_expiration, pytz.utc)
         return timeout
 
     def save_session(self, app, session, response):
