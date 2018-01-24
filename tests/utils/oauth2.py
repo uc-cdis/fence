@@ -112,6 +112,17 @@ def post_token(client, oauth_client, code):
     return client.post('/oauth2/token', headers=headers, data=data)
 
 
+def post_token_refresh(client, oauth_client, refresh_token):
+    headers = create_basic_header_for_client(oauth_client)
+    data = {
+        'client_id': oauth_client.client_id,
+        'client_secret': oauth_client.client_secret,
+        'grant_type': 'refresh_token',
+        'refresh_token': refresh_token,
+    }
+    return client.post('/oauth2/token', headers=headers, data=data)
+
+
 def get_token_response(client, oauth_client, scope=None):
     """
     Args:

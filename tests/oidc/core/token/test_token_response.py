@@ -2,19 +2,7 @@
 Test just the actual return value from the token endpoint.
 """
 
-import pytest
-
 from fence.jwt.validate import validate_jwt
-
-from tests.utils import oauth2
-
-
-@pytest.fixture(scope='function')
-def token_response_json(client, oauth_client):
-    """
-    Define a fixture for this module for a successful token response.
-    """
-    return oauth2.get_token_response(client, oauth_client).json
 
 
 def test_token_response(token_response_json):
@@ -55,3 +43,25 @@ def test_id_token_required_fields(token_response_json):
     # Check for types on required fields.
     assert type(id_token['exp']) is int
     assert type(id_token['iat']) is int
+    assert type(id_token['sub']) is unicode
+    assert type(id_token['iss']) is unicode
+    assert type(id_token['aud']) is list
+
+
+def test_access_token_correct_fields(token_response_json):
+    """
+    Test that the access token from the token response contains exactly the
+    expected fields.
+    """
+    encoded_access_token = token_response_json['access_token']
+    access_token = validate_jwt(encoded_access_token, {'openid'})
+    access_token_fields = set(access_token.keys())
+    expected_fields = {
+        'iss',
+        'sub',
+        'aud',
+        'exp',
+        'iat',
+        'jti',
+    }
+    assert access_token_fields == expected_fields
