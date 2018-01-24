@@ -40,12 +40,12 @@ from fence import auth
 
 
 class UserSession(SessionMixin):
-    def __init__(self, jwt):
-        self._encoded_jwt = jwt
+    def __init__(self, session_token):
+        self._encoded_token = session_token
 
-        if jwt:
+        if session_token:
             jwt_info = validate_jwt(
-                jwt,
+                session_token,
                 public_key=default_public_key(),
                 aud={"session"},
                 iss=current_app.config["HOST_NAME"]
@@ -53,28 +53,32 @@ class UserSession(SessionMixin):
         else:
             jwt_info = {"context": {}}
 
-        self.jwt = jwt_info
+        self.session_token = jwt_info
 
         self.modified = False
         super(UserSession, self).__init__()
 
     def create_initial_token(self):
-        jwt = create_session_token(
+        session_token = create_session_token(
             current_app.keypairs[0],
             current_app.config.get('SESSION_TIMEOUT').seconds
         )
-        self._encoded_jwt = jwt
-        self.jwt = validate_jwt(
-            jwt,
+        self._encoded_token = session_token
+        self.session_token = validate_jwt(
+            session_token,
             public_key=default_public_key(),
             aud={"session"},
             iss=current_app.config["HOST_NAME"]
         )
 
     def get_updated_token(self, app):
-        if self._encoded_jwt:
+        if self._encoded_token:
             timeout = app.config.get('SESSION_TIMEOUT')
 
+            # Create a new token by passing in fields from the current
+            # token. If `session_started` is None, it will be defaulted
+            # to the issue time for the JWT and passed into future tokens
+            # to keep track of the overall lifetime of the session
             token = create_session_token(
                 current_app.keypairs[0],
                 timeout.seconds,
@@ -83,30 +87,30 @@ class UserSession(SessionMixin):
                 provider=self.get("provider", None),
                 redirect=self.get("redirect", None)
             )
-            self._encoded_jwt = token
+            self._encoded_token = token
 
-        return self._encoded_jwt
+        return self._encoded_token
 
     def get(self, key, *args):
         """
         get a value from session json
         """
-        return self.jwt["context"].get(key, *args)
+        return self.session_token["context"].get(key, *args)
 
     def clear(self):
         """
         clear current session
         """
-        self._encoded_jwt = None
-        self.jwt = {"context": {}}
+        self._encoded_token = None
+        self.session_token = {"context": {}}
 
     def clear_if_expired(self, app):
-        if self._encoded_jwt:
+        if self._encoded_token:
             lifetime = app.config.get('SESSION_LIFETIME')
 
             now = int(datetime.utcnow().strftime('%s'))
-            is_expired = (self.jwt["exp"] <= now)
-            end_of_life = self.jwt["context"]["session_started"] + lifetime.seconds
+            is_expired = (self.session_token["exp"] <= now)
+            end_of_life = self.session_token["context"]["session_started"] + lifetime.seconds
 
             lifetime_over = (end_of_life <= now)
             if is_expired or lifetime_over:
@@ -116,27 +120,27 @@ class UserSession(SessionMixin):
             self.clear()
 
     def __getitem__(self, key):
-        return self.jwt["context"][key]
+        return self.session_token["context"][key]
 
     def __setitem__(self, key, value):
         # If token doesn't exists, create the first session token when
         # data in the session is attempting to be set
-        if not self._encoded_jwt:
+        if not self._encoded_token:
             self.create_initial_token()
 
-        self.jwt["context"][key] = value
+        self.session_token["context"][key] = value
         self.modified = True
 
     def __delitem__(self, key):
-        del self.jwt["context"][key]
+        del self.session_token["context"][key]
         self.modified = True
 
     def __iter__(self):
-        for key in self.jwt:
+        for key in self.session_token:
             yield key
 
     def __len__(self):
-        return len(self.jwt)
+        return len(self.session_token)
 
 
 class UserSessionInterface(SessionInterface):
@@ -202,7 +206,7 @@ def _clear_session_if_expired(app, session):
     lifetime = app.config.get('SESSION_LIFETIME')
 
     now = int(datetime.utcnow().strftime('%s'))
-    is_expired = (session.jwt["exp"] <= now)
+    is_expired = (session.session_token["exp"] <= now)
     end_of_life = session["session_started"] + lifetime.seconds
 
     lifetime_over = (end_of_life <= now)
