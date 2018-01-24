@@ -9,7 +9,7 @@ Define the authorization server. It must later be initialized onto a Flask app:
 from fence.models import Client
 from fence.oauth2.grants import AuthorizationCodeGrant, RefreshTokenGrant
 from fence.oidc.endpoints import RevocationEndpoint
-from fence.oidc.jwt_server import OIDCServer
+from fence.oidc.oidc_server import OIDCServer
 
 
 server = OIDCServer(Client)
