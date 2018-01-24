@@ -28,6 +28,7 @@ Before a session is opened with user information, an expiration check occurs.
 from flask.sessions import SessionInterface
 from flask.sessions import SessionMixin
 from flask import current_app
+from flask import g
 from datetime import datetime
 import pytz
 import time
@@ -149,11 +150,10 @@ class UserSessionInterface(SessionInterface):
 
     def __init__(self):
         super(UserSessionInterface, self).__init__()
-        self.access_token = None
 
     def open_session(self, app, request):
         jwt = request.cookies.get(app.session_cookie_name)
-        self.access_token = request.cookies.get(app.config['ACCESS_TOKEN_COOKIE_NAME']) or None
+        g.access_token = request.cookies.get(app.config['ACCESS_TOKEN_COOKIE_NAME']) or None
         session = UserSession(jwt)
 
         # NOTE: If we did the expiration check in save_session
@@ -182,7 +182,7 @@ class UserSessionInterface(SessionInterface):
             except Unauthorized:
                 user = None
 
-            if user and not self.access_token:
+            if user and not g.access_token:
                 _create_access_token_cookie(app, response, user)
         else:
             # If there isn't a session token, we should set
