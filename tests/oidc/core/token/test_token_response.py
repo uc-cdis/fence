@@ -45,7 +45,7 @@ def test_id_token_required_fields(token_response_json):
     """
     assert 'id_token' in token_response_json
     # Check that the ID token is a valid JWT.
-    id_token = validate_jwt(token_response_json['id_token'], 'openid')
+    id_token = validate_jwt(token_response_json['id_token'], {'openid'})
     # Check for required fields.
     assert 'iss' in id_token
     assert 'sub' in id_token

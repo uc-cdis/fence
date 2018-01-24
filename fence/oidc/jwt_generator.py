@@ -3,6 +3,7 @@ import flask
 
 from fence.jwt.token import (
     generate_signed_access_token,
+    generate_signed_id_token,
     generate_signed_refresh_token,
 )
 from fence.user import get_current_user
@@ -42,18 +43,27 @@ class JWTGenerator(BearerToken):
             grant_type: not used
         """
 
+        user = get_current_user()
         keypair = flask.current_app.keypairs[0]
+        id_token = generate_signed_id_token(
+            kid=keypair.kid,
+            private_key=keypair.private_key,
+            user=user,
+            expires_in=self.ACCESS_TOKEN_EXPIRES_IN,
+            client_id=client.client_id,
+            audiences=scope,
+        )
         access_token = generate_signed_access_token(
             kid=keypair.kid,
             private_key=keypair.private_key,
-            user=get_current_user(),
+            user=user,
             expires_in=self.ACCESS_TOKEN_EXPIRES_IN,
             scopes=scope,
         )
         refresh_token = generate_signed_refresh_token(
             kid=keypair.kid,
             private_key=keypair.private_key,
-            user=get_current_user(),
+            user=user,
             expires_in=self.REFRESH_TOKEN_EXPIRES_IN,
             scopes=scope,
         )
@@ -61,6 +71,7 @@ class JWTGenerator(BearerToken):
         expires_in = self.ACCESS_TOKEN_EXPIRES_IN
         return {
             'token_type': 'Bearer',
+            'id_token': id_token,
             'access_token': access_token,
             'refresh_token': refresh_token,
             'expires_in': expires_in,

@@ -2,7 +2,6 @@
 Test the endpoints in the ``/oauth2`` blueprint.
 """
 
-import pytest
 import urllib
 
 import tests.utils.oauth2
@@ -47,7 +46,6 @@ def test_oauth2_token_post(client, oauth_client):
     assert 'refresh_token' in response.json
 
 
-@pytest.mark.skip(reason="not implemented yet")
 def test_oauth2_token_refresh(client, oauth_client, refresh_token):
     """
     Obtain refresh and access tokens, and test using the refresh token to
