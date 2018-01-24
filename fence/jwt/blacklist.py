@@ -15,6 +15,7 @@ import flask
 import jwt
 from sqlalchemy import BigInteger, Column, String
 from userdatamodel import Base
+from fence.data_model.models import UserRefreshToken
 
 from . import keys
 
@@ -53,6 +54,7 @@ def blacklist_token(jti, exp):
     # Add JWT id to blacklist table.
     with flask.current_app.db.session as session:
         session.add(BlacklistedToken(jti=jti, exp=exp))
+        session.query(UserRefreshToken).filter_by(jti=jti, expires=exp).delete()
         session.commit()
 
 

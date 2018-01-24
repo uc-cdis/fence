@@ -46,13 +46,14 @@ def generate_signed_refresh_token(kid, private_key, user, expires_in,
     """
     headers = {'kid': kid}
     iat, exp = issued_and_expiration_times(expires_in)
+    jti = str(uuid.uuid4())
     claims = {
         'aud': ['refresh'],
         'sub': str(user.id),
         'iss': flask.current_app.config.get('HOSTNAME'),
         'iat': iat,
         'exp': exp,
-        'jti': str(uuid.uuid4()),
+        'jti': jti,
         'access_aud': scopes,
         'context': {
             'user': {
@@ -68,7 +69,7 @@ def generate_signed_refresh_token(kid, private_key, user, expires_in,
     )
     token = jwt.encode(claims, private_key, headers=headers, algorithm='RS256')
     token = oauthlib.common.to_unicode(token, 'UTF-8')
-    return token
+    return token, claims
 
 
 def generate_signed_access_token(kid, private_key, user, expires_in,
