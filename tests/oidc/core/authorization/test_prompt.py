@@ -30,47 +30,50 @@ OIDC specification of authentication request parameter ``prompt``:
             error, typically account_selection_required.
 """
 
-import tests.utils.oauth2
+from tests.utils import oauth2
 
 
 def test_no_prompt_provided(client, oauth_client):
     """
     ``prompt`` is optional; test that omitting it is fine.
     """
-    data = {'confirm': 'yes'}
-    response = tests.utils.oauth2.post_authorize(
-        client, oauth_client, data=data
-    )
+    response = oauth2.post_authorize(client, oauth_client)
     assert response.status_code == 302
+    assert 'Location' in response.headers
+    assert oauth2.code_from_authorize_response(response)
 
 
 def test_prompt_none(client):
     """
     Test ``prompt=none``.
     """
+    data = {'prompt': 'none'}
     # TODO
-    pass
+    assert False
 
 
 def test_prompt_login(client):
     """
     Test ``prompt=login``.
     """
+    data = {'prompt': 'login'}
     # TODO
-    pass
+    assert False
 
 
 def test_prompt_consent(client):
     """
     Test ``prompt=consent``.
     """
+    data = {'prompt': 'consent'}
     # TODO
-    pass
+    assert False
 
 
 def test_prompt_select_account(client):
     """
     Test ``prompt=select_account``.
     """
+    data = {'prompt': 'select_account'}
     # TODO
-    pass
+    assert False

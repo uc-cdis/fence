@@ -21,7 +21,7 @@ def path_for_authorize(params=None):
     return '/oauth2/authorize' + make_query_string(params)
 
 
-def post_authorize(client, oauth_client, data=None):
+def post_authorize(client, oauth_client, data=None, confirm=True):
     """
     Args:
         client: client fixture
@@ -40,10 +40,12 @@ def post_authorize(client, oauth_client, data=None):
         'state': fence.utils.random_str(10),
         'confirm': 'yes',
     }
-    if isinstance(data['scope'], list):
-        data['scope'] = ' '.join(data['scope'])
     default_data.update(data)
     data = default_data
+    if not confirm:
+        data.pop('confirm')
+    if isinstance(data['scope'], list):
+        data['scope'] = ' '.join(data['scope'])
     return client.post(path_for_authorize(), data=data)
 
 
