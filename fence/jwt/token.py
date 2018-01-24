@@ -73,7 +73,7 @@ def generate_signed_session_token(
         'jti': str(uuid.uuid4()),
         'context': context,
     }
-    flask.current_app.logger.info(
+    flask.current_app.logger.debug(
         'issuing JWT session token\n' + json.dumps(claims, indent=4)
     )
     token = jwt.encode(claims, private_key, headers=headers, algorithm='RS256')
@@ -96,13 +96,15 @@ def generate_signed_refresh_token(kid, private_key, user, expires_in,
     """
     headers = {'kid': kid}
     iat, exp = issued_and_expiration_times(expires_in)
+    sub = str(user.id)
+    jti = str(uuid.uuid4())
     claims = {
         'aud': ['refresh'],
-        'sub': str(user.id),
+        'sub': sub,
         'iss': flask.current_app.config.get('HOST_NAME'),
         'iat': iat,
         'exp': exp,
-        'jti': str(uuid.uuid4()),
+        'jti': jti,
         'access_aud': scopes,
         'context': {
             'user': {
@@ -114,6 +116,9 @@ def generate_signed_refresh_token(kid, private_key, user, expires_in,
         'azp': client_id or ''
     }
     flask.current_app.logger.info(
+        'issuing JWT refresh token with id [{}] to [{}]'.format(jti, sub)
+    )
+    flask.current_app.logger.debug(
         'issuing JWT refresh token\n' + json.dumps(claims, indent=4)
     )
     token = jwt.encode(claims, private_key, headers=headers, algorithm='RS256')
@@ -139,13 +144,16 @@ def generate_signed_access_token(kid, private_key, user, expires_in,
     """
     headers = {'kid': kid}
     iat, exp = issued_and_expiration_times(expires_in)
+
+    sub = str(user.id)
+    jti = str(uuid.uuid4())
     claims = {
         'aud': scopes + ['access'],
-        'sub': str(user.id),
+        'sub': sub,
         'iss': flask.current_app.config.get('HOST_NAME'),
         'iat': iat,
         'exp': exp,
-        'jti': str(uuid.uuid4()),
+        'jti': jti,
         'context': {
             'user': {
                 'name': user.username,
@@ -156,10 +164,13 @@ def generate_signed_access_token(kid, private_key, user, expires_in,
         'azp': client_id or ''
     }
     flask.current_app.logger.info(
+        'issuing JWT access token with id [{}] to [{}]'.format(jti, sub)
+    )
+    flask.current_app.logger.debug(
         'issuing JWT access token\n' + json.dumps(claims, indent=4)
     )
     token = jwt.encode(claims, private_key, headers=headers, algorithm='RS256')
-    flask.current_app.logger.info(str(token))
+    flask.current_app.logger.debug(str(token))
     return token
 
 
