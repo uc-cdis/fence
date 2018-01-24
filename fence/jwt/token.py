@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import json
 import time
 
-from authlib.specs.oidc import IDToken as AuthlibIDToken
+from authlib.specs.oidc import CodeIDToken as AuthlibCodeIDToken
 from authlib.specs.oidc import IDTokenError
 from authlib.common.encoding import to_unicode
 from cdispyutils import auth
@@ -16,7 +16,7 @@ from fence.jwt import keys
 from fence.jwt.blacklist import BlacklistedToken
 
 
-class UnsignedIDToken(AuthlibIDToken):
+class UnsignedIDToken(AuthlibCodeIDToken):
     # TODO When we upgrade to authlib v0.4, `validate_exp` can be removed
     # There was a bug in `validate_exp` in v0.3 that needed to be patched
 
