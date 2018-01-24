@@ -40,7 +40,7 @@ def blacklist_token(jti, exp):
 
     Args:
         jti (str): JWT id, which must be a UUID4
-        exp (int): the expiration time of the token
+        exp (int): the expiration time of the token (UNIX timestamp)
 
     Return:
         None

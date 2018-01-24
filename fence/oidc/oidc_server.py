@@ -10,23 +10,36 @@ from fence.oidc.jwt_generator import JWTGenerator
 
 
 class OIDCServer(AuthorizationServer):
+    """
+    Implement the OIDC provider to attach to the flask app.
+
+    Specific OAuth grants (authorization code, refresh token) are added on to
+    a server instance using ``OIDCServer.register_grant_endpoint(grant)``. For
+    usage, see ``fence/oidc/server.py``.
+    """
 
     def create_bearer_token_generator(self, app):
+        """
+        Return an ``authlib.specs.rfc6750.BearerToken`` instance (implemented
+        in fence as ``JWTGenerator``) for authlib to use.
+        """
         return JWTGenerator()
 
     def get_authorization_grant(self, uri):
         """
         Find the authorization grant for current request.
 
+        This overrides the method in authlib to patch a small bug.
+
         Args:
             uri (str): HTTP request URI string.
 
         Return:
-            AuthorizationCodeGrant: grant instance
+            AuthorizationCodeGrant: grant instance for current request
         """
         InsecureTransportError.check(uri)
 
-        # This patches a bug in authlib
+        # This block patches a bug in authlib.
         if flask.request.method == 'GET':
             params = dict(url_decode(urlparse.urlparse(uri).query))
         elif flask.request.method == 'POST':

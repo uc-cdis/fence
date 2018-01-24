@@ -116,10 +116,11 @@ Example:
 - A third-party application is the client
 - Our microservices (e.g. sheepdog) are resource providers
 
-If third-party application doesn't need to use any Gen3 resources, after the
-handshake is finished they just get need information in ID token. If they want
-to use gen3 resources like fence/sheepdog/peregrine, they call those services
-with `access_token` passed in the header.
+If the third-party application doesn't need to use any Gen3 resources (and just
+wants to verify the user), after the handshake is finished they can just get
+needed information in the ID token. If they want to use gen3 resources like
+fence/sheepdog/peregrine, they call those services with `access_token` passed in
+the header.
 
 #### Notes
 

@@ -36,8 +36,10 @@ def generate_signed_refresh_token(kid, private_key, user, expires_in, scopes):
     string of the encoded JWT signed with the private key.
 
     Args:
+        kid (str): key id of the keypair used to generate token
         private_key (str): RSA private key to sign and encode the JWT with
-        request (oauthlib.common.Request): token request to handle
+        user (User): the user model
+        expires_in (int): seconds until expiration
 
     Return:
         str: encoded JWT refresh token signed with ``private_key``
@@ -75,11 +77,11 @@ def generate_signed_access_token(kid, private_key, user, expires_in, scopes):
     string of the encoded JWT signed with the private key.
 
     Args:
-        kid: key id of the generated token
+        kid (str): key id of the keypair used to generate token
         private_key (str): RSA private key to sign and encode the JWT with
-        user:
-        expires_in:
-        scopes
+        user (User): the user model to generate token for
+        expires_in (int): seconds until token expiration
+        scopes (List[str]): scopes from oauth request (translates to aud)
 
     Return:
         str: encoded JWT access token signed with ``private_key``

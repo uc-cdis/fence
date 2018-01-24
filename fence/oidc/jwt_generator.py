@@ -10,8 +10,7 @@ from fence.user import get_current_user
 
 class JWTGenerator(BearerToken):
     """
-    This class implements bearer token generation behavior as required for
-    authlib.
+    Implement bearer token generation behavior as required for authlib.
 
     Instances of ``JWTGenerator`` are callables which return the token
     response (see ``__call__``).
