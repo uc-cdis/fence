@@ -100,8 +100,8 @@ def generate_signed_refresh_token(kid, private_key, user, expires_in,
     jti = str(uuid.uuid4())
     claims = {
         'aud': ['refresh'],
-        'sub': sub,
-        'iss': flask.current_app.config.get('HOST_NAME'),
+        'sub': str(user.id),
+        'iss': flask.current_app.config.get('HOSTNAME'),
         'iat': iat,
         'exp': exp,
         'jti': jti,
@@ -157,8 +157,8 @@ def generate_signed_access_token(kid, private_key, user, expires_in,
     jti = str(uuid.uuid4())
     claims = {
         'aud': scopes + ['access'],
-        'sub': sub,
-        'iss': flask.current_app.config.get('HOST_NAME'),
+        'sub': str(user.id),
+        'iss': flask.current_app.config.get('HOSTNAME'),
         'iat': iat,
         'exp': exp,
         'jti': jti,
@@ -192,7 +192,7 @@ def validate_refresh_token(refresh_token):
         encoded_token=refresh_token,
         public_key=keys.default_public_key(),
         aud={'refresh'},
-        iss=flask.current_app.config['HOST_NAME'],
+        iss=flask.current_app.config['HOSTNAME'],
     )
 
     # Validate jti and make sure refresh token is not blacklisted.

@@ -99,7 +99,7 @@ def has_oauth(scope=None):
     scope = scope or set()
     scope.update({'access'})
     try:
-        user_api = capp.config['USER_API'] if capp.config.has_key('USER_API') else capp.config['HOST_NAME']
+        user_api = capp.config['USER_API'] if capp.config.has_key('USER_API') else capp.config['HOSTNAME']
         access_token = auth.validate_request_jwt(
             aud=scope, user_api=user_api
         )
