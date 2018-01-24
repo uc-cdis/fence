@@ -107,7 +107,7 @@ def test_validate_anyaccess(app, client, access_token, monkeypatch):
     monkeypatch.setitem(app.config, 'MOCK_AUTH', False)
     monkeypatch.setitem(app.config, 'USER_API', app.config['HOST_NAME'])
     headers = {'Authorization': 'bearer ' + access_token}
-    response = client.get('/anyaccess', headers=headers)
+    response = client.get('/user/anyaccess', headers=headers)
     assert response.status_code == 200
 
 
