@@ -99,6 +99,17 @@ def test_validate_oauth2_token(app, client, access_token, monkeypatch):
     response = client.get('/user/', headers=headers)
     assert response.status_code == 200, response.json
 
+def test_validate_anyaccess(app, client, access_token, monkeypatch):
+    """
+    Get an access token from going through the OAuth procedure and try to use
+    it to access the any project access endpoint, ``/anyaccess``.
+    """
+    monkeypatch.setitem(app.config, 'MOCK_AUTH', False)
+    monkeypatch.setitem(app.config, 'USER_API', app.config['HOST_NAME'])
+    headers = {'Authorization': 'bearer ' + access_token}
+    response = client.get('/anyaccess', headers=headers)
+    assert response.status_code == 200
+
 
 def test_protected_endpoint(app, client, monkeypatch):
     """
