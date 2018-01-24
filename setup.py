@@ -4,7 +4,7 @@ setup(
     name='fence',
     version='0.2.0',
     install_requires=[
-        "authlib==0.3",
+        "Authlib[crypto]==0.3",
         "oauth2client<4.0dev,>=2.0.0",
         "addict==2.1.1",
         "cirrus",
