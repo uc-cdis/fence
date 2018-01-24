@@ -1,4 +1,4 @@
-from datetime import datetime
+import time
 from fence.resources.storage.cdis_jwt import create_session_token
 from fence.settings import SESSION_COOKIE_NAME
 
@@ -82,7 +82,7 @@ def test_valid_session_modified(app):
 def test_expired_session_lifetime(app):
     # make the start time be max lifetime ago (so it's expired)
     lifetime = app.config.get("SESSION_LIFETIME")
-    now = int(datetime.utcnow().strftime("%s"))
+    now = int(time.time())
     one_lifetime_ago = (now - lifetime.seconds)
     username = "Captain Janeway"
 
@@ -106,7 +106,7 @@ def test_expired_session_timeout(app):
     # make the start time be one timeout in the past (so the
     # session is expired)
     max_inactivity = app.config.get("SESSION_TIMEOUT")
-    now = int(datetime.utcnow().strftime("%s"))
+    now = int(time.time())
     last_active = (now - max_inactivity.seconds)
     username = "Captain Janeway"
 
