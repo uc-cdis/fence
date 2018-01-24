@@ -79,7 +79,7 @@ def check_protocol(protocol, scheme):
     return False
 
 
-def resolve_url(url, location, expired_in, action):
+def resolve_url(url, location, expires, action):
     protocol = location.scheme
     if protocol == 's3':
         if 'AWS_CREDENTIALS' in capp.config and len(capp.config['AWS_CREDENTIALS']) > 0:
@@ -92,7 +92,7 @@ def resolve_url(url, location, expired_in, action):
         url = capp.boto.presigned_url(
             location.netloc,
             location.path.strip('/'),
-            expired_in,
+            expires,
             capp.config['AWS_CREDENTIALS'][credential_key],
             ACTION_DICT[protocol][action]
         )
@@ -105,7 +105,7 @@ def resolve_url(url, location, expired_in, action):
 
 def return_link(action, urls):
     protocol = request.args.get('protocol', None)
-    expired_in = request.args.get('expired_in', None)
+    expires = request.args.get('expires', None)
     if (protocol is not None) and (protocol not in SUPPORTED_PROTOCOLS):
         raise NotSupported("The specified protocol is not supported")
     if len(urls) == 0:
@@ -113,7 +113,7 @@ def return_link(action, urls):
     for url in urls:
         location = urlparse(url)
         if check_protocol(protocol, location.scheme):
-            return resolve_url(url, location, expired_in, action)
+            return resolve_url(url, location, expires, action)
     raise NotFound("Can't find a location for the data with given request arguments.")
 
 
