@@ -127,7 +127,7 @@ def generate_signed_refresh_token(kid, private_key, user, expires_in,
 
 
 def generate_signed_access_token(kid, private_key, user, expires_in,
-                                 scopes, client_id):
+                                 scopes, client_id, forced_exp_time=None):
     """
     Generate a JWT refresh token from the given request, and output a UTF-8
     string of the encoded JWT signed with the private key.
@@ -137,13 +137,21 @@ def generate_signed_access_token(kid, private_key, user, expires_in,
         private_key (str): RSA private key to sign and encode the JWT with
         user:
         expires_in:
-        scopes
+        scopes:
+        client_id:
+        forced_exp_time: force the expiration time to given times in seconds
+                         in unix time. NOTE: This effectively ignores the
+                         provided `expires_in` argument
 
     Return:
         str: encoded JWT access token signed with ``private_key``
     """
     headers = {'kid': kid}
+
     iat, exp = issued_and_expiration_times(expires_in)
+
+    # force exp time if provided
+    exp = forced_exp_time or exp
 
     sub = str(user.id)
     jti = str(uuid.uuid4())

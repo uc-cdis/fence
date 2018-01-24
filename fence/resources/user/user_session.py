@@ -217,12 +217,15 @@ def _clear_session_if_expired(app, session):
 def _create_access_token_cookie(app, response, user):
     keypair = app.keypairs[0]
     scopes = USER_ALLOWED_SCOPES
+    timeout = datetime.utcnow() + app.config.get('ACCESS_TOKEN_LIFETIME')
+    expiration = int(timeout.strftime('%s'))
+
     access_token = generate_signed_access_token(
         keypair.kid, keypair.private_key, user,
         app.config.get('ACCESS_TOKEN_LIFETIME').seconds, scopes,
-        client_id=user.id
+        client_id=user.id, forced_exp_time=expiration
     )
-    timeout = datetime.utcnow() + app.config.get('ACCESS_TOKEN_LIFETIME')
+
     domain = app.session_interface.get_cookie_domain(app)
     response.set_cookie(
         app.config['ACCESS_TOKEN_COOKIE_NAME'], access_token,
