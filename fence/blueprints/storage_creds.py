@@ -1,8 +1,10 @@
+import flask
+import json
+
 from fence.auth import login_required
 from fence.data_model.models import GoogleServiceAccount
 from fence.data_model.models import GoogleProxyGroup
 
-import flask
 from flask import current_app as capp
 from flask import g, request, jsonify
 from ..resources.storage import get_endpoints_descriptions
@@ -94,8 +96,8 @@ def list_keypairs(provider):
         {
             "jtis":
             [
-               {"jti": "e9d58890-99b0-44f0-88bd-3ebc370b1329"},
-               {"jti": "e9d58890-99b0-44f0-88bd-3ebc370b132a"}
+               {"jti": "e9d58890-99b0-44f0-88bd-3ebc370b1329", "exp": 12345678},
+               {"jti": "e9d58890-99b0-44f0-88bd-3ebc370b132a", "exp": 17245678}
             ]
         }
         non-cdis
@@ -111,11 +113,12 @@ def list_keypairs(provider):
     '''
     if provider == 'cdis':
         with capp.db.session as session:
-            jtis = session.query(UserRefreshToken.jti) \
-                .filter_by(userid=g.user.id).order_by(UserRefreshToken.expires.desc()).all()
+            tokens = session.query(UserRefreshToken) \
+                .filter_by(userid=g.user.id).order_by(UserRefreshToken.expires.desc())\
+                .all()
             result = {
                 'jtis':
-                    [{'jti': item} for item in jtis]}
+                    [{'jti': item.jti, 'exp': item.expires} for item in tokens]}
     elif provider == 'google':
         with GoogleCloudManager() as g_cloud_manager:
             service_account = _get_google_service_account_for_client(g_cloud_manager)
@@ -154,7 +157,8 @@ def create_keypairs(provider):
     .. code-block:: JavaScript
 
         {
-            "token" "token_value"
+            "token_id": result,
+            "refresh_token": result
         }
 
     google:
@@ -187,15 +191,15 @@ def create_keypairs(provider):
     '''
     client_id = getattr(g, 'client_id', None)
     if provider == 'cdis':
-        scopes = request.args.get('scopes', [])
+        scopes = request.form.getlist('scopes')
         if not isinstance(scopes, list):
             scopes = scopes.split(',')
-        result = create_refresh_token(
+        token, jti = create_refresh_token(
             g.user, capp.keypairs[0],
             request.args.get('expire', 2592000),
             scopes, client_id
         )
-        return jsonify(dict(token=result))
+        return jsonify(dict(token_id=jti, refresh_token=token))
     elif provider == 'google':
         with GoogleCloudManager() as g_cloud:
             key = _get_google_access_key(g_cloud)
@@ -257,14 +261,11 @@ def create_access_token_api(provider):
     '''
     client_id = getattr(g, 'client_id', None)
     if provider == 'cdis':
-        scopes = request.args.get('scopes', [])
-        if not isinstance(scopes, list):
-            scopes = scopes.split(',')
         result = create_access_token(
             g.user, capp.keypairs[0],
             request.form['refresh_token'],
             request.args.get('expire', 2592000),
-            scopes, client_id
+            client_id
         )
         return jsonify(dict(access_token=result))
     elif provider == 'google':
@@ -301,7 +302,11 @@ def delete_keypair(provider, access_key):
 
     '''
     if provider == 'cdis':
-        status = revoke_refresh_token(access_key)
+        params = json.loads(request.data)
+        exp = params.get('exp')
+        if exp is None:
+            abort(400, 'No expires time passed')
+        status = revoke_refresh_token(access_key, exp)
     elif provider == 'google':
         with GoogleCloudManager() as g_cloud:
             service_account = _get_google_service_account_for_client(g_cloud)

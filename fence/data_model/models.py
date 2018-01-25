@@ -9,7 +9,7 @@ a `migrate` function in this file that gets called every init.
 from flask import current_app as capp
 from flask_sqlalchemy_session import current_session
 from sqlalchemy import (
-    Integer, String, Column, Boolean, Text, DateTime, MetaData, Table
+    BigInteger, Integer, String, Column, Boolean, Text, DateTime, MetaData, Table
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import ForeignKey
@@ -79,7 +79,7 @@ class UserRefreshToken(Base):
 
     jti = Column(String, primary_key=True)
     userid = Column(Integer)
-    expires = Column(DateTime)
+    expires = Column(BigInteger)
 
     def delete(self):
         with capp.db.session as session:
@@ -219,6 +219,14 @@ class GoogleProxyGroup(Base):
             return self
 
 
+to_timestamp = "CREATE OR REPLACE FUNCTION pc_datetime_to_timestamp(datetoconvert timestamp) " \
+               "RETURNS BIGINT AS " \
+               "$BODY$ " \
+               "select extract(epoch from $1)::BIGINT " \
+               "$BODY$ " \
+               "LANGUAGE 'sql' IMMUTABLE STRICT;"
+
+
 def migrate(driver):
     if not driver.engine.dialect.supports_alter:
         print("This engine dialect doesn't support altering so we are not migrating even if necessary!")
@@ -236,3 +244,11 @@ def migrate(driver):
         print("Altering table %s refresh_token to String" % (Token.__tablename__))
         with driver.session as session:
             session.execute("ALTER TABLE %s ALTER COLUMN refresh_token TYPE VARCHAR;" % (Token.__tablename__))
+
+    table = Table(UserRefreshToken.__tablename__, md, autoload=True, autoload_with=driver.engine)
+    if str(table.c.expires.type) != 'BIGINT':
+        print("Altering table %s expires to BIGINT" % (UserRefreshToken.__tablename__))
+        with driver.session as session:
+            session.execute(to_timestamp)
+        with driver.session as session:
+            session.execute("ALTER TABLE {} ALTER COLUMN expires TYPE BIGINT USING pc_datetime_to_timestamp(expires);".format(UserRefreshToken.__tablename__))

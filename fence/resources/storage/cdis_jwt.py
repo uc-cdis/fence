@@ -1,24 +1,19 @@
 from datetime import datetime
 
-import jwt
 from flask import current_app as cur_app
-from ...jwt import token, errors
+from ...jwt import token, errors, blacklist
 from flask import jsonify
 
 from fence.data_model.models import UserRefreshToken
 
 
 def create_refresh_token(user, keypair, expires_in, scopes, client_id):
-    return_token = token.generate_signed_refresh_token(keypair.kid, keypair.private_key,
-                                                       user, expires_in, scopes, client_id)
-    payload = jwt.decode(return_token, keypair.public_key, audience='refresh', algorithms=['RS256'])
-    jti = payload['jti']
-    # expires = datetime.fromtimestamp(payload['exp']).isoformat()
-    expires = datetime.fromtimestamp(payload['exp'])
+    return_token, claims = token.generate_signed_refresh_token(keypair.kid, keypair.private_key,
+                                                               user, expires_in, scopes, client_id)
     with cur_app.db.session as session:
-        session.add(UserRefreshToken(jti=jti, userid=user.id, expires=expires))
+        session.add(UserRefreshToken(jti=claims["jti"], userid=user.id, expires=claims["exp"]))
         session.commit()
-    return return_token
+    return return_token, claims["jti"]
 
 
 def create_session_token(
@@ -29,17 +24,18 @@ def create_session_token(
                                                session_started, provider, redirect)
 
 
-def create_access_token(user, keypair, refresh_token, expires_in, scopes, client_id):
+def create_access_token(user, keypair, refresh_token, expires_in, client_id):
     try:
-        token.validate_refresh_token(refresh_token)
+        decoded_jwt = token.validate_refresh_token(refresh_token)
+        scopes = decoded_jwt['access_aud']
     except Exception as e:
         return jsonify({'errors': e.message})
     return token.generate_signed_access_token(keypair.kid, keypair.private_key, user, expires_in, scopes, client_id)
 
 
-def revoke_refresh_token(encoded_token):
+def revoke_refresh_token(jti, exp):
     try:
-        token.revoke_token(encoded_token)
+        blacklist.blacklist_token(jti, exp)
     except errors.JWTError as e:
         return (e.message, e.code)
-    return ('', 204)
+    return ('Successfully deleted!', 202)
