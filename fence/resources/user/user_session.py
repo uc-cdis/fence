@@ -220,8 +220,12 @@ def _clear_session_if_expired(app, session):
 def _create_access_token_cookie(app, response, user):
     keypair = app.keypairs[0]
     scopes = USER_ALLOWED_SCOPES
-    timeout = datetime.now() + app.config.get('ACCESS_TOKEN_LIFETIME')
-    expiration = int(timeout.strftime('%s'))
+
+    now = datetime.now()
+    expiration = int(
+        (now + app.config.get('ACCESS_TOKEN_LIFETIME')).strftime('%s')
+    )
+    timeout = datetime.fromtimestamp(expiration, pytz.utc)
 
     access_token = generate_signed_access_token(
         keypair.kid, keypair.private_key, user,
