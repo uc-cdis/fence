@@ -20,6 +20,7 @@ import fence.blueprints.login
 import fence.blueprints.oauth2
 import fence.blueprints.storage_creds
 import fence.blueprints.user
+import fence.blueprints.well_known
 import fence.client
 
 
@@ -30,6 +31,7 @@ app.register_blueprint(fence.blueprints.user.blueprint, url_prefix='/user')
 app.register_blueprint(fence.blueprints.storage_creds.blueprint, url_prefix='/credentials')
 app.register_blueprint(fence.blueprints.admin.blueprint, url_prefix='/admin')
 app.register_blueprint(fence.blueprints.login.blueprint, url_prefix='/login')
+app.register_blueprint(fence.blueprints.well_known.blueprint, url_prefix='/.well-known')
 
 
 def app_config(app, settings='fence.settings', root_dir=None):
@@ -55,7 +57,7 @@ def app_config(app, settings='fence.settings', root_dir=None):
     # the clients, so that fence can also call the validation functions in
     # ``cdispyutils``.
     app.jwt_public_keys = OrderedDict([
-        (keypair.kid, keypair.public_key)
+        (str(keypair.kid), str(keypair.public_key))
         for keypair in app.keypairs
     ])
 
