@@ -123,7 +123,7 @@ class UnsignedIDToken(AuthlibCodeIDToken):
                                      NOTE: This is TRUE by default
             client_id (str, optional): Client identifier, defaults to
                                        current client in flask context
-            issuer (str, optional)l
+            issuer (str, optional)
                 Issuer Identifier(s) for the Issuer of the response, defaults
                 to HOST_NAME
             max_age (int, optional):

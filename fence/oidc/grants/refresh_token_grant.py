@@ -17,8 +17,26 @@ import fence.jwt.validate
 
 
 class RefreshTokenGrant(AuthlibRefreshTokenGrant):
+    """
+    Implement the refresh token grant which the OIDC provider will use.
+
+    This class both implements some methods required by authlib, and overrides
+    others to change the default behavior from authlib; see method docstrings
+    for details.
+    """
 
     def authenticate_refresh_token(self, refresh_token):
+        """
+        Validate a refresh token.
+
+        Required to implement this method for authlib.
+
+        Args:
+            refresh_token (str): refresh token as from a request
+
+        Return:
+            dict: the claims from the validated token
+        """
         try:
             if is_token_blacklisted(refresh_token):
                 return
@@ -27,9 +45,22 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         return fence.jwt.validate.validate_refresh_token(refresh_token)
 
     def create_access_token(self, token, client, authenticated_token):
+        """
+        Authlib requires the implementation of this method to save the token.
+        However, fence does not save the access tokens to a database, so just
+        return the original token again.
+        """
         return token
 
     def authenticate_client(self):
+        """
+        Authenticate the client issuing the refresh request.
+
+        NOTE: this overrides the method from authlib in order to change the
+        checking on the client secret. Fence stores client secrets as hashes,
+        so the check on the incoming client secret in the request must be
+        changed accordingly.
+        """
         client_params = self.parse_basic_auth_header()
         if not client_params:
             raise InvalidClientError(uri=self.uri)
@@ -37,6 +68,7 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         client_id, client_secret = client_params
         client = self.get_and_validate_client(client_id)
 
+        # Check the hash of the provided client secret against stored hash.
         hashed = client.client_secret
         if bcrypt.hashpw(client_secret, hashed) != hashed:
             raise InvalidClientError(uri=self.uri)
@@ -45,7 +77,12 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
 
     def validate_access_token_request(self):
         """
-        From authlib:
+        Check that the refrehs request is valid.
+
+        NOTE: this overrides the method from authlib to do different scope
+        checking using the ``access_aud`` field from the refresh token.
+
+        Docs from authlib:
 
         If the authorization server issued a refresh token to the client, the
         client makes a refresh request to the token endpoint by adding the
@@ -121,6 +158,13 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         self._authenticated_token = token
 
     def create_access_token_response(self):
+        """
+        Create the token response for a refresh request.
+
+        NOTE: this overrides the method from authlib in order to handle the
+        scopes differrently (and default the scopes to the ``access_aud``
+        field from the refresh token).
+        """
         scope = self.params.get('scope')
         if not scope:
             scope = self._authenticated_token['access_aud']

@@ -29,7 +29,10 @@ class OIDCServer(AuthorizationServer):
         """
         Find the authorization grant for current request.
 
-        This overrides the method in authlib to patch a small bug.
+        TODO: this overrides the method in authlib to patch a small bug, so we
+        can remove this method once the bug is fixed. See:
+
+            https://github.com/lepture/authlib/issues/15
 
         Args:
             uri (str): HTTP request URI string.
