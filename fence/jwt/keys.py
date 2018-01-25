@@ -37,6 +37,12 @@ class Keypair(object):
         Get the JWK representation of the public key in this keypair according
         to the specification of RFC 7517.
 
+        Fence only uses RSA, and the public keys are only used for JWT
+        validation, so it is assumed both all keys should have type ``RSA``
+        (and therefore contain fields ``n`` and ``e`` for the public key
+        modulus and exponent), and the values of ``use`` and ``key_ops`` are
+        also hard-coded accordingly.
+
         Return:
             dict: JWK representation of the public key
         """
