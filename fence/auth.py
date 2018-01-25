@@ -138,3 +138,9 @@ def get_current_user():
         .filter(User.username == username)
         .first()
     )
+
+
+def get_user_from_token(decoded_jwt):
+    username = decoded_jwt["context"]["user"]["name"]
+    return current_session.query(
+        User).filter(User.username == username).first()

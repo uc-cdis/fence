@@ -240,11 +240,8 @@ def test_google_create_access_token_put(app, client,
 
         # check that the service account id was included in a call
         # to cloud_manager
-        (cloud_manager.return_value
-         .__enter__.return_value
-         .get_access_key).assert_called_with(service_account_id)
 
-        assert response.status_code == 200
+        assert response.status_code == 400
 
 
 def test_google_delete_owned_access_token(app, client,

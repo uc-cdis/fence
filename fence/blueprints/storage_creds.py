@@ -16,6 +16,7 @@ from fence.resources.storage.cdis_jwt import create_refresh_token,\
     revoke_refresh_token, create_access_token
 
 from fence.data_model.models import UserRefreshToken
+from fence.errors import NotSupported
 
 blueprint = flask.Blueprint('credentials', __name__)
 
@@ -191,7 +192,10 @@ def create_keypairs(provider):
     '''
     client_id = getattr(g, 'client_id', None)
     if provider == 'cdis':
-        scopes = request.form.getlist('scopes')
+        if flask.request.headers['Content-Type'] == 'application/x-www-form-urlencoded':
+            scopes = request.form.getlist("scopes")
+        else:
+            scopes = json.loads(request.data)["scopes"]
         if not isinstance(scopes, list):
             scopes = scopes.split(',')
         token, jti = create_refresh_token(
@@ -209,7 +213,6 @@ def create_keypairs(provider):
 
 
 @blueprint.route('/<provider>/', methods=['PUT'])
-@login_required({'credentials'})
 def create_access_token_api(provider):
     '''
     Generate a credential (keypair/token) for user
@@ -261,19 +264,17 @@ def create_access_token_api(provider):
     '''
     client_id = getattr(g, 'client_id', None)
     if provider == 'cdis':
-        result = create_access_token(
-            g.user, capp.keypairs[0],
-            request.form['refresh_token'],
-            request.args.get('expire', 2592000),
-            client_id
-        )
+        if flask.request.headers['Content-Type'] == 'application/x-www-form-urlencoded':
+            refresh_token = request.form.get("refresh_token")
+        else:
+            refresh_token = json.loads(request.data)["refresh_token"]
+        result = create_access_token(capp.keypairs[0],
+                                     refresh_token,
+                                     request.args.get('expire', 2592000),
+                                     client_id)
         return jsonify(dict(access_token=result))
-    elif provider == 'google':
-        with GoogleCloudManager() as g_cloud:
-            key = _get_google_access_key(g_cloud)
-        return jsonify(key)
     else:
-        return jsonify(capp.storage_manager.create_keypair(provider, g.user))
+        raise NotSupported("The method is not supported for this resource")
 
 
 @blueprint.route('/<provider>/<access_key>', methods=['DELETE'])
