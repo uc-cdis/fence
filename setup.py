@@ -15,11 +15,11 @@ setup(
         "Flask==0.10.1",
         "Flask-CORS==3.0.3",
         "Flask_OAuthlib==0.9.4",
-        "flask_postgres_session",
         "Flask_SQLAlchemy_Session==1.1",
         "google_api_python_client==1.6.4",
         "httplib2==0.10.3",
         "oauthlib==2.0.6",
+        "psycopg2==2.7.3.2",
         "pysftp==0.2.9",
         "pytest-flask==0.10.0",
         "pytest==3.2.3",
@@ -37,7 +37,6 @@ setup(
         "pyyaml"
     ],
     dependency_links=[
-        "git+https://github.com/uc-cdis/flask-postgres-session.git@0.1.4#egg=flask_postgres_session-0.1.3",
         "git+https://github.com/uc-cdis/storage-client.git@0.1.7#egg=storageclient-0.1.4",
         "git+https://github.com/uc-cdis/userdatamodel.git@1.0.2#egg=userdatamodel",
         "git+https://github.com/uc-cdis/cdis-python-utils.git@0.2.4#egg=cdispyutils",

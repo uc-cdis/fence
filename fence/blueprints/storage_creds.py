@@ -4,6 +4,7 @@ import json
 from fence.auth import login_required
 from fence.data_model.models import GoogleServiceAccount
 from fence.data_model.models import GoogleProxyGroup
+
 from flask import current_app as capp
 from flask import g, request, jsonify
 from ..resources.storage import get_endpoints_descriptions

@@ -17,7 +17,7 @@ from sqlalchemy import BigInteger, Column, String
 from userdatamodel import Base
 from fence.data_model.models import UserRefreshToken
 
-from . import keys
+from fence.jwt import keys
 
 
 class BlacklistedToken(Base):

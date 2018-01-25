@@ -16,6 +16,14 @@ def create_refresh_token(user, keypair, expires_in, scopes, client_id):
     return return_token, claims["jti"]
 
 
+def create_session_token(
+        keypair, expires_in, username=None, session_started=None,
+        provider=None, redirect=None):
+    return token.generate_signed_session_token(keypair.kid, keypair.private_key,
+                                               expires_in, username,
+                                               session_started, provider, redirect)
+
+
 def create_access_token(user, keypair, refresh_token, expires_in, client_id):
     try:
         decoded_jwt = token.validate_refresh_token(refresh_token)

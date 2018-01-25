@@ -5,12 +5,16 @@ import jwt
 import json
 
 from datetime import datetime, timedelta
-from flask_sqlalchemy_session import current_session
 
 from cdispyutils import auth
-from . import blacklist, errors, keys
-from .blacklist import BlacklistedToken
-from ..data_model import models
+from fence.jwt import blacklist, errors, keys
+from fence.jwt.blacklist import BlacklistedToken
+
+
+# Allowed scopes for user requested token and oauth2 client requested token
+# TODO: this should be more discoverable and configurable
+USER_ALLOWED_SCOPES = ['user', 'credentials', 'data']
+CLIENT_ALLOWED_SCOPES = ['user', 'data']
 
 
 def issued_and_expiration_times(seconds_to_expire):
@@ -31,6 +35,52 @@ def issued_and_expiration_times(seconds_to_expire):
     return (iat, exp)
 
 
+def generate_signed_session_token(
+        kid, private_key, expires_in, username=None, session_started=None,
+        provider=None, redirect=None):
+    """
+    Generate a JWT session token from the given request, and output a UTF-8
+    string of the encoded JWT signed with the private key.
+
+    Args:
+        private_key (str): RSA private key to sign and encode the JWT with
+        request (oauthlib.common.Request): token request to handle
+        session_started (int): unix time the original session token was provided
+
+    Return:
+        str: encoded JWT session token signed with ``private_key``
+    """
+    headers = {'kid': kid}
+    iat, exp = issued_and_expiration_times(expires_in)
+
+    # Create context based on provided information
+    context = {
+        'session_started': session_started or iat,  # Provided time or issued time
+    }
+    if username:
+        context["username"] = username
+    if provider:
+        context["provider"] = provider
+    if redirect:
+        context["redirect"] = redirect
+
+    claims = {
+        'aud': ['session'],
+        'sub': username or '',
+        'iss': flask.current_app.config.get('HOSTNAME'),
+        'iat': iat,
+        'exp': exp,
+        'jti': str(uuid.uuid4()),
+        'context': context,
+    }
+    flask.current_app.logger.debug(
+        'issuing JWT session token\n' + json.dumps(claims, indent=4)
+    )
+    token = jwt.encode(claims, private_key, headers=headers, algorithm='RS256')
+    token = oauthlib.common.to_unicode(token, 'UTF-8')
+    return token
+
+
 def generate_signed_refresh_token(kid, private_key, user, expires_in,
                                   scopes, client_id):
     """
@@ -46,10 +96,11 @@ def generate_signed_refresh_token(kid, private_key, user, expires_in,
     """
     headers = {'kid': kid}
     iat, exp = issued_and_expiration_times(expires_in)
+    sub = str(user.id)
     jti = str(uuid.uuid4())
     claims = {
         'aud': ['refresh'],
-        'sub': str(user.id),
+        'sub': sub,
         'iss': flask.current_app.config.get('HOSTNAME'),
         'iat': iat,
         'exp': exp,
@@ -65,6 +116,9 @@ def generate_signed_refresh_token(kid, private_key, user, expires_in,
         'azp': client_id or ''
     }
     flask.current_app.logger.info(
+        'issuing JWT refresh token with id [{}] to [{}]'.format(jti, sub)
+    )
+    flask.current_app.logger.debug(
         'issuing JWT refresh token\n' + json.dumps(claims, indent=4)
     )
     token = jwt.encode(claims, private_key, headers=headers, algorithm='RS256')
@@ -73,7 +127,7 @@ def generate_signed_refresh_token(kid, private_key, user, expires_in,
 
 
 def generate_signed_access_token(kid, private_key, user, expires_in,
-                                 scopes, client_id):
+                                 scopes, client_id, forced_exp_time=None):
     """
     Generate a JWT refresh token from the given request, and output a UTF-8
     string of the encoded JWT signed with the private key.
@@ -83,20 +137,31 @@ def generate_signed_access_token(kid, private_key, user, expires_in,
         private_key (str): RSA private key to sign and encode the JWT with
         user:
         expires_in:
-        scopes
+        scopes:
+        client_id:
+        forced_exp_time: force the expiration time to given times in seconds
+                         in unix time. NOTE: This effectively ignores the
+                         provided `expires_in` argument
 
     Return:
         str: encoded JWT access token signed with ``private_key``
     """
     headers = {'kid': kid}
+
     iat, exp = issued_and_expiration_times(expires_in)
+
+    # force exp time if provided
+    exp = forced_exp_time or exp
+
+    sub = str(user.id)
+    jti = str(uuid.uuid4())
     claims = {
         'aud': scopes + ['access'],
-        'sub': str(user.id),
+        'sub': sub,
         'iss': flask.current_app.config.get('HOSTNAME'),
         'iat': iat,
         'exp': exp,
-        'jti': str(uuid.uuid4()),
+        'jti': jti,
         'context': {
             'user': {
                 'name': user.username,
@@ -107,10 +172,13 @@ def generate_signed_access_token(kid, private_key, user, expires_in,
         'azp': client_id or ''
     }
     flask.current_app.logger.info(
+        'issuing JWT access token with id [{}] to [{}]'.format(jti, sub)
+    )
+    flask.current_app.logger.debug(
         'issuing JWT access token\n' + json.dumps(claims, indent=4)
     )
     token = jwt.encode(claims, private_key, headers=headers, algorithm='RS256')
-    flask.current_app.logger.info(str(token))
+    flask.current_app.logger.debug(str(token))
     return token
 
 

@@ -2,7 +2,7 @@ from functools import wraps
 from random import SystemRandom
 from werkzeug.datastructures import ImmutableMultiDict
 from userdatamodel.driver import SQLAlchemyDriver
-from .data_model.models import Client, User, Token
+from fence.data_model.models import Client, User, Token
 from flask import current_app as capp
 from flask import request
 from flask import Response

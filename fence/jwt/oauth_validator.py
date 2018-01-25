@@ -3,9 +3,9 @@ import flask
 import flask_oauthlib
 import jwt
 
-from . import keys, token, errors
+from fence.jwt import keys, token, errors
 from cdispyutils import auth
-from .blacklist import BlacklistedToken
+from fence.jwt.blacklist import BlacklistedToken
 
 
 class OAuthValidator(flask_oauthlib.provider.OAuth2RequestValidator):

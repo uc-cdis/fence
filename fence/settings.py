@@ -15,11 +15,14 @@ SINGLE_LOGOUT = 'https://itrusteauth.nih.gov/siteminderagent/smlogout.asp?mode=n
 LOGOUT = "https://bionimbus-pdc.opensciencedatacloud.org/auth/logout/?next=/Shibboleth.sso/Logout%3Freturn%3Dhttps%3A%2F%2Fbionimbus-pdc.opensciencedatacloud.org/api"
 BIONIMBUS_ACCOUNT_ID = 655886864976
 
+ACCESS_TOKEN_LIFETIME = timedelta(seconds=600)
+ACCESS_TOKEN_COOKIE_NAME = "access_token"
+
 # stale session time
 SESSION_TIMEOUT = timedelta(seconds=1800)
 # max session lifetime
 SESSION_LIFETIME = timedelta(seconds=28800)
-SESSION_COOKIE_NAME = "fence_session"
+SESSION_COOKIE_NAME = "fence"
 
 # ``JWT_KEYPAIRS`` is an ordered dictionary of entries ``kid:
 # (public_key_filename, private_key_filename)`` mapping key ids to keypairs
