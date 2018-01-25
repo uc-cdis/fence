@@ -9,5 +9,5 @@ def get_refresh_token(client):
     path = (
         '/credentials/cdis/'
     )
-    response = client.post(path)
+    response = client.post(path, data={'scopes': ['data', 'user']})
     return response

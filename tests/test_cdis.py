@@ -5,7 +5,9 @@ def test_cdis_create_refresh_token(client, oauth_client):
     """
     Test ``POST /credentials/cdis``.
     """
-    assert 'token' in utils.get_refresh_token(client).json
+    res = utils.get_refresh_token(client).json
+    assert 'token_id' in res
+    assert 'refresh_token' in res
 
 
 def test_cdis_get_access_token(client, oauth_client):
@@ -13,7 +15,7 @@ def test_cdis_get_access_token(client, oauth_client):
     Test ``PUT /credentials/cdis``.
     """
     response = utils.get_refresh_token(client)
-    refresh_token = response.json['token']
+    refresh_token = response.json['refresh_token']
     path = (
         '/credentials/cdis/'
     )
