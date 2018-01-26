@@ -95,7 +95,7 @@ def login_required(scope=None):
 
 def has_oauth(scope=None):
     scope = scope or set()
-    scope.update({'access'})
+    scope.update({'openid'})
     try:
         access_token = auth.validate_request_jwt(
             aud=scope

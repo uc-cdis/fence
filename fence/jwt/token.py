@@ -210,6 +210,7 @@ def generate_id_token(
     auth_time = auth_time or iat
 
     claims = {
+        'pur': 'id',
         'aud': audiences,
         'sub': str(user.id),
         'iss': issuer,
@@ -296,13 +297,13 @@ def generate_signed_refresh_token(kid, private_key, user, expires_in, scopes):
     headers = {'kid': kid}
     iat, exp = issued_and_expiration_times(expires_in)
     claims = {
-        'aud': ['refresh'],
+        'pur': 'refresh',
+        'aud': scopes,
         'sub': str(user.id),
         'iss': flask.current_app.config.get('HOST_NAME'),
         'iat': iat,
         'exp': exp,
         'jti': str(uuid.uuid4()),
-        'access_aud': scopes,
     }
     flask.current_app.logger.info(
         'issuing JWT refresh token\n' + json.dumps(claims, indent=4)
@@ -330,9 +331,9 @@ def generate_signed_access_token(kid, private_key, user, expires_in, scopes):
     """
     headers = {'kid': kid}
     iat, exp = issued_and_expiration_times(expires_in)
-    aud = list(set(scopes).union({'access'}))
     claims = {
-        'aud': aud,
+        'pur': 'access',
+        'aud': scopes,
         'sub': str(user.id),
         'iss': flask.current_app.config.get('HOST_NAME'),
         'iat': iat,

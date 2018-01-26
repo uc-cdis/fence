@@ -10,10 +10,9 @@ from authlib.specs.rfc6749.grants import (
     RefreshTokenGrant as AuthlibRefreshTokenGrant
 )
 
-import fence
 from fence.jwt.blacklist import is_token_blacklisted
 from fence.jwt.errors import JWTError
-import fence.jwt.validate
+from fence.jwt.validate import validate_jwt
 
 
 class RefreshTokenGrant(AuthlibRefreshTokenGrant):
@@ -42,7 +41,7 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
                 return
         except JWTError:
             return
-        return fence.jwt.validate.validate_refresh_token(refresh_token)
+        return validate_jwt(refresh_token, purpose='refresh')
 
     def create_access_token(self, token, client, authenticated_token):
         """

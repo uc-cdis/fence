@@ -137,11 +137,11 @@ def is_token_blacklisted(encoded_token, public_key=None):
     public_key = public_key or keys.default_public_key()
     try:
         token = jwt.decode(
-            encoded_token, public_key, algorithm='RS256', audience='refresh'
+            encoded_token, public_key, algorithm='RS256', audience='openid'
         )
     except jwt.exceptions.InvalidTokenError as e:
         raise JWTError(
-            'could not decode tokne to check blacklisting: {}'
+            'could not decode token to check blacklisting: {}'
             .format(e)
         )
     return is_blacklisted(token['jti'])
