@@ -51,6 +51,7 @@ def check_scope(scope):
     return wrapper
 
 
+
 def login_required(scope=None):
     """
     Create decorator to require a user session in shibboleth.
@@ -132,3 +133,16 @@ def get_current_user():
         .filter(User.username == username)
         .first()
     )
+
+def admin_required(f):
+    """
+    Require user to be an admin user. 
+    """
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not g.user:
+            raise Unauthorized("Require login")
+        if g.user.is_admin is not True:
+            raise Unauthorized("Require admin user")
+        return f(*args, **kwargs)
+    return wrapper
