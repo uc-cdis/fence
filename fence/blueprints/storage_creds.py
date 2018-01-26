@@ -5,10 +5,10 @@ from fence.auth import login_required
 from fence.data_model.models import GoogleServiceAccount
 from fence.data_model.models import GoogleProxyGroup
 from fence.data_model.models import UserRefreshToken
-from fence.errors import NotSupported
+from fence.errors import NotSupported, UserError
 from fence.jwt.token import USER_ALLOWED_SCOPES
 from fence.resources.storage.cdis_jwt import create_refresh_token,\
-    revoke_refresh_token, create_access_token
+    revoke_refresh_token, create_user_access_token
 
 from flask import current_app as capp
 from flask import g, request, jsonify
@@ -145,7 +145,7 @@ def create_keypairs(provider):
     '''
     Generate a keypair for user
 
-    :query expires_in: expiration time in seconds, default to 30 days
+    :query expires_in: expiration time in seconds, default and max is 30 days
 
     **Example:**
     .. code-block:: http
@@ -193,18 +193,25 @@ def create_keypairs(provider):
     '''
     client_id = getattr(g, 'client_id', None)
     if provider == 'cdis':
-        if flask.request.headers['Content-Type'] == 'application/x-www-form-urlencoded':
+        # requestor is user if client_id is not set
+        if client_id is None:
+            client_id = str(g.user.id)
+        if flask.request.headers.get('Content-Type') == 'application/x-www-form-urlencoded':
             scopes = request.form.getlist("scopes")
         else:
-            scopes = json.loads(request.data)["scopes"]
+            try:
+                scopes = json.loads(request.data).get("scopes") or []
+            except ValueError:
+                scopes = []
         if not isinstance(scopes, list):
             scopes = scopes.split(',')
         for scope in scopes:
             if scope not in USER_ALLOWED_SCOPES:
                 raise NotSupported('Scope {} is not supported'.format(scope))
+        expires_in = min(int(request.args.get('expires_in', 2592000)), 2592000)
         token, jti = create_refresh_token(
             g.user, capp.keypairs[0],
-            request.args.get('expires_in', 2592000),
+            expires_in,
             scopes, client_id
         )
         return jsonify(dict(key_id=jti, api_key=token))
@@ -221,7 +228,7 @@ def create_access_token_api():
     '''
     Generate an access_token for user
 
-    :query expires_in: expiration time in seconds, default to 3600
+    :query expires_in: expiration time in seconds, default to 3600, max is 3600
 
     **Example:**
     .. code-block:: http
@@ -237,15 +244,18 @@ def create_access_token_api():
             "token" "token_value"
         }
     '''
-    client_id = getattr(g, 'client_id', None)
-    if flask.request.headers['Content-Type'] == 'application/x-www-form-urlencoded':
+    if flask.request.headers.get('Content-Type') == 'application/x-www-form-urlencoded':
         api_key = request.form.get("api_key")
     else:
-        api_key = json.loads(request.data)["api_key"]
-    result = create_access_token(capp.keypairs[0],
-                                 api_key,
-                                 request.args.get('expires_in', 2592000),
-                                 client_id)
+        try:
+            api_key = json.loads(request.data).get("api_key")
+        except ValueError:
+            api_key = None
+    if not api_key:
+        raise UserError("Please provide an api_key in payload")
+    expires_in = min(int(request.args.get('expires_in', 3600)), 3600)
+    result = create_user_access_token(
+        capp.keypairs[0], api_key, expires_in)
     return jsonify(dict(access_token=result))
 
 

@@ -32,8 +32,6 @@ def login_from_google():
         session['username'] = email
         session['provider'] = IdentityProvider.google
         login_user(request, email, IdentityProvider.google)
-        # print session['redirect']
-        print session
         if session.get('redirect'):
             return redirect(session.get('redirect'))
         return jsonify({'username': email})

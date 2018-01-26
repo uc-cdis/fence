@@ -22,6 +22,29 @@ def create_session_token(
                                                session_started, provider, redirect)
 
 
+def create_user_access_token(keypair, api_key, expires_in):
+    """
+    create access token given a user's api key
+    Args:
+        keypair: RSA keypair for signing jwt
+        api_key: user created jwt token, the azp should match with user.id
+        expires_in: expiration time in seconds
+    Return:
+        access token
+    """
+    try:
+        decoded_jwt = token.validate_refresh_token(api_key)
+        user_id = decoded_jwt['sub']
+        if decoded_jwt['azp'] != user_id:
+            raise Unauthorized("Only user can request user access token")
+        scopes = decoded_jwt["access_aud"]
+        user = get_user_from_token(decoded_jwt)
+    except Exception as e:
+        raise Unauthorized(e.message)
+    return token.generate_signed_access_token(
+        keypair.kid, keypair.private_key, user, expires_in, scopes, user_id)
+
+
 def create_access_token(keypair, refresh_token, expires_in, client_id):
     try:
         decoded_jwt = token.validate_refresh_token(refresh_token)
