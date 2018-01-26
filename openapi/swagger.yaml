@@ -230,7 +230,7 @@ paths:
           in: query
           description: a protocol provided by storage provider, currently supports 'http' and 's3' protocols
           enum: [http, s3]
-        - name: expires
+        - name: expires_in
           required: false
           type: int
           in: query
@@ -264,7 +264,7 @@ paths:
           in: query
           description: a protocol provided by storage provider, currently supports 'http' and 's3' protocols
           enum: [http, s3]
-        - name: expires
+        - name: expires_in
           required: false
           type: int
           in: query

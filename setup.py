@@ -39,7 +39,7 @@ setup(
     dependency_links=[
         "git+https://github.com/uc-cdis/storage-client.git@0.1.7#egg=storageclient-0.1.4",
         "git+https://github.com/uc-cdis/userdatamodel.git@1.0.2#egg=userdatamodel",
-        "git+https://github.com/uc-cdis/cdis-python-utils.git@0.2.4#egg=cdispyutils",
+        "git+https://github.com/uc-cdis/cdis-python-utils.git@0.2.5#egg=cdispyutils",
         "git+https://github.com/uc-cdis/cirrus.git@0.0.0#egg=cirrus-0.0.0",
     ],
     scripts=[

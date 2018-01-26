@@ -2,57 +2,65 @@ import json
 from .utils import cdis as utils
 
 
-def test_cdis_create_refresh_token(client, oauth_client):
+def test_cdis_create_api_key(client, oauth_client):
     """
     Test ``POST /credentials/cdis``.
     """
-    res = utils.get_refresh_token_with_json(client).json
-    assert 'token_id' in res
-    assert 'refresh_token' in res
+    res = utils.get_api_key_with_json(client).json
+    assert 'key_id' in res
+    assert 'api_key' in res
+
+
+def test_cdis_create_api_key_with_disallowed_scope(client, oauth_client):
+    """
+    Test ``POST /credentials/cdis``.
+    """
+    res = utils.get_api_key(client, scopes=['credentials'])
+    assert res.status_code == 400
 
 
 def test_cdis_get_access_token(client, oauth_client):
     """
-    Test ``PUT /credentials/cdis``.
+    Test ``POST /credentials/cdis/access_token``.
     """
-    response = utils.get_refresh_token(client)
-    refresh_token = response.json['refresh_token']
+    response = utils.get_api_key(client)
+    api_key = response.json['api_key']
     path = (
-        '/credentials/cdis/'
+        '/credentials/cdis/access_token'
     )
     data = {
-        'refresh_token': refresh_token,
+        'api_key': api_key,
     }
     headers = {
         'Content-Type': 'application/json'
     }
-    response = client.put(path, data=json.dumps(data), headers=headers)
+    response = client.post(path, data=json.dumps(data), headers=headers)
     assert 'access_token' in response.json
 
 
 def test_cdis_get_access_token_with_formdata(client, oauth_client):
     """
-    Test ``PUT /credentials/cdis``.
+    Test ``POST /credentials/cdis``.
     """
-    response = utils.get_refresh_token(client)
-    refresh_token = response.json['refresh_token']
+    response = utils.get_api_key(client)
+    api_key = response.json['api_key']
     path = (
-        '/credentials/cdis/'
+        '/credentials/cdis/access_token'
     )
     data = {
-        'refresh_token': refresh_token,
+        'api_key': api_key,
     }
     headers = {
         'Content-Type': 'application/x-www-form-urlencoded'
     }
-    response = client.put(path, data=data, headers=headers)
+    response = client.post(path, data=data, headers=headers)
     assert 'access_token' in response.json
 
 
-def test_cdis_list_refresh_token(client, oauth_client):
-    utils.get_refresh_token(client)
-    utils.get_refresh_token(client)
-    utils.get_refresh_token(client)
+def test_cdis_list_api_key(client, oauth_client):
+    utils.get_api_key(client)
+    utils.get_api_key(client)
+    utils.get_api_key(client)
     path = (
         '/credentials/cdis/'
     )

@@ -1,7 +1,7 @@
 import json
 
 
-def get_refresh_token(client):
+def get_api_key(client, scopes=None):
     """
     Args:
         client: client fixture
@@ -15,11 +15,13 @@ def get_refresh_token(client):
     headers = {
         'Content-Type': 'application/x-www-form-urlencoded'
     }
-    response = client.post(path, data={'scopes': ['data', 'user']}, headers=headers)
+    if scopes is None:
+        scopes = ['data', 'user']
+    response = client.post(path, data={'scopes': scopes}, headers=headers)
     return response
 
 
-def get_refresh_token_with_json(client):
+def get_api_key_with_json(client):
     """
     Args:
         client: client fixture
