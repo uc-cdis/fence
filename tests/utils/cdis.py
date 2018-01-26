@@ -1,7 +1,7 @@
 import json
 
 
-def get_refresh_token(client):
+def get_api_key(client):
     """
     Args:
         client: client fixture
@@ -19,7 +19,7 @@ def get_refresh_token(client):
     return response
 
 
-def get_refresh_token_with_json(client):
+def get_api_key_with_json(client):
     """
     Args:
         client: client fixture

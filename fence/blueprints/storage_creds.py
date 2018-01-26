@@ -144,12 +144,12 @@ def create_keypairs(provider):
     '''
     Generate a keypair for user
 
-    :query expire: expiration time in seconds, default to 3600
+    :query expires_in: expiration time in seconds, default to 30 days
 
     **Example:**
     .. code-block:: http
 
-           POST /hmac/ HTTP/1.1
+           POST /credentials/cdis/?expires_in=3600 HTTP/1.1
            Content-Type: application/json
            Accept: application/json
 
@@ -158,8 +158,8 @@ def create_keypairs(provider):
     .. code-block:: JavaScript
 
         {
-            "token_id": result,
-            "refresh_token": result
+            "key_id": result,
+            "api_key": result
         }
 
     google:
@@ -200,10 +200,10 @@ def create_keypairs(provider):
             scopes = scopes.split(',')
         token, jti = create_refresh_token(
             g.user, capp.keypairs[0],
-            request.args.get('expire', 2592000),
+            request.args.get('expires_in', 2592000),
             scopes, client_id
         )
-        return jsonify(dict(token_id=jti, refresh_token=token))
+        return jsonify(dict(key_id=jti, api_key=token))
     elif provider == 'google':
         with GoogleCloudManager() as g_cloud:
             key = _get_google_access_key(g_cloud)
@@ -212,12 +212,12 @@ def create_keypairs(provider):
         return jsonify(capp.storage_manager.create_keypair(provider, g.user))
 
 
-@blueprint.route('/<provider>/', methods=['PUT'])
-def create_access_token_api(provider):
+@blueprint.route('/cdis/access_token', methods=['POST'])
+def create_access_token_api():
     '''
-    Generate a credential (keypair/token) for user
+    Generate an access_token for user
 
-    :query expire: expiration time in seconds, default to 3600
+    :query expires_in: expiration time in seconds, default to 3600
 
     **Example:**
     .. code-block:: http
@@ -226,55 +226,23 @@ def create_access_token_api(provider):
            Content-Type: application/json
            Accept: application/json
 
-    cdis:
 
     .. code-block:: JavaScript
 
         {
             "token" "token_value"
         }
-
-    google:
-    (JSON key in Google Credentials File format)
-
-    .. code-block:: JavaScript
-
-        {
-            "type": "service_account",
-            "project_id": "project-id",
-            "private_key_id": "some_number",
-            "private_key": "-----BEGIN PRIVATE KEY-----\n....
-            =\n-----END PRIVATE KEY-----\n",
-            "client_email": "<api-name>api@project-id.iam.gserviceaccount.com",
-            "client_id": "...",
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://accounts.google.com/o/oauth2/token",
-            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-            "client_x509_cert_url": "https://www.googleapis.com/...<api-name>api%40project-id.iam.gserviceaccount.com"
-        }
-
-    other:
-
-    .. code-block:: JavaScript
-
-        {
-            "access_key": "8DGW9LyC0D4nByoWo6pp",
-            "secret_key": "1lnkGScEH8Vr4EC6QnoqLK1PqRWPNqIBJkH6Vpgx"
-        }
     '''
     client_id = getattr(g, 'client_id', None)
-    if provider == 'cdis':
-        if flask.request.headers['Content-Type'] == 'application/x-www-form-urlencoded':
-            refresh_token = request.form.get("refresh_token")
-        else:
-            refresh_token = json.loads(request.data)["refresh_token"]
-        result = create_access_token(capp.keypairs[0],
-                                     refresh_token,
-                                     request.args.get('expire', 2592000),
-                                     client_id)
-        return jsonify(dict(access_token=result))
+    if flask.request.headers['Content-Type'] == 'application/x-www-form-urlencoded':
+        api_key = request.form.get("api_key")
     else:
-        raise NotSupported("The method is not supported for this resource")
+        api_key = json.loads(request.data)["api_key"]
+    result = create_access_token(capp.keypairs[0],
+                                 api_key,
+                                 request.args.get('expires_in', 2592000),
+                                 client_id)
+    return jsonify(dict(access_token=result))
 
 
 @blueprint.route('/<provider>/<access_key>', methods=['DELETE'])

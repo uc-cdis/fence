@@ -191,59 +191,6 @@ def test_google_create_access_token_post(app, oauth_client,
         assert response.status_code == 200
 
 
-def test_google_create_access_token_put(app, client,
-                                        oauth_client,
-                                        cloud_manager):
-    """
-    Test ``PUT /credentials/google``.
-    """
-    client_id = oauth_client["client_id"]
-    service_account_id = "123456789"
-    proxy_group_id = "proxy_group_0"
-    path = (
-        "/credentials/google/"
-    )
-    data = {}
-    with app.test_client() as app_client:
-
-        # set global client context
-        g.client_id = client_id
-
-        # get test user info
-        user = (
-            current_session
-                .query(User)
-                .filter_by(username="test")
-                .first()
-        )
-        user_id = user.id
-
-        # create a  proxy group for user
-        proxy_group = GoogleProxyGroup(
-            id=proxy_group_id,
-            user_id=user_id,
-        )
-        current_session.add(proxy_group)
-
-        # create a service account for client for user
-        service_account = GoogleServiceAccount(
-            google_unique_id=service_account_id,
-            client_id=client_id,
-            user_id=user_id,
-            email=(client_id + "-" + str(user_id) + "@test.com")
-        )
-        current_session.add(user)
-        current_session.add(service_account)
-        current_session.commit()
-
-        response = app_client.put(path, data=data)
-
-        # check that the service account id was included in a call
-        # to cloud_manager
-
-        assert response.status_code == 400
-
-
 def test_google_delete_owned_access_token(app, client,
                                           oauth_client,
                                           cloud_manager):

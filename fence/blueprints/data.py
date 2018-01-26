@@ -105,7 +105,7 @@ def resolve_url(url, location, expires, action):
 
 def return_link(action, urls):
     protocol = request.args.get('protocol', None)
-    expires = request.args.get('expires', None)
+    expires = request.args.get('expires_in', None)
     if (protocol is not None) and (protocol not in SUPPORTED_PROTOCOLS):
         raise NotSupported("The specified protocol is not supported")
     if len(urls) == 0:
