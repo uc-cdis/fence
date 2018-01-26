@@ -1,7 +1,7 @@
 import json
 
 
-def get_api_key(client):
+def get_api_key(client, scopes=None):
     """
     Args:
         client: client fixture
@@ -15,7 +15,9 @@ def get_api_key(client):
     headers = {
         'Content-Type': 'application/x-www-form-urlencoded'
     }
-    response = client.post(path, data={'scopes': ['data', 'user']}, headers=headers)
+    if scopes is None:
+        scopes = ['data', 'user']
+    response = client.post(path, data={'scopes': scopes}, headers=headers)
     return response
 
 

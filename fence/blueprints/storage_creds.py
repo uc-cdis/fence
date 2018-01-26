@@ -4,6 +4,11 @@ import json
 from fence.auth import login_required
 from fence.data_model.models import GoogleServiceAccount
 from fence.data_model.models import GoogleProxyGroup
+from fence.data_model.models import UserRefreshToken
+from fence.errors import NotSupported
+from fence.jwt.token import USER_ALLOWED_SCOPES
+from fence.resources.storage.cdis_jwt import create_refresh_token,\
+    revoke_refresh_token, create_access_token
 
 from flask import current_app as capp
 from flask import g, request, jsonify
@@ -12,11 +17,7 @@ from flask import abort
 from flask_sqlalchemy_session import current_session
 
 from cirrus import GoogleCloudManager
-from fence.resources.storage.cdis_jwt import create_refresh_token,\
-    revoke_refresh_token, create_access_token
 
-from fence.data_model.models import UserRefreshToken
-from fence.errors import NotSupported
 
 blueprint = flask.Blueprint('credentials', __name__)
 
@@ -198,6 +199,9 @@ def create_keypairs(provider):
             scopes = json.loads(request.data)["scopes"]
         if not isinstance(scopes, list):
             scopes = scopes.split(',')
+        for scope in scopes:
+            if scope not in USER_ALLOWED_SCOPES:
+                raise NotSupported('Scope {} is not supported'.format(scope))
         token, jti = create_refresh_token(
             g.user, capp.keypairs[0],
             request.args.get('expires_in', 2592000),

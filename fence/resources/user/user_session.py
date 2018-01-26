@@ -36,7 +36,7 @@ import time
 from cdispyutils.auth.jwt_validation import validate_jwt
 from fence.jwt.keys import default_public_key
 from fence.jwt.token import generate_signed_access_token
-from fence.jwt.token import USER_ALLOWED_SCOPES
+from fence.jwt.token import SESSION_ALLOWED_SCOPES
 from fence.resources.storage.cdis_jwt import create_session_token
 from fence.errors import Unauthorized
 from fence import auth
@@ -219,7 +219,7 @@ def _clear_session_if_expired(app, session):
 
 def _create_access_token_cookie(app, response, user):
     keypair = app.keypairs[0]
-    scopes = USER_ALLOWED_SCOPES
+    scopes = SESSION_ALLOWED_SCOPES
 
     now = datetime.now()
     expiration = int(
