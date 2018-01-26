@@ -35,6 +35,7 @@ def test_id_token_required_fields(token_response_json):
     # Check that the ID token is a valid JWT.
     id_token = validate_jwt(token_response_json['id_token'], {'openid'})
     # Check for required fields.
+    assert 'pur' in id_token and id_token['pur'] == 'id'
     assert 'iss' in id_token
     assert 'sub' in id_token
     assert 'aud' in id_token
@@ -57,6 +58,7 @@ def test_access_token_correct_fields(token_response_json):
     access_token = validate_jwt(encoded_access_token, {'openid'})
     access_token_fields = set(access_token.keys())
     expected_fields = {
+        'pur',
         'iss',
         'sub',
         'aud',

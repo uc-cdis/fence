@@ -27,7 +27,8 @@ os.environ['AUTHLIB_INSECURE_TRANSPORT'] = 'true'
 @pytest.fixture(scope='session')
 def claims_refresh():
     new_claims = tests.utils.default_claims()
-    new_claims['aud'] = ['refresh']
+    new_claims['pur'] = 'refresh'
+    new_claims['aud'].append('fence')
     return new_claims
 
 

@@ -1,5 +1,6 @@
 from authlib.specs.rfc6750.token import BearerToken
 import flask
+from flask import current_app
 
 from fence.jwt.token import (
     generate_signed_access_token,
@@ -18,19 +19,20 @@ class JWTGenerator(BearerToken):
     """
 
     ACCESS_TOKEN_EXPIRES_IN = 1200
-    REFRESH_TOKEN_EXPIRES_IN = 28800
+    REFRESH_TOKEN_EXPIRES_IN = 1728000
 
     def __init__(self, *args, **kwargs):
         pass
 
     def __call__(
             self, client, grant_type, expires_in=None, scope=None,
-            include_refresh_token=True):
+            include_refresh_token=True, refresh_token=None):
         """
         Generate the token response, which looks like the following:
 
             {
                 'token_type': 'Bearer',
+                'id_token': 'eyJhb[...long encoded JWT...]OnoVQ',
                 'access_token': 'eyJhb[...long encoded JWT...]evfxA',
                 'refresh_token': 'eyJhb[ ... long encoded JWT ... ]KnLJA',
                 'expires_in': 1200,
@@ -41,6 +43,10 @@ class JWTGenerator(BearerToken):
         Args:
             client: not used (would be used to determine expiration)
             grant_type: not used
+            ...
+            refresh_token:
+                for a refresh token grant, pass in the previous refresh token
+                to return that same token again instead of generating a new one
         """
 
         user = get_current_user()
@@ -60,13 +66,16 @@ class JWTGenerator(BearerToken):
             expires_in=self.ACCESS_TOKEN_EXPIRES_IN,
             scopes=scope,
         )
-        refresh_token = generate_signed_refresh_token(
-            kid=keypair.kid,
-            private_key=keypair.private_key,
-            user=user,
-            expires_in=self.REFRESH_TOKEN_EXPIRES_IN,
-            scopes=scope,
-        )
+        # If ``refresh_token`` was passed (for instance from the refresh
+        # grant), use that instead of generating a new one.
+        if refresh_token is None:
+            refresh_token = generate_signed_refresh_token(
+                kid=keypair.kid,
+                private_key=keypair.private_key,
+                user=user,
+                expires_in=self.REFRESH_TOKEN_EXPIRES_IN,
+                scopes=scope,
+            )
         # ``expires_in`` is just the access token expiration time.
         expires_in = self.ACCESS_TOKEN_EXPIRES_IN
         return {
