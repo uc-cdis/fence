@@ -41,3 +41,9 @@ class NotSupported(APIError):
     def __init__(self, message):
         self.message = str(message)
         self.code = 400
+
+
+class UnavailableError(APIError):
+    def __init__(self, message):
+        self.message = str(message)
+        self.code = 503

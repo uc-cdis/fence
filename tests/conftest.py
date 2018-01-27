@@ -3,26 +3,87 @@
 Define pytest fixtures.
 """
 
-from mock import patch
+import json
+import jwt
+from mock import patch, MagicMock
+from moto import mock_s3, mock_sts
 import os
+import pytest
 
 from addict import Dict
 import bcrypt
 from cdisutilstest.code.storage_client_mock import get_client
-import flask_sqlalchemy_session
-import jwt
-import pytest
 
 import fence
 from fence import app_init
 from fence import models
 
 import tests
-from tests import test_settings, utils
+from tests import test_settings
+from tests import utils
 
 
 # Allow authlib to use HTTP for local testing.
 os.environ['AUTHLIB_INSECURE_TRANSPORT'] = 'true'
+
+
+class Mocker(object):
+
+    def mock_functions(self):
+        self.patcher = patch(
+            'fence.resources.storage.get_client',
+            get_client
+        )
+        self.auth_patcher = patch(
+            'fence.resources.storage.StorageManager.check_auth',
+            lambda cls, backend, user: True
+        )
+        self.patcher.start()
+        self.auth_patcher.start()
+        self.additional_patchers = []
+
+    def unmock_functions(self):
+        self.patcher.stop()
+        self.auth_patcher.stop()
+        for patcher in self.additional_patchers:
+            patcher.stop()
+        # self.user_from_jwt_patcher.stop()
+
+    def add_mock(self, patcher):
+        patcher.start()
+        self.additional_patchers.append(patcher)
+
+
+def indexd_get_available_bucket(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s3://bucket1/key'],
+        'hashes': {},
+        'metadata': {'acls': 'phs000178,phs000218'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_unavailable_bucket(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s3://bucket5/key'],
+        'hashes': {},
+        'metadata': {'acls': 'phs000178,phs000218'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
 
 
 @pytest.fixture(scope='session')
@@ -37,7 +98,7 @@ def public_key():
     """
     Return a public key for testing.
     """
-    return utils.read_file('keys/test_public_key.pem')
+    return utils.read_file('resources/keys/test_public_key.pem')
 
 
 @pytest.fixture(scope='session')
@@ -46,7 +107,7 @@ def private_key():
     Return a private key for testing. (Use only a private key that is
     specifically set aside for testing, and never actually used for auth.)
     """
-    return utils.read_file('keys/test_private_key.pem')
+    return utils.read_file('resources/keys/test_private_key.pem')
 
 
 @pytest.fixture(scope='session')
@@ -116,6 +177,8 @@ def encoded_jwt_refresh_token(claims_refresh, private_key):
 
 
 @pytest.fixture(scope='session')
+@mock_s3
+@mock_sts
 def app():
     mocker = Mocker()
     mocker.mock_functions()
@@ -131,27 +194,6 @@ def protected_endpoint(methods=['GET']):
     Add a protected endpoint to the app for testing.
     """
     return 'Got to protected endpoint'
-
-
-def check_auth_positive(cls, backend, user):
-    return True
-
-
-class Mocker(object):
-    def mock_functions(self):
-        self.patcher = patch(
-            'fence.resources.storage.get_client',
-            get_client
-        )
-        self.auth_patcher = patch(
-            'fence.resources.storage.StorageManager.check_auth',
-            check_auth_positive)
-        self.auth_patcher.start()
-        self.patcher.start()
-
-    def unmock_functions(self):
-        self.patcher.stop()
-        self.auth_patcher.stop()
 
 
 @pytest.fixture(scope='session')
@@ -198,6 +240,49 @@ def db_session(db, request, patch_app_db_session, monkeypatch):
 
 
 @pytest.fixture(scope='function')
+def oauth_user(app):
+    users = dict(json.loads(utils.read_file(
+        'resources/authorized_users.json'
+    )))
+    user_id, username = utils.create_user(
+        users, DB=app.config['DB'], is_admin=True
+    )
+    return Dict(username=username, user_id=user_id)
+
+
+@pytest.fixture(scope='function')
+def unauthorized_oauth_user(app, db_session):
+    users = dict(json.loads(utils.read_file(
+        'resources/unauthorized_users.json'
+    )))
+    user_id, username = utils.create_user(
+        users, DB=app.config['DB'], is_admin=True
+    )
+    return Dict(username=username, user_id=user_id)
+
+
+@pytest.fixture(scope='function')
+def indexd_client(app):
+    mocker = Mocker()
+    mocker.mock_functions()
+    indexd_patcher = patch(
+        'fence.blueprints.data.get_index_document',
+        indexd_get_available_bucket
+    )
+    mocker.add_mock(indexd_patcher)
+
+
+@pytest.fixture(scope='function')
+def unauthorized_indexd_client(app, request):
+    mocker = Mocker()
+    mocker.mock_functions()
+    indexd_patcher = patch(
+        'fence.blueprints.data.get_index_document',
+        indexd_get_unavailable_bucket)
+    mocker.add_mock(indexd_patcher)
+
+
+@pytest.fixture(scope='function')
 def patch_app_db_session(app, monkeypatch):
     """
     TODO
@@ -212,18 +297,27 @@ def patch_app_db_session(app, monkeypatch):
 
 
 @pytest.fixture(scope='function')
-def oauth_client(app, request, db_session):
+def oauth_client(app, request, db_session, oauth_user):
     url = 'https://oauth-test-client.net'
     client_id = 'test-client'
     client_secret = fence.utils.random_str(50)
     hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
-    test_user = models.User(username='test', is_admin=False)
-
-    db_session.add(test_user)
+    test_user = (
+        db_session
+        .query(models.User)
+        .filter_by(id=oauth_user.user_id)
+        .first()
+    )
     db_session.add(models.Client(
         client_id=client_id, client_secret=hashed_secret, user=test_user,
         allowed_scopes=['openid', 'user'], _redirect_uris=url, description=''
     ))
     db_session.commit()
-
     return Dict(client_id=client_id, client_secret=client_secret, url=url)
+
+
+@pytest.fixture(scope='function')
+def cloud_manager():
+    manager = MagicMock()
+    patch('fence.blueprints.storage_creds.GoogleCloudManager', manager).start()
+    return manager

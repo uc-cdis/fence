@@ -1,3 +1,4 @@
+import os
 from boto.s3.connection import OrdinaryCallingFormat
 DB = 'postgresql://test:test@localhost:5432/fence'
 
@@ -24,7 +25,8 @@ OPENID_CONNECT = {
 }
 
 STORAGE_CREDENTIALS = {
-    "cleversafe": {
+    "cleversafe-server-a": {
+        'backend': 'cleversafe',
         'aws_access_key_id': '',
         'aws_secret_access_key': '',
         'host': 'somemanager.osdc.io',
@@ -38,6 +40,16 @@ STORAGE_CREDENTIALS = {
     }
 }
 
+# Configuration necessary for cirrus (Cloud Management Library)
+# https://github.com/uc-cdis/cirrus
+# will eventually be passed as params but cirrus looks for env vars right now
+os.environ["GOOGLE_API_KEY"] = ""
+os.environ["GOOGLE_PROJECT_ID"] = ""
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = ""
+os.environ["GOOGLE_ADMIN_EMAIL"] = ""
+os.environ["GOOGLE_IDENTITY_DOMAIN"] = ""
+os.environ["GOOGLE_CLOUD_IDENTITY_ADMIN_EMAIL"] = ""
+
 
 '''
 If the api is behind firewall that need to set http proxy:
@@ -45,7 +57,25 @@ If the api is behind firewall that need to set http proxy:
 '''
 HTTP_PROXY = None
 
-STORAGES = ['/cleversafe']
+STORAGES = ['cleversafe-server-a']
 ITRUST_GLOBAL_LOGOUT = 'https://itrusteauth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl='
 SESSION_COOKIE_SECURE = False
 ENABLE_CSRF_PROTECTION = True
+INDEXD = '/index'
+
+AWS_CREDENTIALS = {
+    "CRED1": {
+        'aws_access_key_id': '',
+        'aws_secret_access_key': ''
+    },
+    "CRED2": {
+        'aws_access_key_id': '',
+        'aws_secret_access_key': ''
+    }
+}
+
+S3_BUCKETS = {
+    "bucket1": "CRED1",
+    "bucket2": "CRED2",
+    "bucket3": "CRED1"
+}

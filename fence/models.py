@@ -170,56 +170,93 @@ class AuthorizationCode(Base, OAuth2AuthorizationCodeMixin):
         return self._scope.split(' ')
 
 
+class UserRefreshToken(Base):
+    __tablename__ = "user_refresh_token"
+
+    jti = Column(String, primary_key=True)
+    userid = Column(Integer)
+    expires = Column(DateTime)
+
+    def delete(self):
+        with capp.db.session as session:
+            session.delete(self)
+            session.commit()
+
+
+class GoogleServiceAccount(Base):
+    __tablename__ = "google_service_account"
+
+    id = Column(Integer, primary_key=True)
+
+    # The uniqueId google provides to resources is ONLY unique within
+    # the given project, so we shouldn't rely on that for a primary key (in
+    # case we're ever juggling mult. projects)
+    google_unique_id = Column(
+        String,
+        unique=True,
+        nullable=False
+    )
+
+    client_id = Column(
+        String(40),
+        ForeignKey('client.client_id')
+    )
+    client = relationship('Client')
+
+    user_id = Column(
+        Integer,
+        ForeignKey(User.id),
+        nullable=False
+    )
+    user = relationship('User')
+
+    email = Column(
+        String,
+        unique=True,
+        nullable=False
+    )
+
+    def delete(self):
+        with capp.db.session as session:
+            session.delete(self)
+            session.commit()
+            return self
+
+
+class GoogleProxyGroup(Base):
+    __tablename__ = "google_proxy_group"
+
+    id = Column(String(90), primary_key=True)
+
+    user_id = Column(
+        Integer,
+        ForeignKey(User.id),
+        nullable=False,
+        unique=True
+    )
+    user = relationship('User')
+
+    def delete(self):
+        with capp.db.session as session:
+            session.delete(self)
+            session.commit()
+            return self
+
+
 def migrate(driver):
     if not driver.engine.dialect.supports_alter:
-        print(
-            "This engine dialect doesn't support altering so we are not"
-            " migrating even if necessary!"
-        )
+        print("This engine dialect doesn't support altering so we are not migrating even if necessary!")
         return
 
     md = MetaData()
-    table = Table(
-        Token.__tablename__,
-        md,
-        autoload=True,
-        autoload_with=driver.engine,
-    )
+    table = Table(Token.__tablename__, md, autoload=True, autoload_with=driver.engine)
 
     if str(table.c.access_token.type) != 'VARCHAR':
-        print(
-            'Altering table %s access_token to String'
-            % (Token.__tablename__)
-        )
+        print("Altering table %s access_token to String" % (Token.__tablename__))
         with driver.session as session:
-            session.execute(
-                'ALTER TABLE %s ALTER COLUMN access_token TYPE VARCHAR;'
-                % (Token.__tablename__)
-            )
+            session.execute("ALTER TABLE %s ALTER COLUMN access_token TYPE VARCHAR;" % (Token.__tablename__))
 
     if str(table.c.refresh_token.type) != 'VARCHAR':
-        print(
-            'Altering table %s refresh_token to String'
-            % (Token.__tablename__)
-        )
+        print("Altering table %s refresh_token to String" % (Token.__tablename__))
         with driver.session as session:
-            session.execute(
-                'ALTER TABLE %s ALTER COLUMN refresh_token TYPE VARCHAR;'
-                % (Token.__tablename__)
-            )
-
-    table = Table(
-        Client.__tablename__,
-        md,
-        autoload=True,
-        autoload_with=driver.engine,
-    )
-
-    with driver.session as session:
-        cols_to_add = [
-        ]
-        for col, col_type in cols_to_add:
-            session.execute(
-                'ALTER TABLE {} ADD COLUMN {} {}'
-                .format(Client.__tablename__, col, col_type)
-            )
+            session.execute("ALTER TABLE %s ALTER COLUMN refresh_token TYPE VARCHAR;" % (Token.__tablename__))
