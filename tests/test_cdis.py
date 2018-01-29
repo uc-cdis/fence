@@ -15,7 +15,7 @@ def test_cdis_create_api_key_with_disallowed_scope(client, oauth_client):
     """
     Test ``POST /credentials/cdis``.
     """
-    res = utils.get_api_key(client, scopes=['credentials'])
+    res = utils.get_api_key(client, scope=['credentials'])
     assert res.status_code == 400
 
 

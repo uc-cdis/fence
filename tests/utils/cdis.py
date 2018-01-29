@@ -1,7 +1,7 @@
 import json
 
 
-def get_api_key(client, scopes=None):
+def get_api_key(client, scope=None):
     """
     Args:
         client: client fixture
@@ -15,9 +15,9 @@ def get_api_key(client, scopes=None):
     headers = {
         'Content-Type': 'application/x-www-form-urlencoded'
     }
-    if scopes is None:
-        scopes = ['data', 'user']
-    response = client.post(path, data={'scopes': scopes}, headers=headers)
+    if scope is None:
+        scope = ['data', 'user']
+    response = client.post(path, data={'scope': scope}, headers=headers)
     return response
 
 
@@ -35,5 +35,5 @@ def get_api_key_with_json(client):
     headers = {
         'Content-Type': 'application/json'
     }
-    response = client.post(path, data=json.dumps({'scopes': ['data', 'user']}), headers=headers)
+    response = client.post(path, data=json.dumps({'scope': ['data', 'user']}), headers=headers)
     return response
