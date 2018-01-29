@@ -197,10 +197,10 @@ def create_keypairs(provider):
         if client_id is None:
             client_id = str(g.user.id)
         if flask.request.headers.get('Content-Type') == 'application/x-www-form-urlencoded':
-            scopes = request.form.getlist("scopes")
+            scopes = request.form.getlist("scope")
         else:
             try:
-                scopes = json.loads(request.data).get("scopes") or []
+                scopes = json.loads(request.data).get("scope") or []
             except ValueError:
                 scopes = []
         if not isinstance(scopes, list):
