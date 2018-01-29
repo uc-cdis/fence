@@ -43,37 +43,92 @@ def test_no_prompt_provided(client, oauth_client):
     assert oauth2.code_from_authorize_response(response)
 
 
-def test_prompt_none(client):
+def test_prompt_none(client, oauth_client):
     """
     Test ``prompt=none``.
     """
     data = {'prompt': 'none'}
-    # TODO
-    assert False
+
+    auth_response = oauth2.post_authorize(client, oauth_client, data=data)
+    assert auth_response.status_code != 302
+    assert 'error' in auth_response.json, auth_response.json
+    assert auth_response.json['error'] in ['login_required', 'interaction_required']
 
 
-def test_prompt_login(client):
+def test_prompt_login(client, oauth_client):
     """
-    Test ``prompt=login``.
+    Test ``prompt=login`` when user re-AuthN's.
     """
     data = {'prompt': 'login'}
+
     # TODO
-    assert False
+
+    response = oauth2.post_authorize(client, oauth_client)
+    assert response.status_code == 302
+    assert 'Location' in response.headers
+    assert oauth2.code_from_authorize_response(response)
 
 
-def test_prompt_consent(client):
+def test_prompt_login_no_authn(client, oauth_client):
     """
-    Test ``prompt=consent``.
+    Test ``prompt=login`` when unable to re-AuthN.
+    """
+    data = {'prompt': 'login'}
+
+    auth_response = oauth2.post_authorize(client, oauth_client, data=data)
+    assert auth_response.status_code != 302
+    assert 'error' in auth_response.json, auth_response.json
+    assert auth_response.json['error'] == 'login_required'
+
+
+def test_prompt_consent(client, oauth_client):
+    """
+    Test ``prompt=consent`` when user approves.
     """
     data = {'prompt': 'consent'}
+
     # TODO
-    assert False
+
+    response = oauth2.post_authorize(client, oauth_client)
+    assert response.status_code == 302
+    assert 'Location' in response.headers
+    assert oauth2.code_from_authorize_response(response)
 
 
-def test_prompt_select_account(client):
+def test_prompt_login_no_consent(client, oauth_client):
     """
-    Test ``prompt=select_account``.
+    Test ``prompt=login`` when user does not consent.
+    """
+    data = {'prompt': 'login'}
+
+    auth_response = oauth2.post_authorize(client, oauth_client, data=data)
+    assert auth_response.status_code != 302
+    assert 'error' in auth_response.json, auth_response.json
+    assert auth_response.json['error'] == 'consent_required'
+
+
+def test_prompt_select_account(client, oauth_client):
+    """
+    Test ``prompt=select_account`` when user chooses an account.
     """
     data = {'prompt': 'select_account'}
+
     # TODO
-    assert False
+
+    response = oauth2.post_authorize(client, oauth_client)
+    assert response.status_code == 302
+    assert 'Location' in response.headers
+    assert oauth2.code_from_authorize_response(response)
+
+
+def test_prompt_select_account_no_choice(client, oauth_client):
+    """
+    Test ``prompt=select_account`` when choice cannot be obtained.
+    """
+    data = {'prompt': 'select_account'}
+
+    auth_response = oauth2.post_authorize(client, oauth_client, data=data)
+    assert auth_response.status_code != 302
+    assert 'error' in auth_response.json, auth_response.json
+    assert auth_response.json['error'] == 'account_selection_required'
+
