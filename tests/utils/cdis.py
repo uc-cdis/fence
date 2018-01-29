@@ -6,8 +6,6 @@ def get_refresh_token(client):
     Return:
         pytest_flask.plugin.JSONResponse: the response from /oauth2/authorize
     """
-    path = (
-        '/credentials/cdis/'
-    )
-    response = client.post(path)
+    data = {'scope': 'fence'}
+    response = client.post('/credentials/cdis/', data=data)
     return response

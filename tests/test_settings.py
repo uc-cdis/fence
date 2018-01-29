@@ -5,7 +5,8 @@ from datetime import timedelta
 from fence.local_settings import *
 
 
-DB = 'postgresql://postgres@localhost:5432/fence_test'
+# WARNING: the test database is cleared every run
+DB = 'postgresql://postgres@localhost:5432/fence_test_tmp'
 
 MOCK_AUTH = True
 

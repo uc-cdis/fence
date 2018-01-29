@@ -112,7 +112,18 @@ def post_token(client, oauth_client, code):
     return client.post('/oauth2/token', headers=headers, data=data)
 
 
-def get_token_response(client, oauth_client, scope='openid'):
+def post_token_refresh(client, oauth_client, refresh_token):
+    headers = create_basic_header_for_client(oauth_client)
+    data = {
+        'client_id': oauth_client.client_id,
+        'client_secret': oauth_client.client_secret,
+        'grant_type': 'refresh_token',
+        'refresh_token': refresh_token,
+    }
+    return client.post('/oauth2/token', headers=headers, data=data)
+
+
+def get_token_response(client, oauth_client, scope=None):
     """
     Args:
         client: client fixture
@@ -144,3 +155,12 @@ def create_basic_header_for_client(oauth_client):
     return create_basic_header(
         oauth_client.client_id, oauth_client.client_secret
     )
+
+
+def check_token_response(token_response):
+    """
+    Do some basic checks on a token response.
+    """
+    #assert 'id_token' in token_response.json, token_response.json
+    assert 'access_token' in token_response.json, token_response.json
+    assert 'refresh_token' in token_response.json, token_response.json

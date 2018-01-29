@@ -8,18 +8,14 @@ from authlib.specs.rfc6749.errors import (
     UnauthorizedClientError,
 )
 from authlib.specs.rfc6749.grants import (
-    AuthorizationCodeGrant as _AuthorizationCodeGrant,
-    RefreshTokenGrant as _RefreshTokenGrant,
+    AuthorizationCodeGrant as AuthlibAuthorizationCodeGrant
 )
 import flask
 
-import fence
-from fence.jwt.blacklist import is_token_blacklisted
-from fence.jwt.errors import JWTError
 from fence.models import AuthorizationCode
 
 
-class AuthorizationCodeGrant(_AuthorizationCodeGrant):
+class AuthorizationCodeGrant(AuthlibAuthorizationCodeGrant):
 
     def __init__(self, uri, params, headers, client_model, token_generator):
         super(AuthorizationCodeGrant, self).__init__(
@@ -158,16 +154,3 @@ class AuthorizationCodeGrant(_AuthorizationCodeGrant):
         uri = add_params_to_uri(self.redirect_uri, params)
         headers = [('Location', uri)]
         return 302, '', headers
-
-
-class RefreshTokenGrant(_RefreshTokenGrant):
-
-    def authenticate_refresh_token(self, refresh_token):
-        try:
-            if is_token_blacklisted(refresh_token):
-                return
-        except JWTError:
-            return fence.jwt.validate.validate_refresh_token(refresh_token)
-
-    def create_access_token(self, token, client, authenticated_token):
-        pass

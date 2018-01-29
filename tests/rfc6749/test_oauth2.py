@@ -3,7 +3,7 @@ Test the endpoints in the ``/oauth2`` blueprint.
 """
 
 import urllib
-import pytest
+
 import tests.utils.oauth2
 
 
@@ -45,13 +45,14 @@ def test_oauth2_token_post(client, oauth_client):
     assert 'access_token' in response.json
     assert 'refresh_token' in response.json
 
-@pytest.mark.skip(reason="not implemented yet")
+
 def test_oauth2_token_refresh(client, oauth_client, refresh_token):
     """
     Obtain refresh and access tokens, and test using the refresh token to
     obtain a new access token.
     """
     code = tests.utils.oauth2.get_access_code(client, oauth_client)
+    headers = tests.utils.oauth2.create_basic_header_for_client(oauth_client)
     data = {
         'client_id': oauth_client.client_id,
         'client_secret': oauth_client.client_secret,
@@ -59,7 +60,7 @@ def test_oauth2_token_refresh(client, oauth_client, refresh_token):
         'grant_type': 'refresh_token',
         'refresh_token': refresh_token,
     }
-    response = client.post('/oauth2/token', data=data)
+    response = client.post('/oauth2/token', headers=headers, data=data)
     assert response.status_code == 200, response.json
 
 

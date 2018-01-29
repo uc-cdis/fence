@@ -98,7 +98,7 @@ def create_credential(backend):
         result = create_refresh_token(
             g.user, capp.keypairs[0],
             request.args.get('expire', 2592000),
-            request.args.get('scope', [])
+            request.args.get('scope', ['fence'])
         )
         return jsonify(dict(token=result))
     else:
@@ -136,7 +136,7 @@ def create_access_token_api(backend):
             g.user, capp.keypairs[0],
             request.form['refresh_token'],
             request.args.get('expire', 2592000),
-            request.args.get('scope', [])
+            request.args.get('scope', ['fence'])
         )
         return jsonify(dict(access_token=result))
     else:
