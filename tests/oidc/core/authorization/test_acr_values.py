@@ -24,4 +24,3 @@ def test_acr_values(client, oauth_client):
     token_response = oauth2.get_token_response(client, oauth_client, code_request_data=data).json
     id_token = validate_jwt(token_response['id_token'], {'openid'})
     assert 'acr' in id_token
-

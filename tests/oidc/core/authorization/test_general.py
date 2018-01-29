@@ -1,12 +1,11 @@
 
 from fence.jwt.validate import validate_jwt
-from fence.jwt.validate import validate_refresh_token
 from fence.utils import random_str
 
 from tests.utils import oauth2
 
 
-def test_default_values(client, oauth_client):
+def test_default_values_with_nonce(client, oauth_client):
     """
     """
     nonce = random_str(10)

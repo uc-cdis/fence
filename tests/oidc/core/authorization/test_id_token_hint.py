@@ -48,13 +48,13 @@ def test_id_token_hint(client, oauth_client):
     data = {'id_token_hint': str(id_token)}
 
     new_token_response = oauth2.get_token_response(
-        client, oauth_client).json
+        client, oauth_client, code_request_data=data).json
     new_id_token = validate_jwt(token_response['id_token'], {'openid'})
     assert new_token_response.status_code == 200
     assert new_id_token['sub'] == id_token['sub']
 
 
-def test_id_token_hint(client, oauth_client):
+def test_id_token_hint_not_logged_in(client, oauth_client):
     """
     Test ``id_token_hint`` parameter when hinted user is not logged in
     """
@@ -68,9 +68,8 @@ def test_id_token_hint(client, oauth_client):
     data = {'id_token_hint': str(id_token)}
 
     response = oauth2.get_token_response(
-        client, oauth_client).json
+        client, oauth_client, code_request_data=data).json
     assert "id_token" not in response
     assert response.status_code != 200
     assert 'error' in response
     assert response['error'] == 'login_required'
-

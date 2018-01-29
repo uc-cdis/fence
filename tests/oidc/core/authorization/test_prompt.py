@@ -38,18 +38,70 @@ def test_no_prompt_provided(client, oauth_client):
     ``prompt`` is optional; test that omitting it is fine.
     """
     response = oauth2.post_authorize(client, oauth_client)
+    # TODO make sure no consent screen/page appears
     assert response.status_code == 302
     assert 'Location' in response.headers
     assert oauth2.code_from_authorize_response(response)
 
 
-def test_prompt_none(client, oauth_client):
+def test_prompt_none_logged_in_client_cfg(client, oauth_client):
     """
-    Test ``prompt=none``.
+    Test ``prompt=none`` when user is authN'd and client
+    has pre-configured consent for the requested Claims. This is the
+    only case where a successful response occurs.
     """
     data = {'prompt': 'none'}
 
+    response = oauth2.post_authorize(client, oauth_client, data=data)
+    # TODO make sure no consent screen/page appears
+    assert response.status_code == 302
+    assert 'Location' in response.headers
+    assert oauth2.code_from_authorize_response(response)
+
+
+def test_prompt_none_not_logged_in_client_cfg(client, oauth_client):
+    """
+    Test ``prompt=none`` when user is not authN'd and client
+    has pre-configured consent for the requested Claims.
+    """
+    data = {'prompt': 'none'}
+
+    # TODO make user not logged in
+
     auth_response = oauth2.post_authorize(client, oauth_client, data=data)
+    # TODO make sure no consent screen/page appears
+    assert auth_response.status_code != 302
+    assert 'error' in auth_response.json, auth_response.json
+    assert auth_response.json['error'] in ['login_required', 'interaction_required']
+
+
+def test_prompt_none_not_logged_in_client_not_cfg(client, oauth_client):
+    """
+    Test ``prompt=none`` when user is not authN'd and client does not
+    have pre-configured consent for the requested Claims.
+    """
+    data = {'prompt': 'none'}
+
+    # TODO make user not logged in
+
+    auth_response = oauth2.post_authorize(client, oauth_client, data=data)
+    # TODO make sure no consent screen/page appears
+    assert auth_response.status_code != 302
+    assert 'error' in auth_response.json, auth_response.json
+    assert auth_response.json['error'] in ['login_required', 'interaction_required']
+
+
+def test_prompt_none_logged_in_client_not_cfg(client, oauth_client):
+    """
+    Test ``prompt=none`` when user is authN'd and client does not
+    have pre-configured consent for the requested Claims.
+    """
+    data = {'prompt': 'none'}
+
+    # TODO make user not logged in
+
+    auth_response = oauth2.post_authorize(client, oauth_client, data=data)
+    # TODO make sure no consent screen/page appears
     assert auth_response.status_code != 302
     assert 'error' in auth_response.json, auth_response.json
     assert auth_response.json['error'] in ['login_required', 'interaction_required']
