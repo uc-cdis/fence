@@ -42,3 +42,7 @@ def test_same_claims(client, oauth_client, token_response_json):
     assert original_claims['sub'] == new_claims['sub']
     assert original_claims['iat'] <= new_claims['iat']
     assert original_claims['aud'] == new_claims['aud']
+    if 'azp' in original_claims:
+        assert original_claims['azp'] == new_claims['azp']
+    else:
+        assert 'azp' not in new_claims
