@@ -1,7 +1,7 @@
 import flask
 from fence.auth import login_required
 from flask import jsonify, g, make_response
-from fence.errors import UserError, NotFound
+from ..errors import Unauthorized, UserError, NotFound
 from userdatamodel.models import *  # noqa
 from fence.resources.user import send_mail, get_current_user_info
 from flask import current_app as capp
@@ -22,6 +22,16 @@ blueprint = flask.Blueprint('user', __name__)
 @login_required({'user'})
 def user_info():
     return get_current_user_info()
+
+@blueprint.route('/anyaccess', methods=['GET'])
+@login_required({'user'})
+def any_access():
+    g.user = current_session.merge(g.user)
+    if len(g.user.project_access) > 0:
+        resp = make_response(jsonify({'result': 'success'}), 200)
+        resp.headers['REMOTE_USER'] = g.user.username
+        return resp
+    raise Unauthorized("Please login")
 
 
 @blueprint.route('/cert', methods=['GET'])
