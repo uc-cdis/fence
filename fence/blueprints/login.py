@@ -12,7 +12,9 @@ blueprint = flask.Blueprint('login', __name__)
 
 @blueprint.route('/shib', methods=['GET'])
 def login_from_shibboleth():
-    return redirect(capp.config['SSO_URL'] + urllib.quote_plus(request.url))
+    redirect_url = request.args.get('redirect')
+    return redirect(capp.config['SSO_URL'] + redirect_url)
+
 
 
 @blueprint.route('/google', methods=['GET'])
