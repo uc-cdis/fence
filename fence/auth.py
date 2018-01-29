@@ -4,7 +4,7 @@ from cdispyutils import auth
 import flask
 from flask_sqlalchemy_session import current_session
 
-from fence.errors import Unauthorized, InternalError
+from .errors import Unauthorized, InternalError
 from fence.models import User, IdentityProvider
 
 
@@ -24,7 +24,6 @@ def login_user(request, username, provider):
         current_session.commit()
     flask.g.user = user
     flask.g.scopes = ["_all"]
-    flask.g.token = None
 
 
 def logout(next_url=None):
@@ -98,12 +97,8 @@ def has_oauth(scope=None):
     scope = scope or set()
     scope.update({'access'})
     try:
-        user_api = flask.current_app.config.get(
-            'USER_API',
-            flask.current_app.config['HOSTNAME']
-        )
         access_token = auth.validate_request_jwt(
-            aud=scope, user_api=user_api
+            aud=scope
         )
     except auth.JWTValidationError as e:
         raise Unauthorized('failed to validate token: {}'.format(e))
@@ -111,11 +106,7 @@ def has_oauth(scope=None):
     user = current_session.query(User).filter_by(id=int(user_id)).first()
     if not user:
         raise Unauthorized('no user found with id: {}'.format(user_id))
-    # set some application context for current user and client id
     flask.g.user = user
-    # client_id should be None if the field doesn't exist or is empty
-    flask.g.client_id = access_token.get('azp') or None
-    flask.g.token = access_token
 
 
 def get_current_user():

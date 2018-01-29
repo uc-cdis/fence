@@ -1,11 +1,5 @@
-from datetime import datetime
-
-import jwt
-import flask
-
-from fence.jwt import token
-from fence.jwt.errors import JWTError
-from fence.models import UserRefreshToken
+from ...jwt import token, errors
+from flask import jsonify
 
 
 def create_id_token(
@@ -14,44 +8,26 @@ def create_id_token(
     try:
         return token.generate_signed_id_token(
             keypair.kid, keypair.private_key, user, expires_in, client_id,
-            audiences=audiences, auth_time=auth_time, max_age=max_age,
-            nonce=nonce
-        )
+            audiences=audiences, auth_time=auth_time, max_age=max_age, nonce=nonce)
     except Exception as e:
-        return flask.jsonify({'errors': e.message})
+        return jsonify({'errors': e.message})
 
 
-def create_refresh_token(user, keypair, expires_in, scopes, client_id):
-    return_token = token.generate_signed_refresh_token(
-        keypair.kid, keypair.private_key, user, expires_in, scopes, client_id
-    )
-    payload = jwt.decode(
-        return_token, keypair.public_key, audience='refresh',
-        algorithms=['RS256']
-    )
-    jti = payload['jti']
-    # expires = datetime.fromtimestamp(payload['exp']).isoformat()
-    expires = datetime.fromtimestamp(payload['exp'])
-    with flask.current_app.db.session as session:
-        session.add(UserRefreshToken(jti=jti, userid=user.id, expires=expires))
-        session.commit()
-    return return_token
+def create_refresh_token(user, keypair, expires_in, scopes):
+    return token.generate_signed_refresh_token(keypair.kid, keypair.private_key, user, expires_in, scopes)
 
 
-def create_access_token(
-        user, keypair, refresh_token, expires_in, scopes, client_id):
+def create_access_token(user, keypair, refresh_token, expires_in, scopes):
     try:
         token.validate_refresh_token(refresh_token)
     except Exception as e:
-        return flask.jsonify({'errors': e.message})
-    return token.generate_signed_access_token(
-        keypair.kid, keypair.private_key, user, expires_in, scopes, client_id
-    )
+        return jsonify({'errors': e.message})
+    return token.generate_signed_access_token(keypair.kid, keypair.private_key, user, expires_in, scopes)
 
 
 def revoke_refresh_token(encoded_token):
     try:
         token.revoke_token(encoded_token)
-    except JWTError as e:
+    except errors.JWTError as e:
         return (e.message, e.code)
     return ('', 204)

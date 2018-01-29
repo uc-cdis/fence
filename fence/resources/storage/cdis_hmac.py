@@ -1,9 +1,8 @@
+from fence.data_model.models import HMACKeyPair
 import datetime
 from cryptography.fernet import Fernet
-
-from fence.errors import UserError, NotFound
-from fence.models import HMACKeyPair
-from fence.utils import random_str
+from ...utils import random_str
+from ...errors import UserError, NotFound
 
 
 def create_keypair(user, current_session, encryption_key, expire=86400):
@@ -18,11 +17,10 @@ def create_keypair(user, current_session, encryption_key, expire=86400):
     # default to 1 day, max to 30 days
     try:
         expire = int(expire)
-    except ValueError:
+    except:
         raise UserError(
             "Expiration has to be an integer representing"
-            " expiration time in seconds"
-        )
+            " expiration time in seconds")
     if expire > 2592000:
         raise UserError(
             "Max expiration time is 30 days(2592000 seconds)")
@@ -41,12 +39,10 @@ def create_keypair(user, current_session, encryption_key, expire=86400):
 
 def delete_keypair(user, current_session, access_key):
     result = (
-        current_session
-        .query(HMACKeyPair)
-        .filter(HMACKeyPair.access_key == access_key)
-        .filter(HMACKeyPair.user_id == user.id)
-        .first()
-    )
+        current_session.query(HMACKeyPair)
+            .filter(HMACKeyPair.access_key == access_key)
+            .filter(HMACKeyPair.user_id == user.id)
+            .first())
     if not result:
         raise NotFound("Access key doesn't exist")
     result.archive_keypair(current_session)

@@ -23,16 +23,3 @@ def test_cdis_get_access_token(client, oauth_client):
     }
     response = client.put(path, data=data)
     assert 'access_token' in response.json
-
-
-def test_cdis_list_refresh_token(client, oauth_client):
-    utils.get_refresh_token(client)
-    utils.get_refresh_token(client)
-    utils.get_refresh_token(client)
-    path = (
-        '/credentials/cdis/'
-    )
-    response = client.get(path)
-    assert 'jtis' in response.json
-    assert len(response.json['jtis']) == 3
-    assert response.status_code == 200

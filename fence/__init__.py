@@ -12,12 +12,10 @@ from fence.errors import APIError, UserError
 from fence.jwt import keys
 from fence.models import UserSession, migrate
 from fence.oidc.server import server
-from fence.resources.aws.boto_manager import BotoManager
 from fence.resources.openid.google_oauth2 import Oauth2Client
 from fence.resources.storage import StorageManager
 from fence.utils import random_str
 import fence.blueprints.admin
-import fence.blueprints.data
 import fence.blueprints.login
 import fence.blueprints.oauth2
 import fence.blueprints.storage_creds
@@ -43,12 +41,6 @@ def app_config(app, settings='fence.settings', root_dir=None):
     if root_dir is None:
         root_dir = os.path.dirname(
                 os.path.dirname(os.path.realpath(__file__)))
-    if 'AWS_CREDENTIALS' in app.config and len(app.config['AWS_CREDENTIALS']) > 0:
-        value = app.config['AWS_CREDENTIALS'].values()[0]
-        app.boto = BotoManager(value)
-        app.register_blueprint(
-            fence.blueprints.data.blueprint, url_prefix='/data'
-        )
     for kid, (public, private) in app.config['JWT_KEYPAIR_FILES'].iteritems():
         public_filepath = os.path.join(root_dir, public)
         private_filepath = os.path.join(root_dir, private)
@@ -74,10 +66,7 @@ def app_sessions(app):
     migrate(app.db)
     session = flask_scoped_session(app.db.Session, app)  # noqa
     app.jinja_env.globals['csrf_token'] = generate_csrf_token
-    app.storage_manager = StorageManager(
-        app.config['STORAGE_CREDENTIALS'],
-        logger=app.logger
-    )
+    app.storage_manager = StorageManager(app.config['STORAGE_CREDENTIALS'])
     if ('OPENID_CONNECT' in app.config
         and 'google' in app.config['OPENID_CONNECT']):
         app.google_client = Oauth2Client(

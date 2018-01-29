@@ -12,7 +12,7 @@ MOCK_AUTH = True
 DEBUG = False
 OAUTH2_PROVIDER_ERROR_URI = "/oauth2/errors"
 
-HOSTNAME = 'https://bionimbus-pdc.opensciencedatacloud.org'
+HOST_NAME = 'https://bionimbus-pdc.opensciencedatacloud.org'
 SHIBBOLETH_HEADER = 'persistent_id'
 SSO_URL = 'https://itrusteauth.nih.gov/affwebservices/public/saml2sso?SPID=https://bionimbus-pdc.opensciencedatacloud.org/shibboleth&RelayState='
 SINGLE_LOGOUT = 'https://itrusteauth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl=https://bionimbus-pdc.opensciencedatacloud.org/storage/login'
@@ -28,33 +28,13 @@ ENABLE_CSRF_PROTECTION = False
 JWT_KEYPAIR_FILES = OrderedDict([
     (
         'key-test',
-        ('resources/keys/test_public_key.pem', 'resources/keys/test_private_key.pem'),
+        ('keys/test_public_key.pem', 'keys/test_private_key.pem'),
     ),
     (
         'key-test-2',
-        ('resources/keys/test_public_key_2.pem', 'resources/keys/test_private_key_2.pem'),
+        ('keys/test_public_key_2.pem', 'keys/test_private_key_2.pem'),
     ),
 ])
 
 STORAGE_CREDENTIALS = {
-    'test-cleversafe': {
-        'backend': 'cleversafe'
-    }
-}
-
-AWS_CREDENTIALS = {
-    "CRED1": {
-        'aws_access_key_id': '',
-        'aws_secret_access_key': ''
-    },
-    "CRED2": {
-        'aws_access_key_id': '',
-        'aws_secret_access_key': ''
-    }
-}
-
-S3_BUCKETS = {
-    "bucket1": "CRED1",
-    "bucket2": "CRED2",
-    "bucket3": "CRED1"
 }
