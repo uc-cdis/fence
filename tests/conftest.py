@@ -27,7 +27,8 @@ os.environ['AUTHLIB_INSECURE_TRANSPORT'] = 'true'
 @pytest.fixture(scope='session')
 def claims_refresh():
     new_claims = tests.utils.default_claims()
-    new_claims['aud'] = ['refresh']
+    new_claims['pur'] = 'refresh'
+    new_claims['aud'].append('fence')
     return new_claims
 
 
@@ -212,11 +213,14 @@ def patch_app_db_session(app, monkeypatch):
 
 @pytest.fixture(scope='function')
 def oauth_client(app, request, db_session):
+    """
+    Create a confidential OAuth2 client and add it to the database along with a
+    test user for the client.
+    """
     url = 'https://oauth-test-client.net'
     client_id = 'test-client'
     client_secret = fence.utils.random_str(50)
     hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
-    test_user = models.User(username='test', is_admin=False)
 
     test_user = (
         db_session

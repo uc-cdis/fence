@@ -80,20 +80,6 @@ def revoke_token():
     return server.create_revocation_response()
 
 
-def do_revoke():
-    # Try to get token from form data.
-    try:
-        encoded_token = flask.request.form['token']
-    except KeyError:
-        return (flask.jsonify({'errors': 'no token provided'}), 400)
-
-    try:
-        token.revoke_token(encoded_token)
-    except errors.JWTError as e:
-        return (e.message, e.code)
-    return ('', 204)
-
-
 @blueprint.route('/errors', methods=['GET'])
 def display_error():
     """

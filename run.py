@@ -3,7 +3,7 @@ from mock import patch
 from cdisutilstest.code.storage_client_mock import get_client
 
 from fence import app, app_config, app_sessions
-from fence.oid.server import server
+from fence.oidc.server import server
 
 app_config(app)
 

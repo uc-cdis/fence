@@ -40,7 +40,7 @@ def blacklist_token(jti, exp):
 
     Args:
         jti (str): JWT id, which must be a UUID4
-        exp (int): the expiration time of the token
+        exp (int): the expiration time of the token (UNIX timestamp)
 
     Return:
         None
@@ -87,15 +87,14 @@ def blacklist_encoded_token(encoded_token, public_key=None):
     # Decode token and get claims.
     public_key = public_key or keys.default_public_key()
     try:
-        token = jwt.decode(
-            encoded_token, public_key, algorithm='RS256', audience='refresh'
+        claims = jwt.decode(
+            encoded_token, public_key, algorithm='RS256', audience='fence'
         )
     except jwt.InvalidTokenError as e:
         raise BlacklistingError('failed to decode token: {}'.format(e))
     try:
-        jti = token['jti']
-        exp = token['exp']
-        aud = token['aud']
+        jti = claims['jti']
+        exp = claims['exp']
     except KeyError as e:
         raise BlacklistingError('token missing claim: {}'.format(e))
 
@@ -103,7 +102,7 @@ def blacklist_encoded_token(encoded_token, public_key=None):
     # Check that JWT id is UUID4 (this raises a ValueError otherwise).
     uuid.UUID(jti, version=4)
     # Must be refresh token.
-    if 'refresh' not in aud:
+    if claims['pur'] != 'refresh':
         raise BlacklistingError('can only blacklist refresh tokens')
 
     blacklist_token(jti, exp)
@@ -137,11 +136,11 @@ def is_token_blacklisted(encoded_token, public_key=None):
     public_key = public_key or keys.default_public_key()
     try:
         token = jwt.decode(
-            encoded_token, public_key, algorithm='RS256', audience='refresh'
+            encoded_token, public_key, algorithm='RS256', audience='openid'
         )
     except jwt.exceptions.InvalidTokenError as e:
         raise JWTError(
-            'could not decode tokne to check blacklisting: {}'
+            'could not decode token to check blacklisting: {}'
             .format(e)
         )
     return is_blacklisted(token['jti'])

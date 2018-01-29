@@ -1,5 +1,7 @@
-from ...jwt import token, errors
 from flask import jsonify
+
+from fence.jwt import errors, token
+from fence.jwt.validate import validate_jwt
 
 
 def create_id_token(
@@ -14,15 +16,21 @@ def create_id_token(
 
 
 def create_refresh_token(user, keypair, expires_in, scopes):
-    return token.generate_signed_refresh_token(keypair.kid, keypair.private_key, user, expires_in, scopes)
+    return token.generate_signed_refresh_token(
+        keypair.kid, keypair.private_key, user, expires_in, scopes
+    )
 
 
 def create_access_token(user, keypair, refresh_token, expires_in, scopes):
     try:
-        token.validate_refresh_token(refresh_token)
+        refresh_claims = validate_jwt(
+            refresh_token, aud=scopes, purpose='refresh'
+        )
     except Exception as e:
         return jsonify({'errors': e.message})
-    return token.generate_signed_access_token(keypair.kid, keypair.private_key, user, expires_in, scopes)
+    return token.generate_signed_access_token(
+        keypair.kid, keypair.private_key, user, expires_in, scopes
+    )
 
 
 def revoke_refresh_token(encoded_token):

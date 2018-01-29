@@ -15,8 +15,8 @@ install:
   - pip install -r dev-requirements.txt
   - psql -c 'SELECT version();' -U postgres
   - python setup.py install
-  - psql -U postgres -c "create database fence_test"
-  - userdatamodel-init --db fence_test
+  - psql -U postgres -c "create database fence_test_tmp"
+  - userdatamodel-init --db fence_test_tmp
 
 before_script:
   - cp fence/local_settings.example.py fence/local_settings.py

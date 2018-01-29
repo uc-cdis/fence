@@ -34,11 +34,12 @@ def default_claims():
     Return:
         dict: dictionary of claims
     """
-    aud = ['access', 'user']
+    aud = ['openid', 'user']
     iss = 'https://user-api.test.net'
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
+        'pur': 'id',
         'aud': aud,
         'sub': '1234',
         'iss': iss,
