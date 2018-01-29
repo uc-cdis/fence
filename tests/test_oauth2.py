@@ -105,7 +105,7 @@ def test_validate_anyaccess(app, client, access_token, monkeypatch):
     it to access the any project access endpoint, ``/anyaccess``.
     """
     monkeypatch.setitem(app.config, 'MOCK_AUTH', False)
-    monkeypatch.setitem(app.config, 'USER_API', app.config['HOST_NAME'])
+    monkeypatch.setitem(app.config, 'USER_API', app.config['HOSTNAME'])
     headers = {'Authorization': 'bearer ' + access_token}
     response = client.get('/user/anyaccess', headers=headers)
     assert response.status_code == 200
