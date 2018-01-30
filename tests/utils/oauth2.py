@@ -11,7 +11,7 @@ def make_query_string(params):
     if not params:
         return ''
     params_str = '&'.join(
-        '{}={}'.format(key, value)
+        '{}={}'.format(key, value.replace(' ', '%20'))
         for key, value in params.iteritems()
     )
     return '?' + params_str
@@ -21,7 +21,39 @@ def path_for_authorize(params=None):
     return '/oauth2/authorize' + make_query_string(params)
 
 
-def post_authorize(client, oauth_client, data=None, confirm=True):
+def get_authorize(client, oauth_client, data=None, confirm=None):
+    """
+    Args:
+        client: client fixture
+        oauth_client: oauth client fixture
+        scope: scope to request
+
+    Return:
+        pytest_flask.plugin.JSONResponse: the response from /oauth2/authorize
+    """
+    data = data or {}
+    default_data = {
+        'client_id': oauth_client.client_id,
+        'redirect_uri': oauth_client.url,
+        'response_type': 'code',
+        'scope': 'openid user',
+        'state': fence.utils.random_str(10)
+    }
+    default_data.update(data)
+    data = default_data
+    if confirm is not None:
+        if confirm:
+            data['confirm'] = 'yes'
+        else:
+            data['confirm'] = 'no'
+
+    if isinstance(data['scope'], list):
+        data['scope'] = ' '.join(data['scope'])
+    path = path_for_authorize(data)
+    return client.get(path)
+
+
+def post_authorize(client, oauth_client, data=None, confirm=None):
     """
     Args:
         client: client fixture
@@ -38,12 +70,14 @@ def post_authorize(client, oauth_client, data=None, confirm=True):
         'response_type': 'code',
         'scope': 'openid user',
         'state': fence.utils.random_str(10),
-        'confirm': 'yes',
     }
     default_data.update(data)
     data = default_data
-    if not confirm:
-        data.pop('confirm')
+    if confirm is not None:
+        if confirm:
+            data['confirm'] = 'yes'
+        else:
+            data['confirm'] = 'no'
     if isinstance(data['scope'], list):
         data['scope'] = ' '.join(data['scope'])
     return client.post(path_for_authorize(), data=data)
@@ -82,7 +116,7 @@ def get_access_code(client, oauth_client, data=None):
         str: the authorization code
     """
     return code_from_authorize_response(post_authorize(
-        client, oauth_client, data=data
+        client, oauth_client, data=data, confirm=True
     ))
 
 

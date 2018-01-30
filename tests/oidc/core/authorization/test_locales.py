@@ -25,7 +25,7 @@ def test_ui_locale_no_errors(client, oauth_client):
     does not cause any errors.
     """
     data = {'ui_locales': 'fr-CA fr en'}
-    auth_response = oauth2.post_authorize(client, oauth_client, data=data)
+    auth_response = oauth2.post_authorize(client, oauth_client, data=data, confirm=True)
     assert auth_response.status_code == 302
     assert 'Location' in auth_response.headers
     assert oauth2.code_from_authorize_response(auth_response)

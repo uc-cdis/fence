@@ -20,7 +20,7 @@ def test_reauthenticate_end_user(client, oauth_client):
 
     # TODO
 
-    response = oauth2.post_authorize(client, oauth_client, data=data)
+    response = oauth2.post_authorize(client, oauth_client, data=data, confirm=True)
 
 
 def test_id_token_contains_auth_time(client, oauth_client):

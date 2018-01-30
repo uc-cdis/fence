@@ -30,7 +30,7 @@ def test_oauth2_authorize_post(client, oauth_client):
     """
     Test ``POST /oauth2/authorize``.
     """
-    response = tests.utils.oauth2.post_authorize(client, oauth_client)
+    response = tests.utils.oauth2.post_authorize(client, oauth_client, confirm=True)
     assert response.status_code == 302, response
     location = response.headers['Location']
     assert location.startswith(oauth_client.url), location
