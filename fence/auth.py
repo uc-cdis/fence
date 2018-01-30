@@ -69,9 +69,11 @@ def login_required(scope=None):
                 )
                 return f(*args, **kwargs)
 
-            eppn = flask.request.headers.get(
-                flask.current_app.config['SHIBBOLETH_HEADER']
-            )
+            eppn = None
+            if hasattr(flask.current_app.config, 'SHIBBOLETH_HEADER'):
+                eppn = flask.request.headers.get(
+                    flask.current_app.config['SHIBBOLETH_HEADER']
+                )
 
             if flask.current_app.config.get('MOCK_AUTH') is True:
                 eppn = 'test'
@@ -124,9 +126,11 @@ def has_oauth(scope=None):
 def get_current_user():
     username = flask.session.get('username')
     if not username:
-        eppn = flask.request.headers.get(
-            flask.current_app.config['SHIBBOLETH_HEADER']
-        )
+        eppn = None
+        if hasattr(flask.current_app.config, 'SHIBBOLETH_HEADER'): 
+            eppn = flask.request.headers.get(
+                flask.current_app.config['SHIBBOLETH_HEADER']
+            )
         if flask.current_app.config.get('MOCK_AUTH') is True:
             eppn = 'test'
         if eppn:
