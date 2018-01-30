@@ -70,7 +70,7 @@ def login_required(scope=None):
                 return f(*args, **kwargs)
 
             eppn = None
-            if hasattr(flask.current_app.config, 'SHIBBOLETH_HEADER'):
+            if 'SHIBBOLETH_HEADER' in flask.current_app.config:
                 eppn = flask.request.headers.get(
                     flask.current_app.config['SHIBBOLETH_HEADER']
                 )
@@ -127,7 +127,7 @@ def get_current_user():
     username = flask.session.get('username')
     if not username:
         eppn = None
-        if hasattr(flask.current_app.config, 'SHIBBOLETH_HEADER'): 
+        if 'SHIBBOLETH_HEADER' in flask.current_app.config:
             eppn = flask.request.headers.get(
                 flask.current_app.config['SHIBBOLETH_HEADER']
             )
