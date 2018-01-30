@@ -46,7 +46,7 @@ class OIDCServer(AuthorizationServer):
         if flask.request.method == 'GET':
             params = dict(url_decode(urlparse.urlparse(uri).query))
         elif flask.request.method == 'POST':
-            params = flask.request.form
+            params = flask.request.form.to_dict()
         else:
             raise ValueError('invalid request method')
 
