@@ -69,9 +69,10 @@ def login_required(scope=None):
                 )
                 return f(*args, **kwargs)
 
-            eppn = flask.request.headers.get(
-                flask.current_app.config['SHIBBOLETH_HEADER']
-            )
+            eppn = None
+            shib_header = flask.current_app.config.get('SHIBBOLETH_HEADER')
+            if shib_header:
+                eppn = flask.request.headers.get(shib_header)
 
             if flask.current_app.config.get('MOCK_AUTH') is True:
                 eppn = 'test'
