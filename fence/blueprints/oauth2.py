@@ -16,40 +16,131 @@ stateless.
 
 import flask
 
-from fence.jwt import token, errors
+from authlib.common.urls import add_params_to_uri
+from authlib.specs.rfc6749.errors import AccessDeniedError
+from authlib.specs.rfc6749.errors import InvalidRequestError
+
+from fence.errors import Unauthorized
 from fence.models import Client
 from fence.oidc.server import server
 from fence.user import get_current_user
-
+from fence.auth import handle_login
 
 blueprint = flask.Blueprint('oauth2', __name__)
 
 
 @blueprint.route('/authorize', methods=['GET', 'POST'])
 def authorize(*args, **kwargs):
-    user = get_current_user()
+    try:
+        user = get_current_user()
+    except Unauthorized:
+        user = None
 
-    if flask.request.method == 'GET':
+    if user:
         grant = server.validate_authorization_request()
 
-        client_id = grant.params.get('client_id')
-        with flask.current_app.db.session as session:
-            client = (
-                session
+        if grant.params.get('confirm') is not None:
+            response = _handle_consent_confirmation(
+                user, grant.params.get('confirm'))
+        else:
+            # no confirm param, so no confirmation has occured yet
+            response = _authorize(user, grant.params)
+
+    else:
+        response = server.create_authorization_response(None)
+
+    return response
+
+
+def _handle_consent_confirmation(user, is_confirmed):
+    if is_confirmed == 'yes':
+        # user has already given consent, continue flow
+        response = server.create_authorization_response(user)
+    else:
+        # user did not give consent
+        response = server.create_authorization_response(None)
+    return response
+
+
+def _authorize(user, grant):
+    grant = server.validate_authorization_request()
+    prompts = grant.params.get('prompt')
+    client_id = grant.params.get('client_id')
+
+    with flask.current_app.db.session as session:
+        client = (
+            session
                 .query(Client)
                 .filter_by(client_id=client_id)
                 .first()
-            )
-            scope = flask.request.args.get('scope')
-        return flask.render_template(
+        )
+        scope = flask.request.args.get('scope')
+
+    response = _get_auth_response_for_prompts(prompts, grant, user, client, scope)
+
+    return response
+
+
+def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
+    show_consent_screen = True
+
+    if prompts:
+        prompts = prompts.split(' ')
+        if 'none' in prompts:
+            # don't auth or consent, error if user not logged in
+            show_consent_screen = False
+
+            # if none is here, there shouldn't be others
+            if len(prompts) != 1:
+                error = InvalidRequestError(
+                    state=grant.params.get('state'), uri=grant.params.get('uri'))
+                return _get_authorize_error_response(
+                    error, grant.params.get('redirect_uri'))
+
+            try:
+                get_current_user()
+                response = server.create_authorization_response(user)
+            except Unauthorized:
+                error = AccessDeniedError(
+                    state=grant.params.get('state'), uri=grant.params.get('uri'))
+                return _get_authorize_error_response(
+                    error, grant.params.get('redirect_uri'))
+
+        if 'login' in prompts:
+            show_consent_screen = True
+            try:
+                # re-AuthN user
+                handle_login(scope)  # TODO not sure if this really counts as re-AuthN...
+            except Unauthorized:
+                error = AccessDeniedError(
+                    state=grant.params.get('state'), uri=grant.params.get('uri'))
+                return _get_authorize_error_response(
+                    error, grant.params.get('redirect_uri'))
+
+        if 'consent' in prompts:
+            # show consent screen (which is default behavior so pass)
+            pass
+
+        if 'select_account' in prompts:
+            # allow user to select one of their accounts, we
+            # don't support this at the moment
+            pass
+
+    if show_consent_screen:
+        response = flask.render_template(
             'oauthorize.html', grant=grant, user=user, client=client,
             scope=scope
         )
 
-    if flask.request.form.get('confirm'):
-        return server.create_authorization_response(user)
-    else:
-        return server.create_authorization_response(None)
+    return response
+
+
+def _get_authorize_error_response(error, redirect_uri):
+    params = error.get_body()
+    uri = add_params_to_uri(redirect_uri, params)
+    headers = [('Location', uri)]
+    response = flask.Response('', status=302, headers=headers)
+    return response
 
 
 @blueprint.route('/token', methods=['POST'])

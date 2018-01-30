@@ -93,6 +93,34 @@ def login_required(scope=None):
     return decorator
 
 
+def handle_login(scope):
+    if flask.session.get('username'):
+        login_user(
+            flask.request,
+            flask.session['username'],
+            flask.session['provider'],
+        )
+
+    eppn = flask.request.headers.get(
+        flask.current_app.config['SHIBBOLETH_HEADER']
+    )
+
+    if flask.current_app.config.get('MOCK_AUTH') is True:
+        eppn = 'test'
+    # if there is authorization header for oauth
+    if 'Authorization' in flask.request.headers:
+        has_oauth(scope=scope)
+    # if there is shibboleth session, then create user session and
+    # log user in
+    elif eppn:
+        username = eppn.split('!')[-1]
+        flask.session['username'] = username
+        flask.session['provider'] = IdentityProvider.itrust
+        login_user(flask.request, username, flask.session['provider'])
+    else:
+        raise Unauthorized("Please login")
+
+
 def has_oauth(scope=None):
     scope = scope or set()
     scope.update({'openid'})

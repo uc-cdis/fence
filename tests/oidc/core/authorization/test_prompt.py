@@ -29,6 +29,24 @@ OIDC specification of authentication request parameter ``prompt``:
             account selection choice made by the End-User, it MUST return an
             error, typically account_selection_required.
 """
+import pytest
+
+# Python 2 and 3 compatible
+try:
+    from unittest.mock import MagicMock
+    from unittest.mock import patch
+except ImportError:
+    from mock import MagicMock
+    from mock import patch
+
+try:
+    # Python 3
+    from urllib.parse import urlparse, parse_qs
+except ImportError:
+    # Python 2
+    from urlparse import urlparse, parse_qs
+
+from fence.errors import Unauthorized
 
 from tests.utils import oauth2
 
@@ -37,8 +55,14 @@ def test_no_prompt_provided(client, oauth_client):
     """
     ``prompt`` is optional; test that omitting it is fine.
     """
-    response = oauth2.post_authorize(client, oauth_client)
-    # TODO make sure no consent screen/page appears
+    with patch('flask.render_template') as render_mock:
+        oauth2.get_authorize(client, oauth_client)
+        # make sure consent screen/page appears
+        assert render_mock.called is True
+
+    # Now use fake user consent confirmation
+    response = oauth2.get_authorize(client, oauth_client, confirm=True)
+
     assert response.status_code == 302
     assert 'Location' in response.headers
     assert oauth2.code_from_authorize_response(response)
@@ -52,43 +76,73 @@ def test_prompt_none_logged_in_client_cfg(client, oauth_client):
     """
     data = {'prompt': 'none'}
 
-    response = oauth2.post_authorize(client, oauth_client, data=data)
-    # TODO make sure no consent screen/page appears
+    with patch('flask.render_template') as render_mock:
+        oauth2.get_authorize(client, oauth_client, data=data)
+        # make sure no consent screen/page appears
+        assert render_mock.called is False
+
+    # Now use fake user consent confirmation
+    response = oauth2.get_authorize(client, oauth_client, data=data, confirm=True)
+
     assert response.status_code == 302
     assert 'Location' in response.headers
     assert oauth2.code_from_authorize_response(response)
 
 
-def test_prompt_none_not_logged_in_client_cfg(client, oauth_client):
+def test_prompt_none_not_logged_in_client_cfg(app, client, oauth_client, monkeypatch):
     """
     Test ``prompt=none`` when user is not authN'd and client
     has pre-configured consent for the requested Claims.
     """
     data = {'prompt': 'none'}
 
-    # TODO make user not logged in
+    # don't mock auth so there isn't a logged in user
+    monkeypatch.setitem(app.config, 'MOCK_AUTH', False)
 
-    auth_response = oauth2.post_authorize(client, oauth_client, data=data)
-    # TODO make sure no consent screen/page appears
-    assert auth_response.status_code != 302
-    assert 'error' in auth_response.json, auth_response.json
-    assert auth_response.json['error'] in ['login_required', 'interaction_required']
+    with patch('flask.render_template') as render_mock:
+        oauth2.get_authorize(client, oauth_client, data=data)
+        # make sure no consent screen/page appears
+        assert render_mock.called is False
+
+    # Now use fake user consent confirmation
+    auth_response = oauth2.get_authorize(client, oauth_client, data=data, confirm=True)
+
+    assert auth_response.status_code == 302
+    assert 'Location' in auth_response.headers
+    query_params = parse_qs(urlparse(auth_response.headers['Location']).query)
+    assert 'error' in query_params
+
+    # for some reason, query_params for error come back as a list,
+    # even though its just a string in response. So get the first (and
+    # only) item
+    assert query_params['error'][0] == 'access_denied'
 
 
-def test_prompt_none_not_logged_in_client_not_cfg(client, oauth_client):
+def test_prompt_none_not_logged_in_client_not_cfg(app, client, oauth_client, monkeypatch):
     """
     Test ``prompt=none`` when user is not authN'd and client does not
     have pre-configured consent for the requested Claims.
     """
     data = {'prompt': 'none'}
 
-    # TODO make user not logged in
+    # TODO make client not have pre-cfg consent
 
-    auth_response = oauth2.post_authorize(client, oauth_client, data=data)
-    # TODO make sure no consent screen/page appears
-    assert auth_response.status_code != 302
-    assert 'error' in auth_response.json, auth_response.json
-    assert auth_response.json['error'] in ['login_required', 'interaction_required']
+    # don't mock auth so there isn't a logged in user
+    monkeypatch.setitem(app.config, 'MOCK_AUTH', False)
+
+    with patch('flask.render_template') as render_mock:
+        oauth2.get_authorize(client, oauth_client, data=data)
+        # make sure no consent screen/page appears
+        assert render_mock.called is False
+
+    # Now use fake user consent confirmation
+    auth_response = oauth2.get_authorize(client, oauth_client, data=data, confirm=True)
+
+    assert auth_response.status_code == 302
+    assert 'Location' in auth_response.headers
+    query_params = parse_qs(urlparse(auth_response.headers['Location']).query)
+    assert 'error' in query_params
+    assert query_params['error'][0] == 'access_denied'
 
 
 def test_prompt_none_logged_in_client_not_cfg(client, oauth_client):
@@ -98,13 +152,21 @@ def test_prompt_none_logged_in_client_not_cfg(client, oauth_client):
     """
     data = {'prompt': 'none'}
 
-    # TODO make user not logged in
+    # TODO make client not have pre-cfg consent
 
-    auth_response = oauth2.post_authorize(client, oauth_client, data=data)
-    # TODO make sure no consent screen/page appears
-    assert auth_response.status_code != 302
-    assert 'error' in auth_response.json, auth_response.json
-    assert auth_response.json['error'] in ['login_required', 'interaction_required']
+    with patch('flask.render_template') as render_mock:
+        oauth2.get_authorize(client, oauth_client, data=data)
+        # make sure no consent screen/page appears
+        assert render_mock.called is False
+
+    # Now use fake user consent confirmation
+    auth_response = oauth2.get_authorize(client, oauth_client, data=data, confirm=True)
+
+    assert auth_response.status_code == 302
+    assert 'Location' in auth_response.headers
+    query_params = parse_qs(urlparse(auth_response.headers['Location']).query)
+    assert 'error' in query_params
+    assert query_params['error'][0] == 'access_denied'
 
 
 def test_prompt_login(client, oauth_client):
@@ -113,9 +175,13 @@ def test_prompt_login(client, oauth_client):
     """
     data = {'prompt': 'login'}
 
-    # TODO
+    with patch('fence.blueprints.oauth2.handle_login') as handle_login_mock:
+        response = oauth2.get_authorize(client, oauth_client, data=data)
+        assert handle_login_mock.called is True
 
-    response = oauth2.post_authorize(client, oauth_client)
+    # Now use fake user consent confirmation
+    response = oauth2.get_authorize(client, oauth_client, data=data, confirm=True)
+
     assert response.status_code == 302
     assert 'Location' in response.headers
     assert oauth2.code_from_authorize_response(response)
@@ -127,60 +193,104 @@ def test_prompt_login_no_authn(client, oauth_client):
     """
     data = {'prompt': 'login'}
 
-    auth_response = oauth2.post_authorize(client, oauth_client, data=data)
-    assert auth_response.status_code != 302
-    assert 'error' in auth_response.json, auth_response.json
-    assert auth_response.json['error'] == 'login_required'
+    with patch('fence.blueprints.oauth2.handle_login') as handle_login_mock:
+        handle_login_mock.side_effect = Unauthorized('couldnt authN')
+        auth_response = oauth2.get_authorize(client, oauth_client, data=data)
+
+        assert auth_response.status_code == 302
+        assert 'Location' in auth_response.headers
+        query_params = parse_qs(urlparse(auth_response.headers['Location']).query)
+        assert 'error' in query_params
+        assert query_params['error'][0] == 'access_denied'
 
 
-def test_prompt_consent(client, oauth_client):
+def test_prompt_consent_no_login(app, client, oauth_client, monkeypatch):
     """
-    Test ``prompt=consent`` when user approves.
+    Test ``prompt=consent`` when user is not logged in, should raise error.
     """
     data = {'prompt': 'consent'}
 
-    # TODO
+    # don't mock auth so there isn't a logged in user
+    monkeypatch.setitem(app.config, 'MOCK_AUTH', False)
 
-    response = oauth2.post_authorize(client, oauth_client)
+    response = oauth2.get_authorize(client, oauth_client, data=data)
+    assert response.status_code == 302
+    assert 'Location' in response.headers
+    query_params = parse_qs(urlparse(response.headers['Location']).query)
+    assert 'error' in query_params
+    assert query_params['error'][0] == 'access_denied'
+
+
+def test_prompt_consent(app, client, oauth_client):
+    """
+    Test ``prompt=consent`` when user approves. Should display consent
+    screen and then have correct response.
+    """
+    data = {'prompt': 'consent'}
+
+    with patch('flask.render_template') as render_mock:
+        oauth2.get_authorize(client, oauth_client)
+        # make sure consent screen/page appears
+        assert render_mock.called is True
+
+    # Now use fake user consent confirmation
+    response = oauth2.get_authorize(client, oauth_client, data=data, confirm=True)
     assert response.status_code == 302
     assert 'Location' in response.headers
     assert oauth2.code_from_authorize_response(response)
 
 
-def test_prompt_login_no_consent(client, oauth_client):
+def test_prompt_login_no_consent(app, client, oauth_client):
     """
-    Test ``prompt=login`` when user does not consent.
+    Test ``prompt=login`` when user does not consent. Should still show
+    consent screen but then return with error.
     """
     data = {'prompt': 'login'}
 
-    auth_response = oauth2.post_authorize(client, oauth_client, data=data)
-    assert auth_response.status_code != 302
-    assert 'error' in auth_response.json, auth_response.json
-    assert auth_response.json['error'] == 'consent_required'
+    with patch('flask.render_template') as render_mock:
+        oauth2.get_authorize(client, oauth_client, data=data)
+        # make sure consent screen/page appears
+        assert render_mock.called is True
+
+    # Now use fake user consent confirmation
+    auth_response = oauth2.get_authorize(client, oauth_client, data=data, confirm=False)
+    assert auth_response.status_code == 302
+    assert 'Location' in auth_response.headers
+    query_params = parse_qs(urlparse(auth_response.headers['Location']).query)
+    assert 'error' in query_params
+    assert query_params['error'][0] == 'access_denied'
 
 
+@pytest.mark.skip(reason="we don't support choosing an account at this point "
+                         "since users can only have one account")
 def test_prompt_select_account(client, oauth_client):
     """
     Test ``prompt=select_account`` when user chooses an account.
     """
     data = {'prompt': 'select_account'}
 
-    # TODO
+    # TODO check that account selection screen shows up
 
-    response = oauth2.post_authorize(client, oauth_client)
+    response = oauth2.get_authorize(client, oauth_client, data=data)
     assert response.status_code == 302
     assert 'Location' in response.headers
     assert oauth2.code_from_authorize_response(response)
 
 
+@pytest.mark.skip(reason="we don't support choosing an account at this point "
+                         "since users can only have one account")
 def test_prompt_select_account_no_choice(client, oauth_client):
     """
     Test ``prompt=select_account`` when choice cannot be obtained.
     """
     data = {'prompt': 'select_account'}
 
-    auth_response = oauth2.post_authorize(client, oauth_client, data=data)
-    assert auth_response.status_code != 302
-    assert 'error' in auth_response.json, auth_response.json
-    assert auth_response.json['error'] == 'account_selection_required'
+    # TODO check that account selection screen shows up
+    # TODO force result to be no choice from selection options
 
+    auth_response = oauth2.get_authorize(client, oauth_client, data=data)
+    assert auth_response.status_code == 302
+    assert 'Location' in auth_response.headers
+    query_params = parse_qs(urlparse(auth_response.headers['Location']).query)
+    assert 'error' in query_params
+    assert query_params['error'][0] == 'account_selection_required'

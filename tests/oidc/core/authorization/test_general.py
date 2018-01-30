@@ -21,4 +21,5 @@ def test_default_values_with_nonce(client, oauth_client):
     token_response = oauth2.get_token_response(
         client, oauth_client, code_request_data=data).json
     id_token = validate_jwt(token_response['id_token'], {'openid'})
+    assert 'nonce' in id_token
     assert nonce == id_token['nonce']

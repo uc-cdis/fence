@@ -20,25 +20,40 @@ OIDC specification of authentication request parameter ``id_token_hint``:
     id_token_hint value.
 """
 
+try:
+    # Python 3
+    from urllib.parse import urlparse, parse_qs
+except ImportError:
+    # Python 2
+    from urlparse import urlparse, parse_qs
+
 from fence.jwt.validate import validate_jwt
 from tests.utils import oauth2
 
 
 def test_id_token_hint_empty(client, oauth_client):
     """
-    Test ``id_token_hint`` parameter when it's empty
+    Test ``id_token_hint`` parameter when it's empty.
+
+    "If the End-User identified by the ID Token is logged in or is logged in
+    by the request, then the Authorization Server returns a positive response;
+    otherwise, it SHOULD return an error"
+
+    No end user in hint, so return an error
     """
     data = {'id_token_hint': ''}
 
-    auth_response = oauth2.post_authorize(client, oauth_client, data=data)
-    assert auth_response.status_code != 302
-    assert 'error' in auth_response.json, auth_response.json
-    assert auth_response.json['error'] == 'login_required'
+    auth_response = oauth2.post_authorize(client, oauth_client, data=data, confirm=True)
+    assert auth_response.status_code == 302
+    assert 'Location' in auth_response.headers
+    query_params = parse_qs(urlparse(auth_response.headers['Location']).query)
+    assert 'error' in query_params
+    assert query_params['error'][0] == 'access_denied'
 
 
 def test_id_token_hint(client, oauth_client):
     """
-    Test ``id_token_hint`` parameter when hinted user logs in
+    Test ``id_token_hint`` parameter when hinted user is logged in
     """
     token_response = oauth2.get_token_response(
         client, oauth_client).json
@@ -48,28 +63,31 @@ def test_id_token_hint(client, oauth_client):
     data = {'id_token_hint': str(id_token)}
 
     new_token_response = oauth2.get_token_response(
-        client, oauth_client, code_request_data=data).json
+        client, oauth_client, code_request_data=data)
     new_id_token = validate_jwt(token_response['id_token'], {'openid'})
     assert new_token_response.status_code == 200
     assert new_id_token['sub'] == id_token['sub']
 
 
-def test_id_token_hint_not_logged_in(client, oauth_client):
+def test_id_token_hint_not_logged_in(app, client, oauth_client, monkeypatch):
     """
-    Test ``id_token_hint`` parameter when hinted user is not logged in
+    Test ``id_token_hint`` parameter when hinted user is not logged in.
+    TODO: This should attempt to log the user in
     """
+    # test user is logged in right now
     token_response = oauth2.get_token_response(
         client, oauth_client).json
     id_token = validate_jwt(token_response['id_token'], {'openid'})
 
-    # TODO somehow make user not logged in
+    # don't mock auth so there isn't a logged in user any more
+    monkeypatch.setitem(app.config, 'MOCK_AUTH', False)
 
     # Now use that id_token as a hint to the authorize endpoint
     data = {'id_token_hint': str(id_token)}
 
-    response = oauth2.get_token_response(
-        client, oauth_client, code_request_data=data).json
-    assert "id_token" not in response
-    assert response.status_code != 200
-    assert 'error' in response
-    assert response['error'] == 'login_required'
+    auth_response = oauth2.post_authorize(client, oauth_client, data=data, confirm=True)
+    assert auth_response.status_code == 302
+    assert 'Location' in auth_response.headers
+    query_params = parse_qs(urlparse(auth_response.headers['Location']).query)
+    assert 'error' in query_params
+    assert query_params['error'][0] == 'access_denied'
