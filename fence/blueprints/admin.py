@@ -26,7 +26,7 @@ from fence.resources.admin import (
     create_project_by_name,
     create_provider_by_name,
     delete_provider_by_name,
-    create_user_by_username,
+    create_user_with_projects_or_groups,
     delete_user_by_username,
     create_bucket_on_project_by_name,
     delete_bucket_on_project_by_name,
@@ -58,8 +58,9 @@ def create_user(username):
     associated with the project.
     Returns a json object
     """
-    projects = request.get_json().get('projects')
-    return jsonify(create_user_by_username(username, projects))
+    projects = request.get_json().get('projects', [])
+    groups = request.get_json().get('groups', [])
+    return jsonify(create_user_with_projects_or_groups(username, projects, groups))
 
 @blueprint.route('/user/<username>', methods=['DELETE'])
 @login_required({'admin'})

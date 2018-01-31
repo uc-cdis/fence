@@ -140,9 +140,9 @@ def admin_required(f):
     """
     @wraps(f)
     def wrapper(*args, **kwargs):
-        if not g.user:
+        if not flask.g.user:
             raise Unauthorized("Require login")
-        if g.user.is_admin is not True:
+        if flask.g.user.is_admin is not True:
             raise Unauthorized("Require admin user")
         return f(*args, **kwargs)
     return wrapper

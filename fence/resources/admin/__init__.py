@@ -17,7 +17,7 @@ def get_project_by_name(project_name):
     Return the information associated with a project
     Returns a dictionary.
     """
-    return udm.get_project_by_name(project_name)
+    return udm.get_project_by_name(current_session, project_name)
 
 def create_project_by_name(projectname, authid, storageaccesses):
     """
@@ -25,7 +25,8 @@ def create_project_by_name(projectname, authid, storageaccesses):
     storage access.
     Returns a dictionary.
     """
-    return udm.create_project_by_name(projectname, authid, storageaccesses)
+    if udm.create_project(current_session, projectname, authid, storageaccesses):
+        return {'result': 'success'}
 
 def delete_project_by_name(project_name):
     """
@@ -33,7 +34,7 @@ def delete_project_by_name(project_name):
     before this oepration can be called.
     Returns a dictionary.
     """
-    response = udm.delete_project_by_name(project_name)
+    response = udm.delete_project_by_name(current_session, project_name)
     if response["result"] == "success":
         for user in response["users_to_remove"]:
             capp.storage_manager.delete_user(user[0].backend, user[1])
@@ -45,7 +46,7 @@ def get_provider_by_name(provider_name):
     a provider.
     Returns a dictionary.
     """
-    return udm.get_provider_by_name(provider_name)
+    return udm.get_provider_by_name(current_session, provider_name)
 
 def create_provider_by_name(
         provider_name,
@@ -58,7 +59,8 @@ def create_provider_by_name(
     database.
     Returns a dictionary.
     """
-    return udm.create_provider_by_name(
+    return udm.create_provider(
+        current_session,
         provider_name,
         backend,
         service,
@@ -73,33 +75,27 @@ def delete_provider_by_name(provider_name):
     prior to calling this function.
     Returns a dictionary.
     """
-    return udm.delete_provider_by_name(provider_name)
+    return udm.delete_provider_by_name(current_session, provider_name)
 
-def create_user_by_username_project(username, project=None):
+def connect_user_to_project(usr, project=None):
     """
     Create a user name for the specific project.
     Returns a dictionary.
     """
-    #if the user doesn't exist, create it, otherwise we are updating it
-    usr = current_session.query(User).filter(
-        User.username == username).first()
-    if not usr:
-        usr = User(username=username, active=True)
-        current_session.add(usr)
-        current_session.flush()
     response = udm.create_user_by_username_project(
+        current_session,
         usr,
         project
     )
     if response["result"] == "success":
         proj = response["project"]
         priv = response["privileges"]
-        cloud_providers = udm.get_cloud_providers_from_project(proj.id)
+        cloud_providers = udm.get_cloud_providers_from_project(current_session, proj.id)
         response = []
         for provider in cloud_providers:
             capp.storage_manager.get_or_create_user(provider.backend, usr)
             buckets = udm.get_buckets_by_project_cloud_provider(
-                proj.id, provider.id)
+                current_session, proj.id, provider.id)
             for bucket in buckets["buckets"]:
                 try:
                     capp.storage_manager.update_bucket_acl(
@@ -116,16 +112,34 @@ def create_user_by_username_project(username, project=None):
                         msg.format(proj.name, bucket["name"]))
     return response
 
-def create_user_by_username(username, projects=[]):
+def connect_user_to_group(usr, group=None):
+    pass
+
+def create_user_with_projects_or_groups(username, projects=[], groups=[]):
     """
-    Create a user for all the projects in the list.
+    Create a user for all the projects or groups in the list.
+    If the user already exists, to avoid unadvertedly changing it, we suggest update
     Returns a dictionary.
     """
-    responses = []
-    for proj in projects:
-        response = create_user_by_username_project(username, project=proj)
-        responses.append(response)
-    return {"result": responses}
+    usr = current_session.query(User).filter(
+        User.username == username).first()
+    if usr:
+        msg = {"Error": ("user already exist. If this is not a"
+               " mistake, please, retry using update")}
+        return msg
+    else:
+        usr = User(username=username, active=True)
+        current_session.add(usr)
+        current_session.flush() 
+        responses = []
+        
+        for proj in projects:
+            response = connect_user_to_project(usr, project=proj)
+            responses.append(response)
+        for grp in groups:
+            response = connect_user_to_group(usr, group=grp)
+            responses.append(response)
+        return {"result": responses}
 
 def delete_user_by_username(username):
     """
@@ -133,7 +147,7 @@ def delete_user_by_username(username):
     and the assciated storage for that project/bucket.
     Returns a dictionary.
     """
-    response = udm.delete_user_by_username(username)
+    response = udm.delete_user_by_username(current_session, username)
     if response["result"] == "success":
         for provider in response["providers"]:
             capp.storage_manager.delete_user(provider.backend, response["user"])
@@ -146,6 +160,7 @@ def create_bucket_on_project_by_name(project_name, bucket_name, provider_name):
     Returns a dictionary.
     """
     response = udm.create_bucket_on_project_by_name(
+        current_session,
         project_name,
         bucket_name,
         provider_name
@@ -172,6 +187,7 @@ def delete_bucket_on_project_by_name(project_name, bucket_name):
     Returns a dictionary.
     """
     response = udm.delete_bucket_on_project_by_name(
+        current_session,
         project_name,
         bucket_name
     )
@@ -193,4 +209,4 @@ def list_buckets_on_project_by_name(project_name):
     Retrieve the buckets associated with a project.
     Returns a dictionary.
     """
-    return udm.list_buckets_on_project_by_name(project_name)
+    return udm.list_buckets_on_project_by_name(current_session, project_name)
