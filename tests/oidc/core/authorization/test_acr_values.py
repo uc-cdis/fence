@@ -9,12 +9,14 @@ OIDC specification of authentication request parameter ``acr_values``:
     is returned as the ``acr`` Claim Value, as specified in Section 2. The
     ``acr`` Claim is requested as a Voluntary Claim by this parameter.
 """
+import pytest
 
 from fence.jwt.validate import validate_jwt
 
 from tests.utils import oauth2
 
 
+@pytest.mark.skip(reason="We are NOT COMPLAINT for this OPTIONAL param (acr) yet.")
 def test_acr_values(client, oauth_client):
     """
     Test the very basic requirement that including the ``acr_values`` parameter

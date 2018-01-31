@@ -31,28 +31,61 @@ blueprint = flask.Blueprint('oauth2', __name__)
 
 @blueprint.route('/authorize', methods=['GET', 'POST'])
 def authorize(*args, **kwargs):
+    """
+    OIDC Authorization Endpoint
+
+    From the OIDC Specification:
+
+    3.1.1.  Authorization Code Flow Steps
+    The Authorization Code Flow goes through the following steps.
+
+    - Client prepares an Authentication Request containing the desired request parameters.
+    - Client sends the request to the Authorization Server.
+    - Authorization Server Authenticates the End-User.
+    - Authorization Server obtains End-User Consent/Authorization.
+    - Authorization Server sends the End-User back to the Client with an Authorization Code.
+    - Client requests a response using the Authorization Code at the Token Endpoint.
+    - Client receives a response that contains an ID Token and Access Token in the response body.
+    - Client validates the ID token and retrieves the End-User's Subject Identifier.
+
+    Args:
+        *args: additional arguments
+        **kwargs: additional keyword arguments
+    """
+    need_authentication = False
     try:
         user = get_current_user()
     except Unauthorized:
-        user = None
+        need_authentication = True
 
-    if user:
-        grant = server.validate_authorization_request()
+    if need_authentication or not user:
+        login_url = (
+            flask.current_app.config.get('DEFAULT_LOGIN_URL') +
+            '?' + flask.current_app.config.get('DEFAULT_LOGIN_URL_REDIRECT_PARAM') +
+            '=' + flask.request.url
+        )
+        return flask.redirect(login_url)
 
-        if grant.params.get('confirm') is not None:
-            response = _handle_consent_confirmation(
-                user, grant.params.get('confirm'))
-        else:
-            # no confirm param, so no confirmation has occured yet
-            response = _authorize(user, grant.params)
+    grant = server.validate_authorization_request()
 
+    if grant.params.get('confirm') is not None:
+        response = _handle_consent_confirmation(
+            user, grant.params.get('confirm'))
     else:
-        response = server.create_authorization_response(None)
+        # no confirm param, so no confirmation has occured yet
+        response = _authorize(user, grant)
 
     return response
 
 
 def _handle_consent_confirmation(user, is_confirmed):
+    """
+    Return server response given user consent.
+
+    Args:
+        user (fence.models.User): authN'd user
+        is_confirmed (str): confirmation param
+    """
     if is_confirmed == 'yes':
         # user has already given consent, continue flow
         response = server.create_authorization_response(user)
@@ -63,7 +96,13 @@ def _handle_consent_confirmation(user, is_confirmed):
 
 
 def _authorize(user, grant):
-    grant = server.validate_authorization_request()
+    """
+    Return server response when user has not yet provided consent.
+
+    Args:
+        user (fence.models.User): authN'd user
+        grant (fence.oidc.grants.AuthorizationCodeGrant): request grant
+    """
     prompts = grant.params.get('prompt')
     client_id = grant.params.get('client_id')
 
@@ -82,6 +121,25 @@ def _authorize(user, grant):
 
 
 def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
+    """
+    Get response based on prompt parameter. TODO: not completely conforming yet
+
+    FIXME: To conform to spec, some of the prompt params should be handled
+           before AuthN or if it fails (so adequate and useful errors are provided).
+
+           Right now the behavior is that the endpoint will just continue to
+           redirect the user to log in without checking these params....
+
+    Args:
+        prompts (TYPE): Description
+        grant (TYPE): Description
+        user (TYPE): Description
+        client (TYPE): Description
+        scope (TYPE): Description
+
+    Returns:
+        TYPE: Description
+    """
     show_consent_screen = True
 
     if prompts:
@@ -136,6 +194,13 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
 
 
 def _get_authorize_error_response(error, redirect_uri):
+    """
+    Get error response as defined by OIDC spec.
+
+    Args:
+        error (authlib.specs.rfc6749.error.OAuth2Error): Specific Oauth2 error
+        redirect_uri (str): Redirection url
+    """
     params = error.get_body()
     uri = add_params_to_uri(redirect_uri, params)
     headers = [('Location', uri)]
