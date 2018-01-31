@@ -2,18 +2,14 @@ from datetime import datetime, timedelta
 import json
 import time
 
+from authlib.common.encoding import to_unicode
 from authlib.specs.oidc import CodeIDToken as AuthlibCodeIDToken
 from authlib.specs.oidc import IDTokenError
-from authlib.common.encoding import to_unicode
-from cdispyutils import auth
 import flask
 import jwt
 import uuid
 
-from fence.jwt import blacklist
-from fence.jwt import errors
 from fence.jwt import keys
-from fence.jwt.blacklist import BlacklistedToken
 
 
 class UnsignedIDToken(AuthlibCodeIDToken):
@@ -150,9 +146,20 @@ class UnsignedIDToken(AuthlibCodeIDToken):
         if verify:
             token.validate(
                 client_id=client_id, issuer=issuer, max_age=max_age,
-                nonce=nonce)
+                nonce=nonce
+            )
 
         return token
+
+
+# Allowed scopes for user requested token and oauth2 client requested token
+# TODO: this should be more discoverable and configurable
+#
+# Only allow web session based auth access credentials so that user
+# can't create a long-lived API key using a short lived access_token
+SESSION_ALLOWED_SCOPES = ['user', 'credentials', 'data']
+USER_ALLOWED_SCOPES = ['fence', 'user', 'data']
+CLIENT_ALLOWED_SCOPES = ['fence', 'user', 'data']
 
 
 def issued_and_expiration_times(seconds_to_expire):
@@ -171,6 +178,219 @@ def issued_and_expiration_times(seconds_to_expire):
     iat = int(now.strftime('%s'))
     exp = int((now + timedelta(seconds=seconds_to_expire)).strftime('%s'))
     return (iat, exp)
+
+
+def generate_signed_session_token(
+        kid, private_key, expires_in, username=None, session_started=None,
+        provider=None, redirect=None):
+    """
+    Generate a JWT session token from the given request, and output a UTF-8
+    string of the encoded JWT signed with the private key.
+
+    Args:
+        private_key (str): RSA private key to sign and encode the JWT with
+        request (oauthlib.common.Request): token request to handle
+        session_started (int):
+            unix time the original session token was provided
+
+    Return:
+        str: encoded JWT session token signed with ``private_key``
+    """
+    headers = {'kid': kid}
+    iat, exp = issued_and_expiration_times(expires_in)
+
+    # Create context based on provided information
+    context = {
+        'session_started': session_started or iat,  # Provided or issued time
+    }
+    if username:
+        context["username"] = username
+    if provider:
+        context["provider"] = provider
+    if redirect:
+        context["redirect"] = redirect
+
+    claims = {
+        'aud': ['session'],
+        'sub': username or '',
+        'iss': flask.current_app.config.get('HOSTNAME'),
+        'iat': iat,
+        'exp': exp,
+        'jti': str(uuid.uuid4()),
+        'context': context,
+    }
+    flask.current_app.logger.debug(
+        'issuing JWT session token\n' + json.dumps(claims, indent=4)
+    )
+    token = jwt.encode(claims, private_key, headers=headers, algorithm='RS256')
+    token = to_unicode(token, 'UTF-8')
+    return token
+
+
+def generate_signed_id_token(
+        kid, private_key, user, expires_in, client_id, audiences=None,
+        auth_time=None, max_age=None, nonce=None):
+    """
+    Generate a JWT ID token, and output a UTF-8 string of the encoded JWT
+    signed with the private key
+
+    Args:
+        kid (str): key id of the generated token
+        private_key (str): RSA private key to sign and encode the JWT with
+        user (fence.models.User): User to generate ID token for
+        expires_in (int): seconds token should last
+        client_id (str, optional): Client identifier
+        audiences (List(str), optional): Description
+        auth_time (int, optional): Last time user authN'd in number of seconds
+                                   from 1970-01-01T0:0:0Z as measured in
+                                   UTC until the date/time
+        max_age (int, optional):
+            max number of seconds allowed since last user AuthN
+        nonce (str, optional):
+            string value used to associate a Client session with an ID Token
+
+    Return:
+        str: encoded JWT ID token signed with ``private_key``
+    """
+    token = generate_id_token(
+        user, expires_in, client_id, audiences=audiences, auth_time=auth_time,
+        max_age=max_age, nonce=nonce
+    )
+
+    signed_token = token.get_signed_and_encoded_token(kid, private_key)
+    return signed_token
+
+
+def generate_signed_refresh_token(
+        kid, private_key, user, expires_in, scopes):
+    """
+    Generate a JWT refresh token and output a UTF-8
+    string of the encoded JWT signed with the private key.
+
+    Args:
+        kid (str): key id of the keypair used to generate token
+        private_key (str): RSA private key to sign and encode the JWT with
+        user (fence.models.User): User to generate token for
+        expires_in (int): seconds until expiration
+        scopes (List[str]): oauth scopes for user
+
+    Return:
+        str: encoded JWT refresh token signed with ``private_key``
+    """
+    headers = {'kid': kid}
+    iat, exp = issued_and_expiration_times(expires_in)
+    jti = str(uuid.uuid4())
+    sub = str(user.id)
+    claims = {
+        'pur': 'refresh',
+        'aud': scopes,
+        'sub': sub,
+        'iss': flask.current_app.config.get('HOST_NAME'),
+        'iat': iat,
+        'exp': exp,
+        'jti': jti,
+    }
+    flask.current_app.logger.info(
+        'issuing JWT refresh token with id [{}] to [{}]'.format(jti, sub)
+    )
+    flask.current_app.logger.debug(
+        'issuing JWT refresh token\n' + json.dumps(claims, indent=4)
+    )
+    token = jwt.encode(claims, private_key, headers=headers, algorithm='RS256')
+    flask.current_app.logger.debug(str(token))
+    token = to_unicode(token, 'UTF-8')
+    return token, claims
+
+
+def generate_api_key(
+        kid, private_key, user, expires_in, scopes, client_id):
+    """
+    Generate a JWT refresh token and output a UTF-8
+    string of the encoded JWT signed with the private key.
+
+    Args:
+        kid (str): key id of the keypair used to generate token
+        private_key (str): RSA private key to sign and encode the JWT with
+        user (fence.models.User): User to generate token for
+        expires_in (int): seconds until expiration
+        scopes (List[str]): oauth scopes for user
+
+    Return:
+        str: encoded JWT refresh token signed with ``private_key``
+    """
+    headers = {'kid': kid}
+    iat, exp = issued_and_expiration_times(expires_in)
+    jti = str(uuid.uuid4())
+    sub = str(user.id)
+    claims = {
+        'pur': 'api_key',
+        'aud': scopes,
+        'sub': sub,
+        'iss': flask.current_app.config.get('HOST_NAME'),
+        'iat': iat,
+        'exp': exp,
+        'jti': jti,
+    }
+    flask.current_app.logger.info(
+        'issuing JWT API key with id [{}] to [{}]'.format(jti, sub)
+    )
+    flask.current_app.logger.debug(
+        'issuing JWT API key\n' + json.dumps(claims, indent=4)
+    )
+    token = jwt.encode(claims, private_key, headers=headers, algorithm='RS256')
+    flask.current_app.logger.debug(str(token))
+    token = to_unicode(token, 'UTF-8')
+    return token, claims
+
+
+def generate_signed_access_token(
+        kid, private_key, user, expires_in, scopes, forced_exp_time=None):
+    """
+    Generate a JWT access token and output a UTF-8
+    string of the encoded JWT signed with the private key.
+
+    Args:
+        kid (str): key id of the keypair used to generate token
+        private_key (str): RSA private key to sign and encode the JWT with
+        user (fence.models.User): User to generate ID token for
+        expires_in (int): seconds until expiration
+        scopes (List[str]): oauth scopes for user
+
+    Return:
+        str: encoded JWT access token signed with ``private_key``
+    """
+    headers = {'kid': kid}
+    iat, exp = issued_and_expiration_times(expires_in)
+    # force exp time if provided
+    exp = forced_exp_time or exp
+    sub = str(user.id)
+    jti = str(uuid.uuid4())
+    claims = {
+        'pur': 'access',
+        'aud': scopes,
+        'sub': sub,
+        'iss': flask.current_app.config.get('HOST_NAME'),
+        'iat': iat,
+        'exp': exp,
+        'jti': jti,
+        'context': {
+            'user': {
+                'name': user.username,
+                'is_admin': user.is_admin,
+                'projects': dict(user.project_access),
+            },
+        },
+    }
+    flask.current_app.logger.info(
+        'issuing JWT access token with id [{}] to [{}]'.format(jti, sub)
+    )
+    flask.current_app.logger.debug(
+        'issuing JWT access token\n' + json.dumps(claims, indent=4)
+    )
+    token = jwt.encode(claims, private_key, headers=headers, algorithm='RS256')
+    flask.current_app.logger.debug(str(token))
+    token = to_unicode(token, 'UTF-8')
+    return token
 
 
 def generate_id_token(
@@ -219,13 +439,6 @@ def generate_id_token(
         'jti': str(uuid.uuid4()),
         'auth_time': auth_time,
         'azp': client_id,
-        'context': {
-            'user': {
-                'name': user.username,
-                'is_admin': user.is_admin,
-                'projects': dict(user.project_access),
-            },
-        },
     }
 
     # Only include if provided, used to associate a client session with an ID
@@ -244,165 +457,3 @@ def generate_id_token(
         client_id=client_id, max_age=max_age, nonce=nonce)
 
     return token
-
-
-def generate_signed_id_token(
-        kid, private_key, user, expires_in, client_id, audiences=None,
-        auth_time=None, max_age=None, nonce=None):
-    """
-    Generate a JWT ID token, and output a UTF-8 string of the encoded JWT
-    signed with the private key
-
-    Args:
-        kid (str): key id of the generated token
-        private_key (str): RSA private key to sign and encode the JWT with
-        user (fence.models.User): User to generate ID token for
-        expires_in (int): seconds token should last
-        client_id (str, optional): Client identifier
-        audiences (List(str), optional): Description
-        auth_time (int, optional): Last time user authN'd in number of seconds
-                                   from 1970-01-01T0:0:0Z as measured in
-                                   UTC until the date/time
-        max_age (int, optional):
-            max number of seconds allowed since last user AuthN
-        nonce (str, optional):
-            string value used to associate a Client session with an ID Token
-
-    Return:
-        str: encoded JWT ID token signed with ``private_key``
-    """
-    token = generate_id_token(
-        user, expires_in, client_id,
-        audiences=audiences, auth_time=auth_time, max_age=max_age, nonce=nonce)
-
-    signed_token = token.get_signed_and_encoded_token(kid, private_key)
-    return signed_token
-
-
-def generate_signed_refresh_token(kid, private_key, user, expires_in, scopes):
-    """
-    Generate a JWT refresh token and output a UTF-8
-    string of the encoded JWT signed with the private key.
-
-    Args:
-        kid (str): key id of the keypair used to generate token
-        private_key (str): RSA private key to sign and encode the JWT with
-        user (fence.models.User): User to generate token for
-        expires_in (int): seconds until expiration
-        scopes (List[str]): oauth scopes for user
-
-    Return:
-        str: encoded JWT refresh token signed with ``private_key``
-    """
-    headers = {'kid': kid}
-    iat, exp = issued_and_expiration_times(expires_in)
-    claims = {
-        'pur': 'refresh',
-        'aud': scopes,
-        'sub': str(user.id),
-        'iss': flask.current_app.config.get('HOST_NAME'),
-        'iat': iat,
-        'exp': exp,
-        'jti': str(uuid.uuid4()),
-    }
-    flask.current_app.logger.info(
-        'issuing JWT refresh token\n' + json.dumps(claims, indent=4)
-    )
-    token = jwt.encode(claims, private_key, headers=headers, algorithm='RS256')
-    flask.current_app.logger.debug(str(token))
-    token = to_unicode(token, 'UTF-8')
-    return token
-
-
-def generate_signed_access_token(kid, private_key, user, expires_in, scopes):
-    """
-    Generate a JWT access token and output a UTF-8
-    string of the encoded JWT signed with the private key.
-
-    Args:
-        kid (str): key id of the keypair used to generate token
-        private_key (str): RSA private key to sign and encode the JWT with
-        user (fence.models.User): User to generate ID token for
-        expires_in (int): seconds until expiration
-        scopes (List[str]): oauth scopes for user
-
-    Return:
-        str: encoded JWT access token signed with ``private_key``
-    """
-    headers = {'kid': kid}
-    iat, exp = issued_and_expiration_times(expires_in)
-    claims = {
-        'pur': 'access',
-        'aud': scopes,
-        'sub': str(user.id),
-        'iss': flask.current_app.config.get('HOST_NAME'),
-        'iat': iat,
-        'exp': exp,
-        'jti': str(uuid.uuid4()),
-    }
-    flask.current_app.logger.info(
-        'issuing JWT access token\n' + json.dumps(claims, indent=4)
-    )
-    token = jwt.encode(claims, private_key, headers=headers, algorithm='RS256')
-    flask.current_app.logger.debug(str(token))
-    token = to_unicode(token, 'UTF-8')
-    return token
-
-
-def validate_refresh_token(refresh_token):
-    """
-    Validate token existing
-
-    Args:
-        refresh_token (str): encoded JWT refresh token
-
-    Returns:
-        Token: Decoded refresh token
-
-    Raises:
-        errors.JWTError: Invalid token
-    """
-    if not refresh_token:
-        raise errors.JWTError('No token provided.')
-
-    # Must contain just a `'refresh'` audience for a refresh token.
-    decoded_jwt = auth.validate_jwt(
-        encoded_token=refresh_token,
-        public_key=keys.default_public_key(),
-        aud={'refresh'},
-        iss=flask.current_app.config['HOST_NAME'],
-    )
-
-    # Validate jti and make sure refresh token is not blacklisted.
-    jti = decoded_jwt.get('jti')
-    if not jti:
-        errors.JWTError('Token missing jti claim.')
-    with flask.current_app.db.session as session:
-        if session.query(BlacklistedToken).filter_by(jti=jti).first():
-            raise errors.JWTError('Token is blacklisted.')
-
-    return decoded_jwt
-
-
-def revoke_token(encoded_token):
-    """
-    Revoke a refresh token.
-
-    If the operation is successful, return an empty response with a 204 status
-    code. Otherwise, return error message in JSON with a 400 code.
-
-    Return:
-        Tuple[str, int]: JSON response and status code
-    """
-
-    # Try to blacklist the token; see possible exceptions raised in
-    # ``blacklist_encoded_token``.
-    try:
-        blacklist.blacklist_encoded_token(encoded_token)
-    except jwt.InvalidTokenError:
-        raise errors.JWTError('invalid token', 400)
-    except KeyError as e:
-        msg = 'token missing claim: {}'.format(str(e))
-        raise errors.JWTError(msg, 400)
-    except ValueError as e:
-        raise errors.JWTError(str(e), 400)

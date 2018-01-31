@@ -85,33 +85,3 @@ def test_oauth2_token_post_revoke(client, oauth_client, refresh_token):
     }
     response = client.post('/oauth2/token', data=data)
     assert response.status_code == 401
-
-
-def test_validate_oauth2_token(app, client, access_token, monkeypatch):
-    """
-    Get an access token from going through the OAuth procedure and try to use
-    it to access a protected endpoint, ``/user``.
-    """
-    monkeypatch.setitem(app.config, 'MOCK_AUTH', False)
-    monkeypatch.setitem(app.config, 'USER_API', app.config['HOST_NAME'])
-    headers = {'Authorization': 'bearer ' + access_token}
-    response = client.get('/user/', headers=headers)
-    assert response.status_code == 200, response.json
-
-
-def test_protected_endpoint(app, client, monkeypatch):
-    """
-    Try to make a request to a (fake) protected endpoint without an access
-    token and test that it fails.
-    """
-    monkeypatch.setitem(app.config, 'MOCK_AUTH', False)
-    response = client.get('/protected')
-    assert response.status_code == 401
-
-
-def test_malformed_auth_header_fails(app, client, access_token, monkeypatch):
-    monkeypatch.setitem(app.config, 'MOCK_AUTH', False)
-    monkeypatch.setitem(app.config, 'USER_API', app.config['HOST_NAME'])
-    headers = {'Authorization': access_token}
-    response = client.get('/protected', headers=headers)
-    assert response.status_code == 401, response

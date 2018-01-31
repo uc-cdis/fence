@@ -1,17 +1,18 @@
+import copy
 from functools import wraps
 
 from storageclient import get_client
 
-from fence.errors import NotSupported, Unauthorized
-from fence.models import CloudProvider, Bucket
+from fence.models import CloudProvider, Bucket, ProjectToBucket
+from fence.errors import NotSupported, InternalError, Unauthorized
 
 
 def check_exist(f):
     @wraps(f)
-    def wrapper(self, backend, *args, **kwargs):
-        if backend not in self.clients:
+    def wrapper(self, provider, *args, **kwargs):
+        if provider not in self.clients:
             raise NotSupported("This backend is not supported by the system!")
-        return f(self, backend, *args, **kwargs)
+        return f(self, provider, *args, **kwargs)
 
     return wrapper
 
@@ -23,22 +24,48 @@ PRIVILEGES = [
 ]
 
 
-class StorageManager(object):
-    def __init__(self, credentials):
-        self.clients = {}
-        for backend, config in credentials.iteritems():
-            self.clients[backend] = get_client(config=config, backend=backend)
+def get_endpoints_descriptions(providers, session):
+    desc = {}
+    for provider in providers:
+        if provider == 'cdis':
+            desc['/cdis'] = 'access to Gen3 APIs'
+        else:
+            p = session.query(CloudProvider).filter_by(name=provider).first()
+            if p is None:
+                raise InternalError(
+                    "{} is not supported by the system!".format(provider))
+            desc['/' + provider] = p.description or ''
+    return desc
 
-    def check_auth(self, backend, user):
+
+class StorageManager(object):
+
+    def __init__(self, credentials, logger):
+        self.logger = logger
+        self.clients = {}
+        for provider, config in credentials.iteritems():
+            if 'backend' not in config:
+                self.logger.error(
+                    "Storage provider {} is not configured with backend"
+                    .format(provider))
+                raise InternalError("Something went wrong")
+
+            backend = config['backend']
+            creds = copy.deepcopy(config)
+            del creds['backend']
+            self.clients[provider] = get_client(config=config, backend=backend)
+
+    def check_auth(self, provider, user):
         """
         check if the user should be authorized to storage resources
         """
-        storage_access = any(
-            ['read-storage' in item for item
-             in user.project_access.values()])
+        storage_access = any([
+            'read-storage' in item
+            for item in user.project_access.values()
+        ])
         backend_access = any([
-            sa.provider.backend == backend for p in user.projects.values()
-            for sa in p.storage_access
+           sa.provider.name == provider for p in user.projects.values()
+           for sa in p.storage_access
         ])
         if storage_access and backend_access:
             return True
@@ -46,29 +73,29 @@ class StorageManager(object):
             raise Unauthorized("Your are not authorized")
 
     @check_exist
-    def create_keypair(self, backend, user):
+    def create_keypair(self, provider, user):
         """
         create keypair
         :returns: None
         """
-        self.check_auth(backend, user)
-        self.clients[backend].get_or_create_user(user.username)
-        keypair = self.clients[backend].create_keypair(user.username)
+        self.check_auth(provider, user)
+        self.clients[provider].get_or_create_user(user.username)
+        keypair = self.clients[provider].create_keypair(user.username)
         return keypair
 
     @check_exist
-    def delete_keypair(self, backend, user, access_key):
+    def delete_keypair(self, provider, user, access_key):
         """
         delete keypair
         :returns: None
         """
-        self.check_auth(backend, user)
-        self.clients[backend].delete_keypair(user.username, access_key)
+        self.check_auth(provider, user)
+        self.clients[provider].delete_keypair(user.username, access_key)
 
     @check_exist
-    def list_keypairs(self, backend, user):
+    def list_keypairs(self, provider, user):
         """
-        list user keypairs to access a storage backend
+        list user keypairs to access a storage provider
         :returns: a list of keypair dict
             [
                 {
@@ -77,118 +104,138 @@ class StorageManager(object):
                 }
             ]
         """
-        self.check_auth(backend, user)
-        user_info = self.clients[backend].get_or_create_user(user.username)
+        self.check_auth(provider, user)
+        user_info = self.clients[provider].get_or_create_user(user.username)
         return user_info.keys
 
     @check_exist
-    def create_bucket(self, backend, session, bucketname, project):
+    def create_bucket(self, provider, session, bucketname, project):
         """
         this should be exposed via admin endpoint
         create a bucket owned by a project and store in the database
         :param project: Project object
-        :param backend: storage backend, eg: cleversafe, ceph, aws-s3
+        :param provider: storage provider
         :param session: sqlalchemy session
         :param bucketname: name of the bucket
         """
         provider = session.query(CloudProvider).filter(
-            CloudProvider.name == backend).one()
+            CloudProvider.name == provider).one()
         bucket = session.query(Bucket).filter(
             Bucket.name == bucketname).first()
         if not bucket:
             bucket = Bucket(name=bucketname, provider=provider)
-
-        self.clients[backend].create_bucket(bucket)
+            bucket = session.merge(bucket)
+        if not session.query(ProjectToBucket).filter(
+                ProjectToBucket.bucket_id == bucket.id,
+                ProjectToBucket.project_id == project.id).first():
+            project_to_bucket = ProjectToBucket(bucket=bucket, project=project)
+            session.add(project_to_bucket)
+        c = self.clients[provider.name]
+        c.get_or_create_bucket(bucketname)
 
     @check_exist
-    def grant_access(self, backend, user, session, project, access):
+    def grant_access(self, provider, username, project, access):
         """
         this should be exposed via admin endpoint
         grant user access to a project in storage backend
         :param access: acceess type, 'read' or 'write'
         :param project: Project object
-        :param user: User object
-        :param backend: storage backend
-        :param session: sqlalchemy session
+        :param username: username
+        :param provider: storage backend provider
         """
         access = [acc for acc in access if acc in PRIVILEGES]
-        self.clients[backend].get_or_create_user(user.username)
-        buckets = project.buckets.all()
-        for b in buckets:
-            self.clients[backend].add_bucket_acl(
+        user = self.clients[provider].get_or_create_user(username)
+        for b in project.buckets:
+            self.clients[provider].add_bucket_acl(
                 b.name, user.username, access=access)
 
     @check_exist
-    def has_bucket_access(self, backend, user, bucket):
+    def revoke_access(self, provider, username, project):
+        """
+        this should be exposed via admin endpoint
+        revoke user access to a project in storage backend
+        :param project: Project object
+        :param username: username
+        :param backend: storage backend provider
+        """
+        user = self.clients[provider].get_user(username)
+        if user is None:
+            return
+        for b in project.buckets:
+            self.clients[provider].delete_bucket_acl(
+                b.name, user.username)
+
+    @check_exist
+    def has_bucket_access(self, provider, user, bucket):
         """
         Check if the user has access to that bucket in
         particular
         :return boolean
         """
-        return self.clients[backend].has_bucket_access(bucket, user.username)
+        return self.clients[provider].has_bucket_access(bucket, user.username)
 
     @check_exist
-    def get_or_create_user(self, backend, user):
+    def get_or_create_user(self, provider, user):
         """
         Gets a User object with information
         from the specific user
         :return User
         """
-        return self.clients[backend].get_or_create_user(user.username)
+        return self.clients[provider].get_or_create_user(user.username)
 
     @check_exist
-    def list_bucket(self, backend):
+    def list_bucket(self, provider):
         """
         Get a list of bucket names
         :return ['bucket1', 'bucket2'...]
         """
-        return self.clients[backend].list_buckets()
+        return self.clients[provider].list_buckets()
 
     @check_exist
-    def create_user(self, backend, user):
+    def create_user(self, provider, user):
         """
         Returns a User object
         with information from the newly
         created user
         :return User
         """
-        return self.clients[backend].create_user(user.username)
+        return self.clients[provider].create_user(user.username)
 
     @check_exist
-    def delete_user(self, backend, user):
+    def delete_user(self, provider, user):
         """
         Deletes the user
         :return None
         """
-        self.clients[backend].delete_user(user.username)
+        self.clients[provider].delete_user(user.username)
 
     @check_exist
-    def delete_all_keypairs(self, backend, user):
+    def delete_all_keypairs(self, provider, user):
         """
         Remove all keypairs for the given user
         :returns None
         """
-        self.clients[backend].delete_all_keypairs(user.username)
+        self.clients[provider].delete_all_keypairs(user.username)
 
     @check_exist
-    def get_or_create_bucket(self, backend, bucket):
+    def get_or_create_bucket(self, provider, bucket):
         """
         Get a Bucket object with the
         information of the bucket
         :returns Bucket
         """
-        return self.clients[backend].get_or_create_bucket(bucket)
+        return self.clients[provider].get_or_create_bucket(bucket)
 
     @check_exist
-    def edit_bucket_template(self, backend, template_id, **kwargs):
+    def edit_bucket_template(self, provider, template_id, **kwargs):
         """
         Edit the template used to create buckets
-        :kwargs should have the backend dependent arguments to modify
+        :kwargs should have the provider dependent arguments to modify
         """
-        self.clients[backend].edit_bucket_template(template_id, **kwargs)
+        self.clients[provider].edit_bucket_template(template_id, **kwargs)
 
     @check_exist
-    def update_bucket_acl(self, backend, bucket, new_grants):
+    def update_bucket_acl(self, provider, bucket, new_grants):
         """
         Replace an existing ACL with a new one
         We keep owners of the bucket intact
@@ -198,10 +245,10 @@ class StorageManager(object):
         [('user1', ['read-storage','write-storage'])]
         :returns None
         """
-        self.clients[backend].update_bucket_acl(bucket, new_grants)
+        self.clients[provider].update_bucket_acl(bucket.name, new_grants)
 
     @check_exist
-    def set_bucket_quota(self, backend, bucket, quota_unit, quota):
+    def set_bucket_quota(self, provider, bucket, quota_unit, quota):
         """
         Select the quota for the entire bucket
         Please check the different storage systems on
@@ -210,10 +257,11 @@ class StorageManager(object):
         :quota is the ammount of the previously set unit
         :returns None
         """
-        self.clients[backend].set_bucket_quota(bucket, quota_unit, quota)
+        self.clients[provider].set_bucket_quota(bucket, quota_unit, quota)
 
     @check_exist
-    def add_bucket_acl(self, backend, buckets, user, session, project, access=None):
+    def add_bucket_acl(
+            self, provider, buckets, user, session, project, access=None):
         """
         Add a new grant for a user to a specific bucket
         Please consult the manuals for the different
@@ -225,8 +273,14 @@ class StorageManager(object):
         if access is None:
             access = []
         access = [acc for acc in access if acc in PRIVILEGES]
-        self.clients[backend].get_or_create_user(user.username)
+        self.clients[provider].get_or_create_user(user.username)
         buckets = project.buckets.all()
         for b in buckets:
-            self.clients[backend].add_bucket_acl(
+            self.clients[provider].add_bucket_acl(
                 b.name, user.username, access=access)
+
+    def delete_bucket(self, backend, bucket_name):
+        """
+        Remove a bucket from the speficied bucket
+        """
+        self.clients[backend].delete_bucket(bucket_name)

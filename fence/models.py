@@ -1,12 +1,22 @@
+"""
+Define sqlalchemy models.
+
+The models here inherit from the `Base` in userdatamodel, so when the fence app
+is initialized, the resulting db session includes everything from userdatamodel
+and this file.
+
+The `migrate` function in this file is called every init and can be used for
+database migrations.
+"""
+
 from authlib.flask.oauth2.sqla import (
     OAuth2AuthorizationCodeMixin,
     OAuth2ClientMixin,
-    OAuth2TokenMixin,
 )
 import flask
 from flask_postgres_session import user_session_model
 from sqlalchemy import (
-    Integer, String, Column, Boolean, Text, DateTime, MetaData, Table
+    Integer, BigInteger, String, Column, Boolean, Text, MetaData, Table
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import ForeignKey
@@ -105,45 +115,6 @@ class Client(Base, OAuth2ClientMixin):
         return all(scope in self._scopes for scope in scopes)
 
 
-class Token(Base, OAuth2TokenMixin):
-
-    __tablename__ = 'token'
-
-    id = Column(Integer, primary_key=True)
-
-    client_id = Column(
-        String(40),
-        ForeignKey('client.client_id'),
-        nullable=False,
-    )
-    client = relationship('Client')
-
-    user_id = Column(
-        Integer, ForeignKey(User.id)
-    )
-    user = relationship('User')
-
-    # currently only bearer is supported
-    token_type = Column(String(40))
-
-    access_token = Column(String, unique=True)
-    refresh_token = Column(String, unique=True)
-    expires = Column(DateTime)
-    _scopes = Column(Text)
-
-    def delete(self):
-        with flask.current_app.db.session as session:
-            session.delete(self)
-            session.commit()
-            return self
-
-    @property
-    def scopes(self):
-        if self._scopes:
-            return self._scopes.split()
-        return []
-
-
 class AuthorizationCode(Base, OAuth2AuthorizationCodeMixin):
 
     __tablename__ = 'authorization_code'
@@ -171,56 +142,98 @@ class AuthorizationCode(Base, OAuth2AuthorizationCodeMixin):
         return self._scope.split(' ')
 
 
+class UserRefreshToken(Base):
+    __tablename__ = "user_refresh_token"
+
+    jti = Column(String, primary_key=True)
+    userid = Column(Integer)
+    expires = Column(BigInteger)
+
+    def delete(self):
+        with flask.current_app.db.session as session:
+            session.delete(self)
+            session.commit()
+
+
+class GoogleServiceAccount(Base):
+    __tablename__ = "google_service_account"
+
+    id = Column(Integer, primary_key=True)
+
+    # The uniqueId google provides to resources is ONLY unique within
+    # the given project, so we shouldn't rely on that for a primary key (in
+    # case we're ever juggling mult. projects)
+    google_unique_id = Column(
+        String,
+        unique=True,
+        nullable=False
+    )
+
+    client_id = Column(
+        String(40),
+        ForeignKey('client.client_id')
+    )
+    client = relationship('Client')
+
+    user_id = Column(
+        Integer,
+        ForeignKey(User.id),
+        nullable=False
+    )
+    user = relationship('User')
+
+    email = Column(
+        String,
+        unique=True,
+        nullable=False
+    )
+
+    def delete(self):
+        with flask.current_app.db.session as session:
+            session.delete(self)
+            session.commit()
+            return self
+
+
+class GoogleProxyGroup(Base):
+    __tablename__ = "google_proxy_group"
+
+    id = Column(String(90), primary_key=True)
+
+    user_id = Column(
+        Integer,
+        ForeignKey(User.id),
+        nullable=False,
+        unique=True
+    )
+    user = relationship('User')
+
+    def delete(self):
+        with flask.current_app.db.session as session:
+            session.delete(self)
+            session.commit()
+            return self
+
+
+to_timestamp = "CREATE OR REPLACE FUNCTION pc_datetime_to_timestamp(datetoconvert timestamp) " \
+               "RETURNS BIGINT AS " \
+               "$BODY$ " \
+               "select extract(epoch from $1)::BIGINT " \
+               "$BODY$ " \
+               "LANGUAGE 'sql' IMMUTABLE STRICT;"
+
+
 def migrate(driver):
     if not driver.engine.dialect.supports_alter:
-        print(
-            "This engine dialect doesn't support altering so we are not"
-            " migrating even if necessary!"
-        )
+        print("This engine dialect doesn't support altering so we are not migrating even if necessary!")
         return
 
     md = MetaData()
-    table = Table(
-        Token.__tablename__,
-        md,
-        autoload=True,
-        autoload_with=driver.engine,
-    )
 
-    if str(table.c.access_token.type) != 'VARCHAR':
-        print(
-            'Altering table %s access_token to String'
-            % (Token.__tablename__)
-        )
+    table = Table(UserRefreshToken.__tablename__, md, autoload=True, autoload_with=driver.engine)
+    if str(table.c.expires.type) != 'BIGINT':
+        print("Altering table %s expires to BIGINT" % (UserRefreshToken.__tablename__))
         with driver.session as session:
-            session.execute(
-                'ALTER TABLE %s ALTER COLUMN access_token TYPE VARCHAR;'
-                % (Token.__tablename__)
-            )
-
-    if str(table.c.refresh_token.type) != 'VARCHAR':
-        print(
-            'Altering table %s refresh_token to String'
-            % (Token.__tablename__)
-        )
+            session.execute(to_timestamp)
         with driver.session as session:
-            session.execute(
-                'ALTER TABLE %s ALTER COLUMN refresh_token TYPE VARCHAR;'
-                % (Token.__tablename__)
-            )
-
-    table = Table(
-        Client.__tablename__,
-        md,
-        autoload=True,
-        autoload_with=driver.engine,
-    )
-
-    with driver.session as session:
-        cols_to_add = [
-        ]
-        for col, col_type in cols_to_add:
-            session.execute(
-                'ALTER TABLE {} ADD COLUMN {} {}'
-                .format(Client.__tablename__, col, col_type)
-            )
+            session.execute("ALTER TABLE {} ALTER COLUMN expires TYPE BIGINT USING pc_datetime_to_timestamp(expires);".format(UserRefreshToken.__tablename__))

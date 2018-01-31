@@ -1,17 +1,16 @@
-from functools import wraps
-from random import SystemRandom
-from werkzeug.datastructures import ImmutableMultiDict
-from userdatamodel.driver import SQLAlchemyDriver
-from fence.models import Client, User, Token
-from flask import current_app as capp
-from flask import request
-from flask import Response
-
-import json
-import string
-import re
-import collections
 import bcrypt
+import collections
+from functools import wraps
+import json
+from random import SystemRandom
+import re
+import string
+
+import flask
+from userdatamodel.driver import SQLAlchemyDriver
+from werkzeug.datastructures import ImmutableMultiDict
+
+from fence.models import Client, User
 
 rng = SystemRandom()
 alphanumeric = string.ascii_uppercase + string.ascii_lowercase + string.digits
@@ -22,7 +21,7 @@ def random_str(length):
 
 
 def json_res(data):
-    return Response(json.dumps(data), mimetype='application/json')
+    return flask.Response(json.dumps(data), mimetype='application/json')
 
 
 def create_client(
@@ -52,8 +51,6 @@ def create_client(
 def drop_client(client_id, db):
     driver = SQLAlchemyDriver(db)
     with driver.session as s:
-        tokens = s.query(Token).filter(Token.client_id == client_id)
-        tokens.delete()
         clients = s.query(Client).filter(Client.client_id == client_id)
         clients.delete()
         s.commit()
@@ -62,13 +59,13 @@ def drop_client(client_id, db):
 def hash_secret(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        has_secret = 'client_secret' in request.form
-        has_client_id = 'client_id' in request.form
-        if request.form and has_secret and has_client_id:
-            form = request.form.to_dict()
-            with capp.db.session as s:
+        has_secret = 'client_secret' in flask.request.form
+        has_client_id = 'client_id' in flask.request.form
+        if flask.request.form and has_secret and has_client_id:
+            form = flask.request.form.to_dict()
+            with flask.current_app.db.session as session:
                 client = (
-                    s
+                    session
                     .query(Client)
                     .filter(Client.client_id == form['client_id'])
                     .first()
@@ -78,7 +75,7 @@ def hash_secret(f):
                         form['client_secret'].encode('utf-8'),
                         client.client_secret.encode('utf-8')
                     )
-                request.form = ImmutableMultiDict(form)
+                flask.request.form = ImmutableMultiDict(form)
 
         return f(*args, **kwargs)
 

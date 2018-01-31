@@ -21,6 +21,7 @@ class BlacklistingError(APIError):
 
 class InternalError(APIError):
     def __init__(self, message):
+        super(APIError, self).__init__(message)
         self.message = str(message)
         self.code = 500
 

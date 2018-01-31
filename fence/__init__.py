@@ -3,17 +3,17 @@ import os
 
 import flask
 from flask.ext.cors import CORS
-from flask_postgres_session import PostgresSessionInterface
 from flask_sqlalchemy_session import flask_scoped_session
 from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.auth import logout
 from fence.errors import APIError, UserError
 from fence.jwt import keys
-from fence.models import UserSession, migrate
+from fence.models import migrate
 from fence.oidc.server import server
 from fence.resources.openid.google_oauth2 import Oauth2Client
 from fence.resources.storage import StorageManager
+from fence.resources.user.user_session import UserSessionInterface
 from fence.utils import random_str
 import fence.blueprints.admin
 import fence.blueprints.login
@@ -66,15 +66,18 @@ def app_sessions(app):
     migrate(app.db)
     session = flask_scoped_session(app.db.Session, app)  # noqa
     app.jinja_env.globals['csrf_token'] = generate_csrf_token
-    app.storage_manager = StorageManager(app.config['STORAGE_CREDENTIALS'])
-    if ('OPENID_CONNECT' in app.config
-        and 'google' in app.config['OPENID_CONNECT']):
+    app.storage_manager = StorageManager(
+        app.config['STORAGE_CREDENTIALS'],
+        logger=app.logger
+    )
+    if ('OPENID_CONNECT' in app.config and 'google' in app.config['OPENID_CONNECT']):
         app.google_client = Oauth2Client(
             app.config['OPENID_CONNECT']['google'],
             HTTP_PROXY=app.config.get('HTTP_PROXY'),
             logger=app.logger
         )
-    app.session_interface = PostgresSessionInterface(UserSession)  # noqa
+
+    app.session_interface = UserSessionInterface()
 
 
 def app_init(app, settings='fence.settings', root_dir=None):
