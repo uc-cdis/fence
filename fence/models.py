@@ -29,8 +29,6 @@ from userdatamodel.models import (
 )
 
 
-UserSession = user_session_model('fence_user_session', Base=Base)
-
 
 class Client(Base, OAuth2ClientMixin):
 
@@ -229,6 +227,14 @@ def migrate(driver):
         return
 
     md = MetaData()
+
+    table = Table(UserRefreshToken.__tablename__, md, autoload=True, autoload_with=driver.engine)
+    if str(table.c.expires.type) != 'BIGINT':
+        print("Altering table %s expires to BIGINT" % (UserRefreshToken.__tablename__))
+        with driver.session as session:
+            session.execute(to_timestamp)
+        with driver.session as session:
+            session.execute("ALTER TABLE %s ALTER COLUMN refresh_token TYPE VARCHAR;" % (Token.__tablename__))
 
     table = Table(UserRefreshToken.__tablename__, md, autoload=True, autoload_with=driver.engine)
     if str(table.c.expires.type) != 'BIGINT':

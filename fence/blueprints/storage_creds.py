@@ -1,7 +1,8 @@
-from cirrus import GoogleCloudManager
-import flask
-from flask_sqlalchemy_session import current_session
 import json
+
+from cirrus import GoogleCloudManager
+from flask_sqlalchemy_session import current_session
+import flask
 
 from fence.auth import login_required
 from fence.errors import NotSupported, UserError
@@ -204,8 +205,8 @@ def create_keypairs(provider):
         # requestor is user if client_id is not set
         if client_id is None:
             client_id = str(flask.g.user.id)
-        content_type = flask.request.headers.get('Content-Type')
         default_scope = ['fence']
+        content_type = flask.request.headers.get('Content-Type')
         if content_type == 'application/x-www-form-urlencoded':
             scope = flask.request.form.getlist('scope')
         else:

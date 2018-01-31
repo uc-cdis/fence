@@ -88,14 +88,14 @@ class UnsignedIDToken(AuthlibCodeIDToken):
                 context
             issuer (Optional[str]):
                 Issuer Identifier for the Issuer of the response, Defaults to
-                this app's HOST_NAME
+                this app's HOSTNAME
             max_age (Optional[int]):
                 max number of seconds allowed since last user AuthN
             nonce (Optional[str]):
                 string value used to associate a Client session with an ID
                 Token
         """
-        issuer = issuer or flask.current_app.config.get('HOST_NAME')
+        issuer = issuer or flask.current_app.config.get('HOSTNAME')
         now = time.time()
 
         super(UnsignedIDToken, self).validate(
@@ -121,7 +121,7 @@ class UnsignedIDToken(AuthlibCodeIDToken):
                                        current client in flask context
             issuer (str, optional)
                 Issuer Identifier(s) for the Issuer of the response, defaults
-                to HOST_NAME
+                to HOSTNAME
             max_age (int, optional):
                 max number of seconds allowed since last user AuthN
             nonce (str, optional):
@@ -133,7 +133,7 @@ class UnsignedIDToken(AuthlibCodeIDToken):
                              from decoding the provided encoded token
         """
         # Use application defaults if not provided
-        issuer = issuer or flask.current_app.config.get('HOST_NAME')
+        issuer = issuer or flask.current_app.config.get('HOSTNAME')
         public_key = public_key or keys.default_public_key()
 
         token = jwt.decode(
@@ -285,7 +285,7 @@ def generate_signed_refresh_token(
         'pur': 'refresh',
         'aud': scopes,
         'sub': sub,
-        'iss': flask.current_app.config.get('HOST_NAME'),
+        'iss': flask.current_app.config.get('HOSTNAME'),
         'iat': iat,
         'exp': exp,
         'jti': jti,
@@ -326,7 +326,7 @@ def generate_api_key(
         'pur': 'api_key',
         'aud': scopes,
         'sub': sub,
-        'iss': flask.current_app.config.get('HOST_NAME'),
+        'iss': flask.current_app.config.get('HOSTNAME'),
         'iat': iat,
         'exp': exp,
         'jti': jti,
@@ -360,6 +360,7 @@ def generate_signed_access_token(
         str: encoded JWT access token signed with ``private_key``
     """
     headers = {'kid': kid}
+
     iat, exp = issued_and_expiration_times(expires_in)
     # force exp time if provided
     exp = forced_exp_time or exp
@@ -369,7 +370,7 @@ def generate_signed_access_token(
         'pur': 'access',
         'aud': scopes,
         'sub': sub,
-        'iss': flask.current_app.config.get('HOST_NAME'),
+        'iss': flask.current_app.config.get('HOSTNAME'),
         'iat': iat,
         'exp': exp,
         'jti': jti,
@@ -417,7 +418,7 @@ def generate_id_token(
         UnsignedIDToken: Unsigned ID token
     """
     iat, exp = issued_and_expiration_times(expires_in)
-    issuer = flask.current_app.config.get('HOST_NAME')
+    issuer = flask.current_app.config.get('HOSTNAME')
 
     # include client_id if not already in audiences
     if audiences:
@@ -453,7 +454,7 @@ def generate_id_token(
 
     token = UnsignedIDToken(claims)
     token.validate(
-        issuer=flask.current_app.config.get('HOST_NAME'),
+        issuer=flask.current_app.config.get('HOSTNAME'),
         client_id=client_id, max_age=max_age, nonce=nonce)
 
     return token

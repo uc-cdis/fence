@@ -1,8 +1,6 @@
-import urllib
-
 import flask
 
-from fence.auth import login_user
+from fence.auth import login_user, login_required
 from fence.errors import UserError
 from fence.models import IdentityProvider
 
@@ -12,11 +10,26 @@ blueprint = flask.Blueprint('login', __name__)
 
 @blueprint.route('/shib', methods=['GET'])
 def login_from_shibboleth():
-    return flask.redirect(
-        flask.current_app.config['SSO_URL']
-        + urllib.quote_plus(flask.request.url)
-    )
+    """
+    The login flow is: user -> {fence}/login/shib?redirect={portal}
+    -> user login at {nih_shibboleth_idp} -> nih idp POST to fence shibboleth
+    and establish a shibboleth sp session
+    -> redirect to {fence}/login/shib/login that sets up fence session
+    -> redirect to portal
+    """
+    redirect_url = flask.request.args.get('redirect')
+    if redirect_url:
+        flask.session['redirect'] = redirect_url
+    actual_redirect = flask.current_app.config['HOSTNAME'] + '/login/shib/login'
+    return flask.redirect(flask.current_app.config['SSO_URL'] + actual_redirect)
 
+
+@blueprint.route('/shib/login', methods=['GET'])
+@login_required({'user'})
+def finish_login_from_shib():
+    if flask.session.get('redirect'):
+        return flask.redirect(flask.session.get('redirect'))
+    return "logged in"
 
 @blueprint.route('/google', methods=['GET'])
 def redirect_to_google():
