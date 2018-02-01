@@ -1,16 +1,20 @@
+"""
+Handle the group
+"""
 from flask import current_app as capp
 from flask import jsonify, g
 from fence.data_model.models import ResearchGroup, AccessPrivilege
 
 
-def find_group(group_id, session):
-    group = session.query(ResearchGroup).filter(ResearchGroup.id == group_id).first()
-    if not group:
-        raise NotFound("group {} not found".format(group_id))
-    return group
-
-
 def get_group_id(group_id):
+    """
+    Get ReaserchGroup by id:
+        - id
+        - name
+        - lead_id
+    :param group_id: group id
+    :return:
+    """
 
     group_info = dict()
     with capp.db.session as session:
@@ -24,6 +28,10 @@ def get_group_id(group_id):
 
 
 def get_all_groups_info():
+    """
+    Get all group information
+    :return: a list of all groups
+    """
 
     all_info = list()
 
@@ -34,13 +42,17 @@ def get_all_groups_info():
             print group
             all_info.append({'group_id': group.id,
                              'group_name': group.name,
-                             'lead_id': group.lead_id
-                             })
+                             'lead_id': group.lead_id})
 
     return jsonify({"results": all_info})
 
 
 def get_projects_by_group(group_id):
+    """
+    Get all project info (project_id, privilege) associated with a group_id
+    :param group_id:
+    :return: List of projects
+    """
 
     projects = list()
 
