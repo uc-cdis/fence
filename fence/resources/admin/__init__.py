@@ -8,9 +8,11 @@ ready to be converted to a json.
 """
 
 import fence.resources.userdatamodel as udm
+import fence.resources.user as usr
 from flask import current_app as capp
 from fence.data_model.models import User
 from flask_sqlalchemy_session import current_session
+import json
 
 def get_project_by_name(project_name):
     """
@@ -115,7 +117,7 @@ def connect_user_to_project(usr, project=None):
 def connect_user_to_group(usr, group=None):
     pass
 
-def create_user_with_projects_or_groups(username, projects=[], groups=[]):
+def create_user(username, projects=[], groups=[]):
     """
     Create a user for all the projects or groups in the list.
     If the user already exists, to avoid unadvertedly changing it, we suggest update
@@ -132,7 +134,7 @@ def create_user_with_projects_or_groups(username, projects=[], groups=[]):
         current_session.add(usr)
         current_session.flush() 
         responses = []
-        
+        responses.append("User correctly created")
         for proj in projects:
             response = connect_user_to_project(usr, project=proj)
             responses.append(response)
@@ -141,7 +143,7 @@ def create_user_with_projects_or_groups(username, projects=[], groups=[]):
             responses.append(response)
         return {"result": responses}
 
-def delete_user_by_username(username):
+def delete_user(username):
     """
     Remove a user from both the userdatamodel
     and the assciated storage for that project/bucket.
@@ -210,3 +212,21 @@ def list_buckets_on_project_by_name(project_name):
     Returns a dictionary.
     """
     return udm.list_buckets_on_project_by_name(current_session, project_name)
+
+
+def create_group(groupname, lead):
+    """
+    Creates a group and returns it
+    """
+    resp = usr.get_info_by_username(lead)
+    lead_id = json.loads(resp.response[0])['user_id']
+    return udm.create_group(groupname, lead_id)
+
+def delete_group(groupname):
+    """
+    Creates a group and returns it
+    """
+    udm.clear_users_in_group(groupname)
+    udm.clear_projects_in_group(groupname)
+    udm.delete_group(groupname, projects)
+    return {'result': 'success'}

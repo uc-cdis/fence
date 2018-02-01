@@ -19,19 +19,7 @@ from fence.resources.user import (
     get_info_by_username,
 )
 
-from fence.resources.admin import (
-    get_project_by_name,
-    delete_project_by_name,
-    get_provider_by_name,
-    create_project_by_name,
-    create_provider_by_name,
-    delete_provider_by_name,
-    create_user_with_projects_or_groups,
-    delete_user_by_username,
-    create_bucket_on_project_by_name,
-    delete_bucket_on_project_by_name,
-    list_buckets_on_project_by_name,
-)
+from fence.resources import admin as adm
 
 
 blueprint = Blueprint('admin', __name__)
@@ -60,7 +48,23 @@ def create_user(username):
     """
     projects = request.get_json().get('projects', [])
     groups = request.get_json().get('groups', [])
-    return jsonify(create_user_with_projects_or_groups(username, projects, groups))
+    return jsonify(adm.create_user(username, projects, groups))
+
+@blueprint.route('/user/<username>', methods=['POST'])
+@login_required({'admin'})
+@admin_required
+def update_user(username):
+    """
+    Create a user on the userdatamodel database
+    and the storage solution associated with
+    the project. Then add access to the buckets
+    associated with the project.
+    Returns a json object
+    """
+    projects = request.get_json().get('projects', [])
+    groups = request.get_json().get('groups', [])
+    return jsonify(adm.create_user(username, projects, groups))
+
 
 @blueprint.route('/user/<username>', methods=['DELETE'])
 @login_required({'admin'})
@@ -71,7 +75,7 @@ def delete_user(username):
     and all associated storage solutions.
     Returns json object
     """
-    return jsonify(delete_user_by_username(username))
+    return jsonify(adm.delete_user(username))
 
 @blueprint.route('/project/<projectname>', methods=['GET'])
 @login_required({'admin'})
@@ -82,7 +86,7 @@ def get_project(projectname):
     from the userdatamodel database
     Returns a json object
     """
-    return jsonify(get_project_by_name(projectname))
+    return jsonify(adm.get_project_by_name(projectname))
 
 @blueprint.route('/project/<projectname>', methods=['PUT'])
 @login_required({'admin'})
@@ -95,7 +99,7 @@ def create_project(projectname):
     auth_id = request.get_json().get('auth_id')
     storage_accesses = request.get_json().get('storage_accesses')
     return jsonify(
-        create_project_by_name(
+        adm.create_project_by_name(
             projectname,
             auth_id,
             storage_accesses
@@ -110,7 +114,7 @@ def delete_project(projectname):
     Remove project. No Buckets should be associated with it.
     Returns a json object.
     """
-    return jsonify(delete_project_by_name(projectname))
+    return jsonify(adm.delete_project_by_name(projectname))
 
 @blueprint.route('/cloud_provider/<providername>', methods=['GET'])
 @login_required({'admin'})
@@ -120,7 +124,7 @@ def get_cloud_provider(providername):
     Retriev the information related to a cloud provider
     Returns a json object.
     """
-    return jsonify(get_provider_by_name(providername))
+    return jsonify(adm.get_provider_by_name(providername))
 
 @blueprint.route('/cloud_provider/<providername>', methods=['PUT'])
 @login_required({'admin'})
@@ -133,7 +137,7 @@ def create_cloud_provider(providername):
     backend_name = request.get_json().get('backend')
     service_name = request.get_json().get('service')
     return jsonify(
-        create_provider_by_name(
+        adm.create_provider_by_name(
             providername,
             backend=backend_name,
             service=service_name
@@ -150,7 +154,7 @@ def delete_cloud_provider(providername):
     or removed.
     Returns a json object.
     """
-    return jsonify(delete_provider_by_name(providername))
+    return jsonify(adm.delete_provider_by_name(providername))
 
 @blueprint.route('/project/<projectname>/bucket/<bucketname>', methods=['PUT'])
 @login_required({'admin'})
@@ -162,7 +166,7 @@ def create_bucket_in_project(projectname, bucketname):
     """
     providername = request.get_json().get('provider')
     return jsonify(
-        create_bucket_on_project_by_name(
+        adm.create_bucket_on_project_by_name(
             projectname,
             bucketname,
             providername
@@ -182,7 +186,7 @@ def delete_bucket_from_project(projectname, bucketname):
     associated with that bucket.
     Returns a json object.
     """
-    return jsonify(delete_bucket_on_project_by_name(projectname, bucketname))
+    return jsonify(adm.delete_bucket_on_project_by_name(projectname, bucketname))
 
 @blueprint.route('/project/<projectname>/bucket', methods=['GET'])
 @login_required({'admin'})
@@ -193,4 +197,32 @@ def list_buckets_from_project(projectname):
     buckets created within a project.
     Returns a json object.
     """
-    return jsonify(list_buckets_on_project_by_name(projectname))
+    return jsonify(adm.list_buckets_on_project_by_name(projectname))
+
+@blueprint.route('/group/<groupname>', methods=['PUT'])
+@login_required({'admin'})
+@admin_required
+def create_group(groupname):
+    """
+    Retrieve the information regarding the
+    buckets created within a project.
+    Returns a json object.
+    """
+    lead_info = request.get_json('lead', None)
+    grp = adm.create_group(groupname, lead_info['lead'])
+    if grp:
+        response = {'result': 'group creation successful'}
+    else:
+        response = {'result': 'group creation failed'}
+    return jsonify(response)
+
+@blueprint.route('/group/<groupname>', methods=['DELETE'])
+@login_required({'admin'})
+@admin_required
+def delete_group(groupname):
+    """
+    Retrieve the information regarding the
+    buckets created within a project.
+    Returns a json object.
+    """
+    return jsonify(adm.delete_group(groupname))

@@ -15,6 +15,8 @@ from fence.data_model.models import (
     Bucket,
     User,
     AccessPrivilege,
+    ResearchGroup,
+    user_group,
 )
 
 from fence.errors import (
@@ -399,3 +401,32 @@ def get_buckets_by_project_cloud_provider(current_session, project_id, provider_
         if buck:
             response['buckets'].append(buck)
     return response
+
+def create_group(groupname, lead):
+    group = current_session.query(ResearchGroup).filter(
+        ResearchGroup.name == groupname).first()
+    if group:
+        raise UserError("Group already exists")
+    else:
+        group = ResearchGroup()
+        group.name = groupname
+        group.lead_id = lead
+        current_session.add(group)
+        current_session.flush()
+        return {'result': "success"}
+
+def clear_projects_in_group(groupname):
+    group = current_session.query(ResearchGroup).filter(
+        ResearchGroup.name == groupname).first()
+    links = current_session.query(AccessPrivilege).filter(
+        AccessPrivilege.group_id == group.id)
+    for link in links:
+        current_session.delete(link)
+
+def clear_users_in_group(groupname):
+    group = current_session.query(ResearchGroup).filter(
+        ResearchGroup.name == groupname).first()
+    links = current_session.query(user_group).filter(
+        user_group.group_id == group.id)
+    for link in links:
+        current_session.delete(link)
