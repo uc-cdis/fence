@@ -14,14 +14,14 @@ import uuid
 import flask
 import jwt
 from sqlalchemy import BigInteger, Column, String
-import userdatamodel
 
 from fence.errors import BlacklistingError
 from fence.jwt import keys
 from fence.jwt.errors import JWTError
+from fence.models import Base, UserRefreshToken
 
 
-class BlacklistedToken(userdatamodel.Base):
+class BlacklistedToken(Base):
     """
     Table listing the key ids of tokens to blacklist.
     """
@@ -55,6 +55,12 @@ def blacklist_token(jti, exp):
     # Add JWT id to blacklist table.
     with flask.current_app.db.session as session:
         session.add(BlacklistedToken(jti=jti, exp=exp))
+        (
+            session
+            .query(UserRefreshToken)
+            .filter_by(jti=jti, expires=exp)
+            .delete()
+        )
         session.commit()
 
 
@@ -95,15 +101,18 @@ def blacklist_encoded_token(encoded_token, public_key=None):
     try:
         jti = claims['jti']
         exp = claims['exp']
+        pur = claims['pur']
     except KeyError as e:
         raise BlacklistingError('token missing claim: {}'.format(e))
 
     # Do checks.
     # Check that JWT id is UUID4 (this raises a ValueError otherwise).
     uuid.UUID(jti, version=4)
-    # Must be refresh token.
-    if claims['pur'] != 'refresh':
-        raise BlacklistingError('can only blacklist refresh tokens')
+    # Must be refresh token or API key in order to revoke.
+    if pur != 'refresh' and pur != 'api_key':
+        raise BlacklistingError(
+            'can only blacklist refresh tokens and API keys'
+        )
 
     blacklist_token(jti, exp)
 

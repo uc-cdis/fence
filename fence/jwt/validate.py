@@ -31,9 +31,13 @@ def validate_purpose(claims, pur):
         )
 
 
-def validate_jwt(encoded_token, aud=None, purpose=None, public_key=None):
+def validate_jwt(encoded_token=None, aud=None, purpose=None, public_key=None):
     """
     Validate a JWT and return the claims.
+
+    This wraps the ``cdispyutils.auth`` functions to work correctly for fence
+    and correctly validate the token. Other functions in fence should call this
+    function and not use any functions from ``cdispyutils``.
 
     Args:
         encoded_token (str): the base64 encoding of the token
@@ -49,8 +53,21 @@ def validate_jwt(encoded_token, aud=None, purpose=None, public_key=None):
         dict: dictionary of claims from the validated JWT
 
     Raises:
-        JWTError: if decoding fails or the JWT fails to satisfy any expectation
+        JWTError:
+            if auth header is missing, decoding fails, or the JWT fails to
+            satisfy any expectation
     """
+    if encoded_token is None:
+        try:
+            encoded_token = (
+                flask.request
+                .headers['Authorization']
+                .split(' ')[1]
+            )
+        except IndexError:
+            raise JWTError('could not parse authorization header')
+        except KeyError:
+            raise JWTError('no authorization header provided')
     aud = aud or {'openid'}
     aud = set(aud)
     iss = flask.current_app.config['HOSTNAME']
@@ -69,6 +86,25 @@ def validate_jwt(encoded_token, aud=None, purpose=None, public_key=None):
             'token {} missing purpose (`pur`) claim'
             .format(claims['jti'])
         )
-    if claims['pur'] == 'refresh' and is_blacklisted(claims['jti']):
-        raise JWTError('token is blacklisted')
+
+    # For refresh tokens and API keys specifically, check that they are not
+    # blacklisted.
+    if claims['pur'] == 'refresh' or claims['pur'] == 'api_key':
+        if is_blacklisted(claims['jti']):
+            raise JWTError('token is blacklisted')
+
     return claims
+
+
+def require_jwt(aud=None, purpose=None):
+
+    def decorator(f):
+
+        def wrapper(*args, **kwargs):
+
+            validate_jwt(aud=aud, purpose=purpose)
+            return f(args, kwargs)
+
+        return wrapper
+
+    return decorator

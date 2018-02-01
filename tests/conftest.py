@@ -3,7 +3,7 @@
 Define pytest fixtures.
 """
 
-from mock import patch
+from mock import MagicMock, patch
 import os
 
 from addict import Dict
@@ -207,6 +207,7 @@ def patch_app_db_session(app, monkeypatch):
         monkeypatch.setattr(app.db, 'Session', lambda: session)
         monkeypatch.setattr('fence.auth.current_session', session)
         monkeypatch.setattr('fence.user.current_session', session)
+        monkeypatch.setattr('fence.blueprints.storage_creds.current_session', session)
 
     return do_patch
 
@@ -269,3 +270,10 @@ def oauth_client_B(app, request, db_session):
     db_session.commit()
 
     return Dict(client_id=client_id, client_secret=client_secret, url=url)
+
+
+@pytest.fixture(scope='function')
+def cloud_manager():
+    manager = MagicMock()
+    patch('fence.blueprints.storage_creds.GoogleCloudManager', manager).start()
+    return manager

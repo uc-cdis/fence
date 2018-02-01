@@ -46,6 +46,13 @@ If the api is behind firewall that need to set http proxy:
 HTTP_PROXY = None
 
 STORAGES = ['/cleversafe']
-ITRUST_GLOBAL_LOGOUT = 'https://itrusteauth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl='
+
+SHIBBOLETH_HEADER = 'persistent_id'
+
+# assumes shibboleth is deployed under {HOSTNAME}/shibboleth
+SSO_URL = 'https://auth.nih.gov/affwebservices/public/saml2sso?SPID={}/shibboleth&RelayState='.format(HOSTNAME)
+
+ITRUST_GLOBAL_LOGOUT = 'https://auth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl='
+
 SESSION_COOKIE_SECURE = False
 ENABLE_CSRF_PROTECTION = True

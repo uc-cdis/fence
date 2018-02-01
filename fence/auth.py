@@ -4,7 +4,8 @@ from cdispyutils import auth
 import flask
 from flask_sqlalchemy_session import current_session
 
-from .errors import Unauthorized, InternalError
+from fence.errors import Unauthorized, InternalError
+from fence.jwt.validate import validate_jwt
 from fence.models import User, IdentityProvider
 
 
@@ -67,9 +68,11 @@ def login_required(scope=None):
                 )
                 return f(*args, **kwargs)
 
-            eppn = flask.request.headers.get(
-                flask.current_app.config['SHIBBOLETH_HEADER']
-            )
+            eppn = None
+            if 'SHIBBOLETH_HEADER' in flask.current_app.config:
+                eppn = flask.request.headers.get(
+                    flask.current_app.config['SHIBBOLETH_HEADER']
+                )
 
             if flask.current_app.config.get('MOCK_AUTH') is True:
                 eppn = 'test'
@@ -125,12 +128,10 @@ def has_oauth(scope=None):
     scope = scope or set()
     scope.update({'openid'})
     try:
-        access_token = auth.validate_request_jwt(
-            aud=scope
-        )
+        claims = validate_jwt(aud=scope, purpose='id')
     except auth.JWTValidationError as e:
         raise Unauthorized('failed to validate token: {}'.format(e))
-    user_id = access_token['sub']
+    user_id = claims['sub']
     user = current_session.query(User).filter_by(id=int(user_id)).first()
     if not user:
         raise Unauthorized('no user found with id: {}'.format(user_id))
@@ -140,9 +141,11 @@ def has_oauth(scope=None):
 def get_current_user():
     username = flask.session.get('username')
     if not username:
-        eppn = flask.request.headers.get(
-            flask.current_app.config['SHIBBOLETH_HEADER']
-        )
+        eppn = None
+        if 'SHIBBOLETH_HEADER' in flask.current_app.config:
+            eppn = flask.request.headers.get(
+                flask.current_app.config['SHIBBOLETH_HEADER']
+            )
         if flask.current_app.config.get('MOCK_AUTH') is True:
             eppn = 'test'
         if eppn:
@@ -152,5 +155,14 @@ def get_current_user():
     return (
         current_session.query(User)
         .filter(User.username == username)
+        .first()
+    )
+
+
+def get_user_from_claims(claims):
+    return (
+        current_session
+        .query(User)
+        .filter(User.id == claims['sub'])
         .first()
     )

@@ -1,8 +1,9 @@
-from fence.data_model.models import HMACKeyPair
 import datetime
 from cryptography.fernet import Fernet
-from ...utils import random_str
-from ...errors import UserError, NotFound
+
+from fence.errors import UserError, NotFound
+from fence.models import HMACKeyPair
+from fence.utils import random_str
 
 
 def create_keypair(user, current_session, encryption_key, expire=86400):

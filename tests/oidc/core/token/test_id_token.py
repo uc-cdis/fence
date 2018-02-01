@@ -1,15 +1,12 @@
-# from authlib.specs.oidc import parse_id_token, validate_id_token
-
-# token, header = parse_id_token(resp['id_token'], keys)
-# validate_id_token(token, header=header, response_type='code', ...)
 import pytest
 import time
 
-from fence.jwt.token import generate_signed_id_token
-from fence.jwt.token import UnsignedIDToken
 from authlib.specs.oidc import IDTokenError
 from fence.resources.storage.cdis_jwt import create_id_token
+
+from fence.jwt.token import generate_signed_id_token, UnsignedIDToken
 from fence.models import User
+
 from tests import test_settings
 
 

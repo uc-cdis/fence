@@ -1,6 +1,5 @@
 from authlib.specs.rfc6750.token import BearerToken
 import flask
-from flask import current_app
 
 from fence.jwt.token import (
     generate_signed_access_token,
@@ -69,7 +68,7 @@ class JWTGenerator(BearerToken):
         # If ``refresh_token`` was passed (for instance from the refresh
         # grant), use that instead of generating a new one.
         if refresh_token is None:
-            refresh_token = generate_signed_refresh_token(
+            refresh_token, _ = generate_signed_refresh_token(
                 kid=keypair.kid,
                 private_key=keypair.private_key,
                 user=user,

@@ -26,6 +26,7 @@ from fence.oidc.server import server
 from fence.user import get_current_user
 from fence.auth import handle_login
 
+
 blueprint = flask.Blueprint('oauth2', __name__)
 
 
