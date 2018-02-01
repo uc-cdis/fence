@@ -14,7 +14,6 @@ from authlib.flask.oauth2.sqla import (
     OAuth2ClientMixin,
 )
 import flask
-from flask_postgres_session import user_session_model
 from sqlalchemy import (
     Integer, BigInteger, String, Column, Boolean, Text, MetaData, Table
 )
@@ -27,7 +26,6 @@ from userdatamodel.models import (
     IdentityProvider, Project, ProjectToBucket, ResearchGroup, S3Credential,
     StorageAccess, User, UserToBucket
 )
-
 
 
 class Client(Base, OAuth2ClientMixin):
@@ -227,14 +225,6 @@ def migrate(driver):
         return
 
     md = MetaData()
-
-    table = Table(UserRefreshToken.__tablename__, md, autoload=True, autoload_with=driver.engine)
-    if str(table.c.expires.type) != 'BIGINT':
-        print("Altering table %s expires to BIGINT" % (UserRefreshToken.__tablename__))
-        with driver.session as session:
-            session.execute(to_timestamp)
-        with driver.session as session:
-            session.execute("ALTER TABLE %s ALTER COLUMN refresh_token TYPE VARCHAR;" % (Token.__tablename__))
 
     table = Table(UserRefreshToken.__tablename__, md, autoload=True, autoload_with=driver.engine)
     if str(table.c.expires.type) != 'BIGINT':
