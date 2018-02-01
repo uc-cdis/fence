@@ -228,5 +228,5 @@ def delete_group(groupname):
     """
     udm.clear_users_in_group(groupname)
     udm.clear_projects_in_group(groupname)
-    udm.delete_group(groupname, projects)
+    udm.delete_group(groupname)
     return {'result': 'success'}

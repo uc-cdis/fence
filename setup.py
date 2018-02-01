@@ -36,7 +36,7 @@ setup(
     dependency_links=[
         "git+https://github.com/uc-cdis/flask-postgres-session.git@68bf5a9723a351729855c429eca8a0f4bbb830c7#egg=flask_postgres_session-0.1.3",
         "git+https://github.com/uc-cdis/storage-client.git@0.1.5#egg=storageclient-0.1.4",
-        "git+https://github.com/uc-cdis/userdatamodel.git@1.0.2#egg=userdatamodel",
+        "git+https://github.com/uc-cdis/userdatamodel.git@6b9e7deb563d7b379e0313aaa9133e7da1a6045e#egg=userdatamodel",
         "git+https://github.com/uc-cdis/cdis-python-utils.git@0.2.3#egg=cdispyutils",
         "git+https://github.com/uc-cdis/cirrus.git@1a40b1518606d3963f6d40f8ac611fde1d95c814#egg=cirrus",
     ],

@@ -15,8 +15,8 @@ from fence.data_model.models import (
     Bucket,
     User,
     AccessPrivilege,
-    ResearchGroup,
-    user_group,
+    Group,
+    UserToGroup,
 )
 
 from fence.errors import (
@@ -403,30 +403,44 @@ def get_buckets_by_project_cloud_provider(current_session, project_id, provider_
     return response
 
 def create_group(groupname, lead):
-    group = current_session.query(ResearchGroup).filter(
-        ResearchGroup.name == groupname).first()
+    group = current_session.query(Group).filter(
+        Group.name == groupname).first()
     if group:
         raise UserError("Group already exists")
     else:
-        group = ResearchGroup()
+        group = Group()
         group.name = groupname
         group.lead_id = lead
         current_session.add(group)
         current_session.flush()
         return {'result': "success"}
 
+def delete_group(groupname):
+    group = current_session.query(Group).filter(
+        Group.name == groupname).first()
+    if not group:
+        raise UserError("Group doesn't exist")
+    else:
+        current_session.delete(group)
+        current_session.flush()
+
+
 def clear_projects_in_group(groupname):
-    group = current_session.query(ResearchGroup).filter(
-        ResearchGroup.name == groupname).first()
-    links = current_session.query(AccessPrivilege).filter(
-        AccessPrivilege.group_id == group.id)
-    for link in links:
-        current_session.delete(link)
+    group = current_session.query(Group).filter(
+        Group.name == groupname).first()
+    if group:
+        links = current_session.query(AccessPrivilege).filter(
+            AccessPrivilege.group_id == group.id)
+        for link in links:
+            current_session.delete(link)
+            current_session.flush()
 
 def clear_users_in_group(groupname):
-    group = current_session.query(ResearchGroup).filter(
-        ResearchGroup.name == groupname).first()
-    links = current_session.query(user_group).filter(
-        user_group.group_id == group.id)
-    for link in links:
-        current_session.delete(link)
+    group = current_session.query(Group).filter(
+        Group.name == groupname).first()
+    if group:
+        links = current_session.query(UserToGroup).filter(
+            UserToGroup.group_id == group.id)
+        for link in links:
+            current_session.delete(link)
+            current_session.flush()
