@@ -19,9 +19,7 @@ def _populate_test_identity(session, **kwargs):
     for the IdentityProvider of the default test user
     """
     instance = session.query(IdentityProvider).filter_by(**kwargs).first()
-    if instance:
-        return instance
-    else:
+    if not instance:
         instance = IdentityProvider(**kwargs)
         session.add(instance)
         session.commit()
@@ -34,7 +32,7 @@ def test_google_access_token_new_service_account(
     Test that ``POST /credentials/google`` creates a new service
     account for the user if one doesn't exist.
     """
-    _populate_test_identity(db_session, name='itrust')
+    _populate_test_identity(db_session, name=IdentityProvider.itrust)
     client_id = oauth_client['client_id']
     new_service_account = {
         'uniqueId': '987654321',
