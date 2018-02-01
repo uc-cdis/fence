@@ -35,15 +35,15 @@ def update_user(username):
     return usr.update_user_resource(username, resource)
 
 
-@blueprint.route('/groups/<group_id>', methods=['GET'])
+@blueprint.route('/groups/<group_name>', methods=['GET'])
 @login_required({'admin'})
-def get_group_by_id(group_id):
+def get_group_by_id(group_name):
     """
     Get Group by ID
     :param: group_id:
     :return:
     """
-    return gp.get_group_id(group_id)
+    return gp.get_group_id(group_name)
 
 
 @blueprint.route('/groups', methods=['GET'])
@@ -51,17 +51,17 @@ def get_group_by_id(group_id):
 def get_all_groups():
     """
     Get all groups
-    :return: List of groups [id, name, and lead_id]
+    :return: List of group names
     """
     return gp.get_all_groups_info()
 
 
-@blueprint.route('/groups/projects/<group_id>', methods=['GET'])
+@blueprint.route('/groups/projects/<group_name>', methods=['GET'])
 @login_required({'admin'})
-def get_projects_by_group_id(group_id):
+def get_projects_by_group_id(group_name):
     """
-    Return all projects associated with a group ID
+    Return all projects associated with a group name
     :param group_id: List of projects [project_id, privilege]
     :return:
     """
-    return gp.get_projects_by_group(group_id)
+    return gp.get_projects_by_group(group_name)
