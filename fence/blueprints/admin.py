@@ -1,7 +1,9 @@
 import flask
-from fence.errors import UserError
-from flask import request
+from flask import jsonify, request
+
 from fence.auth import login_required
+from fence.errors import UserError
+from fence.resources.group import get_info_by_group_id
 from fence.resources.user import get_info_by_username, update_user_resource
 
 blueprint = flask.Blueprint('admin', __name__)
@@ -22,3 +24,9 @@ def update_user(username):
     if resource not in ['compute', 'storage']:
         raise UserError('Resource {} is invalid'.format(resource))
     return update_user_resource(username, resource)
+
+
+@blueprint.route('/groups/<id>', methods=['GET'])
+@login_required({'admin'})
+def get_group(id):
+    return jsonify(get_info_by_group_id(id))
