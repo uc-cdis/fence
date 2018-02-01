@@ -2,8 +2,8 @@ import flask
 from fence.errors import UserError
 from flask import request
 from fence.auth import login_required
-from fence.resources.group import get_info_by_group_id, get_all_groups_info
-from fence.resources.user import get_info_by_username, update_user_resource
+import fence.resources.group as gp
+import fence.resources.user as usr
 
 blueprint = flask.Blueprint('admin', __name__)
 
@@ -11,7 +11,7 @@ blueprint = flask.Blueprint('admin', __name__)
 @blueprint.route('/user/<username>', methods=['GET'])
 @login_required({'admin'})
 def get_user(username):
-    return get_info_by_username(username)
+    return usr.get_info_by_username(username)
 
 
 @blueprint.route('/user/<username>', methods=['PUT'])
@@ -22,16 +22,22 @@ def update_user(username):
         raise UserError('Please provide resource to be granted')
     if resource not in ['compute', 'storage']:
         raise UserError('Resource {} is invalid'.format(resource))
-    return update_user_resource(username, resource)
+    return usr.update_user_resource(username, resource)
 
 
 @blueprint.route('/groups/<id>', methods=['GET'])
 @login_required({'admin'})
-def get_stupid_group(id):
-    return get_info_by_group_id(id)
+def get_group_by_id(id):
+    return gp.get_group_id(id)
 
 
 @blueprint.route('/groups', methods=['GET'])
 @login_required({'admin'})
-def get_all_groups(id):
-    return get_all_groups_info(id)
+def get_all_groups():
+    return gp.get_all_groups_info()
+
+
+@blueprint.route('/groups/projects/<group_id>', methods=['GET'])
+@login_required({'admin'})
+def get_projects_by_group_id(group_id):
+    return gp.get_projects_by_group(group_id)
