@@ -34,7 +34,7 @@ def test_google_access_token_new_service_account(
     Test that ``POST /credentials/google`` creates a new service
     account for the user if one doesn't exist.
     """
-    _populate_test_identity(db_session)
+    _populate_test_identity(db_session, name='itrust')
     client_id = oauth_client['client_id']
     new_service_account = {
         'uniqueId': '987654321',
