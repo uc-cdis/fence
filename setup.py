@@ -17,6 +17,7 @@ setup(
         "Flask_OAuthlib==0.9.4",
         "Flask_SQLAlchemy_Session==1.1",
         "google_api_python_client==1.6.4",
+        "google-cloud-resource-manager==0.23.0",
         "httplib2==0.10.3",
         "oauthlib==2.0.6",
         "psycopg2==2.7.3.2",
