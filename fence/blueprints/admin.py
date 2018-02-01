@@ -37,13 +37,13 @@ def update_user(username):
 
 @blueprint.route('/groups/<group_name>', methods=['GET'])
 @login_required({'admin'})
-def get_group_by_id(group_name):
+def get_group_by_name(group_name):
     """
     Get Group by ID
     :param: group_id:
     :return:
     """
-    return gp.get_group_id(group_name)
+    return gp.get_group_by_name(group_name)
 
 
 @blueprint.route('/groups', methods=['GET'])
@@ -56,7 +56,7 @@ def get_all_groups():
     return gp.get_all_groups_info()
 
 
-@blueprint.route('/groups/projects/<group_name>', methods=['GET'])
+@blueprint.route('/groups/<group_name>', methods=['GET'])
 @login_required({'admin'})
 def get_projects_by_group_id(group_name):
     """
