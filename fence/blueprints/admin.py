@@ -1,7 +1,8 @@
 import flask
-from fence.errors import UserError
-from flask import request
+from flask import jsonify, request
+
 from fence.auth import login_required
+from fence.errors import UserError
 from fence.resources.group import get_info_by_group_id
 from fence.resources.user import get_info_by_username, update_user_resource
 
@@ -27,5 +28,5 @@ def update_user(username):
 
 @blueprint.route('/groups/<id>', methods=['GET'])
 @login_required({'admin'})
-def get_stupid_group(id):
-    return get_info_by_group_id(id)
+def get_group(id):
+    return jsonify(get_info_by_group_id(id))
