@@ -142,7 +142,7 @@ def grant_project_to_group_or_user(s, project_data, group=None, user=None):
     project = create_project(s, project_data)
     if group:
         ap = s.query(AccessPrivilege).join(AccessPrivilege.project)\
-            .join(AccessPrivilege.research_group)\
+            .join(AccessPrivilege.group)\
             .filter(Project.name == project.name, Group.name == group.name).first()
         name = group.name
     elif user:
@@ -154,7 +154,7 @@ def grant_project_to_group_or_user(s, project_data, group=None, user=None):
         raise Exception("need to provide either a user or group")
     if not ap:
         if group:
-            ap = AccessPrivilege(project=project, research_group=group, privilege=privilege)
+            ap = AccessPrivilege(project=project, group=group, privilege=privilege)
         elif user:
             ap = AccessPrivilege(project=project, user=user, privilege=privilege)
         else:
@@ -221,9 +221,9 @@ def assign_group_to_user(s, user, group_name, group_data):
     if not group:
         group = Group(name=group_name)
         s.add(group)
-        user.research_groups.append(group)
-    if group not in user.research_groups:
-        user.research_groups.append(group)
+        user.groups.append(group)
+    if group not in user.groups:
+        user.groups.append(group)
 
 
 if __name__ == '__main__':
