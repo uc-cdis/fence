@@ -89,9 +89,7 @@ def remove_projects_from_group(groupname):
     Returns a json object
     """
     projects = request.get_json().get('projects', [])
-    return jsonify(adm.remove_preojcts_from_group(groupname, projects))
-
-
+    return jsonify(adm.remove_projects_from_group(groupname, projects))
 
 
 @blueprint.route('/project/<projectname>/groups', methods=['DELETE'])
@@ -161,7 +159,7 @@ def create_project(projectname):
     Returns a json object
     """
     auth_id = request.get_json().get('auth_id')
-    storage_accesses = request.get_json().get('storage_accesses')
+    storage_accesses = request.get_json().get('storage_accesses',[])
     return jsonify(
         adm.create_project_by_name(
             projectname,

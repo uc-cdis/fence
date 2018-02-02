@@ -198,6 +198,30 @@ def add_user_to_projects(username, projects=[]):
         return {"result": responses}
 
 
+def disconnect_project_from_group(grp, projectname):
+    prj = udm.get_project(projectname)
+    if not prj:
+        return {"warning": ("Project {0} doesn't exist".format(projectname))}
+    else:
+        return udm.remove_project_from_group(grp, prj)
+    
+
+def remove_projects_from_group(groupname, projects=[]):
+    grp = udm.get_group(groupname)
+    if not grp:
+        raise UserError ("Error: group does not exist")
+    else:
+        responses = []
+        for proj in projects:
+            try:
+                response = disconnect_project_from_group(grp, proj)
+                responses.append(response)
+            except Exception as e:
+                current_session.rollback()
+                raise e
+        return {"result": responses}
+
+
 def connect_project_to_group(grp, project=None):
     prj = udm.get_project(project)
     if not prj:

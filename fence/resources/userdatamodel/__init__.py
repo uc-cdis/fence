@@ -471,11 +471,15 @@ def remove_user_from_group(user, group):
     to_be_removed = current_session.query(UserToGroup).filter(
         UserToGroup.user_id == user.id).filter(
             UserToGroup.group_id == group.id).first()
-    current_session.delete(to_be_removed)
-    current_session.flush()
-    return {"result": ("User: {0} SUCCESFULLY "
+    if to_be_removed:
+        current_session.delete(to_be_removed)
+        current_session.flush()
+        return {"result": ("User: {0} SUCCESFULLY "
                        "removed from Group: {1}".format(
                            user.username, group.name))}
+    else:
+        raise NotFound("User {0} and Group {1} are not linked".format(
+            user.username, group.name))
 
 
 def connect_project_to_group(group, project):
@@ -484,6 +488,20 @@ def connect_project_to_group(group, project):
     new_link.group_id = group.id
     current_session.add(new_link)
     current_session.flush()
-    return {"result": ("User: {0} SUCCESFULLY "
-                       "connected to Group: {1}".format(
-                           user.username, group.name))}
+    return {"result": ("Group: {0} SUCCESFULLY "
+                       "connected to Project: {1}".format(
+                           group.name, project.name))}
+
+def remove_project_from_group(group, project):
+    to_be_removed = current_session.query(AccessPrivilege).filter(
+        AccessPrivilege.project_id == project.id).filter(
+            UserToGroup.group_id == group.id).first()
+    if to_be_removed:
+        current_session.delete(to_be_removed)
+        current_session.flush()
+        return {"result": ("Project: {0} SUCCESFULLY "
+                       "removed from Group: {1}".format(
+                           project.name, group.name))}
+    else:
+        raise NotFound("Project {0} and Group {1} are not linked".format(
+            project.name, group.name))
