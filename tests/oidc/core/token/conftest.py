@@ -4,11 +4,19 @@ from tests.utils import oauth2
 
 
 @pytest.fixture(scope='function')
-def token_response_json(client, oauth_client):
+def token_response(client, oauth_client):
     """
-    Define a fixture for this module for a successful token response.
+    Return a successful token response.
     """
-    return oauth2.get_token_response(client, oauth_client).json
+    return oauth2.get_token_response(client, oauth_client)
+
+
+@pytest.fixture(scope='function')
+def token_response_json(token_response):
+    """
+    Return the JSON from a successful token response.
+    """
+    return token_response.json
 
 
 @pytest.fixture(scope='function')

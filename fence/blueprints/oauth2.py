@@ -40,14 +40,19 @@ def authorize(*args, **kwargs):
     3.1.1.  Authorization Code Flow Steps
     The Authorization Code Flow goes through the following steps.
 
-    - Client prepares an Authentication Request containing the desired request parameters.
+    - Client prepares an Authentication Request containing the desired request
+      parameters.
     - Client sends the request to the Authorization Server.
     - Authorization Server Authenticates the End-User.
     - Authorization Server obtains End-User Consent/Authorization.
-    - Authorization Server sends the End-User back to the Client with an Authorization Code.
-    - Client requests a response using the Authorization Code at the Token Endpoint.
-    - Client receives a response that contains an ID Token and Access Token in the response body.
-    - Client validates the ID token and retrieves the End-User's Subject Identifier.
+    - Authorization Server sends the End-User back to the Client with an
+      Authorization Code.
+    - Client requests a response using the Authorization Code at the Token
+      Endpoint.
+    - Client receives a response that contains an ID Token and Access Token in
+      the response body.
+    - Client validates the ID token and retrieves the End-User's Subject
+      Identifier.
 
     Args:
         *args: additional arguments
@@ -60,10 +65,12 @@ def authorize(*args, **kwargs):
         need_authentication = True
 
     if need_authentication or not user:
-        login_url = (
-            flask.current_app.config.get('DEFAULT_LOGIN_URL') +
-            '?' + flask.current_app.config.get('DEFAULT_LOGIN_URL_REDIRECT_PARAM') +
-            '=' + flask.request.url
+        params = {
+            flask.current_app.config.get('DEFAULT_LOGIN_URL_REDIRECT_PARAM'):
+                flask.request.url
+        }
+        login_url = add_params_to_uri(
+            flask.current_app.config.get('DEFAULT_LOGIN_URL'), params
         )
         return flask.redirect(login_url)
 
@@ -110,13 +117,15 @@ def _authorize(user, grant):
     with flask.current_app.db.session as session:
         client = (
             session
-                .query(Client)
-                .filter_by(client_id=client_id)
-                .first()
+            .query(Client)
+            .filter_by(client_id=client_id)
+            .first()
         )
         scope = flask.request.args.get('scope')
 
-    response = _get_auth_response_for_prompts(prompts, grant, user, client, scope)
+    response = _get_auth_response_for_prompts(
+        prompts, grant, user, client, scope
+    )
 
     return response
 
@@ -126,10 +135,10 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
     Get response based on prompt parameter. TODO: not completely conforming yet
 
     FIXME: To conform to spec, some of the prompt params should be handled
-           before AuthN or if it fails (so adequate and useful errors are provided).
+    before AuthN or if it fails (so adequate and useful errors are provided).
 
-           Right now the behavior is that the endpoint will just continue to
-           redirect the user to log in without checking these params....
+    Right now the behavior is that the endpoint will just continue to
+    redirect the user to log in without checking these params....
 
     Args:
         prompts (TYPE): Description
@@ -152,7 +161,9 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
             # if none is here, there shouldn't be others
             if len(prompts) != 1:
                 error = InvalidRequestError(
-                    state=grant.params.get('state'), uri=grant.params.get('uri'))
+                    state=grant.params.get('state'),
+                    uri=grant.params.get('uri')
+                )
                 return _get_authorize_error_response(
                     error, grant.params.get('redirect_uri'))
 
@@ -161,7 +172,9 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
                 response = server.create_authorization_response(user)
             except Unauthorized:
                 error = AccessDeniedError(
-                    state=grant.params.get('state'), uri=grant.params.get('uri'))
+                    state=grant.params.get('state'),
+                    uri=grant.params.get('uri')
+                )
                 return _get_authorize_error_response(
                     error, grant.params.get('redirect_uri'))
 
@@ -172,7 +185,9 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
                 handle_login(scope)  # TODO not sure if this really counts as re-AuthN...
             except Unauthorized:
                 error = AccessDeniedError(
-                    state=grant.params.get('state'), uri=grant.params.get('uri'))
+                    state=grant.params.get('state'),
+                    uri=grant.params.get('uri')
+                )
                 return _get_authorize_error_response(
                     error, grant.params.get('redirect_uri'))
 

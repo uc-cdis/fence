@@ -121,16 +121,16 @@ def app():
     mocker.mock_functions()
     root_dir = os.path.dirname(os.path.realpath(__file__))
     app_init(fence.app, test_settings, root_dir=root_dir)
+
+    @fence.app.route('/protected')
+    @fence.auth.login_required({'access'})
+    def protected_endpoint(methods=['GET']):
+        """
+        Add a protected endpoint to the app for testing.
+        """
+        return 'Got to protected endpoint'
+
     return fence.app
-
-
-@fence.app.route('/protected')
-@fence.auth.login_required({'access'})
-def protected_endpoint(methods=['GET']):
-    """
-    Add a protected endpoint to the app for testing.
-    """
-    return 'Got to protected endpoint'
 
 
 def check_auth_positive(cls, backend, user):
