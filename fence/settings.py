@@ -1,5 +1,13 @@
 from collections import OrderedDict
 from datetime import timedelta
+import os
+
+from fence.local_settings import *
+
+
+# Use this setting when fence will be deployed in such a way that fence will
+# only receive traffic from internal (CDIS) clients, and can safely use HTTP.
+os.environ['AUTHLIB_INSECURE_TRANSPORT'] = 'true'
 
 
 APPLICATION_ROOT = '/user'
@@ -35,6 +43,3 @@ SESSION_COOKIE_NAME = "fence"
 JWT_KEYPAIR_FILES = OrderedDict([
     ('key-01', ('keys/jwt_public_key.pem', 'keys/jwt_private_key.pem')),
 ])
-
-
-from local_settings import *
