@@ -505,3 +505,13 @@ def remove_project_from_group(group, project):
     else:
         raise NotFound("Project {0} and Group {1} are not linked".format(
             project.name, group.name))
+
+def get_user_groups(user):
+    groups_to_list = current_session.query(UserToGroup).filter(
+        UserToGroup.user_id == user.id)
+    groups = []
+    for group in groups_to_list:
+        group_to_retrieve = current_session.query(Group).filter(
+            Group.id == group.group_id).first()
+        groups.append(group_to_retrieve.name)
+    return {"groups" : groups}

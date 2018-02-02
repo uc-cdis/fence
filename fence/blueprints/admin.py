@@ -35,6 +35,18 @@ def get_user(username):
     """
     return get_info_by_username(username)
 
+
+@blueprint.route('/user/<username>/groups', methods=['GET'])
+@login_required({'admin'})
+@admin_required
+def get_user_groups(username):
+    """
+    Get the information of a user from our
+    userdatamodel database.
+    Returns a json object
+    """
+    return jsonify(adm.get_user_groups(username))
+
 @blueprint.route('/user/<username>', methods=['PUT'])
 @login_required({'admin'})
 @admin_required

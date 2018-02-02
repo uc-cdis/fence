@@ -324,10 +324,17 @@ def create_group(groupname):
 
 def delete_group(groupname):
     """
-    Creates a group and returns it
+    Deletes a group
     """
     udm.clear_users_in_group(groupname)
     udm.clear_projects_in_group(groupname)
     udm.delete_group(groupname)
     return {'result': 'success'}
 
+def get_user_groups(username):
+    usr = current_session.query(User).filter(
+        User.username == username).first()
+    if not usr:
+        raise UserError ("Error: user does not exist")
+    else:
+        return udm.get_user_groups(usr)
