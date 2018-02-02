@@ -300,3 +300,37 @@ def delete_group(groupname):
     Returns a json object.
     """
     return jsonify(adm.delete_group(groupname))
+
+@blueprint.route('/groups/<groupname>', methods=['GET'])
+@login_required({'admin'})
+@admin_required
+def get_group(groupname):
+    """
+    Retrieve the information regarding the
+    buckets created within a project.
+    Returns a json object.
+    """
+    return jsonify(adm.get_group(groupname))
+
+@blueprint.route('/groups', methods=['GET'])
+@login_required({'admin'})
+@admin_required
+def get_all_groups():
+    """
+    Retrieve the information regarding the
+    buckets created within a project.
+    Returns a json object.
+    """
+    return jsonify(adm.get_all_groups())
+
+
+@blueprint.route('/groups/<groupname>/users', methods=['GET'])
+@login_required({'admin'})
+@admin_required
+def get_group_users(groupname):
+    """
+    Retrieve the information regarding the
+    buckets created within a project.
+    Returns a json object.
+    """
+    return jsonify(adm.get_group_users(groupname))

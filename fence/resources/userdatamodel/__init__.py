@@ -515,3 +515,18 @@ def get_user_groups(user):
             Group.id == group.group_id).first()
         groups.append(group_to_retrieve.name)
     return {"groups" : groups}
+
+def get_all_groups():
+    return current_session.query(Group).all()
+
+def get_group_users(groupname):
+    group = get_group(groupname)
+    user_to_groups = current_session.query(UserToGroup).filter(
+        UserToGroup.group_id == group.id).all()
+    users = []
+    for user in user_to_groups:
+        new_user = current_session.query(User).filter(
+            User.id == user.user_id).first()
+        if new_user:
+            users.append(new_user)
+    return users

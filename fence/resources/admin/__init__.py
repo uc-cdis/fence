@@ -338,3 +338,26 @@ def get_user_groups(username):
         raise UserError ("Error: user does not exist")
     else:
         return udm.get_user_groups(usr)
+
+
+def get_group(groupname):
+    group = udm.get_group(groupname)
+    if not group:
+        raise UserError("Error: group doesn' exist")
+    else:
+        return {"name": group.name}
+
+def get_all_groups():
+    groups = udm.get_all_groups()
+    groups_list = []
+    for group in groups:
+        groups_list.append(group.name)
+    return {"groups": groups_list}
+
+
+def get_group_users(groupname):
+    users = udm.get_group_users(groupname)
+    users_names = []
+    for user in users:
+        users_names.append(user.username)
+    return {"users": users_names}
