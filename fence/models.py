@@ -122,6 +122,8 @@ class AuthorizationCode(Base, OAuth2AuthorizationCodeMixin):
     )
     user = relationship('User')
 
+    nonce = Column(String, nullable=True)
+
     _scope = Column(Text, default='')
 
     def __init__(self, **kwargs):

@@ -1,17 +1,14 @@
 import bcrypt
 
 from authlib.common.security import generate_token
-from authlib.common.urls import add_params_to_uri
 from authlib.specs.rfc6749.errors import (
-    AccessDeniedError,
     InvalidClientError,
-    InvalidRequestError,
-    InvalidScopeError,
     UnauthorizedClientError,
 )
 from authlib.specs.rfc6749.grants import (
     AuthorizationCodeGrant as AuthlibAuthorizationCodeGrant
 )
+from authlib.specs.rfc6749.util import get_obj_value
 import flask
 
 from fence.models import AuthorizationCode
@@ -31,6 +28,7 @@ class AuthorizationCodeGrant(AuthlibAuthorizationCodeGrant):
             redirect_uri=kwargs.get('redirect_uri', ''),
             scope=kwargs.get('scope', ''),
             user_id=user.id,
+            nonce=kwargs.get('nonce'),
         )
 
         with flask.current_app.db.session as session:
@@ -57,6 +55,33 @@ class AuthorizationCodeGrant(AuthlibAuthorizationCodeGrant):
 
     def create_access_token(self, token, client, authorization_code):
         pass
+
+    def create_access_token_response(self):
+        """
+        Create the token response.
+
+        NOTE: overrides the method from authlib in order to pass the ``nonce``
+        parameter to the token generator.
+
+        Return:
+            Tuple[int, dict, dict]: tuple of (status_code, body, headers)
+        """
+        client = self._authenticated_client
+        is_confidential = client.check_client_type('confidential')
+        token = self.token_generator(
+            client,
+            self.GRANT_TYPE,
+            scope=get_obj_value(self._authorization_code, 'scope'),
+            include_refresh_token=is_confidential,
+            nonce=self._authorization_code.nonce,
+        )
+        self.create_access_token(
+            token,
+            client,
+            self._authorization_code
+        )
+        self.delete_authorization_code(self._authorization_code)
+        return 200, token, self.TOKEN_RESPONSE_HEADER
 
     def authenticate_client(self):
         """Parse the authenticated client.

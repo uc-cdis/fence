@@ -5,9 +5,12 @@ from authlib.specs.oidc import IDTokenError
 from fence.resources.storage.cdis_jwt import create_id_token
 
 from fence.jwt.token import generate_signed_id_token, UnsignedIDToken
+from fence.jwt.validate import validate_jwt
 from fence.models import User
+from fence.utils import random_str
 
 from tests import test_settings
+from tests.utils import oauth2
 
 
 def test_create_id_token(app):
@@ -52,10 +55,13 @@ def test_recode_id_token(app, private_key):
         original_signed_token, client_id=client_id, issuer=issuer,
         max_age=max_age, nonce=nonce)
 
-    new_signed_token = original_unsigned_token.get_signed_and_encoded_token(kid, private_key)
+    new_signed_token = original_unsigned_token.get_signed_and_encoded_token(
+        kid, private_key
+    )
     new_unsigned_token = UnsignedIDToken.from_signed_and_encoded_token(
         new_signed_token, client_id=client_id, issuer=issuer,
-        max_age=max_age, nonce=nonce)
+        max_age=max_age, nonce=nonce
+    )
 
     assert original_unsigned_token.iss == new_unsigned_token.iss
     assert original_unsigned_token.sub == new_unsigned_token.sub
@@ -86,7 +92,9 @@ def test_valid_id_token(app):
         signed_token, client_id=client_id, issuer=issuer,
         max_age=max_age, nonce=nonce)
 
-    unsigned_token.validate(issuer=issuer, client_id=client_id, max_age=max_age, nonce=nonce)
+    unsigned_token.validate(
+        issuer=issuer, client_id=client_id, max_age=max_age, nonce=nonce
+    )
 
     assert True
 
@@ -114,7 +122,9 @@ def test_valid_id_token_without_nonce(app):
         signed_token, client_id=client_id, issuer=issuer,
         max_age=max_age, nonce=nonce)
 
-    unsigned_token.validate(issuer=issuer, client_id=client_id, max_age=max_age, nonce=nonce)
+    unsigned_token.validate(
+        issuer=issuer, client_id=client_id, max_age=max_age, nonce=nonce
+    )
 
     assert not unsigned_token.token.get("nonce")
 
@@ -133,7 +143,8 @@ def test_expired_id_token(app):
     with pytest.raises(IDTokenError):
         token = generate_signed_id_token(
             keypair.kid, keypair.private_key, user, expires_in, client_id,
-            audiences=[client_id], auth_time=None, max_age=max_age, nonce=nonce)
+            audiences=[client_id], auth_time=None, max_age=max_age, nonce=nonce
+        )
         assert not token
 
 
@@ -156,3 +167,23 @@ def test_id_token_max_age(app):
         generate_signed_id_token(
             keypair.kid, keypair.private_key, user, expires_in, client_id,
             audiences=[client_id], auth_time=now, max_age=max_age, nonce=nonce)
+
+
+def test_id_token_has_nonce(client, oauth_client):
+    nonce = random_str(10)
+    data = {
+        'client_id': oauth_client.client_id,
+        'redirect_uri': oauth_client.url,
+        'response_type': 'code',
+        'scope': 'openid user',
+        'state': random_str(10),
+        'confirm': 'yes',
+        'nonce': nonce,
+    }
+    response_json = (
+        oauth2.get_token_response(client, oauth_client, code_request_data=data)
+        .json
+    )
+    id_token = validate_jwt(response_json['id_token'], {'openid'})
+    assert 'nonce' in id_token
+    assert nonce == id_token['nonce']
