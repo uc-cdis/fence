@@ -402,7 +402,7 @@ def get_buckets_by_project_cloud_provider(current_session, project_id, provider_
             response['buckets'].append(buck)
     return response
 
-def create_group(groupname, lead):
+def create_group(groupname):
     group = current_session.query(Group).filter(
         Group.name == groupname).first()
     if group:
@@ -410,7 +410,6 @@ def create_group(groupname, lead):
     else:
         group = Group()
         group.name = groupname
-        group.lead_id = lead
         current_session.add(group)
         current_session.flush()
         return {'result': "success"}
@@ -444,3 +443,47 @@ def clear_users_in_group(groupname):
         for link in links:
             current_session.delete(link)
             current_session.flush()
+
+def get_group(groupname):
+    return current_session.query(Group).filter(
+        Group.name == groupname).first()
+
+def get_user(username):
+    return current_session.query(User).filter(
+        User.name == username).first()
+
+
+def get_project(projectname):
+    return current_session.query(Project).filter(
+        Project.name == projectname).first()
+
+def connect_user_to_group(user, group):
+    new_link = UserToGroup()
+    new_link.user_id = user.id
+    new_link.group_id = group.id
+    current_session.add(new_link)
+    current_session.flush()
+    return {"result": ("User: {0} SUCCESFULLY "
+                       "connected to Group: {1}".format(
+                           user.username, group.name))}
+
+def remove_user_from_group(user, group):
+    to_be_removed = current_session.query(UserToGroup).filter(
+        UserToGroup.user_id == user.id).filter(
+            UserToGroup.group_id == group.id).first()
+    current_session.delete(to_be_removed)
+    current_session.flush()
+    return {"result": ("User: {0} SUCCESFULLY "
+                       "removed from Group: {1}".format(
+                           user.username, group.name))}
+
+
+def connect_project_to_group(group, project):
+    new_link = AccessPrivilege()
+    new_link.project_id = project.id
+    new_link.group_id = group.id
+    current_session.add(new_link)
+    current_session.flush()
+    return {"result": ("User: {0} SUCCESFULLY "
+                       "connected to Group: {1}".format(
+                           user.username, group.name))}

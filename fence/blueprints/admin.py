@@ -41,29 +41,93 @@ def get_user(username):
 def create_user(username):
     """
     Create a user on the userdatamodel database
-    and the storage solution associated with
-    the project. Then add access to the buckets
-    associated with the project.
     Returns a json object
     """
-    projects = request.get_json().get('projects', [])
-    groups = request.get_json().get('groups', [])
-    return jsonify(adm.create_user(username, projects, groups))
+    return jsonify(adm.create_user(username))
 
-@blueprint.route('/user/<username>', methods=['POST'])
+@blueprint.route('/user/<username>/groups', methods=['PUT'])
 @login_required({'admin'})
 @admin_required
-def update_user(username):
+def add_user_to_groups(username):
     """
-    Create a user on the userdatamodel database
-    and the storage solution associated with
-    the project. Then add access to the buckets
-    associated with the project.
+    Create a user to group relationship in the database
+    Returns a json object
+    """
+    groups = request.get_json().get('groups', [])
+    return jsonify(adm.add_user_to_groups(username, groups=groups))
+
+
+@blueprint.route('/user/<username>/groups', methods=['DELETE'])
+@login_required({'admin'})
+@admin_required
+def remove_user_from_groups(username):
+    """
+    Create a user to group relationship in the database
+    Returns a json object
+    """
+    groups = request.get_json().get('groups', [])
+    return jsonify(adm.remove_user_from_groups(username, groups=groups))
+
+@blueprint.route('/groups/<groupname>/projects', methods=['PUT'])
+@login_required({'admin'})
+@admin_required
+def add_projects_to_group(groupname):
+    """
+    Create a user to group relationship in the database
     Returns a json object
     """
     projects = request.get_json().get('projects', [])
+    return jsonify(adm.add_projects_to_group(groupname, projects))
+
+
+@blueprint.route('/groups/<groupname>/projects', methods=['DELETE'])
+@login_required({'admin'})
+@admin_required
+def remove_projects_from_group(groupname):
+    """
+    Create a user to group relationship in the database
+    Returns a json object
+    """
+    projects = request.get_json().get('projects', [])
+    return jsonify(adm.remove_preojcts_from_group(groupname, projects))
+
+
+
+
+@blueprint.route('/project/<projectname>/groups', methods=['DELETE'])
+@login_required({'admin'})
+@admin_required
+def add_project_to_groups(projectname):
+    """
+    Create a user to group relationship in the database
+    Returns a json object
+    """
     groups = request.get_json().get('groups', [])
-    return jsonify(adm.create_user(username, projects, groups))
+    return jsonify(adm.add_user_to_projects(username, groups=groups))
+
+@blueprint.route('/project/<projectname>/groups', methods=['DELETE'])
+@login_required({'admin'})
+@admin_required
+def remove_project_to_groups(projectname):
+    """
+    Create a user to group relationship in the database
+    Returns a json object
+    """
+    groups = request.get_json().get('groups', [])
+    return jsonify(adm.remove_user_from_projects(username, groups=groups))
+
+
+@blueprint.route('/user/<username>/projects', methods=['PUT'])
+@login_required({'admin'})
+@admin_required
+def add_user_to_projects(username):
+    """
+    Create a user to project relationship on the database
+    and add the access to the the object store associated with it
+    Returns a json object
+    """
+    projects = request.get_json().get('projects', [])
+    return jsonify(adm.add_user_to_projects(username, projects=projects))
 
 
 @blueprint.route('/user/<username>', methods=['DELETE'])
@@ -199,24 +263,24 @@ def list_buckets_from_project(projectname):
     """
     return jsonify(adm.list_buckets_on_project_by_name(projectname))
 
-@blueprint.route('/group/<groupname>', methods=['PUT'])
+@blueprint.route('/groups', methods=['PUT'])
 @login_required({'admin'})
 @admin_required
-def create_group(groupname):
+def create_group():
     """
     Retrieve the information regarding the
     buckets created within a project.
     Returns a json object.
     """
-    lead_info = request.get_json('lead', None)
-    grp = adm.create_group(groupname, lead_info['lead'])
+    groupname = request.get_json().get('name')
+    grp = adm.create_group(groupname)
     if grp:
         response = {'result': 'group creation successful'}
     else:
         response = {'result': 'group creation failed'}
     return jsonify(response)
 
-@blueprint.route('/group/<groupname>', methods=['DELETE'])
+@blueprint.route('/groups/<groupname>', methods=['DELETE'])
 @login_required({'admin'})
 @admin_required
 def delete_group(groupname):
