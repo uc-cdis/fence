@@ -27,22 +27,52 @@ OIDC specification of authentication request parameter ``display``:
         capabilities of the User Agent and present an appropriate display.
 """
 
-
-def test_display_page():
-    # TODO
-    pass
+from tests.utils import oauth2
 
 
-def test_display_popup():
-    # TODO
-    pass
+def test_display_option_page(client, oauth_client):
+    """
+    Test the very basic requirement that including the ``display`` parameter
+    with page option does not cause any errors.
+    """
+    data = {'display': 'page'}
+    auth_response = oauth2.post_authorize(client, oauth_client, data=data, confirm=True)
+    assert auth_response.status_code == 302
+    assert 'Location' in auth_response.headers
+    assert oauth2.code_from_authorize_response(auth_response)
 
 
-def test_display_touch():
-    # TODO
-    pass
+def test_display_option_popup(client, oauth_client):
+    """
+    Test the very basic requirement that including the ``display`` parameter
+    with page option does not cause any errors.
+    """
+    data = {'display': 'popup'}
+    auth_response = oauth2.post_authorize(client, oauth_client, data=data, confirm=True)
+    assert auth_response.status_code == 302
+    assert 'Location' in auth_response.headers
+    assert oauth2.code_from_authorize_response(auth_response)
 
 
-def test_display_wap():
-    # TODO
-    pass
+def test_display_option_touch(client, oauth_client):
+    """
+    Test the very basic requirement that including the ``display`` parameter
+    with page option does not cause any errors.
+    """
+    data = {'display': 'touch'}
+    auth_response = oauth2.post_authorize(client, oauth_client, data=data, confirm=True)
+    assert auth_response.status_code == 302
+    assert 'Location' in auth_response.headers
+    assert oauth2.code_from_authorize_response(auth_response)
+
+
+def test_display_option_wap(client, oauth_client):
+    """
+    Test the very basic requirement that including the ``display`` parameter
+    with page option does not cause any errors.
+    """
+    data = {'display': 'wap'}
+    auth_response = oauth2.post_authorize(client, oauth_client, data=data, confirm=True)
+    assert auth_response.status_code == 302
+    assert 'Location' in auth_response.headers
+    assert oauth2.code_from_authorize_response(auth_response)

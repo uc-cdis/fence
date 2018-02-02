@@ -13,13 +13,26 @@ from fence.models import (
 )
 
 
+def _populate_test_identity(session, **kwargs):
+    """
+    Add test information to db if it doesn't already exist
+    for the IdentityProvider of the default test user
+    """
+    instance = session.query(IdentityProvider).filter_by(**kwargs).first()
+    if not instance:
+        instance = IdentityProvider(**kwargs)
+        session.add(instance)
+        session.commit()
+        return instance
+
+
 def test_google_access_token_new_service_account(
         app, oauth_client, db_session, cloud_manager):
     """
     Test that ``POST /credentials/google`` creates a new service
     account for the user if one doesn't exist.
     """
-    db_session.add(IdentityProvider(name='itrust'))
+    _populate_test_identity(db_session, name=IdentityProvider.itrust)
     client_id = oauth_client['client_id']
     new_service_account = {
         'uniqueId': '987654321',

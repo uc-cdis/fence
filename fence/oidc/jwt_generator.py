@@ -25,7 +25,7 @@ class JWTGenerator(BearerToken):
 
     def __call__(
             self, client, grant_type, expires_in=None, scope=None,
-            include_refresh_token=True, refresh_token=None):
+            include_refresh_token=True, nonce=None, refresh_token=None):
         """
         Generate the token response, which looks like the following:
 
@@ -57,6 +57,7 @@ class JWTGenerator(BearerToken):
             expires_in=self.ACCESS_TOKEN_EXPIRES_IN,
             client_id=client.client_id,
             audiences=scope,
+            nonce=nonce,
         )
         access_token = generate_signed_access_token(
             kid=keypair.kid,

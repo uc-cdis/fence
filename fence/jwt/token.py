@@ -199,6 +199,8 @@ def generate_signed_session_token(
     headers = {'kid': kid}
     iat, exp = issued_and_expiration_times(expires_in)
 
+    issuer = flask.current_app.config.get('HOSTNAME')
+
     # Create context based on provided information
     context = {
         'session_started': session_started or iat,  # Provided or issued time
@@ -213,7 +215,7 @@ def generate_signed_session_token(
     claims = {
         'aud': ['session'],
         'sub': username or '',
-        'iss': flask.current_app.config.get('HOSTNAME'),
+        'iss': issuer,
         'iat': iat,
         'exp': exp,
         'jti': str(uuid.uuid4()),
@@ -362,6 +364,7 @@ def generate_signed_access_token(
     headers = {'kid': kid}
 
     iat, exp = issued_and_expiration_times(expires_in)
+
     # force exp time if provided
     exp = forced_exp_time or exp
     sub = str(user.id)
