@@ -4,21 +4,25 @@
 [![Codacy Quality Badge](https://api.codacy.com/project/badge/Grade/1cb2ec9cc64049488d140f44027c4422)](https://www.codacy.com/app/uc-cdis/fence?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=uc-cdis/fence&amp;utm_campaign=Badge_Grade)
 [![Codacy Coverage Badge](https://api.codacy.com/project/badge/Coverage/1cb2ec9cc64049488d140f44027c4422)](https://www.codacy.com/app/uc-cdis/fence?utm_source=github.com&utm_medium=referral&utm_content=uc-cdis/fence&utm_campaign=Badge_Coverage)
 
-## Setup
+## Setup for development
 
 ```bash
+# install postgres
+# Depending on how you have postgres setup, you may need to change the configuration in pb_hba.conf to allow those users to connect without password (trust instead of md5)
+# Create role test and add the same permissions that postgres have
+
 # Install requirements.
 pip install -r requirements.txt
 # Install fence in your preferred manner.
 python setup.py develop
 # Create test database.
-# Depending on how you have postgres setup, you may need to change the configuration in pb_hba.conf to allow those users to connect without password
 # Also user test may need to be created
 psql -U test postgres -c 'create database fence_test'
 # Initialize models in test database.
-# YOu need a local_settings.py file in that directory. If you want to use the example one, remove 'example' form the name, and modify DB's value to '[...]/fence_test'
+# You need a local_settings.py file in that directory. If you want to use the example one, on fence/, remove 'example' from the name,
+# and modify DB's value to '[...]/fence_test'
 userdatamodel-init --db fence_test
-# Create UA file.
+# Populate the database with your basic UA file.
 fence-create --path fence create ua.yaml
 # Register OAuth client (example).
 fence-create --path fence client-create --client gdcapi --urls http://localhost/api/v0/oauth2/authorize --username test
@@ -70,7 +74,7 @@ Example JWT access token issued by fence:
 Generating a keypair using `openssl`:
 ```bash
 # Generate the private key.
-openssl rsa -out private_key.pem 2048
+openssl genrsa -out private_key.pem 2048
 
 # Generate the public key.
 openssl rsa -in private_key.pem -pubout -out public_key.pem
