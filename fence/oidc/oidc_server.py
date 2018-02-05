@@ -24,38 +24,3 @@ class OIDCServer(AuthorizationServer):
         in fence as ``JWTGenerator``) for authlib to use.
         """
         return JWTGenerator()
-
-    def get_authorization_grant(self, uri):
-        """
-        Find the authorization grant for current request.
-
-        TODO: this overrides the method in authlib to patch a small bug, so we
-        can remove this method once the bug is fixed. See:
-
-            https://github.com/lepture/authlib/issues/15
-
-        Args:
-            uri (str): HTTP request URI string.
-
-        Return:
-            AuthorizationCodeGrant: grant instance for current request
-        """
-        InsecureTransportError.check(uri)
-
-        # This block patches a bug in authlib.
-        if flask.request.method == 'GET':
-            params = dict(url_decode(urlparse.urlparse(uri).query))
-        elif flask.request.method == 'POST':
-            params = flask.request.form.to_dict()
-        else:
-            raise ValueError('invalid request method')
-
-        for grant_cls in self._authorization_endpoints:
-            if grant_cls.check_authorization_endpoint(params):
-                return grant_cls(
-                    uri, params, {},
-                    self.client_model,
-                    self.token_generator
-                )
-
-        raise InvalidGrantError()
