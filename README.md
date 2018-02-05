@@ -12,7 +12,7 @@
 # Create role test and add the same permissions that postgres have
 
 # Install requirements.
-pip install -r requirements.txt
+pip install -r dev-requirements.txt
 # Install fence in your preferred manner.
 python setup.py develop
 # Create test database.
