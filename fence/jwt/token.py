@@ -13,8 +13,6 @@ from fence.jwt import keys
 
 
 class UnsignedIDToken(AuthlibCodeIDToken):
-    # TODO When we upgrade to authlib v0.4, `validate_exp` can be removed
-    # There was a bug in `validate_exp` in v0.3 that needed to be patched
 
     def __init__(self, token):
         super(UnsignedIDToken, self).__init__(token)
@@ -36,23 +34,6 @@ class UnsignedIDToken(AuthlibCodeIDToken):
         )
         token = to_unicode(token)
         return token
-
-    def validate_exp(self, now):
-        """
-        Validate that the token hasn't expired
-
-        Args:
-            now (int): number of seconds from 1970-01-01T0:0:0Z as measured in
-                       UTC until the date/time
-
-        Raises:
-            IDTokenError: token has expired
-        """
-        # Patch bug in authlib where error is raised when exp is in the future
-        if 'exp' not in self.token:
-            raise IDTokenError('exp is required')
-        if now and self.exp < now:
-            raise IDTokenError('exp is expired')
 
     def validate_auth_time(self, max_age):
         """
