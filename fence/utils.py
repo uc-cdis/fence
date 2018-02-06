@@ -11,6 +11,7 @@ from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.datastructures import ImmutableMultiDict
 
 from fence.models import Client, User
+from fence.jwt.token import CLIENT_ALLOWED_SCOPES
 
 rng = SystemRandom()
 alphanumeric = string.ascii_uppercase + string.ascii_lowercase + string.digits
@@ -28,7 +29,7 @@ def create_client(
         username, urls, DB, name='', description='', auto_approve=False,
         is_admin=False):
     driver = SQLAlchemyDriver(DB)
-    client_id = 'test-client'
+    client_id = random_str(40)
     client_secret = random_str(55)
     hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
     with driver.session as s:
@@ -42,16 +43,17 @@ def create_client(
         client = Client(
             client_id=client_id, client_secret=hashed_secret,
             user=user, _redirect_uris=urls,
+            _allowed_scopes=' '.join(CLIENT_ALLOWED_SCOPES),
             description=description, name=name, auto_approve=auto_approve)
         s.add(client)
         s.commit()
     return client_id, client_secret
 
 
-def drop_client(client_id, db):
+def drop_client(client_name, db):
     driver = SQLAlchemyDriver(db)
     with driver.session as s:
-        clients = s.query(Client).filter(Client.client_id == client_id)
+        clients = s.query(Client).filter(Client.name == client_name)
         clients.delete()
         s.commit()
 

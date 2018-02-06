@@ -140,7 +140,7 @@ class UnsignedIDToken(AuthlibCodeIDToken):
 # can't create a long-lived API key using a short lived access_token
 SESSION_ALLOWED_SCOPES = ['user', 'credentials', 'data']
 USER_ALLOWED_SCOPES = ['fence', 'user', 'data']
-CLIENT_ALLOWED_SCOPES = ['fence', 'user', 'data']
+CLIENT_ALLOWED_SCOPES = ['openid', 'user', 'data']
 
 
 def issued_and_expiration_times(seconds_to_expire):
