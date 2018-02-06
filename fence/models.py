@@ -19,6 +19,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import ForeignKey
+from fence.jwt.token import CLIENT_ALLOWED_SCOPES
 from userdatamodel import Base
 from userdatamodel.models import (
     AccessPrivilege, Application, AuthorizationProvider, Bucket, Certificate,
@@ -36,8 +37,8 @@ class Client(Base, OAuth2ClientMixin):
     # this is hashed secret
     client_secret = Column(String(60), unique=True, index=True, nullable=False)
 
-    # human readable name, not required
-    name = Column(String(40))
+    # human readable name
+    name = Column(String(40), unique=True, nullable=False)
 
     # human readable description, not required
     description = Column(String(400))
@@ -235,3 +236,33 @@ def migrate(driver):
             session.execute(to_timestamp)
         with driver.session as session:
             session.execute("ALTER TABLE {} ALTER COLUMN expires TYPE BIGINT USING pc_datetime_to_timestamp(expires);".format(UserRefreshToken.__tablename__))
+
+    # oidc migration
+
+    table = Table(Client.__tablename__, md, autoload=True, autoload_with=driver.engine)
+    if not any([index.name == 'ix_name' for index in table.indexes]):
+        with driver.session as session:
+            session.execute(
+                "ALTER TABLE {} ADD constraint ix_name unique (name);"
+                .format(Client.__tablename__)
+            )
+
+    if '_allowed_scopes' not in table.c:
+        print(
+            "Altering table {} to add _allowed_scopes column"
+            .format(Client.__tablename__)
+        )
+        with driver.session as session:
+            session.execute(
+                "ALTER TABLE {} ADD COLUMN _allowed_scopes VARCHAR;"
+                .format(Client.__tablename__)
+            )
+            for client in session.query(Client):
+                if not client._allowed_scopes:
+                    client._allowed_scopes = ' '.join(CLIENT_ALLOWED_SCOPES)
+                    session.add(client)
+            session.commit()
+            session.execute(
+                "ALTER TABLE {} ALTER COLUMN _allowed_scopes SET NOT NULL;"
+                .format(Client.__tablename__)
+            )

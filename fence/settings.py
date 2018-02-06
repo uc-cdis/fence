@@ -2,7 +2,8 @@ from collections import OrderedDict
 from datetime import timedelta
 import os
 
-from fence.local_settings import *
+# local_settings is not installed under fence module in prod
+from local_settings import *
 
 
 # Use this setting when fence will be deployed in such a way that fence will
@@ -14,7 +15,6 @@ APPLICATION_ROOT = '/user'
 DEBUG = True
 OAUTH2_PROVIDER_ERROR_URI = "/api/oauth2/errors"
 
-HOSTNAME = 'http://localhost:8000'
 SHIBBOLETH_HEADER = 'persistent_id'
 SSO_URL = 'https://itrusteauth.nih.gov/affwebservices/public/saml2sso?SPID=https://bionimbus-pdc.opensciencedatacloud.org/shibboleth&RelayState='
 SINGLE_LOGOUT = 'https://itrusteauth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl=https://bionimbus-pdc.opensciencedatacloud.org/storage/login'

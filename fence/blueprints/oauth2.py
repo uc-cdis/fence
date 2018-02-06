@@ -76,12 +76,25 @@ def authorize(*args, **kwargs):
 
     grant = server.validate_authorization_request()
 
-    if grant.params.get('confirm') is not None:
+    client_id = grant.params.get('client_id')
+
+    with flask.current_app.db.session as session:
+        client = (
+            session
+            .query(Client)
+            .filter_by(client_id=client_id)
+            .first()
+        )
+
+    confirm = grant.params.get('confirm')
+    if client.auto_approve is True:
+        confirm = 'yes'
+    if confirm is not None:
         response = _handle_consent_confirmation(
-            user, grant.params.get('confirm'))
+            user, confirm)
     else:
         # no confirm param, so no confirmation has occured yet
-        response = _authorize(user, grant)
+        response = _authorize(user, grant, client)
 
     return response
 
@@ -103,25 +116,18 @@ def _handle_consent_confirmation(user, is_confirmed):
     return response
 
 
-def _authorize(user, grant):
+def _authorize(user, grant, client):
     """
     Return server response when user has not yet provided consent.
 
     Args:
         user (fence.models.User): authN'd user
         grant (fence.oidc.grants.AuthorizationCodeGrant): request grant
+        client (fence.models.Client): request client
     """
     prompts = grant.params.get('prompt')
-    client_id = grant.params.get('client_id')
 
-    with flask.current_app.db.session as session:
-        client = (
-            session
-            .query(Client)
-            .filter_by(client_id=client_id)
-            .first()
-        )
-        scope = flask.request.args.get('scope')
+    scope = flask.request.args.get('scope')
 
     response = _get_auth_response_for_prompts(
         prompts, grant, user, client, scope

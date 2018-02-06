@@ -213,12 +213,13 @@ def create_keypairs(provider):
             try:
                 scope = (
                     json.loads(flask.request.data)
-                    .get('scope', default_scope)
+                    .get('scope')
                 )
             except ValueError:
-                scope = default_scope
+                scope = []
         if not isinstance(scope, list):
             scope = scope.split(',')
+        scope.extend(default_scope)
         for s in scope:
             if s not in USER_ALLOWED_SCOPES:
                 raise NotSupported('Scope {} is not supported'.format(s))
