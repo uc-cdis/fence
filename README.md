@@ -72,6 +72,31 @@ the root directory); see the README in that folder for more details.
 {
   "sub": "7",
   "azp": "test-client",
+  "pur": "id",
+  "aud": [
+    "openid",
+    "user",
+    "test-client"
+  ],
+  "iss": "https://bionimbus-pdc.opensciencedatacloud.org",
+  "jti": "3ae2910b-0294-43dc-af2a-03fd60082aef",
+  "exp": 1516983302,
+  "iat": 1516982102,
+  "auth_time": 1516982102
+}
+```
+
+### Example Access Token
+```
+{
+  "sub": "7",
+  "azp": "test-client",
+  "pur": "access",
+  "aud": [
+    "openid",
+    "user",
+    "test-client"
+  ],
   "context": {
     "user": {
       "is_admin": false,
@@ -87,31 +112,6 @@ the root directory); see the README in that folder for more details.
       }
     }
   },
-  "pur": "id",
-  "jti": "3ae2910b-0294-43dc-af2a-03fd60082aef",
-  "aud": [
-    "openid",
-    "user",
-    "test-client"
-  ],
-  "exp": 1516983302,
-  "auth_time": 1516982102,
-  "iss": "https://bionimbus-pdc.opensciencedatacloud.org",
-  "iat": 1516982102
-}
-```
-
-### Example Access Token
-```
-{
-  "sub": "7",
-  "azp": "test-client",
-  "aud": [
-    "openid",
-    "user",
-    "test-client"
-  ],
-  "pur": "access",
   "iss": "https://bionimbus-pdc.opensciencedatacloud.org",
   "jti": "2e6ade06-5afb-4ce7-9ab5-e206225ce291",
   "exp": 1516983302,
@@ -124,12 +124,12 @@ the root directory); see the README in that folder for more details.
 {
   "sub": "7",
   "azp": "test-client",
+  "pur": "refresh",
   "aud": [
     "openid",
     "user",
     "test-client"
   ],
-  "pur": "refresh",
   "iss": "https://bionimbus-pdc.opensciencedatacloud.org",
   "jti": "c72e5573-39fa-4391-a445-191e370b7cc5",
   "exp": 1517010902,
@@ -197,23 +197,23 @@ Note that the `3rd Party App` acts as the `client` in these examples.
 #### Flow: OpenID Connect
 ![Client Registration](docs/openid_connect_flow.png)
 
+If the third-party application doesn't need to use any Gen3 resources (and just
+wants to authenticate the user), after the handshake is finished they can just get
+needed information in the `ID token`.
+
+#### Flow: Using Tokens for Access
+If a third-party application want to use Gen3 resources like
+`fence`/`sheepdog`/`peregrine`, they call those services with an `Access Token`
+passed in an `Authorization` header.
+
+![Client Registration](docs/token_use_for_access.png)
+
 #### Flow: Refresh Token Use
 ![Client Registration](docs/refresh_token_use.png)
 
 #### Flow: Refresh Token Use (Token is Expired)
 ![Client Registration](docs/refresh_token_use_expired.png)
 
-#### Flow: ID Token Use
-TODO
-
-#### Flow: ID Token Use (Token is Expired)
-TODO
-
-If the third-party application doesn't need to use any Gen3 resources (and just
-wants to verify the user), after the handshake is finished they can just get
-needed information in the ID token. If they want to use gen3 resources like
-`fence`/`sheepdog`/`peregrine`, they call those services with an `ID token`
-passed in an `Authorization` header.
 
 #### Notes
 
