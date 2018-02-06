@@ -160,7 +160,8 @@ def get_project_by_name(current_session, project_name):
         info['associated buckets'].append(bucket.name)
     return info
 
-def delete_project_by_name(current_session, project_name):
+
+def delete_project(current_session, project_name):
     """
     Delete the project from the database
     The project should have no buckets in use

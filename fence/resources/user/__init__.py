@@ -98,3 +98,6 @@ def get_user_accesses():
     if not user:
         raise InternalError("Error: %s user does not exist in user-data-model" % g.user.username)
     return user
+
+def get_user(username):
+    return current_session.query(User).filter(User.name == username).first()

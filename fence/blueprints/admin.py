@@ -160,7 +160,7 @@ def get_project(projectname):
     from the userdatamodel database
     Returns a json object
     """
-    return jsonify(adm.get_project_by_name(projectname))
+    return jsonify(adm.get_project(projectname))
 
 @blueprint.route('/project/<projectname>', methods=['PUT'])
 @login_required({'admin'})
@@ -173,7 +173,7 @@ def create_project(projectname):
     auth_id = request.get_json().get('auth_id')
     storage_accesses = request.get_json().get('storage_accesses',[])
     return jsonify(
-        adm.create_project_by_name(
+        adm.create_project(
             projectname,
             auth_id,
             storage_accesses
@@ -188,7 +188,7 @@ def delete_project(projectname):
     Remove project. No Buckets should be associated with it.
     Returns a json object.
     """
-    return jsonify(adm.delete_project_by_name(projectname))
+    return jsonify(adm.delete_project(projectname))
 
 @blueprint.route('/cloud_provider/<providername>', methods=['GET'])
 @login_required({'admin'})

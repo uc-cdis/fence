@@ -7,36 +7,42 @@ All the operations return a dictionary
 ready to be converted to a json.
 """
 
-import fence.resources.userdatamodel as udm
-import fence.resources.user as usr
+from fence.resources import (
+    userdatamodel as udm,
+    project as pj,
+    group as gp,
+    user as us,
+)
+
 from flask import current_app as capp
 from fence.data_model.models import User, Group
 from flask_sqlalchemy_session import current_session
 import json
 from fence.errors import UserError
-def get_project_by_name(project_name):
+
+def get_project(project_name):
     """
     Return the information associated with a project
     Returns a dictionary.
     """
-    return udm.get_project_by_name(current_session, project_name)
+    return pj.get_project(current_session, project_name)
 
-def create_project_by_name(projectname, authid, storageaccesses):
+def create_project(projectname, authid, storageaccesses):
     """
     Create a project with the specified auth_id and
     storage access.
     Returns a dictionary.
     """
-    if udm.create_project(current_session, projectname, authid, storageaccesses):
+    if pj.create_project(current_session, projectname, authid, storageaccesses):
         return {'result': 'success'}
 
-def delete_project_by_name(project_name):
+def delete_project(project_name):
     """
     Remove a project. All buckets must be deleted
     before this oepration can be called.
     Returns a dictionary.
     """
-    response = udm.delete_project_by_name(current_session, project_name)
+    response = pj.delete_project(current_session, project_name)
     if response["result"] == "success":
         for user in response["users_to_remove"]:
             capp.storage_manager.delete_user(user[0].backend, user[1])
@@ -199,7 +205,7 @@ def add_user_to_projects(username, projects=[]):
 
 
 def disconnect_project_from_group(grp, projectname):
-    prj = udm.get_project(projectname)
+    prj = pj.get_project(projectname)
     if not prj:
         return {"warning": ("Project {0} doesn't exist".format(projectname))}
     else:
@@ -263,7 +269,7 @@ def create_bucket_on_project_by_name(project_name, bucket_name, provider_name):
     on the cloud provider and associate it with the project.
     Returns a dictionary.
     """
-    response = udm.create_bucket_on_project_by_name(
+    response = pj.create_bucket_on_project_by_name(
         current_session,
         project_name,
         bucket_name,
