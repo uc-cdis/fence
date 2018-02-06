@@ -1,8 +1,19 @@
 # Fence
+> AuthN and AuthZ service used primarily in the Gen3 Data Commons Software Stack
 
 [![Build Status](https://travis-ci.org/uc-cdis/fence.svg?branch=master)](https://travis-ci.org/uc-cdis/fence)
 [![Codacy Quality Badge](https://api.codacy.com/project/badge/Grade/1cb2ec9cc64049488d140f44027c4422)](https://www.codacy.com/app/uc-cdis/fence?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=uc-cdis/fence&amp;utm_campaign=Badge_Grade)
 [![Codacy Coverage Badge](https://api.codacy.com/project/badge/Coverage/1cb2ec9cc64049488d140f44027c4422)](https://www.codacy.com/app/uc-cdis/fence?utm_source=github.com&utm_medium=referral&utm_content=uc-cdis/fence&utm_campaign=Badge_Coverage)
+
+A `fence` separates protected resources from the outside world and allows
+only trusted entities to enter.
+
+## API Documentation
+
+[OpenAPI documentation available here.](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/uc-cdis/fence/master/openapi/swagger.yaml)
+
+YAML file for the OpenAPI documentation is found in the `openapi` folder (in
+the root directory); see the README in that folder for more details.
 
 ## Setup
 
@@ -58,16 +69,13 @@ That command should output a tuple of `(client_id, client_secret)` which must be
 saved so that `gdcapi` (for example) can be run as an OAuth client to use with
 `fence`.
 
-## API Documentation
+## Authentication and Authorization
 
-[OpenAPI documentation available here.](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/uc-cdis/fence/master/openapi/swagger.yaml)
+We use JSON Web Tokens (JWTs) as the format for our authentication mechanism.
 
-YAML file for the OpenAPI documentation is found in the `openapi` folder (in
-the root directory); see the README in that folder for more details.
+### JWT Information
 
-## JWT Information
-
-### Example ID Token
+#### Example ID Token
 ```
 {
   "sub": "7",
@@ -78,6 +86,21 @@ the root directory); see the README in that folder for more details.
     "user",
     "test-client"
   ],
+  "context": {
+    "user": {
+      "is_admin": false,
+      "name": "test",
+      "projects": {
+        "phs000178": [
+          "read",
+          "update",
+          "create",
+          "delete",
+          "read-storage"
+        ]
+      }
+    }
+  },
   "iss": "https://bionimbus-pdc.opensciencedatacloud.org",
   "jti": "3ae2910b-0294-43dc-af2a-03fd60082aef",
   "exp": 1516983302,
@@ -86,7 +109,7 @@ the root directory); see the README in that folder for more details.
 }
 ```
 
-### Example Access Token
+#### Example Access Token
 ```
 {
   "sub": "7",
@@ -119,7 +142,7 @@ the root directory); see the README in that folder for more details.
 }
 ```
 
-### Example Refresh Token
+#### Example Refresh Token
 ```
 {
   "sub": "7",
@@ -173,6 +196,10 @@ through OAuth.
 
 ## OIDC & OAuth2
 
+Fence acts as a central broker that supports multiple Identity Providers (IDPs).
+It exposes AuthN and AuthZ for users by acting as an OIDC IDP itself.
+In that sense, `fence` is both a `client` and `OpenID Provider (OP)`.
+
 ### Fence as Client
 
 Example:
@@ -183,7 +210,7 @@ Example:
 
 ### Fence as OpenID Provider (OP)
 
-- Fence is the OpenID Provider (OP)
+- Fence is the OP
 - A third-party application is the client
 - Our microservices (e.g. [`sheepdog`](https://github.com/uc-cdis/sheepdog)) are resource providers
 
@@ -214,8 +241,7 @@ passed in an `Authorization` header.
 #### Flow: Refresh Token Use (Token is Expired)
 ![Client Registration](docs/refresh_token_use_expired.png)
 
-
 #### Notes
 
-See the [OIDC specification](http://openid.net/specs/openid-connect-core-1_0.html) for details.
-Additionally, see the [OAuth2 specification](https://tools.ietf.org/html/rfc6749) for more details.
+See the [OIDC specification](http://openid.net/specs/openid-connect-core-1_0.html) for more details.
+Additionally, see the [OAuth2 specification](https://tools.ietf.org/html/rfc6749).
