@@ -9,7 +9,7 @@ def public_key():
     """
     Return a public key for testing.
     """
-    return utils.read_file('keys/test_public_key.pem')
+    return utils.read_file('resources/keys/test_public_key.pem')
 
 
 @pytest.fixture(scope='session')
@@ -18,7 +18,7 @@ def private_key():
     Return a private key for testing. (Use only a private key that is
     specifically set aside for testing, and never actually used for auth.)
     """
-    return utils.read_file('keys/test_private_key.pem')
+    return utils.read_file('resources/keys/test_private_key.pem')
 
 
 @pytest.fixture(scope='session')

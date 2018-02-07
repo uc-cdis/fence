@@ -17,6 +17,7 @@ import pytest
 import fence
 from fence import app_init
 from fence import models
+from fence.jwt import blacklist
 
 import tests
 from tests import test_settings
@@ -25,33 +26,6 @@ from tests import utils
 
 # Allow authlib to use HTTP for local testing.
 os.environ['AUTHLIB_INSECURE_TRANSPORT'] = 'true'
-
-
-class Mocker(object):
-
-    def mock_functions(self):
-        self.patcher = patch(
-            'fence.resources.storage.get_client',
-            get_client
-        )
-        self.auth_patcher = patch(
-            'fence.resources.storage.StorageManager.check_auth',
-            lambda cls, backend, user: True
-        )
-        self.patcher.start()
-        self.auth_patcher.start()
-        self.additional_patchers = []
-
-    def unmock_functions(self):
-        self.patcher.stop()
-        self.auth_patcher.stop()
-        for patcher in self.additional_patchers:
-            patcher.stop()
-        # self.user_from_jwt_patcher.stop()
-
-    def add_mock(self, patcher):
-        patcher.start()
-        self.additional_patchers.append(patcher)
 
 
 def indexd_get_available_bucket(file_id):
@@ -177,6 +151,55 @@ def encoded_jwt_refresh_token(claims_refresh, private_key):
     )
 
 
+def check_auth_positive(cls, backend, user):
+    return True
+
+
+class Mocker(object):
+    def mock_functions(self):
+        self.patcher = patch(
+            'fence.resources.storage.get_client',
+            get_client)
+        self.auth_patcher = patch(
+            'fence.resources.storage.StorageManager.check_auth',
+            check_auth_positive)
+        self.patcher.start()
+        self.auth_patcher.start()
+        self.additional_patchers = []
+
+    def unmock_functions(self):
+        self.patcher.stop()
+        self.auth_patcher.stop()
+        for patcher in self.additional_patchers:
+            patcher.stop()
+        # self.user_from_jwt_patcher.stop()
+
+    def add_mock(self, patcher):
+        patcher.start()
+        self.additional_patchers.append(patcher)
+
+
+def flush(app):
+    with app.db.session as session:
+        # Don't flush until everything is finished, otherwise this will
+        # break because of (for example) foreign key references between the
+        # tables.
+        with session.no_autoflush:
+            all_models = [
+                blacklist.BlacklistedToken,
+                models.Client,
+                models.AuthorizationCode,
+                models.UserRefreshToken,
+                models.User,
+                models.GoogleServiceAccount,
+                models.GoogleProxyGroup,
+            ]
+            for cls in all_models:
+                for obj in session.query(cls).all():
+                    session.delete(obj)
+
+
+
 @pytest.fixture(scope='session')
 @mock_s3
 @mock_sts
@@ -186,13 +209,6 @@ def app():
     root_dir = os.path.dirname(os.path.realpath(__file__))
     app_init(fence.app, test_settings, root_dir=root_dir)
 
-    @fence.app.route('/protected')
-    @fence.auth.login_required({'access'})
-    def protected_endpoint(methods=['GET']):
-        """
-        Add a protected endpoint to the app for testing.
-        """
-        return 'Got to protected endpoint'
 
     return fence.app
 
@@ -212,6 +228,43 @@ def db(app, request):
 
     return app.db
 
+
+@fence.app.route('/protected')
+@fence.auth.login_required({'access'})
+def protected_endpoint(methods=['GET']):
+    """
+    Add a protected endpoint to the app for testing.
+    """
+    return 'Got to protected endpoint'
+
+@pytest.fixture(scope='function')
+def user_client(app, request):
+    mocker = Mocker()
+    mocker.mock_functions()
+    users = dict(json.loads(utils.read_file('resources/authorized_users.json')))
+    user_id, username = utils.create_user(users, DB=app.config['DB'], is_admin=True)
+
+    def fin():
+        flush(app)
+        mocker.unmock_functions()
+
+    request.addfinalizer(fin)
+    return Dict(username=username, user_id=user_id)
+
+
+@pytest.fixture(scope='function')
+def unauthorized_user_client(app, request):
+    mocker = Mocker()
+    mocker.mock_functions()
+    users = dict(json.loads(utils.read_file('resources/unauthorized_users.json')))
+    user_id, username = utils.create_user(users, DB=app.config['DB'], is_admin=True)
+
+    def fin():
+        flush(app)
+        mocker.unmock_functions()
+
+    request.addfinalizer(fin)
+    return Dict(username=username, user_id=user_id)
 
 @pytest.fixture(scope='function')
 def db_session(db, request, patch_app_db_session, monkeypatch):
