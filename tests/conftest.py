@@ -238,11 +238,11 @@ def protected_endpoint(methods=['GET']):
     return 'Got to protected endpoint'
 
 @pytest.fixture(scope='function')
-def user_client(app, request):
+def user_client(app, request, db_session):
     mocker = Mocker()
     mocker.mock_functions()
     users = dict(json.loads(utils.read_file('resources/authorized_users.json')))
-    user_id, username = utils.create_user(users, DB=app.config['DB'], is_admin=True)
+    user_id, username = utils.create_user(users, db_session, is_admin=True)
 
     def fin():
         flush(app)
@@ -257,7 +257,7 @@ def unauthorized_user_client(app, request):
     mocker = Mocker()
     mocker.mock_functions()
     users = dict(json.loads(utils.read_file('resources/unauthorized_users.json')))
-    user_id, username = utils.create_user(users, DB=app.config['DB'], is_admin=True)
+    user_id, username = utils.create_user(users, db_session, is_admin=True)
 
     def fin():
         flush(app)
@@ -294,12 +294,12 @@ def db_session(db, request, patch_app_db_session, monkeypatch):
 
 
 @pytest.fixture(scope='function')
-def oauth_user(app):
+def oauth_user(app, db_session):
     users = dict(json.loads(utils.read_file(
         'resources/authorized_users.json'
     )))
     user_id, username = utils.create_user(
-        users, DB=app.config['DB'], is_admin=True
+        users, db_session, is_admin=True
     )
     return Dict(username=username, user_id=user_id)
 
@@ -310,7 +310,7 @@ def unauthorized_oauth_user(app, db_session):
         'resources/unauthorized_users.json'
     )))
     user_id, username = utils.create_user(
-        users, DB=app.config['DB'], is_admin=True
+        users, db_session, is_admin=True
     )
     return Dict(username=username, user_id=user_id)
 

@@ -26,7 +26,7 @@ class DbGapSyncer(object):
 
     def __init__(
             self, dbGaP, DB, project_mapping,
-            storage_credentials=None,
+            storage_credentials=None, db_session=None,
             sync_from_dir=None):
         '''
         Syncs ACL files from dbGap to auth database and storage backends
@@ -42,6 +42,7 @@ class DbGapSyncer(object):
         if sync_from_dir is None:
             self.sftp = dbGaP['sftp']
             self.dbgap_key = dbGaP['decrypt_key']
+        self.session = db_session
         self.driver = SQLAlchemyDriver(DB)
         self._projects = dict()
         self.project_mapping = project_mapping
@@ -281,18 +282,24 @@ class DbGapSyncer(object):
         return instance
 
     def sync(self):
-        with self.driver.session as s:
-            if self.sync_from_dir is None:
-                with temps.tmpdir() as workdir:
-                    self._get_from_sftp(workdir)
-                    phsids, userinfo = self._sync_csv(
-                        glob.glob(os.path.join(workdir, '*')))
-            else:
+        if self.session:
+            self._sync(self.session)
+        else:
+            with self.driver.session as s:
+                self._sync(s)
+
+    def _sync(self, s):
+        if self.sync_from_dir is None:
+            with temps.tmpdir() as workdir:
+                self._get_from_sftp(workdir)
                 phsids, userinfo = self._sync_csv(
-                    glob.glob(os.path.join(self.sync_from_dir, '*')),
-                    encrypted=False,
-                )
-            self.sync_to_db_and_storage_backend(phsids, userinfo, s)
+                    glob.glob(os.path.join(workdir, '*')))
+        else:
+            phsids, userinfo = self._sync_csv(
+                glob.glob(os.path.join(self.sync_from_dir, '*')),
+                encrypted=False,
+            )
+        self.sync_to_db_and_storage_backend(phsids, userinfo, s)
 
 
 if __name__ == '__main__':

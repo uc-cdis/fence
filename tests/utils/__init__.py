@@ -16,33 +16,31 @@ def read_file(filename):
         return f.read()
 
 
-def create_user(users, DB, is_admin=False):
-    driver = SQLAlchemyDriver(DB)
-    with driver.session as s:
-        for username in users.keys():
-            user = s.query(User).filter(User.username == username).first()
-            if not user:
-                user = User(username=username, is_admin=is_admin)
-                s.add(user)
-            for project_data in users[username]['projects']:
-                privilege = project_data['privilege']
-                auth_id = project_data['auth_id']
-                p_name = project_data.get('name', auth_id)
+def create_user(users, db_session, is_admin=False):
+    s = db_session
+    for username in users.keys():
+        user = s.query(User).filter(User.username == username).first()
+        if not user:
+            user = User(username=username, is_admin=is_admin)
+            s.add(user)
+        for project_data in users[username]['projects']:
+            privilege = project_data['privilege']
+            auth_id = project_data['auth_id']
+            p_name = project_data.get('name', auth_id)
 
-                project = s.query(Project).filter(
-                    Project.auth_id == auth_id).first()
-                if not project:
-                    project = Project(name=p_name, auth_id=auth_id)
-                    s.add(project)
-                ap = s.query(AccessPrivilege).join(AccessPrivilege.project) \
-                    .join(AccessPrivilege.user) \
-                    .filter(Project.name == p_name, User.username == user.username).first()
-                if not ap:
-                    ap = AccessPrivilege(project=project, user=user, privilege=privilege)
-                    s.add(ap)
-                else:
-                    ap.privilege = privilege
-        s.commit()
+            project = s.query(Project).filter(
+                Project.auth_id == auth_id).first()
+            if not project:
+                project = Project(name=p_name, auth_id=auth_id)
+                s.add(project)
+            ap = s.query(AccessPrivilege).join(AccessPrivilege.project) \
+                .join(AccessPrivilege.user) \
+                .filter(Project.name == p_name, User.username == user.username).first()
+            if not ap:
+                ap = AccessPrivilege(project=project, user=user, privilege=privilege)
+                s.add(ap)
+            else:
+                ap.privilege = privilege
     return user.id, user.username
 
 
