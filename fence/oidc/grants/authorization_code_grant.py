@@ -22,6 +22,14 @@ class AuthorizationCodeGrant(AuthlibAuthorizationCodeGrant):
         )
 
     def create_authorization_code(self, client, user, **kwargs):
+        """
+        Create an ``AuthorizationCode`` model for the current OAuth request
+        from the given client and user.
+
+        Certain parameters in the ``AuthorizationCode`` are filled out using
+        the arguments passed from the OAuth request (the redirect URI, scope,
+        and nonce).
+        """
         code = AuthorizationCode(
             code=generate_token(50),
             client_id=client.client_id,
@@ -38,22 +46,48 @@ class AuthorizationCodeGrant(AuthlibAuthorizationCodeGrant):
         return code.code
 
     def parse_authorization_code(self, code, client):
+        """
+        Search for an ``AuthorizationCode`` matching the given code string and
+        client.
+
+        Args:
+            code (str): the code string for the ``AuthorizationCode``
+            client (Client): the client the code was issued to
+
+        Return:
+            AuthorizationCode
+        """
         with flask.current_app.db.session as session:
-            code = (
+            authorization_code = (
                 session.query(AuthorizationCode)
                 .filter_by(code=code, client_id=client.client_id)
                 .first()
             )
-        if not code or code.is_expired():
+        if not authorization_code or authorization_code.is_expired():
             return None
-        return code
+        return authorization_code
 
     def delete_authorization_code(self, authorization_code):
+        """
+        Delete a saved authorization code.
+
+        Args:
+            authorization_code (AuthorizationCode):
+                the ``AuthorizationCode`` to delete
+
+        Return:
+            None
+        """
         with flask.current_app.db.session as session:
             session.delete(authorization_code)
             session.commit()
 
     def create_access_token(self, token, client, authorization_code):
+        """
+        Create an "access token" model from the given token.
+
+        The JWTs are stateless, so just pass.
+        """
         pass
 
     def create_access_token_response(self):

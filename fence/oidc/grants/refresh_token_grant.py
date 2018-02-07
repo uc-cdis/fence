@@ -70,10 +70,13 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         return client
 
     def create_access_token_response(self):
-        """If valid and authorized, the authorization server issues an access
-        token as described in Section 5.1.  If the request failed
-        verification or is invalid, the authorization server returns an error
-        response as described in Section 5.2.
+        """
+        Docs from authlib:
+
+            If valid and authorized, the authorization server issues an access
+            token as described in Section 5.1. If the request failed
+            verification or is invalid, the authorization server returns an
+            error response as described in Section 5.2.
         """
         scope = self.params.get('scope')
         if not scope:

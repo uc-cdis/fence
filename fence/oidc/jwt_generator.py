@@ -42,10 +42,14 @@ class JWTGenerator(BearerToken):
         Args:
             client: not used (would be used to determine expiration)
             grant_type: not used
-            ...
+            expires_in: not used (see expiration times configured above)
+            scope (List[str]): list of requested scopes
+            include_refresh_token: not used
+            nonce (str): "nonsense" to include in ID token (see OIDC spec)
             refresh_token:
                 for a refresh token grant, pass in the previous refresh token
                 to return that same token again instead of generating a new one
+                (otherwise this will let the refresh token refresh itself)
         """
 
         user = get_current_user()
