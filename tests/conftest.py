@@ -253,7 +253,7 @@ def user_client(app, request, db_session):
 
 
 @pytest.fixture(scope='function')
-def unauthorized_user_client(app, request):
+def unauthorized_user_client(app, request, db_session):
     mocker = Mocker()
     mocker.mock_functions()
     users = dict(json.loads(utils.read_file('resources/unauthorized_users.json')))
