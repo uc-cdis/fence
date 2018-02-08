@@ -1,4 +1,6 @@
-from cdispyutils import auth
+import authutils.errors
+import authutils.token.keys
+import authutils.token.validate
 import flask
 import jwt
 
@@ -72,12 +74,18 @@ def validate_jwt(encoded_token=None, aud=None, purpose=None, public_key=None):
     aud = set(aud)
     iss = flask.current_app.config['HOSTNAME']
     token_headers = jwt.get_unverified_header(encoded_token)
-    public_key = auth.get_public_key_for_kid(
+    public_key = authutils.token.keys.get_public_key_for_kid(
         token_headers.get('kid'), attempt_refresh=False
     )
     try:
-        claims = auth.validate_jwt(encoded_token, public_key, aud, iss)
-    except auth.errors.JWTValidationError as e:
+        claims = authutils.token.validate.validate_jwt(
+            encoded_token=encoded_token,
+            aud=aud,
+            purpose=purpose,
+            iss=iss,
+            public_key=public_key,
+        )
+    except authutils.errors.JWTError as e:
         raise JWTError(str(e))
     if purpose:
         validate_purpose(claims, purpose)

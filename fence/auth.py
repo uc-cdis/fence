@@ -1,6 +1,6 @@
 from functools import wraps
 
-from cdispyutils import auth
+from authutils.errors import JWTError
 import flask
 from flask_sqlalchemy_session import current_session
 
@@ -130,7 +130,7 @@ def has_oauth(scope=None):
     scope.update({'openid'})
     try:
         access_token_claims = validate_jwt(aud=scope, purpose='access')
-    except auth.JWTValidationError as e:
+    except JWTError as e:
         raise Unauthorized('failed to validate token: {}'.format(e))
     user_id = access_token_claims['sub']
     user = current_session.query(User).filter_by(id=int(user_id)).first()

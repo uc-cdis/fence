@@ -194,7 +194,8 @@ def generate_signed_session_token(
         context["redirect"] = redirect
 
     claims = {
-        'aud': ['session'],
+        'pur': 'session',
+        'aud': ['fence'],
         'sub': username or '',
         'iss': issuer,
         'iat': iat,

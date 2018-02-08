@@ -103,6 +103,7 @@ def create_project(s, project_data):
         s.add(project)
     if 'storage_accesses' in project_data:
         sa_list = project_data['storage_accesses']
+        import pdb; pdb.set_trace()
         for storage_access in sa_list:
             provider = storage_access['name']
             buckets = storage_access.get('buckets', [])
