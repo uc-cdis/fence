@@ -435,267 +435,6 @@ paths:
           description: Forbidden
         '404':
           description: Not Found
-  "/admin/user/{username}":
-    get:
-      tags:
-      - admin-controller
-      summary: get user information from given a username
-      operationId: get_user
-      consumes:
-      - "*.*"
-      produces:
-      - application/json
-      parameters:
-      - name: persistent_id
-        in: header
-        description: User name making the request, populated by apache shibboleth mod from the token it receives
-      - name: username
-        in: path
-        description: username of the user whose info we want to retrieve
-        required: true
-        type: string
-      responses:
-        '200':
-          description: OK
-          schema:
-            type: string
-        '401':
-          description: Unauthorized
-        '403':
-          description: Forbidden
-        '404':
-          description: Not Found
-    put:
-      tags:
-      - admin-controller
-      summary: create or update user information for given a username
-      operationId: create_user
-      consumes:
-      - application/json
-      produces:
-      - "*/*"
-      parameters:
-      - name: username
-        in: path
-        description: username of the user that we want to create or update
-        required: true
-        type: string
-      responses:
-        '200':
-          description: OK
-          schema:
-            type: string
-        '401':
-          description: Unauthorized
-        '403':
-          description: Forbidden
-        '404':
-          description: Not Found
-    delete:
-      tags:
-      - admin-controller
-      summary: delete user information for given a username
-      operationId: delete_user
-      consumes:
-      - application/json
-      produces:
-      - "*/*"
-      parameters:
-      - name: username
-        in: path
-        description: username of the user that we want to delete
-        required: true
-        type: string
-      responses:
-        '200':
-          description: OK
-          schema:
-            type: string
-        '401':
-          description: Unauthorized
-        '403':
-          description: Forbidden
-        '404':
-          description: Not Found
-  "/admin/project/{projectname}/groups":
-    put:
-      tags:
-      - admin-controller
-      summary: add project to multiple groups
-      operationId: add_project_to_groups
-      consumes:
-      - "*.*"
-      produces:
-      - application/json
-      parameters:
-      - name: persistent_id
-        in: header
-        description: User name making the request, populated by apache shibboleth mod from the token it receives
-      - name: projectname
-        in: path
-        description: name of the project that we want to add
-        required: true
-        type: string
-      - name: groups
-        in: path
-        description: list of groups we want to add the project to
-        required: true
-        type: list
-      responses:
-        '200':
-          description: OK
-          schema:
-            "$ref": "#/definitions/ProjectInfo"
-        '401':
-          description: Unauthorized
-        '403':
-          description: Forbidden
-        '404':
-          description: Not Found
-    delete:
-      tags:
-      - admin-controller
-      summary: remove projects from a set of groups
-      operationId: remove_project_from_groups
-      consumes:
-      - "*.*"
-      produces:
-      - application/json
-      parameters:
-      - name: persistent_id
-        in: header
-        description: User name making the request, populated by apache shibboleth mod from the token it receives
-      - name: projectname
-        in: path
-        description: name of the project that we want to remove
-        required: true
-        type: string
-      - name: groups
-        in: path
-        description: list of groups we want to remove the project from
-        required: true
-        type: list
-  "/admin/project/{projectname}":
-    get:
-      tags:
-      - admin-controller
-      summary: get project information from given a username
-      operationId: get_project
-      consumes:
-      - "*.*"
-      produces:
-      - application/json
-      parameters:
-      - name: persistent_id
-        in: header
-        description: User name making the request, populated by apache shibboleth mod from the token it receives
-      - name: projectname
-        in: path
-        description: name of the project whose info we want to retrieve
-        required: true
-        type: string
-      responses:
-        '200':
-          description: OK
-          schema:
-            "$ref": "#/definitions/ProjectInfo"
-        '401':
-          description: Unauthorized
-        '403':
-          description: Forbidden
-        '404':
-          description: Not Found
-    put:
-      tags:
-      - admin-controller
-      summary: create or update a project
-      operationId: create_project
-      consumes:
-      - "*.*"
-      produces:
-      - application/json
-      parameters:
-      - name: persistent_id
-        in: header
-        description: User name making the request, populated by apache shibboleth mod from the token it receives
-      - name: projectname
-        in: path
-        description: name of the project we want to create or update
-        required: true
-        type: string
-      - name: auth_id
-        in: body
-        description: unique identifier of the project from the cloud provider (i.e. dbgap)
-        required: true
-        type: string
-      - name: storage_access
-        in: body
-        description: backend system to be used for buckets in the object store
-        required: false
-        type: string
-      responses:
-        '200':
-          description: OK
-          schema:
-            type: string
-        '401':
-          description: Unauthorized
-        '403':
-          description: Forbidden
-        '404':
-          description: Not Found
-    delete:
-      tags:
-      - admin-controller
-      summary: delete project information from given a username
-      operationId: delete_project
-      consumes:
-      - "*.*"
-      produces:
-      - application/json
-      parameters:
-      - name: persistent_id
-        in: header
-        description: User name making the request, populated by apache shibboleth mod from the token it receives
-      - name: projectname
-        in: path
-        description: name of the project whose info we want to delete
-        required: true
-        type: string
-      responses:
-        '200':
-          description: OK
-        '401':
-          description: Unauthorized
-        '403':
-          description: Forbidden
-        '404':
-          description: Not Found
-  "/admin/user":
-    get:
-      tags:
-      - user-controller
-      summary: Get current user info
-      operationId: user_info
-      consumes:
-      - "*/*"
-      produces:
-      - application/json
-      parameters:
-      - name: persistent_id
-        in: header
-        description: User name making the request, populated by apache shibboleth mod from the token it receives
-      responses:
-        '201':
-          description: Success
-          schema:
-            type: string
-        '401':
-          description: Unauthorized
-        '403':
-          description: Forbidden
-        '404':
-          description: Not Found
   "/admin/groups/{groupname}":
     get:
       tags:
@@ -923,6 +662,450 @@ paths:
             "$ref": "#/definitions/Group"
         '201':
           description: Created
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/admin/projects/{projectname}/groups":
+    put:
+      tags:
+      - admin-controller
+      summary: add project to multiple groups
+      operationId: add_project_to_groups
+      consumes:
+      - "*.*"
+      produces:
+      - application/json
+      parameters:
+      - name: persistent_id
+        in: header
+        description: User name making the request, populated by apache shibboleth mod from the token it receives
+        required: true
+        type: string
+      - name: projectname
+        in: path
+        description: name of the project that we want to add
+        required: true
+        type: string
+      - name: groups
+        in: path
+        description: list of groups we want to add the project to
+        required: true
+        type: list
+      responses:
+        '200':
+          description: OK
+          schema:
+            "$ref": "#/definitions/ProjectInfo"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    delete:
+      tags:
+      - admin-controller
+      summary: remove projects from a set of groups
+      operationId: remove_project_from_groups
+      consumes:
+      - "*.*"
+      produces:
+      - application/json
+      parameters:
+      - name: persistent_id
+        in: header
+        description: User name making the request, populated by apache shibboleth mod from the token it receives
+        required: true
+        type: string
+      - name: projectname
+        in: path
+        description: name of the project that we want to remove
+        required: true
+        type: string
+      - name: groups
+        in: path
+        description: list of groups we want to remove the project from
+        required: true
+        type: list
+  "/admin/projects/{projectname}":
+    get:
+      tags:
+      - admin-controller
+      summary: get project information from given a username
+      operationId: get_project
+      consumes:
+      - "*.*"
+      produces:
+      - application/json
+      parameters:
+      - name: persistent_id
+        in: header
+        description: User name making the request, populated by apache shibboleth mod from the token it receives
+        required: true
+        type: string
+      - name: projectname
+        in: path
+        description: name of the project whose info we want to retrieve
+        required: true
+        type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            "$ref": "#/definitions/ProjectInfo"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    put:
+      tags:
+      - admin-controller
+      summary: create or update a project
+      operationId: create_project
+      consumes:
+      - "*.*"
+      produces:
+      - application/json
+      parameters:
+      - name: persistent_id
+        in: header
+        description: User name making the request, populated by apache shibboleth mod from the token it receives
+        required: true
+        type: string
+      - name: projectname
+        in: path
+        description: name of the project we want to create or update
+        required: true
+        type: string
+      - name: auth_id
+        in: body
+        description: unique identifier of the project from the cloud provider (i.e. dbgap)
+        required: true
+        type: string
+      - name: storage_access
+        in: body
+        description: backend system to be used for buckets in the object store
+        required: false
+        type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    delete:
+      tags:
+      - admin-controller
+      summary: delete project information from given a username
+      operationId: delete_project
+      consumes:
+      - "*.*"
+      produces:
+      - application/json
+      parameters:
+      - name: persistent_id
+        in: header
+        description: User name making the request, populated by apache shibboleth mod from the token it receives
+        required: true
+        type: string
+      - name: projectname
+        in: path
+        description: name of the project whose info we want to delete
+        required: true
+        type: string
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/admin/user":
+    get:
+      tags:
+      - user-controller
+      summary: Get all users from the database
+      operationId: get_all_users
+      consumes:
+      - "*/*"
+      produces:
+      - application/json
+      parameters:
+      - name: persistent_id
+        in: header
+        description: User name making the request, populated by apache shibboleth mod from the token it receives
+        required: true
+        type: string
+      responses:
+        '201':
+          description: Success
+          schema:
+            type: list
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/admin/user/{username}/groups":
+    delete:
+      tags:
+      - user-controller
+      summary: remove user from certain groups
+      operationId: remove_user_from_groups
+      consumes:
+      - "*/*"
+      produces:
+      - application/json
+      parameters:
+      - name: persistent_id
+        in: header
+        description: User name making the request, populated by apache shibboleth mod from the token it receives
+        required: true
+        type: string
+      - name: username
+        in: path
+        description: name of the user we want to remove
+        required: true
+        type: list
+      - name: groups
+        in: body
+        description: list of groups to remove the user from
+        required: true
+        type: list
+      responses:
+        '201':
+          description: Success
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    get:
+      tags:
+      - user-controller
+      summary: get the list of groups the user belongs to
+      operationId: get_user_groups
+      consumes:
+      - "*/*"
+      produces:
+      - application/json
+      parameters:
+      - name: persistent_id
+        in: header
+        description: User name making the request, populated by apache shibboleth mod from the token it receives
+        required: true
+        type: string
+      - name: username
+        in: path
+        description: name of the user we want to get the groups from
+        required: true
+        type: list
+      responses:
+        '201':
+          description: Success
+          schema:
+            type: list
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    put:
+      tags:
+      - user-controller
+      summary: add user to certain groups
+      operationId: add_user_to_groups
+      consumes:
+      - "*/*"
+      produces:
+      - application/json
+      parameters:
+      - name: persistent_id
+        in: header
+        description: User name making the request, populated by apache shibboleth mod from the token it receives
+        required: true
+        type: string
+      - name: username
+        in: path
+        description: name of the user we want to add
+        required: true
+        type: list
+      - name: groups
+        in: body
+        description: list of groups to add the user to
+        required: true
+        type: list
+      responses:
+        '201':
+          description: Success
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/admin/user/{username}/projects":
+    delete:
+      tags:
+      - user-controller
+      summary: remove user from certain projects
+      operationId: remove_user_from_projects
+      consumes:
+      - "*/*"
+      produces:
+      - application/json
+      parameters:
+      - name: persistent_id
+        in: header
+        description: User name making the request, populated by apache shibboleth mod from the token it receives
+        required: true
+        type: string
+      - name: username
+        in: path
+        description: name of the user we want to remove
+        required: true
+        type: list
+      - name: projects
+        in: body
+        description: list of projects to remove the user from
+        required: true
+        type: list
+      responses:
+        '201':
+          description: Success
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    put:
+      tags:
+      - user-controller
+      summary: add user to certain projects
+      operationId: add_user_to_projects
+      consumes:
+      - "*/*"
+      produces:
+      - application/json
+      parameters:
+      - name: persistent_id
+        in: header
+        description: User name making the request, populated by apache shibboleth mod from the token it receives
+        required: true
+        type: string
+      - name: username
+        in: path
+        description: name of the user we want to add
+        required: true
+        type: list
+      - name: groups
+        in: body
+        description: list of project to add the user to
+        required: true
+        type: list
+      responses:
+        '201':
+          description: Success
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  "/admin/user/{username}":
+    get:
+      tags:
+      - admin-controller
+      summary: get user information from given a username
+      operationId: get_user
+      consumes:
+      - "*.*"
+      produces:
+      - application/json
+      parameters:
+      - name: persistent_id
+        in: header
+        description: User name making the request, populated by apache shibboleth mod from the token it receives
+        required: true
+        type: string
+      - name: username
+        in: path
+        description: username of the user whose info we want to retrieve
+        required: true
+        type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    put:
+      tags:
+      - admin-controller
+      summary: create or update user information for given a username
+      operationId: create_user
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: username
+        in: path
+        description: username of the user that we want to create or update
+        required: true
+        type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    delete:
+      tags:
+      - admin-controller
+      summary: delete user information for given a username
+      operationId: delete_user
+      consumes:
+      - application/json
+      produces:
+      - "*/*"
+      parameters:
+      - name: username
+        in: path
+        description: username of the user that we want to delete
+        required: true
+        type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: string
         '401':
           description: Unauthorized
         '403':
