@@ -17,6 +17,9 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
     This class both implements some methods required by authlib, and overrides
     others to change the default behavior from authlib; see method docstrings
     for details.
+
+    NOTE: ``self._authenticated_token`` is the refresh token claims as a
+    dictionary; ``self.params['refresh_token']`` is the actual string.
     """
 
     def authenticate_refresh_token(self, refresh_token):
@@ -83,8 +86,11 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
             scope = self._authenticated_token['aud']
 
         token = self.token_generator(
-            self._authenticated_client, self.GRANT_TYPE, scope=scope,
-            refresh_token=self._authenticated_token,
+            client=self._authenticated_client,
+            grant_type=self.GRANT_TYPE,
+            scope=scope,
+            refresh_token=self.params.get('refresh_token'),
+            refresh_token_claims=self._authenticated_token,
         )
         self.create_access_token(
             token,

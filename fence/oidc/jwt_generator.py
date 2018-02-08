@@ -26,7 +26,8 @@ class JWTGenerator(BearerToken):
 
     def __call__(
             self, client, grant_type, expires_in=None, scope=None,
-            include_refresh_token=True, nonce=None, refresh_token=None):
+            include_refresh_token=True, nonce=None, refresh_token=None,
+            refresh_token_claims=None):
         """
         Generate the token response, which looks like the following:
 
@@ -51,6 +52,10 @@ class JWTGenerator(BearerToken):
                 for a refresh token grant, pass in the previous refresh token
                 to return that same token again instead of generating a new one
                 (otherwise this will let the refresh token refresh itself)
+            refresh_token_claims (dict):
+                also for a refresh token grant, pass the previous refresh token
+                claims (to avoid having to encode or decode the refresh token
+                here)
         """
         # Find the ``User`` model.
         # The way to do this depends on the grant type.
@@ -73,7 +78,7 @@ class JWTGenerator(BearerToken):
             user = (
                 current_session
                 .query(User)
-                .filter_by(id=int(refresh_token['sub']))
+                .filter_by(id=int(refresh_token_claims['sub']))
                 .first()
             )
 

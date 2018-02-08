@@ -2,7 +2,6 @@ import os
 import tests
 import uuid
 import tests.utils.oauth2
-from userdatamodel.driver import SQLAlchemyDriver
 from fence.models import User, Project, AccessPrivilege
 
 from datetime import datetime, timedelta
@@ -33,11 +32,18 @@ def create_user(users, db_session, is_admin=False):
             if not project:
                 project = Project(name=p_name, auth_id=auth_id)
                 s.add(project)
-            ap = s.query(AccessPrivilege).join(AccessPrivilege.project) \
-                .join(AccessPrivilege.user) \
-                .filter(Project.name == p_name, User.username == user.username).first()
+            ap = (
+                s
+                .query(AccessPrivilege)
+                .join(AccessPrivilege.project)
+                .join(AccessPrivilege.user)
+                .filter(Project.name == p_name, User.username == user.username)
+                .first()
+            )
             if not ap:
-                ap = AccessPrivilege(project=project, user=user, privilege=privilege)
+                ap = AccessPrivilege(
+                    project=project, user=user, privilege=privilege
+                )
                 s.add(ap)
             else:
                 ap.privilege = privilege
@@ -88,6 +94,8 @@ def default_claims():
             },
         },
     }
+
+
 def unauthorized_context_claims(user_name, user_id):
     """
     Return a generic claims dictionary to put in a JWT.
@@ -179,3 +187,14 @@ def authorized_upload_context_claims(user_name, user_id):
             },
         },
     }
+
+
+class FakeFlaskRequest(object):
+    """
+    Make a fake ``flask.request`` to patch in tests.
+    """
+
+    def __init__(self, method='GET', args=None, form=None):
+        self.method = method
+        self.args = args
+        self.form = form
