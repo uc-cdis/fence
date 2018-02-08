@@ -517,6 +517,64 @@ paths:
           description: Forbidden
         '404':
           description: Not Found
+  "/admin/project/{projectname}/groups":
+    put:
+      tags:
+      - admin-controller
+      summary: add project to multiple groups
+      operationId: add_project_to_groups
+      consumes:
+      - "*.*"
+      produces:
+      - application/json
+      parameters:
+      - name: persistent_id
+        in: header
+        description: User name making the request, populated by apache shibboleth mod from the token it receives
+      - name: projectname
+        in: path
+        description: name of the project that we want to add
+        required: true
+        type: string
+      - name: groups
+        in: path
+        description: list of groups we want to add the project to
+        required: true
+        type: list
+      responses:
+        '200':
+          description: OK
+          schema:
+            "$ref": "#/definitions/ProjectInfo"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    delete:
+      tags:
+      - admin-controller
+      summary: remove projects from a set of groups
+      operationId: remove_project_from_groups
+      consumes:
+      - "*.*"
+      produces:
+      - application/json
+      parameters:
+      - name: persistent_id
+        in: header
+        description: User name making the request, populated by apache shibboleth mod from the token it receives
+      - name: projectname
+        in: path
+        description: name of the project that we want to remove
+        required: true
+        type: string
+      - name: groups
+        in: path
+        description: list of groups we want to remove the project from
+        required: true
+        type: list
   "/admin/project/{projectname}":
     get:
       tags:
@@ -540,7 +598,7 @@ paths:
         '200':
           description: OK
           schema:
-            type: string
+            "$ref": "#/definitions/ProjectInfo"
         '401':
           description: Unauthorized
         '403':
@@ -565,12 +623,16 @@ paths:
         description: name of the project we want to create or update
         required: true
         type: string
-      - name: projectinfo
+      - name: auth_id
         in: body
-        description: name of the project we want to create or update
+        description: unique identifier of the project from the cloud provider (i.e. dbgap)
         required: true
-        schema:
-          "$ref": '#/definitions/Project'
+        type: string
+      - name: storage_access
+        in: body
+        description: backend system to be used for buckets in the object store
+        required: false
+        type: string
       responses:
         '200':
           description: OK
@@ -603,8 +665,6 @@ paths:
       responses:
         '200':
           description: OK
-          schema:
-            type: string
         '401':
           description: Unauthorized
         '403':
@@ -925,9 +985,7 @@ definitions:
     Project:
       type: object
       properties:
-        clientId:
-          type: string
-        clientSecret:
+        parent_id:
           type: string
         description:
           type: string
@@ -936,10 +994,22 @@ definitions:
           format: int32
         name:
           type: string
-        redirectUri:
+        auth_id:
           type: string
-        status:
-          type: string
+    ProjectInfo:
+        type: object
+        properties:
+          associated bueckets:
+            type: list
+          auth_id:
+            type: string
+          description:
+            type: string
+          id:
+            type: integer
+            format: int32
+          name:
+            type: string
     UserInfo:
       type: object
       required: [pdc_id, username, resources_granted, project_access, certificates_uploaded, email, message]
