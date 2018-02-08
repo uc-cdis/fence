@@ -17,7 +17,6 @@ import pytest
 import fence
 from fence import app_init
 from fence import models
-from fence.jwt import blacklist
 
 import tests
 from tests import test_settings
@@ -179,27 +178,6 @@ class Mocker(object):
         self.additional_patchers.append(patcher)
 
 
-def flush(app):
-    with app.db.session as session:
-        # Don't flush until everything is finished, otherwise this will
-        # break because of (for example) foreign key references between the
-        # tables.
-        with session.no_autoflush:
-            all_models = [
-                blacklist.BlacklistedToken,
-                models.Client,
-                models.AuthorizationCode,
-                models.UserRefreshToken,
-                models.User,
-                models.GoogleServiceAccount,
-                models.GoogleProxyGroup,
-            ]
-            for cls in all_models:
-                for obj in session.query(cls).all():
-                    session.delete(obj)
-
-
-
 @pytest.fixture(scope='session')
 @mock_s3
 @mock_sts
@@ -208,8 +186,6 @@ def app():
     mocker.mock_functions()
     root_dir = os.path.dirname(os.path.realpath(__file__))
     app_init(fence.app, test_settings, root_dir=root_dir)
-
-
     return fence.app
 
 
@@ -237,34 +213,24 @@ def protected_endpoint(methods=['GET']):
     """
     return 'Got to protected endpoint'
 
+
 @pytest.fixture(scope='function')
 def user_client(app, request, db_session):
-    mocker = Mocker()
-    mocker.mock_functions()
-    users = dict(json.loads(utils.read_file('resources/authorized_users.json')))
+    users = dict(json.loads(
+        utils.read_file('resources/authorized_users.json')
+    ))
     user_id, username = utils.create_user(users, db_session, is_admin=True)
-
-    def fin():
-        flush(app)
-        mocker.unmock_functions()
-
-    request.addfinalizer(fin)
     return Dict(username=username, user_id=user_id)
 
 
 @pytest.fixture(scope='function')
 def unauthorized_user_client(app, request, db_session):
-    mocker = Mocker()
-    mocker.mock_functions()
-    users = dict(json.loads(utils.read_file('resources/unauthorized_users.json')))
+    users = dict(json.loads(
+        utils.read_file('resources/unauthorized_users.json')
+    ))
     user_id, username = utils.create_user(users, db_session, is_admin=True)
-
-    def fin():
-        flush(app)
-        mocker.unmock_functions()
-
-    request.addfinalizer(fin)
     return Dict(username=username, user_id=user_id)
+
 
 @pytest.fixture(scope='function')
 def db_session(db, request, patch_app_db_session, monkeypatch):
@@ -277,20 +243,13 @@ def db_session(db, request, patch_app_db_session, monkeypatch):
     transaction = connection.begin()
     session = db.Session(bind=connection)
 
-    def rollback():
-        """
-        After using the session, roll back any changes made (including
-        commits.
-        """
-        session.close()
-        transaction.rollback()
-        connection.close()
-
-    request.addfinalizer(rollback)
-
     patch_app_db_session(session)
 
-    return session
+    yield session
+
+    session.close()
+    transaction.rollback()
+    connection.close()
 
 
 @pytest.fixture(scope='function')
@@ -344,12 +303,14 @@ def patch_app_db_session(app, monkeypatch):
 
     def do_patch(session):
         monkeypatch.setattr(app.db, 'Session', lambda: session)
-        monkeypatch.setattr('fence.auth.current_session', session)
-        monkeypatch.setattr('fence.user.current_session', session)
-        monkeypatch.setattr(
-            'fence.blueprints.storage_creds.current_session',
-            session
-        )
+        modules_to_patch = [
+            'fence.auth',
+            'fence.blueprints.storage_creds',
+            'fence.oidc.jwt_generator',
+            'fence.user',
+        ]
+        for module in modules_to_patch:
+            monkeypatch.setattr('{}.current_session'.format(module), session)
 
     return do_patch
 

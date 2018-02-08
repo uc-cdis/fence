@@ -1,14 +1,13 @@
 from authlib.specs.rfc6750.token import BearerToken
 import flask
-import flask_sqlalchemy_session
+from flask_sqlalchemy_session import current_session
 
 from fence.jwt.token import (
     generate_signed_access_token,
     generate_signed_id_token,
     generate_signed_refresh_token,
 )
-from fence.models import AuthorizationCode
-from fence.user import get_current_user
+from fence.models import AuthorizationCode, User
 
 
 class JWTGenerator(BearerToken):
@@ -53,17 +52,30 @@ class JWTGenerator(BearerToken):
                 to return that same token again instead of generating a new one
                 (otherwise this will let the refresh token refresh itself)
         """
-        if flask.request.method == 'GET':
-            code = flask.request.args.get('code')
-        else:
-            code = flask.request.form.get('code')
-        user = (
-            flask_sqlalchemy_session.current_session
-            .query(AuthorizationCode)
-            .filter_by(code=code)
-            .first()
-            .user
-        )
+        # Find the ``User`` model.
+        # The way to do this depends on the grant type.
+        if grant_type == 'authorization_code':
+            # For authorization code grant, get the code from either the query
+            # string or the form data, and use that to look up the user.
+            if flask.request.method == 'GET':
+                code = flask.request.args.get('code')
+            else:
+                code = flask.request.form.get('code')
+            user = (
+                current_session
+                .query(AuthorizationCode)
+                .filter_by(code=code)
+                .first()
+                .user
+            )
+        if grant_type == 'refresh_token':
+            # For refresh token, the user ID is the ``sub`` field in the token.
+            user = (
+                current_session
+                .query(User)
+                .filter_by(id=int(refresh_token['sub']))
+                .first()
+            )
 
         keypair = flask.current_app.keypairs[0]
         id_token = generate_signed_id_token(

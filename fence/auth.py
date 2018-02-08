@@ -157,11 +157,7 @@ def get_current_user():
             username = eppn.split('!')[-1]
         else:
             raise Unauthorized("User not logged in")
-    return (
-        current_session.query(User)
-        .filter(User.username == username)
-        .first()
-    )
+    return current_session.query(User).filter_by(username=username).first()
 
 
 def get_user_from_claims(claims):

@@ -90,8 +90,7 @@ def authorize(*args, **kwargs):
     if client.auto_approve is True:
         confirm = 'yes'
     if confirm is not None:
-        response = _handle_consent_confirmation(
-            user, confirm)
+        response = _handle_consent_confirmation(user, confirm)
     else:
         # no confirm param, so no confirmation has occured yet
         response = _authorize(user, grant, client)
@@ -188,7 +187,8 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
             show_consent_screen = True
             try:
                 # re-AuthN user
-                handle_login(scope)  # TODO not sure if this really counts as re-AuthN...
+                # TODO not sure if this really counts as re-AuthN...
+                handle_login(scope)
             except Unauthorized:
                 error = AccessDeniedError(
                     state=grant.params.get('state'),
