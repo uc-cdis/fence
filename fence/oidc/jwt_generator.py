@@ -1,11 +1,13 @@
 from authlib.specs.rfc6750.token import BearerToken
 import flask
+import flask_sqlalchemy_session
 
 from fence.jwt.token import (
     generate_signed_access_token,
     generate_signed_id_token,
     generate_signed_refresh_token,
 )
+from fence.models import AuthorizationCode
 from fence.user import get_current_user
 
 
@@ -51,8 +53,18 @@ class JWTGenerator(BearerToken):
                 to return that same token again instead of generating a new one
                 (otherwise this will let the refresh token refresh itself)
         """
+        if flask.request.method == 'GET':
+            code = flask.request.args.get('code')
+        else:
+            code = flask.request.form.get('code')
+        user = (
+            flask_sqlalchemy_session.current_session
+            .query(AuthorizationCode)
+            .filter_by(code=code)
+            .first()
+            .user
+        )
 
-        user = get_current_user()
         keypair = flask.current_app.keypairs[0]
         id_token = generate_signed_id_token(
             kid=keypair.kid,
