@@ -205,7 +205,9 @@ def create_keypairs(provider):
         # requestor is user if client_id is not set
         if client_id is None:
             client_id = str(flask.g.user.id)
-        default_scope = ['fence']
+        # fence identifies access_token endpoint, openid is the default
+        # scope for service endpoints
+        default_scope = ['fence', 'openid']
         content_type = flask.request.headers.get('Content-Type')
         if content_type == 'application/x-www-form-urlencoded':
             scope = flask.request.form.getlist('scope')
