@@ -72,7 +72,7 @@ def validate_jwt(encoded_token=None, aud=None, purpose=None, public_key=None):
             raise JWTError('no authorization header provided')
     aud = aud or {'openid'}
     aud = set(aud)
-    iss = flask.current_app.config['HOSTNAME']
+    iss = flask.current_app.config['BASE_URL']
     try:
         token_headers = jwt.get_unverified_header(encoded_token)
     except jwt.exceptions.InvalidTokenError as e:

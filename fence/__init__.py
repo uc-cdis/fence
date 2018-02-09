@@ -41,6 +41,11 @@ def app_config(app, settings='fence.settings', root_dir=None):
     Set up the config for the Flask app.
     """
     app.config.from_object(settings)
+    if 'BASE_URL' not in app.config:
+        base_url = app.config['HOSTNAME']
+        if not base_url.startswith('http'):
+            base_url = 'https://' + base_url
+        app.config['BASE_URL'] = base_url
     app.keypairs = []
     if root_dir is None:
         root_dir = os.path.dirname(
@@ -124,7 +129,7 @@ def root():
 @app.route('/logout')
 def logout_endpoint():
     root = app.config.get('APPLICATION_ROOT', '')
-    next_url = build_redirect_url(app.config.get('HOSTNAME', ''), flask.request.args.get('next', root))
+    next_url = build_redirect_url(app.config.get('BASE_URL', ''), flask.request.args.get('next', root))
     return flask.redirect(logout(next_url=next_url))
 
 

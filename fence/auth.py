@@ -25,7 +25,7 @@ def build_redirect_url(hostname, path):
         - None
     """
     redirect_base = hostname
-    # HOSTNAME may be empty or a bare hostname or a hostname with a protocol
+    # BASE_URL may be empty or a bare hostname or a hostname with a protocol
     if bool(redirect_base) and not redirect_base.startswith("http"):
         redirect_base = "https://" + redirect_base
     return redirect_base + path

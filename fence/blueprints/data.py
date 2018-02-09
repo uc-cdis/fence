@@ -30,7 +30,7 @@ SUPPORTED_PROTOCOLS = ['s3', 'http']
 def get_index_document(file_id):
     indexd_server = (
             current_app.config.get('INDEXD') or
-            current_app.config['HOSTNAME'] + '/index')
+            current_app.config['BASE_URL'] + '/index')
     url = indexd_server + '/index/'
     try:
         res = requests.get(url + file_id)
