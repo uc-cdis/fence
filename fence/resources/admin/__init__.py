@@ -232,15 +232,15 @@ def create_group(current_session, groupname):
     """
     Creates a group and returns it
     """
-    return udm.create_group(groupname)
+    return udm.create_group(current_session, groupname)
 
 def delete_group(current_session, groupname):
     """
     Deletes a group
     """
-    udm.clear_users_in_group(groupname)
-    udm.clear_projects_in_group(groupname)
-    udm.delete_group(groupname)
+    udm.clear_users_in_group(current_session, groupname)
+    udm.clear_projects_in_group(current_session, groupname)
+    udm.delete_group(current_session, groupname)
     return {'result': 'success'}
 
 def get_user_groups(current_session, username):
@@ -249,18 +249,18 @@ def get_user_groups(current_session, username):
     if not usr:
         raise UserError ("Error: user does not exist")
     else:
-        return udm.get_user_groups(usr)
+        return udm.get_user_groups(current_session, usr)
 
 
 def get_group(current_session, groupname):
-    group = udm.get_group(groupname)
+    group = udm.get_group(current_session, groupname)
     if not group:
         raise UserError("Error: group doesn' exist")
     else:
         return {"name": group.name}
 
 def get_all_groups(current_session):
-    groups = udm.get_all_groups()
+    groups = udm.get_all_groups(current_session)
     groups_list = []
     for group in groups:
         groups_list.append(group.name)
@@ -268,21 +268,21 @@ def get_all_groups(current_session):
 
 
 def get_group_users(current_session, groupname):
-    users = udm.get_group_users(groupname)
+    users = udm.get_group_users(current_session, groupname)
     users_names = []
     for user in users:
         users_names.append(user.username)
     return {"users": users_names}
 
 def get_all_users(current_session):
-    users = udm.get_all_users()
+    users = udm.get_all_users(current_session)
     users_names = []
     for user in users:
         users_names.append(user.username)
     return {"users": users_names}
 
 def connect_user_to_group(current_session, usr, group=None):
-    grp = udm.get_group(group)
+    grp = udm.get_group(current_session, group)
     if not grp:
         raise UserError(("Group {0} doesn't exist".format(group)))
     else:
@@ -305,11 +305,11 @@ def add_user_to_groups(current_session, username, groups=[]):
         return {"result": responses}
 
 def disconnect_user_from_group(current_session, usr, groupname):
-    grp = udm.get_group(groupname)
+    grp = udm.get_group(current_session, groupname)
     if not grp:
         return {"warning": ("Group {0} doesn't exist".format(group))}
     else:
-        return udm.remove_user_from_group(usr, grp)
+        return udm.remove_user_from_group(current_session, usr, grp)
     
 def remove_user_from_groups(current_session, username, groups=[]):
     usr = current_session.query(User).filter(
@@ -336,7 +336,7 @@ def connect_project_to_group(current_session, grp, project=None):
         return udm.connect_project_to_group(current_session, grp, prj)
 
 def add_projects_to_group(current_session, groupname, projects=[]):
-    grp = udm.get_group(groupname)
+    grp = udm.get_group(current_session, groupname)
     if not grp:
         raise UserError ("Error: group does not exist")
     else:
@@ -356,11 +356,11 @@ def disconnect_project_from_group(current_session, grp, projectname):
     if not prj:
         return {"warning": ("Project {0} doesn't exist".format(projectname))}
     else:
-        return udm.remove_project_from_group(grp, prj)
+        return udm.remove_project_from_group(current_session, grp, prj)
     
 
 def remove_projects_from_group(current_session, groupname, projects=[]):
-    grp = udm.get_group(groupname)
+    grp = udm.get_group(current_session, groupname)
     if not grp:
         raise UserError ("Error: group does not exist")
     else:
