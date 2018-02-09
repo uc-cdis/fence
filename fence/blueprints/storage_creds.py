@@ -214,7 +214,7 @@ def create_keypairs(provider):
                 scope = (
                     json.loads(flask.request.data)
                     .get('scope')
-                )
+                ) or []
             except ValueError:
                 scope = []
         if not isinstance(scope, list):
