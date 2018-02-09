@@ -73,7 +73,10 @@ def validate_jwt(encoded_token=None, aud=None, purpose=None, public_key=None):
     aud = aud or {'openid'}
     aud = set(aud)
     iss = flask.current_app.config['HOSTNAME']
-    token_headers = jwt.get_unverified_header(encoded_token)
+    try:
+        token_headers = jwt.get_unverified_header(encoded_token)
+    except jwt.exceptions.InvalidTokenError as e:
+        raise JWTError('Invalid token : {}'.format(str(e)))
     public_key = authutils.token.keys.get_public_key_for_kid(
         token_headers.get('kid'), attempt_refresh=False
     )
@@ -86,7 +89,7 @@ def validate_jwt(encoded_token=None, aud=None, purpose=None, public_key=None):
             public_key=public_key,
         )
     except authutils.errors.JWTError as e:
-        raise JWTError(str(e))
+        raise JWTError('Invalid token : {}'.format(str(e)))
     if purpose:
         validate_purpose(claims, purpose)
     if 'pur' not in claims:
