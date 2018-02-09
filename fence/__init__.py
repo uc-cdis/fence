@@ -5,7 +5,7 @@ import flask
 from flask.ext.cors import CORS
 from flask_sqlalchemy_session import flask_scoped_session
 
-from fence.auth import logout
+from fence.auth import logout, build_redirect_url
 from fence.blueprints.admin import blueprint as admin
 from fence.blueprints.data import blueprint as data
 from fence.blueprints.login import blueprint as login
@@ -120,10 +120,7 @@ def root():
 @app.route('/logout')
 def logout_endpoint():
     root = app.config.get('APPLICATION_ROOT', '')
-    next_url = (
-        app.config.get('HOSTNAME', '')
-        + flask.request.args.get('next', root)
-    )
+    next_url = build_redirect_url(app.config.get('HOSTNAME', ''), request.args.get('next', root))
     return flask.redirect(logout(next_url=next_url))
 
 

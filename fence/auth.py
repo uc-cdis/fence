@@ -9,6 +9,27 @@ from fence.data_model.models import User, IdentityProvider
 from flask import current_app as capp
 
 
+def build_redirect_url(hostname, path):
+    """
+    Compute a redirect given a hostname and next path where
+    
+    Args:
+        hostname (str): may be empty string or a bare hostname or
+               a hostname with a protocal attached (https?://...)
+        path (int): is a path to attach to hostname
+        
+    Return:
+        string url suitable for flask.redirect
+        
+    Side Effects:
+        - None
+    """
+    redirect_base = hostname
+    # HOSTNAME may be empty or a bare hostname or a hostname with a protocol
+    if bool(redirect_base) and not redirect_base.startswith("http"):
+        redirect_base = "https://" + redirect_base
+    return redirect_base + path
+
 def login_user(request, username, provider):
     user = current_session.query(
         User).filter(User.username == username).first()
