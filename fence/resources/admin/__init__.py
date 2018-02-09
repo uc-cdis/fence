@@ -12,22 +12,23 @@ from fence.resources import (
     project as pj,
     group as gp,
     user as us,
+    provider as pv
 )
 
 from flask import current_app as capp
 from fence.data_model.models import User, Group
-from flask_sqlalchemy_session import current_session
+
 import json
 from fence.errors import UserError
 
-def get_project(project_name):
+def get_project_info(current_session, project_name):
     """
     Return the information associated with a project
     Returns a dictionary.
     """
-    return pj.get_project(current_session, project_name)
+    return pj.get_project_info(current_session, project_name)
 
-def create_project(projectname, authid, storageaccesses):
+def create_project(current_session, projectname, authid, storageaccesses):
     """
     Create a project with the specified auth_id and
     storage access.
@@ -36,7 +37,7 @@ def create_project(projectname, authid, storageaccesses):
     if pj.create_project(current_session, projectname, authid, storageaccesses):
         return {'result': 'success'}
 
-def delete_project(project_name):
+def delete_project(current_session, project_name):
     """
     Remove a project. All buckets must be deleted
     before this oepration can be called.
@@ -48,15 +49,16 @@ def delete_project(project_name):
             capp.storage_manager.delete_user(user[0].backend, user[1])
         return {"result": "success"}
 
-def get_provider_by_name(provider_name):
+def get_provider(current_session, provider_name):
     """
     Return all the information associated with
     a provider.
     Returns a dictionary.
     """
-    return udm.get_provider_by_name(current_session, provider_name)
+    return pv.get_provider(current_session, provider_name)
 
-def create_provider_by_name(
+def create_provider(
+        current_session,
         provider_name,
         backend=None,
         service=None,
@@ -67,7 +69,7 @@ def create_provider_by_name(
     database.
     Returns a dictionary.
     """
-    return udm.create_provider(
+    return pv.create_provider(
         current_session,
         provider_name,
         backend,
@@ -76,16 +78,16 @@ def create_provider_by_name(
         description
     )
 
-def delete_provider_by_name(provider_name):
+def delete_provider_by_name(current_session, provider_name):
     """
     Remove a cloud provider from the database.
     All projects associated with it should be removed
     prior to calling this function.
     Returns a dictionary.
     """
-    return udm.delete_provider_by_name(current_session, provider_name)
+    return udm.delete_provider(current_session, provider_name)
 
-def connect_user_to_project(usr, project=None):
+def connect_user_to_project(current_session, usr, project=None):
     """
     Create a user name for the specific project.
     Returns a dictionary.
@@ -120,14 +122,8 @@ def connect_user_to_project(usr, project=None):
                         msg.format(proj.name, bucket["name"]))
     return response
 
-def connect_user_to_group(usr, group=None):
-    grp = udm.get_group(group)
-    if not grp:
-        raise UserError(("Group {0} doesn't exist".format(group)))
-    else:
-        return udm.connect_user_to_group(usr, grp)
 
-def create_user(username):
+def create_user(current_session, username):
     """
     Create a user for all the projects or groups in the list.
     If the user already exists, to avoid unadvertedly changing it, we suggest update
@@ -145,49 +141,7 @@ def create_user(username):
         current_session.flush() 
         return {"result": "success"}
 
-
-def add_user_to_groups(username, groups=[]):
-    usr = current_session.query(User).filter(
-        User.username == username).first()
-    if not usr:
-        raise UserError ("Error: user does not exist")
-    else:
-        responses = []
-        for groupname in groups:
-            try:
-                response = connect_user_to_group(usr, groupname)
-                responses.append(response)
-            except Exception as e:
-                current_session.rollback()
-                raise e
-        return {"result": responses}
-
-def disconnect_user_from_group(usr, groupname):
-    grp = udm.get_group(groupname)
-    if not grp:
-        return {"warning": ("Group {0} doesn't exist".format(group))}
-    else:
-        return udm.remove_user_from_group(usr, grp)
-    
-
-def remove_user_from_groups(username, groups=[]):
-    usr = current_session.query(User).filter(
-        User.username == username).first()
-    if not usr:
-        raise UserError ("Error: user does not exist")
-    else:
-        responses = []
-        for groupname in groups:
-            try:
-                response = disconnect_user_from_group(usr, groupname)
-                responses.append(response)
-            except Exception as e:
-                current_session.rollback()
-                raise e
-        return {"result": responses}
-
-
-def add_user_to_projects(username, projects=[]):
+def add_user_to_projects(current_session, username, projects=[]):
     usr = current_session.query(User).filter(
         User.username == username).first()
     if not usr:
@@ -196,62 +150,14 @@ def add_user_to_projects(username, projects=[]):
         responses = []
         for proj in projects:
             try:
-                response = connect_user_to_project(usr, proj)
+                response = connect_user_to_project(current_session, usr, proj)
                 responses.append(response)
             except Exception as e:
                 current_session.rollback()
                 raise e
         return {"result": responses}
 
-
-def disconnect_project_from_group(grp, projectname):
-    prj = pj.get_project(projectname)
-    if not prj:
-        return {"warning": ("Project {0} doesn't exist".format(projectname))}
-    else:
-        return udm.remove_project_from_group(grp, prj)
-    
-
-def remove_projects_from_group(groupname, projects=[]):
-    grp = udm.get_group(groupname)
-    if not grp:
-        raise UserError ("Error: group does not exist")
-    else:
-        responses = []
-        for proj in projects:
-            try:
-                response = disconnect_project_from_group(grp, proj)
-                responses.append(response)
-            except Exception as e:
-                current_session.rollback()
-                raise e
-        return {"result": responses}
-
-
-def connect_project_to_group(grp, project=None):
-    prj = udm.get_project(project)
-    if not prj:
-        raise UserError(("Project {0} doesn't exist".format(project)))
-    else:
-        return udm.connect_project_to_group(grp, prj)
-
-def add_projects_to_group(groupname, projects=[]):
-    grp = udm.get_group(groupname)
-    if not grp:
-        raise UserError ("Error: group does not exist")
-    else:
-        responses = []
-        for proj in projects:
-            try:
-                response = connect_project_to_group(grp, proj)
-                responses.append(response)
-            except Exception as e:
-                current_session.rollback()
-                raise e
-        return {"result": responses}
-
-
-def delete_user(username):
+def delete_user(current_session, username):
     """
     Remove a user from both the userdatamodel
     and the assciated storage for that project/bucket.
@@ -263,7 +169,7 @@ def delete_user(username):
             capp.storage_manager.delete_user(provider.backend, response["user"])
         return {"result": "success"}
 
-def create_bucket_on_project_by_name(project_name, bucket_name, provider_name):
+def create_bucket_on_project(current_session, project_name, bucket_name, provider_name):
     """
     Create a bucket on userdatamodel database and
     on the cloud provider and associate it with the project.
@@ -290,13 +196,13 @@ def create_bucket_on_project_by_name(project_name, bucket_name, provider_name):
     else:
         return response
 
-def delete_bucket_on_project_by_name(project_name, bucket_name):
+def delete_bucket_on_project(current_session, project_name, bucket_name):
     """
     Remove a bucket from a project, both on the userdatamodel
     and on the storage associated with that bucket.
     Returns a dictionary.
     """
-    response = udm.delete_bucket_on_project_by_name(
+    response = pj.delete_bucket_on_project_by_name(
         current_session,
         project_name,
         bucket_name
@@ -314,21 +220,21 @@ def delete_bucket_on_project_by_name(project_name, bucket_name):
         )
         return {"result": response["result"]}
 
-def list_buckets_on_project_by_name(project_name):
+def list_buckets_on_project(current_session, project_name):
     """
     Retrieve the buckets associated with a project.
     Returns a dictionary.
     """
-    return udm.list_buckets_on_project_by_name(current_session, project_name)
+    return pj.list_buckets_on_project(current_session, project_name)
 
 
-def create_group(groupname):
+def create_group(current_session, groupname):
     """
     Creates a group and returns it
     """
     return udm.create_group(groupname)
 
-def delete_group(groupname):
+def delete_group(current_session, groupname):
     """
     Deletes a group
     """
@@ -337,7 +243,7 @@ def delete_group(groupname):
     udm.delete_group(groupname)
     return {'result': 'success'}
 
-def get_user_groups(username):
+def get_user_groups(current_session, username):
     usr = current_session.query(User).filter(
         User.username == username).first()
     if not usr:
@@ -346,14 +252,14 @@ def get_user_groups(username):
         return udm.get_user_groups(usr)
 
 
-def get_group(groupname):
+def get_group(current_session, groupname):
     group = udm.get_group(groupname)
     if not group:
         raise UserError("Error: group doesn' exist")
     else:
         return {"name": group.name}
 
-def get_all_groups():
+def get_all_groups(current_session):
     groups = udm.get_all_groups()
     groups_list = []
     for group in groups:
@@ -361,9 +267,109 @@ def get_all_groups():
     return {"groups": groups_list}
 
 
-def get_group_users(groupname):
+def get_group_users(current_session, groupname):
     users = udm.get_group_users(groupname)
     users_names = []
     for user in users:
         users_names.append(user.username)
     return {"users": users_names}
+
+def get_all_users(current_session):
+    users = udm.get_all_users()
+    users_names = []
+    for user in users:
+        users_names.append(user.username)
+    return {"users": users_names}
+
+def connect_user_to_group(current_session, usr, group=None):
+    grp = udm.get_group(group)
+    if not grp:
+        raise UserError(("Group {0} doesn't exist".format(group)))
+    else:
+        return udm.connect_user_to_group(current_session, usr, grp)
+
+def add_user_to_groups(current_session, username, groups=[]):
+    usr = current_session.query(User).filter(
+        User.username == username).first()
+    if not usr:
+        raise UserError ("Error: user does not exist")
+    else:
+        responses = []
+        for groupname in groups:
+            try:
+                response = connect_user_to_group(current_session, usr, groupname)
+                responses.append(response)
+            except Exception as e:
+                current_session.rollback()
+                raise e
+        return {"result": responses}
+
+def disconnect_user_from_group(current_session, usr, groupname):
+    grp = udm.get_group(groupname)
+    if not grp:
+        return {"warning": ("Group {0} doesn't exist".format(group))}
+    else:
+        return udm.remove_user_from_group(usr, grp)
+    
+def remove_user_from_groups(current_session, username, groups=[]):
+    usr = current_session.query(User).filter(
+        User.username == username).first()
+    if not usr:
+        raise UserError ("Error: user does not exist")
+    else:
+        responses = []
+        for groupname in groups:
+            try:
+                response = disconnect_user_from_group(current_session, usr, groupname)
+                responses.append(response)
+            except Exception as e:
+                current_session.rollback()
+                raise e
+        return {"result": responses}
+
+
+def connect_project_to_group(current_session, grp, project=None):
+    prj = pj.get_project(current_session, project)
+    if not prj:
+        raise UserError(("Project {0} doesn't exist".format(project)))
+    else:
+        return udm.connect_project_to_group(current_session, grp, prj)
+
+def add_projects_to_group(current_session, groupname, projects=[]):
+    grp = udm.get_group(groupname)
+    if not grp:
+        raise UserError ("Error: group does not exist")
+    else:
+        responses = []
+        for proj in projects:
+            try:
+                response = connect_project_to_group(grp, proj)
+                responses.append(response)
+            except Exception as e:
+                current_session.rollback()
+                raise e
+        return {"result": responses}
+
+
+def disconnect_project_from_group(current_session, grp, projectname):
+    prj = pj.get_project(current_session, projectname)
+    if not prj:
+        return {"warning": ("Project {0} doesn't exist".format(projectname))}
+    else:
+        return udm.remove_project_from_group(grp, prj)
+    
+
+def remove_projects_from_group(current_session, groupname, projects=[]):
+    grp = udm.get_group(groupname)
+    if not grp:
+        raise UserError ("Error: group does not exist")
+    else:
+        responses = []
+        for proj in projects:
+            try:
+                response = disconnect_project_from_group(current_session, grp, proj)
+                responses.append(response)
+            except Exception as e:
+                current_session.rollback()
+                raise e
+        return {"result": responses}

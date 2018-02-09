@@ -4,7 +4,7 @@ These operations allow for the manipulation at
 an administration level of the projects,
 cloud providers and buckets on the database
 """
-from flask_sqlalchemy_session import current_session
+
 from sqlalchemy import func
 
 from fence.data_model.models import (
@@ -96,7 +96,7 @@ def create_provider(
     return msg
 
 
-def create_bucket_on_project_by_name(
+def create_bucket_on_project(
         current_session, project_name, bucket_name, provider_name):
     """
     Create a bucket and assign it to a project
@@ -135,13 +135,12 @@ def create_bucket_on_project_by_name(
         raise UserError("Error, name already in use for that storage system")
 
 
-def get_project_by_name(current_session, project_name):
+def get_project_info(current_session, project_name):
     """
     Get project info from userdatamodel
     from its name
     """
-    proj = current_session.query(
-        Project).filter(Project.name == project_name).first()
+    proj = get_project(project_name)
     if not proj:
         msg = ''.join(['Error: project ', project_name, ' not found'])
         raise NotFound(msg)
@@ -211,7 +210,7 @@ def delete_project(current_session, project_name):
     else:
         return {"result": "error, project not found"}
 
-def get_provider_by_name(current_session, provider_name):
+def get_provider(current_session, provider_name):
     """
     Get the provider info from the userdatamodel
     """
@@ -229,7 +228,7 @@ def get_provider_by_name(current_session, provider_name):
     }
     return info
 
-def delete_provider_by_name(current_session, provider_name):
+def delete_provider(current_session, provider_name):
     """
     Delete a cloud provider if it has not
     ongoing relationships
@@ -280,7 +279,7 @@ def delete_user_by_username(current_session, username):
         raise NotFound(msg)
 
 
-def delete_bucket_on_project_by_name(current_session, project_name, bucket_name):
+def delete_bucket_on_project(current_session, project_name, bucket_name):
     """
     Remove a bucket and its relationship to a project
     """
@@ -403,7 +402,7 @@ def get_buckets_by_project_cloud_provider(current_session, project_id, provider_
             response['buckets'].append(buck)
     return response
 
-def create_group(groupname):
+def create_group(current_session, groupname):
     group = current_session.query(Group).filter(
         Group.name == groupname).first()
     if group:
@@ -415,7 +414,7 @@ def create_group(groupname):
         current_session.flush()
         return {'result': "success"}
 
-def delete_group(groupname):
+def delete_group(current_session, groupname):
     group = current_session.query(Group).filter(
         Group.name == groupname).first()
     if not group:
@@ -425,7 +424,7 @@ def delete_group(groupname):
         current_session.flush()
 
 
-def clear_projects_in_group(groupname):
+def clear_projects_in_group(current_session, groupname):
     group = current_session.query(Group).filter(
         Group.name == groupname).first()
     if group:
@@ -435,7 +434,7 @@ def clear_projects_in_group(groupname):
             current_session.delete(link)
             current_session.flush()
 
-def clear_users_in_group(groupname):
+def clear_users_in_group(current_session, groupname):
     group = current_session.query(Group).filter(
         Group.name == groupname).first()
     if group:
@@ -445,20 +444,20 @@ def clear_users_in_group(groupname):
             current_session.delete(link)
             current_session.flush()
 
-def get_group(groupname):
+def get_group(current_session, groupname):
     return current_session.query(Group).filter(
         Group.name == groupname).first()
 
-def get_user(username):
+def get_user(current_session, username):
     return current_session.query(User).filter(
         User.name == username).first()
 
 
-def get_project(projectname):
+def get_project(current_session, projectname):
     return current_session.query(Project).filter(
         Project.name == projectname).first()
 
-def connect_user_to_group(user, group):
+def connect_user_to_group(current_session, user, group):
     new_link = UserToGroup()
     new_link.user_id = user.id
     new_link.group_id = group.id
@@ -468,7 +467,7 @@ def connect_user_to_group(user, group):
                        "connected to Group: {1}".format(
                            user.username, group.name))}
 
-def remove_user_from_group(user, group):
+def remove_user_from_group(current_session, user, group):
     to_be_removed = current_session.query(UserToGroup).filter(
         UserToGroup.user_id == user.id).filter(
             UserToGroup.group_id == group.id).first()
@@ -483,7 +482,7 @@ def remove_user_from_group(user, group):
             user.username, group.name))
 
 
-def connect_project_to_group(group, project):
+def connect_project_to_group(current_session, group, project):
     new_link = AccessPrivilege()
     new_link.project_id = project.id
     new_link.group_id = group.id
@@ -493,7 +492,7 @@ def connect_project_to_group(group, project):
                        "connected to Project: {1}".format(
                            group.name, project.name))}
 
-def remove_project_from_group(group, project):
+def remove_project_from_group(current_session, group, project):
     to_be_removed = current_session.query(AccessPrivilege).filter(
         AccessPrivilege.project_id == project.id).filter(
             UserToGroup.group_id == group.id).first()
@@ -507,7 +506,7 @@ def remove_project_from_group(group, project):
         raise NotFound("Project {0} and Group {1} are not linked".format(
             project.name, group.name))
 
-def get_user_groups(user):
+def get_user_groups(current_session, user):
     groups_to_list = current_session.query(UserToGroup).filter(
         UserToGroup.user_id == user.id)
     groups = []
@@ -517,10 +516,10 @@ def get_user_groups(user):
         groups.append(group_to_retrieve.name)
     return {"groups" : groups}
 
-def get_all_groups():
+def get_all_groups(current_session):
     return current_session.query(Group).all()
 
-def get_group_users(groupname):
+def get_group_users(current_session, groupname):
     group = get_group(groupname)
     user_to_groups = current_session.query(UserToGroup).filter(
         UserToGroup.group_id == group.id).all()
@@ -530,4 +529,19 @@ def get_group_users(groupname):
             User.id == user.user_id).first()
         if new_user:
             users.append(new_user)
+    return users
+
+def get_all_users(current_session):
+    return current_session.query(User).all()
+
+def get_group_projects(current_session, groupname):
+    group = get_group(groupname)
+    projects_to_group = current_session.query(AccessPrivilege).filter(
+        AccessPrivilege.group_id == group.id).all()
+    projects = []
+    for project in projects_to_group:
+        new_project = current_session.query(Project).filter(
+            Project.id == project.project_id).first()
+        if new_project:
+            projects.append(new_project)
     return users
