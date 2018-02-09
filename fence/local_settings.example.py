@@ -5,7 +5,7 @@ DB = 'postgresql://test:test@localhost:5432/fence'
 MOCK_AUTH = False
 MOCK_STORAGE = False
 
-BASE_URL = 'http://localhost'
+BASE_URL = 'http://localhost/user'
 APPLICATION_ROOT = '/user'
 
 EMAIL_SERVER = 'localhost'
