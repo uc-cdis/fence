@@ -13,6 +13,7 @@ setup(
         "cdispyutils",
         "cirrus",
         "cryptography>=2.1.2",
+        "flask-restful>=0.3.6,<1.0.0",
         "Flask>=0.10.1,<1.0.0",
         "Flask-CORS>=3.0.3,<4.0.0",
         "Flask_OAuthlib>=0.9.4,<1.0.0",
