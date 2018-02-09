@@ -87,8 +87,28 @@ S3_BUCKETS = {
     "bucket3": "CRED1"
 }
 
+#: Confiure which identity providers this fence instance can use for login.
+#:
+#: See ``fence/blueprints/login/__init__.py`` for which identity providers can
+#: be loaded.
 ENABLED_IDENTITY_PROVIDERS = {
     'fence',
     'google',
     'shib',
+}
+
+# Hostname of a second fence instance to use as an IDP.
+MULTI_TENANT_FENCE_HOSTNAME = 'http://localhost/user'
+
+# OAuth configuration for using a second fence instance IDP.
+MULTI_TENANT_OAUTH = {
+    'client_id': '',
+    'client_secret': '',
+    'api_base_url': MULTI_TENANT_FENCE_HOSTNAME,
+    'authorize_url': MULTI_TENANT_FENCE_HOSTNAME + '/oauth2/authorize',
+    'access_token_url': MULTI_TENANT_FENCE_HOSTNAME + '/oauth2/token',
+    'refresh_token_url': MULTI_TENANT_FENCE_HOSTNAME + '/oauth2/token',
+    'client_kwargs': {
+        'redirect_uri': HOSTNAME + '/oauth2/authorize'
+    }
 }
