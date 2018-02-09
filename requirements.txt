@@ -16,6 +16,7 @@ psycopg2==2.7.3.2
 pysftp==0.2.9
 pytest-flask==0.10.0
 pytest==3.2.3
+bcrypt==3.1.3 # previous version breaks python_bcrypt
 python_bcrypt==0.3.2
 python_dateutil==2.6.1
 PyJWT==1.5.3
