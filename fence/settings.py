@@ -25,7 +25,6 @@ APPLICATION_ROOT = '/user'
 DEBUG = True
 OAUTH2_PROVIDER_ERROR_URI = "/api/oauth2/errors"
 
-
 ACCESS_TOKEN_EXPIRES_IN = 1200
 ACCESS_TOKEN_LIFETIME = timedelta(seconds=1200)  # for backwards-compatibility
 ACCESS_TOKEN_COOKIE_NAME = "access_token"

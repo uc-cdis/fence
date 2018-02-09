@@ -7,6 +7,7 @@ import json
 import jwt
 import mock
 from mock import patch, MagicMock
+from moto import mock_s3, mock_sts
 import os
 
 from addict import Dict
@@ -22,6 +23,13 @@ from fence import models
 import tests
 from tests import test_settings
 from tests import utils
+from sqlalchemy.schema import DropTable
+from sqlalchemy.ext.compiler import compiles
+
+
+@compiles(DropTable, "postgresql")
+def _compile_drop_table(element, compiler, **kwargs):
+    return compiler.visit_drop_table(element) + " CASCADE"
 
 
 # Allow authlib to use HTTP for local testing.
@@ -58,6 +66,10 @@ def indexd_get_unavailable_bucket(file_id):
         'created_date': '',
         "updated_date": ''
     }
+
+
+def mock_get_bucket_location(self, bucket, config):
+    return 'us-east-1'
 
 
 @pytest.fixture(scope='session')
@@ -162,13 +174,19 @@ class Mocker(object):
             'fence.resources.storage.StorageManager.check_auth',
             lambda cls, backend, user: True
         )
+        self.boto_patcher = patch(
+            'fence.resources.aws.boto_manager.BotoManager.get_bucket_region',
+            mock_get_bucket_location
+        )
         self.patcher.start()
         self.auth_patcher.start()
+        self.boto_patcher.start()
         self.additional_patchers = []
 
     def unmock_functions(self):
         self.patcher.stop()
         self.auth_patcher.stop()
+        self.boto_patcher.stop()
         for patcher in self.additional_patchers:
             patcher.stop()
 
@@ -215,6 +233,8 @@ def protected_endpoint(methods=['GET']):
 
 
 @pytest.fixture(scope='function')
+@mock_s3
+@mock_sts
 def user_client(app, request, db_session):
     users = dict(json.loads(
         utils.read_file('resources/authorized_users.json')

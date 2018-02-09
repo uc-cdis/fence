@@ -10,7 +10,6 @@ setup(
         'boto>=2.36.0,<3.0.0',
         'botocore>=1.7,<1.9.0',
         "boto3>=1.5,<1.6",
-        "cdispyutils",
         "cirrus",
         "cryptography>=2.1.2",
         "flask-restful>=0.3.6,<1.0.0",
