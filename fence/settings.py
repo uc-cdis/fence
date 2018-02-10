@@ -22,12 +22,16 @@ SINGLE_LOGOUT = 'https://itrusteauth.nih.gov/siteminderagent/smlogout.asp?mode=n
 LOGOUT = "https://bionimbus-pdc.opensciencedatacloud.org/auth/logout/?next=/Shibboleth.sso/Logout%3Freturn%3Dhttps%3A%2F%2Fbionimbus-pdc.opensciencedatacloud.org/api"
 BIONIMBUS_ACCOUNT_ID = 655886864976
 
+BASE_URL = 'http://localhost:8000/'
 
 DEFAULT_LOGIN_URL = BASE_URL + '/login/google'
 DEFAULT_LOGIN_URL_REDIRECT_PARAM = 'redirect'
 
-ACCESS_TOKEN_LIFETIME = timedelta(seconds=600)
+ACCESS_TOKEN_EXPIRES_IN = 1200
+ACCESS_TOKEN_LIFETIME = timedelta(seconds=1200)  # for backwards-compatibility
 ACCESS_TOKEN_COOKIE_NAME = "access_token"
+
+REFRESH_TOKEN_EXPIRES_IN = 1728000
 
 
 # stale session time
