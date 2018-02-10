@@ -8,6 +8,7 @@ from fence.jwt.token import (
     generate_signed_refresh_token,
 )
 from fence.models import AuthorizationCode, User
+import fence.settings
 
 
 class JWTGenerator(BearerToken):
@@ -18,8 +19,8 @@ class JWTGenerator(BearerToken):
     response (see ``__call__``).
     """
 
-    ACCESS_TOKEN_EXPIRES_IN = 1200
-    REFRESH_TOKEN_EXPIRES_IN = 1728000
+    ACCESS_TOKEN_EXPIRES_IN = fence.settings.ACCESS_TOKEN_EXPIRES_IN
+    REFRESH_TOKEN_EXPIRES_IN = fence.settings.REFRESH_TOKEN_EXPIRES_IN
 
     def __init__(self, *args, **kwargs):
         pass
