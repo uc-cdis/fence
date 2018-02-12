@@ -2,7 +2,8 @@ from collections import OrderedDict
 from datetime import timedelta
 import os
 
-from fence.local_settings import *
+# local_settings is not installed under fence module in prod
+from local_settings import *
 
 
 # Use this setting when fence will be deployed in such a way that fence will
@@ -14,7 +15,6 @@ APPLICATION_ROOT = '/user'
 DEBUG = True
 OAUTH2_PROVIDER_ERROR_URI = "/api/oauth2/errors"
 
-HOSTNAME = 'http://localhost:8000'
 SHIBBOLETH_HEADER = 'persistent_id'
 SSO_URL = 'https://itrusteauth.nih.gov/affwebservices/public/saml2sso?SPID=https://bionimbus-pdc.opensciencedatacloud.org/shibboleth&RelayState='
 SINGLE_LOGOUT = 'https://itrusteauth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl=https://bionimbus-pdc.opensciencedatacloud.org/storage/login'
@@ -23,11 +23,14 @@ LOGOUT = "https://bionimbus-pdc.opensciencedatacloud.org/auth/logout/?next=/Shib
 BIONIMBUS_ACCOUNT_ID = 655886864976
 
 
-DEFAULT_LOGIN_URL = HOSTNAME + '/login/google'
+DEFAULT_LOGIN_URL = BASE_URL + '/login/google'
 DEFAULT_LOGIN_URL_REDIRECT_PARAM = 'redirect'
 
-ACCESS_TOKEN_LIFETIME = timedelta(seconds=600)
+ACCESS_TOKEN_EXPIRES_IN = 1200
+ACCESS_TOKEN_LIFETIME = timedelta(seconds=1200)  # for backwards-compatibility
 ACCESS_TOKEN_COOKIE_NAME = "access_token"
+
+REFRESH_TOKEN_EXPIRES_IN = 1728000
 
 
 # stale session time

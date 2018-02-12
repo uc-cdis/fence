@@ -38,7 +38,7 @@ def test_recode_id_token(app, private_key):
     the contents of the ID Token that should be the same, are.
     """
     kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
-    issuer = app.config.get('HOSTNAME')
+    issuer = app.config.get('BASE_URL')
     keypair = app.keypairs[0]
     client_id = "client_12345"
     user = User(username='test', is_admin=False)
@@ -74,7 +74,7 @@ def test_valid_id_token(app):
     """
     Create a token and then validate it and make sure there are no exceptions
     """
-    issuer = app.config.get('HOSTNAME')
+    issuer = app.config.get('BASE_URL')
     keypair = app.keypairs[0]
     client_id = "client_12345"
     user = User(username='test', is_admin=False)
@@ -104,7 +104,7 @@ def test_valid_id_token_without_nonce(app):
     Create a token and then validate it and make sure there are no exceptions
     when a nonce is not provided.
     """
-    issuer = app.config.get('HOSTNAME')
+    issuer = app.config.get('BASE_URL')
     keypair = app.keypairs[0]
     client_id = "client_12345"
     user = User(username='test', is_admin=False)

@@ -20,7 +20,7 @@ def login_from_shibboleth():
     redirect_url = flask.request.args.get('redirect')
     if redirect_url:
         flask.session['redirect'] = redirect_url
-    actual_redirect = flask.current_app.config['HOSTNAME'] + '/login/shib/login'
+    actual_redirect = flask.current_app.config['BASE_URL'] + '/login/shib/login'
     return flask.redirect(flask.current_app.config['SSO_URL'] + actual_redirect)
 
 

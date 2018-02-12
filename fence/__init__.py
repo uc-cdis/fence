@@ -6,16 +6,18 @@ from flask.ext.cors import CORS
 from flask_sqlalchemy_session import flask_scoped_session
 from userdatamodel.driver import SQLAlchemyDriver
 
-from fence.auth import logout
+from fence.auth import logout, build_redirect_url
 from fence.errors import APIError, UserError
 from fence.jwt import keys
 from fence.models import migrate
 from fence.oidc.server import server
+from fence.resources.aws.boto_manager import BotoManager
 from fence.resources.openid.google_oauth2 import Oauth2Client
 from fence.resources.storage import StorageManager
 from fence.resources.user.user_session import UserSessionInterface
 from fence.utils import random_str
 import fence.blueprints.admin
+import fence.blueprints.data
 import fence.blueprints.login
 import fence.blueprints.oauth2
 import fence.blueprints.storage_creds
@@ -39,10 +41,21 @@ def app_config(app, settings='fence.settings', root_dir=None):
     Set up the config for the Flask app.
     """
     app.config.from_object(settings)
+    if 'BASE_URL' not in app.config:
+        base_url = app.config['HOSTNAME']
+        if not base_url.startswith('http'):
+            base_url = 'https://' + base_url
+        app.config['BASE_URL'] = base_url
     app.keypairs = []
     if root_dir is None:
         root_dir = os.path.dirname(
                 os.path.dirname(os.path.realpath(__file__)))
+    if 'AWS_CREDENTIALS' in app.config and len(app.config['AWS_CREDENTIALS']) > 0:
+        value = app.config['AWS_CREDENTIALS'].values()[0]
+        app.boto = BotoManager(value)
+        app.register_blueprint(
+            fence.blueprints.data.blueprint, url_prefix='/data'
+        )
     for kid, (public, private) in app.config['JWT_KEYPAIR_FILES'].iteritems():
         public_filepath = os.path.join(root_dir, public)
         private_filepath = os.path.join(root_dir, private)
@@ -116,10 +129,7 @@ def root():
 @app.route('/logout')
 def logout_endpoint():
     root = app.config.get('APPLICATION_ROOT', '')
-    next_url = (
-        app.config.get('HOSTNAME', '')
-        + flask.request.args.get('next', root)
-    )
+    next_url = build_redirect_url(app.config.get('BASE_URL', ''), flask.request.args.get('next', root))
     return flask.redirect(logout(next_url=next_url))
 
 

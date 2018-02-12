@@ -205,7 +205,9 @@ def create_keypairs(provider):
         # requestor is user if client_id is not set
         if client_id is None:
             client_id = str(flask.g.user.id)
-        default_scope = ['fence']
+        # fence identifies access_token endpoint, openid is the default
+        # scope for service endpoints
+        default_scope = ['fence', 'openid']
         content_type = flask.request.headers.get('Content-Type')
         if content_type == 'application/x-www-form-urlencoded':
             scope = flask.request.form.getlist('scope')
@@ -213,12 +215,13 @@ def create_keypairs(provider):
             try:
                 scope = (
                     json.loads(flask.request.data)
-                    .get('scope', default_scope)
-                )
+                    .get('scope')
+                ) or []
             except ValueError:
-                scope = default_scope
+                scope = []
         if not isinstance(scope, list):
             scope = scope.split(',')
+        scope.extend(default_scope)
         for s in scope:
             if s not in USER_ALLOWED_SCOPES:
                 raise NotSupported('Scope {} is not supported'.format(s))

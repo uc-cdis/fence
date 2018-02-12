@@ -1,12 +1,14 @@
 from authlib.specs.rfc6750.token import BearerToken
 import flask
+from flask_sqlalchemy_session import current_session
 
 from fence.jwt.token import (
     generate_signed_access_token,
     generate_signed_id_token,
     generate_signed_refresh_token,
 )
-from fence.user import get_current_user
+from fence.models import AuthorizationCode, User
+import fence.settings
 
 
 class JWTGenerator(BearerToken):
@@ -17,15 +19,16 @@ class JWTGenerator(BearerToken):
     response (see ``__call__``).
     """
 
-    ACCESS_TOKEN_EXPIRES_IN = 1200
-    REFRESH_TOKEN_EXPIRES_IN = 1728000
+    ACCESS_TOKEN_EXPIRES_IN = fence.settings.ACCESS_TOKEN_EXPIRES_IN
+    REFRESH_TOKEN_EXPIRES_IN = fence.settings.REFRESH_TOKEN_EXPIRES_IN
 
     def __init__(self, *args, **kwargs):
         pass
 
     def __call__(
             self, client, grant_type, expires_in=None, scope=None,
-            include_refresh_token=True, nonce=None, refresh_token=None):
+            include_refresh_token=True, nonce=None, refresh_token=None,
+            refresh_token_claims=None):
         """
         Generate the token response, which looks like the following:
 
@@ -42,13 +45,44 @@ class JWTGenerator(BearerToken):
         Args:
             client: not used (would be used to determine expiration)
             grant_type: not used
-            ...
+            expires_in: not used (see expiration times configured above)
+            scope (List[str]): list of requested scopes
+            include_refresh_token: not used
+            nonce (str): "nonsense" to include in ID token (see OIDC spec)
             refresh_token:
                 for a refresh token grant, pass in the previous refresh token
                 to return that same token again instead of generating a new one
+                (otherwise this will let the refresh token refresh itself)
+            refresh_token_claims (dict):
+                also for a refresh token grant, pass the previous refresh token
+                claims (to avoid having to encode or decode the refresh token
+                here)
         """
+        # Find the ``User`` model.
+        # The way to do this depends on the grant type.
+        if grant_type == 'authorization_code':
+            # For authorization code grant, get the code from either the query
+            # string or the form data, and use that to look up the user.
+            if flask.request.method == 'GET':
+                code = flask.request.args.get('code')
+            else:
+                code = flask.request.form.get('code')
+            user = (
+                current_session
+                .query(AuthorizationCode)
+                .filter_by(code=code)
+                .first()
+                .user
+            )
+        if grant_type == 'refresh_token':
+            # For refresh token, the user ID is the ``sub`` field in the token.
+            user = (
+                current_session
+                .query(User)
+                .filter_by(id=int(refresh_token_claims['sub']))
+                .first()
+            )
 
-        user = get_current_user()
         keypair = flask.current_app.keypairs[0]
         id_token = generate_signed_id_token(
             kid=keypair.kid,

@@ -1,6 +1,6 @@
 from functools import wraps
 
-from cdispyutils import auth
+from authutils.errors import JWTError
 import flask
 from flask_sqlalchemy_session import current_session
 
@@ -8,6 +8,27 @@ from fence.errors import Unauthorized, InternalError
 from fence.jwt.validate import validate_jwt
 from fence.models import User, IdentityProvider
 
+
+def build_redirect_url(hostname, path):
+    """
+    Compute a redirect given a hostname and next path where
+    
+    Args:
+        hostname (str): may be empty string or a bare hostname or
+               a hostname with a protocal attached (https?://...)
+        path (int): is a path to attach to hostname
+        
+    Return:
+        string url suitable for flask.redirect
+        
+    Side Effects:
+        - None
+    """
+    redirect_base = hostname
+    # BASE_URL may be empty or a bare hostname or a hostname with a protocol
+    if bool(redirect_base) and not redirect_base.startswith("http"):
+        redirect_base = "https://" + redirect_base
+    return redirect_base + path
 
 def login_user(request, username, provider):
     user = current_session.query(
@@ -25,6 +46,7 @@ def login_user(request, username, provider):
         current_session.commit()
     flask.g.user = user
     flask.g.scopes = ["_all"]
+    flask.g.token = None
 
 
 def logout(next_url=None):
@@ -128,14 +150,18 @@ def has_oauth(scope=None):
     scope = scope or set()
     scope.update({'openid'})
     try:
-        claims = validate_jwt(aud=scope, purpose='id')
-    except auth.JWTValidationError as e:
+        access_token_claims = validate_jwt(aud=scope, purpose='access')
+    except JWTError as e:
         raise Unauthorized('failed to validate token: {}'.format(e))
-    user_id = claims['sub']
+    user_id = access_token_claims['sub']
     user = current_session.query(User).filter_by(id=int(user_id)).first()
     if not user:
         raise Unauthorized('no user found with id: {}'.format(user_id))
+    # set some application context for current user and client id
     flask.g.user = user
+    # client_id should be None if the field doesn't exist or is empty
+    flask.g.client_id = access_token_claims.get('azp') or None
+    flask.g.token = access_token_claims
 
 
 def get_current_user():
@@ -152,11 +178,7 @@ def get_current_user():
             username = eppn.split('!')[-1]
         else:
             raise Unauthorized("User not logged in")
-    return (
-        current_session.query(User)
-        .filter(User.username == username)
-        .first()
-    )
+    return current_session.query(User).filter_by(username=username).first()
 
 
 def get_user_from_claims(claims):

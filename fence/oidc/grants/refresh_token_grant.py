@@ -17,6 +17,9 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
     This class both implements some methods required by authlib, and overrides
     others to change the default behavior from authlib; see method docstrings
     for details.
+
+    NOTE: ``self._authenticated_token`` is the refresh token claims as a
+    dictionary; ``self.params['refresh_token']`` is the actual string.
     """
 
     def authenticate_refresh_token(self, refresh_token):
@@ -64,24 +67,32 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
 
         # Check the hash of the provided client secret against stored hash.
         hashed = client.client_secret
-        if bcrypt.hashpw(client_secret, hashed) != hashed:
+        if bcrypt.hashpw(
+                client_secret.encode('utf-8'),
+                hashed.encode('utf-8')) != hashed:
             raise InvalidClientError(uri=self.uri)
 
         return client
 
     def create_access_token_response(self):
-        """If valid and authorized, the authorization server issues an access
-        token as described in Section 5.1.  If the request failed
-        verification or is invalid, the authorization server returns an error
-        response as described in Section 5.2.
+        """
+        Docs from authlib:
+
+            If valid and authorized, the authorization server issues an access
+            token as described in Section 5.1. If the request failed
+            verification or is invalid, the authorization server returns an
+            error response as described in Section 5.2.
         """
         scope = self.params.get('scope')
         if not scope:
             scope = self._authenticated_token['aud']
 
         token = self.token_generator(
-            self._authenticated_client, self.GRANT_TYPE, scope=scope,
-            refresh_token=self._authenticated_token,
+            client=self._authenticated_client,
+            grant_type=self.GRANT_TYPE,
+            scope=scope,
+            refresh_token=self.params.get('refresh_token'),
+            refresh_token_claims=self._authenticated_token,
         )
         self.create_access_token(
             token,
