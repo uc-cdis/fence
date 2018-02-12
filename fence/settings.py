@@ -1,9 +1,17 @@
+from cdislogging import get_logger
 from collections import OrderedDict
 from datetime import timedelta
 import os
 
+logger = get_logger(__name__)
+# default settings if local_settings is not present
+BASE_URL = 'http://localhost'
 # local_settings is not installed under fence module in prod
-from local_settings import *
+try:
+    from local_settings import *
+except:
+    logger.warn("local_settings is not found")
+
 
 
 # Use this setting when fence will be deployed in such a way that fence will
