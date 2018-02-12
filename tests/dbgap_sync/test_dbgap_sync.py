@@ -32,7 +32,6 @@ def test_sync(syncer, db_session):
 
 
 def test_sync_revoke(syncer, db_session):
-    s = db_session
     phsids = {
         'userA': ['phs000178', 'phs000179'],
         'userB': ['phs000179']
@@ -44,13 +43,16 @@ def test_sync_revoke(syncer, db_session):
     phsids2 = {
         'userA': ['phs000179']
     }
-    syncer._init_projects(s)
-    syncer.sync_to_db_and_storage_backend(phsids, userinfo, s)
+    syncer._init_projects(db_session)
+    syncer.sync_to_db_and_storage_backend(phsids, userinfo, db_session)
 
-    syncer.sync_to_db_and_storage_backend(phsids2, userinfo, s)
+    syncer.sync_to_db_and_storage_backend(phsids2, userinfo, db_session)
 
-    user = s.query(models.User).filter_by(username='userB').first()
-    assert (
-        s.query(models.AccessPrivilege).filter_by(user_id=user.id).count()
-        == 0
+    user_B = db_session.query(models.User).filter_by(username='userB').first()
+    n_access_privilege = (
+        db_session
+        .query(models.AccessPrivilege)
+        .filter_by(user_id=user_B.id)
+        .count()
     )
+    assert n_access_privilege == 0
