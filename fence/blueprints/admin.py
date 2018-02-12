@@ -49,14 +49,15 @@ def get_all_users():
     return jsonify(adm.get_all_users(current_session))
 
 
-@blueprint.route('/user/<username>', methods=['PUT'])
+@blueprint.route('/user', methods=['POST'])
 @login_required({'admin'})
 @admin_required
-def create_user(username):
+def create_user():
     """
     Create a user on the userdatamodel database
     Returns a json object
     """
+    username = request.get_json().get('name',None)
     role = request.get_json().get('role',None)
     return jsonify(adm.create_user(current_session,username, role))
 
@@ -148,7 +149,7 @@ def get_project(projectname):
     return jsonify(adm.get_project_info(current_session, projectname))
 
 
-@blueprint.route('/projects/<projectname>', methods=['PUT'])
+@blueprint.route('/projects/<projectname>', methods=['POST'])
 @login_required({'admin'})
 @admin_required
 def create_project(projectname):
@@ -202,7 +203,7 @@ def add_project_to_groups(projectname):
     return jsonify(adm.add_project_to_groups(current_session, username, groups=groups))
 
 
-@blueprint.route('/projects/<projectname>/bucket/<bucketname>', methods=['PUT'])
+@blueprint.route('/projects/<projectname>/bucket/<bucketname>', methods=['POST'])
 @login_required({'admin'})
 @admin_required
 def create_bucket_in_project(projectname, bucketname):
@@ -286,7 +287,7 @@ def get_group_users(groupname):
     return jsonify(adm.get_group_users(current_session, groupname))
 
 
-@blueprint.route('/groups', methods=['PUT'])
+@blueprint.route('/groups', methods=['POST'])
 @login_required({'admin'})
 @admin_required
 def create_group():
@@ -343,7 +344,7 @@ def get_cloud_provider(providername):
     """
     return jsonify(adm.get_provider(current_session, providername))
 
-@blueprint.route('/cloud_provider/<providername>', methods=['PUT'])
+@blueprint.route('/cloud_provider/<providername>', methods=['POST'])
 @login_required({'admin'})
 @admin_required
 def create_cloud_provider(providername):
