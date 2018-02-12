@@ -15,14 +15,15 @@ from fence.auth import (
     admin_required,
 )
 
-from fence.resources.user import (
-    get_info_by_username,
-)
 
 from fence.resources import admin as adm
 from flask_sqlalchemy_session import current_session
 
 blueprint = Blueprint('admin', __name__)
+
+
+#### USERS ####
+
 
 @blueprint.route('/user/<username>', methods=['GET'])
 @login_required({'admin'})
@@ -33,7 +34,42 @@ def get_user(username):
     userdatamodel database.
     Returns a json object
     """
-    return get_info_by_username(username)
+    return jsonify(adm.get_user_info(current_session, username))
+
+
+@blueprint.route('/user', methods=['GET'])
+@login_required({'admin'})
+@admin_required
+def get_all_users():
+    """
+    Retrieve the information regarding the
+    buckets created within a project.
+    Returns a json object.
+    """
+    return jsonify(adm.get_all_users(current_session))
+
+
+@blueprint.route('/user/<username>', methods=['PUT'])
+@login_required({'admin'})
+@admin_required
+def create_user(username):
+    """
+    Create a user on the userdatamodel database
+    Returns a json object
+    """
+    role = request.get_json().get('role',None)
+    return jsonify(adm.create_user(current_session,username, role))
+
+@blueprint.route('/user/<username>', methods=['DELETE'])
+@login_required({'admin'})
+@admin_required
+def delete_user(username):
+    """
+    Remove the user from the userdatamodel database
+    and all associated storage solutions.
+    Returns json object
+    """
+    return jsonify(adm.delete_user(current_session, username))
 
 
 @blueprint.route('/user/<username>/groups', methods=['GET'])
@@ -47,15 +83,6 @@ def get_user_groups(username):
     """
     return jsonify(adm.get_user_groups(current_session, username))
 
-@blueprint.route('/user/<username>', methods=['PUT'])
-@login_required({'admin'})
-@admin_required
-def create_user(username):
-    """
-    Create a user on the userdatamodel database
-    Returns a json object
-    """
-    return jsonify(adm.create_user(current_session,username))
 
 @blueprint.route('/user/<username>/groups', methods=['PUT'])
 @login_required({'admin'})
@@ -80,40 +107,6 @@ def remove_user_from_groups(username):
     groups = request.get_json().get('groups', [])
     return jsonify(adm.remove_user_from_groups(current_session,username, groups=groups))
 
-@blueprint.route('/groups/<groupname>/projects', methods=['PUT'])
-@login_required({'admin'})
-@admin_required
-def add_projects_to_group(groupname):
-    """
-    Create a user to group relationship in the database
-    Returns a json object
-    """
-    projects = request.get_json().get('projects', [])
-    return jsonify(adm.add_projects_to_group(current_session,groupname, projects))
-
-
-@blueprint.route('/groups/<groupname>/projects', methods=['DELETE'])
-@login_required({'admin'})
-@admin_required
-def remove_projects_from_group(groupname):
-    """
-    Create a user to group relationship in the database
-    Returns a json object
-    """
-    projects = request.get_json().get('projects', [])
-    return jsonify(adm.remove_projects_from_group(current_session,groupname, projects))
-
-
-@blueprint.route('/projects/<projectname>/groups', methods=['PUT'])
-@login_required({'admin'})
-@admin_required
-def add_project_to_groups(projectname):
-    """
-    Create a user to group relationship in the database
-    Returns a json object
-    """
-    groups = request.get_json().get('groups', [])
-    return jsonify(adm.add_project_to_groups(current_session, username, groups=groups))
 
 @blueprint.route('/user/<username>/projects', methods=['DELETE'])
 @login_required({'admin'})
@@ -140,16 +133,8 @@ def add_user_to_projects(username):
     return jsonify(adm.add_user_to_projects(current_session, username, projects=projects))
 
 
-@blueprint.route('/user/<username>', methods=['DELETE'])
-@login_required({'admin'})
-@admin_required
-def delete_user(username):
-    """
-    Remove the user from the userdatamodel database
-    and all associated storage solutions.
-    Returns json object
-    """
-    return jsonify(adm.delete_user(current_session, username))
+#### PROJECTS ####
+
 
 @blueprint.route('/projects/<projectname>', methods=['GET'])
 @login_required({'admin'})
@@ -160,7 +145,8 @@ def get_project(projectname):
     from the userdatamodel database
     Returns a json object
     """
-    return jsonify(adm.get_project(current_session, projectname))
+    return jsonify(adm.get_project_info(current_session, projectname))
+
 
 @blueprint.route('/projects/<projectname>', methods=['PUT'])
 @login_required({'admin'})
@@ -191,46 +177,30 @@ def delete_project(projectname):
     """
     return jsonify(adm.delete_project(current_session, projectname))
 
-@blueprint.route('/cloud_provider/<providername>', methods=['GET'])
-@login_required({'admin'})
-@admin_required
-def get_cloud_provider(providername):
-    """
-    Retriev the information related to a cloud provider
-    Returns a json object.
-    """
-    return jsonify(adm.get_provider(current_session, providername))
 
-@blueprint.route('/cloud_provider/<providername>', methods=['PUT'])
+@blueprint.route('/groups/<groupname>/projects', methods=['DELETE'])
 @login_required({'admin'})
 @admin_required
-def create_cloud_provider(providername):
+def remove_projects_from_group(groupname):
     """
-    Create a cloud provider.
+    Create a user to group relationship in the database
     Returns a json object
     """
-    backend_name = request.get_json().get('backend')
-    service_name = request.get_json().get('service')
-    return jsonify(
-        adm.create_provider(
-            current_session,
-            providername,
-            backend=backend_name,
-            service=service_name
-        )
-    )
+    projects = request.get_json().get('projects', [])
+    return jsonify(adm.remove_projects_from_group(current_session,groupname, projects))
 
-@blueprint.route('/cloud_provider/<providername>', methods=['DELETE'])
+
+@blueprint.route('/projects/<projectname>/groups', methods=['PUT'])
 @login_required({'admin'})
 @admin_required
-def delete_cloud_provider(providername):
+def add_project_to_groups(projectname):
     """
-    Deletes a cloud provider from the userdatamodel
-    All projects associated with it should be deassociated
-    or removed.
-    Returns a json object.
+    Create a user to group relationship in the database
+    Returns a json object
     """
-    return jsonify(adm.delete_provider(current_session, providername))
+    groups = request.get_json().get('groups', [])
+    return jsonify(adm.add_project_to_groups(current_session, username, groups=groups))
+
 
 @blueprint.route('/projects/<projectname>/bucket/<bucketname>', methods=['PUT'])
 @login_required({'admin'})
@@ -276,33 +246,9 @@ def list_buckets_from_project(projectname):
     """
     return jsonify(adm.list_buckets_on_project_by_name(current_session, projectname))
 
-@blueprint.route('/groups', methods=['PUT'])
-@login_required({'admin'})
-@admin_required
-def create_group():
-    """
-    Retrieve the information regarding the
-    buckets created within a project.
-    Returns a json object.
-    """
-    groupname = request.get_json().get('name')
-    grp = adm.create_group(current_session, groupname)
-    if grp:
-        response = {'result': 'group creation successful'}
-    else:
-        response = {'result': 'group creation failed'}
-    return jsonify(response)
 
-@blueprint.route('/groups/<groupname>', methods=['DELETE'])
-@login_required({'admin'})
-@admin_required
-def delete_group(groupname):
-    """
-    Retrieve the information regarding the
-    buckets created within a project.
-    Returns a json object.
-    """
-    return jsonify(adm.delete_group(current_session, groupname))
+#### GROUPS ####
+
 
 @blueprint.route('/groups/<groupname>', methods=['GET'])
 @login_required({'admin'})
@@ -314,6 +260,7 @@ def get_group(groupname):
     Returns a json object.
     """
     return jsonify(adm.get_group(current_session, groupname))
+
 
 @blueprint.route('/groups', methods=['GET'])
 @login_required({'admin'})
@@ -338,13 +285,91 @@ def get_group_users(groupname):
     """
     return jsonify(adm.get_group_users(current_session, groupname))
 
-@blueprint.route('/user', methods=['GET'])
+
+@blueprint.route('/groups', methods=['PUT'])
 @login_required({'admin'})
 @admin_required
-def get_all_users():
+def create_group():
     """
     Retrieve the information regarding the
     buckets created within a project.
     Returns a json object.
     """
-    return jsonify(adm.get_all_users(current_session))
+    groupname = request.get_json().get('name')
+    grp = adm.create_group(current_session, groupname)
+    if grp:
+        response = {'result': 'group creation successful'}
+    else:
+        response = {'result': 'group creation failed'}
+    return jsonify(response)
+
+
+@blueprint.route('/groups/<groupname>', methods=['DELETE'])
+@login_required({'admin'})
+@admin_required
+def delete_group(groupname):
+    """
+    Retrieve the information regarding the
+    buckets created within a project.
+    Returns a json object.
+    """
+    return jsonify(adm.delete_group(current_session, groupname))
+
+
+@blueprint.route('/groups/<groupname>/projects', methods=['PUT'])
+@login_required({'admin'})
+@admin_required
+def add_projects_to_group(groupname):
+    """
+    Create a user to group relationship in the database
+    Returns a json object
+    """
+    projects = request.get_json().get('projects', [])
+    return jsonify(adm.add_projects_to_group(current_session,groupname, projects))
+
+
+
+
+#### CLOUD PROVIDER ####
+
+
+@blueprint.route('/cloud_provider/<providername>', methods=['GET'])
+@login_required({'admin'})
+@admin_required
+def get_cloud_provider(providername):
+    """
+    Retriev the information related to a cloud provider
+    Returns a json object.
+    """
+    return jsonify(adm.get_provider(current_session, providername))
+
+@blueprint.route('/cloud_provider/<providername>', methods=['PUT'])
+@login_required({'admin'})
+@admin_required
+def create_cloud_provider(providername):
+    """
+    Create a cloud provider.
+    Returns a json object
+    """
+    backend_name = request.get_json().get('backend')
+    service_name = request.get_json().get('service')
+    return jsonify(
+        adm.create_provider(
+            current_session,
+            providername,
+            backend=backend_name,
+            service=service_name
+        )
+    )
+
+@blueprint.route('/cloud_provider/<providername>', methods=['DELETE'])
+@login_required({'admin'})
+@admin_required
+def delete_cloud_provider(providername):
+    """
+    Deletes a cloud provider from the userdatamodel
+    All projects associated with it should be deassociated
+    or removed.
+    Returns a json object.
+    """
+    return jsonify(adm.delete_provider(current_session, providername))

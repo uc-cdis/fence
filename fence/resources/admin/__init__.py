@@ -17,9 +17,13 @@ from fence.resources import (
 
 from flask import current_app as capp
 from fence.data_model.models import User, Group
-
+from fence.errors import NotFound
 import json
 from fence.errors import UserError
+
+
+def get_user_info(current_session, username):
+    return us.get_user_info(current_session, username)
 
 def get_project_info(current_session, project_name):
     """
@@ -123,39 +127,35 @@ def connect_user_to_project(current_session, usr, project=None):
     return response
 
 
-def create_user(current_session, username):
+def create_user(current_session, username, role):
     """
     Create a user for all the projects or groups in the list.
     If the user already exists, to avoid unadvertedly changing it, we suggest update
     Returns a dictionary.
     """
-    usr = current_session.query(User).filter(
-        User.username == username).first()
-    if usr:
+    try:
+        usr = us.get_user(current_session, username)
         raise UserError(("Error: user already exist. If this is not a"
                " mistake, please, retry using update"))
         return msg
-    else:
-        usr = User(username=username, active=True)
+    except NotFound:
+        is_admin = True if role == "admin" else False
+        usr = User(username=username, active=True, is_admin=is_admin)
         current_session.add(usr)
         current_session.flush() 
         return {"result": "success"}
 
 def add_user_to_projects(current_session, username, projects=[]):
-    usr = current_session.query(User).filter(
-        User.username == username).first()
-    if not usr:
-        raise UserError ("Error: user does not exist")
-    else:
-        responses = []
-        for proj in projects:
-            try:
-                response = connect_user_to_project(current_session, usr, proj)
-                responses.append(response)
-            except Exception as e:
-                current_session.rollback()
-                raise e
-        return {"result": responses}
+    usr = us.get_user(current_session, username)
+    responses = []
+    for proj in projects:
+        try:
+            response = connect_user_to_project(current_session, usr, proj)
+            responses.append(response)
+        except Exception as e:
+            current_session.rollback()
+            raise e
+    return {"result": responses}
 
 def delete_user(current_session, username):
     """
@@ -244,12 +244,8 @@ def delete_group(current_session, groupname):
     return {'result': 'success'}
 
 def get_user_groups(current_session, username):
-    usr = current_session.query(User).filter(
-        User.username == username).first()
-    if not usr:
-        raise UserError ("Error: user does not exist")
-    else:
-        return udm.get_user_groups(current_session, usr)
+    usr = us.get_user(current_session, username)
+    return udm.get_user_groups(current_session, usr)
 
 
 def get_group(current_session, groupname):
@@ -278,7 +274,13 @@ def get_all_users(current_session):
     users = udm.get_all_users(current_session)
     users_names = []
     for user in users:
-        users_names.append(user.username)
+        new_user = {}
+        new_user['name'] = user.username
+        if user.is_admin:
+            new_user['role'] = "admin"
+        else:
+            new_user['role'] = "user"
+        users_names.append(new_user)
     return {"users": users_names}
 
 def connect_user_to_group(current_session, usr, group=None):
@@ -289,20 +291,16 @@ def connect_user_to_group(current_session, usr, group=None):
         return udm.connect_user_to_group(current_session, usr, grp)
 
 def add_user_to_groups(current_session, username, groups=[]):
-    usr = current_session.query(User).filter(
-        User.username == username).first()
-    if not usr:
-        raise UserError ("Error: user does not exist")
-    else:
-        responses = []
-        for groupname in groups:
-            try:
-                response = connect_user_to_group(current_session, usr, groupname)
-                responses.append(response)
-            except Exception as e:
-                current_session.rollback()
-                raise e
-        return {"result": responses}
+    usr = us.get_user(curent_session, username)
+    responses = []
+    for groupname in groups:
+        try:
+            response = connect_user_to_group(current_session, usr, groupname)
+            responses.append(response)
+        except Exception as e:
+            current_session.rollback()
+            raise e
+    return {"result": responses}
 
 def disconnect_user_from_group(current_session, usr, groupname):
     grp = udm.get_group(current_session, groupname)
@@ -312,20 +310,16 @@ def disconnect_user_from_group(current_session, usr, groupname):
         return udm.remove_user_from_group(current_session, usr, grp)
     
 def remove_user_from_groups(current_session, username, groups=[]):
-    usr = current_session.query(User).filter(
-        User.username == username).first()
-    if not usr:
-        raise UserError ("Error: user does not exist")
-    else:
-        responses = []
-        for groupname in groups:
-            try:
-                response = disconnect_user_from_group(current_session, usr, groupname)
-                responses.append(response)
-            except Exception as e:
-                current_session.rollback()
-                raise e
-        return {"result": responses}
+    usr = us.get_user(current_session, username)
+    responses = []
+    for groupname in groups:
+        try:
+            response = disconnect_user_from_group(current_session, usr, groupname)
+            responses.append(response)
+        except Exception as e:
+            current_session.rollback()
+            raise e
+    return {"result": responses}
 
 
 def connect_project_to_group(current_session, grp, project=None):

@@ -34,16 +34,11 @@ def update_user_resource(username, resource):
         return get_user_info(user, session)
 
 
-def find_user(username, session):
-    user = session.query(User).filter(User.username == username).first()
+def get_user(current_session, username):
+    user = current_session.query(User).filter(User.username == username).first()
     if not user:
         raise NotFound("user {} not found".format(username))
     return user
-
-
-def get_info_by_username(username):
-    with capp.db.session as session:
-        return get_user_info(find_user(username, session), session)
 
 
 def get_current_user_info():
@@ -51,7 +46,8 @@ def get_current_user_info():
         return get_user_info(session.merge(g.user), session)
 
 
-def get_user_info(user, session):
+def get_user_info(current_session, username):
+    user = get_user(current_session, username)
     info = {
         'user_id': user.id,
         'username': user.username,
@@ -66,7 +62,7 @@ def get_user_info(user, session):
         info['certificates_uploaded'] = [
             c.name for c in user.application.certificates_uploaded]
         info['message'] = user.application.message
-    return jsonify(info)
+    return info
 
 
 def send_mail(send_from, send_to, subject, text, server, certificates=None):
@@ -99,5 +95,3 @@ def get_user_accesses():
         raise InternalError("Error: %s user does not exist in user-data-model" % g.user.username)
     return user
 
-def get_user(username):
-    return current_session.query(User).filter(User.name == username).first()

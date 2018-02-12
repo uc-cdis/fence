@@ -140,7 +140,7 @@ def get_project_info(current_session, project_name):
     Get project info from userdatamodel
     from its name
     """
-    proj = get_project(project_name)
+    proj = get_project(current_session, project_name)
     if not proj:
         msg = ''.join(['Error: project ', project_name, ' not found'])
         raise NotFound(msg)
@@ -449,9 +449,10 @@ def get_group(current_session, groupname):
         Group.name == groupname).first()
 
 def get_user(current_session, username):
-    return current_session.query(User).filter(
-        User.name == username).first()
-
+    user = current_session.query(User).filter(User.username == username).first()
+    if not user:
+        raise NotFound("user {} not found".format(username))
+    return user
 
 def get_project(current_session, projectname):
     return current_session.query(Project).filter(
