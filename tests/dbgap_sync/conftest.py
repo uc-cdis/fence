@@ -18,13 +18,7 @@ DATA_DIR = os.path.join(
 
 
 @pytest.fixture
-def syncer(request):
-    db = SQLAlchemyDriver(DB)
-
-    def fin():
-        print 'delete all'
-        for tbl in reversed(Base.metadata.sorted_tables):
-            db.engine.execute(tbl.delete())
+def syncer(db_session):
     provider = {
         'name': 'test-cleversafe',
         'backend': 'cleversafe'
@@ -58,23 +52,20 @@ def syncer(request):
         get_client)
     patcher.start()
 
-
     syncer_obj = DbGapSyncer(
-        dbGaP={}, DB=DB, project_mapping=project_mapping,
+        dbGaP={}, DB=DB, db_session=db_session, project_mapping=project_mapping,
         storage_credentials={'test-cleversafe': {'backend': 'cleversafe'}},
         sync_from_dir=DATA_DIR)
 
-    with db.session as s:
-        udm.create_provider(
-            s, provider['name'],
-            backend=provider['backend']
-        )
-        for project in projects:
-            p = udm.create_project_with_dict(s, project)
-            for sa in project['storage_accesses']:
-                for bucket in sa['buckets']:
-                    syncer_obj.storage_manager.create_bucket(
-                        sa['name'], s, bucket, p)
+    udm.create_provider(
+        db_session, provider['name'],
+        backend=provider['backend']
+    )
+    for project in projects:
+        p = udm.create_project_with_dict(db_session, project)
+        for sa in project['storage_accesses']:
+            for bucket in sa['buckets']:
+                syncer_obj.storage_manager.create_bucket(
+                    sa['name'], db_session, bucket, p)
 
-    request.addfinalizer(fin)
     return syncer_obj

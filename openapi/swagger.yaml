@@ -208,22 +208,25 @@ paths:
           description: successful operation
           schema:
             "$ref": '#/definitions/UserInfo'
-  '/data/download/{file_id}':
+  '/data/{uuid}':
     get:
       tags:
         - data
-      summary: Create a presigned URL for data specified by file_id
+      summary: Create a presigned URL for data
       description: >-
-        Allow users to get a pre-signed URL to download data given the location of preference.
+        Allow users to get a pre-signed URL given the location of preference.
       security:
         - OAuth2: [user]
       operationId: getPresignedURL
       parameters:
-        - name: file_id
+        - name: uuid
           required: true
           type: string
           in: path
           description: data UUID
+        - name: location
+          required: true
+          type: string
         - name: protocol
           required: false
           type: string
@@ -268,7 +271,8 @@ paths:
           required: false
           type: int
           in: query
-          description: the time (in seconds) in which return url is valid. Default 1800, maximum is 86400
+          description: location (as in cloud provider) to use
+          enum: [aws, google]
       responses:
         '200':
           description: successful operation

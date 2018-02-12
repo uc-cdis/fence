@@ -2,8 +2,7 @@ import os
 import tests
 import uuid
 import tests.utils.oauth2
-from userdatamodel.driver import SQLAlchemyDriver
-from fence.data_model.models import User, Project, AccessPrivilege
+from fence.models import User, Project, AccessPrivilege
 
 from datetime import datetime, timedelta
 from flask import current_app as capp
@@ -16,33 +15,38 @@ def read_file(filename):
         return f.read()
 
 
-def create_user(users, DB, is_admin=False):
-    driver = SQLAlchemyDriver(DB)
-    with driver.session as s:
-        for username in users.keys():
-            user = s.query(User).filter(User.username == username).first()
-            if not user:
-                user = User(username=username, is_admin=is_admin)
-                s.add(user)
-            for project_data in users[username]['projects']:
-                privilege = project_data['privilege']
-                auth_id = project_data['auth_id']
-                p_name = project_data.get('name', auth_id)
+def create_user(users, db_session, is_admin=False):
+    s = db_session
+    for username in users.keys():
+        user = s.query(User).filter(User.username == username).first()
+        if not user:
+            user = User(username=username, is_admin=is_admin)
+            s.add(user)
+        for project_data in users[username]['projects']:
+            privilege = project_data['privilege']
+            auth_id = project_data['auth_id']
+            p_name = project_data.get('name', auth_id)
 
-                project = s.query(Project).filter(
-                    Project.auth_id == auth_id).first()
-                if not project:
-                    project = Project(name=p_name, auth_id=auth_id)
-                    s.add(project)
-                ap = s.query(AccessPrivilege).join(AccessPrivilege.project) \
-                    .join(AccessPrivilege.user) \
-                    .filter(Project.name == p_name, User.username == user.username).first()
-                if not ap:
-                    ap = AccessPrivilege(project=project, user=user, privilege=privilege)
-                    s.add(ap)
-                else:
-                    ap.privilege = privilege
-        s.commit()
+            project = s.query(Project).filter(
+                Project.auth_id == auth_id).first()
+            if not project:
+                project = Project(name=p_name, auth_id=auth_id)
+                s.add(project)
+            ap = (
+                s
+                .query(AccessPrivilege)
+                .join(AccessPrivilege.project)
+                .join(AccessPrivilege.user)
+                .filter(Project.name == p_name, User.username == user.username)
+                .first()
+            )
+            if not ap:
+                ap = AccessPrivilege(
+                    project=project, user=user, privilege=privilege
+                )
+                s.add(ap)
+            else:
+                ap.privilege = privilege
     return user.id, user.username
 
 
@@ -70,19 +74,18 @@ def default_claims():
     Return:
         dict: dictionary of claims
     """
-    aud = ['access', 'user']
-    iss = capp.config['HOSTNAME']
+    aud = ['openid', 'user']
+    iss = 'https://user-api.test.net'
     jti = new_jti()
     iat, exp = iat_and_exp()
-    azp = ''
     return {
+        'pur': 'access',
         'aud': aud,
         'sub': '1234',
         'iss': iss,
         'iat': iat,
         'exp': exp,
         'jti': jti,
-        'azp': azp,
         'context': {
             'user': {
                 'name': 'test-user',
@@ -100,13 +103,14 @@ def unauthorized_context_claims(user_name, user_id):
     Return:
         dict: dictionary of claims
     """
-    aud = ['access', 'data', 'user']
-    iss = capp.config['HOSTNAME']
+    aud = ['access', 'data', 'user', 'openid']
+    iss = capp.config['BASE_URL']
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
         'aud': aud,
         'sub': user_id,
+        'pur': 'access',
         'iss': iss,
         'iat': iat,
         'exp': exp,
@@ -130,8 +134,8 @@ def authorized_download_context_claims(user_name, user_id):
     Return:
         dict: dictionary of claims
     """
-    aud = ['access', 'data', 'user']
-    iss = capp.config['HOSTNAME']
+    aud = ['access', 'data', 'user', 'openid']
+    iss = capp.config['BASE_URL']
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
@@ -141,6 +145,7 @@ def authorized_download_context_claims(user_name, user_id):
         'iat': iat,
         'exp': exp,
         'jti': jti,
+        'pur': 'access',
         'context': {
             'user': {
                 'name': user_name,
@@ -160,14 +165,15 @@ def authorized_upload_context_claims(user_name, user_id):
     Return:
         dict: dictionary of claims
     """
-    aud = ['access', 'data', 'user']
-    iss = capp.config['HOSTNAME']
+    aud = ['access', 'data', 'user', 'openid']
+    iss = capp.config['BASE_URL']
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
         'aud': aud,
         'sub': user_id,
         'iss': iss,
+        'pur': 'access',
         'iat': iat,
         'exp': exp,
         'jti': jti,
@@ -181,3 +187,14 @@ def authorized_upload_context_claims(user_name, user_id):
             },
         },
     }
+
+
+class FakeFlaskRequest(object):
+    """
+    Make a fake ``flask.request`` to patch in tests.
+    """
+
+    def __init__(self, method='GET', args=None, form=None):
+        self.method = method
+        self.args = args
+        self.form = form

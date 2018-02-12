@@ -1,10 +1,17 @@
-import flask
-import requests
-from ..errors import UnavailableError, NotFound, Unauthorized, NotSupported, InternalError
-from flask import jsonify, request
 from urlparse import urlparse
+
+import flask
+from flask import current_app
+import requests
+
 from fence.auth import login_required
-from flask import current_app as capp
+from fence.errors import (
+    UnavailableError,
+    NotFound,
+    Unauthorized,
+    NotSupported,
+    InternalError,
+)
 
 ACTION_DICT = {
     "s3": {
@@ -22,27 +29,29 @@ SUPPORTED_PROTOCOLS = ['s3', 'http']
 
 def get_index_document(file_id):
     indexd_server = (
-            capp.config.get('INDEXD') or
-            capp.config['HOSTNAME'] + '/index')
+            current_app.config.get('INDEXD') or
+            current_app.config['BASE_URL'] + '/index')
     url = indexd_server + '/index/'
     try:
         res = requests.get(url + file_id)
     except Exception as e:
-        capp.logger.error("fail to reach indexd at {0}: {1}".format(url + file_id, e))
+        current_app.logger.error("failed to reach indexd at {0}: {1}".format(url + file_id, e))
         raise UnavailableError(
             "Fail to reach id service to find data location")
     if res.status_code == 200:
         try:
             json_response = res.json()
             if 'urls' not in json_response or 'metadata' not in json_response:
-                capp.logger.error("urls and metadata are not included in indexd's response {0}".format(url + file_id))
-                raise InternalError("Urls and metadata not found")
+                current_app.logger.error(
+                    'URLs and metadata are not included in response from indexd: {}'.format(url + file_id)
+                )
+                raise InternalError('URLs and metadata not found')
             return res.json()
         except Exception as e:
-            capp.logger.error("indexd return a response without JSON field {0}: {1}".format(url + file_id, e))
-            raise InternalError("Internal error from indexd")
+            flask.current_app.logger.error('indexd response missing JSON field {}'.format(url + file_id))
+            raise InternalError('internal error from indexd: {}'.format(e))
     elif res.status_code == 404:
-        capp.logger.error("indexd can't find {0}: {1}".format(url + file_id, res.text))
+        flask.current_app.logger.error('indexd did not find find {}; {}'.format(url + file_id, res.text))
         raise NotFound("Can't find a location for the data")
     else:
         raise UnavailableError(res.text)
@@ -82,30 +91,31 @@ def check_protocol(protocol, scheme):
 def resolve_url(url, location, expires, action):
     protocol = location.scheme
     if protocol == 's3':
-        if 'AWS_CREDENTIALS' in capp.config and len(capp.config['AWS_CREDENTIALS']) > 0:
-            if location.netloc not in capp.config['S3_BUCKETS'].keys():
-                raise Unauthorized("We don't have permission on this bucket")
-            if location.netloc in capp.config['S3_BUCKETS'].keys() and \
-                    capp.config['S3_BUCKETS'][location.netloc] not in capp.config['AWS_CREDENTIALS']:
-                raise Unauthorized("We don't have credential on this bucket")
-        credential_key = capp.config['S3_BUCKETS'][location.netloc]
-        url = capp.boto.presigned_url(
+        aws_creds = current_app.config['AWS_CREDENTIALS']
+        if 'AWS_CREDENTIALS' in current_app.config and len(aws_creds) > 0:
+            buckets = flask.current_app.config['S3_BUCKETS']
+            if location.netloc not in buckets.keys():
+                raise Unauthorized('permission denied for bucket')
+            if buckets[location.netloc] not in aws_creds:
+                raise Unauthorized('permission denied for bucket')
+        credential_key = buckets[location.netloc]
+        url = current_app.boto.presigned_url(
             location.netloc,
             location.path.strip('/'),
             expires,
-            capp.config['AWS_CREDENTIALS'][credential_key],
-            ACTION_DICT[protocol][action]
+            aws_creds[credential_key],
+            ACTION_DICT[protocol][action],
         )
     elif protocol not in ['http', 'https']:
         raise NotSupported(
-            "protocol {} in url {} is not supported"
-                .format(protocol, url))
-    return jsonify(dict(url=url))
+            'protocol {} in URL {} is not supported'.format(protocol, url)
+        )
+    return flask.jsonify(dict(url=url))
 
 
 def return_link(action, urls):
-    protocol = request.args.get('protocol', None)
-    expires = min(int(request.args.get('expires_in', 3600)), 3600)
+    protocol = flask.request.args.get('protocol', None)
+    expires = min(int(flask.request.args.get('expires_in', 3600)), 3600)
     if (protocol is not None) and (protocol not in SUPPORTED_PROTOCOLS):
         raise NotSupported("The specified protocol is not supported")
     if len(urls) == 0:
@@ -114,7 +124,9 @@ def return_link(action, urls):
         location = urlparse(url)
         if check_protocol(protocol, location.scheme):
             return resolve_url(url, location, expires, action)
-    raise NotFound("Can't find a location for the data with given request arguments.")
+    raise NotFound(
+        "Can't find a location for the data with given request arguments."
+    )
 
 
 def get_file(action, file_id):

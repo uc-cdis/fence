@@ -6,22 +6,57 @@
 
 ## Setup
 
+#### Install Requirements and Fence
+
 ```bash
 # Install requirements.
 pip install -r requirements.txt
 # Install fence in your preferred manner.
 python setup.py develop
-# Create test database.
-psql -U test postgres -c 'create database fence_test'
-# Initialize models in test database.
-userdatamodel-init --db fence_test
-# Create UA file.
-fence-create --path fence create ua.yaml
-# Register OAuth client (example).
-fence-create --path fence client-create --client gdcapi --urls http://localhost/api/v0/oauth2/authorize --username test
-# That command should output: (client_id, client_secret) which must be saved so
-# that gdcapi (for example) can be run as an OAuth client to use with fence.
 ```
+
+#### Create Local Settings
+
+```bash
+# Copy example settings to local settings and then fill them out.
+cp fence/local_settings.example.py fence/local_settings.py
+```
+Remember to fill out `fence/local_settings.py`!
+
+#### Set Up Databases
+
+Because the tests clear out the database every time they are run, if you would
+like to keep a persistent database for manual testing and general local usage
+simply create a second test database with a different name, as in the
+instructions below.
+
+```bash
+# Create test database(s).
+# This one is for automated tests, which clear the database after running;
+# `tests/test_settings.py` should have `fence_test_tmp` in the `DB` variable.
+psql -U test postgres -c 'create database fence_test_tmp'
+userdatamodel-init --db fence_test_tmp
+# This one is for manual testing/general local usage; `fence/local_settings.py`
+# should have `fence_test` in the `DB` variable.
+psql -U test postgres -c 'create database fence_test'
+userdatamodel-init --db fence_test
+```
+
+#### Create User Access File
+
+```bash
+fence-create --path fence create ua.yaml
+```
+
+#### Register OAuth Client
+
+Using gdcapi for example:
+```bash
+fence-create --path fence client-create --client gdcapi --urls http://localhost/api/v0/oauth2/authorize --username test
+```
+That command should output a tuple of `(client_id, client_secret)` which must be
+saved so that gdcapi (for example) can be run as an OAuth client to use with
+fence.
 
 ## API Documentation
 
@@ -96,7 +131,33 @@ JWT_KEYPAIR_FILES = OrderedDict([
 Fence will use the first keypair in the list to sign the tokens it issues
 through OAuth.
 
-## OAuth2
+## OIDC & OAuth2
+
+### OIDC
+
+### OAuth2
+
+#### Example Flow: Fence as Client
+
+Example:
+
+- Google IAM is the OP
+- Fence is the client
+- Google Calendar API is the resource provider
+
+#### Example Flow: Fence as OP
+
+- Fence is the OP
+- A third-party application is the client
+- Our microservices (e.g. sheepdog) are resource providers
+
+If the third-party application doesn't need to use any Gen3 resources (and just
+wants to verify the user), after the handshake is finished they can just get
+needed information in the ID token. If they want to use gen3 resources like
+fence/sheepdog/peregrine, they call those services with `access_token` passed in
+the header.
+
+#### Notes
 
 See the [OAuth2 specification](https://tools.ietf.org/html/rfc6749) for details.
 

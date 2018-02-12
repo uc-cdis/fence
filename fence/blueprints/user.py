@@ -1,13 +1,13 @@
 import flask
-from fence.auth import login_required
-from flask import jsonify, g, make_response
-from ..errors import Unauthorized, UserError, NotFound
-from userdatamodel.models import *  # noqa
-from fence.resources.user import send_mail, get_current_user_info
-from flask import current_app as capp
-from flask import request
 from flask_sqlalchemy_session import current_session
 
+from fence.auth import login_required
+from fence.errors import Unauthorized, UserError, NotFound
+from fence.models import (
+    Application,
+    Certificate,
+)
+from fence.resources.user import send_mail, get_current_user_info
 
 
 REQUIRED_CERTIFICATES = {
@@ -23,13 +23,14 @@ blueprint = flask.Blueprint('user', __name__)
 def user_info():
     return get_current_user_info()
 
+
 @blueprint.route('/anyaccess', methods=['GET'])
 @login_required({'user'})
 def any_access():
-    g.user = current_session.merge(g.user)
-    if len(g.user.project_access) > 0:
-        resp = make_response(jsonify({'result': 'success'}), 200)
-        resp.headers['REMOTE_USER'] = g.user.username
+    flask.g.user = current_session.merge(flask.g.user)
+    if len(flask.g.user.project_access) > 0:
+        resp = flask.make_response(flask.jsonify({'result': 'success'}), 200)
+        resp.headers['REMOTE_USER'] = flask.g.user.username
         return resp
     raise Unauthorized("Please login")
 
@@ -37,59 +38,59 @@ def any_access():
 @blueprint.route('/cert', methods=['GET'])
 @login_required({'user'})
 def missing_certificate():
-    g.user = current_session.merge(g.user)
-    if not g.user.application:
-        return jsonify(REQUIRED_CERTIFICATES)
+    flask.g.user = current_session.merge(flask.g.user)
+    if not flask.g.user.application:
+        return flask.jsonify(REQUIRED_CERTIFICATES)
     certificates = [
-        c.name for c in g.user.application.certificates_uploaded]
+        c.name for c in flask.g.user.application.certificates_uploaded]
     missing = set(REQUIRED_CERTIFICATES.keys()).difference(certificates)
-    return jsonify({k: REQUIRED_CERTIFICATES[k] for k in missing})
+    return flask.jsonify({k: REQUIRED_CERTIFICATES[k] for k in missing})
 
 
 @blueprint.route('/cert/<certificate>', methods=['PUT'])
 @login_required({'user'})
 def upload_certificate(certificate):
-    extension = request.args.get('extension')
+    extension = flask.request.args.get('extension')
     allowed_extension = ['pdf', 'png', 'jpg', 'jpeg', 'txt']
     if not extension or extension not in allowed_extension:
         raise UserError(
             "Invalid extension in parameter, acceptable extensions are {}"
             .format(", ".join(allowed_extension)))
 
-    if not g.user.application:
-        g.user.application = Application()
-        current_session.merge(g.user)
+    if not flask.g.user.application:
+        flask.g.user.application = Application()
+        current_session.merge(flask.g.user)
     cert = (
         current_session.query(Certificate)
         .filter(Certificate.name == certificate)
-        .filter(Certificate.application_id == g.user.application.id)
+        .filter(Certificate.application_id == flask.g.user.application.id)
         .first()
     )
     if not cert:
         cert = Certificate(name=certificate)
-    cert.application_id = g.user.application.id
+    cert.application_id = flask.g.user.application.id
     cert.extension = extension
-    cert.data = request.data
+    cert.data = flask.request.data
     current_session.merge(cert)
 
-    certificates = g.user.application.certificates_uploaded
+    certificates = flask.g.user.application.certificates_uploaded
     if set(REQUIRED_CERTIFICATES.keys()).issubset(
             set(c.name for c in certificates)):
-        title = 'User application for {}'.format(g.user.username)
-        if getattr(g, 'client'):
-            title += ' from {}'.format(g.client)
-        if 'EMAIL_SERVER' in capp.config:
+        title = 'User application for {}'.format(flask.g.user.username)
+        if getattr(flask.g, 'client'):
+            title += ' from {}'.format(flask.g.client)
+        if 'EMAIL_SERVER' in flask.current_app.config:
             content = (
                 "Application for user: {}\n"
                 "email: {}"
-                .format(g.user.username, g.user.email)
+                .format(flask.g.user.username, flask.g.user.email)
             )
             send_mail(
-                capp.config['SEND_FROM'],
-                capp.config['SEND_TO'],
+                flask.current_app.config['SEND_FROM'],
+                flask.current_app.config['SEND_TO'],
                 title,
                 text=content,
-                server=capp.config['EMAIL_SERVER'],
+                server=flask.current_app.config['EMAIL_SERVER'],
                 certificates=certificates)
     return "", 201
 
@@ -97,16 +98,16 @@ def upload_certificate(certificate):
 @blueprint.route('/cert/<certificate>', methods=['GET'])
 @login_required({'user'})
 def download_certificate(certificate):
-    if not g.user.application:
-        g.user.application = Application()
-        current_session.merge(g.user)
+    if not flask.g.user.application:
+        flask.g.user.application = Application()
+        current_session.merge(flask.g.user)
     cert = (
         current_session.query(Certificate)
         .filter(Certificate.name == certificate)
-        .filter(Certificate.application_id == g.user.application.id)
+        .filter(Certificate.application_id == flask.g.user.application.id)
         .first())
     if cert:
-        resp = make_response(cert.data)
+        resp = flask.make_response(cert.data)
         resp.headers['Content-Type'] = 'application/octet-stream'
         resp.headers['Content-Disposition'] =\
             'attachment; filename={}.{}'.format(cert.name, cert.extension)

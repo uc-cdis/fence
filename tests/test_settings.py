@@ -5,14 +5,15 @@ from datetime import timedelta
 from fence.local_settings import *
 
 
-DB = 'postgresql://postgres@localhost:5432/fence_test'
+# WARNING: the test database is cleared every run
+DB = 'postgresql://postgres@localhost:5432/fence_test_tmp'
 
 MOCK_AUTH = True
 
 DEBUG = False
 OAUTH2_PROVIDER_ERROR_URI = "/oauth2/errors"
 
-HOSTNAME = 'https://bionimbus-pdc.opensciencedatacloud.org'
+BASE_URL = 'https://bionimbus-pdc.opensciencedatacloud.org'
 SHIBBOLETH_HEADER = 'persistent_id'
 SSO_URL = 'https://itrusteauth.nih.gov/affwebservices/public/saml2sso?SPID=https://bionimbus-pdc.opensciencedatacloud.org/shibboleth&RelayState='
 SINGLE_LOGOUT = 'https://itrusteauth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl=https://bionimbus-pdc.opensciencedatacloud.org/storage/login'

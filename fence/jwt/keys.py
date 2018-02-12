@@ -11,6 +11,8 @@ Attributes:
         return default private key for the app
 """
 
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
 import flask
 
 
@@ -29,6 +31,50 @@ class Keypair(object):
         self.kid = kid
         self.public_key = public_key
         self.private_key = private_key
+
+    def public_key_to_jwk(self):
+        """
+        Get the JWK representation of the public key in this keypair according
+        to the specification of RFC 7517.
+
+        Fence only uses RSA, and the public keys are only used for JWT
+        validation, so it is assumed both all keys should have type ``RSA``
+        (and therefore contain fields ``n`` and ``e`` for the public key
+        modulus and exponent), and the values of ``use`` and ``key_ops`` are
+        also hard-coded accordingly.
+
+        Return:
+            dict: JWK representation of the public key
+        """
+        n, e = _rsa_public_numbers(self.public_key)
+        jwk = {
+            'alg': 'RS256',
+            'kty': 'RSA',
+            'use': 'sig',
+            'key_ops': 'verify',
+            'kid': self.kid,
+            'n': n,
+            'e': e,
+        }
+        return jwk
+
+
+def _rsa_public_numbers(public_key_data):
+    """
+    Take the data for a public key (string of the key in PEM format) and return
+    the public key modulus ``n`` and exponent ``e`` for that key.
+
+    The values of n and e are needed for the return of the JWKS endpoint.
+
+    Args:
+        public_key_data (str): the public key
+
+    Return:
+        Tuple[int, int]: the public key modulus ``n`` and exponent ``e``
+    """
+    key = serialization.load_pem_public_key(public_key_data, default_backend())
+    numbers = key.public_numbers()
+    return (numbers.n, numbers.e)
 
 
 def default_public_key(app=flask.current_app):

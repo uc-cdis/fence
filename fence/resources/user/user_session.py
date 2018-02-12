@@ -3,21 +3,19 @@ Sessions by using a JWT.
 
 Implementation Details:
 
-Every request where the Flask session is modified internally (e.g. by a
-user logging in) a new JWT is created and stored in a cookie. Additionally,
-if the user is successfully logged in, an access token is stored in a cookie as well.
+Every request where the Flask session is modified internally (e.g. by a user
+logging in) a new JWT is created and stored in a cookie. Additionally, if the
+user is successfully logged in, an access token is stored in a cookie as well.
 
-The session timeout relies on the expiration functionality of the JWT, as
-after each request, the expiration gets extended by SESSION_TIMEOUT. Note
-that the cookie expiration is also used to mirror the JWT timeout, though
-we are not solely relying on the browser or application to ignore the expired
-cookie.
+The session timeout relies on the expiration functionality of the JWT, as after
+each request, the expiration gets extended by SESSION_TIMEOUT. Note that the
+cookie expiration is also used to mirror the JWT timeout, though we are not
+solely relying on the browser or application to ignore the expired cookie.
 
-While the session is NOT expired, a `session_started` time is kept between
-the issuing of new JWTs with new expiration times. This absolute
-beginning of the session is used to calculate if the user has
-extended their session past the SESSION_LIFETIME. If that happens,
-we expire the session.
+While the session is NOT expired, a `session_started` time is kept between the
+issuing of new JWTs with new expiration times. This absolute beginning of the
+session is used to calculate if the user has extended their session past the
+SESSION_LIFETIME. If that happens, we expire the session.
 
 During a valid session where a user is logged in, if there is no access token,
 a new one will be generated with expiration defined by ACCESS_TOKEN_LIFETIME (
@@ -25,6 +23,7 @@ in other words, the session token can refresh the access token).
 
 Before a session is opened with user information, an expiration check occurs.
 """
+
 from flask.sessions import SessionInterface
 from flask.sessions import SessionMixin
 from flask import current_app
@@ -33,13 +32,16 @@ from datetime import datetime
 import pytz
 import time
 
-from cdispyutils.auth.jwt_validation import validate_jwt
-from fence.jwt.keys import default_public_key
-from fence.jwt.token import generate_signed_access_token
-from fence.jwt.token import SESSION_ALLOWED_SCOPES
-from fence.resources.storage.cdis_jwt import create_session_token
-from fence.errors import Unauthorized
 from fence import auth
+from fence.errors import Unauthorized
+from fence.jwt.keys import default_public_key
+from fence.jwt.token import (
+    SESSION_ALLOWED_SCOPES,
+    generate_signed_access_token,
+    generate_signed_session_token,
+)
+from fence.jwt.validate import validate_jwt
+from fence.resources.storage.cdis_jwt import create_session_token
 
 
 class UserSession(SessionMixin):
@@ -50,11 +52,10 @@ class UserSession(SessionMixin):
             jwt_info = validate_jwt(
                 session_token,
                 public_key=default_public_key(),
-                aud={"session"},
-                iss=current_app.config["HOSTNAME"]
+                aud={'fence'},
             )
         else:
-            jwt_info = {"context": {}}
+            jwt_info = {'context': {}}
 
         self.session_token = jwt_info
 
@@ -62,16 +63,18 @@ class UserSession(SessionMixin):
         super(UserSession, self).__init__()
 
     def create_initial_token(self):
-        session_token = create_session_token(
-            current_app.keypairs[0],
-            current_app.config.get('SESSION_TIMEOUT').seconds
+        keypair = current_app.keypairs[0]
+        session_token = generate_signed_session_token(
+            kid=keypair.kid,
+            private_key=keypair.private_key,
+            expires_in=current_app.config.get('SESSION_TIMEOUT').seconds,
         )
         self._encoded_token = session_token
         self.session_token = validate_jwt(
             session_token,
+            aud={'fence'},
+            purpose='session',
             public_key=default_public_key(),
-            aud={"session"},
-            iss=current_app.config["HOSTNAME"]
         )
 
     def get_updated_token(self, app):
@@ -85,10 +88,10 @@ class UserSession(SessionMixin):
             token = create_session_token(
                 current_app.keypairs[0],
                 timeout.seconds,
-                session_started=self.get("session_started"),
-                username=self.get("username"),
-                provider=self.get("provider"),
-                redirect=self.get("redirect")
+                session_started=self.get('session_started'),
+                username=self.get('username'),
+                provider=self.get('provider'),
+                redirect=self.get('redirect')
             )
             self._encoded_token = token
 
@@ -112,8 +115,11 @@ class UserSession(SessionMixin):
             lifetime = app.config.get('SESSION_LIFETIME')
 
             now = int(time.time())
-            is_expired = (self.session_token["exp"] <= now)
-            end_of_life = self.session_token["context"]["session_started"] + lifetime.seconds
+            is_expired = (self.session_token['exp'] <= now)
+            end_of_life = (
+                self.session_token['context']['session_started']
+                + lifetime.seconds
+            )
 
             lifetime_over = (end_of_life <= now)
             if is_expired or lifetime_over:
@@ -153,7 +159,9 @@ class UserSessionInterface(SessionInterface):
 
     def open_session(self, app, request):
         jwt = request.cookies.get(app.session_cookie_name)
-        g.access_token = request.cookies.get(app.config['ACCESS_TOKEN_COOKIE_NAME']) or None
+        g.access_token = (
+            request.cookies.get(app.config['ACCESS_TOKEN_COOKIE_NAME'], None)
+        )
         session = UserSession(jwt)
 
         # NOTE: If we did the expiration check in save_session
@@ -230,7 +238,7 @@ def _create_access_token_cookie(app, response, user):
     access_token = generate_signed_access_token(
         keypair.kid, keypair.private_key, user,
         app.config.get('ACCESS_TOKEN_LIFETIME').seconds, scopes,
-        client_id=user.id, forced_exp_time=expiration
+        forced_exp_time=expiration
     )
 
     domain = app.session_interface.get_cookie_domain(app)

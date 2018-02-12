@@ -14,10 +14,11 @@ import uuid
 import flask
 import jwt
 from sqlalchemy import BigInteger, Column, String
-from userdatamodel import Base
-from fence.data_model.models import UserRefreshToken
 
+from fence.errors import BlacklistingError
 from fence.jwt import keys
+from fence.jwt.errors import JWTError
+from fence.models import Base, UserRefreshToken
 
 
 class BlacklistedToken(Base):
@@ -39,7 +40,7 @@ def blacklist_token(jti, exp):
 
     Args:
         jti (str): JWT id, which must be a UUID4
-        exp (int): the expiration time of the token
+        exp (int): the expiration time of the token (UNIX timestamp)
 
     Return:
         None
@@ -54,7 +55,12 @@ def blacklist_token(jti, exp):
     # Add JWT id to blacklist table.
     with flask.current_app.db.session as session:
         session.add(BlacklistedToken(jti=jti, exp=exp))
-        session.query(UserRefreshToken).filter_by(jti=jti, expires=exp).delete()
+        (
+            session
+            .query(UserRefreshToken)
+            .filter_by(jti=jti, expires=exp)
+            .delete()
+        )
         session.commit()
 
 
@@ -74,28 +80,39 @@ def blacklist_encoded_token(encoded_token, public_key=None):
         None
 
     Raises:
-        - KeyError: if token is missing a claim (``aud``, ``exp``, or ``jti``)
-        - ValueError: if ``jti`` is not UUID4, ``exp`` not provided
-        - jwt.InvalidTokenError: if token decoding fails
+        - BlacklistingError:
+            - ``jti`` is not UUID4
+            - ``exp`` not provided
+            - token is missing a claim (``aud``, ``exp``, or ``jti``)
+            - token decoding fails
+            - token is missing
 
     Side Effects:
         - Add entry with ``jti`` to ``BlacklistedToken`` table
     """
     # Decode token and get claims.
     public_key = public_key or keys.default_public_key()
-    token = jwt.decode(
-        encoded_token, public_key, algorithm='RS256', audience='refresh'
-    )
-    jti = token['jti']
-    exp = token['exp']
-    aud = token['aud']
+    try:
+        claims = jwt.decode(
+            encoded_token, public_key, algorithm='RS256', audience='fence'
+        )
+    except jwt.InvalidTokenError as e:
+        raise BlacklistingError('failed to decode token: {}'.format(e))
+    try:
+        jti = claims['jti']
+        exp = claims['exp']
+        pur = claims['pur']
+    except KeyError as e:
+        raise BlacklistingError('token missing claim: {}'.format(e))
 
     # Do checks.
     # Check that JWT id is UUID4 (this raises a ValueError otherwise).
     uuid.UUID(jti, version=4)
-    # Must be refresh token.
-    if 'refresh' not in aud:
-        raise ValueError('can only blacklist refresh tokens')
+    # Must be refresh token or API key in order to revoke.
+    if pur != 'refresh' and pur != 'api_key':
+        raise BlacklistingError(
+            'can only blacklist refresh tokens and API keys'
+        )
 
     blacklist_token(jti, exp)
 
@@ -126,7 +143,13 @@ def is_token_blacklisted(encoded_token, public_key=None):
         bool: whether JWT is blacklisted
     """
     public_key = public_key or keys.default_public_key()
-    token = jwt.decode(
-        encoded_token, public_key, algorithm='RS256', audience='refresh'
-    )
+    try:
+        token = jwt.decode(
+            encoded_token, public_key, algorithm='RS256', audience='openid'
+        )
+    except jwt.exceptions.InvalidTokenError as e:
+        raise JWTError(
+            'could not decode token to check blacklisting: {}'
+            .format(e)
+        )
     return is_blacklisted(token['jti'])

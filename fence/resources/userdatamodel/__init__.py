@@ -4,22 +4,19 @@ These operations allow for the manipulation at
 an administration level of the projects,
 cloud providers and buckets on the database
 """
-from flask_sqlalchemy_session import current_session
-from sqlalchemy import func
-
-from fence.data_model.models import (
-    Project,
-    StorageAccess,
-    CloudProvider,
-    ProjectToBucket,
-    Bucket,
-    User,
-    AccessPrivilege,
-)
 
 from fence.errors import (
     NotFound,
     UserError,
+)
+from fence.models import (
+    AccessPrivilege,
+    Bucket,
+    CloudProvider,
+    Project,
+    ProjectToBucket,
+    StorageAccess,
+    User,
 )
 
 
@@ -45,6 +42,7 @@ def create_project_with_dict(current_session, project_data):
 
     return project
 
+
 def create_project(
         current_session, name, auth_id, storage_accesses):
     """
@@ -61,7 +59,7 @@ def create_project(
                 provider_id=provider.id, project_id=new_project.id)
             current_session.add(new_storage_access)
         else:
-            raise NotFound('\n'.join(response))
+            raise NotFound()
     return new_project
 
 
@@ -77,10 +75,10 @@ def create_provider(
     check = current_session.query(
         CloudProvider).filter(CloudProvider.name == provider_name).first()
     if check:
-        msg = "".join([
-            "error, provider name ",
-            provider_name,
-            " already in use. Please, choose a different name and retry again"])
+        msg = (
+            'provider name {} already in use; please choose a different name'
+            ' and try again'
+        ).format(provider_name)
         raise UserError(msg)
     provider = CloudProvider(
         name=provider_name,

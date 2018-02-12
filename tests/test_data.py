@@ -16,6 +16,7 @@ def test_indexd_download_file(client, oauth_client, user_client, indexd_client):
         algorithm='RS256',
     )}
     response = client.get(path, headers=headers)
+    print response.json
     assert response.status_code == 200
     assert 'url' in response.json.keys()
 

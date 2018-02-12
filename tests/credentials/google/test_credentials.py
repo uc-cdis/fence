@@ -1,63 +1,70 @@
 """
-Test the /credentials endpoint
+Test the /credentials endpoint.
 """
-from flask import g
-from fence.data_model.models import User
-from fence.data_model.models import Client
-from fence.data_model.models import GoogleServiceAccount
-from fence.data_model.models import GoogleProxyGroup
-from flask_sqlalchemy_session import current_session
 
-# Python 2 and 3 compatible
-try:
-    from unittest.mock import MagicMock
-    from unittest.mock import patch
-    from unittest.mock import call
-except ImportError:
-    from mock import MagicMock
-    from mock import patch
-    from mock import call
+import flask
+
+from fence.models import (
+    User,
+    Client,
+    IdentityProvider,
+    GoogleServiceAccount,
+    GoogleProxyGroup,
+)
 
 
-def test_google_access_token_new_service_account(app, oauth_client,
-                                                 cloud_manager):
+def _populate_test_identity(session, **kwargs):
+    """
+    Add test information to db if it doesn't already exist
+    for the IdentityProvider of the default test user
+    """
+    instance = session.query(IdentityProvider).filter_by(**kwargs).first()
+    if not instance:
+        instance = IdentityProvider(**kwargs)
+        session.add(instance)
+        session.commit()
+        return instance
+
+
+def test_google_access_token_new_service_account(
+        app, oauth_client, db_session, cloud_manager):
     """
     Test that ``POST /credentials/google`` creates a new service
     account for the user if one doesn't exist.
     """
-    client_id = oauth_client["client_id"]
+    _populate_test_identity(db_session, name=IdentityProvider.itrust)
+    client_id = oauth_client['client_id']
     new_service_account = {
-        "uniqueId": "987654321",
-        "email": "987654321@test.com"
+        'uniqueId': '987654321',
+        'email': '987654321@test.com'
     }
-    proxy_group_id = "proxy_group_0"
-    path = (
-        "/credentials/google/"
-    )
-    data = {}
+    proxy_group_id = 'proxy_group_0'
+    path = '/credentials/google/'
 
     # return new service account
-    (cloud_manager.return_value
-     .__enter__.return_value
-     .create_service_account_for_proxy_group.return_value) = new_service_account
+    (
+        cloud_manager.return_value
+        .__enter__.return_value
+        .create_service_account_for_proxy_group.return_value
+    ) = new_service_account
 
     with app.test_client() as app_client:
 
         # set global client context
-        g.client_id = client_id
+        flask.g.client_id = client_id
 
         service_accounts_before = (
-            current_session
+            db_session
             .query(GoogleServiceAccount)
             .filter_by(client_id=client_id)
         ).count()
 
         # get test user info
         user = (
-            current_session
-                .query(User)
-                .filter_by(username="test")
-                .first()
+            db_session
+            .query(User)
+            .filter_by(username='test')
+            .first()
         )
         user_id = user.id
 
@@ -66,29 +73,31 @@ def test_google_access_token_new_service_account(app, oauth_client,
             id=proxy_group_id,
             user_id=user_id,
         )
-        current_session.add(user)
-        current_session.add(proxy_group)
-        current_session.commit()
+        db_session.add(user)
+        db_session.add(proxy_group)
+        db_session.commit()
 
-        response = app_client.post(path, data=data)
+        response = app_client.post(path)
 
         service_accounts_after = (
-            current_session
+            db_session
             .query(GoogleServiceAccount)
             .filter_by(client_id=client_id)
         ).count()
 
         # make sure we created a new service account for the user's proxy
         # group and added it to the db
-        assert (cloud_manager.return_value
-                .__enter__.return_value
-                .create_service_account_for_proxy_group).called is True
+        assert (
+            cloud_manager.return_value
+            .__enter__.return_value
+            .create_service_account_for_proxy_group
+        ).called
         assert service_accounts_after == service_accounts_before + 1
         assert response.status_code == 200
 
 
-def test_google_access_token_no_proxy_group(app, oauth_client,
-                                            cloud_manager):
+def test_google_access_token_no_proxy_group(
+        app, oauth_client, cloud_manager, db_session):
     """
     Test that ``POST /credentials/google`` return error when user
     has no proxy group and no service account.
@@ -104,17 +113,19 @@ def test_google_access_token_no_proxy_group(app, oauth_client,
     data = {}
 
     # return new service account
-    (cloud_manager.return_value
-     .__enter__.return_value
-     .create_service_account_for_proxy_group.return_value) = new_service_account
+    (
+        cloud_manager.return_value
+        .__enter__.return_value
+        .create_service_account_for_proxy_group.return_value
+    ) = new_service_account
 
     with app.test_client() as app_client:
 
         # set global client context
-        g.client_id = client_id
+        flask.g.client_id = client_id
 
         service_accounts_before = (
-            current_session
+            db_session
             .query(GoogleServiceAccount)
             .filter_by(client_id=client_id)
         ).count()
@@ -122,7 +133,7 @@ def test_google_access_token_no_proxy_group(app, oauth_client,
         response = app_client.post(path, data=data)
 
         service_accounts_after = (
-            current_session
+            db_session
             .query(GoogleServiceAccount)
             .filter_by(client_id=client_id)
         ).count()
@@ -136,29 +147,27 @@ def test_google_access_token_no_proxy_group(app, oauth_client,
         assert response.status_code == 404
 
 
-def test_google_create_access_token_post(app, oauth_client,
-                                         cloud_manager):
+def test_google_create_access_token_post(
+        app, oauth_client, cloud_manager, db_session):
     """
     Test ``POST /credentials/google`` gets a new access key.
     """
-    client_id = oauth_client["client_id"]
-    service_account_id = "123456789"
-    proxy_group_id = "proxy_group_0"
-    path = (
-        "/credentials/google/"
-    )
+    client_id = oauth_client['client_id']
+    service_account_id = '123456789'
+    proxy_group_id = 'proxy_group_0'
+    path = '/credentials/google/'
     data = {}
     with app.test_client() as app_client:
 
         # set global client context
-        g.client_id = client_id
+        flask.g.client_id = client_id
 
         # get test user info
         user = (
-            current_session
-                .query(User)
-                .filter_by(username="test")
-                .first()
+            db_session
+            .query(User)
+            .filter_by(username='test')
+            .first()
         )
         user_id = user.id
 
@@ -167,33 +176,34 @@ def test_google_create_access_token_post(app, oauth_client,
             id=proxy_group_id,
             user_id=user_id,
         )
-        current_session.add(proxy_group)
+        db_session.add(proxy_group)
 
         # create a service account for client for user
         service_account = GoogleServiceAccount(
             google_unique_id=service_account_id,
             client_id=client_id,
             user_id=user_id,
-            email=(client_id + "-" + str(user_id) + "@test.com")
+            email=(client_id + '-' + str(user_id) + '@test.com')
         )
-        current_session.add(user)
-        current_session.add(service_account)
-        current_session.commit()
+        db_session.add(user)
+        db_session.add(service_account)
+        db_session.commit()
 
         response = app_client.post(path, data=data)
 
         # check that the service account id was included in a
         # call to cloud_manager
-        (cloud_manager.return_value
-         .__enter__.return_value
-         .get_access_key).assert_called_with(service_account_id)
+        (
+            cloud_manager.return_value
+            .__enter__.return_value
+            .get_access_key
+        ).assert_called_with(service_account_id)
 
         assert response.status_code == 200
 
 
-def test_google_delete_owned_access_token(app, client,
-                                          oauth_client,
-                                          cloud_manager):
+def test_google_delete_owned_access_token(
+        app, client, oauth_client, cloud_manager, db_session):
     """
     Test ``DELETE /credentials/google``.
     """
@@ -215,7 +225,8 @@ def test_google_delete_owned_access_token(app, client,
                     "name": "project/service_accounts/keys/over_9000"
                 },
                 {
-                    "name": "project/service_accounts/keys/" + service_account_key
+                    "name":
+                        "project/service_accounts/keys/" + service_account_key
                 }
             ]
         else:
@@ -228,14 +239,14 @@ def test_google_delete_owned_access_token(app, client,
     with app.test_client() as app_client:
 
         # set global client context
-        g.client_id = client_id
+        flask.g.client_id = client_id
 
         # get test user info
         user = (
-            current_session
-                .query(User)
-                .filter_by(username="test")
-                .first()
+            db_session
+            .query(User)
+            .filter_by(username="test")
+            .first()
         )
         user_id = user.id
 
@@ -244,7 +255,7 @@ def test_google_delete_owned_access_token(app, client,
             id=proxy_group_id,
             user_id=user_id,
         )
-        current_session.add(proxy_group)
+        db_session.add(proxy_group)
 
         # create a service account for client for user
         service_account = GoogleServiceAccount(
@@ -253,19 +264,20 @@ def test_google_delete_owned_access_token(app, client,
             user_id=user_id,
             email=(client_id + "-" + str(user_id) + "@test.com")
         )
-        current_session.add(user)
-        current_session.add(service_account)
-        current_session.commit()
+        db_session.add(user)
+        db_session.add(service_account)
+        db_session.commit()
 
         response = app_client.delete(path, data={})
 
-        # check that the service account id was included in a call to cloud_manager
-        assert any(
-            [str(mock_call)
-             for mock_call in cloud_manager.mock_calls
-             if service_account_id in str(mock_call)]
-        )
-        assert response.status_code == 200
+        # check that the service account id was included in a call to
+        # cloud_manager
+        assert any([
+            str(mock_call)
+            for mock_call in cloud_manager.mock_calls
+            if service_account_id in str(mock_call)
+        ])
+        assert response.status_code == 204
 
         # check that we actually requested to delete the correct service key
         (cloud_manager.return_value
@@ -274,9 +286,8 @@ def test_google_delete_owned_access_token(app, client,
                                                          service_account_key)
 
 
-def test_google_attempt_delete_unowned_access_token(app, client,
-                                                    oauth_client,
-                                                    cloud_manager):
+def test_google_attempt_delete_unowned_access_token(
+        app, client, oauth_client, cloud_manager, db_session):
     """
     Test ``DELETE /credentials/google``.
     """
@@ -290,14 +301,14 @@ def test_google_attempt_delete_unowned_access_token(app, client,
     with app.test_client() as app_client:
 
         # set global client context
-        g.client_id = client_id
+        flask.g.client_id = client_id
 
         # get test user info
         user = (
-            current_session
-                .query(User)
-                .filter_by(username="test")
-                .first()
+            db_session
+            .query(User)
+            .filter_by(username="test")
+            .first()
         )
         user_id = user.id
 
@@ -306,20 +317,23 @@ def test_google_attempt_delete_unowned_access_token(app, client,
             id=proxy_group_id,
             user_id=user_id,
         )
-        current_session.add(proxy_group)
+        db_session.add(proxy_group)
 
         # create a service account for A DIFFERENT CLIENT
-        client = Client(client_id="NOT_THIS_GUY", client_secret="a0987u23on192y")
+        client = Client(
+            client_id="NOT_THIS_GUY", client_secret="a0987u23on192y",
+            name="NOT_THIS_GUY",
+        )
         service_account = GoogleServiceAccount(
             google_unique_id="123456789",
             client_id="NOT_THIS_GUY",
             user_id=user_id,
             email=("NOT_THIS_GUY" + "-" + str(user_id) + "@test.com")
         )
-        current_session.add(user)
-        current_session.add(client)
-        current_session.add(service_account)
-        current_session.commit()
+        db_session.add(user)
+        db_session.add(client)
+        db_session.add(service_account)
+        db_session.commit()
 
         response = app_client.delete(path, data={})
 
@@ -336,9 +350,8 @@ def test_google_attempt_delete_unowned_access_token(app, client,
         assert response.status_code == 404
 
 
-def test_google_delete_invalid_access_token(app, client,
-                                            oauth_client,
-                                            cloud_manager):
+def test_google_delete_invalid_access_token(
+        app, client, oauth_client, cloud_manager, db_session):
     """
     Test ``DELETE /credentials/google``.
     """
@@ -372,14 +385,14 @@ def test_google_delete_invalid_access_token(app, client,
     with app.test_client() as app_client:
 
         # set global client context
-        g.client_id = client_id
+        flask.g.client_id = client_id
 
         # get test user info
         user = (
-            current_session
-                .query(User)
-                .filter_by(username="test")
-                .first()
+            db_session
+            .query(User)
+            .filter_by(username="test")
+            .first()
         )
         user_id = user.id
 
@@ -388,7 +401,7 @@ def test_google_delete_invalid_access_token(app, client,
             id=proxy_group_id,
             user_id=user_id,
         )
-        current_session.add(proxy_group)
+        db_session.add(proxy_group)
 
         # create a service account for client for user
         service_account = GoogleServiceAccount(
@@ -397,9 +410,9 @@ def test_google_delete_invalid_access_token(app, client,
             user_id=user_id,
             email=(client_id + "-" + str(user_id) + "@test.com")
         )
-        current_session.add(user)
-        current_session.add(service_account)
-        current_session.commit()
+        db_session.add(user)
+        db_session.add(service_account)
+        db_session.commit()
 
         response = app_client.delete(path, data={})
 
