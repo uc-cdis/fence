@@ -1,8 +1,19 @@
 # Fence
+> AuthN and AuthZ service used primarily in the Gen3 Data Commons Software Stack
 
 [![Build Status](https://travis-ci.org/uc-cdis/fence.svg?branch=master)](https://travis-ci.org/uc-cdis/fence)
 [![Codacy Quality Badge](https://api.codacy.com/project/badge/Grade/1cb2ec9cc64049488d140f44027c4422)](https://www.codacy.com/app/uc-cdis/fence?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=uc-cdis/fence&amp;utm_campaign=Badge_Grade)
 [![Codacy Coverage Badge](https://api.codacy.com/project/badge/Coverage/1cb2ec9cc64049488d140f44027c4422)](https://www.codacy.com/app/uc-cdis/fence?utm_source=github.com&utm_medium=referral&utm_content=uc-cdis/fence&utm_campaign=Badge_Coverage)
+
+A `fence` separates protected resources from the outside world and allows
+only trusted entities to enter.
+
+## API Documentation
+
+[OpenAPI documentation available here.](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/uc-cdis/fence/master/openapi/swagger.yaml)
+
+YAML file for the OpenAPI documentation is found in the `openapi` folder (in
+the root directory); see the README in that folder for more details.
 
 ## Setup
 
@@ -55,47 +66,99 @@ Using gdcapi for example:
 fence-create --path fence client-create --client gdcapi --urls http://localhost/api/v0/oauth2/authorize --username test
 ```
 That command should output a tuple of `(client_id, client_secret)` which must be
-saved so that gdcapi (for example) can be run as an OAuth client to use with
-fence.
+saved so that `gdcapi` (for example) can be run as an OAuth client to use with
+`fence`.
 
-## API Documentation
+## Authentication and Authorization
 
-[OpenAPI documentation available here.](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/uc-cdis/fence/master/openapi/swagger.yaml)
+We use JSON Web Tokens (JWTs) as the format for our authentication mechanism.
 
-YAML file for the OpenAPI documentation is found in the `openapi` folder (in
-the root directory); see the README in that folder for more details.
+### JWT Information
 
-## JWT
-
-Example JWT access token issued by fence:
+#### Example ID Token
 ```
 {
-    "aud": [
-        "user",
-        "access"
-    ],
-    "iat": 1510854627,
-    "exp": 1510858227,
-    "sub": "25",
-    "iss": "http://api.bloodpac-data.org",
-    "jti": "d132f979-6cba-4382-abe7-426d6d52bcfa",
-    "context": {
-        "user": {
-            "name": "test",
-            "projects": {
-                "testproject": [
-                    "read",
-                    "update",
-                    "create",
-                    "delete"
-                ],
-            }
-        }
+  "sub": "7",
+  "azp": "test-client",
+  "pur": "id",
+  "aud": [
+    "openid",
+    "user",
+    "test-client"
+  ],
+  "context": {
+    "user": {
+      "is_admin": false,
+      "name": "test",
+      "projects": {
+        "phs000178": [
+          "read",
+          "update",
+          "create",
+          "delete",
+          "read-storage"
+        ]
+      }
     }
+  },
+  "iss": "https://bionimbus-pdc.opensciencedatacloud.org",
+  "jti": "3ae2910b-0294-43dc-af2a-03fd60082aef",
+  "exp": 1516983302,
+  "iat": 1516982102,
+  "auth_time": 1516982102
 }
 ```
-(Refresh tokens should have just `["refresh"]` for the `aud` field, since a
- refresh token itself is not used for authentication with a service.)
+
+#### Example Access Token
+```
+{
+  "sub": "7",
+  "azp": "test-client",
+  "pur": "access",
+  "aud": [
+    "openid",
+    "user",
+    "test-client"
+  ],
+  "context": {
+    "user": {
+      "is_admin": false,
+      "name": "test",
+      "projects": {
+        "phs000178": [
+          "read",
+          "update",
+          "create",
+          "delete",
+          "read-storage"
+        ]
+      }
+    }
+  },
+  "iss": "https://bionimbus-pdc.opensciencedatacloud.org",
+  "jti": "2e6ade06-5afb-4ce7-9ab5-e206225ce291",
+  "exp": 1516983302,
+  "iat": 1516982102
+}
+```
+
+#### Example Refresh Token
+```
+{
+  "sub": "7",
+  "azp": "test-client",
+  "pur": "refresh",
+  "aud": [
+    "openid",
+    "user",
+    "test-client"
+  ],
+  "iss": "https://bionimbus-pdc.opensciencedatacloud.org",
+  "jti": "c72e5573-39fa-4391-a445-191e370b7cc5",
+  "exp": 1517010902,
+  "iat": 1516982102
+}
+```
 
 ### Keypair Configuration
 
@@ -117,7 +180,7 @@ by `openssl` for generating RSA keys):
 ... [key is here] ...
 -----END PUBLIC KEY-----
 ```
-If a key is not in this format, then PyJWT will raise errors about not being
+If a key is not in this format, then `PyJWT` will raise errors about not being
 able to read the key.
 
 The variable `JWT_KEYPAIR_FILES` in `fence/settings.py` should be set up as an
@@ -133,48 +196,52 @@ through OAuth.
 
 ## OIDC & OAuth2
 
-### OIDC
+Fence acts as a central broker that supports multiple Identity Providers (IDPs).
+It exposes AuthN and AuthZ for users by acting as an OIDC IDP itself.
+In that sense, `fence` is both a `client` and `OpenID Provider (OP)`.
 
-### OAuth2
-
-#### Example Flow: Fence as Client
+### Fence as Client
 
 Example:
 
-- Google IAM is the OP
+- Google IAM is the OpenID Provider (OP)
 - Fence is the client
 - Google Calendar API is the resource provider
 
-#### Example Flow: Fence as OP
+### Fence as OpenID Provider (OP)
 
 - Fence is the OP
 - A third-party application is the client
-- Our microservices (e.g. sheepdog) are resource providers
+- Our microservices (e.g. [`sheepdog`](https://github.com/uc-cdis/sheepdog)) are resource providers
+
+### Example Flows
+Note that the `3rd Party App` acts as the `client` in these examples.
+
+[//]: # (See /docs folder for README on how to regenerate these sequence diagrams)
+#### Flow: Client Registration
+![Client Registration](docs/client_registration.png)
+
+#### Flow: OpenID Connect
+![Client Registration](docs/openid_connect_flow.png)
 
 If the third-party application doesn't need to use any Gen3 resources (and just
-wants to verify the user), after the handshake is finished they can just get
-needed information in the ID token. If they want to use gen3 resources like
-fence/sheepdog/peregrine, they call those services with `access_token` passed in
-the header.
+wants to authenticate the user), after the handshake is finished they can just get
+needed information in the `ID token`.
+
+#### Flow: Using Tokens for Access
+If a third-party application want to use Gen3 resources like
+`fence`/`sheepdog`/`peregrine`, they call those services with an `Access Token`
+passed in an `Authorization` header.
+
+![Client Registration](docs/token_use_for_access.png)
+
+#### Flow: Refresh Token Use
+![Client Registration](docs/refresh_token_use.png)
+
+#### Flow: Refresh Token Use (Token is Expired)
+![Client Registration](docs/refresh_token_use_expired.png)
 
 #### Notes
 
-See the [OAuth2 specification](https://tools.ietf.org/html/rfc6749) for details.
-
-This implementation diverges slightly from the recommendations (but not
-requirements!) of the specification, primarily where flask-oauthlib diverges.
-
-- https://github.com/lepture/flask-oauthlib/issues/184
-
-## Notes for Development
-
-If a token contains audiences---as the ones issued by fence always
-will---`jwt.decode` should always contain an audience, because (as required by
-the specification) the validator of any given JWT must identify itself with at
-least one of the audiences in the claims of the token. Therefore, all uses of
-`jwt.decode` should look like this (where `access` indicates any access token):
-```python
-token = jwt.decode(
-    encoded_token, public_key, algorithm='RS256', audience='refresh'
-)
-```
+See the [OIDC specification](http://openid.net/specs/openid-connect-core-1_0.html) for more details.
+Additionally, see the [OAuth2 specification](https://tools.ietf.org/html/rfc6749).
