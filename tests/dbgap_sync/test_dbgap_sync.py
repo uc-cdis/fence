@@ -49,5 +49,8 @@ def test_sync_revoke(syncer, db_session):
 
     syncer.sync_to_db_and_storage_backend(phsids2, userinfo, s)
 
-    u = s.query(models.User).filter_by(username='userB').one()
-    assert u.project_access == {}
+    user = s.query(models.User).filter_by(username='userB').first()
+    assert (
+        s.query(models.AccessPrivilege).filter_by(user_id=user.id).count()
+        == 0
+    )
