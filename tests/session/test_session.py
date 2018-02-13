@@ -150,3 +150,19 @@ def test_session_cleared(app):
             assert session.get("username") != username
         client_cookies = [cookie.name for cookie in client.cookie_jar]
         assert SESSION_COOKIE_NAME not in client_cookies
+
+
+def test_invalid_session_cookie(app):
+    test_session_jwt = "garbage-string-to-represent-invalid-session-cookie"
+
+    # Test that once the session is started, we have access to
+    # the username
+    with app.test_client() as client:
+        # manually set cookie for initial session
+        client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
+        with client.session_transaction() as session:
+            # main test is that we haven't raised an exception by this point
+
+            # for utmost clarity, make sure that no username
+            # exists in the session yet
+            assert not session.get("username")

@@ -41,6 +41,7 @@ from fence.jwt.token import (
     generate_signed_session_token,
 )
 from fence.jwt.validate import validate_jwt
+from fence.jwt.validate import JWTError
 from fence.resources.storage.cdis_jwt import create_session_token
 
 
@@ -49,11 +50,16 @@ class UserSession(SessionMixin):
         self._encoded_token = session_token
 
         if session_token:
-            jwt_info = validate_jwt(
-                session_token,
-                public_key=default_public_key(),
-                aud={'fence'},
-            )
+            try:
+                jwt_info = validate_jwt(
+                    session_token,
+                    public_key=default_public_key(),
+                    aud={'fence'},
+                )
+            except JWTError:
+                # if session token is invalid, create a new
+                # empty one silently
+                jwt_info = self._get_initial_session_token()
         else:
             jwt_info = {'context': {}}
 
@@ -62,7 +68,7 @@ class UserSession(SessionMixin):
         self.modified = False
         super(UserSession, self).__init__()
 
-    def create_initial_token(self):
+    def _get_initial_session_token(self):
         keypair = current_app.keypairs[0]
         session_token = generate_signed_session_token(
             kid=keypair.kid,
@@ -70,12 +76,17 @@ class UserSession(SessionMixin):
             expires_in=current_app.config.get('SESSION_TIMEOUT').seconds,
         )
         self._encoded_token = session_token
-        self.session_token = validate_jwt(
+        initial_token = validate_jwt(
             session_token,
             aud={'fence'},
             purpose='session',
             public_key=default_public_key(),
         )
+        return initial_token
+
+    def create_initial_token(self):
+        initial_token = self._get_initial_session_token()
+        self.session_token = initial_token
 
     def get_updated_token(self, app):
         if self._encoded_token:
