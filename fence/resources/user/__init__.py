@@ -11,7 +11,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import COMMASPACE, formatdate
 from flask_sqlalchemy_session import current_session
-
+from fence.resources import userdatamodel as udm
 
 def update_user_resource(username, resource):
     with capp.db.session as session:
@@ -48,6 +48,11 @@ def get_current_user_info():
 
 def get_user_info(current_session, username):
     user = get_user(current_session, username)
+    if user.is_admin:
+        role = 'admin'
+    else:
+        role = 'user'
+    groups = udm.get_user_groups(current_session, username)['groups']
     info = {
         'user_id': user.id,
         'username': user.username,
@@ -55,7 +60,9 @@ def get_user_info(current_session, username):
         'project_access': dict(user.project_access),
         'certificates_uploaded': [],
         'email': user.email,
-        'message': ''
+        'message': '',
+        'role': role,
+        'groups': groups
     }
     if user.application:
         info['resources_granted'] = user.application.resources_granted
@@ -95,3 +102,5 @@ def get_user_accesses():
         raise InternalError("Error: %s user does not exist in user-data-model" % g.user.username)
     return user
 
+def get_user_groups(current_session, username):
+    return udm.get_user_groups(current_session, username)

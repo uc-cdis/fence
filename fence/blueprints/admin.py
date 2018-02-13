@@ -59,7 +59,22 @@ def create_user():
     """
     username = request.get_json().get('name',None)
     role = request.get_json().get('role',None)
-    return jsonify(adm.create_user(current_session,username, role))
+    email = request.get_json().get('email',None)
+    return jsonify(adm.create_user(current_session,username, role, email))
+
+
+@blueprint.route('/user/<username>', methods=['PUT'])
+@login_required({'admin'})
+@admin_required
+def update_user(username):
+    """
+    Create a user on the userdatamodel database
+    Returns a json object
+    """
+    role = request.get_json().get('role',None)
+    email = request.get_json().get('email',None)
+    return jsonify(adm.update_user(current_session, username, role, email))
+
 
 @blueprint.route('/user/<username>', methods=['DELETE'])
 @login_required({'admin'})
@@ -327,7 +342,6 @@ def add_projects_to_group(groupname):
     """
     projects = request.get_json().get('projects', [])
     return jsonify(adm.add_projects_to_group(current_session,groupname, projects))
-
 
 
 
