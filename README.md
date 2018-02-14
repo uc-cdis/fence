@@ -11,7 +11,7 @@ only trusted entities to enter.
 Fence is an authentication (AuthN) and authorization (AuthZ) service used
 primarily by the Gen3 Data Commons Software Stack.
 
-It utilizes OpenID Connect flow (an extention of OAuth2)
+It utilizes OpenID Connect flow (an extension of OAuth2)
 to generate tokens for clients. It can also provide tokens directly
 to a user.
 
