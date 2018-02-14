@@ -1,6 +1,8 @@
 from collections import OrderedDict
 import os
 
+from authlib.specs.rfc6749.errors import OAuth2Error
+from authutils.oauth2.client import OAuthClient
 import flask
 from flask.ext.cors import CORS
 from flask_sqlalchemy_session import flask_scoped_session
@@ -12,7 +14,7 @@ from fence.jwt import keys
 from fence.models import migrate
 from fence.oidc.server import server
 from fence.resources.aws.boto_manager import BotoManager
-from fence.resources.openid.google_oauth2 import Oauth2Client
+from fence.resources.openid.google_oauth2 import Oauth2Client as GoogleClient
 from fence.resources.storage import StorageManager
 from fence.resources.user.user_session import UserSessionInterface
 from fence.utils import random_str
@@ -85,12 +87,26 @@ def app_sessions(app):
         app.config['STORAGE_CREDENTIALS'],
         logger=app.logger
     )
-    if ('OPENID_CONNECT' in app.config and 'google' in app.config['OPENID_CONNECT']):
-        app.google_client = Oauth2Client(
+    # Add OIDC client for Google if configured.
+    configured_google = (
+        'OPENID_CONNECT' in app.config
+        and 'google' in app.config['OPENID_CONNECT']
+    )
+    if configured_google:
+        app.google_client = GoogleClient(
             app.config['OPENID_CONNECT']['google'],
             HTTP_PROXY=app.config.get('HTTP_PROXY'),
             logger=app.logger
         )
+    # Add OIDC client for multi-tenant fence if configured.
+    configured_fence = (
+        'OPENID_CONNECT' in app.config
+        and 'fence' in app.config['OPENID_CONNECT']
+        and 'fence' in fence.settings.ENABLED_IDENTITY_PROVIDERS
+    )
+    if configured_fence:
+        app.fence_client = OAuthClient(**app.config['OPENID_CONNECT']['fence'])
+        # TODO
 
     app.session_interface = UserSessionInterface()
 
@@ -166,6 +182,8 @@ def user_error(error):
             return flask.jsonify(**error.json), error.code
         else:
             return flask.jsonify(message=error.message), error.code
+    elif isinstance(error, OAuth2Error):
+        return flask.jsonify(error.get_body()), error.status_code
     else:
         app.logger.exception("Catch exception")
         return flask.jsonify(error=error.message), 500

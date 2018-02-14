@@ -27,6 +27,7 @@ class InternalError(APIError):
 
 
 class Unauthorized(APIError):
+
     def __init__(self, message):
         self.message = str(message)
         self.code = 401

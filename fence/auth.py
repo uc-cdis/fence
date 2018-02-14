@@ -1,6 +1,6 @@
 from functools import wraps
 
-from authutils.errors import JWTError
+from authutils.errors import JWTError, JWTExpiredError
 import flask
 from flask_sqlalchemy_session import current_session
 

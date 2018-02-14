@@ -182,6 +182,9 @@ class Mocker(object):
 @mock_s3
 @mock_sts
 def app():
+    """
+    Flask application fixture.
+    """
     mocker = Mocker()
     mocker.mock_functions()
     root_dir = os.path.dirname(os.path.realpath(__file__))
@@ -316,7 +319,7 @@ def patch_app_db_session(app, monkeypatch):
 
 
 @pytest.fixture(scope='function')
-def oauth_client(app, request, db_session, oauth_user):
+def oauth_client(app, db_session, oauth_user):
     """
     Create a confidential OAuth2 client and add it to the database along with a
     test user for the client.
