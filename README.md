@@ -21,8 +21,8 @@ Gen3 Data Commons services to access protected endpoints that require specific p
 Fence can be configured to support different Identity Providers (IDPs) for AuthN.
 At the moment, supported IDPs are:
 - Google
-- NIH iTrust
 - Shibboleth
+  - NIH iTrust
 
 ## API Documentation
 
