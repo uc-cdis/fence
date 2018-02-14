@@ -1,5 +1,5 @@
 # Fence
-> AuthN and AuthZ service used primarily in the Gen3 Data Commons Software Stack
+> AuthN and AuthZ service
 
 [![Build Status](https://travis-ci.org/uc-cdis/fence.svg?branch=master)](https://travis-ci.org/uc-cdis/fence)
 [![Codacy Quality Badge](https://api.codacy.com/project/badge/Grade/1cb2ec9cc64049488d140f44027c4422)](https://www.codacy.com/app/uc-cdis/fence?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=uc-cdis/fence&amp;utm_campaign=Badge_Grade)
@@ -7,6 +7,22 @@
 
 A `fence` separates protected resources from the outside world and allows
 only trusted entities to enter.
+
+Fence is an authentication (AuthN) and authorization (AuthZ) service used
+primarily by the Gen3 Data Commons Software Stack.
+
+It utilizes OpenID Connect flow (an extension of OAuth2)
+to generate tokens for clients. It can also provide tokens directly
+to a user.
+
+Clients and users may then use those tokens with other
+Gen3 Data Commons services to access protected endpoints that require specific permissions.
+
+Fence can be configured to support different Identity Providers (IDPs) for AuthN.
+At the moment, supported IDPs are:
+- Google
+- Shibboleth
+  - NIH iTrust
 
 ## API Documentation
 
@@ -215,31 +231,45 @@ Example:
 - Our microservices (e.g. [`sheepdog`](https://github.com/uc-cdis/sheepdog)) are resource providers
 
 ### Example Flows
+
 Note that the `3rd Party App` acts as the `client` in these examples.
 
 [//]: # (See /docs folder for README on how to regenerate these sequence diagrams)
+
 #### Flow: Client Registration
+
 ![Client Registration](docs/client_registration.png)
 
 #### Flow: OpenID Connect
-![Client Registration](docs/openid_connect_flow.png)
+
+![OIDC Flow](docs/openid_connect_flow.png)
 
 If the third-party application doesn't need to use any Gen3 resources (and just
 wants to authenticate the user), after the handshake is finished they can just get
 needed information in the `ID token`.
 
 #### Flow: Using Tokens for Access
+
 If a third-party application want to use Gen3 resources like
 `fence`/`sheepdog`/`peregrine`, they call those services with an `Access Token`
 passed in an `Authorization` header.
 
-![Client Registration](docs/token_use_for_access.png)
+![Using Access Token](docs/token_use_for_access.png)
 
 #### Flow: Refresh Token Use
-![Client Registration](docs/refresh_token_use.png)
+
+![Using Refresh Token](docs/refresh_token_use.png)
 
 #### Flow: Refresh Token Use (Token is Expired)
-![Client Registration](docs/refresh_token_use_expired.png)
+
+![Using Expired Refresh Token](docs/refresh_token_use_expired.png)
+
+#### Flow: Multi-Tenant Fence
+
+The following diagram illustrates the case in which one fence instance should
+use another fence instance as its identity provider.
+
+![Multi-Tenant Flow](docs/multi-tenant_flow.png)
 
 #### Notes
 

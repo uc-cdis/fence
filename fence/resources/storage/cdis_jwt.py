@@ -52,11 +52,9 @@ def create_api_key(user, keypair, expires_in, scopes, client_id):
 
 
 def create_session_token(
-        keypair, expires_in, username=None, session_started=None,
-        provider=None, redirect=None):
+        keypair, expires_in, context=None):
     return token.generate_signed_session_token(
-        keypair.kid, keypair.private_key, expires_in, username,
-        session_started, provider, redirect
+        keypair.kid, keypair.private_key, expires_in, context
     )
 
 

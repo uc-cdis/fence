@@ -24,7 +24,7 @@ from userdatamodel import Base
 from userdatamodel.models import (
     AccessPrivilege, Application, AuthorizationProvider, Bucket, Certificate,
     CloudProvider, ComputeAccess, HMACKeyPair, HMACKeyPairArchive,
-    IdentityProvider, Project, ProjectToBucket, ResearchGroup, S3Credential,
+    IdentityProvider, Project, ProjectToBucket, Group, S3Credential,
     StorageAccess, User, UserToBucket
 )
 
@@ -110,6 +110,9 @@ class Client(Base, OAuth2ClientMixin):
     def validate_scopes(self, scopes):
         scopes = scopes[0].split(',')
         return all(scope in self._scopes for scope in scopes)
+
+    def check_redirect_uri(self, redirect_uri):
+        return redirect_uri in self.redirect_uris
 
 
 class AuthorizationCode(Base, OAuth2AuthorizationCodeMixin):

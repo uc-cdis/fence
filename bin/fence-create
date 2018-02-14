@@ -10,7 +10,7 @@ from userdatamodel.models import (
     CloudProvider,
     IdentityProvider,
     Project,
-    ResearchGroup,
+    Group,
     StorageAccess,
     User,
     Bucket,
@@ -82,9 +82,9 @@ def create_sample_data(yaml_input):
 def create_group(s, data):
         for group_name, fields in data['groups'].iteritems():
             projects = fields.get('projects', [])
-            group = s.query(ResearchGroup).filter(ResearchGroup.name == group_name).first()
+            group = s.query(Group).filter(Group.name == group_name).first()
             if not group:
-                group = ResearchGroup(name=group_name)
+                group = Group(name=group_name)
             for project_data in projects:
                 grant_project_to_group_or_user(s, project_data, group)
 
@@ -144,7 +144,7 @@ def grant_project_to_group_or_user(s, project_data, group=None, user=None):
     if group:
         ap = s.query(AccessPrivilege).join(AccessPrivilege.project)\
             .join(AccessPrivilege.research_group)\
-            .filter(Project.name == project.name, ResearchGroup.name == group.name).first()
+            .filter(Project.name == project.name, Group.name == group.name).first()
         name = group.name
     elif user:
         ap = s.query(AccessPrivilege).join(AccessPrivilege.project)\
@@ -216,13 +216,13 @@ def create_users_with_group(s, data):
 
 
 def assign_group_to_user(s, user, group_name, group_data):
-    group = s.query(ResearchGroup).filter(ResearchGroup.name == group_name).first()
+    group = s.query(Group).filter(Group.name == group_name).first()
     if not group:
-        group = ResearchGroup(name=group_name)
+        group = Group(name=group_name)
         s.add(group)
-        user.research_groups.append(group)
-    if group not in user.research_groups:
-        user.research_groups.append(group)
+        user.groups.append(group)
+    if group not in user.groups:
+        user.groups.append(group)
 
 
 if __name__ == '__main__':

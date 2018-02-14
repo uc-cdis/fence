@@ -27,4 +27,4 @@ def test_reconstruct_keys_dict(app, client):
     """
     response = client.get('/jwt/keys')
     public_keys_dict = OrderedDict(response.json['keys'])
-    assert public_keys_dict == app.jwt_public_keys
+    assert public_keys_dict == app.jwt_public_keys[app.config['BASE_URL']]
