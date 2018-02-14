@@ -1,5 +1,5 @@
 # Fence
-> AuthN and AuthZ service used primarily in the Gen3 Data Commons Software Stack
+> AuthN and AuthZ service
 
 [![Build Status](https://travis-ci.org/uc-cdis/fence.svg?branch=master)](https://travis-ci.org/uc-cdis/fence)
 [![Codacy Quality Badge](https://api.codacy.com/project/badge/Grade/1cb2ec9cc64049488d140f44027c4422)](https://www.codacy.com/app/uc-cdis/fence?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=uc-cdis/fence&amp;utm_campaign=Badge_Grade)
@@ -7,6 +7,22 @@
 
 A `fence` separates protected resources from the outside world and allows
 only trusted entities to enter.
+
+Fence is an authentication (AuthN) and authorization (AuthZ) service used
+primarily by the Gen3 Data Commons Software Stack.
+
+It utilizes OpenID Connect flow (an extention of OAuth2)
+to generate tokens for clients. It can also provide tokens directly
+to a user.
+
+Clients and users may then use those tokens with other
+Gen3 Data Commons services to access protected endpoints that require specific permissions.
+
+Fence can be configured to support different Identity Providers (IDPs) for AuthN.
+At the moment, supported IDPs are:
+- Google
+- NIH iTrust
+- Shibboleth
 
 ## API Documentation
 
