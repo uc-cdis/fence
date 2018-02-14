@@ -269,13 +269,13 @@ def list_buckets_from_project(projectname):
 @blueprint.route('/groups/<groupname>', methods=['GET'])
 @login_required({'admin'})
 @admin_required
-def get_group(groupname):
+def get_group_info(groupname):
     """
     Retrieve the information regarding the
     buckets created within a project.
     Returns a json object.
     """
-    return jsonify(adm.get_group(current_session, groupname))
+    return jsonify(adm.get_group_info(current_session, groupname))
 
 
 @blueprint.route('/groups', methods=['GET'])
@@ -320,6 +320,20 @@ def create_group():
         response = {'result': 'group creation failed'}
     return jsonify(response)
 
+
+@blueprint.route('/groups/<groupname>', methods=['PUT'])
+@login_required({'admin'})
+@admin_required
+def update_group(groupname):
+    """
+    Retrieve the information regarding the
+    buckets created within a project.
+    Returns a json object.
+    """
+    description = request.get_json().get('description')
+    return jsonify(adm.update_group(current_session, groupname, description))
+
+ 
 
 @blueprint.route('/groups/<groupname>', methods=['DELETE'])
 @login_required({'admin'})

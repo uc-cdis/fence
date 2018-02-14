@@ -3,6 +3,14 @@ from fence.resources import userdatamodel as udm
 def get_group(current_session, groupname):
     return udm.get_group(current_session, groupname)
 
+def get_group_info(current_session, groupname):
+    group = get_group(current_session, groupname)
+    if not group:
+        raise UserError("Error: group doesn' exist")
+    else:
+        projects = get_group_projects(current_session, groupname)
+        return {"name": group.name, "description": group.description, "projects": projects}
+
 def clear_users_in_group(current_session, groupname):
     return udm.clear_users_in_group(current_session, groupname)
 
@@ -24,4 +32,7 @@ def get_all_groups(current_session):
 def get_group_projects(current_session, groupname):
     return udm.get_group_projects(current_session, groupname)
 
+def update_group(current_session, groupname, description):
+    group = get_group(current_session, groupname)
+    group.description = description
     

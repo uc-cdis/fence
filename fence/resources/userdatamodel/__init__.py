@@ -548,3 +548,7 @@ def get_group_projects(current_session, groupname):
         if new_project:
             projects.append(new_project.name)
     return projects
+
+
+def update_group(current_session, groupname, description):
+    pass
