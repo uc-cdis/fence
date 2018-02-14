@@ -75,7 +75,6 @@ def authorize(*args, **kwargs):
         login_url = add_params_to_uri(
             flask.current_app.config.get('DEFAULT_LOGIN_URL'), params
         )
-        import pdb; pdb.set_trace()
         return flask.redirect(login_url)
 
     try:

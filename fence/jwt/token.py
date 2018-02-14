@@ -162,8 +162,7 @@ def issued_and_expiration_times(seconds_to_expire):
 
 
 def generate_signed_session_token(
-        kid, private_key, expires_in, username=None, session_started=None,
-        provider=None, redirect=None):
+        kid, private_key, expires_in, context=None):
     """
     Generate a JWT session token from the given request, and output a UTF-8
     string of the encoded JWT signed with the private key.
@@ -183,20 +182,15 @@ def generate_signed_session_token(
     issuer = flask.current_app.config.get('BASE_URL')
 
     # Create context based on provided information
-    context = {
-        'session_started': session_started or iat,  # Provided or issued time
-    }
-    if username:
-        context["username"] = username
-    if provider:
-        context["provider"] = provider
-    if redirect:
-        context["redirect"] = redirect
+    if not context:
+        context = {}
+    if 'session_started' not in context:
+        context['session_started'] = iat
 
     claims = {
         'pur': 'session',
         'aud': ['fence'],
-        'sub': username or '',
+        'sub': context.get('username', ''),
         'iss': issuer,
         'iat': iat,
         'exp': exp,
@@ -416,6 +410,13 @@ def generate_id_token(
     auth_time = auth_time or iat
 
     claims = {
+        'context': {
+            'user': {
+                'name': user.username,
+                'is_admin': user.is_admin,
+                'projects': dict(user.project_access),
+            },
+        },
         'pur': 'id',
         'aud': audiences,
         'sub': str(user.id),

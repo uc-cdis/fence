@@ -33,7 +33,9 @@ def validate_purpose(claims, pur):
         )
 
 
-def validate_jwt(encoded_token=None, aud=None, purpose=None, public_key=None):
+def validate_jwt(
+        encoded_token=None, aud=None, purpose=None, public_key=None,
+        attempt_refresh=False, **kwargs):
     """
     Validate a JWT and return the claims.
 
@@ -73,23 +75,34 @@ def validate_jwt(encoded_token=None, aud=None, purpose=None, public_key=None):
     aud = aud or {'openid'}
     aud = set(aud)
     iss = flask.current_app.config['BASE_URL']
+    issuers = [iss]
+    oidc_iss = flask.current_app.config.get('OIDC_ISSUER')
+    if oidc_iss:
+        issuers.append(oidc_iss)
     try:
-        token_headers = jwt.get_unverified_header(encoded_token)
-    except jwt.exceptions.InvalidTokenError as e:
-        raise JWTError('Invalid token : {}'.format(str(e)))
-    public_key = authutils.token.keys.get_public_key_for_kid(
-        token_headers.get('kid'), attempt_refresh=False
+        token_iss = jwt.decode(encoded_token, verify=False).get('iss')
+    except jwt.InvalidTokenError as e:
+        raise JWTError(e.message)
+    attempt_refresh = token_iss != iss
+    public_key = authutils.token.keys.get_public_key_for_token(
+        encoded_token, attempt_refresh=attempt_refresh
     )
     try:
         claims = authutils.token.validate.validate_jwt(
             encoded_token=encoded_token,
             aud=aud,
             purpose=purpose,
-            iss=iss,
+            issuers=issuers,
             public_key=public_key,
+            attempt_refresh=attempt_refresh,
+            **kwargs
         )
     except authutils.errors.JWTError as e:
-        raise JWTError('Invalid token : {}'.format(str(e)))
+        msg = 'Invalid token : {}'.format(str(e))
+        unverified_claims = jwt.decode(claims, verify=False)
+        if '' in unverified_claims['aud']:
+            msg += '; was OIDC client configured with scopes?'
+        raise JWTError(msg)
     if purpose:
         validate_purpose(claims, purpose)
     if 'pur' not in claims:

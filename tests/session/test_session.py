@@ -13,17 +13,24 @@ except ImportError:
     from mock import call
 
 
-def test_session_cookie_creation_unecessary(app):
-    # Test that when we don't modify the session at all,
-    # we don't save it in a JWT
+def test_session_cookie_creation(app):
+    # Test that when we don't modify the session, a
+    # session cookie still gets created
     with app.test_client() as client:
         with client.session_transaction():
             pass
+
         client_cookies = [cookie.name for cookie in client.cookie_jar]
-        assert SESSION_COOKIE_NAME not in client_cookies
+        assert SESSION_COOKIE_NAME in client_cookies
+        session_cookie = [
+            cookie
+            for cookie in client.cookie_jar
+            if cookie.name == SESSION_COOKIE_NAME
+        ]
+        assert len(session_cookie) == 1
 
 
-def test_session_cookie_creation(app):
+def test_session_cookie_creation_session_modified(app):
     # Test that when no session cookie exists, we create one that
     # doesn't have anything in it
     with app.test_client() as client:
@@ -32,7 +39,11 @@ def test_session_cookie_creation(app):
 
         client_cookies = [cookie.name for cookie in client.cookie_jar]
         assert SESSION_COOKIE_NAME in client_cookies
-        session_cookie = [cookie for cookie in client.cookie_jar if cookie.name == SESSION_COOKIE_NAME]
+        session_cookie = [
+            cookie
+            for cookie in client.cookie_jar
+            if cookie.name == SESSION_COOKIE_NAME
+        ]
         assert len(session_cookie) == 1
         assert session_cookie[0].value  # Make sure it's not empty
 
@@ -43,7 +54,7 @@ def test_valid_session(app):
     test_session_jwt = create_session_token(
         app.keypairs[0],
         app.config.get("SESSION_TIMEOUT").seconds,
-        username=username
+        context={'username': username},
     )
 
     # Test that once the session is started, we have access to
@@ -62,7 +73,7 @@ def test_valid_session_modified(app):
     test_session_jwt = create_session_token(
         app.keypairs[0],
         app.config.get("SESSION_TIMEOUT").seconds,
-        username=username
+        context={'username': username},
     )
 
     # Test that once the session is started, we have access to
@@ -89,8 +100,8 @@ def test_expired_session_lifetime(app):
     test_session_jwt = create_session_token(
         app.keypairs[0],
         app.config.get("SESSION_TIMEOUT").seconds,
-        session_started=one_lifetime_ago,
-        username=username
+        context=dict(session_started=one_lifetime_ago,
+                     username=username)
     )
 
     with app.test_client() as client:
@@ -117,8 +128,8 @@ def test_expired_session_timeout(app):
     test_session_jwt = create_session_token(
         app.keypairs[0],
         jwt_expiration,
-        session_started=last_active,
-        username=username
+        context=dict(session_started=last_active,
+                     username=username)
     )
 
     with app.test_client() as client:
@@ -136,7 +147,7 @@ def test_session_cleared(app):
     test_session_jwt = create_session_token(
         app.keypairs[0],
         app.config.get("SESSION_TIMEOUT").seconds,
-        username=username
+        context=dict(username=username)
     )
 
     # Test that once the session is started, we have access to

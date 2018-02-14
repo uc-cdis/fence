@@ -1,11 +1,14 @@
+from datetime import datetime, timedelta
 import os
-import tests
+import urlparse
 import uuid
-import tests.utils.oauth2
+
+from flask import current_app as capp
+
 from fence.models import User, Project, AccessPrivilege
 
-from datetime import datetime, timedelta
-from flask import current_app as capp
+import tests
+import tests.utils.oauth2
 
 
 def read_file(filename):
@@ -198,3 +201,10 @@ class FakeFlaskRequest(object):
         self.method = method
         self.args = args
         self.form = form
+
+
+def remove_qs(url):
+    """
+    Remove the query string from a url.
+    """
+    return urlparse.urljoin(url, urlparse.urlparse(url).path)

@@ -24,13 +24,25 @@ blueprint_api = Api(blueprint)
 enabled_idps = fence.settings.ENABLED_IDENTITY_PROVIDERS
 
 if 'fence' in enabled_idps:
-    blueprint_api.add_resource(FenceRedirect, '/fence')
-    blueprint_api.add_resource(FenceLogin, '/fence/login')
+    blueprint_api.add_resource(
+        FenceRedirect, '/fence', strict_slashes=False
+    )
+    blueprint_api.add_resource(
+        FenceLogin, '/fence/login', strict_slashes=False
+    )
 
 if 'google' in enabled_idps:
-    blueprint_api.add_resource(GoogleRedirect, '/google')
-    blueprint_api.add_resource(GoogleLogin, '/google/login')
+    blueprint_api.add_resource(
+        GoogleRedirect, '/google', strict_slashes=False
+    )
+    blueprint_api.add_resource(
+        GoogleLogin, '/google/login', strict_slashes=False
+    )
 
 if 'shibboleth' in enabled_idps:
-    blueprint_api.add_resource(ShibbolethLoginStart, '/shib')
-    blueprint_api.add_resource(ShibbolethLoginFinish, '/shib/login')
+    blueprint_api.add_resource(
+        ShibbolethLoginStart, '/shib', strict_slashes=False
+    )
+    blueprint_api.add_resource(
+        ShibbolethLoginFinish, '/shib/login', strict_slashes=False
+    )
