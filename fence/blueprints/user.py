@@ -27,6 +27,14 @@ def user_info():
 @blueprint.route('/anyaccess', methods=['GET'])
 @login_required({'user'})
 def any_access():
+    """
+    Check if the user is in our database
+
+    :note if a user is specified with empty access it still counts 
+
+    :query project: (optional) Check for read access to a specific program/project
+
+    """
     project = flask.request.args.get('project')
     projects = None
     if flask.g.token is None:
