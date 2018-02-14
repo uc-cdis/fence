@@ -204,11 +204,11 @@ def list_buckets_on_project(current_session, project_name):
     return pj.list_buckets_on_project(current_session, project_name)
 
 
-def create_group(current_session, groupname):
+def create_group(current_session, groupname, description):
     """
     Creates a group and returns it
     """
-    return gp.create_group(current_session, groupname)
+    return gp.create_group(current_session, groupname, description)
 
 def delete_group(current_session, groupname):
     """
@@ -228,7 +228,7 @@ def get_group(current_session, groupname):
     if not group:
         raise UserError("Error: group doesn' exist")
     else:
-        return {"name": group.name}
+        return {"name": group.name, "description": group.description}
 
 def get_all_groups(current_session):
     groups = gp.get_all_groups(current_session)
@@ -258,15 +258,23 @@ def get_all_users(current_session):
         users_names.append(new_user)
     return {"users": users_names}
 
-def connect_user_to_group(current_session, usr, group=None):
-    grp = gp.get_group(current_session, group)
+def connect_user_to_group(current_session, usr, groupname=None):
+    grp = gp.get_group(current_session, groupname)
     if not grp:
         raise UserError(("Group {0} doesn't exist".format(group)))
     else:
-        return udm.connect_user_to_group(current_session, usr, grp)
+        responses = []
+        responses.append(udm.connect_user_to_group(current_session, usr, grp))
+        projects = gp.get_group_projects(current_session, groupname)
+        projects_data = [ pj.get_project(current_session, project).auth_id for project in projects]
+        projects_list = [{"auth_id": auth_id, "privilege": ["read"]} for auth_id in projects_data]
+        for project in projects_list:
+            connect_user_to_project(current_session, usr, project)
+        return responses
+            
 
 def add_user_to_groups(current_session, username, groups=[]):
-    usr = us.get_user(curent_session, username)
+    usr = us.get_user(current_session, username)
     responses = []
     for groupname in groups:
         try:
@@ -303,17 +311,24 @@ def connect_project_to_group(current_session, grp, project=None):
         raise UserError(("Project {0} doesn't exist".format(project)))
     else:
         return udm.connect_project_to_group(current_session, grp, prj)
+    
+
+def update_group_users_projects(current_session, group, project, users):
+    for user in users:
+        pass
 
 def add_projects_to_group(current_session, groupname, projects=[]):
     grp = gp.get_group(current_session, groupname)
+    usrs = gp.get_group_users(current_session, groupname)
     if not grp:
         raise UserError ("Error: group does not exist")
     else:
         responses = []
         for proj in projects:
             try:
-                response = connect_project_to_group(grp, proj)
+                response = connect_project_to_group(current_session, grp, proj)
                 responses.append(response)
+                update_group_users_projects(current_session, grp, proj, usrs)
             except Exception as e:
                 current_session.rollback()
                 raise e
@@ -384,3 +399,6 @@ def delete_provider_by_name(current_session, provider_name):
     Returns a dictionary.
     """
     return udm.delete_provider(current_session, provider_name)
+
+def get_group_projects(current_session, groupname):
+    return gp.get_group_projects(current_session, groupname)

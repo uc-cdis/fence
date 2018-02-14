@@ -402,7 +402,7 @@ def get_buckets_by_project_cloud_provider(current_session, project_id, provider_
             response['buckets'].append(buck)
     return response
 
-def create_group(current_session, groupname):
+def create_group(current_session, groupname, description):
     group = current_session.query(Group).filter(
         Group.name == groupname).first()
     if group:
@@ -410,6 +410,7 @@ def create_group(current_session, groupname):
     else:
         group = Group()
         group.name = groupname
+        group.description = description
         current_session.add(group)
         current_session.flush()
         return {'result': "success"}
@@ -522,7 +523,7 @@ def get_all_groups(current_session):
     return current_session.query(Group).all()
 
 def get_group_users(current_session, groupname):
-    group = get_group(groupname)
+    group = get_group(current_session, groupname)
     user_to_groups = current_session.query(UserToGroup).filter(
         UserToGroup.group_id == group.id).all()
     users = []
@@ -537,7 +538,7 @@ def get_all_users(current_session):
     return current_session.query(User).all()
 
 def get_group_projects(current_session, groupname):
-    group = get_group(groupname)
+    group = get_group(current_session, groupname)
     projects_to_group = current_session.query(AccessPrivilege).filter(
         AccessPrivilege.group_id == group.id).all()
     projects = []
@@ -545,5 +546,5 @@ def get_group_projects(current_session, groupname):
         new_project = current_session.query(Project).filter(
             Project.id == project.project_id).first()
         if new_project:
-            projects.append(new_project)
-    return users
+            projects.append(new_project.name)
+    return projects

@@ -312,7 +312,8 @@ def create_group():
     Returns a json object.
     """
     groupname = request.get_json().get('name')
-    grp = adm.create_group(current_session, groupname)
+    description = request.get_json().get('description')
+    grp = adm.create_group(current_session, groupname, description)
     if grp:
         response = {'result': 'group creation successful'}
     else:
@@ -342,6 +343,17 @@ def add_projects_to_group(groupname):
     """
     projects = request.get_json().get('projects', [])
     return jsonify(adm.add_projects_to_group(current_session,groupname, projects))
+
+@blueprint.route('/groups/<groupname>/projects', methods=['GET'])
+@login_required({'admin'})
+@admin_required
+def get_group_projects(groupname):
+    """
+    Create a user to group relationship in the database
+    Returns a json object
+    """
+    values = adm.get_group_projects(current_session,groupname)
+    return jsonify({"projects": values })
 
 
 
