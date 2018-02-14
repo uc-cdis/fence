@@ -9,3 +9,5 @@ ready to be converted to a json.
 
 from admin_groups import *
 from admin_users import *
+from admin_providers import *
+from admin_projects import *
