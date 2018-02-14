@@ -27,8 +27,33 @@ def user_info():
 @blueprint.route('/anyaccess', methods=['GET'])
 @login_required({'user'})
 def any_access():
-    flask.g.user = current_session.merge(flask.g.user)
-    if len(flask.g.user.project_access) > 0:
+    """
+    Check if the user is in our database
+
+    :note if a user is specified with empty access it still counts 
+
+    :query project: (optional) Check for read access to a specific program/project
+
+    """
+    project = flask.request.args.get('project')
+    projects = None
+    if flask.g.token is None:
+        flask.g.user = current_session.merge(flask.g.user)
+        projects = flask.g.user.project_access
+    else:
+        projects = flask.g.token['context']['user']['projects']
+    
+    success = False
+
+    if not project and len(projects) > 0:
+        success = True
+    elif project and project in projects:
+        access = projects[project]
+        if 'read' in access:
+            success = True
+        
+
+    if success:
         resp = flask.make_response(flask.jsonify({'result': 'success'}), 200)
         resp.headers['REMOTE_USER'] = flask.g.user.username
         return resp
