@@ -160,6 +160,13 @@ def get_project_info(current_session, project_name):
     return info
 
 
+def get_all_projects(current_session):
+    projects = current_session.query(Project).all()
+    projects_info = []
+    for project in projects:
+        projects_info.append(get_project_info(current_session, project.name))
+    return {"projects": projects_info}
+
 def delete_project(current_session, project_name):
     """
     Delete the project from the database

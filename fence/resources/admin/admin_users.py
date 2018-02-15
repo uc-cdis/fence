@@ -130,5 +130,53 @@ def delete_user(current_session, username):
         return {"result": "success"}
 
 
-def get_group_projects(current_session, groupname):
-    return gp.get_group_projects(current_session, groupname)
+def add_user_to_groups(current_session, username, groups=[]):
+    usr = us.get_user(current_session, username)
+    responses = []
+    for groupname in groups:
+        try:
+            response = connect_user_to_group(current_session, usr, groupname)
+            responses.append(response)
+        except Exception as e:
+            current_session.rollback()
+            raise e
+    return {"result": responses}
+
+
+def connect_user_to_group(current_session, usr, groupname=None):
+    grp = gp.get_group(current_session, groupname)
+    if not grp:
+        raise UserError(("Group {0} doesn't exist".format(group)))
+    else:
+        responses = []
+        responses.append(udm.connect_user_to_group(current_session, usr, grp))
+        projects = gp.get_group_projects(current_session, groupname)
+        projects_data = [ pj.get_project(current_session, project).auth_id for project in projects]
+        projects_list = [{"auth_id": auth_id, "privilege": ["read"]} for auth_id in projects_data]
+        for project in projects_list:
+            connect_user_to_project(current_session, usr, project)
+        return responses
+
+
+def remove_user_from_groups(current_session, username, groups=[]):
+    usr = us.get_user(current_session, username)
+    responses = []
+    for groupname in groups:
+        try:
+            response = disconnect_user_from_group(current_session, usr, groupname)
+            responses.append(response)
+        except Exception as e:
+            current_session.rollback()
+            raise e
+    return {"result": responses}
+
+
+def disconnect_user_from_group(current_session, usr, groupname):
+    grp = gp.get_group(current_session, groupname)
+    if not grp:
+        return {"warning": ("Group {0} doesn't exist".format(group))}
+    else:
+        response = udm.remove_user_from_group(current_session, usr, grp)
+        projects = gp.get_group_projects(current_session, groupname)
+        projects_data = [ pj.get_project(current_session, project).auth_id for project in projects]
+        return response

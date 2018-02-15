@@ -127,13 +127,13 @@ def remove_user_from_groups(username):
 @blueprint.route('/user/<username>/projects', methods=['DELETE'])
 @login_required({'admin'})
 @admin_required
-def remove_user_from_projects(projectname):
+def remove_user_from_projects(username):
     """
     Create a user to group relationship in the database
     Returns a json object
     """
-    groups = request.get_json().get('groups', [])
-    return jsonify(adm.remove_user_from_projects(current_session, username, groups=groups))
+    projects = request.get_json().get('projects', [])
+    return jsonify(adm.remove_user_from_projects(current_session, username, projects))
 
 
 @blueprint.route('/user/<username>/projects', methods=['PUT'])
@@ -162,6 +162,18 @@ def get_project(projectname):
     Returns a json object
     """
     return jsonify(adm.get_project_info(current_session, projectname))
+
+
+@blueprint.route('/projects', methods=['GET'])
+@login_required({'admin'})
+@admin_required
+def get_all_projects():
+    """
+    Get the information related to a project
+    from the userdatamodel database
+    Returns a json object
+    """
+    return jsonify(adm.get_all_projects(current_session))
 
 
 @blueprint.route('/projects/<projectname>', methods=['POST'])

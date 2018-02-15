@@ -23,6 +23,13 @@ def get_project_info(current_session, project_name):
     """
     return pj.get_project_info(current_session, project_name)
 
+def get_all_projects(current_session):
+    """
+    Return the information associated with a project
+    Returns a dictionary.
+    """
+    return pj.get_all_projects(current_session)
+
 def create_project(current_session, projectname, authid, storageaccesses):
     """
     Create a project with the specified auth_id and

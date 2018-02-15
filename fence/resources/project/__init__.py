@@ -3,6 +3,9 @@ import fence.resources.userdatamodel as udm
 def get_project(current_session, project_name):
     return udm.get_project(current_session, project_name)
 
+def get_all_projects(current_session):
+    return udm.get_all_projects(current_session)
+
 def get_project_info(current_session, project_name):
     return udm.get_project_info(current_session, project_name)
 
