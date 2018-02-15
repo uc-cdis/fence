@@ -31,9 +31,6 @@ LOGOUT = "https://bionimbus-pdc.opensciencedatacloud.org/auth/logout/?next=/Shib
 BIONIMBUS_ACCOUNT_ID = 655886864976
 
 
-DEFAULT_LOGIN_URL = BASE_URL + '/login/google'
-DEFAULT_LOGIN_URL_REDIRECT_PARAM = 'redirect'
-
 ACCESS_TOKEN_EXPIRES_IN = 1200
 ACCESS_TOKEN_LIFETIME = timedelta(seconds=1200)  # for backwards-compatibility
 ACCESS_TOKEN_COOKIE_NAME = "access_token"
