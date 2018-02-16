@@ -104,3 +104,6 @@ def get_user_accesses():
 
 def get_user_groups(current_session, username):
     return udm.get_user_groups(current_session, username)
+
+def remove_user_from_project(curren_session, user, project):
+    return udm.remove_user_from_project(current_session, user, project)

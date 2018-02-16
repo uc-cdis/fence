@@ -269,18 +269,29 @@ def delete_user_by_username(current_session, username):
     if user:
         accesses = current_session.query(
             AccessPrivilege).filter(AccessPrivilege.user_id == user.id)
+        groups = current_session.query(
+                UserToGroup).filter(
+                    UserToGroup.user_id == user.id).all()
+        for row in groups:
+            current_session.delete(row)
+
         cloud_providers = []
         for row in accesses:
             proj = current_session.query(
                 StorageAccess).filter(
                     StorageAccess.project_id == row.project_id).first()
+            # commenting until we figure out why this is in ComputeQuota
+            """
             cloud_providers.append(
                 current_session.query(
                     CloudProvider).filter(
                         CloudProvider.id == proj.provider_id).first())
+            """
             current_session.delete(row)
         current_session.delete(user)
-        return {"result": "success", "providers": cloud_providers, "user": user}
+        return {"result": "success",
+                #"providers": cloud_providers, 
+                "user": user}
     else:
         msg = "".join(["user name ", username, " not found"])
         raise NotFound(msg)
@@ -555,6 +566,18 @@ def get_group_projects(current_session, groupname):
         if new_project:
             projects.append(new_project.name)
     return projects
+
+def remove_user_from_project(current_session, user, project):
+    access = current_session.query(
+        AccessPrivilege).filter(
+            AccessPrivilege.project_id == project.id).filter(
+                AccessPrivilege.user_id == user.id).first()
+    if access:
+        current_session.delete(access)
+    else:
+        raise NotFound("Project {0} not connected to user {1}".format(
+            project.name, user.username))
+    
 
 
 def update_group(current_session, groupname, description):

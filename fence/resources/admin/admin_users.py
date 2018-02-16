@@ -125,8 +125,11 @@ def delete_user(current_session, username):
     """
     response = udm.delete_user_by_username(current_session, username)
     if response["result"] == "success":
+        # commented until we figure out where did the providers go
+        """
         for provider in response["providers"]:
             capp.storage_manager.delete_user(provider.backend, response["user"])
+        """
         return {"result": "success"}
 
 
@@ -160,6 +163,15 @@ def connect_user_to_group(current_session, usr, groupname=None):
 
 def remove_user_from_groups(current_session, username, groups=[]):
     usr = us.get_user(current_session, username)
+    user_groups = us.get_user_groups(current_session, username)['groups']
+    groups_to_keep =  [x for x in user_groups if x not in groups]
+    # thanks stackoverflow
+    projects_to_keep =  [ item for sublist in
+                          [ gp.get_group_projects(current_session, x) for x in groups_to_keep ]
+                          for item in sublist]
+    projects_to_remove = [item for sublist in
+                          [ gp.get_group_projects(current_session, x) for x in groups]
+                          for item in sublist if item not in projects_to_keep]
     responses = []
     for groupname in groups:
         try:
@@ -168,6 +180,8 @@ def remove_user_from_groups(current_session, username, groups=[]):
         except Exception as e:
             current_session.rollback()
             raise e
+    for project in projects_to_remove:
+        remove_user_from_project(current_session, usr, project)
     return {"result": responses}
 
 
@@ -180,3 +194,7 @@ def disconnect_user_from_group(current_session, usr, groupname):
         projects = gp.get_group_projects(current_session, groupname)
         projects_data = [ pj.get_project(current_session, project).auth_id for project in projects]
         return response
+
+def remove_user_from_project(current_session, usr, project_name):
+    proj = pj.get_project(current_session, project_name)
+    us.remove_user_from_project(current_session, usr, proj)
