@@ -14,221 +14,223 @@ nothing, since the JWTs contain all the necessary information and are
 stateless.
 """
 
-from __future__ import print_function
-
 import flask
-from flask_oauthlib.provider import OAuth2Provider
-from flask_sqlalchemy_session import current_session
 
-from datetime import datetime, timedelta
-from cdispyutils.log import get_logger
-from ..data_model import models
-from ..auth import get_current_user
-from ..jwt.oauth_validator import OAuthValidator
-from ..utils import hash_secret
-from ..jwt import token, errors
+from authlib.common.urls import add_params_to_uri
+from authlib.specs.rfc6749.errors import AccessDeniedError
+from authlib.specs.rfc6749.errors import InvalidRequestError
 
-
-log = get_logger('fence')
-
-oauth = OAuth2Provider()
-
-
-@oauth.grantgetter
-def load_grant(client_id, code):
-    """
-    Load in a ``Grant`` model from the table for this client and authorization
-    code.
-    """
-    return (
-        current_session
-        .query(models.Grant)
-        .filter_by(client_id=client_id, code=code)
-        .first()
-    )
-
-
-@oauth.grantsetter
-def save_grant(client_id, code, request, *args, **kwargs):
-    """
-    Save a ``Grant`` to the table originating from the given request, using the
-    client id and code provided to initialize the grant as well as the scopes
-    from the request. The grant expires after a short timeout.
-    """
-    # decide the expires time yourself
-    expires = datetime.utcnow() + timedelta(seconds=100)
-    grant = models.Grant(
-        client_id=client_id,
-        code=code['code'],
-        redirect_uri=request.redirect_uri,
-        _scopes=' '.join(request.scopes),
-        user=get_current_user(),
-        expires=expires
-    )
-    current_session.add(grant)
-    current_session.commit()
-    return grant
-
-
-@oauth.clientgetter
-def load_client(client_id):
-    """
-    Look up a ``Client`` in the database.
-    """
-    return (
-        current_session
-        .query(models.Client)
-        .filter_by(client_id=client_id)
-        .first()
-    )
-
-
-@oauth.tokengetter
-def load_token(access_token=None, refresh_token=None):
-    return access_token or refresh_token
-
-
-@oauth.tokensetter
-def save_token(token_to_save, request, *args, **kwargs):
-    pass
-
-
-# Redefine the request validator used by the OAuth provider, using the
-# JWTValidator which redefines bearer and refresh token validation to use JWT.
-oauth._validator = OAuthValidator(
-    clientgetter=oauth._clientgetter,
-    tokengetter=oauth._tokengetter,
-    grantgetter=oauth._grantgetter,
-    usergetter=None,
-    tokensetter=oauth._tokensetter,
-    grantsetter=oauth._grantsetter,
-)
-
-
-def get_user(request):
-    grant = load_grant(request.body.get('client_id'), request.body.get('code'))
-    user = grant.user
-    return user
-
-
-def signed_access_token_generator(kid, private_key, **kwargs):
-    """
-    Return a function which takes in an oauthlib request and generates a signed
-    JWT access token. This function should be assigned as the access token
-    generator for the flask app:
-
-    .. code-block:: python
-
-        app.config['OAUTH2_PROVIDER_TOKEN_GENERATOR'] = (
-            signed_access_token_generator(private_key)
-        )
-
-    (This is the reason for the particular return type of this function.)
-
-    Args:
-        kid (str): key ID, name of the keypair used to sign/verify the token
-        private_key (str): the private key used to sign the token
-
-    Return:
-        Callable[[oauthlib.common.Request], str]
-    """
-    def generate_signed_access_token_from_request(request):
-        """
-        Args:
-            request (oauthlib.common.Request)
-
-        Return:
-            str: encoded JWT signed with ``private_key``
-        """
-        return token.generate_signed_access_token(kid, private_key, get_user(request),
-                                                  request.expires_in, request.scopes)
-    return generate_signed_access_token_from_request
-
-
-def signed_refresh_token_generator(kid, private_key, **kwargs):
-    """
-    Return a function which takes in an oauthlib request and generates a signed
-    JWT refresh token. This function should be assigned as the refresh token
-    generator for the flask app:
-
-    .. code-block:: python
-
-        app.config['OAUTH2_PROVIDER_REFRESH_TOKEN_GENERATOR'] = (
-            signed_refresh_token_generator(private_key)
-        )
-
-    (This is the reason for the particular return type of this function.)
-
-    Args:
-        kid (str): key ID, name of the keypair used to sign/verify the token
-        private_key (str): the private key used to sign the token
-
-    Return:
-        Callable[[oauthlib.common.Request], str]
-    """
-    def generate_signed_refresh_token_from_request(request):
-        """
-        Args:
-            request (oauthlib.common.Request)
-
-        Return:
-            str: encoded JWT signed with ``private_key``
-        """
-        return token.generate_signed_refresh_token(kid, private_key, get_user(request),
-                                                   request.expires_in, request.scopes)
-    return generate_signed_refresh_token_from_request
-
-
-def init_oauth(app):
-    """
-    Initialize the OAuth provider on the given app, with
-    ``signed_access_token_generator`` and ``signed_refresh_token_generator``
-    (using the key ID and private first keypair) as the token generating
-    functions for the provider.
-    """
-    keypair = app.keypairs[0]
-    app.config['OAUTH2_PROVIDER_REFRESH_TOKEN_GENERATOR'] = (
-        signed_refresh_token_generator(keypair.kid, keypair.private_key)
-    )
-    app.config['OAUTH2_PROVIDER_TOKEN_GENERATOR'] = (
-        signed_access_token_generator(keypair.kid, keypair.private_key)
-    )
-    app.config['OAUTH2_PROVIDER_TOKEN_EXPIRES_IN'] = 3600
-    oauth.init_app(app)
+from fence.errors import Unauthorized
+from fence.models import Client
+from fence.oidc.server import server
+from fence.user import get_current_user
+from fence.auth import handle_login
 
 
 blueprint = flask.Blueprint('oauth2', __name__)
 
 
 @blueprint.route('/authorize', methods=['GET', 'POST'])
-@oauth.authorize_handler
 def authorize(*args, **kwargs):
     """
-    Handle the first step in the OAuth procedure.
+    OIDC Authorization Endpoint
 
-    If the method is ``GET``, render a confirmation page. For ``POST``, check
-    that the value of ``confirm`` in the form data is exactly ``"yes"``.
+    From the OIDC Specification:
+
+    3.1.1.  Authorization Code Flow Steps
+    The Authorization Code Flow goes through the following steps.
+
+    - Client prepares an Authentication Request containing the desired request
+      parameters.
+    - Client sends the request to the Authorization Server.
+    - Authorization Server Authenticates the End-User.
+    - Authorization Server obtains End-User Consent/Authorization.
+    - Authorization Server sends the End-User back to the Client with an
+      Authorization Code.
+    - Client requests a response using the Authorization Code at the Token
+      Endpoint.
+    - Client receives a response that contains an ID Token and Access Token in
+      the response body.
+    - Client validates the ID token and retrieves the End-User's Subject
+      Identifier.
+
+    Args:
+        *args: additional arguments
+        **kwargs: additional keyword arguments
     """
-    if flask.request.method == 'GET':
-        client_id = kwargs.get('client_id')
+    need_authentication = False
+    try:
+        user = get_current_user()
+    except Unauthorized:
+        need_authentication = True
+
+    if need_authentication or not user:
+        params = {
+            flask.current_app.config.get('DEFAULT_LOGIN_URL_REDIRECT_PARAM'):
+                flask.request.url
+        }
+        login_url = add_params_to_uri(
+            flask.current_app.config.get('DEFAULT_LOGIN_URL'), params
+        )
+        return flask.redirect(login_url)
+
+    grant = server.validate_authorization_request()
+
+    client_id = grant.params.get('client_id')
+
+    with flask.current_app.db.session as session:
         client = (
-            current_session
-            .query(models.Client)
+            session
+            .query(Client)
             .filter_by(client_id=client_id)
             .first()
         )
-        if client.auto_approve:
-            return True
-        kwargs['client'] = client
-        return flask.render_template('oauthorize.html', **kwargs)
 
-    confirm = flask.request.form.get('confirm', 'no')
-    return confirm == 'yes'
+    confirm = grant.params.get('confirm')
+    if client.auto_approve is True:
+        confirm = 'yes'
+    if confirm is not None:
+        response = _handle_consent_confirmation(user, confirm)
+    else:
+        # no confirm param, so no confirmation has occured yet
+        response = _authorize(user, grant, client)
+
+    return response
+
+
+def _handle_consent_confirmation(user, is_confirmed):
+    """
+    Return server response given user consent.
+
+    Args:
+        user (fence.models.User): authN'd user
+        is_confirmed (str): confirmation param
+    """
+    if is_confirmed == 'yes':
+        # user has already given consent, continue flow
+        response = server.create_authorization_response(user)
+    else:
+        # user did not give consent
+        response = server.create_authorization_response(None)
+    return response
+
+
+def _authorize(user, grant, client):
+    """
+    Return server response when user has not yet provided consent.
+
+    Args:
+        user (fence.models.User): authN'd user
+        grant (fence.oidc.grants.AuthorizationCodeGrant): request grant
+        client (fence.models.Client): request client
+    """
+    prompts = grant.params.get('prompt')
+
+    scope = flask.request.args.get('scope')
+
+    response = _get_auth_response_for_prompts(
+        prompts, grant, user, client, scope
+    )
+
+    return response
+
+
+def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
+    """
+    Get response based on prompt parameter. TODO: not completely conforming yet
+
+    FIXME: To conform to spec, some of the prompt params should be handled
+    before AuthN or if it fails (so adequate and useful errors are provided).
+
+    Right now the behavior is that the endpoint will just continue to
+    redirect the user to log in without checking these params....
+
+    Args:
+        prompts (TYPE): Description
+        grant (TYPE): Description
+        user (TYPE): Description
+        client (TYPE): Description
+        scope (TYPE): Description
+
+    Returns:
+        TYPE: Description
+    """
+    show_consent_screen = True
+
+    if prompts:
+        prompts = prompts.split(' ')
+        if 'none' in prompts:
+            # don't auth or consent, error if user not logged in
+            show_consent_screen = False
+
+            # if none is here, there shouldn't be others
+            if len(prompts) != 1:
+                error = InvalidRequestError(
+                    state=grant.params.get('state'),
+                    uri=grant.params.get('uri')
+                )
+                return _get_authorize_error_response(
+                    error, grant.params.get('redirect_uri'))
+
+            try:
+                get_current_user()
+                response = server.create_authorization_response(user)
+            except Unauthorized:
+                error = AccessDeniedError(
+                    state=grant.params.get('state'),
+                    uri=grant.params.get('uri')
+                )
+                return _get_authorize_error_response(
+                    error, grant.params.get('redirect_uri'))
+
+        if 'login' in prompts:
+            show_consent_screen = True
+            try:
+                # re-AuthN user
+                # TODO not sure if this really counts as re-AuthN...
+                handle_login(scope)
+            except Unauthorized:
+                error = AccessDeniedError(
+                    state=grant.params.get('state'),
+                    uri=grant.params.get('uri')
+                )
+                return _get_authorize_error_response(
+                    error, grant.params.get('redirect_uri'))
+
+        if 'consent' in prompts:
+            # show consent screen (which is default behavior so pass)
+            pass
+
+        if 'select_account' in prompts:
+            # allow user to select one of their accounts, we
+            # don't support this at the moment
+            pass
+
+    if show_consent_screen:
+        response = flask.render_template(
+            'oauthorize.html', grant=grant, user=user, client=client,
+            scope=scope
+        )
+
+    return response
+
+
+def _get_authorize_error_response(error, redirect_uri):
+    """
+    Get error response as defined by OIDC spec.
+
+    Args:
+        error (authlib.specs.rfc6749.error.OAuth2Error): Specific Oauth2 error
+        redirect_uri (str): Redirection url
+    """
+    params = error.get_body()
+    uri = add_params_to_uri(redirect_uri, params)
+    headers = [('Location', uri)]
+    response = flask.Response('', status=302, headers=headers)
+    return response
 
 
 @blueprint.route('/token', methods=['POST'])
-@hash_secret
-@oauth.token_handler
 def get_access_token(*args, **kwargs):
     """
     Handle exchanging code for and refreshing the access token.
@@ -239,7 +241,7 @@ def get_access_token(*args, **kwargs):
     See the OpenAPI documentation for detailed specification, and the OAuth2
     tests for examples of some operation and correct behavior.
     """
-    pass
+    return server.create_token_response()
 
 
 @blueprint.route('/revoke', methods=['POST'])
@@ -253,17 +255,7 @@ def revoke_token():
     Return:
         Tuple[str, int]: JSON response and status code
     """
-    # Try to get token from form data.
-    try:
-        encoded_token = flask.request.form['token']
-    except KeyError:
-        return (flask.jsonify({'errors': 'no token provided'}), 400)
-
-    try:
-        token.revoke_token(encoded_token)
-    except errors.JWTError as e:
-        return (e.message, e.code)
-    return ('', 204)
+    return server.create_revocation_response()
 
 
 @blueprint.route('/errors', methods=['GET'])

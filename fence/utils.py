@@ -1,17 +1,17 @@
-from functools import wraps
-from random import SystemRandom
-from werkzeug.datastructures import ImmutableMultiDict
-from userdatamodel.driver import SQLAlchemyDriver
-from .data_model.models import Client, User, Token
-from flask import current_app as capp
-from flask import request
-from flask import Response
-
-import json
-import string
-import re
-import collections
 import bcrypt
+import collections
+from functools import wraps
+import json
+from random import SystemRandom
+import re
+import string
+
+import flask
+from userdatamodel.driver import SQLAlchemyDriver
+from werkzeug.datastructures import ImmutableMultiDict
+
+from fence.models import Client, User
+from fence.jwt.token import CLIENT_ALLOWED_SCOPES
 
 rng = SystemRandom()
 alphanumeric = string.ascii_uppercase + string.ascii_lowercase + string.digits
@@ -22,10 +22,12 @@ def random_str(length):
 
 
 def json_res(data):
-    return Response(json.dumps(data), mimetype='application/json')
+    return flask.Response(json.dumps(data), mimetype='application/json')
 
 
-def create_client(username, urls, DB, name='', description='', auto_approve=False, is_admin=False):
+def create_client(
+        username, urls, DB, name='', description='', auto_approve=False,
+        is_admin=False):
     driver = SQLAlchemyDriver(DB)
     client_id = random_str(40)
     client_secret = random_str(55)
@@ -41,18 +43,17 @@ def create_client(username, urls, DB, name='', description='', auto_approve=Fals
         client = Client(
             client_id=client_id, client_secret=hashed_secret,
             user=user, _redirect_uris=urls,
+            _allowed_scopes=' '.join(CLIENT_ALLOWED_SCOPES),
             description=description, name=name, auto_approve=auto_approve)
         s.add(client)
         s.commit()
     return client_id, client_secret
 
 
-def drop_client(client_id, db):
+def drop_client(client_name, db):
     driver = SQLAlchemyDriver(db)
     with driver.session as s:
-        tokens = s.query(Token).filter(Token.client_id == client_id)
-        tokens.delete()
-        clients = s.query(Client).filter(Client.client_id == client_id)
+        clients = s.query(Client).filter(Client.name == client_name)
         clients.delete()
         s.commit()
 
@@ -60,14 +61,23 @@ def drop_client(client_id, db):
 def hash_secret(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        if request.form and 'client_secret' in request.form and 'client_id' in request.form:
-            form = request.form.to_dict()
-            with capp.db.session as s:
-                client = s.query(Client).filter(Client.client_id == form['client_id']).first()
+        has_secret = 'client_secret' in flask.request.form
+        has_client_id = 'client_id' in flask.request.form
+        if flask.request.form and has_secret and has_client_id:
+            form = flask.request.form.to_dict()
+            with flask.current_app.db.session as session:
+                client = (
+                    session
+                    .query(Client)
+                    .filter(Client.client_id == form['client_id'])
+                    .first()
+                )
                 if client:
-                    form['client_secret'] = bcrypt.hashpw(form['client_secret'].encode('utf-8'),
-                                                          client.client_secret.encode('utf-8'))
-                request.form = ImmutableMultiDict(form)
+                    form['client_secret'] = bcrypt.hashpw(
+                        form['client_secret'].encode('utf-8'),
+                        client.client_secret.encode('utf-8')
+                    )
+                flask.request.form = ImmutableMultiDict(form)
 
         return f(*args, **kwargs)
 

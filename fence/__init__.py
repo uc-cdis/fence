@@ -3,33 +3,37 @@ import os
 
 import flask
 from flask.ext.cors import CORS
-from flask_postgres_session import PostgresSessionInterface
 from flask_sqlalchemy_session import flask_scoped_session
-import importlib
-
-from .auth import logout
-from .blueprints.admin import blueprint as admin
-from .blueprints.login import blueprint as login
-from .blueprints.oauth2 import init_oauth
-from .blueprints.oauth2 import blueprint as oauth2
-from .blueprints.storage_creds import blueprint as credentials
-from .resources.storage import StorageManager
-from .blueprints.user import blueprint as user
-from .errors import APIError, UserError
-from .data_model.models import UserSession, migrate
-from .jwt import keys
-from .resources.openid.google_oauth2 import Oauth2Client
-from .utils import random_str
-
 from userdatamodel.driver import SQLAlchemyDriver
+
+from fence.auth import logout, build_redirect_url
+from fence.errors import APIError, UserError
+from fence.jwt import keys
+from fence.models import migrate
+from fence.oidc.server import server
+from fence.resources.aws.boto_manager import BotoManager
+from fence.resources.openid.google_oauth2 import Oauth2Client
+from fence.resources.storage import StorageManager
+from fence.resources.user.user_session import UserSessionInterface
+from fence.utils import random_str
+import fence.blueprints.admin
+import fence.blueprints.data
+import fence.blueprints.login
+import fence.blueprints.oauth2
+import fence.blueprints.storage_creds
+import fence.blueprints.user
+import fence.blueprints.well_known
+import fence.client
+
 
 app = flask.Flask(__name__)
 CORS(app=app, headers=['content-type', 'accept'], expose_headers='*')
-app.register_blueprint(oauth2, url_prefix='/oauth2')
-app.register_blueprint(user, url_prefix='/user')
-app.register_blueprint(credentials, url_prefix='/credentials')
-app.register_blueprint(admin, url_prefix='/admin')
-app.register_blueprint(login, url_prefix='/login')
+app.register_blueprint(fence.blueprints.oauth2.blueprint, url_prefix='/oauth2')
+app.register_blueprint(fence.blueprints.user.blueprint, url_prefix='/user')
+app.register_blueprint(fence.blueprints.storage_creds.blueprint, url_prefix='/credentials')
+app.register_blueprint(fence.blueprints.admin.blueprint, url_prefix='/admin')
+app.register_blueprint(fence.blueprints.login.blueprint, url_prefix='/login')
+app.register_blueprint(fence.blueprints.well_known.blueprint, url_prefix='/.well-known')
 
 
 def app_config(app, settings='fence.settings', root_dir=None):
@@ -37,10 +41,21 @@ def app_config(app, settings='fence.settings', root_dir=None):
     Set up the config for the Flask app.
     """
     app.config.from_object(settings)
+    if 'BASE_URL' not in app.config:
+        base_url = app.config['HOSTNAME']
+        if not base_url.startswith('http'):
+            base_url = 'https://' + base_url
+        app.config['BASE_URL'] = base_url
     app.keypairs = []
     if root_dir is None:
         root_dir = os.path.dirname(
                 os.path.dirname(os.path.realpath(__file__)))
+    if 'AWS_CREDENTIALS' in app.config and len(app.config['AWS_CREDENTIALS']) > 0:
+        value = app.config['AWS_CREDENTIALS'].values()[0]
+        app.boto = BotoManager(value)
+        app.register_blueprint(
+            fence.blueprints.data.blueprint, url_prefix='/data'
+        )
     for kid, (public, private) in app.config['JWT_KEYPAIR_FILES'].iteritems():
         public_filepath = os.path.join(root_dir, public)
         private_filepath = os.path.join(root_dir, private)
@@ -55,7 +70,7 @@ def app_config(app, settings='fence.settings', root_dir=None):
     # the clients, so that fence can also call the validation functions in
     # ``cdispyutils``.
     app.jwt_public_keys = OrderedDict([
-        (keypair.kid, keypair.public_key)
+        (str(keypair.kid), str(keypair.public_key))
         for keypair in app.keypairs
     ])
 
@@ -70,19 +85,19 @@ def app_sessions(app):
         app.config['STORAGE_CREDENTIALS'],
         logger=app.logger
     )
-    if ('OPENID_CONNECT' in app.config
-        and 'google' in app.config['OPENID_CONNECT']):
+    if ('OPENID_CONNECT' in app.config and 'google' in app.config['OPENID_CONNECT']):
         app.google_client = Oauth2Client(
             app.config['OPENID_CONNECT']['google'],
             HTTP_PROXY=app.config.get('HTTP_PROXY'),
             logger=app.logger
         )
-    app.session_interface = PostgresSessionInterface(UserSession)  # noqa
+
+    app.session_interface = UserSessionInterface()
 
 
 def app_init(app, settings='fence.settings', root_dir=None):
     app_config(app, settings=settings, root_dir=root_dir)
-    init_oauth(app)
+    server.init_app(app)
     app_sessions(app)
 
 
@@ -114,10 +129,7 @@ def root():
 @app.route('/logout')
 def logout_endpoint():
     root = app.config.get('APPLICATION_ROOT', '')
-    next_url = (
-        app.config.get('HOSTNAME', '')
-        + flask.request.args.get('next', root)
-    )
+    next_url = build_redirect_url(app.config.get('BASE_URL', ''), flask.request.args.get('next', root))
     return flask.redirect(logout(next_url=next_url))
 
 

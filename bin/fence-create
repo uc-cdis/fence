@@ -94,6 +94,7 @@ def create_projects(s, data):
     for project in projects:
         create_project(s, project)
 
+
 def create_project(s, project_data):
     auth_id = project_data['auth_id']
     name = project_data.get('name', auth_id)
@@ -177,8 +178,6 @@ def create_cloud_providers(s, data):
         if not cloud_provider:
             cloud_provider = CloudProvider(name=name, backend=fields.get('backend', 'cleversafe'), service=fields.get('service', 'storage'))
             s.add(cloud_provider)
-
-
 
 
 def create_users_with_group(s, data):

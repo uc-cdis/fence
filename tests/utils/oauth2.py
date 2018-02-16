@@ -1,4 +1,27 @@
-def oauth_post_authorize(client, oauth_client, scope='user'):
+import base64
+import urlparse
+
+from authlib.common.encoding import to_bytes, to_unicode
+from authlib.common.urls import url_decode
+
+import fence.utils
+
+
+def make_query_string(params):
+    if not params:
+        return ''
+    params_str = '&'.join(
+        '{}={}'.format(key, value.replace(' ', '%20'))
+        for key, value in params.iteritems()
+    )
+    return '?' + params_str
+
+
+def path_for_authorize(params=None):
+    return '/oauth2/authorize' + make_query_string(params)
+
+
+def get_authorize(client, oauth_client, data=None, confirm=None):
     """
     Args:
         client: client fixture
@@ -8,19 +31,56 @@ def oauth_post_authorize(client, oauth_client, scope='user'):
     Return:
         pytest_flask.plugin.JSONResponse: the response from /oauth2/authorize
     """
-    path = (
-        '/oauth2/authorize'
-        '?client_id={client_id}'
-        '&response_type=code'
-        '&scope={scope}'
-        '&redirect_uri={redirect_uri}'
-    )
-    path = path.format(
-        client_id=oauth_client.client_id,
-        scope=scope,
-        redirect_uri=oauth_client.url,
-    )
-    return client.post(path, data={'confirm': 'yes'})
+    data = data or {}
+    default_data = {
+        'client_id': oauth_client.client_id,
+        'redirect_uri': oauth_client.url,
+        'response_type': 'code',
+        'scope': 'openid user',
+        'state': fence.utils.random_str(10)
+    }
+    default_data.update(data)
+    data = default_data
+    if confirm is not None:
+        if confirm:
+            data['confirm'] = 'yes'
+        else:
+            data['confirm'] = 'no'
+
+    if isinstance(data['scope'], list):
+        data['scope'] = ' '.join(data['scope'])
+    path = path_for_authorize(data)
+    return client.get(path)
+
+
+def post_authorize(client, oauth_client, data=None, confirm=None):
+    """
+    Args:
+        client: client fixture
+        oauth_client: oauth client fixture
+        scope: scope to request
+
+    Return:
+        pytest_flask.plugin.JSONResponse: the response from /oauth2/authorize
+    """
+    data = data or {}
+    default_data = {
+        'client_id': oauth_client.client_id,
+        'redirect_uri': oauth_client.url,
+        'response_type': 'code',
+        'scope': 'openid user',
+        'state': fence.utils.random_str(10),
+    }
+    default_data.update(data)
+    data = default_data
+    if confirm is not None:
+        if confirm:
+            data['confirm'] = 'yes'
+        else:
+            data['confirm'] = 'no'
+    if isinstance(data['scope'], list):
+        data['scope'] = ' '.join(data['scope'])
+    return client.post(path_for_authorize(), data=data)
 
 
 def code_from_authorize_response(response):
@@ -33,10 +93,17 @@ def code_from_authorize_response(response):
     Return:
         str: the code
     """
-    return response.headers['Location'].split('code=')[-1]
+    location = response.headers['Location']
+    try:
+        return dict(url_decode(urlparse.urlparse(location).query))['code']
+    except KeyError:
+        raise ValueError(
+            'response did not contain a code; got headers:\n{}'
+            .format(response.headers)
+        )
 
 
-def get_access_code(client, oauth_client, scope='user'):
+def get_access_code(client, oauth_client, data=None):
     """
     Do all steps to get an authorization code from ``/oauth2/authorize``
 
@@ -48,12 +115,12 @@ def get_access_code(client, oauth_client, scope='user'):
     Return:
         str: the authorization code
     """
-    return code_from_authorize_response(oauth_post_authorize(
-        client, oauth_client, scope
+    return code_from_authorize_response(post_authorize(
+        client, oauth_client, data=data, confirm=True
     ))
 
 
-def oauth_post_token(client, oauth_client, code):
+def post_token(client, oauth_client, code):
     """
     Return the response from ``POST /oauth2/token``.
 
@@ -65,6 +132,7 @@ def oauth_post_token(client, oauth_client, code):
     Return:
         pytest_flask.plugin.JSONResponse: the response
     """
+    headers = create_basic_header_for_client(oauth_client)
     data = {
         'client_id': oauth_client.client_id,
         'client_secret': oauth_client.client_secret,
@@ -72,10 +140,22 @@ def oauth_post_token(client, oauth_client, code):
         'grant_type': 'authorization_code',
         'redirect_uri': oauth_client.url,
     }
-    return client.post('/oauth2/token', data=data)
+    return client.post('/oauth2/token', headers=headers, data=data)
 
 
-def get_token_response(client, oauth_client):
+def post_token_refresh(client, oauth_client, refresh_token):
+    headers = create_basic_header_for_client(oauth_client)
+    data = {
+        'client_id': oauth_client.client_id,
+        'client_secret': oauth_client.client_secret,
+        'grant_type': 'refresh_token',
+        'refresh_token': refresh_token,
+    }
+    return client.post('/oauth2/token', headers=headers, data=data)
+
+
+def get_token_response(
+        client, oauth_client, scope=None, code_request_data=None):
     """
     Args:
         client: client fixture
@@ -84,5 +164,35 @@ def get_token_response(client, oauth_client):
     Return:
         pytest_flask.plugin.JSONResponse: the response from ``/oauth2/token``
     """
-    code = get_access_code(client, oauth_client)
-    return oauth_post_token(client, oauth_client, code)
+    code = get_access_code(client, oauth_client, data=code_request_data)
+    return post_token(client, oauth_client, code)
+
+
+def create_basic_header(username, password):
+    """
+    Create an authorization header from the username and password according to
+    RFC 2617 (https://tools.ietf.org/html/rfc2617).
+
+    Use this to send client credentials in the authorization header.
+    """
+    text = '{}:{}'.format(username, password)
+    auth = to_unicode(base64.b64encode(to_bytes(text)))
+    return {'Authorization': 'Basic ' + auth}
+
+
+def create_basic_header_for_client(oauth_client):
+    """
+    Wrap ``create_basic_header`` to make a header for the client.
+    """
+    return create_basic_header(
+        oauth_client.client_id, oauth_client.client_secret
+    )
+
+
+def check_token_response(token_response):
+    """
+    Do some basic checks on a token response.
+    """
+    assert 'id_token' in token_response.json, token_response.json
+    assert 'access_token' in token_response.json, token_response.json
+    assert 'refresh_token' in token_response.json, token_response.json
