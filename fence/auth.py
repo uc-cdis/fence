@@ -1,13 +1,34 @@
 from functools import wraps
 
-from cdispyutils import auth
+from authutils.errors import JWTError
 import flask
 from flask_sqlalchemy_session import current_session
-import jwt
 
-from .errors import Unauthorized, InternalError
-from .data_model.models import User, IdentityProvider
+from fence.errors import Unauthorized, InternalError
+from fence.jwt.validate import validate_jwt
+from fence.models import User, IdentityProvider
 
+
+def build_redirect_url(hostname, path):
+    """
+    Compute a redirect given a hostname and next path where
+    
+    Args:
+        hostname (str): may be empty string or a bare hostname or
+               a hostname with a protocal attached (https?://...)
+        path (int): is a path to attach to hostname
+        
+    Return:
+        string url suitable for flask.redirect
+        
+    Side Effects:
+        - None
+    """
+    redirect_base = hostname
+    # BASE_URL may be empty or a bare hostname or a hostname with a protocol
+    if bool(redirect_base) and not redirect_base.startswith("http"):
+        redirect_base = "https://" + redirect_base
+    return redirect_base + path
 
 def login_user(request, username, provider):
     user = current_session.query(
@@ -25,6 +46,7 @@ def login_user(request, username, provider):
         current_session.commit()
     flask.g.user = user
     flask.g.scopes = ["_all"]
+    flask.g.token = None
 
 
 def logout(next_url=None):
@@ -68,9 +90,11 @@ def login_required(scope=None):
                 )
                 return f(*args, **kwargs)
 
-            eppn = flask.request.headers.get(
-                flask.current_app.config['SHIBBOLETH_HEADER']
-            )
+            eppn = None
+            if 'SHIBBOLETH_HEADER' in flask.current_app.config:
+                eppn = flask.request.headers.get(
+                    flask.current_app.config['SHIBBOLETH_HEADER']
+                )
 
             if flask.current_app.config.get('MOCK_AUTH') is True:
                 eppn = 'test'
@@ -94,41 +118,73 @@ def login_required(scope=None):
     return decorator
 
 
+def handle_login(scope):
+    if flask.session.get('username'):
+        login_user(
+            flask.request,
+            flask.session['username'],
+            flask.session['provider'],
+        )
+
+    eppn = flask.request.headers.get(
+        flask.current_app.config['SHIBBOLETH_HEADER']
+    )
+
+    if flask.current_app.config.get('MOCK_AUTH') is True:
+        eppn = 'test'
+    # if there is authorization header for oauth
+    if 'Authorization' in flask.request.headers:
+        has_oauth(scope=scope)
+    # if there is shibboleth session, then create user session and
+    # log user in
+    elif eppn:
+        username = eppn.split('!')[-1]
+        flask.session['username'] = username
+        flask.session['provider'] = IdentityProvider.itrust
+        login_user(flask.request, username, flask.session['provider'])
+    else:
+        raise Unauthorized("Please login")
+
+
 def has_oauth(scope=None):
     scope = scope or set()
-    scope.update({'access'})
+    scope.update({'openid'})
     try:
-        access_token = auth.validate_request_jwt(
-            aud=scope
-        )
-    except auth.JWTValidationError as e:
+        access_token_claims = validate_jwt(aud=scope, purpose='access')
+    except JWTError as e:
         raise Unauthorized('failed to validate token: {}'.format(e))
-    user_id = access_token['sub']
-    user = (
-        current_session
-        .query(User)
-        .filter_by(id=user_id)
-        .first()
-    )
+    user_id = access_token_claims['sub']
+    user = current_session.query(User).filter_by(id=int(user_id)).first()
     if not user:
-        raise Unauthorized('no user found with id {}'.format(user_id))
+        raise Unauthorized('no user found with id: {}'.format(user_id))
+    # set some application context for current user and client id
     flask.g.user = user
+    # client_id should be None if the field doesn't exist or is empty
+    flask.g.client_id = access_token_claims.get('azp') or None
+    flask.g.token = access_token_claims
 
 
 def get_current_user():
     username = flask.session.get('username')
     if not username:
-        eppn = flask.request.headers.get(
-            flask.current_app.config['SHIBBOLETH_HEADER']
-        )
+        eppn = None
+        if 'SHIBBOLETH_HEADER' in flask.current_app.config:
+            eppn = flask.request.headers.get(
+                flask.current_app.config['SHIBBOLETH_HEADER']
+            )
         if flask.current_app.config.get('MOCK_AUTH') is True:
             eppn = 'test'
         if eppn:
             username = eppn.split('!')[-1]
         else:
             raise Unauthorized("User not logged in")
+    return current_session.query(User).filter_by(username=username).first()
+
+
+def get_user_from_claims(claims):
     return (
-        current_session.query(User)
-        .filter(User.username == username)
+        current_session
+        .query(User)
+        .filter(User.id == claims['sub'])
         .first()
     )

@@ -435,6 +435,78 @@ paths:
           description: Forbidden
         '404':
           description: Not Found
+  "data/{uuid}":
+    get:
+      tags:
+        - data
+      summary: Create a presigned URL for data
+      description: >-
+        Allow users to get a pre-signed URL given the location of preference.
+      security:
+        - OAuth2: [user]
+      operationId: getPresignedURL
+      parameters:
+        - name: uuid
+          required: true
+          type: string
+          in: path
+          description: data UUID
+        - name: location
+          required: true
+          type: string
+        - name: protocol
+          required: false
+          type: string
+          in: query
+          description: a protocol provided by storage provider, currently supports 'http' and 's3' protocols
+          enum: [http, s3]
+        - name: expires_in
+          required: false
+          type: int
+          in: query
+          description: the time (in seconds) in which return url is valid. Default 1800, maximum is 86400
+      responses:
+        '200':
+          description: successful operation
+          schema:
+            "$ref": '#/definitions/PresignedURL'
+        '400':
+          description: 'Invalid input: UUID not found or invalid location'
+  "/data/upload/{file_id}":
+    get:
+      tags:
+        - data
+      summary: Create a presigned URL for data specified by file_id
+      description: >-
+        Allow users to get a pre-signed URL to upload data given the location of preference.
+      security:
+        - OAuth2: [user]
+      operationId: getPresignedURL
+      parameters:
+        - name: file_id
+          required: true
+          type: string
+          in: path
+          description: data UUID
+        - name: protocol
+          required: false
+          type: string
+          in: query
+          description: a protocol provided by storage provider, currently supports 'http' and 's3' protocols
+          enum: [http, s3]
+        - name: expires_in
+          required: false
+          type: int
+          in: query
+          description: location (as in cloud provider) to use
+          enum: [aws, google]
+      responses:
+        '200':
+          description: successful operation
+          schema:
+            "$ref": '#/definitions/PresignedURL'
+        '400':
+          description: 'Invalid input: UUID not found or invalid location'
   "/admin/groups/{groupname}":
     get:
       tags:

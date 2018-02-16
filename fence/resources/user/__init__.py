@@ -1,36 +1,33 @@
-from flask import current_app as capp
-
-from flask import jsonify, g
-
-from fence.errors import NotFound, UserError, InternalError
-from fence.data_model.models import User
-
-import smtplib
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import COMMASPACE, formatdate
+import flask
 from flask_sqlalchemy_session import current_session
+import smtplib
+
+from fence.errors import NotFound, UserError, InternalError
+from fence.models import User
 
 
 def update_user_resource(username, resource):
-    with capp.db.session as session:
+    with flask.current_app.db.session as session:
         user = find_user(username, session)
         if not user.application:
             raise UserError("User haven't started the application")
         resources = set(user.application.resources_granted or [])
         resources.add(resource)
         user.application.resources_granted = list(resources)
-        if 'EMAIL_SERVER' in capp.config:
+        if 'EMAIL_SERVER' in flask.current_app.config:
             content = (
                 "You have been granted {} resources in Bionimbus Cloud."
                 .format(', '.join(resources)))
             send_mail(
-                capp.config['SEND_FROM'],
+                flask.current_app.config['SEND_FROM'],
                 [user.email],
                 'Account update from Bionimbus Cloud',
                 text=content,
-                server=capp.config['EMAIL_SERVER'])
+                server=flask.current_app.config['EMAIL_SERVER'])
         return get_user_info(user, session)
 
 
@@ -42,13 +39,13 @@ def find_user(username, session):
 
 
 def get_info_by_username(username):
-    with capp.db.session as session:
+    with flask.current_app.db.session as session:
         return get_user_info(find_user(username, session), session)
 
 
 def get_current_user_info():
-    with capp.db.session as session:
-        return get_user_info(session.merge(g.user), session)
+    with flask.current_app.db.session as session:
+        return get_user_info(session.merge(flask.g.user), session)
 
 
 def get_user_info(user, session):
@@ -66,7 +63,7 @@ def get_user_info(user, session):
         info['certificates_uploaded'] = [
             c.name for c in user.application.certificates_uploaded]
         info['message'] = user.application.message
-    return jsonify(info)
+    return flask.jsonify(info)
 
 
 def send_mail(send_from, send_to, subject, text, server, certificates=None):
@@ -92,9 +89,15 @@ def send_mail(send_from, send_to, subject, text, server, certificates=None):
 
 
 def get_user_accesses():
-    user = current_session.query(User)\
-        .join(User.research_groups)\
-        .filter(User.id == g.user.id)
+    user = (
+        current_session
+        .query(User)
+        .join(User.research_groups)
+        .filter(User.id == flask.g.user.id)
+    )
     if not user:
-        raise InternalError("Error: %s user does not exist in user-data-model" % g.user.username)
+        raise InternalError(
+            'Error: %s user does not exist'
+            % flask.g.user.username
+        )
     return user

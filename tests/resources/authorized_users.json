@@ -1,0 +1,14 @@
+{
+    "test" : {
+        "projects":[
+            {
+                "auth_id": "phs000178",
+                "privilege": ["read", "update", "create", "delete", "read-storage"]
+            },
+            {
+                "auth_id": "phs000218",
+                "privilege": ["read", "update", "create", "delete", "write-storage"]
+            }
+        ]
+    }
+}

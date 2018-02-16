@@ -1,11 +1,11 @@
-from storageclient import get_client
-from ...errors import Unauthorized
-from ...data_model.models import CloudProvider, Bucket, ProjectToBucket
-
-from ...errors import NotSupported, InternalError
-
 import copy
 from functools import wraps
+
+from storageclient import get_client
+
+from fence.models import CloudProvider, Bucket, ProjectToBucket
+from fence.errors import NotSupported, InternalError, Unauthorized
+
 
 def check_exist(f):
     @wraps(f)
@@ -39,6 +39,7 @@ def get_endpoints_descriptions(providers, session):
 
 
 class StorageManager(object):
+
     def __init__(self, credentials, logger):
         self.logger = logger
         self.clients = {}
@@ -58,9 +59,10 @@ class StorageManager(object):
         """
         check if the user should be authorized to storage resources
         """
-        storage_access = any(
-           ['read-storage' in item for item
-             in user.project_access.values()])
+        storage_access = any([
+            'read-storage' in item
+            for item in user.project_access.values()
+        ])
         backend_access = any([
            sa.provider.name == provider for p in user.projects.values()
            for sa in p.storage_access
@@ -124,8 +126,8 @@ class StorageManager(object):
             bucket = Bucket(name=bucketname, provider=provider)
             bucket = session.merge(bucket)
         if not session.query(ProjectToBucket).filter(
-                ProjectToBucket.bucket_id==bucket.id,
-                ProjectToBucket.project_id==project.id).first():
+                ProjectToBucket.bucket_id == bucket.id,
+                ProjectToBucket.project_id == project.id).first():
             project_to_bucket = ProjectToBucket(bucket=bucket, project=project)
             session.add(project_to_bucket)
         c = self.clients[provider.name]
@@ -258,7 +260,8 @@ class StorageManager(object):
         self.clients[provider].set_bucket_quota(bucket, quota_unit, quota)
 
     @check_exist
-    def add_bucket_acl(self, provider, buckets, user, session, project, access=None):
+    def add_bucket_acl(
+            self, provider, buckets, user, session, project, access=None):
         """
         Add a new grant for a user to a specific bucket
         Please consult the manuals for the different
@@ -275,7 +278,6 @@ class StorageManager(object):
         for b in buckets:
             self.clients[provider].add_bucket_acl(
                 b.name, user.username, access=access)
-
 
     def delete_bucket(self, backend, bucket_name):
         """

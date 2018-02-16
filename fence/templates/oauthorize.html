@@ -22,7 +22,7 @@
     </aside>
     <section>
       <form method='post'>
-          <div> Authorize {{client.name}} to access your {{scopes[0]}} resources?</div>
+          <div> Authorize {{client.name}} to access your {{scope[0]}} resources?</div>
          <input name=_csrf_token type=hidden value="{{ csrf_token }}">
          <button id="yes" class='btn btn-success'>Yes </button>
          <button id="no" class='btn btn-default'>No</button>
