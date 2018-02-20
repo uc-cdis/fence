@@ -46,7 +46,7 @@ class ShibbolethLoginFinish(Resource):
 
         else:
             raise InternalError("Missing shibboleth header configuration")
-        username = eppn.split('!')[-1]
+        username = eppn.split('!')[-1] if eppn else None
         if username:
             flask.session['username'] = username
             flask.session['provider'] = IdentityProvider.itrust
