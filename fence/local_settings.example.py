@@ -106,10 +106,12 @@ S3_BUCKETS = {
 #:
 #: See ``fence/blueprints/login/__init__.py`` for which identity providers can
 #: be loaded.
+#: Note: Don't enable shibboleth if the deployment is not protected by
+#: shibboleth module, the shib module takes care of preventing header spoofing
 ENABLED_IDENTITY_PROVIDERS = {
     'fence',
     'google',
-    'shib',
+    'shibboleth',
 }
 
 # Hostname of a second fence instance to use as an IDP.
