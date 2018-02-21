@@ -25,7 +25,7 @@ setup(
         "pysftp>=0.2.9,<1.0.0",
         "pytest-flask>=0.10.0,<1.0.0",
         "pytest>=3.2.3,<4.0.0",
-        "python_bcrypt>=0.3.2,<1.0.0",
+        "bcrypt>=3.1.4,<4.0.0",
         "python_dateutil>=2.6.1,<3.0.0",
         "PyJWT>=1.5.3,<2.0.0",
         "requests>=2.18.0,<3.0.0",
