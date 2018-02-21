@@ -23,7 +23,7 @@ class ShibbolethLoginStart(Resource):
         if redirect_url:
             flask.session['redirect'] = redirect_url
         actual_redirect = (
-            flask.current_app.config['HOSTNAME']
+            flask.current_app.config['BASE_URL']
             + '/login/shib/login'
         )
         return flask.redirect(

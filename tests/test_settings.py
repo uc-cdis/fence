@@ -61,3 +61,11 @@ S3_BUCKETS = {
     "bucket2": "CRED2",
     "bucket3": "CRED1"
 }
+
+ENABLED_IDENTITY_PROVIDERS = {
+    'fence',
+    'google',
+    'shibboleth',
+}
+
+SHIBBOLETH_HEADER = 'persistent_id'

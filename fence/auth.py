@@ -52,7 +52,9 @@ def login_user(request, username, provider):
 def logout(next_url=None):
     # Call get_current_user (but ignore the result) just to check that either
     # the user is logged in or that authorization is mocked.
-    get_current_user()
+    user = get_current_user()
+    if not user:
+        raise Unauthorized("You are not logged in")
     if flask.session['provider'] == IdentityProvider.itrust:
         next_url = flask.current_app.config['ITRUST_GLOBAL_LOGOUT'] + next_url
     flask.session.clear()
@@ -167,17 +169,7 @@ def has_oauth(scope=None):
 def get_current_user():
     username = flask.session.get('username')
     if not username:
-        eppn = None
-        if 'SHIBBOLETH_HEADER' in flask.current_app.config:
-            eppn = flask.request.headers.get(
-                flask.current_app.config['SHIBBOLETH_HEADER']
-            )
-        if flask.current_app.config.get('MOCK_AUTH') is True:
-            eppn = 'test'
-        if eppn:
-            username = eppn.split('!')[-1]
-        else:
-            raise Unauthorized("User not logged in")
+        return None
     return current_session.query(User).filter_by(username=username).first()
 
 
