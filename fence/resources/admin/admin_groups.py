@@ -28,7 +28,7 @@ def delete_group(current_session, groupname):
     """
     Deletes a group
     """
-    project_to_purge =  gp.get_group_projects(current_session,
+    projects_to_purge =  gp.get_group_projects(current_session,
                                               groupname)
     remove_projects_from_group(current_session, groupname,
                                projects_to_purge)
@@ -51,7 +51,7 @@ def get_all_groups(current_session):
     groups = gp.get_all_groups(current_session)
     groups_list = []
     for group in groups:
-        groups_list.append(group.name)
+        groups_list.append(get_group_info(current_session, group.name))
     return {"groups": groups_list}
 
 
