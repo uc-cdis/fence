@@ -28,6 +28,10 @@ def delete_group(current_session, groupname):
     """
     Deletes a group
     """
+    project_to_purge =  gp.get_group_projects(current_session,
+                                              groupname)
+    remove_projects_from_group(current_session, groupname,
+                               projects_to_purge)
     gp.clear_users_in_group(current_session, groupname)
     gp.clear_projects_in_group(current_session, groupname)
     gp.delete_group(current_session, groupname)
@@ -128,15 +132,15 @@ def remove_projects_from_group(current_session, groupname, projects=[]):
         raise UserError ("Error: group does not exist")
     else:
         responses = []
-        for proj in projects:
-            try:
+        try:
+            for proj in projects:
                 for usr in usrs['users']:
                     update_user_projects_within_group(current_session, usr, groupname, proj)
                 response = disconnect_project_from_group(current_session, grp, proj)
                 responses.append(response)
-            except Exception as e:
-                current_session.rollback()
-                raise e
+        except Exception as e:
+            current_session.rollback()
+            raise e
         return {"result": responses}
 
 
