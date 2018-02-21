@@ -32,7 +32,7 @@ from datetime import datetime
 import pytz
 import time
 
-from fence import auth
+from fence.user import get_current_user
 from fence.errors import Unauthorized
 from fence.jwt.keys import default_public_key
 from fence.jwt.token import (
@@ -203,7 +203,7 @@ class UserSessionInterface(SessionInterface):
                 httponly=True, domain=domain)
             # try to get user, execption means they're not logged in
             try:
-                user = auth.get_current_user()
+                user = get_current_user()
             except Unauthorized:
                 user = None
 

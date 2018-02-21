@@ -7,6 +7,7 @@ from flask_sqlalchemy_session import current_session
 from fence.errors import Unauthorized, InternalError
 from fence.jwt.validate import validate_jwt
 from fence.models import User, IdentityProvider
+from fence.user import get_current_user
 
 
 def build_redirect_url(hostname, path):
@@ -93,7 +94,11 @@ def login_required(scope=None):
                 return f(*args, **kwargs)
 
             eppn = None
-            if 'SHIBBOLETH_HEADER' in flask.current_app.config:
+            enable_shib = (
+                'shibboleth' in
+                flask.current_app.config.get('ENABLED_IDENTITY_PROVIDERS', [])
+            )
+            if enable_shib and 'SHIBBOLETH_HEADER' in flask.current_app.config:
                 eppn = flask.request.headers.get(
                     flask.current_app.config['SHIBBOLETH_HEADER']
                 )
@@ -164,13 +169,6 @@ def has_oauth(scope=None):
     # client_id should be None if the field doesn't exist or is empty
     flask.g.client_id = access_token_claims.get('azp') or None
     flask.g.token = access_token_claims
-
-
-def get_current_user():
-    username = flask.session.get('username')
-    if not username:
-        return None
-    return current_session.query(User).filter_by(username=username).first()
 
 
 def get_user_from_claims(claims):
