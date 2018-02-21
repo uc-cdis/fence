@@ -5,7 +5,7 @@ import os
 
 logger = get_logger(__name__)
 # default settings if local_settings is not present
-BASE_URL = 'http://localhost'
+BASE_URL = 'http://localhost/user'
 # local_settings is not installed under fence module in prod
 try:
     from local_settings import *
