@@ -98,14 +98,40 @@ def disconnect_project_from_group(current_session, grp, projectname):
         return udm.remove_project_from_group(current_session, grp, prj)
     
 
+def update_user_projects_within_group(current_session, username, groupname, projectname):
+    user_groups = us.get_user_groups(current_session, username)
+    # simplified version for awg
+    # users only have read permission, so just checking the
+    # presence of the project in any of their other groups
+    # suffices to keep the projec in the list
+    # In real life we should check permissions coming from all groups
+    # and remove the specific ones comiing from groupname
+    projects_to_keep = [ item for sublist in
+                         [gp.get_group_projects(current_session, group)
+                          for group in user_groups['groups']
+                          if group != groupname ]
+                         for item in sublist ]
+    
+    if projectname not in projects_to_keep:
+        try:
+            us.remove_user_from_project(current_session,
+                                        us.get_user(current_session, username),
+                                        pj.get_project(current_session, projectname))
+        except NotFound() as e:
+            # somehow the user was not linked to that project
+            pass
+
 def remove_projects_from_group(current_session, groupname, projects=[]):
     grp = gp.get_group(current_session, groupname)
+    usrs = get_group_users(current_session, groupname)
     if not grp:
         raise UserError ("Error: group does not exist")
     else:
         responses = []
         for proj in projects:
             try:
+                for usr in usrs['users']:
+                    update_user_projects_within_group(current_session, usr, groupname, proj)
                 response = disconnect_project_from_group(current_session, grp, proj)
                 responses.append(response)
             except Exception as e:

@@ -327,7 +327,7 @@ def create_group():
     description = request.get_json().get('description')
     grp = adm.create_group(current_session, groupname, description)
     if grp:
-        response = {'result': 'group creation successful'}
+        response = adm.get_group_info(current_session, groupname)
     else:
         response = {'result': 'group creation failed'}
     return jsonify(response)
