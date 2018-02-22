@@ -1,3 +1,6 @@
+from urlparse import urlparse
+
+
 def test_default_login(app, client):
     response_json = client.get('/login').json
     assert 'default_provider' in response_json
@@ -11,7 +14,8 @@ def test_default_login(app, client):
     assert response_default['name'] == idps[default_idp_id]['name']
     # Check all providers in response: expected ID, expected name, URL actually
     # maps correctly to the endpoint on fence.
+    app_urls = [url_map_rule.rule for url_map_rule in app.url_map._rules]
     for response_idp in response_providers:
         assert response_idp['id'] in idps
         assert response_idp['name'] == idps[response_idp['id']]['name']
-        assert client.get(response_idp['url']).status_code < 400
+        assert urlparse(response_idp['url']).path in app_urls
