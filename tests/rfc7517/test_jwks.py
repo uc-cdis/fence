@@ -1,3 +1,4 @@
+import base64
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers
@@ -48,8 +49,8 @@ def test_response_values(app, client):
         # Attempt to reproduce the public key from the values for the public
         # modulus and exponent provided in the response, using cryptography
         # primitives.
-        n = int(key['n'])
-        e = int(key['e'])
+        n = int(base64.b64decode(key['n']))
+        e = int(base64.b64decode(key['e']))
         numbers = RSAPublicNumbers(e, n)
         key = numbers.public_key(default_backend())
         key_pem = key.public_bytes(
