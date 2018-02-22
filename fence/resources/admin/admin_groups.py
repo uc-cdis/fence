@@ -6,6 +6,7 @@ from fence.resources import (
     provider as pv
 )
 
+import admin_users as au
 from flask import current_app as capp
 from fence.data_model.models import User, Group
 from fence.errors import NotFound
@@ -59,7 +60,8 @@ def get_group_users(current_session, groupname):
     users = gp.get_group_users(current_session, groupname)
     users_names = []
     for user in users:
-        users_names.append(us.get_user_info(current_session, user.username))
+        the_user = us.get_user_info(current_session, user.username)
+        users_names.append({"name": the_user['username'], "role": the_user['role']})
     return {"users": users_names}
 
 
@@ -74,12 +76,19 @@ def connect_project_to_group(current_session, grp, project=None):
 def update_group_users_projects(current_session, group, project, users):
     proj = pj.get_project(current_session, project)
     for user in users:
-        """try:
-            access = us.
+        try:
+            user_projects = user.project_access.keys()
+            if project not in user_projects:
+                project_info = {"auth_id": proj.auth_id,
+                                "privilege": ["read"]}
+                au.connect_user_to_project(current_session,
+                                           us.get_user(current_session,
+                                                       user.username),
+                                           project_info)
         except NotFound:
-        """
-        pass
-
+            pass
+    return {"success": "users {0} connected to project {1}".format(
+        users, project)}
 
 def add_projects_to_group(current_session, groupname, projects=[]):
     grp = gp.get_group(current_session, groupname)
