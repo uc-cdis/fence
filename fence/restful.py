@@ -9,8 +9,6 @@ class RestfulApi(flask_restful.Api):
 
     def handle_error(self, e):
         return handle_error(e)
-        # flask_restful.abort(e.code, str(e))
-        #
 
 
 def handle_error(error):
