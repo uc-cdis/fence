@@ -20,9 +20,9 @@ from fence.utils import create_client, drop_client
 from fence.sync.sync_dbgap import DbGapSyncer
 
 
-def create_client_action(DB, username=None, client=None, urls=None):
+def create_client_action(DB, username=None, client=None, urls=None, auto_approve=True):
     try:
-        print create_client(username, urls, DB, name=client, auto_approve=True)
+        print create_client(username, urls, DB, name=client, auto_approve=auto_approve)
     except Exception as e:
         print e.message
 
@@ -243,7 +243,16 @@ if __name__ == '__main__':
     create.add_argument('yaml-input')
     c_create.add_argument('--client', required=True)
     c_create.add_argument('--urls', required=True)
-    c_create.add_argument('--username', required=True)
+    c_create.add_argument(
+        '--username',
+        help='user(can represents an organization) that owns the client',
+        required=True)
+    c_create.add_argument(
+        '--external',
+        help='is this an external oidc client',
+        action="store_true", default=False
+    )
+
     c_delete.add_argument('--client', required=True)
 
     dbgap_sync = subparsers.add_parser('sync-dbgap')
@@ -256,21 +265,14 @@ if __name__ == '__main__':
     else:
         from local_settings import DB
 
-    if os.environ.get('HMAC_ENCRYPTION_KEY'):
-        HMAC_ENCRYPTION_KEY = os.environ['HMAC_ENCRYPTION_KEY']
-    else:
-        from local_settings import HMAC_ENCRYPTION_KEY
-
     if args.action == 'create':
         yaml_input = args.__dict__['yaml-input']
         create_sample_data(yaml_input)
     elif args.action == 'client-create':
         create_client_action(
             DB, username=args.username, client=args.client,
-            urls=args.urls)
+            urls=args.urls, auto_approve=not args.external)
     elif args.action == 'client-delete':
         delete_client_action(DB, args.client)
-    elif args.action == 'hmac-create':
-        create_hmac(DB, args.__dict__['yaml-input'], HMAC_ENCRYPTION_KEY)
     elif args.action == 'sync-dbgap':
         sync_dbgap(args.__dict__['projects'])
