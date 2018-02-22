@@ -135,7 +135,7 @@ def update_user_projects_within_group(current_session, username, groupname, proj
             us.remove_user_from_project(current_session,
                                         us.get_user(current_session, username),
                                         pj.get_project(current_session, projectname))
-        except NotFound() as e:
+        except NotFound as e:
             # somehow the user was not linked to that project
             pass
 
