@@ -62,10 +62,21 @@ S3_BUCKETS = {
     "bucket3": "CRED1"
 }
 
-ENABLED_IDENTITY_PROVIDERS = {
-    'fence',
-    'google',
-    'shibboleth',
+IDENTITY_PROVIDERS = {
+    # ID for which of the providers to default to.
+    'default': 'google',
+    # Information for identity providers.
+    'providers': {
+        'fence': {
+            'name': 'Fence Multi-Tenant OAuth',
+        },
+        'google': {
+            'name': 'Google OAuth',
+        },
+        'shibboleth': {
+            'name': 'NIH Login',
+        },
+    },
 }
 
 SHIBBOLETH_HEADER = 'persistent_id'

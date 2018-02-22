@@ -9,8 +9,8 @@ the endpoints for each provider.
 import urlparse
 
 import flask
+from flask_restful import Api
 
-from fence.restful import RestfulApi
 from fence.blueprints.login.fence_login import FenceRedirect, FenceLogin
 from fence.blueprints.login.google import GoogleRedirect, GoogleLogin
 from fence.blueprints.login.shib import (
@@ -43,7 +43,7 @@ IDP_URL_MAP = {
 
 
 blueprint = flask.Blueprint('login', __name__)
-blueprint_api = RestfulApi(blueprint)
+blueprint_api = Api(blueprint)
 
 
 @blueprint.route('', methods=['GET'])
