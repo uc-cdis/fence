@@ -91,10 +91,16 @@ def app_sessions(app):
         app.config['STORAGE_CREDENTIALS'],
         logger=app.logger
     )
+    enabled_idp_ids = (
+        fence.settings
+        .ENABLED_IDENTITY_PROVIDERS['providers']
+        .keys()
+    )
     # Add OIDC client for Google if configured.
     configured_google = (
         'OPENID_CONNECT' in app.config
         and 'google' in app.config['OPENID_CONNECT']
+        and 'google' in enabled_idp_ids
     )
     if configured_google:
         app.google_client = GoogleClient(
@@ -106,7 +112,7 @@ def app_sessions(app):
     configured_fence = (
         'OPENID_CONNECT' in app.config
         and 'fence' in app.config['OPENID_CONNECT']
-        and 'fence' in fence.settings.ENABLED_IDENTITY_PROVIDERS
+        and 'fence' in enabled_idp_ids
     )
     if configured_fence:
         app.fence_client = OAuthClient(**app.config['OPENID_CONNECT']['fence'])
