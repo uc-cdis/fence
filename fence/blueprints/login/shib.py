@@ -1,7 +1,9 @@
 import flask
 from flask_restful import Resource
 
-from fence.jwt.validate import require_jwt
+from fence.auth import login_user
+from fence.errors import InternalError, Unauthorized
+from fence.models import IdentityProvider
 
 
 class ShibbolethLoginStart(Resource):
@@ -21,7 +23,7 @@ class ShibbolethLoginStart(Resource):
         if redirect_url:
             flask.session['redirect'] = redirect_url
         actual_redirect = (
-            flask.current_app.config['HOSTNAME']
+            flask.current_app.config['BASE_URL']
             + '/login/shib/login'
         )
         return flask.redirect(
@@ -32,11 +34,25 @@ class ShibbolethLoginStart(Resource):
 
 class ShibbolethLoginFinish(Resource):
 
-    @require_jwt({'user'})
     def get(self):
         """
         Complete the shibboleth login.
         """
-        if flask.session.get('redirect'):
-            return flask.redirect(flask.session.get('redirect'))
-        return "logged in"
+
+        if 'SHIBBOLETH_HEADER' in flask.current_app.config:
+            eppn = flask.request.headers.get(
+                flask.current_app.config['SHIBBOLETH_HEADER']
+            )
+
+        else:
+            raise InternalError("Missing shibboleth header configuration")
+        username = eppn.split('!')[-1] if eppn else None
+        if username:
+            flask.session['username'] = username
+            flask.session['provider'] = IdentityProvider.itrust
+            login_user(flask.request, username, flask.session['provider'])
+            if flask.session.get('redirect'):
+                return flask.redirect(flask.session.get('redirect'))
+            return "logged in"
+        else:
+            raise Unauthorized("Please login")

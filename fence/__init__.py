@@ -1,11 +1,11 @@
 from collections import OrderedDict
 import os
 
-from authlib.specs.rfc6749.errors import OAuth2Error
 from authutils.oauth2.client import OAuthClient
 import flask
 from flask.ext.cors import CORS
 from flask_sqlalchemy_session import flask_scoped_session
+import urlparse
 from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.auth import logout, build_redirect_url
@@ -17,6 +17,7 @@ from fence.resources.aws.boto_manager import BotoManager
 from fence.resources.openid.google_oauth2 import Oauth2Client as GoogleClient
 from fence.resources.storage import StorageManager
 from fence.resources.user.user_session import UserSessionInterface
+from fence.restful import handle_error
 from fence.utils import random_str
 import fence.blueprints.admin
 import fence.blueprints.data
@@ -48,6 +49,10 @@ def app_config(app, settings='fence.settings', root_dir=None):
         if not base_url.startswith('http'):
             base_url = 'https://' + base_url
         app.config['BASE_URL'] = base_url
+    if 'ROOT_URL' not in app.config:
+        url = urlparse.urlparse(app.config['BASE_URL'])
+        app.config['ROOT_URL'] = '{}://{}'.format(url.scheme, url.netloc)
+
     app.keypairs = []
     if root_dir is None:
         root_dir = os.path.dirname(
@@ -142,7 +147,7 @@ def root():
 @app.route('/logout')
 def logout_endpoint():
     root = app.config.get('APPLICATION_ROOT', '')
-    next_url = build_redirect_url(app.config.get('BASE_URL', ''), flask.request.args.get('next', root))
+    next_url = build_redirect_url(app.config.get('ROOT_URL', ''), flask.request.args.get('next', root))
     return flask.redirect(logout(next_url=next_url))
 
 
@@ -174,16 +179,7 @@ def user_error(error):
     """
     Register an error handler for general exceptions.
     """
-    if isinstance(error, APIError):
-        if hasattr(error, 'json') and error.json:
-            return flask.jsonify(**error.json), error.code
-        else:
-            return flask.jsonify(message=error.message), error.code
-    elif isinstance(error, OAuth2Error):
-        return flask.jsonify(error.get_body()), error.status_code
-    else:
-        app.logger.exception("Catch exception")
-        return flask.jsonify(error=error.message), 500
+    return handle_error(error)
 
 
 @app.before_request

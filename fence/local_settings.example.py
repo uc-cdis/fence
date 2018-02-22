@@ -8,6 +8,10 @@ MOCK_STORAGE = False
 BASE_URL = 'http://localhost/user'
 APPLICATION_ROOT = '/user'
 
+# If using multi-tenant setup, configure this to the base URL for the provider
+# fence (i.e. ``BASE_URL`` in the provider fence config).
+#OIDC_ISSUER = 'http://localhost:8080/user
+
 EMAIL_SERVER = 'localhost'
 
 SEND_FROM = 'phillis.tt@gmail.com'
@@ -106,10 +110,12 @@ S3_BUCKETS = {
 #:
 #: See ``fence/blueprints/login/__init__.py`` for which identity providers can
 #: be loaded.
+#: Note: Don't enable shibboleth if the deployment is not protected by
+#: shibboleth module, the shib module takes care of preventing header spoofing
 ENABLED_IDENTITY_PROVIDERS = {
     'fence',
     'google',
-    'shib',
+    'shibboleth',
 }
 
 # Hostname of a second fence instance to use as an IDP.
