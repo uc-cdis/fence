@@ -10,7 +10,7 @@ APPLICATION_ROOT = '/user'
 
 # If using multi-tenant setup, configure this to the base URL for the provider
 # fence (i.e. ``BASE_URL`` in the provider fence config).
-#OIDC_ISSUER = 'http://localhost:8080/user
+# OIDC_ISSUER = 'http://localhost:8080/user
 
 EMAIL_SERVER = 'localhost'
 
@@ -110,13 +110,22 @@ S3_BUCKETS = {
 #:
 #: See ``fence/blueprints/login/__init__.py`` for which identity providers can
 #: be loaded.
-#: Note: Don't enable shibboleth if the deployment is not protected by
-#: shibboleth module, the shib module takes care of preventing header spoofing
-ENABLED_IDENTITY_PROVIDERS = {
-    'fence',
-    'google',
-    'shibboleth',
+#:
+#: NOTE: Don't enable shibboleth if the deployment is not protected by
+#: shibboleth module, the shib module takes care of preventing header spoofing.
+IDENTITY_PROVIDERS = {
+    # ID for which of the providers to default to.
+    'default': 'google',
+    # Information for identity providers.
+    'providers': {
+        'fence': {
+            'name': 'Fence Multi-Tenant OAuth',
+        },
+        'google': {
+            'name': 'Google OAuth',
+        },
+        'shibboleth': {
+            'name': 'NIH Login',
+        },
+    },
 }
-
-# Hostname of a second fence instance to use as an IDP.
-MULTI_TENANT_FENCE_HOSTNAME = 'http://localhost/user'

@@ -106,7 +106,7 @@ def app_sessions(app):
     configured_fence = (
         'OPENID_CONNECT' in app.config
         and 'fence' in app.config['OPENID_CONNECT']
-        and 'fence' in fence.settings.ENABLED_IDENTITY_PROVIDERS
+        and 'fence' in fence.settings.IDENTITY_PROVIDERS['providers'].keys()
     )
     if configured_fence:
         app.fence_client = OAuthClient(**app.config['OPENID_CONNECT']['fence'])
