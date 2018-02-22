@@ -71,8 +71,11 @@ def get_all_users(current_session):
 
 
 def get_user_groups(current_session, username):
-    return us.get_user_groups(current_session, username)
-
+    user_groups = us.get_user_groups(current_session, username)['groups']
+    user_groups_info = []
+    for group in user_groups:
+        user_groups_info.append(gp.get_group_info(current_session, group))
+    return {"groups": user_groups_info}
 
 def create_user(current_session, username, role, email):
     """

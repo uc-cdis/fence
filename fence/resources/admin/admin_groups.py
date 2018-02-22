@@ -59,7 +59,7 @@ def get_group_users(current_session, groupname):
     users = gp.get_group_users(current_session, groupname)
     users_names = []
     for user in users:
-        users_names.append(user.username)
+        users_names.append(us.get_user_info(current_session, user.username))
     return {"users": users_names}
 
 
@@ -72,7 +72,12 @@ def connect_project_to_group(current_session, grp, project=None):
 
 
 def update_group_users_projects(current_session, group, project, users):
+    proj = pj.get_project(current_session, project)
     for user in users:
+        """try:
+            access = us.
+        except NotFound:
+        """
         pass
 
 
