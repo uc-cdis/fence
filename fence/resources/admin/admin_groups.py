@@ -142,13 +142,14 @@ def update_user_projects_within_group(current_session, username, groupname, proj
 def remove_projects_from_group(current_session, groupname, projects=[]):
     grp = gp.get_group(current_session, groupname)
     usrs = get_group_users(current_session, groupname)
+    users_names = [x['name'] for x in usrs['users']]
     if not grp:
         raise UserError ("Error: group does not exist")
     else:
         responses = []
         try:
             for proj in projects:
-                for usr in usrs['users']:
+                for usr in users_names:
                     update_user_projects_within_group(current_session, usr, groupname, proj)
                 response = disconnect_project_from_group(current_session, grp, proj)
                 responses.append(response)
