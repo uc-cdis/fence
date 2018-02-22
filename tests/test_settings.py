@@ -62,7 +62,7 @@ S3_BUCKETS = {
     "bucket3": "CRED1"
 }
 
-IDENTITY_PROVIDERS = {
+ENABLED_IDENTITY_PROVIDERS = {
     # ID for which of the providers to default to.
     'default': 'google',
     # Information for identity providers.

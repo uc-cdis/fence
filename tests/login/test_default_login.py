@@ -4,8 +4,8 @@ def test_default_login(app, client):
     assert 'providers' in response_json
     response_default = response_json['default_provider']
     response_providers = response_json['providers']
-    idps = app.config['IDENTITY_PROVIDERS']['providers']
-    default_idp_id = app.config['IDENTITY_PROVIDERS']['default']
+    idps = app.config['ENABLED_IDENTITY_PROVIDERS']['providers']
+    default_idp_id = app.config['ENABLED_IDENTITY_PROVIDERS']['default']
     # Check default IDP is correct.
     assert response_default['id'] == default_idp_id
     assert response_default['name'] == idps[default_idp_id]['name']

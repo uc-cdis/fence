@@ -113,7 +113,7 @@ S3_BUCKETS = {
 #:
 #: NOTE: Don't enable shibboleth if the deployment is not protected by
 #: shibboleth module, the shib module takes care of preventing header spoofing.
-IDENTITY_PROVIDERS = {
+ENABLED_IDENTITY_PROVIDERS = {
     # ID for which of the providers to default to.
     'default': 'google',
     # Information for identity providers.

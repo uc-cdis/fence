@@ -21,20 +21,23 @@ from fence.errors import APIError
 import fence.settings
 
 
-if 'default' not in fence.settings.IDENTITY_PROVIDERS:
+if 'default' not in fence.settings.ENABLED_IDENTITY_PROVIDERS:
     raise RuntimeError(
-        '`IDENTITY_PROVIDERS` missing `default` field in flask app settings'
+        '`ENABLED_IDENTITY_PROVIDERS` missing `default` field in flask app'
+        ' settings'
     )
-if 'providers' not in fence.settings.IDENTITY_PROVIDERS:
+if 'providers' not in fence.settings.ENABLED_IDENTITY_PROVIDERS:
     raise RuntimeError(
-        '`IDENTITY_PROVIDERS` missing `providers` field in flask app settings'
+        '`ENABLED_IDENTITY_PROVIDERS` missing `providers` field in flask app'
+        ' settings'
     )
 
-default_idp = fence.settings.IDENTITY_PROVIDERS['default']
-idps = fence.settings.IDENTITY_PROVIDERS['providers']
+default_idp = fence.settings.ENABLED_IDENTITY_PROVIDERS['default']
+idps = fence.settings.ENABLED_IDENTITY_PROVIDERS['providers']
 
 # Mapping from IDP ID (what goes in ``fence/local_settings.py`` in
-# ``IDENTITY_PROVIDERS``) to the name in the URL on the blueprint (see below).
+# ``ENABLED_IDENTITY_PROVIDERS``) to the name in the URL on the blueprint (see
+# below).
 IDP_URL_MAP = {
     'fence': 'fence',
     'google': 'google',
