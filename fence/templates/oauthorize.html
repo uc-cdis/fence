@@ -18,25 +18,52 @@
   <!-- // <script src="js/scripts.js"></script> -->
   <main>
     <aside>
-        Gen3 Data Commons
+      {{app_name}}
     </aside>
     <section>
       <form method='post'>
-          <div> Authorize {{client.name}} to access your {{scope[0]}} resources?</div>
+          <div> Authorize {{client.name}} to:</div>
+          <ul>
+            {% for resource in resource_description %}
+              <li>{{resource}}</li>
+            {% endfor %}
+          </ul>
          <input name=_csrf_token type=hidden value="{{ csrf_token }}">
-         <button id="yes" class='btn btn-success'>Yes </button>
-         <button id="no" class='btn btn-default'>No</button>
+         <button id="yes" class='yes'>Yes </button>
+         <button id="no" class='no'>No</button>
       </form>
     </section>
   </main>
 </body>
 <style>
 main {
-    width: 50%;
+    width: 400px;
     margin: auto;
     margin-top: 5em;
     overflow: hidden;
     background: #ffffff;
+}
+.yes {
+    color: white;
+    padding: 5px 10px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    border: 1px solid #121a13;
+    background-color: #121a13;
+    cursor: pointer;
+}
+.no {
+    color: #121a13;
+    padding: 5px 10px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    border: 1px solid #121a13;
+    background-color: white;
+    cursor: pointer;
 }
 body {
 }
