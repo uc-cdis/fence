@@ -60,7 +60,9 @@ def create_user():
     username = request.get_json().get('name',None)
     role = request.get_json().get('role',None)
     email = request.get_json().get('email',None)
-    return jsonify(adm.create_user(current_session,username, role, email))
+    response = jsonify(adm.create_user(current_session,username, role, email))
+    current_session.commit()
+    return response
 
 
 @blueprint.route('/user/<username>', methods=['PUT'])
@@ -73,8 +75,9 @@ def update_user(username):
     """
     role = request.get_json().get('role',None)
     email = request.get_json().get('email',None)
-    return jsonify(adm.update_user(current_session, username, role, email))
-
+    response = jsonify(adm.update_user(current_session, username, role, email))
+    current_session.commit()
+    return response
 
 @blueprint.route('/user/<username>', methods=['DELETE'])
 @login_required({'admin'})
@@ -85,8 +88,9 @@ def delete_user(username):
     and all associated storage solutions.
     Returns json object
     """
-    return jsonify(adm.delete_user(current_session, username))
-
+    response = jsonify(adm.delete_user(current_session, username))
+    current_session.commit()
+    return response
 
 @blueprint.route('/user/<username>/groups', methods=['GET'])
 @login_required({'admin'})
@@ -109,7 +113,9 @@ def add_user_to_groups(username):
     Returns a json object
     """
     groups = request.get_json().get('groups', [])
-    return jsonify(adm.add_user_to_groups(current_session,username, groups=groups))
+    response = jsonify(adm.add_user_to_groups(current_session,username, groups=groups))
+    current_session.commit()
+    return response
 
 
 @blueprint.route('/user/<username>/groups', methods=['DELETE'])
@@ -121,7 +127,9 @@ def remove_user_from_groups(username):
     Returns a json object
     """
     groups = request.get_json().get('groups', [])
-    return jsonify(adm.remove_user_from_groups(current_session,username, groups=groups))
+    response = jsonify(adm.remove_user_from_groups(current_session,username, groups=groups))
+    current_session.commit()
+    return response
 
 
 @blueprint.route('/user/<username>/projects', methods=['DELETE'])
@@ -133,8 +141,9 @@ def remove_user_from_projects(username):
     Returns a json object
     """
     projects = request.get_json().get('projects', [])
-    return jsonify(adm.remove_user_from_projects(current_session, username, projects))
-
+    response = jsonify(adm.remove_user_from_projects(current_session, username, projects))
+    current_session.commit()
+    return response
 
 @blueprint.route('/user/<username>/projects', methods=['PUT'])
 @login_required({'admin'})
@@ -146,8 +155,9 @@ def add_user_to_projects(username):
     Returns a json object
     """
     projects = request.get_json().get('projects', [])
-    return jsonify(adm.add_user_to_projects(current_session, username, projects=projects))
-
+    response = jsonify(adm.add_user_to_projects(current_session, username, projects=projects))
+    current_session.commit()
+    return response
 
 #### PROJECTS ####
 
@@ -186,7 +196,7 @@ def create_project(projectname):
     """
     auth_id = request.get_json().get('auth_id')
     storage_accesses = request.get_json().get('storage_accesses',[])
-    return jsonify(
+    response = jsonify(
         adm.create_project(
             current_session,
             projectname,
@@ -194,6 +204,9 @@ def create_project(projectname):
             storage_accesses
         )
     )
+    current_session.commit()
+    return response
+
 
 @blueprint.route('/projects/<projectname>', methods=['DELETE'])
 @login_required({'admin'})
@@ -203,8 +216,9 @@ def delete_project(projectname):
     Remove project. No Buckets should be associated with it.
     Returns a json object.
     """
-    return jsonify(adm.delete_project(current_session, projectname))
-
+    response = jsonify(adm.delete_project(current_session, projectname))
+    current_session.commit()
+    return response
 
 @blueprint.route('/groups/<groupname>/projects', methods=['DELETE'])
 @login_required({'admin'})
@@ -215,8 +229,9 @@ def remove_projects_from_group(groupname):
     Returns a json object
     """
     projects = request.get_json().get('projects', [])
-    return jsonify(adm.remove_projects_from_group(current_session,groupname, projects))
-
+    response = jsonify(adm.remove_projects_from_group(current_session,groupname, projects))
+    current_session.commit()
+    return response
 
 @blueprint.route('/projects/<projectname>/groups', methods=['PUT'])
 @login_required({'admin'})
@@ -227,8 +242,9 @@ def add_project_to_groups(projectname):
     Returns a json object
     """
     groups = request.get_json().get('groups', [])
-    return jsonify(adm.add_project_to_groups(current_session, username, groups=groups))
-
+    response = jsonify(adm.add_project_to_groups(current_session, username, groups=groups))
+    current_session.commit()
+    return response
 
 @blueprint.route('/projects/<projectname>/bucket/<bucketname>', methods=['POST'])
 @login_required({'admin'})
@@ -239,7 +255,7 @@ def create_bucket_in_project(projectname, bucketname):
     Returns a json object.
     """
     providername = request.get_json().get('provider')
-    return jsonify(
+    response = jsonify(
         adm.create_bucket_on_project(
             current_session,
             projectname,
@@ -247,6 +263,8 @@ def create_bucket_in_project(projectname, bucketname):
             providername
         )
     )
+    current_session.commit()
+    return response
 
 @blueprint.route(
     '/projects/<projectname>/bucket/<bucketname>',
@@ -272,7 +290,9 @@ def list_buckets_from_project(projectname):
     buckets created within a project.
     Returns a json object.
     """
-    return jsonify(adm.list_buckets_on_project_by_name(current_session, projectname))
+    response = jsonify(adm.list_buckets_on_project_by_name(current_session, projectname))
+    current_session.commit()
+    return response
 
 
 #### GROUPS ####
@@ -330,7 +350,9 @@ def create_group():
         response = adm.get_group_info(current_session, groupname)
     else:
         response = {'result': 'group creation failed'}
-    return jsonify(response)
+    response = jsonify(response)
+    current_session.commit()
+    return response
 
 
 @blueprint.route('/groups/<groupname>', methods=['PUT'])
@@ -343,8 +365,9 @@ def update_group(groupname):
     Returns a json object.
     """
     description = request.get_json().get('description')
-    return jsonify(adm.update_group(current_session, groupname, description))
-
+    response = jsonify(adm.update_group(current_session, groupname, description))
+    current_session.commit()
+    return response
  
 
 @blueprint.route('/groups/<groupname>', methods=['DELETE'])
@@ -356,7 +379,9 @@ def delete_group(groupname):
     buckets created within a project.
     Returns a json object.
     """
-    return jsonify(adm.delete_group(current_session, groupname))
+    response = jsonify(adm.delete_group(current_session, groupname))
+    current_session.commit()
+    return response
 
 
 @blueprint.route('/groups/<groupname>/projects', methods=['PUT'])
@@ -368,7 +393,10 @@ def add_projects_to_group(groupname):
     Returns a json object
     """
     projects = request.get_json().get('projects', [])
-    return jsonify(adm.add_projects_to_group(current_session,groupname, projects))
+    response = jsonify(adm.add_projects_to_group(current_session,groupname, projects))
+    current_session.commit()
+    return response
+
 
 @blueprint.route('/groups/<groupname>/projects', methods=['GET'])
 @login_required({'admin'})
@@ -406,7 +434,7 @@ def create_cloud_provider(providername):
     """
     backend_name = request.get_json().get('backend')
     service_name = request.get_json().get('service')
-    return jsonify(
+    response = jsonify(
         adm.create_provider(
             current_session,
             providername,
@@ -414,6 +442,9 @@ def create_cloud_provider(providername):
             service=service_name
         )
     )
+    current_session.commit()
+    return response
+
 
 @blueprint.route('/cloud_provider/<providername>', methods=['DELETE'])
 @login_required({'admin'})
@@ -425,4 +456,6 @@ def delete_cloud_provider(providername):
     or removed.
     Returns a json object.
     """
-    return jsonify(adm.delete_provider(current_session, providername))
+    response = jsonify(adm.delete_provider(current_session, providername))
+    current_session.commit()
+    return response
