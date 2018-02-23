@@ -41,7 +41,7 @@ def create_project_with_dict(current_session, project_data):
     )
     for sa in storage_accesses:
         for bucket in sa.get('buckets', []):
-            create_bucket_on_project_by_name(
+            create_bucket_on_project(
                 current_session, name, bucket, sa['name'])
 
     return project
