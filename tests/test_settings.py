@@ -19,8 +19,6 @@ SSO_URL = 'https://itrusteauth.nih.gov/affwebservices/public/saml2sso?SPID=https
 SINGLE_LOGOUT = 'https://itrusteauth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl=https://bionimbus-pdc.opensciencedatacloud.org/storage/login'
 
 LOGOUT = "https://bionimbus-pdc.opensciencedatacloud.org/auth/logout/?next=/Shibboleth.sso/Logout%3Freturn%3Dhttps%3A%2F%2Fbionimbus-pdc.opensciencedatacloud.org/api"
-BIONIMBUS_ACCOUNT_ID = 123456789012
-
 ACCESS_TOKEN_LIFETIME = timedelta(seconds=600)
 ACCESS_TOKEN_COOKIE_NAME = "access_token"
 
@@ -63,3 +61,22 @@ S3_BUCKETS = {
     "bucket2": "CRED2",
     "bucket3": "CRED1"
 }
+
+ENABLED_IDENTITY_PROVIDERS = {
+    # ID for which of the providers to default to.
+    'default': 'google',
+    # Information for identity providers.
+    'providers': {
+        'fence': {
+            'name': 'Fence Multi-Tenant OAuth',
+        },
+        'google': {
+            'name': 'Google OAuth',
+        },
+        'shibboleth': {
+            'name': 'NIH Login',
+        },
+    },
+}
+
+SHIBBOLETH_HEADER = 'persistent_id'

@@ -5,7 +5,8 @@ import os
 
 logger = get_logger(__name__)
 # default settings if local_settings is not present
-BASE_URL = 'http://localhost'
+BASE_URL = 'http://localhost/user'
+APP_NAME = 'Gen3 Data Commons'
 # local_settings is not installed under fence module in prod
 try:
     from local_settings import *
@@ -22,13 +23,6 @@ os.environ['AUTHLIB_INSECURE_TRANSPORT'] = 'true'
 APPLICATION_ROOT = '/user'
 DEBUG = True
 OAUTH2_PROVIDER_ERROR_URI = "/api/oauth2/errors"
-
-SHIBBOLETH_HEADER = 'persistent_id'
-SSO_URL = 'https://itrusteauth.nih.gov/affwebservices/public/saml2sso?SPID=https://bionimbus-pdc.opensciencedatacloud.org/shibboleth&RelayState='
-SINGLE_LOGOUT = 'https://itrusteauth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl=https://bionimbus-pdc.opensciencedatacloud.org/storage/login'
-
-LOGOUT = "https://bionimbus-pdc.opensciencedatacloud.org/auth/logout/?next=/Shibboleth.sso/Logout%3Freturn%3Dhttps%3A%2F%2Fbionimbus-pdc.opensciencedatacloud.org/api"
-BIONIMBUS_ACCOUNT_ID = 655886864976
 
 
 ACCESS_TOKEN_EXPIRES_IN = 1200

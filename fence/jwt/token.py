@@ -12,6 +12,24 @@ import uuid
 from fence.jwt import keys
 
 
+SCOPE_DESCRIPTION = {
+    'openid': 'default scope',
+    'user': 'know who you are and what you have access to',
+    'data': 'retrieve protected datasets that you have access to',
+    'credentials': 'view and update your credentials'
+}
+
+
+# Allowed scopes for user requested token and oauth2 client requested token
+# TODO: this should be more discoverable and configurable
+#
+# Only allow web session based auth access credentials so that user
+# can't create a long-lived API key using a short lived access_token
+SESSION_ALLOWED_SCOPES = ['openid', 'user', 'credentials', 'data']
+USER_ALLOWED_SCOPES = ['fence', 'openid', 'user', 'data']
+CLIENT_ALLOWED_SCOPES = ['openid', 'user', 'data']
+
+
 class UnsignedIDToken(AuthlibCodeIDToken):
 
     def __init__(self, token):
@@ -131,16 +149,6 @@ class UnsignedIDToken(AuthlibCodeIDToken):
             )
 
         return token
-
-
-# Allowed scopes for user requested token and oauth2 client requested token
-# TODO: this should be more discoverable and configurable
-#
-# Only allow web session based auth access credentials so that user
-# can't create a long-lived API key using a short lived access_token
-SESSION_ALLOWED_SCOPES = ['openid', 'user', 'credentials', 'data']
-USER_ALLOWED_SCOPES = ['fence', 'openid', 'user', 'data']
-CLIENT_ALLOWED_SCOPES = ['openid', 'user', 'data']
 
 
 def issued_and_expiration_times(seconds_to_expire):

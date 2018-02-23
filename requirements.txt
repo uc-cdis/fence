@@ -17,7 +17,6 @@ psycopg2==2.7.3.2
 pysftp==0.2.9
 pytest-flask==0.10.0
 pytest==3.2.3
-py-bcrypt==0.4
 python_dateutil==2.6.1
 PyJWT==1.5.3
 requests>=2.18.0<3.0.0
