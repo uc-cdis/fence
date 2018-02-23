@@ -56,15 +56,11 @@ def fence_client_app(
     root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     client_app = flask.Flask('client_app')
     app_init(client_app, test_settings, root_dir=root_dir)
-    client_app.register_blueprint(
-        fence.blueprints.oauth2.blueprint, url_prefix='/oauth2'
-    )
-    client_app.register_blueprint(
-        fence.blueprints.login.blueprint, url_prefix='/login'
-    )
+
     client_app.jwt_public_keys['/'] = client_app.jwt_public_keys.pop(
         client_app.config['BASE_URL']
     )
+
     client_app.config['BASE_URL'] = '/'
     client_app.config['MOCK_AUTH'] = False
     client_app.config['DEFAULT_LOGIN_URL'] = '/login/fence'

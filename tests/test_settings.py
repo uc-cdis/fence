@@ -2,7 +2,14 @@ from collections import OrderedDict
 from cryptography.fernet import Fernet
 from datetime import timedelta
 
-from fence.local_settings import *
+from cdislogging import get_logger
+
+logger = get_logger(__name__)
+
+try:
+    from fence.local_settings import *
+except ImportError:
+    logger.warn('no module fence.local_settings')
 
 
 # WARNING: the test database is cleared every run
@@ -13,10 +20,13 @@ MOCK_AUTH = True
 DEBUG = False
 OAUTH2_PROVIDER_ERROR_URI = "/oauth2/errors"
 
-BASE_URL = 'https://bionimbus-pdc.opensciencedatacloud.org'
+BASE_URL = 'https://bionimbus-pdc.opensciencedatacloud.org/user'
+APPLICATION_ROOT = '/user'
+
 SHIBBOLETH_HEADER = 'persistent_id'
 SSO_URL = 'https://itrusteauth.nih.gov/affwebservices/public/saml2sso?SPID=https://bionimbus-pdc.opensciencedatacloud.org/shibboleth&RelayState='
 SINGLE_LOGOUT = 'https://itrusteauth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl=https://bionimbus-pdc.opensciencedatacloud.org/storage/login'
+ITRUST_GLOBAL_LOGOUT = 'https://auth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl='
 
 LOGOUT = "https://bionimbus-pdc.opensciencedatacloud.org/auth/logout/?next=/Shibboleth.sso/Logout%3Freturn%3Dhttps%3A%2F%2Fbionimbus-pdc.opensciencedatacloud.org/api"
 ACCESS_TOKEN_LIFETIME = timedelta(seconds=600)
