@@ -4,7 +4,7 @@ import os
 import sys
 import yaml
 
-from userdatamodel.driver import SQLAlchemyDriver
+from fence.resources.database_operations.driver import SQLAlchemyDriver
 from fence.models import (
     AccessPrivilege,
     CloudProvider,
@@ -22,7 +22,7 @@ from fence.utils import create_client, drop_client
 from fence.sync.sync_dbgap import DbGapSyncer
 
 
-def db_init(DB):
+def db_init(db):
     """
     Initialize the database and populate any default records.
 
@@ -30,7 +30,7 @@ def db_init(DB):
         DB (str): database to connect to
     """
     # create the driver (this creates all the initial tables)
-    driver = SQLAlchemyDriver(DB)
+    driver = SQLAlchemyDriver(db)
     with driver.session as s:
         print('initializing fence database...')
         for provider in IDENTITY_PROVIDERS:
@@ -281,7 +281,7 @@ if __name__ == '__main__':
 
     init_db = subparsers.add_parser('db-init')
     init_db.add_argument(
-        '--db', type=str, help='database name')
+        '--db', type=str, required=True, help='database name')
     init_db.add_argument(
         '--username', default='postgres', help='database username')
     init_db.add_argument(
@@ -291,32 +291,38 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    sys.path.append(args.path)
-    if os.environ.get('FENCE_DB'):
-        DB = os.environ['FENCE_DB']
-    else:
-        from local_settings import DB
-
     if args.action == 'create':
         yaml_input = args.__dict__['yaml-input']
         create_sample_data(yaml_input)
-    elif args.action == 'client-create':
-        create_client_action(
-            DB, username=args.username, client=args.client,
-            urls=args.urls, auto_approve=not args.external)
-    elif args.action == 'client-delete':
-        delete_client_action(DB, args.client)
+
+    elif args.action == 'client-create' or args.action == 'client-delete':
+
+        # get database information
+        sys.path.append(args.path)
+        if os.environ.get('FENCE_DB'):
+            DB = os.environ['FENCE_DB']
+        else:
+            from fence.local_settings import DB
+
+        if args.action == 'client-create':
+            create_client_action(
+                DB, username=args.username, client=args.client,
+                urls=args.urls, auto_approve=not args.external)
+        else:
+            delete_client_action(DB, args.client)
+
     elif args.action == 'sync-dbgap':
         sync_dbgap(args.__dict__['projects'])
+
     elif args.action == 'db-init':
-        if args.db:
-            db = SQLAlchemyDriver(
-                "postgresql://{username}:{password}@{host}/{db}".format(
-                    username=args.username, password=args.password,
-                    host=args.host, db=args.db))
-        else:
-            db = DB
+        db = (
+            "postgresql://{username}:{password}@{host}/{db}"
+            .format(
+                username=args.username, password=args.password,
+                host=args.host, db=args.db)
+        )
 
         db_init(db)
+
     else:
         pass
