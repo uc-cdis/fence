@@ -1,5 +1,5 @@
 """
-Userdatamodel database operations.
+database operations.
 These operations allow for the manipulation at
 an administration level of the projects,
 cloud providers and buckets on the database

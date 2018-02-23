@@ -6,11 +6,15 @@ from random import SystemRandom
 import re
 import string
 
+from contextlib import contextmanager
 import flask
-from userdatamodel.driver import SQLAlchemyDriver
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine
 from werkzeug.datastructures import ImmutableMultiDict
 
-from fence.models import Client, User
+from fence.models import Client
+from fence.models import User
+from fence.models import Base
 from fence.jwt.token import CLIENT_ALLOWED_SCOPES
 
 rng = SystemRandom()
@@ -144,3 +148,50 @@ def strip(s):
     if isinstance(s, str):
         return s.strip()
     return s
+
+
+class SQLAlchemyDriver(object):
+    def __init__(self, conn, **config):
+        self.engine = create_engine(conn, **config)
+
+        Base.metadata.bind = self.engine
+        Base.metadata.create_all()
+
+        self.Session = sessionmaker(bind=self.engine, expire_on_commit=False)
+
+    @property
+    @contextmanager
+    def session(self):
+        '''
+        Provide a transactional scope around a series of operations.
+        '''
+        session = self.Session()
+        yield session
+
+        try:
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    def get_or_create(self, session, model, query, props=None):
+        '''
+        Get or create a row
+        Args:
+            session: sqlalchemy session
+            model: the ORM class from userdatamodel.models
+            query: a dict of query parameters
+            props: extra props aside from query to be added to the object on
+                   creation
+        Returns:
+            result object of the model class
+        '''
+        result = session.query(model).filter_by(**query).first()
+        if result is None:
+            args = props if props is not None else {}
+            args.update(query)
+            result = model(**args)
+            session.add(result)
+        return result

@@ -4,8 +4,8 @@ import os
 import sys
 import yaml
 
-from userdatamodel.driver import SQLAlchemyDriver
-from userdatamodel.models import (
+from fence.utils import SQLAlchemyDriver
+from fence.models import (
     AccessPrivilege,
     CloudProvider,
     IdentityProvider,
@@ -16,8 +16,30 @@ from userdatamodel.models import (
     Bucket,
 )
 
+from fence.models import IDENTITY_PROVIDERS
+
 from fence.utils import create_client, drop_client
 from fence.sync.sync_dbgap import DbGapSyncer
+
+
+def db_init(DB):
+    """
+    Initialize the database and populate any default records.
+
+    Args:
+        DB (str): database to connect to
+    """
+    # create the driver (this creates all the initial tables)
+    driver = SQLAlchemyDriver(DB)
+    with driver.session as s:
+        print('initializing fence database...')
+        for provider in IDENTITY_PROVIDERS:
+            if not (
+                    s.query(IdentityProvider)
+                    .filter(IdentityProvider.name == provider)
+                    .first()):
+                provider = IdentityProvider(name=provider)
+                s.add(provider)
 
 
 def create_client_action(DB, username=None, client=None, urls=None, auto_approve=True):
@@ -124,7 +146,7 @@ def create_project(s, project_data):
                     s.query(Bucket)
                     .filter_by(name=bucket)
                     .join(Bucket.provider)
-                    .filter(CloudProvider.name==provider)
+                    .filter(CloudProvider.name == provider)
                     .first()
                 )
                 print b
@@ -133,7 +155,6 @@ def create_project(s, project_data):
                     b.provider = c_provider
                     s.add(b)
                     print ('created bucket {} in db'.format(bucket))
-
 
     return project
 
@@ -257,6 +278,17 @@ if __name__ == '__main__':
 
     dbgap_sync = subparsers.add_parser('sync-dbgap')
     dbgap_sync.add_argument('--projects', required=True)
+
+    init_db = subparsers.add_parser('db-init')
+    init_db.add_argument(
+        '--db', type=str, help='database name')
+    init_db.add_argument(
+        '--username', default='postgres', help='database username')
+    init_db.add_argument(
+        '--password', default='', help='database password')
+    init_db.add_argument(
+        '--host', default='localhost', help='database hostname')
+
     args = parser.parse_args()
 
     sys.path.append(args.path)
@@ -276,3 +308,15 @@ if __name__ == '__main__':
         delete_client_action(DB, args.client)
     elif args.action == 'sync-dbgap':
         sync_dbgap(args.__dict__['projects'])
+    elif args.action == 'db-init':
+        if args.db:
+            db = SQLAlchemyDriver(
+                "postgresql://{username}:{password}@{host}/{db}".format(
+                    username=args.username, password=args.password,
+                    host=args.host, db=args.db))
+        else:
+            db = DB
+
+        db_init(db)
+    else:
+        pass
