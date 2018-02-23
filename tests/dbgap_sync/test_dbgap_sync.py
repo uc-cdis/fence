@@ -1,17 +1,17 @@
-from fence.data_model import models as udm
+from fence import models
 
 
-def test_sync_from_files(syncer):
+def test_sync_from_files(syncer, db_session):
     syncer.sync()
-    with syncer.driver.session as s:
-        u = s.query(udm.User).filter_by(username='USERF').one()
-        assert (
-            u.project_access
-            == {'TCGA-PCAWG': ['read-storage'], 'phs000178': ['read-storage']}
-        )
+    user = db_session.query(models.User).filter_by(username='USERF').one()
+    assert (
+        user.project_access
+        == {'TCGA-PCAWG': ['read-storage'], 'phs000178': ['read-storage']}
+    )
 
 
-def test_sync(syncer):
+def test_sync(syncer, db_session):
+    s = db_session
     phsids = {
         'userA': ['phs000178', 'phs000179'],
         'userB': ['phs000179']
@@ -21,19 +21,17 @@ def test_sync(syncer):
         'userB': {'email': 'a@b'},
     }
 
-    with syncer.driver.session as s:
-        syncer._init_projects(s)
-        syncer.sync_to_db_and_storage_backend(phsids, userinfo, s)
+    syncer._init_projects(s)
+    syncer.sync_to_db_and_storage_backend(phsids, userinfo, s)
 
-    with syncer.driver.session as s:
-        u = s.query(udm.User).filter_by(username='userB').one()
-        assert (
-            u.project_access
-            == {'phs000179': ['read-storage']}
-        )
+    u = s.query(models.User).filter_by(username='userB').one()
+    assert (
+        u.project_access
+        == {'phs000179': ['read-storage']}
+    )
 
 
-def test_sync_revoke(syncer):
+def test_sync_revoke(syncer, db_session):
     phsids = {
         'userA': ['phs000178', 'phs000179'],
         'userB': ['phs000179']
@@ -45,12 +43,16 @@ def test_sync_revoke(syncer):
     phsids2 = {
         'userA': ['phs000179']
     }
-    with syncer.driver.session as s:
-        syncer._init_projects(s)
-        syncer.sync_to_db_and_storage_backend(phsids, userinfo, s)
-    with syncer.driver.session as s:    
-        syncer.sync_to_db_and_storage_backend(phsids2, userinfo, s)
-    
-    with syncer.driver.session as s:    
-        u = s.query(udm.User).filter_by(username='userB').one()
-        assert u.project_access == {}
+    syncer._init_projects(db_session)
+    syncer.sync_to_db_and_storage_backend(phsids, userinfo, db_session)
+
+    syncer.sync_to_db_and_storage_backend(phsids2, userinfo, db_session)
+
+    user_B = db_session.query(models.User).filter_by(username='userB').first()
+    n_access_privilege = (
+        db_session
+        .query(models.AccessPrivilege)
+        .filter_by(user_id=user_B.id)
+        .count()
+    )
+    assert n_access_privilege == 0

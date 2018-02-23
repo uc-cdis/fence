@@ -8,7 +8,7 @@ from fence.resources import (
 
 import admin_users as au
 from flask import current_app as capp
-from fence.data_model.models import User, Group
+from fence.models import User, Group
 from fence.errors import NotFound
 import json
 from fence.errors import UserError

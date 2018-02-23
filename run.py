@@ -1,4 +1,6 @@
 from fence import app, app_config, app_sessions
+from fence.oidc.server import server
+
 app_config(app)
 
 if app.config.get('MOCK_STORAGE', False):
@@ -10,5 +12,6 @@ if app.config.get('MOCK_STORAGE', False):
         get_client)
     patcher.start()
 
+server.init_app(app)
 app_sessions(app)
 app.run(debug=True, port=8000, host='0.0.0.0')
