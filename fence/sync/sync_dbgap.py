@@ -10,7 +10,7 @@ import subprocess as sp
 import temps
 
 from cdispyutils.log import get_logger
-from fence.utils import SQLAlchemyDriver
+from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.models import (
     Project,

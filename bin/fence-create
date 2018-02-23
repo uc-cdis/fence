@@ -4,7 +4,7 @@ import os
 import sys
 import yaml
 
-from fence.utils import SQLAlchemyDriver
+from userdatamodel.driver import SQLAlchemyDriver
 from fence.models import (
     AccessPrivilege,
     CloudProvider,

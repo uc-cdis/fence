@@ -35,6 +35,6 @@ from fence.models.users import UserToGroup  # noqa
 from fence.models.users import Organization  # noqa
 from fence.models.users import Department  # noqa
 
-from fence.models.migrate import migrate  # noqa
+from fence.models._migrate import migrate  # noqa
 
 IDENTITY_PROVIDERS = ['fence', 'google', 'shibboleth']

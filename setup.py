@@ -33,6 +33,7 @@ setup(
         "temps>=0.3.0,<1.0.0",
         "Werkzeug>=0.12.2,<1.0.0",
         "storageclient",
+        "userdatamodel",
         "pyyaml"
     ],
     scripts=[
