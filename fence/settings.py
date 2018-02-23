@@ -1,7 +1,8 @@
-from cdislogging import get_logger
 from collections import OrderedDict
 from datetime import timedelta
 import os
+
+from cdislogging import get_logger
 
 logger = get_logger(__name__)
 # default settings if local_settings is not present
