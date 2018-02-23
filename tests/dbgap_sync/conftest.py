@@ -4,10 +4,7 @@ import os
 
 from cdisutilstest.code.storage_client_mock import get_client
 from fence.sync.sync_dbgap import DbGapSyncer
-from fence.resources import userdatamodel as udm
-from fence.models import Base
-from fence.models import *
-from fence.utils import SQLAlchemyDriver
+from fence.resources import database_operations as udm
 
 from ..test_settings import DB
 

@@ -155,9 +155,9 @@ class SQLAlchemyDriver(object):
         self.engine = create_engine(conn, **config)
 
         Base.metadata.bind = self.engine
-        Base.metadata.create_all()
-
         self.Session = sessionmaker(bind=self.engine, expire_on_commit=False)
+        self.pre_migrate()
+        Base.metadata.create_all()
 
     @property
     @contextmanager
@@ -181,7 +181,7 @@ class SQLAlchemyDriver(object):
         Get or create a row
         Args:
             session: sqlalchemy session
-            model: the ORM class from userdatamodel.models
+            model: the ORM class from models
             query: a dict of query parameters
             props: extra props aside from query to be added to the object on
                    creation
@@ -195,3 +195,19 @@ class SQLAlchemyDriver(object):
             result = model(**args)
             session.add(result)
         return result
+
+    def pre_migrate(self):
+        '''
+        migration script to be run before create_all
+        '''
+        if not self.engine.dialect.supports_alter:
+            print(
+                "This engine dialect doesn't support altering"
+                " so we are not migrating even if necessary!")
+            return
+
+        if (not self.engine.dialect.has_table(self.engine, 'Group') and
+                self.engine.dialect.has_table(self.engine, 'research_group')):
+            print("Altering table research_group to group")
+            with self.session as session:
+                session.execute('ALTER TABLE research_group rename to "Group"')
