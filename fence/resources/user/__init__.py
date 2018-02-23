@@ -41,7 +41,7 @@ def get_user(current_session, username):
 
 def get_current_user_info():
     with flask.current_app.db.session as session:
-        return session.merge(flask.g.user)
+        return flask.jsonify(get_user_info(session, session.merge(flask.g.user).username))
 
 
 def get_user_info(current_session, username):
