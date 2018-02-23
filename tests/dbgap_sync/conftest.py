@@ -4,7 +4,7 @@ import os
 
 from cdisutilstest.code.storage_client_mock import get_client
 from fence.sync.sync_dbgap import DbGapSyncer
-from fence.resources import database_operations as udm
+from fence.resources import database_operations
 
 from ..test_settings import DB
 
@@ -54,12 +54,12 @@ def syncer(db_session):
         storage_credentials={'test-cleversafe': {'backend': 'cleversafe'}},
         sync_from_dir=DATA_DIR)
 
-    udm.create_provider(
+    database_operations.create_provider(
         db_session, provider['name'],
         backend=provider['backend']
     )
     for project in projects:
-        p = udm.create_project_with_dict(db_session, project)
+        p = database_operations.create_project_with_dict(db_session, project)
         for sa in project['storage_accesses']:
             for bucket in sa['buckets']:
                 syncer_obj.storage_manager.create_bucket(
