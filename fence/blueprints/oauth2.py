@@ -24,6 +24,7 @@ from authlib.specs.rfc6749.errors import (
 )
 
 from fence.errors import Unauthorized
+from fence.jwt.token import SCOPE_DESCRIPTION
 from fence.models import Client
 from fence.oidc.server import server
 from fence.user import get_current_user
@@ -217,9 +218,15 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
             pass
 
     if show_consent_screen:
+        shown_scopes = scope.split(' ')
+        if 'openid' in shown_scopes:
+            shown_scopes.remove('openid')
+        resource_description = [
+            SCOPE_DESCRIPTION[scope] for scope in shown_scopes]
         response = flask.render_template(
             'oauthorize.html', grant=grant, user=user, client=client,
-            scope=scope
+            app_name=flask.current_app.config.get('APP_NAME'),
+            resource_description=resource_description
         )
 
     return response

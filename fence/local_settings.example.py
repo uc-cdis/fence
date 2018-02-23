@@ -129,3 +129,5 @@ ENABLED_IDENTITY_PROVIDERS = {
         },
     },
 }
+
+APP_NAME = ''
