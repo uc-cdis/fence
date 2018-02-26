@@ -304,7 +304,7 @@ paths:
     get:
       tags:
         - link
-      summary: Link Google identity
+      summary: Google's callback for linking Google identity
       consumes:
         - application/x-www-form-urlencoded
       produces:
