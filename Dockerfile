@@ -22,8 +22,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python-pip \
     python-setuptools \
     vim \
+    less \
+    jq \
+    && curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl \
+    && chmod a+rx kubectl \
+    && mv kubectl /usr/local/bin/ \
     && pip install --upgrade pip \
     && pip install --upgrade setuptools \
+    && pip install awscli --upgrade \
     && mkdir /var/www/fence \
     && mkdir -p /var/www/.cache/Python-Eggs/ \
     && chown www-data -R /var/www/.cache/Python-Eggs/
