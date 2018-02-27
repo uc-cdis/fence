@@ -7,17 +7,16 @@ the endpoints for each provider.
 """
 
 import urlparse
-
 import flask
-from flask_restful import Api
 
+from flask_restful import Api
 from fence.blueprints.login.fence_login import FenceRedirect, FenceLogin
 from fence.blueprints.login.google import GoogleRedirect, GoogleLogin
 from fence.blueprints.login.shib import (
     ShibbolethLoginStart,
     ShibbolethLoginFinish,
 )
-from fence.errors import APIError
+from fence.errors import InternalError
 
 
 def make_login_blueprint(app):
@@ -86,7 +85,7 @@ def make_login_blueprint(app):
             ]
             default_provider_info = provider_info(default_idp)
         except KeyError as e:
-            raise APIError(
+            raise InternalError(
                 'identity providers misconfigured: {}'.format(str(e))
             )
 
