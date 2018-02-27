@@ -515,7 +515,7 @@ def connect_project_to_group(current_session, group, project):
 def remove_project_from_group(current_session, group, project):
     to_be_removed = current_session.query(AccessPrivilege).filter(
         AccessPrivilege.project_id == project.id).filter(
-            UserToGroup.group_id == group.id).first()
+            AccessPrivilege.group_id == group.id).first()
     if to_be_removed:
         current_session.delete(to_be_removed)
         current_session.flush()
