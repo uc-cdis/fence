@@ -1,4 +1,3 @@
-from datetime import datetime, timedelta
 import json
 import time
 
@@ -163,9 +162,8 @@ def issued_and_expiration_times(seconds_to_expire):
     Return:
         Tuple[int, int]: (issued, expired) times in unix time
     """
-    now = datetime.now()
-    iat = int(now.strftime('%s'))
-    exp = int((now + timedelta(seconds=seconds_to_expire)).strftime('%s'))
+    iat = int(time.time())
+    exp = iat + int(seconds_to_expire)
     return (iat, exp)
 
 
