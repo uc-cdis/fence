@@ -23,7 +23,6 @@ APPLICATION_ROOT = '/user'
 DEBUG = True
 OAUTH2_PROVIDER_ERROR_URI = "/api/oauth2/errors"
 
-
 #: ``ACCESS_TOKEN_EXPIRES_IN: int``
 #: The number of seconds after an access token is issued until it expires.
 ACCESS_TOKEN_EXPIRES_IN = 1200

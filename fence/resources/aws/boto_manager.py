@@ -1,5 +1,6 @@
 from boto3 import client
-from fence.errors import UserError
+from boto3.exceptions import Boto3Error
+from fence.errors import UserError, InternalError, UnavailableError
 
 
 class BotoManager(object):
@@ -39,6 +40,22 @@ class BotoManager(object):
             ExpiresIn=expires
         )
         return url
+
+    def get_bucket_region(self, bucket, config):
+        try:
+            if config.has_key('aws_access_key_id'):
+                self.s3_client = client('s3', **config)
+            response = self.s3_client.get_bucket_location(Bucket=bucket)
+            region = response.get('LocationConstraint')
+        except Boto3Error as ex:
+            self.logger.exception(ex)
+            raise InternalError("Fail to get bucket region: {}".format(ex.message))
+        except Exception as ex:
+            self.logger.exception(ex)
+            raise UnavailableError("Fail to reach AWS: {}".format(ex.message))
+        if region is None:
+            return 'us-east-1'
+        return region
 
     def get_all_groups(self, list_group_name):
         '''

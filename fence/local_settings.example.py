@@ -71,13 +71,11 @@ os.environ["GOOGLE_ADMIN_EMAIL"] = ""
 os.environ["GOOGLE_IDENTITY_DOMAIN"] = ""
 os.environ["GOOGLE_CLOUD_IDENTITY_ADMIN_EMAIL"] = ""
 
-
 '''
 If the api is behind firewall that need to set http proxy:
     HTTP_PROXY = {'host': 'cloud-proxy', 'port': 3128}
 '''
 HTTP_PROXY = None
-
 STORAGES = ['/cleversafe']
 
 SHIBBOLETH_HEADER = 'persistent_id'
