@@ -99,7 +99,7 @@ def validate_jwt(
         )
     except authutils.errors.JWTError as e:
         msg = 'Invalid token : {}'.format(str(e))
-        unverified_claims = jwt.decode(claims, verify=False)
+        unverified_claims = jwt.decode(encoded_token, verify=False)
         if '' in unverified_claims['aud']:
             msg += '; was OIDC client configured with scopes?'
         raise JWTError(msg)
