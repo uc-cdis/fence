@@ -96,13 +96,11 @@ def app_register_blueprints(app):
         }
         return flask.jsonify(endpoints)
 
-
     @app.route('/logout')
     def logout_endpoint():
         root = app.config.get('APPLICATION_ROOT', '')
         next_url = build_redirect_url(app.config.get('ROOT_URL', ''), flask.request.args.get('next', root))
         return flask.redirect(logout(next_url=next_url))
-
 
     @app.route('/jwt/keys')
     def public_keys():
