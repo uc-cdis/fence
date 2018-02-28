@@ -96,7 +96,7 @@ def get_user_accesses():
     user = (
         current_session
         .query(User)
-        .join(User.research_groups)
+        .join(User.groups)
         .filter(User.id == flask.g.user.id)
     )
     if not user:
