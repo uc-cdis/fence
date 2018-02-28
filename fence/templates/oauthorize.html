@@ -28,7 +28,6 @@
               <li>{{resource}}</li>
             {% endfor %}
           </ul>
-         <input name=_csrf_token type=hidden value="{{ csrf_token }}">
          <button id="yes" class='yes'>Yes </button>
          <button id="no" class='no'>No</button>
       </form>
@@ -83,18 +82,50 @@ main div {
 }
 </style>
 <script>
+    function getCookie(name) {
+        var value = "; " + document.cookie;
+        var parts = value.split("; " + name + "=");
+        if (parts.length == 2) return parts.pop().split(";").shift();
+    }
     $(document).ready(function(){
-        var form = $("form")
         $("#yes").click(function(){
-            var input = $("<input>").attr("type", "hidden").attr("name", "confirm").val("yes");
-            form.append(input);
-            form.submit();
+          $.ajax({
+            type : 'POST',
+            //remove the .php from results.php.php
+            url : window.location.href,
+            //Add the request header
+            headers : {
+                'x-csrf-token' : getCookie('csrftoken'),
+            },
+            contentType : 'application/x-www-form-urlencoded',
+            data : {confirm : 'yes'},
+            success : function(response) {
+                console.log(response);
+            },
+            error : function(xhr, status, error) {
+                console.log(xhr)
+            }
+          });
         })
 
         $("#no").click(function(){
-            var input = $("<input>").attr("type", "hidden").attr("name", "confirm").val("no");
-            form.append(input);
-            form.submit();
+          $.ajax({
+            type : 'POST',
+            //remove the .php from results.php.php
+            url : window.location.href,
+            //Add the request header
+            headers : {
+                'x-csrf-token' : getCookie('csrftoken'),
+            },
+            contentType : 'application/x-www-form-urlencoded',
+            data : {confirm : 'no'},
+            success : function(response) {
+                console.log(response);
+            },
+            error : function(xhr, status, error) {
+                console.log(xhr)
+            }
+          });
         })
 
      })
