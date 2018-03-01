@@ -1,34 +1,33 @@
 from functools import wraps
 
-from authutils.errors import JWTError
+from authutils.errors import JWTError, JWTExpiredError
 import flask
 from flask_sqlalchemy_session import current_session
 
 from fence.errors import Unauthorized, InternalError
 from fence.jwt.validate import validate_jwt
 from fence.models import User, IdentityProvider
+from fence.user import get_current_user
 
 
 def build_redirect_url(hostname, path):
     """
     Compute a redirect given a hostname and next path where
-    
+
     Args:
         hostname (str): may be empty string or a bare hostname or
                a hostname with a protocal attached (https?://...)
         path (int): is a path to attach to hostname
-        
+
     Return:
         string url suitable for flask.redirect
-        
-    Side Effects:
-        - None
     """
     redirect_base = hostname
     # BASE_URL may be empty or a bare hostname or a hostname with a protocol
     if bool(redirect_base) and not redirect_base.startswith("http"):
         redirect_base = "https://" + redirect_base
     return redirect_base + path
+
 
 def login_user(request, username, provider):
     user = current_session.query(
@@ -40,7 +39,7 @@ def login_user(request, username, provider):
             .filter(IdentityProvider.name == provider).first()
         )
         if not idp:
-            raise InternalError("{} provider not setup".format(provider))
+            idp = IdentityProvider(name=provider)
         user.identity_provider = idp
         current_session.add(user)
         current_session.commit()
@@ -52,8 +51,10 @@ def login_user(request, username, provider):
 def logout(next_url=None):
     # Call get_current_user (but ignore the result) just to check that either
     # the user is logged in or that authorization is mocked.
-    get_current_user()
-    if flask.session['provider'] == IdentityProvider.itrust:
+    user = get_current_user()
+    if not user:
+        raise Unauthorized("You are not logged in")
+    if flask.session.get('provider') == IdentityProvider.itrust:
         next_url = flask.current_app.config['ITRUST_GLOBAL_LOGOUT'] + next_url
     flask.session.clear()
     return next_url
@@ -91,7 +92,11 @@ def login_required(scope=None):
                 return f(*args, **kwargs)
 
             eppn = None
-            if 'SHIBBOLETH_HEADER' in flask.current_app.config:
+            enable_shib = (
+                'shibboleth' in
+                flask.current_app.config.get('ENABLED_IDENTITY_PROVIDERS', [])
+            )
+            if enable_shib and 'SHIBBOLETH_HEADER' in flask.current_app.config:
                 eppn = flask.request.headers.get(
                     flask.current_app.config['SHIBBOLETH_HEADER']
                 )
@@ -162,23 +167,6 @@ def has_oauth(scope=None):
     # client_id should be None if the field doesn't exist or is empty
     flask.g.client_id = access_token_claims.get('azp') or None
     flask.g.token = access_token_claims
-
-
-def get_current_user():
-    username = flask.session.get('username')
-    if not username:
-        eppn = None
-        if 'SHIBBOLETH_HEADER' in flask.current_app.config:
-            eppn = flask.request.headers.get(
-                flask.current_app.config['SHIBBOLETH_HEADER']
-            )
-        if flask.current_app.config.get('MOCK_AUTH') is True:
-            eppn = 'test'
-        if eppn:
-            username = eppn.split('!')[-1]
-        else:
-            raise Unauthorized("User not logged in")
-    return current_session.query(User).filter_by(username=username).first()
 
 
 def get_user_from_claims(claims):

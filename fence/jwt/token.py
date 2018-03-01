@@ -1,4 +1,3 @@
-from datetime import datetime, timedelta
 import json
 import time
 
@@ -10,6 +9,24 @@ import jwt
 import uuid
 
 from fence.jwt import keys
+
+
+SCOPE_DESCRIPTION = {
+    'openid': 'default scope',
+    'user': 'know who you are and what you have access to',
+    'data': 'retrieve protected datasets that you have access to',
+    'credentials': 'view and update your credentials'
+}
+
+
+# Allowed scopes for user requested token and oauth2 client requested token
+# TODO: this should be more discoverable and configurable
+#
+# Only allow web session based auth access credentials so that user
+# can't create a long-lived API key using a short lived access_token
+SESSION_ALLOWED_SCOPES = ['openid', 'user', 'credentials', 'data']
+USER_ALLOWED_SCOPES = ['fence', 'openid', 'user', 'data']
+CLIENT_ALLOWED_SCOPES = ['openid', 'user', 'data']
 
 
 class UnsignedIDToken(AuthlibCodeIDToken):
@@ -133,16 +150,6 @@ class UnsignedIDToken(AuthlibCodeIDToken):
         return token
 
 
-# Allowed scopes for user requested token and oauth2 client requested token
-# TODO: this should be more discoverable and configurable
-#
-# Only allow web session based auth access credentials so that user
-# can't create a long-lived API key using a short lived access_token
-SESSION_ALLOWED_SCOPES = ['openid', 'user', 'credentials', 'data']
-USER_ALLOWED_SCOPES = ['fence', 'openid', 'user', 'data']
-CLIENT_ALLOWED_SCOPES = ['openid', 'user', 'data']
-
-
 def issued_and_expiration_times(seconds_to_expire):
     """
     Return the times in unix time that a token is being issued and will be
@@ -155,15 +162,13 @@ def issued_and_expiration_times(seconds_to_expire):
     Return:
         Tuple[int, int]: (issued, expired) times in unix time
     """
-    now = datetime.now()
-    iat = int(now.strftime('%s'))
-    exp = int((now + timedelta(seconds=seconds_to_expire)).strftime('%s'))
+    iat = int(time.time())
+    exp = iat + int(seconds_to_expire)
     return (iat, exp)
 
 
 def generate_signed_session_token(
-        kid, private_key, expires_in, username=None, session_started=None,
-        provider=None, redirect=None):
+        kid, private_key, expires_in, context=None):
     """
     Generate a JWT session token from the given request, and output a UTF-8
     string of the encoded JWT signed with the private key.
@@ -183,20 +188,15 @@ def generate_signed_session_token(
     issuer = flask.current_app.config.get('BASE_URL')
 
     # Create context based on provided information
-    context = {
-        'session_started': session_started or iat,  # Provided or issued time
-    }
-    if username:
-        context["username"] = username
-    if provider:
-        context["provider"] = provider
-    if redirect:
-        context["redirect"] = redirect
+    if not context:
+        context = {}
+    if 'session_started' not in context:
+        context['session_started'] = iat
 
     claims = {
         'pur': 'session',
         'aud': ['fence'],
-        'sub': username or '',
+        'sub': context.get('username', ''),
         'iss': issuer,
         'iat': iat,
         'exp': exp,
@@ -416,6 +416,13 @@ def generate_id_token(
     auth_time = auth_time or iat
 
     claims = {
+        'context': {
+            'user': {
+                'name': user.username,
+                'is_admin': user.is_admin,
+                'projects': dict(user.project_access),
+            },
+        },
         'pur': 'id',
         'aud': audiences,
         'sub': str(user.id),

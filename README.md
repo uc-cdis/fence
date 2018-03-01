@@ -231,31 +231,45 @@ Example:
 - Our microservices (e.g. [`sheepdog`](https://github.com/uc-cdis/sheepdog)) are resource providers
 
 ### Example Flows
+
 Note that the `3rd Party App` acts as the `client` in these examples.
 
 [//]: # (See /docs folder for README on how to regenerate these sequence diagrams)
+
 #### Flow: Client Registration
+
 ![Client Registration](docs/client_registration.png)
 
 #### Flow: OpenID Connect
-![Client Registration](docs/openid_connect_flow.png)
+
+![OIDC Flow](docs/openid_connect_flow.png)
 
 If the third-party application doesn't need to use any Gen3 resources (and just
 wants to authenticate the user), after the handshake is finished they can just get
 needed information in the `ID token`.
 
 #### Flow: Using Tokens for Access
+
 If a third-party application want to use Gen3 resources like
 `fence`/`sheepdog`/`peregrine`, they call those services with an `Access Token`
 passed in an `Authorization` header.
 
-![Client Registration](docs/token_use_for_access.png)
+![Using Access Token](docs/token_use_for_access.png)
 
 #### Flow: Refresh Token Use
-![Client Registration](docs/refresh_token_use.png)
+
+![Using Refresh Token](docs/refresh_token_use.png)
 
 #### Flow: Refresh Token Use (Token is Expired)
-![Client Registration](docs/refresh_token_use_expired.png)
+
+![Using Expired Refresh Token](docs/refresh_token_use_expired.png)
+
+#### Flow: Multi-Tenant Fence
+
+The following diagram illustrates the case in which one fence instance should
+use another fence instance as its identity provider.
+
+![Multi-Tenant Flow](docs/multi-tenant_flow.png)
 
 #### Notes
 

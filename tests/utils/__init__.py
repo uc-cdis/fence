@@ -1,11 +1,14 @@
 import os
-import tests
+import time
+import urlparse
 import uuid
-import tests.utils.oauth2
+
+from flask import current_app
+
 from fence.models import User, Project, AccessPrivilege
 
-from datetime import datetime, timedelta
-from flask import current_app as capp
+import tests
+import tests.utils.oauth2
 
 
 def read_file(filename):
@@ -61,9 +64,8 @@ def iat_and_exp():
     """
     Return ``iat`` and ``exp`` claims for a JWT.
     """
-    now = datetime.now()
-    iat = int(now.strftime('%s'))
-    exp = int((now + timedelta(seconds=60)).strftime('%s'))
+    iat = int(time.time())
+    exp = iat + 600
     return (iat, exp)
 
 
@@ -104,7 +106,7 @@ def unauthorized_context_claims(user_name, user_id):
         dict: dictionary of claims
     """
     aud = ['access', 'data', 'user', 'openid']
-    iss = capp.config['BASE_URL']
+    iss = current_app.config['BASE_URL']
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
@@ -135,7 +137,7 @@ def authorized_download_context_claims(user_name, user_id):
         dict: dictionary of claims
     """
     aud = ['access', 'data', 'user', 'openid']
-    iss = capp.config['BASE_URL']
+    iss = current_app.config['BASE_URL']
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
@@ -166,7 +168,7 @@ def authorized_upload_context_claims(user_name, user_id):
         dict: dictionary of claims
     """
     aud = ['access', 'data', 'user', 'openid']
-    iss = capp.config['BASE_URL']
+    iss = current_app.config['BASE_URL']
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
@@ -198,3 +200,10 @@ class FakeFlaskRequest(object):
         self.method = method
         self.args = args
         self.form = form
+
+
+def remove_qs(url):
+    """
+    Remove the query string from a url.
+    """
+    return urlparse.urljoin(url, urlparse.urlparse(url).path)

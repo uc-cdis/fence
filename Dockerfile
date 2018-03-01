@@ -30,6 +30,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY . /fence
 WORKDIR /fence
+#
+# Custom apache24 logging - see http://www.loadbalancer.org/blog/apache-and-x-forwarded-for-headers/
+#
 RUN ln -s /fence/wsgi.py /var/www/fence/wsgi.py \
     && pip install -r requirements.txt \
     && python setup.py install \
@@ -46,7 +49,10 @@ RUN ln -s /fence/wsgi.py /var/www/fence/wsgi.py \
     </Directory>\n\
     ErrorLog ${APACHE_LOG_DIR}/error.log\n\
     LogLevel warn\n\
-    CustomLog ${APACHE_LOG_DIR}/access.log combined\n\
+    LogFormat "%{X-Forwarded-For}i %l %{X-UserId}i %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-agent}i\"" aws\n\
+    SetEnvIf X-Forwarded-For "^..*" forwarded\n\
+    CustomLog ${APACHE_LOG_DIR}/access_log combined env=!forwarded\n\
+    CustomLog ${APACHE_LOG_DIR}/access.log aws env=forwarded\n\
 </VirtualHost>\n'\
 >> /etc/apache2/sites-available/fence.conf \
     && a2dissite 000-default \

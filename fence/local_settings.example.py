@@ -1,5 +1,7 @@
 import os
 from boto.s3.connection import OrdinaryCallingFormat
+
+
 DB = 'postgresql://test:test@localhost:5432/fence'
 
 MOCK_AUTH = False
@@ -7,6 +9,10 @@ MOCK_STORAGE = False
 
 BASE_URL = 'http://localhost/user'
 APPLICATION_ROOT = '/user'
+
+# If using multi-tenant setup, configure this to the base URL for the provider
+# fence (i.e. ``BASE_URL`` in the provider fence config).
+# OIDC_ISSUER = 'http://localhost:8080/user
 
 EMAIL_SERVER = 'localhost'
 
@@ -16,12 +22,27 @@ SEND_TO = 'phillis.tt@gmail.com'
 
 HMAC_ENCRYPTION_KEY = ''
 
+DEFAULT_LOGIN_URL = BASE_URL + '/login/google'
+DEFAULT_LOGIN_URL_REDIRECT_PARAM = 'redirect'
+
 OPENID_CONNECT = {
     'google': {
         'client_id': '',
         'client_secret': '',
         'redirect_url': ''
-    }
+    },
+    'fence': {
+        'client_id': '',
+        'client_secret': '',
+        'api_base_url': '',
+        'authorize_url': '',
+        'access_token_url': '',
+        'refresh_token_url': '',
+        'client_kwargs': {
+            'scope': 'openid user',
+            'redirect_uri': '',
+        },
+    },
 }
 
 STORAGE_CREDENTIALS = {
@@ -50,13 +71,11 @@ os.environ["GOOGLE_ADMIN_EMAIL"] = ""
 os.environ["GOOGLE_IDENTITY_DOMAIN"] = ""
 os.environ["GOOGLE_CLOUD_IDENTITY_ADMIN_EMAIL"] = ""
 
-
 '''
 If the api is behind firewall that need to set http proxy:
     HTTP_PROXY = {'host': 'cloud-proxy', 'port': 3128}
 '''
 HTTP_PROXY = None
-
 STORAGES = ['/cleversafe']
 
 SHIBBOLETH_HEADER = 'persistent_id'
@@ -86,3 +105,29 @@ S3_BUCKETS = {
     "bucket2": "CRED2",
     "bucket3": "CRED1"
 }
+
+#: Confiure which identity providers this fence instance can use for login.
+#:
+#: See ``fence/blueprints/login/__init__.py`` for which identity providers can
+#: be loaded.
+#:
+#: NOTE: Don't enable shibboleth if the deployment is not protected by
+#: shibboleth module, the shib module takes care of preventing header spoofing.
+ENABLED_IDENTITY_PROVIDERS = {
+    # ID for which of the providers to default to.
+    'default': 'google',
+    # Information for identity providers.
+    'providers': {
+        'fence': {
+            'name': 'Fence Multi-Tenant OAuth',
+        },
+        'google': {
+            'name': 'Google OAuth',
+        },
+        'shibboleth': {
+            'name': 'NIH Login',
+        },
+    },
+}
+
+APP_NAME = ''

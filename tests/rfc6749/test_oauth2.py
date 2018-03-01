@@ -5,6 +5,7 @@ Test the endpoints in the ``/oauth2`` blueprint.
 import urllib
 
 import tests.utils.oauth2
+from fence.jwt.token import SCOPE_DESCRIPTION, CLIENT_ALLOWED_SCOPES
 
 
 def test_oauth2_authorize_get(client, oauth_client):
@@ -85,3 +86,8 @@ def test_oauth2_token_post_revoke(client, oauth_client, refresh_token):
     }
     response = client.post('/oauth2/token', data=data)
     assert response.status_code == 401
+
+
+def test_all_scopes_have_description():
+    for scope in CLIENT_ALLOWED_SCOPES:
+        assert scope in SCOPE_DESCRIPTION

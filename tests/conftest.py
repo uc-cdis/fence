@@ -5,6 +5,7 @@ Define pytest fixtures.
 
 import json
 import jwt
+import mock
 from mock import patch, MagicMock
 from moto import mock_s3, mock_sts
 import os
@@ -13,6 +14,7 @@ from addict import Dict
 import bcrypt
 from cdisutilstest.code.storage_client_mock import get_client
 import pytest
+import requests
 
 import fence
 from fence import app_init
@@ -21,6 +23,13 @@ from fence import models
 import tests
 from tests import test_settings
 from tests import utils
+from sqlalchemy.schema import DropTable
+from sqlalchemy.ext.compiler import compiles
+
+
+@compiles(DropTable, "postgresql")
+def _compile_drop_table(element, compiler, **kwargs):
+    return compiler.visit_drop_table(element) + " CASCADE"
 
 
 # Allow authlib to use HTTP for local testing.
@@ -57,6 +66,10 @@ def indexd_get_unavailable_bucket(file_id):
         'created_date': '',
         "updated_date": ''
     }
+
+
+def mock_get_bucket_location(self, bucket, config):
+    return 'us-east-1'
 
 
 @pytest.fixture(scope='session')
@@ -150,28 +163,32 @@ def encoded_jwt_refresh_token(claims_refresh, private_key):
     )
 
 
-def check_auth_positive(cls, backend, user):
-    return True
-
-
 class Mocker(object):
+
     def mock_functions(self):
         self.patcher = patch(
             'fence.resources.storage.get_client',
-            get_client)
+            get_client
+        )
         self.auth_patcher = patch(
             'fence.resources.storage.StorageManager.check_auth',
-            check_auth_positive)
+            lambda cls, backend, user: True
+        )
+        self.boto_patcher = patch(
+            'fence.resources.aws.boto_manager.BotoManager.get_bucket_region',
+            mock_get_bucket_location
+        )
         self.patcher.start()
         self.auth_patcher.start()
+        self.boto_patcher.start()
         self.additional_patchers = []
 
     def unmock_functions(self):
         self.patcher.stop()
         self.auth_patcher.stop()
+        self.boto_patcher.stop()
         for patcher in self.additional_patchers:
             patcher.stop()
-        # self.user_from_jwt_patcher.stop()
 
     def add_mock(self, patcher):
         patcher.start()
@@ -179,9 +196,10 @@ class Mocker(object):
 
 
 @pytest.fixture(scope='session')
-@mock_s3
-@mock_sts
 def app():
+    """
+    Flask application fixture.
+    """
     mocker = Mocker()
     mocker.mock_functions()
     root_dir = os.path.dirname(os.path.realpath(__file__))
@@ -215,6 +233,8 @@ def protected_endpoint(methods=['GET']):
 
 
 @pytest.fixture(scope='function')
+@mock_s3
+@mock_sts
 def user_client(app, request, db_session):
     users = dict(json.loads(
         utils.read_file('resources/authorized_users.json')
@@ -316,7 +336,7 @@ def patch_app_db_session(app, monkeypatch):
 
 
 @pytest.fixture(scope='function')
-def oauth_client(app, request, db_session, oauth_user):
+def oauth_client(app, db_session, oauth_user):
     """
     Create a confidential OAuth2 client and add it to the database along with a
     test user for the client.
@@ -375,3 +395,40 @@ def cloud_manager():
     manager = MagicMock()
     patch('fence.blueprints.storage_creds.GoogleCloudManager', manager).start()
     return manager
+
+
+@pytest.fixture(scope='function')
+def mock_get(monkeypatch, example_keys_response):
+    """
+    Provide a function to patch the value of the JSON returned by
+    ``requests.get``.
+
+    Args:
+        monkeypatch (pytest.monkeypatch.MonkeyPatch): fixture
+
+    Return:
+        Calllable[dict, None]:
+            function which sets the reponse JSON of ``requests.get``
+    """
+
+    def do_patch(urls_to_responses=None):
+        """
+        Args:
+            keys_response_json (dict): value to set /jwt/keys return value to
+
+        Return:
+            None
+
+        Side Effects:
+            Patch ``requests.get``
+        """
+
+        def get(url):
+            """Define a mock ``get`` function to return a mocked response."""
+            mocked_response = mock.MagicMock(requests.Response)
+            mocked_response.json.return_value = urls_to_responses[url]
+            return mocked_response
+
+        monkeypatch.setattr('requests.get', mock.MagicMock(side_effect=get))
+
+    return do_patch

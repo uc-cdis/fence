@@ -11,6 +11,7 @@ Attributes:
         return default private key for the app
 """
 
+import base64
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 import flask
@@ -53,8 +54,8 @@ class Keypair(object):
             'use': 'sig',
             'key_ops': 'verify',
             'kid': self.kid,
-            'n': n,
-            'e': e,
+            'n': base64.urlsafe_b64encode(str(n)),
+            'e': base64.urlsafe_b64encode(str(e)),
         }
         return jwk
 

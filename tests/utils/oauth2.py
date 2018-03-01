@@ -58,11 +58,13 @@ def post_authorize(client, oauth_client, data=None, confirm=None):
     Args:
         client: client fixture
         oauth_client: oauth client fixture
-        scope: scope to request
+        data: form data to include in request
+        confirm: if set to ``True`` will include ``confirm=yes`` in the data
 
     Return:
         pytest_flask.plugin.JSONResponse: the response from /oauth2/authorize
     """
+    headers = create_basic_header_for_client(oauth_client)
     data = data or {}
     default_data = {
         'client_id': oauth_client.client_id,
@@ -80,7 +82,7 @@ def post_authorize(client, oauth_client, data=None, confirm=None):
             data['confirm'] = 'no'
     if isinstance(data['scope'], list):
         data['scope'] = ' '.join(data['scope'])
-    return client.post(path_for_authorize(), data=data)
+    return client.post(path_for_authorize(), headers=headers, data=data)
 
 
 def code_from_authorize_response(response):
