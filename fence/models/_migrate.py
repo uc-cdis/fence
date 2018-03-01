@@ -4,7 +4,7 @@ database migrations.
 """
 from sqlalchemy import Table
 from sqlalchemy import MetaData
-from sqlalchemy.schema import ForeignKey
+from sqlalchemy import Column
 from sqlalchemy import String
 
 from fence.jwt.token import CLIENT_ALLOWED_SCOPES
@@ -71,8 +71,7 @@ def migrate(driver):
 
     add_column_if_not_exist(
         table_name=GoogleProxyGroup.__tablename__,
-        column_name='email',
-        column_type=String,
+        column=Column('email', String),
         driver=driver,
         metadata=md
     )
@@ -105,8 +104,9 @@ def migrate(driver):
 def add_foreign_key_column_if_not_exist(
         table_name, column_name, column_type, fk_table_name, fk_column_name, driver,
         metadata):
+    column = Column(column_name, column_type)
     add_column_if_not_exist(
-        table_name, column_name, column_type, driver, metadata)
+        table_name, column, driver, metadata)
     add_foreign_key_constraint_if_not_exist(
         table_name, column_name, fk_table_name, fk_column_name, driver,
         metadata)
@@ -119,10 +119,13 @@ def drop_foreign_key_column_if_exist(table_name, column_name, driver, metadata):
 
 
 def add_column_if_not_exist(
-        table_name, column_name, column_type, driver, metadata):
+        table_name, column, driver, metadata):
+    column_name = column.compile(dialect=driver.engine.dialect)
+    column_type = column.type.compile(driver.engine.dialect)
+
     table = Table(
         table_name, metadata, autoload=True, autoload_with=driver.engine)
-    if column_name not in table.c:
+    if str(column_name) not in table.c:
         with driver.session as session:
             session.execute(
                 "ALTER TABLE \"{}\" ADD COLUMN {} {};"
