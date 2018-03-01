@@ -53,7 +53,7 @@ def test_valid_session(app):
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT").seconds,
+        app.config.get("SESSION_TIMEOUT"),
         context={'username': username},
     )
 
@@ -72,7 +72,7 @@ def test_valid_session_modified(app):
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT").seconds,
+        app.config.get("SESSION_TIMEOUT"),
         context={'username': username},
     )
 
@@ -94,12 +94,12 @@ def test_expired_session_lifetime(app):
     # make the start time be max lifetime ago (so it's expired)
     lifetime = app.config.get("SESSION_LIFETIME")
     now = int(time.time())
-    one_lifetime_ago = (now - lifetime.seconds)
+    one_lifetime_ago = now - lifetime
     username = "Captain Janeway"
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT").seconds,
+        app.config.get("SESSION_TIMEOUT"),
         context=dict(session_started=one_lifetime_ago,
                      username=username)
     )
@@ -118,7 +118,7 @@ def test_expired_session_timeout(app):
     # session is expired)
     max_inactivity = app.config.get("SESSION_TIMEOUT")
     now = int(time.time())
-    last_active = (now - max_inactivity.seconds)
+    last_active = (now - max_inactivity)
     username = "Captain Janeway"
 
     # since we're timetraveling, we have to trick the JWT (since it relies
@@ -146,7 +146,7 @@ def test_session_cleared(app):
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT").seconds,
+        app.config.get("SESSION_TIMEOUT"),
         context=dict(username=username)
     )
 
