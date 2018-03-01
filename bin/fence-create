@@ -5,6 +5,8 @@ import sys
 import yaml
 
 from fence.resources.database_operations.driver import SQLAlchemyDriver
+from cirrus import GoogleCloudManager
+
 from fence.models import (
     AccessPrivilege,
     CloudProvider,
@@ -15,7 +17,8 @@ from fence.models import (
     User,
     Bucket,
 )
-
+from fence.models import GoogleProxyGroup
+from fence.models import GoogleServiceAccount
 from fence.models import IDENTITY_PROVIDERS
 
 from fence.utils import create_client, drop_client
@@ -246,6 +249,34 @@ def assign_group_to_user(s, user, group_name, group_data):
         user.groups.append(group)
 
 
+def google_init(db):
+    # Initial user proxy group creation
+    db = SQLAlchemyDriver(db)
+    with db.session as s:
+        users_without_proxy = s.query(User).filter(User.google_proxy_group == None)
+
+        for user in users_without_proxy:
+            with GoogleCloudManager() as g_mgr:
+                response = g_mgr.create_proxy_group_for_user(user.id, user.username)
+                group = response["group"]
+                primary_service_account = response["primary_service_account"]
+                user.google_proxy_group_id = group["id"]
+                # Add user's primary service account to database with "client_id" as user.id
+                service_account = GoogleServiceAccount(
+                    google_unique_id=primary_service_account["uniqueId"],
+                    client_id=user.id,
+                    user_id=user.id,
+                    email=primary_service_account["email"]
+                )
+                proxy_group = GoogleProxyGroup(
+                    id=group["id"],
+                    email=group["email"]
+                )
+                s.add(service_account)
+                s.add(proxy_group)
+                s.commit()
+
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
@@ -289,6 +320,16 @@ if __name__ == '__main__':
     init_db.add_argument(
         '--host', default='localhost', help='database hostname')
 
+    init_google = subparsers.add_parser('google-init')
+    init_google.add_argument(
+        '--db', type=str, required=True, help='database name')
+    init_google.add_argument(
+        '--username', default='postgres', help='database username')
+    init_google.add_argument(
+        '--password', default='', help='database password')
+    init_google.add_argument(
+        '--host', default='localhost', help='database hostname')
+
     args = parser.parse_args()
 
     if args.action == 'create':
@@ -323,6 +364,16 @@ if __name__ == '__main__':
         )
 
         db_init(db)
+
+    elif args.action == 'google-init':
+        db = (
+            "postgresql://{username}:{password}@{host}/{db}"
+            .format(
+                username=args.username, password=args.password,
+                host=args.host, db=args.db)
+        )
+
+        google_init(db)
 
     else:
         pass

@@ -63,3 +63,29 @@ def migrate(driver):
                 "ALTER TABLE {} ALTER COLUMN _allowed_scopes SET NOT NULL;"
                 .format(Client.__tablename__)
             )
+
+#TODO
+# -    user_id = Column(
+# -        Integer,
+# -        ForeignKey(User.id),
+# -        nullable=False,
+# -        unique=True
+# +    email = Column(
+# +        String,
+# +        unique=True,
+# +        nullable=False
+#      )
+# -    user = relationship('User')
+
+# TODO removed client_id fk restriction
+# -    client_id = Column(
+# -        String(40),
+# -        ForeignKey('client.client_id')
+# -    )
+# -    client = relationship('Client')
+# +    client_id = Column(String(40))
+
+
+# TODO added
+# +    google_proxy_group_id = Column(String(90), ForeignKey('google_proxy_group.id'))
+# +    google_proxy_group = relationship('GoogleProxyGroup', backref=backref(__tablename__, uselist=False))

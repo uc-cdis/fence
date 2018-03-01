@@ -52,11 +52,7 @@ class GoogleServiceAccount(Base):
         nullable=False
     )
 
-    client_id = Column(
-        String(40),
-        ForeignKey('client.client_id')
-    )
-    client = relationship('Client')
+    client_id = Column(String(40))
 
     user_id = Column(
         Integer,
@@ -83,13 +79,11 @@ class GoogleProxyGroup(Base):
 
     id = Column(String(90), primary_key=True)
 
-    user_id = Column(
-        Integer,
-        ForeignKey(User.id),
-        nullable=False,
-        unique=True
+    email = Column(
+        String,
+        unique=True,
+        nullable=False
     )
-    user = relationship('User')
 
     def delete(self):
         with flask.current_app.db.session as session:
