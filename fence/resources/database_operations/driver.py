@@ -35,7 +35,7 @@ class SQLAlchemyDriver(object):
         Get or create a row
         Args:
             session: sqlalchemy session
-            model: the ORM class from userdatamodel.models
+            model: the ORM class from fence.models
             query: a dict of query parameters
             props: extra props aside from query to be added to the object on
                    creation
