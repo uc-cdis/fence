@@ -62,11 +62,11 @@ instructions below.
 # This one is for automated tests, which clear the database after running;
 # `tests/test_settings.py` should have `fence_test_tmp` in the `DB` variable.
 psql -U test postgres -c 'create database fence_test_tmp'
-userdatamodel-init --db fence_test_tmp
+fence-create db-init --db fence_test_tmp
 # This one is for manual testing/general local usage; `fence/local_settings.py`
 # should have `fence_test` in the `DB` variable.
 psql -U test postgres -c 'create database fence_test'
-userdatamodel-init --db fence_test
+fence-create db-init --db fence_test
 ```
 
 #### Create User Access File

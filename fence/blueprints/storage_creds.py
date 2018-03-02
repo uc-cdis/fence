@@ -12,6 +12,7 @@ from fence.models import (
     GoogleServiceAccount,
     GoogleProxyGroup,
     UserRefreshToken,
+    User
 )
 from fence.resources.storage.cdis_jwt import (
     create_user_access_token,
@@ -419,10 +420,17 @@ def _create_google_service_account_for_client(g_cloud_manager):
         fence.models.GoogleServiceAccount: New service account
     """
     # create service account, add to db
+    proxy_group_id = (
+        current_session
+        .query(User)
+        .filter_by(id=flask.g.user.id)
+        .first()
+    ).google_proxy_group_id
+
     proxy_group = (
         current_session
         .query(GoogleProxyGroup)
-        .filter_by(user_id=flask.g.user.id)
+        .filter_by(id=proxy_group_id)
         .first()
     )
 

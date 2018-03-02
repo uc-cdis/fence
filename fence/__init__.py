@@ -6,7 +6,6 @@ import flask
 from flask.ext.cors import CORS
 from flask_sqlalchemy_session import flask_scoped_session
 import urlparse
-from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.auth import logout, build_redirect_url
 from fence.errors import UserError
@@ -19,6 +18,7 @@ from fence.resources.storage import StorageManager
 from fence.resources.user.user_session import UserSessionInterface
 from fence.restful import handle_error
 from fence.utils import random_str
+from fence.resources.database.driver import SQLAlchemyDriver
 import fence.blueprints.admin
 import fence.blueprints.data
 import fence.blueprints.login

@@ -10,7 +10,7 @@ import subprocess as sp
 import temps
 
 from cdispyutils.log import get_logger
-from userdatamodel.driver import SQLAlchemyDriver
+from fence.resources.database.driver import SQLAlchemyDriver
 
 from fence.models import (
     Project,
@@ -305,7 +305,7 @@ class DbGapSyncer(object):
 if __name__ == '__main__':
 
     from cdisutilstest.code.storage_client_mock import get_client
-    from ..local_settings import DB, dbGaP, STORAGE_CREDENTIALS
+    from fence.local_settings import DB, dbGaP, STORAGE_CREDENTIALS
 
     from mock import patch
     import sys
