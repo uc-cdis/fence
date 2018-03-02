@@ -18,7 +18,7 @@ from fence.resources.storage import StorageManager
 from fence.resources.user.user_session import UserSessionInterface
 from fence.restful import handle_error
 from fence.utils import random_str
-from fence.resources.database_operations.driver import SQLAlchemyDriver
+from fence.resources.database.driver import SQLAlchemyDriver
 import fence.blueprints.admin
 import fence.blueprints.data
 import fence.blueprints.login

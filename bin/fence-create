@@ -4,7 +4,7 @@ import os
 import sys
 import yaml
 
-from fence.resources.database_operations.driver import SQLAlchemyDriver
+from fence.resources.database.driver import SQLAlchemyDriver
 from cirrus import GoogleCloudManager
 
 from fence.models import (
