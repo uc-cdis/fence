@@ -68,6 +68,22 @@ def indexd_get_unavailable_bucket(file_id):
     }
 
 
+def indexd_get_public_bucket(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s3://bucket1/key'],
+        'hashes': {},
+        'metadata': {'acls': '*'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
 def mock_get_bucket_location(self, bucket, config):
     return 'us-east-1'
 
@@ -207,6 +223,19 @@ def app():
     return fence.app
 
 
+@pytest.fixture(scope='function')
+def auth_client(app, request):
+    """
+    Flask application fixture.
+    """
+    app.config['MOCK_AUTH'] = False
+
+    def reset_authmock():
+        app.config['MOCK_AUTH'] = True
+
+    request.addfinalizer(reset_authmock)
+
+
 @pytest.fixture(scope='session')
 def db(app, request):
     """
@@ -316,11 +345,20 @@ def unauthorized_indexd_client(app, request):
 
 
 @pytest.fixture(scope='function')
+def public_indexd_client(app, request):
+    mocker = Mocker()
+    mocker.mock_functions()
+    indexd_patcher = patch(
+        'fence.blueprints.data.get_index_document',
+        indexd_get_public_bucket)
+    mocker.add_mock(indexd_patcher)
+
+
+@pytest.fixture(scope='function')
 def patch_app_db_session(app, monkeypatch):
     """
     TODO
     """
-
     def do_patch(session):
         monkeypatch.setattr(app.db, 'Session', lambda: session)
         modules_to_patch = [
@@ -331,7 +369,6 @@ def patch_app_db_session(app, monkeypatch):
         ]
         for module in modules_to_patch:
             monkeypatch.setattr('{}.current_session'.format(module), session)
-
     return do_patch
 
 

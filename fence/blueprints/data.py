@@ -54,7 +54,6 @@ blueprint = flask.Blueprint('data', __name__)
 
 
 @blueprint.route('/download/<file_id>', methods=['GET'])
-@login_required({'data'})
 def download_file(file_id):
     '''
     Get a presigned url to download a file given by file_id.
@@ -63,7 +62,6 @@ def download_file(file_id):
 
 
 @blueprint.route('/upload/<file_id>', methods=['GET'])
-@login_required({'data'})
 def upload_file(file_id):
     '''
     Get a presigned url to upload a file given by file_id.
@@ -81,7 +79,7 @@ def check_protocol(protocol, scheme):
     return False
 
 
-def resolve_url(url, location, expires, action):
+def resolve_url(url, location, expires, action, user_id, username):
     protocol = location.scheme
     if protocol == 's3':
         aws_creds = get_value(flask.current_app.config, 'AWS_CREDENTIALS',
@@ -106,22 +104,22 @@ def resolve_url(url, location, expires, action):
                                           InternalError('aws configuration not found'))
             aws_secret_key = get_value(config, 'aws_secret_access_key',
                                        InternalError('aws configuration not found'))
+        user_info = {}
+        if user_id is not None:
+            user_info = {'user_id': str(user_id), 'username': username}
         url = generate_aws_presigned_url(http_url, ACTION_DICT[protocol][action],
                                          aws_access_key_id, aws_secret_key, 's3',
-                                         region, expires,
-                                         {
-                                             'user_id': str(flask.g.user.id),
-                                             'username': flask.g.user.username
-                                         })
+                                         region, expires, user_info)
     elif protocol not in ['http', 'https']:
         raise NotSupported(
             "protocol {} in url {} is not supported".format(protocol, url))
     return flask.jsonify(dict(url=url))
 
 
-def return_link(action, urls):
+def return_link(action, urls, user_id=None, username=None):
     protocol = flask.request.args.get('protocol', None)
-    expires = min(int(flask.request.args.get('expires_in', 3600)), 3600)
+    max_ttl = flask.current_app.config.get('MAX_PRESIGNED_URL_TTL', 3600)
+    expires = min(int(flask.request.args.get('expires_in', max_ttl)), max_ttl)
     if (protocol is not None) and (protocol not in SUPPORTED_PROTOCOLS):
         raise NotSupported("The specified protocol is not supported")
     if len(urls) == 0:
@@ -129,7 +127,7 @@ def return_link(action, urls):
     for url in urls:
         location = urlparse(url)
         if check_protocol(protocol, location.scheme):
-            return resolve_url(url, location, expires, action)
+            return resolve_url(url, location, expires, action, user_id, username)
     raise NotFound(
         "Can't find a location for the data with given request arguments."
     )
@@ -137,9 +135,15 @@ def return_link(action, urls):
 
 def get_file(action, file_id):
     doc = get_index_document(file_id)
-    if not check_authorization(action, doc):
+    metadata = doc['metadata']
+    if 'acls' not in metadata:
+        raise Unauthorized("This file is not accessible")
+    set_acls = set(metadata['acls'].split(','))
+    if check_public(set_acls):
+        return return_link(action, doc['urls'])
+    if not check_authorization(action, set_acls):
         raise Unauthorized("You don't have access permission on this file")
-    return return_link(action, doc['urls'])
+    return return_link(action, doc['urls'], flask.g.user.id, flask.g.user.username)
 
 
 def filter_auth_ids(action, list_auth_ids):
@@ -155,11 +159,13 @@ def filter_auth_ids(action, list_auth_ids):
     return authorized_dbgaps
 
 
-def check_authorization(action, doc):
-    metadata = doc['metadata']
-    if 'acls' not in metadata:
-        raise Unauthorized("You don't have access permission on this file")
-    set_acls = set(metadata['acls'].split(','))
+def check_public(set_acls):
+    if '*' in set_acls:
+        return True
+
+
+@login_required({'data'})
+def check_authorization(action, set_acls):
     if flask.g.token is None:
         given_acls = set(filter_auth_ids(action, flask.g.user.project_access))
     else:

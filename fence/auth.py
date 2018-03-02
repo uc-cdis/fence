@@ -80,7 +80,6 @@ def login_required(scope=None):
     """
 
     def decorator(f):
-
         @wraps(f)
         def wrapper(*args, **kwargs):
             if flask.session.get('username'):
@@ -117,7 +116,6 @@ def login_required(scope=None):
                 return f(*args, **kwargs)
             else:
                 raise Unauthorized("Please login")
-
         return wrapper
 
     return decorator
