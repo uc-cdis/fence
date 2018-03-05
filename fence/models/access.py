@@ -13,6 +13,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
+from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
 
 from fence.models._base import Base
