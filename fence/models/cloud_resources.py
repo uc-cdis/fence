@@ -56,14 +56,20 @@ class GoogleServiceAccount(Base):
         String(40),
         ForeignKey('client.client_id')
     )
-    client = relationship('Client')
+    client = relationship(
+        'Client',
+        backref=backref('google_service_accounts', cascade='all, delete-orphan')
+    )
 
     user_id = Column(
         Integer,
         ForeignKey(User.id),
         nullable=False
     )
-    user = relationship('User')
+    user = relationship(
+        'User',
+        backref=backref('google_service_accounts', cascade='all, delete-orphan')
+    )
 
     email = Column(
         String,
@@ -89,7 +95,10 @@ class GoogleProxyGroup(Base):
         nullable=False,
         unique=True
     )
-    user = relationship('User')
+    user = relationship(
+        'User',
+        backref=backref('google_proxy_groups', cascade='all, delete-orphan')
+    )
 
     def delete(self):
         with flask.current_app.db.session as session:

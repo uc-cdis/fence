@@ -12,6 +12,7 @@ from sqlalchemy import String
 from sqlalchemy import Text
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.orm import relationship
+from sqlalchemy.orm import backref
 
 from fence.models._base import Base
 from fence.models.users import User
@@ -53,7 +54,10 @@ class Client(Base, OAuth2ClientMixin):
 
     # required if you need to support client credential
     user_id = Column(Integer, ForeignKey(User.id))
-    user = relationship('User', backref='clients')
+    user = relationship(
+        'User',
+        backref=backref('clients', cascade='all, delete-orphan')
+    )
 
     # this is for internal microservices to skip user grant
     auto_approve = Column(Boolean, default=False)
@@ -132,7 +136,10 @@ class AuthorizationCode(Base, OAuth2AuthorizationCodeMixin):
     user_id = Column(
         Integer, ForeignKey('User.id', ondelete='CASCADE')
     )
-    user = relationship('User')
+    user = relationship(
+        'User',
+        backref=backref('authorization_codes', cascade='all, delete-orphan')
+    )
 
     nonce = Column(String, nullable=True)
 
