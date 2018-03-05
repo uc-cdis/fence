@@ -7,10 +7,10 @@ import re
 import string
 
 import flask
-from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.datastructures import ImmutableMultiDict
 
-from fence.models import Client, User
+from fence.models import Client
+from fence.models import User
 from fence.jwt.token import CLIENT_ALLOWED_SCOPES
 
 rng = SystemRandom()
