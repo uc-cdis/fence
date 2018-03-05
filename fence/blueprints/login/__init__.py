@@ -75,7 +75,6 @@ def make_login_blueprint(app):
                 'name': idps[idp_id]['name'],
                 'url': absolute_login_url(idp_id),
             }
-
         try:
             all_provider_info = [
                 provider_info(idp_id) for idp_id in idps.keys()
@@ -116,5 +115,4 @@ def make_login_blueprint(app):
         blueprint_api.add_resource(
             ShibbolethLoginFinish, '/shib/login', strict_slashes=False
         )
-
     return blueprint
