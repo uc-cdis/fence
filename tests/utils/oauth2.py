@@ -95,7 +95,7 @@ def code_from_authorize_response(response):
     Return:
         str: the code
     """
-    location = response.headers['Location']
+    location = response.json['redirect']
     try:
         return dict(url_decode(urlparse.urlparse(location).query))['code']
     except KeyError:

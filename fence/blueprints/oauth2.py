@@ -102,6 +102,11 @@ def authorize(*args, **kwargs):
         confirm = 'yes'
     if confirm is not None:
         response = _handle_consent_confirmation(user, confirm)
+        # if it's a 302 for POST confirm, return 200 instead and include
+        # redirect url in body because browser ajax POST doesn't follow
+        # cross origin redirect
+        if response.status_code == 302:
+            return flask.jsonify({'redirect': response.headers['Location']})
     else:
         # no confirm param, so no confirmation has occured yet
         response = _authorize(user, grant, client)
