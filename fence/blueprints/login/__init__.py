@@ -6,7 +6,6 @@ fence instance. See the other files in this directory for the definitions of
 the endpoints for each provider.
 """
 
-import urlparse
 import flask
 
 from flask_restful import Api
@@ -61,10 +60,8 @@ def make_login_blueprint(app):
         """
 
         def absolute_login_url(provider_id):
-            base_url = flask.current_app.config['BASE_URL']
-            return urlparse.urljoin(
-                base_url, '/login/{}'.format(IDP_URL_MAP[provider_id])
-            )
+            base_url = flask.current_app.config['BASE_URL'].rstrip('/')
+            return (base_url + '/login/{}'.format(IDP_URL_MAP[provider_id]))
 
         def provider_info(idp_id):
             if not idp_id:
