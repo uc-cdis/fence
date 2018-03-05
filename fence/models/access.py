@@ -136,11 +136,17 @@ class UserToBucket(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey(User.id))
-    user = relationship(User, backref='user_to_buckets')
+    user = relationship(
+        User,
+        backref=backref('user_to_buckets', cascade='all, delete-orphan')
+    )
 
     bucket_id = Column(Integer, ForeignKey('bucket.id'))
 
-    bucket = relationship('Bucket', backref='user_to_buckets')
+    bucket = relationship(
+        'Bucket',
+        backref=backref('user_to_buckets', cascade='all, delete-orphan')
+    )
     privilege = Column(ARRAY(String))
 
 
@@ -149,7 +155,10 @@ class ProjectToBucket(Base):
 
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey('project.id'))
-    project = relationship(Project, backref='project_to_buckets')
+    project = relationship(
+        Project,
+        backref=backref('project_to_buckets', cascade='all, delete-orphan')
+    )
 
     bucket_id = Column(Integer, ForeignKey('bucket.id'))
 
