@@ -1,6 +1,3 @@
-from urlparse import urlparse
-
-
 def test_default_login(app, client):
     response_json = client.get('/login').json
     assert 'default_provider' in response_json
@@ -18,4 +15,5 @@ def test_default_login(app, client):
     for response_idp in response_providers:
         assert response_idp['id'] in idps
         assert response_idp['name'] == idps[response_idp['id']]['name']
-        assert urlparse(response_idp['url']).path in app_urls
+        login_url = response_idp['url'].replace(app.config['BASE_URL'], '')
+        assert login_url in app_urls

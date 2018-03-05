@@ -57,17 +57,17 @@ def test_indexd_download_file_no_protocol(client, oauth_client, user_client, ind
     assert 'url' in response.json.keys()
 
 
-def test_indexd_download_file_no_jwt(client, oauth_client, user_client, indexd_client):
+def test_indexd_download_file_no_jwt(client, auth_client):
     """
     Test ``GET /data/download/1``.
     """
     path = '/data/download/1'
     response = client.get(path)
-    assert response.status_code == 200
-    assert 'url' in response.json.keys()
+    assert response.status_code == 401
+    assert 'url' not in response.json.keys()
 
 
-def test_indexd_unauthorized_download_file_no_jwt(client, oauth_client, unauthorized_user_client, indexd_client):
+def test_indexd_unauthorized_download_file(client, oauth_client, unauthorized_user_client, indexd_client):
     """
     Test ``GET /data/download/1``.
     """
@@ -129,3 +129,14 @@ def test_unavailable_indexd_upload_file(client, oauth_client, encoded_jwt, user_
     response = client.get(path, headers=headers)
     assert response.status_code == 401
     assert 'url' not in response.json.keys()
+
+
+def test_public_bucket_download_file(client, auth_client, public_indexd_client):
+    """
+    Test ``GET /data/upload/1``.
+    """
+    path = '/data/download/1'
+    response = client.get(path)
+    print response.json
+    assert response.status_code == 200
+    assert 'url' in response.json.keys()
