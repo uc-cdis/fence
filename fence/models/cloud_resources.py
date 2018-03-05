@@ -8,6 +8,7 @@ from sqlalchemy import String
 from sqlalchemy import Column
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
+from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
 
 from fence.models._base import Base
