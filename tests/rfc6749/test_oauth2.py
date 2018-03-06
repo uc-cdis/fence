@@ -101,12 +101,10 @@ def test_oauth2_token_refresh(client, oauth_client, refresh_token):
     Obtain refresh and access tokens, and test using the refresh token to
     obtain a new access token.
     """
-    code = tests.utils.oauth2.get_access_code(client, oauth_client)
     headers = tests.utils.oauth2.create_basic_header_for_client(oauth_client)
     data = {
         'client_id': oauth_client.client_id,
         'client_secret': oauth_client.client_secret,
-        'code': code,
         'grant_type': 'refresh_token',
         'refresh_token': refresh_token,
     }
