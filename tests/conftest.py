@@ -390,8 +390,8 @@ def oauth_client(app, db_session, oauth_user):
     )
     db_session.add(models.Client(
         client_id=client_id, client_secret=hashed_secret, user=test_user,
-        allowed_scopes=['openid', 'user'], _redirect_uris=url, description='',
-        is_confidential=True, name='testclient'
+        allowed_scopes=['openid', 'user', 'fence'], _redirect_uris=url,
+        description='', is_confidential=True, name='testclient'
     ))
     db_session.commit()
     return Dict(client_id=client_id, client_secret=client_secret, url=url)
@@ -400,8 +400,8 @@ def oauth_client(app, db_session, oauth_user):
 @pytest.fixture(scope='function')
 def oauth_client_B(app, request, db_session):
     """
-    Create a second, different OAuth2 client and add it to the database along
-    with a test user for the client.
+    Create a second, different OAuth2 (confidential) client and add it to the
+    database along with a test user for the client.
     """
     url = 'https://oauth-test-client-B.net'
     client_id = 'test-client-B'
@@ -419,12 +419,34 @@ def oauth_client_B(app, request, db_session):
         db_session.add(test_user)
     db_session.add(models.Client(
         client_id=client_id, client_secret=hashed_secret, user=test_user,
-        allowed_scopes=['openid', 'user'], _redirect_uris=url, description='',
-        is_confidential=True, name='testclientb'
+        allowed_scopes=['openid', 'user', 'fence'], _redirect_uris=url,
+        description='', is_confidential=True, name='testclientb'
     ))
     db_session.commit()
 
     return Dict(client_id=client_id, client_secret=client_secret, url=url)
+
+
+@pytest.fixture(scope='function')
+def oauth_client_public(app, db_session, oauth_user):
+    """
+    Create a public OAuth2 client.
+    """
+    url = 'https://oauth-test-client-public.net'
+    client_id = 'test-client-public'
+    test_user = (
+        db_session
+        .query(models.User)
+        .filter_by(id=oauth_user.user_id)
+        .first()
+    )
+    db_session.add(models.Client(
+        client_id=client_id, user=test_user,
+        allowed_scopes=['openid', 'user', 'fence'], _redirect_uris=url,
+        description='', is_confidential=False, name='testclient-public'
+    ))
+    db_session.commit()
+    return Dict(client_id=client_id, url=url)
 
 
 @pytest.fixture(scope='function')

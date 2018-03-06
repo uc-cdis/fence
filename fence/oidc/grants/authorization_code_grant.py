@@ -101,12 +101,10 @@ class AuthorizationCodeGrant(AuthlibAuthorizationCodeGrant):
             Tuple[int, dict, dict]: tuple of (status_code, body, headers)
         """
         client = self._authenticated_client
-        is_confidential = client.check_client_type('confidential')
         token = self.token_generator(
             client,
             self.GRANT_TYPE,
             scope=get_obj_value(self._authorization_code, 'scope'),
-            include_refresh_token=is_confidential,
             nonce=self._authorization_code.nonce,
         )
         self.create_access_token(

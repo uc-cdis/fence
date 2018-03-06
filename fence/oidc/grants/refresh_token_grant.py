@@ -1,9 +1,15 @@
 import bcrypt
 
-from authlib.specs.rfc6749.errors import InvalidClientError
+from authlib.specs.rfc6749.errors import (
+    InvalidClientError,
+    InvalidRequestError,
+    InvalidScopeError,
+    UnauthorizedClientError,
+)
 from authlib.specs.rfc6749.grants import (
     RefreshTokenGrant as AuthlibRefreshTokenGrant
 )
+from authlib.specs.rfc6749.util import scope_to_list
 
 from fence.jwt.blacklist import is_token_blacklisted
 from fence.jwt.errors import JWTError
@@ -59,20 +65,59 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         changed accordingly.
         """
         client_params = self.parse_basic_auth_header()
+
+        # If the client params from the basic auth header are empty, then the
+        # client must be not a confidential client.
         if not client_params:
-            raise InvalidClientError(uri=self.uri)
+            client_id = self.params.get('client_id')
+            client = self.get_and_validate_client(client_id)
+            if client.is_confidential or client.client_secret:
+                raise UnauthorizedClientError(uri=self.uri)
+            return client
 
         client_id, client_secret = client_params
         client = self.get_and_validate_client(client_id)
-
         # Check the hash of the provided client secret against stored hash.
-        hashed = client.client_secret
-        if bcrypt.hashpw(
-                client_secret.encode('utf-8'),
-                hashed.encode('utf-8')) != hashed:
+        stored_hash = client.client_secret
+        check_hash = bcrypt.hashpw(
+            client_secret.encode('utf-8'), stored_hash.encode('utf-8')
+        )
+        if check_hash != stored_hash:
             raise InvalidClientError(uri=self.uri)
-
         return client
+
+    def validate_access_token_request(self):
+        """
+        Override the parent method from authlib to not fail immediately for
+        public clients.
+        """
+        client = self.authenticate_client()
+        if not client.check_grant_type(self.GRANT_TYPE):
+            raise UnauthorizedClientError(uri=self.uri)
+        self._authenticated_client = client
+
+        refresh_token = self.params.get('refresh_token')
+        if refresh_token is None:
+            raise InvalidRequestError(
+                'Missing "refresh_token" in request.', uri=self.uri
+            )
+
+        refresh_claims = self.authenticate_refresh_token(refresh_token)
+        if not refresh_claims:
+            raise InvalidRequestError(
+                'Invalid "refresh_token" in request.', uri=self.uri
+            )
+
+        scope = self.params.get('scope')
+        if scope:
+            original_scope = refresh_claims['scope']
+            if not original_scope:
+                raise InvalidScopeError(uri=self.uri)
+            original_scope = set(scope_to_list(original_scope))
+            if not original_scope.issuperset(set(scope_to_list(scope))):
+                raise InvalidScopeError(uri=self.uri)
+
+        self._authenticated_token = refresh_claims
 
     def create_access_token_response(self):
         """
