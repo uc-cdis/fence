@@ -4,6 +4,7 @@ import os
 import sys
 import yaml
 
+from cirrus import GoogleCloudManager
 from userdatamodel.driver import SQLAlchemyDriver
 from userdatamodel.models import (
     AccessPrivilege,
@@ -14,7 +15,10 @@ from userdatamodel.models import (
     StorageAccess,
     User,
     Bucket,
+    GoogleProxyGroup
 )
+
+from fence.models import GoogleServiceAccount
 
 from fence.utils import create_client, drop_client
 from fence.sync.sync_dbgap import DbGapSyncer
@@ -124,7 +128,7 @@ def create_project(s, project_data):
                     s.query(Bucket)
                     .filter_by(name=bucket)
                     .join(Bucket.provider)
-                    .filter(CloudProvider.name==provider)
+                    .filter(CloudProvider.name == provider)
                     .first()
                 )
                 print b
@@ -133,7 +137,6 @@ def create_project(s, project_data):
                     b.provider = c_provider
                     s.add(b)
                     print ('created bucket {} in db'.format(bucket))
-
 
     return project
 
@@ -225,6 +228,42 @@ def assign_group_to_user(s, user, group_name, group_data):
         user.groups.append(group)
 
 
+def google_init(db):
+    # Initial user proxy group creation
+    db = SQLAlchemyDriver(db)
+    with db.session as s:
+        users_without_proxy = (
+            s.query(User).filter(User.google_proxy_group == None)
+        )
+
+        for user in users_without_proxy:
+            with GoogleCloudManager() as g_mgr:
+                response = g_mgr.create_proxy_group_for_user(
+                    user.id, user.username)
+
+                group = response["group"]
+                primary_service_account = response["primary_service_account"]
+                user.google_proxy_group_id = group["id"]
+
+                # Add user's primary service account to database with
+                # "client_id" as user.id
+                service_account = GoogleServiceAccount(
+                    google_unique_id=primary_service_account["uniqueId"],
+                    client_id=user.id,
+                    user_id=user.id,
+                    email=primary_service_account["email"]
+                )
+
+                proxy_group = GoogleProxyGroup(
+                    id=group["id"],
+                    email=group["email"]
+                )
+
+                s.add(service_account)
+                s.add(proxy_group)
+                s.commit()
+
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
@@ -257,22 +296,51 @@ if __name__ == '__main__':
 
     dbgap_sync = subparsers.add_parser('sync-dbgap')
     dbgap_sync.add_argument('--projects', required=True)
-    args = parser.parse_args()
 
-    sys.path.append(args.path)
-    if os.environ.get('FENCE_DB'):
-        DB = os.environ['FENCE_DB']
-    else:
-        from local_settings import DB
+    init_google = subparsers.add_parser('google-init')
+    init_google.add_argument(
+        '--db', type=str, required=True, help='database name')
+    init_google.add_argument(
+        '--username', default='postgres', help='database username')
+    init_google.add_argument(
+        '--password', default='', help='database password')
+    init_google.add_argument(
+        '--host', default='localhost', help='database hostname')
+
+    args = parser.parse_args()
 
     if args.action == 'create':
         yaml_input = args.__dict__['yaml-input']
         create_sample_data(yaml_input)
-    elif args.action == 'client-create':
-        create_client_action(
-            DB, username=args.username, client=args.client,
-            urls=args.urls, auto_approve=not args.external)
-    elif args.action == 'client-delete':
-        delete_client_action(DB, args.client)
+
+    elif args.action == 'client-create' or args.action == 'client-delete':
+
+        # get database information
+        sys.path.append(args.path)
+        if os.environ.get('FENCE_DB'):
+            DB = os.environ['FENCE_DB']
+        else:
+            from fence.local_settings import DB
+
+        if args.action == 'client-create':
+            create_client_action(
+                DB, username=args.username, client=args.client,
+                urls=args.urls, auto_approve=not args.external)
+        else:
+            delete_client_action(DB, args.client)
+
     elif args.action == 'sync-dbgap':
         sync_dbgap(args.__dict__['projects'])
+
+    elif args.action == 'google-init':
+        db = (
+            "postgresql://{username}:{password}@{host}/{db}"
+            .format(
+                username=args.username, password=args.password,
+                host=args.host, db=args.db)
+        )
+
+        google_init(db)
+
+    else:
+        pass
