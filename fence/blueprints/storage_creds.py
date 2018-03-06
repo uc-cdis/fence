@@ -332,9 +332,9 @@ def delete_keypair(provider, access_key):
                     g_cloud.delete_service_account_key(service_account.google_unique_id,
                                                        access_key)
                 else:
-                    flask.abort(400, 'Could not delete key ' + access_key + '. Not found for current user.')
+                    flask.abort(404, 'Could not delete key ' + access_key + '. Not found for current user.')
             else:
-                flask.abort(400, 'Could not find service account for current user.')
+                flask.abort(404, 'Could not find service account for current user.')
     else:
         flask.current_app.storage_manager.delete_keypair(provider, flask.g.user, access_key)
 
