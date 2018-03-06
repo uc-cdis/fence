@@ -215,7 +215,7 @@ def protected_endpoint(methods=['GET']):
 
 
 @pytest.fixture(scope='function')
-def user_client(app, request, db_session):
+def user_client(db_session):
     users = dict(json.loads(
         utils.read_file('resources/authorized_users.json')
     ))
@@ -224,16 +224,19 @@ def user_client(app, request, db_session):
 
 
 @pytest.fixture(scope='function')
-def unauthorized_user_client(app, request, db_session):
+def unauthorized_user_client(db_session):
     users = dict(json.loads(
         utils.read_file('resources/unauthorized_users.json')
     ))
     user_id, username = utils.create_user(users, db_session, is_admin=True)
     return Dict(username=username, user_id=user_id)
 
+@pytest.fixture(scope='function')
+def awg_groups():
+    pass
 
 @pytest.fixture(scope='function')
-def db_session(db, request, patch_app_db_session, monkeypatch):
+def db_session(db, patch_app_db_session):
     """
     Define fixture for database session (function-scoped).
 
