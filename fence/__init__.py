@@ -163,9 +163,9 @@ def app_sessions(app):
 
 def app_init(app, settings='fence.settings', root_dir=None):
     app_config(app, settings=settings, root_dir=root_dir)
+    app_sessions(app)
     app_register_blueprints(app)
     server.init_app(app)
-    app_sessions(app)
 
 
 def generate_csrf_token():
