@@ -35,7 +35,7 @@ class Client(Base, OAuth2ClientMixin):
 
     client_id = Column(String(40), primary_key=True)
     # this is hashed secret
-    client_secret = Column(String(60), unique=True, index=True, nullable=False)
+    client_secret = Column(String(60), unique=True, index=True, nullable=True)
 
     # human readable name
     name = Column(String(40), unique=True, nullable=False)
@@ -51,7 +51,7 @@ class Client(Base, OAuth2ClientMixin):
     auto_approve = Column(Boolean, default=False)
 
     # public or confidential
-    is_confidential = Column(Boolean)
+    is_confidential = Column(Boolean, default=True)
 
     _allowed_scopes = Column(Text, nullable=False, default='')
 
@@ -74,9 +74,15 @@ class Client(Base, OAuth2ClientMixin):
 
     @property
     def client_type(self):
-        if self.is_confidential:
-            return 'confidential'
-        return 'public'
+        """
+        The client should be considered confidential either if it is actually
+        marked confidential, *or* if the confidential setting was left empty.
+        Only in the case where ``is_confidential`` is deliberately set to
+        ``False`` should the client be considered public.
+        """
+        if self.is_confidential is False:
+            return 'public'
+        return 'confidential'
 
     @property
     def redirect_uris(self):

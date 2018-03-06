@@ -30,7 +30,10 @@ def refresh_token(client, oauth_client):
     """
     Return just a refresh token obtained from ``/oauth2/token``.
     """
+    data = {
+        'scope': 'openid user fence'
+    }
     token_response = tests.utils.oauth2.get_token_response(
-        client, oauth_client
+        client, oauth_client, code_request_data=data
     )
     return token_response.json['refresh_token']
