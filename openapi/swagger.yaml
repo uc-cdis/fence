@@ -284,7 +284,7 @@ paths:
     get:
       tags:
         - link
-      summary: Link Google identity
+      summary: Link Google identity to user
       parameters:
         - name: redirect
           required: true
@@ -292,14 +292,30 @@ paths:
           in: query
           description: Page to redirect to after account linking
       description: >-
-        Link a Google identity to a User (AuthN using Google Oauth2 flow). Google identity will be added to a
-        proxy group, the proxy group will then be added to project
-        specific groups and the Google groups will be given permission to buckets
-        using Google IAM. `redirect` will be stored in the session.
+        Link a Google identity to a User (AuthN using Google Oauth2 flow). Google identity will be associated with a user and added to a
+        proxy group for that user. The user's proxy group will be given access to data via Google's IAM. `redirect` will be stored in the session to follow after linking.
       operationId: linkCloudIdentityStart
       responses:
         '302':
           description: redirect to Oauth2 flow with Google to AuthN user
+    delete:
+      tags:
+        - link
+      summary: Unlink a Google identity from a user
+      parameters:
+        - name: redirect
+          required: true
+          type: string
+          in: query
+          description: Page to redirect to after unlinking
+      description: >-
+        Remove link between a user and a Google identity.
+      operationId: linkCloudIdentityStart
+      responses:
+        '200':
+          description: Google identity unlinked from user
+        '404':
+          description: Google identity cannot be unlinked since it isn't linked to the current user
   '/link/google/link':
     get:
       tags:
@@ -317,8 +333,7 @@ paths:
           description: The authorization code returned from the OAuth2 authorization request
       description: >-
         Linking of Google identity to user after successful Oauth2
-        flow with Google. Use code to retrieve user info from Google
-        and add identity to proxy group.
+        flow with Google. Use code to retrieve user info from Google.
       operationId: linkCloudIdentity
       responses:
         '302':
@@ -381,12 +396,15 @@ paths:
 definitions:
   GoogleServiceAccount:
     type: object
-    required: [email, google-project-id, projects]
+    required: [google_user_email, service_account_email, google-project-id, projects]
     properties:
-        email:
+        google_user_email:
+          type: string
+          description: User's Google identity email for whom service account should be associated with
+        service_account_email:
           type: string
           description: Service account's email
-        google-project-id:
+        google_project_id:
           type: string
           description: Google Cloud Project ID of service account
         projects:
