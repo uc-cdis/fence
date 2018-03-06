@@ -28,8 +28,8 @@
               <li>{{resource}}</li>
             {% endfor %}
           </ul>
-         <button id="yes" class='yes'>Yes </button>
-         <button id="no" class='no'>No</button>
+         <a id="yes" class='yes'>Yes </a>
+         <a id="no" class='no'>No</a>
       </form>
     </section>
   </main>
@@ -100,7 +100,7 @@ main div {
             contentType : 'application/x-www-form-urlencoded',
             data : {confirm : 'yes'},
             success : function(response) {
-                console.log(response);
+                window.location.replace(response['redirect'])
             },
             error : function(xhr, status, error) {
                 console.log(xhr)
