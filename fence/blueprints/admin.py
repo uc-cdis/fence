@@ -73,9 +73,10 @@ def update_user(username):
     Create a user on the userdatamodel database
     Returns a json object
     """
+    name = request.get_json().get('name', None)
     role = request.get_json().get('role',None)
     email = request.get_json().get('email',None)
-    response = jsonify(adm.update_user(current_session, username, role, email))
+    response = jsonify(adm.update_user(current_session, username, role, email, name))
     current_session.commit()
     return response
 
@@ -364,8 +365,9 @@ def update_group(groupname):
     buckets created within a project.
     Returns a json object.
     """
-    description = request.get_json().get('description')
-    response = jsonify(adm.update_group(current_session, groupname, description))
+    name = request.get_json().get('name', None)
+    description = request.get_json().get('description', None)
+    response = jsonify(adm.update_group(current_session, groupname, description, name))
     current_session.commit()
     return response
  

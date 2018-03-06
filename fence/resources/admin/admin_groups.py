@@ -39,9 +39,10 @@ def delete_group(current_session, groupname):
     return {'result': 'success'}
 
 
-def update_group(current_session, groupname, description):
-    gp.update_group(current_session, groupname, description)
-    return gp.get_group_info(current_session, groupname)
+def update_group(current_session, groupname, description, new_name):
+    gp.update_group(current_session, groupname, description, new_name)
+    name = new_name or groupname
+    return gp.get_group_info(current_session, name)
 
 
 def get_group_info(current_session, groupname):

@@ -32,7 +32,9 @@ def get_all_groups(current_session):
 def get_group_projects(current_session, groupname):
     return udm.get_group_projects(current_session, groupname)
 
-def update_group(current_session, groupname, description):
+def update_group(current_session, groupname, description, new_name):
     group = get_group(current_session, groupname)
-    group.description = description
+    group.description = description or group.description
+    group.name = new_name or group.name
+    current_session.flush()
     
