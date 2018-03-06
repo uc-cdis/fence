@@ -64,8 +64,8 @@ def test_oauth2_authorize_post_public_client(client, oauth_client_public):
     response = tests.utils.oauth2.post_authorize(
         client, oauth_client_public, confirm=True
     )
-    assert response.status_code == 302, response
-    location = response.headers['Location']
+    assert response.status_code == 200, response
+    location = response.json['redirect']
     assert location.startswith(oauth_client_public.url), location
 
 
