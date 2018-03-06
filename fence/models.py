@@ -17,7 +17,7 @@ import flask
 from sqlalchemy import (
     Integer, BigInteger, String, Column, Boolean, Text, MetaData, Table
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy.schema import ForeignKey
 from fence.jwt.token import CLIENT_ALLOWED_SCOPES
 from userdatamodel import Base
@@ -45,7 +45,10 @@ class Client(Base, OAuth2ClientMixin):
 
     # required if you need to support client credential
     user_id = Column(Integer, ForeignKey(User.id))
-    user = relationship('User', backref='clients')
+    user = relationship(
+        'User',
+        backref=backref('clients', cascade='all, delete-orphan')
+    )
 
     # this is for internal microservices to skip user grant
     auto_approve = Column(Boolean, default=False)
@@ -130,7 +133,10 @@ class AuthorizationCode(Base, OAuth2AuthorizationCodeMixin):
     user_id = Column(
         Integer, ForeignKey('User.id', ondelete='CASCADE')
     )
-    user = relationship('User')
+    user = relationship(
+        'User',
+        backref=backref('authorization_codes', cascade='all, delete-orphan')
+    )
 
     nonce = Column(String, nullable=True)
 
@@ -181,14 +187,20 @@ class GoogleServiceAccount(Base):
         String(40),
         ForeignKey('client.client_id')
     )
-    client = relationship('Client')
+    client = relationship(
+        'Client',
+        backref=backref('google_service_accounts', cascade='all, delete-orphan')
+    )
 
     user_id = Column(
         Integer,
         ForeignKey(User.id),
         nullable=False
     )
-    user = relationship('User')
+    user = relationship(
+        'User',
+        backref=backref('google_service_accounts', cascade='all, delete-orphan')
+    )
 
     email = Column(
         String,
@@ -214,7 +226,10 @@ class GoogleProxyGroup(Base):
         nullable=False,
         unique=True
     )
-    user = relationship('User')
+    user = relationship(
+        'User',
+        backref=backref('google_proxy_groups', cascade='all, delete-orphan')
+    )
 
     def delete(self):
         with flask.current_app.db.session as session:
