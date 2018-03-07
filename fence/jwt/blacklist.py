@@ -94,7 +94,7 @@ def blacklist_encoded_token(encoded_token, public_key=None):
     public_key = public_key or keys.default_public_key()
     try:
         claims = jwt.decode(
-            encoded_token, public_key, algorithm='RS256', audience='fence'
+            encoded_token, public_key, algorithm='RS256', audience='openid'
         )
     except jwt.InvalidTokenError as e:
         raise BlacklistingError('failed to decode token: {}'.format(e))
