@@ -269,7 +269,7 @@ def migrate(driver):
     add_foreign_key_column_if_not_exist(
         table_name=User.__tablename__,
         column_name='google_proxy_group_id',
-        column_type=String(90),
+        column_type=String,
         fk_table_name=GoogleProxyGroup.__tablename__,
         fk_column_name='id',
         driver=driver,
