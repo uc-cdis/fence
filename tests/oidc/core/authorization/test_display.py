@@ -37,8 +37,8 @@ def test_display_option_page(client, oauth_client):
     """
     data = {'display': 'page'}
     auth_response = oauth2.post_authorize(client, oauth_client, data=data, confirm=True)
-    assert auth_response.status_code == 302
-    assert 'Location' in auth_response.headers
+    assert auth_response.status_code == 200
+    assert 'redirect' in auth_response.json
     assert oauth2.code_from_authorize_response(auth_response)
 
 
@@ -49,8 +49,8 @@ def test_display_option_popup(client, oauth_client):
     """
     data = {'display': 'popup'}
     auth_response = oauth2.post_authorize(client, oauth_client, data=data, confirm=True)
-    assert auth_response.status_code == 302
-    assert 'Location' in auth_response.headers
+    assert auth_response.status_code == 200
+    assert 'redirect' in auth_response.json
     assert oauth2.code_from_authorize_response(auth_response)
 
 
@@ -61,8 +61,8 @@ def test_display_option_touch(client, oauth_client):
     """
     data = {'display': 'touch'}
     auth_response = oauth2.post_authorize(client, oauth_client, data=data, confirm=True)
-    assert auth_response.status_code == 302
-    assert 'Location' in auth_response.headers
+    assert auth_response.status_code == 200
+    assert 'redirect' in auth_response.json
     assert oauth2.code_from_authorize_response(auth_response)
 
 
@@ -73,6 +73,6 @@ def test_display_option_wap(client, oauth_client):
     """
     data = {'display': 'wap'}
     auth_response = oauth2.post_authorize(client, oauth_client, data=data, confirm=True)
-    assert auth_response.status_code == 302
-    assert 'Location' in auth_response.headers
+    assert auth_response.status_code == 200
+    assert 'redirect' in auth_response.json
     assert oauth2.code_from_authorize_response(auth_response)

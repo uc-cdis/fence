@@ -130,7 +130,6 @@ def app_sessions(app):
     app.db = SQLAlchemyDriver(app.config['DB'])
     migrate(app.db)
     session = flask_scoped_session(app.db.Session, app)  # noqa
-    app.jinja_env.globals['csrf_token'] = generate_csrf_token
     app.storage_manager = StorageManager(
         app.config['STORAGE_CREDENTIALS'],
         logger=app.logger
@@ -166,18 +165,6 @@ def app_init(app, settings='fence.settings', root_dir=None):
     app_sessions(app)
     app_register_blueprints(app)
     server.init_app(app)
-
-
-def generate_csrf_token():
-    """
-    Generate a token used for CSRF protection.
-
-    If the session does not currently have such a CSRF token, assign it one
-    from a random string. Then return the session's CSRF token.
-    """
-    if '_csrf_token' not in flask.session:
-        flask.session['_csrf_token'] = random_str(20)
-    return flask.session['_csrf_token']
 
 
 @app.errorhandler(Exception)
