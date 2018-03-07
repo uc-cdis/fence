@@ -272,16 +272,6 @@ def migrate(driver):
         metadata=md
     )
 
-    add_foreign_key_column_if_not_exist(
-        table_name=User.__tablename__,
-        column_name='google_proxy_group_id',
-        column_type=String,
-        fk_table_name=GoogleProxyGroup.__tablename__,
-        fk_column_name='id',
-        driver=driver,
-        metadata=md
-    )
-
     drop_foreign_key_constraint_if_exist(
         table_name=GoogleServiceAccount.__tablename__,
         column_name='client_id',
