@@ -5,7 +5,7 @@ import uuid
 
 from flask import current_app as capp
 
-from fence.models import User, Project, AccessPrivilege
+from fence.models import User, Project, AccessPrivilege, UserToGroup, Group
 
 import tests
 import tests.utils.oauth2
@@ -50,6 +50,58 @@ def create_user(users, db_session, is_admin=False):
                 s.add(ap)
             else:
                 ap.privilege = privilege
+
+    return user.id, user.username
+
+
+def create_awg_user(users, db_session):
+    s = db_session
+    for username in users.keys():
+        user = s.query(User).filter(User.username == username).first()
+        if not user:
+            user = User(username=username)
+            s.add(user)
+
+        projects = {}
+        for project_data in users[username]['projects']:
+            auth_id = project_data['auth_id']
+            p_name = project_data.get('name', auth_id)
+
+            project = s.query(Project).filter(
+                Project.auth_id == auth_id).first()
+            if not project:
+                project = Project(name=p_name, auth_id=auth_id)
+                s.add(project)
+            projects[p_name] = project
+
+        groups = users[username].get('groups',[])
+        for group in groups:
+            group_name = group['name']
+            group_desc = group['description']
+            grp = s.query(Group).filter(Group.name == group_name).first()
+            if not grp:
+                grp = Group()
+                grp.name = group_name
+                grp.description = group_desc
+                s.add(grp)
+            UserToGroup(group=grp, user=user)
+            for projectname in group['projects']:
+                ap = (
+                    s
+                    .query(AccessPrivilege)
+                    .join(AccessPrivilege.project)
+                    .join(AccessPrivilege.user)
+                    .filter(Project.name == projectname, User.username == user.username)
+                    .first()
+                )
+                privilege = {"read"}
+                if not ap:
+                    project = projects[projectname]
+                    ap = AccessPrivilege(
+                        project=project, user=user, privilege=privilege
+                    )
+                    s.add(ap)
+
     return user.id, user.username
 
 
