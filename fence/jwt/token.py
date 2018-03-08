@@ -246,7 +246,7 @@ def generate_signed_id_token(
 
 
 def generate_signed_refresh_token(
-        kid, private_key, user, expires_in, scopes):
+        kid, private_key, user, expires_in, scopes, client_id=None):
     """
     Generate a JWT refresh token and output a UTF-8
     string of the encoded JWT signed with the private key.
@@ -273,6 +273,7 @@ def generate_signed_refresh_token(
         'iat': iat,
         'exp': exp,
         'jti': jti,
+        'azp': client_id or ''
     }
     flask.current_app.logger.info(
         'issuing JWT refresh token with id [{}] to [{}]'.format(jti, sub)
@@ -314,6 +315,7 @@ def generate_api_key(
         'iat': iat,
         'exp': exp,
         'jti': jti,
+        'azp': client_id or ''
     }
     flask.current_app.logger.info(
         'issuing JWT API key with id [{}] to [{}]'.format(jti, sub)
@@ -328,7 +330,8 @@ def generate_api_key(
 
 
 def generate_signed_access_token(
-        kid, private_key, user, expires_in, scopes, forced_exp_time=None):
+        kid, private_key, user, expires_in, scopes, forced_exp_time=None,
+        client_id=None):
     """
     Generate a JWT access token and output a UTF-8
     string of the encoded JWT signed with the private key.
@@ -366,6 +369,7 @@ def generate_signed_access_token(
                 'projects': dict(user.project_access),
             },
         },
+        'azp': client_id or ''
     }
     flask.current_app.logger.info(
         'issuing JWT access token with id [{}] to [{}]'.format(jti, sub)
