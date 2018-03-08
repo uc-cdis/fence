@@ -183,14 +183,26 @@ class GoogleServiceAccount(Base):
         nullable=False
     )
 
-    client_id = Column(String(40))
+    client_id = Column(
+        String(40),
+        ForeignKey('client.client_id')
+    )
+    client = relationship(
+        'Client',
+        backref=backref(
+            'google_service_accounts', cascade='all, delete-orphan')
+    )
 
     user_id = Column(
         Integer,
         ForeignKey(User.id),
         nullable=False
     )
-    user = relationship('User')
+    user = relationship(
+        'User',
+        backref=backref(
+            'google_service_accounts', cascade='all, delete-orphan')
+    )
 
     email = Column(
         String,
@@ -268,13 +280,6 @@ def migrate(driver):
     drop_foreign_key_column_if_exist(
         table_name=GoogleProxyGroup.__tablename__,
         column_name='user_id',
-        driver=driver,
-        metadata=md
-    )
-
-    drop_foreign_key_constraint_if_exist(
-        table_name=GoogleServiceAccount.__tablename__,
-        column_name='client_id',
         driver=driver,
         metadata=md
     )
