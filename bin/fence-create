@@ -15,6 +15,10 @@ from userdatamodel.models import (
     User,
     Bucket,
 )
+from cirrus import GoogleCloudManager
+
+from fence.models import GoogleServiceAccount
+from fence.models import Client
 
 from fence.utils import create_client, drop_client
 from fence.sync.sync_dbgap import DbGapSyncer
@@ -225,6 +229,20 @@ def assign_group_to_user(s, user, group_name, group_data):
         user.groups.append(group)
 
 
+def remove_expired_google_service_account_keys(db):
+    db = SQLAlchemyDriver(db)
+    with db.session as s:
+        client_service_accounts = (
+            s.query(GoogleServiceAccount, Client).filter(
+                GoogleServiceAccount.client_id == Client.client_id)
+        )
+
+        with GoogleCloudManager() as g_mgr:
+            for service_account, client in client_service_accounts:
+                g_mgr.handle_expired_service_account_keys(
+                    service_account.google_unique_id)
+
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
@@ -257,6 +275,17 @@ if __name__ == '__main__':
 
     dbgap_sync = subparsers.add_parser('sync-dbgap')
     dbgap_sync.add_argument('--projects', required=True)
+
+    manage_google_keys = subparsers.add_parser('google-manage-keys')
+    manage_google_keys.add_argument(
+        '--db', type=str, required=True, help='database name')
+    manage_google_keys.add_argument(
+        '--username', default='postgres', help='database username')
+    manage_google_keys.add_argument(
+        '--password', default='', help='database password')
+    manage_google_keys.add_argument(
+        '--host', default='localhost', help='database hostname')
+
     args = parser.parse_args()
 
     sys.path.append(args.path)
@@ -276,3 +305,16 @@ if __name__ == '__main__':
         delete_client_action(DB, args.client)
     elif args.action == 'sync-dbgap':
         sync_dbgap(args.__dict__['projects'])
+
+    elif args.action == 'google-manage-keys':
+        db = (
+            "postgresql://{username}:{password}@{host}/{db}"
+            .format(
+                username=args.username, password=args.password,
+                host=args.host, db=args.db)
+        )
+
+        remove_expired_google_service_account_keys(db)
+
+    else:
+        pass
