@@ -98,3 +98,22 @@ def test_remove_user_from_group(db_session, awg_users, awg_groups):
 def test_remove_user_from_wrong_group(db_session, awg_users, awg_groups):
     with pytest.raises(NotFound):
         adm.remove_user_from_groups(db_session, "awg_user", ['test_group_4'])
+
+def test_get_user_groups(db_session, awg_users):
+    groups = adm.get_user_groups(db_session, 'awg_user')
+    expected_groups = [
+        {
+            'name': 'test_group_2',
+            'description': 'the second test group',
+            'projects': ['test_project_1', 'test_project_2']
+        },
+        {
+            'name': 'test_group_1',
+            'description': 'the first test group',
+            'projects': ['test_project_1']
+        }
+        
+    ]
+    expected_groups.sort()
+    groups['groups'].sort()
+    assert groups['groups'] == expected_groups
