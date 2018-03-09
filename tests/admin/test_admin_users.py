@@ -1,5 +1,5 @@
 import fence.resources.admin as adm
-from fence.models import User, AccessPrivilege, Project
+from fence.models import User, AccessPrivilege, Project, UserToGroup, Group
 import pytest
 from fence.errors import NotFound, UserError
 
@@ -64,9 +64,11 @@ def test_get_all_users(db_session, awg_users):
 def test_add_user_to_group(db_session, awg_users, awg_groups):
     accesses = db_session.query(AccessPrivilege).join(AccessPrivilege.user).filter(User.username == 'awg_user_2').all()
     assert accesses == []
-    adm.add_user_to_groups(db_session, 'awg_user_2', ['test_group_3', 'test_group_4'])
+    adm.add_user_to_groups(db_session, 'awg_user_2', ['test_group_4'])
     accesses = db_session.query(AccessPrivilege).join(AccessPrivilege.user).filter(User.username == 'awg_user_2').all()
     projects = [db_session.query(Project).filter(Project.id == item.project_id).first().name
                    for item in accesses if item.project_id != None]
     assert 'test_project_6' in projects
     assert 'test_project_7' in projects
+    group_access= db_session.query(UserToGroup).join(UserToGroup.user).filter(User.username == 'awg_user_2').first()
+    assert 'test_group_4' == db_session.query(Group).filter(Group.id == group_access.group_id).first().name
