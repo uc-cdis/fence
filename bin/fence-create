@@ -24,19 +24,22 @@ from fence.utils import create_client, drop_client
 from fence.sync.sync_dbgap import DbGapSyncer
 
 
-def create_client_action(DB, username=None, client=None, urls=None, auto_approve=True):
+def create_client_action(
+        DB, username=None, client=None, urls=None, auto_approve=True):
     try:
-        print create_client(username, urls, DB, name=client, auto_approve=auto_approve)
+        print(
+            create_client(
+                username, urls, DB, name=client, auto_approve=auto_approve))
     except Exception as e:
-        print e.message
+        print(e.message)
 
 
 def delete_client_action(DB, client):
     try:
         drop_client(client, DB)
-        print 'Client {} deleted'.format(client)
+        print('Client {} deleted'.format(client))
     except Exception as e:
-        print e.message
+        print(e.message)
 
 
 def sync_dbgap(projects):
@@ -67,7 +70,7 @@ def sync_dbgap(projects):
         project_mapping = yaml.load(f)
     syncer = DbGapSyncer(
         dbGaP, DB, project_mapping, storage_credentials=STORAGE_CREDENTIALS)
-    print 'sycn'
+    print('sycn')
     syncer.sync()
 
 
@@ -121,23 +124,22 @@ def create_project(s, project_data):
                     CloudProvider).filter_by(name=provider).first()
                 sa = StorageAccess(provider=c_provider, project=project)
                 s.add(sa)
-                print ('created storage access for {} to {}'
-                       .format(project.name, c_provider.name))
+                print('created storage access for {} to {}'
+                      .format(project.name, c_provider.name))
             for bucket in buckets:
                 b = (
                     s.query(Bucket)
                     .filter_by(name=bucket)
                     .join(Bucket.provider)
-                    .filter(CloudProvider.name==provider)
+                    .filter(CloudProvider.name == provider)
                     .first()
                 )
-                print b
+                print(b)
                 if not b:
                     b = Bucket(name=bucket)
                     b.provider = c_provider
                     s.add(b)
-                    print ('created bucket {} in db'.format(bucket))
-
+                    print('created bucket {} in db'.format(bucket))
 
     return project
 
@@ -148,29 +150,34 @@ def grant_project_to_group_or_user(s, project_data, group=None, user=None):
     if group:
         ap = s.query(AccessPrivilege).join(AccessPrivilege.project)\
             .join(AccessPrivilege.research_group)\
-            .filter(Project.name == project.name, Group.name == group.name).first()
+            .filter(
+                Project.name == project.name, Group.name == group.name).first()
         name = group.name
     elif user:
         ap = s.query(AccessPrivilege).join(AccessPrivilege.project)\
             .join(AccessPrivilege.user)\
-            .filter(Project.name == project.name, User.username == user.username).first()
+            .filter(
+                Project.name == project.name,
+                User.username == user.username).first()
         name = user.username
     else:
         raise Exception("need to provide either a user or group")
     if not ap:
         if group:
-            ap = AccessPrivilege(project=project, research_group=group, privilege=privilege)
+            ap = AccessPrivilege(
+                project=project, research_group=group, privilege=privilege)
         elif user:
-            ap = AccessPrivilege(project=project, user=user, privilege=privilege)
+            ap = AccessPrivilege(
+                project=project, user=user, privilege=privilege)
         else:
             raise Exception("need to provide either a user or group")
         s.add(ap)
-        print ('created access privilege {} of project {} to {}'
-               .format(privilege, project.name, name))
+        print('created access privilege {} of project {} to {}'
+              .format(privilege, project.name, name))
     else:
         ap.privilege = privilege
-        print ('updated access privilege {} of project {} to {}'
-               .format(privilege, project.name, name))
+        print('updated access privilege {} of project {} to {}'
+              .format(privilege, project.name, name))
 
 
 def create_cloud_providers(s, data):
@@ -180,7 +187,9 @@ def create_cloud_providers(s, data):
             CloudProvider.name == name
         ).first()
         if not cloud_provider:
-            cloud_provider = CloudProvider(name=name, backend=fields.get('backend', 'cleversafe'), service=fields.get('service', 'storage'))
+            cloud_provider = CloudProvider(
+                name=name, backend=fields.get('backend', 'cleversafe'),
+                service=fields.get('service', 'storage'))
             s.add(cloud_provider)
 
 
@@ -277,14 +286,6 @@ if __name__ == '__main__':
     dbgap_sync.add_argument('--projects', required=True)
 
     manage_google_keys = subparsers.add_parser('google-manage-keys')
-    manage_google_keys.add_argument(
-        '--db', type=str, required=True, help='database name')
-    manage_google_keys.add_argument(
-        '--username', default='postgres', help='database username')
-    manage_google_keys.add_argument(
-        '--password', default='', help='database password')
-    manage_google_keys.add_argument(
-        '--host', default='localhost', help='database hostname')
 
     args = parser.parse_args()
 
@@ -307,14 +308,7 @@ if __name__ == '__main__':
         sync_dbgap(args.__dict__['projects'])
 
     elif args.action == 'google-manage-keys':
-        db = (
-            "postgresql://{username}:{password}@{host}/{db}"
-            .format(
-                username=args.username, password=args.password,
-                host=args.host, db=args.db)
-        )
-
-        remove_expired_google_service_account_keys(db)
+        remove_expired_google_service_account_keys(DB)
 
     else:
         pass
