@@ -245,11 +245,10 @@ def google_init(db):
                 primary_service_account = response["primary_service_account"]
                 user.google_proxy_group_id = group["id"]
 
-                # Add user's primary service account to database with
-                # "client_id" as user.id
+                # Add user's primary service account to database
                 service_account = GoogleServiceAccount(
                     google_unique_id=primary_service_account["uniqueId"],
-                    client_id=user.id,
+                    client_id=None,
                     user_id=user.id,
                     email=primary_service_account["email"]
                 )
@@ -298,49 +297,33 @@ if __name__ == '__main__':
     dbgap_sync.add_argument('--projects', required=True)
 
     init_google = subparsers.add_parser('google-init')
-    init_google.add_argument(
-        '--db', type=str, required=True, help='database name')
-    init_google.add_argument(
-        '--username', default='postgres', help='database username')
-    init_google.add_argument(
-        '--password', default='', help='database password')
-    init_google.add_argument(
-        '--host', default='localhost', help='database hostname')
 
     args = parser.parse_args()
+
+    # get database information
+    sys.path.append(args.path)
+    if os.environ.get('FENCE_DB'):
+        DB = os.environ['FENCE_DB']
+    else:
+        from fence.local_settings import DB
 
     if args.action == 'create':
         yaml_input = args.__dict__['yaml-input']
         create_sample_data(yaml_input)
 
-    elif args.action == 'client-create' or args.action == 'client-delete':
+    elif args.action == 'client-create':
+        create_client_action(
+            DB, username=args.username, client=args.client,
+            urls=args.urls, auto_approve=not args.external)
 
-        # get database information
-        sys.path.append(args.path)
-        if os.environ.get('FENCE_DB'):
-            DB = os.environ['FENCE_DB']
-        else:
-            from fence.local_settings import DB
-
-        if args.action == 'client-create':
-            create_client_action(
-                DB, username=args.username, client=args.client,
-                urls=args.urls, auto_approve=not args.external)
-        else:
-            delete_client_action(DB, args.client)
+    elif args.action == 'client-delete':
+        delete_client_action(DB, args.client)
 
     elif args.action == 'sync-dbgap':
         sync_dbgap(args.__dict__['projects'])
 
     elif args.action == 'google-init':
-        db = (
-            "postgresql://{username}:{password}@{host}/{db}"
-            .format(
-                username=args.username, password=args.password,
-                host=args.host, db=args.db)
-        )
-
-        google_init(db)
+        google_init(DB)
 
     else:
         pass
