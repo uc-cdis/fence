@@ -94,3 +94,8 @@ def test_remove_user_from_group(db_session, awg_users, awg_groups):
     assert accesses == []
     group_access = db_session.query(UserToGroup).join(UserToGroup.user).filter(User.username == 'awg_user').all()
     assert group_access == []
+
+
+def test_remove_user_from_wrong_group(db_session, awg_users, awg_groups):
+    with pytest.raises(NotFound):
+        adm.remove_user_from_groups(db_session, "awg_user", ['test_group_4'])
