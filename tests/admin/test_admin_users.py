@@ -75,7 +75,7 @@ def test_add_user_to_group(db_session, awg_users, awg_groups):
     group_access= db_session.query(UserToGroup).join(UserToGroup.user).filter(User.username == 'awg_user_2').first()
     assert 'test_group_4' == db_session.query(Group).filter(Group.id == group_access.group_id).first().name
 
-@pytest.mark.skip(reason="Working on possible bug when removing user from groups with overlapping projects")
+
 def test_remove_user_from_group(db_session, awg_users, awg_groups):
     accesses = db_session.query(AccessPrivilege).join(AccessPrivilege.user).filter(User.username == 'awg_user').all()
     projects = [db_session.query(Project).filter(Project.id == item.project_id).first().name
@@ -87,7 +87,6 @@ def test_remove_user_from_group(db_session, awg_users, awg_groups):
               for group in group_access ]
     assert 'test_group_1' in groups
     assert 'test_group_2' in groups
-    #TODO are we trying to remove twice the same project from the user when projects overlap?
 
     adm.remove_user_from_groups(db_session, 'awg_user', ['test_group_1', 'test_group_2'])
     accesses = db_session.query(AccessPrivilege).join(AccessPrivilege.user).filter(User.username == 'awg_user').all()
