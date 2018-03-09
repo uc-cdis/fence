@@ -84,8 +84,24 @@ def create_awg_user(users, db_session):
                 grp.name = group_name
                 grp.description = group_desc
                 s.add(grp)
+                s.flush()
             UserToGroup(group=grp, user=user)
             for projectname in group['projects']:
+                gap = (
+                    s
+                    .query(AccessPrivilege)
+                    .join(AccessPrivilege.project)
+                    .join(AccessPrivilege.group)
+                    .filter(Project.name == projectname, Group.name == group_name)
+                    .first()
+                )
+                if not gap:
+                    project = projects[projectname]
+                    gap = AccessPrivilege(
+                        project_id=project.id, group_id=grp.id
+                    )
+                    s.add(gap)
+                    s.flush()
                 ap = (
                     s
                     .query(AccessPrivilege)
@@ -101,9 +117,49 @@ def create_awg_user(users, db_session):
                         project=project, user=user, privilege=privilege
                     )
                     s.add(ap)
-
+                    s.flush()
     return user.id, user.username
 
+def create_awg_groups(data, db_session):
+    s = db_session
+    projects = {}
+    for project_data in data['projects']:
+        auth_id = project_data['auth_id']
+        p_name = project_data.get('name', auth_id)
+
+        project = s.query(Project).filter(
+            Project.auth_id == auth_id).first()
+        if not project:
+            project = Project(name=p_name, auth_id=auth_id)
+            s.add(project)
+        projects[p_name] = project
+
+    for group in data['groups']:
+        group_name = group['name']
+        group_desc = group['description']
+        grp = s.query(Group).filter(Group.name == group_name).first()
+        if not grp:
+            grp = Group()
+            grp.name = group_name
+            grp.description = group_desc
+            s.add(grp)
+
+        for projectname in group['projects']:
+            gap = (
+                s
+                .query(AccessPrivilege)
+                .join(AccessPrivilege.project)
+                .join(AccessPrivilege.group)
+                .filter(Project.name == projectname, Group.name == group_name)
+                .first()
+            )
+            if not gap:
+                project = projects[projectname]
+                gap = AccessPrivilege(
+                    project_id=project.id, group_id=grp.id
+                )
+                s.add(gap)
+                s.flush()
 
 def new_jti():
     """

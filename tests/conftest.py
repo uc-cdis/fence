@@ -237,7 +237,14 @@ def awg_users(db_session):
         utils.read_file('resources/awg_user.json')
     ))
     user_id, username = utils.create_awg_user(awg_usr, db_session)
-    return Dict(username=username, user_id=user_id)
+
+@pytest.fixture(scope='function')
+def awg_groups(db_session):
+    awg_grps = dict(json.loads(
+        utils.read_file('resources/awg_groups.json')
+    ))
+    utils.create_awg_groups(awg_grps, db_session)
+
 
 @pytest.fixture(scope='function')
 def db_session(db, patch_app_db_session):

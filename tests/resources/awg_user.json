@@ -23,4 +23,9 @@
             }
         ]
     }
+,
+    "awg_user_2" : {
+	"groups":[],
+        "projects":[]
+    }
 }
