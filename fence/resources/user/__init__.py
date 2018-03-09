@@ -3,7 +3,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import COMMASPACE, formatdate
 import flask
-from flask_sqlalchemy_session import current_session
+from flask_sqlalchemy_session import current_session as curr_sess
 from fence.resources import userdatamodel as udm
 import smtplib
 
@@ -94,7 +94,7 @@ def send_mail(send_from, send_to, subject, text, server, certificates=None):
 
 def get_user_accesses():
     user = (
-        current_session
+        curr_sess
         .query(User)
         .join(User.groups)
         .filter(User.id == flask.g.user.id)
@@ -109,5 +109,5 @@ def get_user_accesses():
 def get_user_groups(current_session, username):
     return udm.get_user_groups(current_session, username)
 
-def remove_user_from_project(curren_session, user, project):
+def remove_user_from_project(current_session, user, project):
     return udm.remove_user_from_project(current_session, user, project)

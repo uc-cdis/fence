@@ -173,9 +173,11 @@ def remove_user_from_groups(current_session, username, groups=[]):
     projects_to_keep =  [ item for sublist in
                           [ gp.get_group_projects(current_session, x) for x in groups_to_keep ]
                           for item in sublist]
+    projects_to_keep = set(projects_to_keep)
     projects_to_remove = [item for sublist in
                           [ gp.get_group_projects(current_session, x) for x in groups]
                           for item in sublist if item not in projects_to_keep]
+    projects_to_remove = set(projects_to_remove)
     responses = []
     for groupname in groups:
         try:
