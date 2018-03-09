@@ -58,7 +58,9 @@ def test_create_already_existing_user(db_session, awg_users):
 
 def test_get_all_users(db_session, awg_users):
     user_list = adm.get_all_users(db_session)
-    assert len(user_list['users']) == 2
+    user_name_list = [item['name'] for item in user_list['users']]
+    assert 'awg_user' in user_name_list
+    assert 'awg_user_2' in user_name_list
 
 
 def test_add_user_to_group(db_session, awg_users, awg_groups):
@@ -72,3 +74,23 @@ def test_add_user_to_group(db_session, awg_users, awg_groups):
     assert 'test_project_7' in projects
     group_access= db_session.query(UserToGroup).join(UserToGroup.user).filter(User.username == 'awg_user_2').first()
     assert 'test_group_4' == db_session.query(Group).filter(Group.id == group_access.group_id).first().name
+
+@pytest.mark.skip(reason="Working on possible bug when removing user from groups with overlapping projects")
+def test_remove_user_from_group(db_session, awg_users, awg_groups):
+    accesses = db_session.query(AccessPrivilege).join(AccessPrivilege.user).filter(User.username == 'awg_user').all()
+    projects = [db_session.query(Project).filter(Project.id == item.project_id).first().name
+                   for item in accesses if item.project_id != None]
+    assert 'test_project_1' in projects
+    assert 'test_project_2' in projects
+    group_access = db_session.query(UserToGroup).join(UserToGroup.user).filter(User.username == 'awg_user').all()
+    groups = [db_session.query(Group).filter(Group.id == group.group_id).first().name
+              for group in group_access ]
+    assert 'test_group_1' in groups
+    assert 'test_group_2' in groups
+    #TODO are we trying to remove twice the same project from the user when projects overlap?
+
+    adm.remove_user_from_groups(db_session, 'awg_user', ['test_group_1', 'test_group_2'])
+    accesses = db_session.query(AccessPrivilege).join(AccessPrivilege.user).filter(User.username == 'awg_user').all()
+    assert accesses == []
+    group_access = db_session.query(UserToGroup).join(UserToGroup.user).filter(User.username == 'awg_user').all()
+    assert group_access == []
