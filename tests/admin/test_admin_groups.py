@@ -19,3 +19,23 @@ def test_create_group(db_session):
     group = db_session.query(Group).filter(Group.name == 'new_group_1').first()
     assert group.name == 'new_group_1'
     assert group.description == 'a new group'
+
+
+def test_delete_group(db_session, awg_groups):
+    group = db_session.query(Group).filter(Group.name == 'test_group_4').first()
+    assert group.name == 'test_group_4'
+    adm.delete_group(db_session, 'test_group_4')
+    group = db_session.query(Group).filter(Group.name == 'test_group_4').first()
+    assert group == None
+
+
+def test_update_group(db_session, awg_groups):
+    group = db_session.query(Group).filter(Group.name == 'test_group_4').first()
+    assert group.name == 'test_group_4'
+    assert group.description == 'the fourth test group'
+    adm.update_group(db_session, 'test_group_4', 'the fifth test group', 'test_group_5')
+    group = db_session.query(Group).filter(Group.name == 'test_group_4').first()
+    assert group == None
+    group = db_session.query(Group).filter(Group.name == 'test_group_5').first()
+    assert group.name == 'test_group_5'
+    assert group.description == 'the fifth test group'

@@ -2,12 +2,12 @@
 	"groups":[
 	    {
 		"name": "test_group_3",
-		"description": "the first test group",
+		"description": "the third test group",
 		"projects": ["test_project_5"]
 	    },
 	    {
 		"name": "test_group_4",
-		"description": "the second test group",
+		"description": "the fourth test group",
 		"projects": ["test_project_6", "test_project_7"]
 	    }
 	],
