@@ -89,7 +89,7 @@ def update_group_users_projects(current_session, group, project, users):
         except NotFound:
             pass
     return {"success": "users {0} connected to project {1}".format(
-        users, project)}
+        [user.username for user in users], project)}
 
 def add_projects_to_group(current_session, groupname, projects=[]):
     grp = gp.get_group(current_session, groupname)
