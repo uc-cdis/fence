@@ -105,14 +105,35 @@ def test_get_group_projects(db_session, awg_groups):
     expected_projects.sort()
     assert expected_projects == group_projects
 
-@pytest.mark.skip()
-def test_remove_project_to_group(db_session, awg_users, awg_groups):
-    pass
 
-@pytest.mark.skip()
+def test_remove_project_to_group(db_session, awg_groups):
+    group = db_session.query(Group).filter(Group.name == 'test_group_4').first()
+    group_projects = [ db_session.query(Project).filter(Project.id == item.project_id).first().name 
+                       for item in db_session.query(AccessPrivilege).filter(AccessPrivilege.group_id == group.id).all()]
+    expected_projects = ['test_project_6', 'test_project_7']
+    expected_projects.sort()
+    group_projects.sort()
+    assert expected_projects == group_projects
+    adm.remove_projects_from_group(db_session, 'test_group_4', ['test_project_6', 'test_project_7'])
+
+    group_projects = [ db_session.query(Project).filter(Project.id == item.project_id).first().name 
+                       for item in db_session.query(AccessPrivilege).filter(AccessPrivilege.group_id == group.id).all()]
+    expected_projects = []
+    assert expected_projects == group_projects
+
+
 def test_remove_project_to_group_updates_user(db_session, awg_users, awg_groups):
-    pass
+    user = db_session.query(User).filter(User.username == 'awg_user').first()
+    user_projects = [ db_session.query(Project).filter(Project.id == item.project_id).first().name 
+                       for item in db_session.query(AccessPrivilege).filter(AccessPrivilege.user_id == user.id).all()]
+    expected_projects = ['test_project_1', 'test_project_2']
+    expected_projects.sort()
+    user_projects.sort()
+    assert expected_projects == user_projects
+    adm.remove_projects_from_group(db_session, 'test_group_2', ['test_project_1', 'test_project_2'])
 
-@pytest.mark.skip()
-def test_remove_overlapping_projects_maintains_keeps_overlap_on_user(db_session, awg_users):
-    pass
+    user_projects = [ db_session.query(Project).filter(Project.id == item.project_id).first().name 
+                       for item in db_session.query(AccessPrivilege).filter(AccessPrivilege.user_id == user.id).all()]
+    expected_projects = ['test_project_1']
+    assert expected_projects == user_projects
+
