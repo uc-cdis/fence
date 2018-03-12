@@ -4,6 +4,7 @@ import os
 import sys
 import yaml
 
+from cirrus import GoogleCloudManager
 from userdatamodel.driver import SQLAlchemyDriver
 from userdatamodel.models import (
     AccessPrivilege,
@@ -14,11 +15,14 @@ from userdatamodel.models import (
     StorageAccess,
     User,
     Bucket,
+    GoogleProxyGroup
 )
 from cirrus import GoogleCloudManager
 
 from fence.models import GoogleServiceAccount
 from fence.models import Client
+
+from fence.models import GoogleServiceAccount
 
 from fence.utils import create_client, drop_client
 from fence.sync.sync_dbgap import DbGapSyncer
@@ -252,6 +256,41 @@ def remove_expired_google_service_account_keys(db):
                     service_account.google_unique_id)
 
 
+def google_init(db):
+    # Initial user proxy group creation
+    db = SQLAlchemyDriver(db)
+    with db.session as s:
+        users_without_proxy = (
+            s.query(User).filter(User.google_proxy_group == None)
+        )
+
+        for user in users_without_proxy:
+            with GoogleCloudManager() as g_mgr:
+                response = g_mgr.create_proxy_group_for_user(
+                    user.id, user.username)
+
+                group = response["group"]
+                primary_service_account = response["primary_service_account"]
+                user.google_proxy_group_id = group["id"]
+
+                # Add user's primary service account to database
+                service_account = GoogleServiceAccount(
+                    google_unique_id=primary_service_account["uniqueId"],
+                    client_id=None,
+                    user_id=user.id,
+                    email=primary_service_account["email"]
+                )
+
+                proxy_group = GoogleProxyGroup(
+                    id=group["id"],
+                    email=group["email"]
+                )
+
+                s.add(service_account)
+                s.add(proxy_group)
+                s.commit()
+
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
@@ -287,28 +326,37 @@ if __name__ == '__main__':
 
     manage_google_keys = subparsers.add_parser('google-manage-keys')
 
+    init_google = subparsers.add_parser('google-init')
+
     args = parser.parse_args()
 
+    # get database information
     sys.path.append(args.path)
     if os.environ.get('FENCE_DB'):
         DB = os.environ['FENCE_DB']
     else:
-        from local_settings import DB
+        from fence.local_settings import DB
 
     if args.action == 'create':
         yaml_input = args.__dict__['yaml-input']
         create_sample_data(yaml_input)
+
     elif args.action == 'client-create':
         create_client_action(
             DB, username=args.username, client=args.client,
             urls=args.urls, auto_approve=not args.external)
+
     elif args.action == 'client-delete':
         delete_client_action(DB, args.client)
+
     elif args.action == 'sync-dbgap':
         sync_dbgap(args.__dict__['projects'])
 
     elif args.action == 'google-manage-keys':
         remove_expired_google_service_account_keys(DB)
+
+    elif args.action == 'google-init':
+        google_init(DB)
 
     else:
         pass
