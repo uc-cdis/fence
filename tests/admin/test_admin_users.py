@@ -29,9 +29,18 @@ def test_create_user(db_session):
 def test_delete_user(db_session, awg_users):
     user = db_session.query(User).filter(User.username == "awg_user").first()
     assert user != None
+    user_id = user.id
+    user_access = db_session.query(AccessPrivilege).filter(AccessPrivilege.user_id == user_id).all()
+    assert user_access != []
+    user_groups = db_session.query(UserToGroup).filter(UserToGroup.user_id == user_id). all()
+    assert user_groups != []
     adm.delete_user(db_session, "awg_user")
     user = db_session.query(User).filter(User.username == "awg_user").first()
     assert user == None
+    user_access = db_session.query(AccessPrivilege).filter(AccessPrivilege.user_id == user_id).all()
+    assert user_access == []
+    user_groups = db_session.query(UserToGroup).filter(UserToGroup.user_id == user_id). all()
+    assert user_groups == []
 
 
 def test_update_user(db_session, awg_users):
