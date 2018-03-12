@@ -246,6 +246,8 @@ def assign_group_to_user(s, user, group_name, group_data):
 def delete_users(DB, usernames):
     driver = SQLAlchemyDriver(DB)
     with driver.session as session:
+        # NOTE that calling ``.delete()`` on the query itself will not follow
+        # cascade deletion rules set up in any relationships.
         users_to_delete = (
             session
             .query(User)
