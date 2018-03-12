@@ -1,17 +1,20 @@
 import yaml
 
+from cirrus import GoogleCloudManager
 from userdatamodel.driver import SQLAlchemyDriver
 from userdatamodel.models import (
     AccessPrivilege,
+    Bucket,
     CloudProvider,
+    GoogleProxyGroup,
+    Group,
     IdentityProvider,
     Project,
-    Group,
     StorageAccess,
     User,
-    Bucket,
 )
 
+from fence.models import GoogleServiceAccount
 from fence.utils import create_client, drop_client
 from fence.sync.sync_dbgap import DbGapSyncer
 
@@ -108,14 +111,21 @@ def create_project(s, project_data):
                 s.query(StorageAccess)
                 .join(StorageAccess.provider, StorageAccess.project)
                 .filter(Project.name == project.name)
-                .filter(CloudProvider.name == provider).first())
+                .filter(CloudProvider.name == provider).first()
+            )
             if not sa:
-                c_provider = s.query(
-                    CloudProvider).filter_by(name=provider).first()
+                c_provider = (
+                    s
+                    .query(CloudProvider)
+                    .filter_by(name=provider)
+                    .first()
+                )
                 sa = StorageAccess(provider=c_provider, project=project)
                 s.add(sa)
-                print ('created storage access for {} to {}'
-                       .format(project.name, c_provider.name))
+                print(
+                    'created storage access for {} to {}'
+                    .format(project.name, c_provider.name)
+                )
             for bucket in buckets:
                 b = (
                     s.query(Bucket)
@@ -161,7 +171,7 @@ def grant_project_to_group_or_user(s, project_data, group=None, user=None):
         )
         name = user.username
     else:
-        raise Exception("need to provide either a user or group")
+        raise Exception('need to provide either a user or group')
     if not ap:
         if group:
             ap = AccessPrivilege(
@@ -172,7 +182,7 @@ def grant_project_to_group_or_user(s, project_data, group=None, user=None):
                 project=project, user=user, privilege=privilege
             )
         else:
-            raise Exception("need to provide either a user or group")
+            raise Exception('need to provide either a user or group')
         s.add(ap)
         print (
             'created access privilege {} of project {} to {}'
@@ -216,10 +226,11 @@ def create_users_with_group(DB, s, data):
                 providers[provider_name] = provider
                 if not provider:
                     raise Exception(
-                        "provider {} not found".format(provider_name))
+                        'provider {} not found'.format(provider_name))
 
             user = User(
-                username=username, idp_id=provider.id, is_admin=admin)
+                username=username, idp_id=provider.id, is_admin=admin
+            )
         user.is_admin = admin
         group_names = data.get('groups', [])
         for group_name in group_names:
@@ -241,6 +252,41 @@ def assign_group_to_user(s, user, group_name, group_data):
         user.groups.append(group)
     if group not in user.groups:
         user.groups.append(group)
+
+
+def google_init(db):
+    # Initial user proxy group creation
+    db = SQLAlchemyDriver(db)
+    with db.session as s:
+        users_without_proxy = (
+            s.query(User).filter(User.google_proxy_group == None)
+        )
+
+        for user in users_without_proxy:
+            with GoogleCloudManager() as g_mgr:
+                response = g_mgr.create_proxy_group_for_user(
+                    user.id, user.username)
+
+                group = response["group"]
+                primary_service_account = response["primary_service_account"]
+                user.google_proxy_group_id = group["id"]
+
+                # Add user's primary service account to database
+                service_account = GoogleServiceAccount(
+                    google_unique_id=primary_service_account["uniqueId"],
+                    client_id=None,
+                    user_id=user.id,
+                    email=primary_service_account["email"]
+                )
+
+                proxy_group = GoogleProxyGroup(
+                    id=group["id"],
+                    email=group["email"]
+                )
+
+                s.add(service_account)
+                s.add(proxy_group)
+                s.commit()
 
 
 def delete_users(DB, usernames):

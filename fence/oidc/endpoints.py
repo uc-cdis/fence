@@ -59,6 +59,13 @@ class RevocationEndpoint(authlib.specs.rfc7009.RevocationEndpoint):
         Return:
             Tuple[int, dict, dict]: (status_code, body, headers)
         """
+        headers = [
+            ('Content-Type', 'application/json'),
+            ('Cache-Control', 'no-store'),
+            ('Pragma', 'no-cache'),
+        ]
+        status = 204
+        message = ''
         try:
             # The authorization server first validates the client credentials
             self.validate_authenticate_client()
@@ -67,27 +74,16 @@ class RevocationEndpoint(authlib.specs.rfc7009.RevocationEndpoint):
             self.validate_revocation_request()
             # the authorization server invalidates the token
             self.invalidate_token(self._token)
-            status = 204
-            body = {}
-            headers = [
-                ('Content-Type', 'application/json'),
-                ('Cache-Control', 'no-store'),
-                ('Pragma', 'no-cache'),
-            ]
-        except (OAuth2Error, BlacklistingError) as error:
+        except OAuth2Error as error:
             status = error.status_code
+            message = dict(error.get_body()).get('error_description')
+            headers = error.get_headers()
             # Errors from authlib have extra methods which are supposed to be
             # used for returning error values from the authentication endpoint.
             # BlacklistingError does not have these.
-            try:
-                message = dict(error.get_body()).get('error_description')
-                headers = error.get_headers()
-            except AttributeError:
-                message = error.message
-                headers = [
-                    ('Content-Type', 'application/json'),
-                    ('Cache-Control', 'no-store'),
-                    ('Pragma', 'no-cache'),
-                ]
-            body = {'error': message}
+        except BlacklistingError as error:
+            status = error.code
+            message = error.message
+        finally:
+            body = {'error': message} if message != '' else {}
         return (status, body, headers)

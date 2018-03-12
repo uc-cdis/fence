@@ -9,8 +9,9 @@ from fence.models import (
     Client,
     IdentityProvider,
     GoogleServiceAccount,
-    GoogleProxyGroup,
 )
+
+from userdatamodel.models import GoogleProxyGroup
 
 
 def _populate_test_identity(session, **kwargs):
@@ -59,6 +60,12 @@ def test_google_access_token_new_service_account(
             .filter_by(client_id=client_id)
         ).count()
 
+        # create a proxy group for user
+        proxy_group = GoogleProxyGroup(
+            id=proxy_group_id,
+            email=proxy_group_id + "@test.com",
+        )
+
         # get test user info
         user = (
             db_session
@@ -66,13 +73,8 @@ def test_google_access_token_new_service_account(
             .filter_by(username='test')
             .first()
         )
-        user_id = user.id
+        user.google_proxy_group_id = proxy_group.id
 
-        # create a  proxy group for user
-        proxy_group = GoogleProxyGroup(
-            id=proxy_group_id,
-            user_id=user_id,
-        )
         db_session.add(user)
         db_session.add(proxy_group)
         db_session.commit()
@@ -162,6 +164,12 @@ def test_google_create_access_token_post(
         # set global client context
         flask.g.client_id = client_id
 
+        # create a  proxy group for user
+        proxy_group = GoogleProxyGroup(
+            id=proxy_group_id,
+            email=proxy_group_id + "@test.com"
+        )
+
         # get test user info
         user = (
             db_session
@@ -170,12 +178,8 @@ def test_google_create_access_token_post(
             .first()
         )
         user_id = user.id
+        user.google_proxy_group_id = proxy_group.id
 
-        # create a  proxy group for user
-        proxy_group = GoogleProxyGroup(
-            id=proxy_group_id,
-            user_id=user_id,
-        )
         db_session.add(proxy_group)
 
         # create a service account for client for user
@@ -241,6 +245,12 @@ def test_google_delete_owned_access_token(
         # set global client context
         flask.g.client_id = client_id
 
+        # create a  proxy group for user
+        proxy_group = GoogleProxyGroup(
+            id=proxy_group_id,
+            email=proxy_group_id + "@test.com"
+        )
+
         # get test user info
         user = (
             db_session
@@ -249,12 +259,8 @@ def test_google_delete_owned_access_token(
             .first()
         )
         user_id = user.id
+        user.google_proxy_group_id = proxy_group.id
 
-        # create a  proxy group for user
-        proxy_group = GoogleProxyGroup(
-            id=proxy_group_id,
-            user_id=user_id,
-        )
         db_session.add(proxy_group)
 
         # create a service account for client for user
@@ -303,6 +309,12 @@ def test_google_attempt_delete_unowned_access_token(
         # set global client context
         flask.g.client_id = client_id
 
+        # create a  proxy group for user
+        proxy_group = GoogleProxyGroup(
+            id=proxy_group_id,
+            email=proxy_group_id + "@test.com"
+        )
+
         # get test user info
         user = (
             db_session
@@ -311,12 +323,8 @@ def test_google_attempt_delete_unowned_access_token(
             .first()
         )
         user_id = user.id
+        user.google_proxy_group_id = proxy_group.id
 
-        # create a  proxy group for user
-        proxy_group = GoogleProxyGroup(
-            id=proxy_group_id,
-            user_id=user_id,
-        )
         db_session.add(proxy_group)
 
         # create a service account for A DIFFERENT CLIENT
@@ -387,6 +395,12 @@ def test_google_delete_invalid_access_token(
         # set global client context
         flask.g.client_id = client_id
 
+        # create a  proxy group for user
+        proxy_group = GoogleProxyGroup(
+            id=proxy_group_id,
+            email=proxy_group_id + "@test.com"
+        )
+
         # get test user info
         user = (
             db_session
@@ -395,12 +409,8 @@ def test_google_delete_invalid_access_token(
             .first()
         )
         user_id = user.id
+        user.google_proxy_group_id = proxy_group.id
 
-        # create a  proxy group for user
-        proxy_group = GoogleProxyGroup(
-            id=proxy_group_id,
-            user_id=user_id,
-        )
         db_session.add(proxy_group)
 
         # create a service account for client for user

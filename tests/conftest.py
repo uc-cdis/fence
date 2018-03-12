@@ -7,6 +7,7 @@ import json
 import jwt
 import mock
 from mock import patch, MagicMock
+from moto import mock_s3, mock_sts
 import os
 
 from addict import Dict
@@ -22,6 +23,13 @@ from fence import models
 import tests
 from tests import test_settings
 from tests import utils
+from sqlalchemy.schema import DropTable
+from sqlalchemy.ext.compiler import compiles
+
+
+@compiles(DropTable, "postgresql")
+def _compile_drop_table(element, compiler, **kwargs):
+    return compiler.visit_drop_table(element) + " CASCADE"
 
 
 # Allow authlib to use HTTP for local testing.
@@ -58,6 +66,26 @@ def indexd_get_unavailable_bucket(file_id):
         'created_date': '',
         "updated_date": ''
     }
+
+
+def indexd_get_public_bucket(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s3://bucket1/key'],
+        'hashes': {},
+        'metadata': {'acls': '*'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def mock_get_bucket_location(self, bucket, config):
+    return 'us-east-1'
 
 
 @pytest.fixture(scope='session')
@@ -162,13 +190,19 @@ class Mocker(object):
             'fence.resources.storage.StorageManager.check_auth',
             lambda cls, backend, user: True
         )
+        self.boto_patcher = patch(
+            'fence.resources.aws.boto_manager.BotoManager.get_bucket_region',
+            mock_get_bucket_location
+        )
         self.patcher.start()
         self.auth_patcher.start()
+        self.boto_patcher.start()
         self.additional_patchers = []
 
     def unmock_functions(self):
         self.patcher.stop()
         self.auth_patcher.stop()
+        self.boto_patcher.stop()
         for patcher in self.additional_patchers:
             patcher.stop()
 
@@ -187,6 +221,19 @@ def app():
     root_dir = os.path.dirname(os.path.realpath(__file__))
     app_init(fence.app, test_settings, root_dir=root_dir)
     return fence.app
+
+
+@pytest.fixture(scope='function')
+def auth_client(app, request):
+    """
+    Flask application fixture.
+    """
+    app.config['MOCK_AUTH'] = False
+
+    def reset_authmock():
+        app.config['MOCK_AUTH'] = True
+
+    request.addfinalizer(reset_authmock)
 
 
 @pytest.fixture(scope='session')
@@ -215,6 +262,8 @@ def protected_endpoint(methods=['GET']):
 
 
 @pytest.fixture(scope='function')
+@mock_s3
+@mock_sts
 def user_client(app, request, db_session):
     users = dict(json.loads(
         utils.read_file('resources/authorized_users.json')
@@ -296,11 +345,20 @@ def unauthorized_indexd_client(app, request):
 
 
 @pytest.fixture(scope='function')
+def public_indexd_client(app, request):
+    mocker = Mocker()
+    mocker.mock_functions()
+    indexd_patcher = patch(
+        'fence.blueprints.data.get_index_document',
+        indexd_get_public_bucket)
+    mocker.add_mock(indexd_patcher)
+
+
+@pytest.fixture(scope='function')
 def patch_app_db_session(app, monkeypatch):
     """
     TODO
     """
-
     def do_patch(session):
         monkeypatch.setattr(app.db, 'Session', lambda: session)
         modules_to_patch = [
@@ -311,7 +369,6 @@ def patch_app_db_session(app, monkeypatch):
         ]
         for module in modules_to_patch:
             monkeypatch.setattr('{}.current_session'.format(module), session)
-
     return do_patch
 
 
@@ -333,8 +390,8 @@ def oauth_client(app, db_session, oauth_user):
     )
     db_session.add(models.Client(
         client_id=client_id, client_secret=hashed_secret, user=test_user,
-        allowed_scopes=['openid', 'user'], _redirect_uris=url, description='',
-        is_confidential=True, name='testclient'
+        allowed_scopes=['openid', 'user', 'fence'], _redirect_uris=url,
+        description='', is_confidential=True, name='testclient'
     ))
     db_session.commit()
     return Dict(client_id=client_id, client_secret=client_secret, url=url)
@@ -343,8 +400,8 @@ def oauth_client(app, db_session, oauth_user):
 @pytest.fixture(scope='function')
 def oauth_client_B(app, request, db_session):
     """
-    Create a second, different OAuth2 client and add it to the database along
-    with a test user for the client.
+    Create a second, different OAuth2 (confidential) client and add it to the
+    database along with a test user for the client.
     """
     url = 'https://oauth-test-client-B.net'
     client_id = 'test-client-B'
@@ -362,12 +419,34 @@ def oauth_client_B(app, request, db_session):
         db_session.add(test_user)
     db_session.add(models.Client(
         client_id=client_id, client_secret=hashed_secret, user=test_user,
-        allowed_scopes=['openid', 'user'], _redirect_uris=url, description='',
-        is_confidential=True, name='testclientb'
+        allowed_scopes=['openid', 'user', 'fence'], _redirect_uris=url,
+        description='', is_confidential=True, name='testclientb'
     ))
     db_session.commit()
 
     return Dict(client_id=client_id, client_secret=client_secret, url=url)
+
+
+@pytest.fixture(scope='function')
+def oauth_client_public(app, db_session, oauth_user):
+    """
+    Create a public OAuth2 client.
+    """
+    url = 'https://oauth-test-client-public.net'
+    client_id = 'test-client-public'
+    test_user = (
+        db_session
+        .query(models.User)
+        .filter_by(id=oauth_user.user_id)
+        .first()
+    )
+    db_session.add(models.Client(
+        client_id=client_id, user=test_user,
+        allowed_scopes=['openid', 'user', 'fence'], _redirect_uris=url,
+        description='', is_confidential=False, name='testclient-public'
+    ))
+    db_session.commit()
+    return Dict(client_id=client_id, url=url)
 
 
 @pytest.fixture(scope='function')

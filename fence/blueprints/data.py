@@ -1,22 +1,15 @@
-from urlparse import urlparse
-
 import flask
-from flask import current_app
 import requests
-
+from urlparse import urlparse
 from fence.auth import login_required
-from fence.errors import (
-    UnavailableError,
-    NotFound,
-    Unauthorized,
-    NotSupported,
-    InternalError,
-)
+from cdispyutils.hmac4 import generate_aws_presigned_url
+from cdispyutils.config import get_value
+from ..errors import UnavailableError, NotFound, Unauthorized, NotSupported, InternalError
 
 ACTION_DICT = {
     "s3": {
-        "upload": "put_object",
-        "download": "get_object"
+        "upload": "PUT",
+        "download": "GET"
     },
     "http": {
         "upload": "put_object",
@@ -29,20 +22,20 @@ SUPPORTED_PROTOCOLS = ['s3', 'http']
 
 def get_index_document(file_id):
     indexd_server = (
-            current_app.config.get('INDEXD') or
-            current_app.config['BASE_URL'] + '/index')
+            flask.current_app.config.get('INDEXD') or
+            flask.current_app.config['BASE_URL'] + '/index')
     url = indexd_server + '/index/'
     try:
         res = requests.get(url + file_id)
     except Exception as e:
-        current_app.logger.error("failed to reach indexd at {0}: {1}".format(url + file_id, e))
+        flask.current_app.logger.error("failed to reach indexd at {0}: {1}".format(url + file_id, e))
         raise UnavailableError(
             "Fail to reach id service to find data location")
     if res.status_code == 200:
         try:
             json_response = res.json()
             if 'urls' not in json_response or 'metadata' not in json_response:
-                current_app.logger.error(
+                flask.current_app.logger.error(
                     'URLs and metadata are not included in response from indexd: {}'.format(url + file_id)
                 )
                 raise InternalError('URLs and metadata not found')
@@ -61,7 +54,6 @@ blueprint = flask.Blueprint('data', __name__)
 
 
 @blueprint.route('/download/<file_id>', methods=['GET'])
-@login_required({'data'})
 def download_file(file_id):
     '''
     Get a presigned url to download a file given by file_id.
@@ -70,7 +62,6 @@ def download_file(file_id):
 
 
 @blueprint.route('/upload/<file_id>', methods=['GET'])
-@login_required({'data'})
 def upload_file(file_id):
     '''
     Get a presigned url to upload a file given by file_id.
@@ -88,34 +79,47 @@ def check_protocol(protocol, scheme):
     return False
 
 
-def resolve_url(url, location, expires, action):
+def resolve_url(url, location, expires, action, user_id, username):
     protocol = location.scheme
     if protocol == 's3':
-        aws_creds = current_app.config['AWS_CREDENTIALS']
-        if 'AWS_CREDENTIALS' in current_app.config and len(aws_creds) > 0:
-            buckets = flask.current_app.config['S3_BUCKETS']
-            if location.netloc not in buckets.keys():
+        aws_creds = get_value(flask.current_app.config, 'AWS_CREDENTIALS',
+                              InternalError('credentials not configured'))
+        s3_buckets = get_value(flask.current_app.config, 'S3_BUCKETS',
+                               InternalError('buckets not configured'))
+        if len(aws_creds) > 0:
+            if location.netloc not in s3_buckets.keys():
                 raise Unauthorized('permission denied for bucket')
-            if buckets[location.netloc] not in aws_creds:
+            if location.netloc in s3_buckets.keys() and \
+                    s3_buckets[location.netloc] not in aws_creds:
                 raise Unauthorized('permission denied for bucket')
-        credential_key = buckets[location.netloc]
-        url = current_app.boto.presigned_url(
-            location.netloc,
-            location.path.strip('/'),
-            expires,
-            aws_creds[credential_key],
-            ACTION_DICT[protocol][action],
-        )
+        credential_key = s3_buckets[location.netloc]
+        config = get_value(aws_creds, credential_key,
+                           InternalError('aws credential of that bucket is not found'))
+        region = flask.current_app.boto.get_bucket_region(location.netloc, config)
+        http_url = 'https://{}.s3.amazonaws.com/{}'.format(location.netloc, location.path.strip('/'))
+        if 'aws_access_key_id' not in config:
+            raise Unauthorized('credential is not configured correctly')
+        else:
+            aws_access_key_id = get_value(config, 'aws_access_key_id',
+                                          InternalError('aws configuration not found'))
+            aws_secret_key = get_value(config, 'aws_secret_access_key',
+                                       InternalError('aws configuration not found'))
+        user_info = {}
+        if user_id is not None:
+            user_info = {'user_id': str(user_id), 'username': username}
+        url = generate_aws_presigned_url(http_url, ACTION_DICT[protocol][action],
+                                         aws_access_key_id, aws_secret_key, 's3',
+                                         region, expires, user_info)
     elif protocol not in ['http', 'https']:
         raise NotSupported(
-            'protocol {} in URL {} is not supported'.format(protocol, url)
-        )
+            "protocol {} in url {} is not supported".format(protocol, url))
     return flask.jsonify(dict(url=url))
 
 
-def return_link(action, urls):
+def return_link(action, urls, user_id=None, username=None):
     protocol = flask.request.args.get('protocol', None)
-    expires = min(int(flask.request.args.get('expires_in', 3600)), 3600)
+    max_ttl = flask.current_app.config.get('MAX_PRESIGNED_URL_TTL', 3600)
+    expires = min(int(flask.request.args.get('expires_in', max_ttl)), max_ttl)
     if (protocol is not None) and (protocol not in SUPPORTED_PROTOCOLS):
         raise NotSupported("The specified protocol is not supported")
     if len(urls) == 0:
@@ -123,7 +127,7 @@ def return_link(action, urls):
     for url in urls:
         location = urlparse(url)
         if check_protocol(protocol, location.scheme):
-            return resolve_url(url, location, expires, action)
+            return resolve_url(url, location, expires, action, user_id, username)
     raise NotFound(
         "Can't find a location for the data with given request arguments."
     )
@@ -131,9 +135,15 @@ def return_link(action, urls):
 
 def get_file(action, file_id):
     doc = get_index_document(file_id)
-    if not check_authorization(action, doc):
+    metadata = doc['metadata']
+    if 'acls' not in metadata:
+        raise Unauthorized("This file is not accessible")
+    set_acls = set(metadata['acls'].split(','))
+    if check_public(set_acls):
+        return return_link(action, doc['urls'])
+    if not check_authorization(action, set_acls):
         raise Unauthorized("You don't have access permission on this file")
-    return return_link(action, doc['urls'])
+    return return_link(action, doc['urls'], flask.g.user.id, flask.g.user.username)
 
 
 def filter_auth_ids(action, list_auth_ids):
@@ -149,11 +159,13 @@ def filter_auth_ids(action, list_auth_ids):
     return authorized_dbgaps
 
 
-def check_authorization(action, doc):
-    metadata = doc['metadata']
-    if 'acls' not in metadata:
-        raise Unauthorized("You don't have access permission on this file")
-    set_acls = set(metadata['acls'].split(','))
+def check_public(set_acls):
+    if '*' in set_acls:
+        return True
+
+
+@login_required({'data'})
+def check_authorization(action, set_acls):
     if flask.g.token is None:
         given_acls = set(filter_auth_ids(action, flask.g.user.project_access))
     else:

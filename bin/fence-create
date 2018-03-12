@@ -9,6 +9,7 @@ from fence.scripting.fence_create import (
     create_sample_data,
     delete_client_action,
     delete_users,
+    google_init,
     sync_dbgap,
 )
 
@@ -51,12 +52,15 @@ def parse_arguments():
     dbgap_sync = subparsers.add_parser('sync-dbgap')
     dbgap_sync.add_argument('--projects', required=True)
 
+    subparsers.add_parser('google-init')
+
     return parser.parse_args()
 
 
 def main():
     args = parse_arguments()
 
+    # get database information
     sys.path.append(args.path)
 
     if os.environ.get('FENCE_DB'):
@@ -70,13 +74,16 @@ def main():
     elif args.action == 'client-create':
         create_client_action(
             DB, username=args.username, client=args.client,
-            urls=args.urls, auto_approve=(not args.external))
+            urls=args.urls, auto_approve=(not args.external)
+        )
     elif args.action == 'client-delete':
         delete_client_action(DB, args.client)
     elif args.action == 'user-delete':
         delete_users(DB, args.users)
     elif args.action == 'sync-dbgap':
         sync_dbgap(args.__dict__['projects'])
+    elif args.action == 'google-init':
+        google_init(DB)
 
 
 if __name__ == '__main__':

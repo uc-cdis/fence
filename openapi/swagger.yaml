@@ -280,21 +280,169 @@ paths:
             "$ref": '#/definitions/PresignedURL'
         '400':
           description: 'Invalid input: UUID not found or invalid location'
-  '/link/google/':
+  '/link/google':
+    get:
+      tags:
+        - link
+      summary: Link Google identity to user
+      parameters:
+        - name: redirect
+          required: true
+          type: string
+          in: query
+          description: Page to redirect to after account linking
+      description: >-
+        Link a Google identity to a User (AuthN using Google Oauth2 flow). Google identity will be associated with a user and added to a
+        proxy group for that user. The user's proxy group will be given access to data via Google's IAM. `redirect` will be stored in the session to follow after linking.
+      operationId: linkCloudIdentityStart
+      responses:
+        '302':
+          description: redirect to Oauth2 flow with Google to AuthN user
+    delete:
+      tags:
+        - link
+      summary: Unlink a Google identity from a user
+      parameters:
+        - name: redirect
+          required: true
+          type: string
+          in: query
+          description: Page to redirect to after unlinking
+      description: >-
+        Remove link between a user and a Google identity.
+      operationId: linkCloudIdentityStart
+      responses:
+        '200':
+          description: Google identity unlinked from user
+        '404':
+          description: Google identity cannot be unlinked since it isn't linked to the current user
+  '/link/google/link':
+    get:
+      tags:
+        - link
+      summary: Google's callback for linking Google identity
+      consumes:
+        - application/x-www-form-urlencoded
+      produces:
+        - application/json
+      parameters:
+        - name: code
+          required: true
+          type: string
+          in: formData
+          description: The authorization code returned from the OAuth2 authorization request
+      description: >-
+        Linking of Google identity to user after successful Oauth2
+        flow with Google. Use code to retrieve user info from Google.
+      operationId: linkCloudIdentity
+      responses:
+        '302':
+          description: redirect to session-stored redirect value
+  '/link/google/service_account':
     post:
       tags:
         - link
-      summary: Link Google identity
+      summary: Link a Google Service Account
       description: >-
-        Allow users to use standard data access tools provided by Google after
-        linking users’ Google identity. User’s identity will be added to a
-        proxy group owned by GDC, the proxy group will then be added to project
-        specific groups and the Google groups will be added to buckets ACLs.
-      operationId: linkCloudIdentity
+        Link a Google Cloud Project's service account to user to allow access to controlled
+        data. If there are issues, will provide details for what went wrong.
+      operationId: linkGoogleServiceAccount
+      parameters:
+        - in: "body"
+          name: "body"
+          description: "ServiceAccount object to link"
+          required: true
+          schema:
+            $ref: "#/definitions/GoogleServiceAccount"
       responses:
         '200':
-          description: successful operation
+          description: success, linked service account
+        '400':
+          description: failure, trying to link service account resulted in errors
+  '/link/google/service_account/_dry_run':
+    post:
+      tags:
+        - link
+      summary: Dry run to attempt to link a Google Service Account
+      description: >-
+        Attempt to link a service account WITHOUT actually doing so. Will
+        provide detailed errors for what went wrong.
+      operationId: linkGoogleServiceAccountDryRun
+      parameters:
+        - in: "body"
+          name: "body"
+          description: "ServiceAccount object to link"
+          required: true
+          schema:
+            $ref: "#/definitions/GoogleServiceAccount"
+      responses:
+        '200':
+          description: success, linking service account is possible
+        '400':
+          description: failure, linking service account would result in errors
+  '/.well-known/jwks':
+    get:
+      tags:
+        - keys
+      summary: Get JWK Set used by the application
+      description: >-
+        See [RFC 7517](https://tools.ietf.org/html/rfc7517) for detailed specification and an [example
+        response](https://tools.ietf.org/html/rfc7517#appendix-A.1).
+      responses:
+        200:
+          description: JWKS response
+          schema:
+            "$ref": '#/definitions/JWKS'
 definitions:
+  GoogleServiceAccount:
+    type: object
+    required: [google_user_email, service_account_email, google-project-id, projects]
+    properties:
+        google_user_email:
+          type: string
+          description: User's Google identity email for whom service account should be associated with
+        service_account_email:
+          type: string
+          description: Service account's email
+        google_project_id:
+          type: string
+          description: Google Cloud Project ID of service account
+        projects:
+          type: array
+          items:
+            type: string
+          description: List of projects/datasets for which service account should be registered for
+  JWKS:
+    type: object
+    properties:
+      keys:
+        type: array
+        description: array of dictionaries of key information
+        items:
+          type: object
+          properties:
+            kty:
+              type: string
+              description: key type ("RSA" in our implementation)
+            alg:
+              type: string
+              description: algorithm ("RS256" in our implementation)
+            n:
+              type: string
+              description: base64-encoded public key modulus
+            e:
+              type: string
+              description: base64-encoded public key exponent
+            kid:
+              type: string
+              description: key ID
+    example:
+      keys:
+        - kty: "RSA"
+          n: 0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw
+          e: "AQAB"
+          alg: "RS256"
+          kid: "2011-04-29"
   UserInfo:
     type: object
     required: [pdc_id, username, resources_granted, project_access, certificates_uploaded, email, message]

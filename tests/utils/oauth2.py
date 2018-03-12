@@ -95,7 +95,10 @@ def code_from_authorize_response(response):
     Return:
         str: the code
     """
-    location = response.headers['Location']
+    if response.status_code == 302:
+        location = response.headers['Location']
+    else:
+        location = response.json['redirect']
     try:
         return dict(url_decode(urlparse.urlparse(location).query))['code']
     except KeyError:

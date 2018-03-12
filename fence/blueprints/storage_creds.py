@@ -10,9 +10,11 @@ from fence.jwt.blacklist import blacklist_token
 from fence.jwt.token import USER_ALLOWED_SCOPES
 from fence.models import (
     GoogleServiceAccount,
-    GoogleProxyGroup,
-    UserRefreshToken,
+    UserRefreshToken
 )
+from userdatamodel.models import User
+from userdatamodel.models import GoogleProxyGroup
+
 from fence.resources.storage.cdis_jwt import (
     create_user_access_token,
     create_api_key,
@@ -332,9 +334,9 @@ def delete_keypair(provider, access_key):
                     g_cloud.delete_service_account_key(service_account.google_unique_id,
                                                        access_key)
                 else:
-                    flask.abort(400, 'Could not delete key ' + access_key + '. Not found for current user.')
+                    flask.abort(404, 'Could not delete key ' + access_key + '. Not found for current user.')
             else:
-                flask.abort(400, 'Could not find service account for current user.')
+                flask.abort(404, 'Could not find service account for current user.')
     else:
         flask.current_app.storage_manager.delete_keypair(provider, flask.g.user, access_key)
 
@@ -419,10 +421,17 @@ def _create_google_service_account_for_client(g_cloud_manager):
         fence.models.GoogleServiceAccount: New service account
     """
     # create service account, add to db
+    proxy_group_id = (
+        current_session
+        .query(User)
+        .filter_by(id=flask.g.user.id)
+        .first()
+    ).google_proxy_group_id
+
     proxy_group = (
         current_session
         .query(GoogleProxyGroup)
-        .filter_by(user_id=flask.g.user.id)
+        .filter_by(id=proxy_group_id)
         .first()
     )
 

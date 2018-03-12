@@ -6,18 +6,16 @@ fence instance. See the other files in this directory for the definitions of
 the endpoints for each provider.
 """
 
-import urlparse
-
 import flask
-from flask_restful import Api
 
+from flask_restful import Api
 from fence.blueprints.login.fence_login import FenceRedirect, FenceLogin
 from fence.blueprints.login.google import GoogleRedirect, GoogleLogin
 from fence.blueprints.login.shib import (
     ShibbolethLoginStart,
     ShibbolethLoginFinish,
 )
-from fence.errors import APIError
+from fence.errors import InternalError
 
 
 def make_login_blueprint(app):
@@ -62,10 +60,8 @@ def make_login_blueprint(app):
         """
 
         def absolute_login_url(provider_id):
-            base_url = flask.current_app.config['BASE_URL']
-            return urlparse.urljoin(
-                base_url, '/login/{}'.format(IDP_URL_MAP[provider_id])
-            )
+            base_url = flask.current_app.config['BASE_URL'].rstrip('/')
+            return (base_url + '/login/{}'.format(IDP_URL_MAP[provider_id]))
 
         def provider_info(idp_id):
             if not idp_id:
@@ -79,14 +75,13 @@ def make_login_blueprint(app):
                 'name': idps[idp_id]['name'],
                 'url': absolute_login_url(idp_id),
             }
-
         try:
             all_provider_info = [
                 provider_info(idp_id) for idp_id in idps.keys()
             ]
             default_provider_info = provider_info(default_idp)
         except KeyError as e:
-            raise APIError(
+            raise InternalError(
                 'identity providers misconfigured: {}'.format(str(e))
             )
 
@@ -120,5 +115,4 @@ def make_login_blueprint(app):
         blueprint_api.add_resource(
             ShibbolethLoginFinish, '/shib/login', strict_slashes=False
         )
-
     return blueprint

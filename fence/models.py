@@ -17,15 +17,15 @@ import flask
 from sqlalchemy import (
     Integer, BigInteger, String, Column, Boolean, Text, MetaData, Table
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy.schema import ForeignKey
 from fence.jwt.token import CLIENT_ALLOWED_SCOPES
 from userdatamodel import Base
 from userdatamodel.models import (
     AccessPrivilege, Application, AuthorizationProvider, Bucket, Certificate,
-    CloudProvider, ComputeAccess, HMACKeyPair, HMACKeyPairArchive,
-    IdentityProvider, Project, ProjectToBucket, Group, S3Credential,
-    StorageAccess, User, UserToBucket
+    CloudProvider, ComputeAccess, GoogleProxyGroup, HMACKeyPair,
+    HMACKeyPairArchive, IdentityProvider, Project, ProjectToBucket, Group,
+    S3Credential, StorageAccess, User, UserToBucket
 )
 
 
@@ -35,7 +35,7 @@ class Client(Base, OAuth2ClientMixin):
 
     client_id = Column(String(40), primary_key=True)
     # this is hashed secret
-    client_secret = Column(String(60), unique=True, index=True, nullable=False)
+    client_secret = Column(String(60), unique=True, index=True, nullable=True)
 
     # human readable name
     name = Column(String(40), unique=True, nullable=False)
@@ -45,13 +45,16 @@ class Client(Base, OAuth2ClientMixin):
 
     # required if you need to support client credential
     user_id = Column(Integer, ForeignKey(User.id))
-    user = relationship('User', backref='clients')
+    user = relationship(
+        'User',
+        backref=backref('clients', cascade='all, delete-orphan')
+    )
 
     # this is for internal microservices to skip user grant
     auto_approve = Column(Boolean, default=False)
 
     # public or confidential
-    is_confidential = Column(Boolean)
+    is_confidential = Column(Boolean, default=True)
 
     _allowed_scopes = Column(Text, nullable=False, default='')
 
@@ -74,9 +77,15 @@ class Client(Base, OAuth2ClientMixin):
 
     @property
     def client_type(self):
-        if self.is_confidential:
-            return 'confidential'
-        return 'public'
+        """
+        The client should be considered confidential either if it is actually
+        marked confidential, *or* if the confidential setting was left empty.
+        Only in the case where ``is_confidential`` is deliberately set to
+        ``False`` should the client be considered public.
+        """
+        if self.is_confidential is False:
+            return 'public'
+        return 'confidential'
 
     @property
     def redirect_uris(self):
@@ -124,7 +133,10 @@ class AuthorizationCode(Base, OAuth2AuthorizationCodeMixin):
     user_id = Column(
         Integer, ForeignKey('User.id', ondelete='CASCADE')
     )
-    user = relationship('User')
+    user = relationship(
+        'User',
+        backref=backref('authorization_codes', cascade='all, delete-orphan')
+    )
 
     nonce = Column(String, nullable=True)
 
@@ -175,40 +187,28 @@ class GoogleServiceAccount(Base):
         String(40),
         ForeignKey('client.client_id')
     )
-    client = relationship('Client')
+    client = relationship(
+        'Client',
+        backref=backref(
+            'google_service_accounts', cascade='all, delete-orphan')
+    )
 
     user_id = Column(
         Integer,
         ForeignKey(User.id),
         nullable=False
     )
-    user = relationship('User')
+    user = relationship(
+        'User',
+        backref=backref(
+            'google_service_accounts', cascade='all, delete-orphan')
+    )
 
     email = Column(
         String,
         unique=True,
         nullable=False
     )
-
-    def delete(self):
-        with flask.current_app.db.session as session:
-            session.delete(self)
-            session.commit()
-            return self
-
-
-class GoogleProxyGroup(Base):
-    __tablename__ = "google_proxy_group"
-
-    id = Column(String(90), primary_key=True)
-
-    user_id = Column(
-        Integer,
-        ForeignKey(User.id),
-        nullable=False,
-        unique=True
-    )
-    user = relationship('User')
 
     def delete(self):
         with flask.current_app.db.session as session:
@@ -269,3 +269,101 @@ def migrate(driver):
                 "ALTER TABLE {} ALTER COLUMN _allowed_scopes SET NOT NULL;"
                 .format(Client.__tablename__)
             )
+
+    add_column_if_not_exist(
+        table_name=GoogleProxyGroup.__tablename__,
+        column=Column('email', String),
+        driver=driver,
+        metadata=md
+    )
+
+    drop_foreign_key_column_if_exist(
+        table_name=GoogleProxyGroup.__tablename__,
+        column_name='user_id',
+        driver=driver,
+        metadata=md
+    )
+
+
+def add_foreign_key_column_if_not_exist(
+        table_name, column_name, column_type, fk_table_name, fk_column_name, driver,
+        metadata):
+    column = Column(column_name, column_type)
+    add_column_if_not_exist(
+        table_name, column, driver, metadata)
+    add_foreign_key_constraint_if_not_exist(
+        table_name, column_name, fk_table_name, fk_column_name, driver,
+        metadata)
+
+
+def drop_foreign_key_column_if_exist(table_name, column_name, driver, metadata):
+    drop_foreign_key_constraint_if_exist(
+        table_name, column_name, driver, metadata)
+    drop_column_if_exist(table_name, column_name, driver, metadata)
+
+
+def add_column_if_not_exist(
+        table_name, column, driver, metadata):
+    column_name = column.compile(dialect=driver.engine.dialect)
+    column_type = column.type.compile(driver.engine.dialect)
+
+    table = Table(
+        table_name, metadata, autoload=True, autoload_with=driver.engine)
+    if str(column_name) not in table.c:
+        with driver.session as session:
+            session.execute(
+                "ALTER TABLE \"{}\" ADD COLUMN {} {};"
+                .format(table_name, column_name, column_type)
+            )
+            session.commit()
+
+
+def drop_column_if_exist(table_name, column_name, driver, metadata):
+    table = Table(
+        table_name, metadata, autoload=True, autoload_with=driver.engine)
+    if column_name in table.c:
+        with driver.session as session:
+            session.execute(
+                "ALTER TABLE \"{}\" DROP COLUMN {};"
+                .format(table_name, column_name)
+            )
+            session.commit()
+
+
+def add_foreign_key_constraint_if_not_exist(
+        table_name, column_name, fk_table_name, fk_column_name,
+        driver, metadata):
+    table = Table(
+        table_name, metadata, autoload=True, autoload_with=driver.engine)
+    foreign_key_name = "{}_{}_fkey".format(table_name.lower(), column_name)
+
+    if column_name in table.c:
+        foreign_keys = [fk.name for fk in getattr(table.c, column_name).foreign_keys]
+        if foreign_key_name not in foreign_keys:
+            with driver.session as session:
+                session.execute(
+                    "ALTER TABLE \"{}\" ADD CONSTRAINT {} "
+                    "FOREIGN KEY({}) REFERENCES {} ({});"
+                    .format(
+                        table_name, foreign_key_name, column_name,
+                        fk_table_name, fk_column_name
+                    )
+                )
+                session.commit()
+
+
+def drop_foreign_key_constraint_if_exist(
+        table_name, column_name, driver, metadata):
+    table = Table(
+        table_name, metadata, autoload=True, autoload_with=driver.engine)
+    foreign_key_name = "{}_{}_fkey".format(table_name.lower(), column_name)
+
+    if column_name in table.c:
+        foreign_keys = [fk.name for fk in getattr(table.c, column_name).foreign_keys]
+        if foreign_key_name in foreign_keys:
+            with driver.session as session:
+                session.execute(
+                    "ALTER TABLE \"{}\" DROP CONSTRAINT {};"
+                    .format(table_name, foreign_key_name)
+                )
+                session.commit()

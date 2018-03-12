@@ -96,13 +96,11 @@ def app_register_blueprints(app):
         }
         return flask.jsonify(endpoints)
 
-
     @app.route('/logout')
     def logout_endpoint():
         root = app.config.get('APPLICATION_ROOT', '')
         next_url = build_redirect_url(app.config.get('ROOT_URL', ''), flask.request.args.get('next', root))
         return flask.redirect(logout(next_url=next_url))
-
 
     @app.route('/jwt/keys')
     def public_keys():
@@ -132,7 +130,6 @@ def app_sessions(app):
     app.db = SQLAlchemyDriver(app.config['DB'])
     migrate(app.db)
     session = flask_scoped_session(app.db.Session, app)  # noqa
-    app.jinja_env.globals['csrf_token'] = generate_csrf_token
     app.storage_manager = StorageManager(
         app.config['STORAGE_CREDENTIALS'],
         logger=app.logger
@@ -165,21 +162,9 @@ def app_sessions(app):
 
 def app_init(app, settings='fence.settings', root_dir=None):
     app_config(app, settings=settings, root_dir=root_dir)
+    app_sessions(app)
     app_register_blueprints(app)
     server.init_app(app)
-    app_sessions(app)
-
-
-def generate_csrf_token():
-    """
-    Generate a token used for CSRF protection.
-
-    If the session does not currently have such a CSRF token, assign it one
-    from a random string. Then return the session's CSRF token.
-    """
-    if '_csrf_token' not in flask.session:
-        flask.session['_csrf_token'] = random_str(20)
-    return flask.session['_csrf_token']
 
 
 @app.errorhandler(Exception)
