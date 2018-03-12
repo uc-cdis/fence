@@ -254,3 +254,4 @@ def delete_users(DB, usernames):
         )
         for user in users_to_delete:
             session.delete(user)
+        session.commit()

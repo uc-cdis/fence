@@ -1,20 +1,18 @@
 import pytest
 
-from fence.models import User
-
 
 @pytest.fixture(scope='module')
 def example_usernames():
+    """Make a list of example usernames."""
     return ['A', 'B', 'C']
-
-
-@pytest.fixture(scope='module')
-def example_users(example_usernames):
-    return [User(username=username) for username in example_usernames]
 
 
 @pytest.fixture(scope='function', autouse=True)
 def patch_driver(db, monkeypatch):
+    """
+    Change the database driver in ``fence.scripting.fence_create`` to use the
+    one from the test fixtures.
+    """
     monkeypatch.setattr(
         'fence.scripting.fence_create.SQLAlchemyDriver',
         lambda _: db,
