@@ -44,7 +44,7 @@ def create_api_key(user, keypair, expires_in, scopes, client_id):
     with flask.current_app.db.session as session:
         session.add(
             UserRefreshToken(
-                jti=claims['jti'], userid=user.id, expires=claims['exp']
+                jti=claims['jti'], userid=user, expires=claims['exp']
             )
         )
         session.commit()

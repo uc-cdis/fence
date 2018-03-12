@@ -3,6 +3,7 @@ import json
 from cirrus import GoogleCloudManager
 from flask_sqlalchemy_session import current_session
 import flask
+from userdatamodel.models import User
 
 from fence.auth import require_auth_header
 from fence.auth import current_token
@@ -115,12 +116,15 @@ def list_keypairs(provider):
         }
 
     """
+    client_id = current_token["azp"] or None
+    user_id = current_token["sub"]
+
     if provider == 'cdis':
         with flask.current_app.db.session as session:
             tokens = (
                 session
                 .query(UserRefreshToken)
-                .filter_by(userid=flask.g.user.id)
+                .filter_by(userid=user_id)
                 .order_by(UserRefreshToken.expires.desc())
                 .all()
             )
@@ -129,9 +133,8 @@ def list_keypairs(provider):
                     [{'jti': item.jti, 'exp': item.expires} for item in tokens]}
     elif provider == 'google':
         with GoogleCloudManager() as g_cloud_manager:
-            client_id = current_token["azp"] or None
             service_account = _get_google_service_account_for_client(
-                g_cloud_manager, client_id)
+                g_cloud_manager, client_id, user_id)
 
             if service_account:
                 keys = g_cloud_manager.get_service_account_keys_info(
@@ -140,10 +143,20 @@ def list_keypairs(provider):
             else:
                 result = {'access_keys': []}
     else:
+        # TODO hopefully we can remove this db call eventually, but
+        # StorageManager class requires some updates
+        with flask.current_app.db.session as session:
+            user = (
+                session
+                .query(User)
+                .filter_by(id=user_id)
+                .first()
+            )
+
         result = (
             flask.current_app
             .storage_manager
-            .list_keypairs(provider, flask.g.user)
+            .list_keypairs(provider, user)
         )
         keys = {
             'access_keys':
@@ -205,6 +218,8 @@ def create_keypairs(provider):
         }
     """
     client_id = current_token["azp"] or None
+    user_id = current_token["sub"]
+
     if provider == 'cdis':
         # fence identifies access_token endpoint, openid is the default
         # scope for service endpoints
@@ -231,18 +246,28 @@ def create_keypairs(provider):
             2592000
         )
         api_key, claims = create_api_key(
-            flask.g.user, flask.current_app.keypairs[0], expires_in, scope,
+            user_id, flask.current_app.keypairs[0], expires_in, scope,
             client_id
         )
         return flask.jsonify(dict(key_id=claims['jti'], api_key=api_key))
     elif provider == 'google':
         with GoogleCloudManager() as g_cloud:
             client_id = current_token["azp"] or None
-            key = _get_google_access_key_for_client(g_cloud, client_id)
+            key = _get_google_access_key_for_client(g_cloud, client_id, user_id)
         return flask.jsonify(key)
     else:
+        # TODO hopefully we can remove this db call eventually, but
+        # StorageManager class requires some updates
+        with flask.current_app.db.session as session:
+            user = (
+                session
+                .query(User)
+                .filter_by(id=user_id)
+                .first()
+            )
+
         return flask.jsonify(flask.current_app.storage_manager.create_keypair(
-            provider, flask.g.user
+            provider, user
         ))
 
 
@@ -308,6 +333,8 @@ def delete_keypair(provider, access_key):
     :statuscode 404 Access key doesn't exist
 
     """
+    user_id = current_token["sub"]
+
     if provider == 'cdis':
         jti = access_key
         with flask.current_app.db.session as session:
@@ -324,7 +351,7 @@ def delete_keypair(provider, access_key):
         with GoogleCloudManager() as g_cloud:
             client_id = current_token["azp"] or None
             service_account = _get_google_service_account_for_client(
-                g_cloud, client_id)
+                g_cloud, client_id, user_id)
 
             if service_account:
                 keys_for_account = (
@@ -344,13 +371,23 @@ def delete_keypair(provider, access_key):
                 flask.abort(
                     404, 'Could not find service account for current user.')
     else:
+        # TODO hopefully we can remove this db call eventually, but
+        # StorageManager class requires some updates
+        with flask.current_app.db.session as session:
+            user = (
+                session
+                .query(User)
+                .filter_by(id=user_id)
+                .first()
+            )
+
         flask.current_app.storage_manager.delete_keypair(
-            provider, flask.g.user, access_key)
+            provider, user, access_key)
 
     return '', 204
 
 
-def _get_google_access_key_for_client(g_cloud_manager, client_id):
+def _get_google_access_key_for_client(g_cloud_manager, client_id, user_id):
     """
     Return an access key for current user and client.
 
@@ -379,7 +416,7 @@ def _get_google_access_key_for_client(g_cloud_manager, client_id):
             }
     """
     service_account = _get_google_service_account_for_client(
-        g_cloud_manager, client_id)
+        g_cloud_manager, client_id, user_id)
 
     if not service_account:
         if client_id:
@@ -396,7 +433,8 @@ def _get_google_access_key_for_client(g_cloud_manager, client_id):
     return key
 
 
-def _get_google_service_account_for_client(g_cloud_manager, client_id):
+def _get_google_service_account_for_client(
+        g_cloud_manager, client_id, user_id):
     """
     Return the service account (from Fence db) for current client.
 
@@ -418,7 +456,7 @@ def _get_google_service_account_for_client(g_cloud_manager, client_id):
             current_session
             .query(GoogleServiceAccount)
             .filter_by(client_id=client_id,
-                       user_id=flask.g.user.id)
+                       user_id=user_id)
             .first()
         )
 
@@ -454,7 +492,7 @@ def _create_google_service_account_for_client(
         service_account = GoogleServiceAccount(
             google_unique_id=new_service_account['uniqueId'],
             client_id=client_id,
-            user_id=flask.g.user.id,
+            user_id=user_id,
             email=new_service_account['email']
         )
         current_session.add(service_account)

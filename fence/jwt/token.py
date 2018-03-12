@@ -296,7 +296,7 @@ def generate_api_key(
     Args:
         kid (str): key id of the keypair used to generate token
         private_key (str): RSA private key to sign and encode the JWT with
-        user (fence.models.User): User to generate token for
+        user (user id): User id to generate token for
         expires_in (int): seconds until expiration
         scopes (List[str]): oauth scopes for user
 
@@ -306,7 +306,7 @@ def generate_api_key(
     headers = {'kid': kid}
     iat, exp = issued_and_expiration_times(expires_in)
     jti = str(uuid.uuid4())
-    sub = str(user.id)
+    sub = str(user)
     claims = {
         'pur': 'api_key',
         'aud': scopes,

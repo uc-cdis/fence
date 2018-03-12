@@ -88,6 +88,7 @@ def default_claims():
         'iat': iat,
         'exp': exp,
         'jti': jti,
+        'azp': '',
         'context': {
             'user': {
                 'name': 'test-user',
@@ -117,6 +118,7 @@ def unauthorized_context_claims(user_name, user_id):
         'iat': iat,
         'exp': exp,
         'jti': jti,
+        'azp': '',
         'context': {
             'user': {
                 'name': 'test',
@@ -147,6 +149,39 @@ def authorized_download_context_claims(user_name, user_id):
         'iat': iat,
         'exp': exp,
         'jti': jti,
+        'azp': '',
+        'pur': 'access',
+        'context': {
+            'user': {
+                'name': user_name,
+                'projects': {
+                    "phs000178": ["read"],
+                    "phs000218": ["read", "read-storage"],
+                },
+            },
+        },
+    }
+
+
+def authorized_download_credentials_context_claims(user_name, user_id, client_id):
+    """
+    Return a generic claims dictionary to put in a JWT.
+
+    Return:
+        dict: dictionary of claims
+    """
+    aud = ['access', 'data', 'user', 'openid', 'credentials']
+    iss = current_app.config['BASE_URL']
+    jti = new_jti()
+    iat, exp = iat_and_exp()
+    return {
+        'aud': aud,
+        'sub': user_id,
+        'iss': iss,
+        'iat': iat,
+        'exp': exp,
+        'jti': jti,
+        'azp': client_id,
         'pur': 'access',
         'context': {
             'user': {
@@ -179,6 +214,7 @@ def authorized_upload_context_claims(user_name, user_id):
         'iat': iat,
         'exp': exp,
         'jti': jti,
+        'azp': 'test-client',
         'context': {
             'user': {
                 'name': user_name,

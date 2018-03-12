@@ -491,3 +491,28 @@ def mock_get(monkeypatch, example_keys_response):
         monkeypatch.setattr('requests.get', mock.MagicMock(side_effect=get))
 
     return do_patch
+
+
+@pytest.fixture(scope='function')
+def encoded_creds_jwt_user_id_client_id(private_key, user_client, oauth_client):
+    """
+    Return a JWT and user_id for a new user containing the claims and
+    encoded with the private key.
+
+    Args:
+        claims (dict): fixture
+        private_key (str): fixture
+
+    Return:
+        str: JWT containing claims encoded with private key
+    """
+    kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
+    headers = {'kid': kid}
+    return jwt.encode(
+        utils.authorized_download_credentials_context_claims(
+            user_client['username'], user_client['user_id'],
+            oauth_client['client_id']),
+        key=private_key,
+        headers=headers,
+        algorithm='RS256',
+    ), user_client['user_id'], oauth_client['client_id']
