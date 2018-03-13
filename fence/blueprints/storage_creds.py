@@ -1,9 +1,10 @@
 import json
 
 from cirrus import GoogleCloudManager
+from cirrus.google_cloud import get_valid_service_account_id_for_client
+
 from flask_sqlalchemy_session import current_session
 import flask
-from userdatamodel.models import User
 
 from fence.auth import require_auth_header
 from fence.auth import current_token
@@ -493,9 +494,12 @@ def _create_google_service_account_for_client(
     )
 
     if proxy_group:
+        service_account_id = get_valid_service_account_id_for_client(
+            client_id, user_id)
+
         new_service_account = (
             g_cloud_manager.create_service_account_for_proxy_group(
-                proxy_group.id, account_id=client_id)
+                proxy_group.id, account_id=service_account_id)
         )
 
         service_account = GoogleServiceAccount(
@@ -504,6 +508,7 @@ def _create_google_service_account_for_client(
             user_id=user_id,
             email=new_service_account['email']
         )
+
         current_session.add(service_account)
         current_session.commit()
     else:
