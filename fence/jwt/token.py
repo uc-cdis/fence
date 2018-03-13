@@ -288,7 +288,7 @@ def generate_signed_refresh_token(
 
 
 def generate_api_key(
-        kid, private_key, user, expires_in, scopes, client_id):
+        kid, private_key, user_id, expires_in, scopes, client_id):
     """
     Generate a JWT refresh token and output a UTF-8
     string of the encoded JWT signed with the private key.
@@ -296,9 +296,9 @@ def generate_api_key(
     Args:
         kid (str): key id of the keypair used to generate token
         private_key (str): RSA private key to sign and encode the JWT with
-        user (user id): User id to generate token for
+        user_id (user id): User id to generate token for
         expires_in (int): seconds until expiration
-        scopes (List[str]): oauth scopes for user
+        scopes (List[str]): oauth scopes for user_id
 
     Return:
         str: encoded JWT refresh token signed with ``private_key``
@@ -306,7 +306,7 @@ def generate_api_key(
     headers = {'kid': kid}
     iat, exp = issued_and_expiration_times(expires_in)
     jti = str(uuid.uuid4())
-    sub = str(user)
+    sub = str(user_id)
     claims = {
         'pur': 'api_key',
         'aud': scopes,
