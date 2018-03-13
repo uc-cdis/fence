@@ -1,325 +1,54 @@
 #!/usr/bin/env python
+
 import argparse
 import os
 import sys
-import yaml
 
-from cirrus import GoogleCloudManager
-from userdatamodel.driver import SQLAlchemyDriver
-from userdatamodel.models import (
-    AccessPrivilege,
-    CloudProvider,
-    IdentityProvider,
-    Project,
-    Group,
-    StorageAccess,
-    User,
-    Bucket,
-    GoogleProxyGroup
+from fence.scripting.fence_create import (
+    create_client_action,
+    create_sample_data,
+    delete_client_action,
+    delete_users,
+    google_init,
+    sync_dbgap,
+    remove_expired_google_service_account_keys,
 )
-from cirrus import GoogleCloudManager
-
-from fence.models import GoogleServiceAccount
-from fence.models import Client
-
-from fence.models import GoogleServiceAccount
-
-from fence.utils import create_client, drop_client
-from fence.sync.sync_dbgap import DbGapSyncer
 
 
-def create_client_action(
-        DB, username=None, client=None, urls=None, auto_approve=True):
-    try:
-        print(
-            create_client(
-                username, urls, DB, name=client, auto_approve=auto_approve))
-    except Exception as e:
-        print(e.message)
-
-
-def delete_client_action(DB, client):
-    try:
-        drop_client(client, DB)
-        print('Client {} deleted'.format(client))
-    except Exception as e:
-        print(e.message)
-
-
-def sync_dbgap(projects):
-    '''
-    sync ACL files from dbGap to auth db and storage backends
-    imports from local_settings is done here because dbGap is
-    an optional requirment for fence so it might not be specified
-    in local_settings
-    Args:
-        projects: path to project_mapping yaml file which contains mapping
-        from dbgap phsids to projects in fence database
-    Returns:
-        None
-    Examples:
-        the expected yaml structure sould look like:
-        .. code-block:: yaml
-            phs000178:
-              - name: TCGA
-                auth_id: phs000178
-              - name: TCGA-PCAWG
-                auth_id: TCGA-PCAWG
-            phs000235:
-              - name: CGCI
-                auth_id: phs000235
-    '''
-    from local_settings import dbGaP, STORAGE_CREDENTIALS, DB
-    with open(projects, 'r') as f:
-        project_mapping = yaml.load(f)
-    syncer = DbGapSyncer(
-        dbGaP, DB, project_mapping, storage_credentials=STORAGE_CREDENTIALS)
-    print('sycn')
-    syncer.sync()
-
-
-def create_sample_data(yaml_input):
-    with open(yaml_input, 'r') as f:
-        data = yaml.load(f)
-
-    db = SQLAlchemyDriver(DB)
-    with db.session as s:
-        create_cloud_providers(s, data)
-        create_projects(s, data)
-        create_group(s, data)
-        create_users_with_group(s, data)
-
-
-def create_group(s, data):
-        for group_name, fields in data['groups'].iteritems():
-            projects = fields.get('projects', [])
-            group = s.query(Group).filter(Group.name == group_name).first()
-            if not group:
-                group = Group(name=group_name)
-            for project_data in projects:
-                grant_project_to_group_or_user(s, project_data, group)
-
-
-def create_projects(s, data):
-    projects = data.get('projects', [])
-    for project in projects:
-        create_project(s, project)
-
-
-def create_project(s, project_data):
-    auth_id = project_data['auth_id']
-    name = project_data.get('name', auth_id)
-    project = s.query(Project).filter_by(name=name).first()
-    if project is None:
-        project = Project(name=name, auth_id=auth_id)
-        s.add(project)
-    if 'storage_accesses' in project_data:
-        sa_list = project_data['storage_accesses']
-        for storage_access in sa_list:
-            provider = storage_access['name']
-            buckets = storage_access.get('buckets', [])
-            sa = (
-                s.query(StorageAccess)
-                .join(StorageAccess.provider, StorageAccess.project)
-                .filter(Project.name == project.name)
-                .filter(CloudProvider.name == provider).first())
-            if not sa:
-                c_provider = s.query(
-                    CloudProvider).filter_by(name=provider).first()
-                sa = StorageAccess(provider=c_provider, project=project)
-                s.add(sa)
-                print('created storage access for {} to {}'
-                      .format(project.name, c_provider.name))
-            for bucket in buckets:
-                b = (
-                    s.query(Bucket)
-                    .filter_by(name=bucket)
-                    .join(Bucket.provider)
-                    .filter(CloudProvider.name == provider)
-                    .first()
-                )
-                print(b)
-                if not b:
-                    b = Bucket(name=bucket)
-                    b.provider = c_provider
-                    s.add(b)
-                    print('created bucket {} in db'.format(bucket))
-
-    return project
-
-
-def grant_project_to_group_or_user(s, project_data, group=None, user=None):
-    privilege = project_data['privilege']
-    project = create_project(s, project_data)
-    if group:
-        ap = s.query(AccessPrivilege).join(AccessPrivilege.project)\
-            .join(AccessPrivilege.research_group)\
-            .filter(
-                Project.name == project.name, Group.name == group.name).first()
-        name = group.name
-    elif user:
-        ap = s.query(AccessPrivilege).join(AccessPrivilege.project)\
-            .join(AccessPrivilege.user)\
-            .filter(
-                Project.name == project.name,
-                User.username == user.username).first()
-        name = user.username
-    else:
-        raise Exception("need to provide either a user or group")
-    if not ap:
-        if group:
-            ap = AccessPrivilege(
-                project=project, research_group=group, privilege=privilege)
-        elif user:
-            ap = AccessPrivilege(
-                project=project, user=user, privilege=privilege)
-        else:
-            raise Exception("need to provide either a user or group")
-        s.add(ap)
-        print('created access privilege {} of project {} to {}'
-              .format(privilege, project.name, name))
-    else:
-        ap.privilege = privilege
-        print('updated access privilege {} of project {} to {}'
-              .format(privilege, project.name, name))
-
-
-def create_cloud_providers(s, data):
-    cloud_data = data.get('cloud_providers', [])
-    for name, fields, in cloud_data.iteritems():
-        cloud_provider = s.query(CloudProvider).filter(
-            CloudProvider.name == name
-        ).first()
-        if not cloud_provider:
-            cloud_provider = CloudProvider(
-                name=name, backend=fields.get('backend', 'cleversafe'),
-                service=fields.get('service', 'storage'))
-            s.add(cloud_provider)
-
-
-def create_users_with_group(s, data):
-    providers = {}
-    data_groups = data['groups']
-    for username, data in data['users'].iteritems():
-        is_existing_user = True
-        user = s.query(User).filter(User.username == username).first()
-        admin = data.get('admin', False)
-
-        if not user:
-            is_existing_user = False
-            provider_name = data.get('provider', 'google')
-            provider = providers.get(provider_name)
-            if not provider:
-                provider = s.query(IdentityProvider).filter(
-                    IdentityProvider.name == provider_name).first()
-                providers[provider_name] = provider
-                if not provider:
-                    raise Exception(
-                        "provider {} not found".format(provider_name))
-
-            user = User(
-                username=username, idp_id=provider.id, is_admin=admin)
-        user.is_admin = admin
-        group_names = data.get('groups', [])
-        for group_name in group_names:
-            assign_group_to_user(s, user, group_name, data_groups[group_name])
-        projects = data.get('projects', [])
-        for project in projects:
-            grant_project_to_group_or_user(s, project, user=user)
-        if not is_existing_user:
-            s.add(user)
-        for client in data.get('clients', []):
-            create_client_action(DB, username=username, **client)
-
-
-def assign_group_to_user(s, user, group_name, group_data):
-    group = s.query(Group).filter(Group.name == group_name).first()
-    if not group:
-        group = Group(name=group_name)
-        s.add(group)
-        user.groups.append(group)
-    if group not in user.groups:
-        user.groups.append(group)
-
-
-def remove_expired_google_service_account_keys(db):
-    db = SQLAlchemyDriver(db)
-    with db.session as s:
-        client_service_accounts = (
-            s.query(GoogleServiceAccount, Client).filter(
-                GoogleServiceAccount.client_id == Client.client_id)
-        )
-
-        with GoogleCloudManager() as g_mgr:
-            for service_account, client in client_service_accounts:
-                g_mgr.handle_expired_service_account_keys(
-                    service_account.google_unique_id)
-
-
-def google_init(db):
-    # Initial user proxy group creation
-    db = SQLAlchemyDriver(db)
-    with db.session as s:
-        users_without_proxy = (
-            s.query(User).filter(User.google_proxy_group == None)
-        )
-
-        for user in users_without_proxy:
-            with GoogleCloudManager() as g_mgr:
-                response = g_mgr.create_proxy_group_for_user(
-                    user.id, user.username)
-
-                group = response["group"]
-                primary_service_account = response["primary_service_account"]
-                user.google_proxy_group_id = group["id"]
-
-                # Add user's primary service account to database
-                service_account = GoogleServiceAccount(
-                    google_unique_id=primary_service_account["uniqueId"],
-                    client_id=None,
-                    user_id=user.id,
-                    email=primary_service_account["email"]
-                )
-
-                proxy_group = GoogleProxyGroup(
-                    id=group["id"],
-                    email=group["email"]
-                )
-
-                s.add(service_account)
-                s.add(proxy_group)
-                s.commit()
-
-
-if __name__ == '__main__':
-
+def parse_arguments():
     parser = argparse.ArgumentParser()
-
     parser.add_argument(
         '--path',
         default='/var/www/fence/',
         help='path to find local_settings.py',
     )
+
     subparsers = parser.add_subparsers(title='action', dest='action')
+
     create = subparsers.add_parser('create')
-    c_create = subparsers.add_parser('client-create')
-    c_delete = subparsers.add_parser('client-delete')
-    hmac_create = subparsers.add_parser('hmac-create')
-    hmac_create.add_argument('yaml-input')
     create.add_argument('yaml-input')
-    c_create.add_argument('--client', required=True)
-    c_create.add_argument('--urls', required=True)
-    c_create.add_argument(
+
+    client_create = subparsers.add_parser('client-create')
+    client_create.add_argument('--client', required=True)
+    client_create.add_argument('--urls', required=True)
+    client_create.add_argument(
         '--username',
-        help='user(can represents an organization) that owns the client',
+        help='user(can represent an organization) that owns the client',
         required=True)
-    c_create.add_argument(
+    client_create.add_argument(
         '--external',
         help='is this an external oidc client',
         action="store_true", default=False
     )
 
-    c_delete.add_argument('--client', required=True)
+    client_delete = subparsers.add_parser('client-delete')
+    client_delete.add_argument('--client', required=True)
+
+    user_delete = subparsers.add_parser('user-delete')
+    user_delete.add_argument('--users', required=True, nargs='+')
+
+    hmac_create = subparsers.add_parser('hmac-create')
+    hmac_create.add_argument('yaml-input')
 
     dbgap_sync = subparsers.add_parser('sync-dbgap')
     dbgap_sync.add_argument('--projects', required=True)
@@ -328,10 +57,15 @@ if __name__ == '__main__':
 
     init_google = subparsers.add_parser('google-init')
 
-    args = parser.parse_args()
+    return parser.parse_args()
+
+
+def main():
+    args = parse_arguments()
 
     # get database information
     sys.path.append(args.path)
+
     if os.environ.get('FENCE_DB'):
         DB = os.environ['FENCE_DB']
     else:
@@ -339,24 +73,23 @@ if __name__ == '__main__':
 
     if args.action == 'create':
         yaml_input = args.__dict__['yaml-input']
-        create_sample_data(yaml_input)
-
+        create_sample_data(DB, yaml_input)
     elif args.action == 'client-create':
         create_client_action(
             DB, username=args.username, client=args.client,
-            urls=args.urls, auto_approve=not args.external)
-
+            urls=args.urls, auto_approve=(not args.external)
+        )
     elif args.action == 'client-delete':
         delete_client_action(DB, args.client)
-
+    elif args.action == 'user-delete':
+        delete_users(DB, args.users)
     elif args.action == 'sync-dbgap':
         sync_dbgap(args.__dict__['projects'])
-
     elif args.action == 'google-manage-keys':
         remove_expired_google_service_account_keys(DB)
-
     elif args.action == 'google-init':
         google_init(DB)
 
-    else:
-        pass
+
+if __name__ == '__main__':
+    main()

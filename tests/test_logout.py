@@ -13,8 +13,8 @@ def test_logout_if_anonymous(app, client, monkeypatch):
     assert r.status_code == 401
 
 
-def test_logout(client):
-    # login mocked uesr
+def test_logout(client, db_session):
+    # login mocked user
     r = client.get('/user/')
     r = client.get('/logout')
     assert r.status_code == 302
