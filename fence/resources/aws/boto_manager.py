@@ -4,10 +4,10 @@ from fence.errors import UserError, InternalError, UnavailableError
 
 
 class BotoManager(object):
-    def __init__(self, config):
+    def __init__(self, config, logger):
         self.sts_client = client('sts', **config)
         self.s3_client = client('s3', **config)
-        self.logger = None  # TODO initialize logger
+        self.logger = logger
         self.ec2 = None
         self.iam = None
 

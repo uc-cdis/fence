@@ -53,7 +53,7 @@ def app_config(app, settings='fence.settings', root_dir=None):
                 os.path.dirname(os.path.realpath(__file__)))
     if 'AWS_CREDENTIALS' in app.config and len(app.config['AWS_CREDENTIALS']) > 0:
         value = app.config['AWS_CREDENTIALS'].values()[0]
-        app.boto = BotoManager(value)
+        app.boto = BotoManager(value, logger=app.logger)
         app.register_blueprint(
             fence.blueprints.data.blueprint, url_prefix='/data'
         )
