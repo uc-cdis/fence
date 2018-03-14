@@ -66,7 +66,7 @@ def main():
     if os.environ.get('FENCE_DB'):
         DB = os.environ['FENCE_DB']
     else:
-        from fence.local_settings import DB
+        from fence.settings import DB
 
     if args.action == 'create':
         yaml_input = args.__dict__['yaml-input']
