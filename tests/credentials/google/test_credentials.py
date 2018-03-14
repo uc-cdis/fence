@@ -11,8 +11,6 @@ from fence.models import (
     GoogleServiceAccount,
 )
 
-from userdatamodel.models import GoogleProxyGroup
-
 
 def _populate_test_identity(session, **kwargs):
     """
@@ -29,20 +27,19 @@ def _populate_test_identity(session, **kwargs):
 
 def test_google_access_token_new_service_account(
         app, client, oauth_client, db_session,
-        encoded_creds_jwt_user_id_client_id, cloud_manager):
+        encoded_creds_jwt, cloud_manager):
     """
     Test that ``POST /credentials/google`` creates a new service
     account for the client if one doesn't exist.
     """
-    encoded_credentials_jwt, user_id, client_id = (
-        encoded_creds_jwt_user_id_client_id
-    )
+    encoded_credentials_jwt = encoded_creds_jwt["jwt"]
+    client_id = encoded_creds_jwt["client_id"]
+
     _populate_test_identity(db_session, name=IdentityProvider.itrust)
     new_service_account = {
         'uniqueId': '987654321',
         'email': '987654321@test.com'
     }
-    proxy_group_id = 'proxy_group_0'
     path = '/credentials/google/'
 
     # return new service account
@@ -57,21 +54,6 @@ def test_google_access_token_new_service_account(
         .query(GoogleServiceAccount)
         .filter_by(client_id=client_id)
     ).count()
-
-    # create a proxy group for user
-    proxy_group = GoogleProxyGroup(
-        id=proxy_group_id,
-        email=proxy_group_id + "@test.com",
-    )
-    db_session.add(proxy_group)
-    user = (
-        db_session
-        .query(User)
-        .filter_by(id=user_id)
-        .first()
-    )
-    user.google_proxy_group_id = proxy_group.id
-    db_session.commit()
 
     response = client.post(
         path,
@@ -96,14 +78,14 @@ def test_google_access_token_new_service_account(
 
 def test_google_access_token_no_proxy_group(
         app, client, oauth_client, cloud_manager, db_session,
-        encoded_creds_jwt_user_id_client_id):
+        encoded_jwt_no_proxy_group):
     """
     Test that ``POST /credentials/google`` return error when user
     has no proxy group and no service account.
     """
-    encoded_credentials_jwt, _, client_id = (
-        encoded_creds_jwt_user_id_client_id
-    )
+    encoded_credentials_jwt = encoded_jwt_no_proxy_group["jwt"]
+    client_id = encoded_jwt_no_proxy_group["client_id"]
+
     new_service_account = {
         "uniqueId": "987654321",
         "email": "987654321@test.com"
@@ -147,31 +129,17 @@ def test_google_access_token_no_proxy_group(
 
 def test_google_create_access_token_post(
         app, client, oauth_client, cloud_manager, db_session,
-        encoded_creds_jwt_user_id_client_id):
+        encoded_creds_jwt):
     """
     Test ``POST /credentials/google`` gets a new access key.
     """
-    encoded_credentials_jwt, user_id, client_id = (
-        encoded_creds_jwt_user_id_client_id
-    )
+    encoded_credentials_jwt = encoded_creds_jwt["jwt"]
+    user_id = encoded_creds_jwt["user_id"]
+    client_id = encoded_creds_jwt["client_id"]
+
     service_account_id = '123456789'
-    proxy_group_id = 'proxy_group_0'
     path = '/credentials/google/'
     data = {}
-
-    # create a proxy group for user
-    proxy_group = GoogleProxyGroup(
-        id=proxy_group_id,
-        email=proxy_group_id + "@test.com",
-    )
-    db_session.add(proxy_group)
-    user = (
-        db_session
-        .query(User)
-        .filter_by(id=user_id)
-        .first()
-    )
-    user.google_proxy_group_id = proxy_group.id
 
     # create a service account for client for user
     service_account = GoogleServiceAccount(
@@ -200,16 +168,16 @@ def test_google_create_access_token_post(
 
 def test_google_delete_owned_access_token(
         app, client, oauth_client, cloud_manager, db_session,
-        encoded_creds_jwt_user_id_client_id):
+        encoded_creds_jwt):
     """
     Test ``DELETE /credentials/google``.
     """
-    encoded_credentials_jwt, user_id, client_id = (
-        encoded_creds_jwt_user_id_client_id
-    )
+    encoded_credentials_jwt = encoded_creds_jwt["jwt"]
+    user_id = encoded_creds_jwt["user_id"]
+    client_id = encoded_creds_jwt["client_id"]
+
     service_account_key = "some_key_321"
     service_account_id = "123456789"
-    proxy_group_id = "proxy_group_0"
     path = (
         "/credentials/google/" + service_account_key
     )
@@ -234,20 +202,6 @@ def test_google_delete_owned_access_token(
     (cloud_manager.return_value
      .__enter__.return_value
      .get_service_account_keys_info.side_effect) = get_account_keys
-
-    # create a proxy group for user
-    proxy_group = GoogleProxyGroup(
-        id=proxy_group_id,
-        email=proxy_group_id + "@test.com",
-    )
-    db_session.add(proxy_group)
-    user = (
-        db_session
-        .query(User)
-        .filter_by(id=user_id)
-        .first()
-    )
-    user.google_proxy_group_id = proxy_group.id
 
     # create a service account for client for user
     service_account = GoogleServiceAccount(
@@ -281,32 +235,17 @@ def test_google_delete_owned_access_token(
 
 def test_google_attempt_delete_unowned_access_token(
         app, client, oauth_client, cloud_manager, db_session,
-        encoded_creds_jwt_user_id_client_id):
+        encoded_creds_jwt):
     """
     Test ``DELETE /credentials/google``.
     """
-    encoded_credentials_jwt, user_id, client_id = (
-        encoded_creds_jwt_user_id_client_id
-    )
+    encoded_credentials_jwt = encoded_creds_jwt["jwt"]
+    user_id = encoded_creds_jwt["user_id"]
+
     service_account_key = "some_key_321"
-    proxy_group_id = "proxy_group_0"
     path = (
         "/credentials/google/" + service_account_key + "/"
     )
-
-    # create a proxy group for user
-    proxy_group = GoogleProxyGroup(
-        id=proxy_group_id,
-        email=proxy_group_id + "@test.com",
-    )
-    db_session.add(proxy_group)
-    user = (
-        db_session
-        .query(User)
-        .filter_by(id=user_id)
-        .first()
-    )
-    user.google_proxy_group_id = proxy_group.id
 
     # create a service account for A DIFFERENT CLIENT
     client_entry = Client(
@@ -342,16 +281,16 @@ def test_google_attempt_delete_unowned_access_token(
 
 def test_google_delete_invalid_access_token(
         app, client, oauth_client, cloud_manager, db_session,
-        encoded_creds_jwt_user_id_client_id):
+        encoded_creds_jwt):
     """
     Test ``DELETE /credentials/google``.
     """
-    encoded_credentials_jwt, user_id, client_id = (
-        encoded_creds_jwt_user_id_client_id
-    )
+    encoded_credentials_jwt = encoded_creds_jwt["jwt"]
+    user_id = encoded_creds_jwt["user_id"]
+    client_id = encoded_creds_jwt["client_id"]
+
     service_account_key = "some_key_321"
     service_account_id = "123456789"
-    proxy_group_id = "proxy_group_0"
     path = (
         "/credentials/google/" + service_account_key + "/"
     )
@@ -374,20 +313,6 @@ def test_google_delete_invalid_access_token(
     (cloud_manager.return_value
      .__enter__.return_value
      .get_service_account_keys_info.side_effect) = get_account_keys
-
-    # create a proxy group for user
-    proxy_group = GoogleProxyGroup(
-        id=proxy_group_id,
-        email=proxy_group_id + "@test.com",
-    )
-    db_session.add(proxy_group)
-    user = (
-        db_session
-        .query(User)
-        .filter_by(id=user_id)
-        .first()
-    )
-    user.google_proxy_group_id = proxy_group.id
 
     # create a service account for client for user
     service_account = GoogleServiceAccount(

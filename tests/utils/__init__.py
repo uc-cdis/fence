@@ -94,6 +94,9 @@ def default_claims():
                 'name': 'test-user',
                 'projects': [
                 ],
+                'google': {
+                    'proxy_group': None,
+                }
             },
         },
     }
@@ -126,6 +129,9 @@ def unauthorized_context_claims(user_name, user_id):
                     "phs000178": ["read"],
                     "phs000234": ["read", "read-storage"],
                 },
+                'google': {
+                    'proxy_group': None,
+                }
             },
         },
     }
@@ -158,12 +164,16 @@ def authorized_download_context_claims(user_name, user_id):
                     "phs000178": ["read"],
                     "phs000218": ["read", "read-storage"],
                 },
+                'google': {
+                    'proxy_group': None,
+                }
             },
         },
     }
 
 
-def authorized_download_credentials_context_claims(user_name, user_id, client_id):
+def authorized_download_credentials_context_claims(
+        user_name, user_id, client_id, google_proxy_group_id=None):
     """
     Return a generic claims dictionary to put in a JWT.
 
@@ -190,6 +200,9 @@ def authorized_download_credentials_context_claims(user_name, user_id, client_id
                     "phs000178": ["read"],
                     "phs000218": ["read", "read-storage"],
                 },
+                'google': {
+                    'proxy_group': google_proxy_group_id,
+                }
             },
         },
     }
@@ -222,6 +235,9 @@ def authorized_upload_context_claims(user_name, user_id):
                     "phs000178": ["read"],
                     "phs000218": ["read", "write-storage"],
                 },
+                'google': {
+                    'proxy_group': None,
+                }
             },
         },
     }
