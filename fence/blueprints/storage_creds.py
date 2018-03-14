@@ -119,7 +119,7 @@ def list_keypairs(provider):
         }
 
     """
-    client_id = current_token["azp"] or None
+    client_id = current_token.get("azp")
     user_id = current_token["sub"]
 
     if provider == 'cdis':
@@ -220,7 +220,7 @@ def create_keypairs(provider):
             "secret_key": "1lnkGScEH8Vr4EC6QnoqLK1PqRWPNqIBJkH6Vpgx"
         }
     """
-    client_id = current_token["azp"] or None
+    client_id = current_token.get("azp")
     user_id = current_token["sub"]
 
     if provider == 'cdis':
@@ -255,7 +255,7 @@ def create_keypairs(provider):
         return flask.jsonify(dict(key_id=claims['jti'], api_key=api_key))
     elif provider == 'google':
         with GoogleCloudManager() as g_cloud:
-            client_id = current_token["azp"] or None
+            client_id = current_token.get("azp")
             key = _get_google_access_key_for_client(g_cloud, client_id, user_id)
         return flask.jsonify(key)
     else:
@@ -352,7 +352,7 @@ def delete_keypair(provider, access_key):
         blacklist_token(jti, api_key.expires)
     elif provider == 'google':
         with GoogleCloudManager() as g_cloud:
-            client_id = current_token["azp"] or None
+            client_id = current_token.get("azp")
             service_account = _get_google_service_account_for_client(
                 g_cloud, client_id, user_id)
 
@@ -458,14 +458,13 @@ def _get_google_service_account_for_client(
     # prioritize oauth client id over user id
     service_account = None
 
-    if client_id:
-        service_account = (
-            current_session
-            .query(GoogleServiceAccount)
-            .filter_by(client_id=client_id,
-                       user_id=user_id)
-            .first()
-        )
+    service_account = (
+        current_session
+        .query(GoogleServiceAccount)
+        .filter_by(client_id=client_id,
+                   user_id=user_id)
+        .first()
+    )
 
     return service_account
 
