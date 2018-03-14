@@ -482,8 +482,6 @@ def _create_google_service_account_for_client(
     Returns:
         fence.models.GoogleServiceAccount: New service account
     """
-    # create service account, add to db
-    # TODO eventually proxy group id should be in the token
     proxy_group_id = (
         current_token.get('context', {})
         .get('user', {})
