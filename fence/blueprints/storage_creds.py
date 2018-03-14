@@ -344,7 +344,7 @@ def delete_keypair(provider, access_key):
             api_key = (
                 session
                 .query(UserRefreshToken)
-                .filter_by(jti=jti)
+                .filter_by(jti=jti, userid=user_id)
                 .first()
             )
         if not api_key:
