@@ -318,7 +318,7 @@ def delete_keypair(provider, access_key):
     .. http:get: /<provider>/(string: access_key)
     Delete a keypair for user
 
-    :param access_key: existing access key belongs to this user
+    :param access_key: existing access key that belongs to this user
 
     For Google:
         The access_key can be constructed from
@@ -362,8 +362,12 @@ def delete_keypair(provider, access_key):
                         service_account.google_unique_id)
                 )
 
-                # Only delete the requested key if is owned by current client's SA
-                if access_key in [key['name'].split('/')[-1] for key in keys_for_account]:
+                # Only delete the key if is owned by current client's SA
+                all_client_keys = [
+                    key['name'].split('/')[-1]
+                    for key in keys_for_account
+                ]
+                if access_key in all_client_keys:
                     g_cloud.delete_service_account_key(
                         service_account.google_unique_id, access_key)
                 else:
@@ -480,26 +484,20 @@ def _create_google_service_account_for_client(
     """
     # create service account, add to db
     # TODO eventually proxy group id should be in the token
-    user = (
-        current_session
-        .query(User)
-        .filter_by(id=user_id)
-        .first()
-    )
-    proxy_group = (
-        current_session
-        .query(GoogleProxyGroup)
-        .filter_by(id=user.google_proxy_group_id)
-        .first()
+    proxy_group_id = (
+        current_token.get('context', {})
+        .get('user', {})
+        .get('google', {})
+        .get('proxy_group')
     )
 
-    if proxy_group:
+    if proxy_group_id:
         service_account_id = get_valid_service_account_id_for_client(
             client_id, user_id)
 
         new_service_account = (
             g_cloud_manager.create_service_account_for_proxy_group(
-                proxy_group.id, account_id=service_account_id)
+                proxy_group_id, account_id=service_account_id)
         )
 
         service_account = GoogleServiceAccount(
@@ -511,9 +509,10 @@ def _create_google_service_account_for_client(
 
         current_session.add(service_account)
         current_session.commit()
-    else:
-        # TODO Should we create a group here if one doesn't exist for some reason?
-        # These groups *should* get created during dpbap sync
-        flask.abort(404, 'Could not find Google proxy group for current user.')
 
-    return service_account
+        return service_account
+
+    else:
+        flask.abort(
+            404, 'Could not find Google proxy group for current user in the '
+            'given token.')
