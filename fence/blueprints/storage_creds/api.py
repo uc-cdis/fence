@@ -15,9 +15,9 @@ from fence.resources.storage.cdis_jwt import (
 )
 
 
-class CdisApiKeyList(Resource):
+class ApiKeyList(Resource):
     """
-    For ``/credentials/cdis`` endpoint.
+    For ``/credentials/api`` endpoint.
     """
     @require_auth_header({'credentials'})
     def get(self):
@@ -68,7 +68,7 @@ class CdisApiKeyList(Resource):
         **Example:**
         .. code-block:: http
 
-               POST /credentials/cdis/?expires_in=3600 HTTP/1.1
+               POST /credentials/api/?expires_in=3600 HTTP/1.1
                Content-Type: application/json
                Accept: application/json
 
@@ -114,7 +114,7 @@ class CdisApiKeyList(Resource):
         return flask.jsonify(dict(key_id=claims['jti'], api_key=api_key))
 
 
-class CdisApiKey(Resource):
+class ApiKey(Resource):
     @require_auth_header({'credentials'})
     def delete(self, access_key):
         """
@@ -145,7 +145,7 @@ class CdisApiKey(Resource):
         return '', 204
 
 
-class CdisAccessKey(Resource):
+class AccessKey(Resource):
     def post(self):
         """
         Generate an access_token for user given api_key

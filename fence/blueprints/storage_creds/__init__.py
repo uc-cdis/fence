@@ -6,14 +6,14 @@ from fence.auth import require_auth_header
 from fence.resources.storage import get_endpoints_descriptions
 from fence.blueprints.storage_creds.google import GoogleCredentialsList
 from fence.blueprints.storage_creds.google import GoogleCredentials
-from fence.blueprints.storage_creds.cdis import CdisApiKeyList
-from fence.blueprints.storage_creds.cdis import CdisApiKey
-from fence.blueprints.storage_creds.cdis import CdisAccessKey
+from fence.blueprints.storage_creds.api import ApiKeyList
+from fence.blueprints.storage_creds.api import ApiKey
+from fence.blueprints.storage_creds.api import AccessKey
 from fence.blueprints.storage_creds.other import OtherCredentialsList
 from fence.blueprints.storage_creds.other import OtherCredentials
 
 ALL_RESOURCES = {
-    '/cdis': 'access to CDIS APIs',
+    '/api': 'access to CDIS APIs',
     '/ceph': 'access to Ceph storage',
     '/cleversafe': 'access to cleversafe storage',
     '/aws-s3': 'access to AWS S3 storage',
@@ -31,15 +31,20 @@ def make_creds_blueprint():
     blueprint_api.add_resource(
         GoogleCredentials, '/google/<access_key>', strict_slashes=False
     )
+
+    # TODO: REMOVE DEPRECATED /cdis ENDPOINTS
+    # temporarily leaving them here to give time for users to make switch
     blueprint_api.add_resource(
-        CdisApiKeyList, '/cdis', strict_slashes=False
+        ApiKeyList, '/api', '/cdis', strict_slashes=False
     )
     blueprint_api.add_resource(
-        CdisApiKey, '/cdis/<access_key>', strict_slashes=False
+        ApiKey, '/api/<access_key>', '/cdis/<access_key>', strict_slashes=False
     )
     blueprint_api.add_resource(
-        CdisAccessKey, '/cdis/access_token', strict_slashes=False
+        AccessKey, '/api/access_token', '/cdis/access_token',
+        strict_slashes=False
     )
+
     blueprint_api.add_resource(
         OtherCredentialsList, '/<provider>', strict_slashes=False
     )
@@ -63,7 +68,7 @@ def make_creds_blueprint():
         .. code-block:: JavaScript
 
             {
-                "/cdis": "access to CDIS APIs",
+                "/api": "access to CDIS APIs",
                 "/ceph": "access to Ceph storage",
                 "/cleversafe": "access to cleversafe storage",
                 "/aws-s3", "access to AWS S3 storage"
