@@ -63,8 +63,9 @@ def parse_arguments():
 
 
     token_create = subparsers.add_parser('token-create')
+    token_create.add_argument('--kid')
     token_create.add_argument('--username', required=True)
-    token_create.add_argument('--scope', required=True)
+    token_create.add_argument('--scopes', required=True)
     token_create.add_argument('--exp')
 
     return parser.parse_args()
@@ -100,7 +101,7 @@ def main():
     elif args.action == 'google-init':
         google_init(DB)
     elif args.action == 'token-create':
-        create_user_access_token('key-01','giangbui0816@gmail.com', [],3600)
+        create_user_access_token(args.__dict__['kid'],args.__dict__['username'], args.__dict__['scopes'], args.__dict__['exp'])
 
 
 

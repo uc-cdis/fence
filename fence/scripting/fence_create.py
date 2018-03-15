@@ -1,7 +1,10 @@
 import os
 import os.path
+
+import uuid
 import jwt
 import yaml
+from authlib.common.encoding import to_unicode
 
 from cirrus import GoogleCloudManager
 from userdatamodel.driver import SQLAlchemyDriver
@@ -23,9 +26,7 @@ from fence.utils import create_client, drop_client
 from fence.sync.sync_dbgap import DbGapSyncer
 
 from fence.jwt.token import (
-    generate_signed_access_token,
-    generate_signed_id_token,
-    generate_signed_refresh_token,
+    issued_and_expiration_times,
 )
 
 
@@ -330,21 +331,25 @@ def delete_users(DB, usernames):
             session.delete(user)
         session.commit()
 
-def create_user_access_token(kid, username, scopes, exp):
-    import pdb; pdb.set_trace()
-    from fence.settings import DB, JWT_KEYPAIR_FILES
-    root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-
-    root_dir = os.path.abspath(os.path.join(root_dir, os.pardir))
-
+def get_jwt_keypair(kid):
+    from fence.settings import JWT_KEYPAIR_FILES
+    cur_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    par_dir = os.path.abspath(os.path.join(cur_dir, os.pardir))
     private_key = None
+
     for _kid, (_, private) in JWT_KEYPAIR_FILES.iteritems():
         if(kid != _kid ):
             continue
-        private_filepath = os.path.join(root_dir, private)
+        private_filepath = os.path.join(par_dir, private)
         with open(private_filepath, 'r') as f:
             private_key = f.read()
-       
+    
+    return private_key
+
+
+def create_user_access_token(kid, username, scopes, expires_in=3600):
+    from fence.settings import DB, BASE_URL
+    private_key =  get_jwt_keypair(kid)
 
     driver = SQLAlchemyDriver(DB)
     with driver.session as current_session:
@@ -356,8 +361,32 @@ def create_user_access_token(kid, username, scopes, exp):
         if not user:
             print('user is not existed !!!')
             return
-        token = generate_signed_access_token(kid, private_key, user, scopes, exp)
-        import pdb; pdb.set_trace()
+        #token = generate_signed_access_token(kid, private_key, user, exp, scopes)
+        headers = {'kid': kid}
+        iat, exp = issued_and_expiration_times(expires_in)
+
+        # force exp time if provided
+        exp = expires_in
+        sub = str(user.id)
+        jti = str(uuid.uuid4())
+        claims = {
+            'pur': 'access',
+            'aud': scopes,
+            'sub': sub,
+            'iss': BASE_URL,
+            'iat': iat,
+            'exp': exp,
+            'jti': jti,
+            'context': {
+                'user': {
+                    'name': user.username,
+                    'is_admin': user.is_admin,
+                    'projects': dict(user.project_access),
+                },
+            },
+        }
+        return to_unicode(jwt.encode(claims, private_key, headers=headers, algorithm='RS256'))
+
 
 
         
