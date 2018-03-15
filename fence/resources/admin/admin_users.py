@@ -156,7 +156,7 @@ def connect_user_to_group(current_session, usr, groupname=None):
         raise UserError(("Group {0} doesn't exist".format(group)))
     else:
         responses = []
-        responses.append(udm.connect_user_to_group(current_session, usr, grp))
+        responses.append(gp.connect_user_to_group(current_session, usr, grp))
         projects = gp.get_group_projects(current_session, groupname)
         projects_data = [ pj.get_project(current_session, project).auth_id for project in projects]
         projects_list = [{"auth_id": auth_id, "privilege": ["read"]} for auth_id in projects_data]

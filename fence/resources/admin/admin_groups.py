@@ -71,7 +71,7 @@ def connect_project_to_group(current_session, grp, project=None):
     if not prj:
         raise UserError(("Project {0} doesn't exist".format(project)))
     else:
-        return udm.connect_project_to_group(current_session, grp, prj)
+        return gp.connect_project_to_group(current_session, grp, prj)
 
 
 def update_group_users_projects(current_session, group, project, users):

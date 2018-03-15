@@ -1,4 +1,6 @@
 from fence.resources import userdatamodel as udm
+from fence.models import UserToGroup, AccessPrivilege
+
 
 def get_group(current_session, groupname):
     return udm.get_group(current_session, groupname)
@@ -38,3 +40,23 @@ def update_group(current_session, groupname, description, new_name):
     group.name = new_name or group.name
     current_session.flush()
     
+def connect_user_to_group(current_session, user, group):
+    new_link = UserToGroup()
+    new_link.user_id = user.id
+    new_link.group_id = group.id
+    current_session.add(new_link)
+    current_session.flush()
+    return {"result": ("User: {0} SUCCESFULLY "
+                       "connected to Group: {1}".format(
+                           user.username, group.name))}
+
+def connect_project_to_group(current_session, group, project):
+    new_link = AccessPrivilege()
+    new_link.project_id = project.id
+    new_link.group_id = group.id
+    current_session.add(new_link)
+    current_session.flush()
+    return {"result": ("Group: {0} SUCCESFULLY "
+                       "connected to Project: {1}".format(
+                           group.name, project.name))}
+

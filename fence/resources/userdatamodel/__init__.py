@@ -477,15 +477,6 @@ def get_project(current_session, projectname):
     return current_session.query(Project).filter(
         Project.name == projectname).first()
 
-def connect_user_to_group(current_session, user, group):
-    new_link = UserToGroup()
-    new_link.user_id = user.id
-    new_link.group_id = group.id
-    current_session.add(new_link)
-    current_session.flush()
-    return {"result": ("User: {0} SUCCESFULLY "
-                       "connected to Group: {1}".format(
-                           user.username, group.name))}
 
 def remove_user_from_group(current_session, user, group):
     to_be_removed = current_session.query(UserToGroup).filter(
@@ -501,16 +492,6 @@ def remove_user_from_group(current_session, user, group):
         raise NotFound("User {0} and Group {1} are not linked".format(
             user.username, group.name))
 
-
-def connect_project_to_group(current_session, group, project):
-    new_link = AccessPrivilege()
-    new_link.project_id = project.id
-    new_link.group_id = group.id
-    current_session.add(new_link)
-    current_session.flush()
-    return {"result": ("Group: {0} SUCCESFULLY "
-                       "connected to Project: {1}".format(
-                           group.name, project.name))}
 
 def remove_project_from_group(current_session, group, project):
     to_be_removed = current_session.query(AccessPrivilege).filter(
@@ -578,7 +559,3 @@ def remove_user_from_project(current_session, user, project):
         raise NotFound("Project {0} not connected to user {1}".format(
             project.name, user.username))
     
-
-
-def update_group(current_session, groupname, description):
-    pass
