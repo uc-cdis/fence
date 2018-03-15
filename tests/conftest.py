@@ -15,6 +15,8 @@ import bcrypt
 from cdisutilstest.code.storage_client_mock import get_client
 import pytest
 import requests
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.schema import DropTable
 
 import fence
 from fence import app_init
@@ -23,8 +25,7 @@ from fence import models
 import tests
 from tests import test_settings
 from tests import utils
-from sqlalchemy.schema import DropTable
-from sqlalchemy.ext.compiler import compiles
+from tests.utils.oauth2.client import OAuth2TestClient
 
 
 @compiles(DropTable, "postgresql")
@@ -447,6 +448,21 @@ def oauth_client_public(app, db_session, oauth_user):
     ))
     db_session.commit()
     return Dict(client_id=client_id, url=url)
+
+
+@pytest.fixture(scope='function')
+def oauth_test_client(client, oauth_client):
+    return OAuth2TestClient(client, oauth_client, confidential=True)
+
+
+@pytest.fixture(scope='function')
+def oauth_test_client_B(client, oauth_client_B):
+    return OAuth2TestClient(client, oauth_client_B, confidential=True)
+
+
+@pytest.fixture(scope='function')
+def oauth_test_client_public(client, oauth_client_public):
+    return OAuth2TestClient(client, oauth_client_public, confidential=False)
 
 
 @pytest.fixture(scope='function')

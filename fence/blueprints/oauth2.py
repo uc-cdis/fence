@@ -28,7 +28,6 @@ from fence.jwt.token import SCOPE_DESCRIPTION
 from fence.models import Client
 from fence.oidc.server import server
 from fence.user import get_current_user
-from fence.auth import handle_login
 
 
 blueprint = flask.Blueprint('oauth2', __name__)
@@ -98,7 +97,7 @@ def authorize(*args, **kwargs):
         )
 
     confirm = grant.params.get('confirm')
-    if client.auto_approve is True:
+    if client.auto_approve:
         confirm = 'yes'
     if confirm is not None:
         response = _handle_consent_confirmation(user, confirm)
@@ -203,8 +202,8 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
             show_consent_screen = True
             try:
                 # re-AuthN user
-                # TODO not sure if this really counts as re-AuthN...
-                handle_login(scope)
+                flask.session.clear()
+                return flask.redirect(flask.url_for('.authorize'))
             except Unauthorized:
                 error = AccessDeniedError(
                     state=grant.params.get('state'),
@@ -226,8 +225,7 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
         shown_scopes = scope.split(' ')
         if 'openid' in shown_scopes:
             shown_scopes.remove('openid')
-        resource_description = [
-            SCOPE_DESCRIPTION[scope] for scope in shown_scopes]
+        resource_description = [SCOPE_DESCRIPTION[s] for s in shown_scopes]
         response = flask.render_template(
             'oauthorize.html', grant=grant, user=user, client=client,
             app_name=flask.current_app.config.get('APP_NAME'),

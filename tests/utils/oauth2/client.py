@@ -1,8 +1,9 @@
 import urllib
-from urlparse import url_decode, urlparse
-
+from urlparse import parse_qs, urlparse
 
 import fence.utils
+
+import tests.utils.oauth2
 
 
 class AuthorizeResponse(object):
@@ -13,15 +14,28 @@ class AuthorizeResponse(object):
     """
 
     def __init__(self, response):
-        if response.status_code == 302:
-            assert 'Location' in response.headers
-            self.location = response.headers['Location']
+        self.response = response
+        self.location = None
+        try:
+            if response.status_code == 302:
+                self.location = response.headers['Location']
+            else:
+                self.location = response.json['redirect']
+        except (KeyError, ValueError):
+            self.location = None
+        try:
+            location_qs_args = dict(parse_qs(urlparse(self.location).query))
+            self.code = location_qs_args.get('code')
+        except AttributeError:
+            self.code = None
+
+    def do_asserts(self, expected_code):
+        assert self.response.status_code == expected_code
+        if self.response.status_code == 302:
+            assert 'Location' in self.response.headers
         else:
-            assert 'redirect' in response.json
-            self.location = response.json['redirect']
-        location_qs_args = dict(url_decode(urlparse(self.location).query))
-        assert 'code' in location_qs_args
-        self.code = location_qs_args.get('code')
+            assert 'redirect' in self.response.json
+        assert self.code
 
 
 class TokenResponse(object):
@@ -35,15 +49,22 @@ class TokenResponse(object):
         id_token (dict)
     """
 
-    def __init__(self, response, do_asserts=True):
-        if do_asserts:
-            assert response.status_code == 200, response.json
-            assert 'access_token' in response.json
-            assert 'refresh_token' in response.json
-            assert 'id_token' in response.json
-        self.access_token = response.json['access_token']
-        self.refresh_token = response.json['refresh_token']
-        self.id_token = response.json['id_token']
+    def __init__(self, response):
+        self.response = response
+        try:
+            self.access_token = response.json.get('access_token')
+            self.refresh_token = response.json.get('refresh_token')
+            self.id_token = response.json.get('id_token')
+        except ValueError:
+            self.access_token = None
+            self.refresh_token = None
+            self.id_token = None
+
+    def do_asserts(self):
+        assert self.response.status_code == 200, self.response.json
+        assert 'access_token' in self.response.json
+        assert 'refresh_token' in self.response.json
+        assert 'id_token' in self.response.json
 
 
 class OAuth2TestClient(object):
@@ -55,13 +76,15 @@ class OAuth2TestClient(object):
     into every test using this test client.
 
     Attributes:
-        _auth_header (dict)
-        _client (werkzeug.test.Client)
-        authorize_response (AuthorizeResponse)
+        _auth_header (dict): basic auth header to include in all requests
+        _client (werkzeug.test.Client): test client to send requests with
+        authorize_response (AuthorizeResponse):
+            response from the authorization endpoint
         client_id (str): OAuth client ID
         client_secret (str): OAuth client secret
-        refresh_response (TokenResponse)
-        token_response (TokenResponse)
+        refresh_response (TokenResponse):
+            response from the token endpoint for a refresh request
+        token_response (TokenResponse): response from the token endpoint
         url (str): OAuth client redirect URL
 
     Example:
@@ -73,10 +96,11 @@ class OAuth2TestClient(object):
             return OAuth2TestClient(client, oauth_client)
 
         def test_post_token(oauth_test_client):
-            oauth_test_client.authorize()
-            code = oauth_test_client.authorize_response
+            oauth_test_client.authorize(data={'confirm': 'yes'})
+            code = oauth_test_client.authorize_response.code
             oauth_test_client.token()
             access_token = oauth_test_client.token_response.access_token
+            refresh_token = oauth_test_client.token_response.refresh_token
             # etc.
     """
 
@@ -96,7 +120,7 @@ class OAuth2TestClient(object):
         self.url = oauth_client.url
         if confidential:
             self.client_secret = oauth_client.client_secret
-            self._auth_header = fence.utils.create_basic_header(
+            self._auth_header = tests.utils.oauth2.create_basic_header(
                 self.client_id, self.client_secret
             )
         else:
@@ -118,11 +142,14 @@ class OAuth2TestClient(object):
             params (dict): query string parameters
 
         Return:
-            str
+            str: authorize endpoint path including query string params
         """
-        return self.PATH_AUTHORIZE + '?' + urllib.urlencode(query=params)
+        path = self.PATH_AUTHORIZE
+        if params:
+            path += '?' + urllib.urlencode(query=params)
+        return path
 
-    def authorize(self, method='POST', data=None):
+    def authorize(self, method='POST', data=None, do_asserts=True):
         """
         Call the authorize endpoint.
 
@@ -146,54 +173,82 @@ class OAuth2TestClient(object):
         if isinstance(data['scope'], list):
             data['scope'] = ' '.join(data['scope'])
 
-        if self.method == 'GET':
-            response = self._client.open(
-                method=method,
+        if method == 'GET':
+            response = self._client.get(
                 path=self._path_for_authorize(params=data),
                 headers=self._auth_header,
             )
-        elif self.method == 'POST':
-            response = self._client.open(
-                method=method,
+        elif method == 'POST':
+            response = self._client.post(
                 path=self._path_for_authorize(),
                 headers=self._auth_header,
                 data=data,
             )
-
-        # Check the response code for success.
-        # NOTE: GET should be returning a redirect (302), and POST should be
-        # returning a 200 with the redirect in JSON.
-        if self.method == 'GET':
-            assert response.status_code == 302
-        elif self.method == 'POST':
-            assert response.status_code == 200
+        else:
+            raise ValueError('cannot use method {}'.format(method))
 
         self.authorize_response = AuthorizeResponse(response)
 
-        # Check that the redirect does go to the correct URL.
-        assert self.authorize_response.location.startswith(self.url)
+        if do_asserts:
+            # Check the response code for success.
+            # NOTE: GET should be returning a redirect (302), and POST should
+            # be returning a 200 with the redirect in JSON.
+            if method == 'GET':
+                if data.get('confirm') == 'yes':
+                    assert response.status_code == 302, response
+                else:
+                    assert response.status_code == 200, response
+            elif method == 'POST':
+                assert response.status_code == 200, response
+            # Check that the redirect does go to the correct URL.
+            assert self.authorize_response.location.startswith(self.url)
 
         return self.authorize_response
 
-    def token(self, code=None, do_asserts=True):
+    def token(self, code=None, data=None, do_asserts=True):
+        """
+        Make a request to the token endpoint to get a set of tokens.
+
+        Args:
+            code (Optional[str]):
+                code received from authorization endpoint; defaults to
+                ``self.authorize_response.code``
+            data (Optional[dict]): parameters to include in request
+            do_asserts (bool): whether to call asserts on token response
+        """
         if not code and not self.authorize_response:
             raise ValueError('no code provided')
         code = code or self.authorize_response.code
-        data = {
+        data = data or {}
+        default_data = {
             'client_id': self.client_id,
             'code': code,
             'grant_type': 'authorization_code',
             'redirect_uri': self.url,
         }
+        default_data.update(data)
+        data = default_data
         if self.client_secret:
             data['client_secret'] = self.client_secret
         response = self._client.post(
             self.PATH_TOKEN, headers=self._auth_header, data=data
         )
-        self.token_response = TokenResponse(response, do_asserts=do_asserts)
+        self.token_response = TokenResponse(response)
+        if do_asserts:
+            self.token_response.do_asserts()
         return self.token_response
 
     def refresh(self, refresh_token=None, do_asserts=True):
+        """
+        Make a request to the token endpoint to refresh and access token.
+
+        Args:
+            refresh_token (Optional[str]):
+                refresh token to use; defaults to
+                ``self.token_response.refresh_token``
+
+            do_asserts (bool): whether to call asserts on token response
+        """
         if not refresh_token and not self.token_response:
             raise ValueError('no refresh token provided')
         refresh_token = refresh_token or self.token_response.refresh_token
@@ -209,10 +264,19 @@ class OAuth2TestClient(object):
             headers=self._auth_header,
             data=data,
         )
-        self.refresh_response = TokenResponse(response, do_asserts=True)
+        self.refresh_response = TokenResponse(response)
+        if do_asserts:
+            self.refresh_response.do_asserts()
         return self.refresh_response
 
-    def revoke(self, refresh_token=None):
+    def revoke(self, refresh_token=None, do_asserts=True):
+        """
+        Make a request to the revoke endpoint to revoke an access token.
+
+        Args:
+            refresh_token (Optional[str]): refresh token to include in request
+            do_asserts (bool): whether to call asserts on response
+        """
         if not refresh_token and not self.token_response:
             raise ValueError('no refresh token provided')
         refresh_token = refresh_token or self.token_response.refresh_token
@@ -221,4 +285,5 @@ class OAuth2TestClient(object):
             headers=self._auth_header,
             data={'token': refresh_token},
         )
-        assert response.status_code == 204
+        if do_asserts:
+            assert response.status_code == 204

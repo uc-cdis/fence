@@ -29,14 +29,14 @@ OIDC specification of authentication request parameter ``prompt``:
             account selection choice made by the End-User, it MUST return an
             error, typically account_selection_required.
 """
+
+import flask
 import pytest
 
 # Python 2 and 3 compatible
 try:
-    from unittest.mock import MagicMock
     from unittest.mock import patch
 except ImportError:
-    from mock import MagicMock
     from mock import patch
 
 try:
@@ -46,279 +46,217 @@ except ImportError:
     # Python 2
     from urlparse import urlparse, parse_qs
 
-from fence.errors import Unauthorized
 
-from tests.utils import oauth2
+# Reasons for skipping tests.
+CANT_CHOOSE_ACCOUNT = (
+    "We don't support choosing an account at this point since users can only"
+    " have one account."
+)
+NO_PRECONFIGURED_CONSENT = (
+    "We don't have infrastructure to allow pre-configured consent on specific"
+    " claims right now. Also, our current implementation tries to AuthN user"
+    " by redirecting to login without checking prompt param right now."
+)
+PROMPT_CONSENT = (
+    "Current implementation will continue to try and authenticate user before"
+    " checking for prompt. We do not support the desired (but non-required)"
+    " behavior for the consent value for prompt."
+)
 
 
-def test_no_prompt_provided(client, oauth_client):
+def check_for_error(response_location, error):
     """
-    ``prompt`` is optional; test that omitting it is fine.
+    For the case that an error is expected in the OAuth redirect from the
+    authorization endpoint. Check for an error named ``error`` in the location
+    from a response.
     """
-    with patch('flask.render_template') as render_mock:
-        oauth2.get_authorize(client, oauth_client)
-        # make sure consent screen/page appears
-        assert render_mock.called is True
-
-    # Now use fake user consent confirmation
-    response = oauth2.get_authorize(client, oauth_client, confirm=True)
-
-    assert response.status_code == 302
-    assert 'Location' in response.headers
-    assert oauth2.code_from_authorize_response(response)
+    query_params = parse_qs(urlparse(response_location).query)
+    assert 'error' in query_params
+    assert query_params['error'][0] == error
 
 
-@pytest.mark.skip(
-    reason="We don't have infrastructure to allow pre-configured consent on "
-           "specific claims right now. Also, our current implementation "
-           "tries to AuthN user by redirecting to login without checking "
-           "prompt param right now.")
-def test_prompt_none_logged_in_client_cfg(client, oauth_client):
+@pytest.fixture(scope='function')
+def patch_mock_auth_off(app, monkeypatch):
+    """Don't mock auth so there isn't a logged in user."""
+    monkeypatch.setitem(app.config, 'MOCK_AUTH', False)
+    monkeypatch.setitem(app.config, 'DEFAULT_LOGIN_URL', '/login/google')
+    monkeypatch.setitem(
+        app.config, 'DEFAULT_LOGIN_URL_REDIRECT_PARAM', 'redirect'
+    )
+
+
+@pytest.fixture(scope='function')
+def check_render_template(oauth_test_client):
+
+    old_flask_render_template = flask.render_template
+
+    def render_template(*args, **kwargs):
+        return old_flask_render_template(*args, **kwargs)
+
+    def check(data, called):
+        """Make sure consent screen/page does or does not appear."""
+        mock_render_template = patch(
+            'flask.render_template', side_effect=render_template
+        )
+        with mock_render_template as render_mock:
+            oauth_test_client.authorize(
+                method='GET', data=data, do_asserts=False
+            )
+            assert render_mock.called == called
+
+    return check
+
+
+def test_no_prompt_provided(oauth_test_client, check_render_template):
+    """``prompt`` is optional; test that omitting it is fine."""
+    check_render_template(data={}, called=True)
+
+
+@pytest.mark.skip(reason=NO_PRECONFIGURED_CONSENT)
+def test_prompt_none_logged_in_client_cfg(
+        oauth_test_client, check_render_template):
     """
     Test ``prompt=none`` when user is authN'd and client
     has pre-configured consent for the requested Claims. This is the
     only case where a successful response occurs.
     """
-    data = {'prompt': 'none'}
-
-    with patch('flask.render_template') as render_mock:
-        oauth2.get_authorize(client, oauth_client, data=data)
-        # make sure no consent screen/page appears
-        assert render_mock.called is False
-
-    # Now use fake user consent confirmation
-    response = oauth2.get_authorize(client, oauth_client, data=data, confirm=True)
-
-    assert response.status_code == 302
-    assert 'Location' in response.headers
-    assert oauth2.code_from_authorize_response(response)
+    data = {'confirm': 'yes', 'prompt': 'none'}
+    check_render_template(data=data, called=False)
 
 
-@pytest.mark.skip(
-    reason="We don't have infrastructure to allow pre-configured consent on "
-           "specific claims right now.")
-def test_prompt_none_not_logged_in_client_cfg(app, client, oauth_client, monkeypatch):
+@pytest.mark.skip(reason=NO_PRECONFIGURED_CONSENT)
+@pytest.mark.parametrize('preconfigured_consent', ['yes', 'no'])  # example
+def test_prompt_none_not_logged_in_client_cfg(
+        preconfigured_consent, app, oauth_test_client, patch_mock_auth_off,
+        check_render_template):
     """
-    Test ``prompt=none`` when user is not authN'd and client
-    has pre-configured consent for the requested Claims.
+    Test ``prompt=none`` when user is not authN'd and client DOES have
+    pre-configured consent for the requested Claims.
     """
     data = {'prompt': 'none'}
-
-    # don't mock auth so there isn't a logged in user
-    monkeypatch.setitem(app.config, 'MOCK_AUTH', False)
-    monkeypatch.setitem(app.config, 'DEFAULT_LOGIN_URL', '/login/google')
-    monkeypatch.setitem(app.config, 'DEFAULT_LOGIN_URL_REDIRECT_PARAM', 'redirect')
-
-    with patch('flask.render_template') as render_mock:
-        oauth2.get_authorize(client, oauth_client, data=data)
-        # make sure no consent screen/page appears
-        assert render_mock.called is False
-
+    check_render_template(data=data, called=False)
     # TODO give client pre-cfg consent
-    auth_response = oauth2.get_authorize(client, oauth_client, data=data)
-
-    assert auth_response.status_code == 302
-    assert 'Location' in auth_response.headers
-    query_params = parse_qs(urlparse(auth_response.headers['Location']).query)
-    assert 'error' in query_params
-
-    # for some reason, query_params for error come back as a list,
-    # even though its just a string in response. So get the first (and
-    # only) item
-    assert query_params['error'][0] == 'access_denied'
+    auth_response = oauth_test_client.authorize(data=data)
+    check_for_error(auth_response.location, 'access_denied')
 
 
-@pytest.mark.skip(
-    reason="We don't have infrastructure to allow pre-configured consent on "
-           "specific claims right now.")
-def test_prompt_none_not_logged_in_client_not_cfg(app, client, oauth_client, monkeypatch):
+@pytest.mark.skip(reason=NO_PRECONFIGURED_CONSENT)
+def test_prompt_none_not_logged_in_client_not_cfg(
+        app, oauth_test_client, patch_mock_auth_off, check_render_template):
     """
-    Test ``prompt=none`` when user is not authN'd and client does not
-    have pre-configured consent for the requested Claims.
+    Test ``prompt=none`` when user is not authN'd and client DOES NOT have
+    pre-configured consent for the requested Claims.
     """
     data = {'prompt': 'none'}
 
     # TODO make client not have pre-cfg consent
 
-    # don't mock auth so there isn't a logged in user
-    monkeypatch.setitem(app.config, 'MOCK_AUTH', False)
-    monkeypatch.setitem(app.config, 'DEFAULT_LOGIN_URL', '/login/google')
-    monkeypatch.setitem(app.config, 'DEFAULT_LOGIN_URL_REDIRECT_PARAM', 'redirect')
-
-    with patch('flask.render_template') as render_mock:
-        oauth2.get_authorize(client, oauth_client, data=data)
-        # make sure no consent screen/page appears
-        assert render_mock.called is False
+    check_render_template(data=data, called=False)
 
     # Now use fake user consent confirmation
-    auth_response = oauth2.get_authorize(client, oauth_client, data=data, confirm=True)
-
-    assert auth_response.status_code == 302
-    assert 'Location' in auth_response.headers
-    query_params = parse_qs(urlparse(auth_response.headers['Location']).query)
-    assert 'error' in query_params
-    assert query_params['error'][0] == 'access_denied'
+    data.update({'confirm': 'yes'})
+    auth_response = oauth_test_client.authorize(data=data)
+    check_for_error(auth_response.location, 'access_denied')
 
 
-@pytest.mark.skip(
-    reason="We don't have infrastructure to allow pre-configured consent on "
-           "specific claims right now.")
-def test_prompt_none_logged_in_client_not_cfg(client, oauth_client):
+@pytest.mark.skip(reason=NO_PRECONFIGURED_CONSENT)
+def test_prompt_none_logged_in_client_not_cfg(
+        oauth_test_client, check_render_template):
     """
     Test ``prompt=none`` when user is authN'd and client does not
     have pre-configured consent for the requested Claims.
     """
     data = {'prompt': 'none'}
-
     # TODO make client not have pre-cfg consent
-
-    with patch('flask.render_template') as render_mock:
-        oauth2.get_authorize(client, oauth_client, data=data)
-        # make sure no consent screen/page appears
-        assert render_mock.called is False
-
+    check_render_template(data={'prompt': 'none'}, called=False)
     # Now use fake user consent confirmation
-    auth_response = oauth2.get_authorize(client, oauth_client, data=data, confirm=True)
-
-    assert auth_response.status_code == 302
-    assert 'Location' in auth_response.headers
-    query_params = parse_qs(urlparse(auth_response.headers['Location']).query)
-    assert 'error' in query_params
-    assert query_params['error'][0] == 'access_denied'
+    data.update({'confirm': 'yes'})
+    auth_response = oauth_test_client.authorize(data=data)
+    check_for_error(auth_response.location, 'access_denied')
 
 
-def test_prompt_login(client, oauth_client):
+def test_prompt_login(oauth_test_client):
     """
     Test ``prompt=login`` when user re-AuthN's.
     """
-    data = {'prompt': 'login'}
-
-    with patch('fence.blueprints.oauth2.handle_login') as handle_login_mock:
-        response = oauth2.get_authorize(client, oauth_client, data=data)
-        assert handle_login_mock.called is True
-
-    # Now use fake user consent confirmation
-    response = oauth2.get_authorize(client, oauth_client, data=data, confirm=True)
-
-    assert response.status_code == 302
-    assert 'Location' in response.headers
-    assert oauth2.code_from_authorize_response(response)
+    data = {'confirm': 'yes', 'prompt': 'login'}
+    oauth_test_client.authorize(data=data)
 
 
-def test_prompt_login_no_authn(client, oauth_client):
+@pytest.mark.skip(reason='`login` just redirects to authorize')
+def test_prompt_login_no_authn(oauth_test_client):
     """
     Test ``prompt=login`` when unable to re-AuthN.
     """
     data = {'prompt': 'login'}
-
-    with patch('fence.blueprints.oauth2.handle_login') as handle_login_mock:
-        handle_login_mock.side_effect = Unauthorized('couldnt authN')
-        auth_response = oauth2.get_authorize(client, oauth_client, data=data)
-
-        assert auth_response.status_code == 302
-        assert 'Location' in auth_response.headers
-        query_params = parse_qs(urlparse(auth_response.headers['Location']).query)
-        assert 'error' in query_params
-        assert query_params['error'][0] == 'access_denied'
+    auth_response = oauth_test_client.authorize(
+        method='GET', data=data, do_asserts=False
+    )
+    assert auth_response.response.status_code == 302
+    assert auth_response.response.location
+    check_for_error(auth_response.location, 'access_denied')
 
 
-@pytest.mark.skip(
-    reason="Current implementation will continue to try and authenticate "
-           "user before checking for prompt, so this fails. We are "
-           "NOT COMPLIANT with the OPTIONAL consent param for prompt.")
-def test_prompt_consent_no_login(app, client, oauth_client, monkeypatch):
+@pytest.mark.skip(reason=PROMPT_CONSENT)
+def test_prompt_consent_no_login(app, oauth_test_client, patch_mock_auth_off):
     """
     Test ``prompt=consent`` when user is not logged in, should raise error.
     """
     data = {'prompt': 'consent'}
-
-    # don't mock auth so there isn't a logged in user
-    monkeypatch.setitem(app.config, 'MOCK_AUTH', False)
-    monkeypatch.setitem(app.config, 'DEFAULT_LOGIN_URL', '/login/google')
-    monkeypatch.setitem(app.config, 'DEFAULT_LOGIN_URL_REDIRECT_PARAM', 'redirect')
-
-    response = oauth2.get_authorize(client, oauth_client, data=data)
-    assert response.status_code == 302
-    assert 'Location' in response.headers
-    query_params = parse_qs(urlparse(response.headers['Location']).query)
-    assert 'error' in query_params
-    assert query_params['error'][0] == 'access_denied'
+    auth_response = oauth_test_client.authorize(data=data)
+    check_for_error(auth_response.location, 'access_denied')
 
 
-@pytest.mark.skip(
-    reason="Current implementation will continue to try and authenticate "
-           "user before checking for prompt. We are "
-           "NOT COMPLIANT with the OPTIONAL consent param for prompt.")
-def test_prompt_consent(app, client, oauth_client):
+@pytest.mark.skip(reason=PROMPT_CONSENT)
+def test_prompt_consent(app, oauth_test_client, check_render_template):
     """
     Test ``prompt=consent`` when user approves. Should display consent
     screen and then have correct response.
     """
     data = {'prompt': 'consent'}
-
-    with patch('flask.render_template') as render_mock:
-        oauth2.get_authorize(client, oauth_client)
-        # make sure consent screen/page appears
-        assert render_mock.called is True
-
+    check_render_template(data=data, called=True)
     # Now use fake user consent confirmation
-    response = oauth2.get_authorize(client, oauth_client, data=data, confirm=True)
-    assert response.status_code == 302
-    assert 'Location' in response.headers
-    assert oauth2.code_from_authorize_response(response)
+    data.update({'confirm': 'yes'})
+    oauth_test_client.authorize(data=data)
 
 
-def test_prompt_login_no_consent(app, client, oauth_client):
+@pytest.mark.skip(reason='changed login prompt to redirect to authorize')
+def test_prompt_login_no_consent(
+        app, oauth_test_client, check_render_template):
     """
     Test ``prompt=login`` when user does not consent. Should still show
     consent screen but then return with error.
     """
     data = {'prompt': 'login'}
-
-    with patch('flask.render_template') as render_mock:
-        oauth2.get_authorize(client, oauth_client, data=data)
-        # make sure consent screen/page appears
-        assert render_mock.called is True
-
-    # Now use fake user consent confirmation
-    auth_response = oauth2.get_authorize(client, oauth_client, data=data, confirm=False)
-    assert auth_response.status_code == 302
-    assert 'Location' in auth_response.headers
-    query_params = parse_qs(urlparse(auth_response.headers['Location']).query)
-    assert 'error' in query_params
-    assert query_params['error'][0] == 'access_denied'
+    check_render_template(data=data, called=True)
+    data.update({'confirm': 'no'})
+    auth_response = oauth_test_client.authorize(
+        method='GET', data=data, do_asserts=False
+    )
+    assert auth_response.response.status_code == 302
+    assert auth_response.response.location
+    check_for_error(auth_response.location, 'access_denied')
 
 
-@pytest.mark.skip(reason="we don't support choosing an account at this point "
-                         "since users can only have one account")
-def test_prompt_select_account(client, oauth_client):
+@pytest.mark.skip(reason=CANT_CHOOSE_ACCOUNT)
+def test_prompt_select_account(oauth_test_client):
     """
     Test ``prompt=select_account`` when user chooses an account.
     """
-    data = {'prompt': 'select_account'}
-
     # TODO check that account selection screen shows up
 
-    response = oauth2.get_authorize(client, oauth_client, data=data)
-    assert response.status_code == 302
-    assert 'Location' in response.headers
-    assert oauth2.code_from_authorize_response(response)
+    oauth_test_client.authorize(data={'prompt': 'select_account'})
 
 
-@pytest.mark.skip(reason="we don't support choosing an account at this point "
-                         "since users can only have one account")
-def test_prompt_select_account_no_choice(client, oauth_client):
+@pytest.mark.skip(reason=CANT_CHOOSE_ACCOUNT)
+def test_prompt_select_account_no_choice(oauth_test_client):
     """
     Test ``prompt=select_account`` when choice cannot be obtained.
     """
-    data = {'prompt': 'select_account'}
 
     # TODO check that account selection screen shows up
     # TODO force result to be no choice from selection options
 
-    auth_response = oauth2.get_authorize(client, oauth_client, data=data)
-    assert auth_response.status_code == 302
-    assert 'Location' in auth_response.headers
-    query_params = parse_qs(urlparse(auth_response.headers['Location']).query)
-    assert 'error' in query_params
-    assert query_params['error'][0] == 'account_selection_required'
+    data = {'prompt': 'select_account'}
+    auth_response = oauth_test_client.authorize(data=data)
+    check_for_error(auth_response.location, 'account_selection_required')
