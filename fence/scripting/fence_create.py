@@ -1,3 +1,6 @@
+import os
+import os.path
+import jwt
 import yaml
 
 from cirrus import GoogleCloudManager
@@ -18,6 +21,12 @@ from fence.models import Client
 from fence.models import GoogleServiceAccount
 from fence.utils import create_client, drop_client
 from fence.sync.sync_dbgap import DbGapSyncer
+
+from fence.jwt.token import (
+    generate_signed_access_token,
+    generate_signed_id_token,
+    generate_signed_refresh_token,
+)
 
 
 def create_client_action(
@@ -320,3 +329,35 @@ def delete_users(DB, usernames):
         for user in users_to_delete:
             session.delete(user)
         session.commit()
+
+def create_user_access_token(kid, username, scopes, exp):
+    import pdb; pdb.set_trace()
+    from fence.settings import DB, JWT_KEYPAIR_FILES
+    root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+
+    root_dir = os.path.abspath(os.path.join(root_dir, os.pardir))
+
+    private_key = None
+    for _kid, (_, private) in JWT_KEYPAIR_FILES.iteritems():
+        if(kid != _kid ):
+            continue
+        private_filepath = os.path.join(root_dir, private)
+        with open(private_filepath, 'r') as f:
+            private_key = f.read()
+       
+
+    driver = SQLAlchemyDriver(DB)
+    with driver.session as current_session:
+        user = (current_session.query(User)
+                    .filter_by(username=username)
+                    .first()
+            )
+        import pdb; pdb.set_trace()
+        if not user:
+            print('user is not existed !!!')
+            return
+        token = generate_signed_access_token(kid, private_key, user, scopes, exp)
+        import pdb; pdb.set_trace()
+
+
+        
