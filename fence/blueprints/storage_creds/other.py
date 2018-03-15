@@ -116,6 +116,7 @@ class OtherCredentials(Resource):
                 .first()
             )
 
-        return flask.jsonify(flask.current_app.storage_manager.create_keypair(
-            provider, user
-        ))
+        flask.current_app.storage_manager.delete_keypair(
+            provider, user, access_key)
+
+        return '', 204

@@ -63,7 +63,7 @@ class CdisApiKeyList(Resource):
     @require_auth_header({'credentials'})
     def post(self):
         """
-        Generate a keypair for user
+        Generate a key for user
 
         **Example:**
         .. code-block:: http
@@ -118,7 +118,7 @@ class CdisApiKey(Resource):
     @require_auth_header({'credentials'})
     def delete(self, access_key):
         """
-        Delete a keypair for user
+        Delete a key for user
 
         :param access_key: existing access key that belongs to this user
 
@@ -148,7 +148,7 @@ class CdisApiKey(Resource):
 class CdisAccessKey(Resource):
     def post(self):
         """
-        Generate an access_token for user
+        Generate an access_token for user given api_key
 
         :query expires_in: expiration time in seconds, default to 3600, max is 3600
 
@@ -163,7 +163,7 @@ class CdisAccessKey(Resource):
         .. code-block:: JavaScript
 
             {
-                "token" "token_value"
+                "access_token": "token_value"
             }
         """
         if flask.request.headers.get('Content-Type') == 'application/x-www-form-urlencoded':
