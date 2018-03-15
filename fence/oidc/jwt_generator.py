@@ -99,6 +99,7 @@ class JWTGenerator(BearerToken):
             user=user,
             expires_in=self.ACCESS_TOKEN_EXPIRES_IN,
             scopes=scope,
+            client_id=client.client_id,
         )
         # If ``refresh_token`` was passed (for instance from the refresh
         # grant), use that instead of generating a new one.
@@ -109,6 +110,7 @@ class JWTGenerator(BearerToken):
                 user=user,
                 expires_in=self.REFRESH_TOKEN_EXPIRES_IN,
                 scopes=scope,
+                client_id=client.client_id,
             )
         # ``expires_in`` is just the access token expiration time.
         expires_in = self.ACCESS_TOKEN_EXPIRES_IN

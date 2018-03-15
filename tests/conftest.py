@@ -450,6 +450,22 @@ def oauth_client_public(app, db_session, oauth_user):
 
 
 @pytest.fixture(scope='function')
+def google_proxy_group(app, db_session, user_client):
+    group_id = 'test-proxy-group-0'
+    email = fence.utils.random_str(40) + "@test.com"
+    test_user = (
+        db_session
+        .query(models.User)
+        .filter_by(id=user_client.user_id)
+        .first()
+    )
+    test_user.google_proxy_group_id = group_id
+    db_session.add(models.GoogleProxyGroup(id=group_id, email=email))
+    db_session.commit()
+    return Dict(id=group_id, email=email)
+
+
+@pytest.fixture(scope='function')
 def cloud_manager():
     manager = MagicMock()
     patch('fence.blueprints.storage_creds.GoogleCloudManager', manager).start()
@@ -491,3 +507,64 @@ def mock_get(monkeypatch, example_keys_response):
         monkeypatch.setattr('requests.get', mock.MagicMock(side_effect=get))
 
     return do_patch
+
+
+@pytest.fixture(scope='function')
+def encoded_creds_jwt(
+        private_key, user_client, oauth_client, google_proxy_group):
+    """
+    Return a JWT and user_id for a new user containing the claims and
+    encoded with the private key.
+
+    Args:
+        claims (dict): fixture
+        private_key (str): fixture
+
+    Return:
+        str: JWT containing claims encoded with private key
+    """
+    kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
+    headers = {'kid': kid}
+    return Dict(
+        jwt=jwt.encode(
+            utils.authorized_download_credentials_context_claims(
+                user_client['username'], user_client['user_id'],
+                oauth_client['client_id'], google_proxy_group['id']),
+            key=private_key,
+            headers=headers,
+            algorithm='RS256',
+        ),
+        user_id=user_client['user_id'],
+        client_id=oauth_client['client_id'],
+        proxy_group_id=google_proxy_group['id']
+    )
+
+
+@pytest.fixture(scope='function')
+def encoded_jwt_no_proxy_group(
+        private_key, user_client, oauth_client):
+    """
+    Return a JWT and user_id for a new user containing the claims and
+    encoded with the private key.
+
+    Args:
+        claims (dict): fixture
+        private_key (str): fixture
+
+    Return:
+        str: JWT containing claims encoded with private key
+    """
+    kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
+    headers = {'kid': kid}
+    return Dict(
+        jwt=jwt.encode(
+            utils.authorized_download_credentials_context_claims(
+                user_client['username'], user_client['user_id'],
+                oauth_client['client_id']),
+            key=private_key,
+            headers=headers,
+            algorithm='RS256',
+        ),
+        user_id=user_client['user_id'],
+        client_id=oauth_client['client_id']
+    )

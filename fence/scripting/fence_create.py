@@ -14,24 +14,27 @@ from userdatamodel.models import (
     User,
 )
 
+from fence.models import Client
 from fence.models import GoogleServiceAccount
 from fence.utils import create_client, drop_client
 from fence.sync.sync_dbgap import DbGapSyncer
 
 
-def create_client_action(DB, username=None, client=None, urls=None):
+def create_client_action(
+        DB, username=None, client=None, urls=None, auto_approve=True):
     try:
-        print create_client(username, urls, DB, name=client, auto_approve=True)
+        print(create_client(
+            username, urls, DB, name=client, auto_approve=auto_approve))
     except Exception as e:
-        print e.message
+        print(e.message)
 
 
 def delete_client_action(DB, client):
     try:
         drop_client(client, DB)
-        print 'Client {} deleted'.format(client)
+        print('Client {} deleted'.format(client))
     except Exception as e:
-        print e.message
+        print(e.message)
 
 
 def sync_dbgap(projects):
@@ -134,12 +137,12 @@ def create_project(s, project_data):
                     .filter(CloudProvider.name == provider)
                     .first()
                 )
-                print b
+                print(b)
                 if not b:
                     b = Bucket(name=bucket)
                     b.provider = c_provider
                     s.add(b)
-                    print ('created bucket {} in db'.format(bucket))
+                    print('created bucket {} in db'.format(bucket))
 
     return project
 
@@ -184,14 +187,14 @@ def grant_project_to_group_or_user(s, project_data, group=None, user=None):
         else:
             raise Exception('need to provide either a user or group')
         s.add(ap)
-        print (
+        print(
             'created access privilege {} of project {} to {}'
             .format(privilege, project.name, name)
         )
     else:
         ap.privilege = privilege
-        print ('updated access privilege {} of project {} to {}'
-               .format(privilege, project.name, name))
+        print('updated access privilege {} of project {} to {}'
+              .format(privilege, project.name, name))
 
 
 def create_cloud_providers(s, data):
@@ -287,6 +290,20 @@ def google_init(db):
                 s.add(service_account)
                 s.add(proxy_group)
                 s.commit()
+
+
+def remove_expired_google_service_account_keys(db):
+    db = SQLAlchemyDriver(db)
+    with db.session as s:
+        client_service_accounts = (
+            s.query(GoogleServiceAccount, Client).filter(
+                GoogleServiceAccount.client_id == Client.client_id)
+        )
+
+        with GoogleCloudManager() as g_mgr:
+            for service_account, client in client_service_accounts:
+                g_mgr.handle_expired_service_account_keys(
+                    service_account.google_unique_id)
 
 
 def delete_users(DB, usernames):
