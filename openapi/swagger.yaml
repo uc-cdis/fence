@@ -20,6 +20,8 @@ tags:
     description: User information
   - name: data
     description: Generate pre-signed URLs
+  - name: credentials
+    description: Storage credentials
   - name: link
     description: Link access identities
   - name: keys
@@ -280,6 +282,37 @@ paths:
             "$ref": '#/definitions/PresignedURL'
         '400':
           description: 'Invalid input: UUID not found or invalid location'
+  '/credentials':
+    get:
+      tags:
+        - credentials
+      summary:
+      description: >-
+        List different resources user can have credentials
+      security:
+        - OAuth2: [user]
+      operationId: listSources
+      responses:
+        '200':
+          description: successful operation
+  '/credentials/{provider}':
+    get:
+      tags:
+        - credentials
+      summary:
+      description: >-
+        test
+      security:
+        - OAuth2: [user]
+      operationId: listKeypairs
+      parameters:
+        - name: provider
+          required: true
+          type: string
+          in: path
+      responses:
+        '200':
+          description: successful operation
   '/link/google':
     get:
       tags:
@@ -394,13 +427,21 @@ paths:
           schema:
             "$ref": '#/definitions/JWKS'
 definitions:
+  CredentialsSource:
+    type: object
+    required: [name, info]
+    properties:
+        name:
+          type: string
+          description: User's Google identity email for whom service account should be associated with
+        info:
+          type: string
+          description: Service account's email
+
   GoogleServiceAccount:
     type: object
     required: [google_user_email, service_account_email, google-project-id, projects]
     properties:
-        google_user_email:
-          type: string
-          description: User's Google identity email for whom service account should be associated with
         service_account_email:
           type: string
           description: Service account's email
