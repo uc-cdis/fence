@@ -1,6 +1,8 @@
 from functools import wraps
 
 from authutils.errors import JWTError, JWTExpiredError
+from authutils.token.validate import require_auth_header
+from authutils.token.validate import current_token
 import flask
 from flask_sqlalchemy_session import current_session
 

@@ -11,6 +11,7 @@ from fence.scripting.fence_create import (
     delete_users,
     google_init,
     sync_dbgap,
+    remove_expired_google_service_account_keys,
 )
 
 
@@ -52,7 +53,9 @@ def parse_arguments():
     dbgap_sync = subparsers.add_parser('sync-dbgap')
     dbgap_sync.add_argument('--projects', required=True)
 
-    subparsers.add_parser('google-init')
+    manage_google_keys = subparsers.add_parser('google-manage-keys')
+
+    init_google = subparsers.add_parser('google-init')
 
     return parser.parse_args()
 
@@ -66,7 +69,7 @@ def main():
     if os.environ.get('FENCE_DB'):
         DB = os.environ['FENCE_DB']
     else:
-        from fence.local_settings import DB
+        from fence.settings import DB
 
     if args.action == 'create':
         yaml_input = args.__dict__['yaml-input']
@@ -82,6 +85,8 @@ def main():
         delete_users(DB, args.users)
     elif args.action == 'sync-dbgap':
         sync_dbgap(args.__dict__['projects'])
+    elif args.action == 'google-manage-keys':
+        remove_expired_google_service_account_keys(DB)
     elif args.action == 'google-init':
         google_init(DB)
 

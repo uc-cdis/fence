@@ -37,14 +37,14 @@ def create_access_token(user, keypair, api_key, expires_in, scopes):
     )
 
 
-def create_api_key(user, keypair, expires_in, scopes, client_id):
+def create_api_key(user_id, keypair, expires_in, scopes, client_id):
     return_token, claims = token.generate_api_key(
-        keypair.kid, keypair.private_key, user, expires_in, scopes, client_id
+        keypair.kid, keypair.private_key, user_id, expires_in, scopes, client_id
     )
     with flask.current_app.db.session as session:
         session.add(
             UserRefreshToken(
-                jti=claims['jti'], userid=user.id, expires=claims['exp']
+                jti=claims['jti'], userid=user_id, expires=claims['exp']
             )
         )
         session.commit()
