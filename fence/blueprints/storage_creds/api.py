@@ -104,10 +104,8 @@ class ApiKeyList(Resource):
             if s not in USER_ALLOWED_SCOPES:
                 flask.abort(
                     400, 'Scope {} is not supported'.format(s))
-        expires_in = min(
-            int(flask.request.args.get('expires_in', 2592000)),
-            2592000
-        )
+        max_ttl = flask.current_app.config.get('MAX_API_KEY_TTL', 2592000)
+        expires_in = min(int(flask.request.args.get('expires_in', max_ttl)), max_ttl)
         api_key, claims = create_api_key(
             user_id, flask.current_app.keypairs[0], expires_in, scope,
             client_id
@@ -179,7 +177,8 @@ class AccessKey(Resource):
         if not api_key:
             flask.abort(
                     400, 'Please provide an api_key in payload')
-        expires_in = min(int(flask.request.args.get('expires_in', 3600)), 3600)
+        max_ttl = flask.current_app.config.get('MAX_ACCESS_TOKEN_TTL', 3600)
+        expires_in = min(int(flask.request.args.get('expires_in', max_ttl)), max_ttl)
         result = create_user_access_token(
             flask.current_app.keypairs[0], api_key, expires_in
         )
