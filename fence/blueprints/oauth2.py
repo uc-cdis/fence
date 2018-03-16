@@ -205,23 +205,21 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
                 # TODO (RR 2018-03-16): this could also include removing active
                 # refresh tokens.
                 flask.session.clear()
-                redirect_response = flask.make_response(
-                    flask.redirect(flask.url_for('.authorize'))
-                )
+
                 # For a POST, return the redirect in JSON instead of headers.
-                put_redirect_in_json = (
-                    flask.request.method == 'POST'
-                    and redirect_response.status_code == 302
-                )
-                if put_redirect_in_json:
-                    return flask.jsonify({
+                if flask.request.method == 'POST':
+                    redirect_response = flask.make_response(flask.jsonify({
                         'redirect': response.headers['Location']
-                    })
-                # Set the access token cookie to empty and expired.
-                redirect_response.set_cookie(
-                    flask.current_app.config['ACCESS_TOKEN_COOKIE_NAME'], '',
-                    expires=0
-                )
+                    }))
+                else:
+                    redirect_response = flask.make_response(
+                        flask.redirect(flask.url_for('.authorize'))
+                    )
+
+                # Set all cookies to empty and expired.
+                for cookie_name in flask.request.cookies.values():
+                    redirect_response.set_cookie(cookie_name, '', expires=0)
+
                 return redirect_response
             except Unauthorized:
                 error = AccessDeniedError(
