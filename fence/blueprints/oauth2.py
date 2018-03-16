@@ -201,9 +201,28 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
         if 'login' in prompts:
             show_consent_screen = True
             try:
-                # re-AuthN user
+                # Re-AuthN user (kind of).
+                # TODO (RR 2018-03-16): this could also include removing active
+                # refresh tokens.
                 flask.session.clear()
-                return flask.redirect(flask.url_for('.authorize'))
+                redirect_response = flask.make_response(
+                    flask.redirect(flask.url_for('.authorize'))
+                )
+                # For a POST, return the redirect in JSON instead of headers.
+                put_redirect_in_json = (
+                    flask.request.method == 'POST'
+                    and redirect_response.status_code == 302
+                )
+                if put_redirect_in_json:
+                    return flask.jsonify({
+                        'redirect': response.headers['Location']
+                    })
+                # Set the access token cookie to empty and expired.
+                redirect_response.set_cookie(
+                    flask.current_app.config['ACCESS_TOKEN_COOKIE_NAME'], '',
+                    expires=0
+                )
+                return redirect_response
             except Unauthorized:
                 error = AccessDeniedError(
                     state=grant.params.get('state'),

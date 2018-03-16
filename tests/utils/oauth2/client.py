@@ -71,9 +71,17 @@ class OAuth2TestClient(object):
     """
     A client for testing which handles basic OAuth2 operations.
 
-    NOTE: the ``AuthorizeResponse`` and ``TokenResponse`` classes both do basic
-    testing on the responses they receive, so those do not need to be written
-    into every test using this test client.
+    *Things that ``OAuth2TestClient will test for (that don't need to be
+    included elsewhere in the tests), as long as ``do_asserts=True``:*
+    - Authorize endpoint:
+        - The status code of the response (200 for POST, 302 for GET)
+        - Resonse has redirect URL (in JSON for POST, headers for GET)
+        - That the redirect URL is correct (same as URL of the client)
+    - Token endpoint:
+        - Status code is 200
+        - The response contains all tokens (ID, access, refresh) in JSON
+    - Revoke request:
+        - Status code is 204
 
     Attributes:
         _auth_header (dict): basic auth header to include in all requests

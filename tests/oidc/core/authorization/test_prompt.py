@@ -179,22 +179,16 @@ def test_prompt_login(oauth_test_client):
     """
     Test ``prompt=login`` when user re-AuthN's.
     """
-    data = {'confirm': 'yes', 'prompt': 'login'}
-    oauth_test_client.authorize(data=data)
-
-
-@pytest.mark.skip(reason='`login` just redirects to authorize')
-def test_prompt_login_no_authn(oauth_test_client):
-    """
-    Test ``prompt=login`` when unable to re-AuthN.
-    """
     data = {'prompt': 'login'}
-    auth_response = oauth_test_client.authorize(
-        method='GET', data=data, do_asserts=False
-    )
-    assert auth_response.response.status_code == 302
-    assert auth_response.response.location
-    check_for_error(auth_response.location, 'access_denied')
+    # Test with POST.
+    oauth_test_client.authorize(data=data, do_asserts=False).response
+    # Test with GET.
+    # (For a GET without ``confirm == 'yes'``, the test client ordinarily would
+    # expect the response to be 200 for rendering confirmation. However, this
+    # should redirect to authorization endpoint, so we expect 302.)
+    oauth_test_client.authorize(method='GET', data=data, do_asserts=False)
+    response = oauth_test_client.authorize_response.response
+    assert response.status_code == 302
 
 
 @pytest.mark.skip(reason=PROMPT_CONSENT)
