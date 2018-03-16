@@ -358,12 +358,16 @@ def get_jwt_keypair(kid):
         return JWT_KEYPAIR_FILES.keys()[0], private_key
 
 def create_user_token(kid, type, username, scopes, expires_in=3600):
-    if type == 'access_token':
-        return create_user_access_token(kid, username, scopes, expires_in)
-    elif type == 'refresh_token':
-        return create_user_refresh_token(kid, username, scopes, expires_in)
-    else:
-        print('=============Option type is wrong!!!. Please select either access_token or refresh_token=============')
+    try:
+        if type == 'access_token':
+            return create_user_access_token(kid, username, scopes, expires_in)
+        elif type == 'refresh_token':
+            return create_user_refresh_token(kid, username, scopes, expires_in)
+        else:
+            print('=============Option type is wrong!!!. Please select either access_token or refresh_token=============')
+            return None
+    except Exception as e:
+        print(e.message)
         return None
 
 def create_user_refresh_token(kid, username, scopes, expires_in=3600):
