@@ -217,6 +217,70 @@ class GoogleServiceAccount(Base):
             return self
 
 
+class UserGoogleAccount(Base):
+    __tablename__ = "user_google_account"
+
+    id = Column(Integer, primary_key=True)
+
+    email = Column(
+        String,
+        unique=True,
+        nullable=False
+    )
+
+    user_id = Column(
+        Integer,
+        ForeignKey(User.id),
+        nullable=False
+    )
+
+    def delete(self):
+        with flask.current_app.db.session as session:
+            session.delete(self)
+            session.commit()
+            return self
+
+
+class UserGoogleAccountToProxyGroup(Base):
+    __tablename__ = "user_google_account_to_proxy_group"
+
+    user_google_account_id = Column(
+        Integer,
+        ForeignKey(UserGoogleAccount.id),
+        nullable=False,
+        primary_key=True
+    )
+
+    proxy_group_id = Column(
+        String,
+        ForeignKey(GoogleProxyGroup.id),
+        nullable=False,
+        primary_key=True
+    )
+
+    expires = Column(BigInteger)
+
+
+class GoogleServiceAccountToProxyGroup(Base):
+    __tablename__ = "google_service_account_to_proxy_group"
+
+    google_service_account_id = Column(
+        Integer,
+        ForeignKey(GoogleServiceAccount.id),
+        nullable=False,
+        primary_key=True
+    )
+
+    proxy_group_id = Column(
+        String,
+        ForeignKey(GoogleProxyGroup.id),
+        nullable=False,
+        primary_key=True
+    )
+
+    expires = Column(BigInteger)
+
+
 to_timestamp = "CREATE OR REPLACE FUNCTION pc_datetime_to_timestamp(datetoconvert timestamp) " \
                "RETURNS BIGINT AS " \
                "$BODY$ " \
