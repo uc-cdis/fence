@@ -337,19 +337,40 @@ def get_jwt_keypair(kid):
     par_dir = os.path.abspath(os.path.join(cur_dir, os.pardir))
     private_key = None
 
-    for _kid, (_, private) in JWT_KEYPAIR_FILES.iteritems():
-        if(kid != _kid ):
-            continue
-        private_filepath = os.path.join(par_dir, private)
-        with open(private_filepath, 'r') as f:
-            private_key = f.read()
+    if len(JWT_KEYPAIR_FILES) == 0:
+        return None, None
     
-    return private_key
+    if kid is None:
+        private_filepath = os.path.join(par_dir, JWT_KEYPAIR_FILES.values()[0][1])
+    else:
+        for _kid, (_, private) in JWT_KEYPAIR_FILES.iteritems():
+            if(kid != _kid ):
+                continue
+            private_filepath = os.path.join(par_dir, private)
+    
+    with open(private_filepath, 'r') as f:
+        private_key = f.read()
 
+    if kid:
+        return kid, private_key
+    else:
+        return JWT_KEYPAIR_FILES.keys()[0], private_key
 
-def create_user_access_token(kid, username, scopes, expires_in=3600):
+def create_user_token(kid, type, username, scopes, expires_in=3600):
+    if type == 'access_token':
+        return create_user_access_token(kid, username, scopes, expires_in)
+    elif type == 'refresh_token':
+        return create_user_refresh_token(kid, username, scopes, expires_in)
+    else:
+        print('=============Option type is wrong!!!. Please select either access_token or refresh_token=============')
+        return None
+
+def create_user_refresh_token(kid, username, scopes, expires_in=3600):
     from fence.settings import DB, BASE_URL
-    private_key =  get_jwt_keypair(kid)
+    kid, private_key =  get_jwt_keypair(kid)
+    if private_key is None:
+        print("=========Can not find the private key !!!!==============")
+        return None
 
     driver = SQLAlchemyDriver(DB)
     with driver.session as current_session:
@@ -357,21 +378,50 @@ def create_user_access_token(kid, username, scopes, expires_in=3600):
                     .filter_by(username=username)
                     .first()
             )
-        import pdb; pdb.set_trace()
         if not user:
-            print('user is not existed !!!')
-            return
-        #token = generate_signed_access_token(kid, private_key, user, exp, scopes)
+            print('=========user is not existed !!!=============')
+            return None
+        headers = {'kid': kid}
+        iat, exp = issued_and_expiration_times(expires_in)
+        jti = str(uuid.uuid4())
+        sub = str(user.id)
+        claims = {
+            'pur': 'api_key',
+            'aud': scopes,
+            'sub': sub,
+            'iss': BASE_URL,
+            'iat': iat,
+            'exp': exp,
+            'jti': jti,
+        }
+        return to_unicode(jwt.encode(claims, private_key, headers=headers, algorithm='RS256'), 'UTF-8')
+
+def create_user_access_token(kid, username, scopes, expires_in=3600):
+    from fence.settings import DB, BASE_URL
+    kid, private_key =  get_jwt_keypair(kid)
+    if private_key is None:
+        print("=========Can not find the private key !!!!=============")
+        return None
+
+    driver = SQLAlchemyDriver(DB)
+    with driver.session as current_session:
+        user = (current_session.query(User)
+                    .filter_by(username=username)
+                    .first()
+            )
+        if not user:
+            print('=========user is not existed !!!=============')
+            return None
+
         headers = {'kid': kid}
         iat, exp = issued_and_expiration_times(expires_in)
 
-        # force exp time if provided
         exp = expires_in
         sub = str(user.id)
         jti = str(uuid.uuid4())
         claims = {
             'pur': 'access',
-            'aud': scopes,
+            'aud': scopes.split(','),
             'sub': sub,
             'iss': BASE_URL,
             'iat': iat,
@@ -385,7 +435,7 @@ def create_user_access_token(kid, username, scopes, expires_in=3600):
                 },
             },
         }
-        return to_unicode(jwt.encode(claims, private_key, headers=headers, algorithm='RS256'))
+        return to_unicode(jwt.encode(claims, private_key, headers=headers, algorithm='RS256'), 'UTF-8')
 
 
 
