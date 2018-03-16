@@ -10,6 +10,7 @@ class OtherCredentialsList(Resource):
     """
     For ``/credentials/<provider>`` endpoint.
     """
+
     @require_auth_header({'credentials'})
     def get(self, provider):
         """
@@ -94,6 +95,7 @@ class OtherCredentialsList(Resource):
 
 
 class OtherCredentials(Resource):
+
     def delete(self, provider, access_key):
         """
         Delete a keypair for user

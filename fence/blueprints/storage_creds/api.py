@@ -19,6 +19,7 @@ class ApiKeyList(Resource):
     """
     For ``/credentials/api`` endpoint.
     """
+
     @require_auth_header({'credentials'})
     def get(self):
         """
@@ -115,6 +116,7 @@ class ApiKeyList(Resource):
 
 
 class ApiKey(Resource):
+
     @require_auth_header({'credentials'})
     def delete(self, access_key):
         """
@@ -146,6 +148,7 @@ class ApiKey(Resource):
 
 
 class AccessKey(Resource):
+
     def post(self):
         """
         Generate an access_token for user given api_key

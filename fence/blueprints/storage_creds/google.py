@@ -14,6 +14,7 @@ class GoogleCredentialsList(Resource):
     """
     For ``/credentials/google`` endpoint.
     """
+
     @require_auth_header({'credentials'})
     def get(self):
         """
@@ -103,6 +104,7 @@ class GoogleCredentialsList(Resource):
 
 
 class GoogleCredentials(Resource):
+
     @require_auth_header({'credentials'})
     def delete(self, access_key):
         """
