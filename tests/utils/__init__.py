@@ -54,9 +54,7 @@ def create_user(users, db_session, is_admin=False):
 
 
 def new_jti():
-    """
-    Return a fresh jti (JWT token ID).
-    """
+    """Return a fresh JTI (JWT token ID)."""
     return str(uuid.uuid4())
 
 
