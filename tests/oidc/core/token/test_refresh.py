@@ -24,15 +24,15 @@ OIDC spec for successful refresh response:
 
 from fence.jwt.validate import validate_jwt
 
-from tests.utils import oauth2
 
-
-def test_same_claims(client, oauth_client, token_response_json):
+def test_same_claims(oauth_test_client, token_response_json):
     original_id_token = token_response_json['id_token']
     original_claims = validate_jwt(original_id_token, {'openid'})
     refresh_token = token_response_json['refresh_token']
-    refresh_token_response = oauth2.post_token_refresh(
-        client, oauth_client, refresh_token
+    refresh_token_response = (
+        oauth_test_client
+        .refresh(refresh_token=refresh_token)
+        .response
     )
     assert 'id_token' in refresh_token_response.json
     new_claims = validate_jwt(

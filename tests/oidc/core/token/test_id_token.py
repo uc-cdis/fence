@@ -10,7 +10,6 @@ from fence.models import User
 from fence.utils import random_str
 
 from tests import test_settings
-from tests.utils import oauth2
 
 
 def test_create_id_token(app):
@@ -169,21 +168,11 @@ def test_id_token_max_age(app):
             audiences=[client_id], auth_time=now, max_age=max_age, nonce=nonce)
 
 
-def test_id_token_has_nonce(client, oauth_client):
+def test_id_token_has_nonce(oauth_test_client):
     nonce = random_str(10)
-    data = {
-        'client_id': oauth_client.client_id,
-        'redirect_uri': oauth_client.url,
-        'response_type': 'code',
-        'scope': 'openid user',
-        'state': random_str(10),
-        'confirm': 'yes',
-        'nonce': nonce,
-    }
-    response_json = (
-        oauth2.get_token_response(client, oauth_client, code_request_data=data)
-        .json
-    )
+    data = {'confirm': 'yes', 'nonce': nonce}
+    oauth_test_client.authorize(data=data)
+    response_json = oauth_test_client.token(data=data).response.json
     id_token = validate_jwt(response_json['id_token'], {'openid'})
     assert 'nonce' in id_token
     assert nonce == id_token['nonce']

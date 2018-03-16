@@ -28,7 +28,6 @@ from fence.jwt.token import SCOPE_DESCRIPTION
 from fence.models import Client
 from fence.oidc.server import server
 from fence.user import get_current_user
-from fence.auth import handle_login
 
 
 blueprint = flask.Blueprint('oauth2', __name__)
@@ -98,7 +97,7 @@ def authorize(*args, **kwargs):
         )
 
     confirm = grant.params.get('confirm')
-    if client.auto_approve is True:
+    if client.auto_approve:
         confirm = 'yes'
     if confirm is not None:
         response = _handle_consent_confirmation(user, confirm)
@@ -202,9 +201,26 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
         if 'login' in prompts:
             show_consent_screen = True
             try:
-                # re-AuthN user
-                # TODO not sure if this really counts as re-AuthN...
-                handle_login(scope)
+                # Re-AuthN user (kind of).
+                # TODO (RR 2018-03-16): this could also include removing active
+                # refresh tokens.
+                flask.session.clear()
+
+                # For a POST, return the redirect in JSON instead of headers.
+                if flask.request.method == 'POST':
+                    redirect_response = flask.make_response(flask.jsonify({
+                        'redirect': response.headers['Location']
+                    }))
+                else:
+                    redirect_response = flask.make_response(
+                        flask.redirect(flask.url_for('.authorize'))
+                    )
+
+                # Set all cookies to empty and expired.
+                for cookie_name in flask.request.cookies.values():
+                    redirect_response.set_cookie(cookie_name, '', expires=0)
+
+                return redirect_response
             except Unauthorized:
                 error = AccessDeniedError(
                     state=grant.params.get('state'),
@@ -226,8 +242,7 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
         shown_scopes = scope.split(' ')
         if 'openid' in shown_scopes:
             shown_scopes.remove('openid')
-        resource_description = [
-            SCOPE_DESCRIPTION[scope] for scope in shown_scopes]
+        resource_description = [SCOPE_DESCRIPTION[s] for s in shown_scopes]
         response = flask.render_template(
             'oauthorize.html', grant=grant, user=user, client=client,
             app_name=flask.current_app.config.get('APP_NAME'),
