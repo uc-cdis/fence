@@ -22,6 +22,7 @@ from userdatamodel.models import (
 
 from fence.models import Client
 from fence.models import GoogleServiceAccount
+from fence.models import UserRefreshToken
 from fence.utils import create_client, drop_client
 from fence.sync.sync_dbgap import DbGapSyncer
 
@@ -394,7 +395,15 @@ def create_user_refresh_token(kid, username, scopes, expires_in=3600):
             'exp': exp,
             'jti': jti,
         }
-        return to_unicode(jwt.encode(claims, private_key, headers=headers, algorithm='RS256'), 'UTF-8')
+        token = to_unicode(jwt.encode(claims, private_key, headers=headers, algorithm='RS256'), 'UTF-8')
+        current_session.add(
+            UserRefreshToken(
+                jti=claims['jti'], userid=user.id, expires=claims['exp']
+            )
+        )
+        current_session.commit()
+
+        return token
 
 def create_user_access_token(kid, username, scopes, expires_in=3600):
     from fence.settings import DB, BASE_URL
