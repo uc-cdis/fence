@@ -20,7 +20,7 @@ class GoogleLogin(Resource):
     def get(self):
         # Check if this is a request to link account vs. actually log in
         if flask.session.get('google_link'):
-            flask.redirect(
+            return flask.redirect(
                 flask.current_app.config.get('BASE_URL', '') +
                 '/link/google/link')
         else:
