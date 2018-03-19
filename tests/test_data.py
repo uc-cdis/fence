@@ -6,7 +6,8 @@ def test_indexd_download_file(client, oauth_client, user_client, indexd_client):
     """
     Test ``GET /data/download/1``.
     """
-    path = '/data/download/1?protocol=s3'
+    path = '/data/download/1'
+    query_string = {'protocol': 's3'}
     kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
     private_key = utils.read_file('resources/keys/test_private_key.pem')
     headers = {'Authorization': 'Bearer ' + jwt.encode(
@@ -15,9 +16,8 @@ def test_indexd_download_file(client, oauth_client, user_client, indexd_client):
         headers={'kid': kid},
         algorithm='RS256',
     )}
-    response = client.get(path, headers=headers)
-    print response.json
-    assert response.status_code == 200
+    response = client.get(path, headers=headers, query_string=query_string)
+    assert response.status_code == 200, response.json
     assert 'url' in response.json.keys()
 
 

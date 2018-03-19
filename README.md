@@ -91,7 +91,7 @@ We use JSON Web Tokens (JWTs) as the format for our authentication mechanism.
 
 ### JWT Information
 
-#### Example ID Token
+#### Example ID Token Claims
 ```
 {
   "sub": "7",
@@ -125,7 +125,8 @@ We use JSON Web Tokens (JWTs) as the format for our authentication mechanism.
 }
 ```
 
-#### Example Access Token
+#### Example Access Token Claims
+
 ```
 {
   "sub": "7",
@@ -158,7 +159,7 @@ We use JSON Web Tokens (JWTs) as the format for our authentication mechanism.
 }
 ```
 
-#### Example Refresh Token
+#### Example Refresh Token Claims
 ```
 {
   "sub": "7",

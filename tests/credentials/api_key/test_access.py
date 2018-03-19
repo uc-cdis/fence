@@ -7,7 +7,8 @@ import json
 from tests.utils.api_key import get_api_key
 
 
-def test_cdis_get_access_token(client, oauth_client, encoded_creds_jwt):
+def test_cdis_get_access_token(
+        client, oauth_client, encoded_creds_jwt, no_mock_auth):
     """
     Test ``POST /credentials/cdis/access_token``.
     """

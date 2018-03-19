@@ -62,7 +62,7 @@ def fence_client_app(
     )
 
     client_app.config['BASE_URL'] = '/'
-    client_app.config['MOCK_AUTH'] = False
+    client_app.config['MOCK_AUTH'] = None
     client_app.config['DEFAULT_LOGIN_URL'] = '/login/fence'
     client_app.config['DEFAULT_LOGIN_URL_REDIRECT_PARAM'] = 'redirect_uri'
     client_app.db.Session = lambda: db_session

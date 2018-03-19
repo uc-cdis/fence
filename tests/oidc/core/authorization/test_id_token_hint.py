@@ -84,7 +84,7 @@ def test_id_token_hint_not_logged_in(app, client, oauth_client, monkeypatch):
     id_token = validate_jwt(token_response['id_token'], {'openid'})
 
     # don't mock auth so there isn't a logged in user any more
-    monkeypatch.setitem(app.config, 'MOCK_AUTH', False)
+    monkeypatch.setitem(app.config, 'MOCK_AUTH', None)
 
     # Now use that id_token as a hint to the authorize endpoint
     data = {'id_token_hint': str(id_token)}

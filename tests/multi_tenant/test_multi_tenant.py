@@ -50,6 +50,7 @@ def test_login(
         'authutils.token.keys.refresh_jwt_public_keys',
         lambda: None
     )
+
     with fence_client_app.test_client() as fence_client_client:
         # Part 1.
         redirect_url_quote = urllib.quote('/login/fence/login')

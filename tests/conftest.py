@@ -9,6 +9,8 @@ import mock
 from mock import patch, MagicMock
 from moto import mock_s3, mock_sts
 import os
+import time
+import uuid
 
 from addict import Dict
 import bcrypt
@@ -138,7 +140,7 @@ def encoded_jwt(private_key):
 
 
 @pytest.fixture(scope='session')
-def encoded_jwt_expired(claims, private_key):
+def encoded_jwt_expired(private_key):
     """
     Return an example JWT that has already expired.
 
@@ -229,10 +231,11 @@ def auth_client(app, request):
     """
     Flask application fixture.
     """
-    app.config['MOCK_AUTH'] = False
+    store_mock_auth = app.config['MOCK_AUTH']
+    app.config['MOCK_AUTH'] = None
 
     def reset_authmock():
-        app.config['MOCK_AUTH'] = True
+        app.config['MOCK_AUTH'] = store_mock_auth
 
     request.addfinalizer(reset_authmock)
 
@@ -254,7 +257,7 @@ def db(app, request):
 
 
 @fence.app.route('/protected')
-@fence.auth.login_required({'access'})
+@fence.auth.require_auth(aud={'openid'}, purpose='access')
 def protected_endpoint(methods=['GET']):
     """
     Add a protected endpoint to the app for testing.
@@ -313,6 +316,38 @@ def oauth_user(app, db_session):
     return Dict(username=username, user_id=user_id)
 
 
+@pytest.fixture(scope='function', autouse=True)
+def set_mock_auth(app, oauth_user, db_session, monkeypatch):
+    user = (
+        db_session
+        .query(models.User)
+        .filter_by(id=oauth_user.user_id)
+        .first()
+    )
+    mock_auth = {
+        'pur': 'access',
+        'aud': ['openid', 'fence', 'user', 'data'],
+        'sub': oauth_user.user_id,
+        'iss': app.config['BASE_URL'],
+        'iat': time.time(),
+        'exp': time.time() + 1000000,
+        'jti': str(uuid.uuid4()),
+        'context': {
+            'user': {
+                'name': oauth_user.username,
+                'is_admin': True,
+                'projects': dict(user.project_access),
+            },
+        },
+    }
+    monkeypatch.setitem(app.config, 'MOCK_AUTH', mock_auth)
+
+
+@pytest.fixture(scope='function')
+def no_mock_auth(app, set_mock_auth, monkeypatch):
+    monkeypatch.setitem(app.config, 'MOCK_AUTH', None)
+
+
 @pytest.fixture(scope='function')
 def unauthorized_oauth_user(app, db_session):
     users = dict(json.loads(utils.read_file(
@@ -358,18 +393,22 @@ def public_indexd_client(app, request):
 @pytest.fixture(scope='function')
 def patch_app_db_session(app, monkeypatch):
     """
-    TODO
+    Apply a patch to the database session to use the test session instead. Also
+    patch the ``flask_sqlalchemy_session.current_session`` in specific modules.
     """
+
     def do_patch(session):
         monkeypatch.setattr(app.db, 'Session', lambda: session)
         modules_to_patch = [
-            'fence.auth',
             'fence.blueprints.storage_creds',
+            'fence.blueprints.user',
+            'fence.resources.storage.cdis_jwt',
+            'fence.resources.user',
             'fence.oidc.jwt_generator',
-            'fence.user',
         ]
         for module in modules_to_patch:
             monkeypatch.setattr('{}.current_session'.format(module), session)
+
     return do_patch
 
 
@@ -396,6 +435,16 @@ def oauth_client(app, db_session, oauth_user):
     ))
     db_session.commit()
     return Dict(client_id=client_id, client_secret=client_secret, url=url)
+
+
+@pytest.fixture(scope='function')
+def oauth_test_client(client, oauth_client):
+    return OAuth2TestClient(client, oauth_client, confidential=True)
+
+
+@pytest.fixture(scope='function')
+def oauth_test_client_public(client, oauth_client_public):
+    return OAuth2TestClient(client, oauth_client_public, confidential=False)
 
 
 @pytest.fixture(scope='function')

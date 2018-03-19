@@ -1,14 +1,34 @@
 import os
+import time
+import uuid
+
 from boto.s3.connection import OrdinaryCallingFormat
 
 
 DB = 'postgresql://test:test@localhost:5432/fence'
 
-MOCK_AUTH = False
-MOCK_STORAGE = False
-
 BASE_URL = 'http://localhost/user'
 APPLICATION_ROOT = '/user'
+
+MOCK_AUTH = {
+    'pur': 'access',
+    'aud': ['openid', 'fence', 'user', 'data'],
+    'sub': '0',
+    'iss': BASE_URL,
+    'iat': time.time(),
+    'exp': time.time() + 1000000,
+    'jti': str(uuid.uuid4()),
+    'context': {
+        'user': {
+            'name': 'MOCK_USER',
+            'is_admin': True,
+            'projects': {
+            },
+        },
+    },
+}
+
+MOCK_STORAGE = False
 
 # If using multi-tenant setup, configure this to the base URL for the provider
 # fence (i.e. ``BASE_URL`` in the provider fence config).

@@ -29,6 +29,11 @@ from userdatamodel.models import (
 )
 
 
+def lookup(model, **filter_kwargs):
+    with flask.current_app.db.session as session:
+        return session.query(model).filter_by(**filter_kwargs).first()
+
+
 class Client(Base, OAuth2ClientMixin):
 
     __tablename__ = 'client'

@@ -2,7 +2,6 @@ import pytest
 import time
 
 from authlib.specs.oidc import IDTokenError
-from fence.resources.storage.cdis_jwt import create_id_token
 
 from fence.jwt.token import generate_signed_id_token, UnsignedIDToken
 from fence.jwt.validate import validate_jwt
@@ -10,25 +9,6 @@ from fence.models import User
 from fence.utils import random_str
 
 from tests import test_settings
-
-
-def test_create_id_token(app):
-    """
-    Naive ID Token generation test. Just makes sure there are no exceptions and
-    something is created.
-    """
-    keypair = app.keypairs[0]
-    client_id = "client_12345"
-    user = User(username='test', is_admin=False)
-    expires_in = 2592000
-
-    token = create_id_token(
-        user=user, keypair=keypair, expires_in=expires_in,
-        client_id=client_id, audiences=[client_id],
-        auth_time=None, max_age=None, nonce=None
-    )
-
-    assert token is not None
 
 
 def test_recode_id_token(app, private_key):
@@ -45,9 +25,9 @@ def test_recode_id_token(app, private_key):
     nonce = "a1b2c3d4e5f6g7h8i9j0k!l@#n$%^q&*stuvwxyz"
     max_age = None
 
-    original_signed_token = create_id_token(
-        user=user, keypair=keypair, expires_in=expires_in,
-        client_id=client_id, audiences=[client_id],
+    original_signed_token = generate_signed_id_token(
+        kid=keypair.kid, private_key=keypair.private_key, user=user,
+        expires_in=expires_in, client_id=client_id, audiences=[client_id],
         auth_time=None, max_age=max_age, nonce=nonce
     )
     original_unsigned_token = UnsignedIDToken.from_signed_and_encoded_token(
@@ -81,9 +61,9 @@ def test_valid_id_token(app):
     nonce = "a1b2c3d4e5f6g7h8i9j0k!l@#n$%^q&*stuvwxyz"
     max_age = None
 
-    signed_token = create_id_token(
-        user=user, keypair=keypair, expires_in=expires_in,
-        client_id=client_id, audiences=[client_id],
+    signed_token = generate_signed_id_token(
+        kid=keypair.kid, private_key=keypair.private_key, user=user,
+        expires_in=expires_in, client_id=client_id, audiences=[client_id],
         auth_time=None, max_age=max_age, nonce=nonce
     )
 
@@ -111,9 +91,9 @@ def test_valid_id_token_without_nonce(app):
     nonce = None
     max_age = None
 
-    signed_token = create_id_token(
-        user=user, keypair=keypair, expires_in=expires_in,
-        client_id=client_id, audiences=[client_id],
+    signed_token = generate_signed_id_token(
+        kid=keypair.kid, private_key=keypair.private_key, user=user,
+        expires_in=expires_in, client_id=client_id, audiences=[client_id],
         auth_time=None, max_age=max_age, nonce=nonce
     )
 

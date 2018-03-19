@@ -1,11 +1,11 @@
 import os
 import time
 import urlparse
-import uuid
 
 from flask import current_app
 
 from fence.models import User, Project, AccessPrivilege
+from fence.utils.token import iat_and_exp, new_jti
 
 import tests
 import tests.utils.oauth2
@@ -51,20 +51,6 @@ def create_user(users, db_session, is_admin=False):
             else:
                 ap.privilege = privilege
     return user.id, user.username
-
-
-def new_jti():
-    """Return a fresh JTI (JWT token ID)."""
-    return str(uuid.uuid4())
-
-
-def iat_and_exp():
-    """
-    Return ``iat`` and ``exp`` claims for a JWT.
-    """
-    iat = int(time.time())
-    exp = iat + 600
-    return (iat, exp)
 
 
 def default_claims():

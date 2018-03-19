@@ -1,5 +1,7 @@
 from collections import OrderedDict
 from cryptography.fernet import Fernet
+import time
+import uuid
 
 from cdislogging import get_logger
 
@@ -10,17 +12,32 @@ try:
 except ImportError:
     logger.warn('no module fence.local_settings')
 
-
 # WARNING: the test database is cleared every run
 DB = 'postgresql://postgres:postgres@localhost:5432/fence_test_tmp'
-
-MOCK_AUTH = True
 
 DEBUG = False
 OAUTH2_PROVIDER_ERROR_URI = "/oauth2/errors"
 
 BASE_URL = 'https://bionimbus-pdc.opensciencedatacloud.org/user'
 APPLICATION_ROOT = '/user'
+
+MOCK_AUTH = {
+    'pur': 'access',
+    'aud': ['openid', 'fence', 'user', 'data'],
+    'sub': '0',
+    'iss': BASE_URL,
+    'iat': time.time(),
+    'exp': time.time() + 1000000,
+    'jti': str(uuid.uuid4()),
+    'context': {
+        'user': {
+            'name': 'MOCK_USER',
+            'is_admin': True,
+            'projects': {
+            },
+        },
+    },
+}
 
 SHIBBOLETH_HEADER = 'persistent_id'
 SSO_URL = 'https://itrusteauth.nih.gov/affwebservices/public/saml2sso?SPID=https://bionimbus-pdc.opensciencedatacloud.org/shibboleth&RelayState='

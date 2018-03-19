@@ -8,7 +8,7 @@ def test_redirect_url():
 
 
 def test_logout_if_anonymous(app, client, monkeypatch):
-    monkeypatch.setitem(app.config, 'MOCK_AUTH', False)
+    monkeypatch.setitem(app.config, 'MOCK_AUTH', None)
     r = client.get('/logout')
     assert r.status_code == 401
 
