@@ -21,7 +21,6 @@ from userdatamodel.models import (
 )
 
 
-
 from fence.models import Client
 from fence.models import GoogleServiceAccount
 from fence.models import UserRefreshToken
@@ -343,7 +342,7 @@ def get_jwt_keypair(kid):
 
     if len(JWT_KEYPAIR_FILES) == 0:
         return None, None
-    
+
     private_filepath = None
     if kid is None:
         private_filepath = os.path.join(par_dir, JWT_KEYPAIR_FILES.values()[0][1])
@@ -352,10 +351,10 @@ def get_jwt_keypair(kid):
             if(kid != _kid ):
                 continue
             private_filepath = os.path.join(par_dir, private)
-    
+
     if private_filepath is None:
         return None, None
-    
+
     with open(private_filepath, 'r') as f:
         private_key = f.read()
 
@@ -364,12 +363,12 @@ def get_jwt_keypair(kid):
     else:
         return JWT_KEYPAIR_FILES.keys()[0], private_key
 
-def create_user_token(DB, BASE_URL, kid, type, username, scopes, expires_in=3600):
+def create_user_token(DB, BASE_URL, kid, token_type, username, scopes, expires_in=3600):
     try:
-        if type == 'access_token':
+        if token_type == 'access_token':
             _, token = create_user_access_token(DB, BASE_URL, kid, username, scopes, expires_in)
             return token
-        elif type == 'refresh_token':
+        elif token_type == 'refresh_token':
             _, token = create_user_refresh_token(DB, BASE_URL, kid, username, scopes, expires_in)
             return token
         else:
@@ -459,4 +458,3 @@ def create_user_access_token(DB, BASE_URL, kid, username, scopes, expires_in=360
 
 
 
-        

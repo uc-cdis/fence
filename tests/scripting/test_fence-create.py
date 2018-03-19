@@ -1,4 +1,3 @@
-import uuid
 from fence.models import AccessPrivilege, Project, User, UserRefreshToken
 
 from fence.scripting.fence_create import (
@@ -45,15 +44,15 @@ def test_delete_user_with_access_privilege(app, db_session):
     assert db_session.query(User).count() == 0, remaining_usernames
 
 def test_get_jwt_keypair_with_default_kid(mock_keypairs):
-    kid, private_key = get_jwt_keypair(kid=None)
+    kid, _ = get_jwt_keypair(kid=None)
     assert kid == 'key-test'
 
 def test_get_jwt_keypair_with_no_kid_found(mock_keypairs):
-    kid, private_key = get_jwt_keypair(kid='No kid found ')
+    kid, _ = get_jwt_keypair(kid='No kid found ')
     assert kid == None
 
 def test_get_jwt_with_found_kid(mock_keypairs):
-    kid, private_key = get_jwt_keypair(kid='key-test-2')
+    kid, _ = get_jwt_keypair(kid='key-test-2')
     assert kid == 'key-test-2'
 
 def test_create_user_access_token_with_no_found_user(app, mock_keypairs, db_session):

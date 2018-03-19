@@ -1,7 +1,5 @@
 import pytest
 from collections import OrderedDict
-from tests.test_settings import DB, BASE_URL
-import fence
 
 
 @pytest.fixture(scope='module')
@@ -26,7 +24,9 @@ def patch_driver(db, monkeypatch):
 @pytest.fixture(scope='function', autouse=True)
 def mock_keypairs(monkeypatch):
     """
+    Change the keypair configureation in ``fence.settings.JWT_KEYPAIR_FILES``.
     """
+
     JWT_KEYPAIR_FILES = OrderedDict([
         (
             'key-test',
@@ -37,6 +37,7 @@ def mock_keypairs(monkeypatch):
             ('tests/resources/keys/test_public_key_2.pem', 'tests/resources/keys/test_private_key_2.pem'),
     ),
     ])
+
     monkeypatch.setattr(
         'fence.settings.JWT_KEYPAIR_FILES', JWT_KEYPAIR_FILES
     )
