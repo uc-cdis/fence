@@ -20,6 +20,8 @@ from userdatamodel.models import (
     User,
 )
 
+
+
 from fence.models import Client
 from fence.models import GoogleServiceAccount
 from fence.models import UserRefreshToken
@@ -334,6 +336,7 @@ def delete_users(DB, usernames):
 
 def get_jwt_keypair(kid):
     from fence.settings import JWT_KEYPAIR_FILES
+    #import pdb; pdb.set_trace()
     cur_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     par_dir = os.path.abspath(os.path.join(cur_dir, os.pardir))
     private_key = None
@@ -361,13 +364,13 @@ def get_jwt_keypair(kid):
     else:
         return JWT_KEYPAIR_FILES.keys()[0], private_key
 
-def create_user_token(kid, type, username, scopes, expires_in=3600):
+def create_user_token(DB, BASE_URL, kid, type, username, scopes, expires_in=3600):
     try:
         if type == 'access_token':
-            _, token = create_user_access_token(kid, username, scopes, expires_in)
+            _, token = create_user_access_token(DB, BASE_URL, kid, username, scopes, expires_in)
             return token
         elif type == 'refresh_token':
-            _, token = create_user_refresh_token(kid, username, scopes, expires_in)
+            _, token = create_user_refresh_token(DB, BASE_URL, kid, username, scopes, expires_in)
             return token
         else:
             print('=============Option type is wrong!!!. Please select either access_token or refresh_token=============')
@@ -376,8 +379,7 @@ def create_user_token(kid, type, username, scopes, expires_in=3600):
         print(e.message)
         return None
 
-def create_user_refresh_token(kid, username, scopes, expires_in=3600):
-    from fence.settings import DB, BASE_URL
+def create_user_refresh_token(DB, BASE_URL, kid, username, scopes, expires_in=3600):
     kid, private_key =  get_jwt_keypair(kid)
     if private_key is None:
         print("=========Can not find the private key !!!!==============")
@@ -415,8 +417,7 @@ def create_user_refresh_token(kid, username, scopes, expires_in=3600):
 
         return jti, token
 
-def create_user_access_token(kid, username, scopes, expires_in=3600):
-    from fence.settings import DB, BASE_URL
+def create_user_access_token(DB, BASE_URL, kid, username, scopes, expires_in=3600):
     kid, private_key =  get_jwt_keypair(kid)
     if private_key is None:
         print("=========Can not find the private key !!!!=============")

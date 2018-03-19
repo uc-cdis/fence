@@ -1,5 +1,6 @@
 import uuid
 from fence.models import AccessPrivilege, Project, User, UserRefreshToken
+
 from fence.scripting.fence_create import (
     delete_users,
     create_user_refresh_token,
@@ -43,40 +44,63 @@ def test_delete_user_with_access_privilege(app, db_session):
     remaining_usernames = db_session.query(User.username).all()
     assert db_session.query(User).count() == 0, remaining_usernames
 
-def test_get_jwt_keypair_with_default_kid():
+def test_get_jwt_keypair_with_default_kid(mock_keypairs):
     kid, private_key = get_jwt_keypair(kid=None)
-    assert kid == 'key-01'
+    assert kid == 'key-test'
 
-def test_get_jwt_keypair_with_no_kid_found():
+def test_get_jwt_keypair_with_no_kid_found(mock_keypairs):
     kid, private_key = get_jwt_keypair(kid='No kid found ')
     assert kid == None
 
-def test_get_jwt_with_found_kid():
-    kid, private_key = get_jwt_keypair(kid='key-01')
-    assert kid == 'key-01'
+def test_get_jwt_with_found_kid(mock_keypairs):
+    kid, private_key = get_jwt_keypair(kid='key-test-2')
+    assert kid == 'key-test-2'
 
-def test_create_user_access_token_with_no_found_user(app, db_session):
+def test_create_user_access_token_with_no_found_user(app, mock_keypairs, db_session):
     user = User(username='test_user')
     db_session.add(user)
     jti, _ = create_user_access_token(
-        kid='key-01', username='other user',
+        app.config['DB'], app.config['BASE_URL'],
+        kid='key-test', username='other user',
         scopes='fence', expires_in=3600
     )
     assert jti == None
 
-def test_create_user_access_token_with_found_user(app, db_session):
+def test_create_user_refresh_token_with_no_found_user(app, mock_keypairs, db_session):
+    user = User(username='test_user')
+    db_session.add(user)
+    jti, _ = create_user_refresh_token(
+        app.config['DB'], app.config['BASE_URL'],
+        kid='key-test', username='other user',
+        scopes='fence', expires_in=3600
+    )
+    assert jti == None
+
+def test_create_user_access_token_with_found_user(app, mock_keypairs, db_session):
     user = User(username='test_user')
     db_session.add(user)
     jti, _ = create_user_access_token(
-        kid='key-01', username='test_user',
+        app.config['DB'], app.config['BASE_URL'],
+        kid='key-test', username='test_user',
         scopes='fence,oidc', expires_in=3600
         )
     assert jti is not None
 
-def test_create_refresh_token(app, db_session):
+def test_create_refresh_token_with_found_user(app, mock_keypairs, db_session):
     user = User(username='test_user')
     db_session.add(user)
     jti, _ = create_user_refresh_token(
+        app.config['DB'], app.config['BASE_URL'],
+        kid='key-test', username='test_user',
+        scopes='fence,oidc', expires_in=3600
+        )
+    assert jti is not None
+
+def test_create_refresh_token(app, mock_keypairs, db_session):
+    user = User(username='test_user')
+    db_session.add(user)
+    jti, _ = create_user_refresh_token(
+        app.config['DB'], app.config['BASE_URL'],
         kid=None, username='test_user',
         scopes=['fence'], expires_in=3600
     )
