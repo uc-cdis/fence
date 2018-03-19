@@ -341,6 +341,7 @@ def get_jwt_keypair(kid):
     if len(JWT_KEYPAIR_FILES) == 0:
         return None, None
     
+    private_filepath = None
     if kid is None:
         private_filepath = os.path.join(par_dir, JWT_KEYPAIR_FILES.values()[0][1])
     else:
@@ -348,6 +349,9 @@ def get_jwt_keypair(kid):
             if(kid != _kid ):
                 continue
             private_filepath = os.path.join(par_dir, private)
+    
+    if private_filepath is None:
+        return None, None
     
     with open(private_filepath, 'r') as f:
         private_key = f.read()
@@ -360,9 +364,11 @@ def get_jwt_keypair(kid):
 def create_user_token(kid, type, username, scopes, expires_in=3600):
     try:
         if type == 'access_token':
-            return create_user_access_token(kid, username, scopes, expires_in)
+            _, token = create_user_access_token(kid, username, scopes, expires_in)
+            return token
         elif type == 'refresh_token':
-            return create_user_refresh_token(kid, username, scopes, expires_in)
+            _, token = create_user_refresh_token(kid, username, scopes, expires_in)
+            return token
         else:
             print('=============Option type is wrong!!!. Please select either access_token or refresh_token=============')
             return None
@@ -375,7 +381,7 @@ def create_user_refresh_token(kid, username, scopes, expires_in=3600):
     kid, private_key =  get_jwt_keypair(kid)
     if private_key is None:
         print("=========Can not find the private key !!!!==============")
-        return None
+        return None, None
 
     driver = SQLAlchemyDriver(DB)
     with driver.session as current_session:
@@ -385,7 +391,7 @@ def create_user_refresh_token(kid, username, scopes, expires_in=3600):
             )
         if not user:
             print('=========user is not existed !!!=============')
-            return None
+            return None, None
         headers = {'kid': kid}
         iat, exp = issued_and_expiration_times(expires_in)
         jti = str(uuid.uuid4())
@@ -407,14 +413,14 @@ def create_user_refresh_token(kid, username, scopes, expires_in=3600):
         )
         current_session.commit()
 
-        return token
+        return jti, token
 
 def create_user_access_token(kid, username, scopes, expires_in=3600):
     from fence.settings import DB, BASE_URL
     kid, private_key =  get_jwt_keypair(kid)
     if private_key is None:
         print("=========Can not find the private key !!!!=============")
-        return None
+        return None, None
 
     driver = SQLAlchemyDriver(DB)
     with driver.session as current_session:
@@ -424,7 +430,7 @@ def create_user_access_token(kid, username, scopes, expires_in=3600):
             )
         if not user:
             print('=========user is not existed !!!=============')
-            return None
+            return None, None
 
         headers = {'kid': kid}
         iat, exp = issued_and_expiration_times(expires_in)
@@ -448,7 +454,7 @@ def create_user_access_token(kid, username, scopes, expires_in=3600):
                 },
             },
         }
-        return to_unicode(jwt.encode(claims, private_key, headers=headers, algorithm='RS256'), 'UTF-8')
+        return jti, to_unicode(jwt.encode(claims, private_key, headers=headers, algorithm='RS256'), 'UTF-8')
 
 
 

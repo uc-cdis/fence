@@ -1,6 +1,10 @@
-from fence.models import AccessPrivilege, Project, User
+import uuid
+from fence.models import AccessPrivilege, Project, User, UserRefreshToken
 from fence.scripting.fence_create import (
     delete_users,
+    create_user_refresh_token,
+    create_user_access_token,
+    get_jwt_keypair,
 )
 
 
@@ -38,3 +42,43 @@ def test_delete_user_with_access_privilege(app, db_session):
     delete_users(app.config['DB'], [user.username])
     remaining_usernames = db_session.query(User.username).all()
     assert db_session.query(User).count() == 0, remaining_usernames
+
+def test_get_jwt_keypair_with_default_kid():
+    kid, private_key = get_jwt_keypair(kid=None)
+    assert kid == 'key-01'
+
+def test_get_jwt_keypair_with_no_kid_found():
+    kid, private_key = get_jwt_keypair(kid='No kid found ')
+    assert kid == None
+
+def test_get_jwt_with_found_kid():
+    kid, private_key = get_jwt_keypair(kid='key-01')
+    assert kid == 'key-01'
+
+def test_create_user_access_token_with_no_found_user(app, db_session):
+    user = User(username='test_user')
+    db_session.add(user)
+    jti, _ = create_user_access_token(
+        kid='key-01', username='other user',
+        scopes='fence', expires_in=3600
+    )
+    assert jti == None
+
+def test_create_user_access_token_with_found_user(app, db_session):
+    user = User(username='test_user')
+    db_session.add(user)
+    jti, _ = create_user_access_token(
+        kid='key-01', username='test_user',
+        scopes='fence,oidc', expires_in=3600
+        )
+    assert jti is not None
+
+def test_create_refresh_token(app, db_session):
+    user = User(username='test_user')
+    db_session.add(user)
+    jti, _ = create_user_refresh_token(
+        kid=None, username='test_user',
+        scopes=['fence'], expires_in=3600
+    )
+    db_token = db_session.query(UserRefreshToken).filter_by(jti=jti).first()
+    assert db_token is not None
