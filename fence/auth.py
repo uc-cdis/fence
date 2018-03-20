@@ -1,5 +1,6 @@
 from functools import wraps
 
+from addict import Dict
 from authutils.errors import JWTError
 from authutils.token import current_token, set_current_token
 import flask
@@ -45,47 +46,6 @@ def set_validated_token(*args, **kwargs):
         set_current_token(mocked_token)
     else:
         set_current_token(validate_jwt(*args, **kwargs))
-
-
-def lookup_user(f):
-    """
-    Create a decorator which will set the flask request global user
-    ``flask.g.user`` to the result from looking up the user ID in the current
-    token.
-
-    NOTE: must be called *after* ``current_token`` is set, so this decorator
-    must go *above* the ``require_auth`` decorator.
-
-    Args:
-        f (Callable): function to decorate
-
-    Return:
-        Callable: decorated function
-
-    Example:
-
-    .. code-block:: python
-
-        @lookup_user
-        @require_auth(aud={'openid'}, purpose='access')
-        def some_endpoint():
-            return flask.jsonify(flask.g.user.project_access)
-    """
-
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        """Wrap ``f`` to set ``flask.g.user``."""
-        if not hasattr(flask.g, 'user'):
-            with flask.current_app.db.session as session:
-                flask.g.user = dict(
-                    session
-                    .query(User)
-                    .filter_by(id=current_token['sub'])
-                    .first()
-                )
-        return f(*args, **kwargs)
-
-    return wrapper
 
 
 def require_auth(*args, **kwargs):

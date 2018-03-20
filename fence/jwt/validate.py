@@ -1,5 +1,4 @@
 import authutils.errors
-from authutils.token import set_current_token
 import authutils.token.keys
 import authutils.token.validate
 import flask

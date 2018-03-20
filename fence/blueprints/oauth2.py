@@ -27,7 +27,7 @@ from fence.errors import Unauthorized
 from fence.jwt.token import SCOPE_DESCRIPTION
 from fence.models import Client
 from fence.oidc.server import server
-from fence.user import get_current_user
+from fence.user import current_user
 
 
 blueprint = flask.Blueprint('oauth2', __name__)
@@ -62,7 +62,7 @@ def authorize(*args, **kwargs):
         **kwargs: additional keyword arguments
     """
     need_authentication = False
-    user = get_current_user()
+    user = current_user
 
     if need_authentication or not user:
         redirect_url = (
