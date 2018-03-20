@@ -8,6 +8,7 @@ import smtplib
 
 from fence.errors import NotFound, UserError, InternalError
 from fence.models import User
+from fence.user import get_current_user
 
 
 def update_user_resource(username, resource):
@@ -45,7 +46,8 @@ def get_info_by_username(username):
 
 def get_current_user_info():
     with flask.current_app.db.session as session:
-        return get_user_info(session.merge(flask.g.user), session)
+        user = get_current_user()
+        return get_user_info(session.merge(user), session)
 
 
 def get_user_info(user, session):

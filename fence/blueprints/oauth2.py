@@ -62,10 +62,7 @@ def authorize(*args, **kwargs):
         **kwargs: additional keyword arguments
     """
     need_authentication = False
-    try:
-        user = get_current_user()
-    except Unauthorized:
-        need_authentication = True
+    user = get_current_user()
 
     if need_authentication or not user:
         redirect_url = (
@@ -188,7 +185,6 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
                     error, grant.params.get('redirect_uri'))
 
             try:
-                get_current_user()
                 response = server.create_authorization_response(user)
             except Unauthorized:
                 error = AccessDeniedError(

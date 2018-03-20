@@ -33,7 +33,6 @@ from flask import current_app
 from flask.sessions import SessionInterface
 from flask.sessions import SessionMixin
 
-from fence.errors import Unauthorized
 from fence.jwt.keys import default_public_key
 from fence.jwt.token import (
     SESSION_ALLOWED_SCOPES,
@@ -195,12 +194,7 @@ class UserSessionInterface(SessionInterface):
                 expires=self.get_expiration_time(app, session), httponly=True,
                 domain=domain
             )
-            # try to get user, execption means they're not logged in
-            try:
-                user = get_current_user()
-            except Unauthorized:
-                user = None
-
+            user = get_current_user()
             if user and not flask.g.access_token:
                 _create_access_token_cookie(app, response, user)
         else:
