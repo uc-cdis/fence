@@ -333,9 +333,10 @@ def delete_users(DB, usernames):
             session.delete(user)
         session.commit()
 
+
 def get_jwt_keypair(kid):
+
     from fence.settings import JWT_KEYPAIR_FILES
-    #import pdb; pdb.set_trace()
     cur_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     par_dir = os.path.abspath(os.path.join(cur_dir, os.pardir))
     private_key = None
@@ -345,10 +346,11 @@ def get_jwt_keypair(kid):
 
     private_filepath = None
     if kid is None:
-        private_filepath = os.path.join(par_dir, JWT_KEYPAIR_FILES.values()[0][1])
+        private_filepath = os.path.join(
+            par_dir, JWT_KEYPAIR_FILES.values()[0][1])
     else:
         for _kid, (_, private) in JWT_KEYPAIR_FILES.iteritems():
-            if(kid != _kid ):
+            if(kid != _kid):
                 continue
             private_filepath = os.path.join(par_dir, private)
 
@@ -363,13 +365,16 @@ def get_jwt_keypair(kid):
     else:
         return JWT_KEYPAIR_FILES.keys()[0], private_key
 
+
 def create_user_token(DB, BASE_URL, kid, token_type, username, scopes, expires_in=3600):
     try:
         if token_type == 'access_token':
-            _, token = create_user_access_token(DB, BASE_URL, kid, username, scopes, expires_in)
+            _, token = create_user_access_token(
+                DB, BASE_URL, kid, username, scopes, expires_in)
             return token
         elif token_type == 'refresh_token':
-            _, token = create_user_refresh_token(DB, BASE_URL, kid, username, scopes, expires_in)
+            _, token = create_user_refresh_token(
+                DB, BASE_URL, kid, username, scopes, expires_in)
             return token
         else:
             print('=============Option type is wrong!!!. Please select either access_token or refresh_token=============')
@@ -378,8 +383,9 @@ def create_user_token(DB, BASE_URL, kid, token_type, username, scopes, expires_i
         print(e.message)
         return None
 
+
 def create_user_refresh_token(DB, BASE_URL, kid, username, scopes, expires_in=3600):
-    kid, private_key =  get_jwt_keypair(kid)
+    kid, private_key = get_jwt_keypair(kid)
     if private_key is None:
         print("=========Can not find the private key !!!!==============")
         return None, None
@@ -387,9 +393,9 @@ def create_user_refresh_token(DB, BASE_URL, kid, username, scopes, expires_in=36
     driver = SQLAlchemyDriver(DB)
     with driver.session as current_session:
         user = (current_session.query(User)
-                    .filter_by(username=username)
-                    .first()
-            )
+                .filter_by(username=username)
+                .first()
+                )
         if not user:
             print('=========user is not existed !!!=============')
             return None, None
@@ -406,7 +412,8 @@ def create_user_refresh_token(DB, BASE_URL, kid, username, scopes, expires_in=36
             'exp': exp,
             'jti': jti,
         }
-        token = to_unicode(jwt.encode(claims, private_key, headers=headers, algorithm='RS256'), 'UTF-8')
+        token = to_unicode(jwt.encode(claims, private_key,
+                                      headers=headers, algorithm='RS256'), 'UTF-8')
         current_session.add(
             UserRefreshToken(
                 jti=claims['jti'], userid=user.id, expires=claims['exp']
@@ -416,8 +423,9 @@ def create_user_refresh_token(DB, BASE_URL, kid, username, scopes, expires_in=36
 
         return jti, token
 
+
 def create_user_access_token(DB, BASE_URL, kid, username, scopes, expires_in=3600):
-    kid, private_key =  get_jwt_keypair(kid)
+    kid, private_key = get_jwt_keypair(kid)
     if private_key is None:
         print("=========Can not find the private key !!!!=============")
         return None, None
@@ -425,17 +433,15 @@ def create_user_access_token(DB, BASE_URL, kid, username, scopes, expires_in=360
     driver = SQLAlchemyDriver(DB)
     with driver.session as current_session:
         user = (current_session.query(User)
-                    .filter_by(username=username)
-                    .first()
-            )
+                .filter_by(username=username)
+                .first()
+                )
         if not user:
             print('=========user is not existed !!!=============')
             return None, None
 
         headers = {'kid': kid}
         iat, exp = issued_and_expiration_times(expires_in)
-
-        exp = expires_in
         sub = str(user.id)
         jti = str(uuid.uuid4())
         claims = {
@@ -455,6 +461,3 @@ def create_user_access_token(DB, BASE_URL, kid, username, scopes, expires_in=360
             },
         }
         return jti, to_unicode(jwt.encode(claims, private_key, headers=headers, algorithm='RS256'), 'UTF-8')
-
-
-
