@@ -43,30 +43,43 @@ class GoogleLink(Resource):
         code = flask.request.args.get('code')
         result = flask.current_app.google_client.get_user_id(code)
         email = result.get('email')
+
         if email:
-            # TODO add to proxy group and stuff
             user_google_account = (
                 current_session.query(UserGoogleAccount)
                 .filter(UserGoogleAccount.email == email).first()
             )
+
             if not user_google_account:
                 user_google_account = UserGoogleAccount(
                     email=email,
                     user_id=flask.session['user_id']
                 )
-                current_session.add(user_google_account)
 
-                add_account_to_proxy_group = UserGoogleAccountToProxyGroup(
-                    user_google_account_id=user_google_account.id,
-                    proxy_group_id=flask.session['google_proxy_group_id'],
-                    expires=get_default_google_account_expiration()
+                flask.current_app.logger.info(
+                    'Linking Google account {} to user {}.'.format(
+                        email, flask.session['user_id']))
+
+                current_session.add(user_google_account)
+            elif user_google_account.user_id != flask.session['user_id']:
+                return flask.redirect(flask.session.get('redirect'), response={
+                        'message': {
+                            'error': 'could not link Google '
+                            'account. The account specified is already linked '
+                            'to a different user.'
+                        }
+                    }
                 )
-                current_session.add(add_account_to_proxy_group)
-                current_session.commit()
+            else:
+                # we found a google account that belongs to the user
+                pass
+
+            add_user_google_account_to_proxy_group(
+                user_google_account, flask.session['google_proxy_group_id'])
 
             if flask.session.get('redirect'):
                 return flask.redirect(flask.session.get('redirect'))
-            return flask.jsonify({'username': email})
+            return '', 200
         raise UserError(result)
 
 
@@ -75,6 +88,37 @@ def get_default_google_account_expiration():
     seconds_in_24_hours = 86400
     expiration = now + seconds_in_24_hours
     return expiration
+
+
+def add_user_google_account_to_proxy_group(
+        user_google_account, proxy_group_id):
+    expiration = get_default_google_account_expiration()
+    account_in_proxy_group = (
+        current_session.query(UserGoogleAccountToProxyGroup)
+        .filter(
+            UserGoogleAccountToProxyGroup.user_google_account_id
+            == user_google_account.id
+        ).first()
+    )
+    if account_in_proxy_group:
+        account_in_proxy_group.expires = expiration
+    else:
+        account_in_proxy_group = UserGoogleAccountToProxyGroup(
+            user_google_account_id=user_google_account.id,
+            proxy_group_id=proxy_group_id,
+            expires=expiration
+        )
+        current_session.add(account_in_proxy_group)
+
+    flask.current_app.logger.info(
+        'Adding user {}\'s Google account to proxy group {}. '
+        'Expiration: {}'.format(
+            flask.session['user_id'],
+            flask.session['google_proxy_group_id'],
+            expiration)
+    )
+
+    current_session.commit()
 
 
 blueprint_api.add_resource(
