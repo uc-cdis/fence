@@ -26,8 +26,8 @@ def _populate_test_identity(session, **kwargs):
 
 
 def test_google_access_token_new_service_account(
-        app, client, oauth_client, db_session,
-        encoded_creds_jwt, cloud_manager):
+        app, client, oauth_client, db_session, encoded_creds_jwt,
+        cloud_manager, no_mock_auth):
     """
     Test that ``POST /credentials/google`` creates a new service
     account for the client if one doesn't exist.

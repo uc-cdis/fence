@@ -1,15 +1,12 @@
 from functools import wraps
 
-from authutils.errors import JWTError, JWTExpiredError
-from authutils.token.validate import require_auth_header
-from authutils.token.validate import current_token
+from authutils.errors import JWTError
+from authutils.token import current_token, set_current_token
 import flask
-from flask_sqlalchemy_session import current_session
 
-from fence.errors import Unauthorized, InternalError
+from fence.errors import Unauthorized
 from fence.jwt.validate import validate_jwt
-from fence.models import User, IdentityProvider
-from fence.user import get_current_user
+from fence.models import IdentityProvider, User
 
 
 def build_redirect_url(hostname, path):
@@ -31,30 +28,10 @@ def build_redirect_url(hostname, path):
     return redirect_base + path
 
 
-def login_user(request, username, provider):
-    user = current_session.query(
-        User).filter(User.username == username).first()
-    if not user:
-        user = User(username=username)
-        idp = (
-            current_session.query(IdentityProvider)
-            .filter(IdentityProvider.name == provider).first()
-        )
-        if not idp:
-            idp = IdentityProvider(name=provider)
-        user.identity_provider = idp
-        current_session.add(user)
-        current_session.commit()
-    flask.g.user = user
-    flask.g.scopes = ["_all"]
-    flask.g.token = None
-
-
 def logout(next_url=None):
     # Call get_current_user (but ignore the result) just to check that either
     # the user is logged in or that authorization is mocked.
-    user = get_current_user()
-    if not user:
+    if not current_token:
         raise Unauthorized("You are not logged in")
     if flask.session.get('provider') == IdentityProvider.itrust:
         next_url = flask.current_app.config['ITRUST_GLOBAL_LOGOUT'] + next_url
@@ -62,117 +39,110 @@ def logout(next_url=None):
     return next_url
 
 
-def check_scope(scope):
-    def wrapper(f):
-        @wraps(f)
-        def check_scope_and_call(*args, **kwargs):
-            if '_all' in flask.g.scopes or scope in flask.g.scopes:
-                return f(*args, **kwargs)
-            else:
-                raise Unauthorized(
-                    "Requested scope {} can't access this endpoint"
-                    .format(scope))
-        return check_scope_and_call
+def set_validated_token(*args, **kwargs):
+    mocked_token = flask.current_app.config.get('MOCK_AUTH')
+    if mocked_token:
+        set_current_token(mocked_token)
+    else:
+        set_current_token(validate_jwt(*args, **kwargs))
+
+
+def lookup_user(f):
+    """
+    Create a decorator which will set the flask request global user
+    ``flask.g.user`` to the result from looking up the user ID in the current
+    token.
+
+    NOTE: must be called *after* ``current_token`` is set, so this decorator
+    must go *above* the ``require_auth`` decorator.
+
+    Args:
+        f (Callable): function to decorate
+
+    Return:
+        Callable: decorated function
+
+    Example:
+
+    .. code-block:: python
+
+        @lookup_user
+        @require_auth(aud={'openid'}, purpose='access')
+        def some_endpoint():
+            return flask.jsonify(flask.g.user.project_access)
+    """
+
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        """Wrap ``f`` to set ``flask.g.user``."""
+        if not hasattr(flask.g, 'user'):
+            with flask.current_app.db.session as session:
+                flask.g.user = dict(
+                    session
+                    .query(User)
+                    .filter_by(id=current_token['sub'])
+                    .first()
+                )
+        return f(*args, **kwargs)
+
     return wrapper
 
 
-def login_required(scope=None):
+def require_auth(*args, **kwargs):
     """
-    Create decorator to require a user session in shibboleth.
+    Return a function decorator to require a JWT auth header with certain
+    constraints.
+
+    The arguments of this function are passed through to
+    ``fence.jwt.validate.validate_jwt``.
     """
 
     def decorator(f):
+        """Decorate the function ``f`` with the token wrapper."""
+
         @wraps(f)
-        def wrapper(*args, **kwargs):
-            if flask.session.get('username'):
-                login_user(
-                    flask.request,
-                    flask.session['username'],
-                    flask.session['provider'],
-                )
-                return f(*args, **kwargs)
+        def wrapper(*f_args, **f_kwargs):
+            """Wrap ``f`` to validate and set the current token."""
+            set_validated_token(*args, **kwargs)
+            return f(*f_args, **f_kwargs)
 
-            eppn = None
-            enable_shib = (
-                'shibboleth' in
-                flask.current_app.config.get('ENABLED_IDENTITY_PROVIDERS', [])
-            )
-            if enable_shib and 'SHIBBOLETH_HEADER' in flask.current_app.config:
-                eppn = flask.request.headers.get(
-                    flask.current_app.config['SHIBBOLETH_HEADER']
-                )
-
-            if flask.current_app.config.get('MOCK_AUTH') is True:
-                eppn = 'test'
-            # if there is authorization header for oauth
-            if 'Authorization' in flask.request.headers:
-                has_oauth(scope=scope)
-                return f(*args, **kwargs)
-            # if there is shibboleth session, then create user session and
-            # log user in
-            elif eppn:
-                username = eppn.split('!')[-1]
-                flask.session['username'] = username
-                flask.session['provider'] = IdentityProvider.itrust
-                login_user(flask.request, username, flask.session['provider'])
-                return f(*args, **kwargs)
-            else:
-                raise Unauthorized("Please login")
         return wrapper
 
     return decorator
 
 
-def handle_login(scope):
-    if flask.session.get('username'):
-        login_user(
-            flask.request,
-            flask.session['username'],
-            flask.session['provider'],
-        )
+def require_admin(f):
+    """
+    Decorate a function to require that the current user has admin privileges.
+    Should be used as a decorator following ``require_auth``, for example:
 
-    eppn = flask.request.headers.get(
-        flask.current_app.config['SHIBBOLETH_HEADER']
-    )
+    .. code-block:: python
 
-    if flask.current_app.config.get('MOCK_AUTH') is True:
-        eppn = 'test'
-    # if there is authorization header for oauth
-    if 'Authorization' in flask.request.headers:
-        has_oauth(scope=scope)
-    # if there is shibboleth session, then create user session and
-    # log user in
-    elif eppn:
-        username = eppn.split('!')[-1]
-        flask.session['username'] = username
-        flask.session['provider'] = IdentityProvider.itrust
-        login_user(flask.request, username, flask.session['provider'])
-    else:
-        raise Unauthorized("Please login")
+        @blueprint.route('/admin-only')
+        @require_admin
+        @require_auth(aud={'openid'}, purpose='access')
+        def admin_endpoint():
+            return 'user is admin'
 
+    (This is because of the use of ``current_token``, which is set by
+    ``require_auth``.)
 
-def has_oauth(scope=None):
-    scope = scope or set()
-    scope.update({'openid'})
-    try:
-        access_token_claims = validate_jwt(aud=scope, purpose='access')
-    except JWTError as e:
-        raise Unauthorized('failed to validate token: {}'.format(e))
-    user_id = access_token_claims['sub']
-    user = current_session.query(User).filter_by(id=int(user_id)).first()
-    if not user:
-        raise Unauthorized('no user found with id: {}'.format(user_id))
-    # set some application context for current user and client id
-    flask.g.user = user
-    # client_id should be None if the field doesn't exist or is empty
-    flask.g.client_id = access_token_claims.get('azp') or None
-    flask.g.token = access_token_claims
+    Args:
+        f (Callable): a function already be decorated with ``require_auth``
 
+    Return:
+        Callable: the wrapped function
+    """
 
-def get_user_from_claims(claims):
-    return (
-        current_session
-        .query(User)
-        .filter(User.id == claims['sub'])
-        .first()
-    )
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        """Wrap ``f`` to raise error if user is not authorized as admin."""
+        try:
+            is_admin = current_token['context']['user']['is_admin']
+        except KeyError as e:
+            raise JWTError('missing field in current token: {}'.format(str(e)))
+        if not is_admin:
+            raise Unauthorized('user is not admin')
+        return f(*args, **kwargs)
+
+    return wrapper

@@ -6,17 +6,15 @@ from cirrus.google_cloud import get_valid_service_account_id_for_client
 from flask_sqlalchemy_session import current_session
 import flask
 
-from fence.auth import require_auth_header
-from fence.auth import current_token
+from fence.auth import current_token, require_auth
 from fence.errors import NotSupported, UserError
 from fence.jwt.blacklist import blacklist_token
 from fence.jwt.token import USER_ALLOWED_SCOPES
 from fence.models import (
     GoogleServiceAccount,
-    UserRefreshToken
+    User,
+    UserRefreshToken,
 )
-from userdatamodel.models import User
-from userdatamodel.models import GoogleProxyGroup
 
 from fence.resources.storage.cdis_jwt import (
     create_user_access_token,
@@ -37,7 +35,7 @@ ALL_RESOURCES = {
 
 
 @blueprint.route('/', methods=['GET'])
-@require_auth_header({'credentials'})
+@require_auth(aud={'credentials'})
 def list_sources():
     """
     List different resources user can have credentials
@@ -64,7 +62,7 @@ def list_sources():
 
 
 @blueprint.route('/<provider>/', methods=['GET'])
-@require_auth_header({'credentials'})
+@require_auth(aud={'credentials'})
 def list_keypairs(provider):
     """
     List access keys for user
@@ -127,7 +125,7 @@ def list_keypairs(provider):
             tokens = (
                 session
                 .query(UserRefreshToken)
-                .filter_by(userid=user_id)
+                .filter_by(userid=current_token['sub'])
                 .order_by(UserRefreshToken.expires.desc())
                 .all()
             )
@@ -169,7 +167,7 @@ def list_keypairs(provider):
 
 
 @blueprint.route('/<provider>/', methods=['POST'])
-@require_auth_header({'credentials'})
+@require_auth(aud={'credentials'})
 def create_keypairs(provider):
     """
     Generate a keypair for user
@@ -312,7 +310,7 @@ def create_access_token_api():
 
 
 @blueprint.route('/<provider>/<access_key>', methods=['DELETE'])
-@require_auth_header({'credentials'})
+@require_auth(aud={'credentials'})
 def delete_keypair(provider, access_key):
     """
     .. http:get: /<provider>/(string: access_key)
@@ -490,7 +488,8 @@ def _create_google_service_account_for_client(
 
         new_service_account = (
             g_cloud_manager.create_service_account_for_proxy_group(
-                proxy_group_id, account_id=service_account_id)
+                proxy_group_id, account_id=service_account_id
+            )
         )
 
         service_account = GoogleServiceAccount(

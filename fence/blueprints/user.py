@@ -1,7 +1,8 @@
+from authutils.token import current_token
 import flask
 from flask_sqlalchemy_session import current_session
 
-from fence.auth import login_required
+from fence.auth import require_auth
 from fence.errors import Unauthorized, UserError, NotFound
 from fence.models import (
     Application,
@@ -19,49 +20,38 @@ blueprint = flask.Blueprint('user', __name__)
 
 
 @blueprint.route('/', methods=['GET'])
-@login_required({'user'})
+@require_auth(aud={'user'})
 def user_info():
     return get_current_user_info()
 
 
 @blueprint.route('/anyaccess', methods=['GET'])
-@login_required({'user'})
+@require_auth(aud={'user'})
 def any_access():
     """
     Check if the user is in our database
 
-    :note if a user is specified with empty access it still counts 
+    :note if a user is specified with empty access it still counts
 
-    :query project: (optional) Check for read access to a specific program/project
-
+    :query project:
+        (optional) Check for read access to a specific program/project
     """
     project = flask.request.args.get('project')
-    projects = None
-    if flask.g.token is None:
-        flask.g.user = current_session.merge(flask.g.user)
-        projects = flask.g.user.project_access
-    else:
-        projects = flask.g.token['context']['user']['projects']
-    
-    success = False
+    projects = current_token['context']['user']['projects']
+    authorized = (
+        (project and 'read' in projects.get(project, []))
+        or (not project and bool(projects))
+    )
+    if not authorized:
+        raise Unauthorized("Please login")
 
-    if not project and len(projects) > 0:
-        success = True
-    elif project and project in projects:
-        access = projects[project]
-        if 'read' in access:
-            success = True
-        
-
-    if success:
-        resp = flask.make_response(flask.jsonify({'result': 'success'}), 200)
-        resp.headers['REMOTE_USER'] = flask.g.user.username
-        return resp
-    raise Unauthorized("Please login")
+    resp = flask.make_response(flask.jsonify({'result': 'success'}), 200)
+    resp.headers['REMOTE_USER'] = current_token['context']['user']['username']
+    return resp
 
 
 @blueprint.route('/cert', methods=['GET'])
-@login_required({'user'})
+@require_auth(aud={'user'})
 def missing_certificate():
     flask.g.user = current_session.merge(flask.g.user)
     if not flask.g.user.application:
@@ -73,7 +63,7 @@ def missing_certificate():
 
 
 @blueprint.route('/cert/<certificate>', methods=['PUT'])
-@login_required({'user'})
+@require_auth(aud={'user'})
 def upload_certificate(certificate):
     extension = flask.request.args.get('extension')
     allowed_extension = ['pdf', 'png', 'jpg', 'jpeg', 'txt']
@@ -121,7 +111,7 @@ def upload_certificate(certificate):
 
 
 @blueprint.route('/cert/<certificate>', methods=['GET'])
-@login_required({'user'})
+@require_auth(aud={'user'})
 def download_certificate(certificate):
     if not flask.g.user.application:
         flask.g.user.application = Application()

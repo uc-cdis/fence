@@ -29,11 +29,6 @@ from userdatamodel.models import (
 )
 
 
-def lookup(model, **filter_kwargs):
-    with flask.current_app.db.session as session:
-        return session.query(model).filter_by(**filter_kwargs).first()
-
-
 class Client(Base, OAuth2ClientMixin):
 
     __tablename__ = 'client'
@@ -222,12 +217,15 @@ class GoogleServiceAccount(Base):
             return self
 
 
-to_timestamp = "CREATE OR REPLACE FUNCTION pc_datetime_to_timestamp(datetoconvert timestamp) " \
-               "RETURNS BIGINT AS " \
-               "$BODY$ " \
-               "select extract(epoch from $1)::BIGINT " \
-               "$BODY$ " \
-               "LANGUAGE 'sql' IMMUTABLE STRICT;"
+to_timestamp = (
+    "CREATE OR REPLACE FUNCTION"
+    " pc_datetime_to_timestamp(datetoconvert timestamp)"
+    " RETURNS BIGINT AS"
+    " $BODY$"
+    " select extract(epoch from $1)::BIGINT"
+    " $BODY$"
+    " LANGUAGE 'sql' IMMUTABLE STRICT;"
+)
 
 
 def migrate(driver):

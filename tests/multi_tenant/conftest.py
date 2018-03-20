@@ -13,6 +13,11 @@ import fence.blueprints.login
 from tests import test_settings
 
 
+@pytest.fixture(scope='function', autouse=True)
+def mock_auth(set_mock_auth):
+    set_mock_auth()
+
+
 @pytest.fixture(scope='function')
 def fence_oauth_client_url():
     return 'http://fence-test-client.net/oauth'

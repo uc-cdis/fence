@@ -8,7 +8,7 @@ from flask_sqlalchemy_session import flask_scoped_session
 import urlparse
 from userdatamodel.driver import SQLAlchemyDriver
 
-from fence.auth import logout, build_redirect_url
+from fence.auth import logout, build_redirect_url, require_auth
 from fence.errors import UserError
 from fence.jwt import keys
 from fence.models import migrate
@@ -97,6 +97,7 @@ def app_register_blueprints(app):
         return flask.jsonify(endpoints)
 
     @app.route('/logout')
+    @require_auth(aud={'openid'})
     def logout_endpoint():
         root = app.config.get('APPLICATION_ROOT', '')
         next_url = build_redirect_url(app.config.get('ROOT_URL', ''), flask.request.args.get('next', root))

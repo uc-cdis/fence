@@ -2,8 +2,6 @@
 Test using an API key to generate an access token.
 """
 
-import json
-
 from tests.utils.api_key import get_api_key
 
 
@@ -17,8 +15,8 @@ def test_cdis_get_access_token(
     api_key = response.json['api_key']
     path = '/credentials/cdis/access_token'
     data = {'api_key': api_key}
-    response = client.post(path, data=data,
-        headers={'Authorization': 'Bearer ' + str(encoded_credentials_jwt)})
+    headers = {'Authorization': 'Bearer ' + str(encoded_credentials_jwt)}
+    response = client.post(path, data=data, headers=headers)
     assert 'access_token' in response.json
 
 
@@ -32,6 +30,6 @@ def test_cdis_get_access_token_with_formdata(
     api_key = response.json['api_key']
     path = '/credentials/cdis/access_token'
     data = {'api_key': api_key}
-    response = client.post(path, data=data,
-        headers={'Authorization': 'Bearer ' + str(encoded_credentials_jwt)})
+    headers = {'Authorization': 'Bearer ' + str(encoded_credentials_jwt)}
+    response = client.post(path, data=data, headers=headers)
     assert 'access_token' in response.json

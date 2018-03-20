@@ -13,3 +13,8 @@ def authentication_headers(oidc_client):
         'client_id': oidc_client.client_id,
         'state': state,
     }
+
+
+@pytest.fixture(scope='function', autouse=True)
+def mock_auth(set_mock_auth):
+    set_mock_auth()

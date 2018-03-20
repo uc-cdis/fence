@@ -3,6 +3,11 @@ import pytest
 import tests.utils.oauth2
 
 
+@pytest.fixture(scope='function', autouse=True)
+def mock_auth(set_mock_auth):
+    set_mock_auth()
+
+
 @pytest.fixture(scope='function')
 def token_response(client, oauth_client):
     """

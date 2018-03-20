@@ -1,4 +1,5 @@
 import authutils.errors
+from authutils.token import set_current_token
 import authutils.token.keys
 import authutils.token.validate
 import flask
@@ -118,17 +119,3 @@ def validate_jwt(
             raise JWTError('token is blacklisted')
 
     return claims
-
-
-def require_jwt(aud=None, purpose=None):
-
-    def decorator(f):
-
-        def wrapper(*args, **kwargs):
-
-            validate_jwt(aud=aud, purpose=purpose)
-            return f(args, kwargs)
-
-        return wrapper
-
-    return decorator

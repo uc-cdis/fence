@@ -1,7 +1,6 @@
 import flask
 from flask_restful import Resource
 
-from fence.auth import login_user
 from fence.errors import UserError
 from fence.models import IdentityProvider
 
@@ -24,7 +23,6 @@ class GoogleLogin(Resource):
         if email:
             flask.session['username'] = email
             flask.session['provider'] = IdentityProvider.google
-            login_user(flask.request, email, IdentityProvider.google)
             if flask.session.get('redirect'):
                 return flask.redirect(flask.session.get('redirect'))
             return flask.jsonify({'username': email})

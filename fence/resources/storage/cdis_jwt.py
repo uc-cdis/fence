@@ -1,11 +1,11 @@
 import flask
+from flask_sqlalchemy_session import current_session
 
-from fence.auth import get_user_from_claims
 from fence.errors import Unauthorized
 from fence.jwt import token
 from fence.jwt.errors import JWTError
 from fence.jwt.validate import validate_jwt
-from fence.models import UserRefreshToken
+from fence.models import User, UserRefreshToken
 
 
 def create_id_token(
@@ -39,7 +39,8 @@ def create_access_token(user, keypair, api_key, expires_in, scopes):
 
 def create_api_key(user_id, keypair, expires_in, scopes, client_id):
     return_token, claims = token.generate_api_key(
-        keypair.kid, keypair.private_key, user_id, expires_in, scopes, client_id
+        keypair.kid, keypair.private_key, user_id, expires_in, scopes,
+        client_id
     )
     with flask.current_app.db.session as session:
         session.add(
@@ -71,7 +72,7 @@ def create_user_access_token(keypair, api_key, expires_in):
     try:
         claims = validate_jwt(api_key, aud={'fence'}, purpose='api_key')
         scopes = claims['aud']
-        user = get_user_from_claims(claims)
+        user = current_session.query(User).filter_by(id=claims['sub']).first()
     except Exception as e:
         raise Unauthorized(e.message)
     return token.generate_signed_access_token(

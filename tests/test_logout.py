@@ -17,4 +17,4 @@ def test_logout(client, db_session):
     # login mocked user
     r = client.get('/user/')
     r = client.get('/logout')
-    assert r.status_code == 302
+    assert r.status_code == 302, r.json

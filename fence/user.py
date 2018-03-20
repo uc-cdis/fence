@@ -7,8 +7,9 @@ from fence.models import User
 
 def get_current_user():
     username = flask.session.get('username')
-    if flask.current_app.config.get('MOCK_AUTH', False) is True:
-        username = 'test'
+    mock_auth_token = flask.current_app.config.get('MOCK_AUTH')
+    if mock_auth_token:
+        username = mock_auth_token['context']['user']['name']
     if not username:
         raise Unauthorized("User not logged in")
     return current_session.query(User).filter_by(username=username).first()

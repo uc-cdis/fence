@@ -1,5 +1,13 @@
-from . import utils, test_settings
 import jwt
+import pytest
+
+from tests import utils
+from tests import test_settings
+
+
+@pytest.fixture(scope='function', autouse=True)
+def mock_auth(set_mock_auth):
+    set_mock_auth()
 
 
 def test_indexd_download_file(client, oauth_client, user_client, indexd_client):
@@ -67,7 +75,9 @@ def test_indexd_download_file_no_jwt(client, auth_client):
     assert 'url' not in response.json.keys()
 
 
-def test_indexd_unauthorized_download_file(client, oauth_client, unauthorized_user_client, indexd_client):
+def test_indexd_unauthorized_download_file(
+        client, oauth_client, unauthorized_user_client, indexd_client,
+        no_mock_auth):
     """
     Test ``GET /data/download/1``.
     """
@@ -77,7 +87,8 @@ def test_indexd_unauthorized_download_file(client, oauth_client, unauthorized_us
     assert 'url' not in response.json.keys()
 
 
-def test_unauthorized_indexd_download_file(client, oauth_client, user_client, indexd_client):
+def test_unauthorized_indexd_download_file(
+        client, oauth_client, user_client, indexd_client, no_mock_auth):
     """
     Test ``GET /data/download/1``.
     """
@@ -85,7 +96,9 @@ def test_unauthorized_indexd_download_file(client, oauth_client, user_client, in
     kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
     private_key = utils.read_file('resources/keys/test_private_key.pem')
     headers = {'Authorization': 'Bearer ' + jwt.encode(
-        utils.unauthorized_context_claims(user_client.username, user_client.user_id),
+        utils.unauthorized_context_claims(
+            user_client.username, user_client.user_id
+        ),
         key=private_key,
         headers={'kid': kid},
         algorithm='RS256',
@@ -95,7 +108,9 @@ def test_unauthorized_indexd_download_file(client, oauth_client, user_client, in
     assert 'url' not in response.json.keys()
 
 
-def test_unauthorized_indexd_upload_file(client, oauth_client, encoded_jwt, user_client, indexd_client):
+def test_unauthorized_indexd_upload_file(
+        client, oauth_client, encoded_jwt, user_client, indexd_client,
+        no_mock_auth):
     """
     Test ``GET /data/upload/1``.
     """
@@ -103,7 +118,9 @@ def test_unauthorized_indexd_upload_file(client, oauth_client, encoded_jwt, user
     kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
     private_key = utils.read_file('resources/keys/test_private_key.pem')
     headers = {'Authorization': 'Bearer ' + jwt.encode(
-        utils.unauthorized_context_claims(user_client.username, user_client.user_id),
+        utils.unauthorized_context_claims(
+            user_client.username, user_client.user_id
+        ),
         key=private_key,
         headers={'kid': kid},
         algorithm='RS256',

@@ -19,6 +19,14 @@ SCOPE_DESCRIPTION = {
 }
 
 
+SUPPORTED_TOKEN_TYPES = [
+    'access',
+    'id',
+    'refresh',
+    'session',
+]
+
+
 # Allowed scopes for user requested token and oauth2 client requested token
 # TODO: this should be more discoverable and configurable
 #

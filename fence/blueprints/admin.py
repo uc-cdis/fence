@@ -1,22 +1,25 @@
 import flask
+
+
+from fence.auth import require_auth, require_admin
 from fence.errors import UserError
-from flask import request
-from fence.auth import login_required
 from fence.resources.user import get_info_by_username, update_user_resource
 
 blueprint = flask.Blueprint('admin', __name__)
 
 
 @blueprint.route('/user/<username>', methods=['GET'])
-@login_required({'admin'})
+@require_admin
+@require_auth(aud={'openid'}, purpose='access')
 def get_user(username):
     return get_info_by_username(username)
 
 
 @blueprint.route('/user/<username>', methods=['PUT'])
-@login_required({'admin'})
+@require_admin
+@require_auth(aud={'openid'}, purpose='access')
 def update_user(username):
-    resource = request.get_json().get('resource')
+    resource = flask.request.get_json().get('resource')
     if not resource:
         raise UserError('Please provide resource to be granted')
     if resource not in ['compute', 'storage']:

@@ -1,7 +1,6 @@
 import flask
 from flask_restful import Resource
 
-from fence.auth import login_user
 from fence.errors import InternalError, Unauthorized
 from fence.models import IdentityProvider
 
@@ -50,7 +49,6 @@ class ShibbolethLoginFinish(Resource):
         if username:
             flask.session['username'] = username
             flask.session['provider'] = IdentityProvider.itrust
-            login_user(flask.request, username, flask.session['provider'])
             if flask.session.get('redirect'):
                 return flask.redirect(flask.session.get('redirect'))
             return "logged in"

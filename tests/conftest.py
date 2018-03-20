@@ -316,31 +316,50 @@ def oauth_user(app, db_session):
     return Dict(username=username, user_id=user_id)
 
 
-@pytest.fixture(scope='function', autouse=True)
-def set_mock_auth(app, oauth_user, db_session, monkeypatch):
-    user = (
-        db_session
-        .query(models.User)
-        .filter_by(id=oauth_user.user_id)
-        .first()
-    )
-    mock_auth = {
-        'pur': 'access',
-        'aud': ['openid', 'fence', 'user', 'data'],
-        'sub': oauth_user.user_id,
-        'iss': app.config['BASE_URL'],
-        'iat': time.time(),
-        'exp': time.time() + 1000000,
-        'jti': str(uuid.uuid4()),
-        'context': {
-            'user': {
-                'name': oauth_user.username,
-                'is_admin': True,
-                'projects': dict(user.project_access),
+@pytest.fixture(scope='function')
+def set_mock_auth(app, oauth_user, oauth_client, db_session, monkeypatch):
+    """
+    Return a function which enables the ``MOCK_AUTH`` setting on the app config
+    with a fake JWT. The function can be called in conftests of submodules in
+    the tests like this:
+
+    .. code-block:: python
+
+        @pytest.fixture(scope='function', autouse=True)
+        def mock_auth(set_mock_auth):
+            set_mock_auth()
+
+    This has to be done this way to avoid ``oauth_user`` and ``oauth_client``
+    inserting things into the database unexpectedly.
+    """
+
+    def call():
+        user = (
+            db_session
+            .query(models.User)
+            .filter_by(id=oauth_user.user_id)
+            .first()
+        )
+        mock_auth = {
+            'pur': 'access',
+            'aud': ['openid', 'fence', 'user', 'data'],
+            'sub': oauth_user.user_id,
+            'iss': app.config['BASE_URL'],
+            'iat': time.time(),
+            'exp': time.time() + 1000000,
+            'jti': str(uuid.uuid4()),
+            'azp': oauth_client.client_id,
+            'context': {
+                'user': {
+                    'name': oauth_user.username,
+                    'is_admin': True,
+                    'projects': dict(user.project_access),
+                },
             },
-        },
-    }
-    monkeypatch.setitem(app.config, 'MOCK_AUTH', mock_auth)
+        }
+        monkeypatch.setitem(app.config, 'MOCK_AUTH', mock_auth)
+
+    return call
 
 
 @pytest.fixture(scope='function')
@@ -398,6 +417,14 @@ def patch_app_db_session(app, monkeypatch):
     """
 
     def do_patch(session):
+        """
+        This is for the modules that use:
+
+            from flask_sqlalchemy_session import current_session
+
+        so that ``current_session`` points to ``db_session`` instead. If a
+        module stops using that import, remove it from ``modules_to_patch``.
+        """
         monkeypatch.setattr(app.db, 'Session', lambda: session)
         modules_to_patch = [
             'fence.blueprints.storage_creds',
@@ -405,6 +432,7 @@ def patch_app_db_session(app, monkeypatch):
             'fence.resources.storage.cdis_jwt',
             'fence.resources.user',
             'fence.oidc.jwt_generator',
+            'fence.user',
         ]
         for module in modules_to_patch:
             monkeypatch.setattr('{}.current_session'.format(module), session)
@@ -435,16 +463,6 @@ def oauth_client(app, db_session, oauth_user):
     ))
     db_session.commit()
     return Dict(client_id=client_id, client_secret=client_secret, url=url)
-
-
-@pytest.fixture(scope='function')
-def oauth_test_client(client, oauth_client):
-    return OAuth2TestClient(client, oauth_client, confidential=True)
-
-
-@pytest.fixture(scope='function')
-def oauth_test_client_public(client, oauth_client_public):
-    return OAuth2TestClient(client, oauth_client_public, confidential=False)
 
 
 @pytest.fixture(scope='function')

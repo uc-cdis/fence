@@ -1,10 +1,18 @@
+from urlparse import urlparse
+
+from cdispyutils.config import get_value
+from cdispyutils.hmac4 import generate_aws_presigned_url
 import flask
 import requests
-from urlparse import urlparse
-from fence.auth import login_required
-from cdispyutils.hmac4 import generate_aws_presigned_url
-from cdispyutils.config import get_value
-from ..errors import UnavailableError, NotFound, Unauthorized, NotSupported, InternalError
+
+from fence.auth import current_token, require_auth
+from fence.errors import (
+    UnavailableError,
+    NotFound,
+    Unauthorized,
+    NotSupported,
+    InternalError,
+)
 
 ACTION_DICT = {
     "s3": {
@@ -55,17 +63,17 @@ blueprint = flask.Blueprint('data', __name__)
 
 @blueprint.route('/download/<file_id>', methods=['GET'])
 def download_file(file_id):
-    '''
+    """
     Get a presigned url to download a file given by file_id.
-    '''
+    """
     return get_file('download', file_id)
 
 
 @blueprint.route('/upload/<file_id>', methods=['GET'])
 def upload_file(file_id):
-    '''
+    """
     Get a presigned url to upload a file given by file_id.
-    '''
+    """
     return get_file('upload', file_id)
 
 
@@ -143,7 +151,9 @@ def get_file(action, file_id):
         return return_link(action, doc['urls'])
     if not check_authorization(action, set_acls):
         raise Unauthorized("You don't have access permission on this file")
-    return return_link(action, doc['urls'], flask.g.user.id, flask.g.user.username)
+    user_id = current_token['sub']
+    username = current_token['context']['user']['name']
+    return return_link(action, doc['urls'], user_id, username)
 
 
 def filter_auth_ids(action, list_auth_ids):
@@ -164,10 +174,9 @@ def check_public(set_acls):
         return True
 
 
-@login_required({'data'})
+@require_auth(aud={'data'}, purpose='access')
 def check_authorization(action, set_acls):
-    if flask.g.token is None:
-        given_acls = set(filter_auth_ids(action, flask.g.user.project_access))
-    else:
-        given_acls = set(filter_auth_ids(action, flask.g.token['context']['user']['projects']))
+    given_acls = set(filter_auth_ids(
+        action, current_token['context']['user']['projects']
+    ))
     return len(set_acls & given_acls) > 0
