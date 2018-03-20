@@ -1,5 +1,6 @@
 from fence.resources import userdatamodel as udm
 from fence.models import UserToGroup, AccessPrivilege
+from fence.errors import UserError
 
 
 def get_group(current_session, groupname):

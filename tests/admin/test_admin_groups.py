@@ -1,6 +1,7 @@
 import fence.resources.admin as adm
 from fence.models import Group, AccessPrivilege, Project, User
 import pytest
+from fence.errors import UserError, NotFound
 
 
 def test_get_group(db_session, awg_users):
@@ -12,6 +13,10 @@ def test_get_group(db_session, awg_users):
     info['projects'].sort()
     assert info['projects'] == expected_projects
 
+def test_get_inexistent_group(db_session, awg_users):
+    with pytest.raises(UserError):
+        info = adm.get_group_info(db_session, "test_group_XXX")
+
 
 def test_create_group(db_session):
     group = db_session.query(Group).filter(Group.name == 'new_group_1').first()
@@ -20,6 +25,10 @@ def test_create_group(db_session):
     group = db_session.query(Group).filter(Group.name == 'new_group_1').first()
     assert group.name == 'new_group_1'
     assert group.description == 'a new group'
+
+def test_create_group_that_already_exists(db_session, awg_users):
+    with pytest.raises(UserError):
+        adm.create_group(db_session, 'test_group_2', 'a new group')
 
 
 def test_delete_group(db_session, awg_groups):
@@ -104,6 +113,11 @@ def test_get_group_projects(db_session, awg_groups):
     expected_projects = ['test_project_7', 'test_project_6']
     expected_projects.sort()
     assert expected_projects == group_projects
+
+
+def test_getprojects_from_inexistent_group(db_session, awg_groups):
+    with pytest.raises(NotFound):
+        group_projects = adm.get_group_projects(db_session, 'test_group_XXX')
 
 
 def test_remove_project_to_group(db_session, awg_groups):

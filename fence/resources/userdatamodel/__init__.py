@@ -538,6 +538,8 @@ def get_all_users(current_session):
 
 def get_group_projects(current_session, groupname):
     group = get_group(current_session, groupname)
+    if not group:
+        raise NotFound("Group {0} does not exist".format(groupname))
     projects_to_group = current_session.query(AccessPrivilege).filter(
         AccessPrivilege.group_id == group.id).all()
     projects = []
