@@ -204,6 +204,8 @@ class GoogleServiceAccount(Base):
             'google_service_accounts', cascade='all, delete-orphan')
     )
 
+    # TODO project_id
+
     email = Column(
         String,
         unique=True,
@@ -247,26 +249,6 @@ class UserGoogleAccountToProxyGroup(Base):
     user_google_account_id = Column(
         Integer,
         ForeignKey(UserGoogleAccount.id),
-        nullable=False,
-        primary_key=True
-    )
-
-    proxy_group_id = Column(
-        String,
-        ForeignKey(GoogleProxyGroup.id),
-        nullable=False,
-        primary_key=True
-    )
-
-    expires = Column(BigInteger)
-
-
-class GoogleServiceAccountToProxyGroup(Base):
-    __tablename__ = "google_service_account_to_proxy_group"
-
-    google_service_account_id = Column(
-        Integer,
-        ForeignKey(GoogleServiceAccount.id),
         nullable=False,
         primary_key=True
     )
