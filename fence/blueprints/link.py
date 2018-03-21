@@ -46,54 +46,71 @@ class GoogleLink(Resource):
         result = flask.current_app.google_client.get_user_id(code)
         email = result.get('email')
 
+        error = None
+        error_description = None
+
         if not email:
-            return flask.redirect(
-                flask.session.get('redirect') + '?error=g_acnt_auth_failure' +
-                '&error_description=' + result
-            )
-
-        user_google_account = (
-            current_session.query(UserGoogleAccount)
-            .filter(UserGoogleAccount.email == email).first()
-        )
-
-        if not user_google_account:
-            user_google_account = UserGoogleAccount(
-                email=email,
-                user_id=flask.session['user_id']
-            )
-            current_session.add(user_google_account)
-
-            flask.current_app.logger.info(
-                'Linking Google account {} to user {}.'.format(
-                    email, flask.session['user_id']))
-
-        elif user_google_account.user_id != flask.session['user_id']:
-            return flask.redirect(
-                flask.session.get('redirect') +
-                '?error=g_acnt_link_failure' +
-                '&error_description=Could not link Google '
-                'account. The account specified is already linked '
-                'to a different user.'
-            )
+            error = 'g_acnt_auth_failure'
+            error_description = result
         else:
-            # we found a google account that belongs to the user
-            pass
-
-        try:
-            attempt_to_add_user_google_account_to_proxy_group(
-                user_google_account, flask.session['google_proxy_group_id'])
-        except APIError as error:
-            return flask.redirect(
-                flask.session.get('redirect') +
-                '?error=g_acnt_access_failure' +
-                '&error_description=' + error.message
+            user_google_account = (
+                current_session.query(UserGoogleAccount)
+                .filter(UserGoogleAccount.email == email).first()
             )
 
-        if flask.session.get('redirect'):
-            return flask.redirect(flask.session.get('redirect'))
+            if not user_google_account:
+                _add_new_user_google_account(email, flask.session['user_id'])
 
-        return '', 200
+            elif user_google_account.user_id != flask.session['user_id']:
+                error = 'g_acnt_link_failure'
+                error_description = (
+                    'Could not link Google account. '
+                    'The account specified is '
+                    'already linked to a different user.')
+
+            else:
+                # we found a google account that belongs to the user
+                try:
+                    attempt_to_add_user_google_account_to_proxy_group(
+                        user_google_account,
+                        flask.session['google_proxy_group_id'])
+                except APIError as error:
+                    error = 'g_acnt_access_failure'
+                    error_description = error.message
+
+        # if we have a redirect, follow it and add any errors
+        if flask.session.get('redirect'):
+            error = _get_error_params(error, error_description)
+            return flask.redirect(flask.session.get('redirect') + error)
+        else:
+            # we don't have a redirect, so the endpoint was probably hit
+            # without the actual auth flow. Raise with error info
+            if error:
+                raise APIError({error: error_description})
+            else:
+                return 'No redirect provided.', 400
+
+
+def _add_new_user_google_account(google_email, user_id):
+    user_google_account = UserGoogleAccount(
+        email=google_email,
+        user_id=user_id
+    )
+    current_session.add(user_google_account)
+    flask.current_app.logger.info(
+        'Linking Google account {} to user {}.'.format(
+            google_email, user_id))
+    current_session.commit()
+
+
+def _get_error_params(error, description):
+    params = ''
+    if error:
+        params += (
+            '?error={}&error_description={}'
+            .format(str(error), str(description))
+        )
+    return params
 
 
 def get_default_google_account_expiration():
