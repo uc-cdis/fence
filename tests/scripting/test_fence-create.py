@@ -1,4 +1,3 @@
-import json
 from fence.models import AccessPrivilege, Project, User, UserRefreshToken
 
 from fence.scripting.fence_create import (
@@ -8,7 +7,7 @@ from fence.scripting.fence_create import (
     get_jwt_keypair,
 )
 
-
+ROOT_DIR = './'
 def test_delete_users(app, db_session, example_usernames):
     """
     Test the basic functionality of ``delete_users``.
@@ -46,17 +45,17 @@ def test_delete_user_with_access_privilege(app, db_session):
 
 
 def test_get_jwt_keypair_with_default_kid(mock_keypairs):
-    kid, _ = get_jwt_keypair(kid=None)
+    kid, _ = get_jwt_keypair(kid=None, root_dir=ROOT_DIR)
     assert kid == 'key-test'
 
 
 def test_get_jwt_keypair_with_no_kid_found(mock_keypairs):
-    kid, _ = get_jwt_keypair(kid='No kid found ')
+    kid, _ = get_jwt_keypair(kid='No kid found', root_dir=ROOT_DIR)
     assert kid == None
 
 
 def test_get_jwt_with_found_kid(mock_keypairs):
-    kid, _ = get_jwt_keypair(kid='key-test-2')
+    kid, _ = get_jwt_keypair(kid='key-test-2', root_dir=ROOT_DIR)
     assert kid == 'key-test-2'
 
 
@@ -65,6 +64,7 @@ def test_create_user_access_token_with_no_found_user(app, mock_keypairs, db_sess
     db_session.add(user)
     jti, _ = create_user_access_token(
         app.config['DB'], app.config['BASE_URL'],
+        ROOT_DIR,
         kid='key-test', username='other user',
         scopes='fence', expires_in=3600
     )
@@ -76,6 +76,7 @@ def test_create_user_refresh_token_with_no_found_user(app, mock_keypairs, db_ses
     db_session.add(user)
     jti, _ = create_user_refresh_token(
         app.config['DB'], app.config['BASE_URL'],
+        ROOT_DIR,
         kid='key-test', username='other user',
         scopes='fence', expires_in=3600
     )
@@ -87,6 +88,7 @@ def test_create_user_access_token_with_found_user(app, mock_keypairs, db_session
     db_session.add(user)
     jti, access_token = create_user_access_token(
         app.config['DB'], app.config['BASE_URL'],
+        ROOT_DIR,
         kid='key-test', username='test_user',
         scopes='openid,user', expires_in=3600
     )
@@ -101,6 +103,7 @@ def test_create_refresh_token_with_found_user(app, mock_keypairs, db_session, cl
     db_session.add(user)
     jti, _ = create_user_refresh_token(
         app.config['DB'], app.config['BASE_URL'],
+        ROOT_DIR,
         kid='key-test', username='test_user',
         scopes='openid,user', expires_in=3600
     )
