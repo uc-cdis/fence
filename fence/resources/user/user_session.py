@@ -109,8 +109,8 @@ class UserSession(SessionMixin):
         """
         return self.session_token["context"].get(key, *args)
 
-    def pop(self, key):
-        return self.session_token['context'].pop(key)
+    def pop(self, key, *args, **kwargs):
+        return self.session_token['context'].pop(key, *args, **kwargs)
 
     def clear(self):
         """

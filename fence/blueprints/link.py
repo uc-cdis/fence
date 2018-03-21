@@ -40,8 +40,6 @@ class GoogleLinkRedirect(Resource):
 class GoogleLink(Resource):
 
     def get(self):
-        # reset google linking flag
-        flask.session['google_link'] = False
         code = flask.request.args.get('code')
         result = flask.current_app.google_client.get_user_id(code)
         email = result.get('email')
@@ -59,9 +57,16 @@ class GoogleLink(Resource):
             )
 
             if not user_google_account:
-                _add_new_user_google_account(email, flask.session['user_id'])
+                user_id = flask.session.get('user_id')
+                if user_id is not None:
+                    _add_new_user_google_account(email, user_id)
+                else:
+                    error = 'unauthorized'
+                    error_description = (
+                        'Could not determine authed user '
+                        'from session. Unable to link Google account.')
 
-            elif user_google_account.user_id != flask.session['user_id']:
+            elif user_google_account.user_id != flask.session.get('user_id'):
                 error = 'g_acnt_link_failure'
                 error_description = (
                     'Could not link Google account. '
@@ -73,22 +78,29 @@ class GoogleLink(Resource):
                 try:
                     attempt_to_add_user_google_account_to_proxy_group(
                         user_google_account,
-                        flask.session['google_proxy_group_id'])
-                except APIError as error:
+                        flask.session.get('google_proxy_group_id'))
+                except NotFound:
                     error = 'g_acnt_access_failure'
-                    error_description = error.message
+                    error_description = (
+                        'No proxy group found for user {}. These are '
+                        'created automatically on a timed schedule. Please '
+                        'try again later.'
+                        .format(flask.session.get('user_id')),
+                    )
 
         # if we have a redirect, follow it and add any errors
-        if flask.session.get('redirect'):
+        provided_redirect = flask.session.get('redirect')
+        _clear_google_link_info_from_session()
+        if provided_redirect:
             error = _get_error_params(error, error_description)
-            return flask.redirect(flask.session.get('redirect') + error)
+            return flask.redirect(provided_redirect + error)
         else:
             # we don't have a redirect, so the endpoint was probably hit
             # without the actual auth flow. Raise with error info
             if error:
-                raise APIError({error: error_description})
+                raise UserError({error: error_description})
             else:
-                return 'No redirect provided.', 400
+                raise UserError({'error': 'No redirect provided.'})
 
 
 def _add_new_user_google_account(google_email, user_id):
@@ -113,6 +125,13 @@ def _get_error_params(error, description):
     return params
 
 
+def _clear_google_link_info_from_session():
+    # remove google linking info from session
+    flask.session.pop('google_link', None)
+    flask.session.pop('user_id', None)
+    flask.session.pop('google_proxy_group_id', None)
+
+
 def get_default_google_account_expiration():
     now = int(time.time())
     seconds_in_24_hours = 86400
@@ -134,10 +153,7 @@ def attempt_to_add_user_google_account_to_proxy_group(
         account_in_proxy_group.expires = expiration
     else:
         if not proxy_group_id:
-            raise NotFound(
-                'No proxy group found for user {}. These are '
-                'created automatically on a timed schedule. Please '
-                'try again later.')
+            raise NotFound('No proxy group given')
 
         account_in_proxy_group = UserGoogleAccountToProxyGroup(
             user_google_account_id=user_google_account.id,
@@ -149,8 +165,8 @@ def attempt_to_add_user_google_account_to_proxy_group(
     flask.current_app.logger.info(
         'Adding user {}\'s Google account to proxy group {}. '
         'Expiration: {}'.format(
-            flask.session['user_id'],
-            flask.session['google_proxy_group_id'],
+            user_google_account,
+            proxy_group_id,
             expiration)
     )
 

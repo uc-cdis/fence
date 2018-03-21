@@ -364,6 +364,7 @@ def patch_app_db_session(app, monkeypatch):
         modules_to_patch = [
             'fence.auth',
             'fence.blueprints.storage_creds',
+            'fence.blueprints.link',
             'fence.oidc.jwt_generator',
             'fence.user',
         ]
