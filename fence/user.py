@@ -7,7 +7,7 @@ from fence.auth import current_token
 from fence.models import User
 
 
-def get_current_user():
+def _get_current_user():
     """
     Get the username from the session, an available token, or the mock auth
     token, and query for the ``User`` model having that username. Put all the
@@ -31,7 +31,7 @@ def get_current_user():
     return Dict(dict(user.__dict__))
 
 
-def get_and_set_current_user():
+def _get_and_set_current_user():
     """
     Try to set the current user, and return it.
 
@@ -39,8 +39,8 @@ def get_and_set_current_user():
         fence.models.User
     """
     if not hasattr(flask.g, '_current_user'):
-        flask.g._current_user = get_current_user()
+        flask.g._current_user = _get_current_user()
     return flask.g._current_user
 
 
-current_user = LocalProxy(get_and_set_current_user)
+current_user = LocalProxy(_get_and_set_current_user)

@@ -42,7 +42,7 @@ from fence.jwt.token import (
 from fence.jwt.validate import validate_jwt
 from fence.jwt.validate import JWTError
 from fence.resources.storage.cdis_jwt import create_session_token
-from fence.user import get_current_user
+from fence.user import current_user
 
 
 class UserSession(SessionMixin):
@@ -194,9 +194,8 @@ class UserSessionInterface(SessionInterface):
                 expires=self.get_expiration_time(app, session), httponly=True,
                 domain=domain
             )
-            user = get_current_user()
-            if user and not flask.g.access_token:
-                _create_access_token_cookie(app, response, user)
+            if current_user and not flask.g.access_token:
+                _create_access_token_cookie(app, response, current_user)
         else:
             # If there isn't a session token, we should set
             # the cookies to nothing and expire them immediately.
