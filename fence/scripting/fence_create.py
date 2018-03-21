@@ -334,11 +334,11 @@ def delete_users(DB, usernames):
         session.commit()
 
 
-def get_jwt_keypair(kid):
+def get_jwt_keypair(kid, root_dir):
 
     from fence.settings import JWT_KEYPAIR_FILES
-    cur_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    par_dir = os.path.abspath(os.path.join(cur_dir, os.pardir))
+    # cur_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    # par_dir = os.path.abspath(os.path.join(cur_dir, os.pardir))
     private_key = None
 
     if len(JWT_KEYPAIR_FILES) == 0:
@@ -347,18 +347,21 @@ def get_jwt_keypair(kid):
     private_filepath = None
     if kid is None:
         private_filepath = os.path.join(
-            par_dir, JWT_KEYPAIR_FILES.values()[0][1])
+            root_dir, JWT_KEYPAIR_FILES.values()[0][1])
     else:
         for _kid, (_, private) in JWT_KEYPAIR_FILES.iteritems():
             if(kid != _kid):
                 continue
-            private_filepath = os.path.join(par_dir, private)
+            private_filepath = os.path.join(root_dir, private)
 
     if private_filepath is None:
         return None, None
 
-    with open(private_filepath, 'r') as f:
-        private_key = f.read()
+    try:
+        with open(private_filepath, 'r') as f:
+            private_key = f.read()
+    except IOError:
+        private_key = None
 
     if kid:
         return kid, private_key
@@ -366,15 +369,15 @@ def get_jwt_keypair(kid):
         return JWT_KEYPAIR_FILES.keys()[0], private_key
 
 
-def create_user_token(DB, BASE_URL, kid, token_type, username, scopes, expires_in=3600):
+def create_user_token(DB, BASE_URL, ROOT_DIR, kid, token_type, username, scopes, expires_in=3600):
     try:
         if token_type == 'access_token':
             _, token = create_user_access_token(
-                DB, BASE_URL, kid, username, scopes, expires_in)
+                DB, BASE_URL, ROOT_DIR, kid, username, scopes, expires_in)
             return token
         elif token_type == 'refresh_token':
             _, token = create_user_refresh_token(
-                DB, BASE_URL, kid, username, scopes, expires_in)
+                DB, BASE_URL, ROOT_DIR, kid, username, scopes, expires_in)
             return token
         else:
             print('=============Option type is wrong!!!. Please select either access_token or refresh_token=============')
@@ -384,8 +387,8 @@ def create_user_token(DB, BASE_URL, kid, token_type, username, scopes, expires_i
         return None
 
 
-def create_user_refresh_token(DB, BASE_URL, kid, username, scopes, expires_in=3600):
-    kid, private_key = get_jwt_keypair(kid)
+def create_user_refresh_token(DB, BASE_URL, ROOT_DIR, kid, username, scopes, expires_in=3600):
+    kid, private_key = get_jwt_keypair(kid=kid, root_dir=ROOT_DIR)
     if private_key is None:
         print("=========Can not find the private key !!!!==============")
         return None, None
@@ -424,8 +427,8 @@ def create_user_refresh_token(DB, BASE_URL, kid, username, scopes, expires_in=36
         return jti, token
 
 
-def create_user_access_token(DB, BASE_URL, kid, username, scopes, expires_in=3600):
-    kid, private_key = get_jwt_keypair(kid)
+def create_user_access_token(DB, BASE_URL, ROOT_DIR, kid, username, scopes, expires_in=3600):
+    kid, private_key = get_jwt_keypair(kid=kid, root_dir=ROOT_DIR)
     if private_key is None:
         print("=========Can not find the private key !!!!=============")
         return None, None
