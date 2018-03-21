@@ -6,6 +6,7 @@ from flask_restful import Api
 from flask_sqlalchemy_session import current_session
 
 from fence.errors import NotFound
+from fence.errors import UserError
 from fence.errors import APIError
 from fence.models import UserGoogleAccount
 from fence.models import UserGoogleAccountToProxyGroup
@@ -46,11 +47,9 @@ class GoogleLink(Resource):
         email = result.get('email')
 
         if not email:
-            return flask.redirect(flask.session.get('redirect'), response={
-                    'message': {
-                        'error': result
-                    }
-                }
+            return flask.redirect(
+                flask.session.get('redirect') + '?error=g_acnt_auth_failure' +
+                '&error_description=' + result
             )
 
         user_google_account = (
@@ -70,13 +69,12 @@ class GoogleLink(Resource):
                     email, flask.session['user_id']))
 
         elif user_google_account.user_id != flask.session['user_id']:
-            return flask.redirect(flask.session.get('redirect'), response={
-                    'message': {
-                        'error': 'Could not link Google '
-                        'account. The account specified is already linked '
-                        'to a different user.'
-                    }
-                }
+            return flask.redirect(
+                flask.session.get('redirect') +
+                '?error=g_acnt_link_failure' +
+                '&error_description=Could not link Google '
+                'account. The account specified is already linked '
+                'to a different user.'
             )
         else:
             # we found a google account that belongs to the user
@@ -86,11 +84,10 @@ class GoogleLink(Resource):
             attempt_to_add_user_google_account_to_proxy_group(
                 user_google_account, flask.session['google_proxy_group_id'])
         except APIError as error:
-            return flask.redirect(flask.session.get('redirect'), response={
-                    'message': {
-                        'error': error.message
-                    }
-                }
+            return flask.redirect(
+                flask.session.get('redirect') +
+                '?error=g_acnt_access_failure' +
+                '&error_description=' + error.message
             )
 
         if flask.session.get('redirect'):
