@@ -1,5 +1,10 @@
-from fence.models import AccessPrivilege, Project, User, UserRefreshToken
+# Python 2 and 3 compatible
+try:
+    from unittest.mock import patch
+except ImportError:
+    from mock import patch
 
+from fence.models import AccessPrivilege, Project, User, UserRefreshToken
 from fence.scripting.fence_create import (
     delete_users,
     create_user_refresh_token,
@@ -7,7 +12,12 @@ from fence.scripting.fence_create import (
     get_jwt_keypair,
 )
 
+from fence.jwt.validate import validate_jwt
+
+
 ROOT_DIR = './'
+
+
 def test_delete_users(app, db_session, example_usernames):
     """
     Test the basic functionality of ``delete_users``.
@@ -55,16 +65,16 @@ def test_get_jwt_keypair_with_no_kid_found(mock_keypairs):
 
 
 def test_get_jwt_with_found_kid(mock_keypairs):
-    kid, _ = get_jwt_keypair(kid='key-test-2', root_dir=ROOT_DIR)
+    kid, _ = get_jwt_keypair(kid='key-test-2', root_dir='/fake_root_dir')
     assert kid == 'key-test-2'
 
 
 def test_create_user_access_token_with_no_found_user(app, mock_keypairs, db_session):
     user = User(username='test_user')
     db_session.add(user)
-    jti, _ = create_user_access_token(
+    jti, _, _ = create_user_access_token(
         app.config['DB'], app.config['BASE_URL'],
-        ROOT_DIR,
+        ROOT_DIR='/fake_root_dir',
         kid='key-test', username='other user',
         scopes='fence', expires_in=3600
     )
@@ -74,7 +84,7 @@ def test_create_user_access_token_with_no_found_user(app, mock_keypairs, db_sess
 def test_create_user_refresh_token_with_no_found_user(app, mock_keypairs, db_session):
     user = User(username='test_user')
     db_session.add(user)
-    jti, _ = create_user_refresh_token(
+    jti, _, _ = create_user_refresh_token(
         app.config['DB'], app.config['BASE_URL'],
         ROOT_DIR,
         kid='key-test', username='other user',
@@ -83,30 +93,62 @@ def test_create_user_refresh_token_with_no_found_user(app, mock_keypairs, db_ses
     assert jti == None
 
 
-def test_create_user_access_token_with_found_user(app, mock_keypairs, db_session, client):
+def test_create_user_access_token_with_found_user(app, private_key, db_session, client):
     user = User(username='test_user')
     db_session.add(user)
-    jti, access_token = create_user_access_token(
-        app.config['DB'], app.config['BASE_URL'],
-        ROOT_DIR,
-        kid='key-test', username='test_user',
-        scopes='openid,user', expires_in=3600
-    )
-    r = client.get('/user', headers={'Authorization': 'bear ' + access_token})
-    assert r.status_code == 200
-    print r.data
-    assert jti is not None
+    with patch("fence.scripting.fence_create.get_jwt_keypair") as patch_get_jwt_keypair:
+        patch_get_jwt_keypair.return_value = ['key-test', private_key]
+
+        jti, access_token, _ = create_user_access_token(
+            app.config['DB'], app.config['BASE_URL'], '/fake_root_dir',
+            kid='key-test', username='test_user',
+            scopes='openid,user', expires_in=3600
+        )
+        r = client.get(
+            '/user', headers={'Authorization': 'bear ' + access_token})
+        assert r.status_code == 200
+        print r.data
+        assert jti is not None
 
 
-def test_create_refresh_token_with_found_user(app, mock_keypairs, db_session, client):
-    user = User(username='test_user')
+def test_create_refresh_token_with_found_user(app, private_key, db_session, oauth_test_client):
+
+    DB = app.config['DB']
+    username = 'test_user'
+    BASE_URL = app.config['BASE_URL']
+    scopes = 'openid,user'
+    expires_in = 3600
+
+    user = User(username=username)
     db_session.add(user)
-    jti, _ = create_user_refresh_token(
-        app.config['DB'], app.config['BASE_URL'],
-        ROOT_DIR,
-        kid='key-test', username='test_user',
-        scopes='openid,user', expires_in=3600
-    )
-    db_token = db_session.query(UserRefreshToken).filter_by(jti=jti).first()
-    assert db_token is not None
-    assert jti is not None
+
+    user = (db_session.query(User)
+            .filter_by(username=username)
+            .first()
+            )
+
+    with patch("fence.scripting.fence_create.get_jwt_keypair") as patch_get_jwt_keypair:
+        patch_get_jwt_keypair.return_value = ['key-test', private_key]
+
+        jti, refresh_token, original_claims = create_user_refresh_token(
+            DB=DB, BASE_URL=BASE_URL, ROOT_DIR='/fake_root_dir',
+            kid='key-test', username=username,
+            scopes=scopes, expires_in=expires_in
+        )
+
+        refresh_token_response = (
+            oauth_test_client
+            .refresh(refresh_token=refresh_token)
+            .response
+        )
+
+        ret_claims = validate_jwt(
+            refresh_token_response.json['id_token'], {'openid'}
+        )
+        assert original_claims['iss'] == ret_claims['iss']
+        assert original_claims['sub'] == ret_claims['sub']
+        assert original_claims['iat'] <= ret_claims['iat']
+        db_token = db_session.query(
+            UserRefreshToken).filter_by(jti=jti).first()
+        assert db_token is not None
+        assert jti is not None

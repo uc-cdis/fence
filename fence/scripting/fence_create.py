@@ -372,11 +372,11 @@ def get_jwt_keypair(kid, root_dir):
 def create_user_token(DB, BASE_URL, ROOT_DIR, kid, token_type, username, scopes, expires_in=3600):
     try:
         if token_type == 'access_token':
-            _, token = create_user_access_token(
+            _, token, _ = create_user_access_token(
                 DB, BASE_URL, ROOT_DIR, kid, username, scopes, expires_in)
             return token
         elif token_type == 'refresh_token':
-            _, token = create_user_refresh_token(
+            _, token, _ = create_user_refresh_token(
                 DB, BASE_URL, ROOT_DIR, kid, username, scopes, expires_in)
             return token
         else:
@@ -391,7 +391,7 @@ def create_user_refresh_token(DB, BASE_URL, ROOT_DIR, kid, username, scopes, exp
     kid, private_key = get_jwt_keypair(kid=kid, root_dir=ROOT_DIR)
     if private_key is None:
         print("=========Can not find the private key !!!!==============")
-        return None, None
+        return None, None, None
 
     driver = SQLAlchemyDriver(DB)
     with driver.session as current_session:
@@ -401,20 +401,29 @@ def create_user_refresh_token(DB, BASE_URL, ROOT_DIR, kid, username, scopes, exp
                 )
         if not user:
             print('=========user is not existed !!!=============')
-            return None, None
+            return None, None, None
+
         headers = {'kid': kid}
         iat, exp = issued_and_expiration_times(expires_in)
         jti = str(uuid.uuid4())
         sub = str(user.id)
         claims = {
-            'pur': 'api_key',
-            'aud': scopes,
+            'pur': 'refresh',
+            'aud': scopes.split(','),
             'sub': sub,
             'iss': BASE_URL,
             'iat': iat,
             'exp': exp,
             'jti': jti,
+            'context': {
+                'user': {
+                    'name': user.username,
+                    'is_admin': user.is_admin,
+                    'projects': dict(user.project_access),
+                },
+            },
         }
+
         token = to_unicode(jwt.encode(claims, private_key,
                                       headers=headers, algorithm='RS256'), 'UTF-8')
         current_session.add(
@@ -423,15 +432,14 @@ def create_user_refresh_token(DB, BASE_URL, ROOT_DIR, kid, username, scopes, exp
             )
         )
         current_session.commit()
-
-        return jti, token
+        return jti, token, claims
 
 
 def create_user_access_token(DB, BASE_URL, ROOT_DIR, kid, username, scopes, expires_in=3600):
     kid, private_key = get_jwt_keypair(kid=kid, root_dir=ROOT_DIR)
     if private_key is None:
         print("=========Can not find the private key !!!!=============")
-        return None, None
+        return None, None, None
 
     driver = SQLAlchemyDriver(DB)
     with driver.session as current_session:
@@ -441,12 +449,12 @@ def create_user_access_token(DB, BASE_URL, ROOT_DIR, kid, username, scopes, expi
                 )
         if not user:
             print('=========user is not existed !!!=============')
-            return None, None
+            return None, None, None
 
         headers = {'kid': kid}
         iat, exp = issued_and_expiration_times(expires_in)
-        sub = str(user.id)
         jti = str(uuid.uuid4())
+        sub = str(user.id)
         claims = {
             'pur': 'access',
             'aud': scopes.split(','),
@@ -463,4 +471,5 @@ def create_user_access_token(DB, BASE_URL, ROOT_DIR, kid, username, scopes, expi
                 },
             },
         }
-        return jti, to_unicode(jwt.encode(claims, private_key, headers=headers, algorithm='RS256'), 'UTF-8')
+
+        return jti, to_unicode(jwt.encode(claims, private_key, headers=headers, algorithm='RS256'), 'UTF-8'), claims
