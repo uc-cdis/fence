@@ -219,6 +219,30 @@ def app():
     mocker = Mocker()
     mocker.mock_functions()
     root_dir = os.path.dirname(os.path.realpath(__file__))
+    fence.app.config['OPENID_CONNECT'] = {
+        'google': {
+            'client_id': '',
+            'client_secret': '',
+            'redirect_url': ''
+        }
+    }
+    fence.app.config['ENABLED_IDENTITY_PROVIDERS'] = {
+        # ID for which of the providers to default to.
+        'default': 'google',
+        # Information for identity providers.
+        'providers': {
+            'fence': {
+                'name': 'Fence Multi-Tenant OAuth',
+            },
+            'google': {
+                'name': 'Google OAuth',
+            },
+            'shibboleth': {
+                'name': 'NIH Login',
+            },
+        },
+    }
+
     app_init(fence.app, test_settings, root_dir=root_dir)
     return fence.app
 

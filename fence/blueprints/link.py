@@ -142,9 +142,9 @@ def get_errors_update_user_google_account_dry_run(
 
     NOTE: This is a dry run, it won't actually perform the update.
 
-    WARNING: _already_authed=True means that AUTHENTICATION SHOULD HAVE
-             ALREADY OCCURED. That means that we've already verified that the
-             google_email belongs to the given user_id.
+    NOTE: _already_authed=True means that AUTHENTICATION SHOULD HAVE
+         ALREADY OCCURED. That means that we've already verified that the
+         google_email belongs to the given user_id.
 
     For just updating expiration, you can provide _already_authed=False, which
     means that this will NOT allow the creation of a new UserGoogleAccount and
