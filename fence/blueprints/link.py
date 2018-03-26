@@ -5,6 +5,8 @@ from flask_restful import Resource
 from flask_restful import Api
 from flask_sqlalchemy_session import current_session
 
+from cirrus import GoogleCloudManager
+
 from fence.errors import NotFound
 from fence.errors import Unauthorized
 from fence.errors import UserError
@@ -289,6 +291,9 @@ def _force_update_user_google_account(
             expires=expiration
         )
         current_session.add(account_in_proxy_group)
+        _add_google_email_to_proxy_group(
+            google_email=google_email, proxy_group_id=proxy_group_id)
+
 
     flask.current_app.logger.info(
         'Adding user {}\'s Google account to proxy group {}. '
@@ -322,6 +327,12 @@ def _get_error_params(error, description):
             .format(str(error), str(description))
         )
     return params
+
+
+def _add_google_email_to_proxy_group(google_email, proxy_group_id):
+    with GoogleCloudManager() as g_manager:
+        g_manager.add_member_to_group(
+            member_email=google_email, group_id=proxy_group_id)
 
 
 def _clear_google_link_info_from_session():

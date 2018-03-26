@@ -11,29 +11,42 @@ except ImportError:
 
 @pytest.fixture(scope='function')
 def add_new_g_acnt_mock(db_session):
-    add_new_g_acnt_mock = MagicMock()
+    mock = MagicMock()
 
-    add_new_g_acnt_mock.return_value.id = 0
-    add_new_g_acnt_mock.return_value.email = 'test'
+    mock.return_value.id = 0
+    mock.return_value.email = 'test'
 
     patcher = patch(
         'fence.blueprints.link._add_new_user_google_account',
-        add_new_g_acnt_mock)
+        mock)
     patcher.start()
 
-    yield add_new_g_acnt_mock
+    yield mock
 
     patcher.stop()
 
 
 @pytest.fixture(scope='function')
 def google_auth_get_user_info_mock():
-    google_auth_get_user_info_mock = MagicMock()
+    mock = MagicMock()
     patcher = patch(
         'flask.current_app.google_client.get_user_id',
-        google_auth_get_user_info_mock)
+        mock)
     patcher.start()
 
-    yield google_auth_get_user_info_mock
+    yield mock
+
+    patcher.stop()
+
+
+@pytest.fixture(scope='function')
+def add_google_email_to_proxy_group_mock():
+    mock = MagicMock()
+    patcher = patch(
+        'fence.blueprints.link._add_google_email_to_proxy_group',
+        mock)
+    patcher.start()
+
+    yield mock
 
     patcher.stop()

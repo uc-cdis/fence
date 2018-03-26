@@ -71,7 +71,8 @@ def test_google_link_session(app, client, encoded_creds_jwt):
 
 def test_google_link_auth_return(
         app, client, db_session, encoded_creds_jwt,
-        google_auth_get_user_info_mock):
+        google_auth_get_user_info_mock,
+        add_google_email_to_proxy_group_mock):
     """
     Test the link endpoint that gets hit after authN. Make sure we
     make calls to create new user google accounts and return a redirect
@@ -120,10 +121,14 @@ def test_google_link_auth_return(
     assert not flask.session.get('user_id')
     assert not flask.session.get('google_proxy_group_id')
 
+    assert add_google_email_to_proxy_group_mock.called
+    # TODO assert add_google_email_to_proxy_group_mock called with correct junk
+
 
 def test_patch_google_link(
         app, client, db_session, encoded_creds_jwt,
-        google_auth_get_user_info_mock):
+        google_auth_get_user_info_mock,
+        add_google_email_to_proxy_group_mock):
     """
     Test extending expiration for previously linked G account access via PATCH.
     """
@@ -186,10 +191,13 @@ def test_patch_google_link(
         + app.config['GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN']
     )
 
+    assert not add_google_email_to_proxy_group_mock.called
+
 
 def test_patch_google_link_account_not_in_token(
         app, client, db_session, encoded_creds_jwt,
-        google_auth_get_user_info_mock):
+        google_auth_get_user_info_mock,
+        add_google_email_to_proxy_group_mock):
     """
     Test extending expiration for previously linked G account access via PATCH.
 
@@ -257,10 +265,12 @@ def test_patch_google_link_account_not_in_token(
         + app.config['GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN']
     )
 
+    assert not add_google_email_to_proxy_group_mock.called
 
 def test_patch_google_link_account_doesnt_exist(
         app, client, db_session, encoded_creds_jwt,
-        google_auth_get_user_info_mock):
+        google_auth_get_user_info_mock,
+        add_google_email_to_proxy_group_mock):
     """
     Test extending expiration for an unlinked G account access via PATCH.
     """
@@ -313,10 +323,13 @@ def test_patch_google_link_account_doesnt_exist(
     )
     assert not account_in_proxy_group
 
+    assert not add_google_email_to_proxy_group_mock.called
+
 
 def test_google_link_g_account_exists(
         app, client, db_session, encoded_creds_jwt, add_new_g_acnt_mock,
-        google_auth_get_user_info_mock):
+        google_auth_get_user_info_mock,
+        add_google_email_to_proxy_group_mock):
     """
     Test the link endpoint that gets hit after authN when the provided Google
     account is already linked. Make sure we don't attempt to create a new one
@@ -361,10 +374,15 @@ def test_google_link_g_account_exists(
     assert not flask.session.get('user_id')
     assert not flask.session.get('google_proxy_group_id')
 
+    # check that we're adding the G account to the proxy group
+    assert add_google_email_to_proxy_group_mock.called
+    # TODO check args
+
 
 def test_google_link_g_account_access_extension(
         app, client, db_session, encoded_creds_jwt, add_new_g_acnt_mock,
-        google_auth_get_user_info_mock):
+        google_auth_get_user_info_mock,
+        add_google_email_to_proxy_group_mock):
     """
     Test the link endpoint that gets hit after authN when the provided Google
     account is already linked. This time test if we correctly extend the
@@ -435,10 +453,13 @@ def test_google_link_g_account_access_extension(
     assert not flask.session.get('user_id')
     assert not flask.session.get('google_proxy_group_id')
 
+    assert not add_google_email_to_proxy_group_mock.called
+
 
 def test_google_link_g_account_exists_linked_to_different_user(
         app, client, db_session, encoded_creds_jwt, add_new_g_acnt_mock,
-        google_auth_get_user_info_mock):
+        google_auth_get_user_info_mock,
+        add_google_email_to_proxy_group_mock):
     """
     Test the link endpoint that gets hit after authN when the provided Google
     account is already linked to a different user. We should not attempt to
@@ -487,10 +508,13 @@ def test_google_link_g_account_exists_linked_to_different_user(
     assert not flask.session.get('user_id')
     assert not flask.session.get('google_proxy_group_id')
 
+    assert not add_google_email_to_proxy_group_mock.called
+
 
 def test_google_link_no_proxy_group(
         app, client, db_session, encoded_creds_jwt, add_new_g_acnt_mock,
-        google_auth_get_user_info_mock):
+        google_auth_get_user_info_mock,
+        add_google_email_to_proxy_group_mock):
     user_id = encoded_creds_jwt['user_id']
 
     test_auth_code = 'abc123'
@@ -531,3 +555,5 @@ def test_google_link_no_proxy_group(
     assert not flask.session.get('google_link')
     assert not flask.session.get('user_id')
     assert not flask.session.get('google_proxy_group_id')
+
+    assert not add_google_email_to_proxy_group_mock.called
