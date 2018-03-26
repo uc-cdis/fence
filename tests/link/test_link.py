@@ -28,7 +28,7 @@ def test_google_link_redirect(client, app, encoded_creds_jwt):
         headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
 
     assert r.status_code == 302
-    assert r.location == flask.current_app.google_client.get_auth_url()
+    assert r.location == app.google_client.get_auth_url()
 
 
 def test_google_link_no_redirect_provided(
@@ -231,7 +231,7 @@ def test_google_link_g_account_access_extension(
     assert account_in_proxy_group.expires != original_expiration
     assert account_in_proxy_group.expires <= (
         int(time.time())
-        + flask.current_app.config['GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN']
+        + app.config['GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN']
     )
 
     assert not add_new_g_acnt_mock.called
