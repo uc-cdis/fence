@@ -23,7 +23,7 @@ def test_google_link_redirect(client, app, encoded_creds_jwt):
     encoded_credentials_jwt = encoded_creds_jwt['jwt']
     redirect = 'http://localhost'
 
-    r = client.get(
+    r = client.post(
         '/link/google?redirect=' + redirect,
         headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
 
@@ -59,7 +59,7 @@ def test_google_link_session(app, client, encoded_creds_jwt):
     proxy_group_id = encoded_creds_jwt['proxy_group_id']
 
     redirect = 'http://localhost'
-    r = client.get(
+    r = client.post(
         '/link/google?redirect=' + redirect,
         headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
 
@@ -119,6 +119,199 @@ def test_google_link_auth_return(
     assert not flask.session.get('google_link')
     assert not flask.session.get('user_id')
     assert not flask.session.get('google_proxy_group_id')
+
+
+def test_patch_google_link(
+        app, client, db_session, encoded_creds_jwt,
+        google_auth_get_user_info_mock):
+    """
+    Test extending expiration for previously linked G account access via PATCH.
+    """
+    encoded_credentials_jwt = encoded_creds_jwt['jwt']
+    user_id = encoded_creds_jwt['user_id']
+    proxy_group_id = encoded_creds_jwt['proxy_group_id']
+
+    original_expiration = 1000
+    redirect = 'http://localhost'
+    google_account = 'some-authed-google-account@gmail.com'
+
+    test_session_jwt = create_session_token(
+        app.keypairs[0],
+        app.config.get("SESSION_TIMEOUT"),
+        context={
+            'google_link': True,
+            'user_id': user_id,
+            'google_proxy_group_id': proxy_group_id,
+            'redirect': redirect,
+            'linked_google_email': google_account
+        }
+    )
+
+    existing_account = UserGoogleAccount(email=google_account, user_id=user_id)
+    db_session.add(existing_account)
+    db_session.commit()
+    g_account_access = UserGoogleAccountToProxyGroup(
+            user_google_account_id=existing_account.id,
+            proxy_group_id=proxy_group_id,
+            expires=original_expiration
+    )
+    db_session.add(g_account_access)
+    db_session.commit()
+
+    # manually set cookie for initial session
+    client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
+
+    r = client.patch(
+        '/link/google?redirect=' + redirect,
+        headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
+
+    assert r.status_code == 302
+    assert r.headers['Location'] == redirect
+
+    account_in_proxy_group = (
+        db_session.query(UserGoogleAccountToProxyGroup)
+        .filter(
+            UserGoogleAccountToProxyGroup.user_google_account_id
+            == existing_account.id
+        ).first()
+    )
+    assert account_in_proxy_group.proxy_group_id == proxy_group_id
+
+    # check that expiration changed and that it's less than the cfg
+    # expires in (since this check will happen a few seconds after
+    # it gets set)
+    assert account_in_proxy_group.expires != original_expiration
+    assert account_in_proxy_group.expires <= (
+        int(time.time())
+        + app.config['GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN']
+    )
+
+
+def test_patch_google_link_account_not_in_token(
+        app, client, db_session, encoded_creds_jwt,
+        google_auth_get_user_info_mock):
+    """
+    Test extending expiration for previously linked G account access via PATCH.
+
+    This will test the case where the linking happened during the life
+    of an access token and the same access token is used here (e.g.
+    account exists but a new token hasn't been generated with the linkage
+    info yet)
+    """
+    encoded_credentials_jwt = encoded_creds_jwt['jwt']
+    user_id = encoded_creds_jwt['user_id']
+    proxy_group_id = encoded_creds_jwt['proxy_group_id']
+
+    original_expiration = 1000
+    redirect = 'http://localhost'
+    google_account = 'some-authed-google-account@gmail.com'
+
+    test_session_jwt = create_session_token(
+        app.keypairs[0],
+        app.config.get("SESSION_TIMEOUT"),
+        context={
+            'google_link': True,
+            'user_id': user_id,
+            'google_proxy_group_id': proxy_group_id,
+            'redirect': redirect,
+            'linked_google_email': google_account
+        }
+    )
+
+    existing_account = UserGoogleAccount(email=google_account, user_id=user_id)
+    db_session.add(existing_account)
+    db_session.commit()
+    g_account_access = UserGoogleAccountToProxyGroup(
+            user_google_account_id=existing_account.id,
+            proxy_group_id=proxy_group_id,
+            expires=original_expiration
+    )
+    db_session.add(g_account_access)
+    db_session.commit()
+
+    # manually set cookie for initial session
+    client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
+
+    r = client.patch(
+        '/link/google?redirect=' + redirect,
+        headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
+
+    assert r.status_code == 302
+    assert r.headers['Location'] == redirect
+
+    account_in_proxy_group = (
+        db_session.query(UserGoogleAccountToProxyGroup)
+        .filter(
+            UserGoogleAccountToProxyGroup.user_google_account_id
+            == existing_account.id
+        ).first()
+    )
+    assert account_in_proxy_group.proxy_group_id == proxy_group_id
+
+    # check that expiration changed and that it's less than the cfg
+    # expires in (since this check will happen a few seconds after
+    # it gets set)
+    assert account_in_proxy_group.expires != original_expiration
+    assert account_in_proxy_group.expires <= (
+        int(time.time())
+        + app.config['GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN']
+    )
+
+
+def test_patch_google_link_account_doesnt_exist(
+        app, client, db_session, encoded_creds_jwt,
+        google_auth_get_user_info_mock):
+    """
+    Test extending expiration for an unlinked G account access via PATCH.
+    """
+    encoded_credentials_jwt = encoded_creds_jwt['jwt']
+    user_id = encoded_creds_jwt['user_id']
+    proxy_group_id = encoded_creds_jwt['proxy_group_id']
+
+    redirect = 'http://localhost'
+
+    test_session_jwt = create_session_token(
+        app.keypairs[0],
+        app.config.get("SESSION_TIMEOUT"),
+        context={
+            'google_link': True,
+            'user_id': user_id,
+            'google_proxy_group_id': proxy_group_id,
+            'redirect': redirect
+        }
+    )
+
+    # manually set cookie for initial session
+    client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
+
+    r = client.patch(
+        '/link/google?redirect=' + redirect,
+        headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
+
+    assert r.status_code == 302
+
+    # make sure we're redirecting with error information
+    assert redirect in r.headers['Location']
+    assert 'error=' in r.headers['Location']
+    assert 'error_description=' in r.headers['Location']
+
+    # make sure accounts weren't created
+    g_account = (
+        db_session.query(UserGoogleAccount)
+        .filter(
+            UserGoogleAccount.user_id == user_id
+        ).first()
+    )
+    assert not g_account
+
+    account_in_proxy_group = (
+        db_session.query(UserGoogleAccountToProxyGroup)
+        .filter(
+            UserGoogleAccountToProxyGroup.proxy_group_id
+            == proxy_group_id
+        ).first()
+    )
+    assert not account_in_proxy_group
 
 
 def test_google_link_g_account_exists(

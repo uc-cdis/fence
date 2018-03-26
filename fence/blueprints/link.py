@@ -13,9 +13,25 @@ from fence.models import UserGoogleAccount
 from fence.models import UserGoogleAccountToProxyGroup
 from fence.auth import current_token
 from fence.auth import require_auth_header
+from fence.restful import RestfulApi
 
-blueprint = flask.Blueprint('link', __name__)
-blueprint_api = Api(blueprint)
+
+def make_link_blueprint():
+    """
+    Return:
+        flask.Blueprint: the blueprint used for ``/link`` endpoints
+    """
+    blueprint = flask.Blueprint('link', __name__)
+    blueprint_api = Api(blueprint)
+
+    blueprint_api.add_resource(
+        GoogleLinkRedirect, '/google', strict_slashes=False
+    )
+    blueprint_api.add_resource(
+        GoogleLink, '/google/link', strict_slashes=False
+    )
+
+    return blueprint
 
 
 class GoogleLinkRedirect(Resource):
@@ -54,6 +70,7 @@ class GoogleLinkRedirect(Resource):
         proxy_group = get_users_proxy_group_from_token()
 
         # Set session flag to signify that we're linking and not logging in
+        # Save info needed for linking in session since we need to AuthN first
         flask.session['google_link'] = True
         flask.session['user_id'] = user_id
         flask.session['google_proxy_group_id'] = proxy_group
@@ -81,6 +98,20 @@ class GoogleLinkRedirect(Resource):
 
         user_id = current_token['sub']
         google_email = get_users_linked_google_email_from_token()
+
+        # hit db to check for google_email if it's not in token.
+        # this will catch cases where the linking happened during the life
+        # of an access token and the same access token is used here (e.g.
+        # account exists but a new token hasn't been generated with the linkage
+        # info yet)
+        if user_id and not google_email:
+            g_account = (
+                current_session.query(UserGoogleAccount)
+                .filter(UserGoogleAccount.user_id == user_id).first()
+            )
+            if g_account:
+                google_email = g_account.email
+
         proxy_group = get_users_proxy_group_from_token()
 
         error, description = get_errors_update_user_google_account_dry_run(
@@ -313,7 +344,7 @@ def get_users_linked_google_email_from_token():
         current_token.get('context', {})
         .get('user', {})
         .get('google', {})
-        .get('linked_google_account', {})
+        .get('linked_google_account', None)
     )
 
 
@@ -322,13 +353,5 @@ def get_users_proxy_group_from_token():
         current_token.get('context', {})
         .get('user', {})
         .get('google', {})
-        .get('proxy_group', {})
+        .get('proxy_group', None)
     )
-
-
-blueprint_api.add_resource(
-    GoogleLinkRedirect, '/google', strict_slashes=False
-)
-blueprint_api.add_resource(
-    GoogleLink, '/google/link', strict_slashes=False
-)
