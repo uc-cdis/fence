@@ -196,7 +196,7 @@ def disconnect_user_from_group(current_session, usr, groupname):
     if not grp:
         return {"warning": ("Group {0} doesn't exist".format(group))}
     else:
-        response = udm.remove_user_from_group(current_session, usr, grp)
+        response = gp.remove_user_from_group(current_session, usr, grp)
         projects = gp.get_group_projects(current_session, groupname)
         projects_data = [ pj.get_project(current_session, project).auth_id for project in projects]
         return response

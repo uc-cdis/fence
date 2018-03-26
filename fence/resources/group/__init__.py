@@ -1,7 +1,6 @@
 from fence.resources import userdatamodel as udm
 from fence.models import UserToGroup, AccessPrivilege
-from fence.errors import UserError
-
+from fence.errors import UserError, NotFound
 
 def get_group(current_session, groupname):
     return udm.get_group(current_session, groupname)
@@ -61,3 +60,15 @@ def connect_project_to_group(current_session, group, project):
                        "connected to Project: {1}".format(
                            group.name, project.name))}
 
+
+def remove_user_from_group(current_session, user, group):
+    to_be_removed = udm.get_user_group_access_privilege(current_session, user, group)
+    if to_be_removed:
+        current_session.delete(to_be_removed)
+        current_session.flush()
+        return {"result": ("User: {0} SUCCESFULLY "
+                       "removed from Group: {1}".format(
+                           user.username, group.name))}
+    else:
+        raise NotFound("User {0} and Group {1} are not linked".format(
+            user.username, group.name))

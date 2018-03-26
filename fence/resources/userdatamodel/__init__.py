@@ -478,19 +478,10 @@ def get_project(current_session, projectname):
         Project.name == projectname).first()
 
 
-def remove_user_from_group(current_session, user, group):
-    to_be_removed = current_session.query(UserToGroup).filter(
+def get_user_group_access_privilege(current_session, user, group):
+    return current_session.query(UserToGroup).filter(
         UserToGroup.user_id == user.id).filter(
             UserToGroup.group_id == group.id).first()
-    if to_be_removed:
-        current_session.delete(to_be_removed)
-        current_session.flush()
-        return {"result": ("User: {0} SUCCESFULLY "
-                       "removed from Group: {1}".format(
-                           user.username, group.name))}
-    else:
-        raise NotFound("User {0} and Group {1} are not linked".format(
-            user.username, group.name))
 
 
 def remove_project_from_group(current_session, group, project):
