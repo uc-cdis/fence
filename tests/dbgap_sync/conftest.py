@@ -54,12 +54,7 @@ def syncer(db_session):
         ]
     }
 
-    dbGap = {
-        'sftp': {'host': 'sftp.planx-pla.net',
-                 'username': 'foo',
-                 'password': '123',
-                 },
-        'decrypt_key': 'OqWQ3JvhWtXY2xcf4B1FFhOW9TK6c4wZ'}
+    dbGap = {}
 
     # patch storage client
     patcher = patch(
@@ -70,8 +65,8 @@ def syncer(db_session):
     syncer_obj = DbGapSyncer(
         dbGaP=dbGap, DB=DB, db_session=db_session, project_mapping=project_mapping,
         storage_credentials={'test-cleversafe': {'backend': 'cleversafe'}},
-        is_sync_from_dbgap_server=True,
-        # sync_from_local_csv_dir=LOCAL_CSV_DIR,
+        is_sync_from_dbgap_server=False,
+        sync_from_local_csv_dir=LOCAL_CSV_DIR,
         sync_from_local_yaml_dir=LOCAL_YAML_DIR)
 
     udm.create_provider(

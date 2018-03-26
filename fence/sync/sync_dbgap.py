@@ -70,7 +70,7 @@ class DbGapSyncer(object):
         Returns:
             bool: whether the pattern matches
         """
-        pattern = "authentication_file_phs(\d{6}).csv"
+        pattern = "authentication_file_phs(\d{6}).(csv|txt)"
         if encrypted:
             pattern += '.enc$'
         else:
@@ -139,7 +139,7 @@ class DbGapSyncer(object):
                     phsid2: ['read-storage'],
                     }
             }
-            userinfo: a dict of {username: {'email': email}}    
+            userinfo: a dict of {username: {'email': email}}
 
         '''
         phsids = dict()
@@ -153,9 +153,9 @@ class DbGapSyncer(object):
                     for row in csv:
                         username = row['login']
                         phsid_privileges = defaultdict(set)
-                        [phsid_privileges[row['phsid'].split('.')[0]].add(
-                            privilege) for privilege in privileges]
-
+                        for privilege in privileges:
+                            phsid_privileges[row['phsid'].split(
+                                '.')[0]].add(privilege)
                         if username in phsids:
                             phsids[username].update(phsid_privileges)
                         else:
@@ -448,9 +448,6 @@ class DbGapSyncer(object):
             dict(zip(local_csv_file_list, [
                  ['read-storage']]*len(local_csv_file_list))),
             encrypted=False)
-
-        import pdb
-        pdb.set_trace()
 
         local_yaml_file_list = []
         if self.sync_from_local_yaml_dir:
