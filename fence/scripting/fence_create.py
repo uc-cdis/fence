@@ -51,8 +51,10 @@ def delete_client_action(DB, client):
         print(e.message)
 
 
-def sync_dbgap(projects):
-    """
+def sync_dbgap(dbGaP, STORAGE_CREDENTIALS, DB,
+               projects, is_sync_from_dbgap_server=False,
+               sync_from_local_csv_dir=None, sync_from_local_yaml_dir=None):
+    '''
     sync ACL files from dbGap to auth db and storage backends
     imports from local_settings is done here because dbGap is
     an optional requirment for fence so it might not be specified
@@ -73,14 +75,25 @@ def sync_dbgap(projects):
             phs000235:
               - name: CGCI
                 auth_id: phs000235
-    """
-    from local_settings import dbGaP, STORAGE_CREDENTIALS, DB
+    '''
+    if os.path.exists(projects) == False:
+        print "====={} is not found!!!=======".format(projects)
+        return
+    if sync_from_local_csv_dir and os.path.exists(sync_from_local_csv_dir) == False:
+        print "====={} is not found!!!=======".format(sync_from_local_csv_dir)
+        return
+    if sync_from_local_yaml_dir and os.path.exists(sync_from_local_yaml_dir) == False:
+        print "====={} is not found!!!=======".format(sync_from_local_yaml_dir)
+        return
+
     with open(projects, 'r') as f:
         project_mapping = yaml.load(f)
     syncer = DbGapSyncer(
-        dbGaP, DB, project_mapping, storage_credentials=STORAGE_CREDENTIALS
+        dbGaP, DB, project_mapping=project_mapping, storage_credentials=STORAGE_CREDENTIALS,
+        is_sync_from_dbgap_server=is_sync_from_dbgap_server,
+        sync_from_local_csv_dir=sync_from_local_csv_dir, sync_from_local_yaml_dir=sync_from_local_yaml_dir
     )
-    print('sync')
+    print 'sycn'
     syncer.sync()
 
 

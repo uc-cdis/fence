@@ -11,9 +11,14 @@ from userdatamodel.driver import SQLAlchemyDriver
 
 from ..test_settings import DB
 
-DATA_DIR = os.path.join(
+LOCAL_CSV_DIR = os.path.join(
     os.path.dirname(os.path.realpath(__file__)),
-    'data'
+    'data/csv'
+)
+
+LOCAL_YAML_DIR = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)),
+    'data/yaml'
 )
 
 
@@ -43,8 +48,18 @@ def syncer(db_session):
         ],
         'phs000179': [
             {'name': 'BLAH', 'auth_id': 'phs000179'}
+        ],
+        'phstest': [
+            {'name': 'Test', 'auth_id': 'Test'}
         ]
     }
+
+    dbGap = {
+        'sftp': {'host': 'sftp.planx-pla.net',
+                 'username': 'foo',
+                 'password': '123',
+                 },
+        'decrypt_key': 'OqWQ3JvhWtXY2xcf4B1FFhOW9TK6c4wZ'}
 
     # patch storage client
     patcher = patch(
@@ -53,9 +68,11 @@ def syncer(db_session):
     patcher.start()
 
     syncer_obj = DbGapSyncer(
-        dbGaP={}, DB=DB, db_session=db_session, project_mapping=project_mapping,
+        dbGaP=dbGap, DB=DB, db_session=db_session, project_mapping=project_mapping,
         storage_credentials={'test-cleversafe': {'backend': 'cleversafe'}},
-        sync_from_dir=DATA_DIR)
+        is_sync_from_dbgap_server=True,
+        # sync_from_local_csv_dir=LOCAL_CSV_DIR,
+        sync_from_local_yaml_dir=LOCAL_YAML_DIR)
 
     udm.create_provider(
         db_session, provider['name'],

@@ -1,14 +1,17 @@
+import os
+from StringIO import StringIO
 from collections import defaultdict
 from contextlib import contextmanager
 from csv import DictReader
 import glob
-import os
 import pysftp
+import yaml
 import re
-from StringIO import StringIO
 import subprocess as sp
-import temps
-
+#import temps
+import tempfile
+import shutil
+import errno
 from cdispyutils.log import get_logger
 from userdatamodel.driver import SQLAlchemyDriver
 
@@ -27,7 +30,8 @@ class DbGapSyncer(object):
     def __init__(
             self, dbGaP, DB, project_mapping,
             storage_credentials=None, db_session=None,
-            sync_from_dir=None):
+            is_sync_from_dbgap_server=False,
+            sync_from_local_csv_dir=None, sync_from_local_yaml_dir=None):
         '''
         Syncs ACL files from dbGap to auth database and storage backends
         Args:
@@ -38,8 +42,11 @@ class DbGapSyncer(object):
             sync_from_dir: path to an alternative dir to sync from instead of
                            dbGaP
         '''
-        self.sync_from_dir = sync_from_dir
-        if sync_from_dir is None:
+
+        self.sync_from_local_csv_dir = sync_from_local_csv_dir
+        self.sync_from_local_yaml_dir = sync_from_local_yaml_dir
+        self.is_sync_from_dbgap_server = is_sync_from_dbgap_server
+        if is_sync_from_dbgap_server:
             self.sftp = dbGaP['sftp']
             self.dbgap_key = dbGaP['decrypt_key']
         self.session = db_session
@@ -63,11 +70,13 @@ class DbGapSyncer(object):
         Returns:
             bool: whether the pattern matches
         """
-        pattern = "authentication_file_phs(\d{6}).txt"
+        pattern = "authentication_file_phs(\d{6}).csv"
         if encrypted:
-            pattern += '.enc'
+            pattern += '.enc$'
+        else:
+            pattern += '$'
         return (re.match(pattern,
-                os.path.basename(filepath)))
+                         os.path.basename(filepath)))
 
     def _get_from_sftp(self, path):
         """
@@ -116,19 +125,26 @@ class DbGapSyncer(object):
             yield f
             f.close()
 
-    def _sync_csv(self, file_list, encrypted=True):
+    def _sync_csv(self, file_dict, encrypted=True):
         '''
         parse csv files to python dict
         Args:
-            file_list: a list of file paths
+            fild_dict: a dictionary with key(file path) and value(privileges)
             encrypted: whether those files are encrypted
         Return:
-            phsids: a dict of {username: [phsids]}
-            userinfo: a dict of {username: {email: email}}
+             phsids: a nested dict of
+            {
+                username: {
+                    phsid1: ['read-storage','write-storage'],
+                    phsid2: ['read-storage'],
+                    }
+            }
+            userinfo: a dict of {username: {'email': email}}    
+
         '''
-        phsids = defaultdict(set)
+        phsids = dict()
         userinfo = dict()
-        for filepath in file_list:
+        for filepath, privileges in file_dict.iteritems():
             if os.stat(filepath).st_size == 0:
                 continue
             if self._match_pattern(filepath, encrypted=encrypted):
@@ -136,52 +152,154 @@ class DbGapSyncer(object):
                     csv = DictReader(f, quotechar='"', skipinitialspace=True)
                     for row in csv:
                         username = row['login']
-                        phsid = row['phsid'].split('.')[0]
+                        phsid_privileges = defaultdict(set)
+                        [phsid_privileges[row['phsid'].split('.')[0]].add(
+                            privilege) for privilege in privileges]
+
+                        if username in phsids:
+                            phsids[username].update(phsid_privileges)
+                        else:
+                            phsids[username] = phsid_privileges
+
                         userinfo[username] = {
                             'email': row['email']}
-                        phsids[username].add(phsid)
+
         return phsids, userinfo
 
-    def sync_to_db_and_storage_backend(self, phsids, userinfo, s):
-        """
+    def _sync_yaml(self, file_list, encrypted=True):
+        '''
+        parse yaml files to python nested dictionary
+        Args:
+            file_list: list of yaml file
+            encrypted: whether those files are encrypted
+        Returns:
+            phsids: a nested dict of
+            {
+                username: {
+                    phsid1: ['read-storage','write-storage'],
+                    phsid2: ['read-storage'],
+                    }
+            }
+            userinfo: a dict of {username: {'email': email}}
+
+        '''
+        phsids = dict()
+        userinfo = dict()
+        for filepath in file_list:
+            if os.stat(filepath).st_size == 0:
+                continue
+            with self._read_file(filepath, encrypted=encrypted) as stream:
+                data = yaml.safe_load(stream)
+                users = data['users']
+                for username, projects in users.iteritems():
+                    phsid_privileges = defaultdict(set)
+
+                    try:
+                        for project in projects['projects']:
+                            phsid_privileges[project['auth_id']
+                                             ] = project['privilege']
+                    except KeyError:
+                        continue
+
+                    userinfo[username] = {
+                        'email': username}
+                    if not username in phsids:
+                        phsids[username] = (phsid_privileges)
+                    else:
+                        phsids[username].add(phsid_privileges)
+        return phsids, userinfo
+
+    @classmethod
+    def sync_two_userinfo_dict(self, userinfo1, userinfo2):
+        '''
+        merge userinfo1 into userinfo2
+        Args:
+            userinfo1, userinfo2: nested dicts of {username: {'email': 'abc@email.com'}}
+        Returns:
+            None
+        '''
+        for user, info1 in userinfo1.iteritems():
+            info2 = userinfo2.get(user)
+            if not info2:
+                userinfo2.update({user: info1})
+                continue
+            userinfo2[user].update(info1)
+
+    @classmethod
+    def sync_two_phsids_dict(self, phsids1, phsids2):
+        '''
+        merge pshid1 into phsids2
+        Args:
+            phsids1, phsids2: nested dicts of
+            {
+                username: {
+                    phsid1: ['read-storage','write-storage'],
+                    phsid2: ['read-storage'],
+                    }
+            }
+        Returns:
+            None
+        Explaination:
+            consider merging projects of the same user: {user1: {phsid1: privillege1}} and {user1: {phsid2: privillege2}}:
+                case 1: phsid1 != phsid2. Output: {user1: {phsid1: privillege1,
+                                                           phsid2: privillege2}}
+                case2: phsid1 == phsid2 and privillege1! = privillege2. Output {user1: {phsid1: uion(privillege1, privillege2)}}
+            For the other cases, just simple addition
+        '''
+        #phsids = copy.deepcopy(phsids2)
+        for user, projects1 in phsids1.iteritems():
+            projects2 = phsids2.get(user)
+            if not projects2:
+                phsids2.update({user: projects1})
+                continue
+            for phsid1, privilege1 in projects1.iteritems():
+                if phsid1 in phsids2[user]:
+                    phsids2[user][phsid1].update(privilege1)
+                else:
+                    phsids2[user][phsid1] = privilege1
+
+    def sync_to_db_and_storage_backend(self, phsids, userinfo, sess):
+        '''
         sync user access control to database and storage backend
         Args:
-            phsids: a dictionary of {username: phsids[]}
+            phsids: a dictionary of {username: {phsid: ['read-storage','write-storage']}
             userinfo: a dictionary of {username: userinfo{}}
-            s: a sqlalchemy session
+            sess: a sqlalchemy session
         Return:
             None
-
-        """
-        self._init_projects(s)
-
+        '''
+        self._init_projects(sess)
         auth_provider = self._get_or_create(
-            s, AuthorizationProvider, name='dbGaP')
+            sess, AuthorizationProvider, name='dbGaP')
 
         privilege_list = {
             (ua.user.username, ua.project.auth_id) for
-            ua in s.query(AccessPrivilege)
+            ua in sess.query(AccessPrivilege)
             .filter_by(auth_provider=auth_provider).all()}
 
         list_from_dbgap = set()
-        for username, ids in phsids.iteritems():
-            for phsid in ids:
+        map_from_backend_to_dbgap = dict()
+        for username, projects in phsids.iteritems():
+            for phsid, _ in projects.iteritems():
                 for project in self.project_mapping[phsid]:
                     list_from_dbgap.add(
                         (username, project['auth_id']))
+                    map_from_backend_to_dbgap[project['auth_id']] = phsid
+
         to_delete = set.difference(privilege_list, list_from_dbgap)
         to_add = set.difference(list_from_dbgap, privilege_list)
         self._revoke_from_storage(to_delete)
-        self._revoke_from_db(s, to_delete, auth_provider)
-        self._grant_from_storage(to_add)
-        self._grant_from_db(s, userinfo, to_add, auth_provider)
+        self._revoke_from_db(sess, to_delete, auth_provider)
+        self._grant_from_storage(to_add, map_from_backend_to_dbgap, phsids)
+        self._grant_from_db(sess, userinfo, to_add,
+                            map_from_backend_to_dbgap, phsids, auth_provider)
 
     def _revoke_from_db(self, s, to_delete, auth_provider):
         '''
         Revoke user access to projects in the auth database
         Args:
             s: sqlalchemy session
-            to_add: a set of (username, project.auth_id) to be granted
+            to_delete: a set of (username, project.auth_id) to be revoked from db
         Return:
             None
         '''
@@ -198,12 +316,14 @@ class DbGapSyncer(object):
                     .format(username, project_auth_id))
                 s.delete(access)
 
-    def _grant_from_db(self, s, userinfo, to_add, auth_provider):
+    def _grant_from_db(self, s, userinfo, to_add, map_from_backend_to_dbgap, phsids, auth_provider):
         '''
         Grant user access to projects in the auth database
         Args:
             s: sqlalchemy session
             to_add: a set of (username, project.auth_id) to be granted
+            map_from_backend_to_dbgap: a dictinary to obtain dbgap_project_id from backend_auth_id
+            phsids: a dictionary of {username: {phsid: ['read-storage','write-storage']}
         Return:
             None
         '''
@@ -218,10 +338,12 @@ class DbGapSyncer(object):
                 'grant {} access to {} in db'
                 .format(username, project_auth_id)
             )
+
             user_access = AccessPrivilege(
                 user=u,
                 project=self._projects[project_auth_id],
-                privilege=['read-storage'],
+                privilege=list(
+                    phsids[username][map_from_backend_to_dbgap[project_auth_id]]),
                 auth_provider=auth_provider)
             s.add(user_access)
 
@@ -246,26 +368,32 @@ class DbGapSyncer(object):
                     project=project
                 )
 
-    def _grant_from_storage(self, to_add):
+    def _grant_from_storage(self, to_add, map_from_backend_to_dbgap, phsids):
         '''
         If a project have storage backend,
         grant user's access to buckets in the storage backend
         Args:
             to_add: a set of (username, project.auth_id)  to be granted
+            map_from_backend_to_dbgap: a dictinary to obtain dbgap_project_id from backend_auth_id
+            phsids: a dictionary of {username: {phsid: ['read-storage','write-storage']}
         Return:
             None
         '''
+
         for (username, project_auth_id) in to_add:
             project = self._projects[project_auth_id]
             for sa in project.storage_access:
                 self.logger.info(
                     'grant {} access to {} in {}'
                     .format(username, project, sa.provider.name))
+
+                dbgap_project_id = map_from_backend_to_dbgap[project_auth_id]
+                access = list(phsids[username][dbgap_project_id])
                 self.storage_manager.grant_access(
                     provider=sa.provider.name,
                     username=username,
                     project=project,
-                    access='read-storage'
+                    access=access
                 )
 
     def _init_projects(self, s):
@@ -289,17 +417,57 @@ class DbGapSyncer(object):
                 self._sync(s)
 
     def _sync(self, s):
-        if self.sync_from_dir is None:
-            with temps.tmpdir() as workdir:
-                self._get_from_sftp(workdir)
-                phsids, userinfo = self._sync_csv(
-                    glob.glob(os.path.join(workdir, '*')))
-        else:
-            phsids, userinfo = self._sync_csv(
-                glob.glob(os.path.join(self.sync_from_dir, '*')),
-                encrypted=False,
-            )
-        self.sync_to_db_and_storage_backend(phsids, userinfo, s)
+        '''
+        Collect files from dbgap server
+        sync csv and yaml files to storage backend and fence DB
+
+        '''
+        dbgap_file_list = []
+        tmpdir = tempfile.mkdtemp()
+        if self.is_sync_from_dbgap_server:
+            self._get_from_sftp(tmpdir)
+            dbgap_file_list = glob.glob(os.path.join(tmpdir, '*'))
+
+        phsids1, userinfo1 = self._sync_csv(
+            dict(zip(dbgap_file_list, [
+                 ['read-storage']]*len(dbgap_file_list))),
+            encrypted=False)
+
+        try:
+            shutil.rmtree(tmpdir)
+        except OSError as e:
+            if e.errno != errno.ENOENT:
+                raise
+
+        local_csv_file_list = []
+        if self.sync_from_local_csv_dir:
+            local_csv_file_list = glob.glob(
+                os.path.join(self.sync_from_local_csv_dir, '*'))
+
+        phsids2, userinfo2 = self._sync_csv(
+            dict(zip(local_csv_file_list, [
+                 ['read-storage']]*len(local_csv_file_list))),
+            encrypted=False)
+
+        import pdb
+        pdb.set_trace()
+
+        local_yaml_file_list = []
+        if self.sync_from_local_yaml_dir:
+            local_yaml_file_list = glob.glob(
+                os.path.join(self.sync_from_local_yaml_dir, '*'))
+
+        phsids3, userinfo3 = self._sync_yaml(
+            local_yaml_file_list, encrypted=False)
+
+        # privilleges in yaml files overide ones in csv files
+        self.sync_two_phsids_dict(phsids2, phsids1)
+        self.sync_two_userinfo_dict(userinfo2, userinfo1)
+
+        self.sync_two_phsids_dict(phsids3, phsids1)
+        self.sync_two_userinfo_dict(userinfo3, userinfo1)
+
+        self.sync_to_db_and_storage_backend(phsids1, userinfo1, s)
 
 
 if __name__ == '__main__':
@@ -311,18 +479,47 @@ if __name__ == '__main__':
     import sys
     import yaml
 
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Syncing dbgap')
+
+    parser.add_argument(
+        '--projects',
+        dest='project_mapping',
+        help='Specify project mapping yaml file')
+
+    parser.add_argument(
+        '--yaml-input',
+        dest='yaml_path',
+        help='Specify yaml file directory')
+
+    parser.add_argument(
+        '--csv-input',
+        dest='csv_path',
+        help='specify csv file directory')
+
+    parser.add_argument(
+        '--ftp-sync ',
+        dest='is_sync_from_dbgap_server',
+        type=bool,
+        help='sync from server True/False',
+        default=False)
+
+    args = parser.parse_args()
+    project_mapping = args.project_mapping
+    sync_from_local_yaml_dir = args.yaml_path
+    sync_from_local_csv_dir = args.csv_path
+    is_sync_from_dbgap_server = args.is_sync_from_dbgap_server
+
     patcher = patch(
         'fence.resources.storage.get_client',
         get_client)
     patcher.start()
 
-    project_mapping_path = sys.argv[1]
-    with open(project_mapping_path, 'r') as f:
-        mapping = yaml.load(f)
-    sync_from_dir = sys.argv[2] if len(sys.argv) > 2 else None
+    syncer_obj = DbGapSyncer(
+        dbGaP={}, DB=DB, project_mapping=project_mapping,
+        storage_credentials={'test-cleversafe': {'backend': 'cleversafe'}},
+        is_sync_from_dbgap_server=is_sync_from_dbgap_server,
+        sync_from_local_csv_dir=sync_from_local_csv_dir, sync_from_local_yaml_dir=sync_from_local_yaml_dir)
 
-    syncer = DbGapSyncer(
-        dbGaP, DB, mapping,
-        storage_credentials=STORAGE_CREDENTIALS,
-        sync_from_dir=sync_from_dir)
-    syncer.sync()
+    syncer_obj.sync()

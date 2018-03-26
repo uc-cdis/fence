@@ -53,7 +53,25 @@ def parse_arguments():
     hmac_create.add_argument('yaml-input')
 
     dbgap_sync = subparsers.add_parser('sync-dbgap')
-    dbgap_sync.add_argument('--projects', required=True)
+    dbgap_sync.add_argument(
+        '--projects',
+        dest='project_mapping',
+        required=True,
+        help='Specify project mapping yaml file')
+    dbgap_sync.add_argument(
+        '--yaml-input',
+        dest='yaml_path',
+        help='Specify yaml file directory')
+    dbgap_sync.add_argument(
+        '--csv-input',
+        dest='csv_path',
+        help='specify csv file directory')
+    dbgap_sync.add_argument(
+        '--ftp-sync ',
+        dest='is_sync_from_dbgap_server',
+        type=bool,
+        help='sync from server True/False',
+        default=False)
 
     manage_google_keys = subparsers.add_parser('google-manage-keys')
     init_google = subparsers.add_parser('google-init')
@@ -92,6 +110,16 @@ def main():
     else:
         ROOT_DIR = '/fence'
 
+    if os.environ.get('dbGaP'):
+        dbGaP = os.environ['dbGaP']
+    else:
+        from fence.settings import dbGaP
+
+    if os.environ.get('STORAGE_CREDENTIALS'):
+        STORAGE_CREDENTIALS = os.environ['STORAGE_CREDENTIALS']
+    else:
+        from fence.settings import STORAGE_CREDENTIALS
+
     if args.action == 'create':
         yaml_input = args.__dict__['yaml-input']
         create_sample_data(DB, yaml_input)
@@ -105,7 +133,9 @@ def main():
     elif args.action == 'user-delete':
         delete_users(DB, args.users)
     elif args.action == 'sync-dbgap':
-        sync_dbgap(args.__dict__['projects'])
+        sync_dbgap(dbGaP, STORAGE_CREDENTIALS, DB,
+                   projects=args.project_mapping, is_sync_from_dbgap_server=args.is_sync_from_dbgap_server,
+                   sync_from_local_csv_dir=args.csv_path, sync_from_local_yaml_dir=args.yaml_path)
     elif args.action == 'google-manage-keys':
         remove_expired_google_service_account_keys(DB)
     elif args.action == 'google-init':
