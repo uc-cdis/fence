@@ -35,6 +35,7 @@ ACCESS_TOKEN_COOKIE_NAME = 'access_token'
 #: The number of seconds after a refresh token is issued until it expires.
 REFRESH_TOKEN_EXPIRES_IN = 2592000
 
+
 #: ``SESSION_TIMEOUT: int``
 #: The number of seconds after which a browser session is considered stale.
 SESSION_TIMEOUT = 1800
