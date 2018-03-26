@@ -8,7 +8,6 @@ import smtplib
 
 from fence.errors import NotFound, UserError, InternalError
 from fence.models import User
-from fence.user import current_user
 
 
 def update_user_resource(username, resource):
@@ -29,7 +28,7 @@ def update_user_resource(username, resource):
                 'Account update from Bionimbus Cloud',
                 text=content,
                 server=flask.current_app.config['EMAIL_SERVER'])
-        return get_current_user_info(user, session)
+        return get_current_user_info(user)
 
 
 def find_user(username, session):
@@ -41,24 +40,25 @@ def find_user(username, session):
 
 def get_info_by_username(username):
     with flask.current_app.db.session as session:
-        return get_current_user_info(find_user(username, session), session)
+        user = find_user(username, session)
+        return get_current_user_info(user)
 
 
-def get_current_user_info():
+def get_current_user_info(user):
     info = {
-        'user_id': current_user.id,
-        'username': current_user.username,
+        'user_id': user.id,
+        'username': user.username,
         'resources_granted': [],
-        'project_access': dict(current_user.project_access),
+        'project_access': dict(user.project_access),
         'certificates_uploaded': [],
-        'email': current_user.email,
+        'email': user.email,
         'message': ''
     }
-    if current_user.application:
-        info['resources_granted'] = current_user.application.resources_granted
+    if user.application:
+        info['resources_granted'] = user.application.resources_granted
         info['certificates_uploaded'] = [
-            c.name for c in current_user.application.certificates_uploaded]
-        info['message'] = current_user.application.message
+            c.name for c in user.application.certificates_uploaded]
+        info['message'] = user.application.message
     return flask.jsonify(info)
 
 

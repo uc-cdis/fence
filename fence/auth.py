@@ -1,13 +1,12 @@
 from functools import wraps
 
-from addict import Dict
 from authutils.errors import JWTError
 from authutils.token import current_token, set_current_token
 import flask
 
 from fence.errors import Unauthorized
 from fence.jwt.validate import validate_jwt
-from fence.models import IdentityProvider, User
+from fence.models import IdentityProvider
 
 
 def build_redirect_url(hostname, path):

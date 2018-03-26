@@ -432,7 +432,6 @@ def patch_app_db_session(app, monkeypatch):
             'fence.resources.storage.cdis_jwt',
             'fence.resources.user',
             'fence.oidc.jwt_generator',
-            'fence.user',
         ]
         for module in modules_to_patch:
             monkeypatch.setattr('{}.current_session'.format(module), session)

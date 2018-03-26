@@ -21,6 +21,7 @@ from fence.resources.storage.cdis_jwt import (
     create_api_key,
 )
 from fence.resources.storage import get_endpoints_descriptions
+from fence.user import current_user
 
 
 blueprint = flask.Blueprint('credentials', __name__)
@@ -146,18 +147,10 @@ def list_keypairs(provider):
     else:
         # TODO hopefully we can remove this db call eventually, but
         # StorageManager class requires some updates
-        with flask.current_app.db.session as session:
-            user = (
-                session
-                .query(User)
-                .filter_by(id=user_id)
-                .first()
-            )
-
         result = (
             flask.current_app
             .storage_manager
-            .list_keypairs(provider, user)
+            .list_keypairs(provider, current_user)
         )
         keys = {
             'access_keys':
@@ -254,21 +247,15 @@ def create_keypairs(provider):
     elif provider == 'google':
         with GoogleCloudManager() as g_cloud:
             client_id = current_token.get("azp") or None
-            key = _get_google_access_key_for_client(g_cloud, client_id, user_id)
+            key = _get_google_access_key_for_client(
+                g_cloud, client_id, user_id
+            )
         return flask.jsonify(key)
     else:
         # TODO hopefully we can remove this db call eventually, but
         # StorageManager class requires some updates
-        with flask.current_app.db.session as session:
-            user = (
-                session
-                .query(User)
-                .filter_by(id=user_id)
-                .first()
-            )
-
         return flask.jsonify(flask.current_app.storage_manager.create_keypair(
-            provider, user
+            provider, current_user
         ))
 
 
@@ -378,16 +365,9 @@ def delete_keypair(provider, access_key):
     else:
         # TODO hopefully we can remove this db call eventually, but
         # StorageManager class requires some updates
-        with flask.current_app.db.session as session:
-            user = (
-                session
-                .query(User)
-                .filter_by(id=user_id)
-                .first()
-            )
-
         flask.current_app.storage_manager.delete_keypair(
-            provider, user, access_key)
+            provider, current_user, access_key
+        )
 
     return '', 204
 
