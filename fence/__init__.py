@@ -79,9 +79,13 @@ def app_config(app, settings='fence.settings', root_dir=None):
 def app_register_blueprints(app):
     app.register_blueprint(fence.blueprints.oauth2.blueprint, url_prefix='/oauth2')
     app.register_blueprint(fence.blueprints.user.blueprint, url_prefix='/user')
-    app.register_blueprint(fence.blueprints.storage_creds.blueprint, url_prefix='/credentials')
+
+    creds_blueprint = fence.blueprints.storage_creds.make_creds_blueprint()
+    app.register_blueprint(creds_blueprint, url_prefix='/credentials')
+
     app.register_blueprint(fence.blueprints.admin.blueprint, url_prefix='/admin')
     app.register_blueprint(fence.blueprints.well_known.blueprint, url_prefix='/.well-known')
+
     login_blueprint = fence.blueprints.login.make_login_blueprint(app)
     app.register_blueprint(login_blueprint, url_prefix='/login')
     link_blueprint = fence.blueprints.link.make_link_blueprint()
@@ -133,10 +137,10 @@ def app_sessions(app):
     app.db = SQLAlchemyDriver(app.config['DB'])
     migrate(app.db)
     session = flask_scoped_session(app.db.Session, app)  # noqa
-    app.storage_manager = StorageManager(
-        app.config['STORAGE_CREDENTIALS'],
-        logger=app.logger
-    )
+    # app.storage_manager = StorageManager(
+    #     app.config['STORAGE_CREDENTIALS'],
+    #     logger=app.logger
+    # )
     enabled_idp_ids = (
         app.config['ENABLED_IDENTITY_PROVIDERS']['providers'].keys()
     )

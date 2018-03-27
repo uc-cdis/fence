@@ -16,7 +16,7 @@ from fence.jwt.validate import validate_jwt
 from tests.utils import oauth2
 
 
-@pytest.mark.skip(reason="We are NOT COMPLAINT for this OPTIONAL param (acr) yet.")
+@pytest.mark.skip(reason="We are NOT COMPLIANT for this OPTIONAL param (acr) yet.")
 def test_acr_values(client, oauth_client):
     """
     Test the very basic requirement that including the ``acr_values`` parameter

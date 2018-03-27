@@ -1,3 +1,4 @@
+---
 swagger: '2.0'
 info:
   title: Fence OpenAPI Specification
@@ -20,6 +21,16 @@ tags:
     description: User information
   - name: data
     description: Generate pre-signed URLs
+  - name: credentials
+    description: Access credentials
+  - name: credentials/google
+    description: Google Credentials
+  - name: credentials/cdis
+    description: Deprecated! Use credentials/api
+  - name: credentials/api
+    description: API Credentials
+  - name: credentials/{provider}
+    description: Other provider credentials
   - name: link
     description: Link access identities
   - name: keys
@@ -149,7 +160,8 @@ paths:
           required: true
           type: string
           in: formData
-          description: The authorization code returned from the OAuth2 authorization request
+          description: The authorization code returned from the OAuth2
+            authorization request
         - name: redirect_uri
           required: true
           type: string
@@ -183,12 +195,14 @@ paths:
         '200':
           description: successful operation, OR invalid token submitted
         '400':
-          description: 'invalid token provided: not a refresh token, or token was missing a claim, or token could not be validated'
+          description: 'invalid token provided: not a refresh token, or
+            token was missing a claim, or token could not be validated'
   '/jwt/keys':
     get:
       tags:
         - keys
-      summary: Return the public keys which can be used to validate JWTs issued and signed by fence
+      summary: Return the public keys which can be used to validate JWTs
+        issued and signed by fence
       operationId: getKeys
       responses:
         '200':
@@ -231,13 +245,15 @@ paths:
           required: false
           type: string
           in: query
-          description: a protocol provided by storage provider, currently supports 'http' and 's3' protocols
+          description: a protocol provided by storage provider, currently
+            supports 'http' and 's3' protocols
           enum: [http, s3]
         - name: expires_in
           required: false
           type: int
           in: query
-          description: the time (in seconds) in which return url is valid. Default 1800, maximum is 86400
+          description: the time (in seconds) in which return url is valid.
+            Default 1800, maximum is 86400
       responses:
         '200':
           description: successful operation
@@ -251,7 +267,8 @@ paths:
         - data
       summary: Create a presigned URL for data specified by file_id
       description: >-
-        Allow users to get a pre-signed URL to upload data given the location of preference.
+        Allow users to get a pre-signed URL to upload data given the location
+        of preference.
       security:
         - OAuth2: [user]
       operationId: getPresignedURL
@@ -265,7 +282,8 @@ paths:
           required: false
           type: string
           in: query
-          description: a protocol provided by storage provider, currently supports 'http' and 's3' protocols
+          description: a protocol provided by storage provider, currently
+            supports 'http' and 's3' protocols
           enum: [http, s3]
         - name: expires_in
           required: false
@@ -280,6 +298,290 @@ paths:
             "$ref": '#/definitions/PresignedURL'
         '400':
           description: 'Invalid input: UUID not found or invalid location'
+  '/credentials':
+    get:
+      tags:
+        - credentials
+      summary:
+      description: >-
+        List different resources user can have credentials
+      security:
+        - OAuth2: [user]
+      operationId: listSources
+      responses:
+        '200':
+          description: successful operation
+
+  '/credentials/google':
+    get:
+      tags:
+        - credentials/google
+      summary: List access keys
+      description: >-
+        List all the Google access keys for the current user
+      security:
+        - OAuth2: [user]
+      operationId: listGoogleKeypairs
+      responses:
+        '200':
+          description: Google keys info response
+          schema:
+            "$ref": '#/definitions/GoogleKeys'
+    post:
+      tags:
+        - credentials/google
+      summary: Receive temporary access key
+      description: >-
+        Get a new temporary Google access key for the current user. The
+        response from this represents exactly what should be placed in a
+        JSON credentials file to pass to Google's APIs.
+      security:
+        - OAuth2: [user]
+      operationId: getGoogleKeypair
+      responses:
+        '200':
+          description: Temporary private Google key in
+            Google Credentials File format
+          schema:
+            "$ref": '#/definitions/GoogleKey'
+
+  '/credentials/google/{access_key}':
+    delete:
+      tags:
+        - credentials/google
+      summary: Delete access key
+      description: >-
+        Delete a Google access key for the current user
+      security:
+        - OAuth2: [user]
+      operationId: deleteGoogleKeypair
+      parameters:
+        - name: access_key
+          required: true
+          type: string
+          in: path
+          description: Google Key ID
+      responses:
+        '204':
+          description: successful deletion
+        '404':
+          description: Couldn't find key or service account for current user,
+            unable to delete given key
+
+  '/credentials/cdis':
+    get:
+      deprecated: true
+      tags:
+        - credentials/cdis
+      summary: List API keys for user
+      description: >-
+        List all the API keys for the current user
+      security:
+        - OAuth2: [user]
+      operationId: listAPIKeypairs
+      responses:
+        '200':
+          description: List of API keys issued to user and their expiration
+          schema:
+            "$ref": '#/definitions/APIKeys'
+    post:
+      deprecated: true
+      tags:
+        - credentials/cdis
+      summary: Receive API key
+      description: >-
+        Get a new API key for the current user. API keys can be used to
+        retrieve access tokens which will allow for authed communication
+        to our API.
+      security:
+        - OAuth2: [user]
+      operationId: getAPIKeypair
+      responses:
+        '200':
+          description: API key id and actual key
+          schema:
+            "$ref": '#/definitions/NewAPIKey'
+
+  '/credentials/cdis/{key_id}':
+    delete:
+      deprecated: true
+      tags:
+        - credentials/cdis
+      summary: Delete user API key
+      description: >-
+        Delete a API access key for the current user
+      security:
+        - OAuth2: [user]
+      operationId: deleteAPIKeypair
+      parameters:
+        - name: key_id
+          required: true
+          type: string
+          in: path
+          description: API Key key_id/jti
+      responses:
+        '204':
+          description: successful deletion
+        '404':
+          description: Couldn't find key for current user,
+            unable to delete given key
+
+  '/credentials/cdis/access_token':
+    post:
+      deprecated: true
+      tags:
+        - credentials/cdis
+      summary: Receive access token when given API key
+      description: >-
+        Get a new temporary access token for the current user by providing
+        a valid API key.
+      security:
+        - OAuth2: [user]
+      operationId: getAccessToken
+      parameters:
+        - in: "body"
+          name: "body"
+          description: "API key"
+          required: true
+          schema:
+            $ref: "#/definitions/APIKey"
+      responses:
+        '200':
+          description: Access token
+          schema:
+            "$ref": '#/definitions/AccessToken'
+
+  '/credentials/api':
+    get:
+      tags:
+        - credentials/api
+      summary: List API keys for user
+      description: >-
+        List all the API keys for the current user
+      security:
+        - OAuth2: [user]
+      operationId: listAPIKeypairs
+      responses:
+        '200':
+          description: List of API keys issued to user and their expiration
+          schema:
+            "$ref": '#/definitions/APIKeys'
+    post:
+      tags:
+        - credentials/api
+      summary: Receive API key
+      description: >-
+        Get a new API key for the current user. API keys can be used to
+        retrieve access tokens which will allow for authed communication
+        to our API.
+      security:
+        - OAuth2: [user]
+      operationId: getAPIKeypair
+      responses:
+        '200':
+          description: API key id and actual key
+          schema:
+            "$ref": '#/definitions/NewAPIKey'
+
+  '/credentials/api/{key_id}':
+    delete:
+      tags:
+        - credentials/api
+      summary: Delete user API key
+      description: >-
+        Delete a API access key for the current user
+      security:
+        - OAuth2: [user]
+      operationId: deleteAPIKeypair
+      parameters:
+        - name: key_id
+          required: true
+          type: string
+          in: path
+          description: API Key key_id/jti
+      responses:
+        '204':
+          description: successful deletion
+        '404':
+          description: Couldn't find key for current user,
+            unable to delete given key
+
+  '/credentials/api/access_token':
+    post:
+      tags:
+        - credentials/api
+      summary: Receive access token when given API key
+      description: >-
+        Get a new temporary access token for the current user by providing
+        a valid API key.
+      security:
+        - OAuth2: [user]
+      operationId: getAccessToken
+      parameters:
+        - in: "body"
+          name: "body"
+          description: "API key"
+          required: true
+          schema:
+            $ref: "#/definitions/APIKey"
+      responses:
+        '200':
+          description: Access token
+          schema:
+            "$ref": '#/definitions/AccessToken'
+
+  '/credentials/{provider}':
+    get:
+      tags:
+        - credentials/{provider}
+      summary: List access keys
+      description: >-
+        List all the access keys for the current user
+      security:
+        - OAuth2: [user]
+      operationId: listGenericKeypairs
+      responses:
+        '200':
+          description: Generic keys info response
+          schema:
+            "$ref": '#/definitions/GenericKeys'
+    post:
+      tags:
+        - credentials/{provider}
+      summary: Receive access key
+      description: >-
+        Get a new access key for the current user for the given provider
+      security:
+        - OAuth2: [user]
+      operationId: getGenericKeypair
+      responses:
+        '200':
+          description: generic keypair for provider
+          schema:
+            "$ref": '#/definitions/GenericKey'
+
+  '/credentials/{provider}/{access_key}':
+    delete:
+      tags:
+        - credentials/{provider}
+      summary: Delete access key
+      description: >-
+        Delete an access key for the current user
+      security:
+        - OAuth2: [user]
+      operationId: deleteGenericKeypair
+      parameters:
+        - name: access_key
+          required: true
+          type: string
+          in: path
+          description: Generic Key ID
+      responses:
+        '204':
+          description: successful deletion
+        '404':
+          description: Couldn't find key, unable to delete given key
+
   '/link/google':
     get:
       tags:
@@ -292,8 +594,11 @@ paths:
           in: query
           description: Page to redirect to after account linking
       description: >-
-        Link a Google identity to a User (AuthN using Google Oauth2 flow). Google identity will be associated with a user and added to a
-        proxy group for that user. The user's proxy group will be given access to data via Google's IAM. `redirect` will be stored in the session to follow after linking.
+        Link a Google identity to a User (AuthN using Google Oauth2 flow).
+        Google identity will be associated with a user and added to a
+        proxy group for that user. The user's proxy group will be given access
+        to data via Google's IAM. `redirect` will be stored in the session
+        to follow after linking.
       operationId: linkCloudIdentityStart
       responses:
         '302':
@@ -315,7 +620,8 @@ paths:
         '200':
           description: Google identity unlinked from user
         '404':
-          description: Google identity cannot be unlinked since it isn't linked to the current user
+          description: Google identity cannot be unlinked since it isn't linked
+            to the current user
   '/link/google/link':
     get:
       tags:
@@ -330,7 +636,8 @@ paths:
           required: true
           type: string
           in: formData
-          description: The authorization code returned from the OAuth2 authorization request
+          description: The authorization code returned from the OAuth2
+            authorization request
       description: >-
         Linking of Google identity to user after successful Oauth2
         flow with Google. Use code to retrieve user info from Google.
@@ -342,51 +649,54 @@ paths:
     post:
       tags:
         - link
-      summary: Link a Google Service Account
+      summary: Register a Google Service Account
       description: >-
-        Link a Google Cloud Project's service account to user to allow access to controlled
-        data. If there are issues, will provide details for what went wrong.
-      operationId: linkGoogleServiceAccount
+        Register a Google Cloud Project's service account to allow access
+        to controlled data. If there are issues, will provide details for
+        what went wrong.
+      operationId: registerGoogleServiceAccount
       parameters:
         - in: "body"
           name: "body"
-          description: "ServiceAccount object to link"
+          description: "ServiceAccount object to register"
           required: true
           schema:
             $ref: "#/definitions/GoogleServiceAccount"
       responses:
         '200':
-          description: success, linked service account
+          description: success, registered service account
         '400':
-          description: failure, trying to link service account resulted in errors
+          description: failure, trying to register service account resulted in
+            errors
   '/link/google/service_account/_dry_run':
     post:
       tags:
         - link
-      summary: Dry run to attempt to link a Google Service Account
+      summary: Dry run to attempt to register a Google Service Account
       description: >-
-        Attempt to link a service account WITHOUT actually doing so. Will
+        Attempt to register a service account WITHOUT actually doing so. Will
         provide detailed errors for what went wrong.
-      operationId: linkGoogleServiceAccountDryRun
+      operationId: registerGoogleServiceAccountDryRun
       parameters:
         - in: "body"
           name: "body"
-          description: "ServiceAccount object to link"
+          description: "ServiceAccount object to register"
           required: true
           schema:
             $ref: "#/definitions/GoogleServiceAccount"
       responses:
         '200':
-          description: success, linking service account is possible
+          description: success, registering service account is possible
         '400':
-          description: failure, linking service account would result in errors
+          description: failure, registering service account would result in errors
   '/.well-known/jwks':
     get:
       tags:
         - keys
       summary: Get JWK Set used by the application
       description: >-
-        See [RFC 7517](https://tools.ietf.org/html/rfc7517) for detailed specification and an [example
+        See [RFC 7517](https://tools.ietf.org/html/rfc7517) for detailed
+        specification and an [example
         response](https://tools.ietf.org/html/rfc7517#appendix-A.1).
       responses:
         200:
@@ -394,24 +704,187 @@ paths:
           schema:
             "$ref": '#/definitions/JWKS'
 definitions:
+  CredentialsSource:
+    type: object
+    required: [name, info]
+    properties:
+      name:
+        type: string
+        description: User's Google identity email for whom service account
+          should be associated with
+      info:
+        type: string
+        description: Service account's email
+
   GoogleServiceAccount:
     type: object
-    required: [google_user_email, service_account_email, google-project-id, projects]
+    required:
+      [google_user_email, service_account_email, google-project-id, projects]
     properties:
-        google_user_email:
+      service_account_email:
+        type: string
+        description: Service account's email
+      google_project_id:
+        type: string
+        description: Google Cloud Project ID of service account
+      projects:
+        type: array
+        items:
           type: string
-          description: User's Google identity email for whom service account should be associated with
-        service_account_email:
-          type: string
-          description: Service account's email
-        google_project_id:
-          type: string
-          description: Google Cloud Project ID of service account
-        projects:
-          type: array
-          items:
-            type: string
-          description: List of projects/datasets for which service account should be registered for
+        description: List of projects/datasets for which service account should
+          be registered for
+
+  GoogleKey:
+    type: object
+    description: decoded Google private key data from privateKeyData field
+      https://cloud.google.com/iam/reference/rest/v1/projects.serviceAccounts.keys#ServiceAccountPrivateKeyType
+    properties:
+      type:
+        type: string
+      project_id:
+        type: string
+      private_key_id:
+        type: string
+      private_key:
+        type: string
+      client_email:
+        type: string
+      client_id:
+        type: string
+      auth_uri:
+        type: string
+      token_uri:
+        type: string
+      auth_provider_x509_cert_url:
+        type: string
+      client_x509_cert_url:
+        type: string
+    example:
+      type: "service_account"
+      project_id: "project-id"
+      private_key_id: "some_number"
+      private_key: -----"BEGIN PRIVATE KEY-----\n..."
+        =\n-----END "PRIVATE KEY-----\n"
+      client_email: "<api-name>api@project-id.iam.gserviceaccount.com"
+      client_id: "..."
+      auth_uri: "https://accounts.google.com/o/oauth2/auth"
+      token_uri: "https://accounts.google.com/o/oauth2/token"
+      auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs"
+      client_x509_cert_url: "https://www.googleapis.com/...<api-name>api%40project-id.iam.gserviceaccount.com"
+
+  GoogleKeys:
+    type: object
+    properties:
+      access_keys:
+        type: array
+        description: List of Google keys info
+        items:
+          type: object
+          properties:
+            keyAlgorithm:
+              type: string
+              description: Specifies the algorithm (and possibly key size) for the
+                key.
+            validBeforeTime:
+              type: string
+              description: The key can be used before this timestamp.
+            name:
+              type: string
+              description: The resource name of the service account key in the
+                following format
+                projects/{PROJECT_ID}/serviceAccounts/{ACCOUNT}/keys/{key}.
+            validAfterTime:
+              type: string
+              description: The key can be used after this timestamp.
+    example:
+      access_keys:
+        - keyAlgorithm: "KEY_ALG_RSA_2048"
+          validBeforeTime: "2028-03-11T18:27:41Z"
+          name: "projects/example/serviceAccounts/example@example.iam.gserviceaccount.com/keys/1234567890abcdefghijklmnop"
+          validAfterTime: "2018-03-14T18:27:41Z"
+
+  APIKeys:
+    type: object
+    properties:
+      jtis:
+        type: array
+        description: List of API keys issued to the user
+        items:
+          type: object
+          properties:
+            jti:
+              type: string
+              description: JWT ID / key id
+            exp:
+              type: int
+              description: Key expiration
+                (JSON number representing the number of seconds from
+                1970-01-01T0:0:0Z as measured in UTC until the date/time)
+    example:
+      jtis:
+        - jti: "e9d58890-99b0-44f0-88bd-3ebc370b1329"
+          exp: 12345678
+
+  APIKey:
+    type: object
+    properties:
+      api_key:
+        type: string
+        description: JWT representing API key
+    example:
+      api_key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.XbPfbIHMI6arZ3Y922BhjWgQzWXcXNrz0ogtVhfEd2o"
+
+  NewAPIKey:
+    type: object
+    properties:
+      key_id:
+        type: string
+        description: Key identifier
+      api_key:
+        type: string
+        description: JWT representing API key
+    example:
+      key_id: "e9d58890-99b0-44f0-88bd-3ebc370b1329"
+      api_key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.XbPfbIHMI6arZ3Y922BhjWgQzWXcXNrz0ogtVhfEd2o"
+
+  AccessToken:
+    type: object
+    properties:
+      access_token:
+        type: string
+        description: JWT access token
+    example:
+      access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.XbPfbIHMI6arZ3Y922BhjWgQzWXcXNrz0ogtVhfEd2o"
+
+  GenericKey:
+    type: object
+    properties:
+      access_key:
+        type: string
+        description: generic key
+      secret_key:
+        type: string
+        description: generic secret key
+    example:
+      access_key: "8DGW9LyC0D4nByoWo6pp"
+      secret_key: "1lnkGScEH8Vr4EC6QnoqLK1PqRWPNqIBJkH6Vpgx"
+
+  GenericKeys:
+    type: object
+    properties:
+      access_keys:
+        type: array
+        description: List of Generic keys
+        items:
+          type: object
+          properties:
+            access_key:
+              type: string
+              description: access key value
+    example:
+      access_keys:
+        - access_key: "8DGW9LyC0D4nByoWo6pp"
+
   JWKS:
     type: object
     properties:
@@ -480,7 +953,8 @@ definitions:
     properties:
       keys:
         type: array
-        description: array of single-entry dictionaries mapping from key id to public key
+        description: array of single-entry dictionaries mapping from key id to
+          public key
         items:
           type: array
           description: "tuple of `(key_id, public_key)`"
