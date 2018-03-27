@@ -1,4 +1,4 @@
-from . import utils, test_settings
+from . import utils
 import jwt
 
 

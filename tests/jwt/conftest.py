@@ -1,8 +1,6 @@
 import jwt
 import pytest
 
-from tests import test_settings, utils
-
 
 @pytest.fixture(scope='session')
 def encoded_jwt(kid, rsa_private_key):
