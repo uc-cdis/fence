@@ -15,7 +15,6 @@ from fence.models import UserGoogleAccount
 from fence.models import UserGoogleAccountToProxyGroup
 from fence.auth import current_token
 from fence.auth import require_auth_header
-from fence.restful import RestfulApi
 
 
 def make_link_blueprint():
@@ -291,9 +290,9 @@ def _force_update_user_google_account(
             expires=expiration
         )
         current_session.add(account_in_proxy_group)
+
         _add_google_email_to_proxy_group(
             google_email=google_email, proxy_group_id=proxy_group_id)
-
 
     flask.current_app.logger.info(
         'Adding user {}\'s Google account to proxy group {}. '

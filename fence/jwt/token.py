@@ -1,12 +1,12 @@
+import flask
 import json
+import jwt
 import time
+import uuid
 
 from authlib.common.encoding import to_unicode
 from authlib.specs.oidc import CodeIDToken as AuthlibCodeIDToken
 from authlib.specs.oidc import IDTokenError
-import flask
-import jwt
-import uuid
 
 from fence.jwt import keys
 
@@ -213,7 +213,7 @@ def generate_signed_session_token(
 
 def generate_signed_id_token(
         kid, private_key, user, expires_in, client_id, audiences=None,
-        auth_time=None, max_age=None, nonce=None):
+        auth_time=None, max_age=None, nonce=None, linked_google_email=None):
     """
     Generate a JWT ID token, and output a UTF-8 string of the encoded JWT
     signed with the private key
@@ -238,7 +238,7 @@ def generate_signed_id_token(
     """
     token = generate_id_token(
         user, expires_in, client_id, audiences=audiences, auth_time=auth_time,
-        max_age=max_age, nonce=nonce
+        max_age=max_age, nonce=nonce, linked_google_email=linked_google_email
     )
 
     signed_token = token.get_signed_and_encoded_token(kid, private_key)
@@ -331,7 +331,7 @@ def generate_api_key(
 
 def generate_signed_access_token(
         kid, private_key, user, expires_in, scopes, forced_exp_time=None,
-        client_id=None):
+        client_id=None, linked_google_email=None):
     """
     Generate a JWT access token and output a UTF-8
     string of the encoded JWT signed with the private key.
@@ -374,6 +374,13 @@ def generate_signed_access_token(
         },
         'azp': client_id or ''
     }
+
+    # only add google linkage information if provided
+    if linked_google_email:
+        claims['context']['user']['google']['linked_google_account'] = (
+            linked_google_email
+        )
+
     flask.current_app.logger.info(
         'issuing JWT access token with id [{}] to [{}]'.format(jti, sub)
     )
@@ -388,7 +395,7 @@ def generate_signed_access_token(
 
 def generate_id_token(
         user, expires_in, client_id, audiences=None, auth_time=None,
-        max_age=None, nonce=None):
+        max_age=None, nonce=None, linked_google_email=None):
     """
     Generate an unsigned ID token object. Use `.get_signed_and_encoded_token`
     on result to retrieve a signed JWT
@@ -440,6 +447,12 @@ def generate_id_token(
         'auth_time': auth_time,
         'azp': client_id,
     }
+
+    # only add google linkage information if provided
+    if linked_google_email:
+        claims['context']['user']['google'] = {
+            'linked_google_account': linked_google_email,
+        }
 
     # Only include if provided, used to associate a client session with an ID
     # token. If present in Auth Request from client, should set same val
