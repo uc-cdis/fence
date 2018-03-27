@@ -54,55 +54,54 @@ def test_delete_user_with_access_privilege(app, db_session):
     assert db_session.query(User).count() == 0, remaining_usernames
 
 
-def test_get_jwt_keypair_with_default_kid(mock_keypairs):
-    kid, _ = get_jwt_keypair(kid=None, root_dir=ROOT_DIR)
-    assert kid == 'key-test'
+def test_get_jwt_keypair_with_default_kid(mock_keypairs, kid):
+    result_kid, _ = get_jwt_keypair(kid=None, root_dir=ROOT_DIR)
+    assert result_kid == kid
 
 
 def test_get_jwt_keypair_with_no_kid_found(mock_keypairs):
-    kid, _ = get_jwt_keypair(kid='No kid found', root_dir=ROOT_DIR)
-    assert kid == None
+    result_kid, _ = get_jwt_keypair(kid='No kid found', root_dir=ROOT_DIR)
+    assert result_kid == None
 
 
-def test_get_jwt_with_found_kid(mock_keypairs):
-    kid, _ = get_jwt_keypair(kid='key-test-2', root_dir='/fake_root_dir')
-    assert kid == 'key-test-2'
+def test_get_jwt_with_found_kid(mock_keypairs, kid_2):
+    result_kid, _ = get_jwt_keypair(kid=kid_2, root_dir='/fake_root_dir')
+    assert result_kid == kid_2
 
 
-def test_create_user_access_token_with_no_found_user(app, mock_keypairs, db_session):
+def test_create_user_access_token_with_no_found_user(
+        app, mock_keypairs, db_session, kid):
     user = User(username='test_user')
     db_session.add(user)
     jti, _, _ = create_user_access_token(
-        app.config['DB'], app.config['BASE_URL'],
-        ROOT_DIR='/fake_root_dir',
-        kid='key-test', username='other user',
-        scopes='fence', expires_in=3600
+        app.config['DB'], app.config['BASE_URL'], ROOT_DIR='/fake_root_dir',
+        kid=kid, username='other user', scopes='fence', expires_in=3600
     )
     assert jti == None
 
 
-def test_create_user_refresh_token_with_no_found_user(app, mock_keypairs, db_session):
+def test_create_user_refresh_token_with_no_found_user(
+        app, mock_keypairs, db_session, kid):
     user = User(username='test_user')
     db_session.add(user)
     jti, _, _ = create_user_refresh_token(
-        app.config['DB'], app.config['BASE_URL'],
-        ROOT_DIR,
-        kid='key-test', username='other user',
-        scopes='fence', expires_in=3600
+        app.config['DB'], app.config['BASE_URL'], ROOT_DIR, kid=kid,
+        username='other user', scopes='fence', expires_in=3600
     )
     assert jti == None
 
 
-def test_create_user_access_token_with_found_user(app, private_key, db_session, client):
+def test_create_user_access_token_with_found_user(
+        app, db_session, client, kid, rsa_private_key):
     user = User(username='test_user')
     db_session.add(user)
     with patch("fence.scripting.fence_create.get_jwt_keypair") as patch_get_jwt_keypair:
-        patch_get_jwt_keypair.return_value = ['key-test', private_key]
+        patch_get_jwt_keypair.return_value = [kid, rsa_private_key]
 
         jti, access_token, _ = create_user_access_token(
             app.config['DB'], app.config['BASE_URL'], '/fake_root_dir',
-            kid='key-test', username='test_user',
-            scopes='openid,user', expires_in=3600
+            kid=kid, username='test_user', scopes='openid,user',
+            expires_in=3600
         )
         r = client.get(
             '/user', headers={'Authorization': 'bear ' + access_token})
@@ -111,7 +110,8 @@ def test_create_user_access_token_with_found_user(app, private_key, db_session, 
         assert jti is not None
 
 
-def test_create_refresh_token_with_found_user(app, private_key, db_session, oauth_test_client):
+def test_create_refresh_token_with_found_user(
+        app, db_session, oauth_test_client, kid, rsa_private_key):
 
     DB = app.config['DB']
     username = 'test_user'
@@ -128,12 +128,11 @@ def test_create_refresh_token_with_found_user(app, private_key, db_session, oaut
             )
 
     with patch("fence.scripting.fence_create.get_jwt_keypair") as patch_get_jwt_keypair:
-        patch_get_jwt_keypair.return_value = ['key-test', private_key]
+        patch_get_jwt_keypair.return_value = [kid, rsa_private_key]
 
         jti, refresh_token, original_claims = create_user_refresh_token(
-            DB=DB, BASE_URL=BASE_URL, ROOT_DIR='/fake_root_dir',
-            kid='key-test', username=username,
-            scopes=scopes, expires_in=expires_in
+            DB=DB, BASE_URL=BASE_URL, ROOT_DIR='/fake_root_dir', kid=kid,
+            username=username, scopes=scopes, expires_in=expires_in
         )
 
         refresh_token_response = (
