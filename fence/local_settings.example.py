@@ -144,3 +144,10 @@ MAX_API_KEY_TTL = 2592000
 #: ``MAX_ACCESS_TOKEN_TTL: int``
 #: The number of seconds after an access token is issued until it expires.
 MAX_ACCESS_TOKEN_TTL = 3600
+
+dbGaP = {
+    'sftp': {'host': '',
+                'username': '',
+                'password': '',
+                },
+    'decrypt_key': ''}
