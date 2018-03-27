@@ -10,6 +10,7 @@ MOCK_STORAGE = False
 BASE_URL = 'http://localhost/user'
 APPLICATION_ROOT = '/user'
 
+ROOT_DIR = '/fence'
 # If using multi-tenant setup, configure this to the base URL for the provider
 # fence (i.e. ``BASE_URL`` in the provider fence config).
 # OIDC_ISSUER = 'http://localhost:8080/user

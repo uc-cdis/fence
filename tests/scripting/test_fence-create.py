@@ -1,7 +1,21 @@
-from fence.models import AccessPrivilege, Project, User
+# Python 2 and 3 compatible
+try:
+    from unittest.mock import patch
+except ImportError:
+    from mock import patch
+
+from fence.models import AccessPrivilege, Project, User, UserRefreshToken
 from fence.scripting.fence_create import (
     delete_users,
+    create_user_refresh_token,
+    create_user_access_token,
+    get_jwt_keypair,
 )
+
+from fence.jwt.validate import validate_jwt
+
+
+ROOT_DIR = './'
 
 
 def test_delete_users(app, db_session, example_usernames):
@@ -38,3 +52,103 @@ def test_delete_user_with_access_privilege(app, db_session):
     delete_users(app.config['DB'], [user.username])
     remaining_usernames = db_session.query(User.username).all()
     assert db_session.query(User).count() == 0, remaining_usernames
+
+
+def test_get_jwt_keypair_with_default_kid(mock_keypairs):
+    kid, _ = get_jwt_keypair(kid=None, root_dir=ROOT_DIR)
+    assert kid == 'key-test'
+
+
+def test_get_jwt_keypair_with_no_kid_found(mock_keypairs):
+    kid, _ = get_jwt_keypair(kid='No kid found', root_dir=ROOT_DIR)
+    assert kid == None
+
+
+def test_get_jwt_with_found_kid(mock_keypairs):
+    kid, _ = get_jwt_keypair(kid='key-test-2', root_dir='/fake_root_dir')
+    assert kid == 'key-test-2'
+
+
+def test_create_user_access_token_with_no_found_user(app, mock_keypairs, db_session):
+    user = User(username='test_user')
+    db_session.add(user)
+    jti, _, _ = create_user_access_token(
+        app.config['DB'], app.config['BASE_URL'],
+        ROOT_DIR='/fake_root_dir',
+        kid='key-test', username='other user',
+        scopes='fence', expires_in=3600
+    )
+    assert jti == None
+
+
+def test_create_user_refresh_token_with_no_found_user(app, mock_keypairs, db_session):
+    user = User(username='test_user')
+    db_session.add(user)
+    jti, _, _ = create_user_refresh_token(
+        app.config['DB'], app.config['BASE_URL'],
+        ROOT_DIR,
+        kid='key-test', username='other user',
+        scopes='fence', expires_in=3600
+    )
+    assert jti == None
+
+
+def test_create_user_access_token_with_found_user(app, private_key, db_session, client):
+    user = User(username='test_user')
+    db_session.add(user)
+    with patch("fence.scripting.fence_create.get_jwt_keypair") as patch_get_jwt_keypair:
+        patch_get_jwt_keypair.return_value = ['key-test', private_key]
+
+        jti, access_token, _ = create_user_access_token(
+            app.config['DB'], app.config['BASE_URL'], '/fake_root_dir',
+            kid='key-test', username='test_user',
+            scopes='openid,user', expires_in=3600
+        )
+        r = client.get(
+            '/user', headers={'Authorization': 'bear ' + access_token})
+        assert r.status_code == 200
+        print r.data
+        assert jti is not None
+
+
+def test_create_refresh_token_with_found_user(app, private_key, db_session, oauth_test_client):
+
+    DB = app.config['DB']
+    username = 'test_user'
+    BASE_URL = app.config['BASE_URL']
+    scopes = 'openid,user'
+    expires_in = 3600
+
+    user = User(username=username)
+    db_session.add(user)
+
+    user = (db_session.query(User)
+            .filter_by(username=username)
+            .first()
+            )
+
+    with patch("fence.scripting.fence_create.get_jwt_keypair") as patch_get_jwt_keypair:
+        patch_get_jwt_keypair.return_value = ['key-test', private_key]
+
+        jti, refresh_token, original_claims = create_user_refresh_token(
+            DB=DB, BASE_URL=BASE_URL, ROOT_DIR='/fake_root_dir',
+            kid='key-test', username=username,
+            scopes=scopes, expires_in=expires_in
+        )
+
+        refresh_token_response = (
+            oauth_test_client
+            .refresh(refresh_token=refresh_token)
+            .response
+        )
+
+        ret_claims = validate_jwt(
+            refresh_token_response.json['id_token'], {'openid'}
+        )
+        assert original_claims['iss'] == ret_claims['iss']
+        assert original_claims['sub'] == ret_claims['sub']
+        assert original_claims['iat'] <= ret_claims['iat']
+        db_token = db_session.query(
+            UserRefreshToken).filter_by(jti=jti).first()
+        assert db_token is not None
+        assert jti is not None

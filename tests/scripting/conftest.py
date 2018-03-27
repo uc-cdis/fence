@@ -1,5 +1,5 @@
 import pytest
-
+from collections import OrderedDict
 
 @pytest.fixture(scope='module')
 def example_usernames():
@@ -16,4 +16,27 @@ def patch_driver(db, monkeypatch):
     monkeypatch.setattr(
         'fence.scripting.fence_create.SQLAlchemyDriver',
         lambda _: db,
+    )
+
+#fence.settings import DB, BASE_URL
+
+@pytest.fixture(scope='function', autouse=True)
+def mock_keypairs(monkeypatch):
+    """
+    Change the keypair configureation in ``fence.settings.JWT_KEYPAIR_FILES``.
+    """
+
+    JWT_KEYPAIR_FILES = OrderedDict([
+        (
+            'key-test',
+            ('tests/resources/keys/test_public_key.pem', 'tests/resources/keys/test_private_key.pem'),
+        ),
+        (
+            'key-test-2',
+            ('tests/resources/keys/test_public_key_2.pem', 'tests/resources/keys/test_private_key_2.pem'),
+    ),
+    ])
+
+    monkeypatch.setattr(
+        'fence.settings.JWT_KEYPAIR_FILES', JWT_KEYPAIR_FILES
     )

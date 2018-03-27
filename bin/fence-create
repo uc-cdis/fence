@@ -12,6 +12,7 @@ from fence.scripting.fence_create import (
     google_init,
     sync_dbgap,
     remove_expired_google_service_account_keys,
+    create_user_token,
 )
 
 
@@ -57,6 +58,14 @@ def parse_arguments():
 
     init_google = subparsers.add_parser('google-init')
 
+
+    token_create = subparsers.add_parser('token-create')
+    token_create.add_argument('--kid')
+    token_create.add_argument('--type', required=True)
+    token_create.add_argument('--username', required=True)
+    token_create.add_argument('--scopes', required=True)
+    token_create.add_argument('--exp')
+
     return parser.parse_args()
 
 
@@ -70,6 +79,16 @@ def main():
         DB = os.environ['FENCE_DB']
     else:
         from fence.settings import DB
+    
+    if os.environ.get('BASE_URL'):
+        DB = os.environ['BASE_URL']
+    else:
+        from fence.settings import BASE_URL
+    
+    if os.environ.get('ROOT_DIR'):
+        ROOT_DIR = os.environ['ROOT_DIR']
+    else:
+        ROOT_DIR = '/fence'
 
     if args.action == 'create':
         yaml_input = args.__dict__['yaml-input']
@@ -89,7 +108,10 @@ def main():
         remove_expired_google_service_account_keys(DB)
     elif args.action == 'google-init':
         google_init(DB)
-
+    elif args.action == 'token-create':
+        token = create_user_token(DB, BASE_URL, ROOT_DIR, args.__dict__['kid'], args.__dict__['type'], args.__dict__['username'], args.__dict__['scopes'], args.__dict__['exp'])
+        if token:
+            print(token)
 
 if __name__ == '__main__':
     main()
