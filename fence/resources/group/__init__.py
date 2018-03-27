@@ -1,5 +1,4 @@
 from fence.resources import userdatamodel as udm
-from fence.models import UserToGroup, AccessPrivilege
 from fence.errors import UserError, NotFound
 
 def get_group(current_session, groupname):
@@ -20,10 +19,23 @@ def clear_projects_in_group(current_session, groupname):
     return udm.clear_projects_in_group(current_session, groupname)
 
 def delete_group(current_session, groupname):
-    return udm.delete_group(current_session, groupname)
+    group = udm.get_group(current_session, groupname)
+    if not group:
+        raise UserError("Group doesn't exist")
+    else:
+        current_session.delete(group)
+        current_session.flush()
 
 def create_group(current_session, groupname, description):
-    return udm.create_group(current_session, groupname, description)
+    group = udm.get_group(current_session, groupname)
+    if group:
+        raise UserError("Group already exists")
+    group = udm.get_empty_group()
+    group.name = groupname
+    group.description = description
+    current_session.add(group)
+    current_session.flush()
+    return {'result': "success"}
 
 def get_group_users(current_session, groupname):
     return udm.get_group_users(current_session, groupname)
@@ -41,7 +53,7 @@ def update_group(current_session, groupname, description, new_name):
     current_session.flush()
     
 def connect_user_to_group(current_session, user, group):
-    new_link = UserToGroup()
+    new_link = udm.get_user_to_group()
     new_link.user_id = user.id
     new_link.group_id = group.id
     current_session.add(new_link)
@@ -51,7 +63,7 @@ def connect_user_to_group(current_session, user, group):
                            user.username, group.name))}
 
 def connect_project_to_group(current_session, group, project):
-    new_link = AccessPrivilege()
+    new_link = udm.get_project_to_group()
     new_link.project_id = project.id
     new_link.group_id = group.id
     current_session.add(new_link)
@@ -72,3 +84,15 @@ def remove_user_from_group(current_session, user, group):
     else:
         raise NotFound("User {0} and Group {1} are not linked".format(
             user.username, group.name))
+
+def remove_project_from_group(current_session, group, project):
+    to_be_removed = udm.get_project_group_access_privilege(current_session, project, group)
+    if to_be_removed:
+        current_session.delete(to_be_removed)
+        current_session.flush()
+        return {"result": ("Project: {0} SUCCESFULLY "
+                       "removed from Group: {1}".format(
+                           project.name, group.name))}
+    else:
+        raise NotFound("Project {0} and Group {1} are not linked".format(
+            project.name, group.name))

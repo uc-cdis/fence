@@ -110,4 +110,9 @@ def get_user_groups(current_session, username):
     return udm.get_user_groups(current_session, username)
 
 def remove_user_from_project(current_session, user, project):
-    return udm.remove_user_from_project(current_session, user, project)
+    access = udm.get_user_project_access_privilege(current_session, user, project)
+    if access:
+        current_session.delete(access)
+    else:
+        raise NotFound("Project {0} not connected to user {1}".format(
+            project.name, user.username))

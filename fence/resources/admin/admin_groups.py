@@ -114,7 +114,7 @@ def disconnect_project_from_group(current_session, grp, projectname):
     if not prj:
         return {"warning": ("Project {0} doesn't exist".format(projectname))}
     else:
-        return udm.remove_project_from_group(current_session, grp, prj)
+        return gp.remove_project_from_group(current_session, grp, prj)
     
 
 def update_user_projects_within_group(current_session, username, groupname, projectname):
