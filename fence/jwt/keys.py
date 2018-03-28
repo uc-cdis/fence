@@ -15,6 +15,7 @@ import base64
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 import flask
+from jose import jwk
 
 
 class Keypair(object):
@@ -48,16 +49,13 @@ class Keypair(object):
             dict: JWK representation of the public key
         """
         n, e = _rsa_public_numbers(self.public_key)
-        jwk = {
-            'alg': 'RS256',
-            'kty': 'RSA',
+        jwk_dict = jwk.construct(self.public_key, algorithm='RS256').to_dict()
+        jwk_dict.update({
             'use': 'sig',
             'key_ops': 'verify',
             'kid': self.kid,
-            'n': base64.urlsafe_b64encode(str(n)),
-            'e': base64.urlsafe_b64encode(str(e)),
-        }
-        return jwk
+        })
+        return jwk_dict
 
 
 def _rsa_public_numbers(public_key_data):
