@@ -123,7 +123,8 @@ class GoogleLinkRedirect(Resource):
                 user_id, google_email, proxy_group, _allow_new=False)
 
         error = _get_error_params(error, description)
-        return flask.redirect(provided_redirect + error)
+        flask.redirect_url = provided_redirect + error
+        return flask.redirect(flask.redirect_url)
 
 
 class GoogleLink(Resource):
@@ -146,12 +147,20 @@ class GoogleLink(Resource):
             proxy_group = flask.session.get('google_proxy_group_id')
             _clear_google_link_info_from_session()
 
-            error, description = get_errors_update_user_google_account_dry_run(
-                user_id, email, proxy_group, _already_authed=True)
+            error, error_description = (
+                get_errors_update_user_google_account_dry_run(
+                    user_id, email, proxy_group, _already_authed=True)
+            )
 
             if not error:
                 _force_update_user_google_account(
                     user_id, email, proxy_group, _allow_new=True)
+
+                # keep linked email in session so when session refreshes access
+                # token, we don't have to hit db to see if user has linked acnt
+                # NOTE: This only saves us from a db hit if they maintain their
+                # session
+                flask.session['linked_google_email'] = email
 
         # if we have a redirect, follow it and add any errors
         if provided_redirect:
@@ -206,7 +215,7 @@ def get_errors_update_user_google_account_dry_run(
         else:
             error = 'g_acnt_link_error'
             error_description = (
-                'User doesn\'t have a linked Google account. Cannot'
+                'User doesn\'t have a linked Google account. Cannot '
                 'extend expiration.')
     elif not proxy_group:
         error = 'g_acnt_access_error'
@@ -214,7 +223,7 @@ def get_errors_update_user_google_account_dry_run(
             'No proxy group found for user {}. Could not give Google Account '
             'access. Proxy groups are created automatically on a timed '
             'schedule. Please try again later.'
-            .format(user_id),
+            .format(user_id)
         )
     else:
         if user_google_account.user_id != user_id:
@@ -294,10 +303,10 @@ def _force_update_user_google_account(
         _add_google_email_to_proxy_group(
             google_email=google_email, proxy_group_id=proxy_group_id)
 
-    flask.current_app.logger.info(
-        'Adding user {}\'s Google account to proxy group {}. '
-        'Expiration: {}'.format(
-            user_google_account,
+    flask.current_app.logger.debug(
+        'Adding user\'s (id: {}) Google account to their proxy group (id: {}).'
+        ' Expiration: {}'.format(
+            user_google_account.user_id,
             proxy_group_id,
             expiration)
     )
@@ -312,7 +321,7 @@ def _add_new_user_google_account(user_id, google_email):
     )
     current_session.add(user_google_account)
     flask.current_app.logger.info(
-        'Linking Google account {} to user {}.'.format(
+        'Linking Google account {} to user with id {}.'.format(
             google_email, user_id))
     current_session.commit()
     return user_google_account

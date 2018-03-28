@@ -9,7 +9,7 @@ from fence.jwt.token import (
 )
 from fence.models import AuthorizationCode
 from fence.models import User
-from fence.models import UserGoogleAccount
+from fence.utils import get_linked_google_account_email
 
 import fence.settings
 
@@ -89,7 +89,7 @@ class JWTGenerator(BearerToken):
 
         keypair = flask.current_app.keypairs[0]
 
-        linked_google_email = _get_linked_google_account_email(user)
+        linked_google_email = get_linked_google_account_email(user.id)
 
         id_token = generate_signed_id_token(
             kid=keypair.kid,
@@ -130,14 +130,3 @@ class JWTGenerator(BearerToken):
             'refresh_token': refresh_token,
             'expires_in': expires_in,
         }
-
-
-def _get_linked_google_account_email(user):
-    email = None
-    user_google_account = (
-        current_session.query(UserGoogleAccount)
-        .filter(UserGoogleAccount.user_id == user.id).first()
-    )
-    if user_google_account:
-        email = user_google_account.email
-    return email

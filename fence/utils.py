@@ -9,7 +9,9 @@ import string
 import flask
 from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.datastructures import ImmutableMultiDict
+from flask_sqlalchemy_session import current_session
 
+from fence.models import UserGoogleAccount
 from fence.models import Client, User
 from fence.jwt.token import CLIENT_ALLOWED_SCOPES
 
@@ -23,6 +25,17 @@ def random_str(length):
 
 def json_res(data):
     return flask.Response(json.dumps(data), mimetype='application/json')
+
+
+def get_linked_google_account_email(user_id):
+    email = None
+    user_google_account = (
+        current_session.query(UserGoogleAccount)
+        .filter(UserGoogleAccount.user_id == user_id).first()
+    )
+    if user_google_account:
+        email = user_google_account.email
+    return email
 
 
 def create_client(
