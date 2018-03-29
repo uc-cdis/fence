@@ -3,16 +3,25 @@
 Define pytest fixtures.
 """
 
+from collections import OrderedDict
 import json
-import jwt
 import mock
-from mock import patch, MagicMock
-from moto import mock_s3, mock_sts
 import os
 
 from addict import Dict
+from authutils.testing.fixtures import (
+    _hazmat_rsa_private_key,
+    _hazmat_rsa_private_key_2,
+    rsa_private_key,
+    rsa_private_key_2,
+    rsa_public_key,
+    rsa_public_key_2,
+)
 import bcrypt
 from cdisutilstest.code.storage_client_mock import get_client
+import jwt
+from mock import patch, MagicMock
+from moto import mock_s3, mock_sts
 import pytest
 import requests
 from sqlalchemy.ext.compiler import compiles
@@ -21,6 +30,7 @@ from sqlalchemy.schema import DropTable
 import fence
 from fence import app_init
 from fence import models
+from fence.jwt.keys import Keypair
 
 import tests
 from tests import test_settings
@@ -98,85 +108,63 @@ def claims_refresh():
 
 
 @pytest.fixture(scope='session')
-def public_key():
-    """
-    Return a public key for testing.
-    """
-    return utils.read_file('resources/keys/test_public_key.pem')
-
-
-@pytest.fixture(scope='session')
-def private_key():
-    """
-    Return a private key for testing. (Use only a private key that is
-    specifically set aside for testing, and never actually used for auth.)
-    """
-    return utils.read_file('resources/keys/test_private_key.pem')
-
-
-@pytest.fixture(scope='session')
-def encoded_jwt(private_key):
+def encoded_jwt(kid, rsa_private_key):
     """
     Return an example JWT containing the claims and encoded with the private
     key.
 
     Args:
-        claims (dict): fixture
-        private_key (str): fixture
+        rsa_private_key (str): fixture
 
     Return:
         str: JWT containing claims encoded with private key
     """
-    kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
     headers = {'kid': kid}
     return jwt.encode(
         utils.default_claims(),
-        key=private_key,
+        key=rsa_private_key,
         headers=headers,
         algorithm='RS256',
     )
 
 
 @pytest.fixture(scope='session')
-def encoded_jwt_expired(claims, private_key):
+def encoded_jwt_expired(kid, rsa_private_key):
     """
     Return an example JWT that has already expired.
 
     Args:
-        claims (dict): fixture
-        private_key (str): fixture
+        rsa_private_key (str): fixture
 
     Return:
         str: JWT containing claims encoded with private key
     """
-    kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
     headers = {'kid': kid}
     claims_expired = utils.default_claims()
     # Move `exp` and `iat` into the past.
     claims_expired['exp'] -= 10000
     claims_expired['iat'] -= 10000
     return jwt.encode(
-        claims_expired, key=private_key, headers=headers, algorithm='RS256'
+        claims_expired, key=rsa_private_key, headers=headers, algorithm='RS256'
     )
 
 
 @pytest.fixture(scope='session')
-def encoded_jwt_refresh_token(claims_refresh, private_key):
+def encoded_jwt_refresh_token(claims_refresh, kid, rsa_private_key):
     """
     Return an example JWT refresh token containing the claims and encoded with
     the private key.
 
     Args:
         claims_refresh (dict): fixture
-        private_key (str): fixture
+        rsa_private_key (str): fixture
 
     Return:
         str: JWT refresh token containing claims encoded with private key
     """
-    kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
     headers = {'kid': kid}
     return jwt.encode(
-        claims_refresh, key=private_key, headers=headers, algorithm='RS256'
+        claims_refresh, key=rsa_private_key, headers=headers, algorithm='RS256'
     )
 
 
@@ -213,7 +201,19 @@ class Mocker(object):
 
 
 @pytest.fixture(scope='session')
-def app():
+def kid():
+    """Return a JWT key ID to use for tests."""
+    return 'test-keypair'
+
+
+@pytest.fixture(scope='session')
+def kid_2():
+    """Return a second JWT key ID to use for tests."""
+    return 'test-keypair-2'
+
+
+@pytest.fixture(scope='session')
+def app(kid, rsa_private_key, rsa_public_key):
     """
     Flask application fixture.
     """
@@ -221,6 +221,12 @@ def app():
     mocker.mock_functions()
     root_dir = os.path.dirname(os.path.realpath(__file__))
     app_init(fence.app, test_settings, root_dir=root_dir)
+    fence.app.keypairs.append(Keypair(
+        kid=kid, public_key=rsa_public_key, private_key=rsa_private_key
+    ))
+    fence.app.jwt_public_keys = {
+        fence.app.config['BASE_URL']: OrderedDict([(kid, rsa_public_key)])
+    }
     return fence.app
 
 
@@ -527,26 +533,25 @@ def mock_get(monkeypatch, example_keys_response):
 
 @pytest.fixture(scope='function')
 def encoded_creds_jwt(
-        private_key, user_client, oauth_client, google_proxy_group):
+        kid, rsa_private_key, user_client, oauth_client, google_proxy_group):
     """
     Return a JWT and user_id for a new user containing the claims and
     encoded with the private key.
 
     Args:
         claims (dict): fixture
-        private_key (str): fixture
+        rsa_private_key (str): fixture
 
     Return:
         str: JWT containing claims encoded with private key
     """
-    kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
     headers = {'kid': kid}
     return Dict(
         jwt=jwt.encode(
             utils.authorized_download_credentials_context_claims(
                 user_client['username'], user_client['user_id'],
                 oauth_client['client_id'], google_proxy_group['id']),
-            key=private_key,
+            key=rsa_private_key,
             headers=headers,
             algorithm='RS256',
         ),
@@ -558,26 +563,25 @@ def encoded_creds_jwt(
 
 @pytest.fixture(scope='function')
 def encoded_jwt_no_proxy_group(
-        private_key, user_client, oauth_client):
+        kid, rsa_private_key, user_client, oauth_client):
     """
     Return a JWT and user_id for a new user containing the claims and
     encoded with the private key.
 
     Args:
         claims (dict): fixture
-        private_key (str): fixture
+        rsa_private_key (str): fixture
 
     Return:
         str: JWT containing claims encoded with private key
     """
-    kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
     headers = {'kid': kid}
     return Dict(
         jwt=jwt.encode(
             utils.authorized_download_credentials_context_claims(
                 user_client['username'], user_client['user_id'],
                 oauth_client['client_id']),
-            key=private_key,
+            key=rsa_private_key,
             headers=headers,
             algorithm='RS256',
         ),

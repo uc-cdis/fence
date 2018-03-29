@@ -9,8 +9,6 @@ from fence.jwt.validate import validate_jwt
 from fence.models import User
 from fence.utils import random_str
 
-from tests import test_settings
-
 
 def test_create_id_token(app):
     """
@@ -31,12 +29,11 @@ def test_create_id_token(app):
     assert token is not None
 
 
-def test_recode_id_token(app, private_key):
+def test_recode_id_token(app, kid, rsa_private_key):
     """
     Test that after signing, unsigning, re-signing, and unsigning again,
     the contents of the ID Token that should be the same, are.
     """
-    kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
     issuer = app.config.get('BASE_URL')
     keypair = app.keypairs[0]
     client_id = "client_12345"
@@ -55,7 +52,7 @@ def test_recode_id_token(app, private_key):
         max_age=max_age, nonce=nonce)
 
     new_signed_token = original_unsigned_token.get_signed_and_encoded_token(
-        kid, private_key
+        kid, rsa_private_key
     )
     new_unsigned_token = UnsignedIDToken.from_signed_and_encoded_token(
         new_signed_token, client_id=client_id, issuer=issuer,
