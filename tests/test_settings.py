@@ -64,16 +64,8 @@ SESSION_COOKIE_NAME = 'fence'
 HMAC_ENCRYPTION_KEY = Fernet.generate_key()
 ENABLE_CSRF_PROTECTION = False
 
-JWT_KEYPAIR_FILES = OrderedDict([
-    (
-        'key-test',
-        ('resources/keys/test_public_key.pem', 'resources/keys/test_private_key.pem'),
-    ),
-    (
-        'key-test-2',
-        ('resources/keys/test_public_key_2.pem', 'resources/keys/test_private_key_2.pem'),
-    ),
-])
+#: The test app uses the RSA key fixtures from authutils, so leave this empty.
+JWT_KEYPAIR_FILES = OrderedDict([])
 
 STORAGE_CREDENTIALS = {
     'test-cleversafe': {
