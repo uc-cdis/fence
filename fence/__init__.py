@@ -200,7 +200,7 @@ def check_csrf():
     if flask.request.method != 'GET':
         csrf_cookie = flask.request.cookies.get('x-csrf-token')
         csrf_header = flask.request.headers.get('csrftoken')
-        referer = flask.request.headers.get('HTTP_REFERER')
+        referer = flask.request.headers.get('referer')
         flask.current_app.logger.debug('HTTP REFERER ' + referer)         
         if not csrf_cookie\
         or not csrf_header\
