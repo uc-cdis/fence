@@ -470,7 +470,7 @@ class DbGapSyncer(object):
 if __name__ == '__main__':
 
     from cdisutilstest.code.storage_client_mock import get_client
-    from ..local_settings import DB, dbGaP
+    from ..local_settings import DB
 
     from mock import patch
 
