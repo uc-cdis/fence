@@ -1,9 +1,5 @@
 from fence.models import (
     Project,
-    StorageAccess,
-    CloudProvider,
-    ProjectToBucket,
-    Bucket,
     User,
     AccessPrivilege,
     Group,
@@ -55,8 +51,7 @@ def get_project_group_access_privilege(current_session, project, group):
 def get_all_groups(current_session):
     return current_session.query(Group).all()
 
-def get_group_users(current_session, groupname):
-    group = get_group(current_session, groupname)
+def get_group_users(current_session, group):
     user_to_groups = current_session.query(UserToGroup).filter(
         UserToGroup.group_id == group.id).all()
     users = []
@@ -68,10 +63,7 @@ def get_group_users(current_session, groupname):
     return users
 
 
-def get_group_projects(current_session, groupname):
-    group = get_group(current_session, groupname)
-    if not group:
-        raise NotFound("Group {0} does not exist".format(groupname))
+def get_group_projects(current_session, group):
     projects_to_group = current_session.query(AccessPrivilege).filter(
         AccessPrivilege.group_id == group.id).all()
     projects = []

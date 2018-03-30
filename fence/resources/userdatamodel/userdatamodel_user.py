@@ -15,15 +15,23 @@ from fence.errors import (
     UserError,
 )
 
+from flask_sqlalchemy_session import current_session as curr_sess
+
 
 def get_user(current_session, username):
-    user = current_session.query(User).filter(User.username == username).first()
-    if not user:
-        raise NotFound("user {} not found".format(username))
-    return user
+    return  current_session.query(User).filter(User.username == username).first()
 
 
-def delete_user_by_username(current_session, username):
+def get_user_accesses(current_session):
+    return  (
+        current_session.query(User)
+        .join(User.groups)
+        .filter(User.id == flask.g.user.id)
+    )
+    
+
+
+def delete_user(current_session, username):
     """
     Delete the user with the given username
     """

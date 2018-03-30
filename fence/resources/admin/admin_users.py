@@ -127,7 +127,7 @@ def delete_user(current_session, username):
     and the assciated storage for that project/bucket.
     Returns a dictionary.
     """
-    response = udm.delete_user_by_username(current_session, username)
+    response = us.delete_user(current_session, username)
     if response["result"] == "success":
         # commented until we figure out where did the providers go
         """

@@ -12,11 +12,6 @@ def get_group_info(current_session, groupname):
         projects = get_group_projects(current_session, groupname)
         return {"name": group.name, "description": group.description, "projects": projects}
 
-def clear_users_in_group(current_session, groupname):
-    return udm.clear_users_in_group(current_session, groupname)
-
-def clear_projects_in_group(current_session, groupname):
-    return udm.clear_projects_in_group(current_session, groupname)
 
 def delete_group(current_session, groupname):
     group = udm.get_group(current_session, groupname)
@@ -37,14 +32,6 @@ def create_group(current_session, groupname, description):
     current_session.flush()
     return {'result': "success"}
 
-def get_group_users(current_session, groupname):
-    return udm.get_group_users(current_session, groupname)
-
-def get_all_groups(current_session):
-    return udm.get_all_groups(current_session)
-
-def get_group_projects(current_session, groupname):
-    return udm.get_group_projects(current_session, groupname)
 
 def update_group(current_session, groupname, description, new_name):
     group = get_group(current_session, groupname)
@@ -96,3 +83,27 @@ def remove_project_from_group(current_session, group, project):
     else:
         raise NotFound("Project {0} and Group {1} are not linked".format(
             project.name, group.name))
+
+
+def get_group_users(current_session, groupname):
+    group = get_group(current_session, groupname)
+    return udm.get_group_users(current_session, group)
+
+
+def get_all_groups(current_session):
+    return udm.get_all_groups(current_session)
+
+
+def get_group_projects(current_session, groupname):
+    group = get_group(current_session, groupname)
+    if not group:
+        raise NotFound("Group {0} does not exist".format(groupname))
+    return udm.get_group_projects(current_session, group)
+
+
+def clear_users_in_group(current_session, groupname):
+    return udm.clear_users_in_group(current_session, groupname)
+
+
+def clear_projects_in_group(current_session, groupname):
+    return udm.clear_projects_in_group(current_session, groupname)
