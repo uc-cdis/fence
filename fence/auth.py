@@ -61,7 +61,7 @@ def logout(next_url=None):
         itrust_next_url = flask.current_app.config['ITRUST_GLOBAL_LOGOUT'] + next_url
         flask.current_app.logger.debug("IN AUTH LOGOUT, itrust_next_url = {0}".format(itrust_next_url))
     flask.session.clear()
-    flask.current_app.logger.debug("IN AUTH LOGOUT WE RETURN, itrust or next = {0}".format((istrust_next_url or next_url)))
+    flask.current_app.logger.debug("IN AUTH LOGOUT WE RETURN, itrust or next = {0}".format((itrust_next_url or next_url)))
     return (itrust_next_url or next_url)
 
 
