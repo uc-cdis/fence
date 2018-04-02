@@ -743,6 +743,27 @@ paths:
         '400':
           description: failure, registering service account would result in errors
 
+  '/google/service_account/monitor':
+    get:
+      tags:
+        - google
+      summary:
+        Return the service account used for monitoring user's Google Cloud
+        Projects
+      description: |
+        This account is used to monitor and validate access to data
+        for registered service accounts for the project.
+
+        >NOTE: This service account must be given editor role on a Google
+        Project for service account registration to succeed. If it is ever
+        removed, all access to data will be removed.
+      operationId: adminGoogleServiceAccount
+      responses:
+        '200':
+          description: Monitoring service account information
+          schema:
+            "$ref": '#/definitions/AdminGoogleServiceAccount'
+
   '/google/service_account/{id}':
     get:
       tags:
@@ -860,10 +881,19 @@ definitions:
         description: List of projects/datasets for which service account should
           be registered for
 
+  AdminGoogleServiceAccount:
+    type: object
+    required:
+      [service_account_email]
+    properties:
+      service_account_email:
+        type: string
+        description: Service account's email
+
   NewGoogleServiceAccount:
     type: object
     required:
-      [service_account_email, google_project_id, project_access]
+      [id, service_account_email, google_project_id, project_access]
     properties:
       service_account_email:
         type: string
