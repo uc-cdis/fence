@@ -585,29 +585,6 @@ paths:
           description: Couldn't find key, unable to delete given key
 
   '/link/google':
-    post:
-      tags:
-        - link
-      summary: Link Google identity to user
-      parameters:
-        - name: redirect
-          required: true
-          type: string
-          in: query
-          description: Page to redirect to after account linking
-      description: |
-        Link a Google identity to a User (AuthN using Google Oauth2 flow).
-        Google identity will be associated with a user and added to a
-        proxy group for that user. The user's proxy group will be given access
-        to data via Google's IAM. `redirect` will be stored in the session
-        to follow after linking.
-        ---
-        If AuthN is successful with Google, eventually will redirect to `/link/google/link`, where the actual account linkage occur.
-        > *See `/link/google/link` endpoint for details about error handling.*
-      operationId: linkCloudIdentityStart1
-      responses:
-        '302':
-          description: redirect to Oauth2 flow with Google to AuthN user
     get:
       tags:
         - link
@@ -662,7 +639,7 @@ paths:
           schema:
             $ref: "#/definitions/GoogleLinkingError"
 
-  '/link/google/link':
+  '/link/google/callback':
     get:
       tags:
         - link
@@ -813,13 +790,19 @@ paths:
       summary: Update a Google Service Account
       description: >-
         Update a Google Cloud Project's service account to change access
-        to controlled data.
+        to controlled data and/or extend access to data. This will extend
+        the service accounts access to data. It will also modify access if a
+        patch document is provided with new access.
+
+        > WARNING: Provided patch document will *fully replace* previous data.
+        It will NOT extend previous data by provided values, it will FULLY
+        REPLACE the data with what's provided.
       operationId: updateGoogleServiceAccount
       parameters:
         - in: "body"
           name: "patch document"
           description: "ServiceAccount fields to update"
-          required: true
+          required: false
           schema:
             $ref: "#/definitions/GoogleServiceAccountProjectAccess"
       responses:
