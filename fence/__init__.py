@@ -154,7 +154,10 @@ def root():
 def logout_endpoint():
     root = app.config.get('APPLICATION_ROOT', '')
     flask.current_app.logger.debug("IN FENCE INIT, next arg = {0}".format(flask.request.args.get('next', "EMPTY!!")))
-    next_url = build_redirect_url(app.config.get('ROOT_URL', ''), flask.request.args.get('next', root))
+    request_next = flask.request.args.get('next', root)
+    
+    next_url = request_next if request_next.startswith('https') or request_next.startswith('http') else build_redirect_url(app.config.get('ROOT_URL', ''), request_next)
+
     flask.current_app.logger.debug("IN FENCE INIT, next_url = {0}".format(next_url))
     return flask.redirect(logout(next_url=next_url))
 
