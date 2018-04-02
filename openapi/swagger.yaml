@@ -584,7 +584,7 @@ paths:
         '404':
           description: Couldn't find key, unable to delete given key
 
-  '/link/google':
+  '/link/google (IN PROGRESS)':
     get:
       tags:
         - link
@@ -639,7 +639,7 @@ paths:
           schema:
             $ref: "#/definitions/GoogleLinkingError"
 
-  '/link/google/callback':
+  '/link/google/callback (IN PROGRESS)':
     get:
       tags:
         - link
@@ -674,7 +674,7 @@ paths:
         '302':
           description: redirect to session-stored redirect value
 
-  '/google/service_accounts':
+  '/google/service_accounts (PLANNING)':
     get:
       tags:
         - google
@@ -721,7 +721,7 @@ paths:
           description: failure, trying to register service account resulted in
             errors
 
-  '/google/service_accounts/_dry_run':
+  '/google/service_accounts/_dry_run (PLANNING)':
     post:
       tags:
         - google
@@ -743,7 +743,7 @@ paths:
         '400':
           description: failure, registering service account would result in errors
 
-  '/google/service_account/monitor':
+  '/google/service_account/monitor (PLANNING)':
     get:
       tags:
         - google
@@ -764,7 +764,7 @@ paths:
           schema:
             "$ref": '#/definitions/AdminGoogleServiceAccount'
 
-  '/google/service_account/{id}':
+  '/google/service_account/{id} (PLANNING)':
     get:
       tags:
         - google
