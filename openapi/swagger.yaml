@@ -704,6 +704,14 @@ paths:
       summary: Get a list of Google Service Accounts
       description: >-
         Get a list of service account this user has registered
+      parameters:
+        - name: google_project_id
+          required: false
+          type: string
+          in: query
+          description: Optional Google Cloud Project ID to filter by. If
+            provided, will only return service accounts registered to the
+            given project_id by the current user.
       operationId: listGoogleServiceAccount
       responses:
         '200':
@@ -851,6 +859,9 @@ definitions:
     required:
       [service_account_email, google_project_id, project_access]
     properties:
+      id:
+        type: integer
+        description: unique identifier
       service_account_email:
         type: string
         description: Service account's email
