@@ -743,7 +743,7 @@ paths:
         '400':
           description: failure, registering service account would result in errors
 
-  '/google/service_account/monitor (PLANNING)':
+  '/google/service_accounts/monitor (PLANNING)':
     get:
       tags:
         - google
@@ -764,7 +764,7 @@ paths:
           schema:
             "$ref": '#/definitions/AdminGoogleServiceAccount'
 
-  '/google/service_account/{id} (PLANNING)':
+  '/google/service_accounts/{id} (PLANNING)':
     get:
       tags:
         - google
