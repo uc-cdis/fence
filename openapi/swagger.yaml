@@ -733,11 +733,13 @@ paths:
           description: "ServiceAccount object to register"
           required: true
           schema:
-            $ref: "#/definitions/GoogleServiceAccount"
+            $ref: "#/definitions/NewGoogleServiceAccount"
       responses:
         '201':
           description: success, registered service account. Item location
             specified in Location of the response.
+          schema:
+            $ref: "#/definitions/GoogleServiceAccount"
         '400':
           description: failure, trying to register service account resulted in
             errors
@@ -757,7 +759,7 @@ paths:
           description: "ServiceAccount object to register"
           required: true
           schema:
-            $ref: "#/definitions/GoogleServiceAccount"
+            $ref: "#/definitions/NewGoogleServiceAccount"
       responses:
         '200':
           description: success, registering service account is possible
@@ -862,6 +864,24 @@ definitions:
       id:
         type: integer
         description: unique identifier
+      service_account_email:
+        type: string
+        description: Service account's email
+      google_project_id:
+        type: string
+        description: Google Cloud Project ID of service account
+      project_access:
+        type: array
+        items:
+          type: string
+        description: List of projects/datasets for which service account should
+          be registered for
+
+  NewGoogleServiceAccount:
+    type: object
+    required:
+      [service_account_email, google_project_id, project_access]
+    properties:
       service_account_email:
         type: string
         description: Service account's email
