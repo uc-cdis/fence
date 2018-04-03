@@ -222,18 +222,18 @@ paths:
           description: successful operation
           schema:
             "$ref": '#/definitions/UserInfo'
-  '/data/{uuid}':
+  '/data/download/{file_id}':
     get:
       tags:
         - data
-      summary: Create a presigned URL for data
+      summary: Create a presigned URL for data download given a file_id
       description: >-
         Allow users to get a pre-signed URL given the location of preference.
       security:
         - OAuth2: [user]
       operationId: getPresignedURL
       parameters:
-        - name: uuid
+        - name: file_id 
           required: true
           type: string
           in: path
@@ -254,6 +254,12 @@ paths:
           in: query
           description: the time (in seconds) in which return url is valid.
             Default 1800, maximum is 86400
+        - name: redirect
+          required: false
+          type: boolean
+          in: query
+          description: if set, then a redirect to the presigned url will be
+            sent. Otherwise, json data with the url is returned.
       responses:
         '200':
           description: successful operation
@@ -265,7 +271,7 @@ paths:
     get:
       tags:
         - data
-      summary: Create a presigned URL for data specified by file_id
+      summary: Create a presigned URL for data upload specified by file_id
       description: >-
         Allow users to get a pre-signed URL to upload data given the location
         of preference.
