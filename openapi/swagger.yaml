@@ -33,6 +33,8 @@ tags:
     description: Other provider credentials
   - name: link
     description: Link access identities
+  - name: google
+    description: Google functionality
   - name: keys
     description: Get public keys used to validate JWTs issued by fence
 schemes:
@@ -582,7 +584,7 @@ paths:
         '404':
           description: Couldn't find key, unable to delete given key
 
-  '/link/google':
+  '/link/google (IN PROGRESS)':
     get:
       tags:
         - link
@@ -593,36 +595,51 @@ paths:
           type: string
           in: query
           description: Page to redirect to after account linking
-      description: >-
+      description: |
         Link a Google identity to a User (AuthN using Google Oauth2 flow).
         Google identity will be associated with a user and added to a
         proxy group for that user. The user's proxy group will be given access
         to data via Google's IAM. `redirect` will be stored in the session
         to follow after linking.
-      operationId: linkCloudIdentityStart
+        ---
+        If AuthN is successful with Google, eventually will redirect to `/link/google/link`, where the actual account linkage occur.
+        > *See `/link/google/link` endpoint for details about error handling.*
+      operationId: linkCloudIdentityStart2
       responses:
         '302':
           description: redirect to Oauth2 flow with Google to AuthN user
+    patch:
+      tags:
+        - link
+      summary: Extend Google identity's access expiration
+      description: >-
+         Extend previously linked Google identity's access expiration from the user's proxy group (thus extending its access to data). This can only be done if the user has ALREADY linked their Google account before.
+      operationId: extendCloudIdentityExpiration
+      responses:
+        '200':
+          description: successfully extended access
+        '404':
+          description: No linked Google account found for user
     delete:
       tags:
         - link
       summary: Unlink a Google identity from a user
-      parameters:
-        - name: redirect
-          required: true
-          type: string
-          in: query
-          description: Page to redirect to after unlinking
       description: >-
         Remove link between a user and a Google identity.
-      operationId: linkCloudIdentityStart
+      operationId: unlinkCloudIdentity
       responses:
         '200':
           description: Google identity unlinked from user
         '404':
-          description: Google identity cannot be unlinked since it isn't linked
-            to the current user
-  '/link/google/link':
+          description: No linked Google account found for user
+          schema:
+            $ref: "#/definitions/GoogleLinkingError"
+        '400':
+          description: Failure with Google's API to remove account from proxy group. See response for details
+          schema:
+            $ref: "#/definitions/GoogleLinkingError"
+
+  '/link/google/callback (IN PROGRESS)':
     get:
       tags:
         - link
@@ -638,17 +655,49 @@ paths:
           in: formData
           description: The authorization code returned from the OAuth2
             authorization request
-      description: >-
+      description: |
         Linking of Google identity to user after successful Oauth2
         flow with Google. Use code to retrieve user info from Google.
+        Will return to session stored redirect with any error information in query params. The error params are `error` and `error_description`.
+        ---
+        Possible Error Types (for `error` param)
+          * `g_acnt_link_error`
+            * Issue with the linkage between User and their Google account
+          * `g_acnt_auth_failure`
+            * Issue with Oauth2 flow to AuthN user's Google account
+          * `g_acnt_access_error`
+            * Issue with providing access to Google account by putting in user's proxy group
+
+        For details about the error, check the `error_description` param.
       operationId: linkCloudIdentity
       responses:
         '302':
           description: redirect to session-stored redirect value
-  '/link/google/service_account':
+
+  '/google/service_accounts (PLANNING)':
+    get:
+      tags:
+        - google
+      summary: Get a list of Google Service Accounts
+      description: >-
+        Get a list of service account this user has registered
+      parameters:
+        - name: google_project_id
+          required: false
+          type: string
+          in: query
+          description: Optional Google Cloud Project ID to filter by. If
+            provided, will only return service accounts registered to the
+            given project_id by the current user.
+      operationId: listGoogleServiceAccount
+      responses:
+        '200':
+          description: List of service accounts current user registered
+          schema:
+            "$ref": '#/definitions/GoogleServiceAccounts'
     post:
       tags:
-        - link
+        - google
       summary: Register a Google Service Account
       description: >-
         Register a Google Cloud Project's service account to allow access
@@ -661,17 +710,21 @@ paths:
           description: "ServiceAccount object to register"
           required: true
           schema:
-            $ref: "#/definitions/GoogleServiceAccount"
+            $ref: "#/definitions/NewGoogleServiceAccount"
       responses:
-        '200':
-          description: success, registered service account
+        '201':
+          description: success, registered service account. Item location
+            specified in Location of the response.
+          schema:
+            $ref: "#/definitions/GoogleServiceAccount"
         '400':
           description: failure, trying to register service account resulted in
             errors
-  '/link/google/service_account/_dry_run':
+
+  '/google/service_accounts/_dry_run (PLANNING)':
     post:
       tags:
-        - link
+        - google
       summary: Dry run to attempt to register a Google Service Account
       description: >-
         Attempt to register a service account WITHOUT actually doing so. Will
@@ -683,12 +736,103 @@ paths:
           description: "ServiceAccount object to register"
           required: true
           schema:
-            $ref: "#/definitions/GoogleServiceAccount"
+            $ref: "#/definitions/NewGoogleServiceAccount"
       responses:
         '200':
           description: success, registering service account is possible
         '400':
           description: failure, registering service account would result in errors
+
+  '/google/service_accounts/monitor (PLANNING)':
+    get:
+      tags:
+        - google
+      summary:
+        Return the service account used for monitoring user's Google Cloud
+        Projects
+      description: |
+        This account is used to monitor and validate access to data
+        for registered service accounts for the project.
+
+        >NOTE: This service account must be given editor role on a Google
+        Project for service account registration to succeed. If it is ever
+        removed, all access to data will be removed.
+      operationId: adminGoogleServiceAccount
+      responses:
+        '200':
+          description: Monitoring service account information
+          schema:
+            "$ref": '#/definitions/AdminGoogleServiceAccount'
+
+  '/google/service_accounts/{id} (PLANNING)':
+    get:
+      tags:
+        - google
+      summary: Get a specific Google Service Account
+      description: >-
+        Get a service account
+      operationId: getSpecficGoogleServiceAccount
+      parameters:
+        - in: "id"
+          name: "id"
+          description: "ServiceAccount idenitifer"
+          required: true
+      responses:
+        '200':
+          description: success, service account info
+          schema:
+            $ref: "#/definitions/GoogleServiceAccount"
+        '404':
+          description: not found, service account doesn't exist
+        '403':
+          description: unauthorized, user did not register this service account
+    delete:
+      tags:
+        - google
+      summary: Delete a specific Google Service Account
+      description: >-
+        Delete a service account
+      operationId: deleteSpecficGoogleServiceAccount
+      parameters:
+        - in: "id"
+          name: "id"
+          description: "ServiceAccount idenitifer"
+          required: true
+      responses:
+        '200':
+          description: success, deleted service account
+        '403':
+          description: unauthorized, user cannot delete this service account
+        '400':
+          description: failure, could not service account
+    patch:
+      tags:
+        - google
+      summary: Update a Google Service Account
+      description: >-
+        Update a Google Cloud Project's service account to change access
+        to controlled data and/or extend access to data. This will extend
+        the service accounts access to data. It will also modify access if a
+        patch document is provided with new access.
+
+        > WARNING: Provided patch document will *fully replace* previous data.
+        It will NOT extend previous data by provided values, it will FULLY
+        REPLACE the data with what's provided.
+      operationId: updateGoogleServiceAccount
+      parameters:
+        - in: "body"
+          name: "patch document"
+          description: "ServiceAccount fields to update"
+          required: false
+          schema:
+            $ref: "#/definitions/GoogleServiceAccountProjectAccess"
+      responses:
+        '200':
+          description: success, updated service account access
+        '400':
+          description: failure, trying to update service account access
+            resulted in errors
+
   '/.well-known/jwks':
     get:
       tags:
@@ -719,7 +863,37 @@ definitions:
   GoogleServiceAccount:
     type: object
     required:
-      [google_user_email, service_account_email, google-project-id, projects]
+      [service_account_email, google_project_id, project_access]
+    properties:
+      id:
+        type: integer
+        description: unique identifier
+      service_account_email:
+        type: string
+        description: Service account's email
+      google_project_id:
+        type: string
+        description: Google Cloud Project ID of service account
+      project_access:
+        type: array
+        items:
+          type: string
+        description: List of projects/datasets for which service account should
+          be registered for
+
+  AdminGoogleServiceAccount:
+    type: object
+    required:
+      [service_account_email]
+    properties:
+      service_account_email:
+        type: string
+        description: Service account's email
+
+  NewGoogleServiceAccount:
+    type: object
+    required:
+      [id, service_account_email, google_project_id, project_access]
     properties:
       service_account_email:
         type: string
@@ -727,7 +901,28 @@ definitions:
       google_project_id:
         type: string
         description: Google Cloud Project ID of service account
-      projects:
+      project_access:
+        type: array
+        items:
+          type: string
+        description: List of projects/datasets for which service account should
+          be registered for
+
+  GoogleServiceAccounts:
+    type: object
+    properties:
+      service_accounts:
+        type: array
+        description: List of GoogleServiceAccounts
+        items:
+          "$ref": '#/definitions/GoogleServiceAccount'
+
+  GoogleServiceAccountProjectAccess:
+    type: object
+    required:
+      [project_access]
+    properties:
+      project_access:
         type: array
         items:
           type: string
@@ -916,6 +1111,7 @@ definitions:
           e: "AQAB"
           alg: "RS256"
           kid: "2011-04-29"
+
   UserInfo:
     type: object
     required: [pdc_id, username, resources_granted, project_access, certificates_uploaded, email, message]
@@ -942,12 +1138,14 @@ definitions:
         description: ''
       message:
         type: string
+
   PresignedURL:
     type: object
     properties:
       url:
         type: string
         description: the presigned url issued to
+
   PublicKeys:
     type: object
     properties:
@@ -963,5 +1161,19 @@ definitions:
     example:
       keys:
         - ["public_key_01", "-----BEGIN PUBLIC KEY----- ... -----END PUBLIC KEY-----"]
+
   OAuthHTML:
     type: string
+
+  GoogleLinkingError:
+    type: object
+    properties:
+      error:
+        type: string
+        description: Error name/class
+      error_description:
+        type: string
+        description: Description of what caused the error
+    example:
+      error: "error_name"
+      error_description: "A description of what caused the error"
