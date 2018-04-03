@@ -8,6 +8,7 @@ from flask import (
     request,
     jsonify,
     Blueprint,
+    current_app,
 )
 
 from fence.auth import (
@@ -34,6 +35,8 @@ def get_user(username):
     userdatamodel database.
     Returns a json object
     """
+    current_app.logger.debug("get_user:\n\tname:  {0}".format(
+        username))
     return jsonify(adm.get_user_info(current_session, username))
 
 
@@ -60,8 +63,11 @@ def create_user():
     username = request.get_json().get('name',None)
     role = request.get_json().get('role',None)
     email = request.get_json().get('email',None)
+    current_app.logger.debug(
+        ("create_user:\n\tname: {0}\n\t"
+        "role: {1}\n\temail: {2}").format(
+            username, role, email))        
     response = jsonify(adm.create_user(current_session,username, role, email))
-    current_session.commit()
     return response
 
 
@@ -76,8 +82,11 @@ def update_user(username):
     name = request.get_json().get('name', None)
     role = request.get_json().get('role',None)
     email = request.get_json().get('email',None)
+    current_app.logger.debug(
+        ("update_user:\n\tname: {0}\n\t"
+        "role: {1}\n\temail: {2}").format(
+            username, role, email))        
     response = jsonify(adm.update_user(current_session, username, role, email, name))
-    current_session.commit()
     return response
 
 @blueprint.route('/user/<username>', methods=['DELETE'])
@@ -89,8 +98,9 @@ def delete_user(username):
     and all associated storage solutions.
     Returns json object
     """
+    current_app.logger.debug("delete_user:\n\tname:  {0}".format(
+        username))
     response = jsonify(adm.delete_user(current_session, username))
-    current_session.commit()
     return response
 
 @blueprint.route('/user/<username>/groups', methods=['GET'])
@@ -102,6 +112,8 @@ def get_user_groups(username):
     userdatamodel database.
     Returns a json object
     """
+    current_app.logger.debug("get_user_groups:\n\tname:  {0}".format(
+        username))
     return jsonify(adm.get_user_groups(current_session, username))
 
 
@@ -114,8 +126,9 @@ def add_user_to_groups(username):
     Returns a json object
     """
     groups = request.get_json().get('groups', [])
+    current_app.logger.debug("add_user_to_groups:\n\tname:  {0}\n\tgroups: {1}".format(
+        username, str(groups)))
     response = jsonify(adm.add_user_to_groups(current_session,username, groups=groups))
-    current_session.commit()
     return response
 
 
@@ -128,8 +141,9 @@ def remove_user_from_groups(username):
     Returns a json object
     """
     groups = request.get_json().get('groups', [])
+    current_app.logger.debug("remove_user_from_groups:\n\tname:  {0}\n\tgroups: {1}".format(
+        username, str(groups)))
     response = jsonify(adm.remove_user_from_groups(current_session,username, groups=groups))
-    current_session.commit()
     return response
 
 
@@ -143,7 +157,6 @@ def remove_user_from_projects(username):
     """
     projects = request.get_json().get('projects', [])
     response = jsonify(adm.remove_user_from_projects(current_session, username, projects))
-    current_session.commit()
     return response
 
 @blueprint.route('/user/<username>/projects', methods=['PUT'])
@@ -157,7 +170,6 @@ def add_user_to_projects(username):
     """
     projects = request.get_json().get('projects', [])
     response = jsonify(adm.add_user_to_projects(current_session, username, projects=projects))
-    current_session.commit()
     return response
 
 #### PROJECTS ####
@@ -205,7 +217,6 @@ def create_project(projectname):
             storage_accesses
         )
     )
-    current_session.commit()
     return response
 
 
@@ -218,7 +229,6 @@ def delete_project(projectname):
     Returns a json object.
     """
     response = jsonify(adm.delete_project(current_session, projectname))
-    current_session.commit()
     return response
 
 @blueprint.route('/groups/<groupname>/projects', methods=['DELETE'])
@@ -231,7 +241,6 @@ def remove_projects_from_group(groupname):
     """
     projects = request.get_json().get('projects', [])
     response = jsonify(adm.remove_projects_from_group(current_session,groupname, projects))
-    current_session.commit()
     return response
 
 @blueprint.route('/projects/<projectname>/groups', methods=['PUT'])
@@ -244,7 +253,6 @@ def add_project_to_groups(projectname):
     """
     groups = request.get_json().get('groups', [])
     response = jsonify(adm.add_project_to_groups(current_session, username, groups=groups))
-    current_session.commit()
     return response
 
 @blueprint.route('/projects/<projectname>/bucket/<bucketname>', methods=['POST'])
@@ -264,7 +272,6 @@ def create_bucket_in_project(projectname, bucketname):
             providername
         )
     )
-    current_session.commit()
     return response
 
 @blueprint.route(
@@ -292,7 +299,6 @@ def list_buckets_from_project(projectname):
     Returns a json object.
     """
     response = jsonify(adm.list_buckets_on_project_by_name(current_session, projectname))
-    current_session.commit()
     return response
 
 
@@ -352,7 +358,6 @@ def create_group():
     else:
         response = {'result': 'group creation failed'}
     response = jsonify(response)
-    current_session.commit()
     return response
 
 
@@ -368,7 +373,6 @@ def update_group(groupname):
     name = request.get_json().get('name', None)
     description = request.get_json().get('description', None)
     response = jsonify(adm.update_group(current_session, groupname, description, name))
-    current_session.commit()
     return response
  
 
@@ -382,7 +386,6 @@ def delete_group(groupname):
     Returns a json object.
     """
     response = jsonify(adm.delete_group(current_session, groupname))
-    current_session.commit()
     return response
 
 
@@ -396,7 +399,6 @@ def add_projects_to_group(groupname):
     """
     projects = request.get_json().get('projects', [])
     response = jsonify(adm.add_projects_to_group(current_session,groupname, projects))
-    current_session.commit()
     return response
 
 
@@ -444,7 +446,6 @@ def create_cloud_provider(providername):
             service=service_name
         )
     )
-    current_session.commit()
     return response
 
 
@@ -459,5 +460,4 @@ def delete_cloud_provider(providername):
     Returns a json object.
     """
     response = jsonify(adm.delete_provider(current_session, providername))
-    current_session.commit()
     return response
