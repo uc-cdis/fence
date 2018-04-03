@@ -59,7 +59,7 @@ def download_file(file_id):
     Get a presigned url to download a file given by file_id.
     '''
     result = get_file('download', file_id)
-    if not 'redirect' in flask.request.args:
+    if not 'redirect' in flask.request.args or not 'url' in result:
         return flask.jsonify(result)
     else:
         return flask.redirect(result['url'])
