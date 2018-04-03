@@ -4,7 +4,7 @@ import os
 from authutils.oauth2.client import OAuthClient
 import flask
 from flask.ext.cors import CORS
-from flask_sqlalchemy_session import flask_scoped_session
+from flask_sqlalchemy_session import flask_scoped_session, current_session
 import urlparse
 from userdatamodel.driver import SQLAlchemyDriver
 
@@ -222,4 +222,8 @@ def set_csrf(response):
     if not flask.request.cookies.get('csrftoken'):
         secure = app.config.get('SESSION_COOKIE_SECURE', True)
         response.set_cookie('csrftoken', random_str(40), secure=secure)
+
+    if flask.request.method in ['POST', 'PUT', 'DELETE']:
+        current_session.commit()
     return response
+
