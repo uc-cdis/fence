@@ -602,8 +602,8 @@ paths:
         to data via Google's IAM. `redirect` will be stored in the session
         to follow after linking.
         ---
-        If AuthN is successful with Google, eventually will redirect to `/link/google/link`, where the actual account linkage occur.
-        > *See `/link/google/link` endpoint for details about error handling.*
+        If AuthN is successful with Google, eventually will redirect to `/link/google/callback`, where the actual account linkage occur.
+        > *See `/link/google/callback` endpoint for details about error handling.*
       operationId: linkCloudIdentityStart2
       responses:
         '302':
