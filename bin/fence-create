@@ -79,12 +79,12 @@ def main():
         DB = os.environ['FENCE_DB']
     else:
         from fence.settings import DB
-    
+
     if os.environ.get('BASE_URL'):
         DB = os.environ['BASE_URL']
     else:
         from fence.settings import BASE_URL
-    
+
     if os.environ.get('ROOT_DIR'):
         ROOT_DIR = os.environ['ROOT_DIR']
     else:
@@ -112,6 +112,7 @@ def main():
         token = create_user_token(DB, BASE_URL, ROOT_DIR, args.__dict__['kid'], args.__dict__['type'], args.__dict__['username'], args.__dict__['scopes'], args.__dict__['exp'])
         if token:
             print(token)
+
 
 if __name__ == '__main__':
     main()
