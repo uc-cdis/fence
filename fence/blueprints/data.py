@@ -70,7 +70,7 @@ def upload_file(file_id):
     '''
     Get a presigned url to upload a file given by file_id.
     '''
-    return get_file('upload', file_id)
+    return flask.jsonify(get_file('upload', file_id))
 
 
 def check_protocol(protocol, scheme):
