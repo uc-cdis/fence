@@ -682,13 +682,9 @@ paths:
       description: |
         Get a list of service accounts for the given Google Cloud Project IDs
         (specified in the query parameter `google_project_ids`).
-        > **NOTE: This will only provide service account information for a Google Cloud
-        Project if the current user is a member of that project**
-
-        In the case
-        that there are any errors retrieving the list of service accounts for
-        a project (for example: if a user isn't a member of that project), that
-        information will be provided in the response as an `errors` list.
+        > **NOTE: This will only provide service account information for
+        Google Cloud Projects if the current user is a member of those
+        projects**
       parameters:
         - name: google_project_ids
           required: true
@@ -700,9 +696,12 @@ paths:
       operationId: listGoogleServiceAccount
       responses:
         '200':
-          description: List of service accounts current user registered
+          description: List of service accounts for specified projects
           schema:
-            "$ref": '#/definitions/GoogleProjects'
+            "$ref": '#/definitions/GoogleServiceAccounts'
+        '403':
+          description: User is not a member on all the provided project ids
+
     post:
       tags:
         - google
@@ -730,7 +729,7 @@ paths:
             errors
 
   '/google/service_accounts/_dry_run (PLANNING)':
-    get:
+    post:
       tags:
         - google
       summary: Dry run to attempt to register a Google Service Account
@@ -739,24 +738,11 @@ paths:
         provide detailed errors for what went wrong.
       operationId: registerGoogleServiceAccountDryRun
       parameters:
-        - in: query
-          name: "service_account_email"
-          required: true
-          type: string
-          description: Service account's email
-        - in: query
-          name: "google_project_id"
-          required: true
-          type: string
-          description: Google Cloud Project ID of service account
-        - in: query
-          name: "project_access"
-          required: true
-          type: string
-          description: |
-            List of projects/datasets for which service account
-            should be registered for. Use a comma-separated list:
-            `"project_a,project_b,project_c"`
+        - in: "body"
+          name: "body"
+          description: "ServiceAccount object to register"
+          schema:
+            $ref: "#/definitions/NewGoogleServiceAccount"
       responses:
         '200':
           description: success, registering service account is possible
@@ -883,24 +869,6 @@ definitions:
         description: List of projects/datasets for which service account should
           be registered for
 
-  GoogleServiceAccountForProject:
-    type: object
-    required:
-      [service_account_email, google_project_id, project_access]
-    properties:
-      id:
-        type: integer
-        description: unique identifier
-      service_account_email:
-        type: string
-        description: Service account's email
-      project_access:
-        type: array
-        items:
-          type: string
-        description: List of projects/datasets for which service account should
-          be registered for
-
   AdminGoogleServiceAccount:
     type: object
     required:
@@ -927,48 +895,6 @@ definitions:
           type: string
         description: List of projects/datasets for which service account should
           be registered for
-
-  GoogleProject:
-    type: object
-    required:
-      [service_accounts]
-    properties:
-      google_project_id:
-        type: string
-        description: Google Cloud Project ID
-      service_accounts:
-        type: array
-        items:
-          "$ref": '#/definitions/GoogleServiceAccountForProject'
-
-  GoogleProjectError:
-    type: object
-    required:
-      [service_accounts]
-    properties:
-      google_project_id:
-        type: string
-        description: Google Cloud Project ID
-      error:
-        type: string
-        description: Name of the error
-      error_description:
-        type: string
-        description: Description of the error
-
-  GoogleProjects:
-    type: object
-    properties:
-      google_projects:
-        type: array
-        description: List of Google Cloud Projects
-        items:
-          "$ref": '#/definitions/GoogleProject'
-      errors:
-        type: array
-        description: List of Google Cloud Projects
-        items:
-          "$ref": '#/definitions/GoogleProjectError'
 
   GoogleServiceAccounts:
     type: object
