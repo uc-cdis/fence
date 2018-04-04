@@ -701,6 +701,7 @@ paths:
         '403':
           description: User is not a member on all the provided project ids
 
+  '/google/service_accounts/ (PLANNING)':
     post:
       tags:
         - google
