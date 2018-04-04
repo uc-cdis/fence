@@ -674,27 +674,33 @@ paths:
         '302':
           description: redirect to session-stored redirect value
 
-  '/google/service_accounts (PLANNING)':
+  '/google/service_accounts/{google_project_ids} (PLANNING)':
     get:
       tags:
         - google
       summary: Get a list of Google Service Accounts
-      description: >-
-        Get a list of service account this user has registered
+      description: |
+        Get a list of service accounts for the given Google Cloud Project IDs.
+        > **NOTE: This will only provide service account information for
+        Google Cloud Projects if the current user is a member of those
+        projects**
       parameters:
-        - name: google_project_id
-          required: false
+        - name: google_project_ids
+          required: true
           type: string
-          in: query
-          description: Optional Google Cloud Project ID to filter by. If
-            provided, will only return service accounts registered to the
-            given project_id by the current user.
+          in: path
+          description: |
+            Google Cloud Project IDs to get service accounts for.
+            Use a comma-separated list: `project_a,project_b,project_c`
       operationId: listGoogleServiceAccount
       responses:
         '200':
-          description: List of service accounts current user registered
+          description: List of service accounts for specified projects
           schema:
             "$ref": '#/definitions/GoogleServiceAccounts'
+        '403':
+          description: User is not a member on all the provided project ids
+
     post:
       tags:
         - google
@@ -734,14 +740,14 @@ paths:
         - in: "body"
           name: "body"
           description: "ServiceAccount object to register"
-          required: true
           schema:
             $ref: "#/definitions/NewGoogleServiceAccount"
       responses:
         '200':
           description: success, registering service account is possible
         '400':
-          description: failure, registering service account would result in errors
+          description: failure, registering service account would result in
+            errors
 
   '/google/service_accounts/monitor (PLANNING)':
     get:
@@ -765,27 +771,6 @@ paths:
             "$ref": '#/definitions/AdminGoogleServiceAccount'
 
   '/google/service_accounts/{id} (PLANNING)':
-    get:
-      tags:
-        - google
-      summary: Get a specific Google Service Account
-      description: >-
-        Get a service account
-      operationId: getSpecficGoogleServiceAccount
-      parameters:
-        - in: "id"
-          name: "id"
-          description: "ServiceAccount idenitifer"
-          required: true
-      responses:
-        '200':
-          description: success, service account info
-          schema:
-            $ref: "#/definitions/GoogleServiceAccount"
-        '404':
-          description: not found, service account doesn't exist
-        '403':
-          description: unauthorized, user did not register this service account
     delete:
       tags:
         - google
@@ -847,7 +832,9 @@ paths:
           description: JWKS response
           schema:
             "$ref": '#/definitions/JWKS'
+
 definitions:
+
   CredentialsSource:
     type: object
     required: [name, info]
