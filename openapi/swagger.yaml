@@ -674,14 +674,13 @@ paths:
         '302':
           description: redirect to session-stored redirect value
 
-  '/google/service_accounts (PLANNING)':
+  '/google/service_accounts/{google_project_ids} (PLANNING)':
     get:
       tags:
         - google
       summary: Get a list of Google Service Accounts
       description: |
-        Get a list of service accounts for the given Google Cloud Project IDs
-        (specified in the query parameter `google_project_ids`).
+        Get a list of service accounts for the given Google Cloud Project IDs.
         > **NOTE: This will only provide service account information for
         Google Cloud Projects if the current user is a member of those
         projects**
@@ -689,10 +688,10 @@ paths:
         - name: google_project_ids
           required: true
           type: string
-          in: query
+          in: path
           description: |
             Google Cloud Project IDs to get service accounts for.
-            Use a comma-separated list: `"project_a,project_b,project_c"`
+            Use a comma-separated list: `project_a,project_b,project_c`
       operationId: listGoogleServiceAccount
       responses:
         '200':
