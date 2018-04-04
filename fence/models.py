@@ -179,7 +179,7 @@ class GoogleServiceAccount(Base):
     # case we're ever juggling mult. projects)
     google_unique_id = Column(
         String,
-        unique=True,
+        unique=True,  # TODO this should be False...
         nullable=False
     )
 
@@ -261,6 +261,12 @@ class UserGoogleAccountToProxyGroup(Base):
     )
 
     expires = Column(BigInteger)
+
+    def delete(self):
+        with flask.current_app.db.session as session:
+            session.delete(self)
+            session.commit()
+            return self
 
 
 to_timestamp = "CREATE OR REPLACE FUNCTION pc_datetime_to_timestamp(datetoconvert timestamp) " \
