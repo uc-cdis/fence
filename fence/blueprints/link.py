@@ -137,20 +137,19 @@ class GoogleLinkRedirect(Resource):
                     )
             except Exception as exc:
                 error_message = {
-                    'error': 'g_acnt_link_error',
+                    'error': 'g_acnt_access_error',
                     'error_description': (
-                        'Couldn\'t unlink account for user, Google API failure'
-                        ' when attempting to remove account from proxy group. '
-                        'Exception: {}'.format(exc)
+                        'Couldn\'t remove account from user\'s proxy group, '
+                        'Google API failure. Exception: {}'.format(exc)
                     )
                 }
                 return error_message, 400
 
             if g_account_access:
-                g_account_access.delete()
+                current_session.delete(g_account_access)
                 current_session.commit()
 
-            g_account.delete()
+            current_session.delete(g_account)
             current_session.commit()
         else:
             error_message = {

@@ -22,7 +22,7 @@ class GoogleLogin(Resource):
         if flask.session.get('google_link'):
             return flask.redirect(
                 flask.current_app.config.get('BASE_URL', '') +
-                '/link/google/link?code={}'.format(
+                '/link/google/callback?code={}'.format(
                     flask.request.args.get('code')
                 )
             )
