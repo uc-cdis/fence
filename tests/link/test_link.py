@@ -23,7 +23,7 @@ def test_google_link_redirect(client, app, encoded_creds_jwt):
     encoded_credentials_jwt = encoded_creds_jwt['jwt']
     redirect = 'http://localhost'
 
-    r = client.post(
+    r = client.get(
         '/link/google?redirect=' + redirect,
         headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
 
@@ -39,7 +39,7 @@ def test_google_link_no_redirect_provided(
     the auth flow and don't provide a redirect, we don't try to create anything
     or redirect.
     """
-    r = client.get('/link/google/link')
+    r = client.get('/link/google/callback')
 
     assert not add_new_g_acnt_mock.called
     assert r.status_code != 302
@@ -59,7 +59,7 @@ def test_google_link_session(app, client, encoded_creds_jwt):
     proxy_group_id = encoded_creds_jwt['proxy_group_id']
 
     redirect = 'http://localhost'
-    r = client.post(
+    r = client.get(
         '/link/google?redirect=' + redirect,
         headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
 
@@ -103,7 +103,7 @@ def test_google_link_auth_return(
     google_auth_get_user_info_mock.return_value = {'email': google_account}
 
     r = client.get(
-        '/link/google/link?code=' + test_auth_code)
+        '/link/google/callback?code=' + test_auth_code)
 
     assert r.status_code == 302
     assert r.headers['Location'] == redirect
@@ -137,17 +137,13 @@ def test_patch_google_link(
     proxy_group_id = encoded_creds_jwt['proxy_group_id']
 
     original_expiration = 1000
-    redirect = 'http://localhost'
     google_account = 'some-authed-google-account@gmail.com'
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
         app.config.get("SESSION_TIMEOUT"),
         context={
-            'google_link': True,
-            'user_id': user_id,
             'google_proxy_group_id': proxy_group_id,
-            'redirect': redirect,
             'linked_google_email': google_account
         }
     )
@@ -167,11 +163,10 @@ def test_patch_google_link(
     client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
 
     r = client.patch(
-        '/link/google?redirect=' + redirect,
+        '/link/google',
         headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
 
-    assert r.status_code == 302
-    assert r.headers['Location'] == redirect
+    assert r.status_code == 200
 
     account_in_proxy_group = (
         db_session.query(UserGoogleAccountToProxyGroup)
@@ -211,18 +206,13 @@ def test_patch_google_link_account_not_in_token(
     proxy_group_id = encoded_creds_jwt['proxy_group_id']
 
     original_expiration = 1000
-    redirect = 'http://localhost'
     google_account = 'some-authed-google-account@gmail.com'
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
         app.config.get("SESSION_TIMEOUT"),
         context={
-            'google_link': True,
-            'user_id': user_id,
             'google_proxy_group_id': proxy_group_id,
-            'redirect': redirect,
-            'linked_google_email': google_account
         }
     )
 
@@ -241,11 +231,10 @@ def test_patch_google_link_account_not_in_token(
     client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
 
     r = client.patch(
-        '/link/google?redirect=' + redirect,
+        '/link/google',
         headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
 
-    assert r.status_code == 302
-    assert r.headers['Location'] == redirect
+    assert r.status_code == 200
 
     account_in_proxy_group = (
         db_session.query(UserGoogleAccountToProxyGroup)
@@ -267,6 +256,7 @@ def test_patch_google_link_account_not_in_token(
 
     assert not add_google_email_to_proxy_group_mock.called
 
+
 def test_patch_google_link_account_doesnt_exist(
         app, client, db_session, encoded_creds_jwt,
         google_auth_get_user_info_mock,
@@ -278,16 +268,11 @@ def test_patch_google_link_account_doesnt_exist(
     user_id = encoded_creds_jwt['user_id']
     proxy_group_id = encoded_creds_jwt['proxy_group_id']
 
-    redirect = 'http://localhost'
-
     test_session_jwt = create_session_token(
         app.keypairs[0],
         app.config.get("SESSION_TIMEOUT"),
         context={
-            'google_link': True,
-            'user_id': user_id,
             'google_proxy_group_id': proxy_group_id,
-            'redirect': redirect
         }
     )
 
@@ -295,15 +280,10 @@ def test_patch_google_link_account_doesnt_exist(
     client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
 
     r = client.patch(
-        '/link/google?redirect=' + redirect,
+        '/link/google',
         headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
 
-    assert r.status_code == 302
-
-    # make sure we're redirecting with error information
-    assert redirect in r.headers['Location']
-    assert 'error=' in r.headers['Location']
-    assert 'error_description=' in r.headers['Location']
+    assert r.status_code == 404
 
     # make sure accounts weren't created
     g_account = (
@@ -364,7 +344,7 @@ def test_google_link_g_account_exists(
     google_auth_get_user_info_mock.return_value = {'email': google_account}
 
     r = client.get(
-        '/link/google/link?code=' + test_auth_code)
+        '/link/google/callback?code=' + test_auth_code)
 
     assert not add_new_g_acnt_mock.called
     assert r.status_code == 302
@@ -425,7 +405,7 @@ def test_google_link_g_account_access_extension(
     google_auth_get_user_info_mock.return_value = {'email': google_account}
 
     r = client.get(
-        '/link/google/link?code=' + test_auth_code)
+        '/link/google/callback?code=' + test_auth_code)
 
     account_in_proxy_group = (
         db_session.query(UserGoogleAccountToProxyGroup)
@@ -495,7 +475,7 @@ def test_google_link_g_account_exists_linked_to_different_user(
     google_auth_get_user_info_mock.return_value = {'email': google_account}
 
     r = client.get(
-        '/link/google/link?code=' + test_auth_code)
+        '/link/google/callback?code=' + test_auth_code)
 
     assert not add_new_g_acnt_mock.called
 
@@ -543,7 +523,7 @@ def test_google_link_no_proxy_group(
     google_auth_get_user_info_mock.return_value = {'email': google_account}
 
     r = client.get(
-        '/link/google/link?code=' + test_auth_code)
+        '/link/google/callback?code=' + test_auth_code)
 
     assert not add_new_g_acnt_mock.called
 

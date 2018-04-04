@@ -1,12 +1,12 @@
 import time
 
 import flask
+
 from flask_restful import Resource
-from flask_restful import Api
 from flask_sqlalchemy_session import current_session
 
 from cirrus import GoogleCloudManager
-
+from fence.restful import RestfulApi
 from fence.errors import NotFound
 from fence.errors import Unauthorized
 from fence.errors import UserError
@@ -23,13 +23,13 @@ def make_link_blueprint():
         flask.Blueprint: the blueprint used for ``/link`` endpoints
     """
     blueprint = flask.Blueprint('link', __name__)
-    blueprint_api = Api(blueprint)
+    blueprint_api = RestfulApi(blueprint)
 
     blueprint_api.add_resource(
         GoogleLinkRedirect, '/google', strict_slashes=False
     )
     blueprint_api.add_resource(
-        GoogleLink, '/google/link', strict_slashes=False
+        GoogleLink, '/google/callback', strict_slashes=False
     )
 
     return blueprint
@@ -41,23 +41,20 @@ class GoogleLinkRedirect(Resource):
 
     Linking a google account will add it to user's proxy group for a
     configurable amount of time. During this time, the google account
-    will have permissions the same buckets the user does.
-
-    Extending access
+    will have access to the same resources the user does.
     """
 
     @require_auth_header({'user'})
     def get(self):
-        # TODO should this be allowed?
-        return GoogleLinkRedirect._link_google_account()
-
-    @require_auth_header({'user'})
-    def post(self):
         return GoogleLinkRedirect._link_google_account()
 
     @require_auth_header({'user'})
     def patch(self):
         return GoogleLinkRedirect._extend_account_expiration()
+
+    @require_auth_header({'user'})
+    def delete(self):
+        return GoogleLinkRedirect._unlink_google_account()
 
     @staticmethod
     def _link_google_account():
@@ -92,11 +89,6 @@ class GoogleLinkRedirect(Resource):
 
     @staticmethod
     def _extend_account_expiration():
-        provided_redirect = flask.request.args.get('redirect')
-
-        if not provided_redirect:
-            raise UserError({'error': 'No redirect provided.'})
-
         user_id = current_token['sub']
         google_email = get_users_linked_google_email_from_token()
 
@@ -115,16 +107,62 @@ class GoogleLinkRedirect(Resource):
 
         proxy_group = get_users_proxy_group_from_token()
 
-        error, description = get_errors_update_user_google_account_dry_run(
-            user_id, google_email, proxy_group, _already_authed=False)
+        _force_update_user_google_account(
+            user_id, google_email, proxy_group, _allow_new=False)
 
-        if not error:
-            _force_update_user_google_account(
-                user_id, google_email, proxy_group, _allow_new=False)
+        return '', 200
 
-        error = _get_error_params(error, description)
-        flask.redirect_url = provided_redirect + error
-        return flask.redirect(flask.redirect_url)
+    @staticmethod
+    def _unlink_google_account():
+        user_id = current_token['sub']
+
+        g_account = (
+            current_session.query(UserGoogleAccount)
+            .filter(UserGoogleAccount.user_id == user_id).first()
+        )
+
+        if g_account:
+            g_account_access = (
+                current_session.query(UserGoogleAccountToProxyGroup)
+                .filter(
+                    UserGoogleAccountToProxyGroup
+                    .user_google_account_id == g_account.id).first()
+            )
+
+            try:
+                with GoogleCloudManager() as g_manager:
+                    g_manager.remove_member_from_group(
+                        member_email=g_account.email,
+                        group_id=g_account_access.proxy_group_id
+                    )
+            except Exception as exc:
+                error_message = {
+                    'error': 'g_acnt_link_error',
+                    'error_description': (
+                        'Couldn\'t unlink account for user, Google API failure'
+                        ' when attempting to remove account from proxy group. '
+                        'Exception: {}'.format(exc)
+                    )
+                }
+                return error_message, 400
+
+            if g_account_access:
+                g_account_access.delete()
+                current_session.commit()
+
+            g_account.delete()
+            current_session.commit()
+        else:
+            error_message = {
+                'error': 'g_acnt_link_error',
+                'error_description': (
+                    'Couldn\'t unlink account for user, no linked Google '
+                    'account found.'
+                )
+            }
+            return error_message, 404
+
+        return '', 200
 
 
 class GoogleLink(Resource):
@@ -279,8 +317,8 @@ def _force_update_user_google_account(
                     'from session. Unable to link Google account.')
         else:
             raise NotFound(
-                'User google account does not exist and forced update '
-                'was attempted.')
+                'User does not have a linked Google account. Update '
+                'was attempted and failed.')
 
     expiration = get_default_google_account_expiration()
     account_in_proxy_group = (
