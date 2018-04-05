@@ -58,7 +58,11 @@ def download_file(file_id):
     '''
     Get a presigned url to download a file given by file_id.
     '''
-    return get_file('download', file_id)
+    result = get_file('download', file_id)
+    if not 'redirect' in flask.request.args or not 'url' in result:
+        return flask.jsonify(result)
+    else:
+        return flask.redirect(result['url'])
 
 
 @blueprint.route('/upload/<file_id>', methods=['GET'])
@@ -66,7 +70,7 @@ def upload_file(file_id):
     '''
     Get a presigned url to upload a file given by file_id.
     '''
-    return get_file('upload', file_id)
+    return flask.jsonify(get_file('upload', file_id))
 
 
 def check_protocol(protocol, scheme):
@@ -113,7 +117,7 @@ def resolve_url(url, location, expires, action, user_id, username):
     elif protocol not in ['http', 'https']:
         raise NotSupported(
             "protocol {} in url {} is not supported".format(protocol, url))
-    return flask.jsonify(dict(url=url))
+    return dict(url=url)
 
 
 def return_link(action, urls, user_id=None, username=None):
