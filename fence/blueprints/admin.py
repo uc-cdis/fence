@@ -37,7 +37,7 @@ def get_user(username):
     """
     current_app.logger.debug("get_user:\n\tname:  {0}".format(
         username))
-    return jsonify(adm.get_user_info(current_session, username))
+    return jsonify(adm.get_user_info(current_session, username.upper()))
 
 
 @blueprint.route('/user', methods=['GET'])
@@ -49,6 +49,7 @@ def get_all_users():
     buckets created within a project.
     Returns a json object.
     """
+    current_app.logger.debug("get_all_users")
     return jsonify(adm.get_all_users(current_session))
 
 
@@ -67,7 +68,7 @@ def create_user():
         ("create_user:\n\tname: {0}\n\t"
         "role: {1}\n\temail: {2}").format(
             username, role, email))        
-    response = jsonify(adm.create_user(current_session,username, role, email))
+    response = jsonify(adm.create_user(current_session, username.upper, role, email))
     return response
 
 
@@ -86,7 +87,7 @@ def update_user(username):
         ("update_user:\n\tname: {0}\n\t"
         "role: {1}\n\temail: {2}").format(
             username, role, email))        
-    response = jsonify(adm.update_user(current_session, username, role, email, name))
+    response = jsonify(adm.update_user(current_session, username.upper(), role, email, name))
     return response
 
 @blueprint.route('/user/<username>', methods=['DELETE'])
@@ -100,7 +101,7 @@ def delete_user(username):
     """
     current_app.logger.debug("delete_user:\n\tname:  {0}".format(
         username))
-    response = jsonify(adm.delete_user(current_session, username))
+    response = jsonify(adm.delete_user(current_session, username.upper()))
     return response
 
 @blueprint.route('/user/<username>/groups', methods=['GET'])
@@ -114,7 +115,7 @@ def get_user_groups(username):
     """
     current_app.logger.debug("get_user_groups:\n\tname:  {0}".format(
         username))
-    return jsonify(adm.get_user_groups(current_session, username))
+    return jsonify(adm.get_user_groups(current_session, username.upper()))
 
 
 @blueprint.route('/user/<username>/groups', methods=['PUT'])
@@ -128,7 +129,7 @@ def add_user_to_groups(username):
     groups = request.get_json().get('groups', [])
     current_app.logger.debug("add_user_to_groups:\n\tname:  {0}\n\tgroups: {1}".format(
         username, str(groups)))
-    response = jsonify(adm.add_user_to_groups(current_session,username, groups=groups))
+    response = jsonify(adm.add_user_to_groups(current_session, username.upper(), groups=groups))
     return response
 
 
@@ -143,7 +144,7 @@ def remove_user_from_groups(username):
     groups = request.get_json().get('groups', [])
     current_app.logger.debug("remove_user_from_groups:\n\tname:  {0}\n\tgroups: {1}".format(
         username, str(groups)))
-    response = jsonify(adm.remove_user_from_groups(current_session,username, groups=groups))
+    response = jsonify(adm.remove_user_from_groups(current_session, username.upper(), groups=groups))
     return response
 
 
@@ -156,7 +157,9 @@ def remove_user_from_projects(username):
     Returns a json object
     """
     projects = request.get_json().get('projects', [])
-    response = jsonify(adm.remove_user_from_projects(current_session, username, projects))
+    current_app.logger.debug("remove_user_from_projects:\n\tname:  {0}\n\projects: {1}".format(
+        username, str(projects)))
+    response = jsonify(adm.remove_user_from_projects(current_session, username.upper(), projects))
     return response
 
 @blueprint.route('/user/<username>/projects', methods=['PUT'])
@@ -169,8 +172,11 @@ def add_user_to_projects(username):
     Returns a json object
     """
     projects = request.get_json().get('projects', [])
-    response = jsonify(adm.add_user_to_projects(current_session, username, projects=projects))
+    current_app.logger.debug("add_user_from_projects:\n\tname:  {0}\n\projects: {1}".format(
+        username, str(projects)))
+    response = jsonify(adm.add_user_to_projects(current_session, username.upper(), projects=projects))
     return response
+
 
 #### PROJECTS ####
 
@@ -184,6 +190,7 @@ def get_project(projectname):
     from the userdatamodel database
     Returns a json object
     """
+    current_app.logger.debug("get_project")
     return jsonify(adm.get_project_info(current_session, projectname))
 
 
@@ -196,6 +203,7 @@ def get_all_projects():
     from the userdatamodel database
     Returns a json object
     """
+    current_app.logger.debug("get_all_projects")
     return jsonify(adm.get_all_projects(current_session))
 
 
@@ -209,6 +217,8 @@ def create_project(projectname):
     """
     auth_id = request.get_json().get('auth_id')
     storage_accesses = request.get_json().get('storage_accesses',[])
+    current_app.logger.debug("create_project:\n\tname:  {0}\n\auth_id: {1}\n\tstorage_access: {2}".format(
+        projectname, auth_id, str(storage_accesses)))
     response = jsonify(
         adm.create_project(
             current_session,
@@ -228,6 +238,8 @@ def delete_project(projectname):
     Remove project. No Buckets should be associated with it.
     Returns a json object.
     """
+    current_app.logger.debug("delete_project:\n\tname:  {0}".format(
+        projectname))
     response = jsonify(adm.delete_project(current_session, projectname))
     return response
 
@@ -240,6 +252,8 @@ def remove_projects_from_group(groupname):
     Returns a json object
     """
     projects = request.get_json().get('projects', [])
+    current_app.logger.debug("delete_projects_from_group:\n\tgroup:  {0}".format(
+        groupname))
     response = jsonify(adm.remove_projects_from_group(current_session,groupname, projects))
     return response
 
@@ -252,7 +266,7 @@ def add_project_to_groups(projectname):
     Returns a json object
     """
     groups = request.get_json().get('groups', [])
-    response = jsonify(adm.add_project_to_groups(current_session, username, groups=groups))
+    response = jsonify(adm.add_project_to_groups(current_session, username.upper(), groups=groups))
     return response
 
 @blueprint.route('/projects/<projectname>/bucket/<bucketname>', methods=['POST'])
