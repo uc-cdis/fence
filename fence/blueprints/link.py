@@ -64,7 +64,7 @@ class GoogleLinkRedirect(Resource):
             raise UserError({'error': 'No redirect provided.'})
 
         user_id = current_token['sub']
-        google_email = get_users_linked_google_email_from_token()
+        google_email = get_users_linked_google_email(user_id)
         proxy_group = get_users_proxy_group_from_token()
 
         # Set session flag to signify that we're linking and not logging in
@@ -90,21 +90,7 @@ class GoogleLinkRedirect(Resource):
     @staticmethod
     def _extend_account_expiration():
         user_id = current_token['sub']
-        google_email = get_users_linked_google_email_from_token()
-
-        # hit db to check for google_email if it's not in token.
-        # this will catch cases where the linking happened during the life
-        # of an access token and the same access token is used here (e.g.
-        # account exists but a new token hasn't been generated with the linkage
-        # info yet)
-        if user_id and not google_email:
-            g_account = (
-                current_session.query(UserGoogleAccount)
-                .filter(UserGoogleAccount.user_id == user_id).first()
-            )
-            if g_account:
-                google_email = g_account.email
-
+        google_email = get_users_linked_google_email(user_id)
         proxy_group = get_users_proxy_group_from_token()
 
         _force_update_user_google_account(
@@ -170,15 +156,15 @@ class GoogleLink(Resource):
         provided_redirect = flask.session.get('redirect')
         code = flask.request.args.get('code')
 
-        result = flask.current_app.google_client.get_user_id(code)
-        email = result.get('email')
+        google_reponse = flask.current_app.google_client.get_user_id(code)
+        email = google_reponse.get('email')
 
         error = ''
         error_description = ''
 
         if not email:
             error = 'g_acnt_auth_failure'
-            error_description = result
+            error_description = google_reponse
         else:
             user_id = flask.session.get('user_id')
             proxy_group = flask.session.get('google_proxy_group_id')
@@ -340,7 +326,7 @@ def _force_update_user_google_account(
         _add_google_email_to_proxy_group(
             google_email=google_email, proxy_group_id=proxy_group_id)
 
-    flask.current_app.logger.debug(
+    flask.current_app.logger.info(
         'Adding user\'s (id: {}) Google account to their proxy group (id: {}).'
         ' Expiration: {}'.format(
             user_google_account.user_id,
@@ -393,6 +379,36 @@ def get_default_google_account_expiration():
         now + flask.current_app.config['GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN']
     )
     return expiration
+
+
+def get_users_linked_google_email(user_id):
+    """
+    Return user's linked google account's email.
+    """
+    google_email = get_users_linked_google_email_from_token()
+    if not google_email:
+        # hit db to check for google_email if it's not in token.
+        # this will catch cases where the linking happened during the life
+        # of an access token and the same access token is used here (e.g.
+        # account exists but a new token hasn't been generated with the linkage
+        # info yet)
+        google_email = get_users_linked_google_email_from_db(user_id)
+    return google_email
+
+
+def get_users_linked_google_email_from_db(user_id):
+    """
+    Hit db to check for google_email of user
+    """
+    google_email = None
+    if user_id:
+        g_account = (
+            current_session.query(UserGoogleAccount)
+            .filter(UserGoogleAccount.user_id == user_id).first()
+        )
+        if g_account:
+            google_email = g_account.email
+    return google_email
 
 
 def get_users_linked_google_email_from_token():
