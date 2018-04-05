@@ -37,7 +37,7 @@ def get_user(username):
     """
     current_app.logger.debug("get_user:\n\tname:  {0}".format(
         username))
-    return jsonify(adm.get_user_info(current_session, username.upper()))
+    return jsonify(adm.get_user_info(current_session, username))
 
 
 @blueprint.route('/user', methods=['GET'])
@@ -68,7 +68,7 @@ def create_user():
         ("create_user:\n\tname: {0}\n\t"
         "role: {1}\n\temail: {2}").format(
             username, role, email))        
-    response = jsonify(adm.create_user(current_session, username.upper(), role, email))
+    response = jsonify(adm.create_user(current_session, username, role, email))
     return response
 
 
@@ -87,7 +87,7 @@ def update_user(username):
         ("update_user:\n\tname: {0}\n\t"
         "role: {1}\n\temail: {2}").format(
             username, role, email))        
-    response = jsonify(adm.update_user(current_session, username.upper(), role, email, name))
+    response = jsonify(adm.update_user(current_session, username, role, email, name))
     return response
 
 @blueprint.route('/user/<username>', methods=['DELETE'])
@@ -101,7 +101,7 @@ def delete_user(username):
     """
     current_app.logger.debug("delete_user:\n\tname:  {0}".format(
         username))
-    response = jsonify(adm.delete_user(current_session, username.upper()))
+    response = jsonify(adm.delete_user(current_session, username))
     return response
 
 @blueprint.route('/user/<username>/groups', methods=['GET'])
@@ -115,7 +115,7 @@ def get_user_groups(username):
     """
     current_app.logger.debug("get_user_groups:\n\tname:  {0}".format(
         username))
-    return jsonify(adm.get_user_groups(current_session, username.upper()))
+    return jsonify(adm.get_user_groups(current_session, username))
 
 
 @blueprint.route('/user/<username>/groups', methods=['PUT'])
@@ -129,7 +129,7 @@ def add_user_to_groups(username):
     groups = request.get_json().get('groups', [])
     current_app.logger.debug("add_user_to_groups:\n\tname:  {0}\n\tgroups: {1}".format(
         username, str(groups)))
-    response = jsonify(adm.add_user_to_groups(current_session, username.upper(), groups=groups))
+    response = jsonify(adm.add_user_to_groups(current_session, username, groups=groups))
     return response
 
 
@@ -144,7 +144,7 @@ def remove_user_from_groups(username):
     groups = request.get_json().get('groups', [])
     current_app.logger.debug("remove_user_from_groups:\n\tname:  {0}\n\tgroups: {1}".format(
         username, str(groups)))
-    response = jsonify(adm.remove_user_from_groups(current_session, username.upper(), groups=groups))
+    response = jsonify(adm.remove_user_from_groups(current_session, username, groups=groups))
     return response
 
 
@@ -159,7 +159,7 @@ def remove_user_from_projects(username):
     projects = request.get_json().get('projects', [])
     current_app.logger.debug("remove_user_from_projects:\n\tname:  {0}\n\projects: {1}".format(
         username, str(projects)))
-    response = jsonify(adm.remove_user_from_projects(current_session, username.upper(), projects))
+    response = jsonify(adm.remove_user_from_projects(current_session, username, projects))
     return response
 
 @blueprint.route('/user/<username>/projects', methods=['PUT'])
@@ -174,7 +174,7 @@ def add_user_to_projects(username):
     projects = request.get_json().get('projects', [])
     current_app.logger.debug("add_user_from_projects:\n\tname:  {0}\n\projects: {1}".format(
         username, str(projects)))
-    response = jsonify(adm.add_user_to_projects(current_session, username.upper(), projects=projects))
+    response = jsonify(adm.add_user_to_projects(current_session, username, projects=projects))
     return response
 
 
@@ -266,7 +266,7 @@ def add_project_to_groups(projectname):
     Returns a json object
     """
     groups = request.get_json().get('groups', [])
-    response = jsonify(adm.add_project_to_groups(current_session, username.upper(), groups=groups))
+    response = jsonify(adm.add_project_to_groups(current_session, username, groups=groups))
     return response
 
 @blueprint.route('/projects/<projectname>/bucket/<bucketname>', methods=['POST'])

@@ -89,6 +89,11 @@ def create_user(current_session, username, role, email):
                " mistake, please, retry using update"))
         return msg
     except NotFound:
+        user_list = [user['name'].upper() for user in get_all_users(current_session)['users']]
+        if username.upper() in user_list:
+            raise UserError(("Error: user with a name with the same combination/order "
+                             "of characters already exists. Please remove this other user"
+                             " or modify the new one. Contact us in case of doubt"))
         is_admin = True if role == "admin" else False
         email_add = email
         usr = User(username=username, active=True, is_admin=is_admin, email=email_add)
