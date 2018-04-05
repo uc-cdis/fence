@@ -93,7 +93,6 @@ def sync_dbgap(dbGaP, STORAGE_CREDENTIALS, DB,
         is_sync_from_dbgap_server=is_sync_from_dbgap_server,
         sync_from_local_csv_dir=sync_from_local_csv_dir, sync_from_local_yaml_dir=sync_from_local_yaml_dir
     )
-    print 'sycn'
     syncer.sync()
 
 

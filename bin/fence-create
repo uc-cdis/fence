@@ -16,6 +16,13 @@ from fence.scripting.fence_create import (
     remove_expired_google_accounts_from_proxy_groups
 )
 
+def str2bool(v):
+    if v.lower() == 'true':
+        return True
+    elif v.lower() == 'false':
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -59,17 +66,15 @@ def parse_arguments():
         required=True,
         help='Specify project mapping yaml file')
     dbgap_sync.add_argument(
-        '--yaml_path',
-        help='Specify yaml file directory')
+        '--yaml_dir',
+        help='Merge from yaml dir')
     dbgap_sync.add_argument(
-        '--csv_path',
+        '--csv_dir',
         help='specify csv file directory')
     dbgap_sync.add_argument(
-        '--ftp_sync',
-        dest='is_sync_from_dbgap_server',
-        type=bool,
+        '--is_sync',
         help='sync from server True/False',
-        default=False)
+        default='True')
 
     manage_google_keys = subparsers.add_parser('google-manage-keys')
     init_google = subparsers.add_parser('google-init')
@@ -132,8 +137,8 @@ def main():
         delete_users(DB, args.users)
     elif args.action == 'sync-dbgap':
         sync_dbgap(dbGaP, STORAGE_CREDENTIALS, DB,
-                   projects=args.project_mapping, is_sync_from_dbgap_server=args.is_sync_from_dbgap_server,
-                   sync_from_local_csv_dir=args.csv_path, sync_from_local_yaml_dir=args.yaml_path)
+                   projects=args.project_mapping, is_sync_from_dbgap_server=str2bool(args.is_sync),
+                   sync_from_local_csv_dir=args.csv_dir, sync_from_local_yaml_dir=args.yaml_dir)
     elif args.action == 'google-manage-keys':
         remove_expired_google_service_account_keys(DB)
     elif args.action == 'google-init':
