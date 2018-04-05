@@ -68,7 +68,7 @@ def create_user():
         ("create_user:\n\tname: {0}\n\t"
         "role: {1}\n\temail: {2}").format(
             username, role, email))        
-    response = jsonify(adm.create_user(current_session, username.upper, role, email))
+    response = jsonify(adm.create_user(current_session, username.upper(), role, email))
     return response
 
 
