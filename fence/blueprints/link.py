@@ -29,7 +29,7 @@ def make_link_blueprint():
         GoogleLinkRedirect, '/google', strict_slashes=False
     )
     blueprint_api.add_resource(
-        GoogleLink, '/google/callback', strict_slashes=False
+        GoogleCallback, '/google/callback', strict_slashes=False
     )
 
     return blueprint
@@ -46,14 +46,41 @@ class GoogleLinkRedirect(Resource):
 
     @require_auth_header({'user'})
     def get(self):
+        """
+        Link a user's Google Account by running the oauth2 flow with
+        Google to AuthN user->Google Account linkage.
+
+        This will obtain user information from the auth token and save off some
+        of that into a session so when Google redirects back after authN, we
+        can continue to have some user information.
+
+        This will redirect with `error` and `error_description` query params
+        if any issues arise.
+
+        Raises:
+            UserError: No redirect was provided
+        """
         return GoogleLinkRedirect._link_google_account()
 
     @require_auth_header({'user'})
     def patch(self):
+        """
+        Extend access of the user's linked Google account.
+
+        This will only succeed if the user already has a linked account.
+        """
         return GoogleLinkRedirect._extend_account_expiration()
 
     @require_auth_header({'user'})
     def delete(self):
+        """
+        Permanently remove a user's linked Google account. This will first
+        remove access of the Google account and then delete the linkage,
+        allowing the user to link a different account.
+
+        This will redirect with `error` and `error_description` query params
+        if any issues arise.
+        """
         return GoogleLinkRedirect._unlink_google_account()
 
     @staticmethod
@@ -150,9 +177,21 @@ class GoogleLinkRedirect(Resource):
         return '', 200
 
 
-class GoogleLink(Resource):
+class GoogleCallback(Resource):
 
     def get(self):
+        """
+        Link a user's Google account after AuthN.
+
+        This is Google's callback that occurs after oauth2 flow and does
+        the actual linkage/creation in our db.
+
+        This will redirect with `error` and `error_description` query params
+        if any issues arise.
+
+        Raises:
+            UserError: No redirect provided
+        """
         provided_redirect = flask.session.get('redirect')
         code = flask.request.args.get('code')
 
@@ -337,42 +376,6 @@ def _force_update_user_google_account(
     current_session.commit()
 
 
-def _add_new_user_google_account(user_id, google_email):
-    user_google_account = UserGoogleAccount(
-        email=google_email,
-        user_id=user_id
-    )
-    current_session.add(user_google_account)
-    flask.current_app.logger.info(
-        'Linking Google account {} to user with id {}.'.format(
-            google_email, user_id))
-    current_session.commit()
-    return user_google_account
-
-
-def _get_error_params(error, description):
-    params = ''
-    if error:
-        params += (
-            '?error={}&error_description={}'
-            .format(str(error), str(description))
-        )
-    return params
-
-
-def _add_google_email_to_proxy_group(google_email, proxy_group_id):
-    with GoogleCloudManager() as g_manager:
-        g_manager.add_member_to_group(
-            member_email=google_email, group_id=proxy_group_id)
-
-
-def _clear_google_link_info_from_session():
-    # remove google linking info from session
-    flask.session.pop('google_link', None)
-    flask.session.pop('user_id', None)
-    flask.session.pop('google_proxy_group_id', None)
-
-
 def get_default_google_account_expiration():
     now = int(time.time())
     expiration = (
@@ -412,6 +415,13 @@ def get_users_linked_google_email_from_db(user_id):
 
 
 def get_users_linked_google_email_from_token():
+    """
+    Return a user's linked Google Account's email address by parsing the
+    JWT token in the header.
+
+    Returns:
+        str: email address of account or None
+    """
     return (
         current_token.get('context', {})
         .get('user', {})
@@ -421,9 +431,52 @@ def get_users_linked_google_email_from_token():
 
 
 def get_users_proxy_group_from_token():
+    """
+    Return a user's proxy group ID by parsing the
+    JWT token in the header.
+
+    Returns:
+        str: proxy group ID or None
+    """
     return (
         current_token.get('context', {})
         .get('user', {})
         .get('google', {})
         .get('proxy_group', None)
     )
+
+
+def _add_new_user_google_account(user_id, google_email):
+    user_google_account = UserGoogleAccount(
+        email=google_email,
+        user_id=user_id
+    )
+    current_session.add(user_google_account)
+    flask.current_app.logger.info(
+        'Linking Google account {} to user with id {}.'.format(
+            google_email, user_id))
+    current_session.commit()
+    return user_google_account
+
+
+def _get_error_params(error, description):
+    params = ''
+    if error:
+        params += (
+            '?error={}&error_description={}'
+            .format(str(error), str(description))
+        )
+    return params
+
+
+def _add_google_email_to_proxy_group(google_email, proxy_group_id):
+    with GoogleCloudManager() as g_manager:
+        g_manager.add_member_to_group(
+            member_email=google_email, group_id=proxy_group_id)
+
+
+def _clear_google_link_info_from_session():
+    # remove google linking info from session
+    flask.session.pop('google_link', None)
+    flask.session.pop('user_id', None)
+    flask.session.pop('google_proxy_group_id', None)
