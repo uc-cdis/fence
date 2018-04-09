@@ -4,6 +4,7 @@ import os.path
 import uuid
 import jwt
 import yaml
+import time
 from authlib.common.encoding import to_unicode
 
 from cirrus import GoogleCloudManager
@@ -22,6 +23,8 @@ from userdatamodel.models import (
 
 from fence.models import Client
 from fence.models import GoogleServiceAccount
+from fence.models import UserGoogleAccount
+from fence.models import UserGoogleAccountToProxyGroup
 from fence.models import UserRefreshToken
 from fence.utils import create_client, drop_client
 from fence.sync.sync_dbgap import DbGapSyncer
@@ -315,6 +318,40 @@ def remove_expired_google_service_account_keys(db):
             for service_account, client in client_service_accounts:
                 g_mgr.handle_expired_service_account_keys(
                     service_account.google_unique_id)
+
+
+def remove_expired_google_accounts_from_proxy_groups(db):
+    db = SQLAlchemyDriver(db)
+    with db.session as current_session:
+        current_time = int(time.time())
+        print('Current time: {}'.format(current_time))
+
+        expired_accounts = (
+            current_session.query(UserGoogleAccountToProxyGroup)
+            .filter(
+                UserGoogleAccountToProxyGroup
+                .expires <= current_time)
+        )
+
+        with GoogleCloudManager() as g_mgr:
+            for expired_account_access in expired_accounts:
+                g_account = (
+                    current_session.query(UserGoogleAccount)
+                    .filter(
+                        UserGoogleAccount.id ==
+                        expired_account_access.user_google_account_id).first()
+                )
+                g_mgr.remove_member_from_group(
+                    member_email=g_account.email,
+                    group_id=expired_account_access.proxy_group_id
+                )
+                current_session.delete(expired_account_access)
+                print(
+                    'Removed {} from proxy group with id {}.'
+                    .format(
+                        g_account.email,
+                        expired_account_access.proxy_group_id)
+                )
 
 
 def delete_users(DB, usernames):
