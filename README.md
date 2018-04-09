@@ -148,6 +148,9 @@ We use JSON Web Tokens (JWTs) as the format for our authentication mechanism.
           "delete",
           "read-storage"
         ]
+      },
+      "google": {
+          "proxy_group": "abcdefgh123456",
       }
     }
   },
