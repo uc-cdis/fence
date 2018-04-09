@@ -397,10 +397,11 @@ class DbGapSyncer(object):
                 )
 
     def _init_projects(self, s):
-        for projects in self.project_mapping.values():
-            for p in projects:
-                project = self._get_or_create(s, Project, **p)
-                self._projects[project.auth_id] = project
+        if self.project_mapping:
+            for projects in self.project_mapping.values():
+                for p in projects:
+                    project = self._get_or_create(s, Project, **p)
+                    self._projects[project.auth_id] = project
 
     def _get_or_create(self, s, model, **kwargs):
         instance = s.query(model).filter_by(**kwargs).first()
