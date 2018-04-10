@@ -16,11 +16,26 @@ from fence.auth import (
     admin_required,
 )
 
-
+from fence.user import get_current_user
 from fence.resources import admin as adm
 from flask_sqlalchemy_session import current_session
 
 blueprint = Blueprint('admin', __name__)
+
+
+#### TOKEN ####
+
+
+@blueprint.route('/token', methods=['GET'])
+@login_required({'admin'})
+@admin_required
+def get_long_lived_token():
+    """
+    Get a long lived token for a user
+    Returns a json object
+    """
+    current_app.logger.debug("get_long_lived_token")
+    return jsonify({"token": adm.get_long_lived_token(current_app, get_current_user())})
 
 
 #### USERS ####
