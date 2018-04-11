@@ -18,7 +18,7 @@ import flask
 from werkzeug.local import LocalProxy
 
 from fence.auth import current_token
-from fence.models import User
+from fence.models import User, IdentityProvider
 
 
 def _get_current_username():
@@ -42,6 +42,30 @@ def _get_current_username():
     return username
 
 
+def _create_new_user(username, idp_name):
+    """
+    Register a new user with the given username and identity provider.
+
+    Args:
+        username (str)
+        idp_name (str)
+
+    Return:
+        None
+
+    Side Effects:
+        - Commit new ``User`` model to the database.
+    """
+    with flask.current_app.db.session as session:
+        new_user = User(username=username)
+        idp = session.query(IdentityProvider).filter_by(name=idp_name).first()
+        if not idp:
+            idp = IdentityProvider(name=provider)
+        new_user.identity_provider = idp
+        session.add(new_user)
+        session.commit()
+
+
 def _get_user(username):
     """
     Look up the user with the given username, and return a dictionary
@@ -58,8 +82,12 @@ def _get_user(username):
         return None
     with flask.current_app.db.session as session:
         user = session.query(User).filter_by(username=username).first()
+
+    # If the user doesn't exist yet, create a new user.
     if not user:
-        return None
+        idp_name = flask.session.get('provider')
+        _create_new_user(username, idp_name)
+
     return Dict(dict(user.__dict__))
 
 
