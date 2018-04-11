@@ -19,6 +19,7 @@ from fence.auth import (
 from fence.user import get_current_user
 from fence.resources import admin as adm
 from flask_sqlalchemy_session import current_session
+import jwt
 
 blueprint = Blueprint('admin', __name__)
 
@@ -34,7 +35,8 @@ def get_long_lived_token():
     Returns a json object
     """
     current_app.logger.debug("get_long_lived_token")
-    return jsonify({"token": adm.get_long_lived_token(current_app, get_current_user())})
+    token = request.headers.get('Authorization').split(' ')[-1]
+    return jsonify({"token": adm.get_long_lived_token(current_app, current_session, token)})
 
 
 #### USERS ####
