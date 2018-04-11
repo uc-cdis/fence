@@ -28,7 +28,6 @@ blueprint = Blueprint('admin', __name__)
 
 @blueprint.route('/token', methods=['GET'])
 @login_required({'admin'})
-@admin_required
 def get_long_lived_token():
     """
     Get a long lived token for a user
