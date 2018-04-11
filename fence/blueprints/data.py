@@ -17,7 +17,7 @@ ACTION_DICT = {
     }
 }
 
-SUPPORTED_PROTOCOLS = ['s3', 'http']
+SUPPORTED_PROTOCOLS = ['s3', 'http', 'ftp']
 
 
 def get_index_document(file_id):
@@ -76,9 +76,9 @@ def upload_file(file_id):
 def check_protocol(protocol, scheme):
     if protocol is None:
         return True
-    if protocol == 'http' and scheme in ['http', 'https']:
+    if protocol == scheme:
         return True
-    if protocol == 's3' and scheme == 's3':
+    if protocol == 'http' and scheme in ['http', 'https']:
         return True
     return False
 
@@ -114,7 +114,7 @@ def resolve_url(url, location, expires, action, user_id, username):
         url = generate_aws_presigned_url(http_url, ACTION_DICT[protocol][action],
                                          aws_access_key_id, aws_secret_key, 's3',
                                          region, expires, user_info)
-    elif protocol not in ['http', 'https']:
+    elif protocol not in SUPPORTED_PROTOCOLS:
         raise NotSupported(
             "protocol {} in url {} is not supported".format(protocol, url))
     return dict(url=url)
