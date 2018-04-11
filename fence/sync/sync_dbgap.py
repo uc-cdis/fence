@@ -8,10 +8,15 @@ import pysftp
 import yaml
 import re
 import subprocess as sp
-#import temps
 import tempfile
 import shutil
 import errno
+from paramiko.proxy import ProxyCommand
+from paramiko.transport import Transport
+from paramiko.sftp_client import SFTPClient
+from paramiko.hostkeys import HostKeyEntry
+from stat import S_ISDIR
+
 from cdispyutils.log import get_logger
 from userdatamodel.driver import SQLAlchemyDriver
 
@@ -23,6 +28,26 @@ from fence.models import (
 )
 
 from fence.resources.storage import StorageManager
+
+
+def download_dir(remote_dir, local_dir):
+    '''
+    Recursively download file from remote_dir to local_dir
+    Args:
+        remote_dir(str)
+        local_dir(str)
+    Returns: None
+    '''
+    os.path.exists(local_dir) or os.makedirs(local_dir)
+    dir_items = sftp.listdir_attr(remote_dir)
+
+    for item in dir_items:
+        remote_path = remote_dir + '/' + item.filename
+        local_path = os.path.join(local_dir, item.filename)
+        if S_ISDIR(item.st_mode):
+            download_dir(remote_path, local_path)
+        else:
+            sftp.get(remote_path, local_path)
 
 
 class DbGapSyncer(object):
@@ -93,6 +118,44 @@ class DbGapSyncer(object):
                                password=self.sftp['password'],
                                cnopts=cnopts) as sftp:
             sftp.get_r('.', path)
+
+    def _get_from_sftp_with_proxy(self, path):
+        """
+        Download all data from sftp sever to a local dir
+        Args:
+            path (str): path to local directory
+        Returns:
+            None
+        """
+
+        proxy = ProxyCommand('ssh -i /root/.ssh/id_rsa '
+                             '{}@{} nc {} {}'.format(self.sftp.get('proxy_user', ''), self.sftp.get('proxy', ''), self.sftp.get('host', ''), self.sftp.get('port', 22)))
+
+        transport = Transport(proxy)
+
+        host_key_str = self.sftp.get('host_key', '')
+
+        if host_key_str == '':
+            with open('/root/.ssh/known_hosts', 'r') as f:
+                content = f.readlines()
+                if len(content) > 0:
+                    host_key_str = content[-1]
+
+        if host_key_str != '':
+            key = HostKeyEntry.from_line(host_key_str).key
+            transport.connect(hostkey=key, username=self.sftp.get(
+                'username', ''), password=self.sftp.get('password', ''))
+        else:
+            transport.connect(username=self.sftp.get(
+                'username', ''), password=self.sftp.get('password', ''))
+
+        sftp = SFTPClient.from_transport(transport)
+        sftp.get('.', path)
+        print(sftp.listdir())
+        download_dir('./', path)
+        sftp.close()
+        transport.close()
+        proxy.close()
 
     @contextmanager
     def _read_file(self, filepath, encrypted=True):
@@ -281,10 +344,15 @@ class DbGapSyncer(object):
         map_from_backend_to_dbgap = dict()
         for username, projects in phsids.iteritems():
             for phsid, _ in projects.iteritems():
-                for project in self.project_mapping[phsid]:
-                    list_from_dbgap.add(
-                        (username, project['auth_id']))
-                    map_from_backend_to_dbgap[project['auth_id']] = phsid
+                try:
+                    for project in self.project_mapping[phsid]:
+                        list_from_dbgap.add(
+                            (username, project['auth_id']))
+                        map_from_backend_to_dbgap[project['auth_id']] = phsid
+                except ValueError:
+                    self.logger.info('=====There is no mapping for {}'.phsid)
+                except Exception as e:
+                    self.logger.info(e)
 
         to_delete = set.difference(privilege_list, list_from_dbgap)
         to_add = set.difference(list_from_dbgap, privilege_list)
@@ -426,8 +494,12 @@ class DbGapSyncer(object):
         dbgap_file_list = []
         tmpdir = tempfile.mkdtemp()
         if self.is_sync_from_dbgap_server:
-            self._get_from_sftp(tmpdir)
-            dbgap_file_list = glob.glob(os.path.join(tmpdir, '*'))
+            self.logger.info('Download from sftp server')
+            try:
+                self._get_from_sftp_with_proxy(tmpdir)
+                dbgap_file_list = glob.glob(os.path.join(tmpdir, '*'))
+            except Exception as e:
+                self.logger.info(e)
 
         phsids1, userinfo1 = self._sync_csv(
             dict(zip(dbgap_file_list, [
@@ -465,6 +537,7 @@ class DbGapSyncer(object):
         self.sync_two_phsids_dict(phsids3, phsids1)
         self.sync_two_userinfo_dict(userinfo3, userinfo1)
 
+        self.logger.info('sync to db and storage backend')
         self.sync_to_db_and_storage_backend(phsids1, userinfo1, s)
 
 
