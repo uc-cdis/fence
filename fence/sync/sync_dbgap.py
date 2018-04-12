@@ -11,10 +11,8 @@ import subprocess as sp
 import tempfile
 import shutil
 import errno
+import paramiko
 from paramiko.proxy import ProxyCommand
-from paramiko.transport import Transport
-from paramiko.sftp_client import SFTPClient
-from paramiko.hostkeys import HostKeyEntry
 from stat import S_ISDIR
 
 from cdispyutils.log import get_logger
@@ -30,7 +28,7 @@ from fence.models import (
 from fence.resources.storage import StorageManager
 
 
-def download_dir(remote_dir, local_dir):
+def download_dir(sftp, remote_dir, local_dir):
     '''
     Recursively download file from remote_dir to local_dir
     Args:
@@ -38,14 +36,13 @@ def download_dir(remote_dir, local_dir):
         local_dir(str)
     Returns: None
     '''
-    os.path.exists(local_dir) or os.makedirs(local_dir)
     dir_items = sftp.listdir_attr(remote_dir)
 
     for item in dir_items:
         remote_path = remote_dir + '/' + item.filename
         local_path = os.path.join(local_dir, item.filename)
         if S_ISDIR(item.st_mode):
-            download_dir(remote_path, local_path)
+            download_dir(sftp, remote_path, local_path)
         else:
             sftp.get(remote_path, local_path)
 
@@ -131,30 +128,25 @@ class DbGapSyncer(object):
         proxy = ProxyCommand('ssh -i /root/.ssh/id_rsa '
                              '{}@{} nc {} {}'.format(self.sftp.get('proxy_user', ''), self.sftp.get('proxy', ''), self.sftp.get('host', ''), self.sftp.get('port', 22)))
 
-        transport = Transport(proxy)
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.WarningPolicy())
 
-        host_key_str = self.sftp.get('host_key', '')
+        parameters = {
+            "hostname": self.sftp.get('host', ''),
+            "username": self.sftp.get('username', ''),
+            "password": self.sftp.get('password', ''),
+            "port": self.sftp.get('port', 22),
+        }
 
-        if host_key_str == '':
-            with open('/root/.ssh/known_hosts', 'r') as f:
-                content = f.readlines()
-                if len(content) > 0:
-                    host_key_str = content[-1]
+        parameters['sock'] = proxy
+        client.connect(**parameters)
+        sftp = client.open_sftp()
 
-        if host_key_str != '':
-            key = HostKeyEntry.from_line(host_key_str).key
-            transport.connect(hostkey=key, username=self.sftp.get(
-                'username', ''), password=self.sftp.get('password', ''))
-        else:
-            transport.connect(username=self.sftp.get(
-                'username', ''), password=self.sftp.get('password', ''))
-
-        sftp = SFTPClient.from_transport(transport)
-        sftp.get('.', path)
         print(sftp.listdir())
-        download_dir('./', path)
+        download_dir(sftp, './', path)
+
         sftp.close()
-        transport.close()
+        client.close()
         proxy.close()
 
     @contextmanager
@@ -214,10 +206,12 @@ class DbGapSyncer(object):
                 with self._read_file(filepath, encrypted=encrypted) as f:
                     csv = DictReader(f, quotechar='"', skipinitialspace=True)
                     for row in csv:
-                        username = row['login']
+                        username = row.get('login','')
+                        if username == '':
+                            continue
                         phsid_privileges = defaultdict(set)
                         for privilege in privileges:
-                            phsid_privileges[row['phsid'].split(
+                            phsid_privileges[row.get('phsid','').split(
                                 '.')[0]].add(privilege)
                         if username in phsids:
                             phsids[username].update(phsid_privileges)
@@ -225,7 +219,7 @@ class DbGapSyncer(object):
                             phsids[username] = phsid_privileges
 
                         userinfo[username] = {
-                            'email': row['email']}
+                            'email': row.get('email','')}
 
         return phsids, userinfo
 
@@ -253,7 +247,7 @@ class DbGapSyncer(object):
                 continue
             with self._read_file(filepath, encrypted=encrypted) as stream:
                 data = yaml.safe_load(stream)
-                users = data['users']
+                users = data.get('users',{})
                 for username, projects in users.iteritems():
                     phsid_privileges = defaultdict(set)
 
@@ -350,7 +344,8 @@ class DbGapSyncer(object):
                             (username, project['auth_id']))
                         map_from_backend_to_dbgap[project['auth_id']] = phsid
                 except ValueError:
-                    self.logger.info('=====There is no mapping for {}'.phsid)
+                    self.logger.info(
+                        '=====There is no mapping for {}'.format(phsid))
                 except Exception as e:
                     self.logger.info(e)
 
@@ -400,7 +395,7 @@ class DbGapSyncer(object):
             if not u:
                 self.logger.info('create user {}'.format(username))
                 u = User(username=username)
-            u.email = userinfo[username]['email']
+            u.email = userinfo[username].get('email','')
             s.add(u)
             self.logger.info(
                 'grant {} access to {} in db'
@@ -537,8 +532,9 @@ class DbGapSyncer(object):
         self.sync_two_phsids_dict(phsids3, phsids1)
         self.sync_two_userinfo_dict(userinfo3, userinfo1)
 
-        self.logger.info('sync to db and storage backend')
+        self.logger.info('Sync to db and storage backend')
         self.sync_to_db_and_storage_backend(phsids1, userinfo1, s)
+        self.logger.info('Finish syncing to db and storage backend')
 
 
 if __name__ == '__main__':
