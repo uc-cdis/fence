@@ -7,11 +7,23 @@ logger = get_logger(__name__)
 # default settings if local_settings is not present
 BASE_URL = 'http://localhost/user'
 APP_NAME = 'Gen3 Data Commons'
-# local_settings is not installed under fence module in prod
+
+SESSION_COOKIE_SECURE = True
+
+# ``local_settings"" is not installed under the fence module in produdction.
+# Instead, it should be located at ``/var/www/local_settings.py``. If it is
+# located elsewhere, use that location in ``imp.load_source`` instead of
+# ``/var/www/local_settings.py``, just below.
 try:
+    # Import everything from ``local_settings``, if it exists.
     from local_settings import *
-except:
-    logger.warn("local_settings is not found")
+except ImportError:
+    # If it doesn't, look in ``/var/www``.
+    try:
+        import imp
+        imp.load_source('local_settings', '/var/www/local_settings.py')
+    except IOError:
+        logger.warn("local_settings is not found")
 
 
 # Use this setting when fence will be deployed in such a way that fence will
