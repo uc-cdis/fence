@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import os
 
 from addict import Dict
@@ -8,6 +9,7 @@ import pytest
 
 from fence import models
 from fence import app_init
+from fence.jwt.keys import Keypair
 import fence.blueprints.login
 
 from tests import test_settings
@@ -53,7 +55,8 @@ def fence_oauth_client(app, db_session, oauth_user, fence_oauth_client_url):
 
 @pytest.fixture(scope='function')
 def fence_client_app(
-        app, fence_oauth_client, fence_oauth_client_url, db_session):
+        app, fence_oauth_client, fence_oauth_client_url, db_session,
+        kid_2, rsa_private_key_2, rsa_public_key_2):
     """
     A Flask application fixture which acts as a client of the original ``app``
     in a multi-tenant configuration.
@@ -62,9 +65,14 @@ def fence_client_app(
     client_app = flask.Flask('client_app')
     app_init(client_app, test_settings, root_dir=root_dir)
 
-    client_app.jwt_public_keys['/'] = client_app.jwt_public_keys.pop(
-        client_app.config['BASE_URL']
-    )
+    client_app.keypairs.append(Keypair(
+        kid=kid_2, public_key=rsa_public_key_2,
+        private_key=rsa_private_key_2
+    ))
+
+    client_app.jwt_public_keys['/'] = OrderedDict([
+        (kid_2, rsa_public_key_2)
+    ])
 
     client_app.config['BASE_URL'] = '/'
     client_app.config['MOCK_AUTH'] = None
@@ -92,13 +100,13 @@ def fence_client_app(
 
 
 @pytest.fixture(scope='session')
-def example_keys_response(public_key):
+def example_keys_response(kid, rsa_public_key):
     """
     Return an example response JSON returned from the ``/jwt/keys`` endpoint in
     fence.
     """
     return {
         'keys': [
-            ['key-test', public_key],
+            [kid, rsa_public_key],
         ]
     }

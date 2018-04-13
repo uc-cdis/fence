@@ -30,6 +30,8 @@ MOCK_AUTH = {
 
 MOCK_STORAGE = False
 
+ROOT_DIR = '/fence'
+
 # If using multi-tenant setup, configure this to the base URL for the provider
 # fence (i.e. ``BASE_URL`` in the provider fence config).
 # OIDC_ISSUER = 'http://localhost:8080/user
@@ -152,4 +154,14 @@ ENABLED_IDENTITY_PROVIDERS = {
 
 APP_NAME = ''
 
-MAX_PRESIGNED_URL_TTL = 7200
+#: ``MAX_PRESIGNED_URL_TTL: int``
+#: The number of seconds after a pre-signed url is issued until it expires.
+MAX_PRESIGNED_URL_TTL = 3600
+
+#: ``MAX_API_KEY_TTL: int``
+#: The number of seconds after an API KEY is issued until it expires.
+MAX_API_KEY_TTL = 2592000
+
+#: ``MAX_ACCESS_TOKEN_TTL: int``
+#: The number of seconds after an access token is issued until it expires.
+MAX_ACCESS_TOKEN_TTL = 3600

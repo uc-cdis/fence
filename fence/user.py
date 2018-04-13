@@ -60,7 +60,7 @@ def _create_new_user(username, idp_name):
         new_user = User(username=username)
         idp = session.query(IdentityProvider).filter_by(name=idp_name).first()
         if not idp:
-            idp = IdentityProvider(name=provider)
+            idp = IdentityProvider(name=idp_name)
         new_user.identity_provider = idp
         session.add(new_user)
         session.commit()

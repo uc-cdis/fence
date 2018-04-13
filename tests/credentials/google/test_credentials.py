@@ -1,11 +1,7 @@
 """
 Test the /credentials endpoint.
 """
-
-import flask
-
 from fence.models import (
-    User,
     Client,
     IdentityProvider,
     GoogleServiceAccount,
