@@ -341,17 +341,39 @@ def remove_expired_google_accounts_from_proxy_groups(db):
                         UserGoogleAccount.id ==
                         expired_account_access.user_google_account_id).first()
                 )
-                g_mgr.remove_member_from_group(
-                    member_email=g_account.email,
-                    group_id=expired_account_access.proxy_group_id
-                )
-                current_session.delete(expired_account_access)
-                print(
-                    'Removed {} from proxy group with id {}.'
-                    .format(
-                        g_account.email,
-                        expired_account_access.proxy_group_id)
-                )
+                try:
+                    response = g_mgr.remove_member_from_group(
+                        member_email=g_account.email,
+                        group_id=expired_account_access.proxy_group_id
+                    )
+                    response_error_code = response.get('error', {}).get('code')
+
+                    if not response_error_code:
+                        current_session.delete(expired_account_access)
+                        print(
+                            'INFO: Removed {} from proxy group with id {}.\n'
+                            .format(
+                                g_account.email,
+                                expired_account_access.proxy_group_id)
+                        )
+                    else:
+                        print(
+                            'ERROR: Google returned an error when attempting to '
+                            'remove member {} from proxy group {}. Error:\n{}\n'
+                            .format(
+                                g_account.email,
+                                expired_account_access.proxy_group_id,
+                                response)
+                        )
+                except Exception as exc:
+                    print(
+                        'ERROR: Google returned an error when attempting to '
+                        'remove member {} from proxy group {}. Error:\n{}\n'
+                        .format(
+                            g_account.email,
+                            expired_account_access.proxy_group_id,
+                            exc)
+                    )
 
 
 def delete_users(DB, usernames):
