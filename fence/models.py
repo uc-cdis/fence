@@ -17,6 +17,7 @@ import flask
 from sqlalchemy import (
     Integer, BigInteger, String, Column, Boolean, Text, MetaData, Table
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.schema import ForeignKey
 from fence.jwt.token import CLIENT_ALLOWED_SCOPES
@@ -210,6 +211,60 @@ class GoogleServiceAccount(Base):
         nullable=False
     )
 
+    user_id = Column(
+        Integer,
+        ForeignKey(User.id),
+        nullable=False
+    )
+
+    def delete(self):
+        with flask.current_app.db.session as session:
+            session.delete(self)
+            session.commit()
+            return self
+
+
+class UserGoogleAccount(Base):
+    __tablename__ = "user_google_account"
+
+    id = Column(Integer, primary_key=True)
+
+    email = Column(
+        String,
+        unique=True,
+        nullable=False
+    )
+
+    user_id = Column(
+        Integer,
+        ForeignKey(User.id),
+        nullable=False
+    )
+
+    def delete(self):
+        with flask.current_app.db.session as session:
+            session.delete(self)
+            session.commit()
+            return self
+
+
+class GoogleServiceAccountKey(Base):
+    __tablename__ = "google_service_account_key"
+
+    id = Column(Integer, primary_key=True)
+
+    key_id = Column(String, nullable=False)
+
+    service_account_id = Column(
+        Integer,
+        ForeignKey(GoogleServiceAccount.id),
+        nullable=False
+    )
+
+    expires = Column(BigInteger)
+
+    private_key = Column(JSONB)
+
     def delete(self):
         with flask.current_app.db.session as session:
             session.delete(self)
@@ -223,6 +278,32 @@ to_timestamp = "CREATE OR REPLACE FUNCTION pc_datetime_to_timestamp(datetoconver
                "select extract(epoch from $1)::BIGINT " \
                "$BODY$ " \
                "LANGUAGE 'sql' IMMUTABLE STRICT;"
+
+
+class UserGoogleAccountToProxyGroup(Base):
+    __tablename__ = "user_google_account_to_proxy_group"
+
+    user_google_account_id = Column(
+        Integer,
+        ForeignKey(UserGoogleAccount.id),
+        nullable=False,
+        primary_key=True
+    )
+
+    proxy_group_id = Column(
+        String,
+        ForeignKey(GoogleProxyGroup.id),
+        nullable=False,
+        primary_key=True
+    )
+
+    expires = Column(BigInteger)
+
+    def delete(self):
+        with flask.current_app.db.session as session:
+            session.delete(self)
+            session.commit()
+            return self
 
 
 def migrate(driver):

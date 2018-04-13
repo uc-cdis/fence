@@ -370,7 +370,7 @@ def patch_app_db_session(app, monkeypatch):
         monkeypatch.setattr(app.db, 'Session', lambda: session)
         modules_to_patch = [
             'fence.auth',
-            'fence.blueprints.storage_creds.google',
+            'fence.resources.google.utils',
             'fence.oidc.jwt_generator',
             'fence.user',
         ]
@@ -491,6 +491,7 @@ def google_proxy_group(app, db_session, user_client):
 def cloud_manager():
     manager = MagicMock()
     patch('fence.blueprints.storage_creds.google.GoogleCloudManager', manager).start()
+    patch('fence.resources.google.utils.GoogleCloudManager', manager).start()
     return manager
 
 

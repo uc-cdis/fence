@@ -7,7 +7,10 @@ from fence.jwt.token import (
     generate_signed_id_token,
     generate_signed_refresh_token,
 )
-from fence.models import AuthorizationCode, User
+from fence.models import AuthorizationCode
+from fence.models import User
+from fence.resources.google.utils import get_linked_google_account_email
+
 import fence.settings
 
 
