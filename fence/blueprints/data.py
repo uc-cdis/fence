@@ -1,10 +1,23 @@
 import flask
 import requests
+import time
 from urlparse import urlparse
+
+import cirrus
 from fence.auth import login_required
+from fence.auth import current_token
 from cdispyutils.hmac4 import generate_aws_presigned_url
 from cdispyutils.config import get_value
-from ..errors import UnavailableError, NotFound, Unauthorized, NotSupported, InternalError
+
+from fence.resources.google.utils import (
+    get_or_create_users_primary_google_service_account_key,
+    create_users_primary_google_service_account_key
+)
+from fence.errors import UnavailableError
+from fence.errors import NotFound
+from fence.errors import Unauthorized
+from fence.errors import NotSupported
+from fence.errors import InternalError
 
 ACTION_DICT = {
     "s3": {
@@ -14,10 +27,14 @@ ACTION_DICT = {
     "http": {
         "upload": "put_object",
         "download": "get_object"
-    }
+    },
+    "gs": {
+        "upload": "PUT",
+        "download": "GET"
+    },
 }
 
-SUPPORTED_PROTOCOLS = ['s3', 'http', 'ftp']
+SUPPORTED_PROTOCOLS = ['s3', 'http', 'ftp', 'gs']
 
 
 def get_index_document(file_id):
@@ -114,10 +131,57 @@ def resolve_url(url, location, expires, action, user_id, username):
         url = generate_aws_presigned_url(http_url, ACTION_DICT[protocol][action],
                                          aws_access_key_id, aws_secret_key, 's3',
                                          region, expires, user_info)
+    elif protocol == 'gs':
+        resource_path = (
+            location.netloc.strip('/')
+            + '/' + location.path.strip('/')
+        )
+        url = generate_google_storage_signed_url(
+            ACTION_DICT[protocol][action], resource_path, expires)
     elif protocol not in SUPPORTED_PROTOCOLS:
         raise NotSupported(
             "protocol {} in url {} is not supported".format(protocol, url))
     return dict(url=url)
+
+
+def generate_google_storage_signed_url(http_verb, resource_path, expires):
+    user_id = current_token["sub"]
+    proxy_group_id = (
+        current_token.get('context', {})
+        .get('user', {})
+        .get('google', {})
+        .get('proxy_group')
+    )
+
+    key = get_or_create_users_primary_google_service_account_key(
+        user_id=user_id,
+        proxy_group_id=proxy_group_id
+    )
+
+    # Make sure the service account key expiration is later
+    # than the expiration for the signed url. If it's not, we need to
+    # provision a new service account key.
+    #
+    # NOTE: This should occur very rarely: only when the service account key
+    #       already exists and is very close to expiring.
+    #
+    #       If our scheduled maintainence script removes the url-signing key
+    #       before the expiration of the url then the url will NOT work
+    #       (even though the url itself isn't expired)
+    if key and key.expires > expires:
+        key = create_users_primary_google_service_account_key(
+            user_id=user_id,
+            proxy_group_id=proxy_group_id
+        )
+
+    # expires = int(time.time())+10  # TODO REMOVE
+
+    final_url = cirrus.google_cloud.utils.get_signed_url(
+        resource_path, http_verb, expires,
+        extension_headers=None, content_type='', md5_value='',
+        service_account_creds=key
+    )
+    return dict(url=final_url)
 
 
 def return_link(action, urls, user_id=None, username=None):
