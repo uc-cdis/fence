@@ -67,7 +67,7 @@ def parse_arguments():
         help='Specify project mapping yaml file')
     dbgap_sync.add_argument(
         '--yaml_dir',
-        help='Merge from yaml dir')
+        help='Merge from user yaml dir')
     dbgap_sync.add_argument(
         '--csv_dir',
         help='specify csv file directory')
