@@ -1,5 +1,6 @@
 from . import utils
 import jwt
+import urlparse
 
 
 def test_indexd_download_file(
@@ -136,7 +137,7 @@ def test_unavailable_indexd_upload_file(
     assert 'url' not in response.json.keys()
 
 
-def test_public_bucket_download_file(client, auth_client, public_indexd_client):
+def test_public_object_download_file(client, auth_client, public_indexd_client):
     """
     Test ``GET /data/upload/1``.
     """
@@ -145,3 +146,17 @@ def test_public_bucket_download_file(client, auth_client, public_indexd_client):
     print response.json
     assert response.status_code == 200
     assert 'url' in response.json.keys()
+
+
+def test_public_bucket_download_file(
+        client, auth_client, public_bucket_indexd_client):
+    """
+    Test ``GET /data/upload/1`` with public bucket
+    """
+    path = '/data/download/1'
+    response = client.get(path)
+    print response.json
+    assert response.status_code == 200
+    url = response.json['url']
+    # public url without signature
+    assert urlparse.urlparse(url).query == ''

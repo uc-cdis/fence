@@ -96,13 +96,12 @@ def resolve_url(url, location, expires, action, user_id, username):
         if len(aws_creds) > 0:
             if location.netloc not in s3_buckets.keys():
                 raise Unauthorized('permission denied for bucket')
-            if location.netloc in s3_buckets.keys():
-                credential_key = s3_buckets[location.netloc]
-                if credential_key not in aws_creds:
-                    raise Unauthorized('permission denied for bucket')
-                # public bucket
-                if credential_key == '*':
-                    return dict(url=http_url)
+            credential_key = s3_buckets[location.netloc]
+            # public bucket
+            if credential_key == '*':
+                return dict(url=http_url)
+            if credential_key not in aws_creds:
+                raise Unauthorized('permission denied for bucket')
         config = get_value(aws_creds, credential_key,
                            InternalError('aws credential of that bucket is not found'))
         region = flask.current_app.boto.get_bucket_region(location.netloc, config)
