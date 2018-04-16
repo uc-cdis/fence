@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python-pip \
     python-setuptools \
     vim \
-    && pip install --upgrade pip \
+    && pip install pip==9.0.3 \
     && pip install --upgrade setuptools \
     && mkdir /var/www/fence \
     && mkdir -p /var/www/.cache/Python-Eggs/ \
