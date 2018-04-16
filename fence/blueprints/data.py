@@ -5,6 +5,8 @@ from urlparse import urlparse
 
 import cirrus
 from fence.auth import login_required
+from fence.auth import set_current_token
+from fence.auth import validate_request
 from fence.auth import current_token
 from cdispyutils.hmac4 import generate_aws_presigned_url
 from cdispyutils.config import get_value
@@ -153,6 +155,7 @@ def resolve_url(url, location, expires, action, user_id, username):
 
 
 def generate_google_storage_signed_url(http_verb, resource_path, expires):
+    set_current_token(validate_request(aud={'user'}))
     user_id = current_token["sub"]
     proxy_group_id = (
         current_token.get('context', {})
