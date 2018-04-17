@@ -187,12 +187,11 @@ def resolve_s3_url(location, expires, action, user_id, username):
 
 
 def resolve_gs_url(location, expires, action, public):
-    resource_path = '/' + location.path.strip('/')
-
+    resource_path = location.path.strip('/')
     # if the file is public, just return the public url to access it, no
     # signing required
     if public:
-        url = 'https://' + resource_path
+        url = 'https://' + location.netloc.strip('/') + '/' + resource_path
     else:
         expiration_time = int(time.time()) + int(expires)
         url = generate_google_storage_signed_url(
