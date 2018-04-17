@@ -39,6 +39,43 @@ ACTION_DICT = {
 SUPPORTED_PROTOCOLS = ['s3', 'http', 'ftp', 'https', 'gs']
 
 
+blueprint = flask.Blueprint('data', __name__)
+
+
+
+@blueprint.route('/download/<file_id>', methods=['GET'])
+def download_file(file_id):
+    '''
+    Get a presigned url to download a file given by file_id.
+    '''
+    result = get_file('download', file_id)
+    if not 'redirect' in flask.request.args or not 'url' in result:
+        return flask.jsonify(result)
+    else:
+        return flask.redirect(result['url'])
+
+
+@blueprint.route('/upload/<file_id>', methods=['GET'])
+def upload_file(file_id):
+    '''
+    Get a presigned url to upload a file given by file_id.
+    '''
+    return flask.jsonify(get_file('upload', file_id))
+
+
+def get_file(action, file_id):
+    doc = get_index_document(file_id)
+    metadata = doc['metadata']
+    if 'acls' not in metadata:
+        raise Unauthorized("This file is not accessible")
+    set_acls = set(metadata['acls'].split(','))
+    if check_public(set_acls):
+        return return_link(action, doc['urls'], public=True)
+    if not check_authorization(action, set_acls):
+        raise Unauthorized("You don't have access permission on this file")
+    return return_link(action, doc['urls'], flask.g.user.id, flask.g.user.username)
+
+
 def get_index_document(file_id):
     indexd_server = (
             flask.current_app.config.get('INDEXD') or
@@ -69,27 +106,22 @@ def get_index_document(file_id):
         raise UnavailableError(res.text)
 
 
-blueprint = flask.Blueprint('data', __name__)
-
-
-@blueprint.route('/download/<file_id>', methods=['GET'])
-def download_file(file_id):
-    '''
-    Get a presigned url to download a file given by file_id.
-    '''
-    result = get_file('download', file_id)
-    if not 'redirect' in flask.request.args or not 'url' in result:
-        return flask.jsonify(result)
-    else:
-        return flask.redirect(result['url'])
-
-
-@blueprint.route('/upload/<file_id>', methods=['GET'])
-def upload_file(file_id):
-    '''
-    Get a presigned url to upload a file given by file_id.
-    '''
-    return flask.jsonify(get_file('upload', file_id))
+def return_link(action, urls, user_id=None, username=None, public=False):
+    protocol = flask.request.args.get('protocol', None)
+    max_ttl = flask.current_app.config.get('MAX_PRESIGNED_URL_TTL', 3600)
+    expires = min(int(flask.request.args.get('expires_in', max_ttl)), max_ttl)
+    if (protocol is not None) and (protocol not in SUPPORTED_PROTOCOLS):
+        raise NotSupported("The specified protocol is not supported")
+    if len(urls) == 0:
+        raise NotFound("Can't find any location for the data")
+    for url in urls:
+        location = urlparse(url)
+        if check_protocol(protocol, location.scheme):
+            return resolve_url(
+                location, expires, action, user_id, username, public)
+    raise NotFound(
+        "Can't find a location for the data with given request arguments."
+    )
 
 
 def check_protocol(protocol, scheme):
@@ -104,52 +136,69 @@ def check_protocol(protocol, scheme):
     return False
 
 
-def resolve_url(url, location, expires, action, user_id, username):
+def resolve_url(location, expires, action, user_id, username, public=False):
     protocol = location.scheme
     if protocol == 's3':
-        aws_creds = get_value(flask.current_app.config, 'AWS_CREDENTIALS',
-                              InternalError('credentials not configured'))
-        s3_buckets = get_value(flask.current_app.config, 'S3_BUCKETS',
-                               InternalError('buckets not configured'))
-
-        http_url = (
-            'https://{}.s3.amazonaws.com/{}'
-            .format(location.netloc, location.path.strip('/'))
-        )
-        if len(aws_creds) > 0:
-            if location.netloc not in s3_buckets.keys():
-                raise Unauthorized('permission denied for bucket')
-            credential_key = s3_buckets[location.netloc]
-            # public bucket
-            if credential_key == '*':
-                return dict(url=http_url)
-            if credential_key not in aws_creds:
-                raise Unauthorized('permission denied for bucket')
-        config = get_value(aws_creds, credential_key,
-                           InternalError('aws credential of that bucket is not found'))
-        region = flask.current_app.boto.get_bucket_region(location.netloc, config)
-        if 'aws_access_key_id' not in config:
-            raise Unauthorized('credential is not configured correctly')
-        else:
-            aws_access_key_id = get_value(config, 'aws_access_key_id',
-                                          InternalError('aws configuration not found'))
-            aws_secret_key = get_value(config, 'aws_secret_access_key',
-                                       InternalError('aws configuration not found'))
-        user_info = {}
-        if user_id is not None:
-            user_info = {'user_id': str(user_id), 'username': username}
-        url = generate_aws_presigned_url(http_url, ACTION_DICT[protocol][action],
-                                         aws_access_key_id, aws_secret_key, 's3',
-                                         region, expires, user_info)
+        url = resolve_s3_url(location, expires, action, user_id, username)
     elif protocol == 'gs':
-        resource_path = '/' + location.path.strip('/')
-        expiration_time = int(time.time()) + int(expires)
-        url = generate_google_storage_signed_url(
-            ACTION_DICT[protocol][action], resource_path, expiration_time)
+        url = resolve_gs_url(location, expires, action, public)
     elif protocol not in SUPPORTED_PROTOCOLS:
         raise NotSupported(
             "protocol {} in url {} is not supported".format(protocol, url))
     return dict(url=url)
+
+
+def resolve_s3_url(location, expires, action, user_id, username):
+    aws_creds = get_value(flask.current_app.config, 'AWS_CREDENTIALS',
+                          InternalError('credentials not configured'))
+    s3_buckets = get_value(flask.current_app.config, 'S3_BUCKETS',
+                           InternalError('buckets not configured'))
+
+    http_url = (
+        'https://{}.s3.amazonaws.com/{}'
+        .format(location.netloc, location.path.strip('/'))
+    )
+    if len(aws_creds) > 0:
+        if location.netloc not in s3_buckets.keys():
+            raise Unauthorized('permission denied for bucket')
+        credential_key = s3_buckets[location.netloc]
+        # public bucket
+        if credential_key == '*':
+            return http_url
+        if credential_key not in aws_creds:
+            raise Unauthorized('permission denied for bucket')
+    config = get_value(aws_creds, credential_key,
+                       InternalError('aws credential of that bucket is not found'))
+    region = flask.current_app.boto.get_bucket_region(location.netloc, config)
+    if 'aws_access_key_id' not in config:
+        raise Unauthorized('credential is not configured correctly')
+    else:
+        aws_access_key_id = get_value(config, 'aws_access_key_id',
+                                      InternalError('aws configuration not found'))
+        aws_secret_key = get_value(config, 'aws_secret_access_key',
+                                   InternalError('aws configuration not found'))
+    user_info = {}
+    if user_id is not None:
+        user_info = {'user_id': str(user_id), 'username': username}
+    url = generate_aws_presigned_url(http_url, ACTION_DICT['s3'][action],
+                                     aws_access_key_id, aws_secret_key, 's3',
+                                     region, expires, user_info)
+    return url
+
+
+def resolve_gs_url(location, expires, action, public):
+    resource_path = '/' + location.path.strip('/')
+
+    # if the file is public, just return the public url to access it, no
+    # signing required
+    if public:
+        url = 'https://' + resource_path
+    else:
+        expiration_time = int(time.time()) + int(expires)
+        url = generate_google_storage_signed_url(
+            ACTION_DICT['gs'][action], resource_path, expiration_time)
+
+    return url
 
 
 def generate_google_storage_signed_url(
@@ -191,37 +240,7 @@ def generate_google_storage_signed_url(
         extension_headers=None, content_type='', md5_value='',
         service_account_creds=private_key
     )
-    return dict(url=final_url)
-
-
-def return_link(action, urls, user_id=None, username=None):
-    protocol = flask.request.args.get('protocol', None)
-    max_ttl = flask.current_app.config.get('MAX_PRESIGNED_URL_TTL', 3600)
-    expires = min(int(flask.request.args.get('expires_in', max_ttl)), max_ttl)
-    if (protocol is not None) and (protocol not in SUPPORTED_PROTOCOLS):
-        raise NotSupported("The specified protocol is not supported")
-    if len(urls) == 0:
-        raise NotFound("Can't find any location for the data")
-    for url in urls:
-        location = urlparse(url)
-        if check_protocol(protocol, location.scheme):
-            return resolve_url(url, location, expires, action, user_id, username)
-    raise NotFound(
-        "Can't find a location for the data with given request arguments."
-    )
-
-
-def get_file(action, file_id):
-    doc = get_index_document(file_id)
-    metadata = doc['metadata']
-    if 'acls' not in metadata:
-        raise Unauthorized("This file is not accessible")
-    set_acls = set(metadata['acls'].split(','))
-    if check_public(set_acls):
-        return return_link(action, doc['urls'])
-    if not check_authorization(action, set_acls):
-        raise Unauthorized("You don't have access permission on this file")
-    return return_link(action, doc['urls'], flask.g.user.id, flask.g.user.username)
+    return final_url
 
 
 def filter_auth_ids(action, list_auth_ids):

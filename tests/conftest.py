@@ -385,6 +385,7 @@ def public_bucket_indexd_client(app, request):
         indexd_get_public_bucket)
     mocker.add_mock(indexd_patcher)
 
+
 @pytest.fixture(scope='function')
 def patch_app_db_session(app, monkeypatch):
     """
