@@ -2,7 +2,7 @@ import flask
 from flask_restful import Resource
 
 from cirrus import GoogleCloudManager
-from cirrus.config import SERVICE_KEY_EXPIRATION_IN_DAYS
+from cirrus.config import config as cirrus_config
 
 from fence.auth import require_auth_header
 from fence.auth import current_token
@@ -129,7 +129,7 @@ class GoogleCredentialsList(Resource):
         """
         # x days * 24 hr/day * 60 min/hr * 60 s/min = y seconds
         expires_in_seconds = (
-            SERVICE_KEY_EXPIRATION_IN_DAYS * 24 * 60 * 60
+            cirrus_config.SERVICE_KEY_EXPIRATION_IN_DAYS * 24 * 60 * 60
         )
         key_id = key.get('private_key_id')
         add_custom_service_account_key_expiration(
