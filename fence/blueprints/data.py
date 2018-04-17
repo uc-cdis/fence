@@ -143,10 +143,15 @@ def return_link(action, urls, user_id=None, username=None):
 
 def get_file(action, file_id):
     doc = get_index_document(file_id)
-    metadata = doc['metadata']
-    if 'acls' not in metadata:
-        raise Unauthorized("This file is not accessible")
-    set_acls = set(metadata['acls'].split(','))
+    if 'acl' in doc:
+        set_acls = set(doc['acl'])
+
+    else:
+        # check acl in metadata for backward compat
+        metadata = doc['metadata']
+        if 'acls' not in metadata:
+            raise Unauthorized("This file is not accessible")
+        set_acls = set(metadata['acls'].split(','))
     if check_public(set_acls):
         return return_link(action, doc['urls'])
     if not check_authorization(action, set_acls):
