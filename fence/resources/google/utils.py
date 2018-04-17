@@ -64,7 +64,7 @@ def get_or_create_users_primary_google_service_account_key(
         sa_private_key = _create_users_primary_google_service_account_key(
             user_id, proxy_group_id, expires)
 
-    return sa_private_key
+    return sa_private_key, user_service_account_key
 
 
 def create_users_primary_google_service_account_key(

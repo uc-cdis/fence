@@ -142,19 +142,18 @@ def resolve_url(url, location, expires, action, user_id, username):
                                          aws_access_key_id, aws_secret_key, 's3',
                                          region, expires, user_info)
     elif protocol == 'gs':
-        resource_path = (
-            location.netloc.strip('/')
-            + '/' + location.path.strip('/')
-        )
+        resource_path = '/' + location.path.strip('/')
+        expiration_time = int(time.time()) + int(expires)
         url = generate_google_storage_signed_url(
-            ACTION_DICT[protocol][action], resource_path, expires)
+            ACTION_DICT[protocol][action], resource_path, expiration_time)
     elif protocol not in SUPPORTED_PROTOCOLS:
         raise NotSupported(
             "protocol {} in url {} is not supported".format(protocol, url))
     return dict(url=url)
 
 
-def generate_google_storage_signed_url(http_verb, resource_path, expires):
+def generate_google_storage_signed_url(
+        http_verb, resource_path, expiration_time):
     set_current_token(validate_request(aud={'user'}))
     user_id = current_token["sub"]
     proxy_group_id = (
@@ -164,7 +163,7 @@ def generate_google_storage_signed_url(http_verb, resource_path, expires):
         .get('proxy_group')
     )
 
-    key = get_or_create_users_primary_google_service_account_key(
+    private_key, key_db_entry = get_or_create_users_primary_google_service_account_key(
         user_id=user_id,
         proxy_group_id=proxy_group_id
     )
@@ -179,8 +178,8 @@ def generate_google_storage_signed_url(http_verb, resource_path, expires):
     #       If our scheduled maintainence script removes the url-signing key
     #       before the expiration of the url then the url will NOT work
     #       (even though the url itself isn't expired)
-    if key and key.expires > expires:
-        key = create_users_primary_google_service_account_key(
+    if key_db_entry and key_db_entry.expires > expiration_time:
+        private_key = create_users_primary_google_service_account_key(
             user_id=user_id,
             proxy_group_id=proxy_group_id
         )
@@ -188,9 +187,9 @@ def generate_google_storage_signed_url(http_verb, resource_path, expires):
     # expires = int(time.time())+10  # TODO REMOVE
 
     final_url = cirrus.google_cloud.utils.get_signed_url(
-        resource_path, http_verb, expires,
+        resource_path, http_verb, expiration_time,
         extension_headers=None, content_type='', md5_value='',
-        service_account_creds=key
+        service_account_creds=private_key
     )
     return dict(url=final_url)
 
