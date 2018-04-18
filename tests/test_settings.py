@@ -88,6 +88,7 @@ S3_BUCKETS = {
     "bucket1": "CRED1",
     "bucket2": "CRED2",
     "bucket3": "CRED1",
+    "bucket4": "*",
 }
 
 ENABLED_IDENTITY_PROVIDERS = {

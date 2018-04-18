@@ -10,14 +10,10 @@ ACTION_DICT = {
     "s3": {
         "upload": "PUT",
         "download": "GET"
-    },
-    "http": {
-        "upload": "put_object",
-        "download": "get_object"
     }
 }
 
-SUPPORTED_PROTOCOLS = ['s3', 'http', 'ftp']
+SUPPORTED_PROTOCOLS = ['s3', 'http', 'ftp', 'https']
 
 
 def get_index_document(file_id):
@@ -74,6 +70,8 @@ def upload_file(file_id):
 
 
 def check_protocol(protocol, scheme):
+    if scheme not in SUPPORTED_PROTOCOLS:
+        return False
     if protocol is None:
         return True
     if protocol == scheme:
@@ -90,17 +88,23 @@ def resolve_url(url, location, expires, action, user_id, username):
                               InternalError('credentials not configured'))
         s3_buckets = get_value(flask.current_app.config, 'S3_BUCKETS',
                                InternalError('buckets not configured'))
+
+        http_url = (
+            'https://{}.s3.amazonaws.com/{}'
+            .format(location.netloc, location.path.strip('/'))
+        )
         if len(aws_creds) > 0:
             if location.netloc not in s3_buckets.keys():
                 raise Unauthorized('permission denied for bucket')
-            if location.netloc in s3_buckets.keys() and \
-                    s3_buckets[location.netloc] not in aws_creds:
+            credential_key = s3_buckets[location.netloc]
+            # public bucket
+            if credential_key == '*':
+                return dict(url=http_url)
+            if credential_key not in aws_creds:
                 raise Unauthorized('permission denied for bucket')
-        credential_key = s3_buckets[location.netloc]
         config = get_value(aws_creds, credential_key,
                            InternalError('aws credential of that bucket is not found'))
         region = flask.current_app.boto.get_bucket_region(location.netloc, config)
-        http_url = 'https://{}.s3.amazonaws.com/{}'.format(location.netloc, location.path.strip('/'))
         if 'aws_access_key_id' not in config:
             raise Unauthorized('credential is not configured correctly')
         else:
