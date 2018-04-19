@@ -138,7 +138,7 @@ def main():
     elif args.action == 'sync-dbgap':
         sync_dbgap(dbGaP, STORAGE_CREDENTIALS, DB,
                    projects=args.project_mapping, is_sync_from_dbgap_server=str2bool(args.is_sync),
-                   sync_from_local_csv_dir=args.csv_dir, sync_from_local_yaml_dir=args.yaml_dir)
+                   sync_from_local_csv_dir=args.csv_dir, sync_from_local_yaml_file=args.yaml_dir)
     elif args.action == 'google-manage-keys':
         remove_expired_google_service_account_keys(DB)
     elif args.action == 'google-init':

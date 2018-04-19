@@ -53,7 +53,7 @@ def delete_client_action(DB, client):
 
 def sync_dbgap(dbGaP, STORAGE_CREDENTIALS, DB,
                projects, is_sync_from_dbgap_server=False,
-               sync_from_local_csv_dir=None, sync_from_local_yaml_dir=None):
+               sync_from_local_csv_dir=None, sync_from_local_yaml_file=None):
     '''
     sync ACL files from dbGap to auth db and storage backends
     imports from local_settings is done here because dbGap is
@@ -82,8 +82,8 @@ def sync_dbgap(dbGaP, STORAGE_CREDENTIALS, DB,
     if sync_from_local_csv_dir and os.path.exists(sync_from_local_csv_dir) == False:
         print "====={} is not found!!!=======".format(sync_from_local_csv_dir)
         return
-    if sync_from_local_yaml_dir and os.path.exists(sync_from_local_yaml_dir) == False:
-        print "====={} is not found!!!=======".format(sync_from_local_yaml_dir)
+    if sync_from_local_yaml_file and os.path.exists(sync_from_local_yaml_file) == False:
+        print "====={} is not found!!!=======".format(sync_from_local_yaml_file)
         return
 
     with open(projects, 'r') as f:
@@ -91,7 +91,7 @@ def sync_dbgap(dbGaP, STORAGE_CREDENTIALS, DB,
     syncer = DbGapSyncer(
         dbGaP, DB, project_mapping=project_mapping, storage_credentials=STORAGE_CREDENTIALS,
         is_sync_from_dbgap_server=is_sync_from_dbgap_server,
-        sync_from_local_csv_dir=sync_from_local_csv_dir, sync_from_local_yaml_dir=sync_from_local_yaml_dir
+        sync_from_local_csv_dir=sync_from_local_csv_dir, sync_from_local_yaml_file=sync_from_local_yaml_file
     )
     syncer.sync()
 

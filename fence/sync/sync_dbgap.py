@@ -4,7 +4,6 @@ from collections import defaultdict
 from contextlib import contextmanager
 from csv import DictReader
 import glob
-import pysftp
 import yaml
 import re
 import subprocess as sp
@@ -50,10 +49,10 @@ def download_dir(sftp, remote_dir, local_dir):
 class DbGapSyncer(object):
 
     def __init__(
-            self, dbGaP, DB, project_mapping,
+            self, DB, dbGaP=None, project_mapping=None,
             storage_credentials=None, db_session=None,
             is_sync_from_dbgap_server=False,
-            sync_from_local_csv_dir=None, sync_from_local_yaml_dir=None):
+            sync_from_local_csv_dir=None, sync_from_local_yaml_file=None):
         '''
         Syncs ACL files from dbGap to auth database and storage backends
         Args:
@@ -66,7 +65,7 @@ class DbGapSyncer(object):
         '''
 
         self.sync_from_local_csv_dir = sync_from_local_csv_dir
-        self.sync_from_local_yaml_dir = sync_from_local_yaml_dir
+        self.sync_from_local_yaml_file = sync_from_local_yaml_file
         self.is_sync_from_dbgap_server = is_sync_from_dbgap_server
         if is_sync_from_dbgap_server:
             self.sftp = dbGaP['sftp']
@@ -75,7 +74,7 @@ class DbGapSyncer(object):
         self.driver = SQLAlchemyDriver(DB)
         self._projects = dict()
         self.project_mapping = project_mapping
-        self.logger = get_logger('dbgap_syncer')
+        self.logger = get_logger('user_syncer')
 
         if storage_credentials:
             self.storage_manager = StorageManager(
@@ -99,22 +98,6 @@ class DbGapSyncer(object):
             pattern += '$'
         return (re.match(pattern,
                          os.path.basename(filepath)))
-
-    def _get_from_sftp(self, path):
-        """
-        Copy all data from sftp to a local dir
-        Args:
-            path (str): path to local directory
-        Returns:
-            None
-        """
-        cnopts = pysftp.CnOpts()
-        cnopts.hostkeys = None
-        with pysftp.Connection(self.sftp['host'],
-                               username=self.sftp['username'],
-                               password=self.sftp['password'],
-                               cnopts=cnopts) as sftp:
-            sftp.get_r('.', path)
 
     def _get_from_sftp_with_proxy(self, path):
         """
@@ -303,7 +286,6 @@ class DbGapSyncer(object):
                 case2: phsid1 == phsid2 and privillege1! = privillege2. Output {user1: {phsid1: uion(privillege1, privillege2)}}
             For the other cases, just simple addition
         '''
-        #phsids = copy.deepcopy(phsids2)
         for user, projects1 in phsids1.iteritems():
             projects2 = phsids2.get(user)
             if not projects2:
@@ -315,7 +297,7 @@ class DbGapSyncer(object):
                 else:
                     phsids2[user][phsid1] = privilege1
 
-    def sync_to_db_and_storage_backend(self, phsids, userinfo, sess):
+    def sync_dbgap_to_db_and_storage_backend(self, phsids, userinfo, sess):
         '''
         sync user access control to database and storage backend
         Args:
@@ -518,9 +500,9 @@ class DbGapSyncer(object):
             encrypted=False)
 
         local_yaml_file_list = []
-        if self.sync_from_local_yaml_dir:
+        if self.sync_from_local_yaml_file:
             local_yaml_file_list = glob.glob(
-                os.path.join(self.sync_from_local_yaml_dir, '*'))
+                os.path.join(self.sync_from_local_yaml_file, '*'))
 
         phsids3, userinfo3 = self._sync_yaml(
             local_yaml_file_list, encrypted=False)
@@ -572,7 +554,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     project_mapping = args.project_mapping
-    sync_from_local_yaml_dir = args.yaml_path
+    sync_from_local_yaml_file = args.yaml_path
     sync_from_local_csv_dir = args.csv_path
     is_sync_from_dbgap_server = args.is_sync_from_dbgap_server
 
@@ -585,6 +567,6 @@ if __name__ == '__main__':
         dbGaP={}, DB=DB, project_mapping=project_mapping,
         storage_credentials={'test-cleversafe': {'backend': 'cleversafe'}},
         is_sync_from_dbgap_server=is_sync_from_dbgap_server,
-        sync_from_local_csv_dir=sync_from_local_csv_dir, sync_from_local_yaml_dir=sync_from_local_yaml_dir)
+        sync_from_local_csv_dir=sync_from_local_csv_dir, sync_from_local_yaml_file=sync_from_local_yaml_file)
 
     syncer_obj.sync()

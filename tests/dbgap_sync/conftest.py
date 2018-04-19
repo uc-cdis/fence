@@ -67,7 +67,7 @@ def syncer(db_session):
         storage_credentials={'test-cleversafe': {'backend': 'cleversafe'}},
         is_sync_from_dbgap_server=False,
         sync_from_local_csv_dir=LOCAL_CSV_DIR,
-        sync_from_local_yaml_dir=LOCAL_YAML_DIR)
+        sync_from_local_yaml_file=LOCAL_YAML_DIR)
 
     udm.create_provider(
         db_session, provider['name'],
