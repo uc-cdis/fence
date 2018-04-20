@@ -8,7 +8,6 @@ the endpoints for each provider.
 
 import flask
 
-from flask_restful import Api
 from fence.blueprints.login.fence_login import FenceRedirect, FenceLogin
 from fence.blueprints.login.google import GoogleRedirect, GoogleLogin
 from fence.blueprints.login.shib import (
@@ -16,6 +15,7 @@ from fence.blueprints.login.shib import (
     ShibbolethLoginFinish,
 )
 from fence.errors import InternalError
+from fence.restful import RestfulApi
 
 
 def make_login_blueprint(app):
@@ -51,7 +51,7 @@ def make_login_blueprint(app):
     }
 
     blueprint = flask.Blueprint('login', __name__)
-    blueprint_api = Api(blueprint)
+    blueprint_api = RestfulApi(blueprint)
 
     @blueprint.route('', methods=['GET'])
     def default_login():
