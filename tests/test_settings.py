@@ -109,3 +109,11 @@ ENABLED_IDENTITY_PROVIDERS = {
 }
 
 SHIBBOLETH_HEADER = 'persistent_id'
+
+OPENID_CONNECT = {
+    'google': {
+        'client_id': '',
+        'client_secret': '',
+        'redirect_url': ''
+    },
+}
