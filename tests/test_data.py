@@ -82,8 +82,7 @@ def test_indexd_download_file_no_jwt(client, auth_client):
 @pytest.mark.parametrize('indexd_client', ['gs', 's3'], indirect=True)
 def test_indexd_unauthorized_download_file(
         client, oauth_client, unauthorized_user_client, indexd_client,
-        primary_google_service_account, cloud_manager,
-        google_signed_url):
+        cloud_manager, google_signed_url):
     """
     Test ``GET /data/download/1``.
     """
