@@ -66,14 +66,14 @@ def parse_arguments():
         required=True,
         help='Specify project mapping yaml file')
     dbgap_sync.add_argument(
-        '--yaml_dir',
+        '--yaml',
         help='Merge from user yaml dir')
     dbgap_sync.add_argument(
         '--csv_dir',
         help='specify csv file directory')
     dbgap_sync.add_argument(
-        '--is_sync',
-        help='sync from server True/False',
+        '--sync_from_dbgap',
+        help='sync from dbgap server True/False',
         default='True')
 
     manage_google_keys = subparsers.add_parser('google-manage-keys')
@@ -137,8 +137,8 @@ def main():
         delete_users(DB, args.users)
     elif args.action == 'sync-dbgap':
         sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
-                   projects=args.project_mapping, is_sync_from_dbgap_server=str2bool(args.is_sync),
-                   sync_from_local_csv_dir=args.csv_dir, sync_from_local_yaml_file=args.yaml_dir)
+                   projects=args.project_mapping, is_sync_from_dbgap_server=str2bool(args.sync_from_dbgap),
+                   sync_from_local_csv_dir=args.csv_dir, sync_from_local_yaml_file=args.yaml)
     elif args.action == 'google-manage-keys':
         remove_expired_google_service_account_keys(DB)
     elif args.action == 'google-init':

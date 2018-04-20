@@ -20,12 +20,23 @@ def test_sync(syncer, db_session):
 
     user = db_session.query(models.User).filter_by(
         username='test_user1@gmail.com').one()
+
+    user_access = db_session.query(
+        models.AccessPrivilege).filter_by(user=user).all()
+
     assert (
-        user.project_access
-        == {'test': ['create', 'read', 'update', 'delete', 'upload']}
+        user_access[0].privilege
+        == ['create', 'read', 'update', 'delete', 'upload']
+        and len(user_access) == 1
     )
 
-    
+    user = db_session.query(models.User).filter_by(
+        username='deleted_user@gmail.com').one()
+
+    user_access = db_session.query(
+        models.AccessPrivilege).filter_by(user=user).all()
+
+    assert len(user_access) == 0
 
 
 def test_sync_from_files(syncer, db_session):

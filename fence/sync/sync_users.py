@@ -4,7 +4,6 @@ from collections import defaultdict
 from contextlib import contextmanager
 from csv import DictReader
 import glob
-import pysftp
 import yaml
 import re
 import subprocess as sp
@@ -100,21 +99,6 @@ class UserSyncer(object):
         return (re.match(pattern,
                          os.path.basename(filepath)))
 
-        """
-        Copy all data from sftp to a local dir
-        Args:
-            path (str): path to local directory
-        Returns:
-            None
-        """
-        cnopts = pysftp.CnOpts()
-        cnopts.hostkeys = None
-        with pysftp.Connection(self.sftp['host'],
-                               username=self.sftp['username'],
-                               password=self.sftp['password'],
-                               cnopts=cnopts) as sftp:
-            sftp.get_r('.', path)
-
     def _get_from_sftp_with_proxy(self, path):
         """
         Download all data from sftp sever to a local dir
@@ -167,12 +151,11 @@ class UserSyncer(object):
                 self.logger.error(
                     'Need to install crypt to decrypt files from dbgap')
                 exit(1)
-            p = sp.Popen(
-                ["crypt", self.dbgap_key],
-                stdin=open(filepath, 'r'),
-                stdout=sp.PIPE,
-                stderr=open(os.devnull, 'w')
-            )
+            p = sp.Popen(["crypt", self.dbgap_key],
+                         stdin=open(filepath, 'r'),
+                         stdout=sp.PIPE,
+                         stderr=open(os.devnull, 'w')
+                         )
             yield StringIO(p.communicate()[0])
         else:
             f = open(filepath, 'r')
@@ -273,6 +256,7 @@ class UserSyncer(object):
                     user_project[username].add(privileges)
         return user_project, user_info
 
+    @classmethod
     def sync_two_user_info_dict(self, user_info1, user_info2):
         '''
         merge user_info1 into user_info2
@@ -288,6 +272,7 @@ class UserSyncer(object):
                 continue
             user_info2[user].update(info1)
 
+    @classmethod
     def sync_two_phsids_dict(self, phsids1, phsids2):
         '''
         merge pshid1 into phsids2
@@ -354,13 +339,24 @@ class UserSyncer(object):
             for project, _ in projects.iteritems():
                 syncing_user_project_list.add((username, project))
 
-        self._revoke_from_storage(cur_db_user_project_list, sess)
-        self._revoke_from_db(sess, cur_db_user_project_list, auth_provider)
-        self._grant_from_storage(syncing_user_project_list, user_project)
-        self._grant_from_db(sess, user_info, syncing_user_project_list,
+        to_delete = set.difference(
+            cur_db_user_project_list, syncing_user_project_list)
+        to_add = set.difference(
+            syncing_user_project_list, cur_db_user_project_list)
+        to_update = set.intersection(
+            cur_db_user_project_list, syncing_user_project_list)
+
+        self._revoke_from_storage(to_delete, sess)
+        self._revoke_from_db(sess, to_delete)
+        self._grant_from_storage(to_add, user_project)
+        self._grant_from_db(sess, user_info, to_add,
                             user_project, auth_provider)
 
-    def _revoke_from_db(self, sess, to_delete, auth_provider):
+        # re-grant
+        self._grant_from_storage(to_update, user_project)
+        self._update_from_db(sess, to_update, user_project)
+
+    def _revoke_from_db(self, sess, to_delete):
         '''
         Revoke user access to projects in the auth database
         Args:
@@ -369,8 +365,8 @@ class UserSyncer(object):
         Return:
             None
         '''
-
         for (username, project_auth_id) in to_delete:
+
             q = (sess.query(AccessPrivilege)
                  .filter(AccessPrivilege.user.has(username=username))
                  .filter(AccessPrivilege.project.has(auth_id=project_auth_id))
@@ -380,6 +376,29 @@ class UserSyncer(object):
                     "revoke {} access to {} in db"
                     .format(username, project_auth_id))
                 sess.delete(access)
+        sess.commit()
+
+    def _update_from_db(self, sess, to_update, user_project):
+        '''
+        Revoke user access to projects in the auth database
+        Args:
+            s: sqlalchemy session
+            to_update: a set of (username, project.auth_id) to be updated from db
+        Return:
+            None
+        '''
+
+        for (username, project_auth_id) in to_update:
+            q = (sess.query(AccessPrivilege)
+                 .filter(AccessPrivilege.user.has(username=username))
+                 .filter(AccessPrivilege.project.has(auth_id=project_auth_id))
+                 .all())
+            for access in q:
+                self.logger.info(
+                    "update {} access to {} in db"
+                    .format(username, project_auth_id))
+                access.privilege = user_project[username][project_auth_id]
+        sess.commit()
 
     def _grant_from_db(self, s, user_info, to_add, user_project, auth_provider):
         '''
@@ -396,8 +415,9 @@ class UserSyncer(object):
             if not u:
                 self.logger.info('create user {}'.format(username))
                 u = User(username=username)
-            u.email = user_info[username].get('email', '')
-            s.add(u)
+                u.email = user_info[username].get('email', '')
+                s.add(u)
+
             self.logger.info(
                 'grant {} access to {} in db'
                 .format(username, project_auth_id)
@@ -410,6 +430,8 @@ class UserSyncer(object):
                     user_project[username][project_auth_id]),
                 auth_provider=auth_provider)
             s.add(user_access)
+
+        s.commit()
 
     def _revoke_from_storage(self, to_delete, sess):
         '''
@@ -434,14 +456,15 @@ class UserSyncer(object):
                     username=username,
                     project=project
                 )
+        sess.commit()
 
-    def _grant_from_storage(self, to_add, phsids):
+    def _grant_from_storage(self, to_add, user_project):
         '''
         If a project have storage backend,
         grant user's access to buckets in the storage backend
         Args:
             to_add: a set of (username, project.auth_id)  to be granted
-            phsids: a dictionary of {username: {phsid: ['read-storage','write-storage']}
+            user_project: a dictionary of {username: {phsid: ['read-storage','write-storage']}
         Return:
             None
         '''
@@ -453,7 +476,7 @@ class UserSyncer(object):
                     'grant {} access to {} in {}'
                     .format(username, project, sa.provider.name))
 
-                access = list(phsids[username][project_auth_id])
+                access = list(user_project[username][project_auth_id])
                 self.storage_manager.grant_access(
                     provider=sa.provider.name,
                     username=username,
@@ -480,6 +503,7 @@ class UserSyncer(object):
                     project = self._get_or_create(sess, Project, **data)
                     self._projects[project_name] = project
 
+    @classmethod
     def _get_or_create(self, s, model, **kwargs):
         instance = s.query(model).filter_by(**kwargs).first()
         if not instance:

@@ -37,16 +37,20 @@ LOCAL_YAML_DIR = os.path.join(
 
 @pytest.fixture
 def syncer(db_session):
-    provider = {
+    provider = [{
         'name': 'test-cleversafe',
         'backend': 'cleversafe'
-    }
+    },
+    ]
 
     users = [
-            {'username':'USERB','is_admin': True,'email':'userA@gmail.com'},
-            {'username':'USER_1','is_admin': True,'email':'user1@gmail.com'},
-            {'username':'test_user1@gmail.com','is_admin': False,'email':'test_user1@gmail.com'}
-      ]
+        {'username': 'USERB', 'is_admin': True, 'email': 'userA@gmail.com'},
+        {'username': 'USER_1', 'is_admin': True, 'email': 'user1@gmail.com'},
+        {'username': 'test_user1@gmail.com', 'is_admin': False,
+            'email': 'test_user1@gmail.com'},
+        {'username': 'deleted_user@gmail.com',
+            'is_admin': False, 'email': 'deleted_user@gmail.com'}
+    ]
 
     projects = [
         {'auth_id': 'TCGA-PCAWG',
@@ -89,10 +93,11 @@ def syncer(db_session):
         sync_from_local_csv_dir=LOCAL_CSV_DIR,
         sync_from_local_yaml_file=LOCAL_YAML_DIR)
 
-    udm.create_provider(
-        db_session, provider['name'],
-        backend=provider['backend']
-    )
+    for element in provider:
+        udm.create_provider(
+            db_session, element['name'],
+            backend=element['backend']
+        )
 
     test_projects = []
     for project in projects:
@@ -102,12 +107,34 @@ def syncer(db_session):
             for bucket in sa['buckets']:
                 syncer_obj.storage_manager.create_bucket(
                     sa['name'], db_session, bucket, p)
-    test_users =[]
+    test_users = []
     for u in users:
         user = User(**u)
         test_users.append(user)
         db_session.add(user)
-    
+
+    auth_provider = AuthorizationProvider(name='fence')
+
+    access = AccessPrivilege(user=test_users[0], project=test_projects[0],
+                             auth_provider=auth_provider,
+                             privilege=['read-storage', 'write-storage'])
+    db_session.add(access)
+
+    access = AccessPrivilege(user=test_users[1], project=test_projects[0],
+                             auth_provider=auth_provider,
+                             privilege=['read-storage', 'write-storage'])
+    db_session.add(access)
+
+    access = AccessPrivilege(user=test_users[2], project=test_projects[0],
+                             auth_provider=auth_provider,
+                             privilege=['read', 'read-storage', 'write-storage'])
+    db_session.add(access)
+
+    access = AccessPrivilege(user=test_users[2], project=test_projects[1],
+                             auth_provider=auth_provider,
+                             privilege=['read', 'write', 'upload', 'read-storage', 'write-storage'])
+    db_session.add(access)
+
     db_session.commit()
 
     return syncer_obj
