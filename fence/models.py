@@ -169,7 +169,6 @@ class UserRefreshToken(Base):
             session.delete(self)
             session.commit()
 
-
 class GoogleServiceAccount(Base):
     __tablename__ = "google_service_account"
 
@@ -186,12 +185,6 @@ class GoogleServiceAccount(Base):
 
     client_id = Column(
         String(40),
-        ForeignKey('client.client_id')
-    )
-    client = relationship(
-        'Client',
-        backref=backref(
-            'google_service_accounts', cascade='all, delete-orphan')
     )
 
     user_id = Column(
@@ -208,12 +201,6 @@ class GoogleServiceAccount(Base):
     email = Column(
         String,
         unique=True,
-        nullable=False
-    )
-
-    user_id = Column(
-        Integer,
-        ForeignKey(User.id),
         nullable=False
     )
 
