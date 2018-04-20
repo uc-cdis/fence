@@ -109,7 +109,9 @@ class UserSyncer(object):
         """
 
         proxy = ProxyCommand('ssh -i /root/.ssh/id_rsa '
-                             '{}@{} nc {} {}'.format(self.sftp.get('proxy_user', ''), self.sftp.get('proxy', ''), self.sftp.get('host', ''), self.sftp.get('port', 22)))
+                             '{}@{} nc {} {}'.format(
+                                 self.sftp.get('proxy_user', ''),
+                                 self.sftp.get('proxy', ''), self.sftp.get('host', ''), self.sftp.get('port', 22)))
 
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.WarningPolicy())
@@ -360,7 +362,7 @@ class UserSyncer(object):
         '''
         Revoke user access to projects in the auth database
         Args:
-            s: sqlalchemy session
+            sess: sqlalchemy session
             to_delete: a set of (username, project.auth_id) to be revoked from db
         Return:
             None
@@ -382,7 +384,7 @@ class UserSyncer(object):
         '''
         Revoke user access to projects in the auth database
         Args:
-            s: sqlalchemy session
+            sess: sqlalchemy session
             to_update: a set of (username, project.auth_id) to be updated from db
         Return:
             None
@@ -400,7 +402,7 @@ class UserSyncer(object):
                 access.privilege = user_project[username][project_auth_id]
         sess.commit()
 
-    def _grant_from_db(self, s, user_info, to_add, user_project, auth_provider):
+    def _grant_from_db(self, sess, user_info, to_add, user_project, auth_provider):
         '''
         Grant user access to projects in the auth database
         Args:
@@ -411,12 +413,12 @@ class UserSyncer(object):
             None
         '''
         for (username, project_auth_id) in to_add:
-            u = s.query(User).filter(User.username == username).first()
+            u = sess.query(User).filter(User.username == username).first()
             if not u:
                 self.logger.info('create user {}'.format(username))
                 u = User(username=username)
                 u.email = user_info[username].get('email', '')
-                s.add(u)
+                sess.add(u)
 
             self.logger.info(
                 'grant {} access to {} in db'
@@ -429,9 +431,9 @@ class UserSyncer(object):
                 privilege=list(
                     user_project[username][project_auth_id]),
                 auth_provider=auth_provider)
-            s.add(user_access)
+            sess.add(user_access)
 
-        s.commit()
+        sess.commit()
 
     def _revoke_from_storage(self, to_delete, sess):
         '''
@@ -504,11 +506,11 @@ class UserSyncer(object):
                     self._projects[project_name] = project
 
     @classmethod
-    def _get_or_create(self, s, model, **kwargs):
-        instance = s.query(model).filter_by(**kwargs).first()
+    def _get_or_create(self, sess, model, **kwargs):
+        instance = sess.query(model).filter_by(**kwargs).first()
         if not instance:
             instance = model(**kwargs)
-            s.add(instance)
+            sess.add(instance)
         return instance
 
     def sync(self):
@@ -518,7 +520,7 @@ class UserSyncer(object):
             with self.driver.session as s:
                 self._sync(s)
 
-    def _sync(self, s):
+    def _sync(self, sess):
         '''
         Collect files from dbgap server
         sync csv and yaml files to storage backend and fence DB
@@ -566,5 +568,5 @@ class UserSyncer(object):
         self.sync_two_user_info_dict(user_info3, user_info1)
 
         self.logger.info('Sync to db and storage backend')
-        self.sync_to_db_and_storage_backend(user_projects1, user_info1, s)
+        self.sync_to_db_and_storage_backend(user_projects1, user_info1, sess)
         self.logger.info('Finish syncing to db and storage backend')

@@ -6,17 +6,12 @@ def test_sync(syncer, db_session):
     syncer.sync()
 
     user = db_session.query(models.User).filter_by(username='USERF').one()
-    assert (
-        user.project_access
-        == {'phs000178': ['read-storage'], 'TCGA-PCAWG': ['read-storage']}
-    )
+    assert user.project_access == {'phs000178': [
+        'read-storage'], 'TCGA-PCAWG': ['read-storage']}
 
     user = db_session.query(models.User).filter_by(username='USERB').one()
-    assert (
-        user.project_access
-        == {'phs000179': ['read-storage'], 'TCGA-PCAWG': ['read-storage'],
-            'phs000178': ['read-storage']}
-    )
+    assert user.project_access == {'phs000179': ['read-storage'], 'TCGA-PCAWG': ['read-storage'],
+                                   'phs000178': ['read-storage']}
 
     user = db_session.query(models.User).filter_by(
         username='test_user1@gmail.com').one()
@@ -24,11 +19,9 @@ def test_sync(syncer, db_session):
     user_access = db_session.query(
         models.AccessPrivilege).filter_by(user=user).all()
 
-    assert (
-        user_access[0].privilege
-        == ['create', 'read', 'update', 'delete', 'upload']
-        and len(user_access) == 1
-    )
+    assert user_access[0].privilege == [
+        'create', 'read', 'update', 'delete', 'upload']
+    assert len(user_access) == 1
 
     user = db_session.query(models.User).filter_by(
         username='deleted_user@gmail.com').one()
@@ -36,7 +29,8 @@ def test_sync(syncer, db_session):
     user_access = db_session.query(
         models.AccessPrivilege).filter_by(user=user).all()
 
-    assert len(user_access) == 0
+    if user_access:
+        raise AssertionError
 
 
 def test_sync_from_files(syncer, db_session):
@@ -97,7 +91,8 @@ def test_sync_revoke(syncer, db_session):
         .filter_by(user_id=user_B.id)
         .count()
     )
-    assert n_access_privilege == 0
+    if n_access_privilege:
+        raise AssertionError()
 
 
 def test_sync_two_phsids_dict(syncer, db_session):
@@ -120,15 +115,11 @@ def test_sync_two_phsids_dict(syncer, db_session):
 
     syncer.sync_two_phsids_dict(phsids1, phsids2)
 
-    assert (
-        phsids2
-        == {'userB': {'phs000179': set(['read-storage', 'write-storage'])},
-            'userA': {
-            'phs000178': set(['read-storage']),
-            'phs000179': set(['read-storage', 'write-storage']),
-            'phs000180': set(['write-storage', 'read-storage'])},
-            }
-    )
+    assert phsids2 == {'userB': {'phs000179': set(['read-storage', 'write-storage'])},
+                       'userA': {'phs000178': set(['read-storage']),
+                                 'phs000179': set(['read-storage', 'write-storage']),
+                                 'phs000180': set(['write-storage', 'read-storage'])},
+                       }
 
 
 def test_sync_two_phsids_dict_override(syncer, db_session):
@@ -150,14 +141,10 @@ def test_sync_two_phsids_dict_override(syncer, db_session):
 
     syncer.sync_two_phsids_dict(phsids1, phsids2)
 
-    assert (
-        phsids2
-        == {'userB': {'phs000179': set(['read-storage', 'write-storage'])},
-            'userA': {
-            'phs000178': set(['read-storage']),
-            'phs000179': set(['read-storage', 'write-storage']), }
-            }
-    )
+    assert phsids2 == {'userB': {'phs000179': set(['read-storage', 'write-storage'])},
+                       'userA': {'phs000178': set(['read-storage']),
+                                 'phs000179': set(['read-storage', 'write-storage']), }
+                       }
 
 
 def test_sync_two_user_info(syncer, db_session):
@@ -171,13 +158,10 @@ def test_sync_two_user_info(syncer, db_session):
     }
     syncer.sync_two_user_info_dict(userinfo1, userinfo2)
 
-    assert (
-        userinfo2
-        == {'userA': {'email': 'a@b'},
-            'userB': {'email': 'a@b'},
-            'userC': {'email': 'a@b'},
-            }
-    )
+    assert userinfo2 == {'userA': {'email': 'a@b'},
+                         'userB': {'email': 'a@b'},
+                         'userC': {'email': 'a@b'},
+                         }
 
     userinfo2 = {
         'userA': {'email': 'c@b'},
@@ -185,10 +169,6 @@ def test_sync_two_user_info(syncer, db_session):
 
     syncer.sync_two_user_info_dict(userinfo1, userinfo2)
 
-    assert (
-        userinfo2
-
-        == {'userA': {'email': 'a@b'},
-            'userB': {'email': 'a@b'},
-            }
-    )
+    assert userinfo2 == {'userA': {'email': 'a@b'},
+                         'userB': {'email': 'a@b'},
+                         }

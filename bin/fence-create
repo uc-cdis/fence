@@ -59,7 +59,7 @@ def parse_arguments():
     hmac_create = subparsers.add_parser('hmac-create')
     hmac_create.add_argument('yaml-input')
 
-    dbgap_sync = subparsers.add_parser('sync-dbgap')
+    dbgap_sync = subparsers.add_parser('sync')
     dbgap_sync.add_argument(
         '--projects',
         dest='project_mapping',
@@ -67,7 +67,7 @@ def parse_arguments():
         help='Specify project mapping yaml file')
     dbgap_sync.add_argument(
         '--yaml',
-        help='Merge from user yaml dir')
+        help='Sync from yaml file')
     dbgap_sync.add_argument(
         '--csv_dir',
         help='specify csv file directory')
@@ -135,7 +135,7 @@ def main():
         delete_client_action(DB, args.client)
     elif args.action == 'user-delete':
         delete_users(DB, args.users)
-    elif args.action == 'sync-dbgap':
+    elif args.action == 'sync':
         sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
                    projects=args.project_mapping, is_sync_from_dbgap_server=str2bool(args.sync_from_dbgap),
                    sync_from_local_csv_dir=args.csv_dir, sync_from_local_yaml_file=args.yaml)

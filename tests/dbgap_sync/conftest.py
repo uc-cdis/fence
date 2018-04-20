@@ -13,16 +13,9 @@ from ..test_settings import DB
 
 from fence.models import (
     AccessPrivilege,
-    Bucket,
-    CloudProvider,
-    Project,
-    ProjectToBucket,
-    StorageAccess,
     AuthorizationProvider,
     User,
 )
-
-from fence.scripting.fence_create import create_users_with_group
 
 LOCAL_CSV_DIR = os.path.join(
     os.path.dirname(os.path.realpath(__file__)),
