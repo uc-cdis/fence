@@ -419,8 +419,9 @@ def indexd_client(app, request):
         indexd_get_available_bucket_func = indexd_get_available_gs_bucket
     else:
         indexd_get_available_bucket_func = indexd_get_available_s3_bucket
+
     indexd_patcher = patch(
-        'fence.blueprints.data.get_index_document',
+        'fence.blueprints.data.IndexedFile._get_index_document',
         indexd_get_available_bucket_func
     )
     mocker.add_mock(indexd_patcher)
@@ -442,8 +443,9 @@ def unauthorized_indexd_client(app, request):
         indexd_get_unavailable_bucket_func = indexd_get_unavailable_gs_bucket
     else:
         indexd_get_unavailable_bucket_func = indexd_get_unavailable_s3_bucket
+
     indexd_patcher = patch(
-        'fence.blueprints.data.get_index_document',
+        'fence.blueprints.data.IndexedFile._get_index_document',
         indexd_get_unavailable_bucket_func)
     mocker.add_mock(indexd_patcher)
 
@@ -457,8 +459,9 @@ def public_indexd_client(app, request):
         indexd_get_public_object_func = indexd_get_public_gs_object
     else:
         indexd_get_public_object_func = indexd_get_public_s3_object
+
     indexd_patcher = patch(
-        'fence.blueprints.data.get_index_document',
+        'fence.blueprints.data.IndexedFile._get_index_document',
         indexd_get_public_object_func)
     mocker.add_mock(indexd_patcher)
 
@@ -472,8 +475,9 @@ def public_bucket_indexd_client(app, request):
         indexd_get_public_bucket_func = indexd_get_public_gs_bucket
     else:
         indexd_get_public_bucket_func = indexd_get_public_s3_bucket
+
     indexd_patcher = patch(
-        'fence.blueprints.data.get_index_document',
+        'fence.blueprints.data.IndexedFile._get_index_document',
         indexd_get_public_bucket_func)
     mocker.add_mock(indexd_patcher)
 
