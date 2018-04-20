@@ -10,7 +10,7 @@ from fence.scripting.fence_create import (
     delete_client_action,
     delete_users,
     google_init,
-    sync_dbgap,
+    sync_users,
     remove_expired_google_service_account_keys,
     create_user_token,
     remove_expired_google_accounts_from_proxy_groups
@@ -136,7 +136,7 @@ def main():
     elif args.action == 'user-delete':
         delete_users(DB, args.users)
     elif args.action == 'sync-dbgap':
-        sync_dbgap(dbGaP, STORAGE_CREDENTIALS, DB,
+        sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
                    projects=args.project_mapping, is_sync_from_dbgap_server=str2bool(args.is_sync),
                    sync_from_local_csv_dir=args.csv_dir, sync_from_local_yaml_file=args.yaml_dir)
     elif args.action == 'google-manage-keys':

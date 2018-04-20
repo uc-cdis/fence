@@ -27,7 +27,7 @@ from fence.models import UserGoogleAccount
 from fence.models import UserGoogleAccountToProxyGroup
 from fence.models import UserRefreshToken
 from fence.utils import create_client, drop_client
-from fence.sync.sync_dbgap import DbGapSyncer
+from fence.sync.sync_users import UserSyncer
 
 from fence.jwt.token import (
     issued_and_expiration_times,
@@ -51,7 +51,7 @@ def delete_client_action(DB, client):
         print(e.message)
 
 
-def sync_dbgap(dbGaP, STORAGE_CREDENTIALS, DB,
+def sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
                projects, is_sync_from_dbgap_server=False,
                sync_from_local_csv_dir=None, sync_from_local_yaml_file=None):
     '''
@@ -88,7 +88,7 @@ def sync_dbgap(dbGaP, STORAGE_CREDENTIALS, DB,
 
     with open(projects, 'r') as f:
         project_mapping = yaml.load(f)
-    syncer = DbGapSyncer(
+    syncer = UserSyncer(
         dbGaP, DB, project_mapping=project_mapping, storage_credentials=STORAGE_CREDENTIALS,
         is_sync_from_dbgap_server=is_sync_from_dbgap_server,
         sync_from_local_csv_dir=sync_from_local_csv_dir, sync_from_local_yaml_file=sync_from_local_yaml_file

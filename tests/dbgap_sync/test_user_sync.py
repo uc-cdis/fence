@@ -2,7 +2,9 @@ from fence import models
 
 
 def test_sync(syncer, db_session):
+
     syncer.sync()
+
     user = db_session.query(models.User).filter_by(username='USERF').one()
     assert (
         user.project_access
@@ -20,8 +22,10 @@ def test_sync(syncer, db_session):
         username='test_user1@gmail.com').one()
     assert (
         user.project_access
-        == {'Test': ['create', 'read', 'update', 'delete', 'upload']}
+        == {'test': ['create', 'read', 'update', 'delete', 'upload']}
     )
+
+    
 
 
 def test_sync_from_files(syncer, db_session):
@@ -72,7 +76,6 @@ def test_sync_revoke(syncer, db_session):
     }
 
     syncer.sync_to_db_and_storage_backend(phsids, userinfo, db_session)
-
     syncer.sync_to_db_and_storage_backend(phsids2, userinfo, db_session)
 
     user_B = db_session.query(models.User).filter_by(username='userB').first()
@@ -155,7 +158,7 @@ def test_sync_two_user_info(syncer, db_session):
     userinfo2 = {
         'userC': {'email': 'a@b'},
     }
-    syncer.sync_two_userinfo_dict(userinfo1, userinfo2)
+    syncer.sync_two_user_info_dict(userinfo1, userinfo2)
 
     assert (
         userinfo2
@@ -169,7 +172,7 @@ def test_sync_two_user_info(syncer, db_session):
         'userA': {'email': 'c@b'},
     }
 
-    syncer.sync_two_userinfo_dict(userinfo1, userinfo2)
+    syncer.sync_two_user_info_dict(userinfo1, userinfo2)
 
     assert (
         userinfo2

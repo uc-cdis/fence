@@ -3,13 +3,26 @@ import pytest
 import os
 
 from cdisutilstest.code.storage_client_mock import get_client
-from fence.sync.sync_dbgap import DbGapSyncer
+from fence.sync.sync_users import UserSyncer
 from fence.resources import userdatamodel as udm
 from userdatamodel import Base
 from userdatamodel.models import *
 from userdatamodel.driver import SQLAlchemyDriver
 
 from ..test_settings import DB
+
+from fence.models import (
+    AccessPrivilege,
+    Bucket,
+    CloudProvider,
+    Project,
+    ProjectToBucket,
+    StorageAccess,
+    AuthorizationProvider,
+    User,
+)
+
+from fence.scripting.fence_create import create_users_with_group
 
 LOCAL_CSV_DIR = os.path.join(
     os.path.dirname(os.path.realpath(__file__)),
@@ -18,7 +31,7 @@ LOCAL_CSV_DIR = os.path.join(
 
 LOCAL_YAML_DIR = os.path.join(
     os.path.dirname(os.path.realpath(__file__)),
-    'data/yaml'
+    'data/yaml/user.yaml'
 )
 
 
@@ -28,6 +41,13 @@ def syncer(db_session):
         'name': 'test-cleversafe',
         'backend': 'cleversafe'
     }
+
+    users = [
+            {'username':'USERB','is_admin': True,'email':'userA@gmail.com'},
+            {'username':'USER_1','is_admin': True,'email':'user1@gmail.com'},
+            {'username':'test_user1@gmail.com','is_admin': False,'email':'test_user1@gmail.com'}
+      ]
+
     projects = [
         {'auth_id': 'TCGA-PCAWG',
          'storage_accesses': [{'buckets': ['test-bucket'],
@@ -62,7 +82,7 @@ def syncer(db_session):
         get_client)
     patcher.start()
 
-    syncer_obj = DbGapSyncer(
+    syncer_obj = UserSyncer(
         dbGaP=dbGap, DB=DB, db_session=db_session, project_mapping=project_mapping,
         storage_credentials={'test-cleversafe': {'backend': 'cleversafe'}},
         is_sync_from_dbgap_server=False,
@@ -73,11 +93,21 @@ def syncer(db_session):
         db_session, provider['name'],
         backend=provider['backend']
     )
+
+    test_projects = []
     for project in projects:
         p = udm.create_project_with_dict(db_session, project)
+        test_projects.append(p)
         for sa in project['storage_accesses']:
             for bucket in sa['buckets']:
                 syncer_obj.storage_manager.create_bucket(
                     sa['name'], db_session, bucket, p)
+    test_users =[]
+    for u in users:
+        user = User(**u)
+        test_users.append(user)
+        db_session.add(user)
+    
+    db_session.commit()
 
     return syncer_obj
