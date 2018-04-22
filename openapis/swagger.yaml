@@ -226,7 +226,7 @@ paths:
       tags:
         - data
       summary: Create a presigned URL for data download given a file_id
-      description: Allow users to get a pre-signed URL given the location of preference.
+      description: Allow users to get a pre-signed URL for a data file.
       security:
         - OAuth2:
             - user
@@ -236,10 +236,6 @@ paths:
           required: true
           in: path
           description: data UUID
-          schema:
-            type: string
-        - name: location
-          required: true
           schema:
             type: string
         - name: protocol
