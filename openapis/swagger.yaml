@@ -230,7 +230,7 @@ paths:
       security:
         - OAuth2:
             - user
-      operationId: getPresignedURL
+      operationId: downloadPresignedURL
       parameters:
         - name: file_id
           required: true
@@ -285,7 +285,7 @@ paths:
       security:
         - OAuth2:
             - user
-      operationId: getPresignedURL
+      operationId: uploadPresignedURL
       parameters:
         - name: file_id
           required: true
@@ -325,7 +325,7 @@ paths:
     get:
       tags:
         - credentials
-      summary: null
+      summary: List credential resources
       description: List different resources user can have credentials
       security:
         - OAuth2:
@@ -404,7 +404,7 @@ paths:
       security:
         - OAuth2:
             - user
-      operationId: listAPIKeypairs
+      operationId: listCDISKeypairs
       responses:
         '200':
           description: List of API keys issued to user and their expiration
@@ -423,7 +423,7 @@ paths:
       security:
         - OAuth2:
             - user
-      operationId: getAPIKeypair
+      operationId: getCDISKeypair
       responses:
         '200':
           description: API key id and actual key
@@ -441,7 +441,7 @@ paths:
       security:
         - OAuth2:
             - user
-      operationId: deleteAPIKeypair
+      operationId: deleteCDISKeypair
       parameters:
         - name: key_id
           required: true
@@ -466,7 +466,7 @@ paths:
       security:
         - OAuth2:
             - user
-      operationId: getAccessToken
+      operationId: getCDISAccessToken
       responses:
         '200':
           description: Access token
@@ -598,6 +598,12 @@ paths:
             - user
       operationId: deleteGenericKeypair
       parameters:
+        - name: provider
+          required: true
+          in: path
+          description: Provider of credentials such as API, or Google
+          schema:
+            type: string
         - name: access_key
           required: true
           in: path
@@ -721,35 +727,6 @@ paths:
                   type: string
               required:
                 - code
-  '/google/service_accounts/{google_project_ids} (PLANNING)':
-    get:
-      tags:
-        - google
-      summary: Get a list of Google Service Accounts
-      description: |
-        Get a list of service accounts for the given Google Cloud Project IDs.
-        > **NOTE: This will only provide service account information for
-        Google Cloud Projects if the current user is a member of those
-        projects**
-      parameters:
-        - name: google_project_ids
-          required: true
-          in: path
-          description: |
-            Google Cloud Project IDs to get service accounts for.
-            Use a comma-separated list: `project_a,project_b,project_c`
-          schema:
-            type: string
-      operationId: listGoogleServiceAccount
-      responses:
-        '200':
-          description: List of service accounts for specified projects
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/GoogleServiceAccounts'
-        '403':
-          description: User is not a member on all the provided project ids
   /google/service_accounts/ (PLANNING):
     post:
       tags:
@@ -821,6 +798,34 @@ paths:
               schema:
                 $ref: '#/components/schemas/AdminGoogleServiceAccount'
   '/google/service_accounts/{id} (PLANNING)':
+    get:
+      tags:
+        - google
+      summary: Get a list of Google Service Accounts
+      description: |
+        Get a list of service accounts for the given Google Cloud Project IDs.
+        > **NOTE: This will only provide service account information for
+        Google Cloud Projects if the current user is a member of those
+        projects**
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: |
+            Google Cloud Project IDs to get service accounts for.
+            Use a comma-separated list: `project_a,project_b,project_c`
+          schema:
+            type: string
+      operationId: listGoogleServiceAccount
+      responses:
+        '200':
+          description: List of service accounts for specified projects
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/GoogleServiceAccounts'
+        '403':
+          description: User is not a member on all the provided project ids
     delete:
       tags:
         - google
@@ -828,7 +833,7 @@ paths:
       description: Delete a service account
       operationId: deleteSpecficGoogleServiceAccount
       parameters:
-        - in: id
+        - in: path
           name: id
           description: ServiceAccount idenitifer
           required: true
@@ -855,6 +860,13 @@ paths:
         It will NOT extend previous data by provided values, it will FULLY
         REPLACE the data with what's provided.
       operationId: updateGoogleServiceAccount
+      parameters:
+        - in: path
+          name: id
+          description: ServiceAccount idenitifer
+          required: true
+          schema:
+            type: string
       responses:
         '200':
           description: 'success, updated service account access'
