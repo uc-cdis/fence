@@ -307,12 +307,11 @@ paths:
         - name: expires_in
           required: false
           in: query
-          description: location (as in cloud provider) to use
+          description: >-
+            the time (in seconds) in which return url is valid. Default 1800,
+            maximum is 86400
           schema:
             type: int
-            enum:
-              - aws
-              - google
       responses:
         '200':
           description: successful operation
