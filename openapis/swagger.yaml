@@ -1,3 +1,4 @@
+---
 openapi: 3.0.0
 servers:
   - url: 'https://example.domain/'
@@ -253,8 +254,9 @@ paths:
           required: false
           in: query
           description: >-
-            the time (in seconds) in which return url is valid. Default 1800,
-            maximum is 86400
+            the time (in seconds) in which return url is valid. Must be less
+            than the configured maximum (default is 3600). If it's greater,
+            the configured maximum will be used.
           schema:
             type: integer
         - name: redirect
@@ -308,8 +310,9 @@ paths:
           required: false
           in: query
           description: >-
-            the time (in seconds) in which return url is valid. Default 1800,
-            maximum is 86400
+            the time (in seconds) in which return url is valid. Must be less
+            than the configured maximum (default is 3600). If it's greater,
+            the configured maximum will be used.
           schema:
             type: integer
       responses:
@@ -560,6 +563,13 @@ paths:
         - 'credentials/{provider}'
       summary: List access keys
       description: List all the access keys for the current user
+      parameters:
+        - name: provider
+          required: true
+          in: path
+          description: Storage provider to obtain creds for
+          schema:
+            type: string
       security:
         - OAuth2:
             - user
@@ -576,6 +586,13 @@ paths:
         - 'credentials/{provider}'
       summary: Receive access key
       description: Get a new access key for the current user for the given provider
+      parameters:
+        - name: provider
+          required: true
+          in: path
+          description: Storage provider to obtain creds for
+          schema:
+            type: string
       security:
         - OAuth2:
             - user
@@ -629,13 +646,9 @@ paths:
             type: string
       description: >
         Link a Google identity to a User (AuthN using Google Oauth2 flow).
-
         Google identity will be associated with a user and added to a
-
         proxy group for that user. The user's proxy group will be given access
-
         to data via Google's IAM. `redirect` will be stored in the session
-
         to follow after linking.
 
         ---
@@ -693,7 +706,6 @@ paths:
       summary: Google's callback for linking Google identity
       description: >
         Linking of Google identity to user after successful Oauth2
-
         flow with Google. Use code to retrieve user info from Google.
 
         Will return to session stored redirect with any error information in
@@ -710,23 +722,18 @@ paths:
             * Issue with providing access to Google account by putting in user's proxy group
 
         For details about the error, check the `error_description` param.
+      parameters:
+        - name: code
+          required: true
+          in: query
+          description: The authorization code returned from the OAuth2
+            authorization request
+          schema:
+            type: string
       operationId: linkCloudIdentity
       responses:
         '302':
           description: redirect to session-stored redirect value
-      requestBody:
-        content:
-          application/x-www-form-urlencoded:
-            schema:
-              type: object
-              properties:
-                code:
-                  description: >-
-                    The authorization code returned from the OAuth2
-                    authorization request
-                  type: string
-              required:
-                - code
   /google/service_accounts/ (PLANNING):
     post:
       tags:
