@@ -337,7 +337,7 @@ def _force_update_user_google_account(
     )
 
     if not user_google_account:
-        if _allow_new is True:
+        if _allow_new:
             if user_id is not None:
                 user_google_account = (
                     _add_new_user_google_account(user_id, google_email))

@@ -1,9 +1,9 @@
-import flask
 import json
-import jwt
 import time
 import uuid
 
+import flask
+import jwt
 from authlib.common.encoding import to_unicode
 from authlib.specs.oidc import CodeIDToken as AuthlibCodeIDToken
 from authlib.specs.oidc import IDTokenError
