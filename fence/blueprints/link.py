@@ -1,6 +1,7 @@
 import time
 
 import flask
+import urllib
 
 from flask_restful import Resource
 from flask_sqlalchemy_session import current_session
@@ -134,37 +135,7 @@ class GoogleLinkRedirect(Resource):
             .filter(UserGoogleAccount.user_id == user_id).first()
         )
 
-        if g_account:
-            g_account_access = (
-                current_session.query(UserGoogleAccountToProxyGroup)
-                .filter(
-                    UserGoogleAccountToProxyGroup
-                    .user_google_account_id == g_account.id).first()
-            )
-
-            try:
-                with GoogleCloudManager() as g_manager:
-                    g_manager.remove_member_from_group(
-                        member_email=g_account.email,
-                        group_id=g_account_access.proxy_group_id
-                    )
-            except Exception as exc:
-                error_message = {
-                    'error': 'g_acnt_access_error',
-                    'error_description': (
-                        'Couldn\'t remove account from user\'s proxy group, '
-                        'Google API failure. Exception: {}'.format(exc)
-                    )
-                }
-                return error_message, 400
-
-            if g_account_access:
-                current_session.delete(g_account_access)
-                current_session.commit()
-
-            current_session.delete(g_account)
-            current_session.commit()
-        else:
+        if not g_account:
             error_message = {
                 'error': 'g_acnt_link_error',
                 'error_description': (
@@ -173,6 +144,36 @@ class GoogleLinkRedirect(Resource):
                 )
             }
             return error_message, 404
+
+        g_account_access = (
+            current_session.query(UserGoogleAccountToProxyGroup)
+            .filter(
+                UserGoogleAccountToProxyGroup
+                .user_google_account_id == g_account.id).first()
+        )
+
+        try:
+            with GoogleCloudManager() as g_manager:
+                g_manager.remove_member_from_group(
+                    member_email=g_account.email,
+                    group_id=g_account_access.proxy_group_id
+                )
+        except Exception as exc:
+            error_message = {
+                'error': 'g_acnt_access_error',
+                'error_description': (
+                    'Couldn\'t remove account from user\'s proxy group, '
+                    'Google API failure. Exception: {}'.format(exc)
+                )
+            }
+            return error_message, 400
+
+        if g_account_access:
+            current_session.delete(g_account_access)
+            current_session.commit()
+
+        current_session.delete(g_account)
+        current_session.commit()
 
         return '', 200
 
@@ -254,13 +255,17 @@ def get_errors_update_user_google_account_dry_run(
     only update one that already exists.
 
     Args:
-        user_id (TYPE): Description
-        google_email (TYPE): Description
-        proxy_group (TYPE): Description
-        _already_authed (bool, optional): Description
+        user_id (TYPE): User's identifier
+        google_email (TYPE): User's Google email
+        proxy_group (TYPE): User's Proxy Google group
+        _already_authed (bool, optional): Whether or not AuthN has happened
+
+    Returns:
+        tuple(str, str): ('error', 'error_description') None in the 'error'
+            location means there was no error
     """
-    error = ''
-    error_description = ''
+    error = None
+    error_description = None
 
     user_google_account = (
         current_session.query(UserGoogleAccount)
@@ -268,8 +273,8 @@ def get_errors_update_user_google_account_dry_run(
     )
 
     if not user_google_account:
-        if _already_authed is True:
-            if user_id is None:
+        if _already_authed:
+            if not user_id:
                 error = 'g_acnt_link_error'
                 error_description = (
                     'Could not determine authed user '
@@ -316,14 +321,15 @@ def _force_update_user_google_account(
     provided google_email is also their's.
 
     Args:
-        user_id (TYPE): Description
-        google_email (TYPE): Description
-        proxy_group_id (TYPE): Description
-        _allow_new (bool, optional): Description
+        user_id (TYPE): User's identifier
+        google_email (TYPE): User's Google email
+        proxy_group (TYPE): User's Proxy Google group
+        _allow_new (bool, optional): Whether or not a new linkage between
+            Google email and the given user should be allowed
 
     Raises:
-        NotFound: Description
-        Unauthorized: Description
+        NotFound: Linked Google account not found
+        Unauthorized: Couldn't determine user
     """
     user_google_account = (
         current_session.query(UserGoogleAccount)
@@ -462,10 +468,8 @@ def _add_new_user_google_account(user_id, google_email):
 def _get_error_params(error, description):
     params = ''
     if error:
-        params += (
-            '?error={}&error_description={}'
-            .format(str(error), str(description))
-        )
+        args = {'error': error, 'error_description': description}
+        params = '?' + urllib.urlencode(args)
     return params
 
 

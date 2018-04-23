@@ -11,8 +11,7 @@ from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.datastructures import ImmutableMultiDict
 from flask_sqlalchemy_session import current_session
 
-from fence.models import UserGoogleAccount
-from fence.models import Client, User
+from fence.models import Client, User, UserGoogleAccount
 from fence.jwt.token import CLIENT_ALLOWED_SCOPES
 
 rng = SystemRandom()

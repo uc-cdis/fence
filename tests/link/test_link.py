@@ -24,7 +24,8 @@ def test_google_link_redirect(client, app, encoded_creds_jwt):
     redirect = 'http://localhost'
 
     r = client.get(
-        '/link/google?redirect=' + redirect,
+        '/link/google',
+        query_string={'redirect': redirect},
         headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
 
     assert r.status_code == 302
@@ -60,7 +61,8 @@ def test_google_link_session(app, client, encoded_creds_jwt):
 
     redirect = 'http://localhost'
     r = client.get(
-        '/link/google?redirect=' + redirect,
+        '/link/google',
+        query_string={'redirect': redirect},
         headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
 
     assert flask.session.get('google_link') is True
@@ -103,7 +105,8 @@ def test_google_link_auth_return(
     google_auth_get_user_info_mock.return_value = {'email': google_account}
 
     r = client.get(
-        '/link/google/callback?code=' + test_auth_code)
+        '/link/google/callback',
+        query_string={'code': test_auth_code})
 
     assert r.status_code == 302
     assert r.headers['Location'] == redirect
@@ -344,7 +347,8 @@ def test_google_link_g_account_exists(
     google_auth_get_user_info_mock.return_value = {'email': google_account}
 
     r = client.get(
-        '/link/google/callback?code=' + test_auth_code)
+        '/link/google/callback',
+        query_string={'code': test_auth_code})
 
     assert not add_new_g_acnt_mock.called
     assert r.status_code == 302
@@ -405,7 +409,8 @@ def test_google_link_g_account_access_extension(
     google_auth_get_user_info_mock.return_value = {'email': google_account}
 
     r = client.get(
-        '/link/google/callback?code=' + test_auth_code)
+        '/link/google/callback',
+        query_string={'code': test_auth_code})
 
     account_in_proxy_group = (
         db_session.query(UserGoogleAccountToProxyGroup)
@@ -475,7 +480,8 @@ def test_google_link_g_account_exists_linked_to_different_user(
     google_auth_get_user_info_mock.return_value = {'email': google_account}
 
     r = client.get(
-        '/link/google/callback?code=' + test_auth_code)
+        '/link/google/callback',
+        query_string={'code': test_auth_code})
 
     assert not add_new_g_acnt_mock.called
 
@@ -523,7 +529,8 @@ def test_google_link_no_proxy_group(
     google_auth_get_user_info_mock.return_value = {'email': google_account}
 
     r = client.get(
-        '/link/google/callback?code=' + test_auth_code)
+        '/link/google/callback',
+        query_string={'code': test_auth_code})
 
     assert not add_new_g_acnt_mock.called
 
