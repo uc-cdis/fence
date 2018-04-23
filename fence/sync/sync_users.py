@@ -74,7 +74,7 @@ class UserSyncer(object):
         self.driver = SQLAlchemyDriver(DB)
         self.project_mapping = project_mapping
         self._projects = dict()
-        self.logger = get_logger('dbgap_syncer')
+        self.logger = get_logger('user_syncer')
 
         if storage_credentials:
             self.storage_manager = StorageManager(

@@ -8,6 +8,7 @@ import time
 from authlib.common.encoding import to_unicode
 
 from cirrus import GoogleCloudManager
+from cdispyutils.log import get_logger
 from userdatamodel.driver import SQLAlchemyDriver
 from userdatamodel.models import (
     AccessPrivilege,
@@ -33,6 +34,8 @@ from fence.jwt.token import (
     issued_and_expiration_times,
 )
 
+logger = get_logger(__name__)
+
 
 def create_client_action(
         DB, username=None, client=None, urls=None, auto_approve=True):
@@ -52,7 +55,7 @@ def delete_client_action(DB, client):
 
 
 def sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
-               projects, is_sync_from_dbgap_server=False,
+               projects=None, is_sync_from_dbgap_server=False,
                sync_from_local_csv_dir=None, sync_from_local_yaml_file=None):
     '''
     sync ACL files from dbGap to auth db and storage backends
@@ -76,14 +79,20 @@ def sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
               - name: CGCI
                 auth_id: phs000235
     '''
-    if os.path.exists(projects) == False:
-        print "====={} is not found!!!=======".format(projects)
+
+    if ((is_sync_from_dbgap_server or sync_from_local_csv_dir) and projects is None):
+        logger.error("=====project mapping needs to be provided!!!=======")
+        return
+    if ((is_sync_from_dbgap_server or sync_from_local_csv_dir) and os.path.exists(projects) == False):
+        logger.error("====={} is not found!!!=======".format(projects))
         return
     if sync_from_local_csv_dir and os.path.exists(sync_from_local_csv_dir) == False:
-        print "====={} is not found!!!=======".format(sync_from_local_csv_dir)
+        logger.error("====={} is not found!!!=======".format(
+            sync_from_local_csv_dir))
         return
     if sync_from_local_yaml_file and os.path.exists(sync_from_local_yaml_file) == False:
-        print "====={} is not found!!!=======".format(sync_from_local_yaml_file)
+        logger.error("====={} is not found!!!=======".format(
+            sync_from_local_yaml_file))
         return
 
     with open(projects, 'r') as f:

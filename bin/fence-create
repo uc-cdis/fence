@@ -63,7 +63,6 @@ def parse_arguments():
     dbgap_sync.add_argument(
         '--projects',
         dest='project_mapping',
-        required=True,
         help='Specify project mapping yaml file')
     dbgap_sync.add_argument(
         '--yaml',
