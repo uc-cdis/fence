@@ -13,6 +13,7 @@ from fence.scripting.fence_create import (
     sync_dbgap,
     remove_expired_google_service_account_keys,
     create_user_token,
+    remove_expired_google_accounts_from_proxy_groups
 )
 
 
@@ -55,9 +56,10 @@ def parse_arguments():
     dbgap_sync.add_argument('--projects', required=True)
 
     manage_google_keys = subparsers.add_parser('google-manage-keys')
-
     init_google = subparsers.add_parser('google-init')
-
+    manage_google_accounts = (
+        subparsers.add_parser('google-manage-account-access')
+    )
 
     token_create = subparsers.add_parser('token-create')
     token_create.add_argument('--kid')
@@ -108,8 +110,13 @@ def main():
         remove_expired_google_service_account_keys(DB)
     elif args.action == 'google-init':
         google_init(DB)
+    elif args.action == 'google-manage-account-access':
+        remove_expired_google_accounts_from_proxy_groups(DB)
     elif args.action == 'token-create':
-        token = create_user_token(DB, BASE_URL, ROOT_DIR, args.__dict__['kid'], args.__dict__['type'], args.__dict__['username'], args.__dict__['scopes'], args.__dict__['exp'])
+        token = create_user_token(
+            DB, BASE_URL, ROOT_DIR, args.__dict__['kid'],
+            args.__dict__['type'], args.__dict__['username'],
+            args.__dict__['scopes'], args.__dict__['exp'])
         if token:
             print(token)
 
