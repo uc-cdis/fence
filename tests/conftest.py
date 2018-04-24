@@ -428,6 +428,7 @@ def app(kid, rsa_private_key, rsa_public_key):
     mocker = Mocker()
     mocker.mock_functions()
     root_dir = os.path.dirname(os.path.realpath(__file__))
+
     app_init(fence.app, test_settings, root_dir=root_dir)
     fence.app.keypairs.append(Keypair(
         kid=kid, public_key=rsa_public_key, private_key=rsa_private_key
@@ -653,6 +654,7 @@ def patch_app_db_session(app, monkeypatch):
         modules_to_patch = [
             'fence.auth',
             'fence.resources.google.utils',
+            'fence.blueprints.link',
             'fence.oidc.jwt_generator',
             'fence.user',
         ]
@@ -760,7 +762,8 @@ def primary_google_service_account(
     email = fence.utils.random_str(40) + "@test.com"
     service_account = models.GoogleServiceAccount(
         google_unique_id=service_account_id,
-        email=email, user_id=user_client.user_id, client_id=None)
+        email=email, user_id=user_client.user_id, client_id=None,
+        google_project_id='projectId-0')
     db_session.add(service_account)
     db_session.commit()
     return Dict(id=service_account_id, email=email)

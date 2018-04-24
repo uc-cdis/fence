@@ -27,6 +27,7 @@ import fence.blueprints.oauth2
 import fence.blueprints.storage_creds
 import fence.blueprints.user
 import fence.blueprints.well_known
+import fence.blueprints.link
 import fence.client
 
 
@@ -90,6 +91,8 @@ def app_register_blueprints(app):
 
     login_blueprint = fence.blueprints.login.make_login_blueprint(app)
     app.register_blueprint(login_blueprint, url_prefix='/login')
+    link_blueprint = fence.blueprints.link.make_link_blueprint()
+    app.register_blueprint(link_blueprint, url_prefix='/link')
 
     @app.route('/')
     def root():

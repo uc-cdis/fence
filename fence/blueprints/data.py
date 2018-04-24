@@ -43,7 +43,6 @@ SUPPORTED_ACTIONS = ['upload', 'download']
 blueprint = flask.Blueprint('data', __name__)
 
 
-
 @blueprint.route('/download/<file_id>', methods=['GET'])
 def download_file(file_id):
     '''

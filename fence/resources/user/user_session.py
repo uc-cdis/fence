@@ -110,8 +110,8 @@ class UserSession(SessionMixin):
         """
         return self.session_token["context"].get(key, *args)
 
-    def pop(self, key):
-        return self.session_token['context'].pop(key)
+    def pop(self, key, default):
+        return self.session_token['context'].pop(key, default)
 
     def clear(self):
         """
@@ -203,7 +203,7 @@ class UserSessionInterface(SessionInterface):
                 user = None
 
             if user and not flask.g.access_token:
-                _create_access_token_cookie(app, response, user)
+                _create_access_token_cookie(app, session, response, user)
         else:
             # If there isn't a session token, we should set
             # the cookies to nothing and expire them immediately.
@@ -235,17 +235,23 @@ def _clear_session_if_expired(app, session):
         session.clear()
 
 
-def _create_access_token_cookie(app, response, user):
+def _create_access_token_cookie(app, session, response, user):
     keypair = app.keypairs[0]
     scopes = SESSION_ALLOWED_SCOPES
 
     now = int(time.time())
     expiration = now + app.config.get('ACCESS_TOKEN_EXPIRES_IN')
 
+    # try to get from current session, if it's not there, we have to hit db
+    linked_google_email = session.get('linked_google_email')
+    if not linked_google_email:
+        linked_google_email = get_linked_google_account_email(user.id)
+
     access_token = generate_signed_access_token(
         keypair.kid, keypair.private_key, user,
         app.config.get('ACCESS_TOKEN_EXPIRES_IN'), scopes,
-        forced_exp_time=expiration
+        forced_exp_time=expiration,
+        linked_google_email=linked_google_email
     )
 
     domain = app.session_interface.get_cookie_domain(app)
