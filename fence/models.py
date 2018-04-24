@@ -179,7 +179,7 @@ class GoogleServiceAccount(Base):
     # case we're ever juggling mult. projects)
     google_unique_id = Column(
         String,
-        unique=True,  # TODO this should be False...
+        unique=False,
         nullable=False
     )
 
@@ -204,7 +204,11 @@ class GoogleServiceAccount(Base):
             'google_service_accounts', cascade='all, delete-orphan')
     )
 
-    # TODO project_id
+    google_project_id = Column(
+        String,
+        unique=True,
+        nullable=False
+    )
 
     email = Column(
         String,
@@ -336,6 +340,15 @@ def migrate(driver):
         metadata=md
     )
 
+    _add_google_project_id(driver, md)
+
+    drop_unique_constraint_if_exist(
+        table_name=GoogleServiceAccount.__tablename__,
+        column_name='google_unique_id',
+        driver=driver,
+        metadata=md
+    )
+
 
 def add_foreign_key_column_if_not_exist(
         table_name, column_name, column_type, fk_table_name, fk_column_name, driver,
@@ -363,10 +376,15 @@ def add_column_if_not_exist(
         table_name, metadata, autoload=True, autoload_with=driver.engine)
     if str(column_name) not in table.c:
         with driver.session as session:
-            session.execute(
-                "ALTER TABLE \"{}\" ADD COLUMN {} {};"
+            command = (
+                "ALTER TABLE \"{}\" ADD COLUMN {} {}"
                 .format(table_name, column_name, column_type)
             )
+            if not column.nullable:
+                command += " NOT NULL"
+            command += ";"
+
+            session.execute(command)
             session.commit()
 
 
@@ -411,7 +429,9 @@ def drop_foreign_key_constraint_if_exist(
     foreign_key_name = "{}_{}_fkey".format(table_name.lower(), column_name)
 
     if column_name in table.c:
-        foreign_keys = [fk.name for fk in getattr(table.c, column_name).foreign_keys]
+        foreign_keys = [
+            fk.name for fk in getattr(table.c, column_name).foreign_keys
+        ]
         if foreign_key_name in foreign_keys:
             with driver.session as session:
                 session.execute(
@@ -419,3 +439,114 @@ def drop_foreign_key_constraint_if_exist(
                     .format(table_name, foreign_key_name)
                 )
                 session.commit()
+
+
+def add_unique_constraint_if_not_exist(
+        table_name, column_name, driver, metadata):
+    table = Table(
+        table_name, metadata, autoload=True, autoload_with=driver.engine)
+    index_name = "{}_{}_key".format(table_name, column_name)
+
+    if column_name in table.c:
+        indexes = [index.name for index in table.indexes]
+
+        if index_name not in indexes:
+            with driver.session as session:
+                session.execute(
+                    "ALTER TABLE \"{}\" ADD CONSTRAINT {} UNIQUE ({});"
+                    .format(
+                        table_name, index_name, column_name
+                    )
+                )
+                session.commit()
+
+
+def drop_unique_constraint_if_exist(
+        table_name, column_name, driver, metadata):
+    table = Table(
+        table_name, metadata, autoload=True, autoload_with=driver.engine)
+    constraint_name = "{}_{}_key".format(table_name, column_name)
+
+    if column_name in table.c:
+        constraints = [
+            constaint.name
+            for constaint in getattr(table.c, column_name).constraints
+        ]
+
+        unique_index = None
+        for index in table.indexes:
+            if index.name == constraint_name:
+                unique_index = index
+
+        if constraint_name in constraints or unique_index:
+            with driver.session as session:
+                session.execute(
+                    "ALTER TABLE \"{}\" DROP CONSTRAINT {};"
+                    .format(table_name, constraint_name)
+                )
+                session.commit()
+
+
+def drop_default_value(
+        table_name, column_name, driver, metadata):
+    table = Table(
+        table_name, metadata, autoload=True, autoload_with=driver.engine)
+
+    if column_name in table.c:
+        with driver.session as session:
+            session.execute(
+                "ALTER TABLE \"{}\" ALTER COLUMN \"{}\" DROP DEFAULT;"
+                .format(table_name, column_name)
+            )
+            session.commit()
+
+
+def add_not_null_constraint(
+        table_name, column_name, driver, metadata):
+    table = Table(
+        table_name, metadata, autoload=True, autoload_with=driver.engine)
+
+    if column_name in table.c:
+        with driver.session as session:
+            session.execute(
+                "ALTER TABLE \"{}\" ALTER COLUMN \"{}\" SET NOT NULL;"
+                .format(table_name, column_name)
+            )
+            session.commit()
+
+
+def _add_google_project_id(driver, md):
+    # add new google_project_id column
+    add_column_if_not_exist(
+        table_name=GoogleServiceAccount.__tablename__,
+        column=Column('google_project_id', String),
+        driver=driver,
+        metadata=md)
+
+    # make rows have unique values for new column
+    with driver.session as session:
+        rows_to_make_unique = (
+            session.query(GoogleServiceAccount)
+            .filter(GoogleServiceAccount.google_project_id.is_(None))
+        )
+        count = 0
+        for row in rows_to_make_unique:
+            row.google_project_id = count
+            count += 1
+    session.commit()
+
+    # add unique constraint
+    add_unique_constraint_if_not_exist(
+        table_name=GoogleServiceAccount.__tablename__,
+        column_name='google_project_id',
+        driver=driver,
+        metadata=md
+    )
+
+    # add not null constraint
+    add_not_null_constraint(
+        table_name=GoogleServiceAccount.__tablename__,
+        column_name='google_project_id',
+        driver=driver,
+        metadata=md
+    )
