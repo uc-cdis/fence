@@ -56,7 +56,7 @@ def indexd_get_available_bucket(file_id):
         'file_name': 'file1',
         'urls': ['s3://bucket1/key'],
         'hashes': {},
-        'metadata': {'acls': 'phs000178,phs000218'},
+        'acl': ['phs000178', 'phs000218'],
         'form': '',
         'created_date': '',
         "updated_date": ''
@@ -72,7 +72,7 @@ def indexd_get_unavailable_bucket(file_id):
         'file_name': 'file1',
         'urls': ['s3://bucket5/key'],
         'hashes': {},
-        'metadata': {'acls': 'phs000178,phs000218'},
+        'acl': ['phs000178', 'phs000218'],
         'form': '',
         'created_date': '',
         "updated_date": ''
@@ -88,7 +88,7 @@ def indexd_get_public_object(file_id):
         'file_name': 'file1',
         'urls': ['s3://bucket1/key'],
         'hashes': {},
-        'metadata': {'acls': '*'},
+        'acl': ['*'],
         'form': '',
         'created_date': '',
         "updated_date": ''
@@ -104,11 +104,12 @@ def indexd_get_public_bucket(file_id):
         'file_name': 'file1',
         'urls': ['s3://bucket4/key'],
         'hashes': {},
-        'metadata': {'acls': '*'},
+        'acl': ['*'],
         'form': '',
         'created_date': '',
         "updated_date": ''
     }
+
 
 def mock_get_bucket_location(self, bucket, config):
     return 'us-east-1'
