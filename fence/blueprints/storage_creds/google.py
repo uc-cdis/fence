@@ -252,7 +252,8 @@ def _create_google_service_account_for_client(
             google_unique_id=new_service_account['uniqueId'],
             client_id=client_id,
             user_id=user_id,
-            email=new_service_account['email']
+            email=new_service_account['email'],
+            google_project_id=new_service_account['projectId']
         )
 
         current_session.add(service_account)

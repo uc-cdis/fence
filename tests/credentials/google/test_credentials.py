@@ -34,7 +34,8 @@ def test_google_access_token_new_service_account(
     _populate_test_identity(db_session, name=IdentityProvider.itrust)
     new_service_account = {
         'uniqueId': '987654321',
-        'email': '987654321@test.com'
+        'email': '987654321@test.com',
+        'projectId': 'projectId-0'
     }
     path = '/credentials/google/'
 
@@ -142,7 +143,8 @@ def test_google_create_access_token_post(
         google_unique_id=service_account_id,
         client_id=client_id,
         user_id=user_id,
-        email=(client_id + '-' + str(user_id) + '@test.com')
+        email=(client_id + '-' + str(user_id) + '@test.com'),
+        google_project_id='projectId-0'
     )
     db_session.add(service_account)
     db_session.commit()
@@ -204,7 +206,8 @@ def test_google_delete_owned_access_token(
         google_unique_id=service_account_id,
         client_id=client_id,
         user_id=user_id,
-        email=(client_id + "-" + str(user_id) + "@test.com")
+        email=(client_id + "-" + str(user_id) + "@test.com"),
+        google_project_id='projectId-0'
     )
     db_session.add(service_account)
     db_session.commit()
@@ -252,7 +255,8 @@ def test_google_attempt_delete_unowned_access_token(
         google_unique_id="123456789",
         client_id="NOT_THIS_GUY",
         user_id=user_id,
-        email=("NOT_THIS_GUY" + "-" + str(user_id) + "@test.com")
+        email=("NOT_THIS_GUY" + "-" + str(user_id) + "@test.com"),
+        google_project_id='projectId-0'
     )
     db_session.add(client_entry)
     db_session.add(service_account)
@@ -315,7 +319,8 @@ def test_google_delete_invalid_access_token(
         google_unique_id=service_account_id,
         client_id=client_id,
         user_id=user_id,
-        email=(client_id + "-" + str(user_id) + "@test.com")
+        email=(client_id + "-" + str(user_id) + "@test.com"),
+        google_project_id='projectId-0'
     )
     db_session.add(service_account)
     db_session.commit()

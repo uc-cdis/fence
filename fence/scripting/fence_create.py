@@ -293,7 +293,8 @@ def google_init(db):
                     google_unique_id=primary_service_account["uniqueId"],
                     client_id=None,
                     user_id=user.id,
-                    email=primary_service_account["email"]
+                    email=primary_service_account["email"],
+                    google_project_id=primary_service_account['projectId']
                 )
 
                 proxy_group = GoogleProxyGroup(
