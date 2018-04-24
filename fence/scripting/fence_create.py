@@ -95,8 +95,14 @@ def sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
             sync_from_local_yaml_file))
         return
 
-    with open(projects, 'r') as f:
-        project_mapping = yaml.load(f)
+    project_mapping = None
+    if projects:
+        try:
+            with open(projects, 'r') as f:
+                project_mapping = yaml.load(f)
+        except IOError:
+            pass
+    
     syncer = UserSyncer(
         dbGaP, DB, project_mapping=project_mapping, storage_credentials=STORAGE_CREDENTIALS,
         is_sync_from_dbgap_server=is_sync_from_dbgap_server,

@@ -2,6 +2,7 @@
 # To check running container: docker exec -it fence /bin/bash
 
 FROM ubuntu:16.04
+FROM atmoz/sftp:debian-jessie
 
 ENV DEBIAN_FRONTEND=noninteractive
 

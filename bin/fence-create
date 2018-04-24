@@ -73,7 +73,7 @@ def parse_arguments():
     dbgap_sync.add_argument(
         '--sync_from_dbgap',
         help='sync from dbgap server True/False',
-        default='True')
+        default='False')
 
     manage_google_keys = subparsers.add_parser('google-manage-keys')
     init_google = subparsers.add_parser('google-init')
