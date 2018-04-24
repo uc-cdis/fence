@@ -516,6 +516,20 @@ def add_not_null_constraint(
 
 
 def _add_google_project_id(driver, md):
+    """
+    Add new unique not null field to GoogleServiceAccount.
+
+    In order to do this without errors, we have to:
+        - add the field and allow null (for all previous rows)
+        - update all null entries to be unique
+            - at the moment this is just for dev environments since we don't
+              have anything in production. thus, these nonsense values will
+              be sufficient
+            - new additions of GoogleServiceAccounts will require this field
+              to be not null and unique
+        - add unique constraint
+        - add not null constraint
+    """
     # add new google_project_id column
     add_column_if_not_exist(
         table_name=GoogleServiceAccount.__tablename__,
