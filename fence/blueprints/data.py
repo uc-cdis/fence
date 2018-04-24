@@ -169,9 +169,13 @@ class IndexedFile(object):
             raise UnavailableError(res.text)
 
     def _get_acls(self):
-        if 'acls' not in self.metadata:
+        if 'acl' in self.index_document:
+            set_acls = set(self.index_document['acl'])
+        elif 'acls' in self.metadata:
+            set_acls = set(self.metadata['acls'].split(','))
+        else:
             raise Unauthorized("This file is not accessible")
-        set_acls = set(self.metadata['acls'].split(','))
+
         return set_acls
 
     @staticmethod

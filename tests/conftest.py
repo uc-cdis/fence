@@ -63,6 +63,22 @@ def indexd_get_available_s3_bucket(file_id):
     }
 
 
+def indexd_get_available_s3_bucket_acl(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s3://bucket1/key'],
+        'hashes': {},
+        'acl': ['phs000178', 'phs000218'],
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
 def indexd_get_available_gs_bucket(file_id):
     return {
         'did': '',
@@ -73,6 +89,22 @@ def indexd_get_available_gs_bucket(file_id):
         'urls': ['gs://bucket1/key'],
         'hashes': {},
         'metadata': {'acls': 'phs000178,phs000218'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_available_gs_bucket_acl(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['gs://bucket1/key'],
+        'hashes': {},
+        'acl': ['phs000178', 'phs000218'],
         'form': '',
         'created_date': '',
         "updated_date": ''
@@ -95,6 +127,22 @@ def indexd_get_unavailable_s3_bucket(file_id):
     }
 
 
+def indexd_get_unavailable_s3_bucket_acl(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s3://bucket5/key'],
+        'hashes': {},
+        'acl': ['phs000178', 'phs000218'],
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
 def indexd_get_unavailable_gs_bucket(file_id):
     return {
         'did': '',
@@ -105,6 +153,22 @@ def indexd_get_unavailable_gs_bucket(file_id):
         'urls': ['gs://bucket5/key'],
         'hashes': {},
         'metadata': {'acls': 'phs000178,phs000218'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_unavailable_gs_bucket_acl(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['gs://bucket5/key'],
+        'hashes': {},
+        'acl': ['phs000178', 'phs000218'],
         'form': '',
         'created_date': '',
         "updated_date": ''
@@ -127,6 +191,22 @@ def indexd_get_public_s3_object(file_id):
     }
 
 
+def indexd_get_public_s3_object_acl(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s3://bucket1/key'],
+        'hashes': {},
+        'acl': ['*'],
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
 def indexd_get_public_gs_object(file_id):
     return {
         'did': '',
@@ -137,6 +217,22 @@ def indexd_get_public_gs_object(file_id):
         'urls': ['gs://bucket1/key'],
         'hashes': {},
         'metadata': {'acls': '*'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_public_gs_object_acl(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['gs://bucket1/key'],
+        'hashes': {},
+        'acl': ['*'],
         'form': '',
         'created_date': '',
         "updated_date": ''
@@ -159,6 +255,22 @@ def indexd_get_public_s3_bucket(file_id):
     }
 
 
+def indexd_get_public_s3_bucket_acl(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s3://bucket4/key'],
+        'hashes': {},
+        'acl': ['*'],
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
 def indexd_get_public_gs_bucket(file_id):
     return {
         'did': '',
@@ -169,6 +281,22 @@ def indexd_get_public_gs_bucket(file_id):
         'urls': ['gs://bucket4/key'],
         'hashes': {},
         'metadata': {'acls': '*'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_public_gs_bucket_acl(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['gs://bucket4/key'],
+        'hashes': {},
+        'acl': ['*'],
         'form': '',
         'created_date': '',
         "updated_date": ''
@@ -417,6 +545,14 @@ def indexd_client(app, request):
 
     if request.param == 'gs':
         indexd_get_available_bucket_func = indexd_get_available_gs_bucket
+    elif request.param == 'gs_acl':
+        indexd_get_available_bucket_func = (
+            indexd_get_available_gs_bucket_acl
+        )
+    elif request.param == 's3_acl':
+        indexd_get_available_bucket_func = (
+            indexd_get_available_s3_bucket_acl
+        )
     else:
         indexd_get_available_bucket_func = indexd_get_available_s3_bucket
 
@@ -428,7 +564,8 @@ def indexd_client(app, request):
 
     output = {
         'mocker': mocker,
-        'indexed_file_location': request.param
+        # only gs or s3 for location, ignore specifiers after the _
+        'indexed_file_location': request.param.split('_')[0]
     }
 
     return output
@@ -441,6 +578,14 @@ def unauthorized_indexd_client(app, request):
 
     if request.param == 'gs':
         indexd_get_unavailable_bucket_func = indexd_get_unavailable_gs_bucket
+    elif request.param == 'gs_acl':
+        indexd_get_unavailable_bucket_func = (
+            indexd_get_unavailable_gs_bucket_acl
+        )
+    elif request.param == 's3_acl':
+        indexd_get_unavailable_bucket_func = (
+            indexd_get_unavailable_s3_bucket_acl
+        )
     else:
         indexd_get_unavailable_bucket_func = indexd_get_unavailable_s3_bucket
 
@@ -457,6 +602,14 @@ def public_indexd_client(app, request):
 
     if request.param == 'gs':
         indexd_get_public_object_func = indexd_get_public_gs_object
+    elif request.param == 'gs_acl':
+        indexd_get_public_object_func = (
+            indexd_get_public_gs_object_acl
+        )
+    elif request.param == 's3_acl':
+        indexd_get_public_object_func = (
+            indexd_get_public_s3_object_acl
+        )
     else:
         indexd_get_public_object_func = indexd_get_public_s3_object
 
@@ -473,6 +626,14 @@ def public_bucket_indexd_client(app, request):
 
     if request.param == 'gs':
         indexd_get_public_bucket_func = indexd_get_public_gs_bucket
+    elif request.param == 'gs_acl':
+        indexd_get_public_bucket_func = (
+            indexd_get_public_gs_bucket_acl
+        )
+    elif request.param == 's3_acl':
+        indexd_get_public_bucket_func = (
+            indexd_get_public_s3_bucket_acl
+        )
     else:
         indexd_get_public_bucket_func = indexd_get_public_s3_bucket
 
