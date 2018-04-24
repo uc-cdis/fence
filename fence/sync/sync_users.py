@@ -76,11 +76,11 @@ class UserSyncer(object):
         self._projects = dict()
         self.logger = get_logger('user_syncer')
 
-        # if storage_credentials:
-        #     self.storage_manager = StorageManager(
-        #         storage_credentials,
-        #         logger=self.logger
-        #     )
+        if storage_credentials:
+            self.storage_manager = StorageManager(
+                storage_credentials,
+                logger=self.logger
+            )
 
     def _match_pattern(self, filepath, encrypted=True):
         """
@@ -130,7 +130,6 @@ class UserSyncer(object):
         client.connect(**parameters)
         sftp = client.open_sftp()
 
-        print(sftp.listdir())
         download_dir(sftp, './', path)
 
         sftp.close()
@@ -204,6 +203,7 @@ class UserSyncer(object):
                             dbgap_project = row.get('phsid', '').split('.')[0]
 
                             if not dbgap_project in self.project_mapping:
+                                self.logger.info("{} is not in project mapping".format(dbgap_project))
                                 continue
 
                             for element_dict in self.project_mapping[dbgap_project]:
@@ -215,8 +215,8 @@ class UserSyncer(object):
                                             phsid_privileges)
                                     else:
                                         user_projects[username] = phsid_privileges
-                                except ValueError:
-                                    pass
+                                except ValueError as e:
+                                    self.logger.info(e)
 
                             user_info[username] = {
                                 'email': row.get('email', '')}
@@ -259,7 +259,8 @@ class UserSyncer(object):
                         for project in projects['projects']:
                             privileges[project['auth_id']
                                        ] = project['privilege']
-                    except KeyError:
+                    except KeyError as e:
+                        self.logger.info(e)
                         continue
 
                     user_info[username] = {
@@ -397,7 +398,7 @@ class UserSyncer(object):
 
     def _update_from_db(self, sess, to_update, user_project):
         '''
-        Revoke user access to projects in the auth database
+        Update user access to projects in the auth database
         Args:
             sess: sqlalchemy session
             to_update: a set of (username, project.auth_id) to be updated from db
@@ -560,6 +561,7 @@ class UserSyncer(object):
         try:
             shutil.rmtree(tmpdir)
         except OSError as e:
+            self.logger.info(e)
             if e.errno != errno.ENOENT:
                 raise
 
