@@ -103,6 +103,11 @@ def create_user(current_session, username, role, email):
 
 def update_user(current_session, username, role, email, new_name):
     usr = us.get_user(current_session, username)
+    user_list = [user['name'].upper() for user in get_all_users(current_session)['users']]
+    if username.upper() in user_list:
+        raise UserError(("Error: user with a name with the same combination/order "
+                         "of characters already exists. Please remove this other user"
+                         " or modify the new one. Contact us in case of doubt"))
     usr.email = email or usr.email
     if role:
         is_admin = True if role == 'admin' else False
