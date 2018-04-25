@@ -20,6 +20,7 @@ from userdatamodel.driver import SQLAlchemyDriver
 from fence.models import (
     Project,
     User,
+    Tag,
     AccessPrivilege,
     AuthorizationProvider
 )
@@ -181,7 +182,16 @@ class UserSyncer(object):
                     'project2': ['read-storage'],
                     }
             }
-            user_info: a dict of {username: {'email': email}}
+            user_info: a dict of
+            {
+                username: {
+                    'email': email,
+                    'first_name': firstname,
+                    'last_name': lastname,
+                    'phone_umber': phonenum,
+                    'dbgap_role': dbgaprole
+                }
+            }
 
         '''
         user_projects = dict()
@@ -203,7 +213,8 @@ class UserSyncer(object):
                             dbgap_project = row.get('phsid', '').split('.')[0]
 
                             if not dbgap_project in self.project_mapping:
-                                self.logger.info("{} is not in project mapping".format(dbgap_project))
+                                self.logger.info(
+                                    "{} is not in project mapping".format(dbgap_project))
                                 continue
 
                             for element_dict in self.project_mapping[dbgap_project]:
@@ -218,8 +229,22 @@ class UserSyncer(object):
                                 except ValueError as e:
                                     self.logger.info(e)
 
+                            first_name = ''
+                            last_name = ''
+                            full_name = row.get('user name', '')
+
+                            if(full_name != ''):
+                                words = full_name.split(' ')
+                                first_name = words[0]
+                                if len(words) > 1:
+                                    last_name = words[1]
                             user_info[username] = {
-                                'email': row.get('email', '')}
+                                'email': row.get('email', ''),
+                                'first_name': first_name,
+                                'last_name': last_name,
+                                'phone_number': row.get('phone', ''),
+                                'dbgap_role': row.get('role', '')
+                            }
                 except Exception as e:
                     self.logger.info(e)
 
@@ -239,8 +264,15 @@ class UserSyncer(object):
                     'project2': ['read-storage'],
                     }
             }
-            user_info: a dict of {username: {'email': email}}
-
+            user_info: a dict of 
+            {
+                username: {
+                    'email': email,
+                    'first_name': firstname,
+                    'last_name': lastname,
+                    'phone_number': phonenum,
+                }
+            }
         '''
         user_project = dict()
         user_info = dict()
@@ -252,19 +284,25 @@ class UserSyncer(object):
             with self._read_file(filepath, encrypted=encrypted) as stream:
                 data = yaml.safe_load(stream)
                 users = data.get('users', {})
-                for username, projects in users.iteritems():
+                for username, details in users.iteritems():
                     privileges = defaultdict(set)
 
                     try:
-                        for project in projects['projects']:
+                        for project in details.get('projects', {}):
                             privileges[project['auth_id']
                                        ] = project['privilege']
+
                     except KeyError as e:
                         self.logger.info(e)
                         continue
 
                     user_info[username] = {
-                        'email': username}
+                        'email': username,
+                        'first_name': details.get('first_name', ''),
+                        'last_name': details.get('last_name', ''),
+                        'phone_number': details.get('phone_number', ''),
+                    }
+
                     if not username in user_project:
                         user_project[username] = (privileges)
                     else:
@@ -288,7 +326,7 @@ class UserSyncer(object):
             if not info2:
                 user_info2.update({user: info1})
                 continue
-            user_info2[user].update(info1)
+            user_info2[user] = info1
 
     @classmethod
     def sync_two_phsids_dict(self, phsids1, phsids2):
@@ -341,12 +379,11 @@ class UserSyncer(object):
             None
         '''
         self._init_projects(user_project, sess)
-        if self.is_sync_from_dbgap_server:
-            auth_provider = self._get_or_create(
-                sess, AuthorizationProvider, name='dbGaP')
-        else:
-            auth_provider = self._get_or_create(
-                sess, AuthorizationProvider, name='fence')
+
+        auth_provider_list = [self._get_or_create(
+            sess, AuthorizationProvider, name='dbGaP'),
+            self._get_or_create(
+            sess, AuthorizationProvider, name='fence')]
 
         cur_db_user_project_list = {
             (ua.user.username, ua.project.auth_id) for
@@ -368,7 +405,7 @@ class UserSyncer(object):
         self._revoke_from_db(sess, to_delete)
         self._grant_from_storage(to_add, user_project)
         self._grant_from_db(sess, user_info, to_add,
-                            user_project, auth_provider)
+                            user_project, auth_provider_list)
 
         # re-grant
         self._grant_from_storage(to_update, user_project)
@@ -418,7 +455,7 @@ class UserSyncer(object):
                 access.privilege = user_project[username][project_auth_id]
         sess.commit()
 
-    def _grant_from_db(self, sess, user_info, to_add, user_project, auth_provider):
+    def _grant_from_db(self, sess, user_info, to_add, user_project, auth_provider_list):
         '''
         Grant user access to projects in the auth database
         Args:
@@ -434,12 +471,25 @@ class UserSyncer(object):
                 self.logger.info('create user {}'.format(username))
                 u = User(username=username)
                 u.email = user_info[username].get('email', '')
+                u.first_name = user_info[username].get('first_name', '')
+                u.last_name = user_info[username].get('last_name', '')
+                u.phone_number = user_info[username].get('phone_number', '')
                 sess.add(u)
+                if 'dbgap_role' in user_info[username]:
+                    self.logger.info('create tag for {}'.format(username))
+                    tag = Tag(key='dbgap_role',
+                              value=user_info[username].get('dbgap_role', ''))
+                    tag.user = u
+                    sess.add(tag)
 
             self.logger.info(
                 'grant {} access to {} in db'
                 .format(username, project_auth_id)
             )
+
+            auth_provider = auth_provider_list[0]
+            if 'dbgap_role' not in user_info[username]:
+                auth_provider = auth_provider_list[1]
 
             user_access = AccessPrivilege(
                 user=u,
@@ -588,3 +638,16 @@ class UserSyncer(object):
         self.logger.info('Sync to db and storage backend')
         self.sync_to_db_and_storage_backend(user_projects1, user_info1, sess)
         self.logger.info('Finish syncing to db and storage backend')
+
+
+if __name__ == '__main__':
+    DB = 'postgresql://test:test@localhost:5432/fence_test'
+    driver = SQLAlchemyDriver(DB)
+    with driver.session as sess:
+        user = sess.query(User).filter(User.id == 17).first()
+        import pdb
+        pdb.set_trace()
+        dir(user)
+        print(user)
+        tags = user.tags
+        print(type(tags))

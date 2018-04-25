@@ -5,6 +5,18 @@ def test_sync(syncer, db_session):
 
     syncer.sync()
 
+    users = db_session.query(models.User).all()
+    assert len(users) == 9
+
+    tags = db_session.query(models.Tag).all()
+    assert len(tags) == 3
+
+    proj = db_session.query(models.Project).all()
+    assert len(proj) == 5
+
+    prvs = db_session.query(models.AccessPrivilege).all()
+    assert len(prvs) == 12
+
     user = db_session.query(models.User).filter_by(username='USERF').one()
     assert user.project_access == {'phs000178': [
         'read-storage'], 'TCGA-PCAWG': ['read-storage']}
@@ -149,26 +161,34 @@ def test_sync_two_phsids_dict_override(syncer, db_session):
 
 def test_sync_two_user_info(syncer, db_session):
     userinfo1 = {
-        'userA': {'email': 'a@b'},
-        'userB': {'email': 'a@b'},
+        'userA': {'email': 'a@email', 'first_name': 'user1', 'last_name': 'A', 'phone_numer': '123-456-789', 'role': 'user'},
+        'userB': {'email': 'b@email', 'first_name': 'user2', 'last_name': 'B', 'phone_numer': '232-456-789', 'role': 'admin'},
     }
 
     userinfo2 = {
-        'userC': {'email': 'a@b'},
+        'userC': {'email': 'c@email', 'first_name': 'user3', 'last_name': 'C', 'phone_numer': '232-456-123', 'role': 'admin'},
     }
     syncer.sync_two_user_info_dict(userinfo1, userinfo2)
 
-    assert userinfo2 == {'userA': {'email': 'a@b'},
-                         'userB': {'email': 'a@b'},
-                         'userC': {'email': 'a@b'},
+    assert userinfo2 == {'userA': {'email': 'a@email', 'first_name': 'user1', 'last_name': 'A', 'phone_numer': '123-456-789', 'role': 'user'},
+                         'userB': {'email': 'b@email', 'first_name': 'user2', 'last_name': 'B', 'phone_numer': '232-456-789', 'role': 'admin'},
+                         'userC': {'email': 'c@email', 'first_name': 'user3', 'last_name': 'C', 'phone_numer': '232-456-123', 'role': 'admin'}
                          }
 
     userinfo2 = {
-        'userA': {'email': 'c@b'},
+        'userA': {'email': 'c@email', 'first_name': 'user3', 'last_name': 'C', 'phone_numer': '232-456-123'},
     }
 
     syncer.sync_two_user_info_dict(userinfo1, userinfo2)
 
-    assert userinfo2 == {'userA': {'email': 'a@b'},
-                         'userB': {'email': 'a@b'},
+    assert userinfo2 == {'userA': {'email': 'a@email', 'first_name': 'user1', 'last_name': 'A', 'phone_numer': '123-456-789', 'role': 'user'},
+                         'userB': {'email': 'b@email', 'first_name': 'user2', 'last_name': 'B', 'phone_numer': '232-456-789', 'role': 'admin'}
+                         }
+    userinfo2 = {
+        'userA': {'email': 'c@email', 'first_name': 'user3', 'last_name': 'C', 'phone_numer': '232-456-123'},
+    }
+
+    syncer.sync_two_user_info_dict(userinfo2, userinfo1)
+    assert userinfo1 == {'userA': {'email': 'c@email', 'first_name': 'user3', 'last_name': 'C', 'phone_numer': '232-456-123'},
+                         'userB': {'email': 'b@email', 'first_name': 'user2', 'last_name': 'B', 'phone_numer': '232-456-789', 'role': 'admin'}
                          }

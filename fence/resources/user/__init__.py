@@ -52,12 +52,18 @@ def get_user_info(user, session):
     info = {
         'user_id': user.id,
         'username': user.username,
+        'first_name': user.first_name,
+        'last_name': user.last_name,
+        'phone_number': user.phone_number,
         'resources_granted': [],
         'project_access': dict(user.project_access),
         'certificates_uploaded': [],
         'email': user.email,
         'message': ''
     }
+    if user.tags is not None and len(user.tags) > 0:
+        info['tags'] = {tag.key: tag.value for tag in user.tags}
+
     if user.application:
         info['resources_granted'] = user.application.resources_granted
         info['certificates_uploaded'] = [

@@ -434,7 +434,11 @@ def generate_id_token(
             'user': {
                 'name': user.username,
                 'is_admin': user.is_admin,
-                'projects': dict(user.project_access)
+                'projects': dict(user.project_access),
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'phone_number': user.phone_number
             },
         },
         'pur': 'id',
@@ -447,6 +451,9 @@ def generate_id_token(
         'auth_time': auth_time,
         'azp': client_id,
     }
+    if user.tags is not None and len(user.tags) > 0:
+        claims['context']['user']['tags'] = {
+            tag.key: tag.value for tag in user.tags}
 
     # only add google linkage information if provided
     if linked_google_email:

@@ -102,7 +102,7 @@ def sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
                 project_mapping = yaml.load(f)
         except IOError:
             pass
-    
+
     syncer = UserSyncer(
         dbGaP, DB, project_mapping=project_mapping, storage_credentials=STORAGE_CREDENTIALS,
         is_sync_from_dbgap_server=is_sync_from_dbgap_server,
