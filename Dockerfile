@@ -12,6 +12,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
     git \
+    # for decryption dbgap files
+    mcrypt \
     libapache2-mod-wsgi \
     # dependency for cryptography
     libffi-dev \

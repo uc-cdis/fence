@@ -29,13 +29,13 @@ from fence.resources.storage import StorageManager
 
 
 def download_dir(sftp, remote_dir, local_dir):
-    '''
+    """
     Recursively download file from remote_dir to local_dir
     Args:
         remote_dir(str)
         local_dir(str)
     Returns: None
-    '''
+    """
     dir_items = sftp.listdir_attr(remote_dir)
 
     for item in dir_items:
@@ -54,7 +54,7 @@ class UserSyncer(object):
             storage_credentials=None, db_session=None,
             is_sync_from_dbgap_server=False,
             sync_from_local_csv_dir=None, sync_from_local_yaml_file=None):
-        '''
+        """
         Syncs ACL files from dbGap to auth database and storage backends
         Args:
             dbGaP: a dict containing creds to access dbgap sftp
@@ -63,7 +63,7 @@ class UserSyncer(object):
             storage_credentials: a dict containing creds for storage backends
             sync_from_dir: path to an alternative dir to sync from instead of
                            dbGaP
-        '''
+        """
 
         self.sync_from_local_csv_dir = sync_from_local_csv_dir
         self.sync_from_local_yaml_file = sync_from_local_yaml_file
@@ -169,7 +169,7 @@ class UserSyncer(object):
             f.close()
 
     def _parse_csv(self, file_dict, encrypted=True):
-        '''
+        """
         parse csv files to python dict
         Args:
             fild_dict: a dictionary with key(file path) and value(privileges)
@@ -186,14 +186,13 @@ class UserSyncer(object):
             {
                 username: {
                     'email': email,
-                    'first_name': firstname,
-                    'last_name': lastname,
+                    'display_name': displayname,
                     'phone_umber': phonenum,
                     'dbgap_role': dbgaprole
                 }
             }
 
-        '''
+        """
         user_projects = dict()
         user_info = dict()
         for filepath, privileges in file_dict.iteritems():
@@ -229,19 +228,10 @@ class UserSyncer(object):
                                 except ValueError as e:
                                     self.logger.info(e)
 
-                            first_name = ''
-                            last_name = ''
-                            full_name = row.get('user name', '')
-
-                            if(full_name != ''):
-                                words = full_name.split(' ')
-                                first_name = words[0]
-                                if len(words) > 1:
-                                    last_name = words[1]
+                            display_name = row.get('user name', '')
                             user_info[username] = {
                                 'email': row.get('email', ''),
-                                'first_name': first_name,
-                                'last_name': last_name,
+                                'display_name': display_name,
                                 'phone_number': row.get('phone', ''),
                                 'dbgap_role': row.get('role', '')
                             }
@@ -251,7 +241,7 @@ class UserSyncer(object):
         return user_projects, user_info
 
     def _parse_yaml(self, filepath, encrypted=True):
-        '''
+        """
         parse yaml files to python nested dictionary
         Args:
             filepath: yaml file
@@ -268,12 +258,11 @@ class UserSyncer(object):
             {
                 username: {
                     'email': email,
-                    'first_name': firstname,
-                    'last_name': lastname,
+                    'display_name': display_name,
                     'phone_number': phonenum,
                 }
             }
-        '''
+        """
         user_project = dict()
         user_info = dict()
 
@@ -298,8 +287,7 @@ class UserSyncer(object):
 
                     user_info[username] = {
                         'email': username,
-                        'first_name': details.get('first_name', ''),
-                        'last_name': details.get('last_name', ''),
+                        'display_name': details.get('display_name', ''),
                         'phone_number': details.get('phone_number', ''),
                     }
 
@@ -314,13 +302,13 @@ class UserSyncer(object):
 
     @classmethod
     def sync_two_user_info_dict(self, user_info1, user_info2):
-        '''
+        """
         merge user_info1 into user_info2
         Args:
             user_info1, user_info2: nested dicts of {username: {'email': 'abc@email.com'}}
         Returns:
             None
-        '''
+        """
         for user, info1 in user_info1.iteritems():
             info2 = user_info2.get(user)
             if not info2:
@@ -330,7 +318,7 @@ class UserSyncer(object):
 
     @classmethod
     def sync_two_phsids_dict(self, phsids1, phsids2):
-        '''
+        """
         merge pshid1 into phsids2
         Args:
             phsids1, phsids2: nested dicts of
@@ -348,7 +336,7 @@ class UserSyncer(object):
                                                            phsid2: privillege2}}
                 case2: phsid1 == phsid2 and privillege1! = privillege2. Output {user1: {phsid1: uion(privillege1, privillege2)}}
             For the other cases, just simple addition
-        '''
+        """
         #phsids = copy.deepcopy(phsids2)
         for user, projects1 in phsids1.iteritems():
             projects2 = phsids2.get(user)
@@ -362,7 +350,7 @@ class UserSyncer(object):
                     phsids2[user][phsid1] = privilege1
 
     def sync_to_db_and_storage_backend(self, user_project, user_info, sess):
-        '''
+        """
         sync user access control to database and storage backend
         Args:
             user_project(dict): a dictionary of
@@ -377,7 +365,7 @@ class UserSyncer(object):
             sess: a sqlalchemy session
         Return:
             None
-        '''
+        """
         self._init_projects(user_project, sess)
 
         auth_provider_list = [self._get_or_create(
@@ -409,17 +397,17 @@ class UserSyncer(object):
 
         # re-grant
         self._grant_from_storage(to_update, user_project)
-        self._update_from_db(sess, to_update, user_project)
+        self._update_from_db(sess, to_update, user_info, user_project)
 
     def _revoke_from_db(self, sess, to_delete):
-        '''
+        """
         Revoke user access to projects in the auth database
         Args:
             sess: sqlalchemy session
             to_delete: a set of (username, project.auth_id) to be revoked from db
         Return:
             None
-        '''
+        """
         for (username, project_auth_id) in to_delete:
 
             q = (sess.query(AccessPrivilege)
@@ -433,15 +421,15 @@ class UserSyncer(object):
                 sess.delete(access)
         sess.commit()
 
-    def _update_from_db(self, sess, to_update, user_project):
-        '''
+    def _update_from_db(self, sess, to_update, user_info, user_project):
+        """
         Update user access to projects in the auth database
         Args:
             sess: sqlalchemy session
             to_update: a set of (username, project.auth_id) to be updated from db
         Return:
             None
-        '''
+        """
 
         for (username, project_auth_id) in to_update:
             q = (sess.query(AccessPrivilege)
@@ -453,10 +441,23 @@ class UserSyncer(object):
                     "update {} access to {} in db"
                     .format(username, project_auth_id))
                 access.privilege = user_project[username][project_auth_id]
+            u = sess.query(User).filter(User.username == username).first()
+            if u:
+                self.logger.info('update user info {}'.format(username))
+                u.email = user_info[username].get('email', '')
+                u.display_name = user_info[username].get('display_name', '')
+                u.phone_number = user_info[username].get('phone_number', '')
+                if u.tags == [] and 'dbgap_role' in user_info[username]:
+                    self.logger.info('create tag for {}'.format(username))
+                    tag = Tag(key='dbgap_role',
+                              value=user_info[username].get('dbgap_role', ''))
+                    tag.user = u
+                    sess.add(tag)
+
         sess.commit()
 
     def _grant_from_db(self, sess, user_info, to_add, user_project, auth_provider_list):
-        '''
+        """
         Grant user access to projects in the auth database
         Args:
             s: sqlalchemy session
@@ -464,23 +465,27 @@ class UserSyncer(object):
             user_project: a dictionary of {username: {project: ['read','write']}
         Return:
             None
-        '''
+        """
         for (username, project_auth_id) in to_add:
+            self.logger.info('update user info {}'.format(username))
             u = sess.query(User).filter(User.username == username).first()
+            is_new_user = False
             if not u:
-                self.logger.info('create user {}'.format(username))
+                is_new_user = True
                 u = User(username=username)
-                u.email = user_info[username].get('email', '')
-                u.first_name = user_info[username].get('first_name', '')
-                u.last_name = user_info[username].get('last_name', '')
-                u.phone_number = user_info[username].get('phone_number', '')
+            u.email = user_info[username].get('email', '')
+            u.display_name = user_info[username].get('display_name', '')
+            u.phone_number = user_info[username].get('phone_number', '')
+
+            if is_new_user:
                 sess.add(u)
-                if 'dbgap_role' in user_info[username]:
-                    self.logger.info('create tag for {}'.format(username))
-                    tag = Tag(key='dbgap_role',
-                              value=user_info[username].get('dbgap_role', ''))
-                    tag.user = u
-                    sess.add(tag)
+
+            if (is_new_user or u.tags == []) and 'dbgap_role' in user_info[username]:
+                self.logger.info('create tag for {}'.format(username))
+                tag = Tag(key='dbgap_role',
+                          value=user_info[username].get('dbgap_role', ''))
+                tag.user = u
+                sess.add(tag)
 
             self.logger.info(
                 'grant {} access to {} in db'
@@ -502,14 +507,14 @@ class UserSyncer(object):
         sess.commit()
 
     def _revoke_from_storage(self, to_delete, sess):
-        '''
+        """
         If a project have storage backend,
         revoke user's access to buckets in the storage backend
         Args:
             to_delete: a set of (username, project.auth_id) to be revoked
         Return:
             None
-        '''
+        """
         for (username, project_auth_id) in to_delete:
             project = sess.query(Project).filter(
                 Project.auth_id == project_auth_id).first()
@@ -527,7 +532,7 @@ class UserSyncer(object):
         sess.commit()
 
     def _grant_from_storage(self, to_add, user_project):
-        '''
+        """
         If a project have storage backend,
         grant user's access to buckets in the storage backend
         Args:
@@ -535,7 +540,7 @@ class UserSyncer(object):
             user_project: a dictionary of {username: {phsid: ['read-storage','write-storage']}
         Return:
             None
-        '''
+        """
 
         for (username, project_auth_id) in to_add:
             project = self._projects[project_auth_id]
@@ -553,9 +558,9 @@ class UserSyncer(object):
                 )
 
     def _init_projects(self, user_project, sess):
-        '''
+        """
         initialize projects
-        '''
+        """
 
         if self.project_mapping:
             for projects in self.project_mapping.values():
@@ -588,11 +593,11 @@ class UserSyncer(object):
                 self._sync(s)
 
     def _sync(self, sess):
-        '''
+        """
         Collect files from dbgap server
         sync csv and yaml files to storage backend and fence DB
 
-        '''
+        """
         dbgap_file_list = []
         tmpdir = tempfile.mkdtemp()
         if self.is_sync_from_dbgap_server:
