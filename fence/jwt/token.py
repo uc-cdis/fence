@@ -436,8 +436,7 @@ def generate_id_token(
                 'is_admin': user.is_admin,
                 'projects': dict(user.project_access),
                 'email': user.email,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
+                'display_name': user.display_name,
                 'phone_number': user.phone_number
             },
         },

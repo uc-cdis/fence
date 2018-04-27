@@ -52,8 +52,7 @@ def get_user_info(user, session):
     info = {
         'user_id': user.id,
         'username': user.username,
-        'first_name': user.first_name,
-        'last_name': user.last_name,
+        'display_name': user.display_name,
         'phone_number': user.phone_number,
         'resources_granted': [],
         'project_access': dict(user.project_access),
