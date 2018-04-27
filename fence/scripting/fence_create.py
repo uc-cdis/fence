@@ -8,6 +8,7 @@ import time
 from authlib.common.encoding import to_unicode
 
 from cirrus import GoogleCloudManager
+from cdispyutils.log import get_logger
 from userdatamodel.driver import SQLAlchemyDriver
 from userdatamodel.models import (
     AccessPrivilege,
@@ -27,11 +28,13 @@ from fence.models import UserGoogleAccount
 from fence.models import UserGoogleAccountToProxyGroup
 from fence.models import UserRefreshToken
 from fence.utils import create_client, drop_client
-from fence.sync.sync_dbgap import DbGapSyncer
+from fence.sync.sync_users import UserSyncer
 
 from fence.jwt.token import (
     issued_and_expiration_times,
 )
+
+logger = get_logger(__name__)
 
 
 def create_client_action(
@@ -51,8 +54,10 @@ def delete_client_action(DB, client):
         print(e.message)
 
 
-def sync_dbgap(projects):
-    """
+def sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
+               projects=None, is_sync_from_dbgap_server=False,
+               sync_from_local_csv_dir=None, sync_from_local_yaml_file=None):
+    '''
     sync ACL files from dbGap to auth db and storage backends
     imports from local_settings is done here because dbGap is
     an optional requirment for fence so it might not be specified
@@ -73,14 +78,36 @@ def sync_dbgap(projects):
             phs000235:
               - name: CGCI
                 auth_id: phs000235
-    """
-    from local_settings import dbGaP, STORAGE_CREDENTIALS, DB
-    with open(projects, 'r') as f:
-        project_mapping = yaml.load(f)
-    syncer = DbGapSyncer(
-        dbGaP, DB, project_mapping, storage_credentials=STORAGE_CREDENTIALS
+    '''
+
+    if ((is_sync_from_dbgap_server or sync_from_local_csv_dir) and projects is None):
+        logger.error("=====project mapping needs to be provided!!!=======")
+        return
+    if ((is_sync_from_dbgap_server or sync_from_local_csv_dir) and os.path.exists(projects) == False):
+        logger.error("====={} is not found!!!=======".format(projects))
+        return
+    if sync_from_local_csv_dir and os.path.exists(sync_from_local_csv_dir) == False:
+        logger.error("====={} is not found!!!=======".format(
+            sync_from_local_csv_dir))
+        return
+    if sync_from_local_yaml_file and os.path.exists(sync_from_local_yaml_file) == False:
+        logger.error("====={} is not found!!!=======".format(
+            sync_from_local_yaml_file))
+        return
+
+    project_mapping = None
+    if projects:
+        try:
+            with open(projects, 'r') as f:
+                project_mapping = yaml.load(f)
+        except IOError:
+            pass
+
+    syncer = UserSyncer(
+        dbGaP, DB, project_mapping=project_mapping, storage_credentials=STORAGE_CREDENTIALS,
+        is_sync_from_dbgap_server=is_sync_from_dbgap_server,
+        sync_from_local_csv_dir=sync_from_local_csv_dir, sync_from_local_yaml_file=sync_from_local_yaml_file
     )
-    print('sync')
     syncer.sync()
 
 
