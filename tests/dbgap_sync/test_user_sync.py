@@ -6,7 +6,7 @@ def test_sync(syncer, db_session):
     syncer.sync()
 
     users = db_session.query(models.User).all()
-    assert len(users) == 9
+    assert len(users) == 10
 
     tags = db_session.query(models.Tag).all()
     assert len(tags) == 4

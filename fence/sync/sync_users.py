@@ -389,17 +389,17 @@ class UserSyncer(object):
         to_update = set.intersection(
             cur_db_user_project_list, syncing_user_project_list)
 
+        self._upsert_userinfo(sess, user_info)
         self._revoke_from_storage(to_delete, sess)
         self._revoke_from_db(sess, to_delete)
         self._grant_from_storage(to_add, user_project)
-        self._grant_from_db(sess, user_info, to_add,
+        self._grant_from_db(sess, to_add, user_info,
                             user_project, auth_provider_list)
 
         # re-grant
         self._grant_from_storage(to_update, user_project)
-        self._update_from_db(sess, to_update, user_info, user_project)
+        self._update_from_db(sess, to_update, user_project)
 
-        self._update_userinfo(sess, user_info, user_project)
 
     def _revoke_from_db(self, sess, to_delete):
         """
@@ -423,7 +423,7 @@ class UserSyncer(object):
                 sess.delete(access)
         sess.commit()
 
-    def _update_from_db(self, sess, to_update, user_info, user_project):
+    def _update_from_db(self, sess, to_update, user_project):
         """
         Update user access to projects in the auth database
         Args:
@@ -446,7 +446,9 @@ class UserSyncer(object):
 
         sess.commit()
 
-    def _grant_from_db(self, sess, user_info, to_add, user_project, auth_provider_list):
+    def _grant_from_db(
+            self, sess, to_add, user_info,
+            user_project, auth_provider_list):
         """
         Grant user access to projects in the auth database
         Args:
@@ -459,17 +461,6 @@ class UserSyncer(object):
         for (username, project_auth_id) in to_add:
             self.logger.info('update user info {}'.format(username))
             u = sess.query(User).filter(User.username == username).first()
-            is_new_user = False
-            if not u:
-                is_new_user = True
-                u = User(username=username)
-            u.email = user_info[username].get('email', '')
-            u.display_name = user_info[username].get('display_name', '')
-            u.phone_number = user_info[username].get('phone_number', '')
-
-            if is_new_user:
-                sess.add(u)
-
             auth_provider = auth_provider_list[0]
             if 'dbgap_role' not in user_info[username]:
                 auth_provider = auth_provider_list[1]
@@ -484,27 +475,35 @@ class UserSyncer(object):
 
         sess.commit()
 
-    def _update_userinfo(self, sess, user_info, user_project):
+    def _upsert_userinfo(self, sess, user_info):
         """
         update user info to database.
         Args:
             sess: sqlalchemy session
-            user_project: a dictionary of {username: {project: ['read','write']}
+            user_info: a dict of {username: {display_name, phone_number, dbgap_role}}
         Return:
             None
         """
-        if user_project is None:
-            return
 
-        for username in user_project:
+        for username in user_info:
             u = sess.query(User).filter(User.username == username).first()
 
-            # only happened if username does not have any access to any project
             if u is None:
-                continue
+                self.logger.info('create user {}'.format(username))
+                u = User(username=username)
+                u.email = user_info[username].get('email', '')
+                u.display_name = user_info[username].get('display_name', '')
+                u.phone_number = user_info[username].get('phone_number', '')
 
-            self.logger.info('update user info {}'.format(username))
-            try:
+                if u.tags == [] and 'dbgap_role' in user_info[username]:
+                    self.logger.info('create tag for {}'.format(username))
+                    tag = Tag(key='dbgap_role',
+                              value=user_info[username].get('dbgap_role', ''))
+                    tag.user = u
+                    sess.add(tag)
+                sess.add(u)
+            else:
+                self.logger.info('update user info {}'.format(username))
                 u.email = user_info[username].get('email', '')
                 u.display_name = user_info[username].get('display_name', '')
                 u.phone_number = user_info[username].get('phone_number', '')
@@ -514,11 +513,6 @@ class UserSyncer(object):
                               value=user_info[username].get('dbgap_role', ''))
                     tag.user = u
                     sess.add(tag)
-
-            except ValueError as e:
-                self.logger.info(e)
-            except AttributeError as e:
-                self.logger.info(e)
 
         sess.commit()
 
