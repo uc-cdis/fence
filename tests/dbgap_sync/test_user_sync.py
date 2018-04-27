@@ -25,6 +25,10 @@ def test_sync(syncer, db_session):
     assert user.project_access == {'phs000179': ['read-storage'], 'TCGA-PCAWG': ['read-storage'],
                                    'phs000178': ['read-storage']}
 
+    user = db_session.query(models.User).filter_by(username='USERD').one()
+    assert user.display_name == 'USER D'
+    assert user.phone_number == '123-456-789'
+
     user = db_session.query(models.User).filter_by(
         username='test_user1@gmail.com').one()
 

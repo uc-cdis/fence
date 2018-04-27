@@ -42,7 +42,8 @@ def syncer(db_session):
         {'username': 'test_user1@gmail.com', 'is_admin': False,
             'email': 'test_user1@gmail.com'},
         {'username': 'deleted_user@gmail.com',
-            'is_admin': False, 'email': 'deleted_user@gmail.com'}
+            'is_admin': False, 'email': 'deleted_user@gmail.com'},
+        {'username': 'USERD', 'is_admin': True, 'email': 'userD@gmail.com'}
     ]
 
     projects = [
@@ -106,26 +107,31 @@ def syncer(db_session):
         test_users.append(user)
         db_session.add(user)
 
-    auth_provider = AuthorizationProvider(name='fence')
+    auth_providers = [AuthorizationProvider(name='dbGaP'), AuthorizationProvider(name='fence')]
 
     access = AccessPrivilege(user=test_users[0], project=test_projects[0],
-                             auth_provider=auth_provider,
+                             auth_provider=auth_providers[1],
                              privilege=['read-storage', 'write-storage'])
     db_session.add(access)
 
     access = AccessPrivilege(user=test_users[1], project=test_projects[0],
-                             auth_provider=auth_provider,
+                             auth_provider=auth_providers[1],
                              privilege=['read-storage', 'write-storage'])
     db_session.add(access)
 
     access = AccessPrivilege(user=test_users[2], project=test_projects[0],
-                             auth_provider=auth_provider,
+                             auth_provider=auth_providers[1],
                              privilege=['read', 'read-storage', 'write-storage'])
     db_session.add(access)
 
     access = AccessPrivilege(user=test_users[2], project=test_projects[1],
-                             auth_provider=auth_provider,
+                             auth_provider=auth_providers[1],
                              privilege=['read', 'write', 'upload', 'read-storage', 'write-storage'])
+    
+    access = AccessPrivilege(user=test_users[4], project=test_projects[2],
+                             auth_provider=auth_providers[0],
+                             privilege=['read-storage'])
+
     db_session.add(access)
 
     db_session.commit()

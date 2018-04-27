@@ -399,6 +399,8 @@ class UserSyncer(object):
         self._grant_from_storage(to_update, user_project)
         self._update_from_db(sess, to_update, user_info, user_project)
 
+        self._update_userinfo(sess, user_info, user_project)
+
     def _revoke_from_db(self, sess, to_delete):
         """
         Revoke user access to projects in the auth database
@@ -441,18 +443,6 @@ class UserSyncer(object):
                     "update {} access to {} in db"
                     .format(username, project_auth_id))
                 access.privilege = user_project[username][project_auth_id]
-            u = sess.query(User).filter(User.username == username).first()
-            if u:
-                self.logger.info('update user info {}'.format(username))
-                u.email = user_info[username].get('email', '')
-                u.display_name = user_info[username].get('display_name', '')
-                u.phone_number = user_info[username].get('phone_number', '')
-                if u.tags == [] and 'dbgap_role' in user_info[username]:
-                    self.logger.info('create tag for {}'.format(username))
-                    tag = Tag(key='dbgap_role',
-                              value=user_info[username].get('dbgap_role', ''))
-                    tag.user = u
-                    sess.add(tag)
 
         sess.commit()
 
@@ -460,7 +450,7 @@ class UserSyncer(object):
         """
         Grant user access to projects in the auth database
         Args:
-            s: sqlalchemy session
+            sess: sqlalchemy session
             to_add: a set of (username, project.auth_id) to be granted
             user_project: a dictionary of {username: {project: ['read','write']}
         Return:
@@ -480,18 +470,6 @@ class UserSyncer(object):
             if is_new_user:
                 sess.add(u)
 
-            if (is_new_user or u.tags == []) and 'dbgap_role' in user_info[username]:
-                self.logger.info('create tag for {}'.format(username))
-                tag = Tag(key='dbgap_role',
-                          value=user_info[username].get('dbgap_role', ''))
-                tag.user = u
-                sess.add(tag)
-
-            self.logger.info(
-                'grant {} access to {} in db'
-                .format(username, project_auth_id)
-            )
-
             auth_provider = auth_provider_list[0]
             if 'dbgap_role' not in user_info[username]:
                 auth_provider = auth_provider_list[1]
@@ -503,6 +481,44 @@ class UserSyncer(object):
                     user_project[username][project_auth_id]),
                 auth_provider=auth_provider)
             sess.add(user_access)
+
+        sess.commit()
+
+    def _update_userinfo(self, sess, user_info, user_project):
+        """
+        update user info to database.
+        Args:
+            sess: sqlalchemy session
+            user_project: a dictionary of {username: {project: ['read','write']}
+        Return:
+            None
+        """
+        if user_project is None:
+            return
+
+        for username in user_project:
+            u = sess.query(User).filter(User.username == username).first()
+
+            # only happened if username does not have any access to any project
+            if u is None:
+                continue
+
+            self.logger.info('update user info {}'.format(username))
+            try:
+                u.email = user_info[username].get('email', '')
+                u.display_name = user_info[username].get('display_name', '')
+                u.phone_number = user_info[username].get('phone_number', '')
+                if u.tags == [] and 'dbgap_role' in user_info[username]:
+                    self.logger.info('create tag for {}'.format(username))
+                    tag = Tag(key='dbgap_role',
+                              value=user_info[username].get('dbgap_role', ''))
+                    tag.user = u
+                    sess.add(tag)
+
+            except ValueError as e:
+                self.logger.info(e)
+            except AttributeError as e:
+                self.logger.info(e)
 
         sess.commit()
 
