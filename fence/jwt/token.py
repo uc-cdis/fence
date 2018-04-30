@@ -429,6 +429,10 @@ def generate_id_token(
     # If not provided, assume auth time is time this ID token is issued
     auth_time = auth_time or iat
 
+    # NOTE: if the claims here are modified, be sure to update the
+    # `claims_supported` field returned from the OIDC configuration endpoint
+    # ``/.well-known/openid-configuration``, in
+    # ``fence/blueprints/well_known.py``.
     claims = {
         'context': {
             'user': {
