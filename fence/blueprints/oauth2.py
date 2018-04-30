@@ -27,6 +27,7 @@ from fence.errors import Unauthorized
 from fence.jwt.token import SCOPE_DESCRIPTION
 from fence.models import Client
 from fence.oidc.server import server
+from fence.utils import clear_cookies
 from fence.user import get_current_user
 
 
@@ -216,10 +217,7 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
                         flask.redirect(flask.url_for('.authorize'))
                     )
 
-                # Set all cookies to empty and expired.
-                for cookie_name in flask.request.cookies.values():
-                    redirect_response.set_cookie(cookie_name, '', expires=0)
-
+                clear_cookies(redirect_response)
                 return redirect_response
             except Unauthorized:
                 error = AccessDeniedError(
