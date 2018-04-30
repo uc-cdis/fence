@@ -6,6 +6,7 @@ from authlib.specs.oidc import IDTokenError
 from fence.jwt.token import generate_signed_id_token, UnsignedIDToken
 from fence.jwt.validate import validate_jwt
 from fence.models import User
+from fence.resources.storage.cdis_jwt import create_id_token
 from fence.utils import random_str
 
 

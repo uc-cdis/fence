@@ -5,12 +5,11 @@ Test using an API key to generate an access token.
 from tests.utils.api_key import get_api_key
 
 
-def test_cdis_get_access_token(
-        client, oauth_client, encoded_creds_jwt, no_mock_auth):
+def test_cdis_get_access_token(client, oauth_client, encoded_creds_jwt):
     """
     Test ``POST /credentials/cdis/access_token``.
     """
-    encoded_credentials_jwt = encoded_creds_jwt["jwt"]
+    encoded_credentials_jwt = encoded_creds_jwt['jwt']
     response = get_api_key(client, encoded_credentials_jwt)
     api_key = response.json['api_key']
     path = '/credentials/cdis/access_token'

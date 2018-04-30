@@ -51,7 +51,7 @@ def _create_new_user(username, idp_name):
         idp_name (str)
 
     Return:
-        None
+        fence.models.User: the new user
 
     Side Effects:
         - Commit new ``User`` model to the database.
@@ -64,6 +64,7 @@ def _create_new_user(username, idp_name):
         new_user.identity_provider = idp
         session.add(new_user)
         session.commit()
+    return new_user
 
 
 def _get_user(username):
@@ -86,7 +87,7 @@ def _get_user(username):
     # If the user doesn't exist yet, create a new user.
     if not user:
         idp_name = flask.session.get('provider')
-        _create_new_user(username, idp_name)
+        user = _create_new_user(username, idp_name)
 
     return Dict(dict(user.__dict__))
 

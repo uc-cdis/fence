@@ -9,6 +9,7 @@ from fence.models import (
     Certificate,
 )
 from fence.resources.user import send_mail, get_current_user_info
+from fence.user import current_user
 
 
 REQUIRED_CERTIFICATES = {
@@ -22,7 +23,7 @@ blueprint = flask.Blueprint('user', __name__)
 @blueprint.route('/', methods=['GET'])
 @require_auth(aud={'user'})
 def user_info():
-    return get_current_user_info()
+    return get_current_user_info(current_user)
 
 
 @blueprint.route('/anyaccess', methods=['GET'])

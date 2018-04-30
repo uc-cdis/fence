@@ -89,7 +89,7 @@ def test_indexd_unauthorized_download_file(
 
 def test_unauthorized_indexd_download_file(
         client, oauth_client, user_client, indexd_client, kid,
-        rsa_private_key):
+        rsa_private_key, no_mock_auth):
     """
     Test ``GET /data/download/1``.
     """
@@ -109,7 +109,7 @@ def test_unauthorized_indexd_download_file(
 
 def test_unauthorized_indexd_upload_file(
         client, oauth_client, encoded_jwt, user_client, indexd_client, kid,
-        rsa_private_key):
+        rsa_private_key, no_mock_auth):
     """
     Test ``GET /data/upload/1``.
     """
