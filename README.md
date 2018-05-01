@@ -114,6 +114,9 @@ We use JSON Web Tokens (JWTs) as the format for our authentication mechanism.
           "delete",
           "read-storage"
         ]
+      },
+      "google": {
+          "linked_google_account": "somebody@example.com"
       }
     }
   },
@@ -151,6 +154,7 @@ We use JSON Web Tokens (JWTs) as the format for our authentication mechanism.
       },
       "google": {
           "proxy_group": "abcdefgh123456",
+          "linked_google_account": "somebody@example.com"
       }
     }
   },
