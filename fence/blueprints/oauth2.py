@@ -268,7 +268,7 @@ def _get_authorize_error_response(error, redirect_uri):
 
 
 @blueprint.route('/token', methods=['POST'])
-def get_access_token(*args, **kwargs):
+def get_token(*args, **kwargs):
     """
     Handle exchanging code for and refreshing the access token.
 

@@ -8,10 +8,12 @@ DB = 'postgresql://test:test@localhost:5432/fence'
 MOCK_AUTH = False
 MOCK_STORAGE = False
 
-BASE_URL = 'http://localhost/user'
+SERVER_NAME = 'http://localhost/user'
+BASE_URL = SERVER_NAME
 APPLICATION_ROOT = '/user'
 
 ROOT_DIR = '/fence'
+
 # If using multi-tenant setup, configure this to the base URL for the provider
 # fence (i.e. ``BASE_URL`` in the provider fence config).
 # OIDC_ISSUER = 'http://localhost:8080/user
