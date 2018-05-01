@@ -7,7 +7,6 @@ This blueprint defines the endpoints under ``.well-known/``, which includes:
 import flask
 
 from fence.jwt.token import (
-    SESSION_ALLOWED_SCOPES,
     USER_ALLOWED_SCOPES,
     CLIENT_ALLOWED_SCOPES,
 )
