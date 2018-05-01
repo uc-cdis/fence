@@ -69,7 +69,8 @@ class UserSyncer(object):
         self.sync_from_local_yaml_file = sync_from_local_yaml_file
         self.is_sync_from_dbgap_server = is_sync_from_dbgap_server
         if is_sync_from_dbgap_server:
-            self.sftp = dbGaP['sftp']
+            self.server = dbGaP['info']
+            self.protocol = dbGaP['protocol']
             self.dbgap_key = dbGaP['decrypt_key']
         self.session = db_session
         self.driver = SQLAlchemyDriver(DB)
@@ -110,20 +111,20 @@ class UserSyncer(object):
         """
 
         proxy = None
-        if self.sftp.get('proxy', '') != '':
+        if self.server.get('proxy', '') != '':
             proxy = ProxyCommand('ssh -i ~/.ssh/id_rsa '
                                  '{}@{} nc {} {}'.format(
-                                     self.sftp.get('proxy_user', ''),
-                                     self.sftp.get('proxy', ''), self.sftp.get('host', ''), self.sftp.get('port', 22)))
+                                     self.server.get('proxy_user', ''),
+                                     self.server.get('proxy', ''), self.server.get('host', ''), self.server.get('port', 22)))
 
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.WarningPolicy())
 
         parameters = {
-            "hostname": self.sftp.get('host', ''),
-            "username": self.sftp.get('username', ''),
-            "password": self.sftp.get('password', ''),
-            "port": self.sftp.get('port', 22),
+            "hostname": self.server.get('host', ''),
+            "username": self.server.get('username', ''),
+            "password": self.server.get('password', ''),
+            "port": self.server.get('port', 22),
         }
 
         if proxy:
@@ -137,6 +138,18 @@ class UserSyncer(object):
         client.close()
         if proxy:
             proxy.close()
+
+    def _get_from_ftp_with_proxy(self, path):
+        """
+        Download data fro m ftp sever to alocal dir
+        Args:
+            path(str): path to local files
+        Returns:
+            None
+        """
+        execstr = ("lftp -u {},{}  {} -e \"set ftp:proxy http://{}; mirror . {}; exit\"".format(self.server.get('username',
+                                                                                                                ''), self.server.get('password', ''), self.server.get('host', ''), self.server.get('proxy', ''), path))
+        os.system(execstr)
 
     @contextmanager
     def _read_file(self, filepath, encrypted=True):
@@ -400,7 +413,6 @@ class UserSyncer(object):
         self._grant_from_storage(to_update, user_project)
         self._update_from_db(sess, to_update, user_project)
 
-
     def _revoke_from_db(self, sess, to_delete):
         """
         Revoke user access to projects in the auth database
@@ -611,9 +623,12 @@ class UserSyncer(object):
         dbgap_file_list = []
         tmpdir = tempfile.mkdtemp()
         if self.is_sync_from_dbgap_server:
-            self.logger.info('Download from sftp server')
+            self.logger.info('Download from server')
             try:
-                self._get_from_sftp_with_proxy(tmpdir)
+                if self.protocol == 'sftp':
+                    self._get_from_sftp_with_proxy(tmpdir)
+                else:
+                    self._get_from_ftp_with_proxy(tmpdir)
                 dbgap_file_list = glob.glob(os.path.join(tmpdir, '*'))
             except Exception as e:
                 self.logger.info(e)
@@ -650,9 +665,13 @@ class UserSyncer(object):
         self.sync_two_phsids_dict(user_projects3, user_projects1)
         self.sync_two_user_info_dict(user_info3, user_info1)
 
-        self.logger.info('Sync to db and storage backend')
-        self.sync_to_db_and_storage_backend(user_projects1, user_info1, sess)
-        self.logger.info('Finish syncing to db and storage backend')
+        if len(user_projects1) > 0:
+            self.logger.info('Sync to db and storage backend')
+            self.sync_to_db_and_storage_backend(
+                user_projects1, user_info1, sess)
+            self.logger.info('Finish syncing to db and storage backend')
+        else:
+            self.logger.info('No users for syncing!!!')
 
 
 if __name__ == '__main__':
