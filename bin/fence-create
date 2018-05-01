@@ -14,7 +14,8 @@ from fence.scripting.fence_create import (
     remove_expired_google_service_account_keys,
     create_user_token,
     remove_expired_google_accounts_from_proxy_groups,
-    create_google_bucket
+    create_google_bucket,
+    link_bucket_to_project
 )
 
 
@@ -55,6 +56,16 @@ def parse_arguments():
 
     dbgap_sync = subparsers.add_parser('sync-dbgap')
     dbgap_sync.add_argument('--projects', required=True)
+
+    bucket_link_to_project = subparsers.add_parser('link-bucket-to-project')
+    bucket_link_to_project.add_argument(
+        '--bucket_id', required=True, help='ID or name for the bucket')
+    bucket_link_to_project.add_argument(
+        '--bucket_provider', required=True,
+        help='CloudProvider.name for the bucket')
+    bucket_link_to_project.add_argument(
+        '--project_auth_id', required=True,
+        help='Project.auth_id to link to bucket')
 
     google_bucket_create = subparsers.add_parser('google-bucket-create')
     google_bucket_create.add_argument(
@@ -148,6 +159,13 @@ def main():
             google_project_id=args.google_project_id,
             project_auth_id=args.project_auth_id,
             access_logs_bucket=args.access_logs_bucket)
+    elif args.action == 'link-bucket-to-project':
+        link_bucket_to_project(
+            DB,
+            bucket_id=args.bucket_id,
+            bucket_provider=args.bucket_provider,
+            project_auth_id=args.project_auth_id
+        )
     elif args.action == 'token-create':
         token = create_user_token(
             DB, BASE_URL, ROOT_DIR, args.__dict__['kid'],

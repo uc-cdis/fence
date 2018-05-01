@@ -594,13 +594,17 @@ def create_user_access_token(DB, BASE_URL, ROOT_DIR, kid, username, scopes, expi
         return jti, to_unicode(jwt.encode(claims, private_key, headers=headers, algorithm='RS256'), 'UTF-8'), claims
 
 
-def link_bucket_to_project(db, bucket_name, bucket_provider, project_auth_id):
+def link_bucket_to_project(db, bucket_id, bucket_provider, project_auth_id):
     """
     Associate a bucket to a specific project (with provided auth_id).
 
     Args:
         db (TYPE): database
-        bucket_name (str): name for the bucket, must be globally unique throughout Google
+        bucket_id (str): bucket db id or unique name
+            WARNING: name uniqueness is only required for Google so it's not
+                     a requirement of the db table. You will get an error if
+                     there are multiple buckets with the given name. In that
+                     case, you'll have to use the bucket's id.
         bucket_provider (str): CloudProvider.name for the bucket
         project_auth_id (str): Project.auth_id to link to bucket
     """
@@ -616,16 +620,47 @@ def link_bucket_to_project(db, bucket_name, bucket_provider, project_auth_id):
                 .format(bucket_provider)
             )
 
-        bucket_db_entry = (
-            current_session.query(Bucket)
-            .filter_by(
-                name=bucket_name,
-                provider_id=google_cloud_provider.id)
-        )
+        # first try by searching using id
+        try:
+            bucket_id = int(bucket_id)
+            bucket_db_entry = (
+                current_session.query(Bucket)
+                .filter_by(
+                    id=bucket_id,
+                    provider_id=google_cloud_provider.id)
+            ).first()
+        except ValueError:
+            # invalid id, must be int
+            bucket_db_entry = None
+
+        # nothing found? try searching for single bucket with name bucket_id
+        if not bucket_db_entry:
+            buckets_by_name = (
+                current_session.query(Bucket)
+                .filter_by(
+                    name=bucket_id,
+                    provider_id=google_cloud_provider.id)
+            )
+            # don't get a bucket if the name isn't unique. NOTE: for Google,
+            # these have to be globally unique so they'll be unique here.
+            buckets_with_name = buckets_by_name.count()
+            if buckets_with_name == 1:
+                bucket_db_entry = buckets_by_name[0]
+            elif buckets_with_name > 1:
+                raise NameError(
+                    'No bucket with id "{bucket_id}" exists. Tried buckets '
+                    'with name "{bucket_id}", but this returned multiple '
+                    'buckets. Please specify the id from the db and not just '
+                    'the name.'.format(bucket_id=bucket_id)
+                )
+            else:
+                # keep bucket_db_entry as None
+                pass
+
         if not bucket_db_entry:
             raise NameError(
-                'No bucket with name "{}" exists.'
-                .format(bucket_name)
+                'No bucket with id or name "{}" exists.'
+                .format(bucket_id)
             )
 
         project_db_entry = (
