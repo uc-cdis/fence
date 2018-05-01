@@ -12,7 +12,7 @@ except ImportError:
 
 
 # WARNING: the test database is cleared every run
-DB = 'postgresql://postgres@localhost:5432/fence_test_tmp'
+DB = 'postgresql://postgres:postgres@localhost:5432/fence_test_tmp'
 
 MOCK_AUTH = True
 
