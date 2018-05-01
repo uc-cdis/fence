@@ -242,9 +242,9 @@ def app(kid, rsa_private_key, rsa_public_key):
     fence.app.keypairs.append(Keypair(
         kid=kid, public_key=rsa_public_key, private_key=rsa_private_key
     ))
-    fence.app.jwt_public_keys = {
+    fence.app.jwt_public_keys.update({
         fence.app.config['BASE_URL']: OrderedDict([(kid, rsa_public_key)])
-    }
+    })
     return fence.app
 
 

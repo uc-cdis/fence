@@ -69,6 +69,7 @@ def load_keypairs(keys_dir):
 
     return keypairs
 
+
 class Keypair(object):
     """
     Define a store for a public and private keypair associated with a key id
@@ -144,7 +145,7 @@ class Keypair(object):
         with open(prv_filepath, 'r') as f:
             private_key = f.read()
 
-        kid = naming_function(keys_dir)
+        kid = naming_function(os.path.basename(keys_dir))
 
         return cls(kid, public_key, private_key)
 
