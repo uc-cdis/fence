@@ -238,6 +238,7 @@ def app(kid, rsa_private_key, rsa_public_key):
     root_dir = os.path.dirname(os.path.realpath(__file__))
 
     app_init(fence.app, test_settings, root_dir=root_dir)
+
     fence.app.keypairs.append(Keypair(
         kid=kid, public_key=rsa_public_key, private_key=rsa_private_key
     ))
