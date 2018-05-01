@@ -4,9 +4,11 @@ import os.path
 import uuid
 import jwt
 import yaml
+import time
 from authlib.common.encoding import to_unicode
 
 from cirrus import GoogleCloudManager
+from cdispyutils.log import get_logger
 from userdatamodel.driver import SQLAlchemyDriver
 from userdatamodel.models import (
     AccessPrivilege,
@@ -20,16 +22,19 @@ from userdatamodel.models import (
     User,
 )
 
-
 from fence.models import Client
 from fence.models import GoogleServiceAccount
+from fence.models import UserGoogleAccount
+from fence.models import UserGoogleAccountToProxyGroup
 from fence.models import UserRefreshToken
 from fence.utils import create_client, drop_client
-from fence.sync.sync_dbgap import DbGapSyncer
+from fence.sync.sync_users import UserSyncer
 
 from fence.jwt.token import (
     issued_and_expiration_times,
 )
+
+logger = get_logger(__name__)
 
 
 def create_client_action(
@@ -49,8 +54,10 @@ def delete_client_action(DB, client):
         print(e.message)
 
 
-def sync_dbgap(projects):
-    """
+def sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
+               projects=None, is_sync_from_dbgap_server=False,
+               sync_from_local_csv_dir=None, sync_from_local_yaml_file=None):
+    '''
     sync ACL files from dbGap to auth db and storage backends
     imports from local_settings is done here because dbGap is
     an optional requirment for fence so it might not be specified
@@ -71,14 +78,36 @@ def sync_dbgap(projects):
             phs000235:
               - name: CGCI
                 auth_id: phs000235
-    """
-    from local_settings import dbGaP, STORAGE_CREDENTIALS, DB
-    with open(projects, 'r') as f:
-        project_mapping = yaml.load(f)
-    syncer = DbGapSyncer(
-        dbGaP, DB, project_mapping, storage_credentials=STORAGE_CREDENTIALS
+    '''
+
+    if ((is_sync_from_dbgap_server or sync_from_local_csv_dir) and projects is None):
+        logger.error("=====project mapping needs to be provided!!!=======")
+        return
+    if ((is_sync_from_dbgap_server or sync_from_local_csv_dir) and os.path.exists(projects) == False):
+        logger.error("====={} is not found!!!=======".format(projects))
+        return
+    if sync_from_local_csv_dir and os.path.exists(sync_from_local_csv_dir) == False:
+        logger.error("====={} is not found!!!=======".format(
+            sync_from_local_csv_dir))
+        return
+    if sync_from_local_yaml_file and os.path.exists(sync_from_local_yaml_file) == False:
+        logger.error("====={} is not found!!!=======".format(
+            sync_from_local_yaml_file))
+        return
+
+    project_mapping = None
+    if projects:
+        try:
+            with open(projects, 'r') as f:
+                project_mapping = yaml.load(f)
+        except IOError:
+            pass
+
+    syncer = UserSyncer(
+        dbGaP, DB, project_mapping=project_mapping, storage_credentials=STORAGE_CREDENTIALS,
+        is_sync_from_dbgap_server=is_sync_from_dbgap_server,
+        sync_from_local_csv_dir=sync_from_local_csv_dir, sync_from_local_yaml_file=sync_from_local_yaml_file
     )
-    print('sync')
     syncer.sync()
 
 
@@ -291,7 +320,8 @@ def google_init(db):
                     google_unique_id=primary_service_account["uniqueId"],
                     client_id=None,
                     user_id=user.id,
-                    email=primary_service_account["email"]
+                    email=primary_service_account["email"],
+                    google_project_id=primary_service_account['projectId']
                 )
 
                 proxy_group = GoogleProxyGroup(
@@ -316,6 +346,62 @@ def remove_expired_google_service_account_keys(db):
             for service_account, client in client_service_accounts:
                 g_mgr.handle_expired_service_account_keys(
                     service_account.google_unique_id)
+
+
+def remove_expired_google_accounts_from_proxy_groups(db):
+    db = SQLAlchemyDriver(db)
+    with db.session as current_session:
+        current_time = int(time.time())
+        print('Current time: {}'.format(current_time))
+
+        expired_accounts = (
+            current_session.query(UserGoogleAccountToProxyGroup)
+            .filter(
+                UserGoogleAccountToProxyGroup
+                .expires <= current_time)
+        )
+
+        with GoogleCloudManager() as g_mgr:
+            for expired_account_access in expired_accounts:
+                g_account = (
+                    current_session.query(UserGoogleAccount)
+                    .filter(
+                        UserGoogleAccount.id ==
+                        expired_account_access.user_google_account_id).first()
+                )
+                try:
+                    response = g_mgr.remove_member_from_group(
+                        member_email=g_account.email,
+                        group_id=expired_account_access.proxy_group_id
+                    )
+                    response_error_code = response.get('error', {}).get('code')
+
+                    if not response_error_code:
+                        current_session.delete(expired_account_access)
+                        print(
+                            'INFO: Removed {} from proxy group with id {}.\n'
+                            .format(
+                                g_account.email,
+                                expired_account_access.proxy_group_id)
+                        )
+                    else:
+                        print(
+                            'ERROR: Google returned an error when attempting to '
+                            'remove member {} from proxy group {}. Error:\n{}\n'
+                            .format(
+                                g_account.email,
+                                expired_account_access.proxy_group_id,
+                                response)
+                        )
+                except Exception as exc:
+                    print(
+                        'ERROR: Google returned an error when attempting to '
+                        'remove member {} from proxy group {}. Error:\n{}\n'
+                        .format(
+                            g_account.email,
+                            expired_account_access.proxy_group_id,
+                            exc)
+                    )
 
 
 def delete_users(DB, usernames):

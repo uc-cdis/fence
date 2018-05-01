@@ -26,6 +26,7 @@ import fence.blueprints.oauth2
 import fence.blueprints.storage_creds
 import fence.blueprints.user
 import fence.blueprints.well_known
+import fence.blueprints.link
 import fence.client
 
 
@@ -87,6 +88,8 @@ def app_register_blueprints(app):
 
     login_blueprint = fence.blueprints.login.make_login_blueprint(app)
     app.register_blueprint(login_blueprint, url_prefix='/login')
+    link_blueprint = fence.blueprints.link.make_link_blueprint()
+    app.register_blueprint(link_blueprint, url_prefix='/link')
 
     @app.route('/')
     def root():
@@ -104,7 +107,7 @@ def app_register_blueprints(app):
     def logout_endpoint():
         root = app.config.get('APPLICATION_ROOT', '')
         next_url = build_redirect_url(app.config.get('ROOT_URL', ''), flask.request.args.get('next', root))
-        return flask.redirect(logout(next_url=next_url))
+        return logout(next_url=next_url)
 
     @app.route('/jwt/keys')
     def public_keys():

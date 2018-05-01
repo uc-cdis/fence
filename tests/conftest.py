@@ -56,7 +56,7 @@ def indexd_get_available_bucket(file_id):
         'file_name': 'file1',
         'urls': ['s3://bucket1/key'],
         'hashes': {},
-        'metadata': {'acls': 'phs000178,phs000218'},
+        'acl': ['phs000178', 'phs000218'],
         'form': '',
         'created_date': '',
         "updated_date": ''
@@ -72,7 +72,7 @@ def indexd_get_unavailable_bucket(file_id):
         'file_name': 'file1',
         'urls': ['s3://bucket5/key'],
         'hashes': {},
-        'metadata': {'acls': 'phs000178,phs000218'},
+        'acl': ['phs000178', 'phs000218'],
         'form': '',
         'created_date': '',
         "updated_date": ''
@@ -88,7 +88,7 @@ def indexd_get_public_object(file_id):
         'file_name': 'file1',
         'urls': ['s3://bucket1/key'],
         'hashes': {},
-        'metadata': {'acls': '*'},
+        'acl': ['*'],
         'form': '',
         'created_date': '',
         "updated_date": ''
@@ -104,11 +104,12 @@ def indexd_get_public_bucket(file_id):
         'file_name': 'file1',
         'urls': ['s3://bucket4/key'],
         'hashes': {},
-        'metadata': {'acls': '*'},
+        'acl': ['*'],
         'form': '',
         'created_date': '',
         "updated_date": ''
     }
+
 
 def mock_get_bucket_location(self, bucket, config):
     return 'us-east-1'
@@ -235,6 +236,7 @@ def app(kid, rsa_private_key, rsa_public_key):
     mocker = Mocker()
     mocker.mock_functions()
     root_dir = os.path.dirname(os.path.realpath(__file__))
+
     app_init(fence.app, test_settings, root_dir=root_dir)
     fence.app.keypairs.append(Keypair(
         kid=kid, public_key=rsa_public_key, private_key=rsa_private_key
@@ -394,6 +396,7 @@ def patch_app_db_session(app, monkeypatch):
         monkeypatch.setattr(app.db, 'Session', lambda: session)
         modules_to_patch = [
             'fence.auth',
+            'fence.blueprints.link',
             'fence.blueprints.storage_creds.google',
             'fence.oidc.jwt_generator',
             'fence.user',

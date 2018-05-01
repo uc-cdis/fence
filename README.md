@@ -148,6 +148,9 @@ We use JSON Web Tokens (JWTs) as the format for our authentication mechanism.
           "delete",
           "read-storage"
         ]
+      },
+      "google": {
+          "proxy_group": "abcdefgh123456",
       }
     }
   },
@@ -181,10 +184,10 @@ We use JSON Web Tokens (JWTs) as the format for our authentication mechanism.
 Generating a keypair using `openssl`:
 ```bash
 # Generate the private key.
-openssl rsa -out private_key.pem 2048
+openssl genpkey -algorithm RSA -out private_key.pem -pkeyopt rsa_keygen_bits:2048
 
 # Generate the public key.
-openssl rsa -in private_key.pem -pubout -out public_key.pem
+openssl rsa -pubout -in private_key.pem -out public_key.pem
 ```
 (It's not a bad idea to confirm that the files actually say `RSA PRIVATE KEY`
 and `PUBLIC KEY`.)

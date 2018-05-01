@@ -18,14 +18,23 @@ class GoogleRedirect(Resource):
 class GoogleLogin(Resource):
 
     def get(self):
-        code = flask.request.args.get('code')
-        result = flask.current_app.google_client.get_user_id(code)
-        email = result.get('email')
-        if email:
-            flask.session['username'] = email
-            flask.session['provider'] = IdentityProvider.google
-            login_user(flask.request, email, IdentityProvider.google)
-            if flask.session.get('redirect'):
-                return flask.redirect(flask.session.get('redirect'))
-            return flask.jsonify({'username': email})
-        raise UserError(result)
+        # Check if this is a request to link account vs. actually log in
+        if flask.session.get('google_link'):
+            return flask.redirect(
+                flask.current_app.config.get('BASE_URL', '') +
+                '/link/google/callback?code={}'.format(
+                    flask.request.args.get('code')
+                )
+            )
+        else:
+            code = flask.request.args.get('code')
+            result = flask.current_app.google_client.get_user_id(code)
+            email = result.get('email')
+            if email:
+                flask.session['username'] = email
+                flask.session['provider'] = IdentityProvider.google
+                login_user(flask.request, email, IdentityProvider.google)
+                if flask.session.get('redirect'):
+                    return flask.redirect(flask.session.get('redirect'))
+                return flask.jsonify({'username': email})
+            raise UserError(result)

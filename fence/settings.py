@@ -47,7 +47,6 @@ ACCESS_TOKEN_COOKIE_NAME = 'access_token'
 #: The number of seconds after a refresh token is issued until it expires.
 REFRESH_TOKEN_EXPIRES_IN = 2592000
 
-
 #: ``SESSION_TIMEOUT: int``
 #: The number of seconds after which a browser session is considered stale.
 SESSION_TIMEOUT = 1800
@@ -55,6 +54,11 @@ SESSION_TIMEOUT = 1800
 #: ``SESSION_LIFETIME: int``
 #: The maximum session lifetime in seconds.
 SESSION_LIFETIME = 28800
+
+#: ``GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN: int``
+#: The number of seconds after a User's Google account is added to bucket
+#: access until it expires.
+GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN = 86400
 
 #: ``SESSION_COOKIE_NAME: str``
 #: The name of the browser cookie in which the session token will be stored.
