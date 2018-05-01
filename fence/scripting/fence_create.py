@@ -1,14 +1,15 @@
+# standard
 import os
 import os.path
-
 import time
 import uuid
-import jwt
-import yaml
-import time
-from authlib.common.encoding import to_unicode
 
+# third-party
+from authlib.common.encoding import to_unicode
 from cirrus import GoogleCloudManager
+from cirrus.config import config as cirrus_config
+
+import jwt
 from userdatamodel.driver import SQLAlchemyDriver
 from userdatamodel.models import (
     AccessPrivilege,
@@ -20,22 +21,26 @@ from userdatamodel.models import (
     Project,
     StorageAccess,
     User,
+    ProjectToBucket
 )
+import yaml
 
+# local
+from fence.jwt.token import (
+    issued_and_expiration_times,
+)
 from fence.models import (
     Client,
     GoogleServiceAccount,
     GoogleServiceAccountKey,
     UserGoogleAccount,
     UserGoogleAccountToProxyGroup,
+    GoogleBucketAccessGroup,
+    GoogleProxyGroupToGoogleBucketAccessGroup,
     UserRefreshToken
 )
-from fence.utils import create_client, drop_client
 from fence.sync.sync_dbgap import DbGapSyncer
-
-from fence.jwt.token import (
-    issued_and_expiration_times,
-)
+from fence.utils import create_client, drop_client
 
 
 def create_client_action(
@@ -376,7 +381,6 @@ def remove_expired_google_service_account_keys(db):
                     )
 
 
-
 def remove_expired_google_accounts_from_proxy_groups(db):
     db = SQLAlchemyDriver(db)
     with db.session as current_session:
@@ -588,3 +592,189 @@ def create_user_access_token(DB, BASE_URL, ROOT_DIR, kid, username, scopes, expi
         }
 
         return jti, to_unicode(jwt.encode(claims, private_key, headers=headers, algorithm='RS256'), 'UTF-8'), claims
+
+
+def link_bucket_to_project(db, bucket_name, bucket_provider, project_auth_id):
+    """
+    Associate a bucket to a specific project (with provided auth_id).
+
+    Args:
+        db (TYPE): database
+        bucket_name (str): name for the bucket, must be globally unique throughout Google
+        bucket_provider (str): CloudProvider.name for the bucket
+        project_auth_id (str): Project.auth_id to link to bucket
+    """
+    driver = SQLAlchemyDriver(db)
+    with driver.session as current_session:
+        google_cloud_provider = (
+            current_session.query(
+                CloudProvider).filter_by(name=bucket_provider).first()
+        )
+        if not google_cloud_provider:
+            raise NameError(
+                'No bucket with provider "{}" exists.'
+                .format(bucket_provider)
+            )
+
+        bucket_db_entry = (
+            current_session.query(Bucket)
+            .filter_by(
+                name=bucket_name,
+                provider_id=google_cloud_provider.id)
+        )
+        if not bucket_db_entry:
+            raise NameError(
+                'No bucket with name "{}" exists.'
+                .format(bucket_name)
+            )
+
+        project_db_entry = (
+            current_session.query(
+                Project).filter_by(auth_id=project_auth_id).first()
+        )
+        if not project_db_entry:
+            raise NameError(
+                'No project with auth_id "{}" exists.'
+                .format(project_auth_id)
+            )
+
+        project_linkage = ProjectToBucket(
+            project_id=project_db_entry.id,
+            bucket_id=bucket_db_entry.id,
+            privilege=['owner']  # TODO What should this be???
+        )
+        current_session.add(project_linkage)
+        current_session.commit()
+
+
+def create_google_bucket(
+        db, name, storage_class=None, public=False, requester_pays=False,
+        google_project_id=None, project_auth_id=None, access_logs_bucket=None):
+    """
+    Create a Google bucket and populate database with necessary information.
+
+    If the bucket is not public, this will also create a Google Bucket Access
+    Group to control read access to the new bucket. In order to give access
+    to a new user, simply add them to the Google Bucket Access Group.
+
+    Args:
+        db (TYPE): database
+        name (str): name for the bucket, must be globally unique throughout Google
+        storage_class (str): enum, one of the cirrus's GOOGLE_STORAGE_CLASSES
+        public (bool, optional): whether or not the bucket should be public
+        requester_pays (bool, optional): Whether or not to enable requester_pays
+            on the bucket
+        google_project_id (str, optional): Google project this bucket should be
+            associated with
+        project_auth_id (str, optional): a Project.auth_id to associate this
+            bucket with. The project must exist in the db already.
+        access_logs_bucket (str, optional): Enables logging. Must provide a
+            Google bucket name which will store the access logs
+    """
+    import fence.local_settings
+    cirrus_config.update(**fence.local_settings.CIRRUS_CFG)
+
+    google_project_id = google_project_id or cirrus_config.GOOGLE_PROJECT_ID
+
+    driver = SQLAlchemyDriver(db)
+    with driver.session as current_session:
+        # use storage creds to create bucket (default creds don't have permission)
+        bucket_db_entry = (
+            _create_google_bucket_and_update_db(
+                db_session=current_session,
+                name=name,
+                storage_class=storage_class,
+                requester_pays=requester_pays,
+                google_project_id=google_project_id,
+                public=public,
+                project_auth_id=project_auth_id,
+                access_logs_bucket=access_logs_bucket)
+        )
+
+        if not public:
+            access_group = (
+                _create_google_bucket_access_group(
+                    db_session=current_session,
+                    google_bucket_name=name,
+                    bucket_db_id=bucket_db_entry.id,
+                    google_project_id=google_project_id)
+            )
+
+
+def _create_google_bucket_and_update_db(
+        db_session, name, storage_class, public, requester_pays,
+        google_project_id, project_auth_id, access_logs_bucket):
+    """
+    Handles creates the Google bucket and adding necessary db entry
+    """
+    manager = GoogleCloudManager(
+        google_project_id, creds=cirrus_config.configs['GOOGLE_STORAGE_CREDS'])
+    with manager as g_mgr:
+        g_mgr.create_bucket(
+            name,
+            storage_class=storage_class,
+            public=public,
+            requester_pays=requester_pays,
+            project=google_project_id,
+            access_logs_bucket=access_logs_bucket)
+
+        # add bucket to db
+        google_cloud_provider = (
+            db_session.query(
+                CloudProvider).filter_by(name='google').first()
+        )
+        if not google_cloud_provider:
+            google_cloud_provider = CloudProvider(
+                name='google',
+                description='Google Cloud Platform',
+                service='general')
+            db_session.add(google_cloud_provider)
+            db_session.commit()
+
+        bucket_db_entry = Bucket(
+            name=name,
+            provider_id=google_cloud_provider.id
+        )
+        db_session.add(bucket_db_entry)
+        db_session.commit()
+
+        # optionally link this new bucket to an existing project
+        if project_auth_id:
+            project_db_entry = (
+                db_session.query(
+                    Project).filter_by(auth_id=project_auth_id).first()
+            )
+            if project_db_entry:
+                project_linkage = ProjectToBucket(
+                    project_id=project_db_entry.id,
+                    bucket_id=bucket_db_entry.id,
+                    privilege=['owner']  # TODO What should this be???
+                )
+                db_session.add(project_linkage)
+                db_session.commit()
+
+    return bucket_db_entry
+
+
+def _create_google_bucket_access_group(
+        db_session, google_bucket_name, bucket_db_id, google_project_id):
+    access_group = None
+
+    # use default creds for creating group and iam policies
+    with GoogleCloudManager(google_project_id) as g_mgr:
+        # create bucket access group
+        result = g_mgr.create_group(
+            name=google_bucket_name + '_access_group')
+        group_email = result['email']
+
+        # add bucket group to db
+        access_group = GoogleBucketAccessGroup(
+            bucket_id=bucket_db_id,
+            email=group_email
+        )
+        db_session.add(access_group)
+        db_session.commit()
+
+        g_mgr.give_group_access_to_bucket(group_email, google_bucket_name)
+
+    return access_group

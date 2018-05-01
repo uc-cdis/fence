@@ -10,7 +10,7 @@ Flask-CORS==3.0.3
 Flask_OAuthlib==0.9.4
 flask-restful==0.3.6
 Flask_SQLAlchemy_Session==1.1
-google_api_python_client==1.6.4
+google_api_python_client==1.6.7
 httplib2==0.10.3
 python-jose==2.0.2
 oauthlib==2.0.6
@@ -34,5 +34,5 @@ pyyaml
 -e git+https://github.com/uc-cdis/userdatamodel.git@1.1.1#egg=userdatamodel
 -e git+https://github.com/uc-cdis/datamodelutils.git@0.3.0#egg=datamodelutils
 -e git+https://github.com/uc-cdis/cdis-python-utils.git@0.2.8#egg=cdispyutils
--e git+https://github.com/uc-cdis/cirrus.git@416c1cf7f8675ecbe2d0912f058fb1b7620e61ff#egg=cirrus
+-e git+https://github.com/uc-cdis/cirrus.git@feat/buckets#egg=cirrus
 -e git+https://github.com/uc-cdis/authutils.git@079981a809382a14e17f5af4749f50e56410a8ad#egg=authutils-2.0.0

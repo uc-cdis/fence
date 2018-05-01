@@ -292,6 +292,60 @@ class GoogleServiceAccountKey(Base):
             return self
 
 
+class GoogleBucketAccessGroup(Base):
+    __tablename__ = "google_bucket_access_group"
+    id = Column(Integer, primary_key=True)
+
+    bucket_id = Column(
+        Integer,
+        ForeignKey(Bucket.id),
+        nullable=False,
+    )
+    bucket = relationship(
+        'Bucket',
+        backref=backref(
+            'google_bucket_access_group', cascade='all, delete-orphan')
+    )
+
+    email = Column(
+        String,
+        nullable=False
+    )
+
+    def delete(self):
+        with flask.current_app.db.session as session:
+            session.delete(self)
+            session.commit()
+            return self
+
+
+class GoogleProxyGroupToGoogleBucketAccessGroup(Base):
+    __tablename__ = "google_proxy_group_to_google_bucket_access_group"
+    id = Column(Integer, primary_key=True)
+
+    proxy_group_id = Column(
+        String,
+        ForeignKey(GoogleProxyGroup.id),
+        nullable=False
+    )
+    proxy_group = relationship(
+        'GoogleProxyGroup',
+        backref=backref(
+            'bucket_access_groups', cascade='all, delete-orphan')
+    )
+
+    access_group_id = Column(
+        Integer,
+        ForeignKey(GoogleBucketAccessGroup.id),
+        nullable=False
+    )
+    access_group = relationship(
+        'GoogleBucketAccessGroup',
+        backref=backref(
+            'proxy_groups_with_access', cascade='all, delete-orphan')
+    )
+
+
 to_timestamp = "CREATE OR REPLACE FUNCTION pc_datetime_to_timestamp(datetoconvert timestamp) " \
                "RETURNS BIGINT AS " \
                "$BODY$ " \
