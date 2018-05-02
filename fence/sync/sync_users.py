@@ -302,6 +302,7 @@ class UserSyncer(object):
                         'email': username,
                         'display_name': details.get('display_name', ''),
                         'phone_number': details.get('phone_number', ''),
+                        'tags': details.get('tags', {}),
                     }
 
                     if not username in user_project:
@@ -503,28 +504,39 @@ class UserSyncer(object):
             if u is None:
                 self.logger.info('create user {}'.format(username))
                 u = User(username=username)
-                u.email = user_info[username].get('email', '')
-                u.display_name = user_info[username].get('display_name', '')
-                u.phone_number = user_info[username].get('phone_number', '')
-
-                if u.tags == [] and 'dbgap_role' in user_info[username]:
-                    self.logger.info('create tag for {}'.format(username))
-                    tag = Tag(key='dbgap_role',
-                              value=user_info[username].get('dbgap_role', ''))
-                    tag.user = u
-                    sess.add(tag)
                 sess.add(u)
-            else:
-                self.logger.info('update user info {}'.format(username))
-                u.email = user_info[username].get('email', '')
-                u.display_name = user_info[username].get('display_name', '')
-                u.phone_number = user_info[username].get('phone_number', '')
-                if u.tags == [] and 'dbgap_role' in user_info[username]:
-                    self.logger.info('create tag for {}'.format(username))
-                    tag = Tag(key='dbgap_role',
-                              value=user_info[username].get('dbgap_role', ''))
-                    tag.user = u
-                    sess.add(tag)
+            
+            u.email = user_info[username].get('email', '')
+            u.display_name = user_info[username].get('display_name', '')
+            u.phone_number = user_info[username].get('phone_number', '')
+
+            tags_dict = {}
+            if 'dbgap_role' in user_info[username]:
+                tags_dict['dbgap_role'] = user_info[username].get('dbgap_role', '')
+            elif 'tags' in user_info[username]:
+                for k, v in user_info[username]['tags'].iteritems():
+                    tags_dict[k] = v
+
+            # do not update if there is no tag
+            if tags_dict == {}:
+                continue
+
+            # remove tags in db if they are not shown in new tags
+            for tag in u.tags:
+                if tag.key not in tags_dict:
+                    u.tags.remove(tag)
+
+            # sync
+            for k, v in tags_dict.iteritems():
+                found = False
+                for tag in u.tags: 
+                    if tag.key == k:
+                        found = True
+                        tag.value = v
+                #create new if not found
+                if not found:
+                    tag = Tag(key=k, value=v)
+                    u.tags.append(tag)
 
         sess.commit()
 

@@ -9,7 +9,7 @@ def test_sync(syncer, db_session):
     assert len(users) == 10
 
     tags = db_session.query(models.Tag).all()
-    assert len(tags) == 4
+    assert len(tags) == 7
 
     proj = db_session.query(models.Project).all()
     assert len(proj) == 5
