@@ -246,7 +246,7 @@ class UserSyncer(object):
                                 'email': row.get('email', ''),
                                 'display_name': display_name,
                                 'phone_number': row.get('phone', ''),
-                                'dbgap_role': row.get('role', '')
+                                'tags': {'dbgap_role': row.get('role', '')}
                             }
                 except Exception as e:
                     self.logger.info(e)
@@ -476,7 +476,7 @@ class UserSyncer(object):
             self.logger.info('update user info {}'.format(username))
             u = sess.query(User).filter(User.username == username).first()
             auth_provider = auth_provider_list[0]
-            if 'dbgap_role' not in user_info[username]:
+            if 'dbgap_role' not in user_info[username]['tags']:
                 auth_provider = auth_provider_list[1]
 
             user_access = AccessPrivilege(
@@ -494,7 +494,7 @@ class UserSyncer(object):
         update user info to database.
         Args:
             sess: sqlalchemy session
-            user_info: a dict of {username: {display_name, phone_number, dbgap_role}}
+            user_info: a dict of {username: {display_name, phone_number, tags: {k:v}}}
         Return:
             None
         """
@@ -512,17 +512,15 @@ class UserSyncer(object):
             u.phone_number = user_info[username].get('phone_number', '')
 
             tags_dict = {}
-            if 'dbgap_role' in user_info[username]:
-                tags_dict['dbgap_role'] = user_info[username]['dbgap_role']
-            elif 'tags' in user_info[username]:
-                for k, v in user_info[username]['tags'].iteritems():
-                    tags_dict[k] = v
 
+            for k, v in user_info[username]['tags'].iteritems():
+                tags_dict[k] = v
+    
             # do not update if there is no tag
             if tags_dict == {}:
                 continue
 
-            # remove tags in db if they are not shown in new tags
+            # remove user tags in db if they are not shown in new tags
             for tag in u.tags:
                 if tag.key not in tags_dict:
                     u.tags.remove(tag)
