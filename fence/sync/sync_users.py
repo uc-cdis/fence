@@ -273,6 +273,7 @@ class UserSyncer(object):
                     'email': email,
                     'display_name': display_name,
                     'phone_number': phonenum,
+                    'tags': {'k1':'v1, 'k2': 'v2'}
                 }
             }
         """
@@ -512,7 +513,7 @@ class UserSyncer(object):
 
             tags_dict = {}
             if 'dbgap_role' in user_info[username]:
-                tags_dict['dbgap_role'] = user_info[username].get('dbgap_role', '')
+                tags_dict['dbgap_role'] = user_info[username]['dbgap_role']
             elif 'tags' in user_info[username]:
                 for k, v in user_info[username]['tags'].iteritems():
                     tags_dict[k] = v
