@@ -244,6 +244,7 @@ def app(kid, rsa_private_key, rsa_public_key):
     fence.app.jwt_public_keys = {
         fence.app.config['BASE_URL']: OrderedDict([(kid, rsa_public_key)])
     }
+    fence.app.debug = True
     return fence.app
 
 
