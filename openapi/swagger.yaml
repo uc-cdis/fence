@@ -84,7 +84,9 @@ paths:
           required: false
           type: string
           in: query
-          description: Requested authorization scope
+          description: |
+            Requested authorization scope.
+            > NOTE: This is required for [OIDC](http://openid.net/specs/openid-connect-core-1_0.html#AuthRequest)
       responses:
         '200':
           description: successful operation
@@ -133,7 +135,9 @@ paths:
           required: false
           type: string
           in: formData
-          description: Requested authorization scope
+          description: |
+            Requested authorization scope.
+            > NOTE: This is required for [OIDC](http://openid.net/specs/openid-connect-core-1_0.html#AuthRequest)
       responses:
         '200':
           description: successful operation
@@ -235,7 +239,7 @@ paths:
         - OAuth2: [user]
       operationId: getPresignedURL
       parameters:
-        - name: file_id 
+        - name: file_id
           required: true
           type: string
           in: path
