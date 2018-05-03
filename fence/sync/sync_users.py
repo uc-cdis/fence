@@ -69,7 +69,8 @@ class UserSyncer(object):
         self.sync_from_local_yaml_file = sync_from_local_yaml_file
         self.is_sync_from_dbgap_server = is_sync_from_dbgap_server
         if is_sync_from_dbgap_server:
-            self.sftp = dbGaP['sftp']
+            self.server = dbGaP['info']
+            self.protocol = dbGaP['protocol']
             self.dbgap_key = dbGaP['decrypt_key']
         self.session = db_session
         self.driver = SQLAlchemyDriver(DB)
@@ -110,20 +111,20 @@ class UserSyncer(object):
         """
 
         proxy = None
-        if self.sftp.get('proxy', '') != '':
+        if self.server.get('proxy', '') != '':
             proxy = ProxyCommand('ssh -i ~/.ssh/id_rsa '
                                  '{}@{} nc {} {}'.format(
-                                     self.sftp.get('proxy_user', ''),
-                                     self.sftp.get('proxy', ''), self.sftp.get('host', ''), self.sftp.get('port', 22)))
+                                     self.server.get('proxy_user', ''),
+                                     self.server.get('proxy', ''), self.server.get('host', ''), self.server.get('port', 22)))
 
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.WarningPolicy())
 
         parameters = {
-            "hostname": self.sftp.get('host', ''),
-            "username": self.sftp.get('username', ''),
-            "password": self.sftp.get('password', ''),
-            "port": self.sftp.get('port', 22),
+            "hostname": self.server.get('host', ''),
+            "username": self.server.get('username', ''),
+            "password": self.server.get('password', ''),
+            "port": self.server.get('port', 22),
         }
 
         if proxy:
@@ -137,6 +138,18 @@ class UserSyncer(object):
         client.close()
         if proxy:
             proxy.close()
+
+    def _get_from_ftp_with_proxy(self, path):
+        """
+        Download data from ftp sever to alocal dir
+        Args:
+            path(str): path to local files
+        Returns:
+            None
+        """
+        execstr = ("lftp -u {},{}  {} -e \"set ftp:proxy http://{}; mirror . {}; exit\"".format(self.server.get('username',
+                                                                                                                ''), self.server.get('password', ''), self.server.get('host', ''), self.server.get('proxy', ''), path))
+        os.system(execstr)
 
     @contextmanager
     def _read_file(self, filepath, encrypted=True):
@@ -185,10 +198,10 @@ class UserSyncer(object):
             user_info: a dict of
             {
                 username: {
-                    'email': email,
-                    'display_name': displayname,
-                    'phone_umber': phonenum,
-                    'dbgap_role': dbgaprole
+                    'email': 'email@mail.com',
+                    'display_name': 'display name',
+                    'phone_umber': '123-456-789',
+                    'tags': {'dbgap_role': 'PI'}
                 }
             }
 
@@ -233,7 +246,7 @@ class UserSyncer(object):
                                 'email': row.get('email', ''),
                                 'display_name': display_name,
                                 'phone_number': row.get('phone', ''),
-                                'dbgap_role': row.get('role', '')
+                                'tags': {'dbgap_role': row.get('role', '')}
                             }
                 except Exception as e:
                     self.logger.info(e)
@@ -260,6 +273,7 @@ class UserSyncer(object):
                     'email': email,
                     'display_name': display_name,
                     'phone_number': phonenum,
+                    'tags': {'k1':'v1', 'k2': 'v2'}
                 }
             }
         """
@@ -289,6 +303,7 @@ class UserSyncer(object):
                         'email': username,
                         'display_name': details.get('display_name', ''),
                         'phone_number': details.get('phone_number', ''),
+                        'tags': details.get('tags', {}),
                     }
 
                     if not username in user_project:
@@ -400,7 +415,6 @@ class UserSyncer(object):
         self._grant_from_storage(to_update, user_project)
         self._update_from_db(sess, to_update, user_project)
 
-
     def _revoke_from_db(self, sess, to_delete):
         """
         Revoke user access to projects in the auth database
@@ -462,7 +476,7 @@ class UserSyncer(object):
             self.logger.info('update user info {}'.format(username))
             u = sess.query(User).filter(User.username == username).first()
             auth_provider = auth_provider_list[0]
-            if 'dbgap_role' not in user_info[username]:
+            if 'dbgap_role' not in user_info[username]['tags']:
                 auth_provider = auth_provider_list[1]
 
             user_access = AccessPrivilege(
@@ -480,7 +494,7 @@ class UserSyncer(object):
         update user info to database.
         Args:
             sess: sqlalchemy session
-            user_info: a dict of {username: {display_name, phone_number, dbgap_role}}
+            user_info: a dict of {username: {display_name, phone_number, tags: {k:v}}}
         Return:
             None
         """
@@ -491,28 +505,32 @@ class UserSyncer(object):
             if u is None:
                 self.logger.info('create user {}'.format(username))
                 u = User(username=username)
-                u.email = user_info[username].get('email', '')
-                u.display_name = user_info[username].get('display_name', '')
-                u.phone_number = user_info[username].get('phone_number', '')
-
-                if u.tags == [] and 'dbgap_role' in user_info[username]:
-                    self.logger.info('create tag for {}'.format(username))
-                    tag = Tag(key='dbgap_role',
-                              value=user_info[username].get('dbgap_role', ''))
-                    tag.user = u
-                    sess.add(tag)
                 sess.add(u)
-            else:
-                self.logger.info('update user info {}'.format(username))
-                u.email = user_info[username].get('email', '')
-                u.display_name = user_info[username].get('display_name', '')
-                u.phone_number = user_info[username].get('phone_number', '')
-                if u.tags == [] and 'dbgap_role' in user_info[username]:
-                    self.logger.info('create tag for {}'.format(username))
-                    tag = Tag(key='dbgap_role',
-                              value=user_info[username].get('dbgap_role', ''))
-                    tag.user = u
-                    sess.add(tag)
+
+            u.email = user_info[username].get('email', '')
+            u.display_name = user_info[username].get('display_name', '')
+            u.phone_number = user_info[username].get('phone_number', '')
+
+            # do not update if there is no tag
+            if user_info[username]['tags'] == {}:
+                continue
+
+            # remove user db tags if they are not shown in new tags
+            for tag in u.tags:
+                if tag.key not in user_info[username]['tags']:
+                    u.tags.remove(tag)
+
+            # sync
+            for k, v in user_info[username]['tags'].iteritems():
+                found = False
+                for tag in u.tags:
+                    if tag.key == k:
+                        found = True
+                        tag.value = v
+                # create new tag if not found
+                if not found:
+                    tag = Tag(key=k, value=v)
+                    u.tags.append(tag)
 
         sess.commit()
 
@@ -611,9 +629,12 @@ class UserSyncer(object):
         dbgap_file_list = []
         tmpdir = tempfile.mkdtemp()
         if self.is_sync_from_dbgap_server:
-            self.logger.info('Download from sftp server')
+            self.logger.info('Download from server')
             try:
-                self._get_from_sftp_with_proxy(tmpdir)
+                if self.protocol == 'sftp':
+                    self._get_from_sftp_with_proxy(tmpdir)
+                else:
+                    self._get_from_ftp_with_proxy(tmpdir)
                 dbgap_file_list = glob.glob(os.path.join(tmpdir, '*'))
             except Exception as e:
                 self.logger.info(e)
@@ -650,9 +671,13 @@ class UserSyncer(object):
         self.sync_two_phsids_dict(user_projects3, user_projects1)
         self.sync_two_user_info_dict(user_info3, user_info1)
 
-        self.logger.info('Sync to db and storage backend')
-        self.sync_to_db_and_storage_backend(user_projects1, user_info1, sess)
-        self.logger.info('Finish syncing to db and storage backend')
+        if len(user_projects1) > 0:
+            self.logger.info('Sync to db and storage backend')
+            self.sync_to_db_and_storage_backend(
+                user_projects1, user_info1, sess)
+            self.logger.info('Finish syncing to db and storage backend')
+        else:
+            self.logger.info('No users for syncing!!!')
 
 
 if __name__ == '__main__':
