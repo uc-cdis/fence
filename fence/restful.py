@@ -24,4 +24,9 @@ def handle_error(error):
         return flask.jsonify(error.get_body()), error.status_code
     else:
         flask.current_app.logger.exception("Catch exception")
-        return flask.jsonify(error=error.message), 500
+        error_code = 500
+        if hasattr(error, 'code'):
+            error_code = error.code
+        elif hasattr(error, 'status_code'):
+            error_code = error.status_code
+        return flask.jsonify(error=error.message), error_code
