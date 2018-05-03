@@ -506,7 +506,7 @@ class UserSyncer(object):
                 self.logger.info('create user {}'.format(username))
                 u = User(username=username)
                 sess.add(u)
-            
+
             u.email = user_info[username].get('email', '')
             u.display_name = user_info[username].get('display_name', '')
             u.phone_number = user_info[username].get('phone_number', '')
@@ -515,7 +515,7 @@ class UserSyncer(object):
 
             for k, v in user_info[username]['tags'].iteritems():
                 tags_dict[k] = v
-    
+
             # do not update if there is no tag
             if tags_dict == {}:
                 continue
@@ -528,11 +528,11 @@ class UserSyncer(object):
             # sync
             for k, v in tags_dict.iteritems():
                 found = False
-                for tag in u.tags: 
+                for tag in u.tags:
                     if tag.key == k:
                         found = True
                         tag.value = v
-                #create new if not found
+                # create new if not found
                 if not found:
                     tag = Tag(key=k, value=v)
                     u.tags.append(tag)
