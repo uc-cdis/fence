@@ -141,7 +141,7 @@ class UserSyncer(object):
 
     def _get_from_ftp_with_proxy(self, path):
         """
-        Download data fro m ftp sever to alocal dir
+        Download data from ftp sever to alocal dir
         Args:
             path(str): path to local files
         Returns:
@@ -198,10 +198,10 @@ class UserSyncer(object):
             user_info: a dict of
             {
                 username: {
-                    'email': email,
-                    'display_name': displayname,
-                    'phone_umber': phonenum,
-                    'dbgap_role': dbgaprole
+                    'email': 'email@mail.com',
+                    'display_name': 'display name',
+                    'phone_umber': '123-456-789',
+                    'tags': {'dbgap_role': 'PI'}
                 }
             }
 
@@ -273,7 +273,7 @@ class UserSyncer(object):
                     'email': email,
                     'display_name': display_name,
                     'phone_number': phonenum,
-                    'tags': {'k1':'v1, 'k2': 'v2'}
+                    'tags': {'k1':'v1', 'k2': 'v2'}
                 }
             }
         """
