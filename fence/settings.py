@@ -23,7 +23,13 @@ except ImportError:
         import imp
         imp.load_source('local_settings', '/var/www/local_settings.py')
     except IOError:
-        logger.warn("local_settings is not found")
+        # check ``/var/www/fence``
+        try:
+            import imp
+            imp.load_source(
+                'local_settings', '/var/www/fence/local_settings.py')
+        except IOError:
+            logger.warn("local_settings is not found")
 
 
 # Use this setting when fence will be deployed in such a way that fence will
