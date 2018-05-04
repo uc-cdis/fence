@@ -1,6 +1,5 @@
 import flask
 from flask_sqlalchemy_session import current_session
-from flask_restful import Api
 
 from fence.auth import require_auth_header
 from fence.blueprints.storage_creds.api import AccessKey, ApiKey, ApiKeyList
@@ -9,6 +8,7 @@ from fence.blueprints.storage_creds.google import GoogleCredentials
 from fence.blueprints.storage_creds.other import OtherCredentialsList
 from fence.blueprints.storage_creds.other import OtherCredentials
 from fence.resources.storage import get_endpoints_descriptions
+from fence.restful import RestfulApi
 
 ALL_RESOURCES = {
     '/api': 'access to CDIS APIs',
@@ -21,7 +21,7 @@ ALL_RESOURCES = {
 
 def make_creds_blueprint():
     blueprint = flask.Blueprint('credentials', __name__)
-    blueprint_api = Api(blueprint)
+    blueprint_api = RestfulApi(blueprint)
 
     blueprint_api.add_resource(
         GoogleCredentialsList, '/google', strict_slashes=False

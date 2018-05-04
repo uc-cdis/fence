@@ -9,7 +9,7 @@ def test_sync(syncer, db_session):
     assert len(users) == 10
 
     tags = db_session.query(models.Tag).all()
-    assert len(tags) == 4
+    assert len(tags) == 7
 
     proj = db_session.query(models.Project).all()
     assert len(proj) == 5
@@ -61,8 +61,8 @@ def test_sync_from_files(syncer, db_session):
         }
     }
     userinfo = {
-        'userA': {'email': 'a@b'},
-        'userB': {'email': 'a@b'},
+        'userA': {'email': 'a@b', 'tags': {}},
+        'userB': {'email': 'a@b', 'tags': {}},
     }
 
     syncer.sync_to_db_and_storage_backend(phsids, userinfo, sess)
@@ -86,8 +86,8 @@ def test_sync_revoke(syncer, db_session):
         }
     }
     userinfo = {
-        'userA': {'email': 'a@b'},
-        'userB': {'email': 'a@b'},
+        'userA': {'email': 'a@b', 'tags': {}},
+        'userB': {'email': 'a@b', 'tags': {}},
     }
 
     phsids2 = {
