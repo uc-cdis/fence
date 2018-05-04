@@ -706,8 +706,8 @@ def create_google_bucket(
         access_logs_bucket (str, optional): Enables logging. Must provide a
             Google bucket name which will store the access logs
     """
-    import fence.local_settings
-    cirrus_config.update(**fence.local_settings.CIRRUS_CFG)
+    import fence.settings
+    cirrus_config.update(**fence.settings.CIRRUS_CFG)
 
     google_project_id = google_project_id or cirrus_config.GOOGLE_PROJECT_ID
 

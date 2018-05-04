@@ -121,7 +121,7 @@ def main():
         from fence.settings import DB
 
     if os.environ.get('BASE_URL'):
-        DB = os.environ['BASE_URL']
+        BASE_URL = os.environ['BASE_URL']
     else:
         from fence.settings import BASE_URL
 
