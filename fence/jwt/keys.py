@@ -30,7 +30,7 @@ def load_keypairs(keys_dir):
     Args:
         keys_dir (str):
             the directory in which keypair subdirectories are kept; generally
-            should just be ``fence/keys``
+            should just be the absolute path to ``fence/keys``
 
     Return:
         List[Keypair]:
@@ -39,6 +39,7 @@ def load_keypairs(keys_dir):
             ISO date format) or time last modified, if the name is not
             formatted in ISO
     """
+    # Get the absolute paths for the keypair directories.
     keypair_directories = [
         os.path.join(keys_dir, d)
         for d in os.listdir(keys_dir)
@@ -59,8 +60,11 @@ def load_keypairs(keys_dir):
                 os.stat(keypair_dir).st_mtime
             ))
 
+    # Sort the keypair directories to load from in the order described in
+    # ``key``.
     keypair_directories = list(sorted(keypair_directories, key=key))
 
+    # Load the keypairs from the directories.
     keypairs = [
         Keypair.from_directory(d)
         for d in keypair_directories
@@ -79,6 +83,11 @@ class Keypair(object):
         kid (str): the key id
         public (str): the public key
         private (str): the private key
+
+    Raises:
+        ValueError:
+            as a precaution, if the private key does not say "PRIVATE KEY", or
+            if the public key does say "PRIVATE KEY"
     """
 
     def __init__(self, kid, public_key, private_key):

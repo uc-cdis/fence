@@ -72,10 +72,13 @@ class UserSession(SessionMixin):
 
     def _get_initial_session_token(self):
         keypair = current_app.keypairs[0]
-        session_token = generate_signed_session_token(
-            kid=keypair.kid,
-            private_key=keypair.private_key,
-            expires_in=current_app.config.get('SESSION_TIMEOUT'),
+        session_token = (
+            generate_signed_session_token(
+                kid=keypair.kid,
+                private_key=keypair.private_key,
+                expires_in=current_app.config.get('SESSION_TIMEOUT'),
+            )
+            .token
         )
         self._encoded_token = session_token
         initial_token = validate_jwt(
@@ -247,11 +250,14 @@ def _create_access_token_cookie(app, session, response, user):
     if not linked_google_email:
         linked_google_email = get_linked_google_account_email(user.id)
 
-    access_token = generate_signed_access_token(
-        keypair.kid, keypair.private_key, user,
-        app.config.get('ACCESS_TOKEN_EXPIRES_IN'), scopes,
-        forced_exp_time=expiration,
-        linked_google_email=linked_google_email
+    access_token = (
+        generate_signed_access_token(
+            keypair.kid, keypair.private_key, user,
+            app.config.get('ACCESS_TOKEN_EXPIRES_IN'), scopes,
+            forced_exp_time=expiration,
+            linked_google_email=linked_google_email
+        )
+        .token
     )
 
     domain = app.session_interface.get_cookie_domain(app)

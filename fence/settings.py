@@ -1,4 +1,3 @@
-from collections import OrderedDict
 import os
 
 from cdislogging import get_logger

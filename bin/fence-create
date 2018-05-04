@@ -12,9 +12,10 @@ from fence.scripting.fence_create import (
     google_init,
     sync_users,
     remove_expired_google_service_account_keys,
-    create_user_token,
     remove_expired_google_accounts_from_proxy_groups
+    JWTCreator,
 )
+
 
 def str2bool(v):
     if v.lower() == 'true':
@@ -23,6 +24,7 @@ def str2bool(v):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -82,7 +84,8 @@ def parse_arguments():
     )
 
     token_create = subparsers.add_parser('token-create')
-    token_create.add_argument('--kid')
+    token_create.add_argument('--kid', required=True)
+    token_create.add_argument('--prv-key-path', required=True)
     token_create.add_argument('--type', required=True)
     token_create.add_argument('--username', required=True)
     token_create.add_argument('--scopes', required=True)
@@ -145,12 +148,24 @@ def main():
     elif args.action == 'google-manage-account-access':
         remove_expired_google_accounts_from_proxy_groups(DB)
     elif args.action == 'token-create':
-        token = create_user_token(
-            DB, BASE_URL, ROOT_DIR, args.__dict__['kid'],
-            args.__dict__['type'], args.__dict__['username'],
-            args.__dict__['scopes'], args.__dict__['exp'])
-        if token:
-            print(token)
+        # Read the private key from the given path; the ``JWTCreator`` only
+        # cares about the key itself and not the filepath.
+        private_key_path = args.pop('prv-key-path', '')
+        with open(args.__dict__['prv-key-path'], 'r') as f:
+            private_key = f.read()
+        args['private_key'] = private_key
+
+        jwt_creator = JWTCreator(DB, BASE_URL, **args)
+        if args['type'] == 'access':
+            print(jwt_creator.create_access_token())
+        elif args['type'] == 'refresh':
+            print(jwt_creator.create_refresh_token())
+        else:
+            print(
+                'invalid token type "{}"; expected "access" or "refresh"'
+                .format(args['type'])
+            )
+            sys.exit(1)
 
 
 if __name__ == '__main__':

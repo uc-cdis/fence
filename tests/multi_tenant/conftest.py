@@ -60,10 +60,11 @@ def fence_client_app(
     client_app = flask.Flask('client_app')
     app_init(client_app, test_settings, root_dir=root_dir)
 
-    client_app.keypairs.append(Keypair(
+    keypair = Keypair(
         kid=kid_2, public_key=rsa_public_key_2,
         private_key=rsa_private_key_2
-    ))
+    )
+    client_app.keypairs = [keypair]
 
     client_app.jwt_public_keys['/'] = OrderedDict([
         (kid_2, rsa_public_key_2)

@@ -10,9 +10,8 @@ try:
 except ImportError:
     logger.warn('no module fence.local_settings')
 
-
 # WARNING: the test database is cleared every run
-DB = 'postgresql://postgres:postgres@localhost:5432/fence_test_tmp'
+DB = 'postgresql://postgres@localhost:5432/fence_test_tmp'
 
 MOCK_AUTH = True
 
@@ -63,9 +62,6 @@ SESSION_COOKIE_NAME = 'fence'
 
 HMAC_ENCRYPTION_KEY = Fernet.generate_key()
 ENABLE_CSRF_PROTECTION = False
-
-#: The test app uses the RSA key fixtures from authutils, so leave this empty.
-JWT_KEYPAIR_FILES = OrderedDict([])
 
 STORAGE_CREDENTIALS = {
     'test-cleversafe': {

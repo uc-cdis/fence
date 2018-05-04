@@ -22,17 +22,18 @@ from userdatamodel.models import (
     User,
 )
 
+from fence.jwt.token import (
+    issued_and_expiration_times,
+    generate_signed_access_token,
+    generate_signed_refresh_token,
+)
 from fence.models import Client
 from fence.models import GoogleServiceAccount
 from fence.models import UserGoogleAccount
 from fence.models import UserGoogleAccountToProxyGroup
 from fence.models import UserRefreshToken
-from fence.utils import create_client, drop_client
 from fence.sync.sync_users import UserSyncer
-
-from fence.jwt.token import (
-    issued_and_expiration_times,
-)
+from fence.utils import create_client, drop_client
 
 logger = get_logger(__name__)
 
@@ -420,142 +421,92 @@ def delete_users(DB, usernames):
         session.commit()
 
 
-def get_jwt_keypair(kid, root_dir):
+class JWTCreator(object):
 
-    from fence.settings import JWT_KEYPAIR_FILES
-    # cur_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    # par_dir = os.path.abspath(os.path.join(cur_dir, os.pardir))
-    private_key = None
+    required_kwargs = [
+        'kid',
+        'private_key',
+        'username',
+        'scopes',
+    ]
+    all_kwargs = required_kwargs + [
+        'expires_in',
+    ]
 
-    if len(JWT_KEYPAIR_FILES) == 0:
-        return None, None
+    default_expiration = 3600
 
-    private_filepath = None
-    if kid is None:
-        private_filepath = os.path.join(
-            root_dir, JWT_KEYPAIR_FILES.values()[0][1])
-    else:
-        for _kid, (_, private) in JWT_KEYPAIR_FILES.iteritems():
-            if(kid != _kid):
-                continue
-            private_filepath = os.path.join(root_dir, private)
+    def __init__(self, db, base_url, **kwargs):
+        self.db = db
+        self.base_url = base_url
 
-    if private_filepath is None:
-        return None, None
+        for required_kwarg in self.required_kwargs:
+            if required_kwarg not in kwargs:
+                raise ValueError('missing required argument: ' + required_kwarg)
 
-    try:
-        with open(private_filepath, 'r') as f:
-            private_key = f.read()
-    except IOError:
-        private_key = None
+        # Set attributes on this object from the kwargs.
+        for kwarg_name in self.all_kwargs:
+            setattr(self, kwarg_name, kwargs[kwarg_name])
 
-    if kid:
-        return kid, private_key
-    else:
-        return JWT_KEYPAIR_FILES.keys()[0], private_key
+        # If the scopes look like this:
+        #
+        #     'openid,fence,data'
+        #
+        # convert them to this:
+        #
+        #     ['openid', 'fence', 'data']
+        if isinstance(self.scopes, str):
+            self.scopes = [scope.strip() for scope in self.scopes.split(',')]
 
+        self.expires_in = kwargs.get('expires_in') or self.default_expiration
 
-def create_user_token(DB, BASE_URL, ROOT_DIR, kid, token_type, username, scopes, expires_in=3600):
-    try:
-        if token_type == 'access_token':
-            _, token, _ = create_user_access_token(
-                DB, BASE_URL, ROOT_DIR, kid, username, scopes, expires_in)
-            return token
-        elif token_type == 'refresh_token':
-            _, token, _ = create_user_refresh_token(
-                DB, BASE_URL, ROOT_DIR, kid, username, scopes, expires_in)
-            return token
-        else:
-            print('=============Option type is wrong!!!. Please select either access_token or refresh_token=============')
-            return None
-    except Exception as e:
-        print(e.message)
-        return None
+    def create_access_token(self):
+        """
+        Create a new access token.
 
-
-def create_user_refresh_token(DB, BASE_URL, ROOT_DIR, kid, username, scopes, expires_in=3600):
-    kid, private_key = get_jwt_keypair(kid=kid, root_dir=ROOT_DIR)
-    if private_key is None:
-        print("=========Can not find the private key !!!!==============")
-        return None, None, None
-
-    driver = SQLAlchemyDriver(DB)
-    with driver.session as current_session:
-        user = (current_session.query(User)
-                .filter_by(username=username)
+        Return:
+            JWTResult: result containing the encoded token and claims
+        """
+        driver = SQLAlchemyDriver(self.db)
+        with driver.session as current_session:
+            user = (
+                current_session.query(User)
+                .filter_by(username=self.username)
                 .first()
-                )
-        if not user:
-            print('=========user is not existed !!!=============')
-            return None, None, None
-
-        headers = {'kid': kid}
-        iat, exp = issued_and_expiration_times(expires_in)
-        jti = str(uuid.uuid4())
-        sub = str(user.id)
-        claims = {
-            'pur': 'refresh',
-            'aud': scopes.split(','),
-            'sub': sub,
-            'iss': BASE_URL,
-            'iat': iat,
-            'exp': exp,
-            'jti': jti,
-            'context': {
-                'user': {
-                    'name': user.username,
-                    'is_admin': user.is_admin,
-                    'projects': dict(user.project_access),
-                },
-            },
-        }
-
-        token = to_unicode(jwt.encode(claims, private_key,
-                                      headers=headers, algorithm='RS256'), 'UTF-8')
-        current_session.add(
-            UserRefreshToken(
-                jti=claims['jti'], userid=user.id, expires=claims['exp']
             )
-        )
-        current_session.commit()
-        return jti, token, claims
-
-
-def create_user_access_token(DB, BASE_URL, ROOT_DIR, kid, username, scopes, expires_in=3600):
-    kid, private_key = get_jwt_keypair(kid=kid, root_dir=ROOT_DIR)
-    if private_key is None:
-        print("=========Can not find the private key !!!!=============")
-        return None, None, None
-
-    driver = SQLAlchemyDriver(DB)
-    with driver.session as current_session:
-        user = (current_session.query(User)
-                .filter_by(username=username)
-                .first()
+            if not user:
+                raise EnvironmentError(
+                    'no user found with given username: ' + self.username
                 )
-        if not user:
-            print('=========user is not existed !!!=============')
-            return None, None, None
+            return generate_signed_access_token(
+                self.kid, self.private_key, user, self.expires_in, self.scopes
+            )
 
-        headers = {'kid': kid}
-        iat, exp = issued_and_expiration_times(expires_in)
-        jti = str(uuid.uuid4())
-        sub = str(user.id)
-        claims = {
-            'pur': 'access',
-            'aud': scopes.split(','),
-            'sub': sub,
-            'iss': BASE_URL,
-            'iat': iat,
-            'exp': exp,
-            'jti': jti,
-            'context': {
-                'user': {
-                    'name': user.username,
-                    'is_admin': user.is_admin,
-                    'projects': dict(user.project_access),
-                },
-            },
-        }
+    def create_refresh_token(self):
+        """
+        Create a new refresh token and add its entry to the database.
 
-        return jti, to_unicode(jwt.encode(claims, private_key, headers=headers, algorithm='RS256'), 'UTF-8'), claims
+        Return:
+            JWTResult: the refresh token result
+        """
+        driver = SQLAlchemyDriver(self.db)
+        with driver.session as current_session:
+            user = (
+                current_session.query(User)
+                .filter_by(username=self.username)
+                .first()
+            )
+            if not user:
+                raise EnvironmentError(
+                    'no user found with given username: ' + self.username
+                )
+            jwt_result = generate_signed_refresh_token(
+                self.kid, self.private_key, user, self.expires_in, self.scopes
+            )
+
+            current_session.add(UserRefreshToken(
+                    jti=jwt_result.claims['jti'], userid=user.id,
+                    expires=jwt_result.claims['exp']
+            ))
+
+            return jwt_result
+
