@@ -1,15 +1,33 @@
-from datetime import datetime, timedelta
 import json
 import time
+import uuid
 
+import flask
+import jwt
 from authlib.common.encoding import to_unicode
 from authlib.specs.oidc import CodeIDToken as AuthlibCodeIDToken
 from authlib.specs.oidc import IDTokenError
-import flask
-import jwt
-import uuid
 
 from fence.jwt import keys
+
+
+SCOPE_DESCRIPTION = {
+    'openid': 'default scope',
+    'user': 'know who you are and what you have access to',
+    'data': 'retrieve protected datasets that you have access to',
+    'credentials': 'view and update your credentials',
+    'admin': 'view and update user accesses'
+}
+
+
+# Allowed scopes for user requested token and oauth2 client requested token
+# TODO: this should be more discoverable and configurable
+#
+# Only allow web session based auth access credentials so that user
+# can't create a long-lived API key using a short lived access_token
+SESSION_ALLOWED_SCOPES = ['openid', 'user', 'credentials', 'data', 'admin']
+USER_ALLOWED_SCOPES = ['fence', 'openid', 'user', 'data', 'admin']
+CLIENT_ALLOWED_SCOPES = ['openid', 'user', 'data', 'admin']
 
 
 class UnsignedIDToken(AuthlibCodeIDToken):
@@ -133,16 +151,6 @@ class UnsignedIDToken(AuthlibCodeIDToken):
         return token
 
 
-# Allowed scopes for user requested token and oauth2 client requested token
-# TODO: this should be more discoverable and configurable
-#
-# Only allow web session based auth access credentials so that user
-# can't create a long-lived API key using a short lived access_token
-SESSION_ALLOWED_SCOPES = ['openid', 'user', 'credentials', 'data', 'admin']
-USER_ALLOWED_SCOPES = ['fence', 'openid', 'user', 'data', 'admin']
-CLIENT_ALLOWED_SCOPES = ['openid', 'user', 'data', 'admin']
-
-
 def issued_and_expiration_times(seconds_to_expire):
     """
     Return the times in unix time that a token is being issued and will be
@@ -155,9 +163,8 @@ def issued_and_expiration_times(seconds_to_expire):
     Return:
         Tuple[int, int]: (issued, expired) times in unix time
     """
-    now = datetime.now()
-    iat = int(now.strftime('%s'))
-    exp = int((now + timedelta(seconds=seconds_to_expire)).strftime('%s'))
+    iat = int(time.time())
+    exp = iat + int(seconds_to_expire)
     return (iat, exp)
 
 
@@ -207,7 +214,7 @@ def generate_signed_session_token(
 
 def generate_signed_id_token(
         kid, private_key, user, expires_in, client_id, audiences=None,
-        auth_time=None, max_age=None, nonce=None):
+        auth_time=None, max_age=None, nonce=None, linked_google_email=None):
     """
     Generate a JWT ID token, and output a UTF-8 string of the encoded JWT
     signed with the private key
@@ -232,7 +239,7 @@ def generate_signed_id_token(
     """
     token = generate_id_token(
         user, expires_in, client_id, audiences=audiences, auth_time=auth_time,
-        max_age=max_age, nonce=nonce
+        max_age=max_age, nonce=nonce, linked_google_email=linked_google_email
     )
 
     signed_token = token.get_signed_and_encoded_token(kid, private_key)
@@ -240,7 +247,7 @@ def generate_signed_id_token(
 
 
 def generate_signed_refresh_token(
-        kid, private_key, user, expires_in, scopes):
+        kid, private_key, user, expires_in, scopes, client_id=None):
     """
     Generate a JWT refresh token and output a UTF-8
     string of the encoded JWT signed with the private key.
@@ -267,6 +274,7 @@ def generate_signed_refresh_token(
         'iat': iat,
         'exp': exp,
         'jti': jti,
+        'azp': client_id or ''
     }
     flask.current_app.logger.info(
         'issuing JWT refresh token with id [{}] to [{}]'.format(jti, sub)
@@ -281,7 +289,7 @@ def generate_signed_refresh_token(
 
 
 def generate_api_key(
-        kid, private_key, user, expires_in, scopes, client_id):
+        kid, private_key, user_id, expires_in, scopes, client_id):
     """
     Generate a JWT refresh token and output a UTF-8
     string of the encoded JWT signed with the private key.
@@ -289,9 +297,9 @@ def generate_api_key(
     Args:
         kid (str): key id of the keypair used to generate token
         private_key (str): RSA private key to sign and encode the JWT with
-        user (fence.models.User): User to generate token for
+        user_id (user id): User id to generate token for
         expires_in (int): seconds until expiration
-        scopes (List[str]): oauth scopes for user
+        scopes (List[str]): oauth scopes for user_id
 
     Return:
         str: encoded JWT refresh token signed with ``private_key``
@@ -299,7 +307,7 @@ def generate_api_key(
     headers = {'kid': kid}
     iat, exp = issued_and_expiration_times(expires_in)
     jti = str(uuid.uuid4())
-    sub = str(user.id)
+    sub = str(user_id)
     claims = {
         'pur': 'api_key',
         'aud': scopes,
@@ -308,6 +316,7 @@ def generate_api_key(
         'iat': iat,
         'exp': exp,
         'jti': jti,
+        'azp': client_id or ''
     }
     flask.current_app.logger.info(
         'issuing JWT API key with id [{}] to [{}]'.format(jti, sub)
@@ -322,7 +331,8 @@ def generate_api_key(
 
 
 def generate_signed_access_token(
-        kid, private_key, user, expires_in, scopes, forced_exp_time=None):
+        kid, private_key, user, expires_in, scopes, forced_exp_time=None,
+        client_id=None, linked_google_email=None):
     """
     Generate a JWT access token and output a UTF-8
     string of the encoded JWT signed with the private key.
@@ -358,9 +368,20 @@ def generate_signed_access_token(
                 'name': user.username,
                 'is_admin': user.is_admin,
                 'projects': dict(user.project_access),
+                'google': {
+                    'proxy_group': user.google_proxy_group_id,
+                }
             },
         },
+        'azp': client_id or ''
     }
+
+    # only add google linkage information if provided
+    if linked_google_email:
+        claims['context']['user']['google']['linked_google_account'] = (
+            linked_google_email
+        )
+
     flask.current_app.logger.info(
         'issuing JWT access token with id [{}] to [{}]'.format(jti, sub)
     )
@@ -375,7 +396,7 @@ def generate_signed_access_token(
 
 def generate_id_token(
         user, expires_in, client_id, audiences=None, auth_time=None,
-        max_age=None, nonce=None):
+        max_age=None, nonce=None, linked_google_email=None):
     """
     Generate an unsigned ID token object. Use `.get_signed_and_encoded_token`
     on result to retrieve a signed JWT
@@ -409,12 +430,19 @@ def generate_id_token(
     # If not provided, assume auth time is time this ID token is issued
     auth_time = auth_time or iat
 
+    # NOTE: if the claims here are modified, be sure to update the
+    # `claims_supported` field returned from the OIDC configuration endpoint
+    # ``/.well-known/openid-configuration``, in
+    # ``fence/blueprints/well_known.py``.
     claims = {
         'context': {
             'user': {
                 'name': user.username,
                 'is_admin': user.is_admin,
                 'projects': dict(user.project_access),
+                'email': user.email,
+                'display_name': user.display_name,
+                'phone_number': user.phone_number
             },
         },
         'pur': 'id',
@@ -427,6 +455,15 @@ def generate_id_token(
         'auth_time': auth_time,
         'azp': client_id,
     }
+    if user.tags is not None and len(user.tags) > 0:
+        claims['context']['user']['tags'] = {
+            tag.key: tag.value for tag in user.tags}
+
+    # only add google linkage information if provided
+    if linked_google_email:
+        claims['context']['user']['google'] = {
+            'linked_google_account': linked_google_email,
+        }
 
     # Only include if provided, used to associate a client session with an ID
     # token. If present in Auth Request from client, should set same val

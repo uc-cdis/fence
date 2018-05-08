@@ -1,0 +1,29 @@
+cloud_providers: {}
+
+groups: {}
+
+users:
+  cdis:
+    admin: True
+  test_user1@gmail.com:
+    admin: True
+    projects:
+    - auth_id: test
+      privilege: ['create', 'read', 'update', 'delete', 'upload']
+    tags:
+      role: reseacher
+  test_user2@gmail.com:
+    admin: True
+    display_name: Test User 2
+    projects:
+    - auth_id: test
+      privilege: ['create', 'read', 'update', 'delete', 'upload']
+  test_user3@gmail.com:
+    admin: True
+    projects:
+    - auth_id: test
+      privilege: ['create', 'read', 'update', 'delete', 'upload']
+    display_name: Test User 3
+    tags:
+      role: PI
+      organization: ABC

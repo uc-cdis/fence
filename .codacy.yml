@@ -3,3 +3,6 @@ coverage:
   enabled: true
   exclude_paths:
     - 'tests/**'
+
+exclude_paths:
+  - 'tests/**'

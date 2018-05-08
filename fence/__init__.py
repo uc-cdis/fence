@@ -9,7 +9,7 @@ import urlparse
 from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.auth import logout, build_redirect_url
-from fence.errors import APIError, UserError
+from fence.errors import UserError
 from fence.jwt import keys
 from fence.models import migrate
 from fence.oidc.server import server
@@ -26,17 +26,12 @@ import fence.blueprints.oauth2
 import fence.blueprints.storage_creds
 import fence.blueprints.user
 import fence.blueprints.well_known
+import fence.blueprints.link
 import fence.client
 
 
 app = flask.Flask(__name__)
 CORS(app=app, headers=['content-type', 'accept'], expose_headers='*')
-app.register_blueprint(fence.blueprints.oauth2.blueprint, url_prefix='/oauth2')
-app.register_blueprint(fence.blueprints.user.blueprint, url_prefix='/user')
-app.register_blueprint(fence.blueprints.storage_creds.blueprint, url_prefix='/credentials')
-app.register_blueprint(fence.blueprints.admin.blueprint, url_prefix='/admin')
-app.register_blueprint(fence.blueprints.login.blueprint, url_prefix='/login')
-app.register_blueprint(fence.blueprints.well_known.blueprint, url_prefix='/.well-known')
 
 
 def app_config(app, settings='fence.settings', root_dir=None):
@@ -59,7 +54,7 @@ def app_config(app, settings='fence.settings', root_dir=None):
                 os.path.dirname(os.path.realpath(__file__)))
     if 'AWS_CREDENTIALS' in app.config and len(app.config['AWS_CREDENTIALS']) > 0:
         value = app.config['AWS_CREDENTIALS'].values()[0]
-        app.boto = BotoManager(value)
+        app.boto = BotoManager(value, logger=app.logger)
         app.register_blueprint(
             fence.blueprints.data.blueprint, url_prefix='/data'
         )
@@ -81,20 +76,75 @@ def app_config(app, settings='fence.settings', root_dir=None):
     }
 
 
+def app_register_blueprints(app):
+    app.register_blueprint(fence.blueprints.oauth2.blueprint, url_prefix='/oauth2')
+    app.register_blueprint(fence.blueprints.user.blueprint, url_prefix='/user')
+
+    creds_blueprint = fence.blueprints.storage_creds.make_creds_blueprint()
+    app.register_blueprint(creds_blueprint, url_prefix='/credentials')
+
+    app.register_blueprint(fence.blueprints.admin.blueprint, url_prefix='/admin')
+    app.register_blueprint(fence.blueprints.well_known.blueprint, url_prefix='/.well-known')
+
+    login_blueprint = fence.blueprints.login.make_login_blueprint(app)
+    app.register_blueprint(login_blueprint, url_prefix='/login')
+    link_blueprint = fence.blueprints.link.make_link_blueprint()
+    app.register_blueprint(link_blueprint, url_prefix='/link')
+
+    @app.route('/')
+    def root():
+        """
+        Register the root URL.
+        """
+        endpoints = {
+            'oauth2 endpoint': '/oauth2',
+            'user endpoint': '/user',
+            'keypair endpoint': '/credentials'
+        }
+        return flask.jsonify(endpoints)
+
+    @app.route('/logout')
+    def logout_endpoint():
+        root = app.config.get('APPLICATION_ROOT', '')
+        request_next = flask.request.args.get('next', root)
+        next_url = request_next if request_next.startswith('https') or request_next.startswith('http') else build_redirect_url(app.config.get('ROOT_URL', ''), request_next)
+        return logout(next_url=next_url)
+
+
+    @app.route('/jwt/keys')
+    def public_keys():
+        """
+        Return the public keys which can be used to verify JWTs signed by fence.
+
+        The return value should look like this:
+
+            {
+                "keys": [
+                    {
+                        "key-01": " ... [public key here] ... "
+                    }
+                ]
+            }
+        """
+        return flask.jsonify({
+            'keys': [
+                (keypair.kid, keypair.public_key)
+                for keypair in app.keypairs
+            ]
+        })
+
+
 def app_sessions(app):
     app.url_map.strict_slashes = False
     app.db = SQLAlchemyDriver(app.config['DB'])
     migrate(app.db)
     session = flask_scoped_session(app.db.Session, app)  # noqa
-    app.jinja_env.globals['csrf_token'] = generate_csrf_token
-    app.storage_manager = StorageManager(
-        app.config['STORAGE_CREDENTIALS'],
-        logger=app.logger
-    )
+    # app.storage_manager = StorageManager(
+    #     app.config['STORAGE_CREDENTIALS'],
+    #     logger=app.logger
+    # )
     enabled_idp_ids = (
-        fence.settings
-        .ENABLED_IDENTITY_PROVIDERS['providers']
-        .keys()
+        app.config['ENABLED_IDENTITY_PROVIDERS']['providers'].keys()
     )
     # Add OIDC client for Google if configured.
     configured_google = (
@@ -121,68 +171,10 @@ def app_sessions(app):
 
 def app_init(app, settings='fence.settings', root_dir=None):
     app_config(app, settings=settings, root_dir=root_dir)
-    server.init_app(app)
     app_sessions(app)
+    app_register_blueprints(app)
+    server.init_app(app)
 
-
-def generate_csrf_token():
-    """
-    Generate a token used for CSRF protection.
-
-    If the session does not currently have such a CSRF token, assign it one
-    from a random string. Then return the session's CSRF token.
-    """
-    if '_csrf_token' not in flask.session:
-        flask.session['_csrf_token'] = random_str(20)
-    return flask.session['_csrf_token']
-
-
-@app.route('/')
-def root():
-    """
-    Register the root URL.
-    """
-    endpoints = {
-        'oauth2 endpoint': '/oauth2',
-        'user endpoint': '/user',
-        'keypair endpoint': '/credentials'
-    }
-    return flask.jsonify(endpoints)
-
-
-@app.route('/logout')
-def logout_endpoint():
-    root = app.config.get('APPLICATION_ROOT', '')
-    flask.current_app.logger.debug("IN FENCE INIT, next arg = {0}".format(flask.request.args.get('next', "EMPTY!!")))
-    request_next = flask.request.args.get('next', root)
-    
-    next_url = request_next if request_next.startswith('https') or request_next.startswith('http') else build_redirect_url(app.config.get('ROOT_URL', ''), request_next)
-
-    flask.current_app.logger.debug("IN FENCE INIT, next_url = {0}".format(next_url))
-    return flask.redirect(logout(next_url=next_url))
-
-
-@app.route('/jwt/keys')
-def public_keys():
-    """
-    Return the public keys which can be used to verify JWTs signed by fence.
-
-    The return value should look like this:
-
-        {
-            "keys": [
-                {
-                    "key-01": " ... [public key here] ... "
-                }
-            ]
-        }
-    """
-    return flask.jsonify({
-        'keys': [
-            (keypair.kid, keypair.public_key)
-            for keypair in app.keypairs
-        ]
-    })
 
 
 @app.errorhandler(Exception)

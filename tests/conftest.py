@@ -3,25 +3,44 @@
 Define pytest fixtures.
 """
 
+from collections import OrderedDict
 import json
-import jwt
 import mock
-from mock import patch, MagicMock
 import os
 
 from addict import Dict
+from authutils.testing.fixtures import (
+    _hazmat_rsa_private_key,
+    _hazmat_rsa_private_key_2,
+    rsa_private_key,
+    rsa_private_key_2,
+    rsa_public_key,
+    rsa_public_key_2,
+)
 import bcrypt
 from cdisutilstest.code.storage_client_mock import get_client
+import jwt
+from mock import patch, MagicMock
+from moto import mock_s3, mock_sts
 import pytest
 import requests
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.schema import DropTable
 
 import fence
 from fence import app_init
 from fence import models
+from fence.jwt.keys import Keypair
 
 import tests
 from tests import test_settings
 from tests import utils
+from tests.utils.oauth2.client import OAuth2TestClient
+
+
+@compiles(DropTable, "postgresql")
+def _compile_drop_table(element, compiler, **kwargs):
+    return compiler.visit_drop_table(element) + " CASCADE"
 
 
 # Allow authlib to use HTTP for local testing.
@@ -37,7 +56,7 @@ def indexd_get_available_bucket(file_id):
         'file_name': 'file1',
         'urls': ['s3://bucket1/key'],
         'hashes': {},
-        'metadata': {'acls': 'phs000178,phs000218'},
+        'acl': ['phs000178', 'phs000218'],
         'form': '',
         'created_date': '',
         "updated_date": ''
@@ -53,11 +72,47 @@ def indexd_get_unavailable_bucket(file_id):
         'file_name': 'file1',
         'urls': ['s3://bucket5/key'],
         'hashes': {},
-        'metadata': {'acls': 'phs000178,phs000218'},
+        'acl': ['phs000178', 'phs000218'],
         'form': '',
         'created_date': '',
         "updated_date": ''
     }
+
+
+def indexd_get_public_object(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s3://bucket1/key'],
+        'hashes': {},
+        'acl': ['*'],
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_public_bucket(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s3://bucket4/key'],
+        'hashes': {},
+        'acl': ['*'],
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def mock_get_bucket_location(self, bucket, config):
+    return 'us-east-1'
 
 
 @pytest.fixture(scope='session')
@@ -69,85 +124,63 @@ def claims_refresh():
 
 
 @pytest.fixture(scope='session')
-def public_key():
-    """
-    Return a public key for testing.
-    """
-    return utils.read_file('resources/keys/test_public_key.pem')
-
-
-@pytest.fixture(scope='session')
-def private_key():
-    """
-    Return a private key for testing. (Use only a private key that is
-    specifically set aside for testing, and never actually used for auth.)
-    """
-    return utils.read_file('resources/keys/test_private_key.pem')
-
-
-@pytest.fixture(scope='session')
-def encoded_jwt(private_key):
+def encoded_jwt(kid, rsa_private_key):
     """
     Return an example JWT containing the claims and encoded with the private
     key.
 
     Args:
-        claims (dict): fixture
-        private_key (str): fixture
+        rsa_private_key (str): fixture
 
     Return:
         str: JWT containing claims encoded with private key
     """
-    kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
     headers = {'kid': kid}
     return jwt.encode(
         utils.default_claims(),
-        key=private_key,
+        key=rsa_private_key,
         headers=headers,
         algorithm='RS256',
     )
 
 
 @pytest.fixture(scope='session')
-def encoded_jwt_expired(claims, private_key):
+def encoded_jwt_expired(kid, rsa_private_key):
     """
     Return an example JWT that has already expired.
 
     Args:
-        claims (dict): fixture
-        private_key (str): fixture
+        rsa_private_key (str): fixture
 
     Return:
         str: JWT containing claims encoded with private key
     """
-    kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
     headers = {'kid': kid}
     claims_expired = utils.default_claims()
     # Move `exp` and `iat` into the past.
     claims_expired['exp'] -= 10000
     claims_expired['iat'] -= 10000
     return jwt.encode(
-        claims_expired, key=private_key, headers=headers, algorithm='RS256'
+        claims_expired, key=rsa_private_key, headers=headers, algorithm='RS256'
     )
 
 
 @pytest.fixture(scope='session')
-def encoded_jwt_refresh_token(claims_refresh, private_key):
+def encoded_jwt_refresh_token(claims_refresh, kid, rsa_private_key):
     """
     Return an example JWT refresh token containing the claims and encoded with
     the private key.
 
     Args:
         claims_refresh (dict): fixture
-        private_key (str): fixture
+        rsa_private_key (str): fixture
 
     Return:
         str: JWT refresh token containing claims encoded with private key
     """
-    kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
     headers = {'kid': kid}
     return jwt.encode(
-        claims_refresh, key=private_key, headers=headers, algorithm='RS256'
+        claims_refresh, key=rsa_private_key, headers=headers, algorithm='RS256'
     )
 
 
@@ -162,13 +195,19 @@ class Mocker(object):
             'fence.resources.storage.StorageManager.check_auth',
             lambda cls, backend, user: True
         )
+        self.boto_patcher = patch(
+            'fence.resources.aws.boto_manager.BotoManager.get_bucket_region',
+            mock_get_bucket_location
+        )
         self.patcher.start()
         self.auth_patcher.start()
+        self.boto_patcher.start()
         self.additional_patchers = []
 
     def unmock_functions(self):
         self.patcher.stop()
         self.auth_patcher.stop()
+        self.boto_patcher.stop()
         for patcher in self.additional_patchers:
             patcher.stop()
 
@@ -178,15 +217,47 @@ class Mocker(object):
 
 
 @pytest.fixture(scope='session')
-def app():
+def kid():
+    """Return a JWT key ID to use for tests."""
+    return 'test-keypair'
+
+
+@pytest.fixture(scope='session')
+def kid_2():
+    """Return a second JWT key ID to use for tests."""
+    return 'test-keypair-2'
+
+
+@pytest.fixture(scope='session')
+def app(kid, rsa_private_key, rsa_public_key):
     """
     Flask application fixture.
     """
     mocker = Mocker()
     mocker.mock_functions()
     root_dir = os.path.dirname(os.path.realpath(__file__))
+
     app_init(fence.app, test_settings, root_dir=root_dir)
+    fence.app.keypairs.append(Keypair(
+        kid=kid, public_key=rsa_public_key, private_key=rsa_private_key
+    ))
+    fence.app.jwt_public_keys = {
+        fence.app.config['BASE_URL']: OrderedDict([(kid, rsa_public_key)])
+    }
     return fence.app
+
+
+@pytest.fixture(scope='function')
+def auth_client(app, request):
+    """
+    Flask application fixture.
+    """
+    app.config['MOCK_AUTH'] = False
+
+    def reset_authmock():
+        app.config['MOCK_AUTH'] = True
+
+    request.addfinalizer(reset_authmock)
 
 
 @pytest.fixture(scope='session')
@@ -215,6 +286,8 @@ def protected_endpoint(methods=['GET']):
 
 
 @pytest.fixture(scope='function')
+@mock_s3
+@mock_sts
 def user_client(db_session):
     users = dict(json.loads(
         utils.read_file('resources/authorized_users.json')
@@ -310,22 +383,40 @@ def unauthorized_indexd_client(app, request):
 
 
 @pytest.fixture(scope='function')
+def public_indexd_client(app, request):
+    mocker = Mocker()
+    mocker.mock_functions()
+    indexd_patcher = patch(
+        'fence.blueprints.data.get_index_document',
+        indexd_get_public_object)
+    mocker.add_mock(indexd_patcher)
+
+
+@pytest.fixture(scope='function')
+def public_bucket_indexd_client(app, request):
+    mocker = Mocker()
+    mocker.mock_functions()
+    indexd_patcher = patch(
+        'fence.blueprints.data.get_index_document',
+        indexd_get_public_bucket)
+    mocker.add_mock(indexd_patcher)
+
+@pytest.fixture(scope='function')
 def patch_app_db_session(app, monkeypatch):
     """
     TODO
     """
-
     def do_patch(session):
         monkeypatch.setattr(app.db, 'Session', lambda: session)
         modules_to_patch = [
             'fence.auth',
-            'fence.blueprints.storage_creds',
+            'fence.blueprints.link',
+            'fence.blueprints.storage_creds.google',
             'fence.oidc.jwt_generator',
             'fence.user',
         ]
         for module in modules_to_patch:
             monkeypatch.setattr('{}.current_session'.format(module), session)
-
     return do_patch
 
 
@@ -347,8 +438,8 @@ def oauth_client(app, db_session, oauth_user):
     )
     db_session.add(models.Client(
         client_id=client_id, client_secret=hashed_secret, user=test_user,
-        allowed_scopes=['openid', 'user'], _redirect_uris=url, description='',
-        is_confidential=True, name='testclient'
+        allowed_scopes=['openid', 'user', 'fence'], _redirect_uris=url,
+        description='', is_confidential=True, name='testclient'
     ))
     db_session.commit()
     return Dict(client_id=client_id, client_secret=client_secret, url=url)
@@ -357,8 +448,8 @@ def oauth_client(app, db_session, oauth_user):
 @pytest.fixture(scope='function')
 def oauth_client_B(app, request, db_session):
     """
-    Create a second, different OAuth2 client and add it to the database along
-    with a test user for the client.
+    Create a second, different OAuth2 (confidential) client and add it to the
+    database along with a test user for the client.
     """
     url = 'https://oauth-test-client-B.net'
     client_id = 'test-client-B'
@@ -376,8 +467,8 @@ def oauth_client_B(app, request, db_session):
         db_session.add(test_user)
     db_session.add(models.Client(
         client_id=client_id, client_secret=hashed_secret, user=test_user,
-        allowed_scopes=['openid', 'user'], _redirect_uris=url, description='',
-        is_confidential=True, name='testclientb'
+        allowed_scopes=['openid', 'user', 'fence'], _redirect_uris=url,
+        description='', is_confidential=True, name='testclientb'
     ))
     db_session.commit()
 
@@ -385,9 +476,62 @@ def oauth_client_B(app, request, db_session):
 
 
 @pytest.fixture(scope='function')
+def oauth_client_public(app, db_session, oauth_user):
+    """
+    Create a public OAuth2 client.
+    """
+    url = 'https://oauth-test-client-public.net'
+    client_id = 'test-client-public'
+    test_user = (
+        db_session
+        .query(models.User)
+        .filter_by(id=oauth_user.user_id)
+        .first()
+    )
+    db_session.add(models.Client(
+        client_id=client_id, user=test_user,
+        allowed_scopes=['openid', 'user', 'fence'], _redirect_uris=url,
+        description='', is_confidential=False, name='testclient-public'
+    ))
+    db_session.commit()
+    return Dict(client_id=client_id, url=url)
+
+
+@pytest.fixture(scope='function')
+def oauth_test_client(client, oauth_client):
+    return OAuth2TestClient(client, oauth_client, confidential=True)
+
+
+@pytest.fixture(scope='function')
+def oauth_test_client_B(client, oauth_client_B):
+    return OAuth2TestClient(client, oauth_client_B, confidential=True)
+
+
+@pytest.fixture(scope='function')
+def oauth_test_client_public(client, oauth_client_public):
+    return OAuth2TestClient(client, oauth_client_public, confidential=False)
+
+
+@pytest.fixture(scope='function')
+def google_proxy_group(app, db_session, user_client):
+    group_id = 'test-proxy-group-0'
+    email = fence.utils.random_str(40) + "@test.com"
+    test_user = (
+        db_session
+        .query(models.User)
+        .filter_by(id=user_client.user_id)
+        .first()
+    )
+    test_user.google_proxy_group_id = group_id
+    db_session.add(models.GoogleProxyGroup(id=group_id, email=email))
+    db_session.commit()
+    return Dict(id=group_id, email=email)
+
+
+@pytest.fixture(scope='function')
 def cloud_manager():
     manager = MagicMock()
-    patch('fence.blueprints.storage_creds.GoogleCloudManager', manager).start()
+    patch('fence.blueprints.storage_creds.google.GoogleCloudManager', manager).start()
     return manager
 
 
@@ -426,3 +570,62 @@ def mock_get(monkeypatch, example_keys_response):
         monkeypatch.setattr('requests.get', mock.MagicMock(side_effect=get))
 
     return do_patch
+
+
+@pytest.fixture(scope='function')
+def encoded_creds_jwt(
+        kid, rsa_private_key, user_client, oauth_client, google_proxy_group):
+    """
+    Return a JWT and user_id for a new user containing the claims and
+    encoded with the private key.
+
+    Args:
+        claims (dict): fixture
+        rsa_private_key (str): fixture
+
+    Return:
+        str: JWT containing claims encoded with private key
+    """
+    headers = {'kid': kid}
+    return Dict(
+        jwt=jwt.encode(
+            utils.authorized_download_credentials_context_claims(
+                user_client['username'], user_client['user_id'],
+                oauth_client['client_id'], google_proxy_group['id']),
+            key=rsa_private_key,
+            headers=headers,
+            algorithm='RS256',
+        ),
+        user_id=user_client['user_id'],
+        client_id=oauth_client['client_id'],
+        proxy_group_id=google_proxy_group['id']
+    )
+
+
+@pytest.fixture(scope='function')
+def encoded_jwt_no_proxy_group(
+        kid, rsa_private_key, user_client, oauth_client):
+    """
+    Return a JWT and user_id for a new user containing the claims and
+    encoded with the private key.
+
+    Args:
+        claims (dict): fixture
+        rsa_private_key (str): fixture
+
+    Return:
+        str: JWT containing claims encoded with private key
+    """
+    headers = {'kid': kid}
+    return Dict(
+        jwt=jwt.encode(
+            utils.authorized_download_credentials_context_claims(
+                user_client['username'], user_client['user_id'],
+                oauth_client['client_id']),
+            key=rsa_private_key,
+            headers=headers,
+            algorithm='RS256',
+        ),
+        user_id=user_client['user_id'],
+        client_id=oauth_client['client_id']
+    )

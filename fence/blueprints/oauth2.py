@@ -24,10 +24,11 @@ from authlib.specs.rfc6749.errors import (
 )
 
 from fence.errors import Unauthorized
+from fence.jwt.token import SCOPE_DESCRIPTION
 from fence.models import Client
 from fence.oidc.server import server
+from fence.utils import clear_cookies
 from fence.user import get_current_user
-from fence.auth import handle_login
 
 
 blueprint = flask.Blueprint('oauth2', __name__)
@@ -97,10 +98,15 @@ def authorize(*args, **kwargs):
         )
 
     confirm = grant.params.get('confirm')
-    if client.auto_approve is True:
+    if client.auto_approve:
         confirm = 'yes'
     if confirm is not None:
         response = _handle_consent_confirmation(user, confirm)
+        # if it's a 302 for POST confirm, return 200 instead and include
+        # redirect url in body because browser ajax POST doesn't follow
+        # cross origin redirect
+        if flask.request.method == 'POST' and response.status_code == 302:
+            return flask.jsonify({'redirect': response.headers['Location']})
     else:
         # no confirm param, so no confirmation has occured yet
         response = _authorize(user, grant, client)
@@ -196,9 +202,23 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
         if 'login' in prompts:
             show_consent_screen = True
             try:
-                # re-AuthN user
-                # TODO not sure if this really counts as re-AuthN...
-                handle_login(scope)
+                # Re-AuthN user (kind of).
+                # TODO (RR 2018-03-16): this could also include removing active
+                # refresh tokens.
+                flask.session.clear()
+
+                # For a POST, return the redirect in JSON instead of headers.
+                if flask.request.method == 'POST':
+                    redirect_response = flask.make_response(flask.jsonify({
+                        'redirect': response.headers['Location']
+                    }))
+                else:
+                    redirect_response = flask.make_response(
+                        flask.redirect(flask.url_for('.authorize'))
+                    )
+
+                clear_cookies(redirect_response)
+                return redirect_response
             except Unauthorized:
                 error = AccessDeniedError(
                     state=grant.params.get('state'),
@@ -217,9 +237,14 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
             pass
 
     if show_consent_screen:
+        shown_scopes = scope.split(' ')
+        if 'openid' in shown_scopes:
+            shown_scopes.remove('openid')
+        resource_description = [SCOPE_DESCRIPTION[s] for s in shown_scopes]
         response = flask.render_template(
             'oauthorize.html', grant=grant, user=user, client=client,
-            scope=scope
+            app_name=flask.current_app.config.get('APP_NAME'),
+            resource_description=resource_description
         )
 
     return response
@@ -241,7 +266,7 @@ def _get_authorize_error_response(error, redirect_uri):
 
 
 @blueprint.route('/token', methods=['POST'])
-def get_access_token(*args, **kwargs):
+def get_token(*args, **kwargs):
     """
     Handle exchanging code for and refreshing the access token.
 

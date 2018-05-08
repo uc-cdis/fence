@@ -1,7 +1,4 @@
-import base64
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers
+from jose import jwk
 
 
 def test_response_fields(client):
@@ -46,15 +43,6 @@ def test_response_values(app, client):
         assert key['use'] == 'sig'
         assert key['key_ops'] == 'verify'
         assert key['kid'] in app_kids
-        # Attempt to reproduce the public key from the values for the public
-        # modulus and exponent provided in the response, using cryptography
-        # primitives.
-        n = int(base64.b64decode(key['n']))
-        e = int(base64.b64decode(key['e']))
-        numbers = RSAPublicNumbers(e, n)
-        key = numbers.public_key(default_backend())
-        key_pem = key.public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
-        )
+        # Attempt to reproduce the public key from the JWK response.
+        key_pem = jwk.construct(key).to_pem()
         assert key_pem in app_public_keys

@@ -1,6 +1,12 @@
 language: python
 
-python: 2.7
+python:
+  - "2.7"
+  - "3.6"
+
+matrix:
+ allow_failures:
+   - python: "3.6"
 
 sudo: false
 
@@ -20,7 +26,6 @@ install:
   - userdatamodel-init --db fence_test_tmp
 
 before_script:
-  - cp fence/local_settings.example.py fence/local_settings.py
   - mkdir -p tests/resources/keys; cd tests/resources/keys; openssl genrsa -out test_private_key.pem 2048; openssl rsa -in test_private_key.pem -pubout -out test_public_key.pem
   - openssl genrsa -out test_private_key_2.pem 2048; openssl rsa -in test_private_key_2.pem -pubout -out test_public_key_2.pem
   - cd -

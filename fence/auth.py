@@ -1,6 +1,8 @@
 from functools import wraps
 
 from authutils.errors import JWTError, JWTExpiredError
+from authutils.token.validate import require_auth_header
+from authutils.token.validate import current_token
 import flask
 from flask_sqlalchemy_session import current_session
 
@@ -8,28 +10,27 @@ from fence.errors import Unauthorized, InternalError
 from fence.jwt.validate import validate_jwt
 from fence.models import User, IdentityProvider
 from fence.user import get_current_user
+from fence.utils import clear_cookies
 
 
 def build_redirect_url(hostname, path):
     """
     Compute a redirect given a hostname and next path where
-    
+
     Args:
         hostname (str): may be empty string or a bare hostname or
                a hostname with a protocal attached (https?://...)
         path (int): is a path to attach to hostname
-        
+
     Return:
         string url suitable for flask.redirect
-        
-    Side Effects:
-        - None
     """
     redirect_base = hostname
     # BASE_URL may be empty or a bare hostname or a hostname with a protocol
     if bool(redirect_base) and not redirect_base.startswith("http"):
         redirect_base = "https://" + redirect_base
     return redirect_base + path
+
 
 def login_user(request, username, provider):
     user = current_session.query(
@@ -57,12 +58,15 @@ def logout(next_url=None):
     flask.current_app.logger.debug("IN AUTH LOGOUT, next_url = {0}".format(next_url))
     if not user:
         raise Unauthorized("You are not logged in")
-    if flask.session['provider'] == IdentityProvider.itrust:
+    if flask.session.get('provider') == IdentityProvider.itrust:
         itrust_next_url = flask.current_app.config['ITRUST_GLOBAL_LOGOUT'] + next_url
-        flask.current_app.logger.debug("IN AUTH LOGOUT, itrust_next_url = {0}".format(itrust_next_url))
     flask.session.clear()
-    flask.current_app.logger.debug("IN AUTH LOGOUT WE RETURN, itrust or next = {0}".format((itrust_next_url or next_url)))
-    return (itrust_next_url or next_url)
+    redirect_response = flask.make_response(
+        flask.redirect(itrust_next_url or next_url)
+    )
+    clear_cookies(redirect_response)
+    return redirect_response
+
 
 
 def check_scope(scope):
@@ -86,7 +90,6 @@ def login_required(scope=None):
     """
 
     def decorator(f):
-
         @wraps(f)
         def wrapper(*args, **kwargs):
             if flask.session.get('username'):
@@ -123,7 +126,6 @@ def login_required(scope=None):
                 return f(*args, **kwargs)
             else:
                 raise Unauthorized("Please login")
-
         return wrapper
 
     return decorator

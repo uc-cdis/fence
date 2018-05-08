@@ -1,9 +1,9 @@
-from datetime import datetime, timedelta
 import os
+import time
 import urlparse
 import uuid
 
-from flask import current_app as capp
+from flask import current_app
 
 from fence.models import User, Project, AccessPrivilege, UserToGroup, Group
 
@@ -162,9 +162,7 @@ def create_awg_groups(data, db_session):
                 s.flush()
 
 def new_jti():
-    """
-    Return a fresh jti (JWT token ID).
-    """
+    """Return a fresh JTI (JWT token ID)."""
     return str(uuid.uuid4())
 
 
@@ -172,9 +170,8 @@ def iat_and_exp():
     """
     Return ``iat`` and ``exp`` claims for a JWT.
     """
-    now = datetime.now()
-    iat = int(now.strftime('%s'))
-    exp = int((now + timedelta(seconds=60)).strftime('%s'))
+    iat = int(time.time())
+    exp = iat + 600
     return (iat, exp)
 
 
@@ -197,11 +194,15 @@ def default_claims():
         'iat': iat,
         'exp': exp,
         'jti': jti,
+        'azp': '',
         'context': {
             'user': {
                 'name': 'test-user',
                 'projects': [
                 ],
+                'google': {
+                    'proxy_group': None,
+                }
             },
         },
     }
@@ -215,7 +216,7 @@ def unauthorized_context_claims(user_name, user_id):
         dict: dictionary of claims
     """
     aud = ['access', 'data', 'user', 'openid']
-    iss = capp.config['BASE_URL']
+    iss = current_app.config['BASE_URL']
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
@@ -226,6 +227,7 @@ def unauthorized_context_claims(user_name, user_id):
         'iat': iat,
         'exp': exp,
         'jti': jti,
+        'azp': '',
         'context': {
             'user': {
                 'name': 'test',
@@ -233,6 +235,9 @@ def unauthorized_context_claims(user_name, user_id):
                     "phs000178": ["read"],
                     "phs000234": ["read", "read-storage"],
                 },
+                'google': {
+                    'proxy_group': None,
+                }
             },
         },
     }
@@ -246,7 +251,7 @@ def authorized_download_context_claims(user_name, user_id):
         dict: dictionary of claims
     """
     aud = ['access', 'data', 'user', 'openid']
-    iss = capp.config['BASE_URL']
+    iss = current_app.config['BASE_URL']
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
@@ -256,6 +261,7 @@ def authorized_download_context_claims(user_name, user_id):
         'iat': iat,
         'exp': exp,
         'jti': jti,
+        'azp': '',
         'pur': 'access',
         'context': {
             'user': {
@@ -264,6 +270,45 @@ def authorized_download_context_claims(user_name, user_id):
                     "phs000178": ["read"],
                     "phs000218": ["read", "read-storage"],
                 },
+                'google': {
+                    'proxy_group': None,
+                }
+            },
+        },
+    }
+
+
+def authorized_download_credentials_context_claims(
+        user_name, user_id, client_id, google_proxy_group_id=None):
+    """
+    Return a generic claims dictionary to put in a JWT.
+
+    Return:
+        dict: dictionary of claims
+    """
+    aud = ['access', 'data', 'user', 'openid', 'credentials']
+    iss = current_app.config['BASE_URL']
+    jti = new_jti()
+    iat, exp = iat_and_exp()
+    return {
+        'aud': aud,
+        'sub': user_id,
+        'iss': iss,
+        'iat': iat,
+        'exp': exp,
+        'jti': jti,
+        'azp': client_id,
+        'pur': 'access',
+        'context': {
+            'user': {
+                'name': user_name,
+                'projects': {
+                    "phs000178": ["read"],
+                    "phs000218": ["read", "read-storage"],
+                },
+                'google': {
+                    'proxy_group': google_proxy_group_id,
+                }
             },
         },
     }
@@ -277,7 +322,7 @@ def authorized_upload_context_claims(user_name, user_id):
         dict: dictionary of claims
     """
     aud = ['access', 'data', 'user', 'openid']
-    iss = capp.config['BASE_URL']
+    iss = current_app.config['BASE_URL']
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
@@ -288,6 +333,7 @@ def authorized_upload_context_claims(user_name, user_id):
         'iat': iat,
         'exp': exp,
         'jti': jti,
+        'azp': 'test-client',
         'context': {
             'user': {
                 'name': user_name,
@@ -295,6 +341,9 @@ def authorized_upload_context_claims(user_name, user_id):
                     "phs000178": ["read"],
                     "phs000218": ["read", "write-storage"],
                 },
+                'google': {
+                    'proxy_group': None,
+                }
             },
         },
     }

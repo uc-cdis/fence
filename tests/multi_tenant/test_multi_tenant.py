@@ -75,8 +75,8 @@ def test_login(
         authorize_response = client.post(
             url, headers=headers, data=authorize_params
         )
-        assert authorize_response.status_code == 302
-        assert 'Location' in authorize_response.headers
-        authorize_redirect = authorize_response.headers['Location']
+        assert authorize_response.status_code == 200
+        assert 'redirect' in authorize_response.json
+        authorize_redirect = authorize_response.json['redirect']
         assert remove_qs(authorize_redirect) == fence_oauth_client_url
         assert 'code' in authorize_redirect

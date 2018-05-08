@@ -1,14 +1,13 @@
 import pytest
 
-from tests.utils import oauth2
-
 
 @pytest.fixture(scope='function')
-def token_response(client, oauth_client):
+def token_response(oauth_test_client):
     """
     Return a successful token response.
     """
-    return oauth2.get_token_response(client, oauth_client)
+    oauth_test_client.authorize(data={'confirm': 'yes'})
+    return oauth_test_client.token().response
 
 
 @pytest.fixture(scope='function')

@@ -18,25 +18,51 @@
   <!-- // <script src="js/scripts.js"></script> -->
   <main>
     <aside>
-        Bionimbus Cloud
+      {{app_name}}
     </aside>
     <section>
       <form method='post'>
-          <div> Authorize {{client.name}} to access your {{scope[0]}} resources?</div>
-         <input name=_csrf_token type=hidden value="{{ csrf_token }}">
-         <button id="yes" class='btn btn-success'>Yes </button>
-         <button id="no" class='btn btn-default'>No</button>
+          <div> Authorize {{client.name}} to:</div>
+          <ul>
+            {% for resource in resource_description %}
+              <li>{{resource}}</li>
+            {% endfor %}
+          </ul>
+         <a id="yes" class='yes'>Yes </a>
+         <a id="no" class='no'>No</a>
       </form>
     </section>
   </main>
 </body>
 <style>
 main {
-    width: 50%;
+    width: 400px;
     margin: auto;
     margin-top: 5em;
     overflow: hidden;
     background: #ffffff;
+}
+.yes {
+    color: white;
+    padding: 5px 10px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    border: 1px solid #121a13;
+    background-color: #121a13;
+    cursor: pointer;
+}
+.no {
+    color: #121a13;
+    padding: 5px 10px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    border: 1px solid #121a13;
+    background-color: white;
+    cursor: pointer;
 }
 body {
 }
@@ -56,18 +82,50 @@ main div {
 }
 </style>
 <script>
+    function getCookie(name) {
+        var value = "; " + document.cookie;
+        var parts = value.split("; " + name + "=");
+        if (parts.length == 2) return parts.pop().split(";").shift();
+    }
     $(document).ready(function(){
-        var form = $("form")
         $("#yes").click(function(){
-            var input = $("<input>").attr("type", "hidden").attr("name", "confirm").val("yes");
-            form.append(input);
-            form.submit();
+          $.ajax({
+            type : 'POST',
+            //remove the .php from results.php.php
+            url : window.location.href,
+            //Add the request header
+            headers : {
+                'x-csrf-token' : getCookie('csrftoken'),
+            },
+            contentType : 'application/x-www-form-urlencoded',
+            data : {confirm : 'yes'},
+            success : function(response) {
+                window.location.replace(response['redirect'])
+            },
+            error : function(xhr, status, error) {
+                console.log(xhr)
+            }
+          });
         })
 
         $("#no").click(function(){
-            var input = $("<input>").attr("type", "hidden").attr("name", "confirm").val("no");
-            form.append(input);
-            form.submit();
+          $.ajax({
+            type : 'POST',
+            //remove the .php from results.php.php
+            url : window.location.href,
+            //Add the request header
+            headers : {
+                'x-csrf-token' : getCookie('csrftoken'),
+            },
+            contentType : 'application/x-www-form-urlencoded',
+            data : {confirm : 'no'},
+            success : function(response) {
+                window.location.replace(response['redirect'])
+            },
+            error : function(xhr, status, error) {
+                console.log(xhr)
+            }
+          });
         })
 
      })

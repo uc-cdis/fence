@@ -1,0 +1,12 @@
+{
+  "phs000178": [
+    {"name": "TCGA", "auth_id": "phs000178"},
+            {"name": "TCGA-PCAWG", "auth_id": "TCGA-PCAWG"}
+    ],
+  "phs000179": [
+    {"name": "BLAH", "auth_id": "phs000179"}
+  ],
+  "phstest": [
+    {"name": "Test", "auth_id": "Test"}
+  ]
+}

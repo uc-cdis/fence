@@ -24,21 +24,6 @@ import jwt
 blueprint = Blueprint('admin', __name__)
 
 
-#### TOKEN ####
-
-
-@blueprint.route('/token', methods=['GET'])
-@login_required({'admin'})
-def get_long_lived_token():
-    """
-    Get a long lived token for a user
-    Returns a json object
-    """
-    current_app.logger.debug("get_long_lived_token")
-    token = request.headers.get('Authorization').split(' ')[-1]
-    return jsonify({"token": adm.get_long_lived_token(current_app, current_session, token)})
-
-
 #### USERS ####
 
 

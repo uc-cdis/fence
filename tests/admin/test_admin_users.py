@@ -43,7 +43,7 @@ def test_delete_user(db_session, awg_users):
     assert user_groups == []
 
 
-def test_update_user(db_session, awg_users):
+def test_update_user_without_conflict(db_session, awg_users):
     user = db_session.query(User).filter(User.username == "awg_user").first()
     assert user != None
     adm.update_user(db_session, "awg_user", "admin", "new_email@fake.com", "new_awg_user")
@@ -53,6 +53,12 @@ def test_update_user(db_session, awg_users):
     assert user.username == "new_awg_user"
     assert user.is_admin == True
     assert user.email == "new_email@fake.com"
+
+def test_update_user_to_existing_name(db_session, awg_users):
+    user = db_session.query(User).filter(User.username == "awg_user").first()
+    assert user != None
+    with pytest.raises(UserError):
+        adm.update_user(db_session, "awg_user", "admin", "new_email@fake.com", "awg_user_2")
 
 
 def test_get_inexistent_user(db_session):
