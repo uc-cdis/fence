@@ -281,6 +281,9 @@ def assign_group_to_user(s, user, group_name, group_data):
 
 
 def google_init(db):
+    import fence.settings
+    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+
     # Initial user proxy group creation
     db = SQLAlchemyDriver(db)
     with db.session as s:
@@ -317,6 +320,9 @@ def google_init(db):
 
 
 def remove_expired_google_service_account_keys(db):
+    import fence.settings
+    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+
     db = SQLAlchemyDriver(db)
     with db.session as current_session:
         client_service_accounts = (
@@ -382,6 +388,9 @@ def remove_expired_google_service_account_keys(db):
 
 
 def remove_expired_google_accounts_from_proxy_groups(db):
+    import fence.settings
+    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+
     db = SQLAlchemyDriver(db)
     with db.session as current_session:
         current_time = int(time.time())
