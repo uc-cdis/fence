@@ -201,7 +201,6 @@ class GoogleServiceAccount(Base):
 
     google_project_id = Column(
         String,
-        unique=True,
         nullable=False
     )
 
@@ -418,6 +417,13 @@ def migrate(driver):
     drop_unique_constraint_if_exist(
         table_name=GoogleServiceAccount.__tablename__,
         column_name='google_unique_id',
+        driver=driver,
+        metadata=md
+    )
+
+    drop_unique_constraint_if_exist(
+        table_name=GoogleServiceAccount.__tablename__,
+        column_name='google_project_id',
         driver=driver,
         metadata=md
     )
