@@ -1,4 +1,6 @@
 import time
+import json
+from cryptography.fernet import Fernet
 import flask
 from flask_sqlalchemy_session import current_session
 
@@ -59,7 +61,9 @@ def get_or_create_users_primary_google_service_account_key(
     )
 
     if user_service_account_key:
-        sa_private_key = user_service_account_key.private_key
+        key = Fernet(flask.current_app.config['HMAC_ENCRYPTION_KEY'])
+        private_key_bytes = key.decrypt(user_service_account_key.private_key)
+        sa_private_key = json.loads(private_key_bytes.decode('utf-8'))
     else:
         sa_private_key = _create_users_primary_google_service_account_key(
             user_id, proxy_group_id, expires)
@@ -205,12 +209,15 @@ def _create_users_primary_google_service_account_key(
     sa_private_key, service_account = create_google_access_key_for_client(
         None, user_id, proxy_group_id)
 
+    key = Fernet(flask.current_app.config['HMAC_ENCRYPTION_KEY'])
+    private_key_bytes = json.dumps(sa_private_key).encode('utf-8')
+
     key_id = sa_private_key.get('private_key_id')
     sa_key = GoogleServiceAccountKey(
         key_id=key_id,
         service_account_id=service_account.id,
         expires=expires,
-        private_key=sa_private_key
+        private_key=key.encrypt(private_key_bytes)
     )
     current_session.add(sa_key)
     current_session.commit()

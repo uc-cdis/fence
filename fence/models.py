@@ -283,7 +283,7 @@ class GoogleServiceAccountKey(Base):
 
     expires = Column(BigInteger)
 
-    private_key = Column(JSONB)
+    private_key = Column(String)
 
     def delete(self):
         with flask.current_app.db.session as session:
