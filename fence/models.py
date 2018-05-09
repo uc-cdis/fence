@@ -628,14 +628,6 @@ def _add_google_project_id(driver, md):
             count += 1
     session.commit()
 
-    # add unique constraint
-    add_unique_constraint_if_not_exist(
-        table_name=GoogleServiceAccount.__tablename__,
-        column_name='google_project_id',
-        driver=driver,
-        metadata=md
-    )
-
     # add not null constraint
     add_not_null_constraint(
         table_name=GoogleServiceAccount.__tablename__,
