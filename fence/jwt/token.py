@@ -429,12 +429,19 @@ def generate_id_token(
     # If not provided, assume auth time is time this ID token is issued
     auth_time = auth_time or iat
 
+    # NOTE: if the claims here are modified, be sure to update the
+    # `claims_supported` field returned from the OIDC configuration endpoint
+    # ``/.well-known/openid-configuration``, in
+    # ``fence/blueprints/well_known.py``.
     claims = {
         'context': {
             'user': {
                 'name': user.username,
                 'is_admin': user.is_admin,
-                'projects': dict(user.project_access)
+                'projects': dict(user.project_access),
+                'email': user.email,
+                'display_name': user.display_name,
+                'phone_number': user.phone_number
             },
         },
         'pur': 'id',
@@ -447,6 +454,9 @@ def generate_id_token(
         'auth_time': auth_time,
         'azp': client_id,
     }
+    if user.tags is not None and len(user.tags) > 0:
+        claims['context']['user']['tags'] = {
+            tag.key: tag.value for tag in user.tags}
 
     # only add google linkage information if provided
     if linked_google_email:

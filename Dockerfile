@@ -2,6 +2,8 @@
 # To check running container: docker exec -it fence /bin/bash
 
 FROM ubuntu:16.04
+# image for sftp & ssh protocols
+FROM atmoz/sftp:debian-jessie
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -10,6 +12,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
     git \
+    # for ftp
+    lftp \
+    # for decryption dbgap files
+    mcrypt \
     libapache2-mod-wsgi \
     # dependency for cryptography
     libffi-dev \

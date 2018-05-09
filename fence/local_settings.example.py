@@ -1,4 +1,5 @@
 import os
+import json
 from boto.s3.connection import OrdinaryCallingFormat
 
 
@@ -7,10 +8,12 @@ DB = 'postgresql://test:test@localhost:5432/fence'
 MOCK_AUTH = False
 MOCK_STORAGE = False
 
-BASE_URL = 'http://localhost/user'
+SERVER_NAME = 'http://localhost/user'
+BASE_URL = SERVER_NAME
 APPLICATION_ROOT = '/user'
 
 ROOT_DIR = '/fence'
+
 # If using multi-tenant setup, configure this to the base URL for the provider
 # fence (i.e. ``BASE_URL`` in the provider fence config).
 # OIDC_ISSUER = 'http://localhost:8080/user
@@ -146,3 +149,18 @@ MAX_API_KEY_TTL = 2592000
 #: ``MAX_ACCESS_TOKEN_TTL: int``
 #: The number of seconds after an access token is issued until it expires.
 MAX_ACCESS_TOKEN_TTL = 3600
+dir_path = "/secrets"
+fence_creds = os.path.join(dir_path, 'fence_credentials.json')
+
+if os.path.exists(fence_creds):
+    with open(fence_creds, 'r') as f:
+        data = json.load(f)
+        AWS_CREDENTIALS = data['AWS_CREDENTIALS']
+        S3_BUCKETS = data['S3_BUCKETS']
+        DEFAULT_LOGIN_URL = data['DEFAULT_LOGIN_URL']
+        OPENID_CONNECT.update(data['OPENID_CONNECT'])
+        OIDC_ISSUER = data['OIDC_ISSUER']
+        ENABLED_IDENTITY_PROVIDERS = data['ENABLED_IDENTITY_PROVIDERS']
+        APP_NAME = data['APP_NAME']
+        HTTP_PROXY = data['HTTP_PROXY']
+        dbGaP = data["dbGaP"]

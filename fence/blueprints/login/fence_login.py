@@ -50,7 +50,7 @@ class FenceLogin(Resource):
         mismatched_state = (
             'state' not in flask.request.args
             or 'state' not in flask.session
-            or flask.request.args['state'] != flask.session.pop('state')
+            or flask.request.args['state'] != flask.session.pop('state', '')
         )
         if mismatched_state:
             raise Unauthorized('authorization request failed; state mismatch')
