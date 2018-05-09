@@ -26,10 +26,6 @@ ACTION_DICT = {
         'upload': 'PUT',
         'download': 'GET'
     },
-    'http': {
-        'upload': 'put_object',
-        'download': 'get_object'
-    },
     'gs': {
         'upload': 'PUT',
         'download': 'GET'
@@ -88,11 +84,7 @@ class IndexedFile(object):
             self._get_indexed_file_locations(
                 self.index_document.get('urls', []))
         )
-
-        if check_public(self.set_acls):
-            self.public = True
-        else:
-            self.public = False
+        self.public = check_public(self.set_acls)
 
     def get_signed_url(self, protocol, action, expires_in):
         if not self.public and not self.check_authorization(action):
@@ -109,8 +101,7 @@ class IndexedFile(object):
 
         if protocol:
             for file_location in self.indexed_file_locations:
-
-                # allow https in they specific http
+                # allow file location to be https, even if they specific http
                 if ((file_location.protocol == protocol)
                         or (protocol == 'http' and file_location.protocol == 'https')):
                     signed_url = file_location.get_signed_url(
@@ -161,7 +152,8 @@ class IndexedFile(object):
                 raise InternalError('internal error from indexd: {}'.format(e))
         elif res.status_code == 404:
             flask.current_app.logger.error(
-                'indexd did not find find {}; {}'
+                'Not Found. indexd could not find {}'
+                '\nIndexd\'s response: {}'
                 .format(url + self.file_id, res.text))
             raise NotFound("Can't find a location for the data")
         else:
@@ -215,6 +207,17 @@ class IndexedFileLocationFactory(object):
 
 
 class IndexedFileLocation(object):
+    """
+    Parent class for indexed file locations.
+
+    This will catch all non-aws/gs cases for now. If custom functionality is
+    needed for a new file location, create a new subclass.
+
+    Attributes:
+        parsed_url (TYPE): Description
+        protocol (TYPE): Description
+        url (TYPE): Description
+    """
 
     def __init__(self, url):
         self.url = url
@@ -300,14 +303,15 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         super(GoogleStorageIndexedFileLocation, self).__init__(url)
 
     def get_signed_url(self, action, expires_in, public_data=False):
-        resource_path = self.parsed_url.path.strip('/')
-        network_location = (
-            self.parsed_url.netloc.strip('/') or 'storage.googleapis.com'
+        resource_path = (
+            self.parsed_url.netloc.strip('/') + '/'
+            + self.parsed_url.path.strip('/')
         )
+
         # if the file is public, just return the public url to access it, no
         # signing required
         if public_data:
-            url = 'https://' + network_location + '/' + resource_path
+            url = 'https://storage.googleapis.com/' + resource_path
         else:
             expiration_time = int(time.time()) + int(expires_in)
             url = self._generate_google_storage_signed_url(
