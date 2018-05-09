@@ -300,7 +300,7 @@ class UserSyncer(object):
                         continue
 
                     user_info[username] = {
-                        'email': username,
+                        'email': details.get('email', username),
                         'display_name': details.get('display_name', ''),
                         'phone_number': details.get('phone_number', ''),
                         'tags': details.get('tags', {}),
