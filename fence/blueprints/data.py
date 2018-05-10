@@ -12,8 +12,8 @@ from cdispyutils.hmac4 import generate_aws_presigned_url
 from cdispyutils.config import get_value
 
 from fence.resources.google.utils import (
-    get_or_create_users_primary_google_service_account_key,
-    create_users_primary_google_service_account_key
+    get_or_create_primary_service_account_key,
+    create_primary_service_account_key
 )
 from fence.errors import UnavailableError
 from fence.errors import NotFound
@@ -331,7 +331,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         )
 
         private_key, key_db_entry = (
-            get_or_create_users_primary_google_service_account_key(
+            get_or_create_primary_service_account_key(
                 user_id=user_id,
                 proxy_group_id=proxy_group_id)
         )
@@ -347,7 +347,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         #       before the expiration of the url then the url will NOT work
         #       (even though the url itself isn't expired)
         if key_db_entry and key_db_entry.expires > expiration_time:
-            private_key = create_users_primary_google_service_account_key(
+            private_key = create_primary_service_account_key(
                 user_id=user_id,
                 proxy_group_id=proxy_group_id
             )

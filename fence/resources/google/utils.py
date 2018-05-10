@@ -12,7 +12,7 @@ from fence.models import GoogleServiceAccount
 from fence.errors import InternalError
 
 
-def get_or_create_users_primary_google_service_account_key(
+def get_or_create_primary_service_account_key(
         user_id, proxy_group_id, expires=None):
     """
     Get or create a key for the user's primary service account in their
@@ -39,7 +39,7 @@ def get_or_create_users_primary_google_service_account_key(
     sa_private_key = {}
     # Note that client_id is None, which is how we store the user's SA
     user_google_service_account = (
-        get_google_service_account_for_client(client_id=None, user_id=user_id)
+        get_service_account(client_id=None, user_id=user_id)
     )
 
     if not user_google_service_account:
@@ -65,13 +65,13 @@ def get_or_create_users_primary_google_service_account_key(
         private_key_bytes = key.decrypt(user_service_account_key.private_key)
         sa_private_key = json.loads(private_key_bytes.decode('utf-8'))
     else:
-        sa_private_key = _create_users_primary_google_service_account_key(
+        sa_private_key = _create_primary_service_account_key(
             user_id, proxy_group_id, expires)
 
     return sa_private_key, user_service_account_key
 
 
-def create_users_primary_google_service_account_key(
+def create_primary_service_account_key(
         user_id, proxy_group_id, expires=None):
     """
     Create a key for the user's primary service account in their
@@ -93,7 +93,7 @@ def create_users_primary_google_service_account_key(
     """
     # Note that client_id is None, which is how we store the user's SA
     user_google_service_account = (
-        get_google_service_account_for_client(client_id=None, user_id=user_id)
+        get_service_account(client_id=None, user_id=user_id)
     )
 
     if not user_google_service_account:
@@ -104,11 +104,11 @@ def create_users_primary_google_service_account_key(
             'was created.'.format(user_id)
         )
 
-    return _create_users_primary_google_service_account_key(
+    return _create_primary_service_account_key(
         user_id, proxy_group_id, expires)
 
 
-def create_google_access_key_for_client(client_id, user_id, proxy_group_id):
+def create_google_access_key(client_id, user_id, proxy_group_id):
     """
     Return an access key for current user and client.
 
@@ -133,11 +133,11 @@ def create_google_access_key_for_client(client_id, user_id, proxy_group_id):
             }
     """
     key = {}
-    service_account = get_google_service_account_for_client(client_id, user_id)
+    service_account = get_service_account(client_id, user_id)
 
     if not service_account:
         if client_id:
-            service_account = _create_google_service_account_for_client(
+            service_account = _create_service_account(
                 client_id, user_id, proxy_group_id)
         else:
             # error about requiring client id in azp field of token
@@ -176,7 +176,7 @@ def add_custom_service_account_key_expiration(
     current_session.commit()
 
 
-def get_google_service_account_for_client(client_id, user_id):
+def get_service_account(client_id, user_id):
     """
     Return the service account (from Fence db) for given client.
 
@@ -200,13 +200,13 @@ def get_google_service_account_for_client(client_id, user_id):
     return service_account
 
 
-def _create_users_primary_google_service_account_key(
+def _create_primary_service_account_key(
         user_id, proxy_group_id, expires=None):
     expires = expires or (
         int(time.time())
         + flask.current_app.config['GOOGLE_SERVICE_ACCOUNT_KEY_FOR_URL_SIGNING_EXPIRES_IN']
     )
-    sa_private_key, service_account = create_google_access_key_for_client(
+    sa_private_key, service_account = create_google_access_key(
         None, user_id, proxy_group_id)
 
     key = Fernet(flask.current_app.config['HMAC_ENCRYPTION_KEY'])
@@ -225,8 +225,7 @@ def _create_users_primary_google_service_account_key(
     return sa_private_key
 
 
-def _create_google_service_account_for_client(
-        client_id, user_id, proxy_group_id):
+def _create_service_account(client_id, user_id, proxy_group_id):
     """
     Create a Google Service account for the current client and user.
 
