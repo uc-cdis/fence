@@ -3,6 +3,7 @@ import json
 from cryptography.fernet import Fernet
 import flask
 from flask_sqlalchemy_session import current_session
+from sqlalchemy import desc
 
 from cirrus import GoogleCloudManager
 from cirrus.google_cloud.utils import (
@@ -72,6 +73,7 @@ def _get_primary_service_account_key(user_id, username, proxy_group_id):
                 user_google_service_account.id)
             .filter(
                 GoogleServiceAccountKey.private_key.isnot(None))
+            .order_by(desc(GoogleServiceAccountKey.expires))
             .first()
         )
 
