@@ -140,7 +140,6 @@ def create_google_access_key(client_id, user_id, proxy_group_id):
             service_account = _create_service_account(
                 client_id, user_id, proxy_group_id)
         else:
-            # error about requiring client id in azp field of token
             raise InternalError(
                 'No client_id found, assuming user. However, user {} does not '
                 'have a primary service account.\n'
