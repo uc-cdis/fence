@@ -185,12 +185,6 @@ class GoogleServiceAccount(Base):
 
     client_id = Column(
         String(40),
-        ForeignKey('client.client_id')
-    )
-    client = relationship(
-        'Client',
-        backref=backref(
-            'google_service_accounts', cascade='all, delete-orphan')
     )
 
     user_id = Column(
@@ -265,6 +259,30 @@ class UserGoogleAccountToProxyGroup(Base):
     )
 
     expires = Column(BigInteger)
+
+    def delete(self):
+        with flask.current_app.db.session as session:
+            session.delete(self)
+            session.commit()
+            return self
+
+
+class GoogleServiceAccountKey(Base):
+    __tablename__ = "google_service_account_key"
+
+    id = Column(Integer, primary_key=True)
+
+    key_id = Column(String, nullable=False)
+
+    service_account_id = Column(
+        Integer,
+        ForeignKey(GoogleServiceAccount.id),
+        nullable=False
+    )
+
+    expires = Column(BigInteger)
+
+    private_key = Column(String)
 
     def delete(self):
         with flask.current_app.db.session as session:

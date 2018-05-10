@@ -50,6 +50,11 @@ SESSION_TIMEOUT = 1800
 #: The maximum session lifetime in seconds.
 SESSION_LIFETIME = 28800
 
+#: ``GOOGLE_SERVICE_ACCOUNT_KEY_FOR_URL_SIGNING_EXPIRES_IN: int``
+#: The number of seconds the user's Google service account key used for
+#: url signing will last before being expired/rotated
+GOOGLE_SERVICE_ACCOUNT_KEY_FOR_URL_SIGNING_EXPIRES_IN = 2592000
+
 #: ``GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN: int``
 #: The number of seconds after a User's Google account is added to bucket
 #: access until it expires.

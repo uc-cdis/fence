@@ -26,17 +26,6 @@ def json_res(data):
     return flask.Response(json.dumps(data), mimetype='application/json')
 
 
-def get_linked_google_account_email(user_id):
-    email = None
-    user_google_account = (
-        current_session.query(UserGoogleAccount)
-        .filter(UserGoogleAccount.user_id == user_id).first()
-    )
-    if user_google_account:
-        email = user_google_account.email
-    return email
-
-
 def create_client(
         username, urls, DB, name='', description='', auto_approve=False,
         is_admin=False):
