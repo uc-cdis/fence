@@ -1,3 +1,5 @@
+import re
+
 import flask
 import requests
 from urlparse import urlparse
@@ -94,9 +96,13 @@ def resolve_url(url, location, expires, action, user_id, username):
             .format(location.netloc, location.path.strip('/'))
         )
         if len(aws_creds) > 0:
-            if location.netloc not in s3_buckets.keys():
+            credential_key = None
+            for pattern in s3_buckets:
+                if re.match(pattern, location.netloc):
+                    credential_key = s3_buckets[pattern]
+                    break
+            if credential_key is None:
                 raise Unauthorized('permission denied for bucket')
-            credential_key = s3_buckets[location.netloc]
             # public bucket
             if credential_key == '*':
                 return dict(url=http_url)
