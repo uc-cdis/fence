@@ -138,9 +138,9 @@ class IndexedFile(object):
         if res.status_code == 200:
             try:
                 json_response = res.json()
-                if 'urls' not in json_response or 'metadata' not in json_response:
+                if 'urls' not in json_response:
                     flask.current_app.logger.error(
-                        'URLs and metadata are not included in response from '
+                        'URLs are not included in response from '
                         'indexd: {}'.format(url + self.file_id)
                     )
                     raise InternalError('URLs and metadata not found')
