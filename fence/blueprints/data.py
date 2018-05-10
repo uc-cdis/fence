@@ -343,10 +343,16 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             .get('google', {})
             .get('proxy_group')
         )
+        username = (
+            current_token.get('context', {})
+            .get('user', {})
+            .get('name')
+        )
 
         private_key, key_db_entry = (
             get_or_create_primary_service_account_key(
                 user_id=user_id,
+                username=username,
                 proxy_group_id=proxy_group_id)
         )
 
@@ -363,6 +369,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         if key_db_entry and key_db_entry.expires > expiration_time:
             private_key = create_primary_service_account_key(
                 user_id=user_id,
+                username=username,
                 proxy_group_id=proxy_group_id
             )
 

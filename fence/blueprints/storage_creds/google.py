@@ -103,9 +103,14 @@ class GoogleCredentialsList(Resource):
             .get('google', {})
             .get('proxy_group')
         )
+        username = (
+            current_token.get('context', {})
+            .get('user', {})
+            .get('name')
+        )
 
         key, service_account = create_google_access_key(
-            client_id, user_id, proxy_group_id)
+            client_id, user_id, username, proxy_group_id)
 
         if client_id is None:
             self.handle_user_service_account_creds(key, service_account)
