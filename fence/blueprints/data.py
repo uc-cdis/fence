@@ -74,6 +74,10 @@ def get_signed_url_for_file(action, file_id):
 
 
 class IndexedFile(object):
+    """
+    A file from the index service that will contain information about
+    access and where the physical file lives (could be multiple urls).
+    """
 
     def __init__(self, file_id):
         self.file_id = file_id
@@ -189,6 +193,15 @@ class IndexedFile(object):
 
 
 class IndexedFileLocationFactory(object):
+    """
+    Responsible for the creation of IndexedFileLocation objects based on
+    the protocol for the given url.
+
+    This will determine where the object lives based on the protocol in url
+    (e.g. s3 or gs) and create the necessary sub-class that will handle actions
+    like signing urls for that location.
+    """
+
     @staticmethod
     def create(url):
         location = urlparse(url)
@@ -212,11 +225,6 @@ class IndexedFileLocation(object):
 
     This will catch all non-aws/gs cases for now. If custom functionality is
     needed for a new file location, create a new subclass.
-
-    Attributes:
-        parsed_url (TYPE): Description
-        protocol (TYPE): Description
-        url (TYPE): Description
     """
 
     def __init__(self, url):
@@ -229,6 +237,9 @@ class IndexedFileLocation(object):
 
 
 class S3IndexedFileLocation(IndexedFileLocation):
+    """
+    And indexed file that lives in an AWS S3 bucket.
+    """
 
     def __init__(self, url):
         super(S3IndexedFileLocation, self).__init__(url)
@@ -298,6 +309,9 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
 
 class GoogleStorageIndexedFileLocation(IndexedFileLocation):
+    """
+    And indexed file that lives in a Google Storage bucket.
+    """
 
     def __init__(self, url):
         super(GoogleStorageIndexedFileLocation, self).__init__(url)
