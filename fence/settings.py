@@ -58,6 +58,7 @@ SESSION_LIFETIME = 28800
 #: ``GOOGLE_SERVICE_ACCOUNT_KEY_FOR_URL_SIGNING_EXPIRES_IN: int``
 #: The number of seconds the user's Google service account key used for
 #: url signing will last before being expired/rotated
+#: 30 days = 2592000 seconds
 GOOGLE_SERVICE_ACCOUNT_KEY_FOR_URL_SIGNING_EXPIRES_IN = 2592000
 
 #: ``GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN: int``
