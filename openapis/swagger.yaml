@@ -20,7 +20,7 @@ tags:
   - name: user
     description: User information
   - name: data
-    description: Generate pre-signed URLs
+    description: Generate signed URLs
   - name: credentials
     description: Access credentials
   - name: credentials/google
@@ -226,12 +226,12 @@ paths:
     get:
       tags:
         - data
-      summary: Create a presigned URL for data download given a file_id
-      description: Allow users to get a pre-signed URL for a data file.
+      summary: Create a signed URL for data download given a file_id
+      description: Allow users to get a signed URL for a data file.
       security:
         - OAuth2:
             - user
-      operationId: downloadPresignedURL
+      operationId: downloadSignedURL
       parameters:
         - name: file_id
           required: true
@@ -243,8 +243,7 @@ paths:
           required: false
           in: query
           description: >-
-            a protocol provided by storage provider, currently supports 'http'
-            and 's3' protocols
+            a protocol provided by storage provider, e.g. http, ftp, s3, gs
           schema:
             type: string
             enum:
@@ -263,7 +262,7 @@ paths:
           required: false
           in: query
           description: >-
-            if set, then a redirect to the presigned url will be sent.
+            if set, then a redirect to the signed url will be sent.
             Otherwise, json data with the url is returned.
           schema:
             type: boolean
@@ -273,21 +272,21 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/PresignedURL'
+                $ref: '#/components/schemas/SignedURL'
         '400':
           description: 'Invalid input: UUID not found or invalid location'
   '/data/upload/{file_id}':
     get:
       tags:
         - data
-      summary: Create a presigned URL for data upload specified by file_id
+      summary: Create a signed URL for data upload specified by file_id
       description: >-
-        Allow users to get a pre-signed URL to upload data given the location of
+        Allow users to get a signed URL to upload data given the location of
         preference.
       security:
         - OAuth2:
             - user
-      operationId: uploadPresignedURL
+      operationId: uploadSignedURL
       parameters:
         - name: file_id
           required: true
@@ -299,8 +298,7 @@ paths:
           required: false
           in: query
           description: >-
-            a protocol provided by storage provider, currently supports 'http'
-            and 's3' protocols
+            a protocol provided by storage provider, e.g. http, ftp, s3, gs
           schema:
             type: string
             enum:
@@ -321,7 +319,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/PresignedURL'
+                $ref: '#/components/schemas/SignedURL'
         '400':
           description: 'Invalid input: UUID not found or invalid location'
   /credentials:
@@ -1219,12 +1217,12 @@ components:
           description: ''
         message:
           type: string
-    PresignedURL:
+    SignedURL:
       type: object
       properties:
         url:
           type: string
-          description: the presigned url issued to
+          description: the signed url issued to
     PublicKeys:
       type: object
       properties:
