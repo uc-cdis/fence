@@ -141,9 +141,13 @@ def create_google_access_key(client_id, user_id, proxy_group_id):
                 client_id, user_id, proxy_group_id)
         else:
             # error about requiring client id in azp field of token
-            flask.abort(
-                404, 'Could not find client id in `azp` field of token. '
-                'Cannot create Google key.')
+            raise InternalError(
+                'No client_id found, assuming user. However, user {} does not '
+                'have a primary service account.\n'
+                'Unable to get primary service account key. This service account '
+                'should automatically get created when the user\'s proxy group '
+                'was created.'.format(user_id)
+            )
 
     with GoogleCloudManager() as g_cloud:
         key = g_cloud.get_access_key(service_account.google_unique_id)
