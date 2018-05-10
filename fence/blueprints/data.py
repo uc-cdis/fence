@@ -1,3 +1,5 @@
+import re
+
 import flask
 import requests
 import time
@@ -260,10 +262,14 @@ class S3IndexedFileLocation(IndexedFileLocation):
         )
 
         if len(aws_creds) > 0:
-            if self.parsed_url.netloc not in s3_buckets.keys():
+            credential_key = None
+            for pattern in s3_buckets:
+                if re.match(pattern, self.parsed_url.netloc):
+                    credential_key = s3_buckets[pattern]
+                    break
+            if credential_key is None:
                 raise Unauthorized('permission denied for bucket')
 
-            credential_key = s3_buckets[self.parsed_url.netloc]
             # public bucket
             if credential_key == '*':
                 return http_url
