@@ -1,3 +1,5 @@
+import re
+
 import flask
 import requests
 import time
@@ -12,8 +14,8 @@ from cdispyutils.hmac4 import generate_aws_presigned_url
 from cdispyutils.config import get_value
 
 from fence.resources.google.utils import (
-    get_or_create_users_primary_google_service_account_key,
-    create_users_primary_google_service_account_key
+    get_or_create_primary_service_account_key,
+    create_primary_service_account_key
 )
 from fence.errors import UnavailableError
 from fence.errors import NotFound
@@ -25,10 +27,6 @@ ACTION_DICT = {
     's3': {
         'upload': 'PUT',
         'download': 'GET'
-    },
-    'http': {
-        'upload': 'put_object',
-        'download': 'get_object'
     },
     'gs': {
         'upload': 'PUT',
@@ -78,6 +76,10 @@ def get_signed_url_for_file(action, file_id):
 
 
 class IndexedFile(object):
+    """
+    A file from the index service that will contain information about
+    access and where the physical file lives (could be multiple urls).
+    """
 
     def __init__(self, file_id):
         self.file_id = file_id
@@ -88,11 +90,7 @@ class IndexedFile(object):
             self._get_indexed_file_locations(
                 self.index_document.get('urls', []))
         )
-
-        if check_public(self.set_acls):
-            self.public = True
-        else:
-            self.public = False
+        self.public = check_public(self.set_acls)
 
     def get_signed_url(self, protocol, action, expires_in):
         if not self.public and not self.check_authorization(action):
@@ -109,8 +107,7 @@ class IndexedFile(object):
 
         if protocol:
             for file_location in self.indexed_file_locations:
-
-                # allow https in they specific http
+                # allow file location to be https, even if they specific http
                 if ((file_location.protocol == protocol)
                         or (protocol == 'http' and file_location.protocol == 'https')):
                     signed_url = file_location.get_signed_url(
@@ -147,9 +144,9 @@ class IndexedFile(object):
         if res.status_code == 200:
             try:
                 json_response = res.json()
-                if 'urls' not in json_response or 'metadata' not in json_response:
+                if 'urls' not in json_response:
                     flask.current_app.logger.error(
-                        'URLs and metadata are not included in response from '
+                        'URLs are not included in response from '
                         'indexd: {}'.format(url + self.file_id)
                     )
                     raise InternalError('URLs and metadata not found')
@@ -161,7 +158,8 @@ class IndexedFile(object):
                 raise InternalError('internal error from indexd: {}'.format(e))
         elif res.status_code == 404:
             flask.current_app.logger.error(
-                'indexd did not find find {}; {}'
+                'Not Found. indexd could not find {}'
+                '\nIndexd\'s response: {}'
                 .format(url + self.file_id, res.text))
             raise NotFound("Can't find a location for the data")
         else:
@@ -197,6 +195,15 @@ class IndexedFile(object):
 
 
 class IndexedFileLocationFactory(object):
+    """
+    Responsible for the creation of IndexedFileLocation objects based on
+    the protocol for the given url.
+
+    This will determine where the object lives based on the protocol in url
+    (e.g. s3 or gs) and create the necessary sub-class that will handle actions
+    like signing urls for that location.
+    """
+
     @staticmethod
     def create(url):
         location = urlparse(url)
@@ -215,6 +222,12 @@ class IndexedFileLocationFactory(object):
 
 
 class IndexedFileLocation(object):
+    """
+    Parent class for indexed file locations.
+
+    This will catch all non-aws/gs cases for now. If custom functionality is
+    needed for a new file location, create a new subclass.
+    """
 
     def __init__(self, url):
         self.url = url
@@ -226,6 +239,9 @@ class IndexedFileLocation(object):
 
 
 class S3IndexedFileLocation(IndexedFileLocation):
+    """
+    And indexed file that lives in an AWS S3 bucket.
+    """
 
     def __init__(self, url):
         super(S3IndexedFileLocation, self).__init__(url)
@@ -246,10 +262,14 @@ class S3IndexedFileLocation(IndexedFileLocation):
         )
 
         if len(aws_creds) > 0:
-            if self.parsed_url.netloc not in s3_buckets.keys():
+            credential_key = None
+            for pattern in s3_buckets:
+                if re.match(pattern, self.parsed_url.netloc):
+                    credential_key = s3_buckets[pattern]
+                    break
+            if credential_key is None:
                 raise Unauthorized('permission denied for bucket')
 
-            credential_key = s3_buckets[self.parsed_url.netloc]
             # public bucket
             if credential_key == '*':
                 return http_url
@@ -295,19 +315,23 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
 
 class GoogleStorageIndexedFileLocation(IndexedFileLocation):
+    """
+    And indexed file that lives in a Google Storage bucket.
+    """
 
     def __init__(self, url):
         super(GoogleStorageIndexedFileLocation, self).__init__(url)
 
     def get_signed_url(self, action, expires_in, public_data=False):
-        resource_path = self.parsed_url.path.strip('/')
-        network_location = (
-            self.parsed_url.netloc.strip('/') or 'storage.googleapis.com'
+        resource_path = (
+            self.parsed_url.netloc.strip('/') + '/'
+            + self.parsed_url.path.strip('/')
         )
+
         # if the file is public, just return the public url to access it, no
         # signing required
         if public_data:
-            url = 'https://' + network_location + '/' + resource_path
+            url = 'https://storage.googleapis.com/' + resource_path
         else:
             expiration_time = int(time.time()) + int(expires_in)
             url = self._generate_google_storage_signed_url(
@@ -325,10 +349,16 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             .get('google', {})
             .get('proxy_group')
         )
+        username = (
+            current_token.get('context', {})
+            .get('user', {})
+            .get('name')
+        )
 
         private_key, key_db_entry = (
-            get_or_create_users_primary_google_service_account_key(
+            get_or_create_primary_service_account_key(
                 user_id=user_id,
+                username=username,
                 proxy_group_id=proxy_group_id)
         )
 
@@ -343,8 +373,9 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         #       before the expiration of the url then the url will NOT work
         #       (even though the url itself isn't expired)
         if key_db_entry and key_db_entry.expires > expiration_time:
-            private_key = create_users_primary_google_service_account_key(
+            private_key = create_primary_service_account_key(
                 user_id=user_id,
+                username=username,
                 proxy_group_id=proxy_group_id
             )
 
