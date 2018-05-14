@@ -17,7 +17,6 @@ import flask
 from sqlalchemy import (
     Integer, BigInteger, String, Column, Boolean, Text, MetaData, Table
 )
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.schema import ForeignKey
 from fence.jwt.token import CLIENT_ALLOWED_SCOPES
@@ -26,7 +25,7 @@ from userdatamodel.models import (
     AccessPrivilege, Application, AuthorizationProvider, Bucket, Certificate,
     CloudProvider, ComputeAccess, GoogleProxyGroup, HMACKeyPair,
     HMACKeyPairArchive, IdentityProvider, Project, ProjectToBucket, Group,
-    S3Credential, StorageAccess, User, UserToBucket
+    S3Credential, StorageAccess, User, Tag, UserToBucket
 )
 
 

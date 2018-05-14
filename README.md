@@ -26,9 +26,9 @@ At the moment, supported IDPs are:
 
 ## API Documentation
 
-[OpenAPI documentation available here.](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/uc-cdis/fence/master/openapi/swagger.yaml)
+[OpenAPI documentation available here.](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/uc-cdis/fence/master/openapis/swagger.yaml)
 
-YAML file for the OpenAPI documentation is found in the `openapi` folder (in
+YAML file for the OpenAPI documentation is found in the `openapis` folder (in
 the root directory); see the README in that folder for more details.
 
 ## Setup
@@ -188,10 +188,10 @@ We use JSON Web Tokens (JWTs) as the format for our authentication mechanism.
 Generating a keypair using `openssl`:
 ```bash
 # Generate the private key.
-openssl rsa -out private_key.pem 2048
+openssl genpkey -algorithm RSA -out private_key.pem -pkeyopt rsa_keygen_bits:2048
 
 # Generate the public key.
-openssl rsa -in private_key.pem -pubout -out public_key.pem
+openssl rsa -pubout -in private_key.pem -out public_key.pem
 ```
 (It's not a bad idea to confirm that the files actually say `RSA PRIVATE KEY`
 and `PUBLIC KEY`.)

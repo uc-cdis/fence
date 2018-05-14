@@ -12,6 +12,7 @@ from fence.errors import Unauthorized, InternalError
 from fence.jwt.validate import validate_jwt
 from fence.models import User, IdentityProvider
 from fence.user import get_current_user
+from fence.utils import clear_cookies
 
 
 def build_redirect_url(hostname, path):
@@ -61,7 +62,11 @@ def logout(next_url=None):
     if flask.session.get('provider') == IdentityProvider.itrust:
         next_url = flask.current_app.config['ITRUST_GLOBAL_LOGOUT'] + next_url
     flask.session.clear()
-    return next_url
+    redirect_response = flask.make_response(
+        flask.redirect(next_url)
+    )
+    clear_cookies(redirect_response)
+    return redirect_response
 
 
 def check_scope(scope):

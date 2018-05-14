@@ -10,7 +10,7 @@ from fence.scripting.fence_create import (
     delete_client_action,
     delete_users,
     google_init,
-    sync_dbgap,
+    sync_users,
     remove_expired_google_service_account_keys,
     create_user_token,
     remove_expired_google_accounts_from_proxy_groups,
@@ -18,6 +18,13 @@ from fence.scripting.fence_create import (
     link_bucket_to_project
 )
 
+def str2bool(v):
+    if v.lower() == 'true':
+        return True
+    elif v.lower() == 'false':
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -54,8 +61,21 @@ def parse_arguments():
     hmac_create = subparsers.add_parser('hmac-create')
     hmac_create.add_argument('yaml-input')
 
-    dbgap_sync = subparsers.add_parser('sync-dbgap')
-    dbgap_sync.add_argument('--projects', required=True)
+    dbgap_sync = subparsers.add_parser('sync')
+    dbgap_sync.add_argument(
+        '--projects',
+        dest='project_mapping',
+        help='Specify project mapping yaml file')
+    dbgap_sync.add_argument(
+        '--yaml',
+        help='Sync from yaml file')
+    dbgap_sync.add_argument(
+        '--csv_dir',
+        help='specify csv file directory')
+    dbgap_sync.add_argument(
+        '--sync_from_dbgap',
+        help='sync from dbgap server True/False',
+        default='False')
 
     bucket_link_to_project = subparsers.add_parser('link-bucket-to-project')
     bucket_link_to_project.add_argument(
@@ -130,6 +150,16 @@ def main():
     else:
         ROOT_DIR = '/fence'
 
+    if os.environ.get('dbGaP'):
+        dbGaP = os.environ['dbGaP']
+    else:
+        from fence.settings import dbGaP
+
+    if os.environ.get('STORAGE_CREDENTIALS'):
+        STORAGE_CREDENTIALS = os.environ['STORAGE_CREDENTIALS']
+    else:
+        from fence.settings import STORAGE_CREDENTIALS
+
     if args.action == 'create':
         yaml_input = args.__dict__['yaml-input']
         create_sample_data(DB, yaml_input)
@@ -142,8 +172,10 @@ def main():
         delete_client_action(DB, args.client)
     elif args.action == 'user-delete':
         delete_users(DB, args.users)
-    elif args.action == 'sync-dbgap':
-        sync_dbgap(args.__dict__['projects'])
+    elif args.action == 'sync':
+        sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
+                   projects=args.project_mapping, is_sync_from_dbgap_server=str2bool(args.sync_from_dbgap),
+                   sync_from_local_csv_dir=args.csv_dir, sync_from_local_yaml_file=args.yaml)
     elif args.action == 'google-manage-keys':
         remove_expired_google_service_account_keys(DB)
     elif args.action == 'google-init':

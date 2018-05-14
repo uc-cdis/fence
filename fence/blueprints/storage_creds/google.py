@@ -6,8 +6,8 @@ from cirrus.config import config as cirrus_config
 
 from fence.auth import require_auth_header
 from fence.auth import current_token
-from fence.resources.google.utils import get_google_service_account_for_client
-from fence.resources.google.utils import create_google_access_key_for_client
+from fence.resources.google.utils import get_service_account
+from fence.resources.google.utils import create_google_access_key
 from fence.resources.google.utils import (
     add_custom_service_account_key_expiration
 )
@@ -54,8 +54,7 @@ class GoogleCredentialsList(Resource):
         user_id = current_token["sub"]
 
         with GoogleCloudManager() as g_cloud_manager:
-            service_account = get_google_service_account_for_client(
-                client_id, user_id)
+            service_account = get_service_account(client_id, user_id)
 
             if service_account:
                 keys = g_cloud_manager.get_service_account_keys_info(
@@ -104,9 +103,14 @@ class GoogleCredentialsList(Resource):
             .get('google', {})
             .get('proxy_group')
         )
+        username = (
+            current_token.get('context', {})
+            .get('user', {})
+            .get('name')
+        )
 
-        key, service_account = create_google_access_key_for_client(
-            client_id, user_id, proxy_group_id)
+        key, service_account = create_google_access_key(
+            client_id, user_id, username, proxy_group_id)
 
         if client_id is None:
             self.handle_user_service_account_creds(key, service_account)
@@ -154,8 +158,7 @@ class GoogleCredentials(Resource):
 
         with GoogleCloudManager() as g_cloud:
             client_id = current_token.get("azp") or None
-            service_account = get_google_service_account_for_client(
-                client_id, user_id)
+            service_account = get_service_account(client_id, user_id)
 
             if service_account:
                 keys_for_account = (
