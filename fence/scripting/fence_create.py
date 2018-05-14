@@ -43,10 +43,6 @@ from fence.models import (
 from fence.utils import create_client, drop_client
 from fence.sync.sync_users import UserSyncer
 
-from fence.jwt.token import (
-    issued_and_expiration_times,
-)
-
 logger = get_logger(__name__)
 
 
@@ -753,7 +749,8 @@ def create_google_bucket(
 
     driver = SQLAlchemyDriver(db)
     with driver.session as current_session:
-        # use storage creds to create bucket (default creds don't have permission)
+        # use storage creds to create bucket
+        # (default creds don't have permission)
         bucket_db_entry = (
             _create_google_bucket_and_update_db(
                 db_session=current_session,
@@ -767,13 +764,11 @@ def create_google_bucket(
         )
 
         if not public:
-            access_group = (
-                _create_google_bucket_access_group(
+            _create_google_bucket_access_group(
                     db_session=current_session,
                     google_bucket_name=name,
                     bucket_db_id=bucket_db_entry.id,
                     google_project_id=google_project_id)
-            )
 
 
 def _create_google_bucket_and_update_db(
