@@ -1,19 +1,11 @@
-from fence.resources import (
-    userdatamodel as udm,
-    project as pj,
-    group as gp,
-    user as us,
-    provider as pv
-)
+from fence.resources import project as pj
+from flask import current_app
 
-from flask import current_app as capp
-from fence.models import User, Group
-from fence.errors import NotFound
-import json
-from fence.errors import UserError
-
-
-#### PROJECTS ####
+__all__ = [
+    'get_project_info', 'get_all_projects', 'create_project', 'delete_project',
+    'create_bucket_on_project', 'delete_bucket_on_project',
+    'list_buckets_on_project'
+]
 
 
 def get_project_info(current_session, project_name):
@@ -23,12 +15,14 @@ def get_project_info(current_session, project_name):
     """
     return pj.get_project_info(current_session, project_name)
 
+
 def get_all_projects(current_session):
     """
     Return the information associated with a project
     Returns a dictionary.
     """
     return pj.get_all_projects(current_session)
+
 
 def create_project(current_session, projectname, authid, storageaccesses):
     """
@@ -39,6 +33,7 @@ def create_project(current_session, projectname, authid, storageaccesses):
     if pj.create_project(current_session, projectname, authid, storageaccesses):
         return {'result': 'success'}
 
+
 def delete_project(current_session, project_name):
     """
     Remove a project. All buckets must be deleted
@@ -46,10 +41,11 @@ def delete_project(current_session, project_name):
     Returns a dictionary.
     """
     response = pj.delete_project(current_session, project_name)
-    if response["result"] == "success":
-        for user in response["users_to_remove"]:
-            capp.storage_manager.delete_user(user[0].backend, user[1])
-        return {"result": "success"}
+    if response['result'] == 'success':
+        for user in response['users_to_remove']:
+            current_app.storage_manager.delete_user(user[0].backend, user[1])
+        return {'result': 'success'}
+
 
 def create_bucket_on_project(current_session, project_name, bucket_name, provider_name):
     """
@@ -57,20 +53,23 @@ def create_bucket_on_project(current_session, project_name, bucket_name, provide
     on the cloud provider and associate it with the project.
     Returns a dictionary.
     """
-    response = pj.create_bucket_on_project_by_name(
+    response = pj.create_bucket_on_project(
         current_session,
         project_name,
         bucket_name,
         provider_name
     )
+    project = pj.get_project(current_session, project_name)
     if response["result"] == "success":
-        capp.storage_manager.create_bucket(
-            response["provider"].backend,
-            response["bucket"].name
+        current_app.storage_manager.create_bucket(
+            response["provider"].name,
+            current_session,
+            response["bucket"].name,
+            project
         )
         for user_pair in response["users_to_update"]:
-            capp.storage_manager.update_bucket_acl(
-                response["provider"].backend,
+            current_app.storage_manager.update_bucket_acl(
+                response["provider"].name,
                 response["bucket"],
                 (user_pair[0], user_pair[1])
             )
@@ -78,29 +77,31 @@ def create_bucket_on_project(current_session, project_name, bucket_name, provide
     else:
         return response
 
+
 def delete_bucket_on_project(current_session, project_name, bucket_name):
     """
     Remove a bucket from a project, both on the userdatamodel
     and on the storage associated with that bucket.
     Returns a dictionary.
     """
-    response = pj.delete_bucket_on_project_by_name(
+    response = pj.delete_bucket_on_project(
         current_session,
         project_name,
         bucket_name
     )
     if response["result"] == "success":
-        capp.storage_manager.delete_bucket(
-            response["provider"].backend,
+        current_app.storage_manager.delete_bucket(
+            response["provider"].name,
             bucket_name
         )
         return {"result": "success"}
     else:
-        capp.storage_manager.delete_bucket(
-            response["provider"].backend,
+        current_app.storage_manager.delete_bucket(
+            response["provider"].name,
             bucket_name
         )
         return {"result": response["result"]}
+
 
 def list_buckets_on_project(current_session, project_name):
     """

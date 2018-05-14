@@ -261,23 +261,3 @@ def _create_access_token_cookie(app, session, response, user):
     )
 
     return response
-
-
-
-def create_long_access_token(app, user):
-    keypair = app.keypairs[0]
-    scopes = SESSION_ALLOWED_SCOPES
-
-    now = datetime.now()
-    expiration = int(
-        (now + app.config.get('LONG_ACCESS_TOKEN_LIFETIME')).strftime('%s')
-    )
-    timeout = datetime.fromtimestamp(expiration, pytz.utc)
-
-    access_token = generate_signed_access_token(
-        keypair.kid, keypair.private_key, user,
-        app.config.get('LONG_ACCESS_TOKEN_LIFETIME').seconds, scopes,
-        forced_exp_time=expiration
-    )
-
-    return access_token

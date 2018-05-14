@@ -4,6 +4,7 @@ from email.mime.text import MIMEText
 from email.utils import COMMASPACE, formatdate
 import flask
 from fence.resources import userdatamodel as udm
+from fence.resources.userdatamodel import delete_user, get_user_groups
 import smtplib
 
 from fence.errors import NotFound, UserError, InternalError
@@ -30,14 +31,13 @@ def update_user_resource(username, resource):
                 server=flask.current_app.config['EMAIL_SERVER'])
         return get_user_info(user, session)
 
-def delete_user(current_session, username):
-    return udm.delete_user(current_session, username)
 
 def get_user(current_session, username):
     user = udm.get_user(current_session, username)
     if not user:
         raise NotFound("user {} not found".format(username))
     return user
+
 
 def get_current_user_info():
     with flask.current_app.db.session as session:
@@ -106,8 +106,6 @@ def get_user_accesses():
         )
     return user
 
-def get_user_groups(current_session, username):
-    return udm.get_user_groups(current_session, username)
 
 def remove_user_from_project(current_session, user, project):
     access = udm.get_user_project_access_privilege(current_session, user, project)

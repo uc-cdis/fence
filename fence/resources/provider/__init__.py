@@ -1,10 +1,12 @@
-from fence.resources import userdatamodel as udm
+"""
+This module is supposed to hold the transformation between the provider object
+that defines it in the database into a dictionary that can be used in the rest
+of the code without the need for imports all over the code.  Right now, since
+the transformation is lacking and the code was not being used, this module acts
+as an interface to keep congruence with the rest of the modules at this level.
+Please use and expand accordingly.
+"""
 
-def get_provider(current_session, provider_name):
-    return udm.get_provider(current_session, provider_name)
-
-def create_provider(current_session, provider_name,
-                    backend, service, endpoint, description):
-    return udm.create_provider(current_session, provider_name,
-                               backend, service, endpoint,
-                               description)
+from fence.resources.userdatamodel import (
+    get_provider, create_provider, delete_provider
+)

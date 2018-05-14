@@ -5,7 +5,11 @@ import uuid
 
 from flask import current_app
 
-from fence.models import User, Project, AccessPrivilege, UserToGroup, Group
+from fence.models import (
+User, Project, AccessPrivilege, UserToGroup, Group,
+CloudProvider, Bucket, StorageAccess, ProjectToBucket,
+UserToBucket
+)
 
 import tests
 import tests.utils.oauth2
@@ -119,6 +123,56 @@ def create_awg_user(users, db_session):
                     s.add(ap)
                     s.flush()
     return user.id, user.username
+
+
+def create_providers(data, db_session):
+    s = db_session
+    providers = data['providers']
+    for provider in providers:
+        prov = CloudProvider()
+        prov.name = provider['name']
+        prov.backend = provider['backend']
+        prov.service = provider['service']
+        s.add(prov)
+        s.flush
+
+    for name, user in data['users'].items():
+        new_user = User()
+        new_user.username = name
+        new_user.email = user['email']
+        new_user.is_admin = user['is_admin']
+        s.add(new_user)
+        user['id'] = new_user.id
+
+    for project in data['projects']:
+        new_project = Project()
+        new_project.name = project['name']
+        s.add(new_project)
+        for storage in project['storage_access']:
+            provider = s.query(CloudProvider).filter_by(name=storage).first()
+            if provider:
+                new_storage_access = StorageAccess(
+                    provider_id=provider.id, project_id=new_project.id)
+                s.add(new_storage_access)
+
+        for bucket in project['buckets']:
+            new_bucket = Bucket()
+            new_bucket.name = bucket['name']
+            provider = s.query(CloudProvider).filter_by(name=bucket['provider']).first()
+            new_bucket.provider_id = provider.id
+            s.add(new_bucket)
+            s.flush()
+            project_to_bucket = ProjectToBucket()
+            project_to_bucket.bucket_id = new_bucket.id
+            project_to_bucket.project_id = new_project.id
+            s.add(project_to_bucket)
+            s.flush()
+        for user in project['users']:
+            access = AccessPrivilege()
+            access.user_id = data['users'][user['name']]['id']
+            access.project_id = new_project.id
+            s.add(access)
+
 
 def create_awg_groups(data, db_session):
     s = db_session

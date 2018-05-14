@@ -1,8 +1,7 @@
 """
-Userdatamodel database operations.
-These operations allow for the manipulation at
-an administration level of the projects,
-cloud providers and buckets on the database
+Userdatamodel database operations. These operations allow for the manipulation
+at an administration level of the projects, cloud providers and buckets on the
+database.
 """
 
 from userdatamodel_project import *
