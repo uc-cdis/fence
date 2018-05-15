@@ -262,7 +262,7 @@ def create_users_with_group(DB, s, data):
     data_groups = data['groups']
     for username, data in data['users'].iteritems():
         is_existing_user = True
-        user = s.query(User).filter(func.lower(User.username) == func.lower(username)).first()
+        user = s.query(User).filter(func.lower(User.username) == username.lower()).first()
         admin = data.get('admin', False)
 
         if not user:
@@ -466,10 +466,11 @@ def delete_users(DB, usernames):
     with driver.session as session:
         # NOTE that calling ``.delete()`` on the query itself will not follow
         # cascade deletion rules set up in any relationships.
+        lowercase_usernames = [x.lower() for x in usernames]
         users_to_delete = (
             session
             .query(User)
-            .filter(func.lower(User.username).in_(func.lower(usernames)))
+            .filter(func.lower(User.username).in_(lowercase_usernames))
             .all()
         )
         for user in users_to_delete:

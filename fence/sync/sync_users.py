@@ -475,7 +475,7 @@ class UserSyncer(object):
         """
         for (username, project_auth_id) in to_add:
             self.logger.info('update user info {}'.format(username))
-            u = sess.query(User).filter(func.lower(User.username) == func.lower(username)).first()
+            u = sess.query(User).filter(func.lower(User.username) == username.lower()).first()
             auth_provider = auth_provider_list[0]
             if 'dbgap_role' not in user_info[username]['tags']:
                 auth_provider = auth_provider_list[1]
@@ -501,7 +501,7 @@ class UserSyncer(object):
         """
 
         for username in user_info:
-            u = sess.query(User).filter(func.lower(User.username) == func.lower(username)).first()
+            u = sess.query(User).filter(func.lower(User.username) == username.lower()).first()
 
             if u is None:
                 self.logger.info('create user {}'.format(username))

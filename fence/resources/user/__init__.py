@@ -33,7 +33,7 @@ def update_user_resource(username, resource):
 
 
 def find_user(username, session):
-    user = session.query(User).filter(func.lower(User.username) == func.lower(username)).first()
+    user = session.query(User).filter(func.lower(User.username) == username.lower()).first()
     if not user:
         raise NotFound("user {} not found".format(username))
     return user

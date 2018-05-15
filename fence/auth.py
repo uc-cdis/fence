@@ -37,7 +37,7 @@ def build_redirect_url(hostname, path):
 
 def login_user(request, username, provider):
     user = current_session.query(
-        User).filter(func.lower(User.username) == func.lower(username)).first()
+        User).filter(func.lower(User.username) == username.lower()).first()
     if not user:
         user = User(username=username)
         idp = (

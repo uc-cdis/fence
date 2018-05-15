@@ -34,7 +34,7 @@ def create_client(
     client_secret = random_str(55)
     hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
     with driver.session as s:
-        user = s.query(User).filter(func.lower(User.username) == func.lower(username)).first()
+        user = s.query(User).filter(func.lower(User.username) == username.lower()).first()
         if not user:
             user = User(username=username, is_admin=is_admin)
             s.add(user)
