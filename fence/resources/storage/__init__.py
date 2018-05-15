@@ -3,7 +3,9 @@ from functools import wraps
 
 from storageclient import get_client
 
-from fence.models import CloudProvider, Bucket, ProjectToBucket
+from fence.models import (
+    CloudProvider, Bucket, ProjectToBucket, GoogleBucketAccessGroup
+)
 from fence.errors import NotSupported, InternalError, Unauthorized
 
 
@@ -22,6 +24,8 @@ PRIVILEGES = [
     "write-storage",
     "admin"
 ]
+
+GOOGLE_PROVIDER_NAME = 'google'
 
 
 def get_endpoints_descriptions(providers, session):
@@ -146,8 +150,11 @@ class StorageManager(object):
         access = [acc for acc in access if acc in PRIVILEGES]
         user = self.clients[provider].get_or_create_user(username)
         for b in project.buckets:
+            bucket_name, username = (
+                _get_bucket_name_and_username(b, user, provider)
+            )
             self.clients[provider].add_bucket_acl(
-                b.name, user.username, access=access)
+                bucket_name, username, access=access)
 
     @check_exist
     def revoke_access(self, provider, username, project):
@@ -162,8 +169,11 @@ class StorageManager(object):
         if user is None:
             return
         for b in project.buckets:
+            bucket_name, username = (
+                _get_bucket_name_and_username(b, user, provider)
+            )
             self.clients[provider].delete_bucket_acl(
-                b.name, user.username)
+                bucket_name, username)
 
     @check_exist
     def has_bucket_access(self, provider, user, bucket):
@@ -276,11 +286,27 @@ class StorageManager(object):
         self.clients[provider].get_or_create_user(user.username)
         buckets = project.buckets.all()
         for b in buckets:
+            bucket_name, username = (
+                _get_bucket_name_and_username(b, user, provider)
+            )
             self.clients[provider].add_bucket_acl(
-                b.name, user.username, access=access)
+                bucket_name, username, access=access)
 
     def delete_bucket(self, backend, bucket_name):
         """
         Remove a bucket from the speficied bucket
         """
         self.clients[backend].delete_bucket(bucket_name)
+
+
+def _get_bucket_name_and_username(bucket, user, provider):
+    # Need different information for google (since buckets and
+    # users are represented with Google Groups)
+    if provider == GOOGLE_PROVIDER_NAME:
+        bucket_name = bucket.google_bucket_access_group.email
+        username = user.google_proxy_group.email
+    else:
+        bucket_name = bucket.name
+        username = user.username
+
+    return bucket_name, username
