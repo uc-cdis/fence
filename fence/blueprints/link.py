@@ -152,23 +152,23 @@ class GoogleLinkRedirect(Resource):
                 .user_google_account_id == g_account.id).first()
         )
 
-        try:
-            with GoogleCloudManager() as g_manager:
-                g_manager.remove_member_from_group(
-                    member_email=g_account.email,
-                    group_id=g_account_access.proxy_group_id
-                )
-        except Exception as exc:
-            error_message = {
-                'error': 'g_acnt_access_error',
-                'error_description': (
-                    'Couldn\'t remove account from user\'s proxy group, '
-                    'Google API failure. Exception: {}'.format(exc)
-                )
-            }
-            return error_message, 400
-
         if g_account_access:
+            try:
+                with GoogleCloudManager() as g_manager:
+                    g_manager.remove_member_from_group(
+                        member_email=g_account.email,
+                        group_id=g_account_access.proxy_group_id
+                    )
+            except Exception as exc:
+                error_message = {
+                    'error': 'g_acnt_access_error',
+                    'error_description': (
+                        'Couldn\'t remove account from user\'s proxy group, '
+                        'Google API failure. Exception: {}'.format(exc)
+                    )
+                }
+                return error_message, 400
+
             current_session.delete(g_account_access)
             current_session.commit()
 
