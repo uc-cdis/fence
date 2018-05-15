@@ -37,13 +37,13 @@ def syncer(db_session):
     ]
 
     users = [
-        {'username': 'USERB', 'is_admin': True, 'email': 'userA@gmail.com'},
+        {'username': 'TESTUSERB', 'is_admin': True, 'email': 'userA@gmail.com'},
         {'username': 'USER_1', 'is_admin': True, 'email': 'user1@gmail.com'},
         {'username': 'test_user1@gmail.com', 'is_admin': False,
             'email': 'test_user1@gmail.com'},
         {'username': 'deleted_user@gmail.com',
             'is_admin': False, 'email': 'deleted_user@gmail.com'},
-        {'username': 'USERD', 'is_admin': True, 'email': 'userD@gmail.com'}
+        {'username': 'TESTUSERD', 'is_admin': True, 'email': 'userD@gmail.com'}
     ]
 
     projects = [
