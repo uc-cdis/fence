@@ -5,6 +5,7 @@ from email.utils import COMMASPACE, formatdate
 import flask
 from flask_sqlalchemy_session import current_session
 import smtplib
+from sqlalchemy import func
 
 from fence.errors import NotFound, UserError, InternalError
 from fence.models import User
@@ -32,7 +33,7 @@ def update_user_resource(username, resource):
 
 
 def find_user(username, session):
-    user = session.query(User).filter(User.username == username).first()
+    user = session.query(User).filter(func.lower(User.username) == func.lower(username)).first()
     if not user:
         raise NotFound("user {} not found".format(username))
     return user

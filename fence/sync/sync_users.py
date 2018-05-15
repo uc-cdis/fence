@@ -13,6 +13,7 @@ import errno
 import paramiko
 from paramiko.proxy import ProxyCommand
 from stat import S_ISDIR
+from sqlalchemy import func
 
 from cdispyutils.log import get_logger
 from userdatamodel.driver import SQLAlchemyDriver
@@ -474,7 +475,7 @@ class UserSyncer(object):
         """
         for (username, project_auth_id) in to_add:
             self.logger.info('update user info {}'.format(username))
-            u = sess.query(User).filter(User.username == username).first()
+            u = sess.query(User).filter(func.lower(User.username) == func.lower(username)).first()
             auth_provider = auth_provider_list[0]
             if 'dbgap_role' not in user_info[username]['tags']:
                 auth_provider = auth_provider_list[1]
@@ -500,7 +501,7 @@ class UserSyncer(object):
         """
 
         for username in user_info:
-            u = sess.query(User).filter(User.username == username).first()
+            u = sess.query(User).filter(func.lower(User.username) == func.lower(username)).first()
 
             if u is None:
                 self.logger.info('create user {}'.format(username))

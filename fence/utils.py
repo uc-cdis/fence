@@ -5,7 +5,7 @@ import json
 from random import SystemRandom
 import re
 import string
-
+from sqlalchemy import func
 import flask
 from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.datastructures import ImmutableMultiDict
@@ -34,7 +34,7 @@ def create_client(
     client_secret = random_str(55)
     hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
     with driver.session as s:
-        user = s.query(User).filter(User.username == username).first()
+        user = s.query(User).filter(func.lower(User.username) == func.lower(username)).first()
         if not user:
             user = User(username=username, is_admin=is_admin)
             s.add(user)

@@ -6,6 +6,7 @@ import uuid
 import jwt
 import yaml
 import time
+from sqlalchemy import func
 from authlib.common.encoding import to_unicode
 
 from cirrus import GoogleCloudManager
@@ -213,7 +214,7 @@ def grant_project_to_group_or_user(s, project_data, group=None, user=None):
             .join(AccessPrivilege.user)
             .filter(
                 Project.name == project.name,
-                User.username == user.username,
+                func.lower(User.username) == func.lower(user.username),
             )
             .first()
         )
@@ -261,7 +262,7 @@ def create_users_with_group(DB, s, data):
     data_groups = data['groups']
     for username, data in data['users'].iteritems():
         is_existing_user = True
-        user = s.query(User).filter(User.username == username).first()
+        user = s.query(User).filter(func.lower(User.username) == func.lower(username)).first()
         admin = data.get('admin', False)
 
         if not user:
@@ -468,7 +469,7 @@ def delete_users(DB, usernames):
         users_to_delete = (
             session
             .query(User)
-            .filter(User.username.in_(usernames))
+            .filter(func.lower(User.username).in_(func.lower(usernames)))
             .all()
         )
         for user in users_to_delete:
