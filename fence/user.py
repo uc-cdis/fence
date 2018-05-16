@@ -12,5 +12,4 @@ def get_current_user():
         username = 'test'
     if not username:
         raise Unauthorized("User not logged in")
-    username = username.lower()
-    return current_session.query(User).filter_by(func.lower(username)=username).first()
+    return current_session.query(User).filter(func.lower(User.username) == username.lower()).first()
