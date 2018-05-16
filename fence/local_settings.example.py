@@ -62,6 +62,10 @@ STORAGE_CREDENTIALS = {
         'password': 'somepass',
         'calling_format': OrdinaryCallingFormat(),
         'is_mocked': True
+    },
+    "google-cloud-server": {
+        'backend': 'google',
+        'google_project_id': 'some-project-id-239870as9f23flkja8010'
     }
 }
 

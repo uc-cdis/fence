@@ -140,10 +140,10 @@ def app_sessions(app):
     app.db = SQLAlchemyDriver(app.config['DB'])
     migrate(app.db)
     session = flask_scoped_session(app.db.Session, app)  # noqa
-    # app.storage_manager = StorageManager(
-    #     app.config['STORAGE_CREDENTIALS'],
-    #     logger=app.logger
-    # )
+    app.storage_manager = StorageManager(
+        app.config['STORAGE_CREDENTIALS'],
+        logger=app.logger
+    )
     enabled_idp_ids = (
         app.config['ENABLED_IDENTITY_PROVIDERS']['providers'].keys()
     )

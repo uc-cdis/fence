@@ -75,6 +75,10 @@ JWT_KEYPAIR_FILES = OrderedDict([])
 STORAGE_CREDENTIALS = {
     'test-cleversafe': {
         'backend': 'cleversafe'
+    },
+    'test-google': {
+        'backend': 'google',
+        'google_project_id': 'some-project-id-239870as9f23flkja8010'
     }
 }
 

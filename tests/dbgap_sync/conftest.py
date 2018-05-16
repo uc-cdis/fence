@@ -1,8 +1,17 @@
-from mock import patch
 import pytest
 import os
+# Python 2 and 3 compatible
+try:
+    from unittest.mock import MagicMock
+    from unittest.mock import patch
+except ImportError:
+    from mock import MagicMock
+    from mock import patch
 
-from cdisutilstest.code.storage_client_mock import get_client
+from cirrus import GoogleCloudManager
+from cdisutilstest.code.storage_client_mock import (
+    get_client, StorageClientMocker
+)
 from fence.sync.sync_users import UserSyncer
 from fence.resources import userdatamodel as udm
 from userdatamodel import Base
@@ -29,12 +38,66 @@ LOCAL_YAML_DIR = os.path.join(
 
 
 @pytest.fixture
-def syncer(db_session):
+def storage_client():
+    """
+    Fixture to patch the StorageClientMocker methods so we can test if they
+    get called and what args they get called with.
+
+    This patches the functions we want to test in StorageClientMocker. This
+    DOES NOT actually patch the entire function call though, we STILL CALL
+    the function in StorageClientMocker.
+
+    The purpose of this fixture is a wrapper so we can check
+    calls into StorageClientMocker, it doesn't change functionality.
+    """
+    storage_client_mock = MagicMock()
+
+    # ensure storage client is patched
+    patcher = patch(
+        'fence.resources.storage.get_client',
+        get_client)
+    patcher.start()
+
+    storage_client_mock.return_value.get_user = (
+        patch.object(
+            StorageClientMocker, 'get_user',
+            side_effect=StorageClientMocker.get_user)
+    )
+
+    storage_client_mock.return_value.get_or_create_user = (
+        patch.object(
+            StorageClientMocker, 'get_or_create_user',
+            side_effect=StorageClientMocker.get_or_create_user)
+    )
+
+    storage_client_mock.return_value.add_bucket_acl = (
+        patch.object(
+            StorageClientMocker, 'add_bucket_acl',
+            side_effect=StorageClientMocker.add_bucket_acl)
+    )
+
+    storage_client_mock.return_value.delete_bucket = (
+        patch.object(
+            StorageClientMocker, 'delete_bucket',
+            side_effect=StorageClientMocker.delete_bucket)
+    )
+
+    return storage_client_mock
+
+
+@pytest.fixture
+def syncer(db_session, request):
+    if request.param == 'google':
+        backend = 'google'
+    else:
+        backend = 'cleversafe'
+
+    backend_name = 'test-' + backend
+    storage_credentials = {str(backend_name): {'backend': backend}}
     provider = [{
-        'name': 'test-cleversafe',
-        'backend': 'cleversafe'
-    },
-    ]
+        'name': backend_name,
+        'backend': backend
+    }]
 
     users = [
         {'username': 'USERB', 'is_admin': True, 'email': 'userA@gmail.com'},
@@ -49,15 +112,15 @@ def syncer(db_session):
     projects = [
         {'auth_id': 'TCGA-PCAWG',
          'storage_accesses': [{'buckets': ['test-bucket'],
-                               'name': 'test-cleversafe'}]},
+                               'name': backend_name}]},
         {'auth_id': 'phs000178',
          'name': 'TCGA',
          'storage_accesses': [{'buckets': ['test-bucket2'],
-                               'name': 'test-cleversafe'}]},
+                               'name': backend_name}]},
         {'auth_id': 'phs000179',
          'name': 'BLAH',
          'storage_accesses': [{'buckets': ['test-bucket3'],
-                               'name': 'test-cleversafe'}]}
+                               'name': backend_name}]}
     ]
     project_mapping = {
         'phs000178': [
@@ -74,15 +137,9 @@ def syncer(db_session):
 
     dbGap = {}
 
-    # patch storage client
-    patcher = patch(
-        'fence.resources.storage.get_client',
-        get_client)
-    patcher.start()
-
     syncer_obj = UserSyncer(
         dbGaP=dbGap, DB=DB, db_session=db_session, project_mapping=project_mapping,
-        storage_credentials={'test-cleversafe': {'backend': 'cleversafe'}},
+        storage_credentials=storage_credentials,
         is_sync_from_dbgap_server=False,
         sync_from_local_csv_dir=LOCAL_CSV_DIR,
         sync_from_local_yaml_file=LOCAL_YAML_DIR)
@@ -127,7 +184,7 @@ def syncer(db_session):
     access = AccessPrivilege(user=test_users[2], project=test_projects[1],
                              auth_provider=auth_providers[1],
                              privilege=['read', 'write', 'upload', 'read-storage', 'write-storage'])
-    
+
     access = AccessPrivilege(user=test_users[4], project=test_projects[2],
                              auth_provider=auth_providers[0],
                              privilege=['read-storage'])
