@@ -320,28 +320,23 @@ def google_init(db):
 
         for user in users_without_proxy:
             with GoogleCloudManager() as g_mgr:
-                response = g_mgr.create_proxy_group_for_user(
-                    user.id, user.username)
+                try:
+                    response = g_mgr.create_proxy_group_for_user(
+                        user.id, user.username)
+                except Exception as exc:
+                    raise Exception(
+                        'Unable to create proxy group for user {} with id: {}. '
+                        'Google API Error: {}'
+                        .format(user.username, user.id, exc))
 
                 group = response["group"]
-                primary_service_account = response["primary_service_account"]
                 user.google_proxy_group_id = group["id"]
-
-                # Add user's primary service account to database
-                service_account = GoogleServiceAccount(
-                    google_unique_id=primary_service_account["uniqueId"],
-                    client_id=None,
-                    user_id=user.id,
-                    email=primary_service_account["email"],
-                    google_project_id=primary_service_account['projectId']
-                )
 
                 proxy_group = GoogleProxyGroup(
                     id=group["id"],
                     email=group["email"]
                 )
 
-                s.add(service_account)
                 s.add(proxy_group)
                 s.commit()
 
