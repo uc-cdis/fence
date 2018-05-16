@@ -539,8 +539,9 @@ def create_user_refresh_token(DB, BASE_URL, ROOT_DIR, kid, username, scopes, exp
 
     driver = SQLAlchemyDriver(DB)
     with driver.session as current_session:
+        lowercase_username = username.lower()
         user = (current_session.query(User)
-                .filter_by(func.lower(username)=username.lower())
+                .filter_by(func.lower(username)=lowercase_username)
                 .first()
                 )
         if not user:
@@ -587,8 +588,9 @@ def create_user_access_token(DB, BASE_URL, ROOT_DIR, kid, username, scopes, expi
 
     driver = SQLAlchemyDriver(DB)
     with driver.session as current_session:
+        lowercase_username = username.lower()
         user = (current_session.query(User)
-                .filter_by(func.lower(username)=username.lower())
+                .filter_by(func.lower(username)=lowercase_username)
                 .first()
                 )
         if not user:
