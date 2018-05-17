@@ -6,7 +6,7 @@ from storageclient import get_client
 from fence.models import (
     CloudProvider, Bucket, ProjectToBucket, GoogleBucketAccessGroup
 )
-from fence.errors import NotSupported, InternalError, Unauthorized
+from fence.errors import NotSupported, InternalError, Unauthorized, NotFound
 
 
 def check_exist(f):
@@ -304,7 +304,18 @@ def _get_bucket_name_and_username(bucket, user, provider):
     # users are represented with Google Groups)
     if provider == GOOGLE_PROVIDER_NAME:
         bucket_name = bucket.google_bucket_access_group.email
+        if not bucket_name:
+            raise NotFound(
+                'Google bucket {} does not have an access group, '
+                'cannot give user {} access.'
+                .format(bucket.name, user.username))
+
         username = user.google_proxy_group.email
+        if not username:
+            raise NotFound(
+                'User {} does not have a Google Proxy Group. Cannot give '
+                'access to Google bucket {}.'
+                .format(user.username, bucket.name))
     else:
         bucket_name = bucket.name
         username = user.username
