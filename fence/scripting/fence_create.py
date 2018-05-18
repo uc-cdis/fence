@@ -88,6 +88,8 @@ def sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
               - name: CGCI
                 auth_id: phs000235
     '''
+    import fence.settings
+    cirrus_config.update(**fence.settings.CIRRUS_CFG)
 
     if ((is_sync_from_dbgap_server or sync_from_local_csv_dir) and projects is None):
         logger.error("=====project mapping needs to be provided!!!=======")
@@ -703,6 +705,14 @@ def link_bucket_to_project(db, bucket_id, bucket_provider, project_auth_id):
                 'No project with auth_id "{}" exists.'
                 .format(project_auth_id)
             )
+
+        # TODO add StorageAccess if it doesn't exist for the project?
+        # need during syncing
+        # https://github.com/uc-cdis/fence/blob/master/fence/sync/sync_users.py#L549-L550
+        # storage_access = StorageAccess(
+        #     project_id=project_db_entry.id,
+        #     provider_id=google_cloud_provider.id
+        # )
 
         project_linkage = ProjectToBucket(
             project_id=project_db_entry.id,
