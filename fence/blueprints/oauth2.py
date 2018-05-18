@@ -74,7 +74,7 @@ def authorize(*args, **kwargs):
             + flask.request.full_path
         )
         params = {
-            flask.current_app.config.get('DEFAULT_LOGIN_URL_REDIRECT_PARAM'):
+            'redirect':
             redirect_url
         }
         login_url = add_params_to_uri(
