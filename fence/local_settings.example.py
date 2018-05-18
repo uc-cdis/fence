@@ -27,7 +27,6 @@ SEND_TO = 'phillis.tt@gmail.com'
 HMAC_ENCRYPTION_KEY = ''
 
 DEFAULT_LOGIN_URL = BASE_URL + '/login/google'
-DEFAULT_LOGIN_URL_REDIRECT_PARAM = 'redirect'
 
 OPENID_CONNECT = {
     'google': {

@@ -70,16 +70,34 @@ userdatamodel-init --db fence_test
 ```
 
 #### Create User Access File
+You can setup user access via admin fence script providing a user yaml file
+Example user yaml:
+```
+cloud_providers: {}
+groups: {}
+users:
+  userA@gmail.com:
+    projects:
+    - auth_id: project_a
+      privilege: [read, update, create, delete]
+    - auth_id: project_b
+      privilege: [read]
+  userB@gmail.com:
+    projects:
+    - auth_id: project_b
+      privilege: [read]
+```
+Example sync command:
 
 ```bash
-fence-create --path fence create ua.yaml
+fence-create sync --yaml user.yaml
 ```
 
 #### Register OAuth Client
 
 Using gdcapi for example:
 ```bash
-fence-create --path fence client-create --client gdcapi --urls http://localhost/api/v0/oauth2/authorize --username test
+fence-create client-create --client gdcapi --urls http://localhost/api/v0/oauth2/authorize --username test
 ```
 That command should output a tuple of `(client_id, client_secret)` which must be
 saved so that `gdcapi` (for example) can be run as an OAuth client to use with
