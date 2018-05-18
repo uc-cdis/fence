@@ -65,6 +65,7 @@ RUN ln -s /fence/wsgi.py /var/www/fence/wsgi.py \
     && a2ensite fence \
     && a2enmod reqtimeout \
     && ln -sf /dev/stdout /var/log/apache2/access.log \
+    && ln -sf /dev/stdout /var/log/apache2/access_log \
     && ln -sf /dev/stderr /var/log/apache2/error.log
 
 EXPOSE 80
