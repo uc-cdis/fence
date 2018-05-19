@@ -37,13 +37,13 @@ def internal_access_token():
     expires_in = flask.current_app.config.get('MAX_ACCESS_TOKEN_TTL', 3600)
     keypair = flask.current_app.keypairs[0]
     scopes = ['fence', 'openid', 'user', 'data']
-   
+
     with flask.current_app.db.session as session:
         user = find_user(username, session)
         access_token = token.generate_signed_access_token(
             keypair.kid, keypair.private_key, user, expires_in, scopes
         )
-    
+
     return flask.jsonify(dict(access_token=access_token))
 
 
