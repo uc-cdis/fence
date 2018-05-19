@@ -22,6 +22,7 @@ from fence.restful import handle_error
 from fence.utils import random_str
 import fence.blueprints.admin
 import fence.blueprints.data
+import fence.blueprints.internal
 import fence.blueprints.login
 import fence.blueprints.oauth2
 import fence.blueprints.storage_creds
@@ -93,6 +94,11 @@ def app_register_blueprints(app):
     app.register_blueprint(login_blueprint, url_prefix='/login')
     link_blueprint = fence.blueprints.link.make_link_blueprint()
     app.register_blueprint(link_blueprint, url_prefix='/link')
+
+    if fence.blueprints.internal.HAS_KUBERNETES:
+        app.register_blueprint(
+            fence.blueprints.internal.blueprint, url_prefix='/internal'
+        )
 
     @app.route('/')
     def root():

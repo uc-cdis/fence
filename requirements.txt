@@ -12,6 +12,7 @@ flask-restful==0.3.6
 Flask_SQLAlchemy_Session==1.1
 google_api_python_client==1.6.4
 httplib2==0.10.3
+kubernetes
 python-jose==2.0.2
 oauthlib==2.0.6
 psycopg2==2.7.3.2

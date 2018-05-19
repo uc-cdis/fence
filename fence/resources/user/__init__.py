@@ -38,7 +38,6 @@ def find_user(username, session):
         raise NotFound("user {} not found".format(username))
     return user
 
-
 def get_info_by_username(username):
     with flask.current_app.db.session as session:
         return get_user_info(find_user(username, session), session)
