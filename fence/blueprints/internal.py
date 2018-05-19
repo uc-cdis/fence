@@ -22,7 +22,7 @@ def internal_access_token():
     Get an access token for the requesting k8s pod using
     the pod metadata label
     '''
-    
+
     # If this request came in via proxy reject it
     # This isn't strictly necessary but short
     # circuits requests that come in publicly
