@@ -297,7 +297,7 @@ class StorageManager(object):
                 raise NotFound(
                     'User not found with username {}. For Google Storage '
                     'Backend user\'s must already exist in the db and have a '
-                    'Google Proxy Group. Cannot create during usersync.'
+                    'Google Proxy Group.'
                     .format(username))
         else:
             user = self.clients[provider].get_or_create_user(username)
@@ -308,7 +308,10 @@ class StorageManager(object):
         # Need different information for google (since buckets and
         # users are represented with Google Groups)
         if provider == GOOGLE_PROVIDER_NAME:
-            bucket_name = bucket.google_bucket_access_group.email
+            bucket_name = None
+            if bucket.google_bucket_access_group:
+                bucket_name = bucket.google_bucket_access_group.email
+
             if not bucket_name:
                 raise NotFound(
                     'Google bucket {} does not have an access group.'
@@ -323,10 +326,14 @@ class StorageManager(object):
         # Need different information for google (since buckets and
         # users are represented with Google Groups)
         if provider == GOOGLE_PROVIDER_NAME:
-            username = user.google_proxy_group.email
+            username = None
+            if user.google_proxy_group:
+                username = user.google_proxy_group.email
+
             if not username:
                 raise NotFound(
-                    'User {} does not have a Google Proxy Group.'
+                    'User {} does not have a Google Proxy Group. Must already '
+                    'exist to provide access to Google Storage buckets.'
                     .format(user.username))
         else:
             username = user.username
