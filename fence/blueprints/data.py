@@ -166,7 +166,7 @@ class IndexedFile(object):
             raise UnavailableError(res.text)
 
     def _get_acls(self):
-        if 'acl' in self.index_document:
+        if 'acl' in self.index_document and self.index_document['acl']:
             set_acls = set(self.index_document['acl'])
         elif 'acls' in self.metadata:
             set_acls = set(self.metadata['acls'].split(','))
