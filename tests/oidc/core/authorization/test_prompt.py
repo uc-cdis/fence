@@ -80,9 +80,6 @@ def patch_mock_auth_off(app, monkeypatch):
     """Don't mock auth so there isn't a logged in user."""
     monkeypatch.setitem(app.config, 'MOCK_AUTH', False)
     monkeypatch.setitem(app.config, 'DEFAULT_LOGIN_URL', '/login/google')
-    monkeypatch.setitem(
-        app.config, 'DEFAULT_LOGIN_URL_REDIRECT_PARAM', 'redirect'
-    )
 
 
 @pytest.fixture(scope='function')

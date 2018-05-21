@@ -50,7 +50,8 @@ def get_or_create_primary_service_account_key(
         fernet_key = Fernet(
             str(flask.current_app.config['HMAC_ENCRYPTION_KEY'])
         )
-        private_key_bytes = fernet_key.decrypt(user_service_account_key.private_key)
+        private_key_bytes = fernet_key.decrypt(
+            str(user_service_account_key.private_key))
         sa_private_key = json.loads(private_key_bytes.decode('utf-8'))
     else:
         sa_private_key = create_primary_service_account_key(
