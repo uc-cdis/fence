@@ -4,7 +4,7 @@ from functools import wraps
 from storageclient import get_client
 
 from fence.models import (
-    CloudProvider, Bucket, ProjectToBucket, GoogleBucketAccessGroup
+    CloudProvider, Bucket, ProjectToBucket, GoogleBucketAccessGroup, User
 )
 from fence.errors import NotSupported, InternalError, Unauthorized, NotFound
 
@@ -138,7 +138,7 @@ class StorageManager(object):
         c.get_or_create_bucket(bucketname)
 
     @check_exist
-    def grant_access(self, provider, username, project, access):
+    def grant_access(self, provider, username, project, access, session):
         """
         this should be exposed via admin endpoint
         grant user access to a project in storage backend
@@ -148,11 +148,11 @@ class StorageManager(object):
         :param provider: storage backend provider
         """
         access = [acc for acc in access if acc in PRIVILEGES]
-        user = self.clients[provider].get_or_create_user(username)
+        user = self._get_or_create_user(username, provider, session)
+        username = StorageManager._get_username(user, provider)
+
         for b in project.buckets:
-            bucket_name, username = (
-                _get_bucket_name_and_username(b, user, provider)
-            )
+            bucket_name = StorageManager._get_bucket_name(b, provider)
             self.clients[provider].add_bucket_acl(
                 bucket_name, username, access=access)
 
@@ -169,9 +169,7 @@ class StorageManager(object):
         if user is None:
             return
         for b in project.buckets:
-            bucket_name, username = (
-                _get_bucket_name_and_username(b, user, provider)
-            )
+            bucket_name = StorageManager._get_bucket_name(b, provider)
             self.clients[provider].delete_bucket_acl(
                 bucket_name, username)
 
@@ -182,7 +180,9 @@ class StorageManager(object):
         particular
         :return boolean
         """
-        return self.clients[provider].has_bucket_access(bucket, user.username)
+        bucket_name = StorageManager._get_bucket_name(bucket, provider)
+        username = StorageManager._get_username(user, provider)
+        return self.clients[provider].has_bucket_access(bucket_name, username)
 
     @check_exist
     def get_or_create_user(self, provider, user):
@@ -269,55 +269,66 @@ class StorageManager(object):
         """
         self.clients[provider].set_bucket_quota(bucket, quota_unit, quota)
 
-    @check_exist
-    def add_bucket_acl(
-            self, provider, buckets, user, session, project, access=None):
-        """
-        Add a new grant for a user to a specific bucket
-        Please consult the manuals for the different
-        storage systems to assign permissions appropriately
-        :access is a list of access types granted to the
-        user
-        :returns None
-        """
-        if access is None:
-            access = []
-        access = [acc for acc in access if acc in PRIVILEGES]
-        self.clients[provider].get_or_create_user(user.username)
-        buckets = project.buckets.all()
-        for b in buckets:
-            bucket_name, username = (
-                _get_bucket_name_and_username(b, user, provider)
-            )
-            self.clients[provider].add_bucket_acl(
-                bucket_name, username, access=access)
-
     def delete_bucket(self, backend, bucket_name):
         """
         Remove a bucket from the speficied bucket
         """
         self.clients[backend].delete_bucket(bucket_name)
 
+    def _get_or_create_user(self, username, provider, session):
+        """
+        Return a user.
 
-def _get_bucket_name_and_username(bucket, user, provider):
-    # Need different information for google (since buckets and
-    # users are represented with Google Groups)
-    if provider == GOOGLE_PROVIDER_NAME:
-        bucket_name = bucket.google_bucket_access_group.email
-        if not bucket_name:
-            raise NotFound(
-                'Google bucket {} does not have an access group, '
-                'cannot give user {} access.'
-                .format(bucket.name, user.username))
+        Depending on the provider, may call to get or create or just
+        search fence's db.
 
-        username = user.google_proxy_group.email
-        if not username:
-            raise NotFound(
-                'User {} does not have a Google Proxy Group. Cannot give '
-                'access to Google bucket {}.'
-                .format(user.username, bucket.name))
-    else:
-        bucket_name = bucket.name
-        username = user.username
+        Args:
+            username (str): User's name
+            provider (str): backend provider
+            session (userdatamodel.driver.SQLAlchemyDriver.session): fence's db
+                session to query for Users
 
-    return bucket_name, username
+        Returns:
+            fence.models.User: User with username
+        """
+        if provider == GOOGLE_PROVIDER_NAME:
+            user = session.query(User).filter_by(username=username).first()
+            if not user:
+                raise NotFound(
+                    'User not found with username {}. For Google Storage '
+                    'Backend user\'s must already exist in the db and have a '
+                    'Google Proxy Group. Cannot create during usersync.'
+                    .format(username))
+        else:
+            user = self.clients[provider].get_or_create_user(username)
+        return user
+
+    @staticmethod
+    def _get_bucket_name(bucket, provider):
+        # Need different information for google (since buckets and
+        # users are represented with Google Groups)
+        if provider == GOOGLE_PROVIDER_NAME:
+            bucket_name = bucket.google_bucket_access_group.email
+            if not bucket_name:
+                raise NotFound(
+                    'Google bucket {} does not have an access group.'
+                    .format(bucket.name))
+        else:
+            bucket_name = bucket.name
+
+        return bucket_name
+
+    @staticmethod
+    def _get_username(user, provider):
+        # Need different information for google (since buckets and
+        # users are represented with Google Groups)
+        if provider == GOOGLE_PROVIDER_NAME:
+            username = user.google_proxy_group.email
+            if not username:
+                raise NotFound(
+                    'User {} does not have a Google Proxy Group.'
+                    .format(user.username))
+        else:
+            username = user.username
+
+        return username
