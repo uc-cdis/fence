@@ -169,11 +169,12 @@ class StorageManager(object):
         :param backend: storage backend provider
         """
         storage_user = self._get_storage_user(username, provider, session)
+        if storage_user is None:
+            return
+
         storage_username = StorageManager._get_storage_username(
             storage_user, provider)
 
-        if storage_user is None:
-            return
         for b in project.buckets:
             bucket_name = StorageManager._get_bucket_name(b, provider)
             self.clients[provider].delete_bucket_acl(
@@ -361,7 +362,7 @@ class StorageManager(object):
             if not username:
                 raise NotFound(
                     'User {} does not have a Google Proxy Group. Must already '
-                    'exist to provide access to Google Storage buckets.'
+                    'exist to manage access to Google Storage buckets.'
                     .format(user.username))
         else:
             username = user.username
