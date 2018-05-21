@@ -339,7 +339,11 @@ class StorageManager(object):
         if provider == GOOGLE_PROVIDER_NAME:
             bucket_name = None
             if bucket.google_bucket_access_group:
-                bucket_name = bucket.google_bucket_access_group.email
+                # NOTE: For now, a bucket has a single google bucket access
+                #       group but this may eventually change (if we want
+                #       to have both read and write access groups).
+                access_group = bucket.google_bucket_access_group[0]
+                bucket_name = access_group.email
 
             if not bucket_name:
                 raise NotFound(

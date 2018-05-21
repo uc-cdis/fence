@@ -310,6 +310,10 @@ class GoogleBucketAccessGroup(Base):
         nullable=False
     )
 
+    # TODO add access column to specify what kind of storage access this group
+    #      has. This will be needed if we want to support read/write for
+    #      Google Storage instead of just read.
+
     def delete(self):
         with flask.current_app.db.session as session:
             session.delete(self)
