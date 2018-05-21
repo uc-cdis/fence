@@ -35,11 +35,20 @@ class RevocationEndpoint(authlib.specs.rfc7009.RevocationEndpoint):
         """
         client_params = self.parse_basic_auth_header()
         if not client_params:
+            flask.current_app.logger.debug(
+                'validating client in revoke request:'
+                ' missing client auth header'
+            )
             raise InvalidClientError(uri=self.uri)
 
         client_id, client_secret = client_params
         client = self.client_model.get_by_client_id(client_id)
         if not client:
+            flask.current_app.logger.debug(
+                'validating client in revoke request:'
+                ' no client with matching client id:'
+                + ' ' + client_id
+            )
             raise InvalidClientError(uri=self.uri)
 
         # The stored client secret is hashed, so hash the secret from basic
@@ -48,6 +57,9 @@ class RevocationEndpoint(authlib.specs.rfc7009.RevocationEndpoint):
         if bcrypt.hashpw(
                 client_secret.encode('utf-8'),
                 hashed.encode('utf-8')) != hashed:
+            flask.current_app.logger.debug(
+                'client secret hash does not match stored secret hash'
+            )
             raise InvalidClientError(uri=self.uri)
 
         self._client = client
