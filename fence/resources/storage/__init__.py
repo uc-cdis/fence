@@ -148,16 +148,19 @@ class StorageManager(object):
         :param provider: storage backend provider
         """
         access = [acc for acc in access if acc in PRIVILEGES]
-        user = self._get_or_create_user(username, provider, session)
-        username = StorageManager._get_username(user, provider)
+        storage_user = self._get_or_create_storage_user(
+            username, provider, session)
+
+        storage_username = StorageManager._get_storage_username(
+            storage_user, provider)
 
         for b in project.buckets:
             bucket_name = StorageManager._get_bucket_name(b, provider)
             self.clients[provider].add_bucket_acl(
-                bucket_name, username, access=access)
+                bucket_name, storage_username, access=access)
 
     @check_exist
-    def revoke_access(self, provider, username, project):
+    def revoke_access(self, provider, username, project, session):
         """
         this should be exposed via admin endpoint
         revoke user access to a project in storage backend
@@ -165,13 +168,16 @@ class StorageManager(object):
         :param username: username
         :param backend: storage backend provider
         """
-        user = self.clients[provider].get_user(username)
-        if user is None:
+        storage_user = self._get_storage_user(username, provider, session)
+        storage_username = StorageManager._get_storage_username(
+            storage_user, provider)
+
+        if storage_user is None:
             return
         for b in project.buckets:
             bucket_name = StorageManager._get_bucket_name(b, provider)
             self.clients[provider].delete_bucket_acl(
-                bucket_name, username)
+                bucket_name, storage_username)
 
     @check_exist
     def has_bucket_access(self, provider, user, bucket):
@@ -181,8 +187,9 @@ class StorageManager(object):
         :return boolean
         """
         bucket_name = StorageManager._get_bucket_name(bucket, provider)
-        username = StorageManager._get_username(user, provider)
-        return self.clients[provider].has_bucket_access(bucket_name, username)
+        storage_username = StorageManager._get_storage_username(user, provider)
+        return self.clients[provider].has_bucket_access(
+            bucket_name, storage_username)
 
     @check_exist
     def get_or_create_user(self, provider, user):
@@ -275,7 +282,28 @@ class StorageManager(object):
         """
         self.clients[backend].delete_bucket(bucket_name)
 
-    def _get_or_create_user(self, username, provider, session):
+    def _get_storage_user(self, username, provider, session):
+        """
+        Return a user.
+
+        Depending on the provider, may call to get or just search fence's db.
+
+        Args:
+            username (str): User's name
+            provider (str): backend provider
+            session (userdatamodel.driver.SQLAlchemyDriver.session): fence's db
+                session to query for Users
+
+        Returns:
+            fence.models.User: User with username
+        """
+        if provider == GOOGLE_PROVIDER_NAME:
+            user = session.query(User).filter_by(username=username).first()
+        else:
+            user = self.clients[provider].get_user(username)
+        return user
+
+    def _get_or_create_storage_user(self, username, provider, session):
         """
         Return a user.
 
@@ -322,7 +350,7 @@ class StorageManager(object):
         return bucket_name
 
     @staticmethod
-    def _get_username(user, provider):
+    def _get_storage_username(user, provider):
         # Need different information for google (since buckets and
         # users are represented with Google Groups)
         if provider == GOOGLE_PROVIDER_NAME:

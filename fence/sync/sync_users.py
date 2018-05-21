@@ -556,7 +556,8 @@ class UserSyncer(object):
                 self.storage_manager.revoke_access(
                     provider=sa.provider.name,
                     username=username,
-                    project=project
+                    project=project,
+                    session=sess
                 )
         sess.commit()
 
