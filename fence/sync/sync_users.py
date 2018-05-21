@@ -73,9 +73,10 @@ class UserSyncer(object):
             self.server = dbGaP['info']
             self.protocol = dbGaP['protocol']
             self.dbgap_key = dbGaP['decrypt_key']
+        self.parse_consent_code = dbGaP.get('parse_consent_code', True)
         self.session = db_session
         self.driver = SQLAlchemyDriver(DB)
-        self.project_mapping = project_mapping
+        self.project_mapping = project_mapping or {}
         self._projects = dict()
         self.logger = get_logger('user_syncer')
 
@@ -227,7 +228,7 @@ class UserSyncer(object):
                     phsid_privileges = defaultdict(set)
                     phsid = row.get('phsid', '').split('.')
                     dbgap_project = phsid[0]
-                    if len(phsid) > 1:
+                    if len(phsid) > 1 and self.parse_consent_code:
                         consent_code = phsid[-1]
                         if consent_code != 'c999':
                             dbgap_project += '.' + consent_code
@@ -244,6 +245,8 @@ class UserSyncer(object):
                         if dbgap_project not in self._projects:
                             project = self._get_or_create(
                                 sess, Project, auth_id=dbgap_project)
+                            if project.name is None:
+                                project.name = dbgap_project
                             self._projects[dbgap_project] = project
                         phsid_privileges = {
                             dbgap_project: privileges}
@@ -253,9 +256,8 @@ class UserSyncer(object):
                         else:
                             user_projects[username] = phsid_privileges
 
-                        continue
-
-                    for element_dict in self.project_mapping[dbgap_project]:
+                    for element_dict in self.project_mapping.get(
+                            dbgap_project, []):
                         try:
                             phsid_privileges = {
                                 element_dict['auth_id']: privileges}
@@ -266,8 +268,6 @@ class UserSyncer(object):
                                 user_projects[username] = phsid_privileges
                         except ValueError as e:
                             self.logger.info(e)
-
-
         return user_projects, user_info
 
     def _parse_yaml(self, filepath, encrypted=True):
