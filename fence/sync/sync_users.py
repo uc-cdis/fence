@@ -551,7 +551,7 @@ class UserSyncer(object):
 
                 self.logger.info(
                     'revoke {} access to {} in {}'
-                    .format(username, project, sa.provider.name))
+                    .format(username, project_auth_id, sa.provider.name))
 
                 self.storage_manager.revoke_access(
                     provider=sa.provider.name,
@@ -575,11 +575,13 @@ class UserSyncer(object):
         for (username, project_auth_id) in to_add:
             project = self._projects[project_auth_id]
             for sa in project.storage_access:
-                self.logger.info(
-                    'grant {} access to {} in {}'
-                    .format(username, project, sa.provider.name))
-
                 access = list(user_project[username][project_auth_id])
+
+                self.logger.info(
+                    'grant {} access {} to {} in {}'
+                    .format(
+                        username, access, project_auth_id, sa.provider.name))
+
                 self.storage_manager.grant_access(
                     provider=sa.provider.name,
                     username=username,
