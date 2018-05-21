@@ -4,6 +4,7 @@ from authlib.specs.rfc7009.errors import (
     OAuth2Error,
 )
 import bcrypt
+import flask
 
 from fence.errors import BlacklistingError
 import fence.jwt.blacklist
