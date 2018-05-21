@@ -57,7 +57,7 @@ RUN ln -s /fence/wsgi.py /var/www/fence/wsgi.py \
     LogLevel warn\n\
     LogFormat "%{X-Forwarded-For}i %l %{X-UserId}i %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-agent}i\"" aws\n\
     SetEnvIf X-Forwarded-For "^..*" forwarded\n\
-    CustomLog ${APACHE_LOG_DIR}/access_log combined env=!forwarded\n\
+    CustomLog ${APACHE_LOG_DIR}/access.log combined env=!forwarded\n\
     CustomLog ${APACHE_LOG_DIR}/access.log aws env=forwarded\n\
 </VirtualHost>\n'\
 >> /etc/apache2/sites-available/fence.conf \
