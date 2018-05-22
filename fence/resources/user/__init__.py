@@ -40,8 +40,12 @@ def find_user(username, session):
         raise NotFound("user {} not found".format(username))
     return user
 
+
 def get_user(current_session, username):
     user = udm.get_user(current_session, username)
+    if not user:
+        raise NotFound("user {} not found".format(username))
+    return user
 
 
 def get_current_user_info():
