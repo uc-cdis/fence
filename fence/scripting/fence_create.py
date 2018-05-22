@@ -5,16 +5,13 @@ import time
 import uuid
 import jwt
 import yaml
-import time
-from sqlalchemy import func
-from authlib.common.encoding import to_unicode
 
 # third-party
 from authlib.common.encoding import to_unicode
 from cirrus import GoogleCloudManager
 from cirrus.config import config as cirrus_config
-import jwt
 from cdispyutils.log import get_logger
+from sqlalchemy import func
 from userdatamodel.driver import SQLAlchemyDriver
 from userdatamodel.models import (
     AccessPrivilege,
@@ -28,7 +25,6 @@ from userdatamodel.models import (
     User,
     ProjectToBucket
 )
-import yaml
 
 # local
 from fence.jwt.token import (
