@@ -1,13 +1,16 @@
-from cirrus import GoogleCloudManager
-from cirrus.google_cloud import get_valid_service_account_id_for_client
-
-from flask_sqlalchemy_session import current_session
 import flask
 from flask_restful import Resource
 
+from cirrus import GoogleCloudManager
+from cirrus.config import config as cirrus_config
+
 from fence.auth import require_auth_header
 from fence.auth import current_token
-from fence.models import GoogleServiceAccount
+from fence.resources.google.utils import get_service_account
+from fence.resources.google.utils import create_google_access_key
+from fence.resources.google.utils import (
+    add_custom_service_account_key_expiration
+)
 
 
 class GoogleCredentialsList(Resource):
@@ -51,8 +54,7 @@ class GoogleCredentialsList(Resource):
         user_id = current_token["sub"]
 
         with GoogleCloudManager() as g_cloud_manager:
-            service_account = _get_google_service_account_for_client(
-                g_cloud_manager, client_id, user_id)
+            service_account = get_service_account(client_id, user_id)
 
             if service_account:
                 keys = g_cloud_manager.get_service_account_keys_info(
@@ -93,14 +95,49 @@ class GoogleCredentialsList(Resource):
                 "client_x509_cert_url": "https://www.googleapis.com/...<api-name>api%40project-id.iam.gserviceaccount.com"
             }
         """
-        client_id = current_token.get("azp") or None
         user_id = current_token["sub"]
+        client_id = current_token.get("azp") or None
+        proxy_group_id = (
+            current_token.get('context', {})
+            .get('user', {})
+            .get('google', {})
+            .get('proxy_group')
+        )
+        username = (
+            current_token.get('context', {})
+            .get('user', {})
+            .get('name')
+        )
 
-        with GoogleCloudManager() as g_cloud:
-            client_id = current_token.get("azp") or None
-            key = _get_google_access_key_for_client(
-                g_cloud, client_id, user_id)
+        key, service_account = create_google_access_key(
+            client_id, user_id, username, proxy_group_id)
+
+        if client_id is None:
+            self.handle_user_service_account_creds(key, service_account)
+
         return flask.jsonify(key)
+
+    def handle_user_service_account_creds(self, key, service_account):
+        """
+        Add the service account creds for the user into our db. Actual
+        Oauth Client SAs are handled separately. This function assigns
+        the same expiration to the user's generated key but the mechanism
+        for expiration uses our db instead of checking google directly.
+
+        See fence-create scripting functions for expiration logic.
+
+        The reason for this difference is due to the fact that fence itself
+        uses the user's primary service account for url signing (in addition
+        to the user themselves). Since the expirations are different, a
+        different mechanism than the Client SAs was required.
+        """
+        # x days * 24 hr/day * 60 min/hr * 60 s/min = y seconds
+        expires_in_seconds = (
+            cirrus_config.SERVICE_KEY_EXPIRATION_IN_DAYS * 24 * 60 * 60
+        )
+        key_id = key.get('private_key_id')
+        add_custom_service_account_key_expiration(
+            key_id, service_account.id, expires=expires_in_seconds)
 
 
 class GoogleCredentials(Resource):
@@ -121,8 +158,7 @@ class GoogleCredentials(Resource):
 
         with GoogleCloudManager() as g_cloud:
             client_id = current_token.get("azp") or None
-            service_account = _get_google_service_account_for_client(
-                g_cloud, client_id, user_id)
+            service_account = get_service_account(client_id, user_id)
 
             if service_account:
                 keys_for_account = (
@@ -147,121 +183,3 @@ class GoogleCredentials(Resource):
                     404, 'Could not find service account for current user.')
 
         return '', 204
-
-
-def _get_google_access_key_for_client(g_cloud_manager, client_id, user_id):
-    """
-    Return an access key for current user and client.
-
-    Args:
-        g_cloud_manager (cirrus.GoogleCloudManager): instance of
-        cloud manager to use
-
-    Returns:
-
-        JSON key in Google Credentials File format:
-
-        .. code-block:: JavaScript
-
-            {
-                "type": "service_account",
-                "project_id": "project-id",
-                "private_key_id": "some_number",
-                "private_key": "-----BEGIN PRIVATE KEY-----\n....
-                =\n-----END PRIVATE KEY-----\n",
-                "client_email": "<api-name>api@project-id.iam.gserviceaccount.com",
-                "client_id": "...",
-                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                "token_uri": "https://accounts.google.com/o/oauth2/token",
-                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-                "client_x509_cert_url": "https://www.googleapis.com/...<api-name>api%40project-id.iam.gserviceaccount.com"
-            }
-    """
-    service_account = _get_google_service_account_for_client(
-        g_cloud_manager, client_id, user_id)
-
-    if not service_account:
-        if client_id:
-            service_account = _create_google_service_account_for_client(
-                g_cloud_manager, client_id, user_id)
-        else:
-            # error about requiring client id in azp field of token
-            flask.abort(
-                404, 'Could not find client id in `azp` field of token. '
-                'Cannot create Google key.')
-
-    key = g_cloud_manager.get_access_key(service_account.google_unique_id)
-    return key
-
-
-def _get_google_service_account_for_client(
-        g_cloud_manager, client_id, user_id):
-    """
-    Return the service account (from Fence db) for current client.
-
-    Get the service account that is associated with the current client
-    for this user. There will be a single service account per client.
-
-    Args:
-        g_cloud_manager (cirrus.GoogleCloudManager): instance of
-        cloud manager to use
-
-    Returns:
-        fence.models.GoogleServiceAccount: Client's service account
-    """
-    service_account = (
-        current_session
-        .query(GoogleServiceAccount)
-        .filter_by(client_id=client_id,
-                   user_id=user_id)
-        .first()
-    )
-
-    return service_account
-
-
-def _create_google_service_account_for_client(
-        g_cloud_manager, client_id, user_id):
-    """
-    Create a Google Service account for the current client and user.
-
-    Args:
-        g_cloud_manager (cirrus.GoogleCloudManager): instance of
-        cloud manager to use
-
-    Returns:
-        fence.models.GoogleServiceAccount: New service account
-    """
-    proxy_group_id = (
-        current_token.get('context', {})
-        .get('user', {})
-        .get('google', {})
-        .get('proxy_group')
-    )
-
-    if proxy_group_id:
-        service_account_id = get_valid_service_account_id_for_client(
-            client_id, user_id)
-
-        new_service_account = (
-            g_cloud_manager.create_service_account_for_proxy_group(
-                proxy_group_id, account_id=service_account_id)
-        )
-
-        service_account = GoogleServiceAccount(
-            google_unique_id=new_service_account['uniqueId'],
-            client_id=client_id,
-            user_id=user_id,
-            email=new_service_account['email'],
-            google_project_id=new_service_account['projectId']
-        )
-
-        current_session.add(service_account)
-        current_session.commit()
-
-        return service_account
-
-    else:
-        flask.abort(
-            404, 'Could not find Google proxy group for current user in the '
-            'given token.')

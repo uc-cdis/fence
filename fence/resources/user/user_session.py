@@ -44,7 +44,7 @@ from fence.jwt.validate import validate_jwt
 from fence.jwt.validate import JWTError
 from fence.resources.storage.cdis_jwt import create_session_token
 from fence.user import get_current_user
-from fence.utils import get_linked_google_account_email
+from fence.resources.google.utils import get_linked_google_account_email
 
 
 class UserSession(SessionMixin):

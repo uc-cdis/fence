@@ -47,7 +47,23 @@ def _compile_drop_table(element, compiler, **kwargs):
 os.environ['AUTHLIB_INSECURE_TRANSPORT'] = 'true'
 
 
-def indexd_get_available_bucket(file_id):
+def indexd_get_available_s3_bucket(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s3://bucket1/key'],
+        'hashes': {},
+        'metadata': {'acls': 'phs000178,phs000218'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_available_s3_bucket_acl(file_id):
     return {
         'did': '',
         'baseid': '',
@@ -63,7 +79,55 @@ def indexd_get_available_bucket(file_id):
     }
 
 
-def indexd_get_unavailable_bucket(file_id):
+def indexd_get_available_gs_bucket(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['gs://bucket1/key'],
+        'hashes': {},
+        'metadata': {'acls': 'phs000178,phs000218'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_available_gs_bucket_acl(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['gs://bucket1/key'],
+        'hashes': {},
+        'acl': ['phs000178', 'phs000218'],
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_unavailable_s3_bucket(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s3://bucket5/key'],
+        'hashes': {},
+        'metadata': {'acls': 'phs000178,phs000218'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_unavailable_s3_bucket_acl(file_id):
     return {
         'did': '',
         'baseid': '',
@@ -79,7 +143,55 @@ def indexd_get_unavailable_bucket(file_id):
     }
 
 
-def indexd_get_public_object(file_id):
+def indexd_get_unavailable_gs_bucket(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['gs://bucket5/key'],
+        'hashes': {},
+        'metadata': {'acls': 'phs000178,phs000218'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_unavailable_gs_bucket_acl(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['gs://bucket5/key'],
+        'hashes': {},
+        'acl': ['phs000178', 'phs000218'],
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_public_s3_object(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s3://bucket1/key'],
+        'hashes': {},
+        'metadata': {'acls': '*'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_public_s3_object_acl(file_id):
     return {
         'did': '',
         'baseid': '',
@@ -95,7 +207,39 @@ def indexd_get_public_object(file_id):
     }
 
 
-def indexd_get_public_bucket(file_id):
+def indexd_get_public_gs_object(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['gs://bucket1/key'],
+        'hashes': {},
+        'metadata': {'acls': '*'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_public_gs_object_acl(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['gs://bucket1/key'],
+        'hashes': {},
+        'acl': ['*'],
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_public_s3_bucket(file_id):
     return {
         'did': '',
         'baseid': '',
@@ -103,6 +247,54 @@ def indexd_get_public_bucket(file_id):
         'size': 10,
         'file_name': 'file1',
         'urls': ['s3://bucket4/key'],
+        'hashes': {},
+        'metadata': {'acls': '*'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_public_s3_bucket_acl(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s3://bucket4/key'],
+        'hashes': {},
+        'acl': ['*'],
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_public_gs_bucket(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['gs://bucket4/key'],
+        'hashes': {},
+        'metadata': {'acls': '*'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_public_gs_bucket_acl(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['gs://bucket4/key'],
         'hashes': {},
         'acl': ['*'],
         'form': '',
@@ -368,23 +560,59 @@ def unauthorized_oauth_user(app, db_session):
 
 
 @pytest.fixture(scope='function')
-def indexd_client(app):
+def indexd_client(app, request):
     mocker = Mocker()
     mocker.mock_functions()
+
+    if request.param == 'gs':
+        indexd_get_available_bucket_func = indexd_get_available_gs_bucket
+    elif request.param == 'gs_acl':
+        indexd_get_available_bucket_func = (
+            indexd_get_available_gs_bucket_acl
+        )
+    elif request.param == 's3_acl':
+        indexd_get_available_bucket_func = (
+            indexd_get_available_s3_bucket_acl
+        )
+    else:
+        indexd_get_available_bucket_func = indexd_get_available_s3_bucket
+
     indexd_patcher = patch(
-        'fence.blueprints.data.get_index_document',
-        indexd_get_available_bucket
+        'fence.blueprints.data.IndexedFile._get_index_document',
+        indexd_get_available_bucket_func
     )
     mocker.add_mock(indexd_patcher)
+
+    output = {
+        'mocker': mocker,
+        # only gs or s3 for location, ignore specifiers after the _
+        'indexed_file_location': request.param.split('_')[0]
+    }
+
+    return output
 
 
 @pytest.fixture(scope='function')
 def unauthorized_indexd_client(app, request):
     mocker = Mocker()
     mocker.mock_functions()
+
+    if request.param == 'gs':
+        indexd_get_unavailable_bucket_func = indexd_get_unavailable_gs_bucket
+    elif request.param == 'gs_acl':
+        indexd_get_unavailable_bucket_func = (
+            indexd_get_unavailable_gs_bucket_acl
+        )
+    elif request.param == 's3_acl':
+        indexd_get_unavailable_bucket_func = (
+            indexd_get_unavailable_s3_bucket_acl
+        )
+    else:
+        indexd_get_unavailable_bucket_func = indexd_get_unavailable_s3_bucket
+
     indexd_patcher = patch(
-        'fence.blueprints.data.get_index_document',
-        indexd_get_unavailable_bucket)
+        'fence.blueprints.data.IndexedFile._get_index_document',
+        indexd_get_unavailable_bucket_func)
     mocker.add_mock(indexd_patcher)
 
 
@@ -392,9 +620,23 @@ def unauthorized_indexd_client(app, request):
 def public_indexd_client(app, request):
     mocker = Mocker()
     mocker.mock_functions()
+
+    if request.param == 'gs':
+        indexd_get_public_object_func = indexd_get_public_gs_object
+    elif request.param == 'gs_acl':
+        indexd_get_public_object_func = (
+            indexd_get_public_gs_object_acl
+        )
+    elif request.param == 's3_acl':
+        indexd_get_public_object_func = (
+            indexd_get_public_s3_object_acl
+        )
+    else:
+        indexd_get_public_object_func = indexd_get_public_s3_object
+
     indexd_patcher = patch(
-        'fence.blueprints.data.get_index_document',
-        indexd_get_public_object)
+        'fence.blueprints.data.IndexedFile._get_index_document',
+        indexd_get_public_object_func)
     mocker.add_mock(indexd_patcher)
 
 
@@ -402,10 +644,25 @@ def public_indexd_client(app, request):
 def public_bucket_indexd_client(app, request):
     mocker = Mocker()
     mocker.mock_functions()
+
+    if request.param == 'gs':
+        indexd_get_public_bucket_func = indexd_get_public_gs_bucket
+    elif request.param == 'gs_acl':
+        indexd_get_public_bucket_func = (
+            indexd_get_public_gs_bucket_acl
+        )
+    elif request.param == 's3_acl':
+        indexd_get_public_bucket_func = (
+            indexd_get_public_s3_bucket_acl
+        )
+    else:
+        indexd_get_public_bucket_func = indexd_get_public_s3_bucket
+
     indexd_patcher = patch(
-        'fence.blueprints.data.get_index_document',
-        indexd_get_public_bucket)
+        'fence.blueprints.data.IndexedFile._get_index_document',
+        indexd_get_public_bucket_func)
     mocker.add_mock(indexd_patcher)
+
 
 @pytest.fixture(scope='function')
 def patch_app_db_session(app, monkeypatch):
@@ -416,8 +673,8 @@ def patch_app_db_session(app, monkeypatch):
         monkeypatch.setattr(app.db, 'Session', lambda: session)
         modules_to_patch = [
             'fence.auth',
+            'fence.resources.google.utils',
             'fence.blueprints.link',
-            'fence.blueprints.storage_creds.google',
             'fence.oidc.jwt_generator',
             'fence.user',
         ]
@@ -519,6 +776,20 @@ def oauth_test_client_public(client, oauth_client_public):
 
 
 @pytest.fixture(scope='function')
+def primary_google_service_account(
+        app, db_session, user_client, google_proxy_group):
+    service_account_id = 'test-service-account-0'
+    email = fence.utils.random_str(40) + "@test.com"
+    service_account = models.GoogleServiceAccount(
+        google_unique_id=service_account_id,
+        email=email, user_id=user_client.user_id, client_id=None,
+        google_project_id='projectId-0')
+    db_session.add(service_account)
+    db_session.commit()
+    return Dict(id=service_account_id, email=email)
+
+
+@pytest.fixture(scope='function')
 def google_proxy_group(app, db_session, user_client):
     group_id = 'test-proxy-group-0'
     email = fence.utils.random_str(40) + "@test.com"
@@ -538,6 +809,38 @@ def google_proxy_group(app, db_session, user_client):
 def cloud_manager():
     manager = MagicMock()
     patch('fence.blueprints.storage_creds.google.GoogleCloudManager', manager).start()
+    patch('fence.resources.google.utils.GoogleCloudManager', manager).start()
+    manager.return_value.__enter__.return_value.get_access_key.return_value = {
+        "type": "service_account",
+        "project_id": "project-id",
+        "private_key_id": "some_number",
+        "private_key": "-----BEGIN PRIVATE KEY-----\n....\n-----END PRIVATE KEY-----\n",
+        "client_email": "<api-name>api@project-id.iam.gserviceaccount.com",
+        "client_id": "...",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://accounts.google.com/o/oauth2/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_x509_cert_url": "https://www.googleapis.com/...<api-name>api%40project-id.iam.gserviceaccount.com"
+    }
+    return manager
+
+
+@pytest.fixture(scope='function')
+def google_signed_url():
+    manager = MagicMock()
+    patch(
+        'fence.blueprints.data.cirrus.google_cloud.utils.get_signed_url',
+        manager
+    ).start()
+
+    # Note: example outpu/format from google's docs, will not actually work
+    manager.return_value = (
+        'https://storage.googleapis.com/google-testbucket/testdata.txt?GoogleAccessId='
+        '1234567890123@developer.gserviceaccount.com&Expires=1331155464&Signature=BCl'
+        'z9e4UA2MRRDX62TPd8sNpUCxVsqUDG3YGPWvPcwN%2BmWBPqwgUYcOSszCPlgWREeF7oPGowkeKk'
+        '7J4WApzkzxERdOQmAdrvshKSzUHg8Jqp1lw9tbiJfE2ExdOOIoJVmGLoDeAGnfzCd4fTsWcLbal9'
+        'sFpqXsQI8IQi1493mw%3D'
+    )
     return manager
 
 

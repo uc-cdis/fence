@@ -27,7 +27,6 @@ SEND_TO = 'phillis.tt@gmail.com'
 HMAC_ENCRYPTION_KEY = ''
 
 DEFAULT_LOGIN_URL = BASE_URL + '/login/google'
-DEFAULT_LOGIN_URL_REDIRECT_PARAM = 'redirect'
 
 OPENID_CONNECT = {
     'google': {
@@ -50,7 +49,7 @@ OPENID_CONNECT = {
 }
 
 STORAGE_CREDENTIALS = {
-    "cleversafe-server-a": {
+    'cleversafe-server-a': {
         'backend': 'cleversafe',
         'aws_access_key_id': '',
         'aws_secret_access_key': '',
@@ -60,20 +59,22 @@ STORAGE_CREDENTIALS = {
         'is_secure': True,
         'username': 'someone',
         'password': 'somepass',
-        "calling_format": OrdinaryCallingFormat(),
-        "is_mocked": True
+        'calling_format': OrdinaryCallingFormat(),
+        'is_mocked': True
     }
 }
 
 # Configuration necessary for cirrus (Cloud Management Library)
 # https://github.com/uc-cdis/cirrus
 # will eventually be passed as params but cirrus looks for env vars right now
-os.environ["GOOGLE_API_KEY"] = ""
-os.environ["GOOGLE_PROJECT_ID"] = ""
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = ""
-os.environ["GOOGLE_ADMIN_EMAIL"] = ""
-os.environ["GOOGLE_IDENTITY_DOMAIN"] = ""
-os.environ["GOOGLE_CLOUD_IDENTITY_ADMIN_EMAIL"] = ""
+CIRRUS_CFG = {
+    'GOOGLE_API_KEY': '',
+    'GOOGLE_PROJECT_ID': '',
+    'GOOGLE_APPLICATION_CREDENTIALS': '',
+    'GOOGLE_ADMIN_EMAIL': '',
+    'GOOGLE_IDENTITY_DOMAIN': '',
+    'GOOGLE_CLOUD_IDENTITY_ADMIN_EMAIL': ''
+}
 
 '''
 If the api is behind firewall that need to set http proxy:
@@ -94,20 +95,20 @@ ENABLE_CSRF_PROTECTION = True
 INDEXD = '/index'
 
 AWS_CREDENTIALS = {
-    "CRED1": {
+    'CRED1': {
         'aws_access_key_id': '',
         'aws_secret_access_key': ''
     },
-    "CRED2": {
+    'CRED2': {
         'aws_access_key_id': '',
         'aws_secret_access_key': ''
     }
 }
 
 S3_BUCKETS = {
-    "bucket1": "CRED1",
-    "bucket2": "CRED2",
-    "bucket3": "CRED1"
+    'bucket1': 'CRED1',
+    'bucket2': 'CRED2',
+    'bucket3': 'CRED1'
 }
 
 #: Confiure which identity providers this fence instance can use for login.

@@ -8,6 +8,7 @@ from flask_sqlalchemy_session import flask_scoped_session, current_session
 import urlparse
 from userdatamodel.driver import SQLAlchemyDriver
 
+import cirrus
 from fence.auth import logout, build_redirect_url
 from fence.errors import UserError
 from fence.jwt import keys
@@ -74,6 +75,8 @@ def app_config(app, settings='fence.settings', root_dir=None):
             for keypair in app.keypairs
         ])
     }
+
+    cirrus.config.config.update(**app.config.get('CIRRUS_CFG', {}))
 
 
 def app_register_blueprints(app):

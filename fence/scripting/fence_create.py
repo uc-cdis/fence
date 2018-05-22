@@ -1,10 +1,12 @@
 import os
 import os.path
 
+import time
 import uuid
 import jwt
 import yaml
 import time
+from sqlalchemy import func
 from authlib.common.encoding import to_unicode
 
 from cirrus import GoogleCloudManager
@@ -22,11 +24,14 @@ from userdatamodel.models import (
     User,
 )
 
-from fence.models import Client
-from fence.models import GoogleServiceAccount
-from fence.models import UserGoogleAccount
-from fence.models import UserGoogleAccountToProxyGroup
-from fence.models import UserRefreshToken
+from fence.models import (
+    Client,
+    GoogleServiceAccount,
+    GoogleServiceAccountKey,
+    UserGoogleAccount,
+    UserGoogleAccountToProxyGroup,
+    UserRefreshToken
+)
 from fence.utils import create_client, drop_client
 from fence.sync.sync_users import UserSyncer
 
@@ -209,7 +214,7 @@ def grant_project_to_group_or_user(s, project_data, group=None, user=None):
             .join(AccessPrivilege.user)
             .filter(
                 Project.name == project.name,
-                User.username == user.username,
+                func.lower(User.username) == func.lower(user.username),
             )
             .first()
         )
@@ -257,7 +262,7 @@ def create_users_with_group(DB, s, data):
     data_groups = data['groups']
     for username, data in data['users'].iteritems():
         is_existing_user = True
-        user = s.query(User).filter(User.username == username).first()
+        user = s.query(User).filter(func.lower(User.username) == username.lower()).first()
         admin = data.get('admin', False)
 
         if not user:
@@ -336,16 +341,68 @@ def google_init(db):
 
 def remove_expired_google_service_account_keys(db):
     db = SQLAlchemyDriver(db)
-    with db.session as s:
+    with db.session as current_session:
         client_service_accounts = (
-            s.query(GoogleServiceAccount, Client).filter(
+            current_session.query(GoogleServiceAccount, Client).filter(
                 GoogleServiceAccount.client_id == Client.client_id)
         )
 
+        current_time = int(time.time())
+        print('Current time: {}\n'.format(current_time))
+
+        expired_sa_keys_for_users = (
+            current_session.query(GoogleServiceAccountKey)
+            .filter(
+                GoogleServiceAccountKey
+                .expires <= current_time)
+        )
+
         with GoogleCloudManager() as g_mgr:
+            # handle service accounts with default max expiration
             for service_account, client in client_service_accounts:
                 g_mgr.handle_expired_service_account_keys(
                     service_account.google_unique_id)
+
+            # handle service accounts with custom expiration
+            for expired_user_key in expired_sa_keys_for_users:
+                sa = (
+                    current_session.query(GoogleServiceAccount)
+                    .filter(
+                        GoogleServiceAccount.id ==
+                        expired_user_key.service_account_id).first()
+                )
+                response = g_mgr.delete_service_account_key(
+                    account=sa.google_unique_id,
+                    key_name=expired_user_key.key_id
+                )
+                response_error_code = response.get('error', {}).get('code')
+
+                if not response_error_code:
+                    current_session.delete(expired_user_key)
+                    print(
+                        'INFO: Removed expired service account key {} '
+                        'for service account {} (owned by user with id {}).\n'
+                        .format(expired_user_key.key_id, sa.email, sa.user_id)
+                    )
+                elif response_error_code == 404:
+                    print(
+                        'INFO: Service account key {} for service account {} '
+                        '(owned by user with id {}) does not exist in Google. '
+                        'Removing from database...\n'
+                        .format(expired_user_key.key_id, sa.email, sa.user_id)
+                    )
+                    current_session.delete(expired_user_key)
+                else:
+                    print(
+                        'ERROR: Google returned an error when attempting to '
+                        'remove service account key {} '
+                        'for service account {} (owned by user with id {}). '
+                        'Error:\n{}\n'
+                        .format(
+                            expired_user_key.key_id, sa.email, sa.user_id,
+                            response)
+                    )
+
 
 
 def remove_expired_google_accounts_from_proxy_groups(db):
@@ -409,10 +466,11 @@ def delete_users(DB, usernames):
     with driver.session as session:
         # NOTE that calling ``.delete()`` on the query itself will not follow
         # cascade deletion rules set up in any relationships.
+        lowercase_usernames = [x.lower() for x in usernames]
         users_to_delete = (
             session
             .query(User)
-            .filter(User.username.in_(usernames))
+            .filter(func.lower(User.username).in_(lowercase_usernames))
             .all()
         )
         for user in users_to_delete:
@@ -482,7 +540,7 @@ def create_user_refresh_token(DB, BASE_URL, ROOT_DIR, kid, username, scopes, exp
     driver = SQLAlchemyDriver(DB)
     with driver.session as current_session:
         user = (current_session.query(User)
-                .filter_by(username=username)
+                .filter(func.lower(User.username) == username.lower())
                 .first()
                 )
         if not user:
@@ -530,7 +588,7 @@ def create_user_access_token(DB, BASE_URL, ROOT_DIR, kid, username, scopes, expi
     driver = SQLAlchemyDriver(DB)
     with driver.session as current_session:
         user = (current_session.query(User)
-                .filter_by(username=username)
+                .filter(func.lower(User.username) == username.lower())
                 .first()
                 )
         if not user:

@@ -6,6 +6,7 @@ import flask
 from fence.resources import userdatamodel as udm
 from fence.resources.userdatamodel import delete_user, get_user_groups
 import smtplib
+from sqlalchemy import func
 
 from fence.errors import NotFound, UserError, InternalError
 from fence.models import User
@@ -32,11 +33,15 @@ def update_user_resource(username, resource):
         return get_user_info(user, session)
 
 
-def get_user(current_session, username):
-    user = udm.get_user(current_session, username)
+
+def find_user(username, session):
+    user = session.query(User).filter(func.lower(User.username) == username.lower()).first()
     if not user:
         raise NotFound("user {} not found".format(username))
     return user
+
+def get_user(current_session, username):
+    user = udm.get_user(current_session, username)
 
 
 def get_current_user_info():
