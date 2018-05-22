@@ -17,6 +17,7 @@ import flask
 from sqlalchemy import (
     Integer, BigInteger, String, Column, Boolean, Text, MetaData, Table
 )
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.schema import ForeignKey
 from fence.jwt.token import CLIENT_ALLOWED_SCOPES
@@ -310,9 +311,8 @@ class GoogleBucketAccessGroup(Base):
         nullable=False
     )
 
-    # TODO add access column to specify what kind of storage access this group
-    #      has. This will be needed if we want to support read/write for
-    #      Google Storage instead of just read.
+    # specify what kind of storage access this group has e.g. ['read-storage']
+    privileges = Column(ARRAY(String))
 
     def delete(self):
         with flask.current_app.db.session as session:
