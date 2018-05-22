@@ -630,7 +630,7 @@ paths:
           description: successful deletion
         '404':
           description: 'Couldn''t find key, unable to delete given key'
-  /link/google (IN PROGRESS):
+  /link/google:
     get:
       tags:
         - link
@@ -672,6 +672,10 @@ paths:
       responses:
         '200':
           description: successfully extended access
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LinkedGoogleEmailExpiration"
         '404':
           description: No linked Google account found for user
     delete:
@@ -697,7 +701,7 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/GoogleLinkingError'
-  /link/google/callback (IN PROGRESS):
+  /link/google/callback:
     get:
       tags:
         - link
@@ -1223,6 +1227,15 @@ components:
         url:
           type: string
           description: the signed url issued to
+    LinkedGoogleEmailExpiration:
+      type: object
+      properties:
+        exp:
+          type: integer
+          description: expiration of linked email's access (e.g. expiration
+              until it is removed from the user's Google Proxy Group)
+      example:
+        exp: 1526653869
     PublicKeys:
       type: object
       properties:
