@@ -140,6 +140,7 @@ def main():
     # get database information
     sys.path.append(args.path)
 
+
     if os.environ.get('FENCE_DB'):
         DB = os.environ['FENCE_DB']
     else:
