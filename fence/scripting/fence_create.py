@@ -729,8 +729,13 @@ def create_google_bucket(
     Create a Google bucket and populate database with necessary information.
 
     If the bucket is not public, this will also create a Google Bucket Access
-    Group to control read access to the new bucket. In order to give access
+    Group(s) to control access to the new bucket. In order to give access
     to a new user, simply add them to the Google Bucket Access Group.
+
+    NOTE: At the moment, a different Google Bucket Access Group is created
+          for each different privilege in allowed_privileges (which defaults
+          to ['read', 'write']). So there will be separate Google Groups for
+          each access level.
 
     Args:
         db (TYPE): database
@@ -745,6 +750,11 @@ def create_google_bucket(
             bucket with. The project must exist in the db already.
         access_logs_bucket (str, optional): Enables logging. Must provide a
             Google bucket name which will store the access logs
+        allowed_privileges (List(str), optional): privileges to allow on
+            the bucket. Defaults to ['read', 'write']. Also allows:
+            ['admin'] for all permission on the bucket including delete,
+            ['read'] for viewing access,
+            ['write'] for creation rights but not viewing access
     """
     import fence.settings
     cirrus_config.update(**fence.settings.CIRRUS_CFG)
@@ -752,7 +762,7 @@ def create_google_bucket(
     google_project_id = google_project_id or cirrus_config.GOOGLE_PROJECT_ID
 
     # default to read access
-    allowed_privileges = allowed_privileges or ['read']
+    allowed_privileges = allowed_privileges or ['read', 'write']
 
     driver = SQLAlchemyDriver(db)
     with driver.session as current_session:
@@ -771,12 +781,13 @@ def create_google_bucket(
         )
 
         if not public:
-            _create_google_bucket_access_group(
-                db_session=current_session,
-                google_bucket_name=name,
-                bucket_db_id=bucket_db_entry.id,
-                google_project_id=google_project_id,
-                privileges=allowed_privileges)
+            for privilege in allowed_privileges:
+                _create_google_bucket_access_group(
+                    db_session=current_session,
+                    google_bucket_name=name,
+                    bucket_db_id=bucket_db_entry.id,
+                    google_project_id=google_project_id,
+                    privileges=[privilege])
 
 
 def _create_google_bucket_and_update_db(
@@ -816,6 +827,8 @@ def _create_google_bucket_and_update_db(
         db_session.add(bucket_db_entry)
         db_session.commit()
 
+        print('Successfully created Google Bucket {}.'.format(name))
+
         # optionally link this new bucket to an existing project
         if project_auth_id:
             project_db_entry = (
@@ -843,7 +856,7 @@ def _create_google_bucket_access_group(
     with GoogleCloudManager(google_project_id) as g_mgr:
         # create bucket access group
         result = g_mgr.create_group(
-            name=google_bucket_name + '_access_group')
+            name=google_bucket_name + '_' + '_'.join(privileges) + '_gbag')
         group_email = result['email']
 
         # add bucket group to db
@@ -855,6 +868,13 @@ def _create_google_bucket_access_group(
         db_session.add(access_group)
         db_session.commit()
 
-        g_mgr.give_group_access_to_bucket(group_email, google_bucket_name)
+        g_mgr.give_group_access_to_bucket(
+            group_email, google_bucket_name, access=privileges)
+
+        print(
+            'Successfully created Google Bucket Access Group {} '
+            'for Google Bucket {}.'
+            .format(group_email, google_bucket_name)
+        )
 
     return access_group
