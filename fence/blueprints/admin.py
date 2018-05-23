@@ -4,6 +4,9 @@ solutions. Operations here assume the underlying operations in the interface
 will maintain coherence between both systems.
 """
 
+import functools
+
+import flask
 from flask import (
     request,
     jsonify,
@@ -27,35 +30,52 @@ def admin_login_required(function):
     return login_required({'admin'})(admin_required(function))
 
 
+def debug_log(function):
+    """Output debug information to the logger for a function call."""
+    argument_names = list(function.func_code.co_varnames)
+
+    @functools.wraps(function)
+    def write_log(*args, **kwargs):
+        argument_values = (
+            '{} = {}'.format(arg, value)
+            for arg, value in zip(argument_names, args) + kwargs.items()
+        )
+        msg = function.func_name + '\n\t' + '\n\t'.join(argument_values)
+        flask.current_app.logger.debug(msg)
+        return function(*args, **kwargs)
+
+    return write_log
+
+
 #### USERS ####
 
 
 @blueprint.route('/user/<username>', methods=['GET'])
 @admin_login_required
+@debug_log
 def get_user(username):
     """
     Get the information of a user from our userdatamodel database
 
     Returns a json object
     """
-    current_app.logger.debug("get_user:\n\tname:  {0}".format(
-        username))
     return jsonify(admin.get_user_info(current_session, username))
 
 
 @blueprint.route('/user', methods=['GET'])
 @admin_login_required
+@debug_log
 def get_all_users():
     """
     Retrieve the information regarding the buckets created within a project.
     Returns a json object.
     """
-    current_app.logger.debug("get_all_users")
     return jsonify(admin.get_all_users(current_session))
 
 
 @blueprint.route('/user', methods=['POST'])
 @admin_login_required
+@debug_log
 def create_user():
     """
     Create a user on the userdatamodel database
@@ -65,15 +85,12 @@ def create_user():
     username = request.get_json().get('name', None)
     role = request.get_json().get('role', None)
     email = request.get_json().get('email', None)
-    current_app.logger.debug(
-        ("create_user:\n\tname: {0}\n\t"
-        "role: {1}\n\temail: {2}").format(
-            username, role, email))
     return jsonify(admin.create_user(current_session, username, role, email))
 
 
 @blueprint.route('/user/<username>', methods=['PUT'])
 @admin_login_required
+@debug_log
 def update_user(username):
     """
     Create a user on the userdatamodel database
@@ -83,10 +100,6 @@ def update_user(username):
     name = request.get_json().get('name', None)
     role = request.get_json().get('role', None)
     email = request.get_json().get('email', None)
-    current_app.logger.debug(
-        ("update_user:\n\tname: {0}\n\t"
-        "role: {1}\n\temail: {2}").format(
-            username, role, email))
     return jsonify(
         admin.update_user(current_session, username, role, email, name)
     )
@@ -94,6 +107,7 @@ def update_user(username):
 
 @blueprint.route('/user/<username>', methods=['DELETE'])
 @admin_login_required
+@debug_log
 def delete_user(username):
     """
     Remove the user from the userdatamodel database and all associated storage
@@ -101,26 +115,24 @@ def delete_user(username):
 
     Returns json object
     """
-    current_app.logger.debug("delete_user:\n\tname:  {0}".format(
-        username))
     response = jsonify(admin.delete_user(current_session, username))
     return response
 
 @blueprint.route('/user/<username>/groups', methods=['GET'])
 @admin_login_required
+@debug_log
 def get_user_groups(username):
     """
     Get the information of a user from our userdatamodel database.
 
     Returns a json object
     """
-    current_app.logger.debug("get_user_groups:\n\tname:  {0}".format(
-        username))
     return jsonify(admin.get_user_groups(current_session, username))
 
 
 @blueprint.route('/user/<username>/groups', methods=['PUT'])
 @admin_login_required
+@debug_log
 def add_user_to_groups(username):
     """
     Create a user to group relationship in the database
@@ -128,8 +140,6 @@ def add_user_to_groups(username):
     Returns a json object
     """
     groups = request.get_json().get('groups', [])
-    current_app.logger.debug("add_user_to_groups:\n\tname:  {0}\n\tgroups: {1}".format(
-        username, str(groups)))
     return jsonify(
         admin.add_user_to_groups(current_session, username, groups=groups)
     )
@@ -137,6 +147,7 @@ def add_user_to_groups(username):
 
 @blueprint.route('/user/<username>/groups', methods=['DELETE'])
 @admin_login_required
+@debug_log
 def remove_user_from_groups(username):
     """
     Create a user to group relationship in the database
@@ -144,8 +155,6 @@ def remove_user_from_groups(username):
     Returns a json object
     """
     groups = request.get_json().get('groups', [])
-    current_app.logger.debug("remove_user_from_groups:\n\tname:  {0}\n\tgroups: {1}".format(
-        username, str(groups)))
     return jsonify(
         admin.remove_user_from_groups(current_session, username, groups=groups)
     )
@@ -153,6 +162,7 @@ def remove_user_from_groups(username):
 
 @blueprint.route('/user/<username>/projects', methods=['DELETE'])
 @admin_login_required
+@debug_log
 def remove_user_from_projects(username):
     """
     Create a user to group relationship in the database
@@ -160,8 +170,6 @@ def remove_user_from_projects(username):
     Returns a json object
     """
     projects = request.get_json().get('projects', [])
-    current_app.logger.debug("remove_user_from_projects:\n\tname:  {0}\n\projects: {1}".format(
-        username, str(projects)))
     return jsonify(
         admin.remove_user_from_projects(current_session, username, projects)
     )
@@ -169,6 +177,7 @@ def remove_user_from_projects(username):
 
 @blueprint.route('/user/<username>/projects', methods=['PUT'])
 @admin_login_required
+@debug_log
 def add_user_to_projects(username):
     """
     Create a user to project relationship on the database and add the access to
@@ -177,8 +186,6 @@ def add_user_to_projects(username):
     Returns a json object
     """
     projects = request.get_json().get('projects', [])
-    current_app.logger.debug("add_user_from_projects:\n\tname:  {0}\n\projects: {1}".format(
-        username, str(projects)))
     return jsonify(
         admin.add_user_to_projects(
             current_session, username, projects=projects
@@ -191,30 +198,31 @@ def add_user_to_projects(username):
 
 @blueprint.route('/projects/<projectname>', methods=['GET'])
 @admin_login_required
+@debug_log
 def get_project(projectname):
     """
     Get the information related to a project
     from the userdatamodel database
     Returns a json object
     """
-    current_app.logger.debug("get_project")
     return jsonify(admin.get_project_info(current_session, projectname))
 
 
 @blueprint.route('/projects', methods=['GET'])
 @admin_login_required
+@debug_log
 def get_all_projects():
     """
     Get the information related to a project
     from the userdatamodel database
     Returns a json object
     """
-    current_app.logger.debug("get_all_projects")
     return jsonify(admin.get_all_projects(current_session))
 
 
 @blueprint.route('/projects/<projectname>', methods=['POST'])
 @admin_login_required
+@debug_log
 def create_project(projectname):
     """
     Create a new project on the specified storage
@@ -222,8 +230,6 @@ def create_project(projectname):
     """
     auth_id = request.get_json().get('auth_id')
     storage_accesses = request.get_json().get('storage_accesses', [])
-    current_app.logger.debug("create_project:\n\tname:  {0}\n\auth_id: {1}\n\tstorage_access: {2}".format(
-        projectname, auth_id, str(storage_accesses)))
     response = jsonify(
         admin.create_project(
             current_session,
@@ -237,27 +243,25 @@ def create_project(projectname):
 
 @blueprint.route('/projects/<projectname>', methods=['DELETE'])
 @admin_login_required
+@debug_log
 def delete_project(projectname):
     """
     Remove project. No Buckets should be associated with it.
     Returns a json object.
     """
-    current_app.logger.debug("delete_project:\n\tname:  {0}".format(
-        projectname))
     response = jsonify(admin.delete_project(current_session, projectname))
     return response
 
 
 @blueprint.route('/groups/<groupname>/projects', methods=['DELETE'])
 @admin_login_required
+@debug_log
 def remove_projects_from_group(groupname):
     """
     Create a user to group relationship in the database
     Returns a json object
     """
     projects = request.get_json().get('projects', [])
-    current_app.logger.debug("delete_projects_from_group:\n\tgroup:  {0}".format(
-        groupname))
     return jsonify(
         admin.remove_projects_from_group(current_session,groupname, projects)
     )
