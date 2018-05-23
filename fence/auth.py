@@ -188,9 +188,10 @@ def get_user_from_claims(claims):
         .first()
     )
 
+
 def admin_required(f):
     """
-    Require user to be an admin user. 
+    Require user to be an admin user.
     """
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -200,3 +201,8 @@ def admin_required(f):
             raise Unauthorized("Require admin user")
         return f(*args, **kwargs)
     return wrapper
+
+
+def admin_login_required(function):
+    """Compose the login required and admin required decorators."""
+    return login_required({'admin'})(admin_required(function))

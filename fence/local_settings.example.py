@@ -94,6 +94,10 @@ SESSION_COOKIE_SECURE = False
 ENABLE_CSRF_PROTECTION = True
 INDEXD = '/index'
 
+ARBORIST = {
+    'base_url': '/arborist',
+}
+
 AWS_CREDENTIALS = {
     'CRED1': {
         'aws_access_key_id': '',

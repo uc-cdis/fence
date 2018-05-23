@@ -2,18 +2,19 @@ from collections import OrderedDict
 import os
 
 from authutils.oauth2.client import OAuthClient
+import cirrus
 import flask
 from flask.ext.cors import CORS
 from flask_sqlalchemy_session import flask_scoped_session, current_session
 import urlparse
 from userdatamodel.driver import SQLAlchemyDriver
 
-import cirrus
 from fence.auth import logout, build_redirect_url
 from fence.errors import UserError
 from fence.jwt import keys
 from fence.models import migrate
 from fence.oidc.server import server
+from fence.rbac.client import ArboristClient
 from fence.resources.aws.boto_manager import BotoManager
 from fence.resources.openid.google_oauth2 import Oauth2Client as GoogleClient
 from fence.resources.storage import StorageManager
@@ -24,6 +25,7 @@ import fence.blueprints.admin
 import fence.blueprints.data
 import fence.blueprints.login
 import fence.blueprints.oauth2
+import fence.blueprints.rbac
 import fence.blueprints.storage_creds
 import fence.blueprints.user
 import fence.blueprints.well_known
@@ -93,6 +95,12 @@ def app_register_blueprints(app):
     app.register_blueprint(login_blueprint, url_prefix='/login')
     link_blueprint = fence.blueprints.link.make_link_blueprint()
     app.register_blueprint(link_blueprint, url_prefix='/link')
+
+    if 'arborist' in app.config:
+        app.register_blueprint(
+            fence.blueprints.rbac.blueprint,
+            url_prefix='/rbac'
+        )
 
     @app.route('/')
     def root():
@@ -173,6 +181,10 @@ def app_sessions(app):
     if configured_fence:
         app.fence_client = OAuthClient(**app.config['OPENID_CONNECT']['fence'])
     app.session_interface = UserSessionInterface()
+    if 'ARBORIST' in app.config:
+        app.arborist = ArboristClient(
+            arborist_base_url=app.config['ARBORIST']['base_url']
+        )
 
 
 def app_init(app, settings='fence.settings', root_dir=None):
@@ -180,7 +192,6 @@ def app_init(app, settings='fence.settings', root_dir=None):
     app_sessions(app)
     app_register_blueprints(app)
     server.init_app(app)
-
 
 
 @app.errorhandler(Exception)
@@ -204,7 +215,7 @@ def check_csrf():
         csrf_header = flask.request.headers.get('x-csrf-token')
         csrf_cookie = flask.request.cookies.get('csrftoken')
         referer = flask.request.headers.get('referer')
-        flask.current_app.logger.debug('HTTP REFERER ' + referer)         
+        flask.current_app.logger.debug('HTTP REFERER ' + referer)
         if not all([csrf_cookie, csrf_header, csrf_cookie == csrf_header, referer]):
             raise UserError("CSRF verification failed. Request aborted")
 
