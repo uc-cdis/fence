@@ -804,7 +804,6 @@ def _create_google_bucket_and_update_db(
             storage_class=storage_class,
             public=public,
             requester_pays=requester_pays,
-            project=google_project_id,
             access_logs_bucket=access_logs_bucket)
 
         # add bucket to db
