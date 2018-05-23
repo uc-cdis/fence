@@ -723,7 +723,8 @@ def link_bucket_to_project(db, bucket_id, bucket_provider, project_auth_id):
 
 def create_google_bucket(
         db, name, storage_class=None, public=False, requester_pays=False,
-        google_project_id=None, project_auth_id=None, access_logs_bucket=None):
+        google_project_id=None, project_auth_id=None, access_logs_bucket=None,
+        allowed_privileges=None):
     """
     Create a Google bucket and populate database with necessary information.
 
@@ -750,6 +751,9 @@ def create_google_bucket(
 
     google_project_id = google_project_id or cirrus_config.GOOGLE_PROJECT_ID
 
+    # default to read access
+    allowed_privileges = allowed_privileges or ['read']
+
     driver = SQLAlchemyDriver(db)
     with driver.session as current_session:
         # use storage creds to create bucket
@@ -768,10 +772,11 @@ def create_google_bucket(
 
         if not public:
             _create_google_bucket_access_group(
-                    db_session=current_session,
-                    google_bucket_name=name,
-                    bucket_db_id=bucket_db_entry.id,
-                    google_project_id=google_project_id)
+                db_session=current_session,
+                google_bucket_name=name,
+                bucket_db_id=bucket_db_entry.id,
+                google_project_id=google_project_id,
+                privileges=allowed_privileges)
 
 
 def _create_google_bucket_and_update_db(
@@ -830,7 +835,8 @@ def _create_google_bucket_and_update_db(
 
 
 def _create_google_bucket_access_group(
-        db_session, google_bucket_name, bucket_db_id, google_project_id):
+        db_session, google_bucket_name, bucket_db_id, google_project_id,
+        privileges):
     access_group = None
 
     # use default creds for creating group and iam policies
@@ -843,7 +849,8 @@ def _create_google_bucket_access_group(
         # add bucket group to db
         access_group = GoogleBucketAccessGroup(
             bucket_id=bucket_db_id,
-            email=group_email
+            email=group_email,
+            privileges=privileges
         )
         db_session.add(access_group)
         db_session.commit()
