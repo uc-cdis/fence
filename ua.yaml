@@ -1,0 +1,30 @@
+cloud_providers:
+    gdc-cleversafe:
+        backend: 'cleversafe'
+        service: 'storage'
+    bpa-cleversafe:
+        backend: 'cleversafe'
+        service: 'storage'
+
+groups:
+    Test_Group:
+        projects:
+            - auth_id: Test_Group
+              privilege: ['read', 'update', 'create', 'delete', 'read-storage', 'write-storage', 'admin-storage']
+            - auth_id: Test_Group_1
+              privilege: ['read', 'read-storage']
+    Test_Group_1:
+        projects:
+            - auth_id: Test_Group_1
+              privilege: ['read', 'update', 'create', 'delete', 'read-storage', 'write-storage']
+            - auth_id: Test_Group
+              privilege: ['read', 'read-storage']
+
+users:
+    test:
+        admin: True
+        projects:
+          - auth_id: bar
+            privilege: ['read', 'update', 'create', 'delete']
+          - auth_id: quux
+            privilege: ['read', 'update', 'create', 'delete']

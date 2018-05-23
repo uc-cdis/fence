@@ -58,13 +58,15 @@ def logout(next_url=None):
     # Call get_current_user (but ignore the result) just to check that either
     # the user is logged in or that authorization is mocked.
     user = get_current_user()
+    flask.current_app.logger.debug("IN AUTH LOGOUT, next_url = {0}".format(next_url))
     if not user:
         raise Unauthorized("You are not logged in")
+    itrust_next_url = None
     if flask.session.get('provider') == IdentityProvider.itrust:
-        next_url = flask.current_app.config['ITRUST_GLOBAL_LOGOUT'] + next_url
+        itrust_next_url = flask.current_app.config['ITRUST_GLOBAL_LOGOUT'] + next_url
     flask.session.clear()
     redirect_response = flask.make_response(
-        flask.redirect(next_url)
+        flask.redirect(itrust_next_url or next_url)
     )
     clear_cookies(redirect_response)
     return redirect_response
@@ -82,6 +84,7 @@ def check_scope(scope):
                     .format(scope))
         return check_scope_and_call
     return wrapper
+
 
 
 def login_required(scope=None):
@@ -184,3 +187,16 @@ def get_user_from_claims(claims):
         .filter(User.id == claims['sub'])
         .first()
     )
+
+def admin_required(f):
+    """
+    Require user to be an admin user. 
+    """
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not flask.g.user:
+            raise Unauthorized("Require login")
+        if flask.g.user.is_admin is not True:
+            raise Unauthorized("Require admin user")
+        return f(*args, **kwargs)
+    return wrapper
