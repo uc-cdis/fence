@@ -211,7 +211,7 @@ def remove_user_from_groups(current_session, username, groups=None):
 def disconnect_user_from_group(current_session, usr, groupname):
     grp = gp.get_group(current_session, groupname)
     if not grp:
-        return {"warning": ("Group {0} doesn't exist".format(group))}
+        return {"warning": ("Group {0} doesn't exist".format(groupname))}
 
     response = gp.remove_user_from_group(current_session, usr, grp)
     projects = gp.get_group_projects(current_session, groupname)

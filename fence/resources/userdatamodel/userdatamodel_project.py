@@ -284,7 +284,7 @@ def get_buckets_by_project_cloud_provider(current_session, prjct_id, provider_id
 
 
 def get_user_project_access_privilege(current_session, user, project):
-    return current_session.query(
-        AccessPrivilege).filter(
-            AccessPrivilege.project_id == project.id).filter(
-                AccessPrivilege.user_id == user.id).first()
+    return (
+        current_session.query(AccessPrivilege)
+        .filter_by(project_id=project.id, user_id=user.id).first()
+        )
