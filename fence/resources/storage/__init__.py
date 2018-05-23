@@ -19,6 +19,8 @@ def check_exist(f):
     return wrapper
 
 
+# NOTE: new storage privileges are expected to have -storage as a suffix
+#       ex: delete-storage
 PRIVILEGES = [
     "read-storage",
     "write-storage",
@@ -147,7 +149,7 @@ class StorageManager(object):
         :param username: username
         :param provider: storage backend provider
         """
-        access = [acc for acc in access if acc in PRIVILEGES]
+        access = self._get_valid_access_privileges(access)
         storage_user = self._get_or_create_storage_user(
             username, provider, session)
 
@@ -155,9 +157,7 @@ class StorageManager(object):
             storage_user, provider)
 
         for b in project.buckets:
-            bucket_name = StorageManager._get_bucket_name(b, provider)
-            self.clients[provider].add_bucket_acl(
-                bucket_name, storage_username, access=access)
+            self._update_access_to_bucket(b, provider, storage_username, access)
 
     @check_exist
     def revoke_access(self, provider, username, project, session):
@@ -176,17 +176,16 @@ class StorageManager(object):
             storage_user, provider)
 
         for b in project.buckets:
-            bucket_name = StorageManager._get_bucket_name(b, provider)
-            self.clients[provider].delete_bucket_acl(
-                bucket_name, storage_username)
+            self._revoke_access_to_bucket(b, provider, storage_username)
 
     @check_exist
-    def has_bucket_access(self, provider, user, bucket):
+    def has_bucket_access(self, provider, user, bucket, access):
         """
         Check if the user has access to that bucket in
         particular
         :return boolean
         """
+        access = self._get_valid_access_privileges(access)
         bucket_name = StorageManager._get_bucket_name(bucket, provider)
         storage_username = StorageManager._get_storage_username(user, provider)
         return self.clients[provider].has_bucket_access(
@@ -332,6 +331,45 @@ class StorageManager(object):
             user = self.clients[provider].get_or_create_user(username)
         return user
 
+    def _update_access_to_bucket(
+            self, bucket, provider, storage_username, access):
+        # Need different logic for google (since buckets can have multiple
+        # access groups)
+        if provider == GOOGLE_PROVIDER_NAME:
+            if bucket.google_bucket_access_group:
+                bucket_access_groups = [
+                    gbag for gbag in bucket.google_bucket_access_group
+                ]
+            else:
+                raise NotFound(
+                    'Google bucket {} does not have any access groups.'
+                    .format(bucket.name))
+
+            access = StorageManager._get_bucket_access_privileges(access)
+
+            for bucket_access_group in bucket_access_groups:
+                if set(bucket_access_group.privileges).issubset(access):
+                    bucket_name = bucket_access_group.email
+                    self.clients[provider].add_bucket_acl(
+                        bucket_name, storage_username)
+                else:
+                    # In the case of google, since we have multiple groups
+                    # with access to the bucket, we need to also remove access
+                    # here in case a users permissions change
+                    bucket_name = bucket_access_group.email
+                    self.clients[provider].delete_bucket_acl(
+                        bucket_name, storage_username)
+        else:
+            bucket_name = StorageManager._get_bucket_name(bucket, provider)
+            self.clients[provider].add_bucket_acl(
+                bucket_name, storage_username, access=access)
+
+    def _revoke_access_to_bucket(
+            self, bucket, provider, storage_username):
+        bucket_name = StorageManager._get_bucket_name(bucket, provider)
+        self.clients[provider].delete_bucket_acl(
+            bucket_name, storage_username)
+
     @staticmethod
     def _get_bucket_name(bucket, provider, privilege='read'):
         # Need different information for google (since buckets and
@@ -340,11 +378,7 @@ class StorageManager(object):
             bucket_name = None
             if bucket.google_bucket_access_group:
                 # Search the associated bucket access groups to get the email
-                # for the group that has the given privilege.
-                #
-                # NOTE: this is mostly to support the case where in the future
-                #       we may have a Google Group per access prvilege (e.g.
-                #       read write)
+                # for the group that has the given privileges
                 bucket_access_group_emails = [
                     gbag.email
                     for gbag in bucket.google_bucket_access_group
@@ -362,8 +396,9 @@ class StorageManager(object):
 
             if not bucket_name:
                 raise NotFound(
-                    'Google bucket {} does not have an access group.'
-                    .format(bucket.name))
+                    'Google bucket {} does not have an access group for '
+                    'privilege {}.'
+                    .format(bucket.name, privilege))
         else:
             bucket_name = bucket.name
 
@@ -387,3 +422,32 @@ class StorageManager(object):
             username = user.username
 
         return username
+
+    @staticmethod
+    def _get_valid_access_privileges(access_list):
+        return [acc for acc in access_list if acc in PRIVILEGES]
+
+    @staticmethod
+    def _get_bucket_access_privileges(access_list):
+        """
+        Return a simplified list of bucket privileges
+
+        ex: ['read', 'write', 'delete']
+
+        Args:
+            access_list (List(str)): List of access levels from user info
+
+        Returns:
+            List(str): Simplified list of bucket privileges
+        """
+        access = StorageManager._get_valid_access_privileges(access_list)
+        # admin users should have all the privileges
+        if 'admin' in access:
+            access = [
+                access_level for access_level in PRIVILEGES
+                if access_level != 'admin']
+        bucket_access = [
+            access_level.split('-')[0]
+            for access_level in access
+        ]
+        return bucket_access
