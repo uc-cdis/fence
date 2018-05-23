@@ -1,0 +1,31 @@
+{
+    "awg_user" : {
+	"groups":[
+	    {
+		"name": "test_group_1",
+		"description": "the first test group",
+		"projects": ["test_project_1"]
+	    },
+	    {
+		"name": "test_group_2",
+		"description": "the second test group",
+		"projects": ["test_project_1", "test_project_2"]
+	    }
+	],
+        "projects":[
+            {
+                "name": "test_project_1",
+                "auth_id": "phs_project_1"
+            },
+            {
+		"name": "test_project_2",
+                "auth_id": "phs_project_2"
+            }
+        ]
+    }
+,
+    "awg_user_2" : {
+	"groups":[],
+        "projects":[]
+    }
+}

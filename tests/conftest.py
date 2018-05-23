@@ -428,7 +428,6 @@ def app(kid, rsa_private_key, rsa_public_key):
     mocker = Mocker()
     mocker.mock_functions()
     root_dir = os.path.dirname(os.path.realpath(__file__))
-
     app_init(fence.app, test_settings, root_dir=root_dir)
     fence.app.keypairs.append(Keypair(
         kid=kid, public_key=rsa_public_key, private_key=rsa_private_key
@@ -480,7 +479,7 @@ def protected_endpoint(methods=['GET']):
 @pytest.fixture(scope='function')
 @mock_s3
 @mock_sts
-def user_client(app, request, db_session):
+def user_client(db_session):
     users = dict(json.loads(
         utils.read_file('resources/authorized_users.json')
     ))
@@ -489,16 +488,37 @@ def user_client(app, request, db_session):
 
 
 @pytest.fixture(scope='function')
-def unauthorized_user_client(app, request, db_session):
+def unauthorized_user_client(db_session):
     users = dict(json.loads(
         utils.read_file('resources/unauthorized_users.json')
     ))
     user_id, username = utils.create_user(users, db_session, is_admin=True)
     return Dict(username=username, user_id=user_id)
 
+@pytest.fixture(scope='function')
+def awg_users(db_session):
+    awg_usr = dict(json.loads(
+        utils.read_file('resources/awg_user.json')
+    ))
+    user_id, username = utils.create_awg_user(awg_usr, db_session)
 
 @pytest.fixture(scope='function')
-def db_session(db, request, patch_app_db_session, monkeypatch):
+def providers(db_session, app):
+    providers = dict(json.loads(
+        utils.read_file('resources/providers.json')
+    ))
+    utils.create_providers(providers, db_session)
+
+@pytest.fixture(scope='function')
+def awg_groups(db_session):
+    awg_grps = dict(json.loads(
+        utils.read_file('resources/awg_groups.json')
+    ))
+    utils.create_awg_groups(awg_grps, db_session)
+
+
+@pytest.fixture(scope='function')
+def db_session(db, patch_app_db_session):
     """
     Define fixture for database session (function-scoped).
 
