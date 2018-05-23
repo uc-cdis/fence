@@ -114,7 +114,9 @@ def parse_arguments():
              'which will store the access logs')
     google_bucket_create.add_argument(
         '--allowed-privileges', default=None, nargs='*',
-        help='A list of allowed privileges ex: --allowed-privileges read write')
+        help='A list of allowed privileges ex: --allowed-privileges admin '
+        'read write. Currently create a Google Bucket Access Group per '
+        'privilege.')
 
     manage_google_keys = subparsers.add_parser('google-manage-keys')
     init_google = subparsers.add_parser('google-init')
