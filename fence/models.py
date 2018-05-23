@@ -431,6 +431,13 @@ def migrate(driver):
         metadata=md
     )
 
+    add_column_if_not_exist(
+        table_name=GoogleBucketAccessGroup.__tablename__,
+        column=Column('privileges', ARRAY(String)),
+        driver=driver,
+        metadata=md
+    )
+
 
 def add_foreign_key_column_if_not_exist(
         table_name, column_name, column_type, fk_table_name, fk_column_name, driver,
