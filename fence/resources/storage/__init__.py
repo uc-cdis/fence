@@ -333,17 +333,32 @@ class StorageManager(object):
         return user
 
     @staticmethod
-    def _get_bucket_name(bucket, provider):
+    def _get_bucket_name(bucket, provider, privilege='read'):
         # Need different information for google (since buckets and
         # users are represented with Google Groups)
         if provider == GOOGLE_PROVIDER_NAME:
             bucket_name = None
             if bucket.google_bucket_access_group:
-                # NOTE: For now, a bucket has a single google bucket access
-                #       group but this may eventually change (if we want
-                #       to have both read and write access groups).
-                access_group = bucket.google_bucket_access_group[0]
-                bucket_name = access_group.email
+                # Search the associated bucket access groups to get the email
+                # for the group that has the given privilege.
+                #
+                # NOTE: this is mostly to support the case where in the future
+                #       we may have a Google Group per access prvilege (e.g.
+                #       read write)
+                bucket_access_group_emails = [
+                    gbag.email
+                    for gbag in bucket.google_bucket_access_group
+                    if privilege in gbag.privileges
+                ]
+                if len(bucket_access_group_emails) == 1:
+                    bucket_name = bucket_access_group_emails[0]
+                elif len(bucket_access_group_emails) == 0:
+                    bucket_name = None
+                else:
+                    raise NotSupported(
+                        'Bucket {} has multiple access groups '
+                        'with the same privilege. This is not supported.'
+                        .format(bucket.name))
 
             if not bucket_name:
                 raise NotFound(
