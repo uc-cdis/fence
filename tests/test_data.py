@@ -3,6 +3,7 @@ import jwt
 import urlparse
 import pytest
 
+from fence.errors import NotSupported
 
 @pytest.mark.parametrize(
     'indexd_client', ['gs', 's3', 'gs_acl', 's3_acl'], indirect=True)
@@ -202,3 +203,16 @@ def test_public_bucket_download_file(
     url = response.json['url']
     # public url without signature
     assert urlparse.urlparse(url).query == ''
+
+
+@pytest.mark.parametrize('public_bucket_indexd_client', ['s2'], indirect=True)
+def test_public_bucket_unsupported_protocol_file(
+        client, auth_client, public_bucket_indexd_client,
+        primary_google_service_account, cloud_manager,
+        google_signed_url):
+    """
+    Test ``GET /data/upload/1`` with public bucket
+    """
+    path = '/data/download/1'
+    response = client.get(path)
+    assert response.status_code == 400

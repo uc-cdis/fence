@@ -303,6 +303,22 @@ def indexd_get_public_gs_bucket_acl(file_id):
     }
 
 
+def indexd_unsupported_protocol_bucket(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s2://bucket1/key'],
+        'hashes': {},
+        'metadata': {'acls': 'phs000178,phs000218'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
 def mock_get_bucket_location(self, bucket, config):
     return 'us-east-1'
 
@@ -654,6 +670,10 @@ def public_bucket_indexd_client(app, request):
     elif request.param == 's3_acl':
         indexd_get_public_bucket_func = (
             indexd_get_public_s3_bucket_acl
+        )
+    elif request.param == 's2':
+        indexd_get_public_bucket_func = (
+            indexd_unsupported_protocol_bucket
         )
     else:
         indexd_get_public_bucket_func = indexd_get_public_s3_bucket
