@@ -90,7 +90,6 @@ def create_user(current_session, username, role, email):
         usr = us.get_user(current_session, username)
         raise UserError(("Error: user already exist. If this is not a"
                " mistake, please, retry using update"))
-        return msg
     except NotFound:
         user_list = [user['name'].upper() for user in get_all_users(current_session)['users']]
         if username.upper() in user_list:
