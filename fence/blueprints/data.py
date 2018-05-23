@@ -112,19 +112,19 @@ class IndexedFile(object):
                         or (protocol == 'http' and file_location.protocol == 'https')):
                     signed_url = file_location.get_signed_url(
                         action, expires_in, public_data=self.public)
+            if not signed_url:
+                raise NotFound(
+                    'File {} does not have a location with specified '
+                    'protocol {}.'.format(self.file_id, protocol))
 
         # no protocol specified, return first location as signed url
         elif len(self.indexed_file_locations) > 0:
             signed_url = self.indexed_file_locations[0].get_signed_url(
                 action, expires_in, public_data=self.public)
         else:
-            # will get caught below when signed_url is still None
-            pass
-
-        if not signed_url:
-            raise NotFound(
-                'File {} does not have a location with specified '
-                'protocol {}.'.format(self.file_id, protocol))
+            # at this point, they haven't specified a protocol and we don't
+            # have any actual locations, error out
+            raise NotFound('Can\'t find any file locations.')
 
         return signed_url
 
@@ -161,7 +161,9 @@ class IndexedFile(object):
                 'Not Found. indexd could not find {}'
                 '\nIndexd\'s response: {}'
                 .format(url + self.file_id, res.text))
-            raise NotFound("Can't find a location for the data")
+            raise NotFound(
+                "No indexed document found with id {}"
+                .format(self.file_id))
         else:
             raise UnavailableError(res.text)
 
