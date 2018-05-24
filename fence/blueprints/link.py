@@ -124,7 +124,7 @@ class GoogleLinkRedirect(Resource):
         access_expiration = _force_update_user_google_account(
             user_id, google_email, proxy_group, _allow_new=False)
 
-        return flask.jsonify({'exp': access_expiration}), 200
+        return {'exp': access_expiration}, 200
 
     @staticmethod
     def _unlink_google_account():
@@ -232,7 +232,8 @@ class GoogleCallback(Resource):
                 redirect_with_params = provided_redirect + '?' + error
             else:
                 redirect_with_params = (
-                    '?' + _get_query_params(linked_email=email, exp=exp)
+                    provided_redirect + '?'
+                    + _get_query_params(linked_email=email, exp=exp)
                 )
 
             return flask.redirect(redirect_with_params)
