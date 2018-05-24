@@ -111,7 +111,7 @@ class GoogleLinkRedirect(Resource):
             error = _get_error_params(
                 'g_acnt_link_error',
                 'User already has a linked Google account.')
-            flask.redirect_url = provided_redirect + error
+            flask.redirect_url = provided_redirect + '?' + error
 
         return flask.redirect(flask.redirect_url)
 
@@ -121,10 +121,10 @@ class GoogleLinkRedirect(Resource):
         google_email = get_users_linked_google_email(user_id)
         proxy_group = get_users_proxy_group_from_token()
 
-        _force_update_user_google_account(
+        access_expiration = _force_update_user_google_account(
             user_id, google_email, proxy_group, _allow_new=False)
 
-        return '', 200
+        return {'exp': access_expiration}, 200
 
     @staticmethod
     def _unlink_google_account():
@@ -216,7 +216,7 @@ class GoogleCallback(Resource):
             )
 
             if not error:
-                _force_update_user_google_account(
+                exp = _force_update_user_google_account(
                     user_id, email, proxy_group, _allow_new=True)
 
                 # keep linked email in session so when session refreshes access
@@ -227,8 +227,16 @@ class GoogleCallback(Resource):
 
         # if we have a redirect, follow it and add any errors
         if provided_redirect:
-            error = _get_error_params(error, error_description)
-            return flask.redirect(provided_redirect + error)
+            if error:
+                error = _get_error_params(error, error_description)
+                redirect_with_params = provided_redirect + '?' + error
+            else:
+                redirect_with_params = (
+                    provided_redirect + '?'
+                    + _get_query_params(linked_email=email, exp=exp)
+                )
+
+            return flask.redirect(redirect_with_params)
         else:
             # we don't have a redirect, so the endpoint was probably hit
             # without the actual auth flow. Raise with error info
@@ -321,15 +329,18 @@ def _force_update_user_google_account(
     provided google_email is also their's.
 
     Args:
-        user_id (TYPE): User's identifier
-        google_email (TYPE): User's Google email
-        proxy_group (TYPE): User's Proxy Google group
+        user_id (str): User's identifier
+        google_email (str): User's Google email
+        proxy_group (str): User's Proxy Google group id
         _allow_new (bool, optional): Whether or not a new linkage between
             Google email and the given user should be allowed
 
     Raises:
         NotFound: Linked Google account not found
         Unauthorized: Couldn't determine user
+
+    Returns:
+        Expiration time of the newly updated google account's access
     """
     user_google_account = (
         current_session.query(UserGoogleAccount)
@@ -380,6 +391,8 @@ def _force_update_user_google_account(
     )
 
     current_session.commit()
+
+    return expiration
 
 
 def get_default_google_account_expiration():
@@ -469,8 +482,12 @@ def _get_error_params(error, description):
     params = ''
     if error:
         args = {'error': error, 'error_description': description}
-        params = '?' + urllib.urlencode(args)
+        params = urllib.urlencode(args)
     return params
+
+
+def _get_query_params(**kwargs):
+    return urllib.urlencode(kwargs)
 
 
 def _add_google_email_to_proxy_group(google_email, proxy_group_id):
