@@ -1,5 +1,6 @@
 import flask
 import time
+from urlparse import urlparse, parse_qs, urlunparse
 
 # Python 2 and 3 compatible
 try:
@@ -109,7 +110,14 @@ def test_google_link_auth_return(
         query_string={'code': test_auth_code})
 
     assert r.status_code == 302
-    assert r.headers['Location'] == redirect
+    parsed_url = urlparse(r.headers['Location'])
+    query_params = parse_qs(parsed_url.query)
+    response_redirect = urlunparse(
+        (parsed_url.scheme, parsed_url.netloc, parsed_url.path, '', '', '')
+    )
+    assert 'exp' in query_params
+    assert query_params['linked_email'][0] == google_account
+    assert response_redirect == redirect
 
     user_google_account = (
         db_session.query(UserGoogleAccount)
@@ -352,7 +360,15 @@ def test_google_link_g_account_exists(
 
     assert not add_new_g_acnt_mock.called
     assert r.status_code == 302
-    assert r.headers['Location'] == redirect
+
+    parsed_url = urlparse(r.headers['Location'])
+    query_params = parse_qs(parsed_url.query)
+    response_redirect = urlunparse(
+        (parsed_url.scheme, parsed_url.netloc, parsed_url.path, '', '', '')
+    )
+    assert 'exp' in query_params
+    assert query_params['linked_email'][0] == google_account
+    assert response_redirect == redirect
 
     assert not flask.session.get('google_link')
     assert not flask.session.get('user_id')
@@ -432,7 +448,15 @@ def test_google_link_g_account_access_extension(
 
     assert not add_new_g_acnt_mock.called
     assert r.status_code == 302
-    assert r.headers['Location'] == redirect
+
+    parsed_url = urlparse(r.headers['Location'])
+    query_params = parse_qs(parsed_url.query)
+    response_redirect = urlunparse(
+        (parsed_url.scheme, parsed_url.netloc, parsed_url.path, '', '', '')
+    )
+    assert 'exp' in query_params
+    assert query_params['linked_email'][0] == google_account
+    assert response_redirect == redirect
 
     assert not flask.session.get('google_link')
     assert not flask.session.get('user_id')
@@ -486,9 +510,19 @@ def test_google_link_g_account_exists_linked_to_different_user(
     assert not add_new_g_acnt_mock.called
 
     # make sure we're redirecting with error information
-    assert redirect in r.headers['Location']
-    assert 'error=' in r.headers['Location']
-    assert 'error_description=' in r.headers['Location']
+    parsed_url = urlparse(r.headers['Location'])
+    query_params = parse_qs(parsed_url.query)
+    response_redirect = urlunparse(
+        (parsed_url.scheme, parsed_url.netloc, parsed_url.path, '', '', '')
+    )
+    response_redirect = urlunparse(
+        (parsed_url.scheme, parsed_url.netloc, parsed_url.path, '', '', '')
+    )
+    assert 'exp' not in query_params
+    assert 'linked_email' not in query_params
+    assert 'error' in query_params
+    assert 'error_description' in query_params
+    assert response_redirect == redirect
 
     assert not flask.session.get('google_link')
     assert not flask.session.get('user_id')
@@ -535,9 +569,16 @@ def test_google_link_no_proxy_group(
     assert not add_new_g_acnt_mock.called
 
     # make sure we're redirecting with error information
-    assert redirect in r.headers['Location']
-    assert 'error=' in r.headers['Location']
-    assert 'error_description=' in r.headers['Location']
+    parsed_url = urlparse(r.headers['Location'])
+    query_params = parse_qs(parsed_url.query)
+    response_redirect = urlunparse(
+        (parsed_url.scheme, parsed_url.netloc, parsed_url.path, '', '', '')
+    )
+    assert 'exp' not in query_params
+    assert 'linked_email' not in query_params
+    assert 'error' in query_params
+    assert 'error_description' in query_params
+    assert response_redirect == redirect
 
     assert not flask.session.get('google_link')
     assert not flask.session.get('user_id')
