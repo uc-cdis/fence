@@ -91,10 +91,7 @@ def sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
                 auth_id: phs000235
     '''
 
-    if ((is_sync_from_dbgap_server or sync_from_local_csv_dir) and projects is None):
-        logger.error("=====project mapping needs to be provided!!!=======")
-        return
-    if ((is_sync_from_dbgap_server or sync_from_local_csv_dir) and os.path.exists(projects) == False):
+    if projects is not None and os.path.exists(projects) is False:
         logger.error("====={} is not found!!!=======".format(projects))
         return
     if sync_from_local_csv_dir and os.path.exists(sync_from_local_csv_dir) == False:
