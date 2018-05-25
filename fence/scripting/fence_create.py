@@ -705,13 +705,21 @@ def link_bucket_to_project(db, bucket_id, bucket_provider, project_auth_id):
                 .format(project_auth_id)
             )
 
-        # TODO add StorageAccess if it doesn't exist for the project?
-        # need during syncing
-        # https://github.com/uc-cdis/fence/blob/master/fence/sync/sync_users.py#L549-L550
-        # storage_access = StorageAccess(
-        #     project_id=project_db_entry.id,
-        #     provider_id=google_cloud_provider.id
-        # )
+        # Add StorageAccess if it doesn't exist for the project
+        storage_access = (
+            current_session.query(StorageAccess)
+            .filter_by(
+                project_id=project_db_entry.id,
+                provider_id=google_cloud_provider.id
+            ).first()
+        )
+        if not storage_access:
+            storage_access = StorageAccess(
+                project_id=project_db_entry.id,
+                provider_id=google_cloud_provider.id
+            )
+            current_session.add(storage_access)
+            current_session.commit()
 
         project_linkage = ProjectToBucket(
             project_id=project_db_entry.id,
@@ -842,6 +850,22 @@ def _create_google_bucket_and_update_db(
                     privilege=['owner']  # TODO What should this be???
                 )
                 db_session.add(project_linkage)
+                db_session.commit()
+
+            # Add StorageAccess if it doesn't exist for the project
+            storage_access = (
+                db_session.query(StorageAccess)
+                .filter_by(
+                    project_id=project_db_entry.id,
+                    provider_id=google_cloud_provider.id
+                ).first()
+            )
+            if not storage_access:
+                storage_access = StorageAccess(
+                    project_id=project_db_entry.id,
+                    provider_id=google_cloud_provider.id
+                )
+                db_session.add(storage_access)
                 db_session.commit()
 
     return bucket_db_entry
