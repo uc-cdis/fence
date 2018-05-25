@@ -13,7 +13,9 @@ from fence.scripting.fence_create import (
     sync_users,
     remove_expired_google_service_account_keys,
     create_user_token,
-    remove_expired_google_accounts_from_proxy_groups
+    remove_expired_google_accounts_from_proxy_groups,
+    create_google_bucket,
+    link_bucket_to_project
 )
 
 def str2bool(v):
@@ -75,6 +77,47 @@ def parse_arguments():
         help='sync from dbgap server True/False',
         default='False')
 
+    bucket_link_to_project = subparsers.add_parser('link-bucket-to-project')
+    bucket_link_to_project.add_argument(
+        '--bucket_id', required=True, help='ID or name for the bucket')
+    bucket_link_to_project.add_argument(
+        '--bucket_provider', required=True,
+        help='CloudProvider.name for the bucket')
+    bucket_link_to_project.add_argument(
+        '--project_auth_id', required=True,
+        help='Project.auth_id to link to bucket')
+
+    google_bucket_create = subparsers.add_parser('google-bucket-create')
+    google_bucket_create.add_argument(
+        '--unique-name', required=True,
+        help='Name for the bucket, must be globally unique throughout Google')
+    google_bucket_create.add_argument(
+        '--storage-class', default=None,
+        help='Currently must be one of the following: "MULTI_REGIONAL", '
+             '"REGIONAL", "NEARLINE", "COLDLINE", "STANDARD"')
+    google_bucket_create.add_argument(
+        '--public', action='store_true', default=False,
+        help='whether or not the bucket should be open to the public')
+    google_bucket_create.add_argument(
+        '--requester-pays', action='store_true', default=False,
+        help='Whether or not to enable requester_pays on the bucket')
+    google_bucket_create.add_argument(
+        '--google-project-id', default=None,
+        help='Google project this bucket should be associated with')
+    google_bucket_create.add_argument(
+        '--project-auth-id', default=None,
+        help='a Project.auth_id to associate this bucket with. '
+             'The project must exist in the db already.')
+    google_bucket_create.add_argument(
+        '--access-logs-bucket', default=None,
+        help='Enables logging. Must provide a Google bucket name '
+             'which will store the access logs')
+    google_bucket_create.add_argument(
+        '--allowed-privileges', default=None, nargs='*',
+        help='A list of allowed privileges ex: --allowed-privileges admin '
+        'read write. Currently create a Google Bucket Access Group per '
+        'privilege.')
+
     manage_google_keys = subparsers.add_parser('google-manage-keys')
     init_google = subparsers.add_parser('google-init')
     manage_google_accounts = (
@@ -104,7 +147,7 @@ def main():
         from fence.settings import DB
 
     if os.environ.get('BASE_URL'):
-        DB = os.environ['BASE_URL']
+        BASE_URL = os.environ['BASE_URL']
     else:
         from fence.settings import BASE_URL
 
@@ -145,6 +188,23 @@ def main():
         google_init(DB)
     elif args.action == 'google-manage-account-access':
         remove_expired_google_accounts_from_proxy_groups(DB)
+    elif args.action == 'google-bucket-create':
+        create_google_bucket(
+            DB, args.unique_name,
+            storage_class=args.storage_class,
+            public=args.public,
+            requester_pays=args.requester_pays,
+            google_project_id=args.google_project_id,
+            project_auth_id=args.project_auth_id,
+            access_logs_bucket=args.access_logs_bucket,
+            allowed_privileges=args.allowed_privileges)
+    elif args.action == 'link-bucket-to-project':
+        link_bucket_to_project(
+            DB,
+            bucket_id=args.bucket_id,
+            bucket_provider=args.bucket_provider,
+            project_auth_id=args.project_auth_id
+        )
     elif args.action == 'token-create':
         token = create_user_token(
             DB, BASE_URL, ROOT_DIR, args.__dict__['kid'],

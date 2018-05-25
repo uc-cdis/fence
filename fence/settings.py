@@ -18,10 +18,10 @@ try:
     # Import everything from ``local_settings``, if it exists.
     from local_settings import *
 except ImportError:
-    # If it doesn't, look in ``/var/www``.
+    # If it doesn't, look in ``/var/www/fence``.
     try:
         import imp
-        imp.load_source('local_settings', '/var/www/local_settings.py')
+        imp.load_source('local_settings', '/var/www/fence/local_settings.py')
     except IOError:
         logger.warn("local_settings is not found")
 
