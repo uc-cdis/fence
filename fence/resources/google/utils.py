@@ -235,7 +235,6 @@ def get_service_account(client_id, user_id):
 
     return service_account
 
-
 def create_service_account(client_id, user_id, username, proxy_group_id):
     """
     Create a Google Service account for the current client and user.
