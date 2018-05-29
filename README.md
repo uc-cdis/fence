@@ -57,6 +57,8 @@ like to keep a persistent database for manual testing and general local usage
 simply create a second test database with a different name, as in the
 instructions below.
 
+> NOTE: Requires a minimum of Postgres v9.4 (because of `JSONB` types used)
+
 ```bash
 # Create test database(s).
 # This one is for automated tests, which clear the database after running;
@@ -66,7 +68,7 @@ userdatamodel-init --db fence_test_tmp
 # This one is for manual testing/general local usage; `fence/local_settings.py`
 # should have `fence_test` in the `DB` variable.
 psql -U test postgres -c 'create database fence_test'
-userdatamodel-init --db fence_test
+userdatamodel-init --db fence_test --username test --password test
 ```
 
 #### Create User Access File
