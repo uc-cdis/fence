@@ -347,7 +347,8 @@ class StorageManager(object):
             access = StorageManager._get_bucket_access_privileges(access)
 
             for bucket_access_group in bucket_access_groups:
-                if set(bucket_access_group.privileges).issubset(access):
+                bucket_privileges = bucket_access_group.privileges or []
+                if set(bucket_privileges).issubset(access):
                     bucket_name = bucket_access_group.email
                     self.clients[provider].add_bucket_acl(
                         bucket_name, storage_username)
