@@ -1,0 +1,169 @@
+---
+#### General App Settings
+APP_NAME: Gen3 Data Commons
+BASE_URL: http://localhost/user
+DB: postgresql://test:test@localhost:5432/fence
+
+#### Debug Settings
+DEBUG: true
+MOCK_AUTH: true
+MOCK_STORAGE: true
+
+#### A URL-safe base64-encoded 32-byte key for encrypting keys in db
+# in python you can use the following script to generate one:
+#     import base64
+#     import os
+#     key = base64.urlsafe_b64encode(os.urandom(32))
+#     print(key)
+HMAC_ENCRYPTION_KEY: ''
+
+#### OpenID Connect Configuration for clients
+OPENID_CONNECT:
+  # These Google values must be obtained from Google's Cloud Console
+  # Follow: https://developers.google.com/identity/protocols/OpenIDConnect
+  google:
+    client_id: ''
+    client_secret: ''
+    # this is be the allowed redirect back to fence, should not need to change
+    redirect_url: '{{BASE_URL}}/login/google/login'
+  fence:
+    # this base url should something like: https://example.com
+    api_base_url: ''
+    client_id: ''
+    client_secret: ''
+    client_kwargs:
+      # openid is required to use OIDC flow
+      scope: openid
+      redirect_uri: '{{BASE_URL}}/login/fence/login'
+    # The next 3 should not need to be changed if the provider is following
+    # Oauth2 endpoint naming conventions
+    authorize_url: '{{api_base_url}}/oauth2/authorize'
+    access_token_url: '{{api_base_url}}/oauth2/token'
+    refresh_token_url: '{{api_base_url}}/oauth2/token'
+
+#### Default login
+# For Google use: '{{BASE_URL}}/login/google'
+# For Fence (diff IDPs can be configured) use: '{{BASE_URL}}/login/fence'
+DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
+
+# Which Identity Provider fence will/can use
+#
+# See ``fence/blueprints/login/__init__.py`` for which identity providers can
+# be loaded.
+#
+# NOTE: Don't enable shibboleth if the deployment is not protected by
+# shibboleth module, the shib module takes care of preventing header spoofing.
+ENABLED_IDENTITY_PROVIDERS:
+  # ID for which of the providers to default to.
+  default: google
+  # Information for identity providers.
+  providers:
+    fence:
+      name: Fence Multi-Tenant OAuth
+    google:
+      name: Google OAuth
+    shibboleth:
+      name: NIH Login
+
+#### Storage Backends and Credentials
+# TODO: remove STORAGES and just use STORAGE_CREDS backends...
+STORAGES:
+  - /cleversafe
+  - /google
+
+STORAGE_CREDENTIALS:
+  'cleversafe-server-a':
+    backend: cleversafe
+    aws_access_key_id: ''
+    aws_secret_access_key: ''
+    host: somemanager.osdc.io
+    public_host: someobjstore.datacommons.io
+    port: 443
+    is_secure: true
+    username: someone
+    password: somepass
+    is_mocked: true
+  'google':
+    backend: google
+    google_project_id: some-project-id-12378923
+
+#### Cloud API Library Configuration
+# Required for Google endpoints (/link/google, /credentials/google, etc)
+# See directions here for setting up cirrus: https://github.com/uc-cdis/cirrus
+CIRRUS_CFG:
+  GOOGLE_API_KEY: ''
+  GOOGLE_PROJECT_ID: ''
+  GOOGLE_APPLICATION_CREDENTIALS: ''
+  GOOGLE_STORAGE_CREDS: ''
+  GOOGLE_ADMIN_EMAIL: ''
+  GOOGLE_IDENTITY_DOMAIN: ''
+  GOOGLE_CLOUD_IDENTITY_ADMIN_EMAIL: ''
+
+#### Proxy
+# If the api is behind firewall that need to set http proxy (see below)
+# HTTP_PROXY:
+#   host: cloud-proxy
+#   port: 3128
+HTTP_PROXY: null
+
+#### AWS Buckets and Credentials
+AWS_CREDENTIALS:
+  'CRED1':
+    aws_access_key_id: ''
+    aws_secret_access_key: ''
+  'CRED2':
+    aws_access_key_id: ''
+    aws_secret_access_key: ''
+
+S3_BUCKETS:
+  bucket1: CRED1
+  bucket2: CRED2
+  bucket3: CRED1
+
+#### Support syncing users and access from dbGaP
+# "dbGaP project serves as an access gateway for researchers seeking to gain
+#  access to genotype and phenotype data"
+# Usersyncing and access can also be done throught a User Access file. See
+# fence's README for more information
+dbGaP:
+  sftp:
+    host: ''
+    username: ''
+    password: ''
+    port: 22
+    proxy: ''
+    proxy_user: ''
+  decrypt_key: ''
+
+#### Security and Protection
+SESSION_COOKIE_SECURE: true
+ENABLE_CSRF_PROTECTION: true
+
+#### Microservice directories and paths
+ROOT_DIR: /fence
+INDEXD: /index
+OAUTH2_PROVIDER_ERROR_URI: /api/oauth2/errors
+
+#### Multi-tenant fence setup
+# configure this to the base URL for the provider
+# fence (i.e. ``BASE_URL`` in the provider fence config).
+# OIDC_ISSUER: 'http://localhost:8080/user
+
+#### Shibboleth Configurations
+# assumes shibboleth is deployed under {{BASE_URL}}/shibboleth
+SHIBBOLETH_HEADER: 'persistent_id'
+SSO_URL: https://auth.nih.gov/affwebservices/public/saml2sso?SPID={{BASE_URL}}/shibboleth&RelayState=
+ITRUST_GLOBAL_LOGOUT: https://auth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl=
+
+#### Email Settings
+EMAIL_SERVER: localhost
+SEND_FROM: example@gmail.com
+SEND_TO: example@gmail.com
+
+#### Keys for JWTs
+# ``JWT_KEYPAIRS`` is an ordered dictionary of entries ``kid:
+# (public_key_filename, private_key_filename)`` mapping key ids to keypairs
+# used for signing and verifying JWTs issued by fence. NOTE that the filenames
+# should be relative to the root directory in fence.
+JWT_KEYPAIR_FILES:
+  'key-01': ('keys/jwt_public_key.pem', 'keys/jwt_private_key.pem')

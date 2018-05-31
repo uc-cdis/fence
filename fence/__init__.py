@@ -1,5 +1,6 @@
 from collections import OrderedDict
 import os
+from yaml import safe_load as yaml_load
 
 from authutils.oauth2.client import OAuthClient
 import cirrus
@@ -45,6 +46,24 @@ def app_config(app, settings="fence.settings", root_dir=None):
     """
     Set up the config for the Flask app.
     """
+    if root_dir is None:
+        root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+
+    # TODO better way to search for yaml? pass as arg into init?
+    try:
+        config_path = os.path.realpath(os.path.join(root_dir + "/fence/config.yaml"))
+        print(config_path)
+        data = yaml_load(open(config_path))
+    except IOError:
+        try:
+            data = yaml_load(open("/var/www/fence/config.yaml"))
+        except IOError as exc:
+            raise IOError(
+                "Could not find config.yaml in fence root dir or " "/var/www/fence"
+            )
+
+    app.config.update(data)
+
     app.config.from_object(settings)
     if "BASE_URL" not in app.config:
         base_url = app.config["HOSTNAME"]

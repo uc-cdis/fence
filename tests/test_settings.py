@@ -70,6 +70,9 @@ SESSION_COOKIE_NAME = "fence"
 HMAC_ENCRYPTION_KEY = Fernet.generate_key()
 ENABLE_CSRF_PROTECTION = False
 
+#: The test app uses the RSA key fixtures from authutils, so leave this empty.
+JWT_KEYPAIR_FILES = []
+
 STORAGE_CREDENTIALS = {
     "test-cleversafe": {"backend": "cleversafe"},
     "google": {
