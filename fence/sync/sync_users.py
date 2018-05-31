@@ -321,6 +321,7 @@ class UserSyncer(object):
                         'display_name': details.get('display_name', ''),
                         'phone_number': details.get('phone_number', ''),
                         'tags': details.get('tags', {}),
+                        'admin': details.get('admin', False),
                     }
 
                     if not username in user_project:
@@ -527,6 +528,7 @@ class UserSyncer(object):
             u.email = user_info[username].get('email', '')
             u.display_name = user_info[username].get('display_name', '')
             u.phone_number = user_info[username].get('phone_number', '')
+            u.is_admin = user_info[username].get('admin', False)
 
             # do not update if there is no tag
             if user_info[username]['tags'] == {}:
