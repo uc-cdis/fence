@@ -76,8 +76,7 @@ GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN = 86400
 #: 7 days = 604800 seconds
 GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN = 604800
 
-#: ``SESSION_COOKIE_NAME: str``
-#: The name of the browser cookie in which the session token will be stored.
-#: Note that the session token also stores information for the
-#: ``flask.session`` in the ``context`` field of the token.
-SESSION_COOKIE_NAME = "fence"
+# Use this setting when fence will be deployed in such a way that fence will
+# only receive traffic from internal (CDIS) clients, and can safely use HTTP.
+os.environ['AUTHLIB_INSECURE_TRANSPORT'] = 'true'
+

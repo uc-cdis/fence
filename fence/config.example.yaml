@@ -33,7 +33,7 @@ OPENID_CONNECT:
     client_secret: ''
     client_kwargs:
       # openid is required to use OIDC flow
-      scope: openid
+      scope: openid user
       redirect_uri: '{{BASE_URL}}/login/fence/login'
     # The next 3 should not need to be changed if the provider is following
     # Oauth2 endpoint naming conventions
@@ -166,4 +166,6 @@ SEND_TO: example@gmail.com
 # used for signing and verifying JWTs issued by fence. NOTE that the filenames
 # should be relative to the root directory in fence.
 JWT_KEYPAIR_FILES:
-  'key-01': ('keys/jwt_public_key.pem', 'keys/jwt_private_key.pem')
+  'key-01':
+    - 'keys/jwt_public_key.pem'
+    - 'keys/jwt_private_key.pem'
