@@ -65,7 +65,9 @@ def get_or_create_primary_service_account_key(
     )
 
     if user_service_account_key:
-        fernet_key = Fernet(str(flask.current_app.config["HMAC_ENCRYPTION_KEY"]))
+        fernet_key = Fernet(
+            str(flask.current_app.config['ENCRYPTION_KEY'])
+        )
         private_key_bytes = fernet_key.decrypt(
             str(user_service_account_key.private_key)
         )
@@ -133,8 +135,10 @@ def create_primary_service_account_key(user_id, username, proxy_group_id, expire
 
     key_id = sa_private_key.get("private_key_id")
 
-    fernet_key = Fernet(str(flask.current_app.config["HMAC_ENCRYPTION_KEY"]))
-    private_key_bytes = json.dumps(sa_private_key).encode("utf-8")
+    fernet_key = Fernet(
+        str(flask.current_app.config['ENCRYPTION_KEY'])
+    )
+    private_key_bytes = json.dumps(sa_private_key).encode('utf-8')
     private_key = fernet_key.encrypt(private_key_bytes)
 
     expires = expires or (
