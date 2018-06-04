@@ -808,7 +808,7 @@ def _create_google_bucket_and_update_db(
     manager = GoogleCloudManager(
         google_project_id, creds=cirrus_config.configs['GOOGLE_STORAGE_CREDS'])
     with manager as g_mgr:
-        g_mgr.create_bucket(
+        g_mgr.create_or_update_bucket(
             name,
             storage_class=storage_class,
             public=public,
@@ -828,14 +828,20 @@ def _create_google_bucket_and_update_db(
             db_session.add(google_cloud_provider)
             db_session.commit()
 
-        bucket_db_entry = Bucket(
-            name=name,
-            provider_id=google_cloud_provider.id
+        bucket_db_entry = (
+            db_session.query(Bucket).filter_by(
+                    name=name,
+                    provider_id=google_cloud_provider.id).first()
         )
-        db_session.add(bucket_db_entry)
-        db_session.commit()
+        if not bucket_db_entry:
+            bucket_db_entry = Bucket(
+                name=name,
+                provider_id=google_cloud_provider.id
+            )
+            db_session.add(bucket_db_entry)
+            db_session.commit()
 
-        print('Successfully created Google Bucket {}.'.format(name))
+        print('Successfully updated Google Bucket {}.'.format(name))
 
         # optionally link this new bucket to an existing project
         if project_auth_id:
@@ -851,6 +857,13 @@ def _create_google_bucket_and_update_db(
                 )
                 db_session.add(project_linkage)
                 db_session.commit()
+                print(
+                    'Successfully linked project with auth_id {} '
+                    'to the bucket.'.format(project_auth_id))
+            else:
+                print(
+                    'No project with auth_id {} found. No linking '
+                    'occured.'.format(project_auth_id))
 
             # Add StorageAccess if it doesn't exist for the project
             storage_access = (
