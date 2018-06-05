@@ -16,6 +16,7 @@ from fence.models import UserGoogleAccount
 from fence.models import UserGoogleAccountToProxyGroup
 from fence.auth import current_token
 from fence.auth import require_auth_header
+from fence.utils import clear_cookies
 
 
 def make_link_blueprint():
@@ -106,6 +107,14 @@ class GoogleLinkRedirect(Resource):
             # save off provided redirect in session and initiate Google AuthN
             flask.session['redirect'] = provided_redirect
             flask.redirect_url = flask.current_app.google_client.get_auth_url()
+
+            # Tell Google to force relogging in by selecting an account
+            force_login = {
+                'prompt': 'login select_account'
+            }
+            extra_params = urllib.urlencode(force_login)
+
+            flask.redirect_url += '&' + extra_params
         else:
             # skip Google AuthN, already linked, error
             error = _get_error_params(
@@ -175,7 +184,14 @@ class GoogleLinkRedirect(Resource):
         current_session.delete(g_account)
         current_session.commit()
 
-        return '', 200
+        # clear session and cookies so access token and session don't have
+        # outdated linkage info
+        # TODO not sure if necessary
+        # flask.session.clear()
+        response = flask.make_response('', 200)
+        # clear_cookies(response)
+
+        return response
 
 
 class GoogleCallback(Resource):
