@@ -5,7 +5,10 @@ RBAC.
 
 import json
 
+import flask
 import requests
+
+from fence.models import Policy
 
 
 def _request_get_json(response):
@@ -27,6 +30,7 @@ class ArboristClient(object):
     def __init__(self, arborist_base_url='http://arborist-service.default'):
         self._base_url = arborist_base_url.strip('/')
         self._role_url = self._base_url + '/role/'
+        self._policy_url = self._base_url + '/policy/'
 
     def list_roles(self):
         """
@@ -67,3 +71,50 @@ class ArboristClient(object):
         """
         url = self._url_for_role(role_id)
         return _request_get_json(requests.request(method, url, **kwargs))
+
+    def list_policies(self):
+        """
+        List the existing policies.
+
+        Return:
+            dict: response JSON from arborist
+        """
+        return _request_get_json(requests.get(self._policy_url))
+
+    def create_policy(self, policy_json):
+        """
+        Create a new policy in arborist and in the fence database.
+
+        Return:
+            dict: response JSON from arborist
+        """
+        with flask.current_app.db.session as session:
+            response = _request_get_json(requests.post(
+                self._policy_url, json=policy_json
+            ))
+            created_policies = response.get('created')
+            if created_policies:
+                for policy in created_policies:
+                    session.add(Policy(
+                        ID=policy['id'],
+                        role_ids=policy['role_ids'],
+                        resource_paths=policy['resource_paths'],
+                    ))
+            session.commit()
+            return response
+
+    def delete_policy(self, policy_id):
+        """
+        Remove a policy from arborist engine and the fence database.
+        """
+        with flask.current_app.db.session as session:
+            policy_url = self._policy_url + '/{}'.format(policy_id)
+            response = _request_get_json(requests.delete(policy_url))
+            if response.get('deleted'):
+                policy_to_delete = (
+                    session
+                    .query(Policy)
+                    .filter_by(ID=policy_id)
+                    .first()
+                )
+                session.delete(policy_to_delete)

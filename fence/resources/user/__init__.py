@@ -33,7 +33,6 @@ def update_user_resource(username, resource):
         return get_user_info(user, session)
 
 
-
 def find_user(username, session):
     user = session.query(User).filter(func.lower(User.username) == username.lower()).first()
     if not user:
