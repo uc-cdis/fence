@@ -42,37 +42,28 @@ app = flask.Flask(__name__)
 CORS(app=app, headers=["content-type", "accept"], expose_headers="*")
 
 
-def app_config(app, settings="fence.settings", root_dir=None):
+def app_config(
+        app, settings='fence.settings', root_dir=None, config_path=None,
+        file_name=None):
     """
     Set up the config for the Flask app.
     """
     if root_dir is None:
         root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
-    # TODO better way to search for yaml? pass as arg into init?
-    try:
-        config_path = os.path.realpath(os.path.join(root_dir + "/fence/config.yaml"))
-        print(config_path)
-        data = yaml_load(open(config_path))
-    except IOError:
-        try:
-            data = yaml_load(open("/var/www/fence/config.yaml"))
-        except IOError as exc:
-            raise IOError(
-                "Could not find config.yaml in fence root dir or " "/var/www/fence"
-            )
+    app.config.from_object(settings)
+
+    search_folders = app.config.get('CONFIG_SEARCH_FOLDERS', [])
+    file_name = file_name or 'config.yaml'
+    config_path = config_path or get_config_path(search_folders, file_name)
+    app.logger.info('Using configuration: {}'.format(config_path))
+    data = yaml_load(open(config_path))
 
     app.config.update(data)
 
-    app.config.from_object(settings)
-    if "BASE_URL" not in app.config:
-        base_url = app.config["HOSTNAME"]
-        if not base_url.startswith("http"):
-            base_url = "https://" + base_url
-        app.config["BASE_URL"] = base_url
-    if "ROOT_URL" not in app.config:
-        url = urlparse.urlparse(app.config["BASE_URL"])
-        app.config["ROOT_URL"] = "{}://{}".format(url.scheme, url.netloc)
+    if 'ROOT_URL' not in app.config:
+        url = urlparse.urlparse(app.config['BASE_URL'])
+        app.config['ROOT_URL'] = '{}://{}'.format(url.scheme, url.netloc)
 
     if root_dir is None:
         root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
@@ -84,8 +75,49 @@ def app_config(app, settings="fence.settings", root_dir=None):
     app.keypairs = keys.load_keypairs(os.path.join(root_dir, "keys"))
 
     app.jwt_public_keys = {
-        app.config["BASE_URL"]: OrderedDict(
-            [(str(keypair.kid), str(keypair.public_key)) for keypair in app.keypairs]
+        app.config['BASE_URL']: OrderedDict([
+            (str(keypair.kid), str(keypair.public_key))
+            for keypair in app.keypairs
+        ])
+    }
+
+    # TODO should we do generic template replacing or use a template engine?
+
+    # BASE_URL replacement
+    google_redirect = (
+        app.config.get('OPENID_CONNECT', {})
+        .get('google', {})
+        .get('redirect_url')
+    )
+    if google_redirect:
+        provided_value = app.config['OPENID_CONNECT']['google']['redirect_url']
+        app.config['OPENID_CONNECT']['google']['redirect_url'] = (
+            provided_value.replace('{{BASE_URL}}', app.config['BASE_URL'])
+        )
+
+    default_logout = app.config.get('DEFAULT_LOGIN_URL')
+    if default_logout:
+        provided_value = app.config['DEFAULT_LOGIN_URL']
+        app.config['DEFAULT_LOGIN_URL'] = (
+            provided_value.replace('{{BASE_URL}}', app.config['BASE_URL'])
+        )
+
+    shib_url = app.config.get('SSO_URL')
+    if shib_url:
+        provided_value = app.config['SSO_URL']
+        app.config['SSO_URL'] = (
+            provided_value.replace('{{BASE_URL}}', app.config['BASE_URL'])
+        )
+
+    access_token_url = (
+        app.config.get('OPENID_CONNECT', {})
+        .get('fence', {})
+        .get('client_kwargs', {})
+        .get('redirect_uri')
+    )
+    if access_token_url:
+        provided_value = (
+            app.config['OPENID_CONNECT']['fence']['client_kwargs']['redirect_uri']
         )
     }
 

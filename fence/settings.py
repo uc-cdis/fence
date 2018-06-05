@@ -1,36 +1,15 @@
 import os
 
-from cdislogging import get_logger
+#: ``CONFIG_SEARCH_FOLDERS: List(str)``
+#: Folders to look in for the config.yaml for fence
+CONFIG_SEARCH_FOLDERS = [
+    '/var/www/fence',
+    '/etc/gen3/fence'
+]
 
-logger = get_logger(__name__)
-# default settings if local_settings is not present
-BASE_URL = "http://localhost/user"
-APP_NAME = "Gen3 Data Commons"
-
-SESSION_COOKIE_SECURE = True
-
-MOCK_STORAGE = True
-
-# ``local_settings"" is not installed under the fence module in produdction.
-# Instead, it should be located at ``/var/www/local_settings.py``. If it is
-# located elsewhere, use that location in ``imp.load_source`` instead of
-# ``/var/www/local_settings.py``, just below.
-try:
-    # Import everything from ``local_settings``, if it exists.
-    from local_settings import *
-except ImportError:
-    # If it doesn't, look in ``/var/www/fence``.
-    try:
-        import imp
-
-        imp.load_source("local_settings", "/var/www/fence/local_settings.py")
-    except IOError:
-        logger.warn("local_settings is not found")
-
-
-# Use this setting when fence will be deployed in such a way that fence will
-# only receive traffic from internal (CDIS) clients, and can safely use HTTP.
-os.environ["AUTHLIB_INSECURE_TRANSPORT"] = "true"
+#: ``ACCESS_TOKEN_COOKIE_NAME: str``
+#: The name of the browser cookie in which the access token will be stored.
+ACCESS_TOKEN_COOKIE_NAME = 'access_token'
 
 APPLICATION_ROOT = "/user"
 DEBUG = True

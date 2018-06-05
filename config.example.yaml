@@ -1,4 +1,7 @@
 ---
+############################ Fence Configuration ##############################
+# This file contains example configuration necessary for the fence microservice
+
 #### General App Settings ####
 APP_NAME: Gen3 Data Commons
 BASE_URL: http://localhost/user
