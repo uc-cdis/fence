@@ -3,17 +3,22 @@ Configuration Helper Script for Local Development
 
 Quickstart:
 
-  Create configuration file by copying example in this repo:
-      python cfg_help.py create -n fence_default.yaml
+  1. Create configuration file by copying example in this repo:
+        python cfg_help.py create -n fence_default.yaml
 
-  Run fence and point it to the right configuration file:
-      python run.py -c fence_default.yaml
+  2. Run fence and point it to the right configuration file:
+        python run.py -c fence_default.yaml
 
-  Easily edit your configuration by obtaining the path with:
-      python cfg_help.py get -n fence_default.yaml
+Extras:
 
-  You can edit your config with a command like:
-      sudo edit $(python cfg_help.py get -n fence_default.yaml)
+  - Easily obtain the path of your configuration:
+        python cfg_help.py get -n fence_default.yaml
+
+  - Open config file in your editor with a command like:
+        sudo edit $(python cfg_help.py get -n fence_default.yaml)
+
+  - Create more configs:
+        python cfg_help.py create -n fence_google.yaml
 
 Fence searches specific folders for configuration files. Check fence's
 settings for those paths. The LOCAL_CONFIG_FOLDER var here should be included

@@ -1,11 +1,22 @@
 ---
 ############################ Fence Configuration ##############################
-# This file contains example configuration necessary for the fence microservice
+# This file contains configuration necessary for the fence microservice.
+#
+# This is initially configured for minimal local development.
+# Read comments above each of the configuration variables to how to use them.
 
 #### General App Settings ####
 APP_NAME: Gen3 Data Commons
+# Where fence microservice is deployed
 BASE_URL: http://localhost/user
+# postgres db to connect to
+# connection url format:
+#     postgresql://[user[:password]@][netloc][:port][/dbname]
 DB: postgresql://test:test@localhost:5432/fence
+# Name and port number of the server for Flask.
+#     NOTE: Uncomment to use. You CANNOT use this when developing on localhost.
+#           When deploying fence externally, simply uncomment.
+# SERVER_NAME: '{{BASE_URL}}'
 
 #### Debug Settings ####
 DEBUG: true
@@ -25,13 +36,19 @@ ENCRYPTION_KEY: ''
 OPENID_CONNECT:
   # These Google values must be obtained from Google's Cloud Console
   # Follow: https://developers.google.com/identity/protocols/OpenIDConnect
+  #
+  # You'll need to obtain a Client ID and Client Secret. Set the redirect URIs
+  # in Google to be '{{BASE_URL}}/login/google/login', but expand BASE_URL to
+  # whatever you set it to above.
   google:
     client_id: ''
     client_secret: ''
     # this is be the allowed redirect back to fence, should not need to change
     redirect_url: '{{BASE_URL}}/login/google/login'
+  # You can have another fence instance as a client (multi-tenant fence).
+  # If you don't need this, you can remove.
   fence:
-    # this base url should something like: https://example.com
+    # this api_base_url should something like: https://example.com
     api_base_url: ''
     client_id: ''
     client_secret: ''
@@ -47,7 +64,7 @@ OPENID_CONNECT:
 
 #### Login ####
 # For Google use: '{{BASE_URL}}/login/google'
-# For Fence (diff IDPs can be configured) use: '{{BASE_URL}}/login/fence'
+# For another Fence instance use: '{{BASE_URL}}/login/fence'
 DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
 
 # Which Identity Provider fence will/can use
@@ -55,27 +72,38 @@ DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
 # See ``fence/blueprints/login/__init__.py`` for which identity providers can
 # be loaded.
 #
-# NOTE: Don't enable shibboleth if the deployment is not protected by
-# shibboleth module, the shib module takes care of preventing header spoofing.
 ENABLED_IDENTITY_PROVIDERS:
   # ID for which of the providers to default to.
   default: google
   # Information for identity providers.
   providers:
-    fence:
-      name: Fence Multi-Tenant OAuth
     google:
       name: Google OAuth
-    shibboleth:
-      name: NIH Login
+    fence:
+      name: Fence Multi-Tenant OAuth
+    # The following can be used for shibboleth login, simply uncomment.
+    #
+    # NOTE: Don't enable shibboleth if the deployment is not protected by
+    # shibboleth module, the shib module takes care of preventing header
+    # spoofing.
+    #
+    # shibboleth:
+    #   name: NIH Login
 
 #### Storage Backends and Credentials ####
 # TODO: remove STORAGES and just use STORAGE_CREDS backends...
 STORAGES:
-  - /cleversafe
   - /google
+  - /cleversafe
 
+# Configuration for various storage systems for the backend
 STORAGE_CREDENTIALS:
+  # Google Cloud Storage backend. Remove if not used.
+  'google':
+    backend: google
+    google_project_id: some-project-id-12378923
+
+  # Cleversafe data storage backend. Remove if not used.
   'cleversafe-server-a':
     backend: cleversafe
     aws_access_key_id: ''
@@ -87,9 +115,6 @@ STORAGE_CREDENTIALS:
     username: someone
     password: somepass
     is_mocked: true
-  'google':
-    backend: google
-    google_project_id: some-project-id-12378923
 
 #### Cloud API Library Configuration ####
 # Required for Google endpoints (/link/google, /credentials/google, etc)
@@ -127,6 +152,7 @@ S3_BUCKETS:
 #### dbGaP User Syncing Support ####
 # "dbGaP project serves as an access gateway for researchers seeking to gain
 #  access to genotype and phenotype data"
+#
 # User syncing and access can also be done throught a User Access file. See
 # fence's README for more information
 dbGaP:
@@ -151,7 +177,7 @@ APPLICATION_ROOT: /user
 # directory the fence code will be deployed under. used to help locate files
 ROOT_DIR: /fence
 # url where indexd microservice is running (for signed urls primarily)
-# will use. ONLY provide if indexd is NOT running in {{BASE_URL}}/index
+# NOTE: ONLY provide if indexd is NOT running in {{BASE_URL}}/index
 #
 # INDEXD: https://example.com/index
 

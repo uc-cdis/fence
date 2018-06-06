@@ -84,6 +84,13 @@ def app_config(
     # TODO should we do generic template replacing or use a template engine?
 
     # BASE_URL replacement
+    server_name = app.config.get('SERVER_NAME')
+    if server_name:
+        provided_value = app.config['SERVER_NAME']
+        app.config['SERVER_NAME'] = (
+            provided_value.replace('{{BASE_URL}}', app.config['BASE_URL'])
+        )
+
     google_redirect = (
         app.config.get('OPENID_CONNECT', {})
         .get('google', {})
