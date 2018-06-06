@@ -81,6 +81,15 @@ def app_config(
         ])
     }
 
+    # allow authlib traffic on http for development if enabled. By default
+    # it requires https.
+    #
+    # NOTE: use when fence will be deployed in such a way that fence will
+    #       only receive traffic from internal clients, and can safely use HTTP
+    if app.config.get('AUTHLIB_INSECURE_TRANSPORT'):
+        print('got it')
+        os.environ['AUTHLIB_INSECURE_TRANSPORT'] = 'true'
+
     # TODO should we do generic template replacing or use a template engine?
 
     # BASE_URL replacement

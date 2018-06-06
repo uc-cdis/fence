@@ -49,13 +49,14 @@ GOOGLE_SERVICE_ACCOUNT_KEY_FOR_URL_SIGNING_EXPIRES_IN = 2592000
 #: access until it expires.
 GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN = 86400
 
-#: ``GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN: int``
-#: The number of seconds after a User's Google Service account is added to bucket
-#: access until it expires.
-#: 7 days = 604800 seconds
-GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN = 604800
+#: ``MAX_PRESIGNED_URL_TTL: int``
+#: The number of seconds after a pre-signed url is issued until it expires.
+MAX_PRESIGNED_URL_TTL = 3600
 
-# Use this setting when fence will be deployed in such a way that fence will
-# only receive traffic from internal (CDIS) clients, and can safely use HTTP.
-os.environ['AUTHLIB_INSECURE_TRANSPORT'] = 'true'
+#: ``MAX_API_KEY_TTL: int``
+#: The number of seconds after an API KEY is issued until it expires.
+MAX_API_KEY_TTL = 2592000
 
+#: ``MAX_ACCESS_TOKEN_TTL: int``
+#: The number of seconds after an access token is issued until it expires.
+MAX_ACCESS_TOKEN_TTL = 3600
