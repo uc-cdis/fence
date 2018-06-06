@@ -1,5 +1,3 @@
-import os
-
 #: ``CONFIG_SEARCH_FOLDERS: List(str)``
 #: Folders to look in for the config.yaml for fence
 CONFIG_SEARCH_FOLDERS = [
@@ -60,3 +58,26 @@ MAX_API_KEY_TTL = 2592000
 #: ``MAX_ACCESS_TOKEN_TTL: int``
 #: The number of seconds after an access token is issued until it expires.
 MAX_ACCESS_TOKEN_TTL = 3600
+
+# WARNING: USE OF local_settings.py IS DEPRECATED.
+#          WILL BE REMOVED IN FUTURE RELEASE.
+#
+# Please convert to using new configuration yaml file in one of the
+# CONFIG_SEARCH_FOLDERS.
+#
+# ``local_settings"" is not installed under the fence module in produdction.
+# Instead, it should be located at ``/var/www/local_settings.py``. If it is
+# located elsewhere, use that location in ``imp.load_source`` instead of
+# ``/var/www/local_settings.py``, just below.
+from cdislogging import get_logger
+logger = get_logger(__name__)
+try:
+    # Import everything from ``local_settings``, if it exists.
+    from local_settings import *
+except ImportError:
+    # If it doesn't, look in ``/var/www/fence``.
+    try:
+        import imp
+        imp.load_source('local_settings', '/var/www/fence/local_settings.py')
+    except IOError:
+        pass
