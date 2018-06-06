@@ -49,7 +49,7 @@ logger = get_logger(__name__)
 
 
 def create_client_action(
-        DB, username=None, client=None, urls=None, auto_approve=True):
+        DB, username=None, client=None, urls=None, auto_approve=False):
     try:
         print(create_client(
             username, urls, DB, name=client, auto_approve=auto_approve))
