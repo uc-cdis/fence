@@ -346,10 +346,14 @@ class GoogleProxyGroupToGoogleBucketAccessGroup(Base):
             'proxy_groups_with_access', cascade='all, delete-orphan')
     )
 
+
 class UserServiceAccount(Base):
     __tablename__ = "user_service_account"
     id = Column(Integer, primary_key=True)
 
+    # The uniqueId google provides to resources is ONLY unique within
+    # the given project, so we shouldn't rely on that for a primary key (in
+    # case we're ever juggling mult. projects)
     google_unique_id = Column(
         String,
         nullable=False)
@@ -362,8 +366,9 @@ class UserServiceAccount(Base):
         String,
         nullable=False)
 
+
 class ServiceAccountAccessPrivilege(Base):
-    __tablename__="service_account_access_privilege"
+    __tablename__ = "service_account_access_privilege"
 
     id = Column(Integer, primary_key=True)
 
@@ -387,9 +392,9 @@ class ServiceAccountAccessPrivilege(Base):
         backref=backref(
             'access_privileges', cascade='all, delete-orphan'))
 
+
 class ServiceAccountToGoogleBucketAccessGroup(Base):
-    __tablename__="service_account_to_google_bucket_access_group"
-    __backrefname__="to_access_groups"
+    __tablename__ = "service_account_to_google_bucket_access_group"
     id = Column(Integer, primary_key=True)
 
     service_account_id = Column(
@@ -400,11 +405,9 @@ class ServiceAccountToGoogleBucketAccessGroup(Base):
     service_account = relationship(
         'UserServiceAccount',
         backref=backref(
-            __backrefname__, cascade='all, delete-orphan'))
+            'to_access_groups', cascade='all, delete-orphan'))
 
-    expires = Column(
-        BigInteger,
-        nullable=False)
+    expires = Column(BigInteger)
 
     access_group_id = Column(
         Integer,
@@ -414,7 +417,7 @@ class ServiceAccountToGoogleBucketAccessGroup(Base):
     access_group = relationship(
         'GoogleBucketAccessGroup',
         backref=backref(
-            __backrefname__, cascade='all, delete-orphan'))
+            'to_access_groups', cascade='all, delete-orphan'))
 
 
 to_timestamp = "CREATE OR REPLACE FUNCTION pc_datetime_to_timestamp(datetoconvert timestamp) " \

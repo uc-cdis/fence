@@ -28,6 +28,7 @@ def test_user_delete_cascade(db_session):
         == 0
     )
 
+
 def test_service_account_relationsips(db_session):
     """
     test service account tables have proper relationships/fields
@@ -61,19 +62,23 @@ def test_service_account_relationsips(db_session):
     db_session.add(gbag)
     db_session.add(sa_to_gbag)
     db_session.commit()
-    assert project.sa_access_privileges[0].__class__ == ServiceAccountAccessPrivilege
+    assert (project.sa_access_privileges[0].__class__
+        == ServiceAccountAccessPrivilege)
     assert project.sa_access_privileges[0].id == 1
     assert sa_access_privilege.project.__class__ == Project
     assert sa_access_privilege.project.id == 1
     assert sa_access_privilege.service_account.__class__ == UserServiceAccount
     assert sa_access_privilege.service_account.id == 1
-    assert user_sa.access_privileges[0].__class__ == ServiceAccountAccessPrivilege
+    assert (user_sa.access_privileges[0].__class__ 
+        == ServiceAccountAccessPrivilege)
     assert user_sa.access_privileges[0].id == 1
-    assert user_sa.to_access_groups[0].__class__ == ServiceAccountToGoogleBucketAccessGroup
+    assert (user_sa.to_access_groups[0].__class__
+        == ServiceAccountToGoogleBucketAccessGroup)
     assert user_sa.to_access_groups[0].id == 1
     assert sa_to_gbag.service_account.__class__ == UserServiceAccount
     assert sa_to_gbag.service_account.id == 1
     assert sa_to_gbag.access_group.__class__ == GoogleBucketAccessGroup
     assert sa_to_gbag.access_group.id == 1
-    assert gbag.to_access_groups[0].__class__ == ServiceAccountToGoogleBucketAccessGroup
+    assert (gbag.to_access_groups[0].__class__
+        == ServiceAccountToGoogleBucketAccessGroup)
     assert gbag.to_access_groups[0].id == 1
