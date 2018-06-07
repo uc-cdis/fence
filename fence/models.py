@@ -346,6 +346,76 @@ class GoogleProxyGroupToGoogleBucketAccessGroup(Base):
             'proxy_groups_with_access', cascade='all, delete-orphan')
     )
 
+class UserServiceAccount(Base):
+    __tablename__ = "user_service_account"
+    id = Column(Integer, primary_key=True)
+
+    google_unique_id = Column(
+        String,
+        nullable=False)
+
+    email = Column(
+        String,
+        nullable=False)
+
+    google_project_id = Column(
+        String,
+        nullable=False)
+
+class ServiceAccountAccessPrivilege(Base):
+    __tablename__="service_account_access_privilege"
+
+    id = Column(Integer, primary_key=True)
+
+    project_id = Column(
+        Integer,
+        ForeignKey(Project.id),
+        nullable=False)
+
+    project = relationship(
+        'Project',
+        backref=backref(
+            'sa_access_privileges', cascade='all, delete-orphan'))
+
+    service_account_id = Column(
+        Integer,
+        ForeignKey(UserServiceAccount.id),
+        nullable=False)
+
+    service_account = relationship(
+        'UserServiceAccount',
+        backref=backref(
+            'access_privileges', cascade='all, delete-orphan'))
+
+class ServiceAccountToGoogleBucketAccessGroup(Base):
+    __tablename__="service_account_to_google_bucket_access_group"
+    __backrefname__="to_access_groups"
+    id = Column(Integer, primary_key=True)
+
+    service_account_id = Column(
+        Integer,
+        ForeignKey(UserServiceAccount.id),
+        nullable=False)
+
+    service_account = relationship(
+        'UserServiceAccount',
+        backref=backref(
+            __backrefname__, cascade='all, delete-orphan'))
+
+    expires = Column(
+        BigInteger,
+        nullable=False)
+
+    access_group_id = Column(
+        Integer,
+        ForeignKey(GoogleBucketAccessGroup.id),
+        nullable=False)
+
+    access_group = relationship(
+        'GoogleBucketAccessGroup',
+        backref=backref(
+            __backrefname__, cascade='all, delete-orphan'))
+
 
 to_timestamp = "CREATE OR REPLACE FUNCTION pc_datetime_to_timestamp(datetoconvert timestamp) " \
                "RETURNS BIGINT AS " \
