@@ -217,6 +217,7 @@ class UserSyncer(object):
             if not self._match_pattern(filepath, encrypted=encrypted):
                 continue
 
+            self.logger.info('Reading file {}'.format(filepath))
             with self._read_file(filepath, encrypted=encrypted) as f:
                 csv = DictReader(f, quotechar='"',
                                  skipinitialspace=True)
