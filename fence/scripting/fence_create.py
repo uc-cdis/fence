@@ -1,11 +1,7 @@
 import os
 import os.path
-
-import uuid
-import jwt
-import yaml
 import time
-from authlib.common.encoding import to_unicode
+import yaml
 
 from cirrus import GoogleCloudManager
 from cdispyutils.log import get_logger
@@ -23,7 +19,6 @@ from userdatamodel.models import (
 )
 
 from fence.jwt.token import (
-    issued_and_expiration_times,
     generate_signed_access_token,
     generate_signed_refresh_token,
 )
@@ -84,14 +79,14 @@ def sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
     if ((is_sync_from_dbgap_server or sync_from_local_csv_dir) and projects is None):
         logger.error("=====project mapping needs to be provided!!!=======")
         return
-    if ((is_sync_from_dbgap_server or sync_from_local_csv_dir) and os.path.exists(projects) == False):
+    if ((is_sync_from_dbgap_server or sync_from_local_csv_dir) and not os.path.exists(projects)):
         logger.error("====={} is not found!!!=======".format(projects))
         return
-    if sync_from_local_csv_dir and os.path.exists(sync_from_local_csv_dir) == False:
+    if sync_from_local_csv_dir and not os.path.exists(sync_from_local_csv_dir):
         logger.error("====={} is not found!!!=======".format(
             sync_from_local_csv_dir))
         return
-    if sync_from_local_yaml_file and os.path.exists(sync_from_local_yaml_file) == False:
+    if sync_from_local_yaml_file and not os.path.exists(sync_from_local_yaml_file):
         logger.error("====={} is not found!!!=======".format(
             sync_from_local_yaml_file))
         return
@@ -105,9 +100,11 @@ def sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
             pass
 
     syncer = UserSyncer(
-        dbGaP, DB, project_mapping=project_mapping, storage_credentials=STORAGE_CREDENTIALS,
+        dbGaP, DB, project_mapping=project_mapping,
+        storage_credentials=STORAGE_CREDENTIALS,
         is_sync_from_dbgap_server=is_sync_from_dbgap_server,
-        sync_from_local_csv_dir=sync_from_local_csv_dir, sync_from_local_yaml_file=sync_from_local_yaml_file
+        sync_from_local_csv_dir=sync_from_local_csv_dir,
+        sync_from_local_yaml_file=sync_from_local_yaml_file
     )
     syncer.sync()
 
@@ -454,7 +451,7 @@ class JWTCreator(object):
         # convert them to this:
         #
         #     ['openid', 'fence', 'data']
-        if isinstance(self.scopes, str):
+        if isinstance(getattr(self, 'scopes', ''), str):
             self.scopes = [scope.strip() for scope in self.scopes.split(',')]
 
         self.expires_in = kwargs.get('expires_in') or self.default_expiration
@@ -509,4 +506,3 @@ class JWTCreator(object):
             ))
 
             return jwt_result
-
