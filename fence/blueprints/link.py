@@ -110,7 +110,7 @@ class GoogleLinkRedirect(Resource):
 
             # Tell Google to force relogging in by selecting an account
             force_login = {
-                'prompt': 'login select_account'
+                'prompt': 'select_account'
             }
             extra_params = urllib.urlencode(force_login)
 
@@ -187,9 +187,9 @@ class GoogleLinkRedirect(Resource):
         # clear session and cookies so access token and session don't have
         # outdated linkage info
         # TODO not sure if necessary
-        # flask.session.clear()
+        flask.session.clear()
         response = flask.make_response('', 200)
-        # clear_cookies(response)
+        clear_cookies(response)
 
         return response
 
