@@ -5,7 +5,7 @@ import json
 from random import SystemRandom
 import re
 import string
-
+from sqlalchemy import func
 import flask
 from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.datastructures import ImmutableMultiDict
@@ -26,17 +26,6 @@ def json_res(data):
     return flask.Response(json.dumps(data), mimetype='application/json')
 
 
-def get_linked_google_account_email(user_id):
-    email = None
-    user_google_account = (
-        current_session.query(UserGoogleAccount)
-        .filter(UserGoogleAccount.user_id == user_id).first()
-    )
-    if user_google_account:
-        email = user_google_account.email
-    return email
-
-
 def create_client(
         username, urls, DB, name='', description='', auto_approve=False,
         is_admin=False):
@@ -45,7 +34,7 @@ def create_client(
     client_secret = random_str(55)
     hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
     with driver.session as s:
-        user = s.query(User).filter(User.username == username).first()
+        user = s.query(User).filter(func.lower(User.username) == username.lower()).first()
         if not user:
             user = User(username=username, is_admin=is_admin)
             s.add(user)

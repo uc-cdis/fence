@@ -57,6 +57,8 @@ like to keep a persistent database for manual testing and general local usage
 simply create a second test database with a different name, as in the
 instructions below.
 
+> NOTE: Requires a minimum of Postgres v9.4 (because of `JSONB` types used)
+
 ```bash
 # Create test database(s).
 # This one is for automated tests, which clear the database after running;
@@ -66,20 +68,38 @@ userdatamodel-init --db fence_test_tmp
 # This one is for manual testing/general local usage; `fence/local_settings.py`
 # should have `fence_test` in the `DB` variable.
 psql -U test postgres -c 'create database fence_test'
-userdatamodel-init --db fence_test
+userdatamodel-init --db fence_test --username test --password test
 ```
 
 #### Create User Access File
+You can setup user access via admin fence script providing a user yaml file
+Example user yaml:
+```
+cloud_providers: {}
+groups: {}
+users:
+  userA@gmail.com:
+    projects:
+    - auth_id: project_a
+      privilege: [read, update, create, delete]
+    - auth_id: project_b
+      privilege: [read]
+  userB@gmail.com:
+    projects:
+    - auth_id: project_b
+      privilege: [read]
+```
+Example sync command:
 
 ```bash
-fence-create --path fence create ua.yaml
+fence-create sync --yaml user.yaml
 ```
 
 #### Register OAuth Client
 
 Using gdcapi for example:
 ```bash
-fence-create --path fence client-create --client gdcapi --urls http://localhost/api/v0/oauth2/authorize --username test
+fence-create client-create --client gdcapi --urls http://localhost/api/v0/oauth2/authorize --username test
 ```
 That command should output a tuple of `(client_id, client_secret)` which must be
 saved so that `gdcapi` (for example) can be run as an OAuth client to use with
@@ -114,6 +134,9 @@ We use JSON Web Tokens (JWTs) as the format for our authentication mechanism.
           "delete",
           "read-storage"
         ]
+      },
+      "google": {
+          "linked_google_account": "somebody@example.com"
       }
     }
   },
@@ -151,6 +174,7 @@ We use JSON Web Tokens (JWTs) as the format for our authentication mechanism.
       },
       "google": {
           "proxy_group": "abcdefgh123456",
+          "linked_google_account": "somebody@example.com"
       }
     }
   },

@@ -17,6 +17,7 @@ import flask
 from sqlalchemy import (
     Integer, BigInteger, String, Column, Boolean, Text, MetaData, Table
 )
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.schema import ForeignKey
 from fence.jwt.token import CLIENT_ALLOWED_SCOPES
@@ -25,7 +26,7 @@ from userdatamodel.models import (
     AccessPrivilege, Application, AuthorizationProvider, Bucket, Certificate,
     CloudProvider, ComputeAccess, GoogleProxyGroup, HMACKeyPair,
     HMACKeyPairArchive, IdentityProvider, Project, ProjectToBucket, Group,
-    S3Credential, StorageAccess, User, Tag, UserToBucket
+    S3Credential, StorageAccess, User, Tag, UserToBucket, UserToGroup
 )
 
 
@@ -185,12 +186,6 @@ class GoogleServiceAccount(Base):
 
     client_id = Column(
         String(40),
-        ForeignKey('client.client_id')
-    )
-    client = relationship(
-        'Client',
-        backref=backref(
-            'google_service_accounts', cascade='all, delete-orphan')
     )
 
     user_id = Column(
@@ -206,7 +201,6 @@ class GoogleServiceAccount(Base):
 
     google_project_id = Column(
         String,
-        unique=True,
         nullable=False
     )
 
@@ -271,6 +265,86 @@ class UserGoogleAccountToProxyGroup(Base):
             session.delete(self)
             session.commit()
             return self
+
+
+class GoogleServiceAccountKey(Base):
+    __tablename__ = "google_service_account_key"
+
+    id = Column(Integer, primary_key=True)
+
+    key_id = Column(String, nullable=False)
+
+    service_account_id = Column(
+        Integer,
+        ForeignKey(GoogleServiceAccount.id),
+        nullable=False
+    )
+
+    expires = Column(BigInteger)
+
+    private_key = Column(String)
+
+    def delete(self):
+        with flask.current_app.db.session as session:
+            session.delete(self)
+            session.commit()
+            return self
+
+
+class GoogleBucketAccessGroup(Base):
+    __tablename__ = "google_bucket_access_group"
+    id = Column(Integer, primary_key=True)
+
+    bucket_id = Column(
+        Integer,
+        ForeignKey(Bucket.id),
+        nullable=False,
+    )
+    bucket = relationship(
+        'Bucket',
+        backref=backref(
+            'google_bucket_access_group', cascade='all, delete-orphan')
+    )
+
+    email = Column(
+        String,
+        nullable=False
+    )
+
+    privileges = Column(ARRAY(String))
+
+    def delete(self):
+        with flask.current_app.db.session as session:
+            session.delete(self)
+            session.commit()
+            return self
+
+
+class GoogleProxyGroupToGoogleBucketAccessGroup(Base):
+    __tablename__ = "google_proxy_group_to_google_bucket_access_group"
+    id = Column(Integer, primary_key=True)
+
+    proxy_group_id = Column(
+        String,
+        ForeignKey(GoogleProxyGroup.id),
+        nullable=False
+    )
+    proxy_group = relationship(
+        'GoogleProxyGroup',
+        backref=backref(
+            'bucket_access_groups', cascade='all, delete-orphan')
+    )
+
+    access_group_id = Column(
+        Integer,
+        ForeignKey(GoogleBucketAccessGroup.id),
+        nullable=False
+    )
+    access_group = relationship(
+        'GoogleBucketAccessGroup',
+        backref=backref(
+            'proxy_groups_with_access', cascade='all, delete-orphan')
+    )
 
 
 to_timestamp = "CREATE OR REPLACE FUNCTION pc_datetime_to_timestamp(datetoconvert timestamp) " \
@@ -345,6 +419,20 @@ def migrate(driver):
     drop_unique_constraint_if_exist(
         table_name=GoogleServiceAccount.__tablename__,
         column_name='google_unique_id',
+        driver=driver,
+        metadata=md
+    )
+
+    drop_unique_constraint_if_exist(
+        table_name=GoogleServiceAccount.__tablename__,
+        column_name='google_project_id',
+        driver=driver,
+        metadata=md
+    )
+
+    add_column_if_not_exist(
+        table_name=GoogleBucketAccessGroup.__tablename__,
+        column=Column('privileges', ARRAY(String)),
         driver=driver,
         metadata=md
     )
@@ -548,14 +636,6 @@ def _add_google_project_id(driver, md):
             row.google_project_id = count
             count += 1
     session.commit()
-
-    # add unique constraint
-    add_unique_constraint_if_not_exist(
-        table_name=GoogleServiceAccount.__tablename__,
-        column_name='google_project_id',
-        driver=driver,
-        metadata=md
-    )
 
     # add not null constraint
     add_not_null_constraint(

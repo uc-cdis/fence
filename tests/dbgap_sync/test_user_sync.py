@@ -12,20 +12,22 @@ def test_sync(syncer, db_session):
     assert len(tags) == 7
 
     proj = db_session.query(models.Project).all()
-    assert len(proj) == 5
+    assert len(proj) == 8
 
-    prvs = db_session.query(models.AccessPrivilege).all()
-    assert len(prvs) == 12
+
+    user = db_session.query(models.User).filter_by(username='USERC').one()
+    assert user.project_access == {'phs000178': [
+        'read-storage'], 'TCGA-PCAWG': ['read-storage'], 'phs000179.c1': ['read-storage']}
 
     user = db_session.query(models.User).filter_by(username='USERF').one()
-    assert user.project_access == {'phs000178': [
-        'read-storage'], 'TCGA-PCAWG': ['read-storage']}
+    assert user.project_access == {'phs000178.c1': [
+        'read-storage'], 'phs000178.c2': ['read-storage']}
 
-    user = db_session.query(models.User).filter_by(username='USERB').one()
-    assert user.project_access == {'phs000179': ['read-storage'], 'TCGA-PCAWG': ['read-storage'],
-                                   'phs000178': ['read-storage']}
+    user = db_session.query(models.User).filter_by(username='TESTUSERB').one()
+    assert user.project_access == {'phs000179.c1': ['read-storage'],
+                                   'phs000178.c1': ['read-storage']}
 
-    user = db_session.query(models.User).filter_by(username='USERD').one()
+    user = db_session.query(models.User).filter_by(username='TESTUSERD').one()
     assert user.display_name == 'USER D'
     assert user.phone_number == '123-456-789'
 

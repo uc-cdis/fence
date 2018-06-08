@@ -13,6 +13,7 @@ import errno
 import paramiko
 from paramiko.proxy import ProxyCommand
 from stat import S_ISDIR
+from sqlalchemy import func
 
 from cdispyutils.log import get_logger
 from userdatamodel.driver import SQLAlchemyDriver
@@ -72,9 +73,10 @@ class UserSyncer(object):
             self.server = dbGaP['info']
             self.protocol = dbGaP['protocol']
             self.dbgap_key = dbGaP['decrypt_key']
+        self.parse_consent_code = dbGaP.get('parse_consent_code', True)
         self.session = db_session
         self.driver = SQLAlchemyDriver(DB)
-        self.project_mapping = project_mapping
+        self.project_mapping = project_mapping or {}
         self._projects = dict()
         self.logger = get_logger('user_syncer')
 
@@ -181,12 +183,13 @@ class UserSyncer(object):
             yield f
             f.close()
 
-    def _parse_csv(self, file_dict, encrypted=True):
+    def _parse_csv(self, file_dict, sess, encrypted=True):
         """
         parse csv files to python dict
         Args:
             fild_dict: a dictionary with key(file path) and value(privileges)
             encrypted: whether those files are encrypted
+            sess: sqlalchemy session
         Return:
             user_project: a nested dict of
             {
@@ -211,46 +214,61 @@ class UserSyncer(object):
         for filepath, privileges in file_dict.iteritems():
             if os.stat(filepath).st_size == 0:
                 continue
-            if self._match_pattern(filepath, encrypted=encrypted):
-                try:
-                    with self._read_file(filepath, encrypted=encrypted) as f:
-                        csv = DictReader(f, quotechar='"',
-                                         skipinitialspace=True)
-                        for row in csv:
-                            username = row.get('login', '')
-                            if username == '':
-                                continue
+            if not self._match_pattern(filepath, encrypted=encrypted):
+                continue
 
-                            phsid_privileges = defaultdict(set)
-                            dbgap_project = row.get('phsid', '').split('.')[0]
+            self.logger.info('Reading file {}'.format(filepath))
+            with self._read_file(filepath, encrypted=encrypted) as f:
+                csv = DictReader(f, quotechar='"',
+                                 skipinitialspace=True)
+                for row in csv:
+                    username = row.get('login', '')
+                    if username == '':
+                        continue
 
-                            if not dbgap_project in self.project_mapping:
-                                self.logger.info(
-                                    "{} is not in project mapping".format(dbgap_project))
-                                continue
+                    phsid_privileges = defaultdict(set)
+                    phsid = row.get('phsid', '').split('.')
+                    dbgap_project = phsid[0]
+                    if len(phsid) > 1 and self.parse_consent_code:
+                        consent_code = phsid[-1]
+                        if consent_code != 'c999':
+                            dbgap_project += '.' + consent_code
 
-                            for element_dict in self.project_mapping[dbgap_project]:
-                                try:
-                                    phsid_privileges = {
-                                        element_dict['auth_id']: privileges}
-                                    if username in user_projects:
-                                        user_projects[username].update(
-                                            phsid_privileges)
-                                    else:
-                                        user_projects[username] = phsid_privileges
-                                except ValueError as e:
-                                    self.logger.info(e)
+                    display_name = row.get('user name', '')
+                    user_info[username] = {
+                        'email': row.get('email', ''),
+                        'display_name': display_name,
+                        'phone_number': row.get('phone', ''),
+                        'tags': {'dbgap_role': row.get('role', '')}
+                    }
 
-                            display_name = row.get('user name', '')
-                            user_info[username] = {
-                                'email': row.get('email', ''),
-                                'display_name': display_name,
-                                'phone_number': row.get('phone', ''),
-                                'tags': {'dbgap_role': row.get('role', '')}
-                            }
-                except Exception as e:
-                    self.logger.info(e)
+                    if dbgap_project not in self.project_mapping:
+                        if dbgap_project not in self._projects:
+                            project = self._get_or_create(
+                                sess, Project, auth_id=dbgap_project)
+                            if project.name is None:
+                                project.name = dbgap_project
+                            self._projects[dbgap_project] = project
+                        phsid_privileges = {
+                            dbgap_project: privileges}
+                        if username in user_projects:
+                            user_projects[username].update(
+                                phsid_privileges)
+                        else:
+                            user_projects[username] = phsid_privileges
 
+                    for element_dict in self.project_mapping.get(
+                            dbgap_project, []):
+                        try:
+                            phsid_privileges = {
+                                element_dict['auth_id']: privileges}
+                            if username in user_projects:
+                                user_projects[username].update(
+                                    phsid_privileges)
+                            else:
+                                user_projects[username] = phsid_privileges
+                        except ValueError as e:
+                            self.logger.info(e)
         return user_projects, user_info
 
     def _parse_yaml(self, filepath, encrypted=True):
@@ -300,10 +318,11 @@ class UserSyncer(object):
                         continue
 
                     user_info[username] = {
-                        'email': username,
+                        'email': details.get('email', username),
                         'display_name': details.get('display_name', ''),
                         'phone_number': details.get('phone_number', ''),
                         'tags': details.get('tags', {}),
+                        'admin': details.get('admin', False),
                     }
 
                     if not username in user_project:
@@ -474,7 +493,7 @@ class UserSyncer(object):
         """
         for (username, project_auth_id) in to_add:
             self.logger.info('update user info {}'.format(username))
-            u = sess.query(User).filter(User.username == username).first()
+            u = sess.query(User).filter(func.lower(User.username) == username.lower()).first()
             auth_provider = auth_provider_list[0]
             if 'dbgap_role' not in user_info[username]['tags']:
                 auth_provider = auth_provider_list[1]
@@ -500,7 +519,7 @@ class UserSyncer(object):
         """
 
         for username in user_info:
-            u = sess.query(User).filter(User.username == username).first()
+            u = sess.query(User).filter(func.lower(User.username) == username.lower()).first()
 
             if u is None:
                 self.logger.info('create user {}'.format(username))
@@ -510,6 +529,7 @@ class UserSyncer(object):
             u.email = user_info[username].get('email', '')
             u.display_name = user_info[username].get('display_name', '')
             u.phone_number = user_info[username].get('phone_number', '')
+            u.is_admin = user_info[username].get('admin', False)
 
             # do not update if there is no tag
             if user_info[username]['tags'] == {}:
@@ -642,7 +662,8 @@ class UserSyncer(object):
         user_projects1, user_info1 = self._parse_csv(
             dict(zip(dbgap_file_list, [
                  ['read-storage']]*len(dbgap_file_list))),
-            encrypted=True)
+            encrypted=True,
+            sess=sess)
 
         try:
             shutil.rmtree(tmpdir)
@@ -659,7 +680,8 @@ class UserSyncer(object):
         user_projects2, user_info2 = self._parse_csv(
             dict(zip(local_csv_file_list, [
                  ['read-storage']]*len(local_csv_file_list))),
-            encrypted=False)
+            encrypted=False,
+            sess=sess)
 
         user_projects3, user_info3 = self._parse_yaml(
             self.sync_from_local_yaml_file, encrypted=False)

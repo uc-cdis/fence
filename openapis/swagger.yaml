@@ -20,7 +20,7 @@ tags:
   - name: user
     description: User information
   - name: data
-    description: Generate pre-signed URLs
+    description: Generate signed URLs
   - name: credentials
     description: Access credentials
   - name: credentials/google
@@ -226,12 +226,12 @@ paths:
     get:
       tags:
         - data
-      summary: Create a presigned URL for data download given a file_id
-      description: Allow users to get a pre-signed URL for a data file.
+      summary: Create a signed URL for data download given a file_id
+      description: Allow users to get a signed URL for a data file.
       security:
         - OAuth2:
             - user
-      operationId: downloadPresignedURL
+      operationId: downloadSignedURL
       parameters:
         - name: file_id
           required: true
@@ -243,8 +243,7 @@ paths:
           required: false
           in: query
           description: >-
-            a protocol provided by storage provider, currently supports 'http'
-            and 's3' protocols
+            a protocol provided by storage provider, e.g. http, ftp, s3, gs
           schema:
             type: string
             enum:
@@ -263,7 +262,7 @@ paths:
           required: false
           in: query
           description: >-
-            if set, then a redirect to the presigned url will be sent.
+            if set, then a redirect to the signed url will be sent.
             Otherwise, json data with the url is returned.
           schema:
             type: boolean
@@ -273,21 +272,21 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/PresignedURL'
+                $ref: '#/components/schemas/SignedURL'
         '400':
           description: 'Invalid input: UUID not found or invalid location'
   '/data/upload/{file_id}':
     get:
       tags:
         - data
-      summary: Create a presigned URL for data upload specified by file_id
+      summary: Create a signed URL for data upload specified by file_id
       description: >-
-        Allow users to get a pre-signed URL to upload data given the location of
+        Allow users to get a signed URL to upload data given the location of
         preference.
       security:
         - OAuth2:
             - user
-      operationId: uploadPresignedURL
+      operationId: uploadSignedURL
       parameters:
         - name: file_id
           required: true
@@ -299,8 +298,7 @@ paths:
           required: false
           in: query
           description: >-
-            a protocol provided by storage provider, currently supports 'http'
-            and 's3' protocols
+            a protocol provided by storage provider, e.g. http, ftp, s3, gs
           schema:
             type: string
             enum:
@@ -321,7 +319,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/PresignedURL'
+                $ref: '#/components/schemas/SignedURL'
         '400':
           description: 'Invalid input: UUID not found or invalid location'
   /credentials:
@@ -632,7 +630,7 @@ paths:
           description: successful deletion
         '404':
           description: 'Couldn''t find key, unable to delete given key'
-  /link/google (IN PROGRESS):
+  /link/google:
     get:
       tags:
         - link
@@ -656,8 +654,8 @@ paths:
         If AuthN is successful with Google, eventually will redirect to
         `/link/google/callback`, where the actual account linkage occur.
 
-        > *See `/link/google/callback` endpoint for details about error
-        handling.*
+        > *See `/link/google/callback` endpoint for details about eventual
+           redirect with descriptive query params about success/failure.*
       operationId: linkCloudIdentityStart2
       responses:
         '302':
@@ -674,6 +672,10 @@ paths:
       responses:
         '200':
           description: successfully extended access
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LinkedGoogleEmailExpiration"
         '404':
           description: No linked Google account found for user
     delete:
@@ -699,7 +701,7 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/GoogleLinkingError'
-  /link/google/callback (IN PROGRESS):
+  /link/google/callback:
     get:
       tags:
         - link
@@ -708,20 +710,39 @@ paths:
         Linking of Google identity to user after successful Oauth2
         flow with Google. Use code to retrieve user info from Google.
 
-        Will return to session stored redirect with any error information in
-        query params. The error params are `error` and `error_description`.
+        Will return to session stored redirect.
+
+        Response will contain query params about the new linkage
+        (`exp` or `linked_email`) or error params (`error` and
+        `error_description`) detailing what went wrong.
+
+        ---
+        ---
+
+        Query Params on Successful Linking
+
+          * `exp`
+            * Expiration time in unix time (seconds since last epoch).
+              This represents when the newly linked account's temporary access
+              rights will be removed
+          * `linked_email`
+            * Google account email that was linked to the user and provided
+              temporary access
 
         ---
 
         Possible Error Types (for `error` param)
+
           * `g_acnt_link_error`
             * Issue with the linkage between User and their Google account
           * `g_acnt_auth_failure`
             * Issue with Oauth2 flow to AuthN user's Google account
           * `g_acnt_access_error`
-            * Issue with providing access to Google account by putting in user's proxy group
+            * Issue with providing access to Google account by putting in
+              user's proxy group
 
         For details about the error, check the `error_description` param.
+
       parameters:
         - name: code
           required: true
@@ -1219,12 +1240,21 @@ components:
           description: ''
         message:
           type: string
-    PresignedURL:
+    SignedURL:
       type: object
       properties:
         url:
           type: string
-          description: the presigned url issued to
+          description: the signed url issued to
+    LinkedGoogleEmailExpiration:
+      type: object
+      properties:
+        exp:
+          type: integer
+          description: expiration of linked email's access (e.g. expiration
+              until it is removed from the user's Google Proxy Group)
+      example:
+        exp: 1526653869
     PublicKeys:
       type: object
       properties:
