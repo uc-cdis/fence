@@ -432,13 +432,22 @@ class JWTCreator(object):
 
     default_expiration = 3600
 
-    def __init__(self, db, base_url, **kwargs):
+    def __init__(self, db, base_url=None, **kwargs):
         self.db = db
         self.base_url = base_url
 
+        # These get assigned values just below here, with setattr. Defined here
+        # so linters won't complain they're undefined.
+        self.kid = None
+        self.private_key = None
+        self.username = None
+        self.scopes = None
+
         for required_kwarg in self.required_kwargs:
             if required_kwarg not in kwargs:
-                raise ValueError('missing required argument: ' + required_kwarg)
+                raise ValueError(
+                    'missing required argument: ' + required_kwarg
+                )
 
         # Set attributes on this object from the kwargs.
         for kwarg_name in self.all_kwargs:
@@ -501,8 +510,8 @@ class JWTCreator(object):
             )
 
             current_session.add(UserRefreshToken(
-                    jti=jwt_result.claims['jti'], userid=user.id,
-                    expires=jwt_result.claims['exp']
+                jti=jwt_result.claims['jti'], userid=user.id,
+                expires=jwt_result.claims['exp']
             ))
 
             return jwt_result

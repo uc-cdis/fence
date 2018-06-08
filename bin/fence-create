@@ -4,6 +4,7 @@ import argparse
 import os
 import sys
 
+from fence.jwt import keys
 from fence.scripting.fence_create import (
     create_client_action,
     create_sample_data,
@@ -84,12 +85,36 @@ def parse_arguments():
     )
 
     token_create = subparsers.add_parser('token-create')
-    token_create.add_argument('--kid', required=True)
-    token_create.add_argument('--prv-key-path', required=True)
-    token_create.add_argument('--type', required=True)
-    token_create.add_argument('--username', required=True)
-    token_create.add_argument('--scopes', required=True)
-    token_create.add_argument('--exp')
+    token_create.add_argument(
+        '--kid',
+        help='key ID to use for signing tokens',
+    )
+    token_create.add_argument(
+        '--keys-dir',
+        help=(
+            'directory the RSA keys live in; defaults to `keys/` in the root'
+            ' directory for fence'
+        ),
+    )
+    token_create.add_argument(
+        '--type',
+        required=True,
+        help='type of token to create ("access" or "refresh")',
+    )
+    token_create.add_argument(
+        '--username',
+        required=True,
+        help='username to generate the token for',
+    )
+    token_create.add_argument(
+        '--scopes',
+        required=True,
+        help='scopes to include in the token (e.g. "user" or "data")',
+    )
+    token_create.add_argument(
+        '--exp',
+        help='time in seconds until token expiration',
+    )
 
     return parser.parse_args()
 
@@ -148,14 +173,21 @@ def main():
     elif args.action == 'google-manage-account-access':
         remove_expired_google_accounts_from_proxy_groups(DB)
     elif args.action == 'token-create':
-        # Read the private key from the given path; the ``JWTCreator`` only
-        # cares about the key itself and not the filepath.
-        private_key_path = args.pop('prv-key-path', '')
-        with open(args.__dict__['prv-key-path'], 'r') as f:
-            private_key = f.read()
-        args['private_key'] = private_key
-
-        jwt_creator = JWTCreator(DB, BASE_URL, **args)
+        keys_path = args.pop('keys-dir', os.path.join(ROOT_DIR, 'keys'))
+        keypairs = keys.load_keypairs(keys_path)
+        # Default to the most recent one, but try to find the keypair with
+        # matching ``kid`` to the argument provided.
+        keypair = keypairs[-1]
+        kid = args.get('kid')
+        if kid:
+            for try_keypair in keypairs:
+                if try_keypair.kid == kid:
+                    keypair = try_keypair
+                    break
+        jwt_creator = JWTCreator(
+            DB, BASE_URL, kid=keypair.kid, private_key= keypair.private_key,
+            username=args['username'], scopes=args['scopes'],
+        )
         if args['type'] == 'access':
             print(jwt_creator.create_access_token())
         elif args['type'] == 'refresh':
