@@ -41,6 +41,9 @@ def main():
     create.add_argument(
         '-n', '--name', default='config.yaml', help='configuration file name if you want something '
         'other than "config.yaml"')
+    parser.add_argument(
+        '--config_path', help='Full path to a yaml config file to create. '
+        'Will override/ignore name if provided.')
 
     edit = subparsers.add_parser('get')
     edit.add_argument(
@@ -50,15 +53,15 @@ def main():
     args = parser.parse_args()
 
     if args.action == 'create':
-        sys.stdout.write(create_config_file(args.name))
+        sys.stdout.write(create_config_file(args.name, args.config_path))
     elif args.action == 'get':
         sys.stdout.write(get_config_file(args.name))
     else:
         pass
 
 
-def create_config_file(file_name):
-    config_path = os.path.join(LOCAL_CONFIG_FOLDER, file_name)
+def create_config_file(file_name, full_path=None):
+    config_path = full_path or os.path.join(LOCAL_CONFIG_FOLDER, file_name)
     if not os.path.exists(os.path.dirname(config_path)):
         os.makedirs(os.path.dirname(config_path))
 
