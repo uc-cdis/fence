@@ -62,7 +62,8 @@ def main():
 
 def create_config_file(file_name, full_path=None):
     config_path = full_path or os.path.join(LOCAL_CONFIG_FOLDER, file_name)
-    if not os.path.exists(os.path.dirname(config_path)):
+    dir_name = os.path.dirname(config_path)
+    if dir_name and not os.path.exists(dir_name):
         os.makedirs(os.path.dirname(config_path))
 
     copyfile(os.path.join(ROOT_DIR, 'config.example.yaml'), config_path)
