@@ -41,7 +41,7 @@ def main():
     create.add_argument(
         '-n', '--name', default='config.yaml', help='configuration file name if you want something '
         'other than "config.yaml"')
-    parser.add_argument(
+    create.add_argument(
         '--config_path', help='Full path to a yaml config file to create. '
         'Will override/ignore name if provided.')
 
