@@ -90,35 +90,44 @@ class JWTGenerator(BearerToken):
 
         linked_google_email = get_linked_google_account_email(user.id)
 
-        id_token = generate_signed_id_token(
-            kid=keypair.kid,
-            private_key=keypair.private_key,
-            user=user,
-            expires_in=self.ACCESS_TOKEN_EXPIRES_IN,
-            client_id=client.client_id,
-            audiences=scope,
-            nonce=nonce,
-            linked_google_email=linked_google_email
+        id_token = (
+            generate_signed_id_token(
+                kid=keypair.kid,
+                private_key=keypair.private_key,
+                user=user,
+                expires_in=self.ACCESS_TOKEN_EXPIRES_IN,
+                client_id=client.client_id,
+                audiences=scope,
+                nonce=nonce,
+                linked_google_email=linked_google_email
+            )
+            .token
         )
-        access_token = generate_signed_access_token(
-            kid=keypair.kid,
-            private_key=keypair.private_key,
-            user=user,
-            expires_in=self.ACCESS_TOKEN_EXPIRES_IN,
-            scopes=scope,
-            client_id=client.client_id,
-            linked_google_email=linked_google_email
+        access_token = (
+            generate_signed_access_token(
+                kid=keypair.kid,
+                private_key=keypair.private_key,
+                user=user,
+                expires_in=self.ACCESS_TOKEN_EXPIRES_IN,
+                scopes=scope,
+                client_id=client.client_id,
+                linked_google_email=linked_google_email
+            )
+            .token
         )
         # If ``refresh_token`` was passed (for instance from the refresh
         # grant), use that instead of generating a new one.
         if refresh_token is None:
-            refresh_token, _ = generate_signed_refresh_token(
-                kid=keypair.kid,
-                private_key=keypair.private_key,
-                user=user,
-                expires_in=self.REFRESH_TOKEN_EXPIRES_IN,
-                scopes=scope,
-                client_id=client.client_id,
+            refresh_token = (
+                generate_signed_refresh_token(
+                    kid=keypair.kid,
+                    private_key=keypair.private_key,
+                    user=user,
+                    expires_in=self.REFRESH_TOKEN_EXPIRES_IN,
+                    scopes=scope,
+                    client_id=client.client_id,
+                )
+                .token
             )
         # ``expires_in`` is just the access token expiration time.
         expires_in = self.ACCESS_TOKEN_EXPIRES_IN

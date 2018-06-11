@@ -1,4 +1,3 @@
-from collections import OrderedDict
 import os
 
 from cdislogging import get_logger
@@ -71,11 +70,3 @@ GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN = 86400
 #: Note that the session token also stores information for the
 #: ``flask.session`` in the ``context`` field of the token.
 SESSION_COOKIE_NAME = 'fence'
-
-# ``JWT_KEYPAIRS`` is an ordered dictionary of entries ``kid:
-# (public_key_filename, private_key_filename)`` mapping key ids to keypairs
-# used for signing and verifying JWTs issued by fence. NOTE that the filenames
-# should be relative to the root directory in fence.
-JWT_KEYPAIR_FILES = OrderedDict([
-    ('key-01', ('keys/jwt_public_key.pem', 'keys/jwt_private_key.pem')),
-])

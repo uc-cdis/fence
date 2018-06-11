@@ -7,9 +7,9 @@ from fence import keys
 
 def test_default_public_key(app, rsa_public_key):
     """Test that the default public key is correct."""
-    assert keys.default_public_key() == rsa_public_key
+    assert keys.default_public_key(app) == rsa_public_key
 
 
 def test_default_private_key(app, rsa_private_key):
     """Test that the default private key is correct."""
-    assert keys.default_private_key() == rsa_private_key
+    assert keys.default_private_key(app) == rsa_private_key
