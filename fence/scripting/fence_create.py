@@ -8,7 +8,6 @@ from authlib.common.encoding import to_unicode
 from cirrus import GoogleCloudManager
 from cirrus.config import config as cirrus_config
 from cdispyutils.log import get_logger
-import jwt
 from sqlalchemy import func
 from userdatamodel.driver import SQLAlchemyDriver
 from userdatamodel.models import (
