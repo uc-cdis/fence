@@ -27,6 +27,32 @@ def load_keypairs(keys_dir):
     Load a list of all the available keypairs from the given directory. (The
     given directory should be ``fence/keys``.
 
+    **Example:**
+
+    If using the ``fence/keys`` directory, which looks like this:
+
+        keys/
+            2018-01-28T14:23:38Z/
+                jwt_public_key.pem
+                jwt_private_key.pem
+            2018-03-19T12:31:57Z/
+                jwt_public_key.pem
+                jwt_private_key.pem
+            old-keypairs/
+                jwt_public_key.pem
+                jwt_private_key.pem
+
+    and supposing the ``old-keypairs`` directory has a time modified that is
+    earlier than 2018-01-28T14:23:38Z, this function should return a list of
+    keypairs like this (using this ``<>`` syntax to mean ``Keypair`` objects
+    loaded from the specified directory):
+
+        [
+            <Keypair(2018-03-19T12:31:57Z)>,
+            <Keypair(2018-01-28T14:23:38Z)>,
+            <Keypair(old-keypairs)>,
+        ]
+
     Args:
         keys_dir (str):
             the directory in which keypair subdirectories are kept; generally
@@ -35,9 +61,9 @@ def load_keypairs(keys_dir):
     Return:
         List[Keypair]:
             the keypairs loaded from the directory, sorted in order of most
-            recent date according to either name (if the directory is named in
-            ISO date format) or time last modified, if the name is not
-            formatted in ISO
+            recent date according to either the date in the name (if the
+            directory is named in ISO date format) or time last modified, if
+            the name is not formatted in ISO
     """
     # Get the absolute paths for the keypair directories.
     keypair_directories = [
@@ -61,8 +87,11 @@ def load_keypairs(keys_dir):
             ))
 
     # Sort the keypair directories to load from in the order described in
-    # ``key``.
-    keypair_directories = list(sorted(keypair_directories, key=key))
+    # ``key``, using ``reverse=True`` to have the most recent dates first in
+    # the list.
+    keypair_directories = list(
+        sorted(keypair_directories, key=key, reverse=True)
+    )
 
     # Load the keypairs from the directories.
     keypairs = [

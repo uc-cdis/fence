@@ -51,7 +51,7 @@ def app_config(app, settings='fence.settings', root_dir=None):
 
     if root_dir is None:
         root_dir = os.path.dirname(
-                os.path.dirname(os.path.realpath(__file__)))
+            os.path.dirname(os.path.realpath(__file__)))
     if 'AWS_CREDENTIALS' in app.config and len(app.config['AWS_CREDENTIALS']) > 0:
         value = app.config['AWS_CREDENTIALS'].values()[0]
         app.boto = BotoManager(value, logger=app.logger)
@@ -107,7 +107,6 @@ def app_register_blueprints(app):
         else:
             next_url = build_redirect_url(app.config.get('ROOT_URL', ''), request_next)
         return logout(next_url=next_url)
-
 
     @app.route('/jwt/keys')
     def public_keys():
@@ -196,7 +195,7 @@ def check_csrf():
         csrf_header = flask.request.headers.get('x-csrf-token')
         csrf_cookie = flask.request.cookies.get('csrftoken')
         referer = flask.request.headers.get('referer')
-        flask.current_app.logger.debug('HTTP REFERER ' + referer)         
+        flask.current_app.logger.debug('HTTP REFERER ' + referer)
         if not all([csrf_cookie, csrf_header, csrf_cookie == csrf_header, referer]):
             raise UserError("CSRF verification failed. Request aborted")
 
@@ -213,4 +212,3 @@ def set_csrf(response):
     if flask.request.method in ['POST', 'PUT', 'DELETE']:
         current_session.commit()
     return response
-
