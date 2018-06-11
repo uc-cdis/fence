@@ -8,6 +8,8 @@ from fence.jwt.token import (
     generate_signed_refresh_token,
 )
 from fence.models import AuthorizationCode, User
+from fence.resources.google.utils import get_linked_google_account_email
+
 import fence.settings
 
 
@@ -60,6 +62,7 @@ class JWTGenerator(BearerToken):
         """
         # Find the ``User`` model.
         # The way to do this depends on the grant type.
+        user = None
         if grant_type == 'authorization_code':
             # For authorization code grant, get the code from either the query
             # string or the form data, and use that to look up the user.
@@ -84,6 +87,9 @@ class JWTGenerator(BearerToken):
             )
 
         keypair = flask.current_app.keypairs[0]
+
+        linked_google_email = get_linked_google_account_email(user.id)
+
         id_token = generate_signed_id_token(
             kid=keypair.kid,
             private_key=keypair.private_key,
@@ -92,6 +98,7 @@ class JWTGenerator(BearerToken):
             client_id=client.client_id,
             audiences=scope,
             nonce=nonce,
+            linked_google_email=linked_google_email
         )
         access_token = generate_signed_access_token(
             kid=keypair.kid,
@@ -100,6 +107,7 @@ class JWTGenerator(BearerToken):
             expires_in=self.ACCESS_TOKEN_EXPIRES_IN,
             scopes=scope,
             client_id=client.client_id,
+            linked_google_email=linked_google_email
         )
         # If ``refresh_token`` was passed (for instance from the refresh
         # grant), use that instead of generating a new one.

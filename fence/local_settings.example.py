@@ -1,4 +1,5 @@
 import os
+import json
 from boto.s3.connection import OrdinaryCallingFormat
 
 #: The URI for the database connection to use. In general fence assumes it is
@@ -12,11 +13,19 @@ MOCK_AUTH = False
 #: Also use for local testing. If enabled, the sto
 MOCK_STORAGE = False
 
-#: Set to the full URL of where fence will be hosted.
-BASE_URL = 'http://localhost/user'
+SERVER_NAME = 'http://localhost/user'
+BASE_URL = SERVER_NAME
 
 #: Set to the path component of ``BASE_URL``.
 APPLICATION_ROOT = '/user'
+
+ROOT_DIR = '/fence'
+
+# If using multi-tenant setup, configure this to the base URL for the provider
+# fence (i.e. ``BASE_URL`` in the provider fence config).
+# OIDC_ISSUER = 'http://localhost:8080/user
+
+EMAIL_SERVER = 'localhost'
 
 #: If using multi-tenant setup, configure this to the base URL for the provider
 #: fence (i.e. ``BASE_URL`` in the provider fence config).
@@ -27,10 +36,6 @@ OIDC_ISSUER = None
 
 #: The default URL *in fence* to use as the IDP.
 DEFAULT_LOGIN_URL = BASE_URL + '/login/google'
-
-#: The name for the parameter on the default login URL that takes the redirect
-#: argument.
-DEFAULT_LOGIN_URL_REDIRECT_PARAM = 'redirect'
 
 #: Settings for enabling OpenID Connect.
 OPENID_CONNECT = {
@@ -100,7 +105,7 @@ ITRUST_GLOBAL_LOGOUT = (
 #: Credentials used to set up a ``StorageManager`` (see
 #: ``fence/resources/storage/``).
 STORAGE_CREDENTIALS = {
-    "cleversafe-server-a": {
+    'cleversafe-server-a': {
         'backend': 'cleversafe',
         'aws_access_key_id': '',
         'aws_secret_access_key': '',
@@ -110,8 +115,8 @@ STORAGE_CREDENTIALS = {
         'is_secure': True,
         'username': 'someone',
         'password': 'somepass',
-        "calling_format": OrdinaryCallingFormat(),
-        "is_mocked": True
+        'calling_format': OrdinaryCallingFormat(),
+        'is_mocked': True
     }
 }
 
@@ -119,17 +124,18 @@ STORAGE_CREDENTIALS = {
 #: blueprint.
 STORAGES = ['/cleversafe']
 
-#: Configuration necessary for cirrus (Cloud Management Library)
-#:
-#:     https://github.com/uc-cdis/cirrus
-#:
-#: Will eventually be passed as params but cirrus looks for env vars right now.
-os.environ["GOOGLE_API_KEY"] = ""
-os.environ["GOOGLE_PROJECT_ID"] = ""
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = ""
-os.environ["GOOGLE_ADMIN_EMAIL"] = ""
-os.environ["GOOGLE_IDENTITY_DOMAIN"] = ""
-os.environ["GOOGLE_CLOUD_IDENTITY_ADMIN_EMAIL"] = ""
+# Configuration necessary for cirrus (Cloud Management Library)
+# https://github.com/uc-cdis/cirrus
+# will eventually be passed as params but cirrus looks for env vars right now
+CIRRUS_CFG = {
+    'GOOGLE_API_KEY': '',
+    'GOOGLE_PROJECT_ID': '',
+    'GOOGLE_APPLICATION_CREDENTIALS': '',
+    'GOOGLE_STORAGE_CREDS': '',
+    'GOOGLE_ADMIN_EMAIL': '',
+    'GOOGLE_IDENTITY_DOMAIN': '',
+    'GOOGLE_CLOUD_IDENTITY_ADMIN_EMAIL': ''
+}
 
 #: Use if the api is behind a firewall that needs to set HTTP proxy. Example:
 #:
@@ -163,15 +169,47 @@ S3_BUCKETS = {
 
 #: Mapping from credentials names to AWS secret keys and IDs.
 AWS_CREDENTIALS = {
-    "CRED1": {
+    'CRED1': {
         'aws_access_key_id': '',
         'aws_secret_access_key': ''
     },
-    "CRED2": {
+    'CRED2': {
         'aws_access_key_id': '',
         'aws_secret_access_key': ''
     }
 }
+
+S3_BUCKETS = {
+    'bucket1': 'CRED1',
+    'bucket2': 'CRED2',
+    'bucket3': 'CRED1'
+}
+
+#: Confiure which identity providers this fence instance can use for login.
+#:
+#: See ``fence/blueprints/login/__init__.py`` for which identity providers can
+#: be loaded.
+#:
+#: NOTE: Don't enable shibboleth if the deployment is not protected by
+#: shibboleth module, the shib module takes care of preventing header spoofing.
+ENABLED_IDENTITY_PROVIDERS = {
+    # ID for which of the providers to default to.
+    'default': 'google',
+    # Information for identity providers.
+    'providers': {
+        'fence': {
+            'name': 'Fence Multi-Tenant OAuth',
+        },
+        'google': {
+            'name': 'Google OAuth',
+        },
+        'shibboleth': {
+            'name': 'NIH Login',
+        },
+    },
+}
+
+APP_NAME = ''
 
 #: ``MAX_PRESIGNED_URL_TTL: int``
 #: The number of seconds after a pre-signed url is issued until it expires.
@@ -185,8 +223,18 @@ MAX_API_KEY_TTL = 2592000
 #: The number of seconds after an access token is issued until it expires.
 MAX_ACCESS_TOKEN_TTL = 3600
 
-EMAIL_SERVER = 'localhost'
+dir_path = "/secrets"
+fence_creds = os.path.join(dir_path, 'fence_credentials.json')
 
-SEND_FROM = 'example@gmail.com'
-
-SEND_TO = 'example@gmail.com'
+if os.path.exists(fence_creds):
+    with open(fence_creds, 'r') as f:
+        data = json.load(f)
+        AWS_CREDENTIALS = data['AWS_CREDENTIALS']
+        S3_BUCKETS = data['S3_BUCKETS']
+        DEFAULT_LOGIN_URL = data['DEFAULT_LOGIN_URL']
+        OPENID_CONNECT.update(data['OPENID_CONNECT'])
+        OIDC_ISSUER = data['OIDC_ISSUER']
+        ENABLED_IDENTITY_PROVIDERS = data['ENABLED_IDENTITY_PROVIDERS']
+        APP_NAME = data['APP_NAME']
+        HTTP_PROXY = data['HTTP_PROXY']
+        dbGaP = data["dbGaP"]

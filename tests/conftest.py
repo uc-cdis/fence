@@ -3,16 +3,25 @@
 Define pytest fixtures.
 """
 
+from collections import OrderedDict
 import json
-import jwt
 import mock
-from mock import patch, MagicMock
-from moto import mock_s3, mock_sts
 import os
 
 from addict import Dict
+from authutils.testing.fixtures import (
+    _hazmat_rsa_private_key,
+    _hazmat_rsa_private_key_2,
+    rsa_private_key,
+    rsa_private_key_2,
+    rsa_public_key,
+    rsa_public_key_2,
+)
 import bcrypt
 from cdisutilstest.code.storage_client_mock import get_client
+import jwt
+from mock import patch, MagicMock
+from moto import mock_s3, mock_sts
 import pytest
 import requests
 from sqlalchemy.ext.compiler import compiles
@@ -21,6 +30,7 @@ from sqlalchemy.schema import DropTable
 import fence
 from fence import app_init
 from fence import models
+from fence.jwt.keys import Keypair
 
 import tests
 from tests import test_settings
@@ -37,7 +47,7 @@ def _compile_drop_table(element, compiler, **kwargs):
 os.environ['AUTHLIB_INSECURE_TRANSPORT'] = 'true'
 
 
-def indexd_get_available_bucket(file_id):
+def indexd_get_available_s3_bucket(file_id):
     return {
         'did': '',
         'baseid': '',
@@ -53,7 +63,55 @@ def indexd_get_available_bucket(file_id):
     }
 
 
-def indexd_get_unavailable_bucket(file_id):
+def indexd_get_available_s3_bucket_acl(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s3://bucket1/key'],
+        'hashes': {},
+        'acl': ['phs000178', 'phs000218'],
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_available_gs_bucket(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['gs://bucket1/key'],
+        'hashes': {},
+        'metadata': {'acls': 'phs000178,phs000218'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_available_gs_bucket_acl(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['gs://bucket1/key'],
+        'hashes': {},
+        'acl': ['phs000178', 'phs000218'],
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_unavailable_s3_bucket(file_id):
     return {
         'did': '',
         'baseid': '',
@@ -69,7 +127,55 @@ def indexd_get_unavailable_bucket(file_id):
     }
 
 
-def indexd_get_public_bucket(file_id):
+def indexd_get_unavailable_s3_bucket_acl(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s3://bucket5/key'],
+        'hashes': {},
+        'acl': ['phs000178', 'phs000218'],
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_unavailable_gs_bucket(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['gs://bucket5/key'],
+        'hashes': {},
+        'metadata': {'acls': 'phs000178,phs000218'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_unavailable_gs_bucket_acl(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['gs://bucket5/key'],
+        'hashes': {},
+        'acl': ['phs000178', 'phs000218'],
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_public_s3_object(file_id):
     return {
         'did': '',
         'baseid': '',
@@ -79,6 +185,134 @@ def indexd_get_public_bucket(file_id):
         'urls': ['s3://bucket1/key'],
         'hashes': {},
         'metadata': {'acls': '*'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_public_s3_object_acl(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s3://bucket1/key'],
+        'hashes': {},
+        'acl': ['*'],
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_public_gs_object(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['gs://bucket1/key'],
+        'hashes': {},
+        'metadata': {'acls': '*'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_public_gs_object_acl(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['gs://bucket1/key'],
+        'hashes': {},
+        'acl': ['*'],
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_public_s3_bucket(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s3://bucket4/key'],
+        'hashes': {},
+        'metadata': {'acls': '*'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_public_s3_bucket_acl(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s3://bucket4/key'],
+        'hashes': {},
+        'acl': ['*'],
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_public_gs_bucket(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['gs://bucket4/key'],
+        'hashes': {},
+        'metadata': {'acls': '*'},
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_public_gs_bucket_acl(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['gs://bucket4/key'],
+        'hashes': {},
+        'acl': ['*'],
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_unsupported_protocol_bucket(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s2://bucket1/key'],
+        'hashes': {},
+        'metadata': {'acls': 'phs000178,phs000218'},
         'form': '',
         'created_date': '',
         "updated_date": ''
@@ -98,85 +332,63 @@ def claims_refresh():
 
 
 @pytest.fixture(scope='session')
-def public_key():
-    """
-    Return a public key for testing.
-    """
-    return utils.read_file('resources/keys/test_public_key.pem')
-
-
-@pytest.fixture(scope='session')
-def private_key():
-    """
-    Return a private key for testing. (Use only a private key that is
-    specifically set aside for testing, and never actually used for auth.)
-    """
-    return utils.read_file('resources/keys/test_private_key.pem')
-
-
-@pytest.fixture(scope='session')
-def encoded_jwt(private_key):
+def encoded_jwt(kid, rsa_private_key):
     """
     Return an example JWT containing the claims and encoded with the private
     key.
 
     Args:
-        claims (dict): fixture
-        private_key (str): fixture
+        rsa_private_key (str): fixture
 
     Return:
         str: JWT containing claims encoded with private key
     """
-    kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
     headers = {'kid': kid}
     return jwt.encode(
         utils.default_claims(),
-        key=private_key,
+        key=rsa_private_key,
         headers=headers,
         algorithm='RS256',
     )
 
 
 @pytest.fixture(scope='session')
-def encoded_jwt_expired(claims, private_key):
+def encoded_jwt_expired(kid, rsa_private_key):
     """
     Return an example JWT that has already expired.
 
     Args:
-        claims (dict): fixture
-        private_key (str): fixture
+        rsa_private_key (str): fixture
 
     Return:
         str: JWT containing claims encoded with private key
     """
-    kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
     headers = {'kid': kid}
     claims_expired = utils.default_claims()
     # Move `exp` and `iat` into the past.
     claims_expired['exp'] -= 10000
     claims_expired['iat'] -= 10000
     return jwt.encode(
-        claims_expired, key=private_key, headers=headers, algorithm='RS256'
+        claims_expired, key=rsa_private_key, headers=headers, algorithm='RS256'
     )
 
 
 @pytest.fixture(scope='session')
-def encoded_jwt_refresh_token(claims_refresh, private_key):
+def encoded_jwt_refresh_token(claims_refresh, kid, rsa_private_key):
     """
     Return an example JWT refresh token containing the claims and encoded with
     the private key.
 
     Args:
         claims_refresh (dict): fixture
-        private_key (str): fixture
+        rsa_private_key (str): fixture
 
     Return:
         str: JWT refresh token containing claims encoded with private key
     """
-    kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
     headers = {'kid': kid}
     return jwt.encode(
-        claims_refresh, key=private_key, headers=headers, algorithm='RS256'
+        claims_refresh, key=rsa_private_key, headers=headers, algorithm='RS256'
     )
 
 
@@ -213,7 +425,19 @@ class Mocker(object):
 
 
 @pytest.fixture(scope='session')
-def app():
+def kid():
+    """Return a JWT key ID to use for tests."""
+    return 'test-keypair'
+
+
+@pytest.fixture(scope='session')
+def kid_2():
+    """Return a second JWT key ID to use for tests."""
+    return 'test-keypair-2'
+
+
+@pytest.fixture(scope='session')
+def app(kid, rsa_private_key, rsa_public_key):
     """
     Flask application fixture.
     """
@@ -221,6 +445,12 @@ def app():
     mocker.mock_functions()
     root_dir = os.path.dirname(os.path.realpath(__file__))
     app_init(fence.app, test_settings, root_dir=root_dir)
+    fence.app.keypairs.append(Keypair(
+        kid=kid, public_key=rsa_public_key, private_key=rsa_private_key
+    ))
+    fence.app.jwt_public_keys = {
+        fence.app.config['BASE_URL']: OrderedDict([(kid, rsa_public_key)])
+    }
     return fence.app
 
 
@@ -265,7 +495,7 @@ def protected_endpoint(methods=['GET']):
 @pytest.fixture(scope='function')
 @mock_s3
 @mock_sts
-def user_client(app, request, db_session):
+def user_client(db_session):
     users = dict(json.loads(
         utils.read_file('resources/authorized_users.json')
     ))
@@ -274,16 +504,37 @@ def user_client(app, request, db_session):
 
 
 @pytest.fixture(scope='function')
-def unauthorized_user_client(app, request, db_session):
+def unauthorized_user_client(db_session):
     users = dict(json.loads(
         utils.read_file('resources/unauthorized_users.json')
     ))
     user_id, username = utils.create_user(users, db_session, is_admin=True)
     return Dict(username=username, user_id=user_id)
 
+@pytest.fixture(scope='function')
+def awg_users(db_session):
+    awg_usr = dict(json.loads(
+        utils.read_file('resources/awg_user.json')
+    ))
+    user_id, username = utils.create_awg_user(awg_usr, db_session)
 
 @pytest.fixture(scope='function')
-def db_session(db, request, patch_app_db_session, monkeypatch):
+def providers(db_session, app):
+    providers = dict(json.loads(
+        utils.read_file('resources/providers.json')
+    ))
+    utils.create_providers(providers, db_session)
+
+@pytest.fixture(scope='function')
+def awg_groups(db_session):
+    awg_grps = dict(json.loads(
+        utils.read_file('resources/awg_groups.json')
+    ))
+    utils.create_awg_groups(awg_grps, db_session)
+
+
+@pytest.fixture(scope='function')
+def db_session(db, patch_app_db_session):
     """
     Define fixture for database session (function-scoped).
 
@@ -325,23 +576,59 @@ def unauthorized_oauth_user(app, db_session):
 
 
 @pytest.fixture(scope='function')
-def indexd_client(app):
+def indexd_client(app, request):
     mocker = Mocker()
     mocker.mock_functions()
+
+    if request.param == 'gs':
+        indexd_get_available_bucket_func = indexd_get_available_gs_bucket
+    elif request.param == 'gs_acl':
+        indexd_get_available_bucket_func = (
+            indexd_get_available_gs_bucket_acl
+        )
+    elif request.param == 's3_acl':
+        indexd_get_available_bucket_func = (
+            indexd_get_available_s3_bucket_acl
+        )
+    else:
+        indexd_get_available_bucket_func = indexd_get_available_s3_bucket
+
     indexd_patcher = patch(
-        'fence.blueprints.data.get_index_document',
-        indexd_get_available_bucket
+        'fence.blueprints.data.IndexedFile._get_index_document',
+        indexd_get_available_bucket_func
     )
     mocker.add_mock(indexd_patcher)
+
+    output = {
+        'mocker': mocker,
+        # only gs or s3 for location, ignore specifiers after the _
+        'indexed_file_location': request.param.split('_')[0]
+    }
+
+    return output
 
 
 @pytest.fixture(scope='function')
 def unauthorized_indexd_client(app, request):
     mocker = Mocker()
     mocker.mock_functions()
+
+    if request.param == 'gs':
+        indexd_get_unavailable_bucket_func = indexd_get_unavailable_gs_bucket
+    elif request.param == 'gs_acl':
+        indexd_get_unavailable_bucket_func = (
+            indexd_get_unavailable_gs_bucket_acl
+        )
+    elif request.param == 's3_acl':
+        indexd_get_unavailable_bucket_func = (
+            indexd_get_unavailable_s3_bucket_acl
+        )
+    else:
+        indexd_get_unavailable_bucket_func = indexd_get_unavailable_s3_bucket
+
     indexd_patcher = patch(
-        'fence.blueprints.data.get_index_document',
-        indexd_get_unavailable_bucket)
+        'fence.blueprints.data.IndexedFile._get_index_document',
+        indexd_get_unavailable_bucket_func)
     mocker.add_mock(indexd_patcher)
 
 
@@ -349,9 +636,51 @@ def unauthorized_indexd_client(app, request):
 def public_indexd_client(app, request):
     mocker = Mocker()
     mocker.mock_functions()
+
+    if request.param == 'gs':
+        indexd_get_public_object_func = indexd_get_public_gs_object
+    elif request.param == 'gs_acl':
+        indexd_get_public_object_func = (
+            indexd_get_public_gs_object_acl
+        )
+    elif request.param == 's3_acl':
+        indexd_get_public_object_func = (
+            indexd_get_public_s3_object_acl
+        )
+    else:
+        indexd_get_public_object_func = indexd_get_public_s3_object
+
     indexd_patcher = patch(
-        'fence.blueprints.data.get_index_document',
-        indexd_get_public_bucket)
+        'fence.blueprints.data.IndexedFile._get_index_document',
+        indexd_get_public_object_func)
+    mocker.add_mock(indexd_patcher)
+
+
+@pytest.fixture(scope='function')
+def public_bucket_indexd_client(app, request):
+    mocker = Mocker()
+    mocker.mock_functions()
+
+    if request.param == 'gs':
+        indexd_get_public_bucket_func = indexd_get_public_gs_bucket
+    elif request.param == 'gs_acl':
+        indexd_get_public_bucket_func = (
+            indexd_get_public_gs_bucket_acl
+        )
+    elif request.param == 's3_acl':
+        indexd_get_public_bucket_func = (
+            indexd_get_public_s3_bucket_acl
+        )
+    elif request.param == 's2':
+        indexd_get_public_bucket_func = (
+            indexd_unsupported_protocol_bucket
+        )
+    else:
+        indexd_get_public_bucket_func = indexd_get_public_s3_bucket
+
+    indexd_patcher = patch(
+        'fence.blueprints.data.IndexedFile._get_index_document',
+        indexd_get_public_bucket_func)
     mocker.add_mock(indexd_patcher)
 
 
@@ -364,7 +693,8 @@ def patch_app_db_session(app, monkeypatch):
         monkeypatch.setattr(app.db, 'Session', lambda: session)
         modules_to_patch = [
             'fence.auth',
-            'fence.blueprints.storage_creds.google',
+            'fence.resources.google.utils',
+            'fence.blueprints.link',
             'fence.oidc.jwt_generator',
             'fence.user',
         ]
@@ -466,6 +796,20 @@ def oauth_test_client_public(client, oauth_client_public):
 
 
 @pytest.fixture(scope='function')
+def primary_google_service_account(
+        app, db_session, user_client, google_proxy_group):
+    service_account_id = 'test-service-account-0'
+    email = fence.utils.random_str(40) + "@test.com"
+    service_account = models.GoogleServiceAccount(
+        google_unique_id=service_account_id,
+        email=email, user_id=user_client.user_id, client_id=None,
+        google_project_id='projectId-0')
+    db_session.add(service_account)
+    db_session.commit()
+    return Dict(id=service_account_id, email=email)
+
+
+@pytest.fixture(scope='function')
 def google_proxy_group(app, db_session, user_client):
     group_id = 'test-proxy-group-0'
     email = fence.utils.random_str(40) + "@test.com"
@@ -485,6 +829,38 @@ def google_proxy_group(app, db_session, user_client):
 def cloud_manager():
     manager = MagicMock()
     patch('fence.blueprints.storage_creds.google.GoogleCloudManager', manager).start()
+    patch('fence.resources.google.utils.GoogleCloudManager', manager).start()
+    manager.return_value.__enter__.return_value.get_access_key.return_value = {
+        "type": "service_account",
+        "project_id": "project-id",
+        "private_key_id": "some_number",
+        "private_key": "-----BEGIN PRIVATE KEY-----\n....\n-----END PRIVATE KEY-----\n",
+        "client_email": "<api-name>api@project-id.iam.gserviceaccount.com",
+        "client_id": "...",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://accounts.google.com/o/oauth2/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_x509_cert_url": "https://www.googleapis.com/...<api-name>api%40project-id.iam.gserviceaccount.com"
+    }
+    return manager
+
+
+@pytest.fixture(scope='function')
+def google_signed_url():
+    manager = MagicMock()
+    patch(
+        'fence.blueprints.data.cirrus.google_cloud.utils.get_signed_url',
+        manager
+    ).start()
+
+    # Note: example outpu/format from google's docs, will not actually work
+    manager.return_value = (
+        'https://storage.googleapis.com/google-testbucket/testdata.txt?GoogleAccessId='
+        '1234567890123@developer.gserviceaccount.com&Expires=1331155464&Signature=BCl'
+        'z9e4UA2MRRDX62TPd8sNpUCxVsqUDG3YGPWvPcwN%2BmWBPqwgUYcOSszCPlgWREeF7oPGowkeKk'
+        '7J4WApzkzxERdOQmAdrvshKSzUHg8Jqp1lw9tbiJfE2ExdOOIoJVmGLoDeAGnfzCd4fTsWcLbal9'
+        'sFpqXsQI8IQi1493mw%3D'
+    )
     return manager
 
 
@@ -527,26 +903,25 @@ def mock_get(monkeypatch, example_keys_response):
 
 @pytest.fixture(scope='function')
 def encoded_creds_jwt(
-        private_key, user_client, oauth_client, google_proxy_group):
+        kid, rsa_private_key, user_client, oauth_client, google_proxy_group):
     """
     Return a JWT and user_id for a new user containing the claims and
     encoded with the private key.
 
     Args:
         claims (dict): fixture
-        private_key (str): fixture
+        rsa_private_key (str): fixture
 
     Return:
         str: JWT containing claims encoded with private key
     """
-    kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
     headers = {'kid': kid}
     return Dict(
         jwt=jwt.encode(
             utils.authorized_download_credentials_context_claims(
                 user_client['username'], user_client['user_id'],
                 oauth_client['client_id'], google_proxy_group['id']),
-            key=private_key,
+            key=rsa_private_key,
             headers=headers,
             algorithm='RS256',
         ),
@@ -558,26 +933,25 @@ def encoded_creds_jwt(
 
 @pytest.fixture(scope='function')
 def encoded_jwt_no_proxy_group(
-        private_key, user_client, oauth_client):
+        kid, rsa_private_key, user_client, oauth_client):
     """
     Return a JWT and user_id for a new user containing the claims and
     encoded with the private key.
 
     Args:
         claims (dict): fixture
-        private_key (str): fixture
+        rsa_private_key (str): fixture
 
     Return:
         str: JWT containing claims encoded with private key
     """
-    kid = test_settings.JWT_KEYPAIR_FILES.keys()[0]
     headers = {'kid': kid}
     return Dict(
         jwt=jwt.encode(
             utils.authorized_download_credentials_context_claims(
                 user_client['username'], user_client['user_id'],
                 oauth_client['client_id']),
-            key=private_key,
+            key=rsa_private_key,
             headers=headers,
             algorithm='RS256',
         ),

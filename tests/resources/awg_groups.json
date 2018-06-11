@@ -1,0 +1,28 @@
+{
+	"groups":[
+	    {
+		"name": "test_group_3",
+		"description": "the third test group",
+		"projects": ["test_project_5"]
+	    },
+	    {
+		"name": "test_group_4",
+		"description": "the fourth test group",
+		"projects": ["test_project_6", "test_project_7"]
+	    }
+	],
+        "projects":[
+            {
+                "name": "test_project_5",
+                "auth_id": "phs_project_5"
+            },
+            {
+		"name": "test_project_6",
+                "auth_id": "phs_project_6"
+            },
+            {
+		"name": "test_project_7",
+                "auth_id": "phs_project_7"
+            }
+        ]
+}

@@ -4,10 +4,11 @@ import os
 from authutils.oauth2.client import OAuthClient
 import flask
 from flask.ext.cors import CORS
-from flask_sqlalchemy_session import flask_scoped_session
+from flask_sqlalchemy_session import flask_scoped_session, current_session
 import urlparse
 from userdatamodel.driver import SQLAlchemyDriver
 
+import cirrus
 from fence.auth import logout, build_redirect_url
 from fence.errors import UserError
 from fence.jwt import keys
@@ -26,6 +27,7 @@ import fence.blueprints.oauth2
 import fence.blueprints.storage_creds
 import fence.blueprints.user
 import fence.blueprints.well_known
+import fence.blueprints.link
 import fence.client
 
 
@@ -74,6 +76,8 @@ def app_config(app, settings='fence.settings', root_dir=None):
         ])
     }
 
+    cirrus.config.config.update(**app.config.get('CIRRUS_CFG', {}))
+
 
 def app_register_blueprints(app):
     app.register_blueprint(fence.blueprints.oauth2.blueprint, url_prefix='/oauth2')
@@ -87,6 +91,8 @@ def app_register_blueprints(app):
 
     login_blueprint = fence.blueprints.login.make_login_blueprint(app)
     app.register_blueprint(login_blueprint, url_prefix='/login')
+    link_blueprint = fence.blueprints.link.make_link_blueprint()
+    app.register_blueprint(link_blueprint, url_prefix='/link')
 
     @app.route('/')
     def root():
@@ -103,8 +109,13 @@ def app_register_blueprints(app):
     @app.route('/logout')
     def logout_endpoint():
         root = app.config.get('APPLICATION_ROOT', '')
-        next_url = build_redirect_url(app.config.get('ROOT_URL', ''), flask.request.args.get('next', root))
-        return flask.redirect(logout(next_url=next_url))
+        request_next = flask.request.args.get('next', root)
+        if request_next.startswith('https') or request_next.startswith('http'):
+            next_url = request_next
+        else:
+            next_url = build_redirect_url(app.config.get('ROOT_URL', ''), request_next)
+        return logout(next_url=next_url)
+
 
     @app.route('/jwt/keys')
     def public_keys():
@@ -134,10 +145,10 @@ def app_sessions(app):
     app.db = SQLAlchemyDriver(app.config['DB'])
     migrate(app.db)
     session = flask_scoped_session(app.db.Session, app)  # noqa
-    # app.storage_manager = StorageManager(
-    #     app.config['STORAGE_CREDENTIALS'],
-    #     logger=app.logger
-    # )
+    app.storage_manager = StorageManager(
+        app.config['STORAGE_CREDENTIALS'],
+        logger=app.logger
+    )
     enabled_idp_ids = (
         app.config['ENABLED_IDENTITY_PROVIDERS']['providers'].keys()
     )
@@ -171,6 +182,7 @@ def app_init(app, settings='fence.settings', root_dir=None):
     server.init_app(app)
 
 
+
 @app.errorhandler(Exception)
 def user_error(error):
     """
@@ -189,9 +201,11 @@ def check_csrf():
         return
     # cookie based authentication
     if flask.request.method != 'GET':
-        csrf_cookie = flask.request.headers.get('x-csrf-token')
-        csrf_header = flask.request.cookies.get('csrftoken')
-        if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
+        csrf_header = flask.request.headers.get('x-csrf-token')
+        csrf_cookie = flask.request.cookies.get('csrftoken')
+        referer = flask.request.headers.get('referer')
+        flask.current_app.logger.debug('HTTP REFERER ' + referer)         
+        if not all([csrf_cookie, csrf_header, csrf_cookie == csrf_header, referer]):
             raise UserError("CSRF verification failed. Request aborted")
 
 
@@ -203,4 +217,8 @@ def set_csrf(response):
     if not flask.request.cookies.get('csrftoken'):
         secure = app.config.get('SESSION_COOKIE_SECURE', True)
         response.set_cookie('csrftoken', random_str(40), secure=secure)
+
+    if flask.request.method in ['POST', 'PUT', 'DELETE']:
+        current_session.commit()
     return response
+

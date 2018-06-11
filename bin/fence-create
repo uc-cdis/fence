@@ -10,10 +10,21 @@ from fence.scripting.fence_create import (
     delete_client_action,
     delete_users,
     google_init,
-    sync_dbgap,
+    sync_users,
     remove_expired_google_service_account_keys,
+    create_user_token,
+    remove_expired_google_accounts_from_proxy_groups,
+    create_google_bucket,
+    link_bucket_to_project
 )
 
+def str2bool(v):
+    if v.lower() == 'true':
+        return True
+    elif v.lower() == 'false':
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -37,7 +48,13 @@ def parse_arguments():
         required=True)
     client_create.add_argument(
         '--external',
-        help='is this an external oidc client',
+        help='DEPRECATED. is this an external oidc client',
+        action="store_true", default=False
+    )
+
+    client_create.add_argument(
+        '--auto-approve',
+        help='whether oidc process skips user consent step',
         action="store_true", default=False
     )
 
@@ -50,12 +67,75 @@ def parse_arguments():
     hmac_create = subparsers.add_parser('hmac-create')
     hmac_create.add_argument('yaml-input')
 
-    dbgap_sync = subparsers.add_parser('sync-dbgap')
-    dbgap_sync.add_argument('--projects', required=True)
+    dbgap_sync = subparsers.add_parser('sync')
+    dbgap_sync.add_argument(
+        '--projects',
+        dest='project_mapping',
+        help='Specify project mapping yaml file')
+    dbgap_sync.add_argument(
+        '--yaml',
+        help='Sync from yaml file')
+    dbgap_sync.add_argument(
+        '--csv_dir',
+        help='specify csv file directory')
+    dbgap_sync.add_argument(
+        '--sync_from_dbgap',
+        help='sync from dbgap server True/False',
+        default='False')
+
+    bucket_link_to_project = subparsers.add_parser('link-bucket-to-project')
+    bucket_link_to_project.add_argument(
+        '--bucket_id', required=True, help='ID or name for the bucket')
+    bucket_link_to_project.add_argument(
+        '--bucket_provider', required=True,
+        help='CloudProvider.name for the bucket')
+    bucket_link_to_project.add_argument(
+        '--project_auth_id', required=True,
+        help='Project.auth_id to link to bucket')
+
+    google_bucket_create = subparsers.add_parser('google-bucket-create')
+    google_bucket_create.add_argument(
+        '--unique-name', required=True,
+        help='Name for the bucket, must be globally unique throughout Google')
+    google_bucket_create.add_argument(
+        '--storage-class', default=None,
+        help='Currently must be one of the following: "MULTI_REGIONAL", '
+             '"REGIONAL", "NEARLINE", "COLDLINE", "STANDARD"')
+    google_bucket_create.add_argument(
+        '--public', action='store_true', default=False,
+        help='whether or not the bucket should be open to the public')
+    google_bucket_create.add_argument(
+        '--requester-pays', action='store_true', default=False,
+        help='Whether or not to enable requester_pays on the bucket')
+    google_bucket_create.add_argument(
+        '--google-project-id', default=None,
+        help='Google project this bucket should be associated with')
+    google_bucket_create.add_argument(
+        '--project-auth-id', default=None,
+        help='a Project.auth_id to associate this bucket with. '
+             'The project must exist in the db already.')
+    google_bucket_create.add_argument(
+        '--access-logs-bucket', default=None,
+        help='Enables logging. Must provide a Google bucket name '
+             'which will store the access logs')
+    google_bucket_create.add_argument(
+        '--allowed-privileges', default=None, nargs='*',
+        help='A list of allowed privileges ex: --allowed-privileges admin '
+        'read write. Currently create a Google Bucket Access Group per '
+        'privilege.')
 
     manage_google_keys = subparsers.add_parser('google-manage-keys')
-
     init_google = subparsers.add_parser('google-init')
+    manage_google_accounts = (
+        subparsers.add_parser('google-manage-account-access')
+    )
+
+    token_create = subparsers.add_parser('token-create')
+    token_create.add_argument('--kid')
+    token_create.add_argument('--type', required=True)
+    token_create.add_argument('--username', required=True)
+    token_create.add_argument('--scopes', required=True)
+    token_create.add_argument('--exp')
 
     return parser.parse_args()
 
@@ -66,10 +146,31 @@ def main():
     # get database information
     sys.path.append(args.path)
 
+
     if os.environ.get('FENCE_DB'):
         DB = os.environ['FENCE_DB']
     else:
         from fence.settings import DB
+
+    if os.environ.get('BASE_URL'):
+        BASE_URL = os.environ['BASE_URL']
+    else:
+        from fence.settings import BASE_URL
+
+    if os.environ.get('ROOT_DIR'):
+        ROOT_DIR = os.environ['ROOT_DIR']
+    else:
+        ROOT_DIR = '/fence'
+
+    if os.environ.get('dbGaP'):
+        dbGaP = os.environ['dbGaP']
+    else:
+        from fence.settings import dbGaP
+
+    if os.environ.get('STORAGE_CREDENTIALS'):
+        STORAGE_CREDENTIALS = os.environ['STORAGE_CREDENTIALS']
+    else:
+        from fence.settings import STORAGE_CREDENTIALS
 
     if args.action == 'create':
         yaml_input = args.__dict__['yaml-input']
@@ -77,18 +178,46 @@ def main():
     elif args.action == 'client-create':
         create_client_action(
             DB, username=args.username, client=args.client,
-            urls=args.urls, auto_approve=(not args.external)
+            urls=args.urls, auto_approve=args.auto_approve
         )
     elif args.action == 'client-delete':
         delete_client_action(DB, args.client)
     elif args.action == 'user-delete':
         delete_users(DB, args.users)
-    elif args.action == 'sync-dbgap':
-        sync_dbgap(args.__dict__['projects'])
+    elif args.action == 'sync':
+        sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
+                   projects=args.project_mapping, is_sync_from_dbgap_server=str2bool(args.sync_from_dbgap),
+                   sync_from_local_csv_dir=args.csv_dir, sync_from_local_yaml_file=args.yaml)
     elif args.action == 'google-manage-keys':
         remove_expired_google_service_account_keys(DB)
     elif args.action == 'google-init':
         google_init(DB)
+    elif args.action == 'google-manage-account-access':
+        remove_expired_google_accounts_from_proxy_groups(DB)
+    elif args.action == 'google-bucket-create':
+        create_google_bucket(
+            DB, args.unique_name,
+            storage_class=args.storage_class,
+            public=args.public,
+            requester_pays=args.requester_pays,
+            google_project_id=args.google_project_id,
+            project_auth_id=args.project_auth_id,
+            access_logs_bucket=args.access_logs_bucket,
+            allowed_privileges=args.allowed_privileges)
+    elif args.action == 'link-bucket-to-project':
+        link_bucket_to_project(
+            DB,
+            bucket_id=args.bucket_id,
+            bucket_provider=args.bucket_provider,
+            project_auth_id=args.project_auth_id
+        )
+    elif args.action == 'token-create':
+        token = create_user_token(
+            DB, BASE_URL, ROOT_DIR, args.__dict__['kid'],
+            args.__dict__['type'], args.__dict__['username'],
+            args.__dict__['scopes'], args.__dict__['exp'])
+        if token:
+            print(token)
 
 
 if __name__ == '__main__':

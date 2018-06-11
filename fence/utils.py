@@ -5,12 +5,13 @@ import json
 from random import SystemRandom
 import re
 import string
-
+from sqlalchemy import func
 import flask
 from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.datastructures import ImmutableMultiDict
+from flask_sqlalchemy_session import current_session
 
-from fence.models import Client, User
+from fence.models import Client, User, UserGoogleAccount
 from fence.jwt.token import CLIENT_ALLOWED_SCOPES
 
 rng = SystemRandom()
@@ -33,7 +34,7 @@ def create_client(
     client_secret = random_str(55)
     hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
     with driver.session as s:
-        user = s.query(User).filter(User.username == username).first()
+        user = s.query(User).filter(func.lower(User.username) == username.lower()).first()
         if not user:
             user = User(username=username, is_admin=is_admin)
             s.add(user)
@@ -144,3 +145,11 @@ def strip(s):
     if isinstance(s, str):
         return s.strip()
     return s
+
+
+def clear_cookies(response):
+    """
+    Set all cookies to empty and expired.
+    """
+    for cookie_name in flask.request.cookies.values():
+        response.set_cookie(cookie_name, '', expires=0)

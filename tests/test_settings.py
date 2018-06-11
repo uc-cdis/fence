@@ -12,7 +12,7 @@ except ImportError:
 
 
 # WARNING: the test database is cleared every run
-DB = 'postgresql://postgres:postgres@localhost:5432/fence_test_tmp'
+DB = 'postgresql://postgres@localhost:5432/fence_test_tmp'
 
 MOCK_AUTH = True
 
@@ -50,6 +50,16 @@ SESSION_TIMEOUT = 1800
 #: The maximum session lifetime in seconds.
 SESSION_LIFETIME = 28800
 
+#: ``GOOGLE_SERVICE_ACCOUNT_KEY_FOR_URL_SIGNING_EXPIRES_IN: int``
+#: The number of seconds the user's Google service account key used for
+#: url signing will last before being expired/rotated
+GOOGLE_SERVICE_ACCOUNT_KEY_FOR_URL_SIGNING_EXPIRES_IN = 2592000
+
+#: ``GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN: int``
+#: The number of seconds after a User's Google account is added to bucket
+#: access until it expires.
+GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN = 86400
+
 #: ``SESSION_COOKIE_NAME: str``
 #: The name of the browser cookie in which the session token will be stored.
 #: Note that the session token also stores information for the
@@ -59,16 +69,8 @@ SESSION_COOKIE_NAME = 'fence'
 HMAC_ENCRYPTION_KEY = Fernet.generate_key()
 ENABLE_CSRF_PROTECTION = False
 
-JWT_KEYPAIR_FILES = OrderedDict([
-    (
-        'key-test',
-        ('resources/keys/test_public_key.pem', 'resources/keys/test_private_key.pem'),
-    ),
-    (
-        'key-test-2',
-        ('resources/keys/test_public_key_2.pem', 'resources/keys/test_private_key_2.pem'),
-    ),
-])
+#: The test app uses the RSA key fixtures from authutils, so leave this empty.
+JWT_KEYPAIR_FILES = OrderedDict([])
 
 STORAGE_CREDENTIALS = {
     'test-cleversafe': {
@@ -91,6 +93,7 @@ S3_BUCKETS = {
     "bucket1": "CRED1",
     "bucket2": "CRED2",
     "bucket3": "CRED1",
+    "bucket4": "*",
 }
 
 ENABLED_IDENTITY_PROVIDERS = {
@@ -111,3 +114,11 @@ ENABLED_IDENTITY_PROVIDERS = {
 }
 
 SHIBBOLETH_HEADER = 'persistent_id'
+
+OPENID_CONNECT = {
+    'google': {
+        'client_id': '',
+        'client_secret': '',
+        'redirect_url': ''
+    },
+}

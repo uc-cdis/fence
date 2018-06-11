@@ -3,7 +3,7 @@ import pytest
 import os
 
 from cdisutilstest.code.storage_client_mock import get_client
-from fence.sync.sync_dbgap import DbGapSyncer
+from fence.sync.sync_users import UserSyncer
 from fence.resources import userdatamodel as udm
 from userdatamodel import Base
 from userdatamodel.models import *
@@ -11,18 +11,41 @@ from userdatamodel.driver import SQLAlchemyDriver
 
 from ..test_settings import DB
 
-DATA_DIR = os.path.join(
+from fence.models import (
+    AccessPrivilege,
+    AuthorizationProvider,
+    User,
+)
+
+LOCAL_CSV_DIR = os.path.join(
     os.path.dirname(os.path.realpath(__file__)),
-    'data'
+    'data/csv'
+)
+
+LOCAL_YAML_DIR = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)),
+    'data/yaml/user.yaml'
 )
 
 
 @pytest.fixture
 def syncer(db_session):
-    provider = {
+    provider = [{
         'name': 'test-cleversafe',
         'backend': 'cleversafe'
-    }
+    },
+    ]
+
+    users = [
+        {'username': 'TESTUSERB', 'is_admin': True, 'email': 'userA@gmail.com'},
+        {'username': 'USER_1', 'is_admin': True, 'email': 'user1@gmail.com'},
+        {'username': 'test_user1@gmail.com', 'is_admin': False,
+            'email': 'test_user1@gmail.com'},
+        {'username': 'deleted_user@gmail.com',
+            'is_admin': False, 'email': 'deleted_user@gmail.com'},
+        {'username': 'TESTUSERD', 'is_admin': True, 'email': 'userD@gmail.com'}
+    ]
+
     projects = [
         {'auth_id': 'TCGA-PCAWG',
          'storage_accesses': [{'buckets': ['test-bucket'],
@@ -43,8 +66,13 @@ def syncer(db_session):
         ],
         'phs000179': [
             {'name': 'BLAH', 'auth_id': 'phs000179'}
+        ],
+        'phstest': [
+            {'name': 'Test', 'auth_id': 'Test'}
         ]
     }
+
+    dbGap = {}
 
     # patch storage client
     patcher = patch(
@@ -52,20 +80,33 @@ def syncer(db_session):
         get_client)
     patcher.start()
 
-    syncer_obj = DbGapSyncer(
-        dbGaP={}, DB=DB, db_session=db_session, project_mapping=project_mapping,
+    syncer_obj = UserSyncer(
+        dbGaP=dbGap, DB=DB, db_session=db_session, project_mapping=project_mapping,
         storage_credentials={'test-cleversafe': {'backend': 'cleversafe'}},
-        sync_from_dir=DATA_DIR)
+        is_sync_from_dbgap_server=False,
+        sync_from_local_csv_dir=LOCAL_CSV_DIR,
+        sync_from_local_yaml_file=LOCAL_YAML_DIR)
 
-    udm.create_provider(
-        db_session, provider['name'],
-        backend=provider['backend']
-    )
+    for element in provider:
+        udm.create_provider(
+            db_session, element['name'],
+            backend=element['backend']
+        )
+
+    test_projects = []
     for project in projects:
         p = udm.create_project_with_dict(db_session, project)
+        test_projects.append(p)
         for sa in project['storage_accesses']:
             for bucket in sa['buckets']:
                 syncer_obj.storage_manager.create_bucket(
                     sa['name'], db_session, bucket, p)
+    test_users = []
+    for u in users:
+        user = User(**u)
+        test_users.append(user)
+        db_session.add(user)
+
+    db_session.commit()
 
     return syncer_obj

@@ -1,12 +1,12 @@
 import json
 import time
+import uuid
 
+import flask
+import jwt
 from authlib.common.encoding import to_unicode
 from authlib.specs.oidc import CodeIDToken as AuthlibCodeIDToken
 from authlib.specs.oidc import IDTokenError
-import flask
-import jwt
-import uuid
 
 from fence.jwt import keys
 
@@ -15,7 +15,8 @@ SCOPE_DESCRIPTION = {
     'openid': 'default scope',
     'user': 'know who you are and what you have access to',
     'data': 'retrieve protected datasets that you have access to',
-    'credentials': 'view and update your credentials'
+    'credentials': 'view and update your credentials',
+    'admin': 'view and update user accesses'
 }
 
 
@@ -24,9 +25,9 @@ SCOPE_DESCRIPTION = {
 #
 # Only allow web session based auth access credentials so that user
 # can't create a long-lived API key using a short lived access_token
-SESSION_ALLOWED_SCOPES = ['openid', 'user', 'credentials', 'data']
-USER_ALLOWED_SCOPES = ['fence', 'openid', 'user', 'data']
-CLIENT_ALLOWED_SCOPES = ['openid', 'user', 'data']
+SESSION_ALLOWED_SCOPES = ['openid', 'user', 'credentials', 'data', 'admin']
+USER_ALLOWED_SCOPES = ['fence', 'openid', 'user', 'data', 'admin']
+CLIENT_ALLOWED_SCOPES = ['openid', 'user', 'data', 'admin']
 
 
 class UnsignedIDToken(AuthlibCodeIDToken):
@@ -213,7 +214,7 @@ def generate_signed_session_token(
 
 def generate_signed_id_token(
         kid, private_key, user, expires_in, client_id, audiences=None,
-        auth_time=None, max_age=None, nonce=None):
+        auth_time=None, max_age=None, nonce=None, linked_google_email=None):
     """
     Generate a JWT ID token, and output a UTF-8 string of the encoded JWT
     signed with the private key
@@ -238,7 +239,7 @@ def generate_signed_id_token(
     """
     token = generate_id_token(
         user, expires_in, client_id, audiences=audiences, auth_time=auth_time,
-        max_age=max_age, nonce=nonce
+        max_age=max_age, nonce=nonce, linked_google_email=linked_google_email
     )
 
     signed_token = token.get_signed_and_encoded_token(kid, private_key)
@@ -331,7 +332,7 @@ def generate_api_key(
 
 def generate_signed_access_token(
         kid, private_key, user, expires_in, scopes, forced_exp_time=None,
-        client_id=None):
+        client_id=None, linked_google_email=None):
     """
     Generate a JWT access token and output a UTF-8
     string of the encoded JWT signed with the private key.
@@ -374,6 +375,13 @@ def generate_signed_access_token(
         },
         'azp': client_id or ''
     }
+
+    # only add google linkage information if provided
+    if linked_google_email:
+        claims['context']['user']['google']['linked_google_account'] = (
+            linked_google_email
+        )
+
     flask.current_app.logger.info(
         'issuing JWT access token with id [{}] to [{}]'.format(jti, sub)
     )
@@ -388,7 +396,7 @@ def generate_signed_access_token(
 
 def generate_id_token(
         user, expires_in, client_id, audiences=None, auth_time=None,
-        max_age=None, nonce=None):
+        max_age=None, nonce=None, linked_google_email=None):
     """
     Generate an unsigned ID token object. Use `.get_signed_and_encoded_token`
     on result to retrieve a signed JWT
@@ -422,12 +430,19 @@ def generate_id_token(
     # If not provided, assume auth time is time this ID token is issued
     auth_time = auth_time or iat
 
+    # NOTE: if the claims here are modified, be sure to update the
+    # `claims_supported` field returned from the OIDC configuration endpoint
+    # ``/.well-known/openid-configuration``, in
+    # ``fence/blueprints/well_known.py``.
     claims = {
         'context': {
             'user': {
                 'name': user.username,
                 'is_admin': user.is_admin,
-                'projects': dict(user.project_access)
+                'projects': dict(user.project_access),
+                'email': user.email,
+                'display_name': user.display_name,
+                'phone_number': user.phone_number
             },
         },
         'pur': 'id',
@@ -440,6 +455,15 @@ def generate_id_token(
         'auth_time': auth_time,
         'azp': client_id,
     }
+    if user.tags is not None and len(user.tags) > 0:
+        claims['context']['user']['tags'] = {
+            tag.key: tag.value for tag in user.tags}
+
+    # only add google linkage information if provided
+    if linked_google_email:
+        claims['context']['user']['google'] = {
+            'linked_google_account': linked_google_email,
+        }
 
     # Only include if provided, used to associate a client session with an ID
     # token. If present in Auth Request from client, should set same val
