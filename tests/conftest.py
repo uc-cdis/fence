@@ -437,30 +437,43 @@ def kid_2():
 
 
 @pytest.fixture(scope='session')
-def app(kid, rsa_private_key, rsa_public_key):
+def root_dir():
+    """
+    The root directory for the tests.
+    """
+    return os.path.dirname(os.path.realpath(__file__))
+
+
+@pytest.fixture(scope='session')
+def app(root_dir, kid, rsa_private_key, rsa_public_key):
     """
     Flask application fixture.
     """
     mocker = Mocker()
     mocker.mock_functions()
-    root_dir = os.path.dirname(os.path.realpath(__file__))
     app_init(fence.app, test_settings, root_dir=root_dir)
 
     # We want to set up the keys so that the test application can load keys
-    # from the test keys directory, but the default keypair used will be the
-    # one using the fixtures. So, stick the keypair at the front of the
-    # keypairs list and reverse the ordered dictionary of public keys after
-    # inserting the fixture keypair.
+    # from the test keys directory, but the default keypair (the first in the
+    # ordered dictionary) will be the one using the fixtures. However, items
+    # can only be inserted to the end of the dictionary. So we do a fun hack
+    # where we load the keys, reverse them, append the default key (so now all
+    # the keys are in reverse order), and reverse all of them together, so now
+    # the default key is in front, and everything is in the right order.
     fixture_keypair = Keypair(
         kid=kid, public_key=rsa_public_key, private_key=rsa_private_key
     )
     fence.app.keypairs = [fixture_keypair] + fence.app.keypairs
-    fence.app.jwt_public_keys[fence.app.config['BASE_URL']][kid] = rsa_public_key
-    fence.app.jwt_public_keys[fence.app.config['BASE_URL']] = OrderedDict(
-        reversed(list(
-            fence.app.jwt_public_keys[fence.app.config['BASE_URL']].items()
-        ))
-    )
+    # Abbreviate these and set it back at the end.
+    keys = fence.app.jwt_public_keys
+    base_url = fence.app.config['BASE_URL']
+    # Reverse the current keys.
+    keys[base_url] = OrderedDict(list(reversed(keys[base_url].items())))
+    # Append the fixture key.
+    keys[base_url][kid] = rsa_public_key
+    # Reverse all the keys.
+    keys[base_url] = OrderedDict(list(reversed(keys[base_url].items())))
+    fence.app.jwt_public_keys = keys
 
     return fence.app
 
