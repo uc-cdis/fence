@@ -102,5 +102,5 @@ ENV/
 .mypy_cache/
 
 # jwt keys
-keys/*.pem
+keys
 tests/resources/keys/*.pem
