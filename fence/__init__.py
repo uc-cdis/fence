@@ -214,14 +214,10 @@ def app_sessions(app):
     migrate(app.db)
     session = flask_scoped_session(app.db.Session, app)  # noqa
 
+    # if we're mocking storage, ignore the storage backends provided
+    # since they'll cause errors if misconfigured
     if app.config.get('MOCK_STORAGE', False):
-        from mock import patch
-        from cdisutilstest.code.storage_client_mock import get_client
-
-        patcher = patch(
-            'fence.resources.storage.get_client',
-            get_client)
-        patcher.start()
+        app.config['STORAGE_CREDENTIALS'] = {}
 
     app.storage_manager = StorageManager(
         app.config["STORAGE_CREDENTIALS"], logger=app.logger
