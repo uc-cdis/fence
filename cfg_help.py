@@ -3,29 +3,34 @@ Configuration Helper Script for Local Development
 
 Quickstart:
 
-  1. Create configuration file by copying example in this repo:
-        python cfg_help.py create -n fence_default.yaml
+    python cfg_help.py create
+    edit $(python cfg_help.py get)
+    python run.py
 
-  2. Run fence and point it to the right configuration file:
-        python run.py -c fence_default.yaml
+  1. Create configuration file by copying example in this repo
+  2. Edit the new configuration file
+  3. Run fence as you normally would
 
-Extras:
+Support for Multiple Configs:
 
-  - Easily obtain the path of your configuration:
-        python cfg_help.py get -n fence_default.yaml
+    python cfg_help.py create -n google-config.yaml
+    python cfg_help.py get -n google-config.yaml
+    edit $(python cfg_help.py get -n google-config.yaml
+    python run.py -c google-config.yaml
 
-  - Open config file in your editor with a command like:
-        sudo edit $(python cfg_help.py get -n fence_default.yaml)
+  1. Create another configuration file and specify new name
+  2. Easily obtain the path of your new configuration
+  3. Open config file in your editor with a command like
+  4. Run fence and point it to the right configuration file
 
-  - Create more configs:
-        python cfg_help.py create -n fence_google.yaml
 
 Fence searches specific folders for configuration files. Check fence's
 settings for those paths. The LOCAL_CONFIG_FOLDER var here should be included
 in the search paths.
 """
-import os
 import argparse
+import glob
+import os
 from shutil import copyfile
 import sys
 
@@ -39,16 +44,16 @@ def main():
 
     create = subparsers.add_parser('create')
     create.add_argument(
-        '-n', '--name', default='config.yaml', help='configuration file name if you want something '
-        'other than "config.yaml"')
+        '-n', '--name', default='fence-config.yaml', help='configuration file name if you want something '
+        'other than "fence-config.yaml"')
     create.add_argument(
         '--config_path', help='Full path to a yaml config file to create. '
         'Will override/ignore name if provided.')
 
     edit = subparsers.add_parser('get')
     edit.add_argument(
-        '-n', '--name', default='config.yaml', help='configuration file name if you used something '
-        'other than "config.yaml"')
+        '-n', '--name', default='fence-config.yaml', help='configuration file name if you used something '
+        'other than "fence-config.yaml"')
 
     args = parser.parse_args()
 
@@ -85,16 +90,32 @@ def get_config_file(file_name):
     return config_path
 
 
-def get_config_path(search_folders, file_name='config.yaml'):
-    for folder in search_folders:
-        config_path = os.path.join(folder, file_name)
-        if os.path.exists(config_path):
-            return config_path
+def get_config_path(search_folders, file_name=None):
+    """
+    Return the path of a single configuration file ending in config.yaml
+    from one of the search folders.
 
-    # if we haven't returned a path by now, fence couldn't find the config
-    raise IOError(
-        'Could not find config.yaml. Searched in the following locations: '
-        '{}'.format(str(search_folders)))
+    NOTE: Will return the first match it finds. If multiple are found,
+    this will error out.
+    """
+    possible_configs = []
+    for folder in search_folders:
+        file_name = file_name or '*config.yaml'
+        config_path = os.path.join(folder, file_name)
+        possible_files = glob.glob(config_path)
+        possible_configs.extend(possible_files)
+
+    if len(possible_configs) == 1:
+        return possible_configs[0]
+    elif len(possible_configs) > 1:
+        raise IOError(
+            'Multiple config.yaml files found: {}. Please specify which '
+            'configuration to use with "python run.py -c some-config.yaml".'
+            .format(str(possible_configs)))
+    else:
+        raise IOError(
+            'Could not find config.yaml. Searched in the following locations: '
+            '{}'.format(str(search_folders)))
 
 
 if __name__ == '__main__':

@@ -1,5 +1,6 @@
 from collections import OrderedDict
 import os
+import glob
 from yaml import safe_load as yaml_load
 
 from authutils.oauth2.client import OAuthClient
@@ -54,7 +55,6 @@ def app_config(
     app.config.from_object(settings)
 
     search_folders = app.config.get('CONFIG_SEARCH_FOLDERS', [])
-    file_name = file_name or 'config.yaml'
     config_path = config_path or get_config_path(search_folders, file_name)
     app.logger.info('Using configuration: {}'.format(config_path))
     data = yaml_load(open(config_path))
@@ -134,21 +134,10 @@ def app_config(
         provided_value = (
             app.config['OPENID_CONNECT']['fence']['client_kwargs']['redirect_uri']
         )
-    }
 
     cirrus.config.config.update(**app.config.get("CIRRUS_CFG", {}))
 
 
-def configure_oidc(app, overrides=None):
-    """
-    NOTE: app must have loaded keypairs already as ``app.keypairs``.
-    """
-    overrides = overrides or {}
-    settings = {
-        "OAUTH2_JWT_KEY": keys.default_private_key(app),
-        "OAUTH2_JWT_ISS": app.config["BASE_URL"],
-    }
-    settings.update(overrides)
 
 
 def app_register_blueprints(app):
@@ -262,9 +251,12 @@ def app_config_oauth(app):
     app.config.update(settings)
 
 
-def app_init(app, settings="fence.settings", root_dir=None):
-    app.logger.addHandler(get_stream_handler())
-    app_config(app, settings=settings, root_dir=root_dir)
+def app_init(
+        app, settings='fence.settings', root_dir=None, config_path=None,
+        config_file_name=None):
+    app_config(
+        app, settings=settings, root_dir=root_dir, config_path=config_path,
+        file_name=config_file_name)
     app_sessions(app)
     app_register_blueprints(app)
     app_config_oauth(app)

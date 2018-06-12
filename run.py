@@ -11,9 +11,10 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument(
     '-c', '--config_file_name', help='Name for file is something other than '
-    'config.yaml. Will search in defined search folders specified in '
+    'fence-config.yaml. Will search in defined search folders specified in '
     'fence\'s settings. To automatically create configs, check out the '
-    'cfg_help.py file in this directory. Run "python cfg_help.py --help".')
+    'cfg_help.py file in this directory. Run "python cfg_help.py --help".',
+    default='fence-config.yaml')
 parser.add_argument(
     '--config_path', help='Full path to a yaml config file for fence. Will not'
     ' search directories for config.')
