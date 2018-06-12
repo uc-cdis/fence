@@ -202,13 +202,3 @@ ITRUST_GLOBAL_LOGOUT: https://auth.nih.gov/siteminderagent/smlogout.asp?mode=nih
 EMAIL_SERVER: localhost
 SEND_FROM: example@gmail.com
 SEND_TO: example@gmail.com
-
-#### Keys for JWTs ####
-# ``JWT_KEYPAIRS`` is an ordered dictionary of entries ``kid:
-# (public_key_filename, private_key_filename)`` mapping key ids to keypairs
-# used for signing and verifying JWTs issued by fence. NOTE that the filenames
-# should be relative to the root directory in fence.
-JWT_KEYPAIR_FILES:
-  'key-01':
-    - 'keys/jwt_public_key.pem'
-    - 'keys/jwt_private_key.pem'
