@@ -318,11 +318,14 @@ def google_init(db):
 
         for user in users_without_proxy:
             with GoogleCloudManager() as g_mgr:
-                response = g_mgr.create_proxy_group_for_user(
+                group = g_mgr.create_proxy_group_for_user(
                     user.id, user.username)
-
-                group = response["group"]
-                primary_service_account = response["primary_service_account"]
+                service_account_id = (
+                    g_mgr.get_valid_service_account_id_for_user(
+                        user.id, user.username))
+                primary_service_account = (
+                    g_mgr.create_service_account_for_proxy_group(
+                        group["id"], service_account_id))
                 user.google_proxy_group_id = group["id"]
 
                 # Add user's primary service account to database
