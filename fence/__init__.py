@@ -213,6 +213,16 @@ def app_sessions(app):
     app.db = SQLAlchemyDriver(app.config["DB"])
     migrate(app.db)
     session = flask_scoped_session(app.db.Session, app)  # noqa
+
+    if app.config.get('MOCK_STORAGE', False):
+        from mock import patch
+        from cdisutilstest.code.storage_client_mock import get_client
+
+        patcher = patch(
+            'fence.resources.storage.get_client',
+            get_client)
+        patcher.start()
+
     app.storage_manager = StorageManager(
         app.config["STORAGE_CREDENTIALS"], logger=app.logger
     )
