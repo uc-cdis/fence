@@ -55,11 +55,24 @@ def app_config(
     app.config.from_object(settings)
 
     search_folders = app.config.get('CONFIG_SEARCH_FOLDERS', [])
-    config_path = config_path or get_config_path(search_folders, file_name)
-    app.logger.info('Using configuration: {}'.format(config_path))
-    data = yaml_load(open(config_path))
 
-    app.config.update(data)
+    # TODO remove try, except when local_settings.py is no longer supported
+    try:
+        config_path = config_path or get_config_path(search_folders, file_name)
+    except IOError:
+        # TODO local_settings.py is being deprecated. Fow now, support
+        # not proving a yaml configuration but log a warning.
+        app.logger.warning(
+            'No fence YAML configuration found. Will attempt '
+            'to run without. If still using deprecated local_settings.py, you '
+            'can ignore this warning but PLEASE upgrade to using the newest '
+            'configuration format. local_settings.py is DEPRECATED!!')
+        config_path = None
+
+    if config_path:
+        app.logger.info('Using configuration: {}'.format(config_path))
+        data = yaml_load(open(config_path))
+        app.config.update(data)
 
     if 'ROOT_URL' not in app.config:
         url = urlparse.urlparse(app.config['BASE_URL'])

@@ -49,7 +49,7 @@ OPENID_CONNECT:
     client_id: ''
     client_secret: ''
     # this is be the allowed redirect back to fence, should not need to change
-    redirect_url: '{{BASE_URL}}/login/google/login'
+    redirect_url: '{{BASE_URL}}/login/google/login/'
   # You can have another fence instance as a client (multi-tenant fence).
   # If you don't need this, you can remove.
   fence:
