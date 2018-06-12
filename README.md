@@ -205,16 +205,37 @@ We use JSON Web Tokens (JWTs) as the format for our authentication mechanism.
 
 ### Keypair Configuration
 
-Generating a keypair using `openssl`:
+Fence uses RSA keypairs to sign and allow verification of JWTs that it issues.
+When the application is initialized, fence loads in keypair files from the
+`keys` directory. To store keypair files, use the following procedure:
+     - Create a subdirectory in the `fence/keys` directory, named with a
+       unique identifier, preferably a timestamp in ISO 8601 format of when
+       the keys are created. The name of the directory is used for the `kid`
+       (key ID) for those keys; the default (assuming the directory is named
+        with an ISO timestamp) looks like this:
+
+           fence_key_2018-05-01T14:00:00Z
+
+     - Generate a private and public keypair following the RSA 256 algorithm
+       and store those in that directory. The key files must be named
+       `jwt_public_key.pem` and `jwt_private_key.pem`.
+
+To generate a keypair using `openssl`:
 ```bash
 # Generate the private key.
 openssl genpkey -algorithm RSA -out private_key.pem -pkeyopt rsa_keygen_bits:2048
 
 # Generate the public key.
 openssl rsa -pubout -in private_key.pem -out public_key.pem
+
+# Depending on the `openssl` distribution, you may find these work instead:
+#
+#     openssl rsa -out private_key.pem 2048
+#     openssl rsa -in private_key.pem -pubout -out public_key.pem
 ```
-(It's not a bad idea to confirm that the files actually say `RSA PRIVATE KEY`
-and `PUBLIC KEY`.)
+It's not a bad idea to confirm that the files actually say `RSA PRIVATE KEY`
+and `PUBLIC KEY` (and in fact fence will require that the private key files it
+uses actually say "PRIVATE KEY" and that the public keys do not).
 
 Files containing public/private keys should have this format (the format used
 by `openssl` for generating RSA keys):
@@ -226,14 +247,6 @@ by `openssl` for generating RSA keys):
 If a key is not in this format, then `PyJWT` will raise errors about not being
 able to read the key.
 
-The variable `JWT_KEYPAIR_FILES` in `fence/settings.py` should be set up as an
-ordered dictionary mapping key ids to pairs of public and private key files (in
-that order); for example:
-```
-JWT_KEYPAIR_FILES = OrderedDict([
-    ('default', ('keys/jwt_public_key.pem', 'keys/jwt_private_key.pem')),
-])
-```
 Fence will use the first keypair in the list to sign the tokens it issues
 through OAuth.
 

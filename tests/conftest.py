@@ -445,12 +445,23 @@ def app(kid, rsa_private_key, rsa_public_key):
     mocker.mock_functions()
     root_dir = os.path.dirname(os.path.realpath(__file__))
     app_init(fence.app, test_settings, root_dir=root_dir)
-    fence.app.keypairs.append(Keypair(
+
+    # We want to set up the keys so that the test application can load keys
+    # from the test keys directory, but the default keypair used will be the
+    # one using the fixtures. So, stick the keypair at the front of the
+    # keypairs list and reverse the ordered dictionary of public keys after
+    # inserting the fixture keypair.
+    fixture_keypair = Keypair(
         kid=kid, public_key=rsa_public_key, private_key=rsa_private_key
-    ))
-    fence.app.jwt_public_keys = {
-        fence.app.config['BASE_URL']: OrderedDict([(kid, rsa_public_key)])
-    }
+    )
+    fence.app.keypairs = [fixture_keypair] + fence.app.keypairs
+    fence.app.jwt_public_keys[fence.app.config['BASE_URL']][kid] = rsa_public_key
+    fence.app.jwt_public_keys[fence.app.config['BASE_URL']] = OrderedDict(
+        reversed(list(
+            fence.app.jwt_public_keys[fence.app.config['BASE_URL']].items()
+        ))
+    )
+
     return fence.app
 
 
