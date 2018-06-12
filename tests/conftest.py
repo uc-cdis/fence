@@ -19,6 +19,7 @@ from authutils.testing.fixtures import (
     rsa_public_key,
     rsa_public_key_2,
 )
+from cryptography.fernet import Fernet
 import bcrypt
 from cdisutilstest.code.storage_client_mock import get_client
 import jwt
@@ -472,9 +473,10 @@ def app(kid, rsa_private_key, rsa_public_key):
     mocker = Mocker()
     mocker.mock_functions()
     root_dir = os.path.dirname(os.path.realpath(__file__))
-    app_init(fence.app, test_settings, root_dir=root_dir)
-    fence.app.config["TESTING"] = True
-    fence.app.config["DEBUG"] = True
+    app_init(
+        fence.app, test_settings, root_dir=root_dir,
+        config_path=os.path.join(root_dir, 'test-fence-config.yaml'))
+
     # We want to set up the keys so that the test application can load keys
     # from the test keys directory, but the default keypair used will be the
     # one using the fixtures. So, stick the keypair at the front of the

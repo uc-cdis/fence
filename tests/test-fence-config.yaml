@@ -1,0 +1,192 @@
+---
+############################ Fence Configuration ##############################
+# This file contains configuration necessary for the fence microservice.
+#
+# This is initially configured for minimal local development.
+# Read comments above each of the configuration variables to how to use them.
+
+#### General App Settings ####
+APP_NAME: Gen3 Data Commons
+# Where fence microservice is deployed
+BASE_URL: https://bionimbus-pdc.opensciencedatacloud.org/user
+# postgres db to connect to
+# connection url format:
+#     postgresql://[user[:password]@][netloc][:port][/dbname]
+
+# WARNING: the test database is cleared every run
+DB: postgresql://postgres:postgres@localhost:5432/fence_test_tmp
+# Name and port number of the server for Flask.
+#     NOTE: Uncomment to use. You CANNOT use this when developing on localhost.
+#           When deploying fence externally, simply uncomment.
+# SERVER_NAME: '{{BASE_URL}}'
+
+#### Debug Settings ####
+DEBUG: false
+MOCK_AUTH: true
+MOCK_STORAGE: false
+# allow OIDC traffic on http for development. By default it requires https.
+#
+# WARNING: Use when fence will be deployed in such a way that fence will
+#          ONLY receive traffic from internal clients and can safely use HTTP.
+AUTHLIB_INSECURE_TRANSPORT: true
+
+#### Encryption Key ####
+# A URL-safe base64-encoded 32-byte key for encrypting keys in db
+# in python you can use the following script to generate one:
+#     import base64
+#     import os
+#     key = base64.urlsafe_b64encode(os.urandom(32))
+#     print(key)
+ENCRYPTION_KEY: ''
+
+#### OpenID Connect Configuration for Clients ####
+OPENID_CONNECT:
+  # These Google values must be obtained from Google's Cloud Console
+  # Follow: https://developers.google.com/identity/protocols/OpenIDConnect
+  #
+  # You'll need to obtain a Client ID and Client Secret. Set the redirect URIs
+  # in Google to be '{{BASE_URL}}/login/google/login', but expand BASE_URL to
+  # whatever you set it to above.
+  google:
+    client_id: ''
+    client_secret: ''
+    # this is be the allowed redirect back to fence, should not need to change
+    redirect_url: '{{BASE_URL}}/login/google/login/'
+  # You can have another fence instance as a client (multi-tenant fence).
+  # If you don't need this, you can remove.
+  fence:
+    # this api_base_url should something like: https://example.com
+    api_base_url: ''
+    client_id: ''
+    client_secret: ''
+    client_kwargs:
+      # openid is required to use OIDC flow
+      scope: openid user
+      redirect_uri: '{{BASE_URL}}/login/fence/login'
+    # The next 3 should not need to be changed if the provider is following
+    # Oauth2 endpoint naming conventions
+    authorize_url: '{{api_base_url}}/oauth2/authorize'
+    access_token_url: '{{api_base_url}}/oauth2/token'
+    refresh_token_url: '{{api_base_url}}/oauth2/token'
+
+#### Login ####
+# For Google use: '{{BASE_URL}}/login/google'
+# For another Fence instance use: '{{BASE_URL}}/login/fence'
+DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
+
+# Which Identity Provider fence will/can use
+#
+# See ``fence/blueprints/login/__init__.py`` for which identity providers can
+# be loaded.
+#
+ENABLED_IDENTITY_PROVIDERS:
+  # ID for which of the providers to default to.
+  default: google
+  # Information for identity providers.
+  providers:
+    google:
+      name: Google OAuth
+    fence:
+      name: Fence Multi-Tenant OAuth
+    # The following can be used for shibboleth login, simply uncomment.
+    #
+    # NOTE: Don't enable shibboleth if the deployment is not protected by
+    # shibboleth module, the shib module takes care of preventing header
+    # spoofing.
+    #
+    shibboleth:
+      name: NIH Login
+
+#### Storage Backends and Credentials ####
+# TODO: remove STORAGES and just use STORAGE_CREDS backends...
+STORAGES:
+  - /google
+  - /cleversafe
+
+# Configuration for various storage systems for the backend
+STORAGE_CREDENTIALS:
+  'test-cleversafe':
+    backend: cleversafe
+
+#### Cloud API Library Configuration ####
+# Required for Google endpoints (/link/google, /credentials/google, etc)
+# See directions here for setting up cirrus: https://github.com/uc-cdis/cirrus
+CIRRUS_CFG:
+  GOOGLE_API_KEY: ''
+  GOOGLE_PROJECT_ID: ''
+  GOOGLE_APPLICATION_CREDENTIALS: ''
+  GOOGLE_STORAGE_CREDS: ''
+  GOOGLE_ADMIN_EMAIL: ''
+  GOOGLE_IDENTITY_DOMAIN: ''
+  GOOGLE_CLOUD_IDENTITY_ADMIN_EMAIL: ''
+
+#### Proxy ####
+# If the api is behind firewall that need to set http proxy (see below)
+# HTTP_PROXY:
+#   host: cloud-proxy
+#   port: 3128
+HTTP_PROXY: null
+
+#### AWS Buckets and Credentials ####
+AWS_CREDENTIALS:
+  'CRED1':
+    aws_access_key_id: ''
+    aws_secret_access_key: ''
+  'CRED2':
+    aws_access_key_id: ''
+    aws_secret_access_key: ''
+
+S3_BUCKETS:
+  bucket1: CRED1
+  bucket2: CRED2
+  bucket3: CRED1
+  bucket4: "*"
+
+#### dbGaP User Syncing Support ####
+# "dbGaP project serves as an access gateway for researchers seeking to gain
+#  access to genotype and phenotype data"
+#
+# User syncing and access can also be done throught a User Access file. See
+# fence's README for more information
+dbGaP:
+  sftp:
+    host: ''
+    username: ''
+    password: ''
+    port: 22
+    proxy: ''
+    proxy_user: ''
+  decrypt_key: ''
+
+#### Security and Protection ####
+SESSION_COOKIE_SECURE: true
+ENABLE_CSRF_PROTECTION: false
+
+#### Microservice Directories and Paths ####
+# used for flask, "path mounted under by the application / web server"
+# since we deploy as microservices, fence is typically under {{base}}/user
+# this is also why our BASE_URL default ends in /user
+APPLICATION_ROOT: /user
+# directory the fence code will be deployed under. used to help locate files
+ROOT_DIR: /fence
+# url where indexd microservice is running (for signed urls primarily)
+# NOTE: ONLY provide if indexd is NOT running in {{BASE_URL}}/index
+#
+# INDEXD: https://example.com/index
+
+#### Multi-tenant fence setup ####
+# Use when fence is *both* the client and an IDP.
+# configure this to the base URL for the provider fence
+# (i.e. ``BASE_URL`` in the provider fence config).
+# OIDC_ISSUER: 'http://localhost:8080/user
+
+#### Shibboleth Configurations ####
+# assumes shibboleth is deployed under {{BASE_URL}}/shibboleth
+SHIBBOLETH_HEADER: 'persistent_id'
+SSO_URL: https://auth.nih.gov/affwebservices/public/saml2sso?SPID={{BASE_URL}}/shibboleth&RelayState=
+ITRUST_GLOBAL_LOGOUT: https://auth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl=
+
+#### Email Settings ####
+EMAIL_SERVER: localhost
+SEND_FROM: example@gmail.com
+SEND_TO: example@gmail.com
