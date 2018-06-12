@@ -70,7 +70,7 @@ MAX_ACCESS_TOKEN_TTL = 3600
 # located elsewhere, use that location in ``imp.load_source`` instead of
 # ``/var/www/local_settings.py``, just below.
 def use_deprecated_settings():
-    JWT_KEYPAIR_FILES = OrderedDict([
+    JWT_KEYPAIR_FILES = ([
         ('key-01', ('keys/jwt_public_key.pem', 'keys/jwt_private_key.pem')),
     ])
     ENCRYPTION_KEY = HMAC_ENCRYPTION_KEY
