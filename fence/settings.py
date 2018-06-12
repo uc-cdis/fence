@@ -69,15 +69,20 @@ MAX_ACCESS_TOKEN_TTL = 3600
 # Instead, it should be located at ``/var/www/local_settings.py``. If it is
 # located elsewhere, use that location in ``imp.load_source`` instead of
 # ``/var/www/local_settings.py``, just below.
-from cdislogging import get_logger
-logger = get_logger(__name__)
+def convert_deprecated_settings():
+    JWT_KEYPAIR_FILES = dict(JWT_KEYPAIR_FILES)
+    ENCRYPTION_KEY = HMAC_ENCRYPTION_KEY
+
 try:
     # Import everything from ``local_settings``, if it exists.
     from local_settings import *
+    convert_deprecated_settings()
 except ImportError:
     # If it doesn't, look in ``/var/www/fence``.
     try:
         import imp
         imp.load_source('local_settings', '/var/www/fence/local_settings.py')
+        convert_deprecated_settings()
     except IOError:
         pass
+
