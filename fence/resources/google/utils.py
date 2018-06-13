@@ -13,6 +13,7 @@ from cirrus.google_cloud.utils import (
 from fence.models import GoogleServiceAccountKey
 from fence.models import UserGoogleAccount
 from fence.models import GoogleServiceAccount
+from userdatamodel.user import GoogleProxyGroup
 
 
 def get_or_create_primary_service_account_key(
@@ -276,3 +277,48 @@ def create_service_account(client_id, user_id, username, proxy_group_id):
         flask.abort(
             404, 'Could not find Google proxy group for current user in the '
             'given token.')
+
+def get_or_create_proxy_group_id(self, token):
+
+    proxy_group_id = get_proxy_group_id(token)
+    if not proxy_group_id:
+        user_id=token['sub']
+        username = (
+            token.get('context', {})
+            .get('user', {})
+            .get('name')
+        )
+        new_proxy_group = create_proxy_group(user_id, username)
+        proxy_group_id = new_proxy_group['id']
+
+    return proxy_group_id
+    
+def get_proxy_group_id(self, token):
+
+    proxy_group_id = (
+        token.get('context', {})
+        .get('user', {})
+        .get('google', {})
+        .get('proxy_group')
+    )
+
+    return proxy_group_id
+
+def create_proxy_group(self, user_id, username):
+    """
+    Create a proxy group for the given user
+    """
+
+    with GoogleCloudManager() as g_cloud:
+        new_proxy_group = (
+            g_cloud.create_proxy_group_for_user(
+                user_id, username))
+
+    proxy_group = GoogleProxyGroup(
+        id=new_proxy_group['id'],
+        email=new_proxy_group['email'])
+
+    current_session.add(proxy_group)
+    current_session.commit()
+
+    return proxy_group
