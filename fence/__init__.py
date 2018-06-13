@@ -84,19 +84,16 @@ def app_config(
         # only update known configuration values. In the situation
         # where the provided config does not have a certain value,
         # the default will be used.
-        # common_keys = config & provided_configurations
         common_keys = {
             key: value
             for (key, value) in config.iteritems()
             if key in provided_configurations
         }
-        # keys_to_update = provided_configurations & common_keys
         keys_to_update = {
             key: value
             for (key, value) in provided_configurations.iteritems()
             if key in common_keys
         }
-        # unknown_keys = provided_configurations - common_keys
         unknown_keys = {
             key: value
             for (key, value) in provided_configurations.iteritems()
