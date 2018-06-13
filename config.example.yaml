@@ -102,24 +102,26 @@ STORAGES:
   - /cleversafe
 
 # Configuration for various storage systems for the backend
-STORAGE_CREDENTIALS:
-  # Google Cloud Storage backend. Remove if not used.
-  'google':
-    backend: google
-    google_project_id: some-project-id-12378923
+# NOTE: Remove the [] and supply backends if needed. Examples provided
+#       in the comments
+STORAGE_CREDENTIALS: []
+  # Google Cloud Storage backend:
+  # 'google':
+  #   backend: google
+  #   google_project_id: some-project-id-12378923
 
-  # Cleversafe data storage backend. Remove if not used.
-  'cleversafe-server-a':
-    backend: cleversafe
-    aws_access_key_id: ''
-    aws_secret_access_key: ''
-    host: somemanager.osdc.io
-    public_host: someobjstore.datacommons.io
-    port: 443
-    is_secure: true
-    username: someone
-    password: somepass
-    is_mocked: true
+  # Cleversafe data storage backend:
+  # 'cleversafe-server-a':
+  #   backend: cleversafe
+  #   aws_access_key_id: ''
+  #   aws_secret_access_key: ''
+  #   host: somemanager.osdc.io
+  #   public_host: someobjstore.datacommons.io
+  #   port: 443
+  #   is_secure: true
+  #   username: someone
+  #   password: somepass
+  #   is_mocked: true
 
 #### Cloud API Library Configuration ####
 # Required for Google endpoints (/link/google, /credentials/google, etc)
