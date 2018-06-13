@@ -30,6 +30,18 @@ USER_ALLOWED_SCOPES = ['fence', 'openid', 'user', 'data', 'admin']
 CLIENT_ALLOWED_SCOPES = ['openid', 'user', 'data', 'admin']
 
 
+class JWTResult(object):
+    """
+    Just a container for the results necessary to keep track of from generating
+    a JWT.
+    """
+
+    def __init__(self, token=None, kid=None, claims=None):
+        self.token = token
+        self.kid = kid
+        self.claims = claims
+
+
 class UnsignedIDToken(AuthlibCodeIDToken):
 
     def __init__(self, token):
@@ -209,7 +221,7 @@ def generate_signed_session_token(
     )
     token = jwt.encode(claims, private_key, headers=headers, algorithm='RS256')
     token = to_unicode(token, 'UTF-8')
-    return token
+    return JWTResult(token=token, kid=kid, claims=claims)
 
 
 def generate_signed_id_token(
@@ -241,9 +253,8 @@ def generate_signed_id_token(
         user, expires_in, client_id, audiences=audiences, auth_time=auth_time,
         max_age=max_age, nonce=nonce, linked_google_email=linked_google_email
     )
-
     signed_token = token.get_signed_and_encoded_token(kid, private_key)
-    return signed_token
+    return JWTResult(token=signed_token, kid=kid, claims=token.token)
 
 
 def generate_signed_refresh_token(
@@ -276,16 +287,19 @@ def generate_signed_refresh_token(
         'jti': jti,
         'azp': client_id or ''
     }
-    flask.current_app.logger.info(
-        'issuing JWT refresh token with id [{}] to [{}]'.format(jti, sub)
-    )
-    flask.current_app.logger.debug(
-        'issuing JWT refresh token\n' + json.dumps(claims, indent=4)
-    )
+
+    if flask.current_app:
+        flask.current_app.logger.info(
+            'issuing JWT refresh token with id [{}] to [{}]'.format(jti, sub)
+        )
+        flask.current_app.logger.debug(
+            'issuing JWT refresh token\n' + json.dumps(claims, indent=4)
+        )
+
     token = jwt.encode(claims, private_key, headers=headers, algorithm='RS256')
-    flask.current_app.logger.debug(str(token))
     token = to_unicode(token, 'UTF-8')
-    return token, claims
+
+    return JWTResult(token=token, kid=kid, claims=claims)
 
 
 def generate_api_key(
@@ -327,7 +341,7 @@ def generate_api_key(
     token = jwt.encode(claims, private_key, headers=headers, algorithm='RS256')
     flask.current_app.logger.debug(str(token))
     token = to_unicode(token, 'UTF-8')
-    return token, claims
+    return JWTResult(token=token, kid=kid, claims=claims)
 
 
 def generate_signed_access_token(
@@ -382,16 +396,17 @@ def generate_signed_access_token(
             linked_google_email
         )
 
-    flask.current_app.logger.info(
-        'issuing JWT access token with id [{}] to [{}]'.format(jti, sub)
-    )
-    flask.current_app.logger.debug(
-        'issuing JWT access token\n' + json.dumps(claims, indent=4)
-    )
+    if flask.current_app:
+        flask.current_app.logger.info(
+            'issuing JWT access token with id [{}] to [{}]'.format(jti, sub)
+        )
+        flask.current_app.logger.debug(
+            'issuing JWT access token\n' + json.dumps(claims, indent=4)
+        )
+
     token = jwt.encode(claims, private_key, headers=headers, algorithm='RS256')
-    flask.current_app.logger.debug(str(token))
     token = to_unicode(token, 'UTF-8')
-    return token
+    return JWTResult(token=token, kid=kid, claims=claims)
 
 
 def generate_id_token(

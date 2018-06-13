@@ -17,25 +17,3 @@ def patch_driver(db, monkeypatch):
         'fence.scripting.fence_create.SQLAlchemyDriver',
         lambda _: db,
     )
-
-
-@pytest.fixture(scope='function', autouse=True)
-def mock_keypairs(monkeypatch, kid, kid_2):
-    """
-    Change the keypair configuration in ``fence.settings.JWT_KEYPAIR_FILES``.
-    """
-
-    JWT_KEYPAIR_FILES = OrderedDict([
-        (
-            kid,
-            ('tests/resources/keys/test_public_key.pem', 'tests/resources/keys/test_private_key.pem'),
-        ),
-        (
-            kid_2,
-            ('tests/resources/keys/test_public_key_2.pem', 'tests/resources/keys/test_private_key_2.pem'),
-    ),
-    ])
-
-    monkeypatch.setattr(
-        'fence.settings.JWT_KEYPAIR_FILES', JWT_KEYPAIR_FILES
-    )
