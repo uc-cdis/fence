@@ -6,7 +6,7 @@ from fence.models import (
     IdentityProvider,
     GoogleServiceAccount,
 )
-
+import pdb
 
 def _populate_test_identity(session, **kwargs):
     """
@@ -85,6 +85,11 @@ def test_google_access_token_no_proxy_group(
 
     new_service_account = {
         "uniqueId": "987654321",
+        "email": "987654321@test.com",
+        "projectId": "1"
+    }
+    new_proxy_group = {
+        "id": "123456789",
         "email": "987654321@test.com"
     }
     path = (
@@ -99,16 +104,22 @@ def test_google_access_token_no_proxy_group(
         .create_service_account_for_proxy_group.return_value
     ) = new_service_account
 
+    (
+        cloud_manager.return_value
+        .__enter__.return_value
+        .create_proxy_group_for_user.return_value
+    ) = new_proxy_group
+
     service_accounts_before = (
         db_session
         .query(GoogleServiceAccount)
         .filter_by(client_id=client_id)
     ).count()
-
+    pdb.set_trace()
     response = client.post(
         path, data=data,
         headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
-
+    pdb.set_trace()
     service_accounts_after = (
         db_session
         .query(GoogleServiceAccount)
@@ -119,9 +130,9 @@ def test_google_access_token_no_proxy_group(
     # group and added it to the db
     assert (cloud_manager.return_value
             .__enter__.return_value
-            .create_service_account_for_proxy_group).called is False
-    assert service_accounts_after == service_accounts_before
-    assert response.status_code == 404
+            .create_service_account_for_proxy_group).called is True
+    assert service_accounts_after == service_accounts_before + 1
+    assert response.status_code == 200
 
 
 def test_google_create_access_token_post(

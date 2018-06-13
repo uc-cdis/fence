@@ -278,7 +278,7 @@ def create_service_account(client_id, user_id, username, proxy_group_id):
             404, 'Could not find Google proxy group for current user in the '
             'given token.')
 
-def get_or_create_proxy_group_id(self, token):
+def get_or_create_proxy_group_id(token):
 
     proxy_group_id = get_proxy_group_id(token)
     if not proxy_group_id:
@@ -288,12 +288,11 @@ def get_or_create_proxy_group_id(self, token):
             .get('user', {})
             .get('name')
         )
-        new_proxy_group = create_proxy_group(user_id, username)
-        proxy_group_id = new_proxy_group['id']
+        proxy_group_id = create_proxy_group(user_id, username).id
 
     return proxy_group_id
     
-def get_proxy_group_id(self, token):
+def get_proxy_group_id(token):
 
     proxy_group_id = (
         token.get('context', {})
@@ -304,7 +303,7 @@ def get_proxy_group_id(self, token):
 
     return proxy_group_id
 
-def create_proxy_group(self, user_id, username):
+def create_proxy_group(user_id, username):
     """
     Create a proxy group for the given user
     """

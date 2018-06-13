@@ -6,13 +6,14 @@ from cirrus.config import config as cirrus_config
 
 from fence.auth import require_auth_header
 from fence.auth import current_token
-from fence.resources.google.utils import get_service_account
-from fence.resources.google.utils import create_google_access_key
 from fence.resources.google.utils import (
     add_custom_service_account_key_expiration,
+    create_google_access_key,
+    get_service_account,
+    get_or_create_service_account,
     get_or_create_proxy_group_id
 )
-
+import pdb
 
 class GoogleCredentialsList(Resource):
     """
@@ -55,14 +56,12 @@ class GoogleCredentialsList(Resource):
         user_id = current_token["sub"]
 
         with GoogleCloudManager() as g_cloud_manager:
-            service_account = get_service_account(client_id, user_id)
+            service_account = (
+                get_or_create_service_account(client_id, user_id))
 
-            if service_account:
-                keys = g_cloud_manager.get_service_account_keys_info(
-                    service_account.google_unique_id)
-                result = {'access_keys': keys}
-            else:
-                result = {'access_keys': []}
+            keys = g_cloud_manager.get_service_account_keys_info(
+                service_account.google_unique_id)
+            result = {'access_keys': keys}
 
         return flask.jsonify(result)
 
@@ -96,6 +95,7 @@ class GoogleCredentialsList(Resource):
                 "client_x509_cert_url": "https://www.googleapis.com/...<api-name>api%40project-id.iam.gserviceaccount.com"
             }
         """
+        pdb.set_trace()
         user_id = current_token["sub"]
         client_id = current_token.get("azp") or None
         proxy_group_id = get_or_create_proxy_group_id(current_token)
@@ -151,7 +151,7 @@ class GoogleCredentials(Resource):
         :statuscode 404 Access key doesn't exist
         """
         user_id = current_token["sub"]
-
+        
         with GoogleCloudManager() as g_cloud:
             client_id = current_token.get("azp") or None
             service_account = get_service_account(client_id, user_id)
