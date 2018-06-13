@@ -52,6 +52,7 @@ def app_config(
     if root_dir is None:
         root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
+    app.logger.info('Loading settings...')
     app.config.from_object(settings)
 
     search_folders = app.config.get('CONFIG_SEARCH_FOLDERS', [])
@@ -70,9 +71,46 @@ def app_config(
         config_path = None
 
     if config_path:
-        app.logger.info('Using configuration: {}'.format(config_path))
-        data = yaml_load(open(config_path))
-        app.config.update(data)
+        app.logger.info('Loading default configuration...')
+        config = yaml_load(
+            open(os.path.join(
+                   os.path.dirname(os.path.abspath(__file__)),
+                   'config-default.yaml'))
+        )
+
+        app.logger.info('Loading configuration: {}'.format(config_path))
+        provided_configurations = yaml_load(open(config_path))
+
+        # only update known configuration values. In the situation
+        # where the provided config does not have a certain value,
+        # the default will be used.
+        # common_keys = config & provided_configurations
+        common_keys = {
+            key: value
+            for (key, value) in config.iteritems()
+            if key in provided_configurations
+        }
+        # keys_to_update = provided_configurations & common_keys
+        keys_to_update = {
+            key: value
+            for (key, value) in provided_configurations.iteritems()
+            if key in common_keys
+        }
+        # unknown_keys = provided_configurations - common_keys
+        unknown_keys = {
+            key: value
+            for (key, value) in provided_configurations.iteritems()
+            if key not in common_keys
+        }
+
+        config.update(keys_to_update)
+
+        if unknown_keys:
+            app.logger.warning(
+                'Unknown key(s) {} found in {}. Will be ignored.'
+                .format(unknown_keys.keys(), config_path))
+
+        app.config.update(config)
 
     if 'ROOT_URL' not in app.config:
         url = urlparse.urlparse(app.config['BASE_URL'])
