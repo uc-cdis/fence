@@ -6,7 +6,6 @@ from fence.models import (
     IdentityProvider,
     GoogleServiceAccount,
 )
-import pdb
 
 def _populate_test_identity(session, **kwargs):
     """
@@ -115,11 +114,11 @@ def test_google_access_token_no_proxy_group(
         .query(GoogleServiceAccount)
         .filter_by(client_id=client_id)
     ).count()
-    pdb.set_trace()
+
     response = client.post(
         path, data=data,
         headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
-    pdb.set_trace()
+
     service_accounts_after = (
         db_session
         .query(GoogleServiceAccount)

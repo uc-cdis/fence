@@ -13,7 +13,7 @@ from cirrus.google_cloud.utils import (
 from fence.models import GoogleServiceAccountKey
 from fence.models import UserGoogleAccount
 from fence.models import GoogleServiceAccount
-from userdatamodel.user import GoogleProxyGroup
+from userdatamodel.user import GoogleProxyGroup, User
 
 
 def get_or_create_primary_service_account_key(
@@ -300,6 +300,14 @@ def get_proxy_group_id(token):
         .get('google', {})
         .get('proxy_group')
     )
+
+    if not proxy_group_id:
+        user = (
+            current_session
+            .query(User)
+            .filter(User.id == token['sub'])
+            .first())
+        proxy_group_id = user.google_proxy_group_id
 
     return proxy_group_id
 
