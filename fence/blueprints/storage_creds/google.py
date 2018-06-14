@@ -19,7 +19,7 @@ class GoogleCredentialsList(Resource):
     For ``/credentials/google`` endpoint.
     """
 
-    @require_auth_header({'credentials'})
+    @require_auth_header({'google_credentials'})
     def get(self):
         """
         List access keys for user
@@ -72,7 +72,7 @@ class GoogleCredentialsList(Resource):
 
         return flask.jsonify(result)
 
-    @require_auth_header({'credentials'})
+    @require_auth_header({'google_credentials'})
     def post(self):
         """
         Generate a keypair for user
@@ -144,7 +144,7 @@ class GoogleCredentialsList(Resource):
 
 class GoogleCredentials(Resource):
 
-    @require_auth_header({'credentials'})
+    @require_auth_header({'google_credentials'})
     def delete(self, access_key):
         """
         .. http:get: /google/(string: access_key)
