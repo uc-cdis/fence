@@ -240,29 +240,29 @@ def main():
             project_auth_id=args.project_auth_id
         )
     elif args.action == 'token-create':
-        keys_path = args.pop('keys-dir', os.path.join(ROOT_DIR, 'keys'))
+        keys_path = getattr(args, 'keys-dir', os.path.join(ROOT_DIR, 'keys'))
         keypairs = keys.load_keypairs(keys_path)
         # Default to the most recent one, but try to find the keypair with
         # matching ``kid`` to the argument provided.
         keypair = keypairs[-1]
-        kid = args.get('kid')
+        kid = getattr(args, 'kid')
         if kid:
             for try_keypair in keypairs:
                 if try_keypair.kid == kid:
                     keypair = try_keypair
                     break
         jwt_creator = JWTCreator(
-            DB, BASE_URL, kid=keypair.kid, private_key= keypair.private_key,
-            username=args['username'], scopes=args['scopes'],
+            DB, BASE_URL, kid=keypair.kid, private_key=keypair.private_key,
+            username=args.username, scopes=args.scopes, expires_in=args.exp,
         )
-        if args['type'] == 'access':
-            print(jwt_creator.create_access_token())
-        elif args['type'] == 'refresh':
-            print(jwt_creator.create_refresh_token())
+        if args.type == 'access_token':
+            print(jwt_creator.create_access_token().token)
+        elif args.type == 'refresh_token':
+            print(jwt_creator.create_refresh_token().token)
         else:
             print(
                 'invalid token type "{}"; expected "access" or "refresh"'
-                .format(args['type'])
+                .format(args.type)
             )
             sys.exit(1)
 

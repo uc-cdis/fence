@@ -16,6 +16,7 @@ SCOPE_DESCRIPTION = {
     'user': 'know who you are and what you have access to',
     'data': 'retrieve protected datasets that you have access to',
     'credentials': 'view and update your credentials',
+    'google_credentials': 'temporary google credentials to access data on google',
     'admin': 'view and update user accesses'
 }
 
@@ -25,9 +26,12 @@ SCOPE_DESCRIPTION = {
 #
 # Only allow web session based auth access credentials so that user
 # can't create a long-lived API key using a short lived access_token
-SESSION_ALLOWED_SCOPES = ['openid', 'user', 'credentials', 'data', 'admin']
-USER_ALLOWED_SCOPES = ['fence', 'openid', 'user', 'data', 'admin']
-CLIENT_ALLOWED_SCOPES = ['openid', 'user', 'data', 'admin']
+SESSION_ALLOWED_SCOPES = [
+    'openid', 'user', 'credentials', 'data', 'admin', 'google_credentials']
+USER_ALLOWED_SCOPES = [
+    'fence', 'openid', 'user', 'data', 'admin', ' google_credentials']
+CLIENT_ALLOWED_SCOPES = [
+    'openid', 'user', 'data', 'admin', 'google_credentials']
 
 
 class JWTResult(object):
@@ -258,7 +262,7 @@ def generate_signed_id_token(
 
 
 def generate_signed_refresh_token(
-        kid, private_key, user, expires_in, scopes, client_id=None):
+        kid, private_key, user, expires_in, scopes, iss=None, client_id=None):
     """
     Generate a JWT refresh token and output a UTF-8
     string of the encoded JWT signed with the private key.
@@ -277,11 +281,19 @@ def generate_signed_refresh_token(
     iat, exp = issued_and_expiration_times(expires_in)
     jti = str(uuid.uuid4())
     sub = str(user.id)
+    if not iss:
+        try:
+            iss = flask.current_app.config.get('BASE_URL')
+        except RuntimeError:
+            raise ValueError(
+                'must provide value for `iss` (issuer) field if'
+                ' running outside of flask application'
+            )
     claims = {
         'pur': 'refresh',
         'aud': scopes,
         'sub': sub,
-        'iss': flask.current_app.config.get('BASE_URL'),
+        'iss': iss,
         'iat': iat,
         'exp': exp,
         'jti': jti,
@@ -345,8 +357,8 @@ def generate_api_key(
 
 
 def generate_signed_access_token(
-        kid, private_key, user, expires_in, scopes, forced_exp_time=None,
-        client_id=None, linked_google_email=None):
+        kid, private_key, user, expires_in, scopes, iss=None,
+        forced_exp_time=None, client_id=None, linked_google_email=None):
     """
     Generate a JWT access token and output a UTF-8
     string of the encoded JWT signed with the private key.
@@ -369,11 +381,19 @@ def generate_signed_access_token(
     exp = forced_exp_time or exp
     sub = str(user.id)
     jti = str(uuid.uuid4())
+    if not iss:
+        try:
+            iss = flask.current_app.config.get('BASE_URL')
+        except RuntimeError:
+            raise ValueError(
+                'must provide value for `iss` (issuer) field if'
+                ' running outside of flask application'
+            )
     claims = {
         'pur': 'access',
         'aud': scopes,
         'sub': sub,
-        'iss': flask.current_app.config.get('BASE_URL'),
+        'iss': iss,
         'iat': iat,
         'exp': exp,
         'jti': jti,
