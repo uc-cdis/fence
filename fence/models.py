@@ -303,7 +303,7 @@ class GoogleBucketAccessGroup(Base):
     bucket = relationship(
         'Bucket',
         backref=backref(
-            'google_bucket_access_group', cascade='all, delete-orphan')
+            'google_bucket_access_groups', cascade='all, delete-orphan')
     )
 
     email = Column(

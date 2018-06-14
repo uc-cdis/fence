@@ -335,21 +335,21 @@ class StorageManager(object):
         # Need different logic for google (since buckets can have multiple
         # access groups)
         if provider == GOOGLE_PROVIDER_NAME:
-            if bucket.google_bucket_access_group:
-                bucket_access_groups = [
-                    gbag for gbag in bucket.google_bucket_access_group
-                ]
-            else:
+            if not bucket.google_bucket_access_groups:
                 raise NotFound(
                     'Google bucket {} does not have any access groups.'
                     .format(bucket.name))
 
             access = StorageManager._get_bucket_access_privileges(access)
 
-            for bucket_access_group in bucket_access_groups:
+            for bucket_access_group in bucket.google_bucket_access_groups:
                 bucket_privileges = bucket_access_group.privileges or []
                 if set(bucket_privileges).issubset(access):
                     bucket_name = bucket_access_group.email
+
+                    # NOTE: bucket_name for Google is the Google Access Group's
+                    #       email address.
+                    # TODO Update storageclient API for more clarity
                     self.clients[provider].add_bucket_acl(
                         bucket_name, storage_username)
                 else:
@@ -369,9 +369,9 @@ class StorageManager(object):
         # Need different logic for google (since buckets can have multiple
         # access groups)
         if provider == GOOGLE_PROVIDER_NAME:
-            if bucket.google_bucket_access_group:
+            if bucket.google_bucket_access_groups:
                 bucket_access_groups = [
-                    gbag for gbag in bucket.google_bucket_access_group
+                    gbag for gbag in bucket.google_bucket_access_groups
                 ]
             else:
                 # no groups to remove user from, no access to bucket
