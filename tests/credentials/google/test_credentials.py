@@ -72,12 +72,12 @@ def test_google_access_token_new_service_account(
     assert response.status_code == 200
 
 
-def test_google_access_token_no_proxy_group(
+def test_google_access_token_new_proxy_group(
         app, client, oauth_client, cloud_manager, db_session,
         encoded_jwt_no_proxy_group):
     """
-    Test that ``POST /credentials/google`` return error when user
-    has no proxy group and no service account.
+    Test that ``POST /credentials/google`` creates new proxy group
+    when one doesn't already exist
     """
     encoded_credentials_jwt = encoded_jwt_no_proxy_group["jwt"]
     client_id = encoded_jwt_no_proxy_group["client_id"]

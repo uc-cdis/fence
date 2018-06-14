@@ -149,7 +149,6 @@ class GoogleCredentials(Resource):
         :statuscode 404 Access key doesn't exist
         """
         user_id = current_token["sub"]
-        
         with GoogleCloudManager() as g_cloud:
             client_id = current_token.get("azp") or None
             service_account = get_service_account(client_id, user_id)

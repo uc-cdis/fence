@@ -291,7 +291,7 @@ def get_or_create_proxy_group_id(token):
         proxy_group_id = create_proxy_group(user_id, username).id
 
     return proxy_group_id
-    
+
 def get_proxy_group_id(token):
 
     proxy_group_id = (
