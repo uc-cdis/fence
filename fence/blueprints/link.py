@@ -16,6 +16,7 @@ from fence.models import UserGoogleAccount
 from fence.models import UserGoogleAccountToProxyGroup
 from fence.auth import current_token
 from fence.auth import require_auth_header
+from fence.resources.google.utils import get_or_create_proxy_group_id
 
 
 def make_link_blueprint():
@@ -93,7 +94,7 @@ class GoogleLinkRedirect(Resource):
 
         user_id = current_token['sub']
         google_email = get_users_linked_google_email(user_id)
-        proxy_group = get_users_proxy_group_from_token()
+        proxy_group = get_or_create_proxy_group_id(current_token)
 
         # Set session flag to signify that we're linking and not logging in
         # Save info needed for linking in session since we need to AuthN first
@@ -119,7 +120,7 @@ class GoogleLinkRedirect(Resource):
     def _extend_account_expiration():
         user_id = current_token['sub']
         google_email = get_users_linked_google_email(user_id)
-        proxy_group = get_users_proxy_group_from_token()
+        proxy_group = get_or_create_proxy_group_id(current_token)
 
         access_expiration = _force_update_user_google_account(
             user_id, google_email, proxy_group, _allow_new=False)
