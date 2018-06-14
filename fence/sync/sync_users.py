@@ -212,6 +212,7 @@ class UserSyncer(object):
         user_projects = dict()
         user_info = dict()
         for filepath, privileges in file_dict.iteritems():
+            self.logger.info('Reading file {}'.format(filepath))
             if os.stat(filepath).st_size == 0:
                 continue
             if not self._match_pattern(filepath, encrypted=encrypted):
@@ -321,6 +322,7 @@ class UserSyncer(object):
                         'display_name': details.get('display_name', ''),
                         'phone_number': details.get('phone_number', ''),
                         'tags': details.get('tags', {}),
+                        'admin': details.get('admin', False),
                     }
 
                     if not username in user_project:
@@ -527,6 +529,7 @@ class UserSyncer(object):
             u.email = user_info[username].get('email', '')
             u.display_name = user_info[username].get('display_name', '')
             u.phone_number = user_info[username].get('phone_number', '')
+            u.is_admin = user_info[username].get('admin', False)
 
             # do not update if there is no tag
             if user_info[username]['tags'] == {}:

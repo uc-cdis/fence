@@ -39,9 +39,9 @@ def validate_jwt(
     """
     Validate a JWT and return the claims.
 
-    This wraps the ``cdispyutils.auth`` functions to work correctly for fence
-    and correctly validate the token. Other functions in fence should call this
-    function and not use any functions from ``cdispyutils``.
+    This wraps the authutils functions to work correctly for fence and
+    correctly validate the token. Other functions in fence should call this
+    function and not use any functions from authutils.
 
     Args:
         encoded_token (str): the base64 encoding of the token

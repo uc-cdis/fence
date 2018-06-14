@@ -19,7 +19,7 @@ def test_redirect_from_oauth(fence_client_app, oauth_client):
     Test that the ``/oauth2/authorize`` endpoint on the client redirects to the
     ``/login/fence`` endpoint, also on the client.
     """
-    with fence_client_app.test_client() as client:
+    with fence_client_app.test_client() as test_client:
         data = {
             'client_id': oauth_client.client_id,
             'redirect_uri': oauth_client.url,
@@ -28,7 +28,7 @@ def test_redirect_from_oauth(fence_client_app, oauth_client):
             'state': fence.utils.random_str(10),
             'confirm': 'yes',
         }
-        response_oauth_authorize = client.post('/oauth2/authorize', data=data)
+        response_oauth_authorize = test_client.post('/oauth2/authorize', data=data)
         assert response_oauth_authorize.status_code == 302
         assert '/login/fence' in response_oauth_authorize.location
 
@@ -42,7 +42,7 @@ def test_login(
           ``/oauth2/authorize`` endpoint on the IDP fence,
         2. POST-ing to ``/oauth2/authorize`` on the IDP fence redirects to
           the configured client URL with the code in the query string
-          arguments,
+          arguments
     """
     # Disable the keys refreshing since requests will not work with the client
     # app.
@@ -50,6 +50,7 @@ def test_login(
         'authutils.token.keys.refresh_jwt_public_keys',
         lambda: None
     )
+
     with fence_client_app.test_client() as fence_client_client:
         # Part 1.
         redirect_url_quote = urllib.quote('/login/fence/login')

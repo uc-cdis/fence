@@ -32,6 +32,6 @@ pyyaml
 -e git+https://github.com/uc-cdis/storage-client.git@e66966c4fa2d7cbbee5c1a67c402ac0e69673d26#egg=storageclient
 -e git+https://github.com/uc-cdis/userdatamodel.git@1.1.4#egg=userdatamodel
 -e git+https://github.com/uc-cdis/datamodelutils.git@0.3.0#egg=datamodelutils
--e git+https://github.com/uc-cdis/cdis-python-utils.git@0.2.8#egg=cdispyutils
+-e git+https://github.com/uc-cdis/cdis-python-utils.git@0.2.9#egg=cdispyutils
 -e git+https://github.com/uc-cdis/cirrus.git@4aba4f2e4f2dd52715121d952b792574db9a74fe#egg=cirrus
 -e git+https://github.com/uc-cdis/authutils.git@2.0.1#egg=authutils-2.0.1
