@@ -346,7 +346,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             self, http_verb, resource_path, expiration_time):
         set_current_token(validate_request(aud={'user'}))
         user_id = current_token['sub']
-        proxy_group_id = get_or_create_proxy_group_id(current_token)
+        proxy_group_id = get_or_create_proxy_group_id(token=current_token)
         username = (
             current_token.get('context', {})
             .get('user', {})
