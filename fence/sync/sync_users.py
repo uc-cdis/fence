@@ -707,8 +707,6 @@ if __name__ == '__main__':
     driver = SQLAlchemyDriver(DB)
     with driver.session as sess:
         user = sess.query(User).filter(User.id == 17).first()
-        import pdb
-        pdb.set_trace()
         dir(user)
         print(user)
         tags = user.tags
