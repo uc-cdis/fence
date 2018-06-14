@@ -164,13 +164,36 @@ pip install -r requirements.txt
 python setup.py develop
 ```
 
-#### Create Local Settings
+#### Create Configuration File
+
+Fence requires a configuration file to run. We have a command line
+utility to help you create one based on a default configuration.
+
+The configuration file itself will live outside of this repo (to
+prevent accidentally checking in sensitive information like database passwords).
+
+To create a new configuration file from the default configuration:
 
 ```bash
-# Copy example settings to local settings and then fill them out.
-cp fence/local_settings.example.py fence/local_settings.py
+python cfg_help.py create
 ```
-Remember to fill out `fence/local_settings.py`!
+
+Now you can get the path where the new configuration file was created with:
+
+```bash
+python cfg_help.py get
+```
+
+The file should have detailed information about each of the configuration
+variables. **Remember to fill out the new configuration file!**
+
+##### Other Configuration Notes
+
+Fence will look for configuration files from a list of search directories (
+which are currently defined in `fence/settings.py`.)
+
+For more configuration options (such as having multiple different config
+files for development), see the `cfg_help.py` file.
 
 #### Set Up Databases
 

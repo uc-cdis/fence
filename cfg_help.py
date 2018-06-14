@@ -27,6 +27,13 @@ Support for Multiple Configs:
 Fence searches specific folders for configuration files. Check fence's
 settings for those paths. The LOCAL_CONFIG_FOLDER var here should be included
 in the search paths.
+
+NOTE: If using in production with wsgi.py, fence will still look for
+      configuration files in the defined search paths, but will not be able
+      to take in a custom configuration name by default.
+
+      It will search for a file matching regex: *config.yaml
+
 """
 import argparse
 import glob
