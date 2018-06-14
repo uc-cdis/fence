@@ -189,10 +189,9 @@ variables. **Remember to fill out the new configuration file!**
 
 ##### Other Configuration Notes
 
-Fence will look for configuration files from a list of search directories (
+* Fence will look for configuration files from a list of search directories (
 which are currently defined in `fence/settings.py`.)
-
-For more configuration options (such as having multiple different config
+* For more configuration options (such as having multiple different config
 files for development), see the `cfg_help.py` file.
 
 #### Set Up Databases
