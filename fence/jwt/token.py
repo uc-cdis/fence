@@ -16,6 +16,7 @@ SCOPE_DESCRIPTION = {
     'user': 'know who you are and what you have access to',
     'data': 'retrieve protected datasets that you have access to',
     'credentials': 'view and update your credentials',
+    'google_credentials': 'temporary google credentials to access data on google',
     'admin': 'view and update user accesses'
 }
 
@@ -25,9 +26,12 @@ SCOPE_DESCRIPTION = {
 #
 # Only allow web session based auth access credentials so that user
 # can't create a long-lived API key using a short lived access_token
-SESSION_ALLOWED_SCOPES = ['openid', 'user', 'credentials', 'data', 'admin']
-USER_ALLOWED_SCOPES = ['fence', 'openid', 'user', 'data', 'admin']
-CLIENT_ALLOWED_SCOPES = ['openid', 'user', 'data', 'admin']
+SESSION_ALLOWED_SCOPES = [
+    'openid', 'user', 'credentials', 'data', 'admin', 'google_credentials']
+USER_ALLOWED_SCOPES = [
+    'fence', 'openid', 'user', 'data', 'admin', ' google_credentials']
+CLIENT_ALLOWED_SCOPES = [
+    'openid', 'user', 'data', 'admin', 'google_credentials']
 
 
 class JWTResult(object):
