@@ -212,12 +212,12 @@ class UserSyncer(object):
         user_projects = dict()
         user_info = dict()
         for filepath, privileges in file_dict.iteritems():
+            self.logger.info('Reading file {}'.format(filepath))
             if os.stat(filepath).st_size == 0:
                 continue
             if not self._match_pattern(filepath, encrypted=encrypted):
                 continue
 
-            self.logger.info('Reading file {}'.format(filepath))
             with self._read_file(filepath, encrypted=encrypted) as f:
                 csv = DictReader(f, quotechar='"',
                                  skipinitialspace=True)
