@@ -150,7 +150,7 @@ def app_config(
         config_path = None
 
     if config_path:
-        _load_configuration_files(config_path)
+        _load_configuration_files(app, config_path)
 
     if 'ROOT_URL' not in app.config:
         url = urlparse.urlparse(app.config['BASE_URL'])
@@ -161,7 +161,7 @@ def app_config(
         app.boto = BotoManager(value, logger=app.logger)
         app.register_blueprint(fence.blueprints.data.blueprint, url_prefix="/data")
 
-    _load_keys(root_dir)
+    _load_keys(app, root_dir)
 
     # allow authlib traffic on http for development if enabled. By default
     # it requires https.
@@ -181,16 +181,16 @@ def app_config(
         logger=app.logger
     )
 
-    _setup_oidc_clients()
+    _setup_oidc_clients(app)
 
     # expand urls based on provided vars
-    _expand_base_url()
-    _expand_api_base_url()
+    _expand_base_url(app)
+    _expand_api_base_url(app)
 
     cirrus.config.config.update(**app.config.get('CIRRUS_CFG', {}))
 
 
-def _load_configuration_files(provided_config_path):
+def _load_configuration_files(app, provided_config_path):
     app.logger.info('Loading default configuration...')
     config = yaml_load(
         open(os.path.join(
@@ -230,7 +230,7 @@ def _load_configuration_files(provided_config_path):
     app.config.update(config)
 
 
-def _load_keys(root_dir):
+def _load_keys(app, root_dir):
     if root_dir is None:
         root_dir = os.path.dirname(
                 os.path.dirname(os.path.realpath(__file__)))
@@ -245,7 +245,7 @@ def _load_keys(root_dir):
     }
 
 
-def _setup_oidc_clients():
+def _setup_oidc_clients(app):
     enabled_idp_ids = (
         app.config['ENABLED_IDENTITY_PROVIDERS']['providers'].keys()
     )
@@ -273,7 +273,7 @@ def _setup_oidc_clients():
         app.fence_client = OAuthClient(**app.config['OPENID_CONNECT']['fence'])
 
 
-def _expand_base_url():
+def _expand_base_url(app):
     """
     Replaces {{BASE_URL}} in specific configuration vars with the actual
     balue of BASE_URL
@@ -325,7 +325,7 @@ def _expand_base_url():
         )
 
 
-def _expand_api_base_url():
+def _expand_api_base_url(app):
     """
     Replaces {{api_base_url}} in specific configuration vars with the actual
     balue of api_base_url
