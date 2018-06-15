@@ -34,6 +34,9 @@ NOTE: If using in production with wsgi.py, fence will still look for
 
       It will search for a file matching regex: *config.yaml
 
+      You can modify the wsgi.py file to pass a file name / file path
+      into the call to app_init().
+
 """
 import argparse
 import glob
