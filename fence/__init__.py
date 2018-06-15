@@ -43,6 +43,85 @@ app = flask.Flask(__name__)
 CORS(app=app, headers=["content-type", "accept"], expose_headers="*")
 
 
+def app_init(
+        app, settings='fence.settings', root_dir=None, config_path=None,
+        config_file_name=None):
+    app_config(
+        app, settings=settings, root_dir=root_dir, config_path=config_path,
+        file_name=config_file_name)
+    app_sessions(app)
+    app_register_blueprints(app)
+    server.init_app(app)
+
+
+def app_sessions(app):
+    app.url_map.strict_slashes = False
+    app.db = SQLAlchemyDriver(app.config['DB'])
+    migrate(app.db)
+    session = flask_scoped_session(app.db.Session, app)  # noqa
+    app.session_interface = UserSessionInterface()
+
+
+def app_register_blueprints(app):
+    app.register_blueprint(fence.blueprints.oauth2.blueprint, url_prefix='/oauth2')
+    app.register_blueprint(fence.blueprints.user.blueprint, url_prefix='/user')
+
+    creds_blueprint = fence.blueprints.storage_creds.make_creds_blueprint()
+    app.register_blueprint(creds_blueprint, url_prefix='/credentials')
+
+    app.register_blueprint(fence.blueprints.admin.blueprint, url_prefix='/admin')
+    app.register_blueprint(fence.blueprints.well_known.blueprint, url_prefix='/.well-known')
+
+    login_blueprint = fence.blueprints.login.make_login_blueprint(app)
+    app.register_blueprint(login_blueprint, url_prefix='/login')
+    link_blueprint = fence.blueprints.link.make_link_blueprint()
+    app.register_blueprint(link_blueprint, url_prefix='/link')
+
+    @app.route('/')
+    def root():
+        """
+        Register the root URL.
+        """
+        endpoints = {
+            'oauth2 endpoint': '/oauth2',
+            'user endpoint': '/user',
+            'keypair endpoint': '/credentials'
+        }
+        return flask.jsonify(endpoints)
+
+    @app.route('/logout')
+    def logout_endpoint():
+        root = app.config.get('BASE_URL', '')
+        request_next = flask.request.args.get('next', root)
+        if request_next.startswith('https') or request_next.startswith('http'):
+            next_url = request_next
+        else:
+            next_url = build_redirect_url(app.config.get('ROOT_URL', ''), request_next)
+        return logout(next_url=next_url)
+
+    @app.route('/jwt/keys')
+    def public_keys():
+        """
+        Return the public keys which can be used to verify JWTs signed by fence.
+
+        The return value should look like this:
+
+            {
+                "keys": [
+                    {
+                        "key-01": " ... [public key here] ... "
+                    }
+                ]
+            }
+        """
+        return flask.jsonify({
+            'keys': [
+                (keypair.kid, keypair.public_key)
+                for keypair in app.keypairs
+            ]
+        })
+
+
 def app_config(
         app, settings='fence.settings', root_dir=None, config_path=None,
         file_name=None):
@@ -71,63 +150,18 @@ def app_config(
         config_path = None
 
     if config_path:
-        app.logger.info('Loading default configuration...')
-        config = yaml_load(
-            open(os.path.join(
-                   os.path.dirname(os.path.abspath(__file__)),
-                   'config-default.yaml'))
-        )
-
-        app.logger.info('Loading configuration: {}'.format(config_path))
-        provided_configurations = yaml_load(open(config_path))
-
-        # only update known configuration values. In the situation
-        # where the provided config does not have a certain value,
-        # the default will be used.
-        common_keys = {
-            key: value
-            for (key, value) in config.iteritems()
-            if key in provided_configurations
-        }
-        keys_to_update = {
-            key: value
-            for (key, value) in provided_configurations.iteritems()
-            if key in common_keys
-        }
-        unknown_keys = {
-            key: value
-            for (key, value) in provided_configurations.iteritems()
-            if key not in common_keys
-        }
-
-        config.update(keys_to_update)
-
-        if unknown_keys:
-            app.logger.warning(
-                'Unknown key(s) {} found in {}. Will be ignored.'
-                .format(unknown_keys.keys(), config_path))
-
-        app.config.update(config)
+        _load_configuration_files(config_path)
 
     if 'ROOT_URL' not in app.config:
         url = urlparse.urlparse(app.config['BASE_URL'])
         app.config['ROOT_URL'] = '{}://{}'.format(url.scheme, url.netloc)
 
-    if root_dir is None:
-        root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    if app.config.get("AWS_CREDENTIALS"):
-        value = app.config["AWS_CREDENTIALS"].values()[0]
+    if 'AWS_CREDENTIALS' in app.config and len(app.config['AWS_CREDENTIALS']) > 0:
+        value = app.config['AWS_CREDENTIALS'].values()[0]
         app.boto = BotoManager(value, logger=app.logger)
         app.register_blueprint(fence.blueprints.data.blueprint, url_prefix="/data")
 
-    app.keypairs = keys.load_keypairs(os.path.join(root_dir, "keys"))
-
-    app.jwt_public_keys = {
-        app.config['BASE_URL']: OrderedDict([
-            (str(keypair.kid), str(keypair.public_key))
-            for keypair in app.keypairs
-        ])
-    }
+    _load_keys(root_dir)
 
     # allow authlib traffic on http for development if enabled. By default
     # it requires https.
@@ -137,9 +171,113 @@ def app_config(
     if app.config.get('AUTHLIB_INSECURE_TRANSPORT'):
         os.environ['AUTHLIB_INSECURE_TRANSPORT'] = 'true'
 
-    # TODO should we do generic template replacing or use a template engine?
+    # if we're mocking storage, ignore the storage backends provided
+    # since they'll cause errors if misconfigured
+    if app.config.get('MOCK_STORAGE', False):
+        app.config['STORAGE_CREDENTIALS'] = {}
 
-    # BASE_URL replacement
+    app.storage_manager = StorageManager(
+        app.config['STORAGE_CREDENTIALS'],
+        logger=app.logger
+    )
+
+    _setup_oidc_clients()
+
+    # expand urls based on provided vars
+    _expand_base_url()
+    _expand_api_base_url()
+
+    cirrus.config.config.update(**app.config.get('CIRRUS_CFG', {}))
+
+
+def _load_configuration_files(provided_config_path):
+    app.logger.info('Loading default configuration...')
+    config = yaml_load(
+        open(os.path.join(
+               os.path.dirname(os.path.abspath(__file__)),
+               'config-default.yaml'))
+    )
+
+    app.logger.info('Loading configuration: {}'.format(provided_config_path))
+    provided_configurations = yaml_load(open(provided_config_path))
+
+    # only update known configuration values. In the situation
+    # where the provided config does not have a certain value,
+    # the default will be used.
+    common_keys = {
+        key: value
+        for (key, value) in config.iteritems()
+        if key in provided_configurations
+    }
+    keys_to_update = {
+        key: value
+        for (key, value) in provided_configurations.iteritems()
+        if key in common_keys
+    }
+    unknown_keys = {
+        key: value
+        for (key, value) in provided_configurations.iteritems()
+        if key not in common_keys
+    }
+
+    config.update(keys_to_update)
+
+    if unknown_keys:
+        app.logger.warning(
+            'Unknown key(s) {} found in {}. Will be ignored.'
+            .format(unknown_keys.keys(), provided_config_path))
+
+    app.config.update(config)
+
+
+def _load_keys(root_dir):
+    if root_dir is None:
+        root_dir = os.path.dirname(
+                os.path.dirname(os.path.realpath(__file__)))
+
+    app.keypairs = keys.load_keypairs(os.path.join(root_dir, 'keys'))
+
+    app.jwt_public_keys = {
+        app.config['BASE_URL']: OrderedDict([
+            (str(keypair.kid), str(keypair.public_key))
+            for keypair in app.keypairs
+        ])
+    }
+
+
+def _setup_oidc_clients():
+    enabled_idp_ids = (
+        app.config['ENABLED_IDENTITY_PROVIDERS']['providers'].keys()
+    )
+
+    # Add OIDC client for Google if configured.
+    configured_google = (
+        'OPENID_CONNECT' in app.config
+        and 'google' in app.config['OPENID_CONNECT']
+        and 'google' in enabled_idp_ids
+    )
+    if configured_google:
+        app.google_client = GoogleClient(
+            app.config['OPENID_CONNECT']['google'],
+            HTTP_PROXY=app.config.get('HTTP_PROXY'),
+            logger=app.logger
+        )
+
+    # Add OIDC client for multi-tenant fence if configured.
+    configured_fence = (
+        'OPENID_CONNECT' in app.config
+        and 'fence' in app.config['OPENID_CONNECT']
+        and 'fence' in enabled_idp_ids
+    )
+    if configured_fence:
+        app.fence_client = OAuthClient(**app.config['OPENID_CONNECT']['fence'])
+
+
+def _expand_base_url():
+    """
+    Replaces {{BASE_URL}} in specific configuration vars with the actual
+    balue of BASE_URL
+    """
     server_name = app.config.get('SERVER_NAME')
     if server_name:
         provided_value = app.config['SERVER_NAME']
@@ -182,139 +320,87 @@ def app_config(
         provided_value = (
             app.config['OPENID_CONNECT']['fence']['client_kwargs']['redirect_uri']
         )
-
-    cirrus.config.config.update(**app.config.get("CIRRUS_CFG", {}))
-
-
-
-
-def app_register_blueprints(app):
-    app.register_blueprint(fence.blueprints.oauth2.blueprint, url_prefix="/oauth2")
-    app.register_blueprint(fence.blueprints.user.blueprint, url_prefix="/user")
-
-    creds_blueprint = fence.blueprints.storage_creds.make_creds_blueprint()
-    app.register_blueprint(creds_blueprint, url_prefix="/credentials")
-
-    app.register_blueprint(fence.blueprints.admin.blueprint, url_prefix="/admin")
-    app.register_blueprint(
-        fence.blueprints.well_known.blueprint, url_prefix="/.well-known"
-    )
-
-    login_blueprint = fence.blueprints.login.make_login_blueprint(app)
-    app.register_blueprint(login_blueprint, url_prefix="/login")
-
-    link_blueprint = fence.blueprints.link.make_link_blueprint()
-    app.register_blueprint(link_blueprint, url_prefix="/link")
-
-    google_blueprint = fence.blueprints.google.make_google_blueprint()
-    app.register_blueprint(google_blueprint, url_prefix="/google")
-
-    if app.config.get("ARBORIST"):
-        app.register_blueprint(fence.blueprints.rbac.blueprint, url_prefix="/rbac")
-
-    fence.blueprints.misc.register_misc(app)
-
-    @app.route("/")
-    def root():
-        """
-        Register the root URL.
-        """
-        endpoints = {
-            "oauth2 endpoint": "/oauth2",
-            "user endpoint": "/user",
-            "keypair endpoint": "/credentials",
-        }
-        return flask.jsonify(endpoints)
-
-    @app.route("/logout")
-    def logout_endpoint():
-        root = app.config.get("BASE_URL", "")
-        request_next = flask.request.args.get("next", root)
-        if request_next.startswith("https") or request_next.startswith("http"):
-            next_url = request_next
-        else:
-            next_url = build_redirect_url(app.config.get("ROOT_URL", ""), request_next)
-        return logout(next_url=next_url)
-
-    @app.route("/jwt/keys")
-    def public_keys():
-        """
-        Return the public keys which can be used to verify JWTs signed by fence.
-
-        The return value should look like this:
-
-            {
-                "keys": [
-                    {
-                        "key-01": " ... [public key here] ... "
-                    }
-                ]
-            }
-        """
-        return flask.jsonify(
-            {"keys": [(keypair.kid, keypair.public_key) for keypair in app.keypairs]}
+        app.config['OPENID_CONNECT']['fence']['client_kwargs']['redirect_uri'] = (
+            provided_value.replace('{{BASE_URL}}', app.config['BASE_URL'])
         )
 
 
-def app_sessions(app):
-    app.url_map.strict_slashes = False
-    app.db = SQLAlchemyDriver(app.config["DB"])
-    migrate(app.db)
-    session = flask_scoped_session(app.db.Session, app)  # noqa
-
-    # if we're mocking storage, ignore the storage backends provided
-    # since they'll cause errors if misconfigured
-    if app.config.get('MOCK_STORAGE', False):
-        app.config['STORAGE_CREDENTIALS'] = {}
-
-    app.storage_manager = StorageManager(
-        app.config["STORAGE_CREDENTIALS"], logger=app.logger
+def _expand_api_base_url():
+    """
+    Replaces {{api_base_url}} in specific configuration vars with the actual
+    balue of api_base_url
+    """
+    api_base_url = (
+        app.config.get('OPENID_CONNECT', {})
+        .get('fence', {})
+        .get('api_base_url')
     )
-    enabled_idp_ids = app.config["ENABLED_IDENTITY_PROVIDERS"]["providers"].keys()
-    # Add OIDC client for Google if configured.
-    configured_google = (
-        "OPENID_CONNECT" in app.config and "google" in app.config["OPENID_CONNECT"]
-    )
-    if configured_google:
-        app.google_client = GoogleClient(
-            app.config["OPENID_CONNECT"]["google"],
-            HTTP_PROXY=app.config.get("HTTP_PROXY"),
-            logger=app.logger,
+    if api_base_url is not None:
+        authorize_url = (
+            app.config.get('OPENID_CONNECT', {})
+            .get('fence', {})
+            .get('authorize_url')
         )
-    # Add OIDC client for multi-tenant fence if configured.
-    configured_fence = (
-        "OPENID_CONNECT" in app.config
-        and "fence" in app.config["OPENID_CONNECT"]
-        and "fence" in enabled_idp_ids
-    )
-    if configured_fence:
-        app.fence_client = OAuthClient(**app.config["OPENID_CONNECT"]["fence"])
-    app.session_interface = UserSessionInterface()
-    if app.config.get("ARBORIST"):
-        app.arborist = ArboristClient(arborist_base_url=app.config["ARBORIST"])
+        if authorize_url:
+            provided_value = (
+                app.config['OPENID_CONNECT']['fence']['authorize_url']
+            )
+            app.config['OPENID_CONNECT']['fence']['authorize_url'] = (
+                provided_value.replace('{{api_base_url}}', api_base_url)
+            )
+
+        access_token_url = (
+            app.config.get('OPENID_CONNECT', {})
+            .get('fence', {})
+            .get('access_token_url')
+        )
+        if access_token_url:
+            provided_value = (
+                app.config['OPENID_CONNECT']['fence']['access_token_url']
+            )
+            app.config['OPENID_CONNECT']['fence']['access_token_url'] = (
+                provided_value.replace('{{api_base_url}}', api_base_url)
+            )
+
+        refresh_token_url = (
+            app.config.get('OPENID_CONNECT', {})
+            .get('fence', {})
+            .get('refresh_token_url')
+        )
+        if refresh_token_url:
+            provided_value = (
+                app.config['OPENID_CONNECT']['fence']['refresh_token_url']
+            )
+            app.config['OPENID_CONNECT']['fence']['refresh_token_url'] = (
+                provided_value.replace('{{api_base_url}}', api_base_url)
+            )
 
 
-def app_config_oauth(app):
-    # authlib OIDC settings
-    settings = {
-        "OAUTH2_JWT_ENABLED": True,
-        "OAUTH2_JWT_ALG": "RS256",
-        "OAUTH2_JWT_ISS": app.config["BASE_URL"],
-        "OAUTH2_JWT_KEY": app.keypairs[0].private_key,
-    }
-    app.config.update(settings)
+def get_config_path(search_folders, file_name='*config.yaml'):
+    """
+    Return the path of a single configuration file ending in config.yaml
+    from one of the search folders.
 
+    NOTE: Will return the first match it finds. If multiple are found,
+    this will error out.
+    """
+    possible_configs = []
+    for folder in search_folders:
+        config_path = os.path.join(folder, file_name)
+        possible_files = glob.glob(config_path)
+        possible_configs.extend(possible_files)
 
-def app_init(
-        app, settings='fence.settings', root_dir=None, config_path=None,
-        config_file_name=None):
-    app_config(
-        app, settings=settings, root_dir=root_dir, config_path=config_path,
-        file_name=config_file_name)
-    app_sessions(app)
-    app_register_blueprints(app)
-    app_config_oauth(app)
-    server.init_app(app, query_client=query_client)
+    if len(possible_configs) == 1:
+        return possible_configs[0]
+    elif len(possible_configs) > 1:
+        raise IOError(
+            'Multiple config.yaml files found: {}. Please specify which '
+            'configuration to use with "python run.py -c some-config.yaml".'
+            .format(str(possible_configs)))
+    else:
+        raise IOError(
+            'Could not find config.yaml. Searched in the following locations: '
+            '{}'.format(str(search_folders)))
 
 
 @app.errorhandler(Exception)

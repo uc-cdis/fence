@@ -51,16 +51,27 @@ def main():
 
     create = subparsers.add_parser('create')
     create.add_argument(
-        '-n', '--name', default='fence-config.yaml', help='configuration file name if you want something '
-        'other than "fence-config.yaml"')
+        '-n', '--name',
+        default='fence-config.yaml',
+        help=(
+            'configuration file name if you want something '
+            'other than "fence-config.yaml"')
+    )
     create.add_argument(
-        '--config_path', help='Full path to a yaml config file to create. '
-        'Will override/ignore name if provided.')
+        '--config_path',
+        help=(
+            'Full path to a yaml config file to create. '
+            'Will override/ignore name if provided.')
+    )
 
     edit = subparsers.add_parser('get')
     edit.add_argument(
-        '-n', '--name', default='fence-config.yaml', help='configuration file name if you used something '
-        'other than "fence-config.yaml"')
+        '-n', '--name',
+        default='fence-config.yaml',
+        help=(
+            'configuration file name if you used something '
+            'other than "fence-config.yaml"')
+    )
 
     args = parser.parse_args()
 
@@ -69,7 +80,8 @@ def main():
     elif args.action == 'get':
         sys.stdout.write(get_config_file(args.name))
     else:
-        pass
+        raise ValueError(
+            '{} is not a recognized action.'.format(args.actions))
 
 
 def create_config_file(file_name, full_path=None):
@@ -97,7 +109,7 @@ def get_config_file(file_name):
     return config_path
 
 
-def get_config_path(search_folders, file_name=None):
+def get_config_path(search_folders, file_name='*config.yaml'):
     """
     Return the path of a single configuration file ending in config.yaml
     from one of the search folders.
@@ -107,14 +119,14 @@ def get_config_path(search_folders, file_name=None):
     """
     possible_configs = []
     for folder in search_folders:
-        file_name = file_name or '*config.yaml'
         config_path = os.path.join(folder, file_name)
         possible_files = glob.glob(config_path)
         possible_configs.extend(possible_files)
 
-    if len(possible_configs) == 1:
+    possible_cfgs_count = len(possible_configs)
+    if possible_cfgs_count == 1:
         return possible_configs[0]
-    elif len(possible_configs) > 1:
+    elif possible_cfgs_count > 1:
         raise IOError(
             'Multiple config.yaml files found: {}. Please specify which '
             'configuration to use with "python run.py -c some-config.yaml".'

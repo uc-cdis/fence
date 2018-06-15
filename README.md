@@ -178,7 +178,9 @@ To create a new configuration file from the default configuration:
 python cfg_help.py create
 ```
 
-Now you can get the path where the new configuration file was created with:
+This file will be placed in one of the default search directories for Fence.
+
+To get the exact path where the new configuration file was created, use:
 
 ```bash
 python cfg_help.py get
