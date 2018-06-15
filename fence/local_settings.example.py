@@ -110,10 +110,21 @@ AWS_CREDENTIALS = {
     }
 }
 
+ASSUMED_ROLES = {
+    'arn:aws:iam::role1': 'CRED1'
+}
+
 S3_BUCKETS = {
-    'bucket1': 'CRED1',
-    'bucket2': 'CRED2',
-    'bucket3': 'CRED1'
+    'bucket1': {
+        'cred': 'CRED1',
+    },
+    'bucket2': {
+        'cred': 'CRED2',
+    },
+    'bucket3': {
+        'cred': 'CRED1',
+        'role-arn': 'arn:aws:iam::role1',
+    }
 }
 
 #: Confiure which identity providers this fence instance can use for login.
