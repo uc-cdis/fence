@@ -178,7 +178,7 @@ ROOT_DIR: /fence
 # Use when fence is *both* the client and an IDP.
 # configure this to the base URL for the provider fence
 # (i.e. ``BASE_URL`` in the provider fence config).
-# OIDC_ISSUER: 'http://localhost:8080/user
+OIDC_ISSUER: null
 
 #### Shibboleth Configurations ####
 # assumes shibboleth is deployed under {{BASE_URL}}/shibboleth
