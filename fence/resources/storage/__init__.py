@@ -369,15 +369,7 @@ class StorageManager(object):
         # Need different logic for google (since buckets can have multiple
         # access groups)
         if provider == GOOGLE_PROVIDER_NAME:
-            if bucket.google_bucket_access_groups:
-                bucket_access_groups = [
-                    gbag for gbag in bucket.google_bucket_access_groups
-                ]
-            else:
-                # no groups to remove user from, no access to bucket
-                return
-
-            for bucket_access_group in bucket_access_groups:
+            for bucket_access_group in bucket.google_bucket_access_groups:
                 bucket_name = bucket_access_group.email
                 self.clients[provider].delete_bucket_acl(
                     bucket_name, storage_username)
