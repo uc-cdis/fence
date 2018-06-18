@@ -123,8 +123,6 @@ class GoogleLinkRedirect(Resource):
     @staticmethod
     def _extend_account_expiration():
         user_id = current_token['sub']
-        import pdb
-        pdb.set_trace()
         google_email = get_users_linked_google_email(user_id)
         proxy_group = get_or_create_proxy_group_id()
 
