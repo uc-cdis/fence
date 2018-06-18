@@ -14,6 +14,7 @@ from fence.resources.google.utils import (
     get_or_create_proxy_group_id
 )
 
+
 class GoogleCredentialsList(Resource):
     """
     For ``/credentials/google`` endpoint.
@@ -53,10 +54,12 @@ class GoogleCredentialsList(Resource):
         """
         client_id = current_token.get("azp") or None
         user_id = current_token["sub"]
-        username = (current_token
+        username = (
+            current_token
             .get("context")
             .get("user")
-            .get("name"))
+            .get("name")
+        )
 
         with GoogleCloudManager() as g_cloud_manager:
             proxy_group_id = get_or_create_proxy_group_id()

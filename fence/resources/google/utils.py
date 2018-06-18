@@ -282,28 +282,29 @@ def create_service_account(client_id, user_id, username, proxy_group_id):
 
 
 def get_or_create_proxy_group_id():
-
-    proxy_group_id = get_proxy_group_id()
+    """
+    If no username returned from token or database, create a new proxy group
+    for the give user
+    """
+    proxy_group_id = _get_proxy_group_id()
     if not proxy_group_id:
-        user_id=current_token['sub']
+        user_id = current_token['sub']
         username = (
             current_token.get('context', {})
             .get('user', {})
-            .get('name')
+            .get('name', '')
         )
-        proxy_group_id = create_proxy_group(user_id, username).id
+        proxy_group_id = _create_proxy_group(user_id, username).id
 
     return proxy_group_id
 
 
-def get_proxy_group_id():
-
-    proxy_group_id = (
-        current_token.get('context', {})
-        .get('user', {})
-        .get('google', {})
-        .get('proxy_group')
-    )
+def _get_proxy_group_id():
+    """
+    Get users proxy group id from the current token, if possible.
+    Otherwise, check the database for it.
+    """
+    proxy_group_id = get_users_proxy_group_from_token()
 
     if not proxy_group_id:
         user = (
@@ -316,7 +317,7 @@ def get_proxy_group_id():
     return proxy_group_id
 
 
-def create_proxy_group(user_id, username):
+def _create_proxy_group(user_id, username):
     """
     Create a proxy group for the given user
     """

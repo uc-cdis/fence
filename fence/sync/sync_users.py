@@ -704,14 +704,3 @@ class UserSyncer(object):
             self.logger.info('Finish syncing to db and storage backend')
         else:
             self.logger.info('No users for syncing!!!')
-
-
-if __name__ == '__main__':
-    DB = 'postgresql://test:test@localhost:5432/fence_test'
-    driver = SQLAlchemyDriver(DB)
-    with driver.session as sess:
-        user = sess.query(User).filter(User.id == 17).first()
-        dir(user)
-        print(user)
-        tags = user.tags
-        print(type(tags))
