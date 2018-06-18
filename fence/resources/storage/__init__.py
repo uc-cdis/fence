@@ -382,15 +382,9 @@ class StorageManager(object):
         # Need different information for google (since buckets and
         # users are represented with Google Groups)
         if provider == GOOGLE_PROVIDER_NAME:
-            username = None
-            if user.google_proxy_group:
-                username = user.google_proxy_group.email
+            proxy_group_id = get_or_create_proxy_group_id()
+            username = user.google_proxy_group.email
 
-            if not username:
-                raise NotFound(
-                    'User {} does not have a Google Proxy Group. Must already '
-                    'exist to manage access to Google Storage buckets.'
-                    .format(user.username))
         else:
             username = user.username
 
