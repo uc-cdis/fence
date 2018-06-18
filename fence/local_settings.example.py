@@ -142,6 +142,8 @@ ENABLED_IDENTITY_PROVIDERS = {
 
 APP_NAME = ''
 
+GOOGLE_GROUP_PREFIX = APP_NAME
+
 #: ``MAX_PRESIGNED_URL_TTL: int``
 #: The number of seconds after a pre-signed url is issued until it expires.
 MAX_PRESIGNED_URL_TTL = 3600
@@ -168,3 +170,4 @@ if os.path.exists(fence_creds):
         APP_NAME = data['APP_NAME']
         HTTP_PROXY = data['HTTP_PROXY']
         dbGaP = data["dbGaP"]
+        GOOGLE_GROUP_PREFIX = data.get('GOOGLE_GROUP_PREFIX')

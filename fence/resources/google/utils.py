@@ -235,6 +235,7 @@ def get_service_account(client_id, user_id):
 
     return service_account
 
+
 def create_service_account(client_id, user_id, username, proxy_group_id):
     """
     Create a Google Service account for the current client and user.
@@ -276,3 +277,16 @@ def create_service_account(client_id, user_id, username, proxy_group_id):
         flask.abort(
             404, 'Could not find Google proxy group for current user in the '
             'given token.')
+
+
+def get_prefix_for_google_proxy_groups():
+    """
+    Return a string prefix for Google proxy groups based on configuration.
+    Will use APP_NAME if GOOGLE_GROUP_PREFIX is not provided.
+
+    Returns:
+        str: prefix for proxy groups
+    """
+    return flask.current_app.config.get(
+        'GOOGLE_GROUP_PREFIX',
+        flask.current_app.config.get('APP_NAME', ''))
