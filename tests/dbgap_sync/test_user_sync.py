@@ -1,7 +1,10 @@
+import pytest
+
 from fence import models
 
 
-def test_sync(syncer, db_session):
+@pytest.mark.parametrize('syncer', ['google', 'cleversafe'], indirect=True)
+def test_sync(syncer, db_session, storage_client):
 
     syncer.sync()
 
@@ -51,7 +54,8 @@ def test_sync(syncer, db_session):
         raise AssertionError
 
 
-def test_sync_from_files(syncer, db_session):
+@pytest.mark.parametrize('syncer', ['google', 'cleversafe'], indirect=True)
+def test_sync_from_files(syncer, db_session, storage_client):
     sess = db_session
     phsids = {
         'userA': {
@@ -77,7 +81,8 @@ def test_sync_from_files(syncer, db_session):
     )
 
 
-def test_sync_revoke(syncer, db_session):
+@pytest.mark.parametrize('syncer', ['google', 'cleversafe'], indirect=True)
+def test_sync_revoke(syncer, db_session, storage_client):
     phsids = {
         'userA': {
             'phs000178': {'read-storage'},
@@ -113,7 +118,8 @@ def test_sync_revoke(syncer, db_session):
         raise AssertionError()
 
 
-def test_sync_two_phsids_dict(syncer, db_session):
+@pytest.mark.parametrize('syncer', ['google', 'cleversafe'], indirect=True)
+def test_sync_two_phsids_dict(syncer, db_session, storage_client):
 
     phsids1 = {
         'userA': {
@@ -140,7 +146,8 @@ def test_sync_two_phsids_dict(syncer, db_session):
                        }
 
 
-def test_sync_two_phsids_dict_override(syncer, db_session):
+@pytest.mark.parametrize('syncer', ['google', 'cleversafe'], indirect=True)
+def test_sync_two_phsids_dict_override(syncer, db_session, storage_client):
     phsids1 = {
         'userA': {
             'phs000178': {'read-storage'},
@@ -165,7 +172,8 @@ def test_sync_two_phsids_dict_override(syncer, db_session):
                        }
 
 
-def test_sync_two_user_info(syncer, db_session):
+@pytest.mark.parametrize('syncer', ['google', 'cleversafe'], indirect=True)
+def test_sync_two_user_info(syncer, db_session, storage_client):
     userinfo1 = {
         'userA': {'email': 'a@email', 'display_name': 'user A', 'phone_numer': '123-456-789', 'role': 'user'},
         'userB': {'email': 'b@email', 'display_name': 'user B', 'phone_numer': '232-456-789', 'role': 'admin'},

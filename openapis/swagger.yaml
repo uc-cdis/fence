@@ -74,7 +74,9 @@ paths:
         - name: scope
           required: false
           in: query
-          description: Requested authorization scope
+          description: |
+              Requested authorization scope
+              > NOTE: This is required for [OIDC](http://openid.net/specs/openid-connect-core-1_0.html#AuthRequest)
           schema:
             type: string
       responses:

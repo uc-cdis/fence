@@ -87,6 +87,8 @@ def sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
               - name: CGCI
                 auth_id: phs000235
     '''
+    import fence.settings
+    cirrus_config.update(**fence.settings.CIRRUS_CFG)
 
     if projects is not None and not os.path.exists(projects):
         logger.error("====={} is not found!!!=======".format(projects))
@@ -318,6 +320,7 @@ def google_init(db):
 
         for user in users_without_proxy:
             with GoogleCloudManager() as g_mgr:
+
                 group = g_mgr.create_proxy_group_for_user(
                     user.id, user.username)
                 service_account_id = (
@@ -326,23 +329,14 @@ def google_init(db):
                 primary_service_account = (
                     g_mgr.create_service_account_for_proxy_group(
                         group["id"], service_account_id))
-                user.google_proxy_group_id = group["id"]
 
-                # Add user's primary service account to database
-                service_account = GoogleServiceAccount(
-                    google_unique_id=primary_service_account["uniqueId"],
-                    client_id=None,
-                    user_id=user.id,
-                    email=primary_service_account["email"],
-                    google_project_id=primary_service_account['projectId']
-                )
+                user.google_proxy_group_id = group["id"]
 
                 proxy_group = GoogleProxyGroup(
                     id=group["id"],
                     email=group["email"]
                 )
 
-                s.add(service_account)
                 s.add(proxy_group)
                 s.commit()
 
@@ -671,6 +665,22 @@ def link_bucket_to_project(db, bucket_id, bucket_provider, project_auth_id):
                 .format(project_auth_id)
             )
 
+        # Add StorageAccess if it doesn't exist for the project
+        storage_access = (
+            current_session.query(StorageAccess)
+            .filter_by(
+                project_id=project_db_entry.id,
+                provider_id=google_cloud_provider.id
+            ).first()
+        )
+        if not storage_access:
+            storage_access = StorageAccess(
+                project_id=project_db_entry.id,
+                provider_id=google_cloud_provider.id
+            )
+            current_session.add(storage_access)
+            current_session.commit()
+
         project_linkage = ProjectToBucket(
             project_id=project_db_entry.id,
             bucket_id=bucket_db_entry.id,
@@ -758,7 +768,7 @@ def _create_google_bucket_and_update_db(
     manager = GoogleCloudManager(
         google_project_id, creds=cirrus_config.configs['GOOGLE_STORAGE_CREDS'])
     with manager as g_mgr:
-        g_mgr.create_bucket(
+        g_mgr.create_or_update_bucket(
             name,
             storage_class=storage_class,
             public=public,
@@ -778,14 +788,20 @@ def _create_google_bucket_and_update_db(
             db_session.add(google_cloud_provider)
             db_session.commit()
 
-        bucket_db_entry = Bucket(
-            name=name,
-            provider_id=google_cloud_provider.id
+        bucket_db_entry = (
+            db_session.query(Bucket).filter_by(
+                    name=name,
+                    provider_id=google_cloud_provider.id).first()
         )
-        db_session.add(bucket_db_entry)
-        db_session.commit()
+        if not bucket_db_entry:
+            bucket_db_entry = Bucket(
+                name=name,
+                provider_id=google_cloud_provider.id
+            )
+            db_session.add(bucket_db_entry)
+            db_session.commit()
 
-        print('Successfully created Google Bucket {}.'.format(name))
+        print('Successfully updated Google Bucket {}.'.format(name))
 
         # optionally link this new bucket to an existing project
         if project_auth_id:
@@ -800,6 +816,29 @@ def _create_google_bucket_and_update_db(
                     privilege=['owner']  # TODO What should this be???
                 )
                 db_session.add(project_linkage)
+                db_session.commit()
+                print(
+                    'Successfully linked project with auth_id {} '
+                    'to the bucket.'.format(project_auth_id))
+            else:
+                print(
+                    'No project with auth_id {} found. No linking '
+                    'occured.'.format(project_auth_id))
+
+            # Add StorageAccess if it doesn't exist for the project
+            storage_access = (
+                db_session.query(StorageAccess)
+                .filter_by(
+                    project_id=project_db_entry.id,
+                    provider_id=google_cloud_provider.id
+                ).first()
+            )
+            if not storage_access:
+                storage_access = StorageAccess(
+                    project_id=project_db_entry.id,
+                    provider_id=google_cloud_provider.id
+                )
+                db_session.add(storage_access)
                 db_session.commit()
 
     return bucket_db_entry
