@@ -382,7 +382,8 @@ class StorageManager(object):
         # Need different information for google (since buckets and
         # users are represented with Google Groups)
         if provider == GOOGLE_PROVIDER_NAME:
-            proxy_group_id = get_or_create_proxy_group_id()
+            #Ensure that proxy groups has been / is created, ignore return
+            get_or_create_proxy_group_id()
             username = user.google_proxy_group.email
 
         else:

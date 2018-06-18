@@ -285,6 +285,9 @@ def get_or_create_proxy_group_id():
     """
     If no username returned from token or database, create a new proxy group
     for the give user
+
+    Returns:
+        int: id of (possibly newly created) proxy group associated with user
     """
     proxy_group_id = _get_proxy_group_id()
     if not proxy_group_id:
@@ -303,6 +306,9 @@ def _get_proxy_group_id():
     """
     Get users proxy group id from the current token, if possible.
     Otherwise, check the database for it.
+
+    Returnns:
+        int: id of proxy group associated with user
     """
     proxy_group_id = get_users_proxy_group_from_token()
 
@@ -320,6 +326,13 @@ def _get_proxy_group_id():
 def _create_proxy_group(user_id, username):
     """
     Create a proxy group for the given user
+
+    Args:
+        user_id (int): unique integer id for user
+        username (str): unique name for user
+
+    Return:
+        userdatamodel.user.GoogleProxyGroup: the newly created proxy group
     """
 
     with GoogleCloudManager() as g_cloud:

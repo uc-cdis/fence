@@ -308,37 +308,12 @@ def assign_group_to_user(s, user, group_name, group_data):
 
 
 def google_init(db):
-    import fence.settings
-    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    """
+    Initial user proxy group / service account creation.
+    No longer necessary as proxy groups and service accounts are lazily
+    created.
+    """
 
-    # Initial user proxy group creation
-    db = SQLAlchemyDriver(db)
-    with db.session as s:
-        users_without_proxy = (
-            s.query(User).filter(User.google_proxy_group == None)
-        )
-
-        for user in users_without_proxy:
-            with GoogleCloudManager() as g_mgr:
-
-                group = g_mgr.create_proxy_group_for_user(
-                    user.id, user.username)
-                service_account_id = (
-                    g_mgr.get_valid_service_account_id_for_user(
-                        user.id, user.username))
-                primary_service_account = (
-                    g_mgr.create_service_account_for_proxy_group(
-                        group["id"], service_account_id))
-
-                user.google_proxy_group_id = group["id"]
-
-                proxy_group = GoogleProxyGroup(
-                    id=group["id"],
-                    email=group["email"]
-                )
-
-                s.add(proxy_group)
-                s.commit()
 
 
 def remove_expired_google_service_account_keys(db):
