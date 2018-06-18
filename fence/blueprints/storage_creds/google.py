@@ -59,8 +59,7 @@ class GoogleCredentialsList(Resource):
             .get("name"))
 
         with GoogleCloudManager() as g_cloud_manager:
-            proxy_group_id = (
-                get_or_create_proxy_group_id(token=current_token))
+            proxy_group_id = get_or_create_proxy_group_id()
             service_account = (
                 get_or_create_service_account(
                     client_id=client_id, user_id=user_id,
@@ -104,7 +103,7 @@ class GoogleCredentialsList(Resource):
         """
         user_id = current_token["sub"]
         client_id = current_token.get("azp") or None
-        proxy_group_id = get_or_create_proxy_group_id(current_token)
+        proxy_group_id = get_or_create_proxy_group_id()
         username = (
             current_token.get('context', {})
             .get('user', {})
