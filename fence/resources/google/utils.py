@@ -14,7 +14,8 @@ from fence.auth import current_token
 from fence.models import GoogleServiceAccountKey
 from fence.models import UserGoogleAccount
 from fence.models import GoogleServiceAccount
-from userdatamodel.user import GoogleProxyGroup, User
+from fence.resources.google.__init__ import STORAGE_ACCESS_PROVIDER_NAME
+from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
 
 
 def get_or_create_primary_service_account_key(
@@ -284,7 +285,7 @@ def create_service_account(client_id, user_id, username, proxy_group_id):
 def get_or_create_proxy_group_id():
     """
     If no username returned from token or database, create a new proxy group
-    for the give user
+    for the give user. Also, add the access privileges.
 
     Returns:
         int: id of (possibly newly created) proxy group associated with user
@@ -298,6 +299,31 @@ def get_or_create_proxy_group_id():
             .get('name', '')
         )
         proxy_group_id = _create_proxy_group(user_id, username).id
+
+        privileges = (
+            current_session
+            .query(AccessPrivilege)
+            .filter(AccessPrivilege.user_id == user_id))
+
+        for p in privileges:
+
+            storage_accesses = p.project.storage_access
+
+            for sa in storage_accesses:
+
+                if sa.provider.backend == STORAGE_ACCESS_PROVIDER_NAME:
+
+                    flask.current_app.storage_manager.logger.info(
+                        'grant {} access {} to {} in {}'
+                        .format(
+                            username, p.privilege, p.project_id, p.auth_provider))
+
+                    flask.current_app.storage_manager.grant_access(
+                        provider=(sa.provider.name),
+                        username=username,
+                        project=p.project,
+                        access=p.privilege,
+                        session=current_session)
 
     return proxy_group_id
 

@@ -104,6 +104,8 @@ class GoogleCredentialsList(Resource):
                 "client_x509_cert_url": "https://www.googleapis.com/...<api-name>api%40project-id.iam.gserviceaccount.com"
             }
         """
+        import pdb
+        pdb.set_trace()
         user_id = current_token["sub"]
         client_id = current_token.get("azp") or None
         proxy_group_id = get_or_create_proxy_group_id()
