@@ -108,7 +108,6 @@ def app_register_blueprints(app):
             next_url = build_redirect_url(app.config.get('ROOT_URL', ''), request_next)
         return logout(next_url=next_url)
 
-
     @app.route('/jwt/keys')
     def public_keys():
         """
@@ -174,7 +173,6 @@ def app_init(app, settings='fence.settings', root_dir=None):
     server.init_app(app)
 
 
-
 @app.errorhandler(Exception)
 def user_error(error):
     """
@@ -196,7 +194,7 @@ def check_csrf():
         csrf_header = flask.request.headers.get('x-csrf-token')
         csrf_cookie = flask.request.cookies.get('csrftoken')
         referer = flask.request.headers.get('referer')
-        flask.current_app.logger.debug('HTTP REFERER ' + referer)         
+        flask.current_app.logger.debug('HTTP REFERER ' + referer)
         if not all([csrf_cookie, csrf_header, csrf_cookie == csrf_header, referer]):
             raise UserError("CSRF verification failed. Request aborted")
 
@@ -213,4 +211,3 @@ def set_csrf(response):
     if flask.request.method in ['POST', 'PUT', 'DELETE']:
         current_session.commit()
     return response
-
