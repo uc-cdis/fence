@@ -1,4 +1,5 @@
 import urlparse
+import urllib
 from fence.resources.storage.cdis_jwt import create_session_token
 from fence.settings import SESSION_COOKIE_NAME
 
@@ -29,10 +30,9 @@ def test_logout_itrust(client, db_session):
     r = client.get('/logout?next=https://some_site.com')
     assert r.status_code == 302
     parsed_url = urlparse.urlparse(r.location)
-    assert (
-        urlparse.parse_qs(parsed_url.query).get('AppReturnUrl')[0]
-        == 'https://some_site.com'
-    )
+    raw_redirect = urlparse.parse_qs(parsed_url.query).get('AppReturnUrl')[0]
+    redirect = urllib.unquote(raw_redirect)
+    assert redirect == 'https://some_site.com'
 
 
 def test_logout_fence(app, user_with_fence_provider, monkeypatch):
@@ -62,7 +62,6 @@ def test_logout_fence(app, user_with_fence_provider, monkeypatch):
         assert r.location.startswith(other_fence_logout_url)
 
         parsed_url = urlparse.urlparse(r.location)
-        assert (
-            urlparse.parse_qs(parsed_url.query).get('next')[0]
-            == 'https://some_site.com'
-        )
+        raw_redirect = urlparse.parse_qs(parsed_url.query).get('next')[0]
+        redirect = urllib.unquote(raw_redirect)
+        assert redirect == 'https://some_site.com'

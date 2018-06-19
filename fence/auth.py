@@ -55,7 +55,8 @@ def login_user(request, username, provider):
     flask.g.token = None
 
 
-def logout(next_url=None):
+def logout(next_url):
+    next_url = urllib.quote_plus(next_url)
     # Call get_current_user (but ignore the result) just to check that either
     # the user is logged in or that authorization is mocked.
     user = get_current_user()
