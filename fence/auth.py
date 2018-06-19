@@ -1,4 +1,5 @@
 from functools import wraps
+import urllib
 
 from authutils.errors import JWTError, JWTExpiredError
 from authutils.token.validate import require_auth_header
@@ -58,15 +59,30 @@ def logout(next_url=None):
     # Call get_current_user (but ignore the result) just to check that either
     # the user is logged in or that authorization is mocked.
     user = get_current_user()
-    flask.current_app.logger.debug("IN AUTH LOGOUT, next_url = {0}".format(next_url))
+    flask.current_app.logger.debug(
+        'IN AUTH LOGOUT, next_url = {0}'.format(next_url))
     if not user:
-        raise Unauthorized("You are not logged in")
-    itrust_next_url = None
-    if flask.session.get('provider') == IdentityProvider.itrust:
-        itrust_next_url = flask.current_app.config['ITRUST_GLOBAL_LOGOUT'] + next_url
+        raise Unauthorized('You are not logged in')
+
+    provider_logout = None
+    provider = flask.session.get('provider')
+    if provider == IdentityProvider.itrust:
+        provider_logout = (
+            flask.current_app.config['ITRUST_GLOBAL_LOGOUT'] + next_url
+        )
+    elif provider == IdentityProvider.fence:
+        base = (
+            flask.current_app.config['OPENID_CONNECT']['fence']['api_base_url']
+        )
+        provider_logout = (
+            base + '/logout?' + urllib.urlencode({'next': next_url})
+        )
+    else:
+        pass
+
     flask.session.clear()
     redirect_response = flask.make_response(
-        flask.redirect(itrust_next_url or next_url)
+        flask.redirect(provider_logout or next_url)
     )
     clear_cookies(redirect_response)
     return redirect_response
