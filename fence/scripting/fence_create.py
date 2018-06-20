@@ -38,7 +38,6 @@ from fence.models import (
     GoogleProxyGroupToGoogleBucketAccessGroup,
     UserRefreshToken
 )
-
 from fence.utils import create_client, drop_client
 from fence.sync.sync_users import UserSyncer
 
@@ -309,11 +308,11 @@ def assign_group_to_user(s, user, group_name, group_data):
 
 def google_init(db):
     """
-    Initial user proxy group / service account creation.
+    DEPRECATED - Initial user proxy group / service account creation.
     No longer necessary as proxy groups and service accounts are lazily
     created.
     """
-
+    pass
 
 
 def remove_expired_google_service_account_keys(db):

@@ -16,6 +16,7 @@ from fence.models import UserGoogleAccount
 from fence.models import GoogleServiceAccount
 from fence.resources.google.__init__ import STORAGE_ACCESS_PROVIDER_NAME
 from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
+from fence.errors import NotSupported
 
 
 def get_or_create_primary_service_account_key(
@@ -362,9 +363,10 @@ def _create_proxy_group(user_id, username):
     """
 
     with GoogleCloudManager() as g_cloud:
+        prefix = get_prefix_for_google_proxy_groups()
         new_proxy_group = (
             g_cloud.create_proxy_group_for_user(
-                user_id, username))
+                user_id, username, prefix=prefix))
 
     proxy_group = GoogleProxyGroup(
         id=new_proxy_group['id'],
@@ -444,3 +446,19 @@ def get_users_proxy_group_from_token():
         .get('google', {})
         .get('proxy_group', None)
     )
+
+
+def get_prefix_for_google_proxy_groups():
+    """
+    Return a string prefix for Google proxy groups based on configuration.
+
+    Returns:
+        str: prefix for proxy groups
+    """
+    prefix = flask.current_app.config.get('GOOGLE_GROUP_PREFIX')
+    if not prefix:
+        raise NotSupported(
+            'GOOGLE_GROUP_PREFIX must be set in the configuration. '
+            'This namespaces the Google groups for security and safety.'
+        )
+    return prefix
