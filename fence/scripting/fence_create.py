@@ -38,6 +38,7 @@ from fence.models import (
     GoogleProxyGroupToGoogleBucketAccessGroup,
     UserRefreshToken
 )
+from fence.resources.google.utils import get_prefix_for_google_proxy_groups
 
 from fence.utils import create_client, drop_client
 from fence.sync.sync_users import UserSyncer
@@ -321,8 +322,9 @@ def google_init(db):
         for user in users_without_proxy:
             with GoogleCloudManager() as g_mgr:
                 try:
+                    prefix = get_prefix_for_google_proxy_groups()
                     response = g_mgr.create_proxy_group_for_user(
-                        user.id, user.username)
+                        user.id, user.username, prefix)
                 except Exception as exc:
                     raise Exception(
                         'Unable to create proxy group for user {} with id: {}. '
