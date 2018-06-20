@@ -969,3 +969,39 @@ def encoded_jwt_no_proxy_group(
         user_id=user_client['user_id'],
         client_id=oauth_client['client_id']
     )
+
+
+@pytest.fixture(scope='function')
+def user_with_fence_provider(app, request, db_session):
+    """
+    Create a second, different OAuth2 (confidential) client and add it to the
+    database along with a test user for the client.
+    """
+    fence_provider = (
+        db_session
+        .query(models.IdentityProvider)
+        .filter_by(name='fence')
+        .first()
+    )
+    if not fence_provider:
+        fence_provider = models.IdentityProvider(name='fence')
+        db_session.add(fence_provider)
+        db_session.commit()
+
+    test_user = (
+        db_session
+        .query(models.User)
+        .filter_by(username='test-fence-provider')
+        .first()
+    )
+    if test_user:
+        test_user.idp_id = fence_provider.id
+    else:
+        test_user = models.User(
+            username='test-fence-provider', is_admin=False,
+            idp_id=fence_provider.id)
+        db_session.add(test_user)
+
+    db_session.commit()
+
+    return test_user
