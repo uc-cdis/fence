@@ -282,7 +282,6 @@ def create_service_account(client_id, user_id, username, proxy_group_id):
 def get_prefix_for_google_proxy_groups():
     """
     Return a string prefix for Google proxy groups based on configuration.
-    Will use APP_NAME if GOOGLE_GROUP_PREFIX is not provided.
 
     Returns:
         str: prefix for proxy groups

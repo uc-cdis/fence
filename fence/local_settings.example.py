@@ -142,7 +142,7 @@ ENABLED_IDENTITY_PROVIDERS = {
 
 APP_NAME = ''
 
-GOOGLE_GROUP_PREFIX = APP_NAME
+GOOGLE_GROUP_PREFIX = ''
 
 #: ``MAX_PRESIGNED_URL_TTL: int``
 #: The number of seconds after a pre-signed url is issued until it expires.
