@@ -13,9 +13,11 @@ def test_redirect_url():
 
 
 def test_logout_if_anonymous(app, client, monkeypatch):
+    """Logout when anonymous should display no error and successfully
+    redirect user""" 
     monkeypatch.setitem(app.config, 'MOCK_AUTH', False)
     r = client.get('/logout')
-    assert r.status_code == 401
+    assert r.status_code == 302
 
 
 def test_logout(client, db_session):
