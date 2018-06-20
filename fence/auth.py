@@ -84,8 +84,6 @@ def logout(next_url):
         provider_logout = (
             base + '/logout?' + urllib.urlencode({'next': safe_url})
         )
-    else:
-        pass
 
     flask.session.clear()
     redirect_response = flask.make_response(
