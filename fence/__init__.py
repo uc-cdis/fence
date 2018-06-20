@@ -100,7 +100,7 @@ def app_register_blueprints(app):
 
     @app.route('/logout')
     def logout_endpoint():
-        root = app.config.get('APPLICATION_ROOT', '')
+        root = app.config.get('BASE_URL', '')
         request_next = flask.request.args.get('next', root)
         if request_next.startswith('https') or request_next.startswith('http'):
             next_url = request_next
