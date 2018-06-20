@@ -65,29 +65,31 @@ def logout(next_url):
     Args:
         next_url (str): Final redirect desired after logout
     """
-    next_url = urllib.quote_plus(next_url)
     flask.current_app.logger.debug(
         'IN AUTH LOGOUT, next_url = {0}'.format(next_url))
 
+    # propogate logout to IDP
     provider_logout = None
     provider = flask.session.get('provider')
     if provider == IdentityProvider.itrust:
+        safe_url = urllib.quote_plus(next_url)
         provider_logout = (
-            flask.current_app.config['ITRUST_GLOBAL_LOGOUT'] + next_url
+            flask.current_app.config['ITRUST_GLOBAL_LOGOUT'] + safe_url
         )
     elif provider == IdentityProvider.fence:
         base = (
             flask.current_app.config['OPENID_CONNECT']['fence']['api_base_url']
         )
+        safe_url = urllib.quote_plus(next_url)
         provider_logout = (
-            base + '/logout?' + urllib.urlencode({'next': next_url})
+            base + '/logout?' + urllib.urlencode({'next': safe_url})
         )
     else:
         pass
 
     flask.session.clear()
     redirect_response = flask.make_response(
-        flask.redirect(provider_logout or next_url)
+        flask.redirect(provider_logout or urllib.unquote(next_url))
     )
     clear_cookies(redirect_response)
     return redirect_response
