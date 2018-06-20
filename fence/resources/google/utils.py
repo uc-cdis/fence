@@ -13,6 +13,7 @@ from cirrus.google_cloud.utils import (
 from fence.models import GoogleServiceAccountKey
 from fence.models import UserGoogleAccount
 from fence.models import GoogleServiceAccount
+from fence.errors import NotSupported
 
 
 def get_or_create_primary_service_account_key(
@@ -286,4 +287,10 @@ def get_prefix_for_google_proxy_groups():
     Returns:
         str: prefix for proxy groups
     """
-    return flask.current_app.config.get('GOOGLE_GROUP_PREFIX', '')
+    prefix = flask.current_app.config.get('GOOGLE_GROUP_PREFIX')
+    if not prefix:
+        raise NotSupported(
+            'GOOGLE_GROUP_PREFIX must be set in the configuration. '
+            'This namespaces the Google groups for security and safety.'
+        )
+    return prefix
