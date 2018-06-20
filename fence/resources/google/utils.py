@@ -13,6 +13,7 @@ from cirrus.google_cloud.utils import (
 from fence.models import GoogleServiceAccountKey
 from fence.models import UserGoogleAccount
 from fence.models import GoogleServiceAccount
+from fence.errors import NotSupported
 
 
 def get_or_create_primary_service_account_key(
@@ -235,6 +236,7 @@ def get_service_account(client_id, user_id):
 
     return service_account
 
+
 def create_service_account(client_id, user_id, username, proxy_group_id):
     """
     Create a Google Service account for the current client and user.
@@ -276,3 +278,19 @@ def create_service_account(client_id, user_id, username, proxy_group_id):
         flask.abort(
             404, 'Could not find Google proxy group for current user in the '
             'given token.')
+
+
+def get_prefix_for_google_proxy_groups():
+    """
+    Return a string prefix for Google proxy groups based on configuration.
+
+    Returns:
+        str: prefix for proxy groups
+    """
+    prefix = flask.current_app.config.get('GOOGLE_GROUP_PREFIX')
+    if not prefix:
+        raise NotSupported(
+            'GOOGLE_GROUP_PREFIX must be set in the configuration. '
+            'This namespaces the Google groups for security and safety.'
+        )
+    return prefix
