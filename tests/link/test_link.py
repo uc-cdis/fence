@@ -30,7 +30,7 @@ def test_google_link_redirect(client, app, encoded_creds_jwt):
         headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
 
     assert r.status_code == 302
-    assert r.location == app.google_client.get_auth_url()
+    assert r.location.startswith(app.google_client.get_auth_url())
 
 
 def test_google_link_no_redirect_provided(
