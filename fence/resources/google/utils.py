@@ -287,6 +287,4 @@ def get_prefix_for_google_proxy_groups():
     Returns:
         str: prefix for proxy groups
     """
-    return flask.current_app.config.get(
-        'GOOGLE_GROUP_PREFIX',
-        flask.current_app.config.get('APP_NAME', ''))
+    return flask.current_app.config.get('GOOGLE_GROUP_PREFIX', '')
