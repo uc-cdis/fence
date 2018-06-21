@@ -14,7 +14,7 @@ from fence.auth import current_token
 from fence.models import GoogleServiceAccountKey
 from fence.models import UserGoogleAccount
 from fence.models import GoogleServiceAccount
-from fence.resources.google.__init__ import STORAGE_ACCESS_PROVIDER_NAME
+from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME
 from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
 from fence.errors import NotSupported
 
