@@ -72,7 +72,7 @@ STORAGE_CREDENTIALS = {
     'test-cleversafe': {
         'backend': 'cleversafe'
     },
-    'test-google': {
+    'google': {
         'backend': 'google',
         'google_project_id': 'some-project-id-239870as9f23flkja8010'
     }
@@ -148,3 +148,5 @@ OPENID_CONNECT = {
         'redirect_url': ''
     },
 }
+
+GOOGLE_GROUP_PREFIX = 'test'
