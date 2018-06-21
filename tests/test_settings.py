@@ -122,3 +122,5 @@ OPENID_CONNECT = {
         'redirect_url': ''
     },
 }
+
+GOOGLE_GROUP_PREFIX = 'test'
