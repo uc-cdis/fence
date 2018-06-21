@@ -173,6 +173,14 @@ def create_google_access_key(client_id, user_id, username, proxy_group_id):
     with GoogleCloudManager() as g_cloud:
         key = g_cloud.get_access_key(service_account.google_unique_id)
 
+    flask.current_app.logger.info(
+        'Created key with id {} for service account {} in user {}\'s '
+        'proxy group {} (user\'s id: {}).'
+        .format(
+            key.get('private_key_id'),
+            service_account.google_unique_id, username,
+            proxy_group_id, user_id))
+
     return key, service_account
 
 
@@ -272,6 +280,10 @@ def create_service_account(client_id, user_id, username, proxy_group_id):
 
         current_session.add(service_account)
         current_session.commit()
+
+        flask.current_app.logger.info(
+            'Created service account {} for proxy group {}.'
+            .format(new_service_account['email'], proxy_group_id))
 
         return service_account
     else:
