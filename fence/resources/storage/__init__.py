@@ -7,7 +7,7 @@ from fence.models import (
     CloudProvider, Bucket, ProjectToBucket, GoogleBucketAccessGroup, User
 )
 from fence.errors import NotSupported, InternalError, Unauthorized, NotFound
-from fence.resources.google.__init__ import STORAGE_ACCESS_PROVIDER_NAME
+from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME
 
 def check_exist(f):
     @wraps(f)
