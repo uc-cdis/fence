@@ -38,8 +38,6 @@ from fence.models import (
     GoogleProxyGroupToGoogleBucketAccessGroup,
     UserRefreshToken
 )
-from fence.resources.google.utils import get_prefix_for_google_proxy_groups
-
 from fence.utils import create_client, drop_client
 from fence.sync.sync_users import UserSyncer
 
@@ -309,38 +307,12 @@ def assign_group_to_user(s, user, group_name, group_data):
 
 
 def google_init(db):
-    import fence.settings
-    cirrus_config.update(**fence.settings.CIRRUS_CFG)
-
-    # Initial user proxy group creation
-    db = SQLAlchemyDriver(db)
-    with db.session as s:
-        users_without_proxy = (
-            s.query(User).filter(User.google_proxy_group == None)
-        )
-
-        for user in users_without_proxy:
-            with GoogleCloudManager() as g_mgr:
-                try:
-                    prefix = get_prefix_for_google_proxy_groups()
-                    response = g_mgr.create_proxy_group_for_user(
-                        user.id, user.username, prefix)
-                except Exception as exc:
-                    raise Exception(
-                        'Unable to create proxy group for user {} with id: {}. '
-                        'Google API Error: {}'
-                        .format(user.username, user.id, exc))
-
-                group = response["group"]
-                user.google_proxy_group_id = group["id"]
-
-                proxy_group = GoogleProxyGroup(
-                    id=group["id"],
-                    email=group["email"]
-                )
-
-                s.add(proxy_group)
-                s.commit()
+    """
+    DEPRECATED - Initial user proxy group / service account creation.
+    No longer necessary as proxy groups and service accounts are lazily
+    created.
+    """
+    pass
 
 
 def remove_expired_google_service_account_keys(db):
