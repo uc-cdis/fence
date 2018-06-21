@@ -15,7 +15,8 @@ from cdispyutils.config import get_value
 
 from fence.resources.google.utils import (
     get_or_create_primary_service_account_key,
-    create_primary_service_account_key
+    create_primary_service_account_key,
+    get_or_create_proxy_group_id
 )
 from fence.errors import UnavailableError
 from fence.errors import NotFound
@@ -363,12 +364,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             self, http_verb, resource_path, expiration_time):
         set_current_token(validate_request(aud={'user'}))
         user_id = current_token['sub']
-        proxy_group_id = (
-            current_token.get('context', {})
-            .get('user', {})
-            .get('google', {})
-            .get('proxy_group')
-        )
+        proxy_group_id = get_or_create_proxy_group_id()
         username = (
             current_token.get('context', {})
             .get('user', {})

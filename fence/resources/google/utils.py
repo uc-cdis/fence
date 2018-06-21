@@ -10,9 +10,12 @@ from cirrus.google_cloud.utils import (
     get_valid_service_account_id_for_client,
     get_valid_service_account_id_for_user
 )
+from fence.auth import current_token
 from fence.models import GoogleServiceAccountKey
 from fence.models import UserGoogleAccount
 from fence.models import GoogleServiceAccount
+from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME
+from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
 from fence.errors import NotSupported
 
 
@@ -173,6 +176,14 @@ def create_google_access_key(client_id, user_id, username, proxy_group_id):
     with GoogleCloudManager() as g_cloud:
         key = g_cloud.get_access_key(service_account.google_unique_id)
 
+    flask.current_app.logger.info(
+        'Created key with id {} for service account {} in user {}\'s '
+        'proxy group {} (user\'s id: {}).'
+        .format(
+            key.get('private_key_id'),
+            service_account.google_unique_id, username,
+            proxy_group_id, user_id))
+
     return key, service_account
 
 
@@ -273,11 +284,186 @@ def create_service_account(client_id, user_id, username, proxy_group_id):
         current_session.add(service_account)
         current_session.commit()
 
+        flask.current_app.logger.info(
+            'Created service account {} for proxy group {}.'
+            .format(new_service_account['email'], proxy_group_id))
+
         return service_account
     else:
         flask.abort(
             404, 'Could not find Google proxy group for current user in the '
             'given token.')
+
+
+def get_or_create_proxy_group_id():
+    """
+    If no username returned from token or database, create a new proxy group
+    for the give user. Also, add the access privileges.
+
+    Returns:
+        int: id of (possibly newly created) proxy group associated with user
+    """
+    proxy_group_id = _get_proxy_group_id()
+    if not proxy_group_id:
+        user_id = current_token['sub']
+        username = (
+            current_token.get('context', {})
+            .get('user', {})
+            .get('name', '')
+        )
+        proxy_group_id = _create_proxy_group(user_id, username).id
+
+        privileges = (
+            current_session
+            .query(AccessPrivilege)
+            .filter(AccessPrivilege.user_id == user_id))
+
+        for p in privileges:
+            storage_accesses = p.project.storage_access
+
+            for sa in storage_accesses:
+                if sa.provider.name == STORAGE_ACCESS_PROVIDER_NAME:
+
+                    flask.current_app.storage_manager.logger.info(
+                        'grant {} access {} to {} in {}'
+                        .format(
+                            username, p.privilege, p.project_id, p.auth_provider))
+
+                    flask.current_app.storage_manager.grant_access(
+                        provider=(sa.provider.name),
+                        username=username,
+                        project=p.project,
+                        access=p.privilege,
+                        session=current_session)
+
+    return proxy_group_id
+
+
+def _get_proxy_group_id():
+    """
+    Get users proxy group id from the current token, if possible.
+    Otherwise, check the database for it.
+
+    Returnns:
+        int: id of proxy group associated with user
+    """
+    proxy_group_id = get_users_proxy_group_from_token()
+
+    if not proxy_group_id:
+        user = (
+            current_session
+            .query(User)
+            .filter(User.id == current_token['sub'])
+            .first())
+        proxy_group_id = user.google_proxy_group_id
+
+    return proxy_group_id
+
+
+def _create_proxy_group(user_id, username):
+    """
+    Create a proxy group for the given user
+
+    Args:
+        user_id (int): unique integer id for user
+        username (str): unique name for user
+
+    Return:
+        userdatamodel.user.GoogleProxyGroup: the newly created proxy group
+    """
+
+    with GoogleCloudManager() as g_cloud:
+        prefix = get_prefix_for_google_proxy_groups()
+        new_proxy_group = (
+            g_cloud.create_proxy_group_for_user(
+                user_id, username, prefix=prefix))
+
+    proxy_group = GoogleProxyGroup(
+        id=new_proxy_group['id'],
+        email=new_proxy_group['email'])
+
+    # link proxy group to user
+    user = current_session.query(User).filter_by(id=user_id).first()
+    user.google_proxy_group_id = proxy_group.id
+
+    current_session.add(proxy_group)
+    current_session.commit()
+
+    flask.current_app.logger.info(
+        'Created proxy group {} for user {} with id {}.'
+        .format(new_proxy_group['email'], username, user_id))
+
+    return proxy_group
+
+
+def get_default_google_account_expiration():
+    now = int(time.time())
+    expiration = (
+        now + flask.current_app.config['GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN']
+    )
+    return expiration
+
+
+def get_users_linked_google_email(user_id):
+    """
+    Return user's linked google account's email.
+    """
+    google_email = get_users_linked_google_email_from_token()
+    if not google_email:
+        # hit db to check for google_email if it's not in token.
+        # this will catch cases where the linking happened during the life
+        # of an access token and the same access token is used here (e.g.
+        # account exists but a new token hasn't been generated with the linkage
+        # info yet)
+        google_email = get_users_linked_google_email_from_db(user_id)
+    return google_email
+
+
+def get_users_linked_google_email_from_db(user_id):
+    """
+    Hit db to check for google_email of user
+    """
+    google_email = None
+    if user_id:
+        g_account = (
+            current_session.query(UserGoogleAccount)
+            .filter(UserGoogleAccount.user_id == user_id).first()
+        )
+        if g_account:
+            google_email = g_account.email
+    return google_email
+
+
+def get_users_linked_google_email_from_token():
+    """
+    Return a user's linked Google Account's email address by parsing the
+    JWT token in the header.
+
+    Returns:
+        str: email address of account or None
+    """
+    return (
+        current_token.get('context', {})
+        .get('user', {})
+        .get('google', {})
+        .get('linked_google_account', None)
+    )
+
+
+def get_users_proxy_group_from_token():
+    """
+    Return a user's proxy group ID by parsing the
+    JWT token in the header.
+
+    Returns:
+        str: proxy group ID or None
+    """
+    return (
+        current_token.get('context', {})
+        .get('user', {})
+        .get('google', {})
+        .get('proxy_group', None)
+    )
 
 
 def get_prefix_for_google_proxy_groups():

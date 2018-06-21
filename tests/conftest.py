@@ -1043,3 +1043,15 @@ def user_with_fence_provider(app, request, db_session):
     db_session.commit()
 
     return test_user
+
+
+@pytest.fixture(scope='function')
+def google_storage_client_mocker(app):
+    storage_client_mock = MagicMock()
+
+    temp = app.storage_manager
+    app.storage_manager.clients['google'] = storage_client_mock
+
+    yield storage_client_mock
+
+    app.storage_manager = temp
