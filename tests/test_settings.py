@@ -11,7 +11,7 @@ except ImportError:
     logger.warn('no module fence.local_settings')
 
 # WARNING: the test database is cleared every run
-DB = 'postgresql://postgres@localhost:5432/fence_test_tmp'
+DB = 'postgresql://postgres:postgres@localhost:5432/fence_test_tmp'
 
 MOCK_AUTH = True
 
@@ -72,7 +72,7 @@ STORAGE_CREDENTIALS = {
     'test-cleversafe': {
         'backend': 'cleversafe'
     },
-    'test-google': {
+    'google': {
         'backend': 'google',
         'google_project_id': 'some-project-id-239870as9f23flkja8010'
     }

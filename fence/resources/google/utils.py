@@ -312,7 +312,7 @@ def get_or_create_proxy_group_id():
 
             for sa in storage_accesses:
 
-                if sa.provider.backend == STORAGE_ACCESS_PROVIDER_NAME:
+                if sa.provider.name == STORAGE_ACCESS_PROVIDER_NAME:
 
                     flask.current_app.storage_manager.logger.info(
                         'grant {} access {} to {} in {}'
@@ -371,6 +371,10 @@ def _create_proxy_group(user_id, username):
     proxy_group = GoogleProxyGroup(
         id=new_proxy_group['id'],
         email=new_proxy_group['email'])
+
+    # link proxy group to user
+    user = current_session.query(User).filter_by(id=user_id).first()
+    user.google_proxy_group_id = proxy_group.id
 
     current_session.add(proxy_group)
     current_session.commit()

@@ -52,13 +52,13 @@ class GoogleCredentialsList(Resource):
             }
 
         """
-        client_id = current_token.get("azp") or None
-        user_id = current_token["sub"]
+        client_id = current_token.get('azp') or None
+        user_id = current_token['sub']
         username = (
             current_token
-            .get("context")
-            .get("user")
-            .get("name")
+            .get('context', {})
+            .get('user', {})
+            .get('name')
         )
 
         with GoogleCloudManager() as g_cloud_manager:
@@ -104,8 +104,6 @@ class GoogleCredentialsList(Resource):
                 "client_x509_cert_url": "https://www.googleapis.com/...<api-name>api%40project-id.iam.gserviceaccount.com"
             }
         """
-        import pdb
-        pdb.set_trace()
         user_id = current_token["sub"]
         client_id = current_token.get("azp") or None
         proxy_group_id = get_or_create_proxy_group_id()
