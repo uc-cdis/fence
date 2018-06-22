@@ -114,11 +114,6 @@ def parse_arguments():
         '--google-project-id', default=None,
         help='Google project this bucket should be associated with')
     google_bucket_create.add_argument(
-        '--google-groups-project-id', default=None,
-        help='Google project that has domain wide access and connected to a '
-             'Cloud Identity or GSuite for group creation (will use '
-             'google-project-id if not provided)')
-    google_bucket_create.add_argument(
         '--project-auth-id', default=None,
         help='a Project.auth_id to associate this bucket with. '
              'The project must exist in the db already.')
@@ -234,7 +229,6 @@ def main():
             public=args.public,
             requester_pays=args.requester_pays,
             google_project_id=args.google_project_id,
-            google_groups_project_id=args.google_groups_project_id,
             project_auth_id=args.project_auth_id,
             access_logs_bucket=args.access_logs_bucket,
             allowed_privileges=args.allowed_privileges)
