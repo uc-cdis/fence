@@ -666,7 +666,7 @@ def link_bucket_to_project(db, bucket_id, bucket_provider, project_auth_id):
 
 def create_google_bucket(
         db, name, storage_class=None, public=False, requester_pays=False,
-        google_project_id=None, project_auth_id=None, access_logs_bucket=None,
+        google_project_id=None, google_groups_project_id=None, project_auth_id=None, access_logs_bucket=None,
         allowed_privileges=None):
     """
     Create a Google bucket and populate database with necessary information.
@@ -689,6 +689,9 @@ def create_google_bucket(
             on the bucket
         google_project_id (str, optional): Google project this bucket should be
             associated with
+        google_groups_project_id (str, optional): Google project that has
+            domain wide access and connected to a Cloud Identity or GSuite for
+            group creation (will use google_project_id if not provided)
         project_auth_id (str, optional): a Project.auth_id to associate this
             bucket with. The project must exist in the db already.
         access_logs_bucket (str, optional): Enables logging. Must provide a
@@ -703,6 +706,7 @@ def create_google_bucket(
     cirrus_config.update(**fence.settings.CIRRUS_CFG)
 
     google_project_id = google_project_id or cirrus_config.GOOGLE_PROJECT_ID
+    google_groups_project_id = google_groups_project_id or google_project_id
 
     # default to read access
     allowed_privileges = allowed_privileges or ['read', 'write']
@@ -730,6 +734,7 @@ def create_google_bucket(
                     google_bucket_name=name,
                     bucket_db_id=bucket_db_entry.id,
                     google_project_id=google_project_id,
+                    google_groups_project_id=google_groups_project_id,
                     privileges=[privilege])
 
 
@@ -820,11 +825,11 @@ def _create_google_bucket_and_update_db(
 
 def _create_google_bucket_access_group(
         db_session, google_bucket_name, bucket_db_id, google_project_id,
-        privileges):
+        google_groups_project_id, privileges):
     access_group = None
 
     # use default creds for creating group and iam policies
-    with GoogleCloudManager(google_project_id) as g_mgr:
+    with GoogleCloudManager(google_groups_project_id) as g_mgr:
         # create bucket access group
         result = g_mgr.create_group(
             name=google_bucket_name + '_' + '_'.join(privileges) + '_gbag')
