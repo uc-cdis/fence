@@ -1,4 +1,5 @@
 import flask
+import time
 from flask_restful import Resource
 
 from cirrus import GoogleCloudManager
@@ -139,9 +140,10 @@ class GoogleCredentialsList(Resource):
         expires_in_seconds = (
             cirrus_config.SERVICE_KEY_EXPIRATION_IN_DAYS * 24 * 60 * 60
         )
+        expires = time.time() + expires_in_seconds
         key_id = key.get('private_key_id')
         add_custom_service_account_key_expiration(
-            key_id, service_account.id, expires=expires_in_seconds)
+            key_id, service_account.id, expires=expires)
 
 
 class GoogleCredentials(Resource):
