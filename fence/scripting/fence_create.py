@@ -839,13 +839,17 @@ def _create_google_bucket_access_group(
         db_session.add(access_group)
         db_session.commit()
 
+    # use storage creds to update bucket iam
+    storage_manager = GoogleCloudManager(
+        google_project_id, creds=cirrus_config.configs['GOOGLE_STORAGE_CREDS'])
+    with storage_manager as g_mgr:
         g_mgr.give_group_access_to_bucket(
             group_email, google_bucket_name, access=privileges)
 
-        print(
-            'Successfully created Google Bucket Access Group {} '
-            'for Google Bucket {}.'
-            .format(group_email, google_bucket_name)
-        )
+    print(
+        'Successfully created Google Bucket Access Group {} '
+        'for Google Bucket {}.'
+        .format(group_email, google_bucket_name)
+    )
 
     return access_group
