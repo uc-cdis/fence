@@ -6,6 +6,7 @@ from fence.models import (
     IdentityProvider,
     GoogleServiceAccount,
     GoogleBucketAccessGroup,
+    GoogleProxyGroup,
 )
 from userdatamodel.user import (
     User,
@@ -597,3 +598,127 @@ def test_google_delete_invalid_access_token(
             .delete_service_account_key).called is False
 
     assert response.status_code == 404
+
+def test_google_get_no_proxy_group_no_service_account(
+        app, client, oauth_client, cloud_manager, db_session,
+        encoded_jwt_no_proxy_group):
+    """
+    Test that ``GET /credentials/google`` doesn't creat new proxy group
+    when one doesn't already exist
+    """
+    encoded_credentials_jwt = encoded_jwt_no_proxy_group["jwt"]
+    client_id = encoded_jwt_no_proxy_group["client_id"]
+
+    path = (
+        "/credentials/google/"
+    )
+    data = {}
+
+    service_accounts_before = (
+        db_session
+        .query(GoogleServiceAccount)
+        .filter_by(client_id=client_id)
+    ).count()
+
+    response = client.get(
+        path, data=data,
+        headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
+
+    service_accounts_after = (
+        db_session
+        .query(GoogleServiceAccount)
+        .filter_by(client_id=client_id)
+    ).count()
+
+    # make sure we created a new service account for the user's proxy
+    # group and added it to the db
+    assert (cloud_manager.return_value
+            .__enter__.return_value
+            .create_service_account_for_proxy_group).called is False
+    assert (cloud_manager.return_value
+        .__enter__.return_value
+        .create_proxy_group_for_user).called is False
+    assert service_accounts_after == service_accounts_before
+
+def test_google_get_no_proxy_group_with_service_account(
+        app, client, oauth_client, cloud_manager, db_session,
+        encoded_jwt_no_proxy_group, primary_google_service_account):
+    """
+    Test that ``GET /credentials/google`` doesn't creat new proxy group
+    when one doesn't already exist
+    """
+    encoded_credentials_jwt = encoded_jwt_no_proxy_group["jwt"]
+    client_id = encoded_jwt_no_proxy_group["client_id"]
+
+    path = (
+        "/credentials/google/"
+    )
+    data = {}
+
+    service_accounts_before = (
+        db_session
+        .query(GoogleServiceAccount)
+    ).count()
+
+    response = client.get(
+        path, data=data,
+        headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
+
+    service_accounts_after = (
+        db_session
+        .query(GoogleServiceAccount)
+    ).count()
+
+    # make sure we created a new service account for the user's proxy
+    # group and added it to the db
+    assert (cloud_manager.return_value
+            .__enter__.return_value
+            .create_service_account_for_proxy_group).called is False
+    assert (cloud_manager.return_value
+        .__enter__.return_value
+        .create_proxy_group_for_user).called is False
+    assert service_accounts_before == 1
+    assert service_accounts_after == service_accounts_before
+
+
+def test_google_get_with_proxy_group_no_service_account(
+        app, client, oauth_client, cloud_manager, db_session,
+        encoded_creds_jwt):
+    """
+    Test that ``GET /credentials/google`` doesn't creat new proxy group
+    when one doesn't already exist
+    """
+    encoded_credentials_jwt = encoded_creds_jwt["jwt"]
+    client_id = encoded_creds_jwt["client_id"]
+
+    path = (
+        "/credentials/google/"
+    )
+    data = {}
+
+    service_accounts_before = (
+        db_session
+        .query(GoogleServiceAccount)
+        .filter_by(client_id=client_id)
+    ).count()
+
+    response = client.get(
+        path, data=data,
+        headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
+
+    service_accounts_after = (
+        db_session
+        .query(GoogleServiceAccount)
+        .filter_by(client_id=client_id)
+    ).count()
+
+    # make sure we created a new service account for the user's proxy
+    # group and added it to the db
+    assert (cloud_manager.return_value
+            .__enter__.return_value
+            .create_service_account_for_proxy_group).called is False
+    assert (cloud_manager.return_value
+        .__enter__.return_value
+        .create_proxy_group_for_user).called is False
+    assert service_accounts_before == 0
+    assert service_accounts_after == service_accounts_before

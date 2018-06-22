@@ -303,7 +303,7 @@ def get_or_create_proxy_group_id():
     Returns:
         int: id of (possibly newly created) proxy group associated with user
     """
-    proxy_group_id = _get_proxy_group_id()
+    proxy_group_id = get_proxy_group_id()
     if not proxy_group_id:
         user_id = current_token['sub']
         username = (
@@ -339,7 +339,7 @@ def get_or_create_proxy_group_id():
     return proxy_group_id
 
 
-def _get_proxy_group_id():
+def get_proxy_group_id():
     """
     Get users proxy group id from the current token, if possible.
     Otherwise, check the database for it.

@@ -62,14 +62,12 @@ class GoogleCredentialsList(Resource):
         )
 
         with GoogleCloudManager() as g_cloud_manager:
-            proxy_group_id = get_or_create_proxy_group_id()
-            service_account = (
-                get_or_create_service_account(
-                    client_id=client_id, user_id=user_id,
-                    username=username, proxy_group_id=proxy_group_id))
+            service_account = get_service_account(client_id, user_id)
 
-            keys = g_cloud_manager.get_service_account_keys_info(
-                service_account.google_unique_id)
+            keys = []
+            if (proxy_group_id and service_account):
+                keys = g_cloud_manager.get_service_account_keys_info(
+                    service_account.google_unique_id)
             result = {'access_keys': keys}
 
         return flask.jsonify(result)
