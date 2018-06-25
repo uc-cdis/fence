@@ -88,7 +88,12 @@ def sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
                 auth_id: phs000235
     '''
     import fence.settings
-    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    try:
+        cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    except AttributeError:
+        # no cirrus config, continue anyway. Google APIs will probably fail.
+        # this is okay if users don't need access to Google buckets
+        pass
 
     if projects is not None and not os.path.exists(projects):
         logger.error("====={} is not found!!!=======".format(projects))
