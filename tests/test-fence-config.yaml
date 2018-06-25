@@ -174,9 +174,7 @@ APPLICATION_ROOT: '/user'
 # directory the fence code will be deployed under. used to help locate files
 ROOT_DIR: '/fence'
 # url where indexd microservice is running (for signed urls primarily)
-# NOTE: ONLY provide if indexd is NOT running in {{BASE_URL}}/index
-#
-# INDEXD: 'https://example.com/index'
+INDEXD: null
 
 #### Multi-tenant fence setup ####
 # Use when fence is *both* the client and an IDP.
