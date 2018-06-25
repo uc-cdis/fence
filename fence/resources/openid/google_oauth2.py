@@ -24,7 +24,7 @@ class Oauth2Client(object):
 
     def get_user_id(self, code):
         try:
-            if self.HTTP_PROXY:
+            if self.HTTP_PROXY and self.HTTP_PROXY.get('host'):
                 proxy = httplib2.ProxyInfo(
                     proxy_type=httplib2.socks.PROXY_TYPE_HTTP,
                     proxy_host=self.HTTP_PROXY["host"],

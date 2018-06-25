@@ -147,10 +147,10 @@ GOOGLE_GROUP_PREFIX: ''
 
 #### Proxy ####
 # If the api is behind firewall that need to set http proxy (see below)
-# HTTP_PROXY:
-#   host: cloud-proxy
-#   port: 3128
-HTTP_PROXY: null
+# NOTE: leave as-is to not use proxy
+HTTP_PROXY:
+  host: null
+  port: 3128
 
 #### AWS Buckets and Credentials ####
 AWS_CREDENTIALS:
