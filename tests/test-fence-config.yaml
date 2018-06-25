@@ -55,22 +55,6 @@ OPENID_CONNECT:
     client_secret: ''
     # this is be the allowed redirect back to fence, should not need to change
     redirect_url: '{{BASE_URL}}/login/google/login'
-  # You can have another fence instance as a client (multi-tenant fence).
-  # If you don't need this, you can remove.
-  fence:
-    # this api_base_url should something like: https://example.com
-    api_base_url: ''
-    client_id: ''
-    client_secret: ''
-    client_kwargs:
-      # openid is required to use OIDC flow
-      scope: 'openid user'
-      redirect_uri: '{{BASE_URL}}/login/fence/login'
-    # The next 3 should not need to be changed if the provider is following
-    # Oauth2 endpoint naming conventions
-    authorize_url: '{{api_base_url}}/oauth2/authorize'
-    access_token_url: '{{api_base_url}}/oauth2/token'
-    refresh_token_url: '{{api_base_url}}/oauth2/token'
 
 #### Login ####
 # For Google use: '{{BASE_URL}}/login/google'
@@ -110,6 +94,9 @@ STORAGES:
 STORAGE_CREDENTIALS:
   'test-cleversafe':
     backend: 'cleversafe'
+  'google':
+    backend: 'google'
+    google_project_id: 'some-project-id-239870as9f23flkja8010'
 
 #### Cloud API Library Configuration ####
 # Required for Google endpoints (/link/google, /credentials/google, etc)
@@ -128,7 +115,7 @@ CIRRUS_CFG:
 #
 # NOTE: Make this short! Less than 8 characters if possible. Google has
 # length restrictions on group names.
-GOOGLE_GROUP_PREFIX: ''
+GOOGLE_GROUP_PREFIX: 'test'
 
 #### Proxy ####
 # If the api is behind firewall that need to set http proxy (see below)
@@ -152,10 +139,12 @@ S3_BUCKETS:
   bucket2:
     cred: 'CRED2'
   bucket3:
-    cred: '*'
-  bucket4:
     cred: 'CRED1'
-    role-arn: 'arn:aws:iam::role1'
+  bucket4:
+    cred: '*'
+  bucket5:
+    cred: 'CRED2'
+    role-arn: 'arn:aws:iam::707767160287:role/bucket_reader_writer_to_cdistest-presigned-url_role'
 
 #### dbGaP User Syncing Support ####
 # "dbGaP project serves as an access gateway for researchers seeking to gain
