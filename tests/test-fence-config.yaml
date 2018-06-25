@@ -24,14 +24,14 @@ DB: 'postgresql://postgres:postgres@localhost:5432/fence_test_tmp'
 # SERVER_NAME: '{{BASE_URL}}'
 
 #### Debug Settings ####
-DEBUG: !!bool false
-MOCK_AUTH: !!bool true
-MOCK_STORAGE: !!bool false
+DEBUG: false
+MOCK_AUTH: true
+MOCK_STORAGE: false
 # allow OIDC traffic on http for development. By default it requires https.
 #
 # WARNING: Use when fence will be deployed in such a way that fence will
 #          ONLY receive traffic from internal clients and can safely use HTTP.
-AUTHLIB_INSECURE_TRANSPORT: !!bool true
+AUTHLIB_INSECURE_TRANSPORT: true
 
 #### Encryption Key ####
 # A URL-safe base64-encoded 32-byte key for encrypting keys in db

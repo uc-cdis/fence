@@ -96,7 +96,7 @@ ENABLED_IDENTITY_PROVIDERS:
     # spoofing.
     #
     # shibboleth:
-    #   name: NIH Login
+    #   name: 'NIH Login'
 
 #### Storage Backends and Credentials ####
 # TODO: remove STORAGES and just use STORAGE_CREDS backends...
