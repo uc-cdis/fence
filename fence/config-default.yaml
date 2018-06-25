@@ -200,9 +200,9 @@ APPLICATION_ROOT: '/user'
 # directory the fence code will be deployed under. used to help locate files
 ROOT_DIR: '/fence'
 # url where indexd microservice is running (for signed urls primarily)
-# NOTE: Will default to {{BASE_URL}}/index
+# NOTE: Leaving as null will force fence to default to {{BASE_URL}}/index
 #
-# INDEXD: 'https://example.com/index'
+# example value: 'https://example.com/index'
 INDEXD: null
 
 #### Multi-tenant fence setup ####
