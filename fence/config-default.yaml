@@ -6,13 +6,13 @@
 # Read comments above each of the configuration variables to how to use them.
 
 #### General App Settings ####
-APP_NAME: Gen3 Data Commons
+APP_NAME: 'Gen3 Data Commons'
 # Where fence microservice is deployed
-BASE_URL: http://localhost/user
+BASE_URL: 'http://localhost/user'
 # postgres db to connect to
 # connection url format:
 #     postgresql://[user[:password]@][netloc][:port][/dbname]
-DB: postgresql://test:test@localhost:5432/fence
+DB: 'postgresql://test:test@localhost:5432/fence'
 # Name and port number of the server for Flask.
 #     NOTE: Uncomment to use. You CANNOT use this when developing on localhost.
 #           When deploying fence externally, simply uncomment.
@@ -59,7 +59,7 @@ OPENID_CONNECT:
     client_secret: ''
     client_kwargs:
       # openid is required to use OIDC flow
-      scope: openid user
+      scope: 'openid user'
       redirect_uri: '{{BASE_URL}}/login/fence/login'
     # The next 3 should not need to be changed if the provider is following
     # Oauth2 endpoint naming conventions
@@ -78,14 +78,14 @@ DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
 # be loaded.
 #
 ENABLED_IDENTITY_PROVIDERS:
-  # ID for which of the providers to default to.
-  default: google
-  # Information for identity providers.
+  # ID for which of the providers to default to
+  default: 'google'
+  # Information for identity providers
   providers:
     google:
-      name: Google OAuth
+      name: 'Google OAuth'
     fence:
-      name: Fence Multi-Tenant OAuth
+      name: 'Fence Multi-Tenant OAuth'
     # The following can be used for shibboleth login, simply uncomment.
     #
     # NOTE: Don't enable shibboleth if the deployment is not protected by
@@ -98,8 +98,8 @@ ENABLED_IDENTITY_PROVIDERS:
 #### Storage Backends and Credentials ####
 # TODO: remove STORAGES and just use STORAGE_CREDS backends...
 STORAGES:
-  - /google
-  - /cleversafe
+  - '/google'
+  - '/cleversafe'
 
 # Configuration for various storage systems for the backend
 # NOTE: Remove the [] and supply backends if needed. Examples provided
@@ -107,20 +107,20 @@ STORAGES:
 STORAGE_CREDENTIALS: []
   # Google Cloud Storage backend:
   # 'google':
-  #   backend: google
-  #   google_project_id: some-project-id-12378923
+  #   backend: 'google'
+  #   google_project_id: 'some-project-id-12378923'
 
   # Cleversafe data storage backend:
   # 'cleversafe-server-a':
-  #   backend: cleversafe
+  #   backend: 'cleversafe'
   #   aws_access_key_id: ''
   #   aws_secret_access_key: ''
-  #   host: somemanager.osdc.io
-  #   public_host: someobjstore.datacommons.io
+  #   host: 'somemanager.osdc.io'
+  #   public_host: 'someobjstore.datacommons.io'
   #   port: 443
   #   is_secure: true
-  #   username: someone
-  #   password: somepass
+  #   username: 'someone'
+  #   password: 'somepass'
   #   is_mocked: true
 
 #### Cloud API Library Configuration ####
@@ -134,6 +134,8 @@ CIRRUS_CFG:
   GOOGLE_ADMIN_EMAIL: ''
   GOOGLE_IDENTITY_DOMAIN: ''
   GOOGLE_CLOUD_IDENTITY_ADMIN_EMAIL: ''
+
+GOOGLE_GROUP_PREFIX: 'test'
 
 #### Proxy ####
 # If the api is behind firewall that need to set http proxy (see below)
@@ -152,9 +154,15 @@ AWS_CREDENTIALS:
     aws_secret_access_key: ''
 
 S3_BUCKETS:
-  bucket1: CRED1
-  bucket2: CRED2
-  bucket3: CRED1
+  bucket1:
+    cred: 'CRED1'
+  bucket2:
+    cred: 'CRED2'
+  bucket3:
+    cred: '*'
+  bucket4:
+    cred: 'CRED1'
+    role-arn: 'arn:aws:iam::role1'
 
 #### dbGaP User Syncing Support ####
 # "dbGaP project serves as an access gateway for researchers seeking to gain
@@ -180,13 +188,13 @@ ENABLE_CSRF_PROTECTION: true
 # used for flask, "path mounted under by the application / web server"
 # since we deploy as microservices, fence is typically under {{base}}/user
 # this is also why our BASE_URL default ends in /user
-APPLICATION_ROOT: /user
+APPLICATION_ROOT: '/user'
 # directory the fence code will be deployed under. used to help locate files
-ROOT_DIR: /fence
+ROOT_DIR: '/fence'
 # url where indexd microservice is running (for signed urls primarily)
 # NOTE: ONLY provide if indexd is NOT running in {{BASE_URL}}/index
 #
-# INDEXD: https://example.com/index
+# INDEXD: 'https://example.com/index'
 
 #### Multi-tenant fence setup ####
 # Use when fence is *both* the client and an IDP.
@@ -197,10 +205,10 @@ OIDC_ISSUER: null
 #### Shibboleth Configurations ####
 # assumes shibboleth is deployed under {{BASE_URL}}/shibboleth
 SHIBBOLETH_HEADER: 'persistent_id'
-SSO_URL: https://auth.nih.gov/affwebservices/public/saml2sso?SPID={{BASE_URL}}/shibboleth&RelayState=
-ITRUST_GLOBAL_LOGOUT: https://auth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl=
+SSO_URL: 'https://auth.nih.gov/affwebservices/public/saml2sso?SPID={{BASE_URL}}/shibboleth&RelayState='
+ITRUST_GLOBAL_LOGOUT: 'https://auth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl='
 
 #### Email Settings ####
-EMAIL_SERVER: localhost
-SEND_FROM: example@gmail.com
-SEND_TO: example@gmail.com
+EMAIL_SERVER: 'localhost'
+SEND_FROM: 'example@gmail.com'
+SEND_TO: 'example@gmail.com'
