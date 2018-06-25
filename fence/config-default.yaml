@@ -4,6 +4,9 @@
 #
 # This is initially configured for minimal local development.
 # Read comments above each of the configuration variables to how to use them.
+#
+# NOTE: A lot of features will be unavailable until configured (including
+# Google login)
 
 #### General App Settings ####
 APP_NAME: 'Gen3 Data Commons'
@@ -49,7 +52,7 @@ OPENID_CONNECT:
     client_id: ''
     client_secret: ''
     # this is be the allowed redirect back to fence, should not need to change
-    redirect_url: '{{BASE_URL}}/login/google/login/'
+    redirect_url: '{{BASE_URL}}/login/google/login'
   # You can have another fence instance as a client (multi-tenant fence).
   # If you don't need this, you can remove.
   fence:
@@ -135,7 +138,12 @@ CIRRUS_CFG:
   GOOGLE_IDENTITY_DOMAIN: ''
   GOOGLE_CLOUD_IDENTITY_ADMIN_EMAIL: ''
 
-GOOGLE_GROUP_PREFIX: 'test'
+# Prefix to namespace Google Groups on a single Cloud Identity (see cirrus
+# setup for more info on Cloud Identity)
+#
+# NOTE: Make this short! Less than 8 characters if possible. Google has
+# length restrictions on group names.
+GOOGLE_GROUP_PREFIX: ''
 
 #### Proxy ####
 # If the api is behind firewall that need to set http proxy (see below)
