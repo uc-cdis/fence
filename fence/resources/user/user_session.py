@@ -255,7 +255,7 @@ def _create_access_token_cookie(app, session, response, user):
             keypair.kid, keypair.private_key, user,
             app.config.get('ACCESS_TOKEN_EXPIRES_IN'), scopes,
             forced_exp_time=expiration,
-            linked_google_email=linked_google_email
+            linked_google_email=linked_google_email,
         )
         .token
     )

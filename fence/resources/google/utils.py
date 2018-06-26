@@ -14,6 +14,7 @@ from fence.auth import current_token
 from fence.models import GoogleServiceAccountKey
 from fence.models import UserGoogleAccount
 from fence.models import GoogleServiceAccount
+from fence.models import UserGoogleAccountToProxyGroup
 from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME
 from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
 from fence.errors import NotSupported
@@ -196,6 +197,31 @@ def get_linked_google_account_email(user_id):
     if user_google_account:
         email = user_google_account.email
     return email
+
+
+def get_linked_google_account_info(user_id):
+    account_info = {
+        'linked_google_email': None,
+        'linked_google_expires': 0
+    }
+
+    user_google_account = (
+        current_session.query(UserGoogleAccount)
+        .filter(UserGoogleAccount.user_id == user_id).first()
+    )
+    if user_google_account:
+        account_info.linked_google_email = user_google_account.email
+
+        user_google_to_proxy = (
+            current_session.query(UserGoogleAccountToProxyGroup)
+            .filter(
+                UserGoogleAccountToProxyGroup
+                .user_google_account_id == user_google_account.id).first()
+        )
+        if user_google_to_proxy:
+            account_info.linked_google_expires = user_google_to_proxy.expires
+
+    return account_info
 
 
 def add_custom_service_account_key_expiration(
