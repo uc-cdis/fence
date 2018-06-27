@@ -96,4 +96,9 @@ def _get_redirect_from_session():
 def _get_full_class_name(some_object):
     parent_module_path = str(getattr(some_object, '__module__', ''))
     class_name = str(some_object.__class__.__name__)
-    return parent_module_path + '.' + class_name
+    if parent_module_path:
+        full_class_name = parent_module_path + '.' + class_name
+    else:
+        full_class_name = class_name
+
+    return full_class_name
