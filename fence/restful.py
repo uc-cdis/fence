@@ -57,6 +57,19 @@ def handle_error(error):
 
 
 def _get_redirect():
+    """
+    Return a redirect if one is in the args or session
+    """
+    redirect = _get_redirect_from_args()
+    if not redirect:
+        redirect = _get_redirect_from_session()
+    return redirect
+
+
+def _get_redirect_from_args():
+    """
+    Return a redirect if a redirect argument exists request
+    """
     redirect = None
     if flask.request.args.get('redirect'):
         redirect = flask.request.args.get('redirect')
@@ -68,6 +81,16 @@ def _get_redirect():
         redirect = flask.request.args.get('redirect_url')
     elif flask.request.args.get('AppReturnUrl'):
         redirect = flask.request.args.get('AppReturnUrl')
+    return redirect
+
+
+def _get_redirect_from_session():
+    """
+    Return a redirect if the session has one
+    """
+    redirect = None
+    if 'redirect' in flask.session:
+        redirect = flask.session['redirect']
     return redirect
 
 
