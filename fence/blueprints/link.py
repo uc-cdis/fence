@@ -1,8 +1,6 @@
 import time
 
 import flask
-import urllib
-
 from flask_restful import Resource
 from flask_sqlalchemy_session import current_session
 
@@ -115,12 +113,9 @@ class GoogleLinkRedirect(Resource):
             flask.redirect_url = flask.current_app.google_client.get_auth_url()
 
             # Tell Google to let user select an account
-            force_choice = {
-                'prompt': 'select_account'
-            }
-            extra_params = urllib.urlencode(force_choice)
-
-            flask.redirect_url += '&' + extra_params
+            flask.redirect_url = append_query_params(
+                flask.redirect_url, prompt='select_account'
+            )
         else:
             # skip Google AuthN, already linked, error
             redirect_with_errors = append_query_params(
