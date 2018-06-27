@@ -42,6 +42,8 @@ def test_userinfo_extra_claims_get(client, db_session, encoded_creds_jwt, primar
     db_session.add(existing_account)
     db_session.commit()
 
+    client.get()
+
     resp = client.get(
         '/user', data=json.dumps(data),
         headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
