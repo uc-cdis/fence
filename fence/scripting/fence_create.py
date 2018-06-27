@@ -312,15 +312,6 @@ def assign_group_to_user(s, user, group_name, group_data):
         user.groups.append(group)
 
 
-def google_init(db):
-    """
-    DEPRECATED - Initial user proxy group / service account creation.
-    No longer necessary as proxy groups and service accounts are lazily
-    created.
-    """
-    pass
-
-
 def remove_expired_google_service_account_keys(db):
     import fence.settings
     cirrus_config.update(**fence.settings.CIRRUS_CFG)
