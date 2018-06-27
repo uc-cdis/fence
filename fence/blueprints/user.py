@@ -1,7 +1,7 @@
 import flask
 from flask_sqlalchemy_session import current_session
 
-from fence.auth import login_required
+from fence.auth import login_required, current_token
 from fence.errors import Unauthorized, UserError, NotFound
 from fence.models import (
     Application,
@@ -18,10 +18,23 @@ REQUIRED_CERTIFICATES = {
 blueprint = flask.Blueprint('user', __name__)
 
 
-@blueprint.route('/', methods=['GET'])
+@blueprint.route('/', methods=['GET','POST'])
 @login_required({'user'})
 def user_info():
-    return get_current_user_info()
+    client_id = None
+    if current_token and current_token['azp']:
+        client_id = current_token['azp']
+    info = get_current_user_info(client_id)
+    if flask.request.args.get('claims'):
+        requested_userinfo_claims = (
+            flask.request.args.get('claims').get('userinfo'))
+        for claim in requested_userinfo_claims:
+            if claim == 'linked_google_email':
+                google_email = get_users_linked_google_email()
+                if google_email:
+                    info['linked_google_email'] = google_email
+            #TODO: add support for linked google email expiration
+    return info
 
 
 @blueprint.route('/anyaccess', methods=['GET'])

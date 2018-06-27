@@ -4,12 +4,13 @@ from email.mime.text import MIMEText
 from email.utils import COMMASPACE, formatdate
 import flask
 from fence.resources import userdatamodel as udm
+from fence.resources.google.utils import get_users_linked_google_email_from_db
 from fence.resources.userdatamodel import delete_user, get_user_groups
 import smtplib
 from sqlalchemy import func
 
 from fence.errors import NotFound, UserError, InternalError
-from fence.models import User
+from fence.models import User, Client
 
 
 def update_user_resource(username, resource):
@@ -48,31 +49,38 @@ def get_user(current_session, username):
     return user
 
 
-def get_current_user_info():
+def get_current_user_info(client_id=None):
     with flask.current_app.db.session as session:
-        return flask.jsonify(get_user_info(session, session.merge(flask.g.user).username))
+        return flask.jsonify(get_user_info(session, session.merge(flask.g.user).username, client_id))
 
-
-def get_user_info(current_session, username):
+def get_user_info(current_session, username, client_id=None):
     user = get_user(current_session, username)
     if user.is_admin:
         role = 'admin'
     else:
         role = 'user'
+    issuer = flask.current_app.config.get('BASE_URL')
     groups = udm.get_user_groups(current_session, username)['groups']
     info = {
-        'user_id': user.id,
-        'username': user.username,
-        'display_name': user.display_name,
-        'phone_number': user.phone_number,
-        'resources_granted': [],
-        'project_access': dict(user.project_access),
-        'certificates_uploaded': [],
-        'email': user.email,
-        'message': '',
-        'role': role,
-        'groups': groups
+        'sub': user.id,
+        'name': user.username,
     }
+    if user.display_name:
+        info['preferred_username'] = user.display_name
+    if user.phone_number:
+        info['phone_number'] = user.phone_number
+    if user.email:
+        info['email'] = user.email
+    if user.is_admin is not None:
+        info['is_admin'] = user.is_admin
+    if role:
+        info['role'] = role
+    if user.project_access:
+        info['project_access'] = dict(user.project_access)
+    if groups:
+        info['groups'] = groups
+    if client_id:
+        info['azp'] = client_id
     if user.tags is not None and len(user.tags) > 0:
         info['tags'] = {tag.key: tag.value for tag in user.tags}
 
@@ -81,6 +89,7 @@ def get_user_info(current_session, username):
         info['certificates_uploaded'] = [
             c.name for c in user.application.certificates_uploaded]
         info['message'] = user.application.message
+
     return info
 
 
