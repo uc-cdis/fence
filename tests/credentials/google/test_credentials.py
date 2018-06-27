@@ -386,6 +386,7 @@ def test_google_bucket_access_existing_proxy_group(
     )
     assert response.status_code == 200
 
+
 def test_google_create_access_token_post(
         app, client, oauth_client, cloud_manager, db_session,
         encoded_creds_jwt):

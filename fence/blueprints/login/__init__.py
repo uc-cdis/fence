@@ -50,6 +50,13 @@ def make_login_blueprint(app):
         'shibboleth': 'shib',
     }
 
+    # check if google is configured as a client. we will at least need a
+    # a callback if it is
+    google_client_exists = (
+        'OPENID_CONNECT' in app.config
+        and 'google' in app.config['OPENID_CONNECT']
+    )
+
     blueprint = flask.Blueprint('login', __name__)
     blueprint_api = RestfulApi(blueprint)
 
@@ -104,6 +111,10 @@ def make_login_blueprint(app):
         blueprint_api.add_resource(
             GoogleRedirect, '/google', strict_slashes=False
         )
+
+    # we can use Google Client and callback here without the login endpoint
+    # if Google is configured as a client but not in the idps
+    if 'google' in idps or google_client_exists:
         blueprint_api.add_resource(
             GoogleLogin, '/google/login', strict_slashes=False
         )
