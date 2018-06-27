@@ -1,4 +1,3 @@
-import json
 import flask
 import flask_restful
 from authlib.specs.rfc6749.errors import OAuth2Error
