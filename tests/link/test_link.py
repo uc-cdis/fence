@@ -33,6 +33,25 @@ def test_google_link_redirect(client, app, encoded_creds_jwt):
     assert r.location.startswith(app.google_client.get_auth_url())
 
 
+def test_google_link_redirect_no_google_idp(
+        client, app, remove_google_idp, encoded_creds_jwt):
+    """
+    Test that even if Google is not configured as an IDP, when we hit the link
+    endpoint with valid creds, we get a redirect response.
+    This should be redirecting to google's oauth
+    """
+    encoded_credentials_jwt = encoded_creds_jwt['jwt']
+    redirect = 'http://localhost'
+
+    r = client.get(
+        '/link/google',
+        query_string={'redirect': redirect},
+        headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
+
+    assert r.status_code == 302
+    assert r.location.startswith(app.google_client.get_auth_url())
+
+
 def test_google_link_no_redirect_provided(
         client, app, add_new_g_acnt_mock,
         google_auth_get_user_info_mock):
