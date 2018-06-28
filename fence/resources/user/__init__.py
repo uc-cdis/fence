@@ -4,7 +4,7 @@ from email.mime.text import MIMEText
 from email.utils import COMMASPACE, formatdate
 import flask
 from fence.resources import userdatamodel as udm
-from fence.resources.google.utils import get_users_linked_google_email_from_db
+from fence.resources.google.utils import get_linked_google_account_email
 from fence.resources.userdatamodel import delete_user, get_user_groups
 import smtplib
 from sqlalchemy import func
@@ -90,6 +90,14 @@ def get_user_info(current_session, username, client_id=None):
             c.name for c in user.application.certificates_uploaded]
         info['message'] = user.application.message
 
+    if flask.request.get_json(force=True,silent=True):
+        requested_userinfo_claims = (
+            flask.request.get_json(force=True)['claims']['userinfo'])
+        for claim in requested_userinfo_claims:
+            if claim == 'linked_google_email':
+                google_email = get_linked_google_account_email(user.id)
+                if google_email:
+                    info['linked_google_email'] = google_email
     return info
 
 
