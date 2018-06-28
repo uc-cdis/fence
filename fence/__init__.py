@@ -147,7 +147,6 @@ def app_sessions(app):
     configured_google = (
         'OPENID_CONNECT' in app.config
         and 'google' in app.config['OPENID_CONNECT']
-        and 'google' in enabled_idp_ids
     )
     if configured_google:
         app.google_client = GoogleClient(
