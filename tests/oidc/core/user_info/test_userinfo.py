@@ -39,7 +39,7 @@ def test_userinfo_extra_claims_get(
     extra_claims = {
         'claims': {
             'userinfo': {
-                'linked_google_email': None
+                'linked_google_account': None
             }
         }
     }
@@ -50,5 +50,5 @@ def test_userinfo_extra_claims_get(
 
     assert resp.json['user_id']
     assert resp.json['username']
-    assert resp.json['linked_google_email']
+    assert resp.json['linked_google_account']
     assert resp.status_code == 200
