@@ -10,7 +10,7 @@ import smtplib
 from sqlalchemy import func
 
 from fence.errors import NotFound, UserError, InternalError
-from fence.models import User, Client
+from fence.models import User
 
 
 def update_user_resource(username, resource):
@@ -100,7 +100,8 @@ def get_user_info(current_session, username):
 
 def _get_optional_userinfo(user, claims):
     info = {}
-    for claim in claims:
+    for claim, claim_request in claims.iteritems():
+        print(claim)
         if claim == 'linked_google_email':
             google_email = get_linked_google_account_email(user.id)
             info['linked_google_email'] = google_email

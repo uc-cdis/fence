@@ -10,8 +10,9 @@ def test_userinfo_standard_claims_get(client, encoded_creds_jwt):
     resp = client.get(
         '/user',
         headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
-    assert resp.json['sub']
-    assert resp.json['name']
+    print(resp.json)
+    assert resp.json['user_id']
+    assert resp.json['username']
     assert resp.status_code == 200
 
 
@@ -22,8 +23,8 @@ def test_userinfo_standard_claims_post(client, encoded_creds_jwt):
     resp = client.post(
         '/user',
         headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
-    assert resp.json['sub']
-    assert resp.json['name']
+    assert resp.json['user_id']
+    assert resp.json['username']
     assert resp.status_code == 200
 
 
@@ -47,7 +48,7 @@ def test_userinfo_extra_claims_get(
         '/user', data=json.dumps(extra_claims),
         headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
 
-    assert resp.json['sub']
-    assert resp.json['name']
+    assert resp.json['user_id']
+    assert resp.json['username']
     assert resp.json['linked_google_email']
     assert resp.status_code == 200
