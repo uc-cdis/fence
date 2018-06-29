@@ -62,9 +62,9 @@ def get_user_info(current_session, username):
 
     groups = udm.get_user_groups(current_session, username)['groups']
     info = {
-        'sub': user.id,
-        'name': user.username,
-        'preferred_username': user.display_name,
+        'user_id': user.id,  # TODO OIDC suggests the key "sub"
+        'username': user.username,  # TODO OIDC suggests the key "name"
+        'display_name': user.display_name,   # TODO OIDC suggests the key "preferred_username"
         'phone_number': user.phone_number,
         'email': user.email,
         'is_admin': user.is_admin,
@@ -76,6 +76,9 @@ def get_user_info(current_session, username):
         'message': ''
     }
 
+    if user.tags is not None and len(user.tags) > 0:
+        info['tags'] = {tag.key: tag.value for tag in user.tags}
+
     if user.application:
         info['resources_granted'] = user.application.resources_granted
         info['certificates_uploaded'] = [
@@ -84,12 +87,26 @@ def get_user_info(current_session, username):
 
     if flask.request.get_json(force=True, silent=True):
         requested_userinfo_claims = (
-            flask.request.get_json(force=True)['claims']['userinfo'])
-        for claim in requested_userinfo_claims:
-            if claim == 'linked_google_email':
-                google_email = get_linked_google_account_email(user.id)
-                info['linked_google_email'] = google_email
+            flask.request.get_json(force=True)
+            .get('claims', {}).get('userinfo', {})
+        )
+        optional_info = (
+            _get_optional_userinfo(user, requested_userinfo_claims)
+        )
+        info.update(optional_info)
 
+    return info
+
+
+def _get_optional_userinfo(user, claims):
+    info = {}
+    for claim in claims:
+        if claim == 'linked_google_email':
+            google_email = get_linked_google_account_email(user.id)
+            info['linked_google_email'] = google_email
+        if claim == 'linked_google_email_exp':
+            # TODO actually add expiration
+            pass
     return info
 
 
