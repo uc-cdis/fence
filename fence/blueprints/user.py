@@ -8,7 +8,6 @@ from fence.models import (
     Application,
     Certificate,
 )
-from fence.resources.google.utils import get_linked_google_account_email
 from fence.resources.user import send_mail, get_current_user_info
 
 
@@ -20,15 +19,15 @@ REQUIRED_CERTIFICATES = {
 blueprint = flask.Blueprint('user', __name__)
 
 
-@blueprint.route('/', methods=['GET','POST'])
+@blueprint.route('/', methods=['GET', 'POST'])
 @login_required({'user'})
 def user_info():
     client_id = None
     if current_token and current_token['azp']:
         client_id = current_token['azp']
-    info = get_current_user_info(client_id)
-            #TODO: add support for linked google email expiration
-    return info
+    info = get_current_user_info()
+    info['azp'] = client_id
+    return flask.jsonify(info)
 
 
 @blueprint.route('/anyaccess', methods=['GET'])
@@ -37,7 +36,7 @@ def any_access():
     """
     Check if the user is in our database
 
-    :note if a user is specified with empty access it still counts 
+    :note if a user is specified with empty access it still counts
 
     :query project: (optional) Check for read access to a specific program/project
 
@@ -49,7 +48,7 @@ def any_access():
         projects = flask.g.user.project_access
     else:
         projects = flask.g.token['context']['user']['projects']
-    
+
     success = False
 
     if not project and len(projects) > 0:
@@ -58,7 +57,6 @@ def any_access():
         access = projects[project]
         if 'read' in access:
             success = True
-        
 
     if success:
         resp = flask.make_response(flask.jsonify({'result': 'success'}), 200)

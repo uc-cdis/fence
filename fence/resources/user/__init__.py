@@ -34,7 +34,6 @@ def update_user_resource(username, resource):
         return get_user_info(user, session)
 
 
-
 def find_user(username, session):
     user = session.query(User).filter(func.lower(User.username) == username.lower()).first()
     if not user:
@@ -49,40 +48,33 @@ def get_user(current_session, username):
     return user
 
 
-def get_current_user_info(client_id=None):
+def get_current_user_info():
     with flask.current_app.db.session as session:
-        return flask.jsonify(get_user_info(session, session.merge(flask.g.user).username, client_id))
+        return get_user_info(session, session.merge(flask.g.user).username)
 
-def get_user_info(current_session, username, client_id=None):
+
+def get_user_info(current_session, username):
     user = get_user(current_session, username)
     if user.is_admin:
         role = 'admin'
     else:
         role = 'user'
-    issuer = flask.current_app.config.get('BASE_URL')
+
     groups = udm.get_user_groups(current_session, username)['groups']
     info = {
         'sub': user.id,
         'name': user.username,
+        'preferred_username': user.display_name,
+        'phone_number': user.phone_number,
+        'email': user.email,
+        'is_admin': user.is_admin,
+        'role': role,
+        'project_access': dict(user.project_access),
+        'certificates_uploaded': [],
+        'resources_granted': [],
+        'groups': groups,
+        'message': ''
     }
-    if user.display_name:
-        info['preferred_username'] = user.display_name
-    if user.phone_number:
-        info['phone_number'] = user.phone_number
-    if user.email:
-        info['email'] = user.email
-    if user.is_admin is not None:
-        info['is_admin'] = user.is_admin
-    if role:
-        info['role'] = role
-    if user.project_access:
-        info['project_access'] = dict(user.project_access)
-    if groups:
-        info['groups'] = groups
-    if client_id:
-        info['azp'] = client_id
-    if user.tags is not None and len(user.tags) > 0:
-        info['tags'] = {tag.key: tag.value for tag in user.tags}
 
     if user.application:
         info['resources_granted'] = user.application.resources_granted
@@ -90,14 +82,14 @@ def get_user_info(current_session, username, client_id=None):
             c.name for c in user.application.certificates_uploaded]
         info['message'] = user.application.message
 
-    if flask.request.get_json(force=True,silent=True):
+    if flask.request.get_json(force=True, silent=True):
         requested_userinfo_claims = (
             flask.request.get_json(force=True)['claims']['userinfo'])
         for claim in requested_userinfo_claims:
             if claim == 'linked_google_email':
                 google_email = get_linked_google_account_email(user.id)
-                if google_email:
-                    info['linked_google_email'] = google_email
+                info['linked_google_email'] = google_email
+
     return info
 
 
