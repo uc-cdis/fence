@@ -57,7 +57,7 @@ def get_group_users(current_session, groupname):
     users = gp.get_group_users(current_session, groupname)
     get_user_info = lambda user: us.get_user_info(current_session, user.username)
     users_names = [
-        {'name': the_user['username'], 'role': the_user['role']}
+        {'name': the_user['name'], 'role': the_user['role']}
         for the_user in map(get_user_info, users)
     ]
     return {'users': users_names}
