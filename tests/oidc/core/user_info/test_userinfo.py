@@ -33,7 +33,7 @@ def test_userinfo_extra_claims_get(
         encoded_creds_jwt):
 
     encoded_credentials_jwt = encoded_creds_jwt['jwt']
-    user_id = encoded_creds_jwt['sub']
+    user_id = encoded_creds_jwt['user_id']
     db_session.add(UserGoogleAccount(user_id=user_id, email="someemail@google.com"))
     db_session.commit()
     extra_claims = {
