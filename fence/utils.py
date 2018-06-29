@@ -186,3 +186,12 @@ def append_query_params(original_url, **kwargs):
         urlunsplit((scheme, netloc, path, new_query_string, fragment))
     )
     return new_url
+
+
+def split_url_and_query_params(url):
+    scheme, netloc, path, query_string, fragment = urlsplit(url)
+    query_params = parse_qs(query_string)
+    url = (
+        urlunsplit((scheme, netloc, path, None, fragment))
+    )
+    return url, query_params
