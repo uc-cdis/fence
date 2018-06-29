@@ -6,7 +6,7 @@ from fence.errors import NotFound, UserError
 
 def test_get_user(db_session, awg_users):
     info = adm.get_user_info(db_session, "awg_user")
-    assert info['name'] == 'awg_user'
+    assert info['username'] == 'awg_user'
     assert info['role'] == 'user'
     assert "test_group_1" in info['groups']
     assert "test_group_2" in info['groups']
@@ -127,7 +127,7 @@ def test_get_user_groups(db_session, awg_users):
             'description': 'the first test group',
             'projects': ['test_project_1']
         }
-        
+
     ]
     expected_groups.sort()
     groups['groups'].sort()
