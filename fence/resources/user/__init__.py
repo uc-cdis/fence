@@ -101,12 +101,13 @@ def get_user_info(current_session, username):
 def _get_optional_userinfo(user, claims):
     info = {}
     for claim, claim_request in claims.iteritems():
-        if claim == 'linked_google_email':
+        if claim == 'linked_google_account':
             google_email = get_linked_google_account_email(user.id)
-            info['linked_google_email'] = google_email
-        if claim == 'linked_google_email_exp':
+            info['linked_google_account'] = google_email
+        if claim == 'linked_google_account_exp':
             # TODO actually add expiration
             pass
+
     return info
 
 
