@@ -54,7 +54,11 @@ def test_google_link_redirect_no_google_idp(
         headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
 
     assert r.status_code == 302
-    assert r.location.startswith(app.google_client.get_auth_url())
+    url, query_params = split_url_and_query_params(r.location)
+    google_url, google_query_params = (
+        split_url_and_query_params(app.google_client.get_auth_url())
+    )
+    assert google_url == url
 
 
 def test_google_link_no_redirect_provided(
