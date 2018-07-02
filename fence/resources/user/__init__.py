@@ -4,6 +4,7 @@ from email.mime.text import MIMEText
 from email.utils import COMMASPACE, formatdate
 import flask
 from fence.resources import userdatamodel as udm
+from fence.resources.google.utils import get_linked_google_account_email
 from fence.resources.userdatamodel import delete_user, get_user_groups
 import smtplib
 from sqlalchemy import func
@@ -33,7 +34,6 @@ def update_user_resource(username, resource):
         return get_user_info(user, session)
 
 
-
 def find_user(username, session):
     user = session.query(User).filter(func.lower(User.username) == username.lower()).first()
     if not user:
@@ -50,7 +50,7 @@ def get_user(current_session, username):
 
 def get_current_user_info():
     with flask.current_app.db.session as session:
-        return flask.jsonify(get_user_info(session, session.merge(flask.g.user).username))
+        return get_user_info(session, session.merge(flask.g.user).username)
 
 
 def get_user_info(current_session, username):
@@ -59,20 +59,26 @@ def get_user_info(current_session, username):
         role = 'admin'
     else:
         role = 'user'
+
     groups = udm.get_user_groups(current_session, username)['groups']
     info = {
-        'user_id': user.id,
-        'username': user.username,
-        'display_name': user.display_name,
+        'user_id': user.id,  # TODO deprecated, use 'sub'
+        'sub': user.id,
+        'username': user.username,  # TODO deprecated, use 'name'
+        'name': user.username,
+        'display_name': user.display_name,   # TODO deprecated, use 'preferred_username'
+        'preferred_username': user.display_name,
         'phone_number': user.phone_number,
-        'resources_granted': [],
+        'email': user.email,
+        'is_admin': user.is_admin,
+        'role': role,
         'project_access': dict(user.project_access),
         'certificates_uploaded': [],
-        'email': user.email,
-        'message': '',
-        'role': role,
-        'groups': groups
+        'resources_granted': [],
+        'groups': groups,
+        'message': ''
     }
+
     if user.tags is not None and len(user.tags) > 0:
         info['tags'] = {tag.key: tag.value for tag in user.tags}
 
@@ -81,6 +87,30 @@ def get_user_info(current_session, username):
         info['certificates_uploaded'] = [
             c.name for c in user.application.certificates_uploaded]
         info['message'] = user.application.message
+
+    if flask.request.get_json(force=True, silent=True):
+        requested_userinfo_claims = (
+            flask.request.get_json(force=True)
+            .get('claims', {}).get('userinfo', {})
+        )
+        optional_info = (
+            _get_optional_userinfo(user, requested_userinfo_claims)
+        )
+        info.update(optional_info)
+
+    return info
+
+
+def _get_optional_userinfo(user, claims):
+    info = {}
+    for claim, claim_request in claims.iteritems():
+        if claim == 'linked_google_account':
+            google_email = get_linked_google_account_email(user.id)
+            info['linked_google_account'] = google_email
+        if claim == 'linked_google_account_exp':
+            # TODO actually add expiration
+            pass
+
     return info
 
 

@@ -77,7 +77,7 @@ def test_create_user_refresh_token_with_no_found_user(
 
 
 def test_create_user_access_token_with_found_user(
-        app, db_session, client, kid, rsa_private_key):
+        app, db_session, client, kid, rsa_private_key, oauth_client):
     user = User(username='test_user')
     db_session.add(user)
 
