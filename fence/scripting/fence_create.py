@@ -39,7 +39,7 @@ from fence.models import (
     GoogleProxyGroupToGoogleBucketAccessGroup,
     UserRefreshToken
 )
-from fence.utils import create_client, drop_client
+from fence.utils import create_client, drop_client, list_client
 from fence.sync.sync_users import UserSyncer
 
 logger = get_logger(__name__)
@@ -61,6 +61,12 @@ def delete_client_action(DB, client):
     except Exception as e:
         print(e.message)
 
+
+def list_client_action(DB):
+    try:
+        list_client(client, DB)
+    except Exception as e:
+        print(e.message)
 
 def sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
                projects=None, is_sync_from_dbgap_server=False,

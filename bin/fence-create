@@ -14,6 +14,7 @@ from fence.scripting.fence_create import (
     delete_users,
     google_init,
     link_bucket_to_project,
+    list_client_action
     remove_expired_google_accounts_from_proxy_groups,
     remove_expired_google_service_account_keys,
     sync_users,
@@ -63,6 +64,8 @@ def parse_arguments():
 
     client_delete = subparsers.add_parser('client-delete')
     client_delete.add_argument('--client', required=True)
+
+    client_list = subparsers.add_parser('client-list')
 
     user_delete = subparsers.add_parser('user-delete')
     user_delete.add_argument('--users', required=True, nargs='+')
@@ -210,6 +213,8 @@ def main():
         )
     elif args.action == 'client-delete':
         delete_client_action(DB, args.client)
+    elif args.action == 'client-list':
+        list_client_action(DB)
     elif args.action == 'user-delete':
         delete_users(DB, args.users)
     elif args.action == 'sync':
