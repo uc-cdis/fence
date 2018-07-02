@@ -63,7 +63,7 @@ def drop_client(client_name, db):
 def list_client(db):
     driver = SQLAlchemyDriver(db)
     with driver.session as s:
-        for row in s.query(Client).all()
+        for row in s.query(Client).all():
             print row.__dict__
 
 def hash_secret(f):
