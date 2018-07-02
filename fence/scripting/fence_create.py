@@ -64,7 +64,7 @@ def delete_client_action(DB, client):
 
 def list_client_action(DB):
     try:
-        list_client(client, DB)
+        list_client(DB)
     except Exception as e:
         print(e.message)
 
