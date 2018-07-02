@@ -14,7 +14,7 @@ from fence.scripting.fence_create import (
     delete_users,
     google_init,
     link_bucket_to_project,
-    list_client_action
+    list_client_action,
     remove_expired_google_accounts_from_proxy_groups,
     remove_expired_google_service_account_keys,
     sync_users,
