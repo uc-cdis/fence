@@ -218,8 +218,6 @@ def test_valid_session_valid_access_token(
         # manually set cookie for initial session
         client.set_cookie('localhost', SESSION_COOKIE_NAME, test_session_jwt)
         client.set_cookie('localhost', ACCESS_TOKEN_COOKIE_NAME, test_access_jwt)
-        with client.session_transaction() as session:
-            assert session["username"] == user.username
 
         response = client.get('/user')
         user_id = response.json.get('user_id') or response.json.get('sub')
@@ -252,18 +250,13 @@ def test_valid_session_valid_access_token_diff_user(
         user=other_user,
         expires_in=app.config.get('ACCESS_TOKEN_EXPIRES_IN'),
         scopes=['openid', 'user'],
-        iss=flask.current_app.config.get('BASE_URL'),
-        forced_exp_time=None,
-        client_id=None,
-        linked_google_email=None
+        iss=flask.current_app.config.get('BASE_URL')
     ).token
 
     with app.test_client() as client:
         # manually set cookie for initial session
         client.set_cookie('localhost', SESSION_COOKIE_NAME, test_session_jwt)
         client.set_cookie('localhost', ACCESS_TOKEN_COOKIE_NAME, test_access_jwt)
-        with client.session_transaction() as session:
-            assert session['username'] == user.username
 
         response = client.get('/user')
         cookies = _get_cookies_from_response(response)
@@ -277,9 +270,7 @@ def test_valid_session_valid_access_token_diff_user(
 
         valid_access_token = validate_jwt(
             access_token,
-            aud={'user'},
-            purpose='access',
-            public_key=default_public_key(),
+            purpose='access'
         )
         assert response.status_code == 200
         response_user_id = response.json.get('user_id') or response.json.get('sub')
