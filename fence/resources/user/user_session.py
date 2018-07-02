@@ -205,7 +205,7 @@ class UserSessionInterface(SessionInterface):
 
             # check that the current user is the one from the session,
             # clear access token if not
-            user_sess_id = _get_user_id_from_session(session)
+            user_sess_id = session.session_token.get('sub')
             if not user:
                 response.set_cookie(
                     app.config['ACCESS_TOKEN_COOKIE_NAME'],
@@ -253,33 +253,33 @@ def _get_valid_access_token(app, session, request):
     )
 
     if access_token:
-        try:
-            valid_access_token = validate_jwt(
-                access_token,
-                purpose='access'
-            )
-        except Exception as exc:
-            return None
+        return None
 
-        # try to get user, execption means they're not logged in
-        try:
-            user = get_current_user(flask_session=session)
-        except Unauthorized:
-            return None
+    try:
+        valid_access_token = validate_jwt(
+            access_token,
+            purpose='access'
+        )
+    except Exception as exc:
+        return None
 
-        # check that the current user is the one from the session and access_token
-        user_sess_id = _get_user_id_from_session(session)
-        token_user_id = _get_user_id_from_access_token(valid_access_token)
+    # try to get user, execption means they're not logged in
+    try:
+        user = get_current_user(flask_session=session)
+    except Unauthorized:
+        return None
 
-        if user.id != user_sess_id:
-            if user.username != user_sess_id:
-                return None
+    # check that the current user is the one from the session and access_token
+    user_sess_id = session.session_token.get('sub')
+    token_user_id = valid_access_token.get('sub')
 
-        if user.id != token_user_id:
-            if user.username != token_user_id:
-                # only invalid if the token id isn't the user's id OR username
-                # since the username is also unique
-                return None
+    if user.id != user_sess_id and user.username != user_sess_id:
+        return None
+
+    if user.id != token_user_id and user.username != token_user_id:
+        # only invalid if the token id isn't the user's id OR username
+        # since the username is also unique
+        return None
 
     return access_token
 
@@ -323,35 +323,3 @@ def _create_access_token_cookie(app, session, response, user):
     )
 
     return response
-
-
-def _get_user_id_from_session(session):
-    """
-    Get user's identifier from the session. It could be their id or username
-    since both are unique.
-    """
-    user_sess_id = session.session_token.get('sub')
-    if user_sess_id:
-        try:
-            user_sess_id = int(user_sess_id)
-        except ValueError:
-            # if we can't cast to an int, don't. could be username
-            pass
-
-    return user_sess_id
-
-
-def _get_user_id_from_access_token(access_token):
-    """
-    Get user's identifier from the access token claims. It could be their id or
-    username since both are unique.
-    """
-    token_user_id = access_token.get('sub')
-    if token_user_id:
-        try:
-            token_user_id = int(token_user_id)
-        except ValueError:
-            # if we can't cast to an int, don't. could be username
-            pass
-
-    return token_user_id
