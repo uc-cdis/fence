@@ -205,7 +205,7 @@ class UserSessionInterface(SessionInterface):
 
             # check that the current user is the one from the session,
             # clear access token if not
-            user_sess_id = session.session_token.get('sub')
+            user_sess_id = _get_user_id_from_session(session)
             if not user:
                 response.set_cookie(
                     app.config['ACCESS_TOKEN_COOKIE_NAME'],
@@ -252,7 +252,7 @@ def _get_valid_access_token(app, session, request):
         request.cookies.get(app.config['ACCESS_TOKEN_COOKIE_NAME'], None)
     )
 
-    if access_token:
+    if not access_token:
         return None
 
     try:
@@ -270,8 +270,8 @@ def _get_valid_access_token(app, session, request):
         return None
 
     # check that the current user is the one from the session and access_token
-    user_sess_id = session.session_token.get('sub')
-    token_user_id = valid_access_token.get('sub')
+    user_sess_id = _get_user_id_from_session(session)
+    token_user_id = _get_user_id_from_access_token(valid_access_token)
 
     if user.id != user_sess_id and user.username != user_sess_id:
         return None
@@ -323,3 +323,35 @@ def _create_access_token_cookie(app, session, response, user):
     )
 
     return response
+
+
+def _get_user_id_from_session(session):
+    """
+    Get user's identifier from the session. It could be their id or username
+    since both are unique.
+    """
+    user_sess_id = session.session_token.get('sub')
+    if user_sess_id:
+        try:
+            user_sess_id = int(user_sess_id)
+        except ValueError:
+            # if we can't cast to an int, don't. could be username
+            pass
+
+    return user_sess_id
+
+
+def _get_user_id_from_access_token(access_token):
+    """
+    Get user's identifier from the access token claims
+    """
+    token_user_id = access_token.get('sub')
+    if token_user_id:
+        try:
+            token_user_id = int(token_user_id)
+        except ValueError:
+            # if we can't cast to an int, that's an issue. fence should
+            # only issue access tokens with the user's id as the sub field.
+            token_user_id = None
+
+    return token_user_id
