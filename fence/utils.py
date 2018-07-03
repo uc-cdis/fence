@@ -11,7 +11,9 @@ from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.datastructures import ImmutableMultiDict
 from flask_sqlalchemy_session import current_session
 
-from fence.models import Client, User, UserGoogleAccount
+from cirrus import GoogleCloudManager
+
+from fence.models import Client, User, UserGoogleAccount, GoogleServiceAccount
 from fence.jwt.token import CLIENT_ALLOWED_SCOPES
 
 rng = SystemRandom()
@@ -55,8 +57,30 @@ def drop_client(client_name, db):
     driver = SQLAlchemyDriver(db)
     with driver.session as s:
         clients = s.query(Client).filter(Client.name == client_name)
+        for client in clients:
+            _remove_client_service_accounts(s, client)
         clients.delete()
         s.commit()
+
+
+def _remove_client_service_accounts(db_session, client):
+    client_service_accounts = (
+        db_session.query(GoogleServiceAccount).filter(
+            GoogleServiceAccount.client_id == client.client_id)
+    )
+    with GoogleCloudManager() as g_mgr:
+        for service_account in client_service_accounts:
+            print(
+                'Deleting client {}\'s service account: {}'
+                .format(client.name, service_account.email))
+            response = g_mgr.delete_service_account(service_account.email)
+            if not response.get('error'):
+                db_session.delete(service_account)
+            else:
+                print('ERROR - from Google: {}'.format(response))
+                print(
+                    'ERROR - Could not delete client service account: {}'
+                    .format(service_account.email))
 
 
 def hash_secret(f):

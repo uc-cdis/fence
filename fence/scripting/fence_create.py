@@ -55,6 +55,9 @@ def create_client_action(
 
 
 def delete_client_action(DB, client):
+    import fence.settings
+    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+
     try:
         drop_client(client, DB)
         print('Client {} deleted'.format(client))
