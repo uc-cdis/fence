@@ -10,9 +10,7 @@ import flask
 from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.datastructures import ImmutableMultiDict
 
-from cirrus import GoogleCloudManager
-
-from fence.models import Client, User, UserGoogleAccount, GoogleServiceAccount
+from fence.models import Client, User
 from fence.jwt.token import CLIENT_ALLOWED_SCOPES
 
 rng = SystemRandom()
