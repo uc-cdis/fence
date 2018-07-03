@@ -76,6 +76,7 @@ def _remove_client_service_accounts(db_session, client):
             response = g_mgr.delete_service_account(service_account.email)
             if not response.get('error'):
                 db_session.delete(service_account)
+                db_session.commit()
             else:
                 print('ERROR - from Google: {}'.format(response))
                 print(
