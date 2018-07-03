@@ -56,7 +56,12 @@ def create_client_action(
 
 def delete_client_action(DB, client_name):
     import fence.settings
-    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    try:
+        cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    except AttributeError:
+        # no cirrus config, continue anyway. Google APIs will probably fail.
+        # this is okay if clients don't have any Google service accounts
+        pass
 
     try:
         driver = SQLAlchemyDriver(DB)
