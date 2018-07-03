@@ -39,7 +39,7 @@ from fence.models import (
     GoogleProxyGroupToGoogleBucketAccessGroup,
     UserRefreshToken
 )
-from fence.utils import create_client, drop_client
+from fence.utils import create_client
 from fence.sync.sync_users import UserSyncer
 
 logger = get_logger(__name__)
@@ -54,15 +54,45 @@ def create_client_action(
         print(e.message)
 
 
-def delete_client_action(DB, client):
+def delete_client_action(DB, client_name):
     import fence.settings
     cirrus_config.update(**fence.settings.CIRRUS_CFG)
 
     try:
-        drop_client(client, DB)
-        print('Client {} deleted'.format(client))
+        driver = SQLAlchemyDriver(DB)
+        with driver.session as current_session:
+            clients = (
+                current_session.query(Client).filter(Client.name == client_name)
+            )
+            for client in clients:
+                _remove_client_service_accounts(current_session, client)
+            clients.delete()
+            current_session.commit()
+
+        print('Client {} deleted'.format(client_name))
     except Exception as e:
         print(e.message)
+
+
+def _remove_client_service_accounts(db_session, client):
+    client_service_accounts = (
+        db_session.query(GoogleServiceAccount).filter(
+            GoogleServiceAccount.client_id == client.client_id)
+    )
+    with GoogleCloudManager() as g_mgr:
+        for service_account in client_service_accounts:
+            print(
+                'Deleting client {}\'s service account: {}'
+                .format(client.name, service_account.email))
+            response = g_mgr.delete_service_account(service_account.email)
+            if not response.get('error'):
+                db_session.delete(service_account)
+                db_session.commit()
+            else:
+                print('ERROR - from Google: {}'.format(response))
+                print(
+                    'ERROR - Could not delete client service account: {}'
+                    .format(service_account.email))
 
 
 def sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
