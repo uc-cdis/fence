@@ -147,7 +147,6 @@ def app_sessions(app):
     configured_google = (
         'OPENID_CONNECT' in app.config
         and 'google' in app.config['OPENID_CONNECT']
-        and 'google' in enabled_idp_ids
     )
     if configured_google:
         app.google_client = GoogleClient(
@@ -194,7 +193,7 @@ def check_csrf():
         csrf_header = flask.request.headers.get('x-csrf-token')
         csrf_cookie = flask.request.cookies.get('csrftoken')
         referer = flask.request.headers.get('referer')
-        flask.current_app.logger.debug('HTTP REFERER ' + referer)
+        flask.current_app.logger.debug('HTTP REFERER ' + str(referer))
         if not all([csrf_cookie, csrf_header, csrf_cookie == csrf_header, referer]):
             raise UserError("CSRF verification failed. Request aborted")
 
