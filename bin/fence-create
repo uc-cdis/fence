@@ -13,6 +13,7 @@ from fence.scripting.fence_create import (
     delete_client_action,
     delete_users,
     google_init,
+    list_client_action,
     link_bucket_to_project,
     remove_expired_google_accounts_from_proxy_groups,
     remove_expired_google_service_account_keys,
@@ -60,6 +61,8 @@ def parse_arguments():
         help='whether oidc process skips user consent step',
         action="store_true", default=False
     )
+
+    client_list = subparsers.add_parser('client-list')
 
     client_delete = subparsers.add_parser('client-delete')
     client_delete.add_argument('--client', required=True)
@@ -174,7 +177,6 @@ def main():
     # get database information
     sys.path.append(args.path)
 
-
     if os.environ.get('FENCE_DB'):
         DB = os.environ['FENCE_DB']
     else:
@@ -210,6 +212,8 @@ def main():
         )
     elif args.action == 'client-delete':
         delete_client_action(DB, args.client)
+    elif args.action == 'client-list':
+        list_client_action(DB)
     elif args.action == 'user-delete':
         delete_users(DB, args.users)
     elif args.action == 'sync':

@@ -4,6 +4,7 @@ import time
 import uuid
 import yaml
 import json
+import pprint
 
 from authlib.common.encoding import to_unicode
 from cirrus import GoogleCloudManager
@@ -45,6 +46,16 @@ from fence.sync.sync_users import UserSyncer
 logger = get_logger(__name__)
 
 
+def list_client_action(db):
+    try:
+        driver = SQLAlchemyDriver(db)
+        with driver.session as s:
+            for row in s.query(Client).all():
+                pprint.pprint(row.__dict__)
+    except Exception as e:
+        print(e.message)
+
+
 def create_client_action(
         DB, username=None, client=None, urls=None, auto_approve=False):
     try:
@@ -66,6 +77,9 @@ def delete_client_action(DB, client_name):
     try:
         driver = SQLAlchemyDriver(DB)
         with driver.session as current_session:
+            if not current_session.query(Client).filter(Client.name == client_name).first():
+                raise Exception('client {} does not exist'.format(client_name))
+
             clients = (
                 current_session.query(Client).filter(Client.name == client_name)
             )
