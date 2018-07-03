@@ -109,7 +109,7 @@ def check_scope(scope):
 
 def login_required(scope=None):
     """
-    Create decorator to require a user session in shibboleth.
+    Create decorator to require a user session
     """
 
     def decorator(f):
