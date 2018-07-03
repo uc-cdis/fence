@@ -54,10 +54,17 @@ def create_client(
 def drop_client(client_name, db):
     driver = SQLAlchemyDriver(db)
     with driver.session as s:
+        if not s.query(Client).filter(Client.name == client_name).first():
+            raise Exception('client {} does not exist'.format(client_name))
         clients = s.query(Client).filter(Client.name == client_name)
         clients.delete()
         s.commit()
 
+def list_client(db):
+    driver = SQLAlchemyDriver(db)
+    with driver.session as s:
+        for row in s.query(Client).all():
+            print row.__dict__
 
 def hash_secret(f):
     @wraps(f)
