@@ -12,9 +12,8 @@ from urlparse import parse_qs, urlsplit, urlunsplit
 import flask
 from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.datastructures import ImmutableMultiDict
-from flask_sqlalchemy_session import current_session
 
-from fence.models import Client, User, UserGoogleAccount
+from fence.models import Client, User
 from fence.jwt.token import CLIENT_ALLOWED_SCOPES
 
 rng = SystemRandom()
@@ -52,14 +51,6 @@ def create_client(
         s.add(client)
         s.commit()
     return client_id, client_secret
-
-
-def drop_client(client_name, db):
-    driver = SQLAlchemyDriver(db)
-    with driver.session as s:
-        clients = s.query(Client).filter(Client.name == client_name)
-        clients.delete()
-        s.commit()
 
 
 def hash_secret(f):

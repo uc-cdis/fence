@@ -4,6 +4,7 @@ import time
 import uuid
 import yaml
 import json
+import pprint
 
 from authlib.common.encoding import to_unicode
 from cirrus import GoogleCloudManager
@@ -39,10 +40,20 @@ from fence.models import (
     GoogleProxyGroupToGoogleBucketAccessGroup,
     UserRefreshToken
 )
-from fence.utils import create_client, drop_client
+from fence.utils import create_client
 from fence.sync.sync_users import UserSyncer
 
 logger = get_logger(__name__)
+
+
+def list_client_action(db):
+    try:
+        driver = SQLAlchemyDriver(db)
+        with driver.session as s:
+            for row in s.query(Client).all():
+                pprint.pprint(row.__dict__)
+    except Exception as e:
+        print(e.message)
 
 
 def create_client_action(
@@ -54,12 +65,53 @@ def create_client_action(
         print(e.message)
 
 
-def delete_client_action(DB, client):
+def delete_client_action(DB, client_name):
+    import fence.settings
     try:
-        drop_client(client, DB)
-        print('Client {} deleted'.format(client))
+        cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    except AttributeError:
+        # no cirrus config, continue anyway. Google APIs will probably fail.
+        # this is okay if clients don't have any Google service accounts
+        pass
+
+    try:
+        driver = SQLAlchemyDriver(DB)
+        with driver.session as current_session:
+            if not current_session.query(Client).filter(Client.name == client_name).first():
+                raise Exception('client {} does not exist'.format(client_name))
+
+            clients = (
+                current_session.query(Client).filter(Client.name == client_name)
+            )
+            for client in clients:
+                _remove_client_service_accounts(current_session, client)
+            clients.delete()
+            current_session.commit()
+
+        print('Client {} deleted'.format(client_name))
     except Exception as e:
         print(e.message)
+
+
+def _remove_client_service_accounts(db_session, client):
+    client_service_accounts = (
+        db_session.query(GoogleServiceAccount).filter(
+            GoogleServiceAccount.client_id == client.client_id)
+    )
+    with GoogleCloudManager() as g_mgr:
+        for service_account in client_service_accounts:
+            print(
+                'Deleting client {}\'s service account: {}'
+                .format(client.name, service_account.email))
+            response = g_mgr.delete_service_account(service_account.email)
+            if not response.get('error'):
+                db_session.delete(service_account)
+                db_session.commit()
+            else:
+                print('ERROR - from Google: {}'.format(response))
+                print(
+                    'ERROR - Could not delete client service account: {}'
+                    .format(service_account.email))
 
 
 def sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
