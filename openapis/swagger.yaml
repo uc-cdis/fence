@@ -19,6 +19,8 @@ tags:
     description: Authorization and token management
   - name: user
     description: User information
+  - name: logout
+    description: Log out the current user
   - name: data
     description: Generate signed URLs
   - name: credentials
@@ -224,6 +226,23 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/UserInfo'
+  /logout:
+    get:
+      tags:
+        - logout
+      summary: Log out the current user
+      description: Log out the current user and redirect to the provided url.
+                   The logout will propogate, depending on the identity provider.
+      parameters:
+        - in: query
+          name: next
+          schema:
+            type: string
+          description: The url to redirect the user to after logout
+          required: false
+      responses:
+        '302':
+          description: redirect to root or url in parameter if provided
   '/data/download/{file_id}':
     get:
       tags:
