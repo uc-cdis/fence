@@ -3,6 +3,8 @@ import os.path
 import time
 import uuid
 import yaml
+import json
+import pprint
 
 from authlib.common.encoding import to_unicode
 from cirrus import GoogleCloudManager
@@ -38,10 +40,20 @@ from fence.models import (
     GoogleProxyGroupToGoogleBucketAccessGroup,
     UserRefreshToken
 )
-from fence.utils import create_client, drop_client
+from fence.utils import create_client
 from fence.sync.sync_users import UserSyncer
 
 logger = get_logger(__name__)
+
+
+def list_client_action(db):
+    try:
+        driver = SQLAlchemyDriver(db)
+        with driver.session as s:
+            for row in s.query(Client).all():
+                pprint.pprint(row.__dict__)
+    except Exception as e:
+        print(e.message)
 
 
 def create_client_action(
@@ -53,12 +65,53 @@ def create_client_action(
         print(e.message)
 
 
-def delete_client_action(DB, client):
+def delete_client_action(DB, client_name):
+    import fence.settings
     try:
-        drop_client(client, DB)
-        print('Client {} deleted'.format(client))
+        cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    except AttributeError:
+        # no cirrus config, continue anyway. Google APIs will probably fail.
+        # this is okay if clients don't have any Google service accounts
+        pass
+
+    try:
+        driver = SQLAlchemyDriver(DB)
+        with driver.session as current_session:
+            if not current_session.query(Client).filter(Client.name == client_name).first():
+                raise Exception('client {} does not exist'.format(client_name))
+
+            clients = (
+                current_session.query(Client).filter(Client.name == client_name)
+            )
+            for client in clients:
+                _remove_client_service_accounts(current_session, client)
+            clients.delete()
+            current_session.commit()
+
+        print('Client {} deleted'.format(client_name))
     except Exception as e:
         print(e.message)
+
+
+def _remove_client_service_accounts(db_session, client):
+    client_service_accounts = (
+        db_session.query(GoogleServiceAccount).filter(
+            GoogleServiceAccount.client_id == client.client_id)
+    )
+    with GoogleCloudManager() as g_mgr:
+        for service_account in client_service_accounts:
+            print(
+                'Deleting client {}\'s service account: {}'
+                .format(client.name, service_account.email))
+            response = g_mgr.delete_service_account(service_account.email)
+            if not response.get('error'):
+                db_session.delete(service_account)
+                db_session.commit()
+            else:
+                print('ERROR - from Google: {}'.format(response))
+                print(
+                    'ERROR - Could not delete client service account: {}'
+                    .format(service_account.email))
 
 
 def sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
@@ -87,7 +140,12 @@ def sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
                 auth_id: phs000235
     '''
     import fence.settings
-    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    try:
+        cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    except AttributeError:
+        # no cirrus config, continue anyway. Google APIs will probably fail.
+        # this is okay if users don't need access to Google buckets
+        pass
 
     if projects is not None and not os.path.exists(projects):
         logger.error("====={} is not found!!!=======".format(projects))
@@ -704,6 +762,17 @@ def create_google_bucket(
 
     google_project_id = google_project_id or cirrus_config.GOOGLE_PROJECT_ID
 
+    # determine project where buckets are located
+    # default to same project, try to get storage creds project from key file
+    storage_creds_project_id = google_project_id
+    storage_creds_file = cirrus_config.configs['GOOGLE_STORAGE_CREDS']
+    if os.path.exists(storage_creds_file):
+        with open(storage_creds_file) as file:
+            storage_creds_project_id = (
+                json.load(file)
+                .get('project_id', google_project_id)
+            )
+
     # default to read access
     allowed_privileges = allowed_privileges or ['read', 'write']
 
@@ -717,7 +786,7 @@ def create_google_bucket(
                 name=name,
                 storage_class=storage_class,
                 requester_pays=requester_pays,
-                google_project_id=google_project_id,
+                storage_creds_project_id=storage_creds_project_id,
                 public=public,
                 project_auth_id=project_auth_id,
                 access_logs_bucket=access_logs_bucket)
@@ -730,17 +799,19 @@ def create_google_bucket(
                     google_bucket_name=name,
                     bucket_db_id=bucket_db_entry.id,
                     google_project_id=google_project_id,
+                    storage_creds_project_id=storage_creds_project_id,
                     privileges=[privilege])
 
 
 def _create_google_bucket_and_update_db(
         db_session, name, storage_class, public, requester_pays,
-        google_project_id, project_auth_id, access_logs_bucket):
+        storage_creds_project_id, project_auth_id, access_logs_bucket):
     """
     Handles creates the Google bucket and adding necessary db entry
     """
     manager = GoogleCloudManager(
-        google_project_id, creds=cirrus_config.configs['GOOGLE_STORAGE_CREDS'])
+        storage_creds_project_id,
+        creds=cirrus_config.configs['GOOGLE_STORAGE_CREDS'])
     with manager as g_mgr:
         g_mgr.create_or_update_bucket(
             name,
@@ -820,9 +891,8 @@ def _create_google_bucket_and_update_db(
 
 def _create_google_bucket_access_group(
         db_session, google_bucket_name, bucket_db_id, google_project_id,
-        privileges):
+        storage_creds_project_id, privileges):
     access_group = None
-
     # use default creds for creating group and iam policies
     with GoogleCloudManager(google_project_id) as g_mgr:
         # create bucket access group
@@ -839,13 +909,18 @@ def _create_google_bucket_access_group(
         db_session.add(access_group)
         db_session.commit()
 
+    # use storage creds to update bucket iam
+    storage_manager = GoogleCloudManager(
+        storage_creds_project_id,
+        creds=cirrus_config.configs['GOOGLE_STORAGE_CREDS'])
+    with storage_manager as g_mgr:
         g_mgr.give_group_access_to_bucket(
             group_email, google_bucket_name, access=privileges)
 
-        print(
-            'Successfully created Google Bucket Access Group {} '
-            'for Google Bucket {}.'
-            .format(group_email, google_bucket_name)
-        )
+    print(
+        'Successfully created Google Bucket Access Group {} '
+        'for Google Bucket {}.'
+        .format(group_email, google_bucket_name)
+    )
 
     return access_group

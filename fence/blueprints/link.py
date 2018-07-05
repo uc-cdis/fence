@@ -1,8 +1,6 @@
 import time
 
 import flask
-import urllib
-
 from flask_restful import Resource
 from flask_sqlalchemy_session import current_session
 
@@ -22,7 +20,7 @@ from fence.resources.google.utils import (
     get_default_google_account_expiration,
     get_users_linked_google_email)
 
-from fence.utils import clear_cookies
+from fence.utils import clear_cookies, append_query_params
 
 
 def make_link_blueprint():
@@ -115,18 +113,16 @@ class GoogleLinkRedirect(Resource):
             flask.redirect_url = flask.current_app.google_client.get_auth_url()
 
             # Tell Google to let user select an account
-            force_choice = {
-                'prompt': 'select_account'
-            }
-            extra_params = urllib.urlencode(force_choice)
-
-            flask.redirect_url += '&' + extra_params
+            flask.redirect_url = append_query_params(
+                flask.redirect_url, prompt='select_account'
+            )
         else:
             # skip Google AuthN, already linked, error
-            error = _get_error_params(
-                'g_acnt_link_error',
-                'User already has a linked Google account.')
-            flask.redirect_url = provided_redirect + '?' + error
+            redirect_with_errors = append_query_params(
+                provided_redirect,
+                error='g_acnt_link_error',
+                error_description='User already has a linked Google account.')
+            flask.redirect_url = redirect_with_errors
 
         return flask.redirect(flask.redirect_url)
 
@@ -249,12 +245,16 @@ class GoogleCallback(Resource):
         # if we have a redirect, follow it and add any errors
         if provided_redirect:
             if error:
-                error = _get_error_params(error, error_description)
-                redirect_with_params = provided_redirect + '?' + error
+                redirect_with_params = append_query_params(
+                    provided_redirect,
+                    error=error,
+                    error_description=error_description
+                )
             else:
-                redirect_with_params = (
-                    provided_redirect + '?'
-                    + _get_query_params(linked_email=email, exp=exp)
+                redirect_with_params = append_query_params(
+                    provided_redirect,
+                    linked_email=email,
+                    exp=exp
                 )
 
             return flask.redirect(redirect_with_params)
@@ -427,18 +427,6 @@ def _add_new_user_google_account(user_id, google_email):
             google_email, user_id))
     current_session.commit()
     return user_google_account
-
-
-def _get_error_params(error, description):
-    params = ''
-    if error:
-        args = {'error': error, 'error_description': description}
-        params = urllib.urlencode(args)
-    return params
-
-
-def _get_query_params(**kwargs):
-    return urllib.urlencode(kwargs)
 
 
 def _add_google_email_to_proxy_group(google_email, proxy_group_id):

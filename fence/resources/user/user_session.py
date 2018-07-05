@@ -55,8 +55,7 @@ class UserSession(SessionMixin):
             try:
                 jwt_info = validate_jwt(
                     session_token,
-                    public_key=default_public_key(),
-                    aud={'fence'},
+                    aud={'fence'}
                 )
             except JWTError:
                 # if session token is invalid, create a new
@@ -111,7 +110,7 @@ class UserSession(SessionMixin):
         """
         get a value from session json
         """
-        return self.session_token["context"].get(key, *args)
+        return self.session_token['context'].get(key, *args)
 
     def pop(self, key, default):
         return self.session_token['context'].pop(key, default)
@@ -121,7 +120,7 @@ class UserSession(SessionMixin):
         clear current session
         """
         self._encoded_token = None
-        self.session_token = {"context": {}}
+        self.session_token = {'context': {}}
 
     def clear_if_expired(self, app):
         if self._encoded_token:
@@ -142,7 +141,7 @@ class UserSession(SessionMixin):
         return key in self.session_token['context']
 
     def __getitem__(self, key):
-        return self.session_token["context"][key]
+        return self.session_token['context'][key]
 
     def __setitem__(self, key, value):
         # If token doesn't exists, create the first session token when
@@ -150,11 +149,11 @@ class UserSession(SessionMixin):
         if not self._encoded_token:
             self.create_initial_token()
 
-        self.session_token["context"][key] = value
+        self.session_token['context'][key] = value
         self.modified = True
 
     def __delitem__(self, key):
-        del self.session_token["context"][key]
+        del self.session_token['context'][key]
         self.modified = True
 
     def __iter__(self):
@@ -172,15 +171,14 @@ class UserSessionInterface(SessionInterface):
 
     def open_session(self, app, request):
         jwt = request.cookies.get(app.session_cookie_name)
-        flask.g.access_token = (
-            request.cookies.get(app.config['ACCESS_TOKEN_COOKIE_NAME'], None)
-        )
         session = UserSession(jwt)
 
         # NOTE: If we did the expiration check in save_session
         # then an expired token could be used for a single request
         # (on open_session) before it's invalidated for being expired
         session.clear_if_expired(app)
+
+        flask.g.access_token = _get_valid_access_token(app, session, request)
 
         return session
 
@@ -205,6 +203,23 @@ class UserSessionInterface(SessionInterface):
             except Unauthorized:
                 user = None
 
+            # check that the current user is the one from the session,
+            # clear access token if not
+            user_sess_id = _get_user_id_from_session(session)
+            if not user:
+                response.set_cookie(
+                    app.config['ACCESS_TOKEN_COOKIE_NAME'],
+                    expires=0,
+                    httponly=True, domain=domain)
+            elif user.id != user_sess_id:
+                if user.username != user_sess_id:
+                    response.set_cookie(
+                        app.config['ACCESS_TOKEN_COOKIE_NAME'],
+                        expires=0,
+                        httponly=True, domain=domain)
+
+            # if a user is logged in and doesn't have an access token, let's
+            # generate one
             if user and not flask.g.access_token:
                 _create_access_token_cookie(app, session, response, user)
         else:
@@ -226,6 +241,47 @@ class UserSessionInterface(SessionInterface):
                 app.config['ACCESS_TOKEN_COOKIE_NAME'],
                 expires=0,
                 httponly=True, domain=domain)
+
+
+def _get_valid_access_token(app, session, request):
+    """
+    Return a valid access token. If at any point access token is determined
+    invalid, this will return None.
+    """
+    access_token = (
+        request.cookies.get(app.config['ACCESS_TOKEN_COOKIE_NAME'], None)
+    )
+
+    if not access_token:
+        return None
+
+    try:
+        valid_access_token = validate_jwt(
+            access_token,
+            purpose='access'
+        )
+    except Exception as exc:
+        return None
+
+    # try to get user, execption means they're not logged in
+    try:
+        user = get_current_user(flask_session=session)
+    except Unauthorized:
+        return None
+
+    # check that the current user is the one from the session and access_token
+    user_sess_id = _get_user_id_from_session(session)
+    token_user_id = _get_user_id_from_access_token(valid_access_token)
+
+    if user.id != user_sess_id and user.username != user_sess_id:
+        return None
+
+    if user.id != token_user_id and user.username != token_user_id:
+        # only invalid if the token id isn't the user's id OR username
+        # since the username is also unique
+        return None
+
+    return access_token
 
 
 def _clear_session_if_expired(app, session):
@@ -267,3 +323,35 @@ def _create_access_token_cookie(app, session, response, user):
     )
 
     return response
+
+
+def _get_user_id_from_session(session):
+    """
+    Get user's identifier from the session. It could be their id or username
+    since both are unique.
+    """
+    user_sess_id = session.session_token.get('sub')
+    if user_sess_id:
+        try:
+            user_sess_id = int(user_sess_id)
+        except ValueError:
+            # if we can't cast to an int, don't. could be username
+            pass
+
+    return user_sess_id
+
+
+def _get_user_id_from_access_token(access_token):
+    """
+    Get user's identifier from the access token claims
+    """
+    token_user_id = access_token.get('sub')
+    if token_user_id:
+        try:
+            token_user_id = int(token_user_id)
+        except ValueError:
+            # if we can't cast to an int, that's an issue. fence should
+            # only issue access tokens with the user's id as the sub field.
+            token_user_id = None
+
+    return token_user_id

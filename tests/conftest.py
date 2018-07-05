@@ -9,6 +9,7 @@ import uuid
 import json
 import mock
 import os
+import copy
 
 from addict import Dict
 from authutils.testing.fixtures import (
@@ -511,6 +512,36 @@ def auth_client(app, request):
     request.addfinalizer(reset_authmock)
 
 
+@pytest.fixture(scope='function')
+def test_user_a(db_session):
+    test_user = (
+        db_session
+        .query(models.User)
+        .filter_by(username='test_a')
+        .first()
+    )
+    if not test_user:
+        test_user = models.User(username='test_a', is_admin=False)
+        db_session.add(test_user)
+        db_session.commit()
+    return Dict(username='test_a', user_id=test_user.id)
+
+
+@pytest.fixture(scope='function')
+def test_user_b(db_session):
+    test_user = (
+        db_session
+        .query(models.User)
+        .filter_by(username='test_b')
+        .first()
+    )
+    if not test_user:
+        test_user = models.User(username='test_b', is_admin=False)
+        db_session.add(test_user)
+        db_session.commit()
+    return Dict(username='test_b', user_id=test_user.id)
+
+
 @pytest.fixture(scope='session')
 def db(app, request):
     """
@@ -879,6 +910,7 @@ def cloud_manager():
     manager = MagicMock()
     patch('fence.blueprints.storage_creds.google.GoogleCloudManager', manager).start()
     patch('fence.resources.google.utils.GoogleCloudManager', manager).start()
+    patch('fence.scripting.fence_create.GoogleCloudManager', manager).start()
     manager.return_value.__enter__.return_value.get_access_key.return_value = {
         "type": "service_account",
         "project_id": "project-id",
@@ -1055,3 +1087,41 @@ def google_storage_client_mocker(app):
     yield storage_client_mock
 
     app.storage_manager = temp
+
+
+@pytest.fixture(scope='function')
+def remove_google_idp(app):
+    """
+    Don't include google in the enabled idps, but leave it configured
+    in the openid connect clients.
+    """
+    saved_app_config = copy.deepcopy(app.config)
+
+    override_setings = {
+        "ENABLED_IDENTITY_PROVIDERS": {
+            # ID for which of the providers to default to.
+            'default': 'fence',
+            # Information for identity providers.
+            'providers': {
+                'fence': {
+                    'name': 'Fence Multi-Tenant OAuth',
+                },
+                'shibboleth': {
+                    'name': 'NIH Login',
+                },
+            },
+        },
+        "OPENID_CONNECT": {
+            'google': {
+                'client_id': '123',
+                'client_secret': '456',
+                'redirect_url': '789'
+            }
+        }
+    }
+    app.config.update(override_setings)
+
+    yield
+
+    # restore old config
+    app.config = copy.deepcopy(saved_app_config)

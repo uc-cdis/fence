@@ -1,11 +1,14 @@
 import flask
+import time
 from flask_restful import Resource
+from flask_sqlalchemy_session import current_session
 
 from cirrus import GoogleCloudManager
 from cirrus.config import config as cirrus_config
 
 from fence.auth import require_auth_header
 from fence.auth import current_token
+from fence.models import GoogleServiceAccountKey
 from fence.resources.google.utils import (
     add_custom_service_account_key_expiration,
     create_google_access_key,
@@ -134,12 +137,13 @@ class GoogleCredentialsList(Resource):
         different mechanism than the Client SAs was required.
         """
         # x days * 24 hr/day * 60 min/hr * 60 s/min = y seconds
-        expires_in_seconds = (
+        expires_in = (
             cirrus_config.SERVICE_KEY_EXPIRATION_IN_DAYS * 24 * 60 * 60
         )
+        expiration_time = int(time.time()) + int(expires_in)
         key_id = key.get('private_key_id')
         add_custom_service_account_key_expiration(
-            key_id, service_account.id, expires=expires_in_seconds)
+            key_id, service_account.id, expires=expiration_time)
 
 
 class GoogleCredentials(Resource):
@@ -175,6 +179,14 @@ class GoogleCredentials(Resource):
                 if access_key in all_client_keys:
                     g_cloud.delete_service_account_key(
                         service_account.google_unique_id, access_key)
+
+                    db_entry = (
+                        current_session.query(GoogleServiceAccountKey)
+                        .filter_by(key_id=access_key).first()
+                    )
+                    if db_entry:
+                        current_session.delete(db_entry)
+                        current_session.commit()
                 else:
                     flask.abort(
                         404, 'Could not delete key ' + access_key +
