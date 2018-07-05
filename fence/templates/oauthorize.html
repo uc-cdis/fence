@@ -17,7 +17,7 @@
 <body>
   <!-- // <script src="js/scripts.js"></script> -->
   <main>
-    <img class="auth-kidfirst-logo" src="./kidfirst-logo.svg" />
+    <img class="auth-data-logo" src="{{ url_for('static', filename='img/logo.svg') }}" />
     <div class="auth-dialog">
       <h1 class="auth-title">
         {{app_name}}
@@ -32,12 +32,14 @@
                 {% endfor %}
               </ul>
             </div>
-            <div class="introduction">
-              You will be redirected to NIH login after the authorization. 
-            </div>
-            <div class="auth-button-group"> 
-              <button id="no" class='no button-primary-white'>Cancel</button>
-              <button id="yes" class='yes button-primary-orange'>Yes, I authorize.</button>
+            <div class="auth-action-line">
+              <div class="introduction">
+                You will be redirected to NIH login after the authorization. 
+              </div>
+              <div class="auth-button-group"> 
+                <button id="no" class='no button-primary-white auth-button'>Cancel</button>
+                <button id="yes" class='yes button-primary-orange auth-button'>Yes, I authorize.</button>
+               </div>
              </div>
         </form>
       </section>
@@ -51,7 +53,7 @@ body {
 }
 main {
     position: absolute;
-    top: calc(50% - 277px);
+    top: 15%;
     left: calc(50% - 512px);
 }
 .auth-dialog {
@@ -79,11 +81,22 @@ h1.auth-title{
     border: #9B9B9B solid 1px;
     border-radius: 4px;
     background-color: #F5F5F5;
-    width: 965px;
+    width: 945px;
     height: 182px;
     margin: 18px 0;
+    display: table;
+    padding-left: 20px;
 }
-.auth-kidfirst-logo {
+.auth-list ul {
+  display: table-cell;
+  vertical-align: middle;
+  padding: 0;
+}
+.auth-list li {
+  margin-left: 20px;
+  line-height: 32px;
+}
+.auth-data-logo {
     width: 314px;
     height: 116px;
     display: block;
@@ -96,8 +109,9 @@ h1.auth-title{
     line-height: 18px;
     letter-spacing: .03rem;
     color: #000000;
+    display: inline-block;
 }
-button {
+.auth-button {
   border-radius: 4px;
   width: 152px;
   height: 40px;
@@ -106,6 +120,7 @@ button {
   display: inline-block;
   vertical-align: middle;
   cursor: pointer;
+  margin-left: 16px;
 }
 .button-primary-white {
     border: 1px solid #9B9B9B;
@@ -138,12 +153,16 @@ button {
     font-weight: 600;
     background-color: #ff9635;
 }
-
 .button-primary-orange:active {
     opacity: 0.8;
 }
 .auth-button-group {
   text-align: right;
+  display: inline-block;
+  float: right;
+}
+.auth-action-line {
+  height: 40px;
 }
 </style>
 <script>
