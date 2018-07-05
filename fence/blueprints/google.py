@@ -1,4 +1,4 @@
-from urllib import unquote, quote
+from urllib import unquote
 
 import flask
 from flask_restful import Resource
@@ -22,7 +22,7 @@ def make_google_blueprint():
     )
 
     blueprint_api.add_resource(
-        GoogleServiceAccount, '/service_accounts/<id>',
+        GoogleServiceAccount, '/service_accounts/<id_>',
         strict_slashes=False
     )
 
@@ -81,25 +81,25 @@ class GoogleServiceAccountRoot(Resource):
 class GoogleServiceAccount(Resource):
 
     @require_auth_header({'user'})
-    def get(self, id):
+    def get(self, id_):
         """
         Get service account(s)
 
         Args:
-            id (str): either "monitor" or a comma-delimited list of Google
+            id_ (str): either "monitor" or a comma-delimited list of Google
                       Project IDs to get list of service accounts for.
 
                       Specifying "monitor" will return the service account
                       email used for monitoring purposes.
         """
-        if id == 'monitor':
+        if id_ == 'monitor':
             return self._get_monitoring_service_account_response()
 
         # if not monitor, we should assume google project ids and parse
         google_project_ids = [
             project_id.strip()
             for project_id in
-            unquote(id).split(',')
+            unquote(id_).split(',')
         ]
 
         # check if user has permission to get service accounts
@@ -125,14 +125,14 @@ class GoogleServiceAccount(Resource):
         return response, 200
 
     @require_auth_header({'user'})
-    def post(self, id):
+    def post(self, id_):
         """
         Dry run for registering a new service account
 
         Args:
-            id (str): Must be "_dry_run", otherwise, error
+            id_ (str): Must be "_dry_run", otherwise, error
         """
-        if id == '_dry_run':
+        if id_ == '_dry_run':
             payload = flask.request.get_json() or {}
             service_account_email = payload.get('service_account_email')
             google_project_id = payload.get('google_project_id')
@@ -148,24 +148,24 @@ class GoogleServiceAccount(Resource):
 
             return error_response, status
         else:
-            raise UserError('Cannot post with account id.')
+            raise UserError('Cannot post with account id_.')
 
     @require_auth_header({'user'})
-    def patch(self, id):
+    def patch(self, id_):
         """
         Update a service account
 
         Args:
-            id (str): Google service account identifier to update
+            id_ (str): Google service account identifier to update
         """
         user_id = current_token['sub']
         # check if user has permission to update the service account
-        authorized = _can_user_manage_service_account(user_id, id)
+        authorized = _can_user_manage_service_account(user_id, id_)
 
         if not authorized:
             return (
                 'User "{}" does not have permission to update the provided '
-                'service account "{}".'.format(user_id, id),
+                'service account "{}".'.format(user_id, id_),
                 403
             )
 
@@ -181,7 +181,7 @@ class GoogleServiceAccount(Resource):
                 403
             )
 
-        service_account_email = _get_service_account_email(id)
+        service_account_email = _get_service_account_email(id_)
         google_project_id = (
             _get_google_project_from_service_account_email(service_account_email)
         )
@@ -197,25 +197,25 @@ class GoogleServiceAccount(Resource):
         return '', 200
 
     @require_auth_header({'user'})
-    def delete(self, id):
+    def delete(self, id_):
         """
         Delete a service account
 
         Args:
-            id (str): Google service account identifier to delete
+            id_ (str): Google service account identifier to delete
         """
         user_id = current_token['sub']
         # check if user has permission to delete the service account
-        authorized = _can_user_manage_service_account(user_id, id)
+        authorized = _can_user_manage_service_account(user_id, id_)
 
         if not authorized:
             return (
                 'User "{}" does not have permission to delete the provided '
-                'service account "{}".'.format(user_id, id),
+                'service account "{}".'.format(user_id, id_),
                 403
             )
 
-        return self._delete(id)
+        return self._delete(id_)
 
     def _get_monitoring_service_account_response(self):
         """
@@ -451,5 +451,5 @@ def _get_service_account_email(account_id):
 
 # TODO this should be in cirrus rather than fence...
 def _get_google_project_from_service_account_email(account_id):
-    # parse email to get project id
+    # parse email to get project id_
     return None
