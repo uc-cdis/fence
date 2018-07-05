@@ -18,11 +18,11 @@ def make_google_blueprint():
     blueprint_api = RestfulApi(blueprint)
 
     blueprint_api.add_resource(
-        GoogleServiceAccountRoot, '/service_account', strict_slashes=False
+        GoogleServiceAccountRoot, '/service_accounts', strict_slashes=False
     )
 
     blueprint_api.add_resource(
-        GoogleServiceAccount, '/service_account/<id>',
+        GoogleServiceAccount, '/service_accounts/<id>',
         strict_slashes=False
     )
 
@@ -364,7 +364,14 @@ def _get_service_account_error_status(
             }
         }
     """
-    response = {'success': False}
+    response = {
+        'success': False,
+        'errors': {
+            'service_account_email': None,
+            'google_project_id': None,
+            'project_access': None,
+        }
+    }
 
     response['errors']['service_account_email'] = (
         _get_service_account_email_error_status(service_account_email)
@@ -380,8 +387,9 @@ def _get_service_account_error_status(
 
     # all statuses must be 200 to be successful
     project_statuses = [
-        project.get('status')
-        for project in response['errors']['project_access']
+        error_details.get('status')
+        for project_name, error_details
+        in response['errors']['project_access'].iteritems()
     ]
     if (response['errors']['service_account_email'].get('status') == 200
             and response['errors']['google_project_id'].get('status') == 200
