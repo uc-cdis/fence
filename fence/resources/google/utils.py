@@ -480,3 +480,13 @@ def get_prefix_for_google_proxy_groups():
             'This namespaces the Google groups for security and safety.'
         )
     return prefix
+
+
+def get_registered_service_accounts(google_project):
+    # TODO
+    return []
+
+
+def get_project_access_from_service_accounts(service_accounts):
+    # TODO
+    return []

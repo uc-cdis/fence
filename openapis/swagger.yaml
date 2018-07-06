@@ -889,7 +889,7 @@ paths:
       tags:
         - google
       summary: Delete a specific Google Service Account
-      description: Delete a service account
+      description: Delete a service account and remove from access
       operationId: deleteSpecficGoogleServiceAccount
       parameters:
         - in: path
@@ -1012,6 +1012,30 @@ components:
           description: >-
             List of projects/datasets for which service account should be
             registered for
+    GoogleServiceAccountInfo:
+      type: object
+      required:
+        - service_account_email
+        - google_project_id
+        - project_access
+        - project_access_exp
+      properties:
+        service_account_email:
+          type: string
+          description: Service account's email
+        google_project_id:
+          type: string
+          description: Google Cloud Project ID of service account
+        project_access:
+          type: array
+          items:
+            type: string
+          description: >-
+            List of projects/datasets for which service account should be
+            registered for
+        project_access_exp:
+          type: integer
+          description: Project/dataset access expiration in unix time
     AdminGoogleServiceAccount:
       type: object
       required:
@@ -1027,7 +1051,7 @@ components:
           type: array
           description: List of GoogleServiceAccounts
           items:
-              $ref: '#/components/schemas/GoogleServiceAccount'
+              $ref: '#/components/schemas/GoogleServiceAccountInfo'
     GoogleServiceAccountErrors:
       type: object
       required:

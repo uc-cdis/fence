@@ -7,6 +7,9 @@ from fence.auth import current_token
 from fence.restful import RestfulApi
 from fence.auth import require_auth_header
 from fence.errors import UserError
+from fence.resources.google.access_utils import (
+    is_user_member_of_all_projects
+)
 
 
 def make_google_blueprint():
@@ -83,7 +86,7 @@ class GoogleServiceAccount(Resource):
     @require_auth_header({'user'})
     def get(self, id_):
         """
-        Get service account(s)
+        Get registered service account(s) and their access expiration.
 
         Args:
             id_ (str): either "monitor" or a comma-delimited list of Google
@@ -105,7 +108,7 @@ class GoogleServiceAccount(Resource):
         # check if user has permission to get service accounts
         # for these projects
         user_id = current_token['sub']
-        authorized = _is_user_member_of_all_projects(
+        authorized = is_user_member_of_all_projects(
             user_id, google_project_ids)
 
         if not authorized:
@@ -244,6 +247,20 @@ class GoogleServiceAccount(Resource):
 
         Raises:
             List(dict): List of service accounts
+
+            Example:
+            {
+              "service_accounts": [
+                {
+                  "service_account_email": "string",
+                  "google_project_id": "string",
+                  "project_access": [
+                    "string"
+                  ],
+                  "project_access_exp": 0
+                }
+              ]
+            }
         """
         raise NotImplementedError('Functionality not yet available...')
 
@@ -279,26 +296,6 @@ class GoogleServiceAccount(Resource):
         raise NotImplementedError('Functionality not yet available...')
 
 
-def _is_user_member_of_all_projects(user_id, google_project_ids):
-    """
-    Return whether or not the given user is a member of ALL of the provided
-    Google project IDs.
-
-    This will verify that either the user's email or their linked Google
-    account email exists as a member in the projects.
-
-    Args:
-        user_id (int): User identifier
-        google_project_ids (List(str)): List of unique google project ids
-
-    Returns:
-        bool: whether or not the given user is a member of ALL of the provided
-              Google project IDs
-    """
-    # TODO actually check
-    return False
-
-
 def _can_user_manage_service_account(user_id, account_id):
     """
     Return whether or not the user has permission to update and/or delete the
@@ -317,7 +314,7 @@ def _can_user_manage_service_account(user_id, account_id):
     )
 
     # check if user is on project
-    return _is_user_member_of_all_projects(user_id, [service_account_project])
+    return is_user_member_of_all_projects(user_id, [service_account_project])
 
 
 def _get_service_account_error_status(
