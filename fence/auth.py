@@ -50,6 +50,9 @@ def login_user(request, username, provider):
         user.identity_provider = idp
         current_session.add(user)
         current_session.commit()
+    flask.session['username'] = username
+    flask.session['provider'] = provider
+    flask.session['user_id'] = user.id # right field?
     flask.g.user = user
     flask.g.scopes = ["_all"]
     flask.g.token = None
