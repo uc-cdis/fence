@@ -6,7 +6,7 @@ from fence.errors import NotFound, UserError
 
 def test_get_user(db_session, awg_users):
     info = adm.get_user_info(db_session, "awg_user")
-    assert info['username'] == 'awg_user'
+    assert info['name'] == 'awg_user'
     assert info['role'] == 'user'
     assert "test_group_1" in info['groups']
     assert "test_group_2" in info['groups']
@@ -18,7 +18,7 @@ def test_get_user(db_session, awg_users):
     assert info['project_access']['phs_project_2'] == ['read']
 
 
-def test_create_user(db_session):
+def test_create_user(db_session, oauth_client):
     adm.create_user(db_session, "insert_user", "admin", "insert_user@fake.com")
     user = db_session.query(User).filter(User.username == "insert_user").first()
     assert user.username == "insert_user"
@@ -43,7 +43,7 @@ def test_delete_user(db_session, awg_users):
     assert user_groups == []
 
 
-def test_update_user_without_conflict(db_session, awg_users):
+def test_update_user_without_conflict(db_session, awg_users, oauth_client):
     user = db_session.query(User).filter(User.username == "awg_user").first()
     assert user != None
     adm.update_user(db_session, "awg_user", "admin", "new_email@fake.com", "new_awg_user")
@@ -127,7 +127,7 @@ def test_get_user_groups(db_session, awg_users):
             'description': 'the first test group',
             'projects': ['test_project_1']
         }
-        
+
     ]
     expected_groups.sort()
     groups['groups'].sort()
