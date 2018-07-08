@@ -3,7 +3,9 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import COMMASPACE, formatdate
 import flask
-from flask_sqlalchemy_session import current_session
+from fence.resources import userdatamodel as udm
+from fence.resources.google.utils import get_linked_google_account_email
+from fence.resources.userdatamodel import delete_user, get_user_groups
 import smtplib
 from sqlalchemy import func
 
@@ -38,28 +40,48 @@ def find_user(username, session):
         raise NotFound("user {} not found".format(username))
     return user
 
+
 def get_info_by_username(username):
     with flask.current_app.db.session as session:
         return get_user_info(find_user(username, session), session)
 
+def get_user(current_session, username):
+    user = udm.get_user(current_session, username)
+    if not user:
+        raise NotFound("user {} not found".format(username))
+    return user
 
 def get_current_user_info():
     with flask.current_app.db.session as session:
-        return get_user_info(session.merge(flask.g.user), session)
+        return get_user_info(session, session.merge(flask.g.user).username)
 
 
-def get_user_info(user, session):
+def get_user_info(current_session, username):
+    user = get_user(current_session, username)
+    if user.is_admin:
+        role = 'admin'
+    else:
+        role = 'user'
+
+    groups = udm.get_user_groups(current_session, username)['groups']
     info = {
-        'user_id': user.id,
-        'username': user.username,
-        'display_name': user.display_name,
+        'user_id': user.id,  # TODO deprecated, use 'sub'
+        'sub': user.id,
+        'username': user.username,  # TODO deprecated, use 'name'
+        'name': user.username,
+        'display_name': user.display_name,   # TODO deprecated, use 'preferred_username'
+        'preferred_username': user.display_name,
         'phone_number': user.phone_number,
-        'resources_granted': [],
+        'email': user.email,
+        'is_admin': user.is_admin,
+        'role': role,
         'project_access': dict(user.project_access),
         'certificates_uploaded': [],
-        'email': user.email,
+        'resources_granted': [],
+        'groups': groups,
         'message': ''
     }
+
     if user.tags is not None and len(user.tags) > 0:
         info['tags'] = {tag.key: tag.value for tag in user.tags}
 
@@ -68,7 +90,31 @@ def get_user_info(user, session):
         info['certificates_uploaded'] = [
             c.name for c in user.application.certificates_uploaded]
         info['message'] = user.application.message
-    return flask.jsonify(info)
+
+    if flask.request.get_json(force=True, silent=True):
+        requested_userinfo_claims = (
+            flask.request.get_json(force=True)
+            .get('claims', {}).get('userinfo', {})
+        )
+        optional_info = (
+            _get_optional_userinfo(user, requested_userinfo_claims)
+        )
+        info.update(optional_info)
+
+    return info
+
+
+def _get_optional_userinfo(user, claims):
+    info = {}
+    for claim, claim_request in claims.iteritems():
+        if claim == 'linked_google_account':
+            google_email = get_linked_google_account_email(user.id)
+            info['linked_google_account'] = google_email
+        if claim == 'linked_google_account_exp':
+            # TODO actually add expiration
+            pass
+
+    return info
 
 
 def send_mail(send_from, send_to, subject, text, server, certificates=None):
@@ -94,15 +140,19 @@ def send_mail(send_from, send_to, subject, text, server, certificates=None):
 
 
 def get_user_accesses():
-    user = (
-        current_session
-        .query(User)
-        .join(User.research_groups)
-        .filter(User.id == flask.g.user.id)
-    )
+    user = udm.get_user_accesses()
     if not user:
         raise InternalError(
             'Error: %s user does not exist'
             % flask.g.user.username
         )
     return user
+
+
+def remove_user_from_project(current_session, user, project):
+    access = udm.get_user_project_access_privilege(current_session, user, project)
+    if access:
+        current_session.delete(access)
+    else:
+        raise NotFound("Project {0} not connected to user {1}".format(
+            project.name, user.username))

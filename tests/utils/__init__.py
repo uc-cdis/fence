@@ -5,7 +5,11 @@ import uuid
 
 from flask import current_app
 
-from fence.models import User, Project, AccessPrivilege
+from fence.models import (
+User, Project, AccessPrivilege, UserToGroup, Group,
+CloudProvider, Bucket, StorageAccess, ProjectToBucket,
+UserToBucket
+)
 
 import tests
 import tests.utils.oauth2
@@ -50,8 +54,166 @@ def create_user(users, db_session, is_admin=False):
                 s.add(ap)
             else:
                 ap.privilege = privilege
+
     return user.id, user.username
 
+
+def create_awg_user(users, db_session):
+    s = db_session
+    for username in users.keys():
+        user = s.query(User).filter(User.username == username).first()
+        if not user:
+            user = User(username=username)
+            s.add(user)
+
+        projects = {}
+        for project_data in users[username]['projects']:
+            auth_id = project_data['auth_id']
+            p_name = project_data.get('name', auth_id)
+
+            project = s.query(Project).filter(
+                Project.auth_id == auth_id).first()
+            if not project:
+                project = Project(name=p_name, auth_id=auth_id)
+                s.add(project)
+            projects[p_name] = project
+
+        groups = users[username].get('groups',[])
+        for group in groups:
+            group_name = group['name']
+            group_desc = group['description']
+            grp = s.query(Group).filter(Group.name == group_name).first()
+            if not grp:
+                grp = Group()
+                grp.name = group_name
+                grp.description = group_desc
+                s.add(grp)
+                s.flush()
+            UserToGroup(group=grp, user=user)
+            for projectname in group['projects']:
+                gap = (
+                    s
+                    .query(AccessPrivilege)
+                    .join(AccessPrivilege.project)
+                    .join(AccessPrivilege.group)
+                    .filter(Project.name == projectname, Group.name == group_name)
+                    .first()
+                )
+                if not gap:
+                    project = projects[projectname]
+                    gap = AccessPrivilege(
+                        project_id=project.id, group_id=grp.id
+                    )
+                    s.add(gap)
+                    s.flush()
+                ap = (
+                    s
+                    .query(AccessPrivilege)
+                    .join(AccessPrivilege.project)
+                    .join(AccessPrivilege.user)
+                    .filter(Project.name == projectname, User.username == user.username)
+                    .first()
+                )
+                privilege = {"read"}
+                if not ap:
+                    project = projects[projectname]
+                    ap = AccessPrivilege(
+                        project=project, user=user, privilege=privilege
+                    )
+                    s.add(ap)
+                    s.flush()
+    return user.id, user.username
+
+
+def create_providers(data, db_session):
+    s = db_session
+    providers = data['providers']
+    for provider in providers:
+        prov = CloudProvider()
+        prov.name = provider['name']
+        prov.backend = provider['backend']
+        prov.service = provider['service']
+        s.add(prov)
+        s.flush
+
+    for name, user in data['users'].items():
+        new_user = User()
+        new_user.username = name
+        new_user.email = user['email']
+        new_user.is_admin = user['is_admin']
+        s.add(new_user)
+        user['id'] = new_user.id
+
+    for project in data['projects']:
+        new_project = Project()
+        new_project.name = project['name']
+        s.add(new_project)
+        for storage in project['storage_access']:
+            provider = s.query(CloudProvider).filter_by(name=storage).first()
+            if provider:
+                new_storage_access = StorageAccess(
+                    provider_id=provider.id, project_id=new_project.id)
+                s.add(new_storage_access)
+
+        for bucket in project['buckets']:
+            new_bucket = Bucket()
+            new_bucket.name = bucket['name']
+            provider = s.query(CloudProvider).filter_by(name=bucket['provider']).first()
+            new_bucket.provider_id = provider.id
+            s.add(new_bucket)
+            s.flush()
+            project_to_bucket = ProjectToBucket()
+            project_to_bucket.bucket_id = new_bucket.id
+            project_to_bucket.project_id = new_project.id
+            s.add(project_to_bucket)
+            s.flush()
+        for user in project['users']:
+            access = AccessPrivilege()
+            access.user_id = data['users'][user['name']]['id']
+            access.project_id = new_project.id
+            s.add(access)
+
+
+def create_awg_groups(data, db_session):
+    s = db_session
+    projects = {}
+    for project_data in data['projects']:
+        auth_id = project_data['auth_id']
+        p_name = project_data.get('name', auth_id)
+
+        project = s.query(Project).filter(
+            Project.auth_id == auth_id).first()
+        if not project:
+            project = Project(name=p_name, auth_id=auth_id)
+            s.add(project)
+        projects[p_name] = project
+
+    for group in data['groups']:
+        group_name = group['name']
+        group_desc = group['description']
+        grp = s.query(Group).filter(Group.name == group_name).first()
+        if not grp:
+            grp = Group()
+            grp.name = group_name
+            grp.description = group_desc
+            s.add(grp)
+
+        for projectname in group['projects']:
+            gap = (
+                s
+                .query(AccessPrivilege)
+                .join(AccessPrivilege.project)
+                .join(AccessPrivilege.group)
+                .filter(Project.name == projectname, Group.name == group_name)
+                .first()
+            )
+            if not gap:
+                project = projects[projectname]
+                gap = AccessPrivilege(
+                    project_id=project.id, group_id=grp.id
+                )
+                s.add(gap)
+                s.flush()
 
 def new_jti():
     """Return a fresh JTI (JWT token ID)."""
@@ -178,7 +340,9 @@ def authorized_download_credentials_context_claims(
     Return:
         dict: dictionary of claims
     """
-    aud = ['access', 'data', 'user', 'openid', 'credentials']
+    aud = [
+        'access', 'data', 'user', 'openid', 'credentials', 'google_credentials'
+    ]
     iss = current_app.config['BASE_URL']
     jti = new_jti()
     iat, exp = iat_and_exp()

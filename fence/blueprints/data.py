@@ -15,7 +15,8 @@ from cdispyutils.config import get_value
 
 from fence.resources.google.utils import (
     get_or_create_primary_service_account_key,
-    create_primary_service_account_key
+    create_primary_service_account_key,
+    get_or_create_proxy_group_id
 )
 from fence.errors import UnavailableError
 from fence.errors import NotFound
@@ -112,19 +113,19 @@ class IndexedFile(object):
                         or (protocol == 'http' and file_location.protocol == 'https')):
                     signed_url = file_location.get_signed_url(
                         action, expires_in, public_data=self.public)
+            if not signed_url:
+                raise NotFound(
+                    'File {} does not have a location with specified '
+                    'protocol {}.'.format(self.file_id, protocol))
 
         # no protocol specified, return first location as signed url
         elif len(self.indexed_file_locations) > 0:
             signed_url = self.indexed_file_locations[0].get_signed_url(
                 action, expires_in, public_data=self.public)
         else:
-            # will get caught below when signed_url is still None
-            pass
-
-        if not signed_url:
-            raise NotFound(
-                'File {} does not have a location with specified '
-                'protocol {}.'.format(self.file_id, protocol))
+            # at this point, they haven't specified a protocol and we don't
+            # have any actual locations, error out
+            raise NotFound('Can\'t find any file locations.')
 
         return signed_url
 
@@ -161,7 +162,9 @@ class IndexedFile(object):
                 'Not Found. indexd could not find {}'
                 '\nIndexd\'s response: {}'
                 .format(url + self.file_id, res.text))
-            raise NotFound("Can't find a location for the data")
+            raise NotFound(
+                "No indexed document found with id {}"
+                .format(self.file_id))
         else:
             raise UnavailableError(res.text)
 
@@ -246,60 +249,78 @@ class S3IndexedFileLocation(IndexedFileLocation):
     def __init__(self, url):
         super(S3IndexedFileLocation, self).__init__(url)
 
-    def get_signed_url(
-            self, action, expires_in, public_data=False):
+    @classmethod
+    def assume_role(cls, aws_creds, bucket_cred, cred_key, expires_in):
+        role_arn = get_value(bucket_cred, 'role-arn',
+                             InternalError('role-arn of that bucket is missing'))
+        config = get_value(aws_creds, cred_key,
+                           InternalError('aws credential of that bucket is not found'))
+        assumed_role = flask.current_app.boto.assume_role(role_arn, expires_in, config)
+        cred = get_value(assumed_role, 'Credentials',
+                         InternalError('fail to assume role'))
+        return {
+            'aws_access_key_id': get_value(cred, 'AccessKeyId',
+                                           InternalError('outdated format. AccessKeyId missing')),
+            'aws_secret_access_key': get_value(cred, 'SecretAccessKey',
+                                               InternalError('outdated format. SecretAccessKey missing')),
+            'aws_session_token': get_value(cred, 'SessionToken',
+                                           InternalError('outdated format. Sesssion token missing'))
+        }
+
+    def get_credential_to_access_bucket(self, aws_creds, expires_in):
+        s3_buckets = get_value(flask.current_app.config, 'S3_BUCKETS',
+                               InternalError('buckets not configured'))
+        if len(aws_creds) == 0 and len(s3_buckets) == 0:
+            raise InternalError('no bucket is configured')
+        if len(aws_creds) == 0 and len(s3_buckets) > 0:
+            raise InternalError('credential for buckets is not configured')
+
+        bucket_cred = None
+        for pattern in s3_buckets:
+            if re.match('^' + pattern + '$', self.parsed_url.netloc):
+                bucket_cred = s3_buckets[pattern]
+                break
+        if bucket_cred is None:
+            raise Unauthorized('permission denied for bucket')
+
+        cred_key = get_value(bucket_cred, 'cred',
+                             InternalError('credential of that bucket is missing'))
+        if cred_key == '*':
+            return {'aws_access_key_id': '*'}
+
+        if 'role-arn' not in bucket_cred:
+            return get_value(aws_creds, cred_key,
+                             InternalError('aws credential of that bucket is not found'))
+        else:
+            return S3IndexedFileLocation.assume_role(aws_creds, bucket_cred, cred_key, expires_in)
+
+    def get_signed_url(self, action, expires_in, public_data=False):
         aws_creds = get_value(
             flask.current_app.config, 'AWS_CREDENTIALS',
             InternalError('credentials not configured'))
-
-        s3_buckets = get_value(
-            flask.current_app.config, 'S3_BUCKETS',
-            InternalError('buckets not configured'))
 
         http_url = (
             'https://{}.s3.amazonaws.com/{}'
             .format(self.parsed_url.netloc, self.parsed_url.path.strip('/'))
         )
 
-        if len(aws_creds) > 0:
-            credential_key = None
-            for pattern in s3_buckets:
-                if re.match(pattern, self.parsed_url.netloc):
-                    credential_key = s3_buckets[pattern]
-                    break
-            if credential_key is None:
-                raise Unauthorized('permission denied for bucket')
+        config = self.get_credential_to_access_bucket(aws_creds, expires_in)
 
-            # public bucket
-            if credential_key == '*':
-                return http_url
-            if credential_key not in aws_creds:
-                raise Unauthorized('permission denied for bucket')
-
-        config = get_value(
-            aws_creds, credential_key,
-            InternalError('aws credential of that bucket is not found'))
+        aws_access_key_id = get_value(
+            config, 'aws_access_key_id',
+            InternalError('aws configuration not found'))
+        if aws_access_key_id == '*':
+            return http_url
 
         region = flask.current_app.boto.get_bucket_region(
             self.parsed_url.netloc, config)
-
-        if 'aws_access_key_id' not in config:
-            raise Unauthorized('credential is not configured correctly')
-        else:
-            aws_access_key_id = get_value(
-                config, 'aws_access_key_id',
-                InternalError('aws configuration not found'))
-            aws_secret_key = get_value(
-                config, 'aws_secret_access_key',
-                InternalError('aws configuration not found'))
 
         user_info = {}
         if not public_data:
             user_info = S3IndexedFileLocation.get_user_info()
 
         url = generate_aws_presigned_url(
-            http_url, ACTION_DICT['s3'][action], aws_access_key_id,
-            aws_secret_key, 's3', region, expires_in, user_info)
+            http_url, ACTION_DICT['s3'][action], config, 's3', region, expires_in, user_info)
 
         return url
 
@@ -343,12 +364,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             self, http_verb, resource_path, expiration_time):
         set_current_token(validate_request(aud={'user'}))
         user_id = current_token['sub']
-        proxy_group_id = (
-            current_token.get('context', {})
-            .get('user', {})
-            .get('google', {})
-            .get('proxy_group')
-        )
+        proxy_group_id = get_or_create_proxy_group_id()
         username = (
             current_token.get('context', {})
             .get('user', {})
@@ -372,7 +388,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         #       If our scheduled maintainence script removes the url-signing key
         #       before the expiration of the url then the url will NOT work
         #       (even though the url itself isn't expired)
-        if key_db_entry and key_db_entry.expires > expiration_time:
+        if key_db_entry and key_db_entry.expires < expiration_time:
             private_key = create_primary_service_account_key(
                 user_id=user_id,
                 username=username,

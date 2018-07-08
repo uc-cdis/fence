@@ -73,9 +73,10 @@ class UserSyncer(object):
             self.server = dbGaP['info']
             self.protocol = dbGaP['protocol']
             self.dbgap_key = dbGaP['decrypt_key']
+        self.parse_consent_code = dbGaP.get('parse_consent_code', True)
         self.session = db_session
         self.driver = SQLAlchemyDriver(DB)
-        self.project_mapping = project_mapping
+        self.project_mapping = project_mapping or {}
         self._projects = dict()
         self.logger = get_logger('user_syncer')
 
@@ -182,12 +183,13 @@ class UserSyncer(object):
             yield f
             f.close()
 
-    def _parse_csv(self, file_dict, encrypted=True):
+    def _parse_csv(self, file_dict, sess, encrypted=True):
         """
         parse csv files to python dict
         Args:
             fild_dict: a dictionary with key(file path) and value(privileges)
             encrypted: whether those files are encrypted
+            sess: sqlalchemy session
         Return:
             user_project: a nested dict of
             {
@@ -210,48 +212,63 @@ class UserSyncer(object):
         user_projects = dict()
         user_info = dict()
         for filepath, privileges in file_dict.iteritems():
+            self.logger.info('Reading file {}'.format(filepath))
             if os.stat(filepath).st_size == 0:
                 continue
-            if self._match_pattern(filepath, encrypted=encrypted):
-                try:
-                    with self._read_file(filepath, encrypted=encrypted) as f:
-                        csv = DictReader(f, quotechar='"',
-                                         skipinitialspace=True)
-                        for row in csv:
-                            username = row.get('login', '')
-                            if username == '':
-                                continue
+            if not self._match_pattern(filepath, encrypted=encrypted):
+                continue
 
-                            phsid_privileges = defaultdict(set)
-                            dbgap_project = row.get('phsid', '').split('.')[0]
+            with self._read_file(filepath, encrypted=encrypted) as f:
+                csv = DictReader(f, quotechar='"',
+                                 skipinitialspace=True)
+                for row in csv:
+                    username = row.get('login', '')
+                    if username == '':
+                        continue
 
-                            if not dbgap_project in self.project_mapping:
-                                self.logger.info(
-                                    "{} is not in project mapping".format(dbgap_project))
-                                continue
+                    phsid_privileges = defaultdict(set)
+                    phsid = row.get('phsid', '').split('.')
+                    dbgap_project = phsid[0]
+                    if len(phsid) > 1 and self.parse_consent_code:
+                        consent_code = phsid[-1]
+                        if consent_code != 'c999':
+                            dbgap_project += '.' + consent_code
 
-                            for element_dict in self.project_mapping[dbgap_project]:
-                                try:
-                                    phsid_privileges = {
-                                        element_dict['auth_id']: privileges}
-                                    if username in user_projects:
-                                        user_projects[username].update(
-                                            phsid_privileges)
-                                    else:
-                                        user_projects[username] = phsid_privileges
-                                except ValueError as e:
-                                    self.logger.info(e)
+                    display_name = row.get('user name', '')
+                    user_info[username] = {
+                        'email': row.get('email', ''),
+                        'display_name': display_name,
+                        'phone_number': row.get('phone', ''),
+                        'tags': {'dbgap_role': row.get('role', '')}
+                    }
 
-                            display_name = row.get('user name', '')
-                            user_info[username] = {
-                                'email': row.get('email', ''),
-                                'display_name': display_name,
-                                'phone_number': row.get('phone', ''),
-                                'tags': {'dbgap_role': row.get('role', '')}
-                            }
-                except Exception as e:
-                    self.logger.info(e)
+                    if dbgap_project not in self.project_mapping:
+                        if dbgap_project not in self._projects:
+                            project = self._get_or_create(
+                                sess, Project, auth_id=dbgap_project)
+                            if project.name is None:
+                                project.name = dbgap_project
+                            self._projects[dbgap_project] = project
+                        phsid_privileges = {
+                            dbgap_project: privileges}
+                        if username in user_projects:
+                            user_projects[username].update(
+                                phsid_privileges)
+                        else:
+                            user_projects[username] = phsid_privileges
 
+                    for element_dict in self.project_mapping.get(
+                            dbgap_project, []):
+                        try:
+                            phsid_privileges = {
+                                element_dict['auth_id']: privileges}
+                            if username in user_projects:
+                                user_projects[username].update(
+                                    phsid_privileges)
+                            else:
+                                user_projects[username] = phsid_privileges
+                        except ValueError as e:
+                            self.logger.info(e)
         return user_projects, user_info
 
     def _parse_yaml(self, filepath, encrypted=True):
@@ -268,7 +285,7 @@ class UserSyncer(object):
                     'project2': ['read-storage'],
                     }
             }
-            user_info: a dict of 
+            user_info: a dict of
             {
                 username: {
                     'email': email,
@@ -305,6 +322,7 @@ class UserSyncer(object):
                         'display_name': details.get('display_name', ''),
                         'phone_number': details.get('phone_number', ''),
                         'tags': details.get('tags', {}),
+                        'admin': details.get('admin', False),
                     }
 
                     if not username in user_project:
@@ -408,12 +426,12 @@ class UserSyncer(object):
         self._upsert_userinfo(sess, user_info)
         self._revoke_from_storage(to_delete, sess)
         self._revoke_from_db(sess, to_delete)
-        self._grant_from_storage(to_add, user_project)
+        self._grant_from_storage(to_add, user_project, sess)
         self._grant_from_db(sess, to_add, user_info,
                             user_project, auth_provider_list)
 
         # re-grant
-        self._grant_from_storage(to_update, user_project)
+        self._grant_from_storage(to_update, user_project, sess)
         self._update_from_db(sess, to_update, user_project)
 
     def _revoke_from_db(self, sess, to_delete):
@@ -454,10 +472,10 @@ class UserSyncer(object):
                  .filter(AccessPrivilege.project.has(auth_id=project_auth_id))
                  .all())
             for access in q:
-                self.logger.info(
-                    "update {} access to {} in db"
-                    .format(username, project_auth_id))
                 access.privilege = user_project[username][project_auth_id]
+                self.logger.info(
+                    "update {} with {} access to {} in db"
+                    .format(username, access.privilege, project_auth_id))
 
         sess.commit()
 
@@ -474,7 +492,6 @@ class UserSyncer(object):
             None
         """
         for (username, project_auth_id) in to_add:
-            self.logger.info('update user info {}'.format(username))
             u = sess.query(User).filter(func.lower(User.username) == username.lower()).first()
             auth_provider = auth_provider_list[0]
             if 'dbgap_role' not in user_info[username]['tags']:
@@ -486,6 +503,9 @@ class UserSyncer(object):
                 privilege=list(
                     user_project[username][project_auth_id]),
                 auth_provider=auth_provider)
+            self.logger.info(
+                'grant user {} to {} with access'
+                .format(username, user_access.project, user_access.privilege))
             sess.add(user_access)
 
         sess.commit()
@@ -511,6 +531,7 @@ class UserSyncer(object):
             u.email = user_info[username].get('email', '')
             u.display_name = user_info[username].get('display_name', '')
             u.phone_number = user_info[username].get('phone_number', '')
+            u.is_admin = user_info[username].get('admin', False)
 
             # do not update if there is no tag
             if user_info[username]['tags'] == {}:
@@ -551,16 +572,17 @@ class UserSyncer(object):
 
                 self.logger.info(
                     'revoke {} access to {} in {}'
-                    .format(username, project, sa.provider.name))
+                    .format(username, project_auth_id, sa.provider.name))
 
                 self.storage_manager.revoke_access(
                     provider=sa.provider.name,
                     username=username,
-                    project=project
+                    project=project,
+                    session=sess
                 )
         sess.commit()
 
-    def _grant_from_storage(self, to_add, user_project):
+    def _grant_from_storage(self, to_add, user_project, sess):
         """
         If a project have storage backend,
         grant user's access to buckets in the storage backend
@@ -574,16 +596,19 @@ class UserSyncer(object):
         for (username, project_auth_id) in to_add:
             project = self._projects[project_auth_id]
             for sa in project.storage_access:
-                self.logger.info(
-                    'grant {} access to {} in {}'
-                    .format(username, project, sa.provider.name))
-
                 access = list(user_project[username][project_auth_id])
+
+                self.logger.info(
+                    'grant {} access {} to {} in {}'
+                    .format(
+                        username, access, project_auth_id, sa.provider.name))
+
                 self.storage_manager.grant_access(
                     provider=sa.provider.name,
                     username=username,
                     project=project,
-                    access=access
+                    access=access,
+                    session=sess
                 )
 
     def _init_projects(self, user_project, sess):
@@ -643,7 +668,8 @@ class UserSyncer(object):
         user_projects1, user_info1 = self._parse_csv(
             dict(zip(dbgap_file_list, [
                  ['read-storage']]*len(dbgap_file_list))),
-            encrypted=True)
+            encrypted=True,
+            sess=sess)
 
         try:
             shutil.rmtree(tmpdir)
@@ -660,7 +686,8 @@ class UserSyncer(object):
         user_projects2, user_info2 = self._parse_csv(
             dict(zip(local_csv_file_list, [
                  ['read-storage']]*len(local_csv_file_list))),
-            encrypted=False)
+            encrypted=False,
+            sess=sess)
 
         user_projects3, user_info3 = self._parse_yaml(
             self.sync_from_local_yaml_file, encrypted=False)
@@ -679,16 +706,3 @@ class UserSyncer(object):
             self.logger.info('Finish syncing to db and storage backend')
         else:
             self.logger.info('No users for syncing!!!')
-
-
-if __name__ == '__main__':
-    DB = 'postgresql://test:test@localhost:5432/fence_test'
-    driver = SQLAlchemyDriver(DB)
-    with driver.session as sess:
-        user = sess.query(User).filter(User.id == 17).first()
-        import pdb
-        pdb.set_trace()
-        dir(user)
-        print(user)
-        tags = user.tags
-        print(type(tags))

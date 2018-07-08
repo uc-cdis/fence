@@ -1,4 +1,5 @@
 from functools import wraps
+import urllib
 
 from authutils.errors import JWTError, JWTExpiredError
 from authutils.token.validate import require_auth_header
@@ -54,17 +55,39 @@ def login_user(request, username, provider):
     flask.g.token = None
 
 
-def logout(next_url=None):
-    # Call get_current_user (but ignore the result) just to check that either
-    # the user is logged in or that authorization is mocked.
-    user = get_current_user()
-    if not user:
-        raise Unauthorized("You are not logged in")
-    if flask.session.get('provider') == IdentityProvider.itrust:
-        next_url = flask.current_app.config['ITRUST_GLOBAL_LOGOUT'] + next_url
+def logout(next_url):
+    """
+    Return a redirect which another logout from IDP or the provided redirect.
+
+    Depending on the IDP, this logout will propogate. For example, if using
+    another fence as an IDP, this will hit that fence's logout endpoint.
+
+    Args:
+        next_url (str): Final redirect desired after logout
+    """
+    flask.current_app.logger.debug(
+        'IN AUTH LOGOUT, next_url = {0}'.format(next_url))
+
+    # propogate logout to IDP
+    provider_logout = None
+    provider = flask.session.get('provider')
+    if provider == IdentityProvider.itrust:
+        safe_url = urllib.quote_plus(next_url)
+        provider_logout = (
+            flask.current_app.config['ITRUST_GLOBAL_LOGOUT'] + safe_url
+        )
+    elif provider == IdentityProvider.fence:
+        base = (
+            flask.current_app.config['OPENID_CONNECT']['fence']['api_base_url']
+        )
+        safe_url = urllib.quote_plus(next_url)
+        provider_logout = (
+            base + '/logout?' + urllib.urlencode({'next': safe_url})
+        )
+
     flask.session.clear()
     redirect_response = flask.make_response(
-        flask.redirect(next_url)
+        flask.redirect(provider_logout or urllib.unquote(next_url))
     )
     clear_cookies(redirect_response)
     return redirect_response
@@ -86,7 +109,7 @@ def check_scope(scope):
 
 def login_required(scope=None):
     """
-    Create decorator to require a user session in shibboleth.
+    Create decorator to require a user session
     """
 
     def decorator(f):
@@ -184,3 +207,17 @@ def get_user_from_claims(claims):
         .filter(User.id == claims['sub'])
         .first()
     )
+
+
+def admin_required(f):
+    """
+    Require user to be an admin user.
+    """
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not flask.g.user:
+            raise Unauthorized("Require login")
+        if flask.g.user.is_admin is not True:
+            raise Unauthorized("Require admin user")
+        return f(*args, **kwargs)
+    return wrapper

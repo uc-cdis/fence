@@ -3,9 +3,11 @@ from functools import wraps
 
 from storageclient import get_client
 
-from fence.models import CloudProvider, Bucket, ProjectToBucket
-from fence.errors import NotSupported, InternalError, Unauthorized
-
+from fence.models import (
+    CloudProvider, Bucket, ProjectToBucket, GoogleBucketAccessGroup, User
+)
+from fence.errors import NotSupported, InternalError, Unauthorized, NotFound
+from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME
 
 def check_exist(f):
     @wraps(f)
@@ -17,6 +19,8 @@ def check_exist(f):
     return wrapper
 
 
+# NOTE: new storage privileges are expected to have -storage as a suffix
+#       ex: delete-storage
 PRIVILEGES = [
     "read-storage",
     "write-storage",
@@ -134,7 +138,7 @@ class StorageManager(object):
         c.get_or_create_bucket(bucketname)
 
     @check_exist
-    def grant_access(self, provider, username, project, access):
+    def grant_access(self, provider, username, project, access, session):
         """
         this should be exposed via admin endpoint
         grant user access to a project in storage backend
@@ -143,14 +147,19 @@ class StorageManager(object):
         :param username: username
         :param provider: storage backend provider
         """
-        access = [acc for acc in access if acc in PRIVILEGES]
-        user = self.clients[provider].get_or_create_user(username)
-        for b in project.buckets:
-            self.clients[provider].add_bucket_acl(
-                b.name, user.username, access=access)
+        access = self._get_valid_access_privileges(access)
+        storage_user = self._get_or_create_storage_user(
+            username, provider, session)
+
+        storage_username = StorageManager._get_storage_username(
+            storage_user, provider)
+
+        if storage_username:
+            for b in project.buckets:
+                self._update_access_to_bucket(b, provider, storage_username, access)
 
     @check_exist
-    def revoke_access(self, provider, username, project):
+    def revoke_access(self, provider, username, project, session):
         """
         this should be exposed via admin endpoint
         revoke user access to a project in storage backend
@@ -158,21 +167,29 @@ class StorageManager(object):
         :param username: username
         :param backend: storage backend provider
         """
-        user = self.clients[provider].get_user(username)
-        if user is None:
+        storage_user = self._get_storage_user(username, provider, session)
+        if storage_user is None:
             return
-        for b in project.buckets:
-            self.clients[provider].delete_bucket_acl(
-                b.name, user.username)
+
+        storage_username = StorageManager._get_storage_username(
+            storage_user, provider)
+
+        if storage_username:
+            for b in project.buckets:
+                self._revoke_access_to_bucket(b, provider, storage_username)
 
     @check_exist
-    def has_bucket_access(self, provider, user, bucket):
+    def has_bucket_access(self, provider, user, bucket, access):
         """
         Check if the user has access to that bucket in
         particular
         :return boolean
         """
-        return self.clients[provider].has_bucket_access(bucket, user.username)
+        access = self._get_valid_access_privileges(access)
+        storage_username = StorageManager._get_storage_username(user, provider)
+
+        return (storage_username and self.clients[provider].has_bucket_access(
+            bucket.name, storage_username))
 
     @check_exist
     def get_or_create_user(self, provider, user):
@@ -259,28 +276,141 @@ class StorageManager(object):
         """
         self.clients[provider].set_bucket_quota(bucket, quota_unit, quota)
 
-    @check_exist
-    def add_bucket_acl(
-            self, provider, buckets, user, session, project, access=None):
-        """
-        Add a new grant for a user to a specific bucket
-        Please consult the manuals for the different
-        storage systems to assign permissions appropriately
-        :access is a list of access types granted to the
-        user
-        :returns None
-        """
-        if access is None:
-            access = []
-        access = [acc for acc in access if acc in PRIVILEGES]
-        self.clients[provider].get_or_create_user(user.username)
-        buckets = project.buckets.all()
-        for b in buckets:
-            self.clients[provider].add_bucket_acl(
-                b.name, user.username, access=access)
-
     def delete_bucket(self, backend, bucket_name):
         """
         Remove a bucket from the speficied bucket
         """
         self.clients[backend].delete_bucket(bucket_name)
+
+    def _get_storage_user(self, username, provider, session):
+        """
+        Return a user.
+
+        Depending on the provider, may call to get or just search fence's db.
+
+        Args:
+            username (str): User's name
+            provider (str): backend provider
+            session (userdatamodel.driver.SQLAlchemyDriver.session): fence's db
+                session to query for Users
+
+        Returns:
+            fence.models.User: User with username
+        """
+        if provider == STORAGE_ACCESS_PROVIDER_NAME:
+            user = session.query(User).filter_by(username=username).first()
+        else:
+            user = self.clients[provider].get_user(username)
+        return user
+
+    def _get_or_create_storage_user(self, username, provider, session):
+        """
+        Return a user.
+
+        Depending on the provider, may call to get or create or just
+        search fence's db.
+
+        Args:
+            username (str): User's name
+            provider (str): backend provider
+            session (userdatamodel.driver.SQLAlchemyDriver.session): fence's db
+                session to query for Users
+
+        Returns:
+            fence.models.User: User with username
+        """
+        if provider == STORAGE_ACCESS_PROVIDER_NAME:
+            user = session.query(User).filter_by(username=username).first()
+            if not user:
+                raise NotFound(
+                    'User not found with username {}. For Google Storage '
+                    'Backend user\'s must already exist in the db and have a '
+                    'Google Proxy Group.'
+                    .format(username))
+        else:
+            user = self.clients[provider].get_or_create_user(username)
+        return user
+
+    def _update_access_to_bucket(
+            self, bucket, provider, storage_username, access):
+        # Need different logic for google (since buckets can have multiple
+        # access groups)
+        if provider == STORAGE_ACCESS_PROVIDER_NAME:
+            if not bucket.google_bucket_access_groups:
+                raise NotFound(
+                    'Google bucket {} does not have any access groups.'
+                    .format(bucket.name))
+
+            access = StorageManager._get_bucket_access_privileges(access)
+
+            for bucket_access_group in bucket.google_bucket_access_groups:
+                bucket_privileges = bucket_access_group.privileges or []
+                if set(bucket_privileges).issubset(access):
+                    bucket_name = bucket_access_group.email
+
+                    # NOTE: bucket_name for Google is the Google Access Group's
+                    #       email address.
+                    # TODO Update storageclient API for more clarity
+                    self.clients[provider].add_bucket_acl(
+                        bucket_name, storage_username)
+                else:
+                    # In the case of google, since we have multiple groups
+                    # with access to the bucket, we need to also remove access
+                    # here in case a users permissions change from read & write
+                    # to just read.
+                    bucket_name = bucket_access_group.email
+                    self.clients[provider].delete_bucket_acl(
+                        bucket_name, storage_username)
+        else:
+            self.clients[provider].add_bucket_acl(
+                bucket.name, storage_username, access=access)
+
+    def _revoke_access_to_bucket(
+            self, bucket, provider, storage_username):
+        # Need different logic for google (since buckets can have multiple
+        # access groups)
+        if provider == STORAGE_ACCESS_PROVIDER_NAME:
+            for bucket_access_group in bucket.google_bucket_access_groups:
+                bucket_name = bucket_access_group.email
+                self.clients[provider].delete_bucket_acl(
+                    bucket_name, storage_username)
+        else:
+            self.clients[provider].delete_bucket_acl(
+                bucket.name, storage_username)
+
+    @staticmethod
+    def _get_storage_username(user, provider):
+        # Need different information for google (since buckets and
+        # users are represented with Google Groups)
+        username = None
+        if provider == STORAGE_ACCESS_PROVIDER_NAME:
+            if user.google_proxy_group:
+                username = user.google_proxy_group.email
+        else:
+            username = user.username
+
+        return username
+
+    @staticmethod
+    def _get_valid_access_privileges(access_list):
+        return [acc for acc in access_list if acc in PRIVILEGES]
+
+    @staticmethod
+    def _get_bucket_access_privileges(access_list):
+        """
+        Return a simplified list of bucket privileges
+
+        ex: ['read', 'write'] instead of ['read-storage', 'write-storage']
+
+        Args:
+            access_list (List(str)): List of access levels from user info
+
+        Returns:
+            List(str): Simplified list of bucket privileges
+        """
+        access = StorageManager._get_valid_access_privileges(access_list)
+        bucket_access = [
+            access_level.split('-')[0]
+            for access_level in access
+        ]
+        return bucket_access
