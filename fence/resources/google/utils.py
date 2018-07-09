@@ -483,10 +483,12 @@ def get_prefix_for_google_proxy_groups():
 
 
 def get_registered_service_accounts(google_project):
-    # TODO
+    # TODO return a list of UserServiceAccount db objects for project
     return []
 
 
 def get_project_access_from_service_accounts(service_accounts):
+    # get a list of projects all the provided service accounts have
+    # access to. list will be of UserServiceAccount db objects
     # TODO
     return []

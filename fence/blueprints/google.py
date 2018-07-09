@@ -8,7 +8,8 @@ from fence.restful import RestfulApi
 from fence.auth import require_auth_header
 from fence.errors import UserError
 from fence.resources.google.access_utils import (
-    is_user_member_of_all_projects
+    is_user_member_of_all_projects,
+    get_project_validity_info
 )
 
 
@@ -370,16 +371,26 @@ def _get_service_account_error_status(
         }
     }
 
+    project_validity_info = (
+        get_project_validity_info(
+            google_project=google_project_id,
+            service_account=service_account_email,
+            new_service_account_access=project_access)
+    )
+
     response['errors']['service_account_email'] = (
-        _get_service_account_email_error_status(service_account_email)
+        _get_service_account_email_error_status(
+            project_validity_info.get('service_account'))
     )
 
     response['errors']['google_project_id'] = (
-        _get_google_project_id_error_status(google_project_id)
+        _get_google_project_id_error_status(
+            project_validity_info.get('project'))
     )
 
     response['errors']['project_access'] = (
-        _get_project_access_error_status(service_account_email, project_access)
+        _get_project_access_error_status(
+            project_validity_info.get('access'))
     )
 
     # all statuses must be 200 to be successful
@@ -396,7 +407,7 @@ def _get_service_account_error_status(
     return response
 
 
-def _get_service_account_email_error_status(service_account_email):
+def _get_service_account_email_error_status(validity_info):
     # TODO actually validate
     response = {
         'status': 400,
@@ -406,7 +417,7 @@ def _get_service_account_email_error_status(service_account_email):
     return response
 
 
-def _get_google_project_id_error_status(google_project_id):
+def _get_google_project_id_error_status(validity_info):
     # TODO actually validate
     response = {
         'status': 400,
@@ -416,10 +427,10 @@ def _get_google_project_id_error_status(google_project_id):
     return response
 
 
-def _get_project_access_error_status(service_account_email, project_access):
+def _get_project_access_error_status(validity_info):
     response = {}
     # TODO check if permissions are valid
-    for project in set(project_access):
+    for project, info in validity_info.info.iteritems():
         # TODO check if all users on project have permissions, update status
         #      and error info if there's an issue
         response.update({
@@ -434,8 +445,8 @@ def _get_project_access_error_status(service_account_email, project_access):
 
 
 def _get_monitoring_account_email():
-    # TODO get monitoring service account email. this should probably be a
-    # configuration value
+    # TODO get monitoring service account from CIRRUS_CFG. Will be the service
+    #      accont email used for the fence service
     return None
 
 
