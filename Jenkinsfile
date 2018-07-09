@@ -9,6 +9,12 @@ pipeline {
         dir('fence') {
           checkout scm
         }
+        dir('gen3-qa') {
+          git(
+            url: 'https://github.com/uc-cdis/gen3-qa',
+            branch: 'master'
+          )
+        }
         dir('cdis-manifest') {
           git(
             url: 'https://github.com/uc-cdis/cdis-manifest.git',
@@ -31,6 +37,7 @@ pipeline {
           echo "GIT_COMMIT is $env.GIT_COMMIT"
           echo "KUBECTL_NAMESPACE is $env.KUBECTL_NAMESPACE"
           echo "WORKSPACE is $env.WORKSPACE"
+          echo "$env.vpc_name"
         //   sh "bash cloud-automation/gen3/bin/kube-roll-all.sh"
         //   sh "bash cloud-automation/gen3/bin/kube-wait4-pods.sh || true"
         }
@@ -39,23 +46,23 @@ pipeline {
     stage('RunInstall') {
       steps {
         echo "at stage RunInstall"
-        // dir('fence') {
-        //     echo "at stage RunInstall in pwd"
-        // //   withEnv(['GEN3_NOPROXY=true']) {
-        // //     sh "bash ./run-install.sh"
-        // //   }
-        // }
+        dir('gen3-qa') {
+          echo "at stage RunInstall in pwd"
+          withEnv(['GEN3_NOPROXY=true']) {
+            sh "bash ./run-install.sh"
+          }
+        }
       }
     }
     stage('RunTests') {
       steps {
         echo "at stage RunTests"
-        // dir('fence') {
-        //     echo "at stage RunTests in pwd"
-        // //   withEnv(['GEN3_NOPROXY=true', "vpc_name=$env.KUBECTL_NAMESPACE", "GEN3_HOME=$env.WORKSPACE/cloud-automation"]) {
-        // //     sh "bash ./run-tests.sh $env.KUBECTL_NAMESPACE"
-        // //   }
-        // }
+        dir('gen3-qa') {
+          echo "at stage RunTests in pwd"
+        //   withEnv(['GEN3_NOPROXY=true', "vpc_name=$env.KUBECTL_NAMESPACE", "GEN3_HOME=$env.WORKSPACE/cloud-automation"]) {
+        //     sh "bash ./run-tests.sh $env.KUBECTL_NAMESPACE"
+        //   }
+        }
       }
     }
   }
@@ -73,8 +80,8 @@ pipeline {
     //   //slackSend color: 'bad', message: "https://jenkins.planx-pla.net $env.JOB_NAME pipeline unstable"
     // }
     always {
-        echo "done"
-    //   junit "gen3-qa/output/*.xml"
+      echo "done"
+      junit "gen3-qa/output/*.xml"
     }
   }
 }
