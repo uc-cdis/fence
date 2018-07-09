@@ -112,31 +112,34 @@ def get_service_account_validity_info(
                          gauranteed a boolean return
 
     Returns:
-        bool: validity of the service account.
-              NOTE: You will recieve a ValidityInfo object if
-                    early_return=False. From this you can retrieve info about
-                    failing validity checks to determine what caused the issue
+        fence.resources.google.access_utils.ValidityInfo:
+            validity of the service account.
+
+            NOTE: You will recieve a ValidityInfo object BUT it you specify
+                early_return=True it WILL NOT have all the expected
+                checks present. You should only use the response as a
+                boolean if you specify early_return=True
     """
     validity = ValidityInfo()
 
     valid_type = is_valid_service_account_type(service_account)
     validity['valid_type'] = valid_type
     if not validity and early_return:
-        return False
+        return validity
 
     no_external_access = (
         service_account_has_external_access(service_account)
     )
     validity['no_external_access'] = no_external_access
     if not validity and early_return:
-        return False
+        return validity
 
     is_owned_by_google_project = (
         is_service_account_from_google_project(service_account, google_project)
     )
     validity['owned_by_project'] = is_owned_by_google_project
     if not validity and early_return:
-        return False
+        return validity
 
     return validity
 
@@ -158,10 +161,13 @@ def get_google_project_service_accounts_validity_info(
                          gauranteed a boolean return
 
     Returns:
-        bool: validity of the project's service accounts.
-              NOTE: You will recieve a ValidityInfo object if
-                    early_return=False. From this you can retrieve info about
-                    failing validity checks to determine what caused the issue
+        fence.resources.google.access_utils.ValidityInfo:
+            validity of the google project service accounts.
+
+            NOTE: You will recieve a ValidityInfo object BUT it you specify
+                early_return=True it WILL NOT have all the expected
+                checks present. You should only use the response as a
+                boolean if you specify early_return=True
     """
     service_accounts = []  # TODO get ids from project
 
@@ -176,13 +182,37 @@ def get_google_project_service_accounts_validity_info(
         # one bad apple makes project invalid
         validity[str(service_account_id)] = service_account_validity_info
         if not validity and early_return:
-            return False
+            return validity
 
     return validity
 
 
 def get_user_access_validity_info(
         google_project, project_access, early_return=False):
+    """
+    Return a representation of the validity about a google project's
+    service accounts.
+
+    NOTE: with early_return=False, you will recieve a ValidityInfo object with
+          information about all the validity checks
+
+    Args:
+        google_project (str): Google project identifier
+        project_access (List(str)): List of Project.auth_ids to represent
+            what access to check for the google project
+        early_return (bool, optional): Whether or not to return early.
+            PLEASE NOTE: if you specify early_return=True you are ONLY
+                         gauranteed a boolean return
+
+    Returns:
+        fence.resources.google.access_utils.ValidityInfo:
+            validity of the user access.
+
+            NOTE: You will recieve a ValidityInfo object BUT it you specify
+                early_return=True it WILL NOT have all the expected
+                checks present. You should only use the response as a
+                boolean if you specify early_return=True
+    """
     validity = ValidityInfo()
 
     # TODO get all members on google project
@@ -196,7 +226,7 @@ def get_user_access_validity_info(
 
         validity[str(project)] = project_validity_info
         if not validity and early_return:
-            return False
+            return validity
 
     return validity
 
