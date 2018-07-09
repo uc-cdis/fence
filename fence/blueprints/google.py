@@ -8,8 +8,8 @@ from fence.restful import RestfulApi
 from fence.auth import require_auth_header
 from fence.errors import UserError
 from fence.resources.google.access_utils import (
-    is_user_member_of_all_projects,
-    get_project_validity_info
+    is_user_member_of_all_google_projects,
+    get_google_project_validity_info
 )
 
 
@@ -109,7 +109,7 @@ class GoogleServiceAccount(Resource):
         # check if user has permission to get service accounts
         # for these projects
         user_id = current_token['sub']
-        authorized = is_user_member_of_all_projects(
+        authorized = is_user_member_of_all_google_projects(
             user_id, google_project_ids)
 
         if not authorized:
@@ -315,7 +315,8 @@ def _can_user_manage_service_account(user_id, account_id):
     )
 
     # check if user is on project
-    return is_user_member_of_all_projects(user_id, [service_account_project])
+    return is_user_member_of_all_google_projects(
+        user_id, [service_account_project])
 
 
 def _get_service_account_error_status(
@@ -372,7 +373,7 @@ def _get_service_account_error_status(
     }
 
     project_validity_info = (
-        get_project_validity_info(
+        get_google_project_validity_info(
             google_project=google_project_id,
             service_account=service_account_email,
             new_service_account_access=project_access)
@@ -430,7 +431,7 @@ def _get_google_project_id_error_status(validity_info):
 def _get_project_access_error_status(validity_info):
     response = {}
     # TODO check if permissions are valid
-    for project, info in validity_info.info.iteritems():
+    for project, info in validity_info:
         # TODO check if all users on project have permissions, update status
         #      and error info if there's an issue
         response.update({
