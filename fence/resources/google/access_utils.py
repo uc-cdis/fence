@@ -262,23 +262,6 @@ class ValidityInfo(object):
     This means that you can nest ValidityInfo objects and
     the "valid" status of the parent object will always be updated when adding
     new validity information
-
-    TODO tests:
-        test = ValidityInfo()
-        print(test)
-        test['test123'] = True
-        print(test)
-        if test:
-            print('valid')  # should print
-
-        test['test567'] = False
-        print(test)
-
-        for item in test:
-            print(item)  # should be key, value tuples
-
-        if test:
-            print('still valid') # should not print
     """
     def __init__(self, default_validity=True):
         self._valid = default_validity
