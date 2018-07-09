@@ -2,6 +2,8 @@
 Utilities for determine access and validity for service account
 registration.
 """
+from collections import Mapping
+
 from fence.resources.google.utils import (
     get_registered_service_accounts,
     get_project_access_from_service_accounts
@@ -282,7 +284,7 @@ def do_all_users_have_access_to_project(users, project_auth_id):
     return False
 
 
-class ValidityInfo(object):
+class ValidityInfo(Mapping):
     """
     Dict-like object to hold a boolean value representing validity along with
     information about the validity.
