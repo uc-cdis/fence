@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
 
-  <title>PDC oauth</title>
+  <title>Authorization Required</title>
 
   <!-- <link rel="stylesheet" href="css/styles.css?v=1.0"> -->
   <link rel="stylesheet" href="/api/static/css/bootstrap.min.css">
@@ -17,68 +17,152 @@
 <body>
   <!-- // <script src="js/scripts.js"></script> -->
   <main>
-    <aside>
-      {{app_name}}
-    </aside>
-    <section>
-      <form method='post'>
-          <div> Authorize {{client.name}} to:</div>
-          <ul>
-            {% for resource in resource_description %}
-              <li>{{resource}}</li>
-            {% endfor %}
-          </ul>
-         <a id="yes" class='yes'>Yes </a>
-         <a id="no" class='no'>No</a>
-      </form>
-    </section>
+    <img class="auth-data-logo" src="../static/img/logo.svg" />
+    <div class="auth-dialog">
+      <h1 class="auth-title">
+        {{app_name}}
+      </h1>
+      <section>
+        <form method='post' class="auth-dialog-content">
+            <div class="introduction"> Authorize {{client.name}} to:</div>
+            <div class="auth-list">
+              <ul>
+                {% for resource in resource_description %}
+                  <li class="auth-list-elem">{{resource}}</li>
+                {% endfor %}
+              </ul>
+            </div>
+            <div class="auth-action-line">
+              <div class="introduction">
+                You will be redirected to the identity provider after the authorization. 
+              </div>
+              <div class="auth-button-group"> 
+                <button id="no" class='no button-primary-white auth-button'>Cancel</button>
+                <button id="yes" class='yes button-primary-orange auth-button'>Yes, I authorize.</button>
+               </div>
+             </div>
+        </form>
+      </section>
+    </div>
   </main>
 </body>
 <style>
-main {
-    width: 400px;
-    margin: auto;
-    margin-top: 5em;
-    overflow: hidden;
-    background: #ffffff;
-}
-.yes {
-    color: white;
-    padding: 5px 10px;
-    text-align: center;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 16px;
-    border: 1px solid #121a13;
-    background-color: #121a13;
-    cursor: pointer;
-}
-.no {
-    color: #121a13;
-    padding: 5px 10px;
-    text-align: center;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 16px;
-    border: 1px solid #121a13;
-    background-color: white;
-    cursor: pointer;
-}
 body {
+    background-color: #F5F5F5;
+    font-family: 'Source Sans Pro', sans-serif;
 }
-main aside {
-    /*float: left;
-    width: 30%;*/
-    font-size: 2em;
-    margin-bottom: 1em;
+main {
+    position: absolute;
+    top: 15%;
+    left: calc(50% - 512px);
 }
-main section {
-    /*
-    float: right;
-    width:70%;*/
+.auth-dialog {
+    border: #9B9B9B solid 1px; 
+    border-radius: 8px;
+    background-color: white;
+    width:1025px;
 }
-main div {
-    margin-bottom: 1em;
+.auth-dialog-content {
+  padding: 40px 30px;
+}
+h1.auth-title{
+    color: white;
+    background-color: #3283C8;
+    line-height: 70px;
+    margin: 0;
+    text-align: center;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    font-size: 32px;
+    font-weight: 600;
+    letter-spacing: 0rem;
+}
+.auth-list {
+    border: #9B9B9B solid 1px;
+    border-radius: 4px;
+    background-color: #F5F5F5;
+    width: 945px;
+    height: 182px;
+    margin: 18px 0;
+    display: table;
+    padding-left: 20px;
+}
+.auth-list ul {
+  display: table-cell;
+  vertical-align: middle;
+  padding: 0;
+}
+.auth-list li {
+  margin-left: 20px;
+  line-height: 32px;
+}
+.auth-data-logo {
+    width: 314px;
+    height: 116px;
+    display: block;
+    margin: auto;
+    margin-bottom: 15px;
+}
+.introduction {
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 18px;
+    letter-spacing: .03rem;
+    color: #000000;
+    display: inline-block;
+}
+.auth-button {
+  border-radius: 4px;
+  width: 152px;
+  height: 40px;
+  font-size: 14px;
+  font-weight: 500;
+  display: inline-block;
+  vertical-align: middle;
+  cursor: pointer;
+  margin-left: 16px;
+}
+.button-primary-white {
+    border: 1px solid #9B9B9B;
+    background-color: #FFFFFF;
+    font-weight: 500;
+    color: #606060;
+    fill: #606060;
+}
+.button-primary-white:hover svg path,
+.button-primary-white:hover {
+    border: 1px solid #000000;
+    font-weight: 600;
+    color: #000000;
+    fill: #000000;
+}
+.button-primary-white:active {
+    border: 1px solid #ef8523;
+    color: #ef8523;
+}
+.button-primary-orange {
+  border: 1px solid #9b9b9b;
+  background-color: #ef8523;
+  letter-spacing: .06rem;
+  color: #FFFFFF;
+  fill: #FFFFFF;
+  font-weight: 500;
+}
+.button-primary-orange:hover {
+    border: 1px solid #606060;
+    font-weight: 600;
+    background-color: #ff9635;
+}
+.button-primary-orange:active {
+    opacity: 0.8;
+}
+.auth-button-group {
+  text-align: right;
+  display: inline-block;
+  float: right;
+}
+.auth-action-line {
+  height: 40px;
 }
 </style>
 <script>
