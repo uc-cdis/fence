@@ -3,7 +3,7 @@ Utilities for determine access and validity for service account
 registration.
 """
 from flask_sqlalchemy_session import current_session
-from fence.models import AccessPrivilege
+from fence.models import AccessPrivilege, UserGoogleAccount
 from collections import Mapping
 
 from fence.resources.google.utils import (
@@ -276,17 +276,30 @@ def is_user_member_of_all_google_projects(user_id, google_project_ids):
 
 
 def get_user_ids_from_google_members(members):
-    # TODO actually get from our db. search users and linked google accounts
-    return []
+    # get all user ids from google members
+    # Args:
+    #    memebers(list): list of google email
+    # Returns:
+    #    list of user ids
+    result = []
+    for member in members:
+        google_account = current_session.query(UserGoogleAccount).filter(
+            UserGoogleAccount.email == member).first()
+        if google_account:
+            result.append(google_account.user_id)
+
+    return result
 
 
 def do_all_users_have_access_to_project(user_ids, project_auth_id):
     # user_ids will be list of user ids
     # check if all user ids has access to a project with project_auth_id
     for user_id in user_ids:
-        access_privillege = current_session.query(AccessPrivilege).filter(AccessPrivilege.user_id == user_id and AccessPrivilege.project_id == project_auth_id).first()
+        access_privillege = current_session.query(AccessPrivilege).filter(
+            AccessPrivilege.user_id == user_id and AccessPrivilege.project_id == project_auth_id).first()
         if access_privillege is None:
             return False
+
     return True
 
 
@@ -301,6 +314,7 @@ class ValidityInfo(Mapping):
     the "valid" status of the parent object will always be updated when adding
     new validity information
     """
+
     def __init__(self, default_validity=True):
         self._valid = default_validity
         self._info = {}
