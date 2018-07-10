@@ -4,6 +4,8 @@ registration.
 """
 from flask_sqlalchemy_session import current_session
 from fence.models import AccessPrivilege
+from collections import Mapping
+
 from fence.resources.google.utils import (
     get_registered_service_accounts,
     get_project_access_from_service_accounts
@@ -288,7 +290,7 @@ def do_all_users_have_access_to_project(user_ids, project_auth_id):
     return True
 
 
-class ValidityInfo(object):
+class ValidityInfo(Mapping):
     """
     Dict-like object to hold a boolean value representing validity along with
     information about the validity.
