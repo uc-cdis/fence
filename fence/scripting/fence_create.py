@@ -55,6 +55,32 @@ def list_client_action(db):
     except Exception as e:
         print(e.message)
 
+def modify_client_action(DB, client=None, delete_urls=False, urls=None, name=None, description=None, set_auto_approve=False, unset_auto_approve=False):
+    driver = SQLAlchemyDriver(DB)
+    with driver.session as s:
+        client = s.query(Client).filter(Client.name == client).first()
+        if not client:
+            raise Exception('client {} does not exist'.format(client))
+            return
+        if urls:
+            client._redirect_uris = urls
+            print('Changing urls to {}'.format(urls))
+        if delete_urls:
+            client._redirect_uris = None
+            print('Deleting urls')
+        if set_auto_approve:
+            client.auto_approve = True
+            print('Auto approve set to True')
+        if unset_auto_approve:
+            client.auto_approve = False
+            print('Auto approve set to False')
+        if name:
+            client.name = name
+            print('Updating name to {}'.format(name))
+        if description:
+            client.description = description
+            print('Updating description to {}'.format(description))
+        s.commit()
 
 def create_client_action(
         DB, username=None, client=None, urls=None, auto_approve=False):
