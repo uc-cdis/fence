@@ -2,6 +2,8 @@
 Utilities for determine access and validity for service account
 registration.
 """
+from flask_sqlalchemy_session import current_session
+from fence.models import AccessPrivilege
 from fence.resources.google.utils import (
     get_registered_service_accounts,
     get_project_access_from_service_accounts
@@ -276,10 +278,14 @@ def get_user_ids_from_google_members(members):
     return []
 
 
-def do_all_users_have_access_to_project(users, project_auth_id):
-    # users will be list of user_ids
-    # TODO actually check
-    return False
+def do_all_users_have_access_to_project(user_ids, project_auth_id):
+    # user_ids will be list of user ids
+    # check if all user ids has access to a project with project_auth_id
+    for user_id in user_ids:
+        access_privillege = current_session.query(AccessPrivilege).filter(AccessPrivilege.user_id == user_id and AccessPrivilege.project_id == project_auth_id).first()
+        if access_privillege is None:
+            return False
+    return True
 
 
 class ValidityInfo(object):
