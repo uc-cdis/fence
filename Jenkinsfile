@@ -11,7 +11,7 @@ pipeline {
         }
         dir('gen3-qa') {
           git(
-            url: 'https://github.com/uc-cdis/gen3-qa',
+            url: 'https://github.com/uc-cdis/gen3-qa.git',
             branch: 'master'
           )
         }
@@ -46,23 +46,23 @@ pipeline {
     stage('RunInstall') {
       steps {
         echo "at stage RunInstall"
-        dir('gen3-qa') {
-          echo "at stage RunInstall in pwd"
-          withEnv(['GEN3_NOPROXY=true']) {
-            sh "bash ./run-install.sh"
-          }
-        }
+        // dir('gen3-qa') {
+        //   echo "at stage RunInstall in pwd"
+        //   withEnv(['GEN3_NOPROXY=true']) {
+        //     sh "bash ./run-install.sh"
+        //   }
+        // }
       }
     }
     stage('RunTests') {
       steps {
         echo "at stage RunTests"
-        dir('gen3-qa') {
-          echo "at stage RunTests in pwd"
-        //   withEnv(['GEN3_NOPROXY=true', "vpc_name=$env.KUBECTL_NAMESPACE", "GEN3_HOME=$env.WORKSPACE/cloud-automation"]) {
-        //     sh "bash ./run-tests.sh $env.KUBECTL_NAMESPACE"
-        //   }
-        }
+        // dir('gen3-qa') {
+        //   echo "at stage RunTests in pwd"
+        // //   withEnv(['GEN3_NOPROXY=true', "vpc_name=$env.KUBECTL_NAMESPACE", "GEN3_HOME=$env.WORKSPACE/cloud-automation"]) {
+        // //     sh "bash ./run-tests.sh $env.KUBECTL_NAMESPACE"
+        // //   }
+        // }
       }
     }
   }
