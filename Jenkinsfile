@@ -11,9 +11,9 @@ pipeline {
   stages {
     stage('FetchCode') {
       steps {
-        dir('fence') {
-          checkout scm
-        }
+        // dir('fence') {
+        //   checkout scm
+        // }
         dir('gen3-qa') {
           git(
             url: 'https://github.com/uc-cdis/gen3-qa.git',
