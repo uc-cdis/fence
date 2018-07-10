@@ -49,9 +49,7 @@ pipeline {
     }
     stage('RunInstall') {
       steps {
-        echo "at stage RunInstall"
         dir('gen3-qa') {
-          echo "at stage RunInstall in pwd"
           withEnv(['GEN3_NOPROXY=true']) {
             sh "bash ./run-install.sh"
           }
@@ -60,12 +58,10 @@ pipeline {
     }
     stage('RunTests') {
       steps {
-        echo "at stage RunTests"
         dir('gen3-qa') {
-          echo "at stage RunTests in pwd"
-        //   withEnv(['GEN3_NOPROXY=true', "vpc_name=$env.KUBECTL_NAMESPACE", "GEN3_HOME=$env.WORKSPACE/cloud-automation"]) {
-        //     sh "bash ./run-tests.sh $env.KUBECTL_NAMESPACE"
-        //   }
+          withEnv(['GEN3_NOPROXY=true', "vpc_name=$env.KUBECTL_NAMESPACE", "GEN3_HOME=$env.WORKSPACE/cloud-automation"]) {
+            sh "bash ./run-tests.sh $env.KUBECTL_NAMESPACE"
+          }
         }
       }
     }
