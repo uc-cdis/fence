@@ -18,39 +18,23 @@ from fence.jwt.token import generate_signed_id_token
 
 def test_google_id_token_not_linked(oauth_test_client):
     """
-    Test the following procedure:
-    - ``POST /oauth2/authorize`` successfully to obtain code
-    - ``POST /oauth2/token`` successfully to obtain token
-    - Expect id_token to not have google account information
+    Test that a non-linked account does not have the google account information
     """
     data = {'confirm': 'yes'}
     oauth_test_client.authorize(data=data)
-    toke = oauth_test_client.token()
-    print(toke)
-    id_token = toke.id_token
-    print("MY TOKEN ", id_token)
-    print(jwt.decode(id_token, verify=False))
-    id_token = jwt.decode(id_token, verify=False)
+    tokens = oauth_test_client.token()
+    id_token = jwt.decode(tokens.id_token, verify=False)
     assert id_token['context']['user'].get('google') is None
 
 
 def test_google_id_token_linked(
-        app, client, db_session, encoded_creds_jwt,
-        google_auth_get_user_info_mock,
-        add_google_email_to_proxy_group_mock,
-        oauth_test_client):
+        app, client, db_session, encoded_creds_jwt, oauth_test_client):
     """
     Test extending expiration for previously linked G account access via PATCH.
     """
     encoded_credentials_jwt = encoded_creds_jwt['jwt']
-    # get user from client id
-    user = db_session.query(Client).filter_by(client_id=oauth_test_client.client_id).first().user
-    print(user)
-    user_id = user.id # encoded_creds_jwt['user_id']
+    user_id = encoded_creds_jwt['user_id']
     proxy_group_id = encoded_creds_jwt['proxy_group_id']
-
-    
-    print(user_id)
 
     original_expiration = 1000
     google_account = 'some-authed-google-account@gmail.com'
@@ -76,14 +60,15 @@ def test_google_id_token_linked(
     db_session.commit()
 
     # manually set cookie for initial session
-    client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
+    # client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
+    #
+    # r = client.patch(
+    #     '/link/google',
+    #     headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
+    #
+    # assert r.status_code == 200
 
-    r = client.patch(
-        '/link/google',
-        headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
-
-    assert r.status_code == 200
-
+    # get link from database
     account_in_proxy_group = (
         db_session.query(UserGoogleAccountToProxyGroup)
         .filter(
@@ -98,17 +83,13 @@ def test_google_id_token_linked(
     print(g_account_info)
     assert g_account_info.get('linked_google_email') == google_account
     assert g_account_info.get('linked_google_account_exp') == account_in_proxy_group.expires
-    print("Hi")
 
-    # get the id token through the oauth test client
+    # get the id token through the actual endpoint
     data = {'confirm': 'yes'}
     oauth_test_client.authorize(data=data)
-    token = oauth_test_client.token()
-    print(token)
-    id_token = token.id_token
-    print(id_token)
-    id_token = jwt.decode(id_token, verify=False)
-    print("PPP", id_token)
+    tokens = oauth_test_client.token()
+    id_token = jwt.decode(tokens.id_token, verify=False)
+
     assert 'google' in id_token['context']['user']
     assert id_token['context']['user']['google'].get('linked_google_account') == google_account
     assert id_token['context']['user']['google'].get('linked_google_account_exp') == account_in_proxy_group.expires
