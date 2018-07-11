@@ -5,7 +5,7 @@ pipeline {
 
   environment {
     // hardcoded environment variable for namespace 
-    KUBECTL_NAMESPACE = 'qa-kidsfirst'
+    KUBECTL_NAMESPACE = 'qa-bloodpac'
   }
 
   stages {
