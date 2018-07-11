@@ -6,6 +6,8 @@ except ImportError:
     from mock import MagicMock
     from mock import patch
 
+import jwt
+
 from fence.resources.storage.cdis_jwt import create_session_token
 from fence.resources.google.utils import get_linked_google_account_info
 from fence.settings import SESSION_COOKIE_NAME
@@ -14,7 +16,7 @@ from fence.utils import split_url_and_query_params
 from fence.jwt.token import generate_signed_id_token
 
 
-def test_google_not_linked_id_token(oauth_test_client):
+def test_google_id_token_not_linked(oauth_test_client):
     """
     Test the following procedure:
     - ``POST /oauth2/authorize`` successfully to obtain code
@@ -26,11 +28,13 @@ def test_google_not_linked_id_token(oauth_test_client):
     toke = oauth_test_client.token()
     print(toke)
     id_token = toke.id_token
-    print(id_token)
+    print("MY TOKEN ", id_token)
+    print(jwt.decode(id_token, verify=False))
+    id_token = jwt.decode(id_token, verify=False)
     assert id_token['context']['user'].get('google') is None
 
 
-def test_google_id_token_no_link(
+def test_google_id_token_linked(
         app, client, db_session, encoded_creds_jwt,
         google_auth_get_user_info_mock,
         add_google_email_to_proxy_group_mock,
@@ -97,6 +101,12 @@ def test_google_id_token_no_link(
     print("Hi")
 
     # get the id token through the oauth test client
-    id_token = oauth_test_client.token().id_token
+    data = {'confirm': 'yes'}
+    oauth_test_client.authorize(data=data)
+    token = oauth_test_client.token()
+    print(token)
+    id_token = token.id_token
     print(id_token)
+    id_token = jwt.decode(id_token, verify=False)
+    print("PPP", id_token)
 
