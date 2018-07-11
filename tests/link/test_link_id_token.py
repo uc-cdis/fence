@@ -23,22 +23,10 @@ def test_google_not_linked_id_token(oauth_test_client):
     """
     data = {'confirm': 'yes'}
     oauth_test_client.authorize(data=data)
-    oauth_test_client.token()
-    id_token = oauth_test_client.token_response.id_token
-    assert id_token['context']['user'].get('google') is None
-
-
-def test_google_linked_id_token(oauth_test_client):
-    """
-    Test the following procedure:
-    - ``POST /oauth2/authorize`` successfully to obtain code
-    - ``POST /oauth2/token`` successfully to obtain token
-    - Expect id_token to not have google account information
-    """
-    data = {'confirm': 'yes'}
-    oauth_test_client.authorize(data=data)
-    oauth_test_client.token()
-    id_token = oauth_test_client.token_response.id_token
+    toke = oauth_test_client.token()
+    print(toke)
+    id_token = toke.id_token
+    print(id_token)
     assert id_token['context']['user'].get('google') is None
 
 
@@ -107,3 +95,8 @@ def test_google_id_token_no_link(
     # assert g_account_info.get('linked_google_email') == google_account
     # assert g_account_info.get('linked_google_account_exp') != original_expiration
     print("Hi")
+
+    # get the id token through the oauth test client
+    id_token = oauth_test_client.token().id_token
+    print(id_token)
+
