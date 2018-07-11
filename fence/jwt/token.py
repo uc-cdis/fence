@@ -495,12 +495,12 @@ def generate_id_token(
             tag.key: tag.value for tag in user.tags}
 
     linked_google_email = kwargs.get('linked_google_email')
-    linked_google_expires = kwargs.get('linked_google_expires')
+    linked_google_account_exp = kwargs.get('linked_google_account_exp')
     # only add google linkage information if provided
     if linked_google_email:
         claims['context']['user']['google'] = {
             'linked_google_account': linked_google_email,
-            'linked_google_expires': linked_google_expires,
+            'linked_google_account_exp': linked_google_account_exp,
         }
 
     # Only include if provided, used to associate a client session with an ID
