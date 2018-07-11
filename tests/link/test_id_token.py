@@ -46,7 +46,6 @@ def test_google_id_token_no_link(
         app, client, db_session, encoded_creds_jwt,
         google_auth_get_user_info_mock,
         add_google_email_to_proxy_group_mock,
-        db_session,
         oauth_test_client):
     """
     Test extending expiration for previously linked G account access via PATCH.
@@ -54,10 +53,11 @@ def test_google_id_token_no_link(
     encoded_credentials_jwt = encoded_creds_jwt['jwt']
     # get user from client id
     user = db_session.query(Client).filter_by(client_id=oauth_test_client.client_id).first().user
+    print(user)
     user_id = user.id # encoded_creds_jwt['user_id']
     proxy_group_id = encoded_creds_jwt['proxy_group_id']
 
-    print(user)
+    
     print(user_id)
 
     original_expiration = 1000
