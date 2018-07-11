@@ -61,7 +61,6 @@ def modify_client_action(DB, client=None, delete_urls=False, urls=None, name=Non
         client = s.query(Client).filter(Client.name == client).first()
         if not client:
             raise Exception('client {} does not exist'.format(client))
-            return
         if urls:
             client._redirect_uris = urls
             print('Changing urls to {}'.format(urls))
