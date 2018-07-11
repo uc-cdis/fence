@@ -42,7 +42,7 @@ SUPPORTED_ACTIONS = ['upload', 'download']
 blueprint = flask.Blueprint('data', __name__)
 
 
-@blueprint.route('/download/<file_id>', methods=['GET'])
+@blueprint.route('/download/<path:file_id>', methods=['GET'])
 def download_file(file_id):
     '''
     Get a presigned url to download a file given by file_id.
@@ -54,7 +54,7 @@ def download_file(file_id):
         return flask.redirect(result['url'])
 
 
-@blueprint.route('/upload/<file_id>', methods=['GET'])
+@blueprint.route('/upload/<path:file_id>', methods=['GET'])
 def upload_file(file_id):
     '''
     Get a presigned url to upload a file given by file_id.

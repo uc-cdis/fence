@@ -62,9 +62,12 @@ def get_user_info(current_session, username):
 
     groups = udm.get_user_groups(current_session, username)['groups']
     info = {
-        'user_id': user.id,  # TODO OIDC suggests the key "sub"
-        'username': user.username,  # TODO OIDC suggests the key "name"
-        'display_name': user.display_name,   # TODO OIDC suggests the key "preferred_username"
+        'user_id': user.id,  # TODO deprecated, use 'sub'
+        'sub': user.id,
+        'username': user.username,  # TODO deprecated, use 'name'
+        'name': user.username,
+        'display_name': user.display_name,   # TODO deprecated, use 'preferred_username'
+        'preferred_username': user.display_name,
         'phone_number': user.phone_number,
         'email': user.email,
         'is_admin': user.is_admin,
@@ -101,12 +104,13 @@ def get_user_info(current_session, username):
 def _get_optional_userinfo(user, claims):
     info = {}
     for claim, claim_request in claims.iteritems():
-        if claim == 'linked_google_email':
+        if claim == 'linked_google_account':
             google_email = get_linked_google_account_email(user.id)
-            info['linked_google_email'] = google_email
-        if claim == 'linked_google_email_exp':
+            info['linked_google_account'] = google_email
+        if claim == 'linked_google_account_exp':
             # TODO actually add expiration
             pass
+
     return info
 
 

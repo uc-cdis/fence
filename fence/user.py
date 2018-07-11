@@ -6,8 +6,9 @@ from fence.errors import Unauthorized
 from fence.models import User
 
 
-def get_current_user():
-    username = flask.session.get('username')
+def get_current_user(flask_session=None):
+    flask_session = flask_session or flask.session
+    username = flask_session.get('username')
     if flask.current_app.config.get('MOCK_AUTH', False) is True:
         username = 'test'
     if not username:

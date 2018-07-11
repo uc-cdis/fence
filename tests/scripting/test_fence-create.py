@@ -7,11 +7,102 @@ except ImportError:
 import pytest
 
 from fence.jwt.validate import validate_jwt
-from fence.models import AccessPrivilege, Project, User, UserRefreshToken
-from fence.scripting.fence_create import delete_users, JWTCreator
+from fence.models import (
+    AccessPrivilege, Project, User, UserRefreshToken, Client,
+    GoogleServiceAccount
+)
+from fence.scripting.fence_create import (
+    delete_users, JWTCreator, delete_client_action
+)
 
 
 ROOT_DIR = './'
+
+
+def test_client_delete(app, db_session, cloud_manager, test_user_a):
+    """
+    Test that the client delete function correctly cleans up the client's
+    service accounts and the client themself.
+    """
+    client_name = 'test123'
+    client = Client(
+        client_id=client_name,
+        client_secret='secret',
+        name=client_name
+    )
+    db_session.add(client)
+    db_session.commit()
+
+    client_service_account = GoogleServiceAccount(
+        google_unique_id='jf09238ufposijf',
+        client_id=client.client_id,
+        user_id=test_user_a['user_id'],
+        google_project_id='test',
+        email='someemail@something.com'
+    )
+    db_session.add(client_service_account)
+    db_session.commit()
+
+    # empty return means success
+    (
+        cloud_manager.return_value
+        .__enter__.return_value
+        .delete_service_account.return_value
+    ) = {}
+
+    delete_client_action(app.config['DB'], client_name)
+
+    client_after = db_session.query(Client).filter_by(name=client_name).all()
+    client_service_account_after = (
+        db_session.query(GoogleServiceAccount)
+        .filter_by(client_id=client.client_id)
+    ).all()
+    assert len(client_after) == 0
+    assert len(client_service_account_after) == 0
+
+
+def test_client_delete_error(app, db_session, cloud_manager, test_user_a):
+    """
+    Test that when Google gives us an error when deleting the service account,
+    we don't remove it from the db.
+    """
+    client_name = 'test123'
+    client = Client(
+        client_id=client_name,
+        client_secret='secret',
+        name=client_name
+    )
+    db_session.add(client)
+    db_session.commit()
+
+    client_service_account = GoogleServiceAccount(
+        google_unique_id='jf09238ufposijf',
+        client_id=client.client_id,
+        user_id=test_user_a['user_id'],
+        google_project_id='test',
+        email='someemail@something.com'
+    )
+    db_session.add(client_service_account)
+    db_session.commit()
+
+    # error when deleting service account
+    (
+        cloud_manager.return_value
+        .__enter__.return_value
+        .delete_service_account.return_value
+    ) = {'error': 'something bad happened'}
+
+    delete_client_action(app.config['DB'], client_name)
+
+    client_after = db_session.query(Client).filter_by(name=client_name).all()
+    client_service_account_after = (
+        db_session.query(GoogleServiceAccount)
+        .filter_by(client_id=client.client_id)
+    ).all()
+
+    # make sure client is deleted but service account we couldn't delete stays
+    assert len(client_after) == 0
+    assert len(client_service_account_after) == 1
 
 
 def test_delete_users(app, db_session, example_usernames):

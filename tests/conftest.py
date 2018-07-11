@@ -512,6 +512,36 @@ def auth_client(app, request):
     request.addfinalizer(reset_authmock)
 
 
+@pytest.fixture(scope='function')
+def test_user_a(db_session):
+    test_user = (
+        db_session
+        .query(models.User)
+        .filter_by(username='test_a')
+        .first()
+    )
+    if not test_user:
+        test_user = models.User(username='test_a', is_admin=False)
+        db_session.add(test_user)
+        db_session.commit()
+    return Dict(username='test_a', user_id=test_user.id)
+
+
+@pytest.fixture(scope='function')
+def test_user_b(db_session):
+    test_user = (
+        db_session
+        .query(models.User)
+        .filter_by(username='test_b')
+        .first()
+    )
+    if not test_user:
+        test_user = models.User(username='test_b', is_admin=False)
+        db_session.add(test_user)
+        db_session.commit()
+    return Dict(username='test_b', user_id=test_user.id)
+
+
 @pytest.fixture(scope='session')
 def db(app, request):
     """
@@ -880,6 +910,7 @@ def cloud_manager():
     manager = MagicMock()
     patch('fence.blueprints.storage_creds.google.GoogleCloudManager', manager).start()
     patch('fence.resources.google.utils.GoogleCloudManager', manager).start()
+    patch('fence.scripting.fence_create.GoogleCloudManager', manager).start()
     manager.return_value.__enter__.return_value.get_access_key.return_value = {
         "type": "service_account",
         "project_id": "project-id",
