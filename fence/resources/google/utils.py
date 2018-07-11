@@ -243,7 +243,7 @@ def get_linked_google_account_info(user_id):
 
     g_account = get_linked_google_account(user_id)
     if g_account:
-        g_account_info.linked_google_email = g_account.email
+        g_account_info['linked_google_email'] = g_account.email
 
         g_account_to_proxy_group = (
             current_session.query(UserGoogleAccountToProxyGroup)
@@ -252,7 +252,7 @@ def get_linked_google_account_info(user_id):
                 .user_google_account_id == g_account.id).first()
         )
         if g_account_to_proxy_group:
-            g_account_info.linked_google_account_exp = g_account_to_proxy_group.expires
+            g_account_info['linked_google_account_exp'] = g_account_to_proxy_group.expires
 
     return g_account_info
 
