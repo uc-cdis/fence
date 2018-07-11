@@ -4,7 +4,7 @@ from email.mime.text import MIMEText
 from email.utils import COMMASPACE, formatdate
 import flask
 from fence.resources import userdatamodel as udm
-from fence.resources.google.utils import get_linked_google_account_email
+from fence.resources.google.utils import get_linked_google_account_email, get_linked_google_account_exp
 from fence.resources.userdatamodel import delete_user, get_user_groups
 import smtplib
 from sqlalchemy import func
@@ -108,8 +108,8 @@ def _get_optional_userinfo(user, claims):
             google_email = get_linked_google_account_email(user.id)
             info['linked_google_account'] = google_email
         if claim == 'linked_google_account_exp':
-            # TODO actually add expiration
-            pass
+            google_account_exp = get_linked_google_account_exp(user.id)
+            info['linked_google_account_exp'] = google_account_exp
 
     return info
 
