@@ -52,7 +52,7 @@ def login_user(request, username, provider):
         current_session.commit()
     flask.session['username'] = username
     flask.session['provider'] = provider
-    flask.session['user_id'] = user.id # right field?
+    flask.session['user_id'] = str(user.id)
     flask.g.user = user
     flask.g.scopes = ["_all"]
     flask.g.token = None
