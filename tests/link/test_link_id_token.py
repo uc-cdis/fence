@@ -93,11 +93,11 @@ def test_google_id_token_linked(
     )
     assert account_in_proxy_group.proxy_group_id == proxy_group_id
 
-    # get google account info
+    # get google account info and test
     g_account_info = get_linked_google_account_info(user_id)
     print(g_account_info)
-    # assert g_account_info.get('linked_google_email') == google_account
-    # assert g_account_info.get('linked_google_account_exp') != original_expiration
+    assert g_account_info.get('linked_google_email') == google_account
+    assert g_account_info.get('linked_google_account_exp') != original_expiration
     print("Hi")
 
     # get the id token through the oauth test client
@@ -109,4 +109,7 @@ def test_google_id_token_linked(
     print(id_token)
     id_token = jwt.decode(id_token, verify=False)
     print("PPP", id_token)
+    assert 'google' in id_token['context']['user']
+    assert id_token['context']['user']['google'].get('linked_google_account') == google_account
+    assert id_token['context']['user']['google'].get('linked_google_account_exp') == original_expiration
 
