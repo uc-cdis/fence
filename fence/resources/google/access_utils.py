@@ -286,7 +286,7 @@ def get_user_ids_from_google_members(members):
         google_account = current_session.query(UserGoogleAccount).filter(
             UserGoogleAccount.email == member).first()
         if google_account:
-            result.append(account.user_id)
+            result.append(google_account.user_id)
 
     return result
 
