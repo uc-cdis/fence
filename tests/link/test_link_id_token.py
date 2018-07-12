@@ -1,6 +1,6 @@
 import jwt
 
-from fence.resources.google.utils import get_linked_google_account_info
+from fence.resources.google.utils import get_linked_google_account_email, get_linked_google_account_exp
 from fence.models import UserGoogleAccount, UserGoogleAccountToProxyGroup
 
 
@@ -31,9 +31,9 @@ def test_google_id_token_linked(
     db_session.add(existing_account)
     db_session.commit()
     g_account_access = UserGoogleAccountToProxyGroup(
-            user_google_account_id=existing_account.id,
-            proxy_group_id=proxy_group_id,
-            expires=original_expiration
+        user_google_account_id=existing_account.id,
+        proxy_group_id=proxy_group_id,
+        expires=original_expiration
     )
     db_session.add(g_account_access)
     db_session.commit()
@@ -46,12 +46,10 @@ def test_google_id_token_linked(
             == existing_account.id
         ).first()
     )
-    assert account_in_proxy_group.proxy_group_id == proxy_group_id
 
     # get google account info with utility function
-    g_account_info = get_linked_google_account_info(user_id)
-    assert g_account_info.get('linked_google_email') == google_account
-    assert g_account_info.get('linked_google_account_exp') == account_in_proxy_group.expires
+    assert get_linked_google_account_email(user_id) == google_account
+    assert get_linked_google_account_exp(user_id) == account_in_proxy_group.expires
 
     # get the id token through endpoint
     data = {'confirm': 'yes'}

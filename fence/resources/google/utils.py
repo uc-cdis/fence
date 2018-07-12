@@ -188,16 +188,14 @@ def create_google_access_key(client_id, user_id, username, proxy_group_id):
     return key, service_account
 
 
-def get_linked_google_account(user_id):
+def _get_linked_google_account(user_id):
     """
     Hit db to check for linked google account of user
     """
-    g_account = None
-    if user_id:
-        g_account = (
-            current_session.query(UserGoogleAccount)
-            .filter(UserGoogleAccount.user_id == user_id).first()
-        )
+    g_account = (
+        current_session.query(UserGoogleAccount)
+        .filter(UserGoogleAccount.user_id == user_id).first()
+    )
     return g_account
 
 
@@ -207,7 +205,7 @@ def get_linked_google_account_email(user_id):
     """
     google_email = None
     if user_id:
-        g_account = get_linked_google_account(user_id)
+        g_account = _get_linked_google_account(user_id)
         if g_account:
             google_email = g_account.email
     return google_email
@@ -219,7 +217,7 @@ def get_linked_google_account_exp(user_id):
     """
     google_account_exp = 0
     if user_id:
-        g_account = get_linked_google_account(user_id)
+        g_account = _get_linked_google_account(user_id)
         if g_account:
             g_account_to_proxy_group = (
                 current_session.query(UserGoogleAccountToProxyGroup)
@@ -230,31 +228,6 @@ def get_linked_google_account_exp(user_id):
             if g_account_to_proxy_group:
                 google_account_exp = g_account_to_proxy_group.expires
     return google_account_exp
-
-
-def get_linked_google_account_info(user_id):
-    """
-    Hit db to get linked google account information
-    """
-    g_account_info = {
-        'linked_google_email': None,
-        'linked_google_account_exp': 0
-    }
-
-    g_account = get_linked_google_account(user_id)
-    if g_account:
-        g_account_info['linked_google_email'] = g_account.email
-
-        g_account_to_proxy_group = (
-            current_session.query(UserGoogleAccountToProxyGroup)
-            .filter(
-                UserGoogleAccountToProxyGroup
-                .user_google_account_id == g_account.id).first()
-        )
-        if g_account_to_proxy_group:
-            g_account_info['linked_google_account_exp'] = g_account_to_proxy_group.expires
-
-    return g_account_info
 
 
 def add_custom_service_account_key_expiration(
