@@ -517,6 +517,21 @@ def delete_users(DB, usernames):
         session.commit()
 
 
+def delete_expired_service_accounts(DB):
+    driver = SQLAlchemyDriver(DB)
+    with driver.session as session:
+        current_time = int(time.time())
+        records_to_delete = (
+            session
+            .query(ServiceAccountToGoogleBucketAccessGroup)
+            .filter(ServiceAccountToGoogleBucketAccessGroup.expires + 7*60*60*24 < current_time)
+            .all()
+        )
+        for record in records_to_delete:
+            session.delete(record)
+        session.commit()
+
+
 class JWTCreator(object):
 
     required_kwargs = [
@@ -598,8 +613,7 @@ class JWTCreator(object):
         with driver.session as current_session:
             user = (
                 current_session.query(User)
-                .filter(func.lower(User.username) == self.username.lower())
-                .first()
+                .filter(func.lower(UsServiceAccountToGoogleBucketAccessGroup.expires)
             )
             if not user:
                 raise EnvironmentError(

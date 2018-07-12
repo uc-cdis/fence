@@ -18,6 +18,7 @@ from fence.scripting.fence_create import (
     remove_expired_google_accounts_from_proxy_groups,
     remove_expired_google_service_account_keys,
     sync_users,
+    delete_expired_service_accounts,
 )
 
 
@@ -216,6 +217,8 @@ def main():
         list_client_action(DB)
     elif args.action == 'user-delete':
         delete_users(DB, args.users)
+    elif args.action == 'account-delete':
+        delete_expired_service_accounts(DB)
     elif args.action == 'sync':
         sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
                    projects=args.project_mapping, is_sync_from_dbgap_server=str2bool(args.sync_from_dbgap),
