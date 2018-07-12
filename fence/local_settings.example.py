@@ -61,6 +61,10 @@ STORAGE_CREDENTIALS = {
         'password': 'somepass',
         'calling_format': OrdinaryCallingFormat(),
         'is_mocked': True
+    },
+    "google-cloud-server": {
+        'backend': 'google',
+        'google_project_id': 'some-project-id-239870as9f23flkja8010'
     }
 }
 
@@ -71,6 +75,7 @@ CIRRUS_CFG = {
     'GOOGLE_API_KEY': '',
     'GOOGLE_PROJECT_ID': '',
     'GOOGLE_APPLICATION_CREDENTIALS': '',
+    'GOOGLE_STORAGE_CREDS': '',
     'GOOGLE_ADMIN_EMAIL': '',
     'GOOGLE_IDENTITY_DOMAIN': '',
     'GOOGLE_CLOUD_IDENTITY_ADMIN_EMAIL': ''
@@ -109,10 +114,21 @@ AWS_CREDENTIALS = {
     }
 }
 
+ASSUMED_ROLES = {
+    'arn:aws:iam::role1': 'CRED1'
+}
+
 S3_BUCKETS = {
-    'bucket1': 'CRED1',
-    'bucket2': 'CRED2',
-    'bucket3': 'CRED1'
+    'bucket1': {
+        'cred': 'CRED1',
+    },
+    'bucket2': {
+        'cred': 'CRED2',
+    },
+    'bucket3': {
+        'cred': 'CRED1',
+        'role-arn': 'arn:aws:iam::role1',
+    }
 }
 
 #: Confiure which identity providers this fence instance can use for login.
@@ -141,6 +157,8 @@ ENABLED_IDENTITY_PROVIDERS = {
 
 APP_NAME = ''
 
+GOOGLE_GROUP_PREFIX = ''
+
 #: ``MAX_PRESIGNED_URL_TTL: int``
 #: The number of seconds after a pre-signed url is issued until it expires.
 MAX_PRESIGNED_URL_TTL = 3600
@@ -167,3 +185,4 @@ if os.path.exists(fence_creds):
         APP_NAME = data['APP_NAME']
         HTTP_PROXY = data['HTTP_PROXY']
         dbGaP = data["dbGaP"]
+        GOOGLE_GROUP_PREFIX = data.get('GOOGLE_GROUP_PREFIX')

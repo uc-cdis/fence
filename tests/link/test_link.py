@@ -1,5 +1,6 @@
 import flask
 import time
+from urlparse import urlparse, parse_qs, urlunparse
 
 # Python 2 and 3 compatible
 try:
@@ -13,6 +14,7 @@ from fence.resources.storage.cdis_jwt import create_session_token
 from fence.settings import SESSION_COOKIE_NAME
 from fence.models import UserGoogleAccount
 from fence.models import UserGoogleAccountToProxyGroup
+from fence.utils import split_url_and_query_params
 
 
 def test_google_link_redirect(client, app, encoded_creds_jwt):
@@ -29,7 +31,34 @@ def test_google_link_redirect(client, app, encoded_creds_jwt):
         headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
 
     assert r.status_code == 302
-    assert r.location == app.google_client.get_auth_url()
+    url, query_params = split_url_and_query_params(r.location)
+    google_url, google_query_params = (
+        split_url_and_query_params(app.google_client.get_auth_url())
+    )
+    assert google_url == url
+
+
+def test_google_link_redirect_no_google_idp(
+        client, app, remove_google_idp, encoded_creds_jwt):
+    """
+    Test that even if Google is not configured as an IDP, when we hit the link
+    endpoint with valid creds, we get a redirect response.
+    This should be redirecting to google's oauth
+    """
+    encoded_credentials_jwt = encoded_creds_jwt['jwt']
+    redirect = 'http://localhost'
+
+    r = client.get(
+        '/link/google',
+        query_string={'redirect': redirect},
+        headers={'Authorization': 'Bearer ' + encoded_credentials_jwt})
+
+    assert r.status_code == 302
+    url, query_params = split_url_and_query_params(r.location)
+    google_url, google_query_params = (
+        split_url_and_query_params(app.google_client.get_auth_url())
+    )
+    assert google_url == url
 
 
 def test_google_link_no_redirect_provided(
@@ -109,7 +138,14 @@ def test_google_link_auth_return(
         query_string={'code': test_auth_code})
 
     assert r.status_code == 302
-    assert r.headers['Location'] == redirect
+    parsed_url = urlparse(r.headers['Location'])
+    query_params = parse_qs(parsed_url.query)
+    response_redirect = urlunparse(
+        (parsed_url.scheme, parsed_url.netloc, parsed_url.path, '', '', '')
+    )
+    assert 'exp' in query_params
+    assert query_params['linked_email'][0] == google_account
+    assert response_redirect == redirect
 
     user_google_account = (
         db_session.query(UserGoogleAccount)
@@ -352,7 +388,15 @@ def test_google_link_g_account_exists(
 
     assert not add_new_g_acnt_mock.called
     assert r.status_code == 302
-    assert r.headers['Location'] == redirect
+
+    parsed_url = urlparse(r.headers['Location'])
+    query_params = parse_qs(parsed_url.query)
+    response_redirect = urlunparse(
+        (parsed_url.scheme, parsed_url.netloc, parsed_url.path, '', '', '')
+    )
+    assert 'exp' in query_params
+    assert query_params['linked_email'][0] == google_account
+    assert response_redirect == redirect
 
     assert not flask.session.get('google_link')
     assert not flask.session.get('user_id')
@@ -432,7 +476,15 @@ def test_google_link_g_account_access_extension(
 
     assert not add_new_g_acnt_mock.called
     assert r.status_code == 302
-    assert r.headers['Location'] == redirect
+
+    parsed_url = urlparse(r.headers['Location'])
+    query_params = parse_qs(parsed_url.query)
+    response_redirect = urlunparse(
+        (parsed_url.scheme, parsed_url.netloc, parsed_url.path, '', '', '')
+    )
+    assert 'exp' in query_params
+    assert query_params['linked_email'][0] == google_account
+    assert response_redirect == redirect
 
     assert not flask.session.get('google_link')
     assert not flask.session.get('user_id')
@@ -486,9 +538,19 @@ def test_google_link_g_account_exists_linked_to_different_user(
     assert not add_new_g_acnt_mock.called
 
     # make sure we're redirecting with error information
-    assert redirect in r.headers['Location']
-    assert 'error=' in r.headers['Location']
-    assert 'error_description=' in r.headers['Location']
+    parsed_url = urlparse(r.headers['Location'])
+    query_params = parse_qs(parsed_url.query)
+    response_redirect = urlunparse(
+        (parsed_url.scheme, parsed_url.netloc, parsed_url.path, '', '', '')
+    )
+    response_redirect = urlunparse(
+        (parsed_url.scheme, parsed_url.netloc, parsed_url.path, '', '', '')
+    )
+    assert 'exp' not in query_params
+    assert 'linked_email' not in query_params
+    assert 'error' in query_params
+    assert 'error_description' in query_params
+    assert response_redirect == redirect
 
     assert not flask.session.get('google_link')
     assert not flask.session.get('user_id')
@@ -535,9 +597,16 @@ def test_google_link_no_proxy_group(
     assert not add_new_g_acnt_mock.called
 
     # make sure we're redirecting with error information
-    assert redirect in r.headers['Location']
-    assert 'error=' in r.headers['Location']
-    assert 'error_description=' in r.headers['Location']
+    parsed_url = urlparse(r.headers['Location'])
+    query_params = parse_qs(parsed_url.query)
+    response_redirect = urlunparse(
+        (parsed_url.scheme, parsed_url.netloc, parsed_url.path, '', '', '')
+    )
+    assert 'exp' not in query_params
+    assert 'linked_email' not in query_params
+    assert 'error' in query_params
+    assert 'error_description' in query_params
+    assert response_redirect == redirect
 
     assert not flask.session.get('google_link')
     assert not flask.session.get('user_id')

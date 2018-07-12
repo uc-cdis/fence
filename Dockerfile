@@ -41,7 +41,7 @@ WORKDIR /fence
 #
 RUN ln -s /fence/wsgi.py /var/www/fence/wsgi.py \
     && pip install -r requirements.txt \
-    && python setup.py install \
+    && python setup.py develop \
     && echo '<VirtualHost *:80>\n\
     WSGIDaemonProcess /fence processes=1 threads=1 python-path=/var/www/fence/:/fence/:/usr/bin/python\n\
     WSGIScriptAlias / /var/www/fence/wsgi.py\n\

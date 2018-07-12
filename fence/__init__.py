@@ -51,7 +51,6 @@ def app_config(app, settings='fence.settings', root_dir=None):
         url = urlparse.urlparse(app.config['BASE_URL'])
         app.config['ROOT_URL'] = '{}://{}'.format(url.scheme, url.netloc)
 
-    app.keypairs = []
     if root_dir is None:
         root_dir = os.path.dirname(
                 os.path.dirname(os.path.realpath(__file__)))
@@ -61,16 +60,9 @@ def app_config(app, settings='fence.settings', root_dir=None):
         app.register_blueprint(
             fence.blueprints.data.blueprint, url_prefix='/data'
         )
-    for kid, (public, private) in app.config['JWT_KEYPAIR_FILES'].iteritems():
-        public_filepath = os.path.join(root_dir, public)
-        private_filepath = os.path.join(root_dir, private)
-        with open(public_filepath, 'r') as f:
-            public_key = f.read()
-        with open(private_filepath, 'r') as f:
-            private_key = f.read()
-        app.keypairs.append(keys.Keypair(
-            kid=kid, public_key=public_key, private_key=private_key
-        ))
+
+    app.keypairs = keys.load_keypairs(os.path.join(root_dir, 'keys'))
+
     app.jwt_public_keys = {
         app.config['BASE_URL']: OrderedDict([
             (str(keypair.kid), str(keypair.public_key))
@@ -116,14 +108,13 @@ def app_register_blueprints(app):
 
     @app.route('/logout')
     def logout_endpoint():
-        root = app.config.get('APPLICATION_ROOT', '')
+        root = app.config.get('BASE_URL', '')
         request_next = flask.request.args.get('next', root)
         if request_next.startswith('https') or request_next.startswith('http'):
             next_url = request_next
         else:
             next_url = build_redirect_url(app.config.get('ROOT_URL', ''), request_next)
         return logout(next_url=next_url)
-
 
     @app.route('/jwt/keys')
     def public_keys():
@@ -164,7 +155,6 @@ def app_sessions(app):
     configured_google = (
         'OPENID_CONNECT' in app.config
         and 'google' in app.config['OPENID_CONNECT']
-        and 'google' in enabled_idp_ids
     )
     if configured_google:
         app.google_client = GoogleClient(
@@ -215,7 +205,7 @@ def check_csrf():
         csrf_header = flask.request.headers.get('x-csrf-token')
         csrf_cookie = flask.request.cookies.get('csrftoken')
         referer = flask.request.headers.get('referer')
-        flask.current_app.logger.debug('HTTP REFERER ' + referer)
+        flask.current_app.logger.debug('HTTP REFERER ' + str(referer))
         if not all([csrf_cookie, csrf_header, csrf_cookie == csrf_header, referer]):
             raise UserError("CSRF verification failed. Request aborted")
 
@@ -232,4 +222,3 @@ def set_csrf(response):
     if flask.request.method in ['POST', 'PUT', 'DELETE']:
         current_session.commit()
     return response
-

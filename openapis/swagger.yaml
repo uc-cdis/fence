@@ -19,6 +19,8 @@ tags:
     description: Authorization and token management
   - name: user
     description: User information
+  - name: logout
+    description: Log out the current user
   - name: data
     description: Generate signed URLs
   - name: credentials
@@ -74,7 +76,9 @@ paths:
         - name: scope
           required: false
           in: query
-          description: Requested authorization scope
+          description: |
+              Requested authorization scope
+              > NOTE: This is required for [OIDC](http://openid.net/specs/openid-connect-core-1_0.html#AuthRequest)
           schema:
             type: string
       responses:
@@ -222,6 +226,23 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/UserInfo'
+  /logout:
+    get:
+      tags:
+        - logout
+      summary: Log out the current user
+      description: Log out the current user and redirect to the provided url.
+                   The logout will propogate, depending on the identity provider.
+      parameters:
+        - in: query
+          name: next
+          schema:
+            type: string
+          description: The url to redirect the user to after logout
+          required: false
+      responses:
+        '302':
+          description: redirect to root or url in parameter if provided
   '/data/download/{file_id}':
     get:
       tags:
@@ -630,7 +651,7 @@ paths:
           description: successful deletion
         '404':
           description: 'Couldn''t find key, unable to delete given key'
-  /link/google (IN PROGRESS):
+  /link/google:
     get:
       tags:
         - link
@@ -654,8 +675,8 @@ paths:
         If AuthN is successful with Google, eventually will redirect to
         `/link/google/callback`, where the actual account linkage occur.
 
-        > *See `/link/google/callback` endpoint for details about error
-        handling.*
+        > *See `/link/google/callback` endpoint for details about eventual
+           redirect with descriptive query params about success/failure.*
       operationId: linkCloudIdentityStart2
       responses:
         '302':
@@ -672,6 +693,10 @@ paths:
       responses:
         '200':
           description: successfully extended access
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LinkedGoogleEmailExpiration"
         '404':
           description: No linked Google account found for user
     delete:
@@ -697,7 +722,7 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/GoogleLinkingError'
-  /link/google/callback (IN PROGRESS):
+  /link/google/callback:
     get:
       tags:
         - link
@@ -706,20 +731,39 @@ paths:
         Linking of Google identity to user after successful Oauth2
         flow with Google. Use code to retrieve user info from Google.
 
-        Will return to session stored redirect with any error information in
-        query params. The error params are `error` and `error_description`.
+        Will return to session stored redirect.
+
+        Response will contain query params about the new linkage
+        (`exp` or `linked_email`) or error params (`error` and
+        `error_description`) detailing what went wrong.
+
+        ---
+        ---
+
+        Query Params on Successful Linking
+
+          * `exp`
+            * Expiration time in unix time (seconds since last epoch).
+              This represents when the newly linked account's temporary access
+              rights will be removed
+          * `linked_email`
+            * Google account email that was linked to the user and provided
+              temporary access
 
         ---
 
         Possible Error Types (for `error` param)
+
           * `g_acnt_link_error`
             * Issue with the linkage between User and their Google account
           * `g_acnt_auth_failure`
             * Issue with Oauth2 flow to AuthN user's Google account
           * `g_acnt_access_error`
-            * Issue with providing access to Google account by putting in user's proxy group
+            * Issue with providing access to Google account by putting in
+              user's proxy group
 
         For details about the error, check the `error_description` param.
+
       parameters:
         - name: code
           required: true
@@ -1223,6 +1267,15 @@ components:
         url:
           type: string
           description: the signed url issued to
+    LinkedGoogleEmailExpiration:
+      type: object
+      properties:
+        exp:
+          type: integer
+          description: expiration of linked email's access (e.g. expiration
+              until it is removed from the user's Google Proxy Group)
+      example:
+        exp: 1526653869
     PublicKeys:
       type: object
       properties:
