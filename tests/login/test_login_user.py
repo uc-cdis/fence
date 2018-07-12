@@ -3,7 +3,11 @@ from flask_sqlalchemy_session import current_session
 from fence.auth import login_user
 from fence.models import User, IdentityProvider
 
-def test_login_user_in_current_session(db_session):
+def test_login_user_already_in_db(db_session):
+    """
+    Test that if a user is already in the database and
+    logs in, the session will contain the user's information.
+    """
     email = "testuser@gmail.com"
     provider = "Test Provider"
 
@@ -18,7 +22,12 @@ def test_login_user_in_current_session(db_session):
     assert flask.session['user_id'] == user_id
     assert flask.g.user == test_user
 
-def test_login_user_not_in_current_session(db_session):
+def test_login_new_user(db_session):
+    """
+    Test that if a user is not in the database and
+    logs in, the user is added to the database and 
+    the session will contain the user's information.
+    """
     email = "testuser@gmail.com"
     provider = "Test Provider"
 
