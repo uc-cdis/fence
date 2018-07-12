@@ -348,13 +348,12 @@ def generate_signed_access_token(
         str: encoded JWT access token signed with ``private_key``
     """
     headers = {'kid': kid}
-
     iat, exp = issued_and_expiration_times(expires_in)
-
     # force exp time if provided
     exp = forced_exp_time or exp
     sub = str(user.id)
     jti = str(uuid.uuid4())
+
     claims = {
         'pur': 'access',
         'aud': scopes,
@@ -368,6 +367,7 @@ def generate_signed_access_token(
                 'name': user.username,
                 'is_admin': user.is_admin,
                 'projects': dict(user.project_access),
+                'policies': user.policies,
                 'google': {
                     'proxy_group': user.google_proxy_group_id,
                 }
