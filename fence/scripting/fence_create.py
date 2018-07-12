@@ -38,7 +38,8 @@ from fence.models import (
     UserGoogleAccountToProxyGroup,
     GoogleBucketAccessGroup,
     GoogleProxyGroupToGoogleBucketAccessGroup,
-    UserRefreshToken
+    UserRefreshToken,
+    ServiceAccountToGoogleBucketAccessGroup
 )
 from fence.utils import create_client
 from fence.sync.sync_users import UserSyncer
@@ -613,7 +614,8 @@ class JWTCreator(object):
         with driver.session as current_session:
             user = (
                 current_session.query(User)
-                .filter(func.lower(UsServiceAccountToGoogleBucketAccessGroup.expires)
+                .filter(func.lower(User.username) == self.username.lower())
+                .first()
             )
             if not user:
                 raise EnvironmentError(
