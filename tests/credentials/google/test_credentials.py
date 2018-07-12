@@ -598,16 +598,3 @@ def test_google_delete_invalid_access_token(
             .delete_service_account_key).called is False
 
     assert response.status_code == 404
-
-
-def test_google_id_token_without_link(oauth_test_client):
-    """
-    Test the following procedure:
-    - ``POST /oauth2/authorize`` successfully to obtain code
-    - ``POST /oauth2/token`` successfully to obtain token
-    - ``POST /oauth2/revoke`` to revoke the refresh token
-    - Refresh token should no longer be usable at this point.
-    """
-    data = {'confirm': 'yes'}
-    oauth_test_client.authorize(data=data)
-    oauth_test_client.token()
