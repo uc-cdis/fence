@@ -38,18 +38,9 @@ def test_google_id_token_linked(
     db_session.add(g_account_access)
     db_session.commit()
 
-    # get link from database
-    account_in_proxy_group = (
-        db_session.query(UserGoogleAccountToProxyGroup)
-        .filter(
-            UserGoogleAccountToProxyGroup.user_google_account_id
-            == existing_account.id
-        ).first()
-    )
-
     # get google account info with utility function
     assert get_linked_google_account_email(user_id) == google_account
-    assert get_linked_google_account_exp(user_id) == account_in_proxy_group.expires
+    assert get_linked_google_account_exp(user_id) == original_expiration
 
     # get the id token through endpoint
     data = {'confirm': 'yes'}
@@ -59,4 +50,4 @@ def test_google_id_token_linked(
 
     assert 'google' in id_token['context']['user']
     assert id_token['context']['user']['google'].get('linked_google_account') == google_account
-    assert id_token['context']['user']['google'].get('linked_google_account_exp') == account_in_proxy_group.expires
+    assert id_token['context']['user']['google'].get('linked_google_account_exp') == original_expiration
