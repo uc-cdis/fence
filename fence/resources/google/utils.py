@@ -474,22 +474,7 @@ def get_users_linked_google_email(user_id):
         # of an access token and the same access token is used here (e.g.
         # account exists but a new token hasn't been generated with the linkage
         # info yet)
-        google_email = get_users_linked_google_email_from_db(user_id)
-    return google_email
-
-
-def get_users_linked_google_email_from_db(user_id):
-    """
-    Hit db to check for google_email of user
-    """
-    google_email = None
-    if user_id:
-        g_account = (
-            current_session.query(UserGoogleAccount)
-            .filter(UserGoogleAccount.user_id == user_id).first()
-        )
-        if g_account:
-            google_email = g_account.email
+        google_email = get_linked_google_account_email(user_id)
     return google_email
 
 
