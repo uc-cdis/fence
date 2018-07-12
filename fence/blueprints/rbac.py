@@ -112,29 +112,6 @@ def list_policies():
     return flask.jsonify(flask.current_app.arborist.list_policies())
 
 
-@blueprint.route('/policy/', methods=['POST'])
-@admin_login_required
-def create_policies():
-    """
-    Create new policies in arborist and add the models to the database.
-
-    Expected input JSON:
-
-    Example output JSON:
-
-        {
-            "created": [
-                {
-                    "id": "foo",
-                    "role_ids": ["role-a", "role-b"],
-                    "resource_paths": ["/some/resource/1", "/some/resource/2"]
-                }
-            ]
-        }
-    """
-    return flask.current_app.arborist.create_policies(flask.request.get_json())
-
-
 @blueprint.route('/user/<user_id>/policies/', methods=['GET'])
 @admin_login_required
 def list_user_policies(user_id):

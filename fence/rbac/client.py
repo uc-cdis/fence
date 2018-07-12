@@ -28,7 +28,7 @@ class ArboristClient(object):
     A class for interfacing with the RBAC engine, "arborist".
     """
 
-    def __init__(self, arborist_base_url='http://arborist-service.default'):
+    def __init__(self, arborist_base_url='http://arborist-service/'):
         self._base_url = arborist_base_url.strip('/')
         self._role_url = self._base_url + '/role/'
         self._policy_url = self._base_url + '/policy/'

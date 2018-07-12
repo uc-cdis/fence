@@ -2,11 +2,11 @@ import json
 import time
 import uuid
 
-import flask
-import jwt
 from authlib.common.encoding import to_unicode
 from authlib.specs.oidc import CodeIDToken as AuthlibCodeIDToken
 from authlib.specs.oidc import IDTokenError
+import flask
+import jwt
 
 from fence.jwt import keys
 
@@ -470,16 +470,6 @@ def generate_id_token(
     # ``/.well-known/openid-configuration``, in
     # ``fence/blueprints/well_known.py``.
     claims = {
-        'context': {
-            'user': {
-                'name': user.username,
-                'is_admin': user.is_admin,
-                'projects': dict(user.project_access),
-                'email': user.email,
-                'display_name': user.display_name,
-                'phone_number': user.phone_number
-            },
-        },
         'pur': 'id',
         'aud': audiences,
         'sub': str(user.id),
@@ -489,10 +479,22 @@ def generate_id_token(
         'jti': str(uuid.uuid4()),
         'auth_time': auth_time,
         'azp': client_id,
+        'context': {
+            'user': {
+                'name': user.username,
+                'is_admin': user.is_admin,
+                'projects': dict(user.project_access),
+                'policies': user.policies,
+                'email': user.email,
+                'display_name': user.display_name,
+                'phone_number': user.phone_number
+            },
+        },
     }
-    if user.tags is not None and len(user.tags) > 0:
+    if user.tags:
         claims['context']['user']['tags'] = {
-            tag.key: tag.value for tag in user.tags}
+            tag.key: tag.value for tag in user.tags
+        }
 
     # only add google linkage information if provided
     if linked_google_email:
