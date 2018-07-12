@@ -3,256 +3,49 @@ Utilities for determine access and validity for service account
 registration.
 """
 from flask_sqlalchemy_session import current_session
-from fence.models import AccessPrivilege, UserGoogleAccount
-from collections import Mapping
-
-from fence.resources.google.utils import (
-    get_registered_service_accounts,
-    get_project_access_from_service_accounts
-)
+from fence.models import AccessPrivilege
 
 
-def get_google_project_validity_info(
-        google_project, service_account=None, new_service_account_access=None,
-        early_return=False):
+def can_user_manage_service_account(user_id, account_id):
     """
-    Return a representation of the validity about a google project and
-    optionally, provided service account and access.
-
-    NOTE: with early_return=False, you will recieve a ValidityInfo object with
-          information about all the validity checks
+    Return whether or not the user has permission to update and/or delete the
+    given service account.
 
     Args:
-        google_project (str): Google project identifier
-        service_account (str, optional): an additional service account
-            identifier (ex: email) to include when checking access. You can
-            provide this without actually giving it access to check if access
-            will be valid
-        new_service_account_access (List(str), optional): List of
-            Project.auth_ids to attempt to provide the new service account
-            access to
-        early_return (bool, optional): Whether or not to return early.
-            PLEASE NOTE: if you specify early_return=True you are ONLY
-                         gauranteed a boolean return
+        user_id (int): user's identifier
+        account_id (str): service account identifier
 
     Returns:
-        bool: validity of the project. NOTE: You will recieve a ValidityInfo
-              object if early_return=False. From this you can retrieve info
-              about failing validity checks to determine what caused the issue
+        bool: Whether or not the user has permission
     """
-    validity = ValidityInfo()
-    provided_access = new_service_account_access or []
-
-    project_validity = ValidityInfo()
-
-    valid_parent_org = not google_project_has_parent_org(google_project)
-    project_validity['valid_parent_org'] = valid_parent_org
-    if not valid_parent_org and early_return:
-        return False
-
-    valid_membership = google_project_has_valid_membership(google_project)
-    project_validity['valid_membership'] = valid_membership
-    if not valid_membership and early_return:
-        return False
-
-    project_service_account_validity = (
-        get_google_project_service_accounts_validity_info(google_project)
-    )
-    project_validity['service_accounts'] = project_service_account_validity
-    if not project_service_account_validity and early_return:
-        return False
-
-    service_account_validity = None
-    if service_account:
-        service_account_validity = get_service_account_validity_info(
-            google_project, service_account, early_return=early_return
-        )
-        if not service_account_validity and early_return:
-            return False
-
-    # get the service accounts for the project to determine all the data the
-    # project can access through the service accounts
-    service_accounts = get_registered_service_accounts(google_project)
-    service_account_access = (
-        get_project_access_from_service_accounts(service_accounts)
+    service_account_email = get_service_account_email(account_id)
+    service_account_project = (
+        get_google_project_from_service_account_email(service_account_email)
     )
 
-    # extend list with any provided access to test
-    service_account_access.extend(provided_access)
-
-    # make sure all the users of the project actually have access to all the
-    # data the service accounts have access to
-    project_access_validity = (
-        get_user_access_validity_info(
-            google_project, service_account_access,
-            early_return=early_return)
-    )
-    if not project_access_validity and early_return:
-        return False
-
-    validity['project'] = project_validity
-    validity['access'] = project_access_validity
-    if service_account_validity is not None:
-        validity['service_account'] = service_account_validity
-
-    return validity
-
-
-def get_service_account_validity_info(
-        google_project, service_account,
-        early_return=False):
-    """
-    Return a representation of the validity about a google project's service
-    account.
-
-    NOTE: with early_return=False, you will recieve a ValidityInfo object with
-          information about all the validity checks
-
-    Args:
-        google_project (str): Google project identifier
-        service_account (TYPE): service account identifier to check validity of
-        early_return (bool, optional): Whether or not to return early.
-            PLEASE NOTE: if you specify early_return=True you are ONLY
-                         gauranteed a boolean return
-
-    Returns:
-        fence.resources.google.access_utils.ValidityInfo:
-            validity of the service account.
-
-            NOTE: You will recieve a ValidityInfo object BUT it you specify
-                early_return=True it WILL NOT have all the expected
-                checks present. You should only use the response as a
-                boolean if you specify early_return=True
-    """
-    validity = ValidityInfo()
-
-    valid_type = is_valid_service_account_type(service_account)
-    validity['valid_type'] = valid_type
-    if not validity and early_return:
-        return validity
-
-    no_external_access = (
-        service_account_has_external_access(service_account)
-    )
-    validity['no_external_access'] = no_external_access
-    if not validity and early_return:
-        return validity
-
-    is_owned_by_google_project = (
-        is_service_account_from_google_project(service_account, google_project)
-    )
-    validity['owned_by_project'] = is_owned_by_google_project
-    if not validity and early_return:
-        return validity
-
-    return validity
-
-
-def get_google_project_service_accounts_validity_info(
-        google_project, early_return=False):
-    """
-    Return a representation of the validity about a google project's
-    service accounts.
-
-    NOTE: with early_return=False, you will recieve a ValidityInfo object with
-          information about all the validity checks
-
-    Args:
-        google_project (str): Google project identifier
-        service_account (TYPE): service account identifier to check validity of
-        early_return (bool, optional): Whether or not to return early.
-            PLEASE NOTE: if you specify early_return=True you are ONLY
-                         gauranteed a boolean return
-
-    Returns:
-        fence.resources.google.access_utils.ValidityInfo:
-            validity of the google project service accounts.
-
-            NOTE: You will recieve a ValidityInfo object BUT it you specify
-                early_return=True it WILL NOT have all the expected
-                checks present. You should only use the response as a
-                boolean if you specify early_return=True
-    """
-    service_accounts = []  # TODO get ids from project
-
-    validity = ValidityInfo()
-
-    for service_account in service_accounts:
-        service_account_validity_info = get_service_account_validity_info(
-            google_project, service_account, early_return=early_return
-        )
-        service_account_id = str(service_account)  # TODO should be email
-
-        # one bad apple makes project invalid
-        validity[str(service_account_id)] = service_account_validity_info
-        if not validity and early_return:
-            return validity
-
-    return validity
-
-
-def get_user_access_validity_info(
-        google_project, project_access, early_return=False):
-    """
-    Return a representation of the validity about a google project's
-    service accounts.
-
-    NOTE: with early_return=False, you will recieve a ValidityInfo object with
-          information about all the validity checks
-
-    Args:
-        google_project (str): Google project identifier
-        project_access (List(str)): List of Project.auth_ids to represent
-            what access to check for the google project
-        early_return (bool, optional): Whether or not to return early.
-            PLEASE NOTE: if you specify early_return=True you are ONLY
-                         gauranteed a boolean return
-
-    Returns:
-        fence.resources.google.access_utils.ValidityInfo:
-            validity of the user access.
-
-            NOTE: You will recieve a ValidityInfo object BUT it you specify
-                early_return=True it WILL NOT have all the expected
-                checks present. You should only use the response as a
-                boolean if you specify early_return=True
-    """
-    validity = ValidityInfo()
-
-    # TODO get all members on google project
-    project_members = []
-
-    all_user_ids = get_user_ids_from_google_members(project_members)
-
-    for project in project_access:
-        project_validity_info = do_all_users_have_access_to_project(
-            all_user_ids, project)
-
-        validity[str(project)] = project_validity_info
-        if not validity and early_return:
-            return validity
-
-    return validity
+    # check if user is on project
+    return is_user_member_of_all_google_projects(
+        user_id, [service_account_project])
 
 
 def google_project_has_parent_org(google_project):
-    return True
+    raise NotImplementedError('Functionality not yet available...')
 
 
 def google_project_has_valid_membership(google_project):
-    return False
+    raise NotImplementedError('Functionality not yet available...')
 
 
 def is_valid_service_account_type(service_account):
-    return False
+    raise NotImplementedError('Functionality not yet available...')
 
 
 def service_account_has_external_access(service_account):
-    return True
+    raise NotImplementedError('Functionality not yet available...')
 
 
 def is_service_account_from_google_project(service_account, google_project):
-    return False
+    raise NotImplementedError('Functionality not yet available...')
 
 
 def is_user_member_of_all_google_projects(user_id, google_project_ids):
@@ -272,23 +65,7 @@ def is_user_member_of_all_google_projects(user_id, google_project_ids):
               Google project IDs
     """
     # TODO actually check
-    return False
-
-
-def get_user_ids_from_google_members(members):
-    # get all user ids from google members
-    # Args:
-    #    memebers(list): list of google email
-    # Returns:
-    #    list of user ids
-    result = []
-    for member in members:
-        google_account = current_session.query(UserGoogleAccount).filter(
-            UserGoogleAccount.email == member).first()
-        if google_account:
-            result.append(google_account.user_id)
-
-    return result
+    raise NotImplementedError('Functionality not yet available...')
 
 
 def do_all_users_have_access_to_project(user_ids, project_auth_id):
@@ -303,54 +80,14 @@ def do_all_users_have_access_to_project(user_ids, project_auth_id):
     return True
 
 
-class ValidityInfo(Mapping):
-    """
-    Dict-like object to hold a boolean value representing validity along with
-    information about the validity.
+# TODO this should be in cirrus rather than fence...
+def get_service_account_email(account_id):
+    # first check if the account_id is an email, if not, hit google's api to
+    # get service account information and parse email
+    raise NotImplementedError('Functionality not yet available...')
 
-    If the info is false-y, the validity of this object will evaluate to False.
 
-    This means that you can nest ValidityInfo objects and
-    the "valid" status of the parent object will always be updated when adding
-    new validity information
-    """
-
-    def __init__(self, default_validity=True):
-        self._valid = default_validity
-        self._info = {}
-
-    def get(self, key, *args):
-        return self._info.get(key, *args)
-
-    def __setitem__(self, key, value):
-        if not value:
-            self._valid = False
-        self._info.__setitem__(key, value)
-
-    def __contains__(self, key):
-        return key in self._info
-
-    def __iter__(self):
-        for key, value in self._info.iteritems():
-            yield key, value
-
-    def __getitem__(self, key):
-        return self._info[key]
-
-    def __delitem__(self, key):
-        del self._info[key]
-
-    def __len__(self):
-        return len(self._info)
-
-    def __bool__(self):
-        return self._valid
-
-    def __nonzero__(self):
-        return self._valid
-
-    def __str__(self):
-        return str({
-            'valid': self._valid,
-            'info': str(self._info)
-        })
+# TODO this should be in cirrus rather than fence...
+def get_google_project_from_service_account_email(account_id):
+    # parse email to get project id_
+    raise NotImplementedError('Functionality not yet available...')

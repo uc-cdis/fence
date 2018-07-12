@@ -3,13 +3,15 @@ from urllib import unquote
 import flask
 from flask_restful import Resource
 
-from fence.auth import current_token
+from fence.auth import current_token, require_auth_header
 from fence.restful import RestfulApi
-from fence.auth import require_auth_header
 from fence.errors import UserError
+from fence.resources.google.validity import GoogleProjectValidity
 from fence.resources.google.access_utils import (
     is_user_member_of_all_google_projects,
-    get_google_project_validity_info
+    can_user_manage_service_account,
+    get_google_project_from_service_account_email,
+    get_service_account_email
 )
 
 
@@ -68,7 +70,7 @@ class GoogleServiceAccountRoot(Resource):
         error_response = _get_service_account_error_status(
             service_account_email, google_project_id, project_access)
 
-        if not error_response.get('success') is True:
+        if error_response.get('success') is not True:
             return error_response, 400
 
         new_service_account = self._register_new_service_account(
@@ -136,23 +138,23 @@ class GoogleServiceAccount(Resource):
         Args:
             id_ (str): Must be "_dry_run", otherwise, error
         """
-        if id_ == '_dry_run':
-            payload = flask.request.get_json() or {}
-            service_account_email = payload.get('service_account_email')
-            google_project_id = payload.get('google_project_id')
-            project_access = payload.get('project_access')
-
-            error_response = _get_service_account_error_status(
-                service_account_email, google_project_id, project_access)
-
-            if error_response.get('success') is True:
-                status = 200
-            else:
-                status = 400
-
-            return error_response, status
-        else:
+        if id_ != '_dry_run':
             raise UserError('Cannot post with account id_.')
+
+        payload = flask.request.get_json() or {}
+        service_account_email = payload.get('service_account_email')
+        google_project_id = payload.get('google_project_id')
+        project_access = payload.get('project_access')
+
+        error_response = _get_service_account_error_status(
+            service_account_email, google_project_id, project_access)
+
+        if error_response.get('success') is True:
+            status = 200
+        else:
+            status = 400
+
+        return error_response, status
 
     @require_auth_header({'user'})
     def patch(self, id_):
@@ -164,14 +166,14 @@ class GoogleServiceAccount(Resource):
         """
         user_id = current_token['sub']
         # check if user has permission to update the service account
-        authorized = _can_user_manage_service_account(user_id, id_)
+        authorized = can_user_manage_service_account(user_id, id_)
 
         if not authorized:
-            return (
+            msg = (
                 'User "{}" does not have permission to update the provided '
-                'service account "{}".'.format(user_id, id_),
-                403
+                'service account "{}".'.format(user_id, id_)
             )
+            return msg, 403
 
         payload = flask.request.get_json() or {}
         project_access = payload.get('project_access')
@@ -185,20 +187,20 @@ class GoogleServiceAccount(Resource):
                 403
             )
 
-        service_account_email = _get_service_account_email(id_)
+        service_account_email = get_service_account_email(id_)
         google_project_id = (
-            _get_google_project_from_service_account_email(service_account_email)
+            get_google_project_from_service_account_email(service_account_email)
         )
         error_response = _get_service_account_error_status(
             service_account_email, google_project_id, project_access)
 
-        if not error_response.get('success') is True:
+        if error_response.get('success') is not True:
             return error_response, 400
 
         self._update_service_account_permissions(
             service_account_email, project_access)
 
-        return '', 200
+        return '', 204
 
     @require_auth_header({'user'})
     def delete(self, id_):
@@ -210,7 +212,7 @@ class GoogleServiceAccount(Resource):
         """
         user_id = current_token['sub']
         # check if user has permission to delete the service account
-        authorized = _can_user_manage_service_account(user_id, id_)
+        authorized = can_user_manage_service_account(user_id, id_)
 
         if not authorized:
             return (
@@ -297,33 +299,13 @@ class GoogleServiceAccount(Resource):
         raise NotImplementedError('Functionality not yet available...')
 
 
-def _can_user_manage_service_account(user_id, account_id):
-    """
-    Return whether or not the user has permission to update and/or delete the
-    given service account.
-
-    Args:
-        user_id (int): user's identifier
-        account_id (str): service account identifier
-
-    Returns:
-        bool: Whether or not the user has permission
-    """
-    service_account_email = _get_service_account_email(account_id)
-    service_account_project = (
-        _get_google_project_from_service_account_email(service_account_email)
-    )
-
-    # check if user is on project
-    return is_user_member_of_all_google_projects(
-        user_id, [service_account_project])
-
-
 def _get_service_account_error_status(
         service_account_email, google_project_id, project_access):
     """
     Get a dictionary describing any errors that will occur if attempting
-    to give service account specified permissions.
+    to give service account specified permissions fails.
+
+    Response will ONLY contain { "success": True } if no errors.
 
     Args:
         service_account_email (str): Google service account email
@@ -332,7 +314,7 @@ def _get_service_account_error_status(
             the service account for
 
     Returns:
-        dict: error information
+        dict: error information if unsuccessful, { "success": True } otherwise
 
         Example:
         {
@@ -372,26 +354,28 @@ def _get_service_account_error_status(
         }
     }
 
-    project_validity_info = (
-        get_google_project_validity_info(
-            google_project=google_project_id,
-            service_account=service_account_email,
-            new_service_account_access=project_access)
+    project_validity = (
+        GoogleProjectValidity(
+            google_project_id=google_project_id,
+            new_service_account=service_account_email,
+            new_service_account_access=project_access
+        )
     )
+    project_validity.check_validity(early_return=False)
 
     response['errors']['service_account_email'] = (
         _get_service_account_email_error_status(
-            project_validity_info.get('service_account'))
+            project_validity)
     )
 
     response['errors']['google_project_id'] = (
         _get_google_project_id_error_status(
-            project_validity_info.get('project'))
+            project_validity)
     )
 
     response['errors']['project_access'] = (
         _get_project_access_error_status(
-            project_validity_info.get('access'))
+            project_validity)
     )
 
     # all statuses must be 200 to be successful
@@ -402,14 +386,16 @@ def _get_service_account_error_status(
     ]
     if (response['errors']['service_account_email'].get('status') == 200
             and response['errors']['google_project_id'].get('status') == 200
-            and set(project_statuses) == set([200])):
+            and set(project_statuses) == {200}):
         response['success'] = True
+        del response['errors']
 
     return response
 
 
 def _get_service_account_email_error_status(validity_info):
     # TODO actually validate
+    validity_info = validity_info.get('service_accounts')
     response = {
         'status': 400,
         'error': None,
@@ -420,6 +406,8 @@ def _get_service_account_email_error_status(validity_info):
 
 def _get_google_project_id_error_status(validity_info):
     # TODO actually validate
+    # valid_parent_org = validity_info.get('valid_parent_org')
+    # valid_membership = validity_info.get('valid_membership')
     response = {
         'status': 400,
         'error': None,
@@ -429,6 +417,7 @@ def _get_google_project_id_error_status(validity_info):
 
 
 def _get_project_access_error_status(validity_info):
+    validity_info = validity_info.get('access')
     response = {}
     # TODO check if permissions are valid
     for project, info in validity_info:
@@ -448,17 +437,4 @@ def _get_project_access_error_status(validity_info):
 def _get_monitoring_account_email():
     # TODO get monitoring service account from CIRRUS_CFG. Will be the service
     #      accont email used for the fence service
-    return None
-
-
-# TODO this should be in cirrus rather than fence...
-def _get_service_account_email(account_id):
-    # first check if the account_id is an email, if not, hit google's api to
-    # get service account information and parse email
-    return None
-
-
-# TODO this should be in cirrus rather than fence...
-def _get_google_project_from_service_account_email(account_id):
-    # parse email to get project id_
-    return None
+    raise NotImplementedError('Functionality not yet available...')

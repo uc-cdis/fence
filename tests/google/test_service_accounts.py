@@ -53,8 +53,8 @@ NOTE: You can use the following helper assert functions when developing more
                   }
                 }
 """
-
 import json
+import pytest
 
 # Python 2 and 3 compatible
 try:
@@ -68,6 +68,7 @@ except ImportError:
 EXPECTED_ERROR_RESPONSE_KEYS = set(['status', 'error', 'error_description'])
 
 
+@pytest.mark.skip(reason="not implemented yet")
 def test_google_service_account_monitor(
         client, app, encoded_jwt_service_accounts_access):
     """
@@ -84,6 +85,7 @@ def test_google_service_account_monitor(
     assert response.json and 'service_account_email' in response.json
 
 
+@pytest.mark.skip(reason="not implemented yet")
 def test_invalid_service_account_dry_run_errors(
         client, app, encoded_jwt_service_accounts_access):
     """
@@ -108,6 +110,7 @@ def test_invalid_service_account_dry_run_errors(
     assert response.status_code != 200
 
 
+@pytest.mark.skip(reason="not implemented yet")
 def test_invalid_service_account_registration_errors(
         client, app, encoded_jwt_service_accounts_access):
     """
