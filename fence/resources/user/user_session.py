@@ -214,7 +214,7 @@ class UserSessionInterface(SessionInterface):
                     httponly=True, domain=domain)
             # check that the current user is the one from the session,
             # clear access token if not
-            elif user_sess_id != ''and user.id != user_sess_id:
+            elif user_sess_id != '' and user.id != user_sess_id:
                 response.set_cookie(
                     app.config['ACCESS_TOKEN_COOKIE_NAME'],
                     expires=0,
