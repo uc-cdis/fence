@@ -545,7 +545,7 @@ def delete_users(DB, usernames):
 
 def delete_expired_service_accounts(DB):
     """
-    Delete all expired service accountis
+    Delete all expired service accounts
     """
     from googleapiclient.errors import HttpError
     driver = SQLAlchemyDriver(DB)
@@ -563,8 +563,10 @@ def delete_expired_service_accounts(DB):
                     try:
                         manager.remove_member_from_group(record.service_account.email, record.access_group.email)
                         session.delete(record)
+                        print('Removed expired service account: {}'.format(record.service_account.email))
                     except HttpError as e:
                         print(e.message)
+
                 session.commit()
 
 

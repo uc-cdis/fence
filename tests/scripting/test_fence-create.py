@@ -319,10 +319,13 @@ def test_delete_expired_service_accounts(cloud_manager, app, db_session):
         GoogleBucketAccessGroup).all()
 
     current_time = int(time.time())
+
+    # setup 2 expired and 1 not expired accounts
     db_session.add(ServiceAccountToGoogleBucketAccessGroup(
         service_account_id=service_accounts[0].id, expires=current_time-1,
         access_group_id=google_bucket_access_grps[0].id)
         )
+
     db_session.add(ServiceAccountToGoogleBucketAccessGroup(
          service_account_id=service_accounts[0].id, expires=current_time+3600,
          access_group_id=google_bucket_access_grps[1].id)
@@ -368,6 +371,6 @@ def test_delete_not_expired_service_account(app, db_session):
     assert len(records) == 1
     delete_expired_service_accounts(app.config['DB'])
     db_session.commit()
-    record = db_session.query(ServiceAccountToGoogleBucketAccessGroup).first()
+    record = db_session.query(ServiceAccountToGoogleBucketAccessGroup).all()
 
-    assert record is not None
+    assert len(record) == 1
