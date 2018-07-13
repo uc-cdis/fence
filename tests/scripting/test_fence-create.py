@@ -274,7 +274,6 @@ def test_delete_expired_service_accounts_with_one_fail(cloud_manager, app, db_se
         import mock
         raise HttpError(mock.Mock(status=403), 'Permission denied')
 
-    cloud_manager.mocked_init.return_value = None
     cloud_manager.mocked_remove_member_from_group.side_effect = [side_effect_function, {}]
     setup_service_account_to_google_bucket_access_group(db_session)
     service_accounts = db_session.query(UserServiceAccount).all()
@@ -311,7 +310,6 @@ def test_delete_expired_service_accounts(cloud_manager, app, db_session):
     """
     Test deleting all expired service accounts
     """
-    cloud_manager.mocked_init.return_value = None
     cloud_manager.mocked_remove_member_from_group.return_value = {}
     setup_service_account_to_google_bucket_access_group(db_session)
     service_accounts = db_session.query(UserServiceAccount).all()
