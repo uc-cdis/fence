@@ -8,7 +8,7 @@ from fence.jwt import keys
 from fence.scripting.fence_create import (
     JWTCreator,
     create_client_action,
-    create_google_bucket,
+    create_or_update_google_bucket,
     create_sample_data,
     delete_client_action,
     delete_users,
@@ -130,8 +130,11 @@ def parse_arguments():
         help='Currently must be one of the following: "MULTI_REGIONAL", '
              '"REGIONAL", "NEARLINE", "COLDLINE", "STANDARD"')
     google_bucket_create.add_argument(
-        '--public', action='store_true', default=False,
-        help='whether or not the bucket should be open to the public')
+        '--public', default=None,
+        help='whether or not the bucket should be open to the public.'
+             'WARNING: not providing this field will leave the bucket IAM policy'
+             'untouched. to set or reset the policy use: '
+             '--public True or --public False')
     google_bucket_create.add_argument(
         '--requester-pays', action='store_true', default=False,
         help='Whether or not to enable requester_pays on the bucket')
@@ -255,7 +258,14 @@ def main():
     elif args.action == 'google-manage-account-access':
         remove_expired_google_accounts_from_proxy_groups(DB)
     elif args.action == 'google-bucket-create':
-        create_google_bucket(
+        # true if true provided, false if anything else provided, leave as
+        # None if not provided at all (policy will remain unchanged)
+        if args.public and args.public.lower().strip() == 'true':
+            args.public = True
+        elif args.public is not None:
+            args.public = False
+
+        create_or_update_google_bucket(
             DB, args.unique_name,
             storage_class=args.storage_class,
             public=args.public,

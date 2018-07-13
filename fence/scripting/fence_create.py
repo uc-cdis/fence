@@ -747,8 +747,8 @@ def link_bucket_to_project(db, bucket_id, bucket_provider, project_auth_id):
         current_session.commit()
 
 
-def create_google_bucket(
-        db, name, storage_class=None, public=False, requester_pays=False,
+def create_or_update_google_bucket(
+        db, name, storage_class=None, public=None, requester_pays=False,
         google_project_id=None, project_auth_id=None, access_logs_bucket=None,
         allowed_privileges=None):
     """
@@ -767,7 +767,8 @@ def create_google_bucket(
         db (TYPE): database
         name (str): name for the bucket, must be globally unique throughout Google
         storage_class (str): enum, one of the cirrus's GOOGLE_STORAGE_CLASSES
-        public (bool, optional): whether or not the bucket should be public
+        public (bool or None, optional): whether or not the bucket should be public.
+            None means leave IAM on the bucket unchanged.
         requester_pays (bool, optional): Whether or not to enable requester_pays
             on the bucket
         google_project_id (str, optional): Google project this bucket should be
@@ -806,7 +807,7 @@ def create_google_bucket(
         # use storage creds to create bucket
         # (default creds don't have permission)
         bucket_db_entry = (
-            _create_google_bucket_and_update_db(
+            _create_or_update_google_bucket_and_db(
                 db_session=current_session,
                 name=name,
                 storage_class=storage_class,
@@ -817,7 +818,7 @@ def create_google_bucket(
                 access_logs_bucket=access_logs_bucket)
         )
 
-        if not public:
+        if public is not None and not public:
             for privilege in allowed_privileges:
                 _create_google_bucket_access_group(
                     db_session=current_session,
@@ -828,7 +829,7 @@ def create_google_bucket(
                     privileges=[privilege])
 
 
-def _create_google_bucket_and_update_db(
+def _create_or_update_google_bucket_and_db(
         db_session, name, storage_class, public, requester_pays,
         storage_creds_project_id, project_auth_id, access_logs_bucket):
     """
