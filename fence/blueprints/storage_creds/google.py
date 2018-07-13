@@ -1,15 +1,20 @@
 import flask
+import time
 from flask_restful import Resource
+from flask_sqlalchemy_session import current_session
 
 from cirrus import GoogleCloudManager
 from cirrus.config import config as cirrus_config
 
 from fence.auth import require_auth_header
 from fence.auth import current_token
-from fence.resources.google.utils import get_service_account
-from fence.resources.google.utils import create_google_access_key
+from fence.models import GoogleServiceAccountKey
 from fence.resources.google.utils import (
-    add_custom_service_account_key_expiration
+    add_custom_service_account_key_expiration,
+    create_google_access_key,
+    get_service_account,
+    get_or_create_service_account,
+    get_or_create_proxy_group_id
 )
 
 
@@ -50,18 +55,25 @@ class GoogleCredentialsList(Resource):
             }
 
         """
-        client_id = current_token.get("azp") or None
-        user_id = current_token["sub"]
+        client_id = current_token.get('azp') or None
+        user_id = current_token['sub']
+        username = (
+            current_token
+            .get('context', {})
+            .get('user', {})
+            .get('name')
+        )
 
         with GoogleCloudManager() as g_cloud_manager:
-            service_account = get_service_account(client_id, user_id)
+            proxy_group_id = get_or_create_proxy_group_id()
+            service_account = (
+                get_or_create_service_account(
+                    client_id=client_id, user_id=user_id,
+                    username=username, proxy_group_id=proxy_group_id))
 
-            if service_account:
-                keys = g_cloud_manager.get_service_account_keys_info(
-                    service_account.google_unique_id)
-                result = {'access_keys': keys}
-            else:
-                result = {'access_keys': []}
+            keys = g_cloud_manager.get_service_account_keys_info(
+                service_account.google_unique_id)
+            result = {'access_keys': keys}
 
         return flask.jsonify(result)
 
@@ -97,12 +109,7 @@ class GoogleCredentialsList(Resource):
         """
         user_id = current_token["sub"]
         client_id = current_token.get("azp") or None
-        proxy_group_id = (
-            current_token.get('context', {})
-            .get('user', {})
-            .get('google', {})
-            .get('proxy_group')
-        )
+        proxy_group_id = get_or_create_proxy_group_id()
         username = (
             current_token.get('context', {})
             .get('user', {})
@@ -132,12 +139,13 @@ class GoogleCredentialsList(Resource):
         different mechanism than the Client SAs was required.
         """
         # x days * 24 hr/day * 60 min/hr * 60 s/min = y seconds
-        expires_in_seconds = (
+        expires_in = (
             cirrus_config.SERVICE_KEY_EXPIRATION_IN_DAYS * 24 * 60 * 60
         )
+        expiration_time = int(time.time()) + int(expires_in)
         key_id = key.get('private_key_id')
         add_custom_service_account_key_expiration(
-            key_id, service_account.id, expires=expires_in_seconds)
+            key_id, service_account.id, expires=expiration_time)
 
 
 class GoogleCredentials(Resource):
@@ -155,7 +163,6 @@ class GoogleCredentials(Resource):
         :statuscode 404 Access key doesn't exist
         """
         user_id = current_token["sub"]
-
         with GoogleCloudManager() as g_cloud:
             client_id = current_token.get("azp") or None
             service_account = get_service_account(client_id, user_id)
@@ -174,6 +181,14 @@ class GoogleCredentials(Resource):
                 if access_key in all_client_keys:
                     g_cloud.delete_service_account_key(
                         service_account.google_unique_id, access_key)
+
+                    db_entry = (
+                        current_session.query(GoogleServiceAccountKey)
+                        .filter_by(key_id=access_key).first()
+                    )
+                    if db_entry:
+                        current_session.delete(db_entry)
+                        current_session.commit()
                 else:
                     flask.abort(
                         404, 'Could not delete key ' + access_key +

@@ -1,7 +1,7 @@
 from boto3 import client
 from boto3.exceptions import Boto3Error
 from fence.errors import UserError, InternalError, UnavailableError
-
+import uuid
 
 class BotoManager(object):
     def __init__(self, config, logger):
@@ -11,11 +11,20 @@ class BotoManager(object):
         self.ec2 = None
         self.iam = None
 
-    def assume_role(self, external_id, role_arn, duration_seconds,
-                    role_session_name='bionimbus'):
-        return self.sts_client.assume_role(
-            RoleArn=role_arn, ExternalId=external_id, DurationSeconds=duration_seconds,
-            RoleSessionName=role_session_name)
+    def assume_role(self, role_arn, duration_seconds, config=None):
+        try:
+            if config and config.has_key('aws_access_key_id'):
+                self.sts_client = client('sts', **config)
+            session_name_postfix = uuid.uuid4()
+            return self.sts_client.assume_role(
+                RoleArn=role_arn, DurationSeconds=duration_seconds,
+                RoleSessionName='{}-{}'.format("gen3", session_name_postfix))
+        except Boto3Error as ex:
+            self.logger.exception(ex)
+            raise InternalError("Fail to assume role: {}".format(ex.message))
+        except Exception as ex:
+            self.logger.exception(ex)
+            raise UnavailableError("Fail to reach AWS: {}".format(ex.message))
 
     def presigned_url(self, bucket, key, expires, config, method='get_object'):
         if config.has_key('aws_access_key_id'):

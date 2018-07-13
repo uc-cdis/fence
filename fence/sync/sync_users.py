@@ -472,10 +472,10 @@ class UserSyncer(object):
                  .filter(AccessPrivilege.project.has(auth_id=project_auth_id))
                  .all())
             for access in q:
-                self.logger.info(
-                    "update {} access to {} in db"
-                    .format(username, project_auth_id))
                 access.privilege = user_project[username][project_auth_id]
+                self.logger.info(
+                    "update {} with {} access to {} in db"
+                    .format(username, access.privilege, project_auth_id))
 
         sess.commit()
 
@@ -492,7 +492,6 @@ class UserSyncer(object):
             None
         """
         for (username, project_auth_id) in to_add:
-            self.logger.info('update user info {}'.format(username))
             u = sess.query(User).filter(func.lower(User.username) == username.lower()).first()
             auth_provider = auth_provider_list[0]
             if 'dbgap_role' not in user_info[username]['tags']:
@@ -504,6 +503,9 @@ class UserSyncer(object):
                 privilege=list(
                     user_project[username][project_auth_id]),
                 auth_provider=auth_provider)
+            self.logger.info(
+                'grant user {} to {} with access'
+                .format(username, user_access.project, user_access.privilege))
             sess.add(user_access)
 
         sess.commit()
@@ -704,16 +706,3 @@ class UserSyncer(object):
             self.logger.info('Finish syncing to db and storage backend')
         else:
             self.logger.info('No users for syncing!!!')
-
-
-if __name__ == '__main__':
-    DB = 'postgresql://test:test@localhost:5432/fence_test'
-    driver = SQLAlchemyDriver(DB)
-    with driver.session as sess:
-        user = sess.query(User).filter(User.id == 17).first()
-        import pdb
-        pdb.set_trace()
-        dir(user)
-        print(user)
-        tags = user.tags
-        print(type(tags))

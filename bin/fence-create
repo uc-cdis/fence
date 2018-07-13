@@ -13,7 +13,9 @@ from fence.scripting.fence_create import (
     delete_client_action,
     delete_users,
     google_init,
+    list_client_action,
     link_bucket_to_project,
+    modify_client_action,
     remove_expired_google_accounts_from_proxy_groups,
     remove_expired_google_service_account_keys,
     sync_users,
@@ -60,6 +62,29 @@ def parse_arguments():
         help='whether oidc process skips user consent step',
         action="store_true", default=False
     )
+
+    client_modify = subparsers.add_parser('client-modify')
+    client_modify.add_argument('--client', required=True)
+    client_modify.add_argument('--urls', required=False)
+    client_modify.add_argument('--name', required=False)
+    client_modify.add_argument('--description', required=False)
+    client_modify.add_argument(
+        '--set-auto-approve',
+        help='set the oidc process to skip user consent step',
+        action="store_true", default=False
+    )
+    client_modify.add_argument(
+        '--unset-auto-approve',
+        help='set the oidc process to not skip user consent step',
+        action="store_true", default=False
+    )
+    client_modify.add_argument(
+        '--delete-urls',
+        help='delete all urls',
+        action="store_true", default=False
+    )
+
+    client_list = subparsers.add_parser('client-list')
 
     client_delete = subparsers.add_parser('client-delete')
     client_delete.add_argument('--client', required=True)
@@ -174,7 +199,6 @@ def main():
     # get database information
     sys.path.append(args.path)
 
-
     if os.environ.get('FENCE_DB'):
         DB = os.environ['FENCE_DB']
     else:
@@ -208,8 +232,16 @@ def main():
             DB, username=args.username, client=args.client,
             urls=args.urls, auto_approve=args.auto_approve
         )
+    elif args.action == 'client-modify':
+        modify_client_action(
+            DB, client=args.client, delete_urls=args.delete_urls,
+            urls=args.urls, name=args.name, description=args.description,
+            set_auto_approve=args.set_auto_approve, unset_auto_approve=args.unset_auto_approve
+        )
     elif args.action == 'client-delete':
         delete_client_action(DB, args.client)
+    elif args.action == 'client-list':
+        list_client_action(DB)
     elif args.action == 'user-delete':
         delete_users(DB, args.users)
     elif args.action == 'sync':
