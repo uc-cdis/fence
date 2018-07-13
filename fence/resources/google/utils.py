@@ -497,3 +497,38 @@ def get_prefix_for_google_proxy_groups():
             'This namespaces the Google groups for security and safety.'
         )
     return prefix
+
+
+def get_registered_service_accounts(google_project):
+    # TODO return a list of UserServiceAccount db objects for project
+    raise NotImplementedError('Functionality not yet available...')
+
+
+def get_project_access_from_service_accounts(service_accounts):
+    # get a list of projects all the provided service accounts have
+    # access to. list will be of UserServiceAccount db objects
+    # TODO
+    raise NotImplementedError('Functionality not yet available...')
+
+
+def get_service_account_ids_from_google_project(google_project):
+    # TODO
+    raise NotImplementedError('Functionality not yet available...')
+
+
+def get_user_ids_from_google_members(members):
+    """
+     get all user ids from google members
+     Args:
+        members(list): list of google email
+     Returns:
+        list of user ids
+    """
+    result = []
+    for member in members:
+        google_account = current_session.query(UserGoogleAccount).filter(
+            UserGoogleAccount.email == member).first()
+        if google_account:
+            result.append(google_account.user_id)
+
+    return result

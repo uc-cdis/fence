@@ -787,21 +787,23 @@ paths:
         wrong.
       operationId: registerGoogleServiceAccount
       responses:
-        '201':
-          description: >-
-            success, registered service account. Item location specified in
-            Location of the response.
+        '200':
+          description: 'success, registered service account.'
           content:
             '*/*':
               schema:
                 $ref: '#/components/schemas/GoogleServiceAccount'
         '400':
           description: 'failure, trying to register service account resulted in errors'
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/GoogleServiceAccountErrors'
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/NewGoogleServiceAccount'
+              $ref: '#/components/schemas/GoogleServiceAccount'
         description: ServiceAccount object to register
         required: true
   /google/service_accounts/_dry_run (PLANNING):
@@ -816,13 +818,21 @@ paths:
       responses:
         '200':
           description: 'success, registering service account is possible'
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/GoogleServiceAccountErrors'
         '400':
           description: 'failure, registering service account would result in errors'
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/GoogleServiceAccountErrors'
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/NewGoogleServiceAccount'
+              $ref: '#/components/schemas/GoogleServiceAccount'
         description: ServiceAccount object to register
   /google/service_accounts/monitor (PLANNING):
     get:
@@ -879,7 +889,7 @@ paths:
       tags:
         - google
       summary: Delete a specific Google Service Account
-      description: Delete a service account
+      description: Delete a service account and remove from access
       operationId: deleteSpecficGoogleServiceAccount
       parameters:
         - in: path
@@ -921,6 +931,12 @@ paths:
           description: 'success, updated service account access'
         '400':
           description: 'failure, trying to update service account access resulted in errors'
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/GoogleServiceAccountErrors'
+        '403':
+          description: 'forbidden, user cannot modify this service account or provided fields cannot be altered'
       requestBody:
         content:
           application/json:
@@ -983,9 +999,6 @@ components:
         - google_project_id
         - project_access
       properties:
-        id:
-          type: integer
-          description: unique identifier
         service_account_email:
           type: string
           description: Service account's email
@@ -999,6 +1012,30 @@ components:
           description: >-
             List of projects/datasets for which service account should be
             registered for
+    GoogleServiceAccountInfo:
+      type: object
+      required:
+        - service_account_email
+        - google_project_id
+        - project_access
+        - project_access_exp
+      properties:
+        service_account_email:
+          type: string
+          description: Service account's email
+        google_project_id:
+          type: string
+          description: Google Cloud Project ID of service account
+        project_access:
+          type: array
+          items:
+            type: string
+          description: >-
+            List of projects/datasets for which service account should be
+            registered for
+        project_access_exp:
+          type: integer
+          description: Project/dataset access expiration in unix time
     AdminGoogleServiceAccount:
       type: object
       required:
@@ -1007,27 +1044,6 @@ components:
         service_account_email:
           type: string
           description: Service account's email
-    NewGoogleServiceAccount:
-      type: object
-      required:
-        - id
-        - service_account_email
-        - google_project_id
-        - project_access
-      properties:
-        service_account_email:
-          type: string
-          description: Service account's email
-        google_project_id:
-          type: string
-          description: Google Cloud Project ID of service account
-        project_access:
-          type: array
-          items:
-            type: string
-          description: >-
-            List of projects/datasets for which service account should be
-            registered for
     GoogleServiceAccounts:
       type: object
       properties:
@@ -1035,7 +1051,78 @@ components:
           type: array
           description: List of GoogleServiceAccounts
           items:
-            $ref: '#/components/schemas/GoogleServiceAccount'
+              $ref: '#/components/schemas/GoogleServiceAccountInfo'
+    GoogleServiceAccountErrors:
+      type: object
+      required:
+        - success
+        - errors
+      properties:
+        success:
+          type: boolean
+          description: whether or not register/update was successful
+        errors:
+          type: object
+          properties:
+            service_account_email:
+              type: object
+              properties:
+                'status':
+                  type: integer
+                  description: HTTP Status code representing the validity/success for this field
+                'error':
+                  type: string
+                  description: Specific error name
+                'error_description':
+                  type: string
+                  description: More details about the error
+            google_project_id:
+              type: object
+              properties:
+                'status':
+                  type: integer
+                  description: HTTP Status code representing the validity/success for this field
+                'error':
+                  type: string
+                  description: Specific error name
+                'error_description':
+                  type: string
+                  description: More details about the error
+            project_access:
+              type: object
+              properties:
+                project_name:
+                  type: object
+                  properties:
+                    'status':
+                      type: integer
+                      description: HTTP Status code representing the validity/success for this field
+                    'error':
+                      type: string
+                      description: Specific error name
+                    'error_description':
+                      type: string
+                      description: More details about the error
+      example:
+        success: false
+        errors:
+          service_account_email:
+            'status': 200
+            'error': null
+            'error_description': ''
+          google_project_id:
+            'status': 200
+            'error': null
+            'error_description': ''
+          project_access:
+            ProjectA:
+              'status': 200
+              'error': null
+              'error_description': ''
+            ProjectB:
+              'status': 403
+              'error': 'Unauthorized'
+              'error_description': 'Not all users have access requested'
     GoogleServiceAccountProjectAccess:
       type: object
       required:
