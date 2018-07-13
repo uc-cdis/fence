@@ -4,6 +4,7 @@ registration.
 """
 from flask_sqlalchemy_session import current_session
 from fence.models import AccessPrivilege
+from cirrus.google_cloud.iam import GooglePolicyMember
 
 
 def can_user_manage_service_account(user_id, account_id):
@@ -33,7 +34,12 @@ def google_project_has_parent_org(google_project):
 
 
 def google_project_has_valid_membership(google_project):
-    raise NotImplementedError('Functionality not yet available...')
+    for member in google_project.get_project_membership():
+        if (member.type != GooglePolicyMember.SERVICE_ACCOUNT and
+                member.type != GooglePolicyMember.USER):
+            return False
+
+    return True
 
 
 def is_valid_service_account_type(service_account):
