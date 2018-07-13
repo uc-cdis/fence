@@ -245,7 +245,7 @@ def main():
         list_client_action(DB)
     elif args.action == 'user-delete':
         delete_users(DB, args.users)
-    elif args.action == 'account-delete':
+    elif args.action == 'expired-service-account-delete':
         delete_expired_service_accounts(DB)
     elif args.action == 'sync':
         sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
