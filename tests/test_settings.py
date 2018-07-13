@@ -11,7 +11,7 @@ except ImportError:
     logger.warn('no module fence.local_settings')
 
 # WARNING: the test database is cleared every run
-DB = 'postgresql://postgres@localhost:5432/fence_test_tmp'
+DB = 'postgresql://postgres:bjr_psql_7437@localhost:5432/fence_test_tmp'
 
 MOCK_AUTH = True
 
