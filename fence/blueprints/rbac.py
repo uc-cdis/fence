@@ -14,7 +14,7 @@ from fence.errors import NotFound, UserError
 from fence.models import Policy, User
 
 
-blueprint = flask.Blueprint('role', __name__)
+blueprint = flask.Blueprint('rbac', __name__)
 
 
 def _get_user(user_id):
@@ -94,6 +94,10 @@ def _validate_policy_ids(policy_ids):
     return policy_ids
 
 
+def _list_all_policies(session):
+    return session.query(Policy).all()
+
+
 @blueprint.route('/policy/', methods=['GET'])
 @admin_login_required
 def list_policies():
@@ -109,7 +113,9 @@ def list_policies():
             ]
         }
     """
-    return flask.jsonify(flask.current_app.arborist.list_policies())
+    with flask.current_app.db.session as session:
+        policies = _list_all_policies(session)
+    return flask.jsonify({'policies': policies})
 
 
 @blueprint.route('/user/<user_id>/policies/', methods=['GET'])
@@ -122,7 +128,7 @@ def list_user_policies(user_id):
     only containing policies this user has access to.
     """
     user = _get_user(user_id)
-    policy_ids = [policy.ID for policy in user.policies]
+    policy_ids = [policy.id for policy in user.policies]
     return flask.jsonify({'policies': policy_ids})
 
 

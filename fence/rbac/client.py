@@ -25,7 +25,7 @@ def _request_get_json(response):
 
 class ArboristClient(object):
     """
-    A class for interfacing with the RBAC engine, "arborist".
+    A singleton class for interfacing with the RBAC engine, "arborist".
     """
 
     def __init__(self, arborist_base_url='http://arborist-service/'):
