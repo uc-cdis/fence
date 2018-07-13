@@ -105,6 +105,30 @@ That command should output a tuple of `(client_id, client_secret)` which must be
 saved so that `gdcapi` (for example) can be run as an OAuth client to use with
 `fence`.
 
+#### Modify OAuth Client
+
+Using gdcapi for example:
+```bash
+fence-create client-modify --client gdcapi --urls http://localhost/api/v0/oauth2/authorize
+```
+That command should output any modifications to the client.
+
+#### Delete OAuth Client
+
+Using gdcapi for example:
+```bash
+fence-create client-delete --client gdcapi
+```
+That command should output the result of the deletion attempt.
+
+#### List OAuth Clients
+
+```bash
+fence-create client-list
+```
+That command should output the full records for any registered OAuth clients.
+
+
 ## Authentication and Authorization
 
 We use JSON Web Tokens (JWTs) as the format for our authentication mechanism.

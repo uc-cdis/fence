@@ -332,6 +332,40 @@ def authorized_download_context_claims(user_name, user_id):
     }
 
 
+def authorized_service_account_management_claims(
+        user_name, user_id, client_id):
+    """
+    Return a generic claims dictionary to put in a JWT
+
+    Return:
+        dict: dictionary of claims
+    """
+    # TODO add new scope for /google/service_accounts endpoints
+    aud = ['access', 'data', 'user', 'openid']
+    iss = current_app.config['BASE_URL']
+    jti = new_jti()
+    iat, exp = iat_and_exp()
+    return {
+        'aud': aud,
+        'sub': user_id,
+        'iss': iss,
+        'iat': iat,
+        'exp': exp,
+        'jti': jti,
+        'azp': client_id,
+        'pur': 'access',
+        'context': {
+            'user': {
+                'name': user_name,
+                'projects': {
+                    "phs000178": ["read"],
+                    "phs000218": ["read", "read-storage"],
+                }
+            },
+        },
+    }
+
+
 def authorized_download_credentials_context_claims(
         user_name, user_id, client_id, google_proxy_group_id=None):
     """
