@@ -4,8 +4,10 @@ try:
     from unittest.mock import patch
 except ImportError:
     from mock import patch
-
+from mock import MagicMock
 import pytest
+
+import cirrus
 
 from fence.jwt.validate import validate_jwt
 from fence.models import (
@@ -235,66 +237,126 @@ def test_create_refresh_token_with_found_user(
     assert db_token is not None
 
 
-def setup_service_account_to_oogle_bucket_access_group(db_session):
+def setup_service_account_to_google_bucket_access_group(db_session):
+    """
+    Setup some testing data.
+    """
     cloud_provider = CloudProvider(name='test_provider', endpoint='https://test.com',
-                                   backend='test_backend', description='description', service='service')
+                        backend='test_backend', description='description', service='service')
     db_session.add(cloud_provider)
 
-    user1 = UserServiceAccount(google_unique_id='test_id1',
-                               email='test1@gmail.com', google_project_id='efewf444')
-    user2 = UserServiceAccount(google_unique_id='test_id2',
-                               email='test2@gmail.com', google_project_id='edfwf444')
-    db_session.add(user1)
-    db_session.add(user2)
+    db_session.add(UserServiceAccount(google_unique_id='test_id1',
+                        email='test1@gmail.com', google_project_id='efewf444'))
+    db_session.add(UserServiceAccount(google_unique_id='test_id2',
+                        email='test2@gmail.com', google_project_id='edfwf444'))
     db_session.commit()
 
     bucket1 = Bucket(name='test_bucket1', provider_id=cloud_provider.id)
     db_session.add(bucket1)
     db_session.commit()
 
-    google_bucket_access_grp1 = GoogleBucketAccessGroup(
+    db_session.add(GoogleBucketAccessGroup(
         bucket_id=bucket1.id, email='testgroup1@gmail.com',
-        privileges=['read_storage', 'write_storage'])
-    db_session.add(google_bucket_access_grp1)
+        privileges=['read_storage', 'write_storage']))
+    db_session.add(GoogleBucketAccessGroup(
+        bucket_id=bucket1.id, email='testgroup2@gmail.com',
+        privileges=['read_storage']))
     db_session.commit()
 
 
-def test_delete_expired_service_account(app, db_session):
-    setup_service_account_to_oogle_bucket_access_group(db_session)
+def test_delete_expired_service_accounts_with_one_fail(cloud_manager, app, db_session):
+    """
+    Test the case that there is a failure to remove service account from google group
+    """
+    from googleapiclient.errors import HttpError
 
-    user = db_session.query(UserServiceAccount).first()
-    google_bucket_access_grp1 = db_session.query(
-        GoogleBucketAccessGroup).first()
+    def side_effect_function(param1, param2):
+        import mock
+        raise HttpError(mock.Mock(status=403), 'Permission denied')
+
+    cloud_manager.mocked_init.return_value = None
+    cloud_manager.mocked_remove_member_from_group.side_effect = [side_effect_function, {}]
+    setup_service_account_to_google_bucket_access_group(db_session)
+    service_accounts = db_session.query(UserServiceAccount).all()
+    google_bucket_access_grps = db_session.query(
+        GoogleBucketAccessGroup).all()
 
     current_time = int(time.time())
-    deleting_account = ServiceAccountToGoogleBucketAccessGroup(
-        service_account_id=user.id, expires=current_time-7*24*3600-1,
-        access_group_id=google_bucket_access_grp1.id)
-    db_session.add(deleting_account)
+    db_session.add(ServiceAccountToGoogleBucketAccessGroup(
+        service_account_id=service_accounts[0].id, expires=current_time-1,
+        access_group_id=google_bucket_access_grps[0].id))
+
+    db_session.add(ServiceAccountToGoogleBucketAccessGroup(
+        service_account_id=service_accounts[1].id, expires=current_time+300,
+        access_group_id=google_bucket_access_grps[1].id))
     db_session.commit()
+
+    records = (
+        db_session
+        .query(ServiceAccountToGoogleBucketAccessGroup)
+        .all()
+    )
+    assert len(records) == 2
+
+    delete_expired_service_accounts(app.config['DB'])
     records = (
         db_session
         .query(ServiceAccountToGoogleBucketAccessGroup)
         .all()
     )
     assert len(records) == 1
-    delete_expired_service_accounts(app.config['DB'])
+
+
+def test_delete_expired_service_accounts(cloud_manager, app, db_session):
+    """
+    Test deleting all expired service accounts
+    """
+    cloud_manager.mocked_init.return_value = None
+    cloud_manager.mocked_remove_member_from_group.return_value = {}
+    setup_service_account_to_google_bucket_access_group(db_session)
+    service_accounts = db_session.query(UserServiceAccount).all()
+    google_bucket_access_grps = db_session.query(
+        GoogleBucketAccessGroup).all()
+
+    current_time = int(time.time())
+    db_session.add(ServiceAccountToGoogleBucketAccessGroup(
+        service_account_id=service_accounts[0].id, expires=current_time-1,
+        access_group_id=google_bucket_access_grps[0].id)
+        )
+    db_session.add(ServiceAccountToGoogleBucketAccessGroup(
+         service_account_id=service_accounts[0].id, expires=current_time+3600,
+         access_group_id=google_bucket_access_grps[1].id)
+        )
+
+    db_session.add(ServiceAccountToGoogleBucketAccessGroup(
+         service_account_id=service_accounts[1].id, expires=current_time-3600,
+         access_group_id=google_bucket_access_grps[1].id)
+         )
     db_session.commit()
-    record = db_session.query(ServiceAccountToGoogleBucketAccessGroup).first()
+    records = (
+        db_session
+        .query(ServiceAccountToGoogleBucketAccessGroup)
+        .all()
+    )
+    assert len(records) == 3
+    delete_expired_service_accounts(app.config['DB'])
+    records = db_session.query(ServiceAccountToGoogleBucketAccessGroup).all()
+    assert len(records) == 1
 
-    assert record is None
 
+def test_delete_not_expired_service_account(app, db_session):
+    """
+    Test the case that there is no expired service account
+    """
+    setup_service_account_to_google_bucket_access_group(db_session)
 
-def test_delete_expired_service_account_no_7days_exprired_yet(app, db_session):
-    setup_service_account_to_oogle_bucket_access_group(db_session)
-
-    user = db_session.query(UserServiceAccount).first()
+    service_account = db_session.query(UserServiceAccount).first()
     google_bucket_access_grp1 = db_session.query(
         GoogleBucketAccessGroup).first()
 
     current_time = int(time.time())
     deleting_account = ServiceAccountToGoogleBucketAccessGroup(
-        service_account_id=user.id, expires=current_time-6*24*3600,
+        service_account_id=service_account.id, expires=current_time+3600,
         access_group_id=google_bucket_access_grp1.id)
     db_session.add(deleting_account)
     db_session.commit()

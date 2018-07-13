@@ -519,18 +519,28 @@ def delete_users(DB, usernames):
 
 
 def delete_expired_service_accounts(DB):
+    """
+    Delete all expired service accountis
+    """
+    from googleapiclient.errors import HttpError
     driver = SQLAlchemyDriver(DB)
     with driver.session as session:
         current_time = int(time.time())
         records_to_delete = (
             session
             .query(ServiceAccountToGoogleBucketAccessGroup)
-            .filter(ServiceAccountToGoogleBucketAccessGroup.expires + 7*60*60*24 < current_time)
+            .filter(ServiceAccountToGoogleBucketAccessGroup.expires < current_time)
             .all()
         )
-        for record in records_to_delete:
-            session.delete(record)
-        session.commit()
+        if len(records_to_delete):
+            with GoogleCloudManager() as manager:
+                for record in records_to_delete:
+                    try:
+                        manager.remove_member_from_group(record.service_account.email, record.access_group.email)
+                        session.delete(record)
+                    except HttpError as e:
+                        print(e.message)
+                session.commit()
 
 
 class JWTCreator(object):
