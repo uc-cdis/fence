@@ -1,8 +1,11 @@
 from cirrus import GoogleCloudManager
-
+from cirrus.google_cloud import (
+    COMPUTE_ENGINE_DEFAULT,
+    USER_MANAGED
+)
 ALLOWED_SERVICE_ACCOUNT_TYPES = [
-    "COMPUTE_ENGINE_DEFAULT",
-    "USER_MANAGED",
+    COMPUTE_ENGINE_DEFAULT,
+    USER_MANAGED,
 ]
 
 
