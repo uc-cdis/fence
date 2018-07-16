@@ -17,87 +17,6 @@ from fence.models import Policy, User
 blueprint = flask.Blueprint('rbac', __name__)
 
 
-def _get_user_policy_ids(user_id):
-    """
-    Args:
-        user_id (str): the id for a user
-
-    Return:
-        List[str]: list of policies granted to the user
-    """
-    with flask.current_app.db.session as session:
-        user = session.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise NotFound('no user exists with ID: {}'.format(user_id))
-        return [policy.id for policy in user.policies]
-
-
-def lookup_policies(policy_ids):
-    """
-    Look up the list of policies from the database.
-
-    Requires flask application context.
-
-    Args:
-        policy_ids (List[str]): list of IDs for the policies to return
-
-    Return:
-        List[fence.model.Policy]: list of policy models
-
-    Raises:
-        - ValueError: if any of the policy IDs do not correspond to an existing
-          policy
-    """
-    policies = []
-    with flask.current_app.db.session as session:
-        for policy_id in policy_ids:
-            policy = session.query(Policy).filter_by(id=policy_id).first()
-            if not policy:
-                raise ValueError(
-                    'policy not registered in fence: {}'
-                    .format(policy_id)
-                )
-            policies.append(policy)
-    return policies
-
-
-def _validate_policy_ids(policy_ids):
-    """
-    Check some user-inputted policy IDs which should correspond to roles in
-    arborist.
-
-    Check:
-        - Policies argument is there
-        - All the listed policies are valid
-            - Contain correct fields
-            - Actually exist in arborist
-
-    Args:
-        policy_ids (List[str]): list of policy IDs
-
-    Return:
-        List[str]: the same policy_ids, if they validated
-
-    Raises:
-        UserError: if the policy ID list fails to validate
-    """
-    if not policy_ids:
-        raise UserError('JSON missing required value `policies`')
-    missing_policies = flask.current_app.arborist.policies_not_exist(
-        policy_ids
-    )
-    if any(missing_policies):
-        raise UserError(
-            'policies with these IDs do not exist in arborist: {}'
-            .format(missing_policies)
-        )
-    return policy_ids
-
-
-def _list_all_policies(session):
-    return session.query(Policy).all()
-
-
 @blueprint.route('/policy/', methods=['GET'])
 @login_required({'admin'})
 def list_policies():
@@ -179,3 +98,84 @@ def revoke_user_policies(user_id):
         user.policies = []
         session.commit()
     return '', 204
+
+
+def lookup_policies(policy_ids):
+    """
+    Look up the list of policies from the database.
+
+    Requires flask application context.
+
+    Args:
+        policy_ids (List[str]): list of IDs for the policies to return
+
+    Return:
+        List[fence.model.Policy]: list of policy models
+
+    Raises:
+        - ValueError: if any of the policy IDs do not correspond to an existing
+          policy
+    """
+    policies = []
+    with flask.current_app.db.session as session:
+        for policy_id in policy_ids:
+            policy = session.query(Policy).filter_by(id=policy_id).first()
+            if not policy:
+                raise ValueError(
+                    'policy not registered in fence: {}'
+                    .format(policy_id)
+                )
+            policies.append(policy)
+    return policies
+
+
+def _list_all_policies(session):
+    return session.query(Policy).all()
+
+
+def _get_user_policy_ids(user_id):
+    """
+    Args:
+        user_id (str): the id for a user
+
+    Return:
+        List[str]: list of policies granted to the user
+    """
+    with flask.current_app.db.session as session:
+        user = session.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise NotFound('no user exists with ID: {}'.format(user_id))
+        return [policy.id for policy in user.policies]
+
+
+def _validate_policy_ids(policy_ids):
+    """
+    Check some user-inputted policy IDs which should correspond to roles in
+    arborist.
+
+    Check:
+        - Policies argument is there
+        - All the listed policies are valid
+            - Contain correct fields
+            - Actually exist in arborist
+
+    Args:
+        policy_ids (List[str]): list of policy IDs
+
+    Return:
+        List[str]: the same policy_ids, if they validated
+
+    Raises:
+        UserError: if the policy ID list fails to validate
+    """
+    if not policy_ids:
+        raise UserError('JSON missing required value `policies`')
+    missing_policies = flask.current_app.arborist.policies_not_exist(
+        policy_ids
+    )
+    if any(missing_policies):
+        raise UserError(
+            'policies with these IDs do not exist in arborist: {}'
+            .format(missing_policies)
+        )
+    return policy_ids
