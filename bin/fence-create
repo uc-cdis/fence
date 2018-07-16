@@ -167,7 +167,8 @@ def parse_arguments():
              '"REGIONAL", "NEARLINE", "COLDLINE", "STANDARD"')
     google_logging_bucket_create.add_argument(
         '--google-project-id', default=None,
-        help='Google project this bucket should be associated with')
+        help='Google project this bucket should be associated with. '
+        'If not given, will attempt to determine from provided credentials.')
 
     manage_google_keys = subparsers.add_parser('google-manage-keys')
     init_google = subparsers.add_parser('google-init')

@@ -827,11 +827,13 @@ def create_google_logging_bucket(
     import fence.settings
     cirrus_config.update(**fence.settings.CIRRUS_CFG)
 
-    google_project_id = google_project_id or cirrus_config.GOOGLE_PROJECT_ID
-
-    # determine project where buckets are located
-    # default to same project, try to get storage creds project from key file
-    storage_creds_project_id = _get_storage_project_id() or google_project_id
+    # determine project where buckets are located if not provided, default
+    # to configured project if checking creds doesn't work
+    storage_creds_project_id = (
+        google_project_id
+        or _get_storage_project_id()
+        or cirrus_config.GOOGLE_PROJECT_ID
+    )
 
     manager = GoogleCloudManager(
         storage_creds_project_id,
