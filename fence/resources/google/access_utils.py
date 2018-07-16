@@ -35,8 +35,8 @@ def google_project_has_parent_org(google_project):
 
 def google_project_has_valid_membership(google_project):
     for member in google_project.get_project_membership():
-        if (member.type != GooglePolicyMember.SERVICE_ACCOUNT and
-                member.type != GooglePolicyMember.USER):
+        if not(member.type == GooglePolicyMember.SERVICE_ACCOUNT or
+                member.type == GooglePolicyMember.USER):
             return False
 
     return True
