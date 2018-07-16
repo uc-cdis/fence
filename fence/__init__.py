@@ -4,7 +4,7 @@ import os
 from authutils.oauth2.client import OAuthClient
 import cirrus
 import flask
-from flask.ext.cors import CORS
+from flask_cors import CORS
 from flask_sqlalchemy_session import flask_scoped_session, current_session
 import urlparse
 from userdatamodel.driver import SQLAlchemyDriver
@@ -88,7 +88,7 @@ def app_register_blueprints(app):
     link_blueprint = fence.blueprints.link.make_link_blueprint()
     app.register_blueprint(link_blueprint, url_prefix='/link')
 
-    if 'arborist' in app.config:
+    if app.config.get('ARBORIST'):
         app.register_blueprint(
             fence.blueprints.rbac.blueprint,
             url_prefix='/rbac'
@@ -171,7 +171,7 @@ def app_sessions(app):
     if configured_fence:
         app.fence_client = OAuthClient(**app.config['OPENID_CONNECT']['fence'])
     app.session_interface = UserSessionInterface()
-    if 'ARBORIST' in app.config:
+    if app.config.get('ARBORIST'):
         app.arborist = ArboristClient(
             arborist_base_url=app.config['ARBORIST']['base_url']
         )

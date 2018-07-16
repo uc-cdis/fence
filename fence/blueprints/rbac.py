@@ -3,13 +3,13 @@ Provide an interface in front of the engine for role-based access control
 (RBAC).
 
 TODO (rudyardrichter):
-instead of ``admin_login_required``, these routes should check with arborist to
-see if the user has roles allowing them to use these endpoints.
+instead of ``login_required``, these routes should check with arborist to see
+if the user has roles allowing them to use these endpoints.
 """
 
 import flask
 
-from fence.auth import admin_login_required
+from fence.auth import login_required
 from fence.errors import NotFound, UserError
 from fence.models import Policy, User
 
@@ -17,19 +17,19 @@ from fence.models import Policy, User
 blueprint = flask.Blueprint('rbac', __name__)
 
 
-def _get_user(user_id):
+def _get_user_policy_ids(user_id):
     """
     Args:
-        user_id (str)
+        user_id (str): the id for a user
 
     Return:
-        fence.models.User
+        List[str]: list of policies granted to the user
     """
     with flask.current_app.db.session as session:
         user = session.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise NotFound('no user exists with ID: {}'.format(user_id))
-    return user
+        if not user:
+            raise NotFound('no user exists with ID: {}'.format(user_id))
+        return [policy.id for policy in user.policies]
 
 
 def lookup_policies(policy_ids):
@@ -51,9 +51,9 @@ def lookup_policies(policy_ids):
     policies = []
     with flask.current_app.db.session as session:
         for policy_id in policy_ids:
-            policy = session.query(Policy).filter_by(ID=policy_id).first()
+            policy = session.query(Policy).filter_by(id=policy_id).first()
             if not policy:
-                raise NotFound(
+                raise ValueError(
                     'policy not registered in fence: {}'
                     .format(policy_id)
                 )
@@ -99,7 +99,7 @@ def _list_all_policies(session):
 
 
 @blueprint.route('/policy/', methods=['GET'])
-@admin_login_required
+@login_required({'admin'})
 def list_policies():
     """
     List all the existing policies.
@@ -115,11 +115,11 @@ def list_policies():
     """
     with flask.current_app.db.session as session:
         policies = _list_all_policies(session)
-    return flask.jsonify({'policies': policies})
+    return flask.jsonify({'policies': [policy.id for policy in policies]})
 
 
 @blueprint.route('/user/<user_id>/policies/', methods=['GET'])
-@admin_login_required
+@login_required({'admin'})
 def list_user_policies(user_id):
     """
     List the policies that this user has access to.
@@ -127,13 +127,11 @@ def list_user_policies(user_id):
     Output will be in the same format as the ``/policy/`` endpoint, but
     only containing policies this user has access to.
     """
-    user = _get_user(user_id)
-    policy_ids = [policy.id for policy in user.policies]
-    return flask.jsonify({'policies': policy_ids})
+    return flask.jsonify({'policies': _get_user_policy_ids(user_id)})
 
 
 @blueprint.route('/user/<user_id>/policies/', methods=['POST'])
-@admin_login_required
+@login_required({'admin'})
 def grant_policy_to_user(user_id):
     """
     Grant additional policies to a user.
@@ -141,10 +139,10 @@ def grant_policy_to_user(user_id):
     policy_ids = _validate_policy_ids(flask.request.get_json().get('policies'))
 
     with flask.current_app.db.session as session:
+        policies = lookup_policies(policy_ids)
         user = session.query(User).filter(User.id == user_id).first()
         if not user:
             raise NotFound('no user exists with ID: {}'.format(user_id))
-        policies = lookup_policies(policy_ids)
         user.policies.extend(policies)
         session.commit()
 
@@ -152,7 +150,7 @@ def grant_policy_to_user(user_id):
 
 
 @blueprint.route('/user/<user_id>/policies/', methods=['PUT'])
-@admin_login_required
+@login_required({'admin'})
 def replace_user_policies(user_id):
     """
     Overwrite the user's existing policies and replace them with the ones
@@ -161,8 +159,8 @@ def replace_user_policies(user_id):
     policy_ids = _validate_policy_ids(flask.request.get_json().get('policies'))
 
     with flask.current_app.db.session as session:
-        user = _get_user(user_id)
         policies = lookup_policies(policy_ids)
+        user = session.query(User).filter_by(id=user_id).first()
         user.policies = policies
         session.commit()
 
@@ -170,13 +168,13 @@ def replace_user_policies(user_id):
 
 
 @blueprint.route('/user/<user_id>/policies/', methods=['DELETE'])
-@admin_login_required
+@login_required({'admin'})
 def revoke_user_policies(user_id):
     """
     Revoke all the policies which this user has access to.
     """
     with flask.current_app.db.session as session:
-        user = _get_user(user_id)
+        user = session.query(User).filter_by(id=user_id).first()
         # Set user's policies to empty list.
         user.policies = []
         session.commit()

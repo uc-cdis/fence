@@ -152,3 +152,7 @@ OPENID_CONNECT = {
 GOOGLE_GROUP_PREFIX = 'test'
 
 CIRRUS_CFG = {}
+
+ARBORIST = {
+    'base_url': '/arborist',
+}
