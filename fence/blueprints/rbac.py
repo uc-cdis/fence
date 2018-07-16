@@ -61,7 +61,7 @@ def grant_policy_to_user(user_id):
         policies = lookup_policies(policy_ids)
         user = session.query(User).filter(User.id == user_id).first()
         if not user:
-            raise NotFound('no user exists with ID: {}'.format(user_id))
+            raise ValueError('no user exists with ID: {}'.format(user_id))
         user.policies.extend(policies)
         session.commit()
 
