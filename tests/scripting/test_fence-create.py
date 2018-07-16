@@ -238,7 +238,7 @@ def test_create_refresh_token_with_found_user(
     assert db_token is not None
 
 
-def setup_service_account_to_google_bucket_access_group(db_session):
+def _setup_service_account_to_google_bucket_access_group(db_session):
     """
     Setup some testing data.
     """
@@ -265,14 +265,18 @@ def setup_service_account_to_google_bucket_access_group(db_session):
     db_session.commit()
 
 
-def test_delete_expired_service_accounts_with_one_fail(cloud_manager, app, db_session):
+def test_delete_expired_service_accounts_with_one_fail_first(cloud_manager, app, db_session):
     """
     Test the case that there is a failure of removing service account from google group
     """
     from googleapiclient.errors import HttpError
+    import fence
+
+    fence.settings = MagicMock()
+    cirrus.config.update = MagicMock()
     cloud_manager.return_value.__enter__.return_value.remove_member_from_group.side_effect = [
         HttpError(mock.Mock(status=403), 'Permission denied'), {}]
-    setup_service_account_to_google_bucket_access_group(db_session)
+    _setup_service_account_to_google_bucket_access_group(db_session)
     service_accounts = db_session.query(UserServiceAccount).all()
     google_bucket_access_grps = db_session.query(
         GoogleBucketAccessGroup).all()
@@ -308,13 +312,67 @@ def test_delete_expired_service_accounts_with_one_fail(cloud_manager, app, db_se
     )
     assert len(records) == 2
 
+def test_delete_expired_service_accounts_with_one_fail_second(cloud_manager, app, db_session):
+    """
+    Test the case that there is a failure of removing service account from google group
+    """
+    from googleapiclient.errors import HttpError
+    import fence
+
+    fence.settings = MagicMock()
+    cloud_manager.return_value.__enter__.return_value.remove_member_from_group.side_effect = [
+            {}, HttpError(mock.Mock(status=403), 'Permission denied')]
+    _setup_service_account_to_google_bucket_access_group(db_session)
+    service_accounts = db_session.query(UserServiceAccount).all()
+    google_bucket_access_grps = db_session.query(
+        GoogleBucketAccessGroup).all()
+
+    current_time = int(time.time())
+
+    # Add two expired service account. They are both supposed to be deleted but
+    # only one is deleted due to a raise exception
+    service_account1 = ServiceAccountToGoogleBucketAccessGroup(
+        service_account_id=service_accounts[0].id, expires=current_time-3600,
+        access_group_id=google_bucket_access_grps[0].id)
+
+    service_account2 = ServiceAccountToGoogleBucketAccessGroup(
+        service_account_id=service_accounts[1].id, expires=current_time-3600,
+        access_group_id=google_bucket_access_grps[1].id)
+
+    db_session.add(service_account1)
+    db_session.add(service_account2)
+    db_session.commit()
+
+    # check database to make sure there are two records in DB
+    records = (
+        db_session
+        .query(ServiceAccountToGoogleBucketAccessGroup)
+        .all()
+    )
+    assert len(records) == 2
+
+    # call function to delete expired service account
+    delete_expired_service_accounts(app.config['DB'])
+    # check database to make sure only the first one is deleted, the second one
+    # still exists because of the raised exception
+    records = (
+        db_session
+        .query(ServiceAccountToGoogleBucketAccessGroup)
+        .all()
+    )
+    assert len(records) == 1
+    assert records[0].id == service_account2.id
+
 
 def test_delete_expired_service_accounts(cloud_manager, app, db_session):
     """
     Test deleting all expired service accounts
     """
+    import fence
+
+    fence.settings = MagicMock()
     cloud_manager.return_value.__enter__.return_value.remove_member_from_group.return_value= {}
-    setup_service_account_to_google_bucket_access_group(db_session)
+    _setup_service_account_to_google_bucket_access_group(db_session)
     service_accounts = db_session.query(UserServiceAccount).all()
     google_bucket_access_grps = db_session.query(
         GoogleBucketAccessGroup).all()
@@ -322,18 +380,20 @@ def test_delete_expired_service_accounts(cloud_manager, app, db_session):
     current_time = int(time.time())
 
     # Add 2 expired and 1 not expired accounts
-    db_session.add(ServiceAccountToGoogleBucketAccessGroup(
+    service_account1 = ServiceAccountToGoogleBucketAccessGroup(
         service_account_id=service_accounts[0].id, expires=current_time-3600,
         access_group_id=google_bucket_access_grps[0].id)
-    )
-    db_session.add(ServiceAccountToGoogleBucketAccessGroup(
+    service_account2 = ServiceAccountToGoogleBucketAccessGroup(
         service_account_id=service_accounts[0].id, expires=current_time-3600,
         access_group_id=google_bucket_access_grps[1].id)
-    )
-    db_session.add(ServiceAccountToGoogleBucketAccessGroup(
+    service_account3 = ServiceAccountToGoogleBucketAccessGroup(
         service_account_id=service_accounts[1].id, expires=current_time+3600,
         access_group_id=google_bucket_access_grps[1].id)
-    )
+
+    db_session.add(service_account1)
+    db_session.add(service_account2)
+    db_session.add(service_account3)
+
     db_session.commit()
 
     records = (
@@ -348,14 +408,17 @@ def test_delete_expired_service_accounts(cloud_manager, app, db_session):
     # check database. Expect 2 deleted
     records = db_session.query(ServiceAccountToGoogleBucketAccessGroup).all()
     assert len(records) == 1
+    assert records[0].id == service_account3.id
 
 
 def test_delete_not_expired_service_account(app, db_session):
     """
     Test the case that there is no expired service account
     """
-    setup_service_account_to_google_bucket_access_group(db_session)
+    import fence
 
+    fence.settings = MagicMock()
+    _setup_service_account_to_google_bucket_access_group(db_session)
     service_account = db_session.query(UserServiceAccount).first()
     google_bucket_access_grp1 = db_session.query(
         GoogleBucketAccessGroup).first()
@@ -379,6 +442,6 @@ def test_delete_not_expired_service_account(app, db_session):
     # call function to delete expired service account
     delete_expired_service_accounts(app.config['DB'])
     # check db again to make sure the record still exists
-    record = db_session.query(ServiceAccountToGoogleBucketAccessGroup).all()
-    assert len(record) == 1
+    records = db_session.query(ServiceAccountToGoogleBucketAccessGroup).all()
+    assert len(records) == 1
 

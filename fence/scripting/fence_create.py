@@ -5,7 +5,6 @@ import uuid
 import yaml
 import json
 import pprint
-from googleapiclient.errors import HttpError
 
 from authlib.common.encoding import to_unicode
 from cirrus import GoogleCloudManager
@@ -553,11 +552,7 @@ def delete_expired_service_accounts(DB):
     Delete all expired service accounts.
     """
     import fence.settings
-    try:
-        cirrus_config.update(**fence.settings.CIRRUS_CFG)
-    except AttributeError:
-        # no cirrus config, continue anyway.
-        pass
+    cirrus_config.update(**fence.settings.CIRRUS_CFG)
 
     driver = SQLAlchemyDriver(DB)
     with driver.session as session:
@@ -577,8 +572,9 @@ def delete_expired_service_accounts(DB):
                         session.delete(record)
                         print('Removed expired service account: {}'.format(
                             record.service_account.email))
-                    except HttpError as e:
-                        print(e.message)
+                    except Exception as e:
+                        print('ERROR: Could not delete service account {}. Details: {}'
+                              .format(record.service_account.email, e.message))
 
                 session.commit()
 
