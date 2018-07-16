@@ -9,6 +9,7 @@ from fence.scripting.fence_create import (
     JWTCreator,
     create_client_action,
     create_or_update_google_bucket,
+    create_google_logging_bucket,
     create_sample_data,
     delete_client_action,
     delete_users,
@@ -155,6 +156,20 @@ def parse_arguments():
         'read write. Currently create a Google Bucket Access Group per '
         'privilege.')
 
+    google_logging_bucket_create = subparsers.add_parser(
+        'google-logging-bucket-create')
+    google_logging_bucket_create.add_argument(
+        '--unique-name', required=True,
+        help='Name for the bucket, must be globally unique throughout Google')
+    google_logging_bucket_create.add_argument(
+        '--storage-class', default=None,
+        help='Currently must be one of the following: "MULTI_REGIONAL", '
+             '"REGIONAL", "NEARLINE", "COLDLINE", "STANDARD"')
+    google_logging_bucket_create.add_argument(
+        '--google-project-id', default=None,
+        help='Google project this bucket should be associated with. '
+        'If not given, will attempt to determine from provided credentials.')
+
     manage_google_keys = subparsers.add_parser('google-manage-keys')
     init_google = subparsers.add_parser('google-init')
     manage_google_accounts = (
@@ -274,6 +289,11 @@ def main():
             project_auth_id=args.project_auth_id,
             access_logs_bucket=args.access_logs_bucket,
             allowed_privileges=args.allowed_privileges)
+    elif args.action == 'google-logging-bucket-create':
+        create_google_logging_bucket(
+            args.unique_name,
+            storage_class=args.storage_class,
+            google_project_id=args.google_project_id)
     elif args.action == 'link-bucket-to-project':
         link_bucket_to_project(
             DB,

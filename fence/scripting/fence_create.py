@@ -790,14 +790,7 @@ def create_or_update_google_bucket(
 
     # determine project where buckets are located
     # default to same project, try to get storage creds project from key file
-    storage_creds_project_id = google_project_id
-    storage_creds_file = cirrus_config.configs['GOOGLE_STORAGE_CREDS']
-    if os.path.exists(storage_creds_file):
-        with open(storage_creds_file) as file:
-            storage_creds_project_id = (
-                json.load(file)
-                .get('project_id', google_project_id)
-            )
+    storage_creds_project_id = _get_storage_project_id() or google_project_id
 
     # default to read access
     allowed_privileges = allowed_privileges or ['read', 'write']
@@ -827,6 +820,51 @@ def create_or_update_google_bucket(
                     google_project_id=google_project_id,
                     storage_creds_project_id=storage_creds_project_id,
                     privileges=[privilege])
+
+
+def create_google_logging_bucket(
+        name, storage_class=None, google_project_id=None):
+    import fence.settings
+    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+
+    # determine project where buckets are located if not provided, default
+    # to configured project if checking creds doesn't work
+    storage_creds_project_id = (
+        google_project_id
+        or _get_storage_project_id()
+        or cirrus_config.GOOGLE_PROJECT_ID
+    )
+
+    manager = GoogleCloudManager(
+        storage_creds_project_id,
+        creds=cirrus_config.configs['GOOGLE_STORAGE_CREDS'])
+    with manager as g_mgr:
+        g_mgr.create_or_update_bucket(
+            name,
+            storage_class=storage_class,
+            public=False,
+            requester_pays=False,
+            for_logging=True)
+
+        print(
+            'Successfully created Google Bucket {} '
+            'to store Access Logs.'.format(name))
+
+
+def _get_storage_project_id():
+    """
+    Determine project where buckets are located.
+    Try to get storage creds project from key file
+    """
+    storage_creds_project_id = None
+    storage_creds_file = cirrus_config.configs['GOOGLE_STORAGE_CREDS']
+    if os.path.exists(storage_creds_file):
+        with open(storage_creds_file) as creds_file:
+            storage_creds_project_id = (
+                json.load(creds_file)
+                .get('project_id')
+            )
+    return storage_creds_project_id
 
 
 def _create_or_update_google_bucket_and_db(
