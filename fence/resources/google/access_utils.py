@@ -29,7 +29,7 @@ def can_user_manage_service_account(user_id, account_id):
 
 
 def google_project_has_parent_org(google_project):
-    raise NotImplementedError('Functionality not yet available...')
+    return google_project.has_parent_organization()
 
 
 def google_project_has_valid_membership(google_project):
