@@ -9,7 +9,7 @@ from cirrus.google_cloud import (
 )
 
 
-def test_is_valid_service_account(cloud_manager):
+def test_is_valid_service_account_type_compute_engine_default(cloud_manager):
 
     (
         cloud_manager.return_value.__enter__.
@@ -17,11 +17,17 @@ def test_is_valid_service_account(cloud_manager):
     ) = COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT
     assert is_valid_service_account_type(cloud_manager.project_id, 1)
 
+
+def test_not_valid_service_account_type_google_api(cloud_manager):
+
     (
         cloud_manager.return_value.__enter__.
         return_value.get_service_account_type.return_value
     ) = GOOGLE_API_SERVICE_ACCOUNT
     assert not is_valid_service_account_type(cloud_manager.project_id, 1)
+
+
+def test_not_valid_service_account_type_compute_engine_api(cloud_manager):
 
     (
         cloud_manager.return_value.__enter__.
@@ -29,6 +35,9 @@ def test_is_valid_service_account(cloud_manager):
     ) = COMPUTE_ENGINE_API_SERVICE_ACCOUNT
     assert not is_valid_service_account_type(cloud_manager.project_id, 1)
 
+
+def test_is_valid_service_account_type_user_managed(cloud_manager):
+    
     (
         cloud_manager.return_value.__enter__.
         return_value.get_service_account_type.return_value
