@@ -230,7 +230,7 @@ def generate_signed_session_token(
 
 def generate_signed_id_token(
         kid, private_key, user, expires_in, client_id, audiences=None,
-        auth_time=None, max_age=None, nonce=None, linked_google_email=None):
+        auth_time=None, max_age=None, nonce=None, **kwargs):
     """
     Generate a JWT ID token, and output a UTF-8 string of the encoded JWT
     signed with the private key
@@ -255,7 +255,7 @@ def generate_signed_id_token(
     """
     token = generate_id_token(
         user, expires_in, client_id, audiences=audiences, auth_time=auth_time,
-        max_age=max_age, nonce=nonce, linked_google_email=linked_google_email
+        max_age=max_age, nonce=nonce, **kwargs
     )
     signed_token = token.get_signed_and_encoded_token(kid, private_key)
     return JWTResult(token=signed_token, kid=kid, claims=token.token)
@@ -431,7 +431,7 @@ def generate_signed_access_token(
 
 def generate_id_token(
         user, expires_in, client_id, audiences=None, auth_time=None,
-        max_age=None, nonce=None, linked_google_email=None):
+        max_age=None, nonce=None, **kwargs):
     """
     Generate an unsigned ID token object. Use `.get_signed_and_encoded_token`
     on result to retrieve a signed JWT
@@ -494,10 +494,13 @@ def generate_id_token(
         claims['context']['user']['tags'] = {
             tag.key: tag.value for tag in user.tags}
 
+    linked_google_email = kwargs.get('linked_google_email')
+    linked_google_account_exp = kwargs.get('linked_google_account_exp')
     # only add google linkage information if provided
     if linked_google_email:
         claims['context']['user']['google'] = {
             'linked_google_account': linked_google_email,
+            'linked_google_account_exp': linked_google_account_exp,
         }
 
     # Only include if provided, used to associate a client session with an ID
