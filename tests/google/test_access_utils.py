@@ -10,7 +10,10 @@ from cirrus.google_cloud import (
 
 
 def test_is_valid_service_account_type_compute_engine_default(cloud_manager):
-
+    """
+    Test that COMPUTE_ENGINE_DEFAULT is a valid service account type
+    for service account registration
+    """
     (
         cloud_manager.return_value.__enter__.
         return_value.get_service_account_type.return_value
@@ -19,7 +22,10 @@ def test_is_valid_service_account_type_compute_engine_default(cloud_manager):
 
 
 def test_not_valid_service_account_type_google_api(cloud_manager):
-
+    """
+    Test that GOOGLE_API is not a valid service account type
+    for service account registration
+    """
     (
         cloud_manager.return_value.__enter__.
         return_value.get_service_account_type.return_value
@@ -28,7 +34,10 @@ def test_not_valid_service_account_type_google_api(cloud_manager):
 
 
 def test_not_valid_service_account_type_compute_engine_api(cloud_manager):
-
+    """
+    Test that COMPUTE_ENGINE_API is not a valid service account type
+    for service account registration
+    """
     (
         cloud_manager.return_value.__enter__.
         return_value.get_service_account_type.return_value
@@ -37,7 +46,10 @@ def test_not_valid_service_account_type_compute_engine_api(cloud_manager):
 
 
 def test_is_valid_service_account_type_user_managed(cloud_manager):
-    
+    """
+    Test that USER_MANAGED is a valid service account type
+    for service account registration
+    """
     (
         cloud_manager.return_value.__enter__.
         return_value.get_service_account_type.return_value
