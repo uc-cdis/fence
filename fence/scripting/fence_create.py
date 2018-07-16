@@ -859,9 +859,9 @@ def _get_storage_project_id():
     storage_creds_project_id = None
     storage_creds_file = cirrus_config.configs['GOOGLE_STORAGE_CREDS']
     if os.path.exists(storage_creds_file):
-        with open(storage_creds_file) as file:
+        with open(storage_creds_file) as creds_file:
             storage_creds_project_id = (
-                json.load(file)
+                json.load(creds_file)
                 .get('project_id')
             )
     return storage_creds_project_id
