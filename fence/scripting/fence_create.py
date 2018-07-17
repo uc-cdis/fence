@@ -38,7 +38,8 @@ from fence.models import (
     UserGoogleAccountToProxyGroup,
     GoogleBucketAccessGroup,
     GoogleProxyGroupToGoogleBucketAccessGroup,
-    UserRefreshToken
+    UserRefreshToken,
+    ServiceAccountToGoogleBucketAccessGroup
 )
 from fence.utils import create_client
 from fence.sync.sync_users import UserSyncer
@@ -54,6 +55,33 @@ def list_client_action(db):
                 pprint.pprint(row.__dict__)
     except Exception as e:
         print(e.message)
+
+
+def modify_client_action(DB, client=None, delete_urls=False, urls=None, name=None, description=None, set_auto_approve=False, unset_auto_approve=False):
+    driver = SQLAlchemyDriver(DB)
+    with driver.session as s:
+        client = s.query(Client).filter(Client.name == client).first()
+        if not client:
+            raise Exception('client {} does not exist'.format(client))
+        if urls:
+            client._redirect_uris = urls
+            print('Changing urls to {}'.format(urls))
+        if delete_urls:
+            client._redirect_uris = None
+            print('Deleting urls')
+        if set_auto_approve:
+            client.auto_approve = True
+            print('Auto approve set to True')
+        if unset_auto_approve:
+            client.auto_approve = False
+            print('Auto approve set to False')
+        if name:
+            client.name = name
+            print('Updating name to {}'.format(name))
+        if description:
+            client.description = description
+            print('Updating description to {}'.format(description))
+        s.commit()
 
 
 def create_client_action(
@@ -81,7 +109,8 @@ def delete_client_action(DB, client_name):
                 raise Exception('client {} does not exist'.format(client_name))
 
             clients = (
-                current_session.query(Client).filter(Client.name == client_name)
+                current_session.query(Client).filter(
+                    Client.name == client_name)
             )
             for client in clients:
                 _remove_client_service_accounts(current_session, client)
@@ -323,7 +352,8 @@ def create_users_with_group(DB, s, data):
     data_groups = data['groups']
     for username, data in data['users'].iteritems():
         is_existing_user = True
-        user = s.query(User).filter(func.lower(User.username) == username.lower()).first()
+        user = s.query(User).filter(func.lower(
+            User.username) == username.lower()).first()
         admin = data.get('admin', False)
 
         if not user:
@@ -515,6 +545,38 @@ def delete_users(DB, usernames):
         for user in users_to_delete:
             session.delete(user)
         session.commit()
+
+
+def delete_expired_service_accounts(DB):
+    """
+    Delete all expired service accounts.
+    """
+    import fence.settings
+    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+
+    driver = SQLAlchemyDriver(DB)
+    with driver.session as session:
+        current_time = int(time.time())
+        records_to_delete = (
+            session
+            .query(ServiceAccountToGoogleBucketAccessGroup)
+            .filter(ServiceAccountToGoogleBucketAccessGroup.expires < current_time)
+            .all()
+        )
+        if len(records_to_delete):
+            with GoogleCloudManager() as manager:
+                for record in records_to_delete:
+                    try:
+                        manager.remove_member_from_group(
+                            record.service_account.email, record.access_group.email)
+                        session.delete(record)
+                        print('Removed expired service account: {}'.format(
+                            record.service_account.email))
+                    except Exception as e:
+                        print('ERROR: Could not delete service account {}. Details: {}'
+                              .format(record.service_account.email, e.message))
+
+                session.commit()
 
 
 class JWTCreator(object):
@@ -722,8 +784,8 @@ def link_bucket_to_project(db, bucket_id, bucket_provider, project_auth_id):
         current_session.commit()
 
 
-def create_google_bucket(
-        db, name, storage_class=None, public=False, requester_pays=False,
+def create_or_update_google_bucket(
+        db, name, storage_class=None, public=None, requester_pays=False,
         google_project_id=None, project_auth_id=None, access_logs_bucket=None,
         allowed_privileges=None):
     """
@@ -742,7 +804,8 @@ def create_google_bucket(
         db (TYPE): database
         name (str): name for the bucket, must be globally unique throughout Google
         storage_class (str): enum, one of the cirrus's GOOGLE_STORAGE_CLASSES
-        public (bool, optional): whether or not the bucket should be public
+        public (bool or None, optional): whether or not the bucket should be public.
+            None means leave IAM on the bucket unchanged.
         requester_pays (bool, optional): Whether or not to enable requester_pays
             on the bucket
         google_project_id (str, optional): Google project this bucket should be
@@ -764,14 +827,7 @@ def create_google_bucket(
 
     # determine project where buckets are located
     # default to same project, try to get storage creds project from key file
-    storage_creds_project_id = google_project_id
-    storage_creds_file = cirrus_config.configs['GOOGLE_STORAGE_CREDS']
-    if os.path.exists(storage_creds_file):
-        with open(storage_creds_file) as file:
-            storage_creds_project_id = (
-                json.load(file)
-                .get('project_id', google_project_id)
-            )
+    storage_creds_project_id = _get_storage_project_id() or google_project_id
 
     # default to read access
     allowed_privileges = allowed_privileges or ['read', 'write']
@@ -781,7 +837,7 @@ def create_google_bucket(
         # use storage creds to create bucket
         # (default creds don't have permission)
         bucket_db_entry = (
-            _create_google_bucket_and_update_db(
+            _create_or_update_google_bucket_and_db(
                 db_session=current_session,
                 name=name,
                 storage_class=storage_class,
@@ -792,7 +848,7 @@ def create_google_bucket(
                 access_logs_bucket=access_logs_bucket)
         )
 
-        if not public:
+        if public is not None and not public:
             for privilege in allowed_privileges:
                 _create_google_bucket_access_group(
                     db_session=current_session,
@@ -803,7 +859,52 @@ def create_google_bucket(
                     privileges=[privilege])
 
 
-def _create_google_bucket_and_update_db(
+def create_google_logging_bucket(
+        name, storage_class=None, google_project_id=None):
+    import fence.settings
+    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+
+    # determine project where buckets are located if not provided, default
+    # to configured project if checking creds doesn't work
+    storage_creds_project_id = (
+        google_project_id
+        or _get_storage_project_id()
+        or cirrus_config.GOOGLE_PROJECT_ID
+    )
+
+    manager = GoogleCloudManager(
+        storage_creds_project_id,
+        creds=cirrus_config.configs['GOOGLE_STORAGE_CREDS'])
+    with manager as g_mgr:
+        g_mgr.create_or_update_bucket(
+            name,
+            storage_class=storage_class,
+            public=False,
+            requester_pays=False,
+            for_logging=True)
+
+        print(
+            'Successfully created Google Bucket {} '
+            'to store Access Logs.'.format(name))
+
+
+def _get_storage_project_id():
+    """
+    Determine project where buckets are located.
+    Try to get storage creds project from key file
+    """
+    storage_creds_project_id = None
+    storage_creds_file = cirrus_config.configs['GOOGLE_STORAGE_CREDS']
+    if os.path.exists(storage_creds_file):
+        with open(storage_creds_file) as creds_file:
+            storage_creds_project_id = (
+                json.load(creds_file)
+                .get('project_id')
+            )
+    return storage_creds_project_id
+
+
+def _create_or_update_google_bucket_and_db(
         db_session, name, storage_class, public, requester_pays,
         storage_creds_project_id, project_auth_id, access_logs_bucket):
     """
@@ -835,8 +936,8 @@ def _create_google_bucket_and_update_db(
 
         bucket_db_entry = (
             db_session.query(Bucket).filter_by(
-                    name=name,
-                    provider_id=google_cloud_provider.id).first()
+                name=name,
+                provider_id=google_cloud_provider.id).first()
         )
         if not bucket_db_entry:
             bucket_db_entry = Bucket(
