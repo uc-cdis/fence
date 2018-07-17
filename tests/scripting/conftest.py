@@ -1,5 +1,5 @@
 import pytest
-from collections import OrderedDict
+
 
 @pytest.fixture(scope='module')
 def example_usernames():

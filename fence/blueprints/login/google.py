@@ -31,8 +31,6 @@ class GoogleLogin(Resource):
             result = flask.current_app.google_client.get_user_id(code)
             email = result.get('email')
             if email:
-                flask.session['username'] = email
-                flask.session['provider'] = IdentityProvider.google
                 login_user(flask.request, email, IdentityProvider.google)
                 if flask.session.get('redirect'):
                     return flask.redirect(flask.session.get('redirect'))
