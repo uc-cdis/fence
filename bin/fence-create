@@ -20,6 +20,7 @@ from fence.scripting.fence_create import (
     remove_expired_google_accounts_from_proxy_groups,
     remove_expired_google_service_account_keys,
     sync_users,
+    delete_expired_service_accounts,
 )
 
 
@@ -92,6 +93,8 @@ def parse_arguments():
 
     user_delete = subparsers.add_parser('user-delete')
     user_delete.add_argument('--users', required=True, nargs='+')
+
+    subparsers.add_parser('expired-service-account-delete')
 
     hmac_create = subparsers.add_parser('hmac-create')
     hmac_create.add_argument('yaml-input')
@@ -262,6 +265,8 @@ def main():
         list_client_action(DB)
     elif args.action == 'user-delete':
         delete_users(DB, args.users)
+    elif args.action == 'expired-service-account-delete':
+        delete_expired_service_accounts(DB)
     elif args.action == 'sync':
         sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
                    projects=args.project_mapping, is_sync_from_dbgap_server=str2bool(args.sync_from_dbgap),
