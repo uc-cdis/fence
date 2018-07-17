@@ -19,11 +19,12 @@ from sqlalchemy import func
 from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.models import (
-    Project,
-    User,
-    Tag,
     AccessPrivilege,
-    AuthorizationProvider
+    AuthorizationProvider,
+    Policy,
+    Project,
+    Tag,
+    User,
 )
 from fence.rbac.client import ArboristClient
 from fence.resources.storage import StorageManager
@@ -82,6 +83,7 @@ class UserSyncer(object):
         self._projects = dict()
         self.logger = get_logger('user_syncer')
 
+        self.arborist_client = None
         if arborist:
             self.arborist_client = ArboristClient(arborist_base_url=arborist)
 
@@ -444,8 +446,8 @@ class UserSyncer(object):
         ]
 
         cur_db_user_project_list = {
-            (ua.user.username, ua.project.auth_id) for
-            ua in sess.query(AccessPrivilege).all()
+            (ua.user.username, ua.project.auth_id)
+            for ua in sess.query(AccessPrivilege).all()
         }
 
         syncing_user_project_list = set()
@@ -715,10 +717,9 @@ class UserSyncer(object):
             with self.driver.session as s:
                 self._sync(s)
 
-    def _sync(self, sess):
+    def _download_dbgap_file_list(self):
         """
-        Collect files from dbgap server, sync csv and yaml files to storage
-        backend and fence DB
+        Download files from the dbgap server.
         """
         dbgap_file_list = []
         tmpdir = tempfile.mkdtemp()
@@ -732,27 +733,36 @@ class UserSyncer(object):
                 dbgap_file_list = glob.glob(os.path.join(tmpdir, '*'))
             except Exception as e:
                 self.logger.info(e)
-
-        user_projects1, user_info1 = self._parse_csv(
-            dict(zip(dbgap_file_list, [['read-storage']]*len(dbgap_file_list))),
-            encrypted=True,
-            sess=sess,
-        )
-
         try:
             shutil.rmtree(tmpdir)
         except OSError as e:
             self.logger.info(e)
             if e.errno != errno.ENOENT:
                 raise
+        return dbgap_file_list
+
+    def _sync(self, sess):
+        """
+        Collect files from dbgap server, sync csv and yaml files to storage
+        backend and fence DB
+        """
+        dbgap_file_list = self._download_dbgap_file_list()
+
+        permissions = [['read-storage']] * len(dbgap_file_list)
+        user_projects, user_info = self._parse_csv(
+            dict(zip(dbgap_file_list, permissions)),
+            encrypted=True,
+            sess=sess,
+        )
 
         local_csv_file_list = []
         if self.sync_from_local_csv_dir:
             local_csv_file_list = glob.glob(
                 os.path.join(self.sync_from_local_csv_dir, '*'))
 
+        permissions = [['read-storage']] * len(local_csv_file_list)
         user_projects2, user_info2 = self._parse_csv(
-            dict(zip(local_csv_file_list, [['read-storage']]*len(local_csv_file_list))),
+            dict(zip(local_csv_file_list, permissions)),
             encrypted=False,
             sess=sess,
         )
@@ -761,17 +771,102 @@ class UserSyncer(object):
             self.sync_from_local_yaml_file, encrypted=False
         )
 
-        self.sync_two_phsids_dict(user_projects2, user_projects1)
-        self.sync_two_user_info_dict(user_info2, user_info1)
+        self.sync_two_phsids_dict(user_projects2, user_projects)
+        self.sync_two_user_info_dict(user_info2, user_info)
 
         # privilleges in yaml files overide ones in csv files
-        self.sync_two_phsids_dict(user_projects3, user_projects1)
-        self.sync_two_user_info_dict(user_info3, user_info1)
+        self.sync_two_phsids_dict(user_projects3, user_projects)
+        self.sync_two_user_info_dict(user_info3, user_info)
 
-        if len(user_projects1) > 0:
+        if user_projects:
             self.logger.info('Sync to db and storage backend')
-            self.sync_to_db_and_storage_backend(
-                user_projects1, user_info1, sess)
+            self.sync_to_db_and_storage_backend(user_projects, user_info, sess)
             self.logger.info('Finish syncing to db and storage backend')
         else:
-            self.logger.info('No users for syncing!!!')
+            self.logger.info('No users for syncing')
+
+        self._update_arborist(user_projects, sess)
+
+    def _update_arborist(self, user_projects, session):
+        """
+        Create roles and resources in arborist from the information in
+        ``user_projects``.
+
+        Args:
+            user_projects (dict)
+            session (sqlalchemy.Session)
+
+        Return:
+            None
+        """
+        if not self.arborist_client:
+            return
+
+        # Keep track of stuff added already so we don't try to send duplicates
+        # to arborist.
+        created_projects = set()
+        created_roles = set()
+
+        for username, projects in user_projects.iteritems():
+            user = (
+                session
+                .query(User)
+                .filter(func.lower(User.username) == username.lower())
+                .first()
+            )
+            for project, permissions in projects.iteritems():
+                project_errored = False
+                if project not in created_projects:
+                    response = self.arborist_client.create_resource(
+                        '/projects',
+                        {'name': project},
+                    )
+                    if 'error' in response:
+                        project_errored = True
+                        self.logger.error(
+                            'error trying to create resource in arborist: {}'
+                            .format(response['error'])
+                        )
+                    created_projects.add(project)
+                for permission in permissions:
+                    permission_errored = False
+                    if permission not in created_roles:
+                        response = self.arborist_client.create_role({
+                            'id': permission,
+                            'permissions': [
+                                {
+                                    'id': permission,
+                                    'action': {
+                                        'service': '',
+                                        'method': permission,
+                                    },
+                                }
+                            ],
+                        })
+                        if 'error' in response:
+                            permission_errored = True
+                            self.logger.error(
+                                'error trying to create role in arborist: {}'
+                                .format(response['error'])
+                            )
+                        created_roles.add(permission)
+
+                    # If everything was created fine, grant a policy to this
+                    # user which contains exactly just this project as a
+                    # resource, with this permission as a role.
+                    if not project_errored and not permission_errored:
+                        policy_id = '{}-{}'.format(project, permission)
+                        policy = (
+                            session
+                            .query(Policy)
+                            .filter_by(id=policy_id)
+                            .first()
+                        )
+                        if not policy:
+                            resource = '/projects/{}'.format(project)
+                            policy = Policy(
+                                id=policy_id,
+                                role_ids=[permission],
+                                resource_paths=[resource],
+                            )
+                        user.policies.append(policy)

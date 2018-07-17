@@ -55,6 +55,7 @@ def list_client_action(db):
     except Exception as e:
         print(e.message)
 
+
 def modify_client_action(DB, client=None, delete_urls=False, urls=None, name=None, description=None, set_auto_approve=False, unset_auto_approve=False):
     driver = SQLAlchemyDriver(DB)
     with driver.session as s:
@@ -80,6 +81,7 @@ def modify_client_action(DB, client=None, delete_urls=False, urls=None, name=Non
             client.description = description
             print('Updating description to {}'.format(description))
         s.commit()
+
 
 def create_client_action(
         DB, username=None, client=None, urls=None, auto_approve=False):
@@ -139,9 +141,10 @@ def _remove_client_service_accounts(db_session, client):
                     .format(service_account.email))
 
 
-def sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
-               projects=None, is_sync_from_dbgap_server=False,
-               sync_from_local_csv_dir=None, sync_from_local_yaml_file=None):
+def sync_users(
+        dbGaP, STORAGE_CREDENTIALS, DB, projects=None,
+        is_sync_from_dbgap_server=False, sync_from_local_csv_dir=None,
+        sync_from_local_yaml_file=None, arborist=None):
     '''
     sync ACL files from dbGap to auth db and storage backends
     imports from local_settings is done here because dbGap is
@@ -197,7 +200,8 @@ def sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
         storage_credentials=STORAGE_CREDENTIALS,
         is_sync_from_dbgap_server=is_sync_from_dbgap_server,
         sync_from_local_csv_dir=sync_from_local_csv_dir,
-        sync_from_local_yaml_file=sync_from_local_yaml_file
+        sync_from_local_yaml_file=sync_from_local_yaml_file,
+        arborist=arborist,
     )
     syncer.sync()
 
