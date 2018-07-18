@@ -8,6 +8,7 @@ from flask_sqlalchemy_session import current_session
 from fence.models import AccessPrivilege
 
 from cirrus import GoogleCloudManager
+from cirrus.google_cloud.iam import GooglePolicy
 from cirrus.google_cloud import (
     COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
     USER_MANAGED_SERVICE_ACCOUNT,
@@ -76,8 +77,24 @@ def is_valid_service_account_type(project_id, account_id):
 
 
 def service_account_has_external_access(service_account):
-    raise NotImplementedError('Functionality not yet available...')
+    """
+    Checks if service account has external access or not.
 
+    Args:
+        service_account(str): service account
+
+    Returns:
+        bool: whether or not the service account has external access
+    """
+    with GoogleCloudManager() as g_mgr:
+        policy = GooglePolicy(g_mgr.get_service_account_policy(service_account))
+        if policy.roles:
+            return True
+        keys = GooglePolicy(g_mgr.get_service_account_keys_info(service_account))
+        if keys:
+            return True
+
+    return False
 
 def is_service_account_from_google_project(service_account, google_project):
     raise NotImplementedError('Functionality not yet available...')
