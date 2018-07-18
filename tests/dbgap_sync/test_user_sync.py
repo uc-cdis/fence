@@ -40,8 +40,9 @@ def test_sync(syncer, db_session, storage_client):
     user_access = db_session.query(
         models.AccessPrivilege).filter_by(user=user).all()
 
-    assert user_access[0].privilege == [
-        'create', 'read', 'update', 'delete', 'upload']
+    assert set(user_access[0].privilege) == {
+        'create', 'read', 'update', 'delete', 'upload'
+    }
     assert len(user_access) == 1
 
     user = db_session.query(models.User).filter_by(
@@ -50,8 +51,7 @@ def test_sync(syncer, db_session, storage_client):
     user_access = db_session.query(
         models.AccessPrivilege).filter_by(user=user).all()
 
-    if user_access:
-        raise AssertionError
+    assert not user_access
 
 
 @pytest.mark.parametrize('syncer', ['google', 'cleversafe'], indirect=True)
@@ -206,3 +206,88 @@ def test_sync_two_user_info(syncer, db_session, storage_client):
     assert userinfo1 == {'userA': {'email': 'c@email', 'display_name': 'user C', 'phone_numer': '232-456-123'},
                          'userB': {'email': 'b@email', 'display_name': 'user B', 'phone_numer': '232-456-789', 'role': 'admin'}
                          }
+
+
+@pytest.mark.parametrize('syncer', ['google', 'cleversafe'], indirect=True)
+def test_update_arborist(syncer, db_session):
+    """
+    Check that the ``syncer.arborist_client`` (which is a ``MagicMock``) is
+    called appropriately. Also test that the policies for users are created in
+    the database correctly.
+    """
+    syncer.sync()
+    # These are collected from the syncer fixture. In future should refactor to
+    # make project mapping its own fixture and not duplicate in the tests here.
+    expect_resources = [
+        'phs000179.c1',
+        'phs000178.c1',
+        'test',
+        'phs000178.c2',
+        'TCGA-PCAWG',
+        'phs000178',
+    ]
+
+    for resource in expect_resources:
+        assert syncer.arborist_client.create_resource.called_with(
+            '/project', {'name': resource}
+        )
+
+    # Same with roles/permissions
+    expect_roles = [
+        {
+            'id': 'read-storage',
+            'permissions': [
+                {
+                    'id': 'read-storage',
+                    'action': {'method': 'read-storage', 'service': ''},
+                }
+            ],
+        },
+        {
+            'id': 'read',
+            'permissions': [
+                {
+                    'id': 'read',
+                    'action': {'method': 'read', 'service': ''},
+                },
+            ],
+        },
+        {
+            'id': 'create',
+            'permissions': [
+                {
+                    'id': 'create',
+                    'action': {'method': 'create', 'service': ''},
+                },
+            ],
+        },
+        {
+            'id': 'upload',
+            'permissions': [
+                {
+                    'id': 'upload',
+                    'action': {'method': 'upload', 'service': ''},
+                },
+            ],
+        },
+        {
+            'id': 'update',
+            'permissions': [
+                {
+                    'id': 'update',
+                    'action': {'method': 'update', 'service': ''},
+                },
+            ],
+        },
+        {
+            'id': 'delete',
+            'permissions': [
+                {
+                    'id': 'delete',
+                    'action': {'method': 'delete', 'service': ''},
+                },
+            ],
+        },
+    ]
+    for role in expect_roles:
+        assert syncer.arborist_client.create_role.called_with(role)

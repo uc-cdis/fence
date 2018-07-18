@@ -1,4 +1,3 @@
-from collections import defaultdict
 from contextlib import contextmanager
 from csv import DictReader
 import errno
@@ -255,7 +254,7 @@ class UserSyncer(object):
                     if username == '':
                         continue
 
-                    phsid_privileges = defaultdict(set)
+                    phsid_privileges = {}
                     phsid = row.get('phsid', '').split('.')
                     dbgap_project = phsid[0]
                     if len(phsid) > 1 and self.parse_consent_code:
@@ -288,13 +287,14 @@ class UserSyncer(object):
                             dbgap_project, []):
                         try:
                             phsid_privileges = {
-                                element_dict['auth_id']: privileges,
+                                element_dict['auth_id']: set(privileges),
                             }
                             if username in user_projects:
                                 user_projects[username].update(
-                                    phsid_privileges)
+                                    phsid_privileges
+                                )
                             else:
-                                user_projects[username] = phsid_privileges
+                                user_projects[username] = set(phsid_privileges)
                         except ValueError as e:
                             self.logger.info(e)
         return user_projects, user_info
@@ -334,11 +334,13 @@ class UserSyncer(object):
                 data = yaml.safe_load(stream)
                 users = data.get('users', {})
                 for username, details in users.iteritems():
-                    privileges = defaultdict(set)
+                    privileges = {}
 
                     try:
                         for project in details.get('projects', {}):
-                            privileges[project['auth_id']] = project['privilege']
+                            privileges[project['auth_id']] = set(
+                                project['privilege']
+                            )
                     except KeyError as e:
                         self.logger.info(e)
                         continue
@@ -792,6 +794,10 @@ class UserSyncer(object):
         Create roles and resources in arborist from the information in
         ``user_projects``.
 
+        The projects are sent to arborist as resources with paths like
+        ``/projects/{project}``. Roles are created with just the original names
+        for the privileges like ``"read-storage"`` etc.
+
         Args:
             user_projects (dict)
             session (sqlalchemy.Session)
@@ -869,4 +875,7 @@ class UserSyncer(object):
                                 role_ids=[permission],
                                 resource_paths=[resource],
                             )
-                        user.policies.append(policy)
+                        if policy not in user.policies:
+                            user.policies.append(policy)
+
+        session.commit()
