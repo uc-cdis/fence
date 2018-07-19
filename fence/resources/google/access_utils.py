@@ -115,8 +115,18 @@ def do_all_users_have_access_to_project(user_ids, project_auth_id):
 
     return True
 
-def google_project_has_valid_service_accounts(project_id):
 
+def google_project_has_valid_service_accounts(project_id):
+    """
+    Checks if all service accounts in a project do not
+    have external access. Also checks that all service
+    account members in IAM Policy are from the given
+    project.
+    Args:
+        project_id(str): unique id of project
+    ReturnsL
+        Bool: True iff all service accounts are valid
+    """
     try:
         with GoogleCloudManager(project_id) as prj:
             service_accounts = prj.get_all_service_accounts()
