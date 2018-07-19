@@ -213,7 +213,7 @@ def generate_signed_session_token(
     claims = {
         'pur': 'session',
         'aud': ['fence'],
-        'sub': context.get('username', ''),
+        'sub': context.get('user_id', ''),
         'iss': issuer,
         'iat': iat,
         'exp': exp,

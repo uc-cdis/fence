@@ -169,6 +169,8 @@ MAX_ACCESS_TOKEN_TTL = 3600
 dir_path = "/secrets"
 fence_creds = os.path.join(dir_path, 'fence_credentials.json')
 
+SUPPORT_EMAIL_FOR_ERRORS = None
+dbGaP = {}
 if os.path.exists(fence_creds):
     with open(fence_creds, 'r') as f:
         data = json.load(f)

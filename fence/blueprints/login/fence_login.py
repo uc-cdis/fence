@@ -64,8 +64,6 @@ class FenceLogin(Resource):
             attempt_refresh=True
         )
         username = id_token_claims['context']['user']['name']
-        flask.session['username'] = username
-        flask.session['provider'] = IdentityProvider.fence
         login_user(flask.request, username, IdentityProvider.fence)
 
         if 'redirect' in flask.session:
