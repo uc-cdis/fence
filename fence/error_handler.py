@@ -1,4 +1,5 @@
 import uuid
+from httplib import responses as http_responses
 
 import flask
 from flask import render_template
@@ -14,20 +15,24 @@ def get_error_response(error):
 
     message = details.get('message')
 
-    # don't include internal details in the public error message
-    if status_code == 500:
-        message = None
-
     error_id = _get_error_identifier()
     flask.current_app.logger.error(
         '{} HTTP error occured. ID: {}\nDetails: {}'
         .format(status_code, error_id, str(details))
     )
 
+    # don't include internal details in the public error message
+    if status_code == 500:
+        message = None
+
+    status_code_message = http_responses.get(
+        status_code, 'Unknown error code.')
+
     return (
         render_template(
             'error.html',
             status_code=status_code,
+            status_code_message=status_code_message,
             support_email=support_email,
             error_id=error_id,
             message=message,
