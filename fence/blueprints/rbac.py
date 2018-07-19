@@ -17,7 +17,7 @@ from fence.models import Policy, User
 blueprint = flask.Blueprint('rbac', __name__)
 
 
-@blueprint.route('/policy/', methods=['GET'])
+@blueprint.route('/policies/', methods=['GET'])
 @login_required({'admin'})
 def list_policies():
     """

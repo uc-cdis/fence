@@ -26,7 +26,7 @@ def test_list_policies(db_session, client, example_policies):
     for policy in example_policies:
         db_session.add(policy)
 
-    policies_response = client.get('/rbac/policy/').json
+    policies_response = client.get('/rbac/policies/').json
     assert 'policies' in policies_response
     policy_ids = policies_response['policies']
     assert set(policy_ids) == set(policy.id for policy in example_policies)
