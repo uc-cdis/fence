@@ -90,15 +90,19 @@ def service_account_has_external_access(service_account):
     with GoogleCloudManager() as g_mgr:
         response = g_mgr.get_service_account_policy(service_account)
         if response.status_code != 200:
-            raise GoogleAPIError('Unable to get IAM policy for service account {}\n{}.'.format(service_account, response.json()))
-        policy = GooglePolicy.from_json(response.json())
-        if policy.roles:
+            raise GoogleAPIError('Unable to get IAM policy for service account {}\n{}.'
+                                .format(service_account, response.json()))
+        json_obj = response.json()
+        # In the case that a service account does not have any role, Google API
+        # returns a json object without bindings key
+        if json_obj.has_key('bindings'):
+            policy = GooglePolicy.from_json(json_obj)
+            if policy.roles:
+                return True
+        if g_mgr.get_service_account_keys_info(service_account):
             return True
-        keys = GooglePolicy(g_mgr.get_service_account_keys_info(service_account))
-        if keys:
-            return True
-
     return False
+
 
 def is_service_account_from_google_project(service_account, google_project):
     raise NotImplementedError('Functionality not yet available...')
