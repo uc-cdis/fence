@@ -1,3 +1,5 @@
+import pytest
+
 from fence.resources.google.access_utils import (
     is_valid_service_account_type,
     service_account_has_external_access,
@@ -8,14 +10,16 @@ from cirrus.google_cloud import (
     GOOGLE_API_SERVICE_ACCOUNT,
     USER_MANAGED_SERVICE_ACCOUNT,
 )
+from cirrus.google_cloud.errors import GoogleAPIError
+
 
 class MockResponse:
-   def __init__(self, json_data, status_code):
-       self.json_data = json_data
-       self.status_code = status_code
+    def __init__(self, json_data, status_code):
+        self.json_data = json_data
+        self.status_code = status_code
 
-   def json(self):
-       return self.json_data
+    def json(self):
+        return self.json_data
 
 
 def test_is_valid_service_account_type_compute_engine_default(cloud_manager):
@@ -68,40 +72,83 @@ def test_is_valid_service_account_type_user_managed(cloud_manager):
 
 def test_service_account_has_role_in_service_policy(cloud_manager):
     """
-    test service account has roles in its policy
+    Test service account has roles in its policy
     """
     faked_json = {
-       "bindings": [
-           {
-               "role": "roles/owner",
-               "members": [
-                   "user:mike@example.com",
-                   "group:admins@example.com",
-                   "domain:google.com",
-                   "serviceAccount:my-other-app@appspot.gserviceaccount.com",
-               ]
-           },
-           {
-               "role": "roles/viewer",
-               "members": ["user:sean@example.com"]
-           }
+        "bindings": [
+            {
+                "role": "roles/owner",
+                "members": [
+                    "user:mike@example.com",
+                    "group:admins@example.com",
+                    "domain:google.com",
+                    "serviceAccount:my-other-app@appspot.gserviceaccount.com",
+                ]
+            },
+            {
+                "role": "roles/viewer",
+                "members": ["user:sean@example.com"]
+            }
         ]
     }
 
-    cloud_manager.return_value.__enter__.return_value.get_service_account_policy.return_value = MockResponse(faked_json,200)
-    assert service_account_has_external_access('test_service_account') == True
+    (
+        cloud_manager.return_value.__enter__.
+        return_value.get_service_account_policy.return_value
+    ) = MockResponse(faked_json, 200)
+
+    assert service_account_has_external_access('test_service_account')
 
 
 def test_service_account_has_user_managed_key_in_service_policy(cloud_manager):
     """
-    test service account has roles in its policy
+    Test that service account has user managed keys in its policy
     """
     faked_json = {
-            'etag': 'ACAB'
+        'etag': 'ACAB'
     }
 
-    cloud_manager.return_value.__enter__.return_value.get_service_account_policy.return_value = MockResponse(faked_json,200)
-    cloud_manager.return_value.__enter__.return_value.get_service_account_keys_inf.return_value = ['key1','key2']
-    assert service_account_has_external_access('test_service_account') == True
+    (
+        cloud_manager.return_value.__enter__.
+        return_value.get_service_account_policy.return_value
+    ) = MockResponse(faked_json, 200)
+
+    (
+        cloud_manager.return_value.__enter__.
+        return_value.get_service_account_keys_inf.return_value
+    ) = ['key1', 'key2']
+
+    assert service_account_has_external_access('test_service_account')
 
 
+def test_service_account_does_not_have_external_access(cloud_manager):
+    """
+    Test that service account does not have any role or user managed key in its policy
+    """
+    faked_json = {
+        'etag': 'ACAB'
+    }
+
+    (
+        cloud_manager.return_value.__enter__.
+        return_value.get_service_account_policy.return_value
+    ) = MockResponse(faked_json, 200)
+
+    (
+        cloud_manager.return_value.__enter__.
+        return_value.get_service_account_keys_info.return_value
+    ) = []
+    assert not service_account_has_external_access('test_service_account')
+
+
+def test_service_account_has_external_access_raise_exception(cloud_manager):
+    """
+    In the case that a exception is raised when there is no access to the service account policy
+    """
+    (
+        cloud_manager.return_value.__enter__.
+        return_value.get_service_account_policy.return_value
+    ) = MockResponse({}, 403)
+
+    with pytest.raises(GoogleAPIError):
+        assert service_account_has_external_access('test_service_account')
