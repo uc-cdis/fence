@@ -12,6 +12,7 @@ from cirrus.google_cloud import (
     COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
     USER_MANAGED_SERVICE_ACCOUNT,
 )
+from cirrus.google_cloud.iam import GooglePolicyMember
 
 ALLOWED_SERVICE_ACCOUNT_TYPES = [
     COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
@@ -127,12 +128,18 @@ def google_project_has_valid_service_accounts(project_id):
             members = prj.get_project_membership()
 
             for mem in members:
-                if mem.member_type == GooglePolicyMember.SERVICE_ACCOUNT
+                if mem.member_type == GooglePolicyMember.SERVICE_ACCOUNT:
                     if mem not in service_accounts:
                         return False
 
             return True
     except Exception as exc:
+        flask.current_app.logger.debug((
+            "Could not determine validity of service accounts"
+            "for project (id: {}) due to error. Details: {}".
+            format(project_id,exc)
+        ))
+        return False
 
 
 
