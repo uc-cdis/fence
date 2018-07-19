@@ -79,8 +79,8 @@ def service_account_has_external_access(service_account):
     raise NotImplementedError('Functionality not yet available...')
 
 
-def is_service_account_from_google_project(service_account, google_project):
-    raise NotImplementedError('Functionality not yet available...')
+def is_service_account_from_google_project(service_account, project_id):
+    return service_account in GoogleCloudManager(project_id).get_all_service_accounts()
 
 
 def is_user_member_of_all_google_projects(user_id, google_project_ids):
@@ -113,6 +113,27 @@ def do_all_users_have_access_to_project(user_ids, project_auth_id):
             return False
 
     return True
+
+def google_project_has_valid_service_accounts(project_id):
+
+    try:
+        with GoogleCloudManager(project_id) as prj:
+            service_accounts = prj.get_all_service_accounts()
+
+            for acc in service_accounts:
+                if service_account_has_external_access(acc):
+                    return False
+
+            members = prj.get_project_membership()
+
+            for mem in members:
+                if mem.member_type == GooglePolicyMember.SERVICE_ACCOUNT
+                    if mem not in service_accounts:
+                        return False
+
+            return True
+    except Exception as exc:
+
 
 
 # TODO this should be in cirrus rather than fence...

@@ -511,9 +511,22 @@ def get_project_access_from_service_accounts(service_accounts):
     raise NotImplementedError('Functionality not yet available...')
 
 
-def get_service_account_ids_from_google_project(google_project):
-    # TODO
-    raise NotImplementedError('Functionality not yet available...')
+def get_service_account_ids_from_google_project(project_id):
+
+    try:
+        account_ids = []
+        with GoogleCloudManager(project_id) as prj:
+            accounts = prj.get_all_service_accounts()
+            for acc in accounts:
+                account_ids.append(acc["email"])
+        return account_ids
+    except Exception as exc:
+        flask.current_app.logger.debug((
+        'Could not get service account IDs of Google'
+        ' Project (project id: {}) Details: {}').
+            format(project_id, exc))
+        return []
+
 
 
 def get_user_ids_from_google_members(members):
