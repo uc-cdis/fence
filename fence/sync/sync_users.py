@@ -280,7 +280,7 @@ class UserSyncer(object):
                             if project.name is None:
                                 project.name = dbgap_project
                             self._projects[dbgap_project] = project
-                        phsid_privileges = {dbgap_project: privileges}
+                        phsid_privileges = {dbgap_project: set(privileges)}
                         if username in user_projects:
                             user_projects[username].update(phsid_privileges)
                         else:
@@ -292,12 +292,11 @@ class UserSyncer(object):
                             phsid_privileges = {
                                 element_dict['auth_id']: set(privileges),
                             }
-                            if username in user_projects:
-                                user_projects[username].update(
-                                    phsid_privileges
-                                )
-                            else:
-                                user_projects[username] = set(phsid_privileges)
+                            if username not in user_projects:
+                                user_projects[username] = {}
+                            user_projects[username].update(
+                                phsid_privileges
+                            )
                         except ValueError as e:
                             self.logger.info(e)
         return user_projects, user_info
@@ -699,8 +698,12 @@ class UserSyncer(object):
                     self._projects[p['auth_id']] = project
         for _, projects in user_project.iteritems():
             for project_name in projects.keys():
-                project = sess.query(Project).filter(
-                    Project.auth_id == project_name).first()
+                project = (
+                    sess
+                    .query(Project)
+                    .filter(Project.auth_id == project_name)
+                    .first()
+                )
                 if not project:
                     data = {'name': project_name, 'auth_id': project_name}
                     project = self._get_or_create(sess, Project, **data)
