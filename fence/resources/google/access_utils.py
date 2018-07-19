@@ -8,6 +8,7 @@ from flask_sqlalchemy_session import current_session
 from fence.models import AccessPrivilege
 
 from cirrus import GoogleCloudManager
+from cirrus.google_cloud.errors import GoogleAPIError
 from cirrus.google_cloud.iam import GooglePolicy
 from cirrus.google_cloud import (
     COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
@@ -87,7 +88,10 @@ def service_account_has_external_access(service_account):
         bool: whether or not the service account has external access
     """
     with GoogleCloudManager() as g_mgr:
-        policy = GooglePolicy(g_mgr.get_service_account_policy(service_account))
+        response = g_mgr.get_service_account_policy(service_account)
+        if response.status_code != 200:
+            raise GoogleAPIError('Unable to get IAM policy for service account {}\n{}.'.format(service_account, response.json()))
+        policy = GooglePolicy.from_json(response.json())
         if policy.roles:
             return True
         keys = GooglePolicy(g_mgr.get_service_account_keys_info(service_account))
