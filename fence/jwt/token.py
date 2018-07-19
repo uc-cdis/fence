@@ -13,7 +13,7 @@ from fence.jwt import keys
 
 SCOPE_DESCRIPTION = {
     'openid': 'default scope',
-    'user': 'Know who you are and what you are authorized to access.',
+    'user': 'Know your {{idp_names}} basic account information and what you are authorized to access.',
     'data': 'Retrieve controlled-access datasets to which you have access.',
     'credentials': 'View and update your credentials.',
     'google_credentials': 'temporary google credentials to access data on google',
