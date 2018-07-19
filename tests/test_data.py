@@ -62,7 +62,7 @@ def test_indexd_download_file_no_protocol(
     """
     Test ``GET /data/download/1``.
     """
-    
+
     path = '/data/download/1'
     headers = {'Authorization': 'Bearer ' + jwt.encode(
         utils.authorized_download_context_claims(
@@ -83,7 +83,10 @@ def test_indexd_download_file_no_jwt(client, auth_client):
     path = '/data/download/1'
     response = client.get(path)
     assert response.status_code == 401
-    assert 'url' not in response.json.keys()
+
+    # response should not be JSON, should be HTML error page
+    with pytest.raises(ValueError):
+        response.json
 
 
 @pytest.mark.parametrize(
@@ -97,7 +100,10 @@ def test_indexd_unauthorized_download_file(
     path = '/data/download/1'
     response = client.get(path)
     assert response.status_code == 401
-    assert 'url' not in response.json.keys()
+
+    # response should not be JSON, should be HTML error page
+    with pytest.raises(ValueError):
+        response.json
 
 
 @pytest.mark.parametrize(
@@ -120,7 +126,10 @@ def test_unauthorized_indexd_download_file(
     )}
     response = client.get(path, headers=headers)
     assert response.status_code == 401
-    assert 'url' not in response.json.keys()
+
+    # response should not be JSON, should be HTML error page
+    with pytest.raises(ValueError):
+        response.json
 
 
 @pytest.mark.parametrize(
@@ -143,7 +152,10 @@ def test_unauthorized_indexd_upload_file(
     )}
     response = client.get(path, headers=headers)
     assert response.status_code == 401
-    assert 'url' not in response.json.keys()
+
+    # response should not be JSON, should be HTML error page
+    with pytest.raises(ValueError):
+        response.json
 
 
 @pytest.mark.parametrize(
@@ -167,7 +179,10 @@ def test_unavailable_indexd_upload_file(
     )}
     response = client.get(path, headers=headers)
     assert response.status_code == 401
-    assert 'url' not in response.json.keys()
+
+    # response should not be JSON, should be HTML error page
+    with pytest.raises(ValueError):
+        response.json
 
 
 @pytest.mark.parametrize(
@@ -216,3 +231,7 @@ def test_public_bucket_unsupported_protocol_file(
     path = '/data/download/1'
     response = client.get(path)
     assert response.status_code == 400
+
+    # response should not be JSON, should be HTML error page
+    with pytest.raises(ValueError):
+        response.json
