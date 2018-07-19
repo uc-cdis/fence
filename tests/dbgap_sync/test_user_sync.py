@@ -1,6 +1,10 @@
 import pytest
+import yaml
 
 from fence import models
+from fence.sync.sync_users import _format_policy_id
+
+from tests.dbgap_sync.conftest import LOCAL_YAML_DIR
 
 
 @pytest.mark.parametrize('syncer', ['google', 'cleversafe'], indirect=True)
@@ -213,11 +217,15 @@ def test_update_arborist(syncer, db_session):
     """
     Check that the ``syncer.arborist_client`` (which is a ``MagicMock``) is
     called appropriately. Also test that the policies for users are created in
-    the database correctly.
+    the database correctly, and registered to the User models.
     """
     syncer.sync()
-    # These are collected from the syncer fixture. In future should refactor to
-    # make project mapping its own fixture and not duplicate in the tests here.
+
+    # These projects and permissions are collected from the syncer fixture. In
+    # future should refactor to make project mapping its own fixture and not
+    # duplicate in the tests here.
+
+    # Check
     expect_resources = [
         'phs000179.c1',
         'phs000178.c1',
@@ -226,68 +234,58 @@ def test_update_arborist(syncer, db_session):
         'TCGA-PCAWG',
         'phs000178',
     ]
-
     for resource in expect_resources:
         assert syncer.arborist_client.create_resource.called_with(
             '/project', {'name': resource}
         )
 
-    # Same with roles/permissions
+    # Same with roles
+    permissions = [
+        'delete',
+        'update',
+        'upload',
+        'create',
+        'read',
+        'read-storage',
+    ]
     expect_roles = [
         {
-            'id': 'read-storage',
+            'id': permission,
             'permissions': [
                 {
-                    'id': 'read-storage',
-                    'action': {'method': 'read-storage', 'service': ''},
+                    'id': permission,
+                    'action': {'method': permission, 'service': ''},
                 }
             ],
-        },
-        {
-            'id': 'read',
-            'permissions': [
-                {
-                    'id': 'read',
-                    'action': {'method': 'read', 'service': ''},
-                },
-            ],
-        },
-        {
-            'id': 'create',
-            'permissions': [
-                {
-                    'id': 'create',
-                    'action': {'method': 'create', 'service': ''},
-                },
-            ],
-        },
-        {
-            'id': 'upload',
-            'permissions': [
-                {
-                    'id': 'upload',
-                    'action': {'method': 'upload', 'service': ''},
-                },
-            ],
-        },
-        {
-            'id': 'update',
-            'permissions': [
-                {
-                    'id': 'update',
-                    'action': {'method': 'update', 'service': ''},
-                },
-            ],
-        },
-        {
-            'id': 'delete',
-            'permissions': [
-                {
-                    'id': 'delete',
-                    'action': {'method': 'delete', 'service': ''},
-                },
-            ],
-        },
+        }
+        for permission in permissions
     ]
     for role in expect_roles:
         assert syncer.arborist_client.create_role.called_with(role)
+
+    with open(LOCAL_YAML_DIR, 'r') as f:
+        user_data = yaml.safe_load(f)
+
+    policies = db_session.query(models.Policy).all()
+    policy_ids = [policy.id for policy in policies]
+
+    # For every user in the user data, check that the matching policies were
+    # created, and also granted to this user, i.e. the entry in the database
+    # for this user has policies for everything in the original user data.
+    for user, data in user_data['users'].items():
+        if 'projects' not in data:
+            continue
+        for project in data['projects']:
+            auth_id = project['auth_id']
+            for privilege in project['privilege']:
+                policy_id = _format_policy_id(auth_id, privilege)
+                assert policy_id in policy_ids
+                user_policies = (
+                    db_session
+                    .query(models.User)
+                    .filter_by(username=user)
+                    .first()
+                    .policies
+                )
+                user_policy_ids = [policy.id for policy in user_policies]
+                assert policy_id in user_policy_ids

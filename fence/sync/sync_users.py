@@ -28,6 +28,9 @@ from fence.models import (
 from fence.rbac.client import ArboristClient
 from fence.resources.storage import StorageManager
 
+def _format_policy_id(auth_id, privilege):
+    return '{}-{}'.format(auth_id, privilege)
+
 
 def download_dir(sftp, remote_dir, local_dir):
     """
@@ -354,9 +357,9 @@ class UserSyncer(object):
                     }
 
                     if username not in user_project:
-                        user_project[username] = (privileges)
+                        user_project[username] = privileges
                     else:
-                        user_project[username].add(privileges)
+                        user_project[username].update(privileges)
         except IOError as e:
             self.logger.info(e)
 
@@ -835,6 +838,7 @@ class UserSyncer(object):
                         )
                     created_projects.add(project)
                 for permission in permissions:
+                    # "permission" in the dbgap sense, not the arborist sense
                     permission_errored = False
                     if permission not in created_roles:
                         response = self.arborist_client.create_role({
@@ -861,7 +865,7 @@ class UserSyncer(object):
                     # user which contains exactly just this project as a
                     # resource, with this permission as a role.
                     if not project_errored and not permission_errored:
-                        policy_id = '{}-{}'.format(project, permission)
+                        policy_id = _format_policy_id(project, permission)
                         policy = (
                             session
                             .query(Policy)
