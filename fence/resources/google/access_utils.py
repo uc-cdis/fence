@@ -60,8 +60,6 @@ def google_project_has_valid_membership(project_id):
     try:
         with GoogleCloudManager(project_id) as prj:
             members = prj.get_project_membership()
-            if len(members) == 0:
-                return False
             for member in members:
                 if not(member.member_type == GooglePolicyMember.SERVICE_ACCOUNT or
                         member.member_type == GooglePolicyMember.USER):
