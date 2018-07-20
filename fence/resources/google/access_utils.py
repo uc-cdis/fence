@@ -41,7 +41,17 @@ def can_user_manage_service_account(user_id, account_id):
 
 
 def google_project_has_parent_org(project_id):
+    """
+    Checks if google project has parent org. Wraps
+    GoogleCloudManager.has_parent_organization()
 
+    Args:
+        project_id(str): unique id for project
+
+    Returns:
+        Bool: True iff google project has a parent
+        organization
+    """
     try:
         with GoogleCloudManager(project_id) as prj:
             return prj.has_parent_organization()
@@ -51,6 +61,7 @@ def google_project_has_parent_org(project_id):
             'due to error (Details: {})'.
             format(project_id, exc)
         ))
+        return False
 
 
 def google_project_has_valid_membership(google_project):
