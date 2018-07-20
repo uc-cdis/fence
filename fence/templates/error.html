@@ -1,0 +1,61 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{status_code}}</title>
+  <link rel="stylesheet" href="/api/static/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+   <script src="/api/static/js/bootstrap.min.js"></script>
+</head>
+
+<body>
+  <main>
+    <img class="error-logo" src="../static/img/logo.svg" />
+    <div>
+      <h1>
+        {{app_name}}
+      </h1>
+      <h2>
+        {{status_code}}
+      </h2>
+      <h3>
+        {{status_code_message}}
+      </h3>
+      <section>
+        <p>Error Identifier: {{error_id}}</p>
+        {% if message %}
+        <p>Details: "{{message}}"</p>
+        {% endif %}
+        <div>
+          {% if support_email %}
+          <p>Try again later or contact support at: <a href="mailto:{{support_email}}">{{support_email}}</a></p>
+          {% else %}
+          <p>Try again later.</p>
+          {% endif %}
+        </div>
+      </section>
+    </div>
+  </main>
+</body>
+<style type="text/css">
+
+body {
+    background-color: #F5F5F5;
+    font-family: 'Source Sans Pro', sans-serif;
+}
+main {
+    position: absolute;
+    top: 15%;
+    left: calc(50% - 512px);
+}
+.auth-data-logo {
+    width: 314px;
+    height: 116px;
+    display: block;
+    margin: auto;
+    margin-bottom: 15px;
+}
+
+</style>
+</html>

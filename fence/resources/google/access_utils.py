@@ -6,6 +6,7 @@ import flask
 
 from flask_sqlalchemy_session import current_session
 from fence.models import AccessPrivilege
+from cirrus.google_cloud.iam import GooglePolicyMember
 
 from cirrus import GoogleCloudManager
 from cirrus.google_cloud import (
@@ -41,12 +42,58 @@ def can_user_manage_service_account(user_id, account_id):
         user_id, [service_account_project])
 
 
-def google_project_has_parent_org(google_project):
-    raise NotImplementedError('Functionality not yet available...')
+def google_project_has_parent_org(project_id):
+    """
+    Checks if google project has parent org. Wraps
+    GoogleCloudManager.has_parent_organization()
+
+    Args:
+        project_id(str): unique id for project
+
+    Returns:
+        Bool: True iff google project has a parent
+        organization
+    """
+    try:
+        with GoogleCloudManager(project_id) as prj:
+            return prj.has_parent_organization()
+    except Exception as exc:
+        flask.current_app.logger.debug((
+            'Could not determine if Google project (id: {}) has parent org'
+            'due to error (Details: {})'.
+            format(project_id, exc)
+        ))
+        return False
 
 
-def google_project_has_valid_membership(google_project):
-    raise NotImplementedError('Functionality not yet available...')
+def google_project_has_valid_membership(project_id):
+    """
+    Checks if a google project only has members of type
+    USER or SERVICE_ACCOUNT
+
+    Args:
+        google_project(GoogleCloudManager): google project to check members of
+
+    Return:
+        Bool: True iff project members are only users and/or service accounts
+    """
+
+    try:
+        with GoogleCloudManager(project_id) as prj:
+            members = prj.get_project_membership()
+            for member in members:
+                if not(member.member_type == GooglePolicyMember.SERVICE_ACCOUNT or
+                        member.member_type == GooglePolicyMember.USER):
+                    return False
+
+            return True
+
+    except Exception as exc:
+        flask.current_app.logger.debug((
+            'validity of Google Project (id: {}) membership '
+            'determined False due to error. Details: {}').
+            format(project_id, exc))
+        return False
 
 
 def is_valid_service_account_type(project_id, account_id):

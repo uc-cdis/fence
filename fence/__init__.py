@@ -18,7 +18,7 @@ from fence.resources.aws.boto_manager import BotoManager
 from fence.resources.openid.google_oauth2 import Oauth2Client as GoogleClient
 from fence.resources.storage import StorageManager
 from fence.resources.user.user_session import UserSessionInterface
-from fence.restful import handle_error
+from fence.error_handler import get_error_response
 from fence.utils import random_str
 import fence.blueprints.admin
 import fence.blueprints.data
@@ -178,11 +178,11 @@ def app_init(app, settings='fence.settings', root_dir=None):
 
 
 @app.errorhandler(Exception)
-def user_error(error):
+def handle_error(error):
     """
     Register an error handler for general exceptions.
     """
-    return handle_error(error)
+    return get_error_response(error)
 
 
 @app.before_request
