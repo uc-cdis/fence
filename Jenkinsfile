@@ -67,6 +67,7 @@ pipeline {
           int randNum = new Random().nextInt(modNum) + ((env.EXECUTOR_NUMBER as Integer) * 2)
 
           env.KUBECTL_NAMESPACE = namespaces[randNum]
+          println "selected namespace $env.KUBECTL_NAMESPACE on executor $env.EXECUTOR_NUMBER"
         }
       }
     }
