@@ -40,8 +40,17 @@ def can_user_manage_service_account(user_id, account_id):
         user_id, [service_account_project])
 
 
-def google_project_has_parent_org(google_project):
-    return google_project.has_parent_organization()
+def google_project_has_parent_org(project_id):
+
+    try:
+        with GoogleCloudManager(project_id) as prj:
+            return prj.has_parent_organization()
+    except Exception as exc:
+        flask.current_app.logger.debug((
+            'Could not determine if Google project (id: {}) has parent org'
+            'due to error (Details: {})'.
+            format(project_id, exc)
+        ))
 
 
 def google_project_has_valid_membership(google_project):
