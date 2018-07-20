@@ -41,8 +41,28 @@ def can_user_manage_service_account(user_id, account_id):
         user_id, [service_account_project])
 
 
-def google_project_has_parent_org(google_project):
-    raise NotImplementedError('Functionality not yet available...')
+def google_project_has_parent_org(project_id):
+    """
+    Checks if google project has parent org. Wraps
+    GoogleCloudManager.has_parent_organization()
+
+    Args:
+        project_id(str): unique id for project
+
+    Returns:
+        Bool: True iff google project has a parent
+        organization
+    """
+    try:
+        with GoogleCloudManager(project_id) as prj:
+            return prj.has_parent_organization()
+    except Exception as exc:
+        flask.current_app.logger.debug((
+            'Could not determine if Google project (id: {}) has parent org'
+            'due to error (Details: {})'.
+            format(project_id, exc)
+        ))
+        return False
 
 
 def google_project_has_valid_membership(project_id):
