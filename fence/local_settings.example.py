@@ -32,7 +32,8 @@ OPENID_CONNECT = {
     'google': {
         'client_id': '',
         'client_secret': '',
-        'redirect_url': ''
+        'redirect_url': '',
+        'name': 'Google'
     },
     'fence': {
         'client_id': '',
@@ -45,6 +46,7 @@ OPENID_CONNECT = {
             'scope': 'openid user',
             'redirect_uri': '',
         },
+        'name': ''
     },
 }
 
