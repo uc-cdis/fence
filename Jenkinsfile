@@ -64,8 +64,7 @@ pipeline {
         script {
           println "$env.EXECUTOR_NUMBER"
           String[] namespaces = ['qa-bloodpac', 'qa-brain', 'qa-kidsfirst', 'qa-niaid']
-
-          randNum = (new Random().nextInt() % (namespaces.length / 2)) + ($env.ECXECUTOR_NUMBER * 2)
+          randNum = (abs(new Random().nextInt()) % (namespaces.length / 2)) + ($env.ECXECUTOR_NUMBER * 2)
           println "randNum is: "+randNum
           // randNum = new Random().nextInt() % namespaces.length
 
@@ -137,7 +136,7 @@ pipeline {
     }
     always {
       echo "done"
-      junit "gen3-qa/output/*.xml"
+      // junit "gen3-qa/output/*.xml"
     }
   }
 }
