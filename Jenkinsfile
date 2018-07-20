@@ -30,96 +30,91 @@ pipeline {
         }
       }
     }
-    // stage('WaitForQuayBuild') {
-    //   steps {
-    //     script {
-    //       service = "$env.JOB_NAME".split('/')[1]
-    //       def timestamp = (("${currentBuild.timeInMillis}".substring(0, 10) as Integer) - 60)
-    //       curlUrl = "$env.QUAY_API"+service+"/build/?since="+timestamp
-    //       fullQuery = "curl -s "+curlUrl+/ | jq '.builds[] | "\(.tags[]),\(.display_name),\(.phase)"'/
-          
-    //       def testBool = false
-    //       while(testBool != true) {
-    //         sleep(30)
-    //         resList = sh(script: fullQuery, returnStdout: true).trim().split('"\n"')
-    //         for (String res in resList) {
-    //           fields = res.replaceAll('"', "").split(',')
-
-    //           if(fields[0].startsWith("$env.GIT_BRANCH".replaceAll("/", "_"))) {
-    //             if("$env.GIT_COMMIT".startsWith(fields[1])) {
-    //               testBool = fields[2].endsWith("complete")
-    //               break
-    //             } else {
-    //               currentBuild.result = 'ABORTED'
-    //               error("aborting build due to out of date git hash\npipeline: $env.GIT_COMMIT\nquay: "+fields[1])
-    //             }
-    //           }
-    //         }
-    //       }
-    //     }
-    //   }
-    // }
-    stage('SelectNamespace') {
+    stage('WaitForQuayBuild') {
       steps {
         script {
-          println "$env.EXECUTOR_NUMBER"
-          String[] namespaces = ['qa-bloodpac', 'qa-brain', 'qa-kidsfirst', 'qa-niaid']
-          randNum = (abs(new Random().nextInt()) % (namespaces.length / 2)) + ($env.ECXECUTOR_NUMBER * 2)
-          println "randNum is: "+randNum
-          // randNum = new Random().nextInt() % namespaces.length
+          service = "$env.JOB_NAME".split('/')[1]
+          def timestamp = (("${currentBuild.timeInMillis}".substring(0, 10) as Integer) - 60)
+          curlUrl = "$env.QUAY_API"+service+"/build/?since="+timestamp
+          fullQuery = "curl -s "+curlUrl+/ | jq '.builds[] | "\(.tags[]),\(.display_name),\(.phase)"'/
+          
+          def testBool = false
+          while(testBool != true) {
+            sleep(30)
+            resList = sh(script: fullQuery, returnStdout: true).trim().split('"\n"')
+            for (String res in resList) {
+              fields = res.replaceAll('"', "").split(',')
 
-
-          env.KUBECTL_NAMESPACE = namespaces[randNum]
-          println "$env.KUBECTL_NAMESPACE"
-
+              if(fields[0].startsWith("$env.GIT_BRANCH".replaceAll("/", "_"))) {
+                if("$env.GIT_COMMIT".startsWith(fields[1])) {
+                  testBool = fields[2].endsWith("complete")
+                  break
+                } else {
+                  currentBuild.result = 'ABORTED'
+                  error("aborting build due to out of date git hash\npipeline: $env.GIT_COMMIT\nquay: "+fields[1])
+                }
+              }
+            }
+          }
         }
       }
     }
-    // stage('ModifyManifest') {
-    //   steps {
-    //     script {
-    //       dirname="$env.KUBECTL_NAMESPACE"+'.planx-pla.net'
-    //       service = "$env.JOB_NAME".split('/')[1]
-    //       quaySuffix = "$env.GIT_BRANCH".replaceAll("/", "_")
-    //     }
-    //     dir("cdis-manifest/$dirname") {
-    //       withEnv(["masterBranch=$service:master", "targetBranch=$service:$quaySuffix"]) {
-    //         sh 'sed -i -e "s,'+"$env.masterBranch,$env.targetBranch"+',g" manifest.json'
-    //       }
-    //     }
-    //   }
-    // }
-    // stage('K8sDeploy') {
-    //   steps {
-    //     withEnv(['GEN3_NOPROXY=true', "vpc_name=$env.KUBECTL_NAMESPACE", "GEN3_HOME=$env.WORKSPACE/cloud-automation"]) {
-    //       echo "GEN3_HOME is $env.GEN3_HOME"
-    //       echo "GIT_BRANCH is $env.GIT_BRANCH"
-    //       echo "GIT_COMMIT is $env.GIT_COMMIT"
-    //       echo "KUBECTL_NAMESPACE is $env.KUBECTL_NAMESPACE"
-    //       echo "WORKSPACE is $env.WORKSPACE"
-    //       sh "bash cloud-automation/gen3/bin/kube-roll-all.sh"
-    //       sh "bash cloud-automation/gen3/bin/kube-wait4-pods.sh || true"
-    //     }
-    //   }
-    // }
-    // stage('RunInstall') {
-    //   steps {
-    //     dir('gen3-qa') {
-    //       withEnv(['GEN3_NOPROXY=true']) {
-    //         sh "bash ./run-install.sh"
-    //       }
-    //     }
-    //   }
-    // }
-    // stage('RunTests') {
-    //   steps {
-    //     dir('gen3-qa') {
-    //       withEnv(['GEN3_NOPROXY=true', "vpc_name=$env.KUBECTL_NAMESPACE", "GEN3_HOME=$env.WORKSPACE/cloud-automation"]) {
-    //         sh "bash ./run-tests.sh $env.KUBECTL_NAMESPACE"
-    //       }
-    //     }
-    //   }
-    // }
+    stage('SelectNamespace') {
+      steps {
+        script {
+          String[] namespaces = ['qa-bloodpac', 'qa-brain', 'qa-kidsfirst', 'qa-niaid']
+          int modNum = namespaces.length/2
+          int randNum = new Random().nextInt(modNum) + ((env.EXECUTOR_NUMBER as Integer) * 2)
+
+          env.KUBECTL_NAMESPACE = namespaces[randNum]
+        }
+      }
+    }
+    stage('ModifyManifest') {
+      steps {
+        script {
+          dirname="$env.KUBECTL_NAMESPACE"+'.planx-pla.net'
+          service = "$env.JOB_NAME".split('/')[1]
+          quaySuffix = "$env.GIT_BRANCH".replaceAll("/", "_")
+        }
+        dir("cdis-manifest/$dirname") {
+          withEnv(["masterBranch=$service:master", "targetBranch=$service:$quaySuffix"]) {
+            sh 'sed -i -e "s,'+"$env.masterBranch,$env.targetBranch"+',g" manifest.json'
+          }
+        }
+      }
+    }
+    stage('K8sDeploy') {
+      steps {
+        withEnv(['GEN3_NOPROXY=true', "vpc_name=$env.KUBECTL_NAMESPACE", "GEN3_HOME=$env.WORKSPACE/cloud-automation"]) {
+          echo "GEN3_HOME is $env.GEN3_HOME"
+          echo "GIT_BRANCH is $env.GIT_BRANCH"
+          echo "GIT_COMMIT is $env.GIT_COMMIT"
+          echo "KUBECTL_NAMESPACE is $env.KUBECTL_NAMESPACE"
+          echo "WORKSPACE is $env.WORKSPACE"
+          sh "bash cloud-automation/gen3/bin/kube-roll-all.sh"
+          sh "bash cloud-automation/gen3/bin/kube-wait4-pods.sh || true"
+        }
+      }
+    }
+    stage('RunInstall') {
+      steps {
+        dir('gen3-qa') {
+          withEnv(['GEN3_NOPROXY=true']) {
+            sh "bash ./run-install.sh"
+          }
+        }
+      }
+    }
+    stage('RunTests') {
+      steps {
+        dir('gen3-qa') {
+          withEnv(['GEN3_NOPROXY=true', "vpc_name=$env.KUBECTL_NAMESPACE", "GEN3_HOME=$env.WORKSPACE/cloud-automation"]) {
+            sh "bash ./run-tests.sh $env.KUBECTL_NAMESPACE"
+          }
+        }
+      }
+    }
   }
   post {
     success {
@@ -136,7 +131,7 @@ pipeline {
     }
     always {
       echo "done"
-      // junit "gen3-qa/output/*.xml"
+      junit "gen3-qa/output/*.xml"
     }
   }
 }
