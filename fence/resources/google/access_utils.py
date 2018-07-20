@@ -95,7 +95,7 @@ def service_account_has_external_access(service_account):
         json_obj = response.json()
         # In the case that a service account does not have any role, Google API
         # returns a json object without bindings key
-        if json_obj.has_key('bindings'):
+        if 'bindings' in json_obj:
             policy = GooglePolicy.from_json(json_obj)
             if policy.roles:
                 return True
