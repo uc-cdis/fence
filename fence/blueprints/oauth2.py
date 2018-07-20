@@ -240,7 +240,19 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
         shown_scopes = scope.split(' ')
         if 'openid' in shown_scopes:
             shown_scopes.remove('openid')
-        resource_description = [SCOPE_DESCRIPTION[s] for s in shown_scopes]
+
+        enabled_idps = flask.current_app.config.get('OPENID_CONNECT', {})
+        idp_names = []
+        for idp, info in enabled_idps.iteritems():
+            # prefer name if its there, then just use the key for the provider
+            idp_name = info.get('name') or idp.title()
+            idp_names.append(idp_name)
+
+        resource_description = [
+            SCOPE_DESCRIPTION[s].format(idp_names=' and '.join(idp_names))
+            for s in shown_scopes
+        ]
+
         response = flask.render_template(
             'oauthorize.html', grant=grant, user=user, client=client,
             app_name=flask.current_app.config.get('APP_NAME'),
