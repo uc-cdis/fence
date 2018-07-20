@@ -14,11 +14,14 @@
     <img class="error-logo" src="../static/img/logo.svg" />
     <div>
       <h1>
-        {{status_code}}
+        {{app_name}}
       </h1>
       <h2>
-        {{status_code_message}}
+        {{status_code}}
       </h2>
+      <h3>
+        {{status_code_message}}
+      </h3>
       <section>
         <p>Error Identifier: {{error_id}}</p>
         {% if message %}
