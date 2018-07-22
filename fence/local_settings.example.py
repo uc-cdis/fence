@@ -100,7 +100,7 @@ ENABLE_CSRF_PROTECTION = True
 INDEXD = '/index'
 
 ARBORIST = {
-    'base_url': '/arborist',
+    'base_url': '/rbac',
 }
 
 AWS_CREDENTIALS = {

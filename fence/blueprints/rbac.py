@@ -37,6 +37,40 @@ def list_policies():
     return flask.jsonify({'policies': [policy.id for policy in policies]})
 
 
+@blueprint.route('/policies/', methods=['POST'])
+@login_required({'admin'})
+def create_policy():
+    """
+    Create a new policy and send it to arborist, *without* granting it to any
+    users.
+    """
+    data = flask.request.get_json()
+    flask.current_app.arborist.create_policy()
+    with flask.current_app.db.session as session:
+        session.add(Policy(id=data['id']))
+    return '', 201
+
+
+@blueprint.route('/policies/<policy_id>', methods=['DELETE'])
+@login_required({'admin'})
+def delete_policy(policy_id):
+    """
+    Delete a policy from the arborist service and the database.
+    """
+    response = flask.current_app.arborist.delete_policy(policy_id)
+    if 'error' in response:
+        return response, 400
+    with flask.current_app.db.session as session:
+        policy_to_delete = (
+            session
+            .query(Policy)
+            .filter(Policy.id == policy_id)
+            .first()
+        )
+        session.delete(policy_to_delete)
+    return '', 204
+
+
 @blueprint.route('/user/<user_id>/policies/', methods=['GET'])
 @login_required({'admin'})
 def list_user_policies(user_id):
@@ -97,6 +131,21 @@ def revoke_user_policies(user_id):
         # Set user's policies to empty list.
         user.policies = []
         session.commit()
+    return '', 204
+
+
+@blueprint.route('/user/<user_id>/policies/<policy_id>', methods=['DELETE'])
+@login_required({'admin'})
+def revoke_user_policy(user_id, policy_id):
+    """
+    Revoke a specific policy granted to a user.
+    """
+    with flask.current_app.db.session as session:
+        user = session.query(User).filter_by(User.id == user_id).first()
+        if not user:
+            raise NotFound('no user exists with ID: {}'.format(user_id))
+        user.policies.remove(policy_id)
+        session.flush()
     return '', 204
 
 
