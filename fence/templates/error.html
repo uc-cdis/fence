@@ -1,61 +1,142 @@
 <!doctype html>
 
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>{{status_code}}</title>
-  <link rel="stylesheet" href="/api/static/css/bootstrap.min.css">
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
-   <script src="/api/static/js/bootstrap.min.js"></script>
-</head>
+  <head>
+    <meta charset="utf-8">
+    <title>{{status_code}}</title>
+    <link rel="stylesheet" href="/api/static/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <script src="/api/static/js/bootstrap.min.js"></script>
+  </head>
 
-<body>
-  <main>
-    <img class="error-logo" src="../static/img/logo.svg" />
-    <div>
-      <h1>
-        {{app_name}}
-      </h1>
-      <h2>
-        {{status_code}}
-      </h2>
-      <h3>
-        {{status_code_message}}
-      </h3>
-      <section>
-        <p>Error Identifier: {{error_id}}</p>
-        {% if message %}
-        <p>Details: "{{message}}"</p>
-        {% endif %}
-        <div>
-          {% if support_email %}
-          <p>Try again later or contact support at: <a href="mailto:{{support_email}}">{{support_email}}</a></p>
-          {% else %}
-          <p>Try again later.</p>
-          {% endif %}
+  <body>
+    <main>
+      <img class="error-page__logo" src="{{url_for('static', filename='img/logo.svg') }}" />
+      <div class="error-page">
+        <div class="error-page__banner">
+          <h1>{{app_name}}</h1>
         </div>
-      </section>
-    </div>
-  </main>
-</body>
-<style type="text/css">
+        <div class="error-page__status-code">
+          <div class="error-page__status-code-text">
+            <h1>{{status_code}}</h1>
+            <h2>{{status_code_message}}</h2>
+          </div>
+          <img class="error-page__picture" src="{{url_for('static', filename='img/404.svg') }}" />
+        </div>
+        <div class="error-page__information">
+          <p class="body">Error Identifier:</p>
+          <p class="introduction">{{error_id}}</p>
+          {% if message %}
+          <p class="body">Error Message:</p>
+          <p class="introduction">{{message}}</p>
+          {% endif %}
+          <div>
+            {% if support_email %}
+            <p class="body">Try again later or contact support at: <a href="mailto:{{support_email}}">{{support_email}}</a></p>
+            {% else %}
+            <p class="body">Try again later.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </main>
+  </body>
+  <style type="text/css">
 
-body {
-    background-color: #F5F5F5;
-    font-family: 'Source Sans Pro', sans-serif;
-}
-main {
-    position: absolute;
-    top: 15%;
-    left: calc(50% - 512px);
-}
-.auth-data-logo {
+  .body {
+    font-size: 16px;
+    color: #9b9b9b;
+    margin: 0;
+  }
+
+  .introduction {
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 18px;
+    letter-spacing: .03rem;
+    color: #000000;
+    display: inline-block;
+    margin: 13px 0 13px 0;
+  }
+
+  .auth-data-logo {
     width: 314px;
     height: 116px;
     display: block;
     margin: auto;
     margin-bottom: 15px;
-}
+  }
 
-</style>
+  body {
+    margin: 30px 30px;
+    background-color: #F5F5F5;
+    font-family: 'Source Sans Pro', sans-serif;
+  }
+
+  .error-page {
+    width: 100%;
+    display: flex;
+    flex-flow: column;
+    justify-content: center;
+    background-color: white;
+    border: 1px solid #9b9b9b;
+    border-radius: 8px;
+  }
+
+  .error-page__logo {
+    width: 100%;
+    display: flex;
+    margin-bottom: 15px;
+    max-height: 116px;
+    justify-content: center;
+  }
+
+  .error-page__banner {
+    min-height: 70px;
+    background-color: #3283C8;
+    text-align: center;
+    color: white;
+    border-radius: 8px 8px 0 0;
+    font-weight: lighter;
+  }
+
+  .error-page__status-code {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 60px 0 25px 0;
+    text-align: center;
+    background-color: white;
+  }
+
+  .error-page__status-code-text {
+    display: flex;
+    flex-flow: column;
+    margin-right: 20px;
+  }
+
+  .error-page__status-code-text h1 {
+    font-size: 155px;
+    font-weight: lighter;
+    margin: 0;
+  }
+
+  .error-page__status-code-text h2 {
+    margin: 0;
+  }
+
+  .error-page__picture {
+    height: 186px;
+    margin-left: 20px;
+  }
+
+  .error-page__information {
+    margin: 0 30px 60px 30px;
+    border: 1px solid #9b9b9b;
+    border-radius: 4px;
+    background-color: #f5f5f5;
+    padding: 20px 20px;
+  }
+
+  </style>
 </html>
