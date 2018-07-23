@@ -311,7 +311,7 @@ class UserSyncer(object):
                     try:
                         for project in details.get('projects', {}):
                             privileges[project['auth_id']
-                                       ] = project['privilege']
+                                       ] = set(project['privilege'])
 
                     except KeyError as e:
                         self.logger.info(e)
