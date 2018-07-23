@@ -380,7 +380,7 @@ class UserSyncer(object):
                 if phsid1 in phsids2[user]:
                     merged_priv = set(phsids2[user][phsid1])
                     merged_priv.update(privilege1)
-                    phsids2[user][phsid1] = merged_priv
+                    phsids2[user][phsid1] = list(merged_priv)
                 else:
                     phsids2[user][phsid1] = privilege1
 
