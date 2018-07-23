@@ -3,6 +3,7 @@ import pytest
 from fence.resources.google.access_utils import (
     is_valid_service_account_type,
     service_account_has_external_access,
+    google_project_has_valid_membership,
 )
 from cirrus.google_cloud import (
     COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
@@ -12,6 +13,10 @@ from cirrus.google_cloud import (
 )
 from cirrus.google_cloud.errors import GoogleAPIError
 
+from cirrus.google_cloud.iam import (
+    GooglePolicyMember
+)
+
 
 class MockResponse:
     def __init__(self, json_data, status_code):
@@ -20,7 +25,6 @@ class MockResponse:
 
     def json(self):
         return self.json_data
-
 
 def test_is_valid_service_account_type_compute_engine_default(cloud_manager):
     """
@@ -151,4 +155,34 @@ def test_service_account_has_external_access_raise_exception(cloud_manager):
     ) = MockResponse({}, 403)
 
     with pytest.raises(GoogleAPIError):
-        assert service_account_has_external_access('test_service_account')
+        assert service_account_has_external_access('test_service_account'
+
+                                                   
+def test_project_has_valid_membership(cloud_manager):
+    """
+    Test that a project with only users and service acounts
+    has valid membership
+    """
+    (
+        cloud_manager.return_value.__enter__.
+        return_value.get_project_membership.return_value
+    ) = [
+        GooglePolicyMember("user", "user@gmail.com"),
+        GooglePolicyMember("serviceAccount", "sa@gmail.com")
+        ]
+    assert google_project_has_valid_membership(cloud_manager.project_id)
+
+
+def test_project_has_invalid_membership(cloud_manager):
+    """
+    Test that a project with a non-users or service acounts
+     has invalid membership
+     """
+    (
+        cloud_manager.return_value.__enter__.return_value.get_project_membership.return_value
+    ) = [
+        GooglePolicyMember("user", "user@gmail.com"),
+        GooglePolicyMember("otherType", "other@gmail.com")
+    ]
+    assert not google_project_has_valid_membership(cloud_manager.project_id)
+
