@@ -32,7 +32,8 @@ OPENID_CONNECT = {
     'google': {
         'client_id': '',
         'client_secret': '',
-        'redirect_url': ''
+        'redirect_url': '',
+        'name': 'Google'
     },
     'fence': {
         'client_id': '',
@@ -45,6 +46,7 @@ OPENID_CONNECT = {
             'scope': 'openid user',
             'redirect_uri': '',
         },
+        'name': ''
     },
 }
 
@@ -173,6 +175,8 @@ MAX_ACCESS_TOKEN_TTL = 3600
 dir_path = "/secrets"
 fence_creds = os.path.join(dir_path, 'fence_credentials.json')
 
+SUPPORT_EMAIL_FOR_ERRORS = None
+dbGaP = {}
 if os.path.exists(fence_creds):
     with open(fence_creds, 'r') as f:
         data = json.load(f)
