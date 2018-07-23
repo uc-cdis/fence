@@ -114,6 +114,8 @@ def replace_user_policies(user_id):
     with flask.current_app.db.session as session:
         policies = lookup_policies(policy_ids)
         user = session.query(User).filter_by(id=user_id).first()
+        if not user:
+            raise NotFound('no user exists with ID: {}'.format(user_id))
         user.policies = policies
         session.commit()
 
@@ -128,6 +130,8 @@ def revoke_user_policies(user_id):
     """
     with flask.current_app.db.session as session:
         user = session.query(User).filter_by(id=user_id).first()
+        if not user:
+            raise NotFound('no user exists with ID: {}'.format(user_id))
         # Set user's policies to empty list.
         user.policies = []
         session.commit()
