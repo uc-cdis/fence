@@ -8,7 +8,7 @@ from fence.jwt.token import (
     generate_signed_refresh_token,
 )
 from fence.models import AuthorizationCode, User
-from fence.resources.google.utils import get_linked_google_account_email
+from fence.resources.google.utils import get_linked_google_account_email, get_linked_google_account_exp
 
 import fence.settings
 
@@ -89,6 +89,7 @@ class JWTGenerator(BearerToken):
         keypair = flask.current_app.keypairs[0]
 
         linked_google_email = get_linked_google_account_email(user.id)
+        linked_google_account_exp = get_linked_google_account_exp(user.id)
 
         id_token = (
             generate_signed_id_token(
@@ -99,7 +100,8 @@ class JWTGenerator(BearerToken):
                 client_id=client.client_id,
                 audiences=scope,
                 nonce=nonce,
-                linked_google_email=linked_google_email
+                linked_google_email=linked_google_email,
+                linked_google_account_exp=linked_google_account_exp
             )
             .token
         )

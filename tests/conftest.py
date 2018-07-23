@@ -4,9 +4,12 @@ Define pytest fixtures.
 """
 
 from collections import OrderedDict
+from boto3 import client
+import uuid
 import json
 import mock
 import os
+import copy
 
 from addict import Dict
 from authutils.testing.fixtures import (
@@ -71,6 +74,22 @@ def indexd_get_available_s3_bucket_acl(file_id):
         'size': 10,
         'file_name': 'file1',
         'urls': ['s3://bucket1/key'],
+        'hashes': {},
+        'acl': ['phs000178', 'phs000218'],
+        'form': '',
+        'created_date': '',
+        "updated_date": ''
+    }
+
+
+def indexd_get_external_s3_bucket_acl(file_id):
+    return {
+        'did': '',
+        'baseid': '',
+        'rev': '',
+        'size': 10,
+        'file_name': 'file1',
+        'urls': ['s3://bucket5/key'],
         'hashes': {},
         'acl': ['phs000178', 'phs000218'],
         'form': '',
@@ -323,6 +342,15 @@ def mock_get_bucket_location(self, bucket, config):
     return 'us-east-1'
 
 
+@mock_sts
+def mock_assume_role(self, role_arn, duration_seconds, config=None):
+    sts_client = client('sts', **config)
+    session_name_postfix = uuid.uuid4()
+    return sts_client.assume_role(
+        RoleArn=role_arn, DurationSeconds=duration_seconds,
+        RoleSessionName='{}-{}'.format("gen3", session_name_postfix))
+
+
 @pytest.fixture(scope='session')
 def claims_refresh():
     new_claims = tests.utils.default_claims()
@@ -407,15 +435,21 @@ class Mocker(object):
             'fence.resources.aws.boto_manager.BotoManager.get_bucket_region',
             mock_get_bucket_location
         )
+        self.assume_role_patcher = patch(
+            'fence.resources.aws.boto_manager.BotoManager.assume_role',
+            mock_assume_role
+        )
         self.patcher.start()
         self.auth_patcher.start()
         self.boto_patcher.start()
+        self.assume_role_patcher.start()
         self.additional_patchers = []
 
     def unmock_functions(self):
         self.patcher.stop()
         self.auth_patcher.stop()
         self.boto_patcher.stop()
+        self.assume_role_patcher.stop()
         for patcher in self.additional_patchers:
             patcher.stop()
 
@@ -478,6 +512,36 @@ def auth_client(app, request):
     request.addfinalizer(reset_authmock)
 
 
+@pytest.fixture(scope='function')
+def test_user_a(db_session):
+    test_user = (
+        db_session
+        .query(models.User)
+        .filter_by(username='test_a')
+        .first()
+    )
+    if not test_user:
+        test_user = models.User(username='test_a', is_admin=False)
+        db_session.add(test_user)
+        db_session.commit()
+    return Dict(username='test_a', user_id=test_user.id)
+
+
+@pytest.fixture(scope='function')
+def test_user_b(db_session):
+    test_user = (
+        db_session
+        .query(models.User)
+        .filter_by(username='test_b')
+        .first()
+    )
+    if not test_user:
+        test_user = models.User(username='test_b', is_admin=False)
+        db_session.add(test_user)
+        db_session.commit()
+    return Dict(username='test_b', user_id=test_user.id)
+
+
 @pytest.fixture(scope='session')
 def db(app, request):
     """
@@ -504,8 +568,6 @@ def protected_endpoint(methods=['GET']):
 
 
 @pytest.fixture(scope='function')
-@mock_s3
-@mock_sts
 def user_client(db_session):
     users = dict(json.loads(
         utils.read_file('resources/authorized_users.json')
@@ -522,6 +584,7 @@ def unauthorized_user_client(db_session):
     user_id, username = utils.create_user(users, db_session, is_admin=True)
     return Dict(username=username, user_id=user_id)
 
+
 @pytest.fixture(scope='function')
 def awg_users(db_session):
     awg_usr = dict(json.loads(
@@ -529,12 +592,14 @@ def awg_users(db_session):
     ))
     user_id, username = utils.create_awg_user(awg_usr, db_session)
 
+
 @pytest.fixture(scope='function')
 def providers(db_session, app):
     providers = dict(json.loads(
         utils.read_file('resources/providers.json')
     ))
     utils.create_providers(providers, db_session)
+
 
 @pytest.fixture(scope='function')
 def awg_groups(db_session):
@@ -600,6 +665,10 @@ def indexd_client(app, request):
     elif request.param == 's3_acl':
         indexd_get_available_bucket_func = (
             indexd_get_available_s3_bucket_acl
+        )
+    elif request.param == 's3_external':
+        indexd_get_available_bucket_func = (
+            indexd_get_external_s3_bucket_acl
         )
     else:
         indexd_get_available_bucket_func = indexd_get_available_s3_bucket
@@ -841,6 +910,8 @@ def cloud_manager():
     manager = MagicMock()
     patch('fence.blueprints.storage_creds.google.GoogleCloudManager', manager).start()
     patch('fence.resources.google.utils.GoogleCloudManager', manager).start()
+    patch('fence.scripting.fence_create.GoogleCloudManager', manager).start()
+    patch('fence.resources.google.access_utils.GoogleCloudManager', manager).start()
     manager.return_value.__enter__.return_value.get_access_key.return_value = {
         "type": "service_account",
         "project_id": "project-id",
@@ -1005,3 +1076,53 @@ def user_with_fence_provider(app, request, db_session):
     db_session.commit()
 
     return test_user
+
+
+@pytest.fixture(scope='function')
+def google_storage_client_mocker(app):
+    storage_client_mock = MagicMock()
+
+    temp = app.storage_manager
+    app.storage_manager.clients['google'] = storage_client_mock
+
+    yield storage_client_mock
+
+    app.storage_manager = temp
+
+
+@pytest.fixture(scope='function')
+def remove_google_idp(app):
+    """
+    Don't include google in the enabled idps, but leave it configured
+    in the openid connect clients.
+    """
+    saved_app_config = copy.deepcopy(app.config)
+
+    override_setings = {
+        "ENABLED_IDENTITY_PROVIDERS": {
+            # ID for which of the providers to default to.
+            'default': 'fence',
+            # Information for identity providers.
+            'providers': {
+                'fence': {
+                    'name': 'Fence Multi-Tenant OAuth',
+                },
+                'shibboleth': {
+                    'name': 'NIH Login',
+                },
+            },
+        },
+        "OPENID_CONNECT": {
+            'google': {
+                'client_id': '123',
+                'client_secret': '456',
+                'redirect_url': '789'
+            }
+        }
+    }
+    app.config.update(override_setings)
+
+    yield
+
+    # restore old config
+    app.config = copy.deepcopy(saved_app_config)

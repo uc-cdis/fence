@@ -50,6 +50,9 @@ def login_user(request, username, provider):
         user.identity_provider = idp
         current_session.add(user)
         current_session.commit()
+    flask.session['username'] = username
+    flask.session['provider'] = provider
+    flask.session['user_id'] = str(user.id)
     flask.g.user = user
     flask.g.scopes = ["_all"]
     flask.g.token = None
@@ -109,7 +112,7 @@ def check_scope(scope):
 
 def login_required(scope=None):
     """
-    Create decorator to require a user session in shibboleth.
+    Create decorator to require a user session
     """
 
     def decorator(f):

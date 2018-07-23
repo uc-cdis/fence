@@ -32,7 +32,8 @@ OPENID_CONNECT = {
     'google': {
         'client_id': '',
         'client_secret': '',
-        'redirect_url': ''
+        'redirect_url': '',
+        'name': 'Google'
     },
     'fence': {
         'client_id': '',
@@ -45,6 +46,7 @@ OPENID_CONNECT = {
             'scope': 'openid user',
             'redirect_uri': '',
         },
+        'name': ''
     },
 }
 
@@ -110,10 +112,21 @@ AWS_CREDENTIALS = {
     }
 }
 
+ASSUMED_ROLES = {
+    'arn:aws:iam::role1': 'CRED1'
+}
+
 S3_BUCKETS = {
-    'bucket1': 'CRED1',
-    'bucket2': 'CRED2',
-    'bucket3': 'CRED1'
+    'bucket1': {
+        'cred': 'CRED1',
+    },
+    'bucket2': {
+        'cred': 'CRED2',
+    },
+    'bucket3': {
+        'cred': 'CRED1',
+        'role-arn': 'arn:aws:iam::role1',
+    }
 }
 
 #: Confiure which identity providers this fence instance can use for login.
@@ -158,6 +171,8 @@ MAX_ACCESS_TOKEN_TTL = 3600
 dir_path = "/secrets"
 fence_creds = os.path.join(dir_path, 'fence_credentials.json')
 
+SUPPORT_EMAIL_FOR_ERRORS = None
+dbGaP = {}
 if os.path.exists(fence_creds):
     with open(fence_creds, 'r') as f:
         data = json.load(f)

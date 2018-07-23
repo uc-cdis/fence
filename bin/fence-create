@@ -8,15 +8,19 @@ from fence.jwt import keys
 from fence.scripting.fence_create import (
     JWTCreator,
     create_client_action,
-    create_google_bucket,
+    create_or_update_google_bucket,
+    create_google_logging_bucket,
     create_sample_data,
     delete_client_action,
     delete_users,
     google_init,
+    list_client_action,
     link_bucket_to_project,
+    modify_client_action,
     remove_expired_google_accounts_from_proxy_groups,
     remove_expired_google_service_account_keys,
     sync_users,
+    delete_expired_service_accounts,
 )
 
 
@@ -61,11 +65,36 @@ def parse_arguments():
         action="store_true", default=False
     )
 
+    client_modify = subparsers.add_parser('client-modify')
+    client_modify.add_argument('--client', required=True)
+    client_modify.add_argument('--urls', required=False)
+    client_modify.add_argument('--name', required=False)
+    client_modify.add_argument('--description', required=False)
+    client_modify.add_argument(
+        '--set-auto-approve',
+        help='set the oidc process to skip user consent step',
+        action="store_true", default=False
+    )
+    client_modify.add_argument(
+        '--unset-auto-approve',
+        help='set the oidc process to not skip user consent step',
+        action="store_true", default=False
+    )
+    client_modify.add_argument(
+        '--delete-urls',
+        help='delete all urls',
+        action="store_true", default=False
+    )
+
+    client_list = subparsers.add_parser('client-list')
+
     client_delete = subparsers.add_parser('client-delete')
     client_delete.add_argument('--client', required=True)
 
     user_delete = subparsers.add_parser('user-delete')
     user_delete.add_argument('--users', required=True, nargs='+')
+
+    subparsers.add_parser('expired-service-account-delete')
 
     hmac_create = subparsers.add_parser('hmac-create')
     hmac_create.add_argument('yaml-input')
@@ -105,8 +134,11 @@ def parse_arguments():
         help='Currently must be one of the following: "MULTI_REGIONAL", '
              '"REGIONAL", "NEARLINE", "COLDLINE", "STANDARD"')
     google_bucket_create.add_argument(
-        '--public', action='store_true', default=False,
-        help='whether or not the bucket should be open to the public')
+        '--public', default=None,
+        help='whether or not the bucket should be open to the public.'
+             'WARNING: not providing this field will leave the bucket IAM policy'
+             'untouched. to set or reset the policy use: '
+             '--public True or --public False')
     google_bucket_create.add_argument(
         '--requester-pays', action='store_true', default=False,
         help='Whether or not to enable requester_pays on the bucket')
@@ -126,6 +158,20 @@ def parse_arguments():
         help='A list of allowed privileges ex: --allowed-privileges admin '
         'read write. Currently create a Google Bucket Access Group per '
         'privilege.')
+
+    google_logging_bucket_create = subparsers.add_parser(
+        'google-logging-bucket-create')
+    google_logging_bucket_create.add_argument(
+        '--unique-name', required=True,
+        help='Name for the bucket, must be globally unique throughout Google')
+    google_logging_bucket_create.add_argument(
+        '--storage-class', default=None,
+        help='Currently must be one of the following: "MULTI_REGIONAL", '
+             '"REGIONAL", "NEARLINE", "COLDLINE", "STANDARD"')
+    google_logging_bucket_create.add_argument(
+        '--google-project-id', default=None,
+        help='Google project this bucket should be associated with. '
+        'If not given, will attempt to determine from provided credentials.')
 
     manage_google_keys = subparsers.add_parser('google-manage-keys')
     init_google = subparsers.add_parser('google-init')
@@ -174,7 +220,6 @@ def main():
     # get database information
     sys.path.append(args.path)
 
-
     if os.environ.get('FENCE_DB'):
         DB = os.environ['FENCE_DB']
     else:
@@ -208,10 +253,20 @@ def main():
             DB, username=args.username, client=args.client,
             urls=args.urls, auto_approve=args.auto_approve
         )
+    elif args.action == 'client-modify':
+        modify_client_action(
+            DB, client=args.client, delete_urls=args.delete_urls,
+            urls=args.urls, name=args.name, description=args.description,
+            set_auto_approve=args.set_auto_approve, unset_auto_approve=args.unset_auto_approve
+        )
     elif args.action == 'client-delete':
         delete_client_action(DB, args.client)
+    elif args.action == 'client-list':
+        list_client_action(DB)
     elif args.action == 'user-delete':
         delete_users(DB, args.users)
+    elif args.action == 'expired-service-account-delete':
+        delete_expired_service_accounts(DB)
     elif args.action == 'sync':
         sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
                    projects=args.project_mapping, is_sync_from_dbgap_server=str2bool(args.sync_from_dbgap),
@@ -223,7 +278,14 @@ def main():
     elif args.action == 'google-manage-account-access':
         remove_expired_google_accounts_from_proxy_groups(DB)
     elif args.action == 'google-bucket-create':
-        create_google_bucket(
+        # true if true provided, false if anything else provided, leave as
+        # None if not provided at all (policy will remain unchanged)
+        if args.public and args.public.lower().strip() == 'true':
+            args.public = True
+        elif args.public is not None:
+            args.public = False
+
+        create_or_update_google_bucket(
             DB, args.unique_name,
             storage_class=args.storage_class,
             public=args.public,
@@ -232,6 +294,11 @@ def main():
             project_auth_id=args.project_auth_id,
             access_logs_bucket=args.access_logs_bucket,
             allowed_privileges=args.allowed_privileges)
+    elif args.action == 'google-logging-bucket-create':
+        create_google_logging_bucket(
+            args.unique_name,
+            storage_class=args.storage_class,
+            google_project_id=args.google_project_id)
     elif args.action == 'link-bucket-to-project':
         link_bucket_to_project(
             DB,

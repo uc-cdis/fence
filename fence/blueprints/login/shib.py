@@ -48,9 +48,7 @@ class ShibbolethLoginFinish(Resource):
             raise InternalError("Missing shibboleth header configuration")
         username = eppn.split('!')[-1] if eppn else None
         if username:
-            flask.session['username'] = username
-            flask.session['provider'] = IdentityProvider.itrust
-            login_user(flask.request, username, flask.session['provider'])
+            login_user(flask.request, username, IdentityProvider.itrust)
             if flask.session.get('redirect'):
                 return flask.redirect(flask.session.get('redirect'))
             return "logged in"

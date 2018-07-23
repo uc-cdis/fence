@@ -72,7 +72,7 @@ STORAGE_CREDENTIALS = {
     'test-cleversafe': {
         'backend': 'cleversafe'
     },
-    'test-google': {
+    'google': {
         'backend': 'google',
         'google_project_id': 'some-project-id-239870as9f23flkja8010'
     }
@@ -89,12 +89,38 @@ AWS_CREDENTIALS = {
     }
 }
 
-S3_BUCKETS = {
-    "bucket1": "CRED1",
-    "bucket2": "CRED2",
-    "bucket3": "CRED1",
-    "bucket4": "*",
+ASSUMED_ROLES = {
 }
+
+S3_BUCKETS = {
+    # 'cdis-presigned-url-test': {
+    #     'cred': 'fence-bot',
+    #     'type': 'internal'
+    # },
+    'bucket1': {
+        'cred': 'CRED1',
+    },
+    'bucket2': {
+        'cred': 'CRED2',
+    },
+    'bucket3': {
+        'cred': 'CRED1',
+    },
+    'bucket4': {
+        'cred': '*',
+    },
+    'bucket5': {
+        'cred': 'CRED2',
+        'role-arn': 'arn:aws:iam::707767160287:role/bucket_reader_writer_to_cdistest-presigned-url_role',
+    }
+}
+
+# S3_BUCKETS = {
+#     "bucket1": "CRED1",
+#     "bucket2": "CRED2",
+#     "bucket3": "CRED1",
+#     "bucket4": "*",
+# }
 
 ENABLED_IDENTITY_PROVIDERS = {
     # ID for which of the providers to default to.
@@ -122,3 +148,7 @@ OPENID_CONNECT = {
         'redirect_url': ''
     },
 }
+
+GOOGLE_GROUP_PREFIX = 'test'
+
+CIRRUS_CFG = {}
