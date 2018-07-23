@@ -371,7 +371,6 @@ class UserSyncer(object):
                 case2: phsid1 == phsid2 and privillege1! = privillege2. Output {user1: {phsid1: uion(privillege1, privillege2)}}
             For the other cases, just simple addition
         """
-        #phsids = copy.deepcopy(phsids2)
         for user, projects1 in phsids1.iteritems():
             projects2 = phsids2.get(user)
             if not projects2:
@@ -379,7 +378,9 @@ class UserSyncer(object):
                 continue
             for phsid1, privilege1 in projects1.iteritems():
                 if phsid1 in phsids2[user]:
-                    phsids2[user][phsid1].update(privilege1)
+                    merged_priv = set(phsids2[user][phsid1])
+                    merged_priv.update(privilege1)
+                    phsids2[user][phsid1] = merged_priv
                 else:
                     phsids2[user][phsid1] = privilege1
 
@@ -685,7 +686,7 @@ class UserSyncer(object):
 
         user_projects2, user_info2 = self._parse_csv(
             dict(zip(local_csv_file_list, [
-                 ['read-storage']]*len(local_csv_file_list))),
+                ['read-storage']]*len(local_csv_file_list))),
             encrypted=False,
             sess=sess)
 
