@@ -11,7 +11,7 @@
 
   <body>
     <main>
-      <img class="error-page__logo" src="{{url_for('static', filename='img/logo.svg') }}" />
+      <img class="error-page__logo" src="../static/img/logo.svg" />
       <div class="error-page">
         <div class="error-page__banner">
           <h1>{{app_name}}</h1>
@@ -21,7 +21,7 @@
             <h1>{{status_code}}</h1>
             <h2>{{status_code_message}}</h2>
           </div>
-          <img class="error-page__picture" src="{{url_for('static', filename='img/404.svg') }}" />
+          <img class="error-page__picture" src="../static/img/404.svg" />
         </div>
         <div class="error-page__information">
           <p class="body">Error Identifier:</p>
