@@ -40,8 +40,8 @@ def test_sync(syncer, db_session, storage_client):
     user_access = db_session.query(
         models.AccessPrivilege).filter_by(user=user).all()
 
-    assert user_access[0].privilege == [
-        'create', 'read', 'update', 'delete', 'upload']
+    assert set(user_access[0].privilege) == set([
+        'create', 'read', 'update', 'delete', 'upload'])
     assert len(user_access) == 1
 
     user = db_session.query(models.User).filter_by(

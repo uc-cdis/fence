@@ -194,8 +194,8 @@ class UserSyncer(object):
             user_project: a nested dict of
             {
                 username: {
-                    'project1': ['read-storage','write-storage'],
-                    'project2': ['read-storage'],
+                    'project1': {'read-storage','write-storage'},
+                    'project2': {'read-storage'},
                     }
             }
             user_info: a dict of
@@ -281,8 +281,8 @@ class UserSyncer(object):
             user_project: a nested dict of
             {
                 username: {
-                    'project1': ['read-storage','write-storage'],
-                    'project2': ['read-storage'],
+                    'project1': {'read-storage','write-storage'},
+                    'project2': {'read-storage'},
                     }
             }
             user_info: a dict of
@@ -311,7 +311,7 @@ class UserSyncer(object):
                     try:
                         for project in details.get('projects', {}):
                             privileges[project['auth_id']
-                                       ] = project['privilege']
+                                       ] = set(project['privilege'])
 
                     except KeyError as e:
                         self.logger.info(e)
@@ -358,8 +358,8 @@ class UserSyncer(object):
             phsids1, phsids2: nested dicts of
             {
                 username: {
-                    phsid1: ['read-storage','write-storage'],
-                    phsid2: ['read-storage'],
+                    phsid1: {'read-storage','write-storage'},
+                    phsid2: {'read-storage'},
                     }
             }
         Returns:
@@ -378,9 +378,7 @@ class UserSyncer(object):
                 continue
             for phsid1, privilege1 in projects1.iteritems():
                 if phsid1 in phsids2[user]:
-                    merged_priv = set(phsids2[user][phsid1])
-                    merged_priv.update(privilege1)
-                    phsids2[user][phsid1] = merged_priv
+                    phsids2[user][phsid1].update(privilege1)
                 else:
                     phsids2[user][phsid1] = privilege1
 
@@ -391,8 +389,8 @@ class UserSyncer(object):
             user_project(dict): a dictionary of
             {
                 username: {
-                    'project1': ['read-storage','write-storage'],
-                    'project2': ['read-storage']
+                    'project1': {'read-storage','write-storage'},
+                    'project2': {'read-storage'}
                 }
             }
             user_info(dict): a dictionary of {username: user_info{}}
@@ -488,7 +486,7 @@ class UserSyncer(object):
         Args:
             sess: sqlalchemy session
             to_add: a set of (username, project.auth_id) to be granted
-            user_project: a dictionary of {username: {project: ['read','write']}
+            user_project: a dictionary of {username: {project: {'read','write'}}
         Return:
             None
         """
@@ -589,7 +587,7 @@ class UserSyncer(object):
         grant user's access to buckets in the storage backend
         Args:
             to_add: a set of (username, project.auth_id)  to be granted
-            user_project: a dictionary of {username: {phsid: ['read-storage','write-storage']}
+            user_project: a dictionary of {username: {phsid: {'read-storage','write-storage'}}
         Return:
             None
         """
@@ -666,9 +664,12 @@ class UserSyncer(object):
             except Exception as e:
                 self.logger.info(e)
 
+        privillege_list = []
+        for _ in xrange(len(dbgap_file_list)):
+            privillege_list.append({'read-storage'})
+
         user_projects1, user_info1 = self._parse_csv(
-            dict(zip(dbgap_file_list, [
-                 ['read-storage']]*len(dbgap_file_list))),
+            dict(zip(dbgap_file_list, privillege_list)),
             encrypted=True,
             sess=sess)
 
@@ -684,9 +685,12 @@ class UserSyncer(object):
             local_csv_file_list = glob.glob(
                 os.path.join(self.sync_from_local_csv_dir, '*'))
 
+        local_privillege_list = []
+        for _ in xrange(len(local_csv_file_list)):
+            local_privillege_list.append({'read-storage'})
+
         user_projects2, user_info2 = self._parse_csv(
-            dict(zip(local_csv_file_list, [
-                ['read-storage']]*len(local_csv_file_list))),
+            dict(zip(local_csv_file_list, local_privillege_list)),
             encrypted=False,
             sess=sess)
 
