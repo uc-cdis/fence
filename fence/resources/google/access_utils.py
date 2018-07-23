@@ -13,7 +13,6 @@ from cirrus.google_cloud import (
     COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
     USER_MANAGED_SERVICE_ACCOUNT,
 )
-from cirrus.google_cloud.iam import GooglePolicyMember
 
 ALLOWED_SERVICE_ACCOUNT_TYPES = [
     COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
