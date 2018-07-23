@@ -203,14 +203,12 @@ def _get_user_policy_ids(user_id):
 
 def _validate_policy_ids(policy_ids):
     """
-    Check some user-inputted policy IDs which should correspond to roles in
+    Check some user-inputted policy IDs which should correspond to policies in
     arborist.
 
     Check:
         - Policies argument is there
-        - All the listed policies are valid
-            - Contain correct fields
-            - Actually exist in arborist
+        - All the listed policies are valid (according to arborist)
 
     Args:
         policy_ids (List[str]): list of policy IDs
