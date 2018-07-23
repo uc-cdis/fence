@@ -4,6 +4,8 @@ registration.
 """
 import flask
 
+from google.cloud.exceptions import GoogleCloudError
+
 from flask_sqlalchemy_session import current_session
 from fence.models import AccessPrivilege
 from cirrus.google_cloud.iam import GooglePolicyMember
@@ -56,7 +58,7 @@ def google_project_has_parent_org(project_id):
     try:
         with GoogleCloudManager(project_id) as prj:
             return prj.has_parent_organization()
-    except Exception as exc:
+    except GoogleCloudError as exc:
         flask.current_app.logger.debug((
             'Could not determine if Google project (id: {}) has parent org'
             'due to error (Details: {})'.
@@ -87,7 +89,7 @@ def google_project_has_valid_membership(project_id):
 
             return True
 
-    except Exception as exc:
+    except GoogleCloudError as exc:
         flask.current_app.logger.debug((
             'validity of Google Project (id: {}) membership '
             'determined False due to error. Details: {}').
@@ -114,7 +116,7 @@ def is_valid_service_account_type(project_id, account_id):
             return (g_mgr.
                     get_service_account_type(account_id)
                     in ALLOWED_SERVICE_ACCOUNT_TYPES)
-    except Exception as exc:
+    except GoogleCloudError as exc:
         flask.current_app.logger.debug((
             'validity of Google service account {} (google project: {}) type '
             'determined False due to error. Details: {}').
@@ -127,7 +129,23 @@ def service_account_has_external_access(service_account):
 
 
 def is_service_account_from_google_project(service_account, project_id):
-    return service_account in GoogleCloudManager(project_id).get_all_service_accounts()
+    """
+    Checks if service account is among project's service acounts
+
+    Args:
+        service_account(str): uniqueId of service account
+        project_id(str): uniqueId of Google Cloud Project
+    """
+    try:
+        return (service_account in
+                [acc.get('uniqueId') for acc in
+                 GoogleCloudManager(project_id).get_all_service_accounts()])
+    except GoogleCloudError as exc:
+        flask.current_app.logger.debug((
+            'Could not determine if service account (id: {} is from project'
+            ' (id: {}) due to error. Details: {}').
+            format(service_account, project_id))
+        return False
 
 
 def is_user_member_of_all_google_projects(user_id, google_project_ids):
@@ -177,9 +195,9 @@ def google_project_has_valid_service_accounts(project_id):
         with GoogleCloudManager(project_id) as prj:
             service_accounts = prj.get_all_service_accounts()
 
-            for acc in service_accounts:
-                if service_account_has_external_access(acc):
-                    return False
+            if any(service_account_has_external_access(acc)
+                   for acc in service_accounts):
+                return False
 
             members = prj.get_project_membership()
 
@@ -189,7 +207,7 @@ def google_project_has_valid_service_accounts(project_id):
                         return False
 
             return True
-    except Exception as exc:
+    except GoogleCloudError as exc:
         flask.current_app.logger.debug((
             "Could not determine validity of service accounts"
             "for project (id: {}) due to error. Details: {}".

@@ -4,6 +4,7 @@ from cryptography.fernet import Fernet
 import flask
 from flask_sqlalchemy_session import current_session
 from sqlalchemy import desc
+from google.cloud.exceptions import GoogleCloudError
 
 from cirrus import GoogleCloudManager
 from cirrus.google_cloud.utils import (
@@ -512,15 +513,19 @@ def get_project_access_from_service_accounts(service_accounts):
 
 
 def get_service_account_ids_from_google_project(project_id):
+    """
+    Get list of all service account ids associated with a project
 
+    Args:
+        project_id(str): unique Id of project
+
+    Return:
+        list<str>: list of service account ids (emails)
+    """
     try:
-        account_ids = []
         with GoogleCloudManager(project_id) as prj:
-            accounts = prj.get_all_service_accounts()
-            for acc in accounts:
-                account_ids.append(acc["email"])
-        return account_ids
-    except Exception as exc:
+            return [acc['email'] for acc in prj.get_all_service_accounts()]
+    except GoogleCloudError as exc:
         flask.current_app.logger.debug((
         'Could not get service account IDs of Google'
         ' Project (project id: {}) Details: {}').
