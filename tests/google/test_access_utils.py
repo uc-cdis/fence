@@ -155,9 +155,9 @@ def test_service_account_has_external_access_raise_exception(cloud_manager):
     ) = MockResponse({}, 403)
 
     with pytest.raises(GoogleAPIError):
-        assert service_account_has_external_access('test_service_account'
+        assert service_account_has_external_access('test_service_account')
 
-                                                   
+
 def test_project_has_valid_membership(cloud_manager):
     """
     Test that a project with only users and service acounts
