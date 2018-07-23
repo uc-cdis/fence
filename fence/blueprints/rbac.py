@@ -45,7 +45,7 @@ def create_policy():
     users.
     """
     data = flask.request.get_json()
-    flask.current_app.arborist.create_policy()
+    flask.current_app.arborist.create_policy(data)
     with flask.current_app.db.session as session:
         session.add(Policy(id=data['id']))
     return '', 201

@@ -26,6 +26,7 @@ def mock_arborist_client(app, monkeypatch):
     """
     mock_client = MagicMock(ArboristClient)
     monkeypatch.setattr(app, 'arborist', mock_client)
+    return mock_client
 
 
 @pytest.fixture
