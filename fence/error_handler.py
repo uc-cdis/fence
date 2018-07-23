@@ -12,6 +12,7 @@ from fence.errors import APIError
 def get_error_response(error):
     details, status_code = get_error_details_and_status(error)
     support_email = flask.current_app.config.get('SUPPORT_EMAIL_FOR_ERRORS')
+    app_name = flask.current_app.config.get('APP_NAME', 'Gen3 Data Commons')
 
     message = details.get('message')
 
@@ -31,6 +32,7 @@ def get_error_response(error):
     return (
         render_template(
             'error.html',
+            app_name=app_name,
             status_code=status_code,
             status_code_message=status_code_message,
             support_email=support_email,
