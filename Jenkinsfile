@@ -35,11 +35,19 @@ pipeline {
         script {
           service = "$env.JOB_NAME".split('/')[1]
           def timestamp = (("${currentBuild.timeInMillis}".substring(0, 10) as Integer) - 60)
+          def timeout = (("${currentBuild.timeInMillis}".substring(0, 10) as Integer) + 3600)
           curlUrl = "$env.QUAY_API"+service+"/build/?since="+timestamp
           fullQuery = "curl -s "+curlUrl+/ | jq '.builds[] | "\(.tags[]),\(.display_name),\(.phase)"'/
           
           def testBool = false
           while(testBool != true) {
+            currentTime = sh(script: "date +%s", returnStdout: true).trim() as Integer
+            println "currentTime is: "+currentTime
+            if(currentTime > timeout) {
+              currentBuild.result = 'ABORTED'
+              error("aborting build due to timeout")
+            }
+
             sleep(30)
             resList = sh(script: fullQuery, returnStdout: true).trim().split('"\n"')
             for (String res in resList) {
