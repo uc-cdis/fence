@@ -89,7 +89,6 @@ pipeline {
         dir("cdis-manifest/$dirname") {
           withEnv(["masterBranch=$service:master", "targetBranch=$service:$quaySuffix"]) {
             sh 'sed -i -e "s,'+"$env.masterBranch,$env.targetBranch"+',g" manifest.json'
-            sh 'cat manifest.json'
           }
         }
       }
