@@ -59,20 +59,29 @@ pipeline {
         }
       }
     }
-    stage('ModifyManifest') {
+    stage('SelectNamespace') {
       steps {
         script {
           String[] namespaces = ['qa-bloodpac', 'qa-brain', 'qa-kidsfirst', 'qa-niaid']
-          randNum = new Random().nextInt() % namespaces.length
-          env.KUBECTL_NAMESPACE = namespaces[randNum]
+          int modNum = namespaces.length/2
+          int randNum = (new Random().nextInt(modNum) + ((env.EXECUTOR_NUMBER as Integer) * 2)) % namespaces.length
 
-          dirname="$env.KUBECTL_NAMESPACE"+'.planx-pla.net'
+          env.KUBECTL_NAMESPACE = namespaces[randNum]
+          println "selected namespace $env.KUBECTL_NAMESPACE on executor $env.EXECUTOR_NUMBER"
+        }
+      }
+    }
+    stage('ModifyManifest') {
+      steps {
+        script {
+          dirname = sh(script: "kubectl -n $env.KUBECTL_NAMESPACE get configmap global -o jsonpath='{.data.hostname}'", returnStdout: true)
           service = "$env.JOB_NAME".split('/')[1]
           quaySuffix = "$env.GIT_BRANCH".replaceAll("/", "_")
         }
         dir("cdis-manifest/$dirname") {
           withEnv(["masterBranch=$service:master", "targetBranch=$service:$quaySuffix"]) {
             sh 'sed -i -e "s,'+"$env.masterBranch,$env.targetBranch"+',g" manifest.json'
+            sh 'cat manifest.json'
           }
         }
       }
