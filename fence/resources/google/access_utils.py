@@ -138,7 +138,7 @@ def service_account_has_external_access(service_account):
         response = g_mgr.get_service_account_policy(service_account)
         if response.status_code != 200:
             raise GoogleAPIError('Unable to get IAM policy for service account {}\n{}.'
-                                .format(service_account, response.json()))
+                                 .format(service_account, response.json()))
         json_obj = response.json()
         # In the case that a service account does not have any role, Google API
         # returns a json object without bindings key
@@ -176,8 +176,16 @@ def is_user_member_of_all_google_projects(user_id, google_project_ids):
 
 
 def do_all_users_have_access_to_project(user_ids, project_auth_id):
-    # user_ids will be list of user ids
-    # check if all user ids has access to a project with project_auth_id
+    """
+    Check if all user ids has access to a project with project_auth_id
+
+    Args:
+        user_ids(list(str)): List of user id
+        project_auth_id(str): prooject id
+
+    Returns:
+        bool: whether all users have access to the google project
+    """
     for user_id in user_ids:
         access_privillege = current_session.query(AccessPrivilege).filter(
             AccessPrivilege.user_id == user_id and AccessPrivilege.project_id == project_auth_id).first()
@@ -185,6 +193,25 @@ def do_all_users_have_access_to_project(user_ids, project_auth_id):
             return False
 
     return True
+
+
+def do_get_service_account_from_google_project(project_id, service_account_id):
+    """
+    Get service account given project id and service account id
+
+    Args:
+        project_id(str): google project id
+        service_account_id(str): service account id
+
+    Returns:
+        str: json string representing service account
+    """
+    with GoogleCloudManager(project_id) as g_mgr:
+        response = g_mgr.get_service_account(service_account_id)
+        if response.status_code != 200:
+            raise GoogleAPIError('Unable to get service account {}\n{}.'
+                                 .format(service_account_id, response.json()))
+        return response.json()
 
 
 # TODO this should be in cirrus rather than fence...
