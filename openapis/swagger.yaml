@@ -976,26 +976,16 @@ paths:
             schema:
               type: object
               properties:
-                'id':
-                  type: string
-                'resources':
+                'policies':
                   type: array
-                  items:
-                    type: string
-                'roles':
-                  type: array
-                  items:
-                    type: string
+                  items: string
               required:
                 - id
               example:
-                id: 'some-policy'
-                resources:
-                  - '/a/b/c'
-                  - '/x/y/z'
-                roles:
-                  - 'do-A'
-                  - 'do-B'
+                policies:
+                  - 'some-policy-1'
+                  - 'some-policy-2'
+                  - 'some-policy-3'
       responses:
         201:
           description: created policy successfully

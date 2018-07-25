@@ -141,18 +141,18 @@ def test_create_policy(client, db_session, mock_arborist_client):
     Test creating a policy using the ``/rbac/policies/`` endpoint, adding the
     policy in the fence database and also registering it in arborist.
     """
-    policy = {'id': 'test-policy', 'roles': [], 'resources': []}
+    policies = {'policies': ['test-policy-1', 'test-policy-2']}
     response = client.post(
         '/rbac/policies/',
-        data=json.dumps(policy),
+        data=json.dumps(policies),
         content_type='application/json',
     )
-    mock_arborist_client.create_policy.assert_called_once()
+    mock_arborist_client.policies_not_exist.assert_called_once()
     assert response.status_code == 201
     policy = (
         db_session
         .query(Policy)
-        .filter(Policy.id == 'test-policy')
+        .filter(Policy.id == 'test-policy-1')
         .first()
     )
     assert policy

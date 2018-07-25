@@ -47,9 +47,6 @@ class ArboristClient(object):
         """
         return _request_get_json(requests.get(self._policy_url))
 
-    def create_policy(self, data):
-        return _request_get_json(requests.post(self._policy_url, json=data))
-
     def policies_not_exist(self, policy_ids):
         """
         Return any policy IDs which do not exist in arborist. (So, if the

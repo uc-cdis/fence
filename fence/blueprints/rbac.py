@@ -41,13 +41,20 @@ def list_policies():
 @login_required({'admin'})
 def create_policy():
     """
-    Create a new policy and send it to arborist, *without* granting it to any
-    users.
+    Create new policies in the fence database, *without* granting it to any
+    users. The policy *must* already exist in arborist, otherwise this
+    operation will fail.
     """
-    data = flask.request.get_json()
-    flask.current_app.arborist.create_policy(data)
+    policy_ids = flask.request.get_json()['policies']
+    missing = flask.current_app.arborist.policies_not_exist(policy_ids)
+    if missing:
+        raise ValueError(
+            'the following policies do not exist in arborist: '
+            + ', '.join(missing)
+        )
     with flask.current_app.db.session as session:
-        session.add(Policy(id=data['id']))
+        for policy_id in policy_ids:
+            session.add(Policy(id=policy_id))
     return '', 201
 
 
