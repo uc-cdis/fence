@@ -41,8 +41,9 @@ pipeline {
           
           def testBool = false
           while(testBool != true) {
-            currentTime = sh(script: "date +%s", returnStdout: true).trim() as Integer
+            currentTime = new Date().getTime().toString().substring(0, 10) as Integer
             println "currentTime is: "+currentTime
+
             if(currentTime > timeout) {
               currentBuild.result = 'ABORTED'
               error("aborting build due to timeout")
