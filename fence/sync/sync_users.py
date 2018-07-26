@@ -877,7 +877,6 @@ class UserSyncer(object):
                             .first()
                         )
                         if not policy:
-                            resource = '/projects/{}'.format(project)
                             policy = Policy(id=policy_id)
                         if policy not in user.policies:
                             user.policies.append(policy)
