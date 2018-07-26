@@ -199,7 +199,7 @@ def do_all_users_have_access_to_project(user_ids, project_auth_id):
     return True
 
 
-def do_get_service_account_from_google_project(project_id, service_account_id):
+def do_get_service_account_from_google_project(project_id):
     """
     Get service account given project id and service account id
 
@@ -210,12 +210,19 @@ def do_get_service_account_from_google_project(project_id, service_account_id):
     Returns:
         str: json string representing service account
     """
+    service_account_jsons = []
     with GoogleCloudManager(project_id) as g_mgr:
-        response = g_mgr.get_service_account(service_account_id)
-        if response.status_code != 200:
-            raise GoogleAPIError('Unable to get service account {}\n{}.'
-                                 .format(service_account_id, response.json()))
-        return response.json()
+        service_accounts = g_mgr.get_all_service_accounts()
+        for account in service_accounts:
+            account_id = account.get('name', '').split('/')[-1]
+            response = g_mgr.get_service_account(account_id)
+            if response.status_code != 200:
+                raise GoogleAPIError('Unable to get service account {}\n{}.'
+                                     .format(account_id, response.json())
+                                     )
+            service_account_jsons.append(response.json())
+
+    return service_account_jsons
 
 
 # TODO this should be in cirrus rather than fence...
