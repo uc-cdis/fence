@@ -9,6 +9,8 @@ from fence.models import AccessPrivilege
 from cirrus.google_cloud.iam import GooglePolicyMember
 
 from cirrus import GoogleCloudManager
+from cirrus.google_cloud.errors import GoogleAPIError
+from cirrus.google_cloud.iam import GooglePolicy
 from cirrus.google_cloud import (
     COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
     USER_MANAGED_SERVICE_ACCOUNT,
@@ -41,8 +43,28 @@ def can_user_manage_service_account(user_id, account_id):
         user_id, [service_account_project])
 
 
-def google_project_has_parent_org(google_project):
-    raise NotImplementedError('Functionality not yet available...')
+def google_project_has_parent_org(project_id):
+    """
+    Checks if google project has parent org. Wraps
+    GoogleCloudManager.has_parent_organization()
+
+    Args:
+        project_id(str): unique id for project
+
+    Returns:
+        Bool: True iff google project has a parent
+        organization
+    """
+    try:
+        with GoogleCloudManager(project_id) as prj:
+            return prj.has_parent_organization()
+    except Exception as exc:
+        flask.current_app.logger.debug((
+            'Could not determine if Google project (id: {}) has parent org'
+            'due to error (Details: {})'.
+            format(project_id, exc)
+        ))
+        return False
 
 
 def google_project_has_valid_membership(project_id):
@@ -103,7 +125,30 @@ def is_valid_service_account_type(project_id, account_id):
 
 
 def service_account_has_external_access(service_account):
-    raise NotImplementedError('Functionality not yet available...')
+    """
+    Checks if service account has external access or not.
+
+    Args:
+        service_account(str): service account
+
+    Returns:
+        bool: whether or not the service account has external access
+    """
+    with GoogleCloudManager() as g_mgr:
+        response = g_mgr.get_service_account_policy(service_account)
+        if response.status_code != 200:
+            raise GoogleAPIError('Unable to get IAM policy for service account {}\n{}.'
+                                .format(service_account, response.json()))
+        json_obj = response.json()
+        # In the case that a service account does not have any role, Google API
+        # returns a json object without bindings key
+        if 'bindings' in json_obj:
+            policy = GooglePolicy.from_json(json_obj)
+            if policy.roles:
+                return True
+        if g_mgr.get_service_account_keys_info(service_account):
+            return True
+    return False
 
 
 def is_service_account_from_google_project(service_account, google_project):
