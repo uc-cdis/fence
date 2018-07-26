@@ -62,11 +62,12 @@ def create_policy():
 @login_required({'admin'})
 def delete_policy(policy_id):
     """
-    Delete a policy from the arborist service and the database.
+    Delete a policy from the database.
+
+    Fence should not include policies in tokens which are not understood by
+    arborist, so when policies are removed from arborist, arborist (or arborist
+    maintainers) can use this endpoint to remove the same policy from fence.
     """
-    response = flask.current_app.arborist.delete_policy(policy_id)
-    if 'error' in response:
-        return response, 400
     with flask.current_app.db.session as session:
         policy_to_delete = (
             session
