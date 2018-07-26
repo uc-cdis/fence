@@ -45,7 +45,7 @@ def create_policy():
     users. The policy *must* already exist in arborist, otherwise this
     operation will fail.
     """
-    policy_ids = flask.request.get_json()['policies']
+    policy_ids = flask.request.get_json().get('policies', [])
     missing = flask.current_app.arborist.policies_not_exist(policy_ids)
     if missing:
         raise ValueError(
@@ -55,7 +55,7 @@ def create_policy():
     with flask.current_app.db.session as session:
         for policy_id in policy_ids:
             session.add(Policy(id=policy_id))
-    return '', 201
+    return flask.jsonify({'created': policy_ids}), 201
 
 
 @blueprint.route('/policies/<policy_id>', methods=['DELETE'])
