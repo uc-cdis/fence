@@ -14,6 +14,7 @@ from fence.auth import current_token
 from fence.models import GoogleServiceAccountKey
 from fence.models import UserGoogleAccount
 from fence.models import GoogleServiceAccount
+from fence.models import UserGoogleAccountToProxyGroup
 from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME
 from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
 from fence.errors import NotSupported
@@ -187,15 +188,46 @@ def create_google_access_key(client_id, user_id, username, proxy_group_id):
     return key, service_account
 
 
-def get_linked_google_account_email(user_id):
-    email = None
-    user_google_account = (
+def _get_linked_google_account(user_id):
+    """
+    Hit db to check for linked google account of user
+    """
+    g_account = (
         current_session.query(UserGoogleAccount)
         .filter(UserGoogleAccount.user_id == user_id).first()
     )
-    if user_google_account:
-        email = user_google_account.email
-    return email
+    return g_account
+
+
+def get_linked_google_account_email(user_id):
+    """
+    Hit db to check for linked google account email of user
+    """
+    google_email = None
+    if user_id:
+        g_account = _get_linked_google_account(user_id)
+        if g_account:
+            google_email = g_account.email
+    return google_email
+
+
+def get_linked_google_account_exp(user_id):
+    """
+    Hit db to check for expiration of linked google account of user
+    """
+    google_account_exp = 0
+    if user_id:
+        g_account = _get_linked_google_account(user_id)
+        if g_account:
+            g_account_to_proxy_group = (
+                current_session.query(UserGoogleAccountToProxyGroup)
+                .filter(
+                    UserGoogleAccountToProxyGroup
+                    .user_google_account_id == g_account.id).first()
+            )
+            if g_account_to_proxy_group:
+                google_account_exp = g_account_to_proxy_group.expires
+    return google_account_exp
 
 
 def add_custom_service_account_key_expiration(
@@ -415,22 +447,7 @@ def get_users_linked_google_email(user_id):
         # of an access token and the same access token is used here (e.g.
         # account exists but a new token hasn't been generated with the linkage
         # info yet)
-        google_email = get_users_linked_google_email_from_db(user_id)
-    return google_email
-
-
-def get_users_linked_google_email_from_db(user_id):
-    """
-    Hit db to check for google_email of user
-    """
-    google_email = None
-    if user_id:
-        g_account = (
-            current_session.query(UserGoogleAccount)
-            .filter(UserGoogleAccount.user_id == user_id).first()
-        )
-        if g_account:
-            google_email = g_account.email
+        google_email = get_linked_google_account_email(user_id)
     return google_email
 
 
@@ -480,3 +497,38 @@ def get_prefix_for_google_proxy_groups():
             'This namespaces the Google groups for security and safety.'
         )
     return prefix
+
+
+def get_registered_service_accounts(google_project):
+    # TODO return a list of UserServiceAccount db objects for project
+    raise NotImplementedError('Functionality not yet available...')
+
+
+def get_project_access_from_service_accounts(service_accounts):
+    # get a list of projects all the provided service accounts have
+    # access to. list will be of UserServiceAccount db objects
+    # TODO
+    raise NotImplementedError('Functionality not yet available...')
+
+
+def get_service_account_ids_from_google_project(google_project):
+    # TODO
+    raise NotImplementedError('Functionality not yet available...')
+
+
+def get_user_ids_from_google_members(members):
+    """
+     get all user ids from google members
+     Args:
+        members(list): list of google email
+     Returns:
+        list of user ids
+    """
+    result = []
+    for member in members:
+        google_account = current_session.query(UserGoogleAccount).filter(
+            UserGoogleAccount.email == member).first()
+        if google_account:
+            result.append(google_account.user_id)
+
+    return result

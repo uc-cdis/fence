@@ -13,9 +13,14 @@ something like this:
 """
 
 import json
+try:
+    import mock
+except ImportError:
+    from unittest import mock
 
 from fence.blueprints.rbac import _get_user_policy_ids
-from fence.models import User
+from fence.rbac.client import ArboristClient
+from fence.models import Policy, User
 
 
 def test_list_policies(db_session, client, example_policies):
@@ -26,7 +31,7 @@ def test_list_policies(db_session, client, example_policies):
     for policy in example_policies:
         db_session.add(policy)
 
-    policies_response = client.get('/rbac/policy/').json
+    policies_response = client.get('/rbac/policies/').json
     assert 'policies' in policies_response
     policy_ids = policies_response['policies']
     assert set(policy_ids) == set(policy.id for policy in example_policies)
@@ -130,3 +135,71 @@ def test_revoke_user_policies(client, user_client):
     # Check policies in database are empty.
     db_policies = _get_user_policy_ids(user_client.user_id)
     assert db_policies == []
+
+
+def test_create_policy(client, db_session):
+    """
+    Test creating a policy using the ``/rbac/policies/`` endpoint, adding the
+    policy in the fence database and also registering it in arborist.
+    """
+    policies = {'policies': ['test-policy-1', 'test-policy-2']}
+    with (
+        mock.patch.object(
+            ArboristClient, 'policies_not_exist', return_value=[]
+        )
+    ) as mock_policies_not_exist:
+        response = client.post(
+            '/rbac/policies/',
+            data=json.dumps(policies),
+            content_type='application/json',
+        )
+        mock_policies_not_exist.assert_called_once()
+    assert response.status_code == 201
+    policy = (
+        db_session
+        .query(Policy)
+        .filter(Policy.id == 'test-policy-1')
+        .first()
+    )
+    assert policy
+
+
+def test_delete_policy(app, client, db_session):
+    """
+    Test deleting a policy using a ``/rbac/policies/<policy_id>`` endpoint;
+    verify that the policy no longer exists in the database.
+    """
+    policy_id = 'test-policy'
+    # Create a policy first so we can delete it.
+    with (
+        mock.patch.object(
+            ArboristClient, 'policies_not_exist', return_value=[]
+        )
+    ) as mock_policies_not_exist:
+        response = client.post(
+            '/rbac/policies/',
+            data=json.dumps({'policies': [policy_id]}),
+            content_type='application/json',
+        )
+        mock_policies_not_exist.assert_called_once()
+    assert response.status_code == 201
+    policy = (
+        db_session
+        .query(Policy)
+        .filter(Policy.id == policy_id)
+        .first()
+    )
+    assert policy
+    # Delete the policy.
+    with mock.patch('flask.current_app.arborist') as mock_arborist:
+        response = client.delete('/rbac/policies/{}'.format(policy_id))
+        mock_arborist.delete_policy.assert_called_once()
+    # Check it doesn't exist anymore.
+    assert response.status_code == 204
+    policy = (
+        db_session
+        .query(Policy)
+        .filter(Policy.id == policy_id)
+        .first()
+    )
+    assert not policy

@@ -19,7 +19,7 @@ from fence.resources.aws.boto_manager import BotoManager
 from fence.resources.openid.google_oauth2 import Oauth2Client as GoogleClient
 from fence.resources.storage import StorageManager
 from fence.resources.user.user_session import UserSessionInterface
-from fence.restful import handle_error
+from fence.error_handler import get_error_response
 from fence.utils import random_str
 import fence.blueprints.admin
 import fence.blueprints.data
@@ -30,6 +30,7 @@ import fence.blueprints.storage_creds
 import fence.blueprints.user
 import fence.blueprints.well_known
 import fence.blueprints.link
+import fence.blueprints.google
 import fence.client
 
 
@@ -85,8 +86,12 @@ def app_register_blueprints(app):
 
     login_blueprint = fence.blueprints.login.make_login_blueprint(app)
     app.register_blueprint(login_blueprint, url_prefix='/login')
+
     link_blueprint = fence.blueprints.link.make_link_blueprint()
     app.register_blueprint(link_blueprint, url_prefix='/link')
+
+    google_blueprint = fence.blueprints.google.make_google_blueprint()
+    app.register_blueprint(google_blueprint, url_prefix='/google')
 
     if app.config.get('ARBORIST'):
         app.register_blueprint(
@@ -185,11 +190,11 @@ def app_init(app, settings='fence.settings', root_dir=None):
 
 
 @app.errorhandler(Exception)
-def user_error(error):
+def handle_error(error):
     """
     Register an error handler for general exceptions.
     """
-    return handle_error(error)
+    return get_error_response(error)
 
 
 @app.before_request

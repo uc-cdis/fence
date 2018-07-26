@@ -911,6 +911,7 @@ def cloud_manager():
     patch('fence.blueprints.storage_creds.google.GoogleCloudManager', manager).start()
     patch('fence.resources.google.utils.GoogleCloudManager', manager).start()
     patch('fence.scripting.fence_create.GoogleCloudManager', manager).start()
+    patch('fence.resources.google.access_utils.GoogleCloudManager', manager).start()
     manager.return_value.__enter__.return_value.get_access_key.return_value = {
         "type": "service_account",
         "project_id": "project-id",

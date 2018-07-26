@@ -311,8 +311,8 @@ class UserSyncer(object):
             user_project: a nested dict of
             {
                 username: {
-                    'project1': ['read-storage','write-storage'],
-                    'project2': ['read-storage'],
+                    'project1': {'read-storage','write-storage'},
+                    'project2': {'read-storage'},
                     }
             }
             user_info: a dict of
@@ -431,8 +431,8 @@ class UserSyncer(object):
             user_project(dict): a dictionary of
             {
                 username: {
-                    'project1': ['read-storage','write-storage'],
-                    'project2': ['read-storage']
+                    'project1': {'read-storage','write-storage'},
+                    'project2': {'read-storage'}
                 }
             }
             user_info(dict): a dictionary of {username: user_info{}}
@@ -666,6 +666,7 @@ class UserSyncer(object):
             user_project: a dictionary like:
 
                     {username: {phsid: ['read-storage','write-storage']}}
+
         Return:
             None
         """
@@ -877,11 +878,7 @@ class UserSyncer(object):
                         )
                         if not policy:
                             resource = '/projects/{}'.format(project)
-                            policy = Policy(
-                                id=policy_id,
-                                role_ids=[permission],
-                                resource_paths=[resource],
-                            )
+                            policy = Policy(id=policy_id)
                         if policy not in user.policies:
                             user.policies.append(policy)
 

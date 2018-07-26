@@ -17,7 +17,7 @@ from fence.models import Policy, User
 blueprint = flask.Blueprint('rbac', __name__)
 
 
-@blueprint.route('/policy/', methods=['GET'])
+@blueprint.route('/policies/', methods=['GET'])
 @login_required({'admin'})
 def list_policies():
     """
@@ -35,6 +35,47 @@ def list_policies():
     with flask.current_app.db.session as session:
         policies = _list_all_policies(session)
     return flask.jsonify({'policies': [policy.id for policy in policies]})
+
+
+@blueprint.route('/policies/', methods=['POST'])
+@login_required({'admin'})
+def create_policy():
+    """
+    Create new policies in the fence database, *without* granting it to any
+    users. The policy *must* already exist in arborist, otherwise this
+    operation will fail.
+    """
+    policy_ids = flask.request.get_json().get('policies', [])
+    missing = flask.current_app.arborist.policies_not_exist(policy_ids)
+    if missing:
+        raise ValueError(
+            'the following policies do not exist in arborist: '
+            + ', '.join(missing)
+        )
+    with flask.current_app.db.session as session:
+        for policy_id in policy_ids:
+            session.add(Policy(id=policy_id))
+    return flask.jsonify({'created': policy_ids}), 201
+
+
+@blueprint.route('/policies/<policy_id>', methods=['DELETE'])
+@login_required({'admin'})
+def delete_policy(policy_id):
+    """
+    Delete a policy from the arborist service and the database.
+    """
+    response = flask.current_app.arborist.delete_policy(policy_id)
+    if 'error' in response:
+        return response, 400
+    with flask.current_app.db.session as session:
+        policy_to_delete = (
+            session
+            .query(Policy)
+            .filter(Policy.id == policy_id)
+            .first()
+        )
+        session.delete(policy_to_delete)
+    return '', 204
 
 
 @blueprint.route('/user/<user_id>/policies/', methods=['GET'])
@@ -80,6 +121,8 @@ def replace_user_policies(user_id):
     with flask.current_app.db.session as session:
         policies = lookup_policies(policy_ids)
         user = session.query(User).filter_by(id=user_id).first()
+        if not user:
+            raise NotFound('no user exists with ID: {}'.format(user_id))
         user.policies = policies
         session.commit()
 
@@ -94,9 +137,26 @@ def revoke_user_policies(user_id):
     """
     with flask.current_app.db.session as session:
         user = session.query(User).filter_by(id=user_id).first()
+        if not user:
+            raise NotFound('no user exists with ID: {}'.format(user_id))
         # Set user's policies to empty list.
         user.policies = []
         session.commit()
+    return '', 204
+
+
+@blueprint.route('/user/<user_id>/policies/<policy_id>', methods=['DELETE'])
+@login_required({'admin'})
+def revoke_user_policy(user_id, policy_id):
+    """
+    Revoke a specific policy granted to a user.
+    """
+    with flask.current_app.db.session as session:
+        user = session.query(User).filter_by(User.id == user_id).first()
+        if not user:
+            raise NotFound('no user exists with ID: {}'.format(user_id))
+        user.policies.remove(policy_id)
+        session.flush()
     return '', 204
 
 
@@ -150,14 +210,12 @@ def _get_user_policy_ids(user_id):
 
 def _validate_policy_ids(policy_ids):
     """
-    Check some user-inputted policy IDs which should correspond to roles in
+    Check some user-inputted policy IDs which should correspond to policies in
     arborist.
 
     Check:
         - Policies argument is there
-        - All the listed policies are valid
-            - Contain correct fields
-            - Actually exist in arborist
+        - All the listed policies are valid (according to arborist)
 
     Args:
         policy_ids (List[str]): list of policy IDs

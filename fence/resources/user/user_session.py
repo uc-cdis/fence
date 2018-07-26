@@ -203,20 +203,22 @@ class UserSessionInterface(SessionInterface):
             except Unauthorized:
                 user = None
 
-            # check that the current user is the one from the session,
-            # clear access token if not
             user_sess_id = _get_user_id_from_session(session)
-            if not user:
+
+            # user_id == '' in session means no login has occured, which is
+            # okay if user is hitting with just an access_token
+            if user_sess_id != '' and not user:
                 response.set_cookie(
                     app.config['ACCESS_TOKEN_COOKIE_NAME'],
                     expires=0,
                     httponly=True, domain=domain)
-            elif user.id != user_sess_id:
-                if user.username != user_sess_id:
-                    response.set_cookie(
-                        app.config['ACCESS_TOKEN_COOKIE_NAME'],
-                        expires=0,
-                        httponly=True, domain=domain)
+            # check that the current user is the one from the session,
+            # clear access token if not
+            elif user_sess_id != '' and user.id != user_sess_id:
+                response.set_cookie(
+                    app.config['ACCESS_TOKEN_COOKIE_NAME'],
+                    expires=0,
+                    httponly=True, domain=domain)
 
             # if a user is logged in and doesn't have an access token, let's
             # generate one
