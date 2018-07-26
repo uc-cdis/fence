@@ -16,6 +16,12 @@ pipeline {
             branch: 'master'
           )
         }
+        dir('data-simulator') {
+          git(
+            url: 'https://github.com/occ-data/data-simulator.git',
+            branch: 'master'
+          )
+        }
         dir('cdis-manifest') {
           git(
             url: 'https://github.com/uc-cdis/cdis-manifest.git',
@@ -34,14 +40,14 @@ pipeline {
       steps {
         script {
           service = "$env.JOB_NAME".split('/')[1]
-          def timestamp = (("${currentBuild.timeInMillis}".substring(0, 10) as Integer) - 60)
-          def timeout = (("${currentBuild.timeInMillis}".substring(0, 10) as Integer) + 3600)
+          def timestamp = (currentBuild.timeInMillis/1000 as Integer) - 60
+          def timeout = (currentBuild.timeInMillis/1000 as Integer) + 3600
           curlUrl = "$env.QUAY_API"+service+"/build/?since="+timestamp
           fullQuery = "curl -s "+curlUrl+/ | jq '.builds[] | "\(.tags[]),\(.display_name),\(.phase)"'/
           
           def testBool = false
           while(testBool != true) {
-            currentTime = new Date().getTime().toString().substring(0, 10) as Integer
+            currentTime = new Date().getTime()/1000 as Integer
             println "currentTime is: "+currentTime
 
             if(currentTime > timeout) {
