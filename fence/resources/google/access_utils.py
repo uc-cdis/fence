@@ -187,8 +187,12 @@ def do_all_users_have_access_to_project(user_ids, project_auth_id):
         bool: whether all users have access to the google project
     """
     for user_id in user_ids:
-        access_privillege = current_session.query(AccessPrivilege).filter(
-            AccessPrivilege.user_id == user_id and AccessPrivilege.project_id == project_auth_id).first()
+        access_privillege = (
+                current_session
+                .query(AccessPrivilege)
+                .filter(AccessPrivilege.user_id == user_id and AccessPrivilege.project_id == project_auth_id)
+                .first()
+            )
         if access_privillege is None:
             return False
 

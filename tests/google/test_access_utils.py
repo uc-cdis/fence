@@ -4,6 +4,7 @@ from fence.resources.google.access_utils import (
     is_valid_service_account_type,
     service_account_has_external_access,
     google_project_has_valid_membership,
+    do_get_service_account_from_google_project,
 )
 from cirrus.google_cloud import (
     COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
@@ -185,4 +186,28 @@ def test_project_has_invalid_membership(cloud_manager):
         GooglePolicyMember("otherType", "other@gmail.com")
     ]
     assert not google_project_has_valid_membership(cloud_manager.project_id)
+
+
+def test_get_service_account_from_google_project(cloud_manager):
+    """
+    Test get service account given project and service account id
+    """
+    (
+        cloud_manager.return_value.__enter__.
+        return_value.do_get_service_account_from_google_project.return_value
+    ) = MockResponse({}, 403)
+    with pytest.raises(GoogleAPIError):
+        assert do_get_service_account_from_google_project('test_project', 'test_service_account')
+
+
+def test_get_service_account_from_google_project_fail(cloud_manager):
+    """
+    Test get service account given project and service account id
+    """
+    (
+        cloud_manager.return_value.__enter__.
+        return_value.do_get_service_account_from_google_project.return_value
+    ) = MockResponse({}, 403)
+    with pytest.raises(GoogleAPIError):
+        assert do_get_service_account_from_google_project('test_project', 'test_service_account')
 
