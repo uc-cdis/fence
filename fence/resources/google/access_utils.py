@@ -220,15 +220,19 @@ def google_project_has_valid_service_accounts(project_id):
         with GoogleCloudManager(project_id) as prj:
             service_accounts = prj.get_all_service_accounts()
 
-            if any(service_account_has_external_access(acc)
+            if any(service_account_has_external_access(acc.get('email'))
                    for acc in service_accounts):
                 return False
 
             members = prj.get_project_membership()
+            sa_members = [GooglePolicyMember(
+                GooglePolicyMember.SERVICE_ACCOUNT,
+                sa.get('email'))
+                for sa in service_accounts]
 
             for mem in members:
                 if mem.member_type == GooglePolicyMember.SERVICE_ACCOUNT:
-                    if mem not in service_accounts:
+                    if mem not in sa_members:
                         return False
 
             return True

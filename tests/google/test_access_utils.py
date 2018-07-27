@@ -4,6 +4,7 @@ from fence.resources.google.access_utils import (
     is_valid_service_account_type,
     service_account_has_external_access,
     google_project_has_valid_membership,
+    google_project_has_valid_service_accounts,
 )
 from cirrus.google_cloud import (
     COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
@@ -186,3 +187,209 @@ def test_project_has_invalid_membership(cloud_manager):
     ]
     assert not google_project_has_valid_membership(cloud_manager.project_id)
 
+
+def test_project_has_valid_service_accounts(cloud_manager):
+    """
+    Test that a project has only valid service accounts
+    """
+    (
+        cloud_manager.return_value.__enter__.return_value
+            .get_all_service_accounts.return_value
+    ) = [
+        {
+            'name': 'fakeSA1',
+            'email': 'a@gmail.com'
+        },
+        {
+            'name': 'fakeSA2',
+            'email': 'b@gmail.com'
+        }
+    ]
+
+    faked_json = {
+        'etag': 'ACAB'
+    }
+
+    (
+        cloud_manager.return_value.__enter__.
+            return_value.get_service_account_policy.return_value
+    ) = MockResponse(faked_json, 200)
+
+    (
+        cloud_manager.return_value.__enter__.
+            return_value.get_service_account_keys_info.return_value
+    ) = []
+
+    assert google_project_has_valid_service_accounts(cloud_manager.project_id)
+
+
+def test_project_has_invalid_service_accounts_external_access(cloud_manager):
+    """
+    Test that a project has invalid service accounts due to external access
+    """
+    (
+        cloud_manager.return_value.__enter__.return_value
+            .get_all_service_accounts.return_value
+    ) = [
+        {
+            'name': 'fakeSA1',
+            'email': 'a@gmail.com'
+        },
+        {
+            'name': 'fakeSA2',
+            'email': 'b@gmail.com'
+        }
+    ]
+
+    faked_json = {
+        'etag': 'ACAB',
+        'bindings':
+            [
+                {
+                    'role': 'Admin',
+                    'members':
+                    [
+                        'serviceAccount:a@gmail.com'
+                    ]
+                }
+            ]
+    }
+
+    (
+        cloud_manager.return_value.__enter__.
+            return_value.get_service_account_policy.return_value
+    ) = MockResponse(faked_json, 200)
+
+    (
+        cloud_manager.return_value.__enter__.
+            return_value.get_service_account_keys_info.return_value
+    ) = []
+
+    assert not google_project_has_valid_service_accounts(cloud_manager.project_id)
+
+
+def test_project_has_invalid_service_accounts_keys(cloud_manager):
+    """
+    Test that a project has only valid service accounts
+    """
+    (
+        cloud_manager.return_value.__enter__.return_value
+            .get_all_service_accounts.return_value
+    ) = [
+        {
+            'name': 'fakeSA1',
+            'email': 'a@gmail.com'
+        },
+        {
+            'name': 'fakeSA2',
+            'email': 'b@gmail.com'
+        }
+    ]
+
+    faked_json = {
+        'etag': 'ACAB'
+    }
+
+    (
+        cloud_manager.return_value.__enter__.
+            return_value.get_service_account_policy.return_value
+    ) = MockResponse(faked_json, 200)
+
+    (
+        cloud_manager.return_value.__enter__.
+            return_value.get_service_account_keys_info.return_value
+    ) = ['not empty']
+
+    assert not google_project_has_valid_service_accounts(cloud_manager.project_id)
+
+
+def test_project_has_valid_service_accounts_membership(cloud_manager):
+    """
+    Test that a project has only valid service accounts
+    """
+    (
+        cloud_manager.return_value.__enter__.return_value
+            .get_all_service_accounts.return_value
+    ) = [
+        {
+            'name': 'fakeSA1',
+            'email': 'a@gmail.com'
+        },
+        {
+            'name': 'fakeSA2',
+            'email': 'b@gmail.com'
+        }
+    ]
+
+    faked_json = {
+        'etag': 'ACAB'
+    }
+
+    (
+        cloud_manager.return_value.__enter__.
+            return_value.get_service_account_policy.return_value
+    ) = MockResponse(faked_json, 200)
+
+    (
+        cloud_manager.return_value.__enter__.
+            return_value.get_service_account_keys_info.return_value
+    ) = []
+
+    (
+        cloud_manager.return_value.__enter__.
+            return_value.get_project_membership.return_value
+    ) = [
+        GooglePolicyMember(GooglePolicyMember.SERVICE_ACCOUNT,
+                           'a@gmail.com'),
+        GooglePolicyMember(GooglePolicyMember.SERVICE_ACCOUNT,
+                           'b@gmail.com')
+    ]
+
+    assert google_project_has_valid_service_accounts(cloud_manager.project_id)
+
+
+def test_project_has_invalid_service_accounts_membership(cloud_manager):
+    """
+    Test that a project has only valid service accounts
+    """
+    (
+        cloud_manager.return_value.__enter__.return_value
+            .get_all_service_accounts.return_value
+    ) = [
+        {
+            'name': 'fakeSA1',
+            'email': 'a@gmail.com'
+        },
+        {
+            'name': 'fakeSA2',
+            'email': 'b@gmail.com'
+        }
+    ]
+
+    faked_json = {
+        'etag': 'ACAB'
+    }
+
+    (
+        cloud_manager.return_value.__enter__.
+            return_value.get_service_account_policy.return_value
+    ) = MockResponse(faked_json, 200)
+
+    (
+        cloud_manager.return_value.__enter__.
+            return_value.get_service_account_keys_info.return_value
+    ) = []
+
+    (
+        cloud_manager.return_value.__enter__.
+            return_value.get_project_membership.return_value
+    ) = [
+        GooglePolicyMember(GooglePolicyMember.SERVICE_ACCOUNT,
+                           'a@gmail.com'),
+        GooglePolicyMember(GooglePolicyMember.SERVICE_ACCOUNT,
+                           'b@gmail.com'),
+        GooglePolicyMember(GooglePolicyMember.SERVICE_ACCOUNT,
+                           'c@gmail.com')
+    ]
+
+    assert not google_project_has_valid_service_accounts(cloud_manager.project_id)
