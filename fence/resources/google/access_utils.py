@@ -5,7 +5,7 @@ registration.
 import flask
 
 from flask_sqlalchemy_session import current_session
-from fence.models import AccessPrivilege
+from fence.models import AccessPrivilege, UserServiceAccount
 from cirrus.google_cloud.iam import GooglePolicyMember
 
 from cirrus import GoogleCloudManager
@@ -16,10 +16,13 @@ from cirrus.google_cloud import (
     USER_MANAGED_SERVICE_ACCOUNT,
 )
 
+from fence.resources.google.utils import get_db_session
+
 ALLOWED_SERVICE_ACCOUNT_TYPES = [
     COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
     USER_MANAGED_SERVICE_ACCOUNT,
 ]
+
 
 def can_user_manage_service_account(user_id, account_id):
     """
@@ -78,7 +81,6 @@ def google_project_has_valid_membership(project_id):
     Return:
         Bool: True iff project members are only users and/or service accounts
     """
-
     try:
         with GoogleCloudManager(project_id) as prj:
             members = prj.get_project_membership()
@@ -137,8 +139,9 @@ def service_account_has_external_access(service_account):
     with GoogleCloudManager() as g_mgr:
         response = g_mgr.get_service_account_policy(service_account)
         if response.status_code != 200:
-            raise GoogleAPIError('Unable to get IAM policy for service account {}\n{}.'
-                                .format(service_account, response.json()))
+            raise GoogleAPIError(
+                'Unable to get IAM policy for service account {}\n{}.'
+                .format(service_account, response.json()))
         json_obj = response.json()
         # In the case that a service account does not have any role, Google API
         # returns a json object without bindings key
@@ -151,11 +154,13 @@ def service_account_has_external_access(service_account):
     return False
 
 
-def is_service_account_from_google_project(service_account, google_project):
+def is_service_account_from_google_project(
+        service_account, google_project):
     raise NotImplementedError('Functionality not yet available...')
 
 
-def is_user_member_of_all_google_projects(user_id, google_project_ids):
+def is_user_member_of_all_google_projects(
+        user_id, google_project_ids, db=None):
     """
     Return whether or not the given user is a member of ALL of the provided
     Google project IDs.
@@ -171,15 +176,17 @@ def is_user_member_of_all_google_projects(user_id, google_project_ids):
         bool: whether or not the given user is a member of ALL of the provided
               Google project IDs
     """
+    session = get_db_session(db)
     # TODO actually check
     raise NotImplementedError('Functionality not yet available...')
 
 
-def do_all_users_have_access_to_project(user_ids, project_auth_id):
+def do_all_users_have_access_to_project(user_ids, project_auth_id, db=None):
+    session = get_db_session(db)
     # user_ids will be list of user ids
     # check if all user ids has access to a project with project_auth_id
     for user_id in user_ids:
-        access_privillege = current_session.query(AccessPrivilege).filter(
+        access_privillege = session.query(AccessPrivilege).filter(
             AccessPrivilege.user_id == user_id and AccessPrivilege.project_id == project_auth_id).first()
         if access_privillege is None:
             return False
@@ -197,4 +204,23 @@ def get_service_account_email(account_id):
 # TODO this should be in cirrus rather than fence...
 def get_google_project_from_service_account_email(account_id):
     # parse email to get project id_
+    raise NotImplementedError('Functionality not yet available...')
+
+
+def remove_service_accounts_from_access(
+        service_account_emails, google_project_id, db=None):
+    session = get_db_session(db)
+    # loop through ServiceAccountToBucket
+    # remove from group
+    # delete from db
+    for sa_email in service_account_emails:
+        service_account = (
+            session.query(UserServiceAccount).filter(email=sa_email)
+        )
+        # TODO not sure if below works
+        access_groups = service_account.to_access_groups
+        for bucket_access_group in access_groups:
+            # TODO remove service_account.email from bucket_access_group.email
+            pass
+
     raise NotImplementedError('Functionality not yet available...')

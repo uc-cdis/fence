@@ -154,7 +154,7 @@ class GoogleProjectValidity(ValidityInfo):
         self._info['service_accounts'] = {}
         self._info['access'] = {}
 
-    def check_validity(self, early_return=True):
+    def check_validity(self, early_return=True, db=None):
         """
         Determine whether or not project is valid for registration. If
         early_return is False, this object will store information about the
@@ -227,7 +227,7 @@ class GoogleProjectValidity(ValidityInfo):
         project_access_validity = ValidityInfo()
         for project in service_account_access:
             valid_access = do_all_users_have_access_to_project(
-                all_user_ids, project)
+                all_user_ids, project, db=db)
             project_access_validity.set(str(project), valid_access)
 
         self.set('access', project_access_validity)

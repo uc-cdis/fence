@@ -11,13 +11,17 @@ from cirrus.google_cloud.utils import (
     get_valid_service_account_id_for_user
 )
 from fence.auth import current_token
-from fence.models import GoogleServiceAccountKey
-from fence.models import UserGoogleAccount
-from fence.models import GoogleServiceAccount
-from fence.models import UserGoogleAccountToProxyGroup
+from fence.models import (
+    GoogleServiceAccountKey,
+    UserGoogleAccount,
+    GoogleServiceAccount,
+    UserGoogleAccountToProxyGroup,
+    UserServiceAccount
+)
 from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME
-from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
 from fence.errors import NotSupported
+from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
+from userdatamodel.driver import SQLAlchemyDriver
 
 
 def get_or_create_primary_service_account_key(
@@ -499,24 +503,45 @@ def get_prefix_for_google_proxy_groups():
     return prefix
 
 
-def get_registered_service_accounts(google_project):
+def get_google_projects_with_registered_service_accounts(db=None):
+    """
+    Return a set with all the Google Project id's that
+    have registered service accounts.
+    """
+    registered_service_accounts = get_all_registered_service_accounts(db)
+    google_projects = set([
+        sa.google_project_id
+        for sa in registered_service_accounts
+    ])
+    return google_projects
+
+
+def get_registered_service_accounts(google_project, db=None):
+    session = get_db_session(db)
     # TODO return a list of UserServiceAccount db objects for project
     raise NotImplementedError('Functionality not yet available...')
 
 
-def get_project_access_from_service_accounts(service_accounts):
+def get_all_registered_service_accounts(db=None):
+    session = get_db_session(db)
+    return session.query(UserServiceAccount).all()
+
+
+def get_project_access_from_service_accounts(service_accounts, db=None):
     # get a list of projects all the provided service accounts have
     # access to. list will be of UserServiceAccount db objects
     # TODO
+    session = get_db_session(db)
     raise NotImplementedError('Functionality not yet available...')
 
 
-def get_service_account_ids_from_google_project(google_project):
+def get_service_account_ids_from_google_project(google_project, db=None):
     # TODO
+    session = get_db_session(db)
     raise NotImplementedError('Functionality not yet available...')
 
 
-def get_user_ids_from_google_members(members):
+def get_user_ids_from_google_members(members, db=None):
     """
      get all user ids from google members
      Args:
@@ -524,11 +549,19 @@ def get_user_ids_from_google_members(members):
      Returns:
         list of user ids
     """
+    session = get_db_session(db)
     result = []
     for member in members:
-        google_account = current_session.query(UserGoogleAccount).filter(
+        google_account = session.query(UserGoogleAccount).filter(
             UserGoogleAccount.email == member).first()
         if google_account:
             result.append(google_account.user_id)
 
     return result
+
+
+def get_db_session(db):
+    if db:
+        return SQLAlchemyDriver(db).Session()
+    else:
+        return current_session
