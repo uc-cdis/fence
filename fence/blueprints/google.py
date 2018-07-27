@@ -1,8 +1,11 @@
+import json
+import os
 from urllib import unquote
 
 import flask
 from flask_restful import Resource
 
+from cirrus.config import config as cirrus_config
 from fence.auth import current_token, require_auth_header
 from fence.restful import RestfulApi
 from fence.errors import UserError
@@ -435,6 +438,32 @@ def _get_project_access_error_status(validity_info):
 
 
 def _get_monitoring_account_email():
-    # TODO get monitoring service account from CIRRUS_CFG. Will be the service
-    #      accont email used for the fence service
-    raise NotImplementedError('Functionality not yet available...')
+    """
+    Get the monitoring email from the cirrus configuration. Use the
+    main/default application credentials as the monitoring service account.
+
+    This function should ONLY return the service account's email by
+    parsing the creds file.
+    """
+    app_creds_file = (
+        flask.current_app.config
+        .get('CIRRUS_CFG', {})
+        .get('GOOGLE_APPLICATION_CREDENTIALS')
+    )
+    app_email = _get_email_from_google_credentials(app_creds_file)
+    return app_email
+
+
+def _get_email_from_google_credentials(creds_file):
+    """
+    Try to get creds email address from provided key file
+    """
+    creds_email = None
+    if os.path.exists(creds_file):  # TODO test None on ospathexists, make sure no exception
+        with open(creds_file) as creds_file:
+            creds_email = (
+                json.load(creds_file)
+                .get('client_email')
+            )
+
+    return creds_email
