@@ -21,7 +21,7 @@ blueprint = flask.Blueprint('rbac', __name__)
 @login_required({'admin'})
 def list_policies():
     """
-    List all the existing policies.
+    List all the existing policies. (In fence, not arborist.)
 
     Example output JSON:
 
@@ -150,7 +150,8 @@ def revoke_user_policies(user_id):
 @login_required({'admin'})
 def revoke_user_policy(user_id, policy_id):
     """
-    Revoke a specific policy granted to a user.
+    Revoke a specific policy (the policy ID in the path) granted to a user
+    (specified by user ID in the path).
     """
     with flask.current_app.db.session as session:
         user = session.query(User).filter_by(User.id == user_id).first()
@@ -191,11 +192,23 @@ def lookup_policies(policy_ids):
 
 
 def _list_all_policies(session):
+    """
+    List all the policies existing in a database session.
+
+    Args:
+        session (sqlalchemy.orm.session.Session)
+
+    Return:
+        List[fence.models.Policy]
+    """
     return session.query(Policy).all()
 
 
 def _get_user_policy_ids(user_id):
     """
+    List the IDs for policies which are granted to this user, according to the
+    fence database.
+
     Args:
         user_id (str): the id for a user
 
@@ -213,10 +226,6 @@ def _validate_policy_ids(policy_ids):
     """
     Check some user-inputted policy IDs which should correspond to policies in
     arborist.
-
-    Check:
-        - Policies argument is there
-        - All the listed policies are valid (according to arborist)
 
     Args:
         policy_ids (List[str]): list of policy IDs
