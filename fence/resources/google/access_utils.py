@@ -3,9 +3,14 @@ Utilities for determine access and validity for service account
 registration.
 """
 import flask
+import time
 
-from flask_sqlalchemy_session import current_session
-from fence.models import AccessPrivilege, UserServiceAccount
+from fence.models import (
+    AccessPrivilege, UserServiceAccount, Project,
+    ServiceAccountAccessPrivilege,
+    ServiceAccountToGoogleBucketAccessGroup
+)
+from fence.errors import UserError
 from cirrus.google_cloud.iam import GooglePolicyMember
 
 from cirrus import GoogleCloudManager
@@ -207,20 +212,91 @@ def get_google_project_from_service_account_email(account_id):
     raise NotImplementedError('Functionality not yet available...')
 
 
+def force_add_service_accounts_to_access(
+        service_account_emails, google_project_id, project_access, db=None):
+    session = get_db_session(db)
+
+    for sa_email in service_account_emails:
+        service_account = UserServiceAccount(
+            google_unique_id=sa_email,
+            email=sa_email,
+            google_project_id=google_project_id
+        )
+        session.add(service_account)
+        session.commit()
+
+        valid_projects = []
+        for auth_id in project_access:
+            project = (
+                session.query(Project).filter_by(auth_id=auth_id).first()
+            )
+            if not project:
+                raise UserError('{} is not a valid Project auth_id.')
+
+            valid_projects.append(project)
+
+        # only provide access after checking that all the projects
+        # actually exist
+        for project in valid_projects:
+            # keep track of what access service accounts have
+            access_privilege = ServiceAccountAccessPrivilege(
+                project_id=project.id,
+                service_account_id=service_account.id
+            )
+            session.add(access_privilege)
+            session.commit()
+
+            access_groups = []
+            for bucket in project.buckets:
+                groups = bucket.google_bucket_access_groups
+                access_groups.extend(groups)
+
+            # use configured time or 7 days
+            expiration_time = (
+                time.time()
+                + flask.current_app.config.get(
+                    'GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN',
+                    604800)
+            )
+            for access_group in access_groups:
+                sa_to_group = ServiceAccountToGoogleBucketAccessGroup(
+                    service_account_id=service_account.id,
+                    expires=expiration_time,
+                    access_group_id=access_group.id
+                )
+                session.add(sa_to_group)
+                session.commit()
+
+                with GoogleCloudManager() as g_manager:
+                    g_manager.add_member_to_group(
+                        member_email=service_account.email,
+                        group_id=access_group.email
+                    )
+
+
 def remove_service_accounts_from_access(
         service_account_emails, google_project_id, db=None):
+    """
+
+    loop through ServiceAccountToBucket
+    remove from group
+    delete from db
+
+    Args:
+        service_account_emails (List[str]): Description
+        google_project_id (str): Description
+        db (None, str): Optional db connection string
+    """
     session = get_db_session(db)
-    # loop through ServiceAccountToBucket
-    # remove from group
-    # delete from db
     for sa_email in service_account_emails:
         service_account = (
-            session.query(UserServiceAccount).filter(email=sa_email)
+            session.query(UserServiceAccount).filter_by(email=sa_email).first()
         )
         # TODO not sure if below works
         access_groups = service_account.to_access_groups
         for bucket_access_group in access_groups:
-            # TODO remove service_account.email from bucket_access_group.email
-            pass
-
-    raise NotImplementedError('Functionality not yet available...')
+            with GoogleCloudManager() as g_manager:
+                g_manager.remove_member_from_group(
+                    member_email=service_account.email,
+                    group_id=bucket_access_group.email
+                )

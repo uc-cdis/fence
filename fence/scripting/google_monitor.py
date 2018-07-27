@@ -35,7 +35,7 @@ def validation_check(db):
     project_service_account_mapping = (
         _get_project_service_account_mapping(registered_service_accounts)
     )
-    for google_project_id, sa_emails in project_service_account_mapping:
+    for google_project_id, sa_emails in project_service_account_mapping.iteritems():
         for sa_email in sa_emails:
             # Do some basic serice account checks, this won't validate
             # the data access, that's done whe the project's validated
