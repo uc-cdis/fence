@@ -141,6 +141,23 @@ def is_valid_service_account_type(project_id, account_id):
         return False
 
 
+def delete_service_account(project_id, account_id):
+    """
+    Delete service account given the id
+    """
+    try:
+        with GoogleCloudManager(project_id) as g_mgr:
+            # TODO: Need to redesign cirrus to return whole repsonse
+            g_mgr.delete_service_account(account_id)
+            return True
+
+    except Exception as exc:
+        flask.current_app.logger.debug((
+            'Can not delete service account {}. Details: {}').
+            format(account_id, exc))
+        return False
+
+
 def service_account_has_external_access(service_account):
     """
     Checks if service account has external access or not.

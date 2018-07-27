@@ -11,7 +11,8 @@ from fence.resources.google.access_utils import (
     is_user_member_of_all_google_projects,
     can_user_manage_service_account,
     get_google_project_from_service_account_email,
-    get_service_account_email
+    get_service_account_email,
+    delete_service_account
 )
 
 
@@ -296,7 +297,7 @@ class GoogleServiceAccount(Resource):
         Args:
             account_id (str): Google service account identifier
         """
-        raise NotImplementedError('Functionality not yet available...')
+        response = delete_service_account(account_id)
 
 
 def _get_service_account_error_status(
