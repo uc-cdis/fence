@@ -181,3 +181,22 @@ def valid_google_project_patcher():
 
     for patched_function in patches:
         patched_function.stop()
+
+
+@pytest.fixture(scope='function')
+def invalid_service_account_patcher():
+    invalid_service_account = 'invalid@example.com'
+
+    def mock_is_valid(sa_email, *args, **kwargs):
+        if sa_email == invalid_service_account:
+            return False
+        return True
+
+    patcher = patch(
+        'fence.scripting.google_monitor._is_valid_service_account',
+        mock_is_valid
+    )
+
+    patcher.start()
+    yield invalid_service_account
+    patcher.stop()

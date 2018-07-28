@@ -277,10 +277,9 @@ def force_add_service_accounts_to_access(
 def remove_service_accounts_from_access(
         service_account_emails, google_project_id, db=None):
     """
-
     loop through ServiceAccountToBucket
     remove from group
-    delete from db
+    delete entries from db
 
     Args:
         service_account_emails (List[str]): Description
@@ -292,7 +291,6 @@ def remove_service_accounts_from_access(
         service_account = (
             session.query(UserServiceAccount).filter_by(email=sa_email).first()
         )
-        # TODO not sure if below works
         access_groups = service_account.to_access_groups
         for bucket_access_group in access_groups:
             with GoogleCloudManager() as g_manager:
@@ -300,3 +298,23 @@ def remove_service_accounts_from_access(
                     member_email=service_account.email,
                     group_id=bucket_access_group.email
                 )
+
+            sa_to_group = (
+                session.query(ServiceAccountToGoogleBucketAccessGroup)
+                .filter_by(
+                    service_account_id=service_account.id,
+                    access_group_id=bucket_access_group.id
+                )
+            )
+            session.delete(sa_to_group)
+            session.commit()
+
+        # delete all access privileges
+        access_privileges = (
+            session.query(ServiceAccountAccessPrivilege)
+            .filter_by(service_account_id=service_account.id)
+            .all()
+        )
+        for access in access_privileges:
+            session.delete(access)
+            session.commit()

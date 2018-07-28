@@ -37,9 +37,9 @@ def validation_check(db):
     )
     for google_project_id, sa_emails in project_service_account_mapping.iteritems():
         for sa_email in sa_emails:
-            # Do some basic serice account checks, this won't validate
+            # Do some basic service account checks, this won't validate
             # the data access, that's done whe the project's validated
-            if not _is_valid_service_account(sa_email, db=db):
+            if not _is_valid_service_account(sa_email, google_project_id):
                 remove_service_accounts_from_access(
                     [sa_email], google_project_id, db=db)
 
@@ -54,16 +54,14 @@ def validation_check(db):
                 sa_emails, google_project_id, db=db)
 
 
-def _is_valid_service_account(sa_email, db=None):
+def _is_valid_service_account(sa_email, google_project_id, db=None):
     """
     Validate the given registered service account and remove if invalid.
     """
     try:
-        sa_validity = (
-            GoogleServiceAccountValidity(sa_email, db=db)
-            .check_validity(early_return=True)
-        )
-    except Exception:
+        sa_validity = GoogleServiceAccountValidity(sa_email, google_project_id)
+        sa_validity.check_validity(early_return=True)
+    except Exception as exc:
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
         sa_validity = False
@@ -77,11 +75,9 @@ def _is_valid_google_project(google_project_id, db=None):
     accounts under that project if invalid.
     """
     try:
-        project_validity = (
-            GoogleProjectValidity(google_project_id, db=db)
-            .check_validity(early_return=True)
-        )
-    except Exception:
+        project_validity = GoogleProjectValidity(google_project_id)
+        project_validity.check_validity(early_return=True, db=db)
+    except Exception as exc:
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
         project_validity = False
