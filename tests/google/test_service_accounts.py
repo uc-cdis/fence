@@ -55,6 +55,7 @@ NOTE: You can use the following helper assert functions when developing more
 """
 import json
 import pytest
+from io import StringIO
 
 # Python 2 and 3 compatible
 try:
@@ -62,20 +63,23 @@ try:
     from unittest.mock import patch
 except ImportError:
     from mock import MagicMock
-    from mock import patch
+    from mock import patch, mock_open
 
 
 EXPECTED_ERROR_RESPONSE_KEYS = set(['status', 'error', 'error_description'])
 
 
-@pytest.mark.skip(reason="not implemented yet")
-def test_google_service_account_monitor(
-        client, app, encoded_jwt_service_accounts_access):
+def test_google_service_account_monitor_none(
+        client, app, encoded_jwt_service_accounts_access,
+        monkeypatch):
     """
-    Test that the monitoring endpoint returns something when given valid
-    creds.
+    Test that the monitoring endpoint returns something when no creds
+    exist.
     """
     encoded_creds_jwt = encoded_jwt_service_accounts_access['jwt']
+    test_file = None
+    monkeypatch.setitem(
+      app.config, 'CIRRUS_CFG', {'GOOGLE_APPLICATION_CREDENTIALS': test_file})
 
     response = client.get(
         '/google/service_accounts/monitor',
@@ -83,6 +87,39 @@ def test_google_service_account_monitor(
 
     assert response.status_code == 200
     assert response.json and 'service_account_email' in response.json
+    assert not response.json['service_account_email']
+
+
+def test_google_service_account_monitor(
+        client, app, encoded_jwt_service_accounts_access,
+        monkeypatch):
+    """
+    Test that the monitoring endpoint returns something when given valid
+    creds.
+    """
+    encoded_creds_jwt = encoded_jwt_service_accounts_access['jwt']
+    creds_file = u'{"client_email": "test123@example.com"}'
+    path_mock = MagicMock()
+    path_mock.return_value.path.return_value.exists.return_value = True
+
+    mock_path = patch('fence.blueprints.google.os', path_mock)
+    # mock_path = patch('os.path.exists', True)
+    mocked_open = patch('__builtin__.open', mock_open(read_data=creds_file))
+
+    monkeypatch.setitem(
+      app.config, 'CIRRUS_CFG', {'GOOGLE_APPLICATION_CREDENTIALS': '.'})
+
+    mocked_open.start()
+    mock_path.start()
+    response = client.get(
+        '/google/service_accounts/monitor',
+        headers={'Authorization': 'Bearer ' + encoded_creds_jwt})
+    mocked_open.stop()
+    mock_path.stop()
+
+    assert response.status_code == 200
+    assert response.json and 'service_account_email' in response.json
+    assert response.json['service_account_email'] == 'test123@example.com'
 
 
 @pytest.mark.skip(reason="not implemented yet")

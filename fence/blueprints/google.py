@@ -459,7 +459,7 @@ def _get_email_from_google_credentials(creds_file):
     Try to get creds email address from provided key file
     """
     creds_email = None
-    if os.path.exists(creds_file):  # TODO test None on ospathexists, make sure no exception
+    if creds_file and os.path.exists(creds_file):
         with open(creds_file) as creds_file:
             creds_email = (
                 json.load(creds_file)
