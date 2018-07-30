@@ -442,42 +442,89 @@ def _get_service_account_error_status(
 
 
 def _get_service_account_email_error_status(validity_info):
-    # TODO actually validate
-    validity_info = validity_info.get('service_accounts')
+
+    service_accounts_validity = validity_info.get('service_accounts')
+    if service_accounts_validity:
+        return {
+            'status': 200,
+            'error': None,
+            'error_description': ''
+        }
+
     response = {
-        'status': 400,
-        'error': None,
+        'status': 403,
+        'error': 'Unauthorized',
         'error_description': ''
     }
+
+    for sa_account_id, sa_validity in service_accounts_validity.items():
+        if sa_account_id == validity_info.new_service_account:
+            if not sa_validity:
+                response['error_description'] = str(sa_validity)
+            else:
+                response['status'] = 200
+                response['error'] = None
+
     return response
 
 
 def _get_google_project_id_error_status(validity_info):
-    # TODO actually validate
-    # valid_parent_org = validity_info.get('valid_parent_org')
-    # valid_membership = validity_info.get('valid_membership')
+
+    valid_parent_org = validity_info.get('valid_parent_org')
+    valid_membership = validity_info.get('valid_membership')
+    service_accounts_validity = validity_info.get('service_accounts')
+
+    if valid_parent_org and valid_membership and service_accounts_validity:
+        return {
+            'status': 200,
+            'error': None,
+            'error_description': ''
+        }
+
     response = {
-        'status': 400,
-        'error': None,
+        'status': 403,
+        'error': 'Unauthorized',
         'error_description': ''
     }
+
+    if not valid_parent_org:
+        response['error_description'] += 'Project has parent organization.'
+    if not valid_membership:
+        response['error_description'] += '\nProject has invalid membership.'
+
+    if not service_accounts_validity:
+        response['error_description'] += '\nProject has one or more invalid service accounts.'
+        response['service_account_validity'] = {}
+        for sa_account_id, sa_validity in service_accounts_validity.items():
+            if not sa_validity:
+                response['service_account_validity'][sa_account_id] = (
+                    str(sa_validity)
+                )
+
     return response
 
 
 def _get_project_access_error_status(validity_info):
-    validity_info = validity_info.get('access')
-    response = {}
-    # TODO check if permissions are valid
-    for project, info in validity_info:
-        # TODO check if all users on project have permissions, update status
-        #      and error info if there's an issue
-        response.update({
-            str(project): {
-                'status': 400,
-                'error': None,
-                'error_description': ''
-            }
-        })
+
+    access_validity = validity_info.get('access')
+
+    if access_validity:
+        return {
+            'status': 200,
+            'error': None,
+            'error_description': ''
+        }
+
+    response = {
+        'status': 403,
+        'error': 'Unauthorized',
+        'error_description': 'Not all users have access requested',
+        'invalid_access': []
+    }
+
+    for project, valid in access_validity:
+        if not valid:
+            response['invalid_access'].append(project)
 
     return response
 
