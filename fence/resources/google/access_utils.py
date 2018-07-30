@@ -3,15 +3,12 @@ Utilities for determine access and validity for service account
 registration.
 """
 import flask
+from urllib import unquote
 
 from google.cloud.exceptions import GoogleCloudError
-
 from flask_sqlalchemy_session import current_session
-from fence.models import AccessPrivilege
-from fence.errors import NotFound
-from fence.resources.google.utils import get_user_ids_from_google_members
-from cirrus.google_cloud.iam import GooglePolicyMember
 
+from cirrus.google_cloud.iam import GooglePolicyMember
 from cirrus import GoogleCloudManager
 from cirrus.google_cloud.errors import GoogleAPIError
 from cirrus.google_cloud.iam import GooglePolicy
@@ -19,6 +16,12 @@ from cirrus.google_cloud import (
     COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
     USER_MANAGED_SERVICE_ACCOUNT,
 )
+
+import fence
+from fence.models import AccessPrivilege, UserServiceAccount
+from fence.errors import NotFound
+from fence.resources.google.utils import get_user_ids_from_google_members
+
 
 ALLOWED_SERVICE_ACCOUNT_TYPES = [
     COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
@@ -141,21 +144,63 @@ def is_valid_service_account_type(project_id, account_id):
         return False
 
 
-def delete_service_account(project_id, account_id):
+def _delete_user_service_account_db(google_project_id, email):
+    """
+    Delete user service account from DB for given google_project_id and email
+
+    Args:
+        google_project_id(str): google project id
+        email(str): user email
+
+    Returns:
+        None
+
+    """
+    user_service_account = (
+        current_session
+        .query(UserServiceAccount)
+        .filter_by(google_project_id=google_project_id,
+                   email=email)
+        .first()
+    )
+    if user_service_account:
+        current_session.delete(user_service_account)
+        current_session.commit()
+    else:
+        raise fence.errors.NotFound('{} does not exist in DB'.format(email))
+
+
+def delete_user_service_account(project_id, service_account):
     """
     Delete service account given the id
+
+    Args:
+        project_id(str): google project id
+        service_account(str): service account id
+
+    Returns:
+        bool: success or not
     """
     try:
         with GoogleCloudManager(project_id) as g_mgr:
             # TODO: Need to redesign cirrus to return whole repsonse
-            g_mgr.delete_service_account(account_id)
-            return True
-
+            response = g_mgr.delete_service_account(service_account)
+            if response == {}:
+                _delete_user_service_account_db(project_id, service_account)
+                return True
+            else:
+                flask.current_app.logger.debug((
+                    'Can not delete service account {}. Details: {}').
+                    format(service_account, response))
+                return False
+    except fence.errors.NotFound as exc:
+        flask.current_app.logger.debug(exc.message)
+        raise exc
     except Exception as exc:
         flask.current_app.logger.debug((
             'Can not delete service account {}. Details: {}').
-            format(account_id, exc))
-        return False
+            format(service_account, exc))
+        raise exc
 
 
 def service_account_has_external_access(service_account):
@@ -285,15 +330,17 @@ def google_project_has_valid_service_accounts(project_id):
     return True
 
 
+def get_service_account_email(id_from_url):
+    """
+    Return email given it in id form from the url.
+    """
+    return unquote(id_from_url)
 
-# TODO this should be in cirrus rather than fence...
-def get_service_account_email(account_id):
-    # first check if the account_id is an email, if not, hit google's api to
-    # get service account information and parse email
-    raise NotImplementedError('Functionality not yet available...')
 
+def get_google_project_from_service_account_email(service_account_email):
+    """
+    Parse email to get google project id
+    """
+    words = service_account_email.split('@')
+    return words[1].split('.')[0]
 
-# TODO this should be in cirrus rather than fence...
-def get_google_project_from_service_account_email(account_id):
-    # parse email to get project id_
-    raise NotImplementedError('Functionality not yet available...')

@@ -1,10 +1,16 @@
 import pytest
 
+from mock import patch
+
+import fence
 from fence.resources.google.access_utils import (
     is_valid_service_account_type,
     service_account_has_external_access,
     google_project_has_valid_membership,
     google_project_has_valid_service_accounts,
+    delete_service_account,
+    _delete_user_service_account_db,
+    delete_user_service_account,
 )
 from cirrus.google_cloud import (
     COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
@@ -449,3 +455,43 @@ def test_project_has_invalid_service_accounts_membership(cloud_manager):
 
     # invalid because service account 'c@gmail.com is not from this project
     assert not google_project_has_valid_service_accounts(cloud_manager.project_id)
+
+
+def test_delete_service_account(cloud_manager, db_session):
+    """
+    Test that successfuly delete a given service account
+    """
+    with patch('fence.resources.google.access_utils._delete_user_service_account_db'):
+        (
+            cloud_manager.return_value.__enter__.
+            return_value.delete_service_account.return_value
+        ) = {}
+
+        assert delete_user_service_account('test_project_id', 'test_service_account')
+
+
+def test_delete_service_account_fail(cloud_manager, db_session):
+    """
+    Test that fails to delete a service account due to authentication error
+    """
+    with patch('fence.resources.google.access_utils._delete_user_service_account_db'):
+        (
+            cloud_manager.return_value.__enter__.
+            return_value.delete_service_account.return_value
+        ) = {'error_code': 403}
+
+        assert not delete_user_service_account('test_project_id', 'test_service_account')
+
+
+def test_delete_service_account_raise_exception(cloud_manager, db_session):
+    """
+    Test that raise an exception since the service account does not exist in DB
+    """
+    (
+        cloud_manager.return_value.__enter__.
+        return_value.delete_service_account.return_value
+    ) = {}
+
+    with pytest.raises(fence.errors.NotFound):
+        assert delete_user_service_account('test_project_id', 'non_existed_service_account')
+

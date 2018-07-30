@@ -14,7 +14,7 @@ from cirrus.google_cloud.utils import (
 from fence.auth import current_token
 from fence.models import GoogleServiceAccountKey
 from fence.models import UserGoogleAccount
-from fence.models import GoogleServiceAccount
+from fence.models import GoogleServiceAccount, UserServiceAccount
 from fence.models import UserGoogleAccountToProxyGroup
 from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME
 from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege

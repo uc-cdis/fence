@@ -12,7 +12,7 @@ from fence.resources.google.access_utils import (
     can_user_manage_service_account,
     get_google_project_from_service_account_email,
     get_service_account_email,
-    delete_service_account
+    delete_user_service_account
 )
 
 
@@ -209,7 +209,7 @@ class GoogleServiceAccount(Resource):
         Delete a service account
 
         Args:
-            id_ (str): Google service account identifier to delete
+            id_ (str): Google service account email to delete
         """
         user_id = current_token['sub']
         # check if user has permission to delete the service account
@@ -286,7 +286,7 @@ class GoogleServiceAccount(Resource):
         """
         raise NotImplementedError('Functionality not yet available...')
 
-    def _delete(self, account_id):
+    def _delete(self, id_):
         """
         Delete the given service account from our db and Google if it
         exists.
@@ -297,7 +297,27 @@ class GoogleServiceAccount(Resource):
         Args:
             account_id (str): Google service account identifier
         """
-        response = delete_service_account(account_id)
+
+        service_account_email = get_service_account_email(id_)
+        google_project_id = (
+            get_google_project_from_service_account_email(service_account_email)
+        )
+
+        try:
+            is_deleted = delete_user_service_account(google_project_id, service_account_email)
+        except Exception:
+            return (
+                ' Can not delete the service account {}'.
+                format(id_), 400
+            )
+
+        if is_deleted:
+            return 'Successfully delete service account  {}'.format(id_), 200
+        else:
+            # TODO: The error returned should be something other than 200
+            # Need to refactor later
+            return 'Can not delete service account  {}'.format(id_), 200
+
 
 
 def _get_service_account_error_status(
