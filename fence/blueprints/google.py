@@ -90,44 +90,44 @@ class GoogleServiceAccountRoot(Resource):
             self, service_account_email, google_project_id, project_access):
 
         with GoogleCloudManager(google_project_id) as google_project:
-
             service_account = google_project.get_service_account(service_account_email)
-            db_service_account = UserServiceAccount(
-                google_unique_id=service_account.get('uniqueId'),
-                email=service_account.get('email'),
-                google_project_id=google_project_id
+
+        db_service_account = UserServiceAccount(
+            google_unique_id=service_account.get('uniqueId'),
+            email=service_account.get('email'),
+            google_project_id=google_project_id
+        )
+
+        current_session.add(db_service_account)
+        current_session.commit()
+
+        for project_id in project_access:
+            db_access_privilege = ServiceAccountAccessPrivlege(
+                project_id=project_id,
+                service_account_id=db_service_account.id
             )
+            current_session.add(db_access_privilege)
 
-            current_session.add(db_service_account)
-            current_session.commit()
+            buckets = (
+                current_session
+                .query(Project)
+                .filter_by(id=project_id)
+                .first()
+            ).buckets
 
-            for project_id in project_access:
-                db_access_privilege = ServiceAccountAccessPrivlege(
-                    project_id=project_id,
-                    service_account_id=db_service_account.id
-                )
-                current_session.add(db_access_privilege)
-
-                buckets = (
-                    current_session
-                    .query(Project)
-                    .filter_by(id=project_id)
-                    .first()
-                ).buckets
-
-                for bucket in buckets:
-                    gbags = bucket.googlet_bucket_access_groups
-                    for gbag in gbags:
-                        service_account_to_gbag = (
-                            ServiceAccountToGoogleBucketAccessGroups(
-                                service_account_id=db_service_account.id,
-                                access_group_id=gbag.id,
-                                expires=0
-                            )
+            for bucket in buckets:
+                gbags = bucket.googlet_bucket_access_groups
+                for gbag in gbags:
+                    service_account_to_gbag = (
+                        ServiceAccountToGoogleBucketAccessGroups(
+                            service_account_id=db_service_account.id,
+                            access_group_id=gbag.id,
+                            expires=0
                         )
+                    )
 
-                        current_session.add(service_account_to_gbag)
-                current_session.commit()
+                    current_session.add(service_account_to_gbag)
+            current_session.commit()
 
         return service_account
 
