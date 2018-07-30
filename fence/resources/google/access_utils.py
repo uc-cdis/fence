@@ -160,16 +160,22 @@ def is_service_account_from_google_project(service_account, project_id):
     Args:
         service_account(str): uniqueId of service account
         project_id(str): uniqueId of Google Cloud Project
+
+    Return:
+        Bool: True iff the given service_account is from the
+        given Google Project
     """
     try:
-        return (service_account in
-                [acc.get('uniqueId') for acc in
-                 GoogleCloudManager(project_id).get_all_service_accounts()])
+        service_accounts = (
+            acc.get('uniqueId') for acc in
+            GoogleCloudManager(project_id).get_all_service_accounts()
+        )
+        return service_account in service_accounts
     except GoogleCloudError as exc:
         flask.current_app.logger.debug((
             'Could not determine if service account (id: {} is from project'
             ' (id: {}) due to error. Details: {}').
-            format(service_account, project_id))
+            format(service_account, project_id, exc))
         return False
 
 
@@ -225,17 +231,7 @@ def google_project_has_valid_service_accounts(project_id):
                 return False
 
             members = prj.get_project_membership()
-            sa_members = [GooglePolicyMember(
-                GooglePolicyMember.SERVICE_ACCOUNT,
-                sa.get('email'))
-                for sa in service_accounts]
 
-            for mem in members:
-                if mem.member_type == GooglePolicyMember.SERVICE_ACCOUNT:
-                    if mem not in sa_members:
-                        return False
-
-            return True
     except GoogleCloudError as exc:
         flask.current_app.logger.debug((
             "Could not determine validity of service accounts"
@@ -243,6 +239,18 @@ def google_project_has_valid_service_accounts(project_id):
             format(project_id,exc)
         ))
         return False
+
+    sa_members = [GooglePolicyMember(
+        GooglePolicyMember.SERVICE_ACCOUNT,
+        sa.get('email'))
+        for sa in service_accounts]
+
+    for mem in members:
+        if mem.member_type == GooglePolicyMember.SERVICE_ACCOUNT:
+            if mem not in sa_members:
+                return False
+
+    return True
 
 
 
