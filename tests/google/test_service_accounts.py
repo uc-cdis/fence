@@ -85,9 +85,7 @@ def test_google_service_account_monitor_none(
         '/google/service_accounts/monitor',
         headers={'Authorization': 'Bearer ' + encoded_creds_jwt})
 
-    assert response.status_code == 200
-    assert response.json and 'service_account_email' in response.json
-    assert not response.json['service_account_email']
+    assert response.status_code == 404
 
 
 def test_google_service_account_monitor(

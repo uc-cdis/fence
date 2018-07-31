@@ -834,7 +834,7 @@ paths:
             schema:
               $ref: '#/components/schemas/GoogleServiceAccount'
         description: ServiceAccount object to register
-  /google/service_accounts/monitor (PLANNING):
+  /google/service_accounts/monitor:
     get:
       tags:
         - google
@@ -850,6 +850,10 @@ paths:
         removed, all access to data will be removed.
       operationId: adminGoogleServiceAccount
       responses:
+        '404':
+          description: |
+            No monitoring service account is configured. In other words,
+            fence does not currently support user-registered service accounts.
         '200':
           description: Monitoring service account information
           content:

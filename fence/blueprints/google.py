@@ -234,6 +234,13 @@ class GoogleServiceAccount(Resource):
             tuple(dict, int): (response_data, http_status_code)
         """
         monitoring_account_email = _get_monitoring_account_email()
+        if not monitoring_account_email:
+            return (
+                'No monitoring service account. Fence is not currently '
+                'configured to support user-registration of service accounts.',
+                404
+            )
+
         response = {
             'service_account_email': monitoring_account_email
         }
