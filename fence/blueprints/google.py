@@ -37,7 +37,7 @@ def make_google_blueprint():
 
 class GoogleServiceAccountRoot(Resource):
 
-    @require_auth_header({'user'})  # TODO change scope to something else?
+    @require_auth_header({'google_service_account'})
     def post(self):
         """
         Register a new service account
@@ -86,7 +86,7 @@ class GoogleServiceAccountRoot(Resource):
 
 class GoogleServiceAccount(Resource):
 
-    @require_auth_header({'user'})
+    @require_auth_header({'google_service_account'})
     def get(self, id_):
         """
         Get registered service account(s) and their access expiration.
@@ -130,7 +130,7 @@ class GoogleServiceAccount(Resource):
 
         return response, 200
 
-    @require_auth_header({'user'})
+    @require_auth_header({'google_service_account'})
     def post(self, id_):
         """
         Dry run for registering a new service account
@@ -156,7 +156,7 @@ class GoogleServiceAccount(Resource):
 
         return error_response, status
 
-    @require_auth_header({'user'})
+    @require_auth_header({'google_service_account'})
     def patch(self, id_):
         """
         Update a service account
@@ -202,7 +202,7 @@ class GoogleServiceAccount(Resource):
 
         return '', 204
 
-    @require_auth_header({'user'})
+    @require_auth_header({'google_service_account'})
     def delete(self, id_):
         """
         Delete a service account
