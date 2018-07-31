@@ -14,9 +14,10 @@ from fence.jwt import keys
 SCOPE_DESCRIPTION = {
     'openid': 'default scope',
     'user': 'Know your {idp_names} basic account information and what you are authorized to access.',
-    'data': 'Retrieve controlled-access datasets to which you have access.',
+    'data': 'Retrieve controlled-access datasets to which you have access on your behalf.',
     'credentials': 'View and update your credentials.',
-    'google_credentials': 'temporary google credentials to access data on google',
+    'google_credentials': 'Receive temporary Google credentials to access data on google',
+    'google_service_account': 'Allow registration of external Google service accounts to access data.',
     'admin': 'View and update user authorizations.'
 }
 
@@ -27,11 +28,14 @@ SCOPE_DESCRIPTION = {
 # Only allow web session based auth access credentials so that user
 # can't create a long-lived API key using a short lived access_token
 SESSION_ALLOWED_SCOPES = [
-    'openid', 'user', 'credentials', 'data', 'admin', 'google_credentials']
+    'openid', 'user', 'credentials', 'data', 'admin',
+    'google_credentials', 'google_service_account']
 USER_ALLOWED_SCOPES = [
-    'fence', 'openid', 'user', 'data', 'admin', ' google_credentials']
+    'fence', 'openid', 'user', 'data', 'admin',
+    'google_credentials', 'google_service_account']
 CLIENT_ALLOWED_SCOPES = [
-    'openid', 'user', 'data', 'admin', 'google_credentials']
+    'openid', 'user', 'data', 'admin',
+    'google_credentials', 'google_service_account']
 
 
 class JWTResult(object):
