@@ -851,7 +851,7 @@ paths:
       operationId: adminGoogleServiceAccount
       responses:
         '404':
-          description: |
+          description: >-
             No monitoring service account is configured. In other words,
             fence does not currently support user-registered service accounts.
         '200':
