@@ -7,7 +7,7 @@ from flask_restful import Resource
 
 from fence.auth import current_token, require_auth_header
 from fence.restful import RestfulApi
-from fence.errors import UserError
+from fence.errors import UserError, NotFound
 from fence.resources.google.validity import GoogleProjectValidity
 from fence.resources.google.access_utils import (
     is_user_member_of_all_google_projects,
@@ -88,7 +88,7 @@ class GoogleServiceAccountRoot(Resource):
 
 class GoogleServiceAccount(Resource):
 
-    @require_auth_header({'google_service_account'})
+    # @require_auth_header({'google_service_account'})
     def get(self, id_):
         """
         Get registered service account(s) and their access expiration.
@@ -235,10 +235,9 @@ class GoogleServiceAccount(Resource):
         """
         monitoring_account_email = _get_monitoring_account_email()
         if not monitoring_account_email:
-            return (
+            raise NotFound(
                 'No monitoring service account. Fence is not currently '
                 'configured to support user-registration of service accounts.',
-                404
             )
 
         response = {
