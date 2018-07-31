@@ -121,9 +121,15 @@ class GoogleServiceAccount(Resource):
                 403
             )
 
-        service_accounts = self._get_project_service_accounts(
-            google_project_ids=google_project_ids
-        )
+        try:
+            service_accounts = self._get_project_service_accounts(
+                google_project_ids=google_project_ids
+            )
+        except Exception as exc:
+            return (
+                'Can not get all service accounts given project ids {}. Detail in {}'.
+                format(google_project_ids, exc), 400
+            )
 
         response = {
             'service_accounts': service_accounts
