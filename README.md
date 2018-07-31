@@ -339,3 +339,62 @@ use another fence instance as its identity provider.
 
 See the [OIDC specification](http://openid.net/specs/openid-connect-core-1_0.html) for more details.
 Additionally, see the [OAuth2 specification](https://tools.ietf.org/html/rfc6749).
+
+## Accessing Data
+
+Fence has multiple options that provide a mechanism to access data. The access
+to data can be moderated through authorization information in a User Access File.
+
+Users can be provided specific `privilege`'s on `projects` in the User Access
+File. A `project` is identified by a unique authorization identifier AKA `auth_id`.
+
+A `project` can be associated with various storage backends that store
+data for that given `project`. You can assign `read-storage` and `write-storage`
+privilieges to users who should have access to that stored data.
+
+Depending on the backend, Fence can be configured to provide users access to
+the data in different ways.
+
+### Google Cloud Storage
+
+There are various mechanisms for end-users to access data stored within
+Google Cloud Storage. They require some extra configuration and setup to
+function correctly.
+
+#### Signed URLS
+
+Ability to request a specific file by its UUID and retrieve a temporary
+signed URL that will provide direct access to that file.
+
+#### Temporary Credentials
+
+Obtain Google Service Account credentials that will have the same access
+a user does to data. One can then use these credentials to AuthN as that
+service account and manipulate the data within Google's Cloud Platform.
+
+Note that these provided credentials are temporary and will expire after some
+time. You will need to request new ones regularly.
+
+#### Google Account Linking
+
+Allows end-users to link a Google Account to their normal Fence User account.
+This will provide temporary data access to that Google account. The Google account
+will have the same access the user has.
+
+NOTE: The data access is temporary, though there is a Fence endpoint to
+extend access (without requiring the end-user to go through the entire
+linking process again).
+
+#### Service Account Registration
+
+This allows an end-user to create their own personal Google Cloud Project
+and register a Google Service Account from that project to have access
+to data. While this method allows the most flexibility, it is also the
+most complicated and requires strict adherence to a number of rules and
+restrictions.
+
+This method also requires Fence to have access to that
+end-user's Google project. Fence is then able to monitor the project
+for any anomolies that may unintentionally provide data access to entities
+who should not have access.
+
