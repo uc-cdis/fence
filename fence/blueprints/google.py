@@ -122,7 +122,7 @@ class GoogleServiceAccountRoot(Resource):
                         ServiceAccountToGoogleBucketAccessGroups(
                             service_account_id=db_service_account.id,
                             access_group_id=gbag.id,
-                            expires=0
+                            expires=0   # TODO: set actual expiration
                         )
                     )
 
@@ -427,14 +427,14 @@ def _get_service_account_error_status(
     )
 
     # all statuses must be 200 to be successful
-    project_statuses = [
+    """project_statuses = [
         error_details.get('status')
         for project_name, error_details
         in response['errors']['project_access'].iteritems()
-    ]
+    ]"""
     if (response['errors']['service_account_email'].get('status') == 200
             and response['errors']['google_project_id'].get('status') == 200
-            and set(project_statuses) == {200}):
+            and response['errors']['project_access'].get('status') == 200):
         response['success'] = True
         del response['errors']
 
@@ -457,7 +457,7 @@ def _get_service_account_email_error_status(validity_info):
         'error_description': ''
     }
 
-    for sa_account_id, sa_validity in service_accounts_validity.items():
+    for sa_account_id, sa_validity in service_accounts_validity:
         if sa_account_id == validity_info.new_service_account:
             if not sa_validity:
                 response['error_description'] = str(sa_validity)
@@ -495,7 +495,7 @@ def _get_google_project_id_error_status(validity_info):
     if not service_accounts_validity:
         response['error_description'] += '\nProject has one or more invalid service accounts.'
         response['service_account_validity'] = {}
-        for sa_account_id, sa_validity in service_accounts_validity.items():
+        for sa_account_id, sa_validity in service_accounts_validity:
             if not sa_validity:
                 response['service_account_validity'][sa_account_id] = (
                     str(sa_validity)

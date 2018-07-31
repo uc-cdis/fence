@@ -231,6 +231,7 @@ class GoogleProjectValidity(ValidityInfo):
             project_access_validity.set(str(project), valid_access)
 
         self.set('access', project_access_validity)
+        return
 
 
 class GoogleServiceAccountValidity(ValidityInfo):
@@ -274,7 +275,7 @@ class GoogleServiceAccountValidity(ValidityInfo):
         self._info['owned_by_project'] = None
 
     def check_validity(self, early_return=True):
-        valid_type = is_valid_service_account_type(self.account_id)
+        valid_type = is_valid_service_account_type(self.google_project_id, self.account_id)
         self.set('valid_type', valid_type)
         if not valid_type and early_return:
             return

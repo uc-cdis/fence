@@ -85,7 +85,7 @@ def test_google_service_account_monitor(
     assert response.json and 'service_account_email' in response.json
 
 
-@pytest.mark.skip(reason="not implemented yet")
+# @pytest.mark.skip(reason="not implemented yet")
 def test_invalid_service_account_dry_run_errors(
         client, app, encoded_jwt_service_accounts_access):
     """
@@ -110,7 +110,7 @@ def test_invalid_service_account_dry_run_errors(
     assert response.status_code != 200
 
 
-@pytest.mark.skip(reason="not implemented yet")
+# @pytest.mark.skip(reason="not implemented yet")
 def test_invalid_service_account_registration_errors(
         client, app, encoded_jwt_service_accounts_access):
     """
@@ -152,10 +152,9 @@ def _assert_expected_error_response_structure(response, project_access):
     _assert_expected_error_info_structure(
         response.json['errors']['google_project_id'])
     assert 'project_access' in response.json['errors']
-    for project in project_access:
-        assert project in response.json['errors']['project_access']
-        _assert_expected_error_info_structure(
-            response.json['errors']['project_access']['project_a'])
+    _assert_expected_error_info_structure(
+        response.json['errors']['project_access']
+    )
 
 
 def _assert_expected_error_info_structure(data):

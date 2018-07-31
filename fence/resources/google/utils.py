@@ -12,10 +12,14 @@ from cirrus.google_cloud.utils import (
     get_valid_service_account_id_for_user
 )
 from fence.auth import current_token
-from fence.models import GoogleServiceAccountKey
-from fence.models import UserGoogleAccount
-from fence.models import GoogleServiceAccount
-from fence.models import UserGoogleAccountToProxyGroup
+from fence.models import (
+    GoogleServiceAccount,
+    GoogleServiceAccountKey,
+    UserGoogleAccount,
+    UserGoogleAccountToProxyGroup,
+    UserServiceAccount,
+    ServiceAccountAccessPrivilege,
+)
 from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME
 from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
 from fence.errors import NotSupported
@@ -500,16 +504,21 @@ def get_prefix_for_google_proxy_groups():
     return prefix
 
 
-def get_registered_service_accounts(google_project):
-    # TODO return a list of UserServiceAccount db objects for project
-    raise NotImplementedError('Functionality not yet available...')
+def get_registered_service_accounts(google_project_id):
+    return (current_session.query(UserServiceAccount)
+            .filter_by(google_project_id=google_project_id).all())
 
 
 def get_project_access_from_service_accounts(service_accounts):
     # get a list of projects all the provided service accounts have
     # access to. list will be of UserServiceAccount db objects
-    # TODO
-    raise NotImplementedError('Functionality not yet available...')
+
+    project_ids = set()
+    for service_account in service_accounts:
+        project_ids.update((current_session
+                            .query(ServiceAccountAccessPrivilege.project_id)
+                            .filter_by(service_account_id=service_account.id)))
+    return list(project_ids)
 
 
 def get_service_account_ids_from_google_project(project_id):
