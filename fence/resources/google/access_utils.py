@@ -186,7 +186,6 @@ def do_all_users_have_access_to_project(user_ids, project_auth_id):
     Returns:
         bool: whether all users have access to the google project
     """
-    import pdb; pdb.set_trace()
     for user_id in user_ids:
         access_privillege = (
                 current_session
@@ -211,19 +210,8 @@ def do_get_service_account_from_google_project(project_id):
     Returns:
         str: json string representing service account
     """
-    service_account_jsons = []
     with GoogleCloudManager(project_id) as g_mgr:
-        service_accounts = g_mgr.get_all_service_accounts()
-        for account in service_accounts:
-            account_id = account.get('name', '').split('/')[-1]
-            response = g_mgr.get_service_account(account_id)
-            if response.status_code != 200:
-                raise GoogleAPIError('Unable to get service account {}\n{}.'
-                                     .format(account_id, response.json())
-                                     )
-            service_account_jsons.append(response.json())
-
-    return service_account_jsons
+        return g_mgr.get_all_service_accounts()
 
 
 # TODO this should be in cirrus rather than fence...

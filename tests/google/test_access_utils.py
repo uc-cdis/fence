@@ -240,44 +240,7 @@ def test_get_service_account_from_google_project(cloud_manager):
         return_value.get_all_service_accounts.return_value
     ) = faked_response
 
-    (
-        cloud_manager.return_value.__enter__.
-        return_value.get_service_account.return_value
-    ) = MockResponse({}, 200)
-
     service_accounts = do_get_service_account_from_google_project('test_project')
 
-    assert (
-            cloud_manager.return_value.__enter__.
-            return_value.get_service_account.call_count
-            ) == 2
     assert len(service_accounts) == 2
-
-
-def test_get_service_account_from_google_project_fail(cloud_manager):
-    """
-    Test a scenario that user does not have access to service account
-    """
-    faked_response = [{
-        "name": "projects/test-project-i/serviceAccounts/test-service-account",
-        "projectId": "test project id",
-        "uniqueId": "116472687699820177",
-        "email": "test@iam.com",
-        "displayName": "test service",
-        "etag": "BwVvhON",
-        "oauth2ClientId": "11647280"
-    }]
-
-    (
-        cloud_manager.return_value.__enter__.
-        return_value.get_all_service_accounts.return_value
-    ) = faked_response
-
-    (
-        cloud_manager.return_value.__enter__.
-        return_value.get_service_account.return_value
-    ) = MockResponse({}, 403)
-
-    with pytest.raises(GoogleAPIError):
-        assert do_get_service_account_from_google_project('test_project')
 
