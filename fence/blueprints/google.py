@@ -456,19 +456,12 @@ def _get_monitoring_account_email():
         .get('CIRRUS_CFG', {})
         .get('GOOGLE_APPLICATION_CREDENTIALS')
     )
-    app_email = _get_email_from_google_credentials(app_creds_file)
-    return app_email
 
-
-def _get_email_from_google_credentials(creds_file):
-    """
-    Try to get creds email address from provided key file
-    """
     creds_email = None
-    if creds_file and os.path.exists(creds_file):
-        with open(creds_file) as creds_file:
+    if app_creds_file and os.path.exists(app_creds_file):
+        with open(app_creds_file) as app_creds_file:
             creds_email = (
-                json.load(creds_file)
+                json.load(app_creds_file)
                 .get('client_email')
             )
 
