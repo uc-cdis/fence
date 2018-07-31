@@ -3,16 +3,18 @@ from urllib import unquote
 import flask
 from flask_restful import Resource
 
+from cirrus.google_cloud.errors import GoogleAPIError
+
 from fence.auth import current_token, require_auth_header
 from fence.restful import RestfulApi
-from fence.errors import UserError
+from fence.errors import UserError, NotFound
 from fence.resources.google.validity import GoogleProjectValidity
 from fence.resources.google.access_utils import (
     is_user_member_of_all_google_projects,
     can_user_manage_service_account,
     get_google_project_from_service_account_email,
     get_service_account_email,
-    delete_user_service_account
+    force_remove_service_account_from_access,
 )
 
 
@@ -286,6 +288,7 @@ class GoogleServiceAccount(Resource):
         """
         raise NotImplementedError('Functionality not yet available...')
 
+    @classmethod
     def _delete(self, id_):
         """
         Delete the given service account from our db and Google if it
@@ -304,20 +307,25 @@ class GoogleServiceAccount(Resource):
         )
 
         try:
-            is_deleted = delete_user_service_account(google_project_id, service_account_email)
+            force_remove_service_account_from_access(google_project_id, service_account_email)
+
+        except NotFound as exc:
+            return (
+                'Can not remove the service accout {}. Detail {}'.
+                format(id_, exc.message), 404
+            )
+        except GoogleAPIError as exc:
+            return (
+                'Can not remove the service accout {}. Detail {}'.
+                format(id_, exc.message), 400
+            )
         except Exception:
             return (
                 ' Can not delete the service account {}'.
-                format(id_), 400
+                format(id_), 500
             )
 
-        if is_deleted:
-            return 'Successfully delete service account  {}'.format(id_), 200
-        else:
-            # TODO: The error returned should be something other than 200
-            # Need to refactor later
-            return 'Can not delete service account  {}'.format(id_), 200
-
+        return 'Successfully delete service account  {}'.format(id_), 200
 
 
 def _get_service_account_error_status(

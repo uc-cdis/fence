@@ -14,7 +14,7 @@ from cirrus.google_cloud.utils import (
 from fence.auth import current_token
 from fence.models import GoogleServiceAccountKey
 from fence.models import UserGoogleAccount
-from fence.models import GoogleServiceAccount, UserServiceAccount
+from fence.models import GoogleServiceAccount
 from fence.models import UserGoogleAccountToProxyGroup
 from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME
 from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
@@ -554,3 +554,19 @@ def get_user_ids_from_google_members(members):
             )
 
     return result
+
+def get_model_instance(sess, model, **kawgs):
+    return sess.query(model).filter_by(**kwargs).first()
+
+def get_or_create(sess, model, **kwargs):
+    instance = get_model_instance(sess, model, kwargs)
+    if not instance:
+        instance = model(**kwargs)
+        sess.add(instance)
+
+
+def get_db_session(db):
+    if db:
+        return SQLAlchemyDriver(db).Session()
+    else:
+return current_session

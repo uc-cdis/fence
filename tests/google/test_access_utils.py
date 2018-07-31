@@ -8,7 +8,6 @@ from fence.resources.google.access_utils import (
     service_account_has_external_access,
     google_project_has_valid_membership,
     google_project_has_valid_service_accounts,
-    delete_service_account,
     _delete_user_service_account_db,
     delete_user_service_account,
 )

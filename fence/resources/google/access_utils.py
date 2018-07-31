@@ -18,10 +18,18 @@ from cirrus.google_cloud import (
 )
 
 import fence
-from fence.models import AccessPrivilege, UserServiceAccount
 from fence.errors import NotFound
-from fence.resources.google.utils import get_user_ids_from_google_members
-
+from fence.models import (
+    AccessPrivilege,
+    UserServiceAccount,
+    ServiceAccountAccessPrivilege,
+    ServiceAccountToGoogleBucketAccessGroup,
+)
+from fence.resources.google.utils import (
+    get_or_create,
+    get_db_session,
+    get_user_ids_from_google_members,
+)
 
 ALLOWED_SERVICE_ACCOUNT_TYPES = [
     COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
@@ -142,66 +150,6 @@ def is_valid_service_account_type(project_id, account_id):
             'determined False due to error. Details: {}').
             format(account_id, project_id, exc))
         return False
-
-
-def _delete_user_service_account_db(google_project_id, email):
-    """
-    Delete user service account from DB for given google_project_id and email
-
-    Args:
-        google_project_id(str): google project id
-        email(str): user email
-
-    Returns:
-        None
-
-    """
-    user_service_account = (
-        current_session
-        .query(UserServiceAccount)
-        .filter_by(google_project_id=google_project_id,
-                   email=email)
-        .first()
-    )
-    if user_service_account:
-        current_session.delete(user_service_account)
-        current_session.commit()
-    else:
-        raise fence.errors.NotFound('{} does not exist in DB'.format(email))
-
-
-def delete_user_service_account(project_id, service_account):
-    """
-    Delete service account given the id
-
-    Args:
-        project_id(str): google project id
-        service_account(str): service account id
-
-    Returns:
-        bool: success or not
-    """
-    try:
-        with GoogleCloudManager(project_id) as g_mgr:
-            # TODO: Need to redesign cirrus to return whole repsonse
-            response = g_mgr.delete_service_account(service_account)
-            if response == {}:
-                _delete_user_service_account_db(project_id, service_account)
-                return True
-            else:
-                flask.current_app.logger.debug((
-                    'Can not delete service account {}. Details: {}').
-                    format(service_account, response))
-                return False
-    except fence.errors.NotFound as exc:
-        flask.current_app.logger.debug(exc.message)
-        raise exc
-    except Exception as exc:
-        flask.current_app.logger.debug((
-            'Can not delete service account {}. Details: {}').
-            format(service_account, exc))
-        raise exc
-
 
 def service_account_has_external_access(service_account):
     """
@@ -343,4 +291,90 @@ def get_google_project_from_service_account_email(service_account_email):
     """
     words = service_account_email.split('@')
     return words[1].split('.')[0]
+
+
+def _force_remove_service_account_from_access_db(service_account_email, db=None):
+    """
+    Remove the access of service account from db.
+
+    Args:
+        service_account_email (str): service account email
+
+    Returns:
+        None
+
+    Restrictions:
+        service account has to exist in db
+
+    """
+
+    session = get_db_session(db)
+
+    service_account = (
+        session.query(UserServiceAccount).
+        filter_by(email=service_account_email).first()
+    )
+
+    access_groups = service_account.to_access_groups
+
+    for bucket_access_group in access_groups:
+        sa_to_group = (
+            session.query(ServiceAccountToGoogleBucketAccessGroup)
+            .filter_by(
+                service_account_id=service_account.id,
+                access_group_id=bucket_access_group.id
+            )
+        )
+        session.delete(sa_to_group)
+        session.commit()
+
+    # delete all access privileges
+    access_privileges = (
+        session.query(ServiceAccountAccessPrivilege)
+        .filter_by(service_account_id=service_account.id)
+        .all()
+    )
+
+    for access in access_privileges:
+        session.delete(access)
+    session.commit()
+
+
+def force_remove_service_account_from_access(
+        service_account_email, google_project_id, db=None):
+    """
+    loop through ServiceAccountToBucket
+    remove from group
+    delete entries from db
+
+    Args:
+        service_account_email (str): service account email
+        google_project_id (str): google project id
+        db (None, str): Optional db connection string
+    """
+
+    session = get_db_session(db)
+
+    service_account = (
+        session.query(UserServiceAccount).
+        filter_by(email=service_account_email).first()
+    )
+
+    if not service_account:
+        raise fence.error.NotFound('{} does not exist in DB'
+                                   .format(service_account_email))
+
+    access_groups = service_account.to_access_groups
+    for bucket_access_group in access_groups:
+        try:
+            with GoogleCloudManager(google_project_id) as g_manager:
+                g_manager.remove_member_from_group(
+                    member_email=service_account.email,
+                    group_id=bucket_access_group.email
+                )
+        except Exception as exc:
+            raise GoogleAPIError('Can not remove memeber {} from access group. {}'
+                                 .format(service_account.email, exc))
+
+    _force_remove_service_account_from_access_db(service_account_email, db)
 
