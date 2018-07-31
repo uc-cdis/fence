@@ -181,16 +181,17 @@ def do_all_users_have_access_to_project(user_ids, project_auth_id):
 
     Args:
         user_ids(list(str)): List of user id
-        project_auth_id(str): prooject id
+        project_auth_id(str): project auth id
 
     Returns:
         bool: whether all users have access to the google project
     """
+    import pdb; pdb.set_trace()
     for user_id in user_ids:
         access_privillege = (
                 current_session
                 .query(AccessPrivilege)
-                .filter(AccessPrivilege.user_id == user_id and AccessPrivilege.project_id == project_auth_id)
+                .filter(AccessPrivilege.user_id == user_id and AccessPrivilege.project.has(auth_id=project_auth_id))
                 .first()
             )
         if access_privillege is None:
