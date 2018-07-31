@@ -88,7 +88,7 @@ class GoogleServiceAccountRoot(Resource):
 
 class GoogleServiceAccount(Resource):
 
-    # @require_auth_header({'google_service_account'})
+    @require_auth_header({'google_service_account'})
     def get(self, id_):
         """
         Get registered service account(s) and their access expiration.
@@ -235,10 +235,11 @@ class GoogleServiceAccount(Resource):
         """
         monitoring_account_email = _get_monitoring_account_email()
         if not monitoring_account_email:
-            raise NotFound(
+            error = (
                 'No monitoring service account. Fence is not currently '
-                'configured to support user-registration of service accounts.',
+                'configured to support user-registration of service accounts.'
             )
+            return {'message': error}, 404
 
         response = {
             'service_account_email': monitoring_account_email
