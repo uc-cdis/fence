@@ -5,7 +5,6 @@ from urllib import unquote
 import flask
 from flask_restful import Resource
 
-from cirrus.config import config as cirrus_config
 from fence.auth import current_token, require_auth_header
 from fence.restful import RestfulApi
 from fence.errors import UserError
