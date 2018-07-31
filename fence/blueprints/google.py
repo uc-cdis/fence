@@ -11,7 +11,8 @@ from fence.resources.google.access_utils import (
     is_user_member_of_all_google_projects,
     can_user_manage_service_account,
     get_google_project_from_service_account_email,
-    get_service_account_email
+    get_service_account_email,
+    do_get_service_account_from_google_project,
 )
 
 
@@ -120,9 +121,15 @@ class GoogleServiceAccount(Resource):
                 403
             )
 
-        service_accounts = self._get_project_service_accounts(
-            google_project_ids=google_project_ids
-        )
+        try:
+            service_accounts = self._get_project_service_accounts(
+                google_project_ids=google_project_ids
+            )
+        except Exception as exc:
+            return (
+                'Can not get all service accounts given project ids {}. Detail in {}'.
+                format(google_project_ids, exc), 400
+            )
 
         response = {
             'service_accounts': service_accounts
@@ -265,7 +272,12 @@ class GoogleServiceAccount(Resource):
               ]
             }
         """
-        raise NotImplementedError('Functionality not yet available...')
+        service_accounts = []
+        for project_id in google_project_ids:
+            service_accounts.append(
+                do_get_service_account_from_google_project(project_id)
+            )
+        return service_accounts
 
     def _update_service_account_permissions(
             self, service_account_email, project_access):
