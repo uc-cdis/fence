@@ -75,7 +75,8 @@ def google_project_has_parent_org(project_id):
 def google_project_has_valid_membership(project_id):
     """
     Checks if a google project only has members of type
-    USER or SERVICE_ACCOUNT
+    USER or SERVICE_ACCOUNT and that the project's members
+    exist in fence's db
 
     Args:
         google_project(GoogleCloudManager): google project to check members of
@@ -94,8 +95,12 @@ def google_project_has_valid_membership(project_id):
 
             # ensure that all the members on the project exist
             # in our db
+            member_emails = [
+                member.email_id
+                for member in members
+            ]
             try:
-                get_user_ids_from_google_members(members)
+                get_user_ids_from_google_members(member_emails)
             except NotFound:
                 valid = False
 

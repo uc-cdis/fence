@@ -18,6 +18,14 @@ from cirrus.google_cloud.iam import (
     GooglePolicyMember
 )
 
+# Python 2 and 3 compatible
+try:
+    from unittest.mock import MagicMock
+    from unittest.mock import patch
+except ImportError:
+    from mock import MagicMock
+    from mock import patch
+
 
 class MockResponse:
     def __init__(self, json_data, status_code):
@@ -159,7 +167,7 @@ def test_service_account_has_external_access_raise_exception(cloud_manager):
         assert service_account_has_external_access('test_service_account')
 
 
-def test_project_has_valid_membership(cloud_manager):
+def test_project_has_valid_membership(cloud_manager, db_session):
     """
     Test that a project with only users and service acounts
     has valid membership
@@ -171,10 +179,23 @@ def test_project_has_valid_membership(cloud_manager):
         GooglePolicyMember("user", "user@gmail.com"),
         GooglePolicyMember("serviceAccount", "sa@gmail.com")
         ]
+
+    get_users_mock = MagicMock()
+
+    # note these are user ids but we're really just mocking this to
+    # not error out on the members created above. e.g. this is faking
+    # that these users exist in our db
+    get_users_mock.return_value = [0, 1]
+    get_users_patcher = patch(
+        'fence.resources.google.access_utils.get_user_ids_from_google_members',
+        get_users_mock
+    )
+    get_users_patcher.start()
     assert google_project_has_valid_membership(cloud_manager.project_id)
+    get_users_patcher.stop()
 
 
-def test_project_has_invalid_membership(cloud_manager):
+def test_project_has_invalid_membership(cloud_manager, db_session):
     """
     Test that a project with a non-users or service acounts
      has invalid membership
