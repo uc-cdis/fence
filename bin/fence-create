@@ -114,6 +114,11 @@ def parse_arguments():
         '--sync_from_dbgap',
         help='sync from dbgap server True/False',
         default='False')
+    dbgap_sync.add_argument(
+        '--arborist',
+        help='the base URL for the arborist service to sync to',
+        default=None,
+    )
 
     bucket_link_to_project = subparsers.add_parser('link-bucket-to-project')
     bucket_link_to_project.add_argument(
@@ -272,7 +277,7 @@ def main():
             dbGaP, STORAGE_CREDENTIALS, DB, projects=args.project_mapping,
             is_sync_from_dbgap_server=str2bool(args.sync_from_dbgap),
             sync_from_local_csv_dir=args.csv_dir,
-            sync_from_local_yaml_file=args.yaml, arborist=None,
+            sync_from_local_yaml_file=args.yaml, arborist=args.arborist,
         )
     elif args.action == 'google-manage-keys':
         remove_expired_google_service_account_keys(DB)

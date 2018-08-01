@@ -30,6 +30,16 @@ class ArboristClient(object):
         self._resource_url = self._base_url + '/resource'
         self._role_url = self._base_url + '/role/'
 
+    def healthy(self):
+        """
+        Indicate whether the arborist service is available and functioning.
+
+        Return:
+            bool: whether arborist service is available
+        """
+        response = requests.get(self._base_url + '/health')
+        return response.status_code == 200
+
     def list_policies(self):
         """
         List the existing policies.

@@ -813,6 +813,12 @@ class UserSyncer(object):
             None
         """
         if not self.arborist_client:
+            self.logger.warn('no arborist client set; skipping arborist sync')
+            return
+        if not self.arborist_client.healthy():
+            self.logger.error(
+                'arborist service is unavailable; skipping arborist sync'
+            )
             return
 
         # Keep track of stuff added already so we don't try to send duplicates
