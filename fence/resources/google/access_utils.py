@@ -8,6 +8,8 @@ from google.cloud.exceptions import GoogleCloudError
 
 from flask_sqlalchemy_session import current_session
 from fence.models import AccessPrivilege
+from fence.errors import NotFound
+from fence.resources.google.utils import get_user_ids_from_google_members
 from cirrus.google_cloud.iam import GooglePolicyMember
 
 from cirrus import GoogleCloudManager
@@ -22,6 +24,7 @@ ALLOWED_SERVICE_ACCOUNT_TYPES = [
     COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
     USER_MANAGED_SERVICE_ACCOUNT,
 ]
+
 
 def can_user_manage_service_account(user_id, account_id):
     """
@@ -72,7 +75,8 @@ def google_project_has_parent_org(project_id):
 def google_project_has_valid_membership(project_id):
     """
     Checks if a google project only has members of type
-    USER or SERVICE_ACCOUNT
+    USER or SERVICE_ACCOUNT and that the project's members
+    exist in fence's db
 
     Args:
         google_project(GoogleCloudManager): google project to check members of
@@ -80,23 +84,34 @@ def google_project_has_valid_membership(project_id):
     Return:
         Bool: True iff project members are only users and/or service accounts
     """
-
+    valid = True
     try:
         with GoogleCloudManager(project_id) as prj:
             members = prj.get_project_membership()
             for member in members:
                 if not(member.member_type == GooglePolicyMember.SERVICE_ACCOUNT or
                         member.member_type == GooglePolicyMember.USER):
-                    return False
+                    valid = False
 
-            return True
+            # ensure that all the members on the project exist
+            # in our db
+            member_emails = [
+                member.email_id
+                for member in members
+            ]
+            try:
+                get_user_ids_from_google_members(member_emails)
+            except NotFound:
+                valid = False
 
     except GoogleCloudError as exc:
         flask.current_app.logger.debug((
             'validity of Google Project (id: {}) membership '
             'determined False due to error. Details: {}').
             format(project_id, exc))
-        return False
+        valid = False
+
+    return valid
 
 
 def is_valid_service_account_type(project_id, account_id):
