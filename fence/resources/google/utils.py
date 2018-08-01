@@ -4,6 +4,7 @@ from cryptography.fernet import Fernet
 import flask
 from flask_sqlalchemy_session import current_session
 from sqlalchemy import desc
+from google.cloud.exceptions import GoogleCloudError
 
 from cirrus import GoogleCloudManager
 from cirrus.google_cloud.utils import (
@@ -17,7 +18,7 @@ from fence.models import GoogleServiceAccount
 from fence.models import UserGoogleAccountToProxyGroup
 from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME
 from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
-from fence.errors import NotSupported
+from fence.errors import NotSupported, NotFound
 
 
 def get_or_create_primary_service_account_key(
@@ -511,9 +512,25 @@ def get_project_access_from_service_accounts(service_accounts):
     raise NotImplementedError('Functionality not yet available...')
 
 
-def get_service_account_ids_from_google_project(google_project):
-    # TODO
-    raise NotImplementedError('Functionality not yet available...')
+def get_service_account_ids_from_google_project(project_id):
+    """
+    Get list of all service account ids associated with a project
+
+    Args:
+        project_id(str): unique Id of project
+
+    Return:
+        list<str>: list of service account ids (emails)
+    """
+    try:
+        with GoogleCloudManager(project_id) as prj:
+            return [acc['email'] for acc in prj.get_all_service_accounts()]
+    except GoogleCloudError as exc:
+        flask.current_app.logger.debug((
+        'Could not get service account IDs of Google'
+        ' Project (project id: {}) Details: {}').
+            format(project_id, exc))
+        return []
 
 
 def get_user_ids_from_google_members(members):
@@ -530,5 +547,10 @@ def get_user_ids_from_google_members(members):
             UserGoogleAccount.email == member).first()
         if google_account:
             result.append(google_account.user_id)
+        else:
+            raise NotFound(
+                'Member {} does not have a linked Google Account.'
+                .format(member)
+            )
 
     return result

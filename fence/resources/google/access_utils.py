@@ -4,8 +4,12 @@ registration.
 """
 import flask
 
+from google.cloud.exceptions import GoogleCloudError
+
 from flask_sqlalchemy_session import current_session
 from fence.models import AccessPrivilege
+from fence.errors import NotFound
+from fence.resources.google.utils import get_user_ids_from_google_members
 from cirrus.google_cloud.iam import GooglePolicyMember
 
 from cirrus import GoogleCloudManager
@@ -20,6 +24,7 @@ ALLOWED_SERVICE_ACCOUNT_TYPES = [
     COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
     USER_MANAGED_SERVICE_ACCOUNT,
 ]
+
 
 def can_user_manage_service_account(user_id, account_id):
     """
@@ -58,7 +63,7 @@ def google_project_has_parent_org(project_id):
     try:
         with GoogleCloudManager(project_id) as prj:
             return prj.has_parent_organization()
-    except Exception as exc:
+    except GoogleCloudError as exc:
         flask.current_app.logger.debug((
             'Could not determine if Google project (id: {}) has parent org'
             'due to error (Details: {})'.
@@ -70,7 +75,8 @@ def google_project_has_parent_org(project_id):
 def google_project_has_valid_membership(project_id):
     """
     Checks if a google project only has members of type
-    USER or SERVICE_ACCOUNT
+    USER or SERVICE_ACCOUNT and that the project's members
+    exist in fence's db
 
     Args:
         google_project(GoogleCloudManager): google project to check members of
@@ -78,23 +84,34 @@ def google_project_has_valid_membership(project_id):
     Return:
         Bool: True iff project members are only users and/or service accounts
     """
-
+    valid = True
     try:
         with GoogleCloudManager(project_id) as prj:
             members = prj.get_project_membership()
             for member in members:
                 if not(member.member_type == GooglePolicyMember.SERVICE_ACCOUNT or
                         member.member_type == GooglePolicyMember.USER):
-                    return False
+                    valid = False
 
-            return True
+            # ensure that all the members on the project exist
+            # in our db
+            member_emails = [
+                member.email_id
+                for member in members
+            ]
+            try:
+                get_user_ids_from_google_members(member_emails)
+            except NotFound:
+                valid = False
 
-    except Exception as exc:
+    except GoogleCloudError as exc:
         flask.current_app.logger.debug((
             'validity of Google Project (id: {}) membership '
             'determined False due to error. Details: {}').
             format(project_id, exc))
-        return False
+        valid = False
+
+    return valid
 
 
 def is_valid_service_account_type(project_id, account_id):
@@ -116,7 +133,7 @@ def is_valid_service_account_type(project_id, account_id):
             return (g_mgr.
                     get_service_account_type(account_id)
                     in ALLOWED_SERVICE_ACCOUNT_TYPES)
-    except Exception as exc:
+    except GoogleCloudError as exc:
         flask.current_app.logger.debug((
             'validity of Google service account {} (google project: {}) type '
             'determined False due to error. Details: {}').
@@ -151,8 +168,30 @@ def service_account_has_external_access(service_account):
     return False
 
 
-def is_service_account_from_google_project(service_account, google_project):
-    raise NotImplementedError('Functionality not yet available...')
+def is_service_account_from_google_project(service_account, project_id):
+    """
+    Checks if service account is among project's service acounts
+
+    Args:
+        service_account(str): uniqueId of service account
+        project_id(str): uniqueId of Google Cloud Project
+
+    Return:
+        Bool: True iff the given service_account is from the
+        given Google Project
+    """
+    try:
+        service_accounts = (
+            acc.get('uniqueId') for acc in
+            GoogleCloudManager(project_id).get_all_service_accounts()
+        )
+        return service_account in service_accounts
+    except GoogleCloudError as exc:
+        flask.current_app.logger.debug((
+            'Could not determine if service account (id: {} is from project'
+            ' (id: {}) due to error. Details: {}').
+            format(service_account, project_id, exc))
+        return False
 
 
 def is_user_member_of_all_google_projects(user_id, google_project_ids):
@@ -185,6 +224,49 @@ def do_all_users_have_access_to_project(user_ids, project_auth_id):
             return False
 
     return True
+
+
+def google_project_has_valid_service_accounts(project_id):
+    """
+    Checks if all service accounts in a project do not
+    have external access. Also checks that all service
+    account members in IAM Policy are from the given
+    project.
+    Args:
+        project_id(str): unique id of project
+    ReturnsL
+        Bool: True iff all service accounts are valid
+    """
+    try:
+        with GoogleCloudManager(project_id) as prj:
+            service_accounts = prj.get_all_service_accounts()
+
+            if any(service_account_has_external_access(acc.get('email'))
+                   for acc in service_accounts):
+                return False
+
+            members = prj.get_project_membership()
+
+    except GoogleCloudError as exc:
+        flask.current_app.logger.debug((
+            "Could not determine validity of service accounts"
+            "for project (id: {}) due to error. Details: {}".
+            format(project_id,exc)
+        ))
+        return False
+
+    sa_members = [GooglePolicyMember(
+        GooglePolicyMember.SERVICE_ACCOUNT,
+        sa.get('email'))
+        for sa in service_accounts]
+
+    for mem in members:
+        if mem.member_type == GooglePolicyMember.SERVICE_ACCOUNT:
+            if mem not in sa_members:
+                return False
+
+    return True
+
 
 
 # TODO this should be in cirrus rather than fence...
