@@ -40,6 +40,21 @@ class ArboristClient(object):
         response = requests.get(self._base_url + '/health')
         return response.status_code == 200
 
+    def get_resource(self, resource_path):
+        """
+        Return the information for a resource in arborist.
+
+        Args:
+            resource_path (str): path for the resource
+
+        Return:
+            dict: JSON representation of the resource
+        """
+        response = requests.get(self._resource_url + resource_path)
+        if response.status_code == 404:
+            return None
+        return response.get_json()
+
     def list_policies(self):
         """
         List the existing policies.

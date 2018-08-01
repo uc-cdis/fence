@@ -794,7 +794,10 @@ class UserSyncer(object):
         else:
             self.logger.info('No users for syncing')
 
-        self._update_arborist(user_projects, sess)
+        self.logger.info('Synchronizing arborist')
+        success = self._update_arborist(user_projects, sess)
+        if success:
+            self.logger.info('Finished synchronizing arborist')
 
     def _update_arborist(self, user_projects, session):
         """
@@ -810,21 +813,38 @@ class UserSyncer(object):
             session (sqlalchemy.Session)
 
         Return:
-            None
+            bool: success
         """
         if not self.arborist_client:
             self.logger.warn('no arborist client set; skipping arborist sync')
-            return
+            return False
         if not self.arborist_client.healthy():
             self.logger.error(
                 'arborist service is unavailable; skipping arborist sync'
             )
-            return
+            return False
 
         # Keep track of stuff added already so we don't try to send duplicates
         # to arborist.
         created_projects = set()
         created_roles = set()
+
+        # First make sure that the `/projects` "directory" exists in arborist.
+        projects = self.arborist_client.get_resource('/projects')
+        if not projects:
+            response = self.arborist_client.create_resource(
+                '/',
+                {
+                    'name': 'projects',
+                    'description': 'directory for dbgap projects',
+                },
+            )
+            if 'error' in response:
+                self.logger.error(
+                    'could not create projects directory in arborist: '
+                    + response['error']
+                )
+                return False
 
         for username, projects in user_projects.iteritems():
             user = (
@@ -888,3 +908,4 @@ class UserSyncer(object):
                             user.policies.append(policy)
 
         session.commit()
+        return True
