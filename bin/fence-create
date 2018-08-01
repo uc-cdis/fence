@@ -268,9 +268,12 @@ def main():
     elif args.action == 'expired-service-account-delete':
         delete_expired_service_accounts(DB)
     elif args.action == 'sync':
-        sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
-                   projects=args.project_mapping, is_sync_from_dbgap_server=str2bool(args.sync_from_dbgap),
-                   sync_from_local_csv_dir=args.csv_dir, sync_from_local_yaml_file=args.yaml)
+        sync_users(
+            dbGaP, STORAGE_CREDENTIALS, DB, projects=args.project_mapping,
+            is_sync_from_dbgap_server=str2bool(args.sync_from_dbgap),
+            sync_from_local_csv_dir=args.csv_dir,
+            sync_from_local_yaml_file=args.yaml, arborist=None,
+        )
     elif args.action == 'google-manage-keys':
         remove_expired_google_service_account_keys(DB)
     elif args.action == 'google-init':
