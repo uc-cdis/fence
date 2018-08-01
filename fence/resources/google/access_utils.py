@@ -26,7 +26,6 @@ from fence.models import (
     ServiceAccountToGoogleBucketAccessGroup,
 )
 from fence.resources.google.utils import (
-    get_or_create,
     get_db_session,
     get_user_ids_from_google_members,
 )
@@ -324,6 +323,7 @@ def _force_remove_service_account_from_access_db(service_account_email, db=None)
                 service_account_id=service_account.id,
                 access_group_id=bucket_access_group.id
             )
+            .first()
         )
         session.delete(sa_to_group)
         session.commit()
@@ -344,13 +344,16 @@ def force_remove_service_account_from_access(
         service_account_email, google_project_id, db=None):
     """
     loop through ServiceAccountToBucket
-    remove from group
+    remove from google group
     delete entries from db
 
     Args:
         service_account_email (str): service account email
         google_project_id (str): google project id
         db (None, str): Optional db connection string
+
+    Returns:
+        None
     """
 
     session = get_db_session(db)
@@ -361,16 +364,15 @@ def force_remove_service_account_from_access(
     )
 
     if not service_account:
-        raise fence.error.NotFound('{} does not exist in DB'
+        raise fence.errors.NotFound('{} does not exist in DB'
                                    .format(service_account_email))
-
     access_groups = service_account.to_access_groups
     for bucket_access_group in access_groups:
         try:
             with GoogleCloudManager(google_project_id) as g_manager:
                 g_manager.remove_member_from_group(
                     member_email=service_account.email,
-                    group_id=bucket_access_group.email
+                    group_id=bucket_access_group.access_group_id
                 )
         except Exception as exc:
             raise GoogleAPIError('Can not remove memeber {} from access group. {}'
