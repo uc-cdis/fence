@@ -450,7 +450,9 @@ def _add_user_service_account_to_db(
 def patch_user_service_account(
         google_project_id, service_account_email, project_access, db=None):
     """
-    Update user service account
+    Update user service account which includes
+    - Add and remove project access and bucket groups to/from fence db
+    - Add and remove access memebers to/from google access group
 
     Args:
         google_project_id (str): google project id
@@ -486,8 +488,6 @@ def patch_user_service_account(
                                         .format(project_auth_id))
         granting_project_ids.add(project.id)
 
-    to_add = {}
-    to_delete = {}
     to_add = set.difference(granting_project_ids, accessed_project_ids)
     to_delete = set.difference(accessed_project_ids, granting_project_ids)
 
