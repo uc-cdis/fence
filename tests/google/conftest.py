@@ -193,8 +193,9 @@ def valid_google_project_patcher():
     for patched_function in patches:
         patched_function.stop()
 
+
 @pytest.fixture(scope='function')
-def database_for_service_account_registration():
+def database_for_service_account_registration(db_session):
 
     project = Project(
         id=1,
@@ -205,17 +206,17 @@ def database_for_service_account_registration():
         id=1
     )
 
-    current_session.add(project)
-    current_session.add(bucket)
-    current_session.commit()
+    db_session.add(project)
+    db_session.add(bucket)
+    db_session.commit()
 
     project_to_bucket = ProjectToBucket(
         project_id=1,
         bucket_id=1
     )
 
-    current_session.add(project_to_bucket)
-    current_session.commit()
+    db_session.add(project_to_bucket)
+    db_session.commit()
 
     gbag = GoogleBucketAccessGroup(
         id=1,
@@ -223,7 +224,7 @@ def database_for_service_account_registration():
         email="gbag@gmail.com"
     )
 
-    current_session.add(gbag)
-    current_session.commit()
+    db_session.add(gbag)
+    db_session.commit()
 
-    return current_session
+    return db_session

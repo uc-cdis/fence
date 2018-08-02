@@ -56,6 +56,13 @@ NOTE: You can use the following helper assert functions when developing more
 import json
 import pytest
 
+from fence.models import (
+    Bucket,
+    Project,
+    ProjectToBucket,
+    GoogleBucketAccessGroup,
+)
+
 # Python 2 and 3 compatible
 try:
     from unittest.mock import MagicMock
@@ -136,9 +143,39 @@ def test_invalid_service_account_registration_errors(
 
 
 def test_valid_service_account_registration(
-        client, app, encoded_jwt_service_accounts_access,
-        database_for_service_account_registration, cloud_manager,
+        app, db_session, client,
+        encoded_jwt_service_accounts_access,cloud_manager,
         valid_google_project_patcher, valid_service_account_patcher):
+
+    project = Project(
+        id=1,
+        auth_id="some_auth_id"
+    )
+
+    bucket = Bucket(
+        id=1
+    )
+
+    db_session.add(project)
+    db_session.add(bucket)
+    db_session.commit()
+
+    project_to_bucket = ProjectToBucket(
+        project_id=1,
+        bucket_id=1
+    )
+
+    db_session.add(project_to_bucket)
+    db_session.commit()
+
+    gbag = GoogleBucketAccessGroup(
+        id=1,
+        bucket_id=1,
+        email="gbag@gmail.com"
+    )
+
+    db_session.add(gbag)
+    db_session.commit()
 
     encoded_creds_jwt = encoded_jwt_service_accounts_access['jwt']
     project_access = ["some_auth_id"]

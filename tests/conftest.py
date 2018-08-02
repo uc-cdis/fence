@@ -775,6 +775,7 @@ def patch_app_db_session(app, monkeypatch):
             'fence.auth',
             'fence.resources.google.utils',
             'fence.blueprints.link',
+            'fence.blueprints.google',
             'fence.oidc.jwt_generator',
             'fence.user',
         ]
