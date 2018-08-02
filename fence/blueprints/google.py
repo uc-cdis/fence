@@ -20,6 +20,7 @@ from fence.resources.google.access_utils import (
     extend_service_account_access,
     get_current_service_account_project_access,
     patch_user_service_account,
+
 )
 
 
@@ -292,7 +293,7 @@ class GoogleServiceAccount(Resource):
         raise NotImplementedError('Functionality not yet available...')
 
     def _update_service_account_permissions(
-            self, service_account_email, project_access):
+            self, google_project_id, service_account_email, project_access):
         """
         Update the given service account's permissions.
 
@@ -300,13 +301,15 @@ class GoogleServiceAccount(Resource):
                  given service account.
 
         Args:
+            google_project_id (str): google project id
             service_account_email (str): Google service account email
             project_access (List(str)): List of Project.auth_ids to authorize
                 the service account for
 
         """
         try:
-            patch_user_service_account(service_account_email, project_access)
+            patch_user_service_account(
+                    google_project_id, service_account_email, project_access)
 
         except NotFound as exc:
             return (
