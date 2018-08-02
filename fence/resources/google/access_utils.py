@@ -3,21 +3,31 @@ Utilities for determine access and validity for service account
 registration.
 """
 import flask
+from urllib import unquote
 
 from google.cloud.exceptions import GoogleCloudError
-
 from flask_sqlalchemy_session import current_session
-from fence.models import AccessPrivilege
-from fence.errors import NotFound
-from fence.resources.google.utils import get_user_ids_from_google_members
-from cirrus.google_cloud.iam import GooglePolicyMember
 
+from cirrus.google_cloud.iam import GooglePolicyMember
 from cirrus import GoogleCloudManager
 from cirrus.google_cloud.errors import GoogleAPIError
 from cirrus.google_cloud.iam import GooglePolicy
 from cirrus.google_cloud import (
     COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
     USER_MANAGED_SERVICE_ACCOUNT,
+)
+
+import fence
+from fence.errors import NotFound
+from fence.models import (
+    AccessPrivilege,
+    UserServiceAccount,
+    ServiceAccountAccessPrivilege,
+    ServiceAccountToGoogleBucketAccessGroup,
+)
+from fence.resources.google.utils import (
+    get_db_session,
+    get_user_ids_from_google_members,
 )
 
 ALLOWED_SERVICE_ACCOUNT_TYPES = [
@@ -139,7 +149,6 @@ def is_valid_service_account_type(project_id, account_id):
             'determined False due to error. Details: {}').
             format(account_id, project_id, exc))
         return False
-
 
 def service_account_has_external_access(service_account):
     """
@@ -268,15 +277,106 @@ def google_project_has_valid_service_accounts(project_id):
     return True
 
 
+def get_service_account_email(id_from_url):
+    """
+    Return email given it in id form from the url.
+    """
+    return unquote(id_from_url)
 
-# TODO this should be in cirrus rather than fence...
-def get_service_account_email(account_id):
-    # first check if the account_id is an email, if not, hit google's api to
-    # get service account information and parse email
-    raise NotImplementedError('Functionality not yet available...')
+
+def get_google_project_from_service_account_email(service_account_email):
+    """
+    Parse email to get google project id
+    """
+    words = service_account_email.split('@')
+    return words[1].split('.')[0]
 
 
-# TODO this should be in cirrus rather than fence...
-def get_google_project_from_service_account_email(account_id):
-    # parse email to get project id_
-    raise NotImplementedError('Functionality not yet available...')
+def _force_remove_service_account_from_access_db(service_account_email, db=None):
+    """
+    Remove the access of service account from db.
+
+    Args:
+        service_account_email (str): service account email
+
+    Returns:
+        None
+
+    Restrictions:
+        service account has to exist in db
+
+    """
+
+    session = get_db_session(db)
+
+    service_account = (
+        session.query(UserServiceAccount).
+        filter_by(email=service_account_email).first()
+    )
+
+    access_groups = service_account.to_access_groups
+
+    for bucket_access_group in access_groups:
+        sa_to_group = (
+            session.query(ServiceAccountToGoogleBucketAccessGroup)
+            .filter_by(
+                service_account_id=service_account.id,
+                access_group_id=bucket_access_group.id
+            )
+            .first()
+        )
+        session.delete(sa_to_group)
+        session.commit()
+
+    # delete all access privileges
+    access_privileges = (
+        session.query(ServiceAccountAccessPrivilege)
+        .filter_by(service_account_id=service_account.id)
+        .all()
+    )
+
+    for access in access_privileges:
+        session.delete(access)
+    session.commit()
+
+
+def force_remove_service_account_from_access(
+        service_account_email, google_project_id, db=None):
+    """
+    loop through ServiceAccountToBucket
+    remove from google group
+    delete entries from db
+
+    Args:
+        service_account_email (str): service account email
+        google_project_id (str): google project id
+        db (None, str): Optional db connection string
+
+    Returns:
+        None
+    """
+
+    session = get_db_session(db)
+
+    service_account = (
+        session.query(UserServiceAccount).
+        filter_by(email=service_account_email).first()
+    )
+
+    if not service_account:
+        raise fence.errors.NotFound('{} does not exist in DB'
+                                   .format(service_account_email))
+    access_groups = service_account.to_access_groups
+    for bucket_access_group in access_groups:
+        try:
+            with GoogleCloudManager(google_project_id) as g_manager:
+                g_manager.remove_member_from_group(
+                    member_email=service_account.email,
+                    group_id=bucket_access_group.access_group_id
+                )
+        except Exception as exc:
+            raise GoogleAPIError('Can not remove memeber {} from access group. {}'
+                                 .format(service_account.email, exc))
+
+    _force_remove_service_account_from_access_db(service_account_email, db)
+

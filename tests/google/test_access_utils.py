@@ -1,10 +1,20 @@
 import pytest
 
+from mock import patch
+
+import fence
+from fence.models import (
+    UserServiceAccount,
+    ServiceAccountAccessPrivilege,
+    ServiceAccountToGoogleBucketAccessGroup,
+)
 from fence.resources.google.access_utils import (
     is_valid_service_account_type,
     service_account_has_external_access,
     google_project_has_valid_membership,
     google_project_has_valid_service_accounts,
+    _force_remove_service_account_from_access_db,
+    force_remove_service_account_from_access
 )
 from cirrus.google_cloud import (
     COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
@@ -449,3 +459,65 @@ def test_project_has_invalid_service_accounts_membership(cloud_manager):
 
     # invalid because service account 'c@gmail.com is not from this project
     assert not google_project_has_valid_service_accounts(cloud_manager.project_id)
+
+
+def test_remove_service_account_from_access(
+        cloud_manager, db_session, setup_data):
+    """
+    Test that successfuly delete a given service account
+    """
+    force_remove_service_account_from_access('test@gmail.com', 'test')
+    (
+        cloud_manager.return_value.__enter__.
+        return_value.remove_member_from_group.return_value
+    ) = {}
+
+    service_account = (
+        db_session.
+        query(UserServiceAccount).
+        filter_by(email='test@gmail.com').
+        first()
+    )
+
+    access_projects = (
+        db_session.
+        query(ServiceAccountAccessPrivilege).
+        filter_by(service_account_id=service_account.id).
+        all()
+    )
+
+    assert service_account
+    assert access_projects == []
+
+    for access_group in  service_account.to_access_groups:
+        assert not(
+            db_session.
+            query(ServiceAccountToGoogleBucketAccessGroup).
+            filter_by(service_account_id=service_account.id, access_group_id=access_group.id).
+            first()
+        )
+
+def test_remove_service_account_raise_NotFound_exc(
+        cloud_manager, db_session, setup_data):
+    """
+    Test that raises an exception since the service account does not exist
+    """
+    with pytest.raises(fence.errors.NotFound):
+        assert (
+            force_remove_service_account_from_access('non_existed_service_account', 'test')
+        )
+
+
+def test_remove_service_account_raise_GoogleAPI_exc(
+        cloud_manager, db_session, setup_data):
+    """
+    Test that raiseis an exception due to Google API errors
+    """
+    (
+        cloud_manager.return_value.__enter__.
+        return_value.remove_member_from_group.side_effect
+    ) = Exception('exception')
+
+    with pytest.raises(GoogleAPIError):
+        assert force_remove_service_account_from_access('test@gmail.com', 'test')
+
