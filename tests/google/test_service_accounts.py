@@ -61,6 +61,9 @@ from fence.models import (
     Project,
     ProjectToBucket,
     GoogleBucketAccessGroup,
+    UserServiceAccount,
+    ServiceAccountAccessPrivilege,
+    ServiceAccountToGoogleBucketAccessGroup,
 )
 
 # Python 2 and 3 compatible
@@ -200,6 +203,10 @@ def test_valid_service_account_registration(
         .add_member_to_group.return_value
     ) = {}
 
+    assert len(db_session.query(UserServiceAccount).all()) == 0
+    assert len(db_session.query(ServiceAccountAccessPrivilege).all()) == 0
+    assert len(db_session.query(ServiceAccountToGoogleBucketAccessGroup).all()) == 0
+
     response = client.post(
         '/google/service_accounts',
         headers={'Authorization': 'Bearer ' + encoded_creds_jwt},
@@ -207,6 +214,10 @@ def test_valid_service_account_registration(
         content_type='application/json')
 
     assert response.status_code == 200
+
+    assert len(db_session.query(UserServiceAccount).all()) == 1
+    assert len(db_session.query(ServiceAccountAccessPrivilege).all()) == 1
+    assert len(db_session.query(ServiceAccountToGoogleBucketAccessGroup).all()) == 1
 
 def _assert_expected_service_account_response_structure(data):
     assert 'service_account_email' in data
