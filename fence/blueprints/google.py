@@ -1,17 +1,22 @@
+import json
+import os
 from urllib import unquote
 
 import flask
 from flask_restful import Resource
 
+from cirrus.google_cloud.errors import GoogleAPIError
+
 from fence.auth import current_token, require_auth_header
 from fence.restful import RestfulApi
-from fence.errors import UserError
+from fence.errors import UserError, NotFound
 from fence.resources.google.validity import GoogleProjectValidity
 from fence.resources.google.access_utils import (
     is_user_member_of_all_google_projects,
     can_user_manage_service_account,
     get_google_project_from_service_account_email,
-    get_service_account_email
+    get_service_account_email,
+    force_remove_service_account_from_access,
 )
 
 
@@ -37,7 +42,7 @@ def make_google_blueprint():
 
 class GoogleServiceAccountRoot(Resource):
 
-    @require_auth_header({'user'})  # TODO change scope to something else?
+    @require_auth_header({'google_service_account'})
     def post(self):
         """
         Register a new service account
@@ -86,7 +91,7 @@ class GoogleServiceAccountRoot(Resource):
 
 class GoogleServiceAccount(Resource):
 
-    @require_auth_header({'user'})
+    @require_auth_header({'google_service_account'})
     def get(self, id_):
         """
         Get registered service account(s) and their access expiration.
@@ -130,7 +135,7 @@ class GoogleServiceAccount(Resource):
 
         return response, 200
 
-    @require_auth_header({'user'})
+    @require_auth_header({'google_service_account'})
     def post(self, id_):
         """
         Dry run for registering a new service account
@@ -156,7 +161,7 @@ class GoogleServiceAccount(Resource):
 
         return error_response, status
 
-    @require_auth_header({'user'})
+    @require_auth_header({'google_service_account'})
     def patch(self, id_):
         """
         Update a service account
@@ -202,13 +207,13 @@ class GoogleServiceAccount(Resource):
 
         return '', 204
 
-    @require_auth_header({'user'})
+    @require_auth_header({'google_service_account'})
     def delete(self, id_):
         """
         Delete a service account
 
         Args:
-            id_ (str): Google service account identifier to delete
+            id_ (str): Google service account email to delete
         """
         user_id = current_token['sub']
         # check if user has permission to delete the service account
@@ -232,6 +237,13 @@ class GoogleServiceAccount(Resource):
             tuple(dict, int): (response_data, http_status_code)
         """
         monitoring_account_email = _get_monitoring_account_email()
+        if not monitoring_account_email:
+            error = (
+                'No monitoring service account. Fence is not currently '
+                'configured to support user-registration of service accounts.'
+            )
+            return {'message': error}, 404
+
         response = {
             'service_account_email': monitoring_account_email
         }
@@ -285,7 +297,8 @@ class GoogleServiceAccount(Resource):
         """
         raise NotImplementedError('Functionality not yet available...')
 
-    def _delete(self, account_id):
+    @classmethod
+    def _delete(self, id_):
         """
         Delete the given service account from our db and Google if it
         exists.
@@ -296,7 +309,31 @@ class GoogleServiceAccount(Resource):
         Args:
             account_id (str): Google service account identifier
         """
-        raise NotImplementedError('Functionality not yet available...')
+
+        service_account_email = get_service_account_email(id_)
+        google_project_id = (
+            get_google_project_from_service_account_email(service_account_email)
+        )
+
+        try:
+            force_remove_service_account_from_access(google_project_id, service_account_email)
+        except NotFound as exc:
+            return (
+                'Can not remove the service accout {}. Detail {}'.
+                format(id_, exc.message), 404
+            )
+        except GoogleAPIError as exc:
+            return (
+                'Can not remove the service accout {}. Detail {}'.
+                format(id_, exc.message), 400
+            )
+        except Exception:
+            return (
+                ' Can not delete the service account {}'.
+                format(id_), 500
+            )
+
+        return 'Successfully delete service account  {}'.format(id_), 200
 
 
 def _get_service_account_error_status(
@@ -435,6 +472,25 @@ def _get_project_access_error_status(validity_info):
 
 
 def _get_monitoring_account_email():
-    # TODO get monitoring service account from CIRRUS_CFG. Will be the service
-    #      accont email used for the fence service
-    raise NotImplementedError('Functionality not yet available...')
+    """
+    Get the monitoring email from the cirrus configuration. Use the
+    main/default application credentials as the monitoring service account.
+
+    This function should ONLY return the service account's email by
+    parsing the creds file.
+    """
+    app_creds_file = (
+        flask.current_app.config
+        .get('CIRRUS_CFG', {})
+        .get('GOOGLE_APPLICATION_CREDENTIALS')
+    )
+
+    creds_email = None
+    if app_creds_file and os.path.exists(app_creds_file):
+        with open(app_creds_file) as app_creds_file:
+            creds_email = (
+                json.load(app_creds_file)
+                .get('client_email')
+            )
+
+    return creds_email
