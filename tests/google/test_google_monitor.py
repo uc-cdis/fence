@@ -174,10 +174,10 @@ def _assert_access(service_account_email, db_session, has_access=True):
     if has_access:
         assert (
             db_session.query(ServiceAccountAccessPrivilege)
-            .filter_by(id=service_account.id).all()
+            .filter_by(service_account_id=service_account.id).all()
         )
     else:
         assert not (
             db_session.query(ServiceAccountAccessPrivilege)
-            .filter_by(id=service_account.id).all()
+            .filter_by(service_account_id=service_account.id).all()
         )

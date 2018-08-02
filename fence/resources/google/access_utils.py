@@ -92,7 +92,7 @@ def google_project_has_valid_membership(project_id):
     Return:
         Bool: True iff project members are only users and/or service accounts
     """
-    valid = False
+    valid = True
     try:
         with GoogleCloudManager(project_id) as prj:
             members = prj.get_project_membership()
