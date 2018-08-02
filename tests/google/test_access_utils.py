@@ -18,6 +18,7 @@ from fence.resources.google.access_utils import (
     force_remove_service_account_from_access,
     extend_service_account_access,
     get_current_service_account_project_access,
+    patch_user_service_account,
 )
 from cirrus.google_cloud import (
     COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
@@ -568,3 +569,95 @@ def test_get_current_service_account_project_access(
     access = get_current_service_account_project_access(service_account.email)
 
     assert access == project_auth_ids
+
+def test_update_user_service_account_success(cloud_manager, db_session, setup_data):
+    """
+    Test that successfully update service account access
+    """
+    (
+        cloud_manager.return_value.__enter__.
+        return_value.add_member_to_group.side_effect
+    ) = {}
+
+    service_account = (
+            db_session.
+            query(UserServiceAccount).
+            filter_by(email='test@gmail.com').
+            first()
+            )
+
+    accessed_projects = (
+        db_session.
+        query(ServiceAccountAccessPrivilege).
+        filter_by(service_account_id=service_account.id).
+        all()
+    )
+
+    accessed_bucket_grps = (
+        db_session.
+        query(ServiceAccountToGoogleBucketAccessGroup).
+        filter_by(service_account_id=service_account.id).
+        all()
+    )
+
+    assert len(accessed_projects) == 2
+    assert len(accessed_bucket_grps) == 2
+    patch_user_service_account('test', 'test@gmail.com', ['test_auth_1'])
+
+    projects = (
+        db_session.
+        query(ServiceAccountAccessPrivilege).
+        filter_by(service_account_id=service_account.id).
+        all()
+    )
+    assert len(projects) == 1
+
+    accessed_bucket_grps = (
+        db_session.
+        query(ServiceAccountToGoogleBucketAccessGroup).
+        filter_by(service_account_id=service_account.id).
+        all()
+    )
+    assert len(accessed_bucket_grps) == 1
+
+
+def test_update_user_service_account_raise_NotFound_exc(
+        cloud_manager, db_session, setup_data):
+    """
+    Test that raises an exception since the service account does not exist
+    """
+    with pytest.raises(fence.errors.NotFound):
+        assert (
+            patch_user_service_account('google_test', 'non_existed_service_account', ['test_auth_1'])
+        )
+
+
+def test_update_user_service_account_raise_GoogleAPI_exc(
+        cloud_manager, db_session, setup_data):
+    """
+    Test that raiseis an exception due to Google API errors
+    during removing members from google groups
+    """
+    (
+        cloud_manager.return_value.__enter__.
+        return_value.remove_member_from_group.side_effect
+    ) = Exception('exception')
+
+    with pytest.raises(GoogleAPIError):
+        assert patch_user_service_account('test', 'test@gmail.com', ['test_auth_2'])
+
+
+def test_update_user_service_account_raise_GoogleAPI_exc2(
+        cloud_manager, db_session, setup_data):
+    """
+    Test that raiseis an exception due to Google API errors
+    during adding members to google groups
+    """
+    (
+        cloud_manager.return_value.__enter__.
+        return_value.add_member_to_group.side_effect
+    ) = Exception('exception')
+
+    with pytest.raises(GoogleAPIError):
+        assert patch_user_service_account('test', 'test@gmail.com', ['test_auth_1', 'test_auth_2','test_auth_3'])
+
