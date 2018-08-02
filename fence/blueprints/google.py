@@ -1,3 +1,5 @@
+import json
+import os
 from urllib import unquote
 
 import flask
@@ -235,6 +237,13 @@ class GoogleServiceAccount(Resource):
             tuple(dict, int): (response_data, http_status_code)
         """
         monitoring_account_email = _get_monitoring_account_email()
+        if not monitoring_account_email:
+            error = (
+                'No monitoring service account. Fence is not currently '
+                'configured to support user-registration of service accounts.'
+            )
+            return {'message': error}, 404
+
         response = {
             'service_account_email': monitoring_account_email
         }
@@ -463,6 +472,25 @@ def _get_project_access_error_status(validity_info):
 
 
 def _get_monitoring_account_email():
-    # TODO get monitoring service account from CIRRUS_CFG. Will be the service
-    #      accont email used for the fence service
-    raise NotImplementedError('Functionality not yet available...')
+    """
+    Get the monitoring email from the cirrus configuration. Use the
+    main/default application credentials as the monitoring service account.
+
+    This function should ONLY return the service account's email by
+    parsing the creds file.
+    """
+    app_creds_file = (
+        flask.current_app.config
+        .get('CIRRUS_CFG', {})
+        .get('GOOGLE_APPLICATION_CREDENTIALS')
+    )
+
+    creds_email = None
+    if app_creds_file and os.path.exists(app_creds_file):
+        with open(app_creds_file) as app_creds_file:
+            creds_email = (
+                json.load(app_creds_file)
+                .get('client_email')
+            )
+
+    return creds_email
