@@ -2,6 +2,7 @@ from urllib import unquote
 
 import flask
 from flask_restful import Resource
+import time
 
 from cirrus import GoogleCloudManager
 from fence.auth import current_token, require_auth_header
@@ -102,7 +103,7 @@ class GoogleServiceAccountRoot(Resource):
         current_session.commit()
 
         for project_id in project_access:
-            db_access_privilege = ServiceAccountAccessPrivlege(
+            db_access_privilege = ServiceAccountAccessPrivilege(
                 project_id=project_id,
                 service_account_id=db_service_account.id
             )
@@ -119,14 +120,21 @@ class GoogleServiceAccountRoot(Resource):
                 gbags = bucket.googlet_bucket_access_groups
                 for gbag in gbags:
                     service_account_to_gbag = (
-                        ServiceAccountToGoogleBucketAccessGroups(
+                        ServiceAccountToGoogleBucketAccessGroup(
                             service_account_id=db_service_account.id,
                             access_group_id=gbag.id,
-                            expires=0   # TODO: set actual expiration
-                        )
-                    )
-
+                            expires=time.time()
+                            + flask.current_app.config.get(
+                                'GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN',
+                                604800)))
                     current_session.add(service_account_to_gbag)
+
+                    with GoogleCloudManager(google_project_id) as prj:
+                        prj.add_member_to_group(
+                            member_email=service_account_email,
+                            group_id=gbag.email
+                        )
+
             current_session.commit()
 
         return service_account
