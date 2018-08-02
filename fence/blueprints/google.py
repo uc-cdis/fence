@@ -16,6 +16,7 @@ from fence.resources.google.access_utils import (
     get_service_account_email
 )
 from fence.models import (
+    GoogleBucketAccessGroup,
     Project,
     UserServiceAccount,
     ServiceAccountAccessPrivilege,
@@ -90,7 +91,7 @@ class GoogleServiceAccountRoot(Resource):
     def _register_new_service_account(
             self, service_account_email, google_project_id, project_access):
 
-        with GoogleCloudManager(google_project_id) as google_project:
+        with GoogleCloudManager() as google_project:
             service_account = google_project.get_service_account(service_account_email)
 
         db_service_account = UserServiceAccount(
@@ -102,22 +103,27 @@ class GoogleServiceAccountRoot(Resource):
         current_session.add(db_service_account)
         current_session.commit()
 
-        for project_id in project_access:
+        for project_auth_id in project_access:
+            project = (
+                current_session
+                .query(Project)
+                .filter_by(auth_id=project_auth_id)
+                .first()
+            )
             db_access_privilege = ServiceAccountAccessPrivilege(
-                project_id=project_id,
+                project_id=project.id,
                 service_account_id=db_service_account.id
             )
             current_session.add(db_access_privilege)
+            current_session.commit()
 
-            buckets = (
-                current_session
-                .query(Project)
-                .filter_by(id=project_id)
-                .first()
-            ).buckets
-
-            for bucket in buckets:
-                gbags = bucket.googlet_bucket_access_groups
+            for bucket in project.buckets:
+                gbags = (
+                    current_session
+                    .query(GoogleBucketAccessGroup)
+                    .filter_by(bucket_id=bucket.id)
+                    .all()
+                )
                 for gbag in gbags:
                     service_account_to_gbag = (
                         ServiceAccountToGoogleBucketAccessGroup(
@@ -129,7 +135,7 @@ class GoogleServiceAccountRoot(Resource):
                                 604800)))
                     current_session.add(service_account_to_gbag)
 
-                    with GoogleCloudManager(google_project_id) as prj:
+                    with GoogleCloudManager() as prj:
                         prj.add_member_to_group(
                             member_email=service_account_email,
                             group_id=gbag.email

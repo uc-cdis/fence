@@ -135,6 +135,42 @@ def test_invalid_service_account_registration_errors(
     assert response.status_code != 200
 
 
+def test_valid_service_account_registration(
+        client, app, encoded_jwt_service_accounts_access,
+        database_for_service_account_registration, cloud_manager,
+        valid_google_project_patcher, valid_service_account_patcher):
+
+    encoded_creds_jwt = encoded_jwt_service_accounts_access['jwt']
+    project_access = ["some_auth_id"]
+    valid_service_account = {
+        "service_account_email": "sa@gmail.com",
+        "google_project_id": "project-id",
+        "project_access": project_access
+    }
+
+    (
+        cloud_manager.return_value
+        .__enter__.return_value
+        .get_service_account.return_value
+    ) = {
+        "uniqueId": "sa_unique_id",
+        "email": "sa@gmail.com"
+    }
+
+    (
+        cloud_manager.return_value
+        .__enter__.return_value
+        .add_member_to_group.return_value
+    ) = {}
+
+    response = client.post(
+        '/google/service_accounts',
+        headers={'Authorization': 'Bearer ' + encoded_creds_jwt},
+        data=json.dumps(valid_service_account),
+        content_type='application/json')
+
+    assert response.status_code == 200
+
 def _assert_expected_service_account_response_structure(data):
     assert 'service_account_email' in data
     assert 'google_project_id' in data

@@ -4,6 +4,17 @@ import pytest
 
 from tests import utils
 
+from flask_sqlalchemy_session import current_session
+
+from userdatamodel.models import (
+    Project,
+    Bucket,
+    ProjectToBucket,
+)
+from fence.models import (
+    GoogleBucketAccessGroup,
+)
+
 # Python 2 and 3 compatible
 try:
     from unittest.mock import MagicMock
@@ -181,3 +192,38 @@ def valid_google_project_patcher():
 
     for patched_function in patches:
         patched_function.stop()
+
+@pytest.fixture(scope='function')
+def database_for_service_account_registration():
+
+    project = Project(
+        id=1,
+        auth_id="some_auth_id"
+    )
+
+    bucket = Bucket(
+        id=1
+    )
+
+    current_session.add(project)
+    current_session.add(bucket)
+    current_session.commit()
+
+    project_to_bucket = ProjectToBucket(
+        project_id=1,
+        bucket_id=1
+    )
+
+    current_session.add(project_to_bucket)
+    current_session.commit()
+
+    gbag = GoogleBucketAccessGroup(
+        id=1,
+        bucket_id=1,
+        email="gbag@gmail.com"
+    )
+
+    current_session.add(gbag)
+    current_session.commit()
+
+    return current_session
