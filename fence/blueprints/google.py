@@ -5,6 +5,8 @@ from urllib import unquote
 import flask
 from flask_restful import Resource
 
+from cirrus.google_cloud.errors import GoogleAPIError
+
 from fence.auth import current_token, require_auth_header
 from fence.restful import RestfulApi
 from fence.errors import UserError, NotFound
@@ -13,7 +15,8 @@ from fence.resources.google.access_utils import (
     is_user_member_of_all_google_projects,
     can_user_manage_service_account,
     get_google_project_from_service_account_email,
-    get_service_account_email
+    get_service_account_email,
+    force_remove_service_account_from_access,
 )
 
 
@@ -210,7 +213,7 @@ class GoogleServiceAccount(Resource):
         Delete a service account
 
         Args:
-            id_ (str): Google service account identifier to delete
+            id_ (str): Google service account email to delete
         """
         user_id = current_token['sub']
         # check if user has permission to delete the service account
@@ -294,7 +297,8 @@ class GoogleServiceAccount(Resource):
         """
         raise NotImplementedError('Functionality not yet available...')
 
-    def _delete(self, account_id):
+    @classmethod
+    def _delete(self, id_):
         """
         Delete the given service account from our db and Google if it
         exists.
@@ -305,7 +309,31 @@ class GoogleServiceAccount(Resource):
         Args:
             account_id (str): Google service account identifier
         """
-        raise NotImplementedError('Functionality not yet available...')
+
+        service_account_email = get_service_account_email(id_)
+        google_project_id = (
+            get_google_project_from_service_account_email(service_account_email)
+        )
+
+        try:
+            force_remove_service_account_from_access(google_project_id, service_account_email)
+        except NotFound as exc:
+            return (
+                'Can not remove the service accout {}. Detail {}'.
+                format(id_, exc.message), 404
+            )
+        except GoogleAPIError as exc:
+            return (
+                'Can not remove the service accout {}. Detail {}'.
+                format(id_, exc.message), 400
+            )
+        except Exception:
+            return (
+                ' Can not delete the service account {}'.
+                format(id_), 500
+            )
+
+        return 'Successfully delete service account  {}'.format(id_), 200
 
 
 def _get_service_account_error_status(

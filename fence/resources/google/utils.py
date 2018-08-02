@@ -11,6 +11,10 @@ from cirrus.google_cloud.utils import (
     get_valid_service_account_id_for_client,
     get_valid_service_account_id_for_user
 )
+
+from userdatamodel.driver import SQLAlchemyDriver
+from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
+
 from fence.auth import current_token
 from fence.models import GoogleServiceAccountKey
 from fence.models import UserGoogleAccount
@@ -18,7 +22,7 @@ from fence.models import GoogleServiceAccount
 from fence.models import UserGoogleAccountToProxyGroup
 from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME
 from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
-from fence.errors import NotSupported
+from fence.errors import NotSupported, NotFound
 
 
 def get_or_create_primary_service_account_key(
@@ -533,7 +537,6 @@ def get_service_account_ids_from_google_project(project_id):
         return []
 
 
-
 def get_user_ids_from_google_members(members):
     """
      get all user ids from google members
@@ -548,5 +551,18 @@ def get_user_ids_from_google_members(members):
             UserGoogleAccount.email == member).first()
         if google_account:
             result.append(google_account.user_id)
+        else:
+            raise NotFound(
+                'Member {} does not have a linked Google Account.'
+                .format(member)
+            )
 
     return result
+
+
+def get_db_session(db):
+    if db:
+        return SQLAlchemyDriver(db).Session()
+    else:
+        return current_session
+
