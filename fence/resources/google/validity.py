@@ -281,7 +281,7 @@ class GoogleServiceAccountValidity(ValidityInfo):
             return
 
         no_external_access = not (
-            service_account_has_external_access(self.account_id)
+            service_account_has_external_access(self.account_id, self.google_project_id)
         )
         self.set('no_external_access', no_external_access)
         if not no_external_access and early_return:

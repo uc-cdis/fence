@@ -120,7 +120,7 @@ def test_service_account_has_role_in_service_policy(cloud_manager):
         return_value.get_service_account_policy.return_value
     ) = MockResponse(faked_json, 200)
 
-    assert service_account_has_external_access('test_service_account')
+    assert service_account_has_external_access('test_service_account', cloud_manager.project_id)
 
 
 def test_service_account_has_user_managed_key_in_service_policy(cloud_manager):
@@ -141,7 +141,7 @@ def test_service_account_has_user_managed_key_in_service_policy(cloud_manager):
         return_value.get_service_account_keys_inf.return_value
     ) = ['key1', 'key2']
 
-    assert service_account_has_external_access('test_service_account')
+    assert service_account_has_external_access('test_service_account', cloud_manager.project_id)
 
 
 def test_service_account_does_not_have_external_access(cloud_manager):
@@ -161,7 +161,7 @@ def test_service_account_does_not_have_external_access(cloud_manager):
         cloud_manager.return_value.__enter__.
         return_value.get_service_account_keys_info.return_value
     ) = []
-    assert not service_account_has_external_access('test_service_account')
+    assert not service_account_has_external_access('test_service_account', cloud_manager.project_id)
 
 
 def test_service_account_has_external_access_raise_exception(cloud_manager):
@@ -174,7 +174,7 @@ def test_service_account_has_external_access_raise_exception(cloud_manager):
     ) = MockResponse({}, 403)
 
     with pytest.raises(GoogleAPIError):
-        assert service_account_has_external_access('test_service_account')
+        assert service_account_has_external_access('test_service_account', cloud_manager.project_id)
 
 
 def test_project_has_valid_membership(cloud_manager, db_session):

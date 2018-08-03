@@ -132,10 +132,14 @@ def test_google_service_account_monitor(
 
 # @pytest.mark.skip(reason="not implemented yet")
 def test_invalid_service_account_dry_run_errors(
-        client, app, encoded_jwt_service_accounts_access):
+        client, app, encoded_jwt_service_accounts_access,
+        valid_service_account_patcher):
     """
     Test that an invalid service account gives us the expected error structure
     """
+
+    valid_service_account_patcher['service_account_has_external_access'] = True
+
     encoded_creds_jwt = encoded_jwt_service_accounts_access['jwt']
     project_access = ["project_a", "project_b"]
     invalid_service_account = {
@@ -157,10 +161,12 @@ def test_invalid_service_account_dry_run_errors(
 
 # @pytest.mark.skip(reason="not implemented yet")
 def test_invalid_service_account_registration_errors(
-        client, app, encoded_jwt_service_accounts_access):
+        client, app, encoded_jwt_service_accounts_access,
+        valid_service_account_patcher):
     """
     Test that an invalid service account gives us the expected error structure
     """
+    valid_service_account_patcher['service_account_has_external_access'] = True
     encoded_creds_jwt = encoded_jwt_service_accounts_access['jwt']
     project_access = ["project_a", "project_b"]
     invalid_service_account = {

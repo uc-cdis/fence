@@ -478,11 +478,6 @@ def _get_service_account_error_status(
     )
 
     # all statuses must be 200 to be successful
-    """project_statuses = [
-        error_details.get('status')
-        for project_name, error_details
-        in response['errors']['project_access'].iteritems()
-    ]"""
     if (response['errors']['service_account_email'].get('status') == 200
             and response['errors']['google_project_id'].get('status') == 200
             and response['errors']['project_access'].get('status') == 200):
