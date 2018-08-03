@@ -1,4 +1,5 @@
 import pytest
+import time
 
 from mock import patch
 
@@ -14,7 +15,9 @@ from fence.resources.google.access_utils import (
     google_project_has_valid_membership,
     google_project_has_valid_service_accounts,
     _force_remove_service_account_from_access_db,
-    force_remove_service_account_from_access
+    force_remove_service_account_from_access,
+    extend_service_account_access,
+    get_current_service_account_project_access,
 )
 from cirrus.google_cloud import (
     COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
@@ -44,6 +47,7 @@ class MockResponse:
 
     def json(self):
         return self.json_data
+
 
 def test_is_valid_service_account_type_compute_engine_default(cloud_manager):
     """
@@ -497,6 +501,7 @@ def test_remove_service_account_from_access(
             first()
         )
 
+
 def test_remove_service_account_raise_NotFound_exc(
         cloud_manager, db_session, setup_data):
     """
@@ -521,3 +526,45 @@ def test_remove_service_account_raise_GoogleAPI_exc(
     with pytest.raises(GoogleAPIError):
         assert force_remove_service_account_from_access('test@gmail.com', 'test')
 
+
+def test_extend_service_account_access(
+        db_session, register_user_service_account):
+    """
+    Test that we can successfully update the db and extend access for a
+    service account
+    """
+    service_account = register_user_service_account['service_account']
+
+    extend_service_account_access(service_account.email)
+
+    service_account_accesses = (
+        db_session.query(
+            ServiceAccountToGoogleBucketAccessGroup)
+        .filter_by(service_account_id=service_account.id)
+    ).all()
+
+    assert (
+        len(service_account_accesses)
+        == len(register_user_service_account['bucket_access_groups'])
+    )
+
+    # make sure we actually extended access past the current time
+    for access in service_account_accesses:
+        assert access.expires > time.time()
+
+
+def test_get_current_service_account_project_access(
+        db_session, register_user_service_account):
+    """
+    Test that we get all the correct info for a service accounts project
+    access.
+    """
+    service_account = register_user_service_account['service_account']
+    project_auth_ids = [
+        project.auth_id
+        for project in register_user_service_account['projects']
+    ]
+
+    access = get_current_service_account_project_access(service_account.email)
+
+    assert access == project_auth_ids

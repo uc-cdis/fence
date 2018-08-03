@@ -1,10 +1,12 @@
 from addict import Dict
 import jwt
 import pytest
+import time
 
 from fence.models import (
     Project,
     Bucket,
+    ProjectToBucket,
     CloudProvider,
     UserServiceAccount,
     ServiceAccountToGoogleBucketAccessGroup,
@@ -230,3 +232,113 @@ def setup_data(db_session):
     db_session.add(service_account_grp)
     db_session.commit()
 
+
+@pytest.fixture(scope='function')
+def register_user_service_account(db_session):
+    cp = CloudProvider(name='test', endpoint='http://test.endpt')
+    user = UserServiceAccount(
+        google_unique_id='test_id',
+        email='test@test.iam.gserviceaccount.com',
+        google_project_id='test'
+    )
+    db_session.add(user)
+    db_session.add(cp)
+    db_session.commit()
+
+    project1 = Project(name='test_1', auth_id='test_auth_1')
+    project2 = Project(name='test_2', auth_id='test_auth_2')
+    db_session.add(project1)
+    db_session.add(project2)
+    db_session.commit()
+
+    bucket1 = Bucket(name='bucket1', provider_id=cp.id)
+    bucket2 = Bucket(name='bucket1', provider_id=cp.id)
+    db_session.add(bucket1)
+    db_session.add(bucket2)
+    db_session.commit()
+
+    project_to_bucket1 = ProjectToBucket(
+        project_id=project1.id, bucket_id=bucket1.id)
+    project_to_bucket2 = ProjectToBucket(
+        project_id=project2.id, bucket_id=bucket2.id)
+    db_session.add(project_to_bucket1)
+    db_session.add(project_to_bucket2)
+    db_session.commit()
+
+    db_session.add(ServiceAccountAccessPrivilege(
+        project_id=project1.id, service_account_id=user.id))
+    db_session.add(ServiceAccountAccessPrivilege(
+        project_id=project2.id, service_account_id=user.id))
+
+    access_grp1 = GoogleBucketAccessGroup(
+        bucket_id=bucket1.id, email='test1@gmail.com'
+    )
+    access_grp2 = GoogleBucketAccessGroup(
+        bucket_id=bucket2.id, email='test2@gmail.com'
+    )
+
+    db_session.add(access_grp1)
+    db_session.add(access_grp2)
+    db_session.commit()
+
+    # expiration set to 0 for testing that it gets set
+    current_time = 0
+    service_account_grp1 = ServiceAccountToGoogleBucketAccessGroup(
+        service_account_id=user.id,
+        access_group_id=access_grp1.id,
+        expires=current_time
+    )
+    service_account_grp2 = ServiceAccountToGoogleBucketAccessGroup(
+        service_account_id=user.id,
+        access_group_id=access_grp2.id,
+        expires=current_time
+    )
+    db_session.add(service_account_grp1)
+    db_session.add(service_account_grp2)
+    db_session.commit()
+
+    return {
+        'service_account': user,
+        'projects': [project1, project2],
+        'buckets': [bucket1, bucket2],
+        'bucket_access_groups': [access_grp1, access_grp2]
+    }
+
+
+@pytest.fixture(scope='function')
+def user_can_manage_service_account_mock():
+    mock = MagicMock()
+    mock.return_value = True
+
+    patcher = patch(
+        'fence.blueprints.google.can_user_manage_service_account', mock)
+
+    patcher.start()
+    yield mock
+    patcher.stop()
+
+
+@pytest.fixture(scope='function')
+def valid_user_service_account_mock():
+    mock = MagicMock()
+    mock.return_value = {'success': True}
+
+    patcher = patch(
+        'fence.blueprints.google._get_service_account_error_status', mock)
+
+    patcher.start()
+    yield mock
+    patcher.stop()
+
+
+@pytest.fixture(scope='function')
+def update_service_account_permissions_mock():
+    mock = MagicMock()
+
+    patcher = patch(
+        'fence.blueprints.google.GoogleServiceAccount'
+        '._update_service_account_permissions', mock)
+
+    patcher.start()
+    yield mock
+    patcher.stop()

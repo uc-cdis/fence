@@ -3,6 +3,7 @@ Utilities for determine access and validity for service account
 registration.
 """
 import flask
+import time
 from urllib import unquote
 
 from google.cloud.exceptions import GoogleCloudError
@@ -150,6 +151,7 @@ def is_valid_service_account_type(project_id, account_id):
             format(account_id, project_id, exc))
         return False
 
+
 def service_account_has_external_access(service_account):
     """
     Checks if service account has external access or not.
@@ -163,8 +165,9 @@ def service_account_has_external_access(service_account):
     with GoogleCloudManager() as g_mgr:
         response = g_mgr.get_service_account_policy(service_account)
         if response.status_code != 200:
-            raise GoogleAPIError('Unable to get IAM policy for service account {}\n{}.'
-                                .format(service_account, response.json()))
+            raise GoogleAPIError(
+                'Unable to get IAM policy for service account {}\n{}.'
+                .format(service_account, response.json()))
         json_obj = response.json()
         # In the case that a service account does not have any role, Google API
         # returns a json object without bindings key
@@ -364,8 +367,8 @@ def force_remove_service_account_from_access(
     )
 
     if not service_account:
-        raise fence.errors.NotFound('{} does not exist in DB'
-                                   .format(service_account_email))
+        raise fence.errors.NotFound(
+            '{} does not exist in DB'.format(service_account_email))
     access_groups = service_account.to_access_groups
     for bucket_access_group in access_groups:
         try:
@@ -380,3 +383,110 @@ def force_remove_service_account_from_access(
 
     _force_remove_service_account_from_access_db(service_account_email, db)
 
+
+def extend_service_account_access(service_account_email, db=None):
+    """
+    Extend the Google service accounts access to data by extending the
+    expiration time for each of the Google Bucket Access Groups it's in.
+
+    WARNING: This does NOT do any AuthZ, do before this.
+
+    Args:
+        service_account_email (str): service account email
+    """
+    session = get_db_session(db)
+
+    service_account = (
+        session.query(UserServiceAccount).
+        filter_by(email=service_account_email).first()
+    )
+
+    if service_account:
+        bucket_access_groups = _get_google_access_groups_for_service_account(
+            service_account)
+
+        # use configured time or 7 days
+        expiration_time = (
+            time.time()
+            + flask.current_app.config.get(
+                'GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN',
+                604800)
+        )
+        for access_group in bucket_access_groups:
+            bucket_access = (
+                session
+                .query(ServiceAccountToGoogleBucketAccessGroup)
+                .filter_by(
+                    service_account_id=service_account.id,
+                    access_group_id=access_group.id
+                )
+                .first()
+            )
+            if not bucket_access:
+                bucket_access = ServiceAccountToGoogleBucketAccessGroup(
+                    service_account_id=service_account.id,
+                    access_group_id=access_group.id,
+                    expires=expiration_time
+                )
+                session.add(bucket_access)
+
+            bucket_access.expires = expiration_time
+
+        session.commit()
+
+
+def get_current_service_account_project_access(service_account_email, db=None):
+    """
+    Return a list of project auth_ids the service account currently has
+    access to.
+
+    Args:
+        service_account_email (str): service account email
+
+    Returns:
+        List[str]: List of Project.auth_ids
+
+    Raises:
+        NotFound: if service account doesn't exist
+    """
+    session = get_db_session(db)
+
+    service_account = (
+        session.query(UserServiceAccount)
+        .filter_by(email=service_account_email).first()
+    )
+
+    if not service_account:
+        raise NotFound(
+            'No service account {} exists.'.format(service_account_email))
+
+    project_access = [
+        access_privilege.project.auth_id
+        for access_privilege in service_account.access_privileges
+    ]
+
+    return project_access
+
+
+def _get_google_access_groups_for_service_account(service_account):
+    """
+    Return list of fence.models.GoogleBucketAccessGroup objects that the
+    given service account should have access to based on it's access
+    privileges.
+
+    Args:
+        service_account (fence.models.UserServiceAccount):
+            service account object
+    """
+    bucket_access_groups = []
+
+    accessed_projects = [
+        access_privilege.project
+        for access_privilege in service_account.access_privileges
+    ]
+    for project in accessed_projects:
+        for bucket in project.buckets:
+            groups = bucket.google_bucket_access_groups
+            bucket_access_groups.extend(groups)
+
+    return bucket_access_groups
