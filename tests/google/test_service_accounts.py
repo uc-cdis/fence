@@ -190,7 +190,10 @@ def test_valid_service_account_registration(
         app, db_session, client,
         encoded_jwt_service_accounts_access,cloud_manager,
         valid_google_project_patcher, valid_service_account_patcher):
-
+    """
+    Test that a valid service account registration request returns
+    200 and succesfully creates entries in database
+    """
     project = Project(
         id=1,
         auth_id="some_auth_id"

@@ -95,7 +95,21 @@ class GoogleServiceAccountRoot(Resource):
 
     def _register_new_service_account(
             self, service_account_email, google_project_id, project_access):
+        """
+        Add service account and related entries to database and add
+        service account to google bucket access groups
 
+        Args:
+            service_account_email(str): email address of
+                service account to be registered
+            google_project_id(str): unique-id of google project
+            project_access(list<(str)>): list of project auth-ids which
+                identify which projects the service account should have
+                access to
+
+        Return:
+            (dict): dictionary representing service account object
+        """
         with GoogleCloudManager() as google_project:
             service_account = google_project.get_service_account(service_account_email)
 
