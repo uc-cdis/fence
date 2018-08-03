@@ -573,7 +573,11 @@ def test_update_user_service_account_success(cloud_manager, db_session, setup_da
     """
     (
         cloud_manager.return_value.__enter__.
-        return_value.add_member_to_group.side_effect
+        return_value.add_member_to_group.return_value
+    ) = {}
+    (
+        cloud_manager.return_value.__enter__.
+        return_value.remove_member_from_group.return_value
     ) = {}
 
     service_account = (
@@ -654,6 +658,36 @@ def test_update_user_service_account_raise_GoogleAPI_exc2(
         cloud_manager.return_value.__enter__.
         return_value.add_member_to_group.side_effect
     ) = Exception('exception')
+
+    with pytest.raises(GoogleAPIError):
+        assert patch_user_service_account('test', 'test@gmail.com', ['test_auth_1', 'test_auth_2','test_auth_3'])
+
+
+def test_update_user_service_account_raise_GoogleAPI_exc3(
+        cloud_manager, db_session, setup_data):
+    """
+    Test that raiseis an exception due to Google API errors
+    during adding members to google groups
+    """
+    (
+        cloud_manager.return_value.__enter__.
+        return_value.add_member_to_group.return_value
+        ) = {'a': 'b'}
+
+    with pytest.raises(GoogleAPIError):
+        assert patch_user_service_account('test', 'test@gmail.com', ['test_auth_1', 'test_auth_2','test_auth_3'])
+
+
+def test_update_user_service_account_raise_GoogleAPI_exc4(
+        cloud_manager, db_session, setup_data):
+    """
+    Test that raiseis an exception due to Google API errors
+    during deleting members to google groups
+    """
+    (
+        cloud_manager.return_value.__enter__.
+        return_value.delete_member_from_group.return_value
+        ) = {'a': 'b'}
 
     with pytest.raises(GoogleAPIError):
         assert patch_user_service_account('test', 'test@gmail.com', ['test_auth_1', 'test_auth_2','test_auth_3'])
