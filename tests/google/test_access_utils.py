@@ -1,7 +1,23 @@
 import pytest
 import time
+# Python 2 and 3 compatible
+try:
+    from unittest.mock import MagicMock
+    from unittest.mock import patch
+except ImportError:
+    from mock import MagicMock
+    from mock import patch
 
-from mock import patch
+from cirrus.google_cloud import (
+    COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
+    COMPUTE_ENGINE_API_SERVICE_ACCOUNT,
+    GOOGLE_API_SERVICE_ACCOUNT,
+    USER_MANAGED_SERVICE_ACCOUNT,
+)
+from cirrus.google_cloud.errors import GoogleAPIError
+from cirrus.google_cloud.iam import (
+    GooglePolicyMember
+)
 
 import fence
 from fence.models import (
@@ -20,25 +36,6 @@ from fence.resources.google.access_utils import (
     get_current_service_account_project_access,
     patch_user_service_account,
 )
-from cirrus.google_cloud import (
-    COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
-    COMPUTE_ENGINE_API_SERVICE_ACCOUNT,
-    GOOGLE_API_SERVICE_ACCOUNT,
-    USER_MANAGED_SERVICE_ACCOUNT,
-)
-from cirrus.google_cloud.errors import GoogleAPIError
-
-from cirrus.google_cloud.iam import (
-    GooglePolicyMember
-)
-
-# Python 2 and 3 compatible
-try:
-    from unittest.mock import MagicMock
-    from unittest.mock import patch
-except ImportError:
-    from mock import MagicMock
-    from mock import patch
 
 
 class MockResponse:
