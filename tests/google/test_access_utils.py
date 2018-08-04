@@ -7,6 +7,7 @@ try:
 except ImportError:
     from mock import MagicMock
     from mock import patch
+from sqlalchemy import or_
 
 from cirrus.google_cloud import (
     COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
@@ -21,6 +22,7 @@ from cirrus.google_cloud.iam import (
 
 import fence
 from fence.models import (
+    Project,
     UserServiceAccount,
     ServiceAccountAccessPrivilege,
     ServiceAccountToGoogleBucketAccessGroup,
@@ -569,7 +571,10 @@ def test_get_current_service_account_project_access(
 
 def test_update_user_service_account_success(cloud_manager, db_session, setup_data):
     """
-    Test that successfully update service account access
+    test@gmail.com has access to test_auth_1 and test_auth_2 already
+    Test that successfully update service account access so that
+    the 'test_auth2' will be removed from access project list
+
     """
     (
         cloud_manager.return_value.__enter__.
@@ -581,17 +586,17 @@ def test_update_user_service_account_success(cloud_manager, db_session, setup_da
     ) = {}
 
     service_account = (
-            db_session.
-            query(UserServiceAccount).
-            filter_by(email='test@gmail.com').
-            first()
-            )
+            db_session
+            .query(UserServiceAccount)
+            .filter_by(email='test@gmail.com')
+            .first()
+        )
 
     accessed_projects = (
-        db_session.
-        query(ServiceAccountAccessPrivilege).
-        filter_by(service_account_id=service_account.id).
-        all()
+        db_session
+        .query(ServiceAccountAccessPrivilege)
+        .filter_by(service_account_id=service_account.id)
+        .all()
     )
 
     accessed_bucket_grps = (
@@ -605,21 +610,140 @@ def test_update_user_service_account_success(cloud_manager, db_session, setup_da
     assert len(accessed_bucket_grps) == 2
     patch_user_service_account('test', 'test@gmail.com', ['test_auth_1'])
 
-    projects = (
-        db_session.
-        query(ServiceAccountAccessPrivilege).
-        filter_by(service_account_id=service_account.id).
-        all()
+    project = (
+            db_session
+            .query(Project)
+            .filter_by(auth_id='test_auth_1')
+            .first()
     )
-    assert len(projects) == 1
+
+    project_ids = [
+        project.id for project in (
+            db_session
+            .query(ServiceAccountAccessPrivilege)
+            .filter_by(service_account_id=service_account.id)
+            .all()
+        )
+    ]
+    assert len(project_ids) == 1
+    assert project_ids[0] == project.id
 
     accessed_bucket_grps = (
-        db_session.
-        query(ServiceAccountToGoogleBucketAccessGroup).
-        filter_by(service_account_id=service_account.id).
-        all()
+        db_session
+        .query(ServiceAccountToGoogleBucketAccessGroup)
+        .filter_by(service_account_id=service_account.id)
+        .all()
     )
     assert len(accessed_bucket_grps) == 1
+
+
+def test_update_user_service_account_success2(cloud_manager, db_session, setup_data):
+    """
+    test@gmail.com has access to test_auth_1 and test_auth_2 already
+    Test that successfully update service account access so that
+    the 'test_auth1, test_auth2' will be removed from access project list
+    while 'test_auth3' is added to the list
+    """
+    (
+        cloud_manager.return_value.__enter__.
+        return_value.add_member_to_group.return_value
+    ) = {}
+    (
+        cloud_manager.return_value.__enter__.
+        return_value.remove_member_from_group.return_value
+    ) = {}
+
+    service_account = (
+            db_session
+            .query(UserServiceAccount)
+            .filter_by(email='test@gmail.com')
+            .first()
+            )
+
+    accessed_projects = (
+        db_session
+        .query(ServiceAccountAccessPrivilege)
+        .filter_by(service_account_id=service_account.id)
+        .all()
+    )
+
+    accessed_bucket_grps = (
+        db_session
+        .query(ServiceAccountToGoogleBucketAccessGroup)
+        .filter_by(service_account_id=service_account.id)
+        .all()
+    )
+
+    assert len(accessed_projects) == 2
+    assert len(accessed_bucket_grps) == 2
+    patch_user_service_account('test', 'test@gmail.com', ['test_auth_3'])
+
+    project = (
+        db_session
+        .query(Project)
+        .filter_by(auth_id='test_auth_3')
+        .first()
+    )
+    access_privileges = (
+        db_session
+        .query(ServiceAccountAccessPrivilege)
+        .filter_by(service_account_id=service_account.id)
+        .all()
+    )
+    assert len(access_privileges) == 1
+    assert access_privileges[0].project_id == project.id
+
+    accessed_bucket_grps = (
+        db_session
+        .query(ServiceAccountToGoogleBucketAccessGroup)
+        .filter_by(service_account_id=service_account.id)
+        .all()
+    )
+    assert len(accessed_bucket_grps) == 1
+
+
+def test_update_user_service_account_success3(cloud_manager, db_session, setup_data):
+    """
+    test@gmail.com has access to test_auth_1 and test_auth_2 already
+    Test that there is no add and delete operations when client try to update
+    with projects already granted access
+    """
+    service_account = (
+            db_session
+            .query(UserServiceAccount)
+            .filter_by(email='test@gmail.com')
+            .first()
+        )
+    patch_user_service_account('test', 'test@gmail.com', ['test_auth_1', 'test_auth_2'])
+
+    assert not (
+        cloud_manager.return_value.__enter__.
+        return_value.add_member_to_group.called
+    )
+
+    assert not (
+        cloud_manager.return_value.__enter__.
+        return_value.remove_member_from_group.called
+    )
+
+    project_ids1 = {
+        project.id for project in (
+            db_session
+            .query(Project)
+            .filter(or_(Project.auth_id=='test_auth_1', Project.auth_id=='test_auth_2'))
+            .all()
+         )
+    }
+
+    project_ids2 = {
+        access_privilege.project_id for access_privilege in (
+            db_session
+            .query(ServiceAccountAccessPrivilege)
+            .filter_by(service_account_id=service_account.id)
+            .all()
+        )
+    }
+    assert project_ids1 == project_ids2
 
 
 def test_update_user_service_account_raise_NotFound_exc(
@@ -630,6 +754,16 @@ def test_update_user_service_account_raise_NotFound_exc(
     with pytest.raises(fence.errors.NotFound):
         assert (
             patch_user_service_account('google_test', 'non_existed_service_account', ['test_auth_1'])
+        )
+
+
+def test_update_service_account_fail_no_project(cloud_manager, db_session, setup_data):
+    """
+    Test that raises an exception since a provided project does not exist
+    """
+    with pytest.raises(fence.errors.NotFound):
+        assert (
+            patch_user_service_account('google_test', 'test@gmail.com', ['no_project_auth'])
         )
 
 
