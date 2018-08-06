@@ -55,7 +55,9 @@ NOTE: You can use the following helper assert functions when developing more
 """
 import json
 import pytest
+import time
 from io import StringIO
+from urllib import quote
 
 # Python 2 and 3 compatible
 try:
@@ -64,6 +66,9 @@ try:
 except ImportError:
     from mock import MagicMock
     from mock import patch, mock_open
+
+
+from fence.models import ServiceAccountToGoogleBucketAccessGroup
 
 
 EXPECTED_ERROR_RESPONSE_KEYS = set(['status', 'error', 'error_description'])
@@ -118,6 +123,44 @@ def test_google_service_account_monitor(
     assert response.status_code == 200
     assert response.json and 'service_account_email' in response.json
     assert response.json['service_account_email'] == 'test123@example.com'
+
+
+def test_patch_service_account_no_project_change(
+        client, app, db_session, encoded_jwt_service_accounts_access,
+        register_user_service_account, user_can_manage_service_account_mock,
+        valid_user_service_account_mock,
+        update_service_account_permissions_mock):
+    """
+    Test that patching with no change to project_access successfully extends
+    access for all projects the service account currently has access to.
+    """
+    encoded_creds_jwt = encoded_jwt_service_accounts_access['jwt']
+    service_account = register_user_service_account['service_account']
+
+    response = client.patch(
+        '/google/service_accounts/{}'.format(quote(service_account.email)),
+        headers={'Authorization': 'Bearer ' + encoded_creds_jwt},
+        content_type='application/json'
+    )
+
+    # check if success
+    assert str(response.status_code).startswith('2')
+
+    service_account_accesses = (
+        db_session.query(
+            ServiceAccountToGoogleBucketAccessGroup)
+        .filter_by(service_account_id=service_account.id)
+    ).all()
+
+    # ensure access is the same
+    assert (
+        len(service_account_accesses)
+        == len(register_user_service_account['bucket_access_groups'])
+    )
+
+    # make sure we actually extended access past the current time
+    for access in service_account_accesses:
+        assert access.expires > int(time.time())
 
 
 @pytest.mark.skip(reason="not implemented yet")

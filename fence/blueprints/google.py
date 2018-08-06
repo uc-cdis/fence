@@ -17,6 +17,8 @@ from fence.resources.google.access_utils import (
     get_google_project_from_service_account_email,
     get_service_account_email,
     force_remove_service_account_from_access,
+    extend_service_account_access,
+    get_current_service_account_project_access,
 )
 
 
@@ -47,7 +49,7 @@ class GoogleServiceAccountRoot(Resource):
         """
         Register a new service account
         """
-        payload = flask.request.get_json() or {}
+        payload = flask.request.get_json(silent=True) or {}
         service_account_email = payload.get('service_account_email')
         google_project_id = payload.get('google_project_id')
         project_access = payload.get('project_access')
@@ -146,7 +148,7 @@ class GoogleServiceAccount(Resource):
         if id_ != '_dry_run':
             raise UserError('Cannot post with account id_.')
 
-        payload = flask.request.get_json() or {}
+        payload = flask.request.get_json(silent=True) or {}
         service_account_email = payload.get('service_account_email')
         google_project_id = payload.get('google_project_id')
         project_access = payload.get('project_access')
@@ -180,19 +182,22 @@ class GoogleServiceAccount(Resource):
             )
             return msg, 403
 
-        payload = flask.request.get_json() or {}
-        project_access = payload.get('project_access')
+        payload = flask.request.get_json(silent=True) or {}
+
+        service_account_email = get_service_account_email(id_)
 
         # check if the user requested to update more than project_access
-        if 'project_access' in payload:
-            del payload['project_access']
+        project_access = (
+            payload.pop('project_access', None)
+            or get_current_service_account_project_access(service_account_email)
+        )
+
         if payload:
             return (
                 'Cannot update provided fields: {}'.format(payload),
                 403
             )
 
-        service_account_email = get_service_account_email(id_)
         google_project_id = (
             get_google_project_from_service_account_email(service_account_email)
         )
@@ -204,6 +209,9 @@ class GoogleServiceAccount(Resource):
 
         self._update_service_account_permissions(
             service_account_email, project_access)
+
+        # extend access to all datasets
+        extend_service_account_access(service_account_email)
 
         return '', 204
 
