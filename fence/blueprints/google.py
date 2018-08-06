@@ -100,7 +100,7 @@ class GoogleServiceAccountRoot(Resource):
             ) != 0
 
             if sa_exists:
-                error_response['success'] == False
+                error_response['success'] = False
                 error_response['errors']['service_account_email'] = {
                     'status': 409,
                     'error': 'Conflict',
