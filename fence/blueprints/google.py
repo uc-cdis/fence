@@ -88,6 +88,26 @@ class GoogleServiceAccountRoot(Resource):
         if error_response.get('success') is not True:
             return error_response, 400
 
+        with GoogleCloudManager(google_project_id) as google_project:
+            service_account = google_project.get_service_account(service_account_email)
+
+            sa_exists = len(
+                current_session
+                .query(UserServiceAccount)
+                .filter_by(google_unique_id=service_account.get('uniqueId'))
+                .filter_by(google_project_id=google_project_id)
+                .all()
+            ) != 0
+
+            if sa_exists:
+                error_response['success'] == False
+                error_response['errors']['service_account_email'] = {
+                    'status': 409,
+                    'error': 'Conflict',
+                    'error_description': 'Service Account already registered.'
+                }
+                return error_response, 400
+
         new_service_account = self._register_new_service_account(
             service_account_email, google_project_id, project_access)
 
@@ -98,6 +118,10 @@ class GoogleServiceAccountRoot(Resource):
         """
         Add service account and related entries to database and add
         service account to google bucket access groups
+
+        WARNING: this assumes that the project_access provided are all
+        valid Project.auth_ids, currently checked before this is called
+        in validity checking
 
         Args:
             service_account_email(str): email address of
@@ -110,7 +134,7 @@ class GoogleServiceAccountRoot(Resource):
         Return:
             (dict): dictionary representing service account object
         """
-        with GoogleCloudManager() as google_project:
+        with GoogleCloudManager(google_project_id) as google_project:
             service_account = google_project.get_service_account(service_account_email)
 
         db_service_account = UserServiceAccount(
@@ -121,6 +145,13 @@ class GoogleServiceAccountRoot(Resource):
 
         current_session.add(db_service_account)
         current_session.commit()
+
+        exp_time = (
+            int(time.time()) + flask.current_app.config.get(
+                'GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN',
+                604800
+            )
+        )
 
         for project_auth_id in project_access:
             project = (
@@ -148,10 +179,7 @@ class GoogleServiceAccountRoot(Resource):
                         ServiceAccountToGoogleBucketAccessGroup(
                             service_account_id=db_service_account.id,
                             access_group_id=gbag.id,
-                            expires=time.time()
-                            + flask.current_app.config.get(
-                                'GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN',
-                                604800)))
+                            expires=exp_time))
                     current_session.add(service_account_to_gbag)
 
                     with GoogleCloudManager() as prj:
@@ -418,8 +446,6 @@ def _get_service_account_error_status(
     Get a dictionary describing any errors that will occur if attempting
     to give service account specified permissions fails.
 
-    Response will ONLY contain { "success": True } if no errors.
-
     Args:
         service_account_email (str): Google service account email
         google_project_id (str): Google project identifier
@@ -496,7 +522,6 @@ def _get_service_account_error_status(
             and response['errors']['google_project_id'].get('status') == 200
             and response['errors']['project_access'].get('status') == 200):
         response['success'] = True
-        del response['errors']
 
     return response
 
