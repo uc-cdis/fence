@@ -407,7 +407,7 @@ def extend_service_account_access(service_account_email, db=None):
 
         # use configured time or 7 days
         expiration_time = (
-            time.time()
+            int(time.time())
             + flask.current_app.config.get(
                 'GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN',
                 604800)
@@ -475,18 +475,16 @@ def _get_google_access_groups_for_service_account(service_account):
     privileges.
 
     Args:
-        service_account (fence.models.UserServiceAccount):
-            service account object
+        service_account (fence.models.UserServiceAccount): service account
+            object
+
+    Returns:
+        List[fence.models.GoogleBucketAccessGroup]: list of google bucket
+            access groups the service account should have access to
     """
-    bucket_access_groups = []
-
-    accessed_projects = [
-        access_privilege.project
+    return [
+        group
         for access_privilege in service_account.access_privileges
+        for bucket in access_privilege.project.buckets
+        for group in bucket.google_bucket_access_groups
     ]
-    for project in accessed_projects:
-        for bucket in project.buckets:
-            groups = bucket.google_bucket_access_groups
-            bucket_access_groups.extend(groups)
-
-    return bucket_access_groups

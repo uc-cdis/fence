@@ -160,7 +160,7 @@ def test_patch_service_account_no_project_change(
 
     # make sure we actually extended access past the current time
     for access in service_account_accesses:
-        assert access.expires > time.time()
+        assert access.expires > int(time.time())
 
 
 @pytest.mark.skip(reason="not implemented yet")

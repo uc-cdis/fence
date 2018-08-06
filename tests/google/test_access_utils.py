@@ -550,7 +550,7 @@ def test_extend_service_account_access(
 
     # make sure we actually extended access past the current time
     for access in service_account_accesses:
-        assert access.expires > time.time()
+        assert access.expires > int(time.time())
 
 
 def test_get_current_service_account_project_access(

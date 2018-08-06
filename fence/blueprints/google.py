@@ -49,7 +49,7 @@ class GoogleServiceAccountRoot(Resource):
         """
         Register a new service account
         """
-        payload = flask.request.get_json() or {}
+        payload = flask.request.get_json(silent=True) or {}
         service_account_email = payload.get('service_account_email')
         google_project_id = payload.get('google_project_id')
         project_access = payload.get('project_access')
@@ -148,7 +148,7 @@ class GoogleServiceAccount(Resource):
         if id_ != '_dry_run':
             raise UserError('Cannot post with account id_.')
 
-        payload = flask.request.get_json() or {}
+        payload = flask.request.get_json(silent=True) or {}
         service_account_email = payload.get('service_account_email')
         google_project_id = payload.get('google_project_id')
         project_access = payload.get('project_access')
@@ -182,20 +182,15 @@ class GoogleServiceAccount(Resource):
             )
             return msg, 403
 
-        try:
-            payload = flask.request.get_json()
-        except Exception:
-            payload = {}
+        payload = flask.request.get_json(silent=True) or {}
 
         service_account_email = get_service_account_email(id_)
 
         # check if the user requested to update more than project_access
-        if 'project_access' in payload:
-            project_access = payload.get('project_access')
-            del payload['project_access']
-        else:
-            project_access = get_current_service_account_project_access(
-                service_account_email)
+        project_access = (
+            payload.pop('project_access', None)
+            or get_current_service_account_project_access(service_account_email)
+        )
 
         if payload:
             return (
