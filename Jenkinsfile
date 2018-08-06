@@ -34,7 +34,7 @@ pipeline {
       steps {
         script {
           service = "$env.JOB_NAME".split('/')[1]
-          def timestamp = (("${currentBuild.timeInMillis}".substring(0, 10) as Integer) - 60)
+          def timestamp = (("${currentBuild.timeInMillis}".substring(0, 10) as Integer) - 120)
           def timeout = (("${currentBuild.timeInMillis}".substring(0, 10) as Integer) + 3600)
           curlUrl = "$env.QUAY_API"+service+"/build/?since="+timestamp
           fullQuery = "curl -s "+curlUrl+/ | jq '.builds[] | "\(.tags[]),\(.display_name),\(.phase)"'/
