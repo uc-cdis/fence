@@ -16,6 +16,12 @@ pipeline {
             branch: 'master'
           )
         }
+        dir('data-simulator') {
+          git(
+            url: 'https://github.com/occ-data/data-simulator.git',
+            branch: 'master'
+          )
+        }
         dir('cdis-manifest') {
           git(
             url: 'https://github.com/uc-cdis/cdis-manifest.git',
@@ -41,7 +47,7 @@ pipeline {
           
           def testBool = false
           while(testBool != true) {
-            currentTime = new Date().getTime().toString().substring(0, 10) as Integer
+            currentTime = new Date().getTime()/1000 as Integer
             println "currentTime is: "+currentTime
 
             if(currentTime > timeout) {
