@@ -22,7 +22,10 @@ from userdatamodel.models import (
     Project,
     StorageAccess,
     User,
-    ProjectToBucket
+    ProjectToBucket,
+    GoogleBucketAccessGroup,
+    GoogleProxyGroupToGoogleBucketAccessGroup,
+    ServiceAccountToGoogleBucketAccessGroup,
 )
 
 from fence.jwt.token import (
@@ -591,18 +594,65 @@ def verify_bucket_access_group(DB):
     with driver.session as session:
         access_groups = session.query(GoogleBucketAccessGroup).all()
         for access_group in access_groups:
-            with GoogleCloudManager() as manager:
-                members = manager.get_group_members(access_group.email)
-                for member in members:
-                    pass
+            try:
+                with GoogleCloudManager() as manager:
+                    members = manager.get_group_members(access_group.email)
+                    for member in members:
+                        if member.get('type', None) == 'GROUP':
+                            _verify_google_group_member(member)
+                        if member.get('type', None) == 'USER':
+                            _verify_google_service_account_member(member)
+            except Exception as e:
+                print('ERROR: Could not get group members of access group {}. Detail {}'
+                      .format(access_group.email, e.message))
 
 
-def _verify_google_group_member(member):
+def _verify_google_group_member(session, member):
     """
-    """
+    Check if member is in Fence. If not delete
 
-def _verify_google_service_account_member(member):
+    Args:
+        session: db session
+        member(dict): group member info
+
+    Returns:
+        None
+
     """
+    google_proxy_grp = (
+        session
+        .query(GoogleProxyGroup)
+        .filter_by(email=member.get('email', ''))
+        .first()
+    )
+    is_for_delete = False
+    if google_proxy_grp:
+        if not (
+            session
+            .query(GoogleProxyGroupToGoogleBucketAccessGroup)
+            .filter_by(proxy_group_id=google_proxy_grp.id)
+            .first()
+        ):
+            is_for_delete = True
+    else:
+        is_for_delete = True
+
+    if is_for_delete:
+        with GoogleCloudManager() as manager:
+            manager.delete_group(member['email'])
+
+
+def _verify_google_service_account_member(session, member):
+    """
+    Check if member is in Fence. If not delete
+
+    Args:
+        session: db session
+        members(dict): service account member
+
+    Returns:
+        None
+
     """
 
 
