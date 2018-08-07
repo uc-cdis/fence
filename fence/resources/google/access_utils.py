@@ -2,6 +2,7 @@
 Utilities for determine access and validity for service account
 registration.
 """
+import time
 import flask
 import time
 from urllib import unquote
@@ -21,6 +22,9 @@ from cirrus.google_cloud import (
 import fence
 from fence.errors import NotFound
 from fence.models import (
+    Project,
+    Bucket,
+    GoogleBucketAccessGroup,
     AccessPrivilege,
     UserServiceAccount,
     ServiceAccountAccessPrivilege,
@@ -280,22 +284,65 @@ def google_project_has_valid_service_accounts(project_id):
     return True
 
 
-def get_service_account_email(id_from_url):
+def patch_user_service_account(
+        google_project_id, service_account_email, project_access, db=None):
     """
-    Return email given it in id form from the url.
+    Update user service account which includes
+    - Add and remove project access and bucket groups to/from fence db
+    - Add and remove access memebers to/from google access group
+
+    Args:
+        google_project_id (str): google project id
+        service_account_email (str): service account email
+        project_access (List(str)): list of projects
+
+    Returns:
+        None
     """
-    return unquote(id_from_url)
+    session = get_db_session(db)
+    service_account = (
+            session.query(UserServiceAccount)
+            .filter_by(email=service_account_email)
+            .first()
+    )
+    if not service_account:
+        raise fence.errors.NotFound(
+                '{} does not exist in DB'
+                .format(service_account_email))
+
+    accessed_project_ids = {
+        ap.project_id for ap in (
+            session
+            .query(ServiceAccountAccessPrivilege)
+            .filter_by(service_account_id=service_account.id)
+            .all()
+        )
+    }
+
+    granting_project_ids = set()
+    for project_auth_id in project_access:
+        project = (
+            session.query(Project)
+            .filter_by(auth_id=project_auth_id)
+            .first()
+        )
+        if not project:
+            raise fence.errors.NotFound(
+                    'There is no {} in Fence db'
+                    .format(project_auth_id))
+        granting_project_ids.add(project.id)
+
+    to_add = set.difference(granting_project_ids, accessed_project_ids)
+    to_delete = set.difference(accessed_project_ids, granting_project_ids)
+
+    _revoke_user_service_account_from_google(session, to_delete, service_account)
+    _add_user_service_account_to_google(session, to_add, service_account)
+    _revoke_user_service_account_from_db(session, to_delete, service_account)
+    _add_user_service_account_to_db(session, to_add, service_account)
 
 
-def get_google_project_from_service_account_email(service_account_email):
-    """
-    Parse email to get google project id
-    """
-    words = service_account_email.split('@')
-    return words[1].split('.')[0]
-
-
-def _force_remove_service_account_from_access_db(service_account_email, db=None):
+def _force_remove_service_account_from_access_db(
+        service_account_email, db=None):
     """
     Remove the access of service account from db.
 
@@ -313,8 +360,10 @@ def _force_remove_service_account_from_access_db(service_account_email, db=None)
     session = get_db_session(db)
 
     service_account = (
-        session.query(UserServiceAccount).
-        filter_by(email=service_account_email).first()
+        session
+        .query(UserServiceAccount)
+        .filter_by(email=service_account_email)
+        .first()
     )
 
     access_groups = service_account.to_access_groups
@@ -368,7 +417,9 @@ def force_remove_service_account_from_access(
 
     if not service_account:
         raise fence.errors.NotFound(
-            '{} does not exist in DB'.format(service_account_email))
+                '{} does not exist in DB'
+                .format(service_account_email)
+            )
     access_groups = service_account.to_access_groups
     for bucket_access_group in access_groups:
         try:
@@ -378,11 +429,205 @@ def force_remove_service_account_from_access(
                     group_id=bucket_access_group.access_group_id
                 )
         except Exception as exc:
-            raise GoogleAPIError('Can not remove memeber {} from access group. {}'
-                                 .format(service_account.email, exc))
+            raise GoogleAPIError(
+                    'Can not remove memeber {} from access group. {}'
+                    .format(service_account.email, exc))
 
     _force_remove_service_account_from_access_db(service_account_email, db)
 
+
+def _revoke_user_service_account_from_google(
+        session, to_delete_project_ids, service_account):
+    """
+    revoke service account from google access group
+
+    Args:
+        session(current_session): db session
+        to_delete_project_ids (List(str)): list of project ids
+        service_account (UserServiceAccount): user service account
+
+    Returns:
+        None
+
+    """
+    for project_id in to_delete_project_ids:
+        access_groups = _get_google_access_groups(session, project_id)
+
+        for access_group in access_groups:
+            try:
+                # TODO: Need to remove outer try/catch after major refactor
+                with GoogleCloudManager() as g_manager:
+                    if not g_manager.remove_member_from_group(
+                            member_email=service_account.email,
+                            group_id=access_group.email):
+
+                        flask.current_app.logger.debug(
+                                'Removed {} from google group {}'
+                                .format(service_account.email, access_group.email))
+                    else:
+                        raise GoogleAPIError(
+                                'Can not remove {} from group {}')
+            except Exception as exc:
+                raise GoogleAPIError(
+                        'Can not remove {} from group {}. Detail {}'
+                        .format(service_account.email, access_group.email, exc))
+
+
+def _add_user_service_account_to_google(
+        session, to_add_project_ids, service_account):
+    """
+    Add service account to google access groups
+
+    Args:
+        session(current_session): db session
+        to_add_project_ids (List(str)): list of project ids
+        service_account (UserServiceAccount): user service account
+
+    """
+    for project_id in to_add_project_ids:
+        access_groups = _get_google_access_groups(session, project_id)
+        for access_group in access_groups:
+            try:
+                # TODO: Need to remove try/catch after major refactor
+                with GoogleCloudManager() as g_manager:
+                    response = g_manager.add_member_to_group(
+                        member_email=service_account.email,
+                        group_id=access_group.email
+                    )
+                    if response.get('id', None):
+                        flask.current_app.logger.debug(
+                            'Successfully add member {} to google group {}.'
+                            .format(service_account.email, access_group.email))
+                    else:
+                        raise GoogleAPIError(
+                            'Can not add {} to group {}'
+                            .format(service_account.email, access_group.email))
+
+            except Exception as exc:
+                raise GoogleAPIError(
+                        'Can not add {} to group {}. Detail {}'
+                        .format(service_account.email, access_group.email, exc)
+                    )
+
+
+def _revoke_user_service_account_from_db(
+        session, to_delete_project_ids, service_account):
+    """
+    Remove service account from GoogleBucketAccessGroup
+
+    Args:
+        session(current_session): db session
+        to_delete_ids(List(int)): List of bucket ids
+        service_account_email(str): service account email
+
+    Returns:
+        None
+    """
+    for project_id in to_delete_project_ids:
+        access_project = (
+            session
+            .query(ServiceAccountAccessPrivilege)
+            .filter_by(project_id=project_id, service_account_id=service_account.id)
+            .first()
+        )
+        session.delete(access_project)
+
+        access_groups = _get_google_access_groups(session, project_id)
+        for access_group in access_groups:
+            account_access_bucket_group = (
+                session
+                .query(ServiceAccountToGoogleBucketAccessGroup)
+                .filter_by(service_account_id=service_account.id, access_group_id=access_group.id)
+                .first()
+            )
+            if account_access_bucket_group:
+                session.delete(account_access_bucket_group)
+
+    session.commit()
+
+
+def _add_user_service_account_to_db(
+        session, to_add_project_ids, service_account):
+    """
+    Add user service account to service account
+    access privilege and service account bucket access group
+
+    Args:
+        sess(current_session): db session
+        to_add_project_ids(List(str)): List of project id
+        service_account(UserServiceAccount): user service account
+
+    Returns:
+        None
+
+    Contrains:
+        The service account is not in DB yet
+
+    """
+    for project_id in to_add_project_ids:
+        session.add(
+                ServiceAccountAccessPrivilege(
+                        project_id=project_id,
+                        service_account_id=service_account.id
+                )
+        )
+
+        access_groups = _get_google_access_groups(session, project_id)
+
+        # use configured time or 7 days
+        expiration_time = (
+            int(time.time())
+            + flask.current_app.config.get(
+                'GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN',
+                604800)
+        )
+        for access_group in access_groups:
+            sa_to_group = ServiceAccountToGoogleBucketAccessGroup(
+                service_account_id=service_account.id,
+                expires=expiration_time,
+                access_group_id=access_group.id
+            )
+            session.add(sa_to_group)
+
+    session.commit()
+
+
+def get_google_project_from_service_account_email(service_account_email):
+    """
+    Parse email to get google project id
+    """
+    words = service_account_email.split('@')
+    return words[1].split('.')[0]
+
+
+def get_service_account_email(id_from_url):
+    """
+    Return email given it in id form from the url.
+    """
+    return unquote(id_from_url)
+
+
+def _get_google_access_groups(session, project_id):
+    """
+    Get google access groups
+
+    Args:
+        session(current_session): db session
+        project_id (str): project id in db
+
+    Returns:
+        List(GoogleBucketAccessGroup)
+    """
+    access_groups = []
+    project = (
+        session.query(Project).filter_by(id=project_id).first()
+    )
+
+    for bucket in project.buckets:
+        groups = bucket.google_bucket_access_groups
+        access_groups.extend(groups)
+
+    return access_groups
 
 def extend_service_account_access(service_account_email, db=None):
     """

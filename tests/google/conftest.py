@@ -5,6 +5,7 @@ import time
 
 from fence.models import (
     Project,
+    ProjectToBucket,
     Bucket,
     ProjectToBucket,
     CloudProvider,
@@ -206,30 +207,57 @@ def setup_data(db_session):
     db_session.add(cp)
     db_session.commit()
 
+    bucket = Bucket(name='bucket1', provider_id=cp.id)
+    bucket2 = Bucket(name='bucket2', provider_id=cp.id)
+    bucket3 = Bucket(name='bucket3', provider_id=cp.id)
+
+    db_session.add(bucket)
+    db_session.add(bucket2)
+    db_session.add(bucket3)
+    db_session.commit()
+
     project1 = Project(name='test_1', auth_id='test_auth_1')
     project2 = Project(name='test_2', auth_id='test_auth_2')
-
+    project3 = Project(name='test_3', auth_id='test_auth_3')
     db_session.add(project1)
     db_session.add(project2)
+    db_session.add(project3)
 
-    bucket = Bucket(name='bucket1', provider_id=cp.id)
-    db_session.add(bucket)
     db_session.commit()
+
+    db_session.add(ProjectToBucket(project_id=project1.id, bucket_id=bucket.id))
+    db_session.add(ProjectToBucket(project_id=project2.id, bucket_id=bucket2.id))
+    db_session.add(ProjectToBucket(project_id=project3.id, bucket_id=bucket3.id))
 
     db_session.add(ServiceAccountAccessPrivilege(project_id=project1.id, service_account_id=user.id))
     db_session.add(ServiceAccountAccessPrivilege(project_id=project2.id, service_account_id=user.id))
 
     access_grp = GoogleBucketAccessGroup(
-        bucket_id=bucket.id, email='test@gmail.com'
+        bucket_id=bucket.id, email='access_grp_test1@gmail.com'
+    )
+
+    access_grp2 = GoogleBucketAccessGroup(
+        bucket_id=bucket2.id, email='access_grp_test2@gmail.com'
+    )
+
+    access_grp3 = GoogleBucketAccessGroup(
+        bucket_id=bucket3.id, email='access_grp_test3@gmail.com'
     )
 
     db_session.add(access_grp)
+    db_session.add(access_grp2)
+    db_session.add(access_grp3)
     db_session.commit()
 
-    service_account_grp = ServiceAccountToGoogleBucketAccessGroup(
+    service_account_grp1 = ServiceAccountToGoogleBucketAccessGroup(
         service_account_id=user.id, access_group_id=access_grp.id
     )
-    db_session.add(service_account_grp)
+
+    service_account_grp2 = ServiceAccountToGoogleBucketAccessGroup(
+        service_account_id=user.id, access_group_id=access_grp2.id
+    )
+    db_session.add(service_account_grp1)
+    db_session.add(service_account_grp2)
     db_session.commit()
 
 

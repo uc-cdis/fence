@@ -136,13 +136,13 @@ def test_patch_service_account_no_project_change(
     """
     encoded_creds_jwt = encoded_jwt_service_accounts_access['jwt']
     service_account = register_user_service_account['service_account']
+    update_service_account_permissions_mock.return_value = ("", 200)
 
     response = client.patch(
         '/google/service_accounts/{}'.format(quote(service_account.email)),
         headers={'Authorization': 'Bearer ' + encoded_creds_jwt},
         content_type='application/json'
     )
-
     # check if success
     assert str(response.status_code).startswith('2')
 

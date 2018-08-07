@@ -19,6 +19,8 @@ from fence.resources.google.access_utils import (
     force_remove_service_account_from_access,
     extend_service_account_access,
     get_current_service_account_project_access,
+    patch_user_service_account,
+
 )
 
 
@@ -207,8 +209,11 @@ class GoogleServiceAccount(Resource):
         if error_response.get('success') is not True:
             return error_response, 400
 
-        self._update_service_account_permissions(
-            service_account_email, project_access)
+        resp, status_code = self._update_service_account_permissions(
+            google_project_id, service_account_email, project_access)
+
+        if status_code != 200:
+            return resp, status_code
 
         # extend access to all datasets
         extend_service_account_access(service_account_email)
@@ -288,7 +293,7 @@ class GoogleServiceAccount(Resource):
         raise NotImplementedError('Functionality not yet available...')
 
     def _update_service_account_permissions(
-            self, service_account_email, project_access):
+            self, google_project_id, service_account_email, project_access):
         """
         Update the given service account's permissions.
 
@@ -296,14 +301,36 @@ class GoogleServiceAccount(Resource):
                  given service account.
 
         Args:
+            google_project_id (str): google project id
             service_account_email (str): Google service account email
             project_access (List(str)): List of Project.auth_ids to authorize
                 the service account for
 
-        Raises:
-            NotImplementedError: Description
         """
-        raise NotImplementedError('Functionality not yet available...')
+        try:
+            patch_user_service_account(
+                    google_project_id, service_account_email, project_access)
+
+        except NotFound as exc:
+            return (
+                'Can not update the service accout {}. Detail {}'.
+                format(service_account_email, exc.message), 404
+            )
+        except GoogleAPIError as exc:
+            return (
+                'Can not update the service accout {}. Detail {}'.
+                format(service_account_email, exc.message), 400
+            )
+        except Exception:
+            return (
+                ' Can not delete the service account {}'.
+                format(service_account_email), 500
+            )
+
+        return (
+            'Successfully update service account  {}'
+            .format(service_account_email), 200
+        )
 
     @classmethod
     def _delete(self, id_):
