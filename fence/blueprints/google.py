@@ -538,7 +538,12 @@ def _get_service_account_email_error_status(validity_info):
     for sa_account_id, sa_validity in service_accounts_validity:
         if sa_account_id == validity_info.new_service_account:
             if not sa_validity:
-                response['error_description'] = str(sa_validity)
+                response['error_description'] = (
+                    'Service account requested for registration is invalid.'
+                )
+                response['service_account_validity'] = {
+                    str(sa_account_id): sa_validity._info
+                }
             else:
                 response['status'] = 200
                 response['error'] = None
@@ -566,18 +571,19 @@ def _get_google_project_id_error_status(validity_info):
     }
 
     if not valid_parent_org:
-        response['error_description'] += 'Project has parent organization.'
+        response['error_description'] += 'Project has parent organization. '
+
     if not valid_membership:
-        response['error_description'] += '\nProject has invalid membership.'
+        response['error_description'] += 'Project has invalid membership. '
 
     if not service_accounts_validity:
-        response['error_description'] += '\nProject has one or more invalid service accounts.'
-        response['service_account_validity'] = {}
-        for sa_account_id, sa_validity in service_accounts_validity:
-            if not sa_validity:
-                response['service_account_validity'][sa_account_id] = (
-                    str(sa_validity)
-                )
+        response['error_description'] += 'Project has one or more invalid service accounts.'
+
+    response['service_account_validity'] = {}
+    for sa_account_id, sa_validity in service_accounts_validity:
+        response['service_account_validity'][sa_account_id] = (
+            sa_validity._info
+        )
 
     return response
 

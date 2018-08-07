@@ -98,7 +98,7 @@ def google_project_has_valid_membership(project_id):
     valid = True
     try:
         with GoogleCloudManager(project_id) as prj:
-            members = prj.get_project_members()
+            members = prj.get_project_members(project_id)
             for member in members:
                 if not(member.member_type == GooglePolicyMember.SERVICE_ACCOUNT or
                         member.member_type == GooglePolicyMember.USER):
@@ -118,8 +118,8 @@ def google_project_has_valid_membership(project_id):
     except Exception as exc:
         flask.current_app.logger.debug((
             'validity of Google Project (id: {}) membership '
-            'determined False due to error. Details: {}').
-            format(project_id, exc))
+            'determined False due to error. Details: {}')
+            .format(project_id, exc))
         valid = False
 
     return valid
@@ -165,9 +165,12 @@ def service_account_has_external_access(service_account, google_project_id):
     with GoogleCloudManager(google_project_id) as g_mgr:
         response = g_mgr.get_service_account_policy(service_account)
         if response.status_code != 200:
-            raise GoogleAPIError(
+            flask.current_app.logger.debug(
                 'Unable to get IAM policy for service account {}\n{}.'
                 .format(service_account, response.json()))
+            # if there is an exception, assume it has external access
+            return True
+
         json_obj = response.json()
         # In the case that a service account does not have any role, Google API
         # returns a json object without bindings key
@@ -193,11 +196,10 @@ def is_service_account_from_google_project(service_account, project_id):
         given Google Project
     """
     try:
-        service_accounts = (
-            acc.get('uniqueId') for acc in
-            GoogleCloudManager(project_id).get_all_service_accounts()
-        )
-        return service_account in service_accounts
+        with GoogleCloudManager(project_id) as g_mgr:
+            all_accounts = g_mgr.get_all_service_accounts()
+            emails = [acc.get('email') for acc in all_accounts]
+            return service_account in emails
     except Exception as exc:
         flask.current_app.logger.debug((
             'Could not determine if service account (id: {} is from project'
@@ -257,7 +259,7 @@ def google_project_has_valid_service_accounts(project_id):
                    for acc in service_accounts):
                 return False
 
-            members = prj.get_project_members()
+            members = prj.get_project_members(project_id)
 
     except Exception as exc:
         flask.current_app.logger.debug((
