@@ -770,7 +770,7 @@ def test_update_service_account_fail_no_project(cloud_manager, db_session, setup
 def test_update_user_service_account_raise_GoogleAPI_exc(
         cloud_manager, db_session, setup_data):
     """
-    Test that raiseis an exception due to Google API errors
+    Test that raises an exception due to Google API errors
     during removing members from google groups
     """
     (
@@ -785,7 +785,7 @@ def test_update_user_service_account_raise_GoogleAPI_exc(
 def test_update_user_service_account_raise_GoogleAPI_exc2(
         cloud_manager, db_session, setup_data):
     """
-    Test that raiseis an exception due to Google API errors
+    Test that raises an exception due to Google API errors
     during adding members to google groups
     """
     (
@@ -800,7 +800,7 @@ def test_update_user_service_account_raise_GoogleAPI_exc2(
 def test_update_user_service_account_raise_GoogleAPI_exc3(
         cloud_manager, db_session, setup_data):
     """
-    Test that raiseis an exception due to Google API errors
+    Test that raises an exception due to Google API errors
     during adding members to google groups
     """
     (
@@ -815,7 +815,7 @@ def test_update_user_service_account_raise_GoogleAPI_exc3(
 def test_update_user_service_account_raise_GoogleAPI_exc4(
         cloud_manager, db_session, setup_data):
     """
-    Test that raiseis an exception due to Google API errors
+    Test that raises an exception due to Google API errors
     during deleting members to google groups
     """
     (
