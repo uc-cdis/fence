@@ -209,11 +209,11 @@ class GoogleServiceAccount(Resource):
         if error_response.get('success') is not True:
             return error_response, 400
 
-        response, status_code = self._update_service_account_permissions(
-            service_account_email, project_access)
+        resp, status_code = self._update_service_account_permissions(
+            google_project_id, service_account_email, project_access)
 
         if status_code != 200:
-            return response, status_code
+            return resp, status_code
 
         # extend access to all datasets
         extend_service_account_access(service_account_email)

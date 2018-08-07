@@ -486,15 +486,15 @@ def _add_user_service_account_to_google(
     """
     for project_id in to_add_project_ids:
         access_groups = _get_google_access_groups(session, project_id)
-
         for access_group in access_groups:
             try:
                 # TODO: Need to remove try/catch after major refactor
                 with GoogleCloudManager() as g_manager:
-                    if not g_manager.add_member_to_group(
+                    response = g_manager.add_member_to_group(
                         member_email=service_account.email,
                         group_id=access_group.email
-                    ):
+                    )
+                    if response.get('id', None):
                         flask.current_app.logger.debug(
                             'Successfully add member {} to google group {}.'
                             .format(service_account.email, access_group.email))
@@ -540,7 +540,8 @@ def _revoke_user_service_account_from_db(
                 .filter_by(service_account_id=service_account.id, access_group_id=access_group.id)
                 .first()
             )
-            session.delete(account_access_bucket_group)
+            if account_access_bucket_group:
+                session.delete(account_access_bucket_group)
 
     session.commit()
 
@@ -575,7 +576,7 @@ def _add_user_service_account_to_db(
 
         # use configured time or 7 days
         expiration_time = (
-            time.time()
+            int(time.time())
             + flask.current_app.config.get(
                 'GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN',
                 604800)

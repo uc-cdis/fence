@@ -233,15 +233,15 @@ def setup_data(db_session):
     db_session.add(ServiceAccountAccessPrivilege(project_id=project2.id, service_account_id=user.id))
 
     access_grp = GoogleBucketAccessGroup(
-        bucket_id=bucket.id, email='test@gmail.com'
+        bucket_id=bucket.id, email='access_grp_test1@gmail.com'
     )
 
     access_grp2 = GoogleBucketAccessGroup(
-        bucket_id=bucket2.id, email='test@gmail.com'
+        bucket_id=bucket2.id, email='access_grp_test2@gmail.com'
     )
 
     access_grp3 = GoogleBucketAccessGroup(
-        bucket_id=bucket3.id, email='test@gmail.com'
+        bucket_id=bucket3.id, email='access_grp_test3@gmail.com'
     )
 
     db_session.add(access_grp)
