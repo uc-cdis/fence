@@ -6,7 +6,6 @@ import time
 import flask
 from urllib import unquote
 
-from google.cloud.exceptions import GoogleCloudError
 from flask_sqlalchemy_session import current_session
 
 from cirrus.google_cloud.iam import GooglePolicyMember
@@ -75,7 +74,7 @@ def google_project_has_parent_org(project_id):
     try:
         with GoogleCloudManager(project_id) as prj:
             return prj.get_project_organization()
-    except GoogleCloudError as exc:
+    except Exception as exc:
         flask.current_app.logger.debug((
             'Could not determine if Google project (id: {}) has parent org'
             'due to error (Details: {})'.
@@ -99,7 +98,7 @@ def google_project_has_valid_membership(project_id):
     valid = True
     try:
         with GoogleCloudManager(project_id) as prj:
-            members = prj.get_project_membership()
+            members = prj.get_project_members()
             for member in members:
                 if not(member.member_type == GooglePolicyMember.SERVICE_ACCOUNT or
                         member.member_type == GooglePolicyMember.USER):
@@ -116,7 +115,7 @@ def google_project_has_valid_membership(project_id):
             except NotFound:
                 valid = False
 
-    except GoogleCloudError as exc:
+    except Exception as exc:
         flask.current_app.logger.debug((
             'validity of Google Project (id: {}) membership '
             'determined False due to error. Details: {}').
@@ -145,7 +144,7 @@ def is_valid_service_account_type(project_id, account_id):
             return (g_mgr.
                     get_service_account_type(account_id)
                     in ALLOWED_SERVICE_ACCOUNT_TYPES)
-    except GoogleCloudError as exc:
+    except Exception as exc:
         flask.current_app.logger.debug((
             'validity of Google service account {} (google project: {}) type '
             'determined False due to error. Details: {}').
@@ -199,7 +198,7 @@ def is_service_account_from_google_project(service_account, project_id):
             GoogleCloudManager(project_id).get_all_service_accounts()
         )
         return service_account in service_accounts
-    except GoogleCloudError as exc:
+    except Exception as exc:
         flask.current_app.logger.debug((
             'Could not determine if service account (id: {} is from project'
             ' (id: {}) due to error. Details: {}').
@@ -258,9 +257,9 @@ def google_project_has_valid_service_accounts(project_id):
                    for acc in service_accounts):
                 return False
 
-            members = prj.get_project_membership()
+            members = prj.get_project_members()
 
-    except GoogleCloudError as exc:
+    except Exception as exc:
         flask.current_app.logger.debug((
             "Could not determine validity of service accounts"
             "for project (id: {}) due to error. Details: {}".
