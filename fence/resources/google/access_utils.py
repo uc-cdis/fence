@@ -98,7 +98,7 @@ def google_project_has_valid_membership(project_id):
     valid = True
     try:
         with GoogleCloudManager(project_id) as prj:
-            members = prj.get_project_members(project_id)
+            members = prj.get_project_membership(project_id)
             for member in members:
                 if not(member.member_type == GooglePolicyMember.SERVICE_ACCOUNT or
                         member.member_type == GooglePolicyMember.USER):
@@ -259,7 +259,7 @@ def google_project_has_valid_service_accounts(project_id):
                    for acc in service_accounts):
                 return False
 
-            members = prj.get_project_members(project_id)
+            members = prj.get_project_membership(project_id)
 
     except Exception as exc:
         flask.current_app.logger.debug((
