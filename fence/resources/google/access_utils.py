@@ -4,7 +4,6 @@ registration.
 """
 import time
 import flask
-import time
 from urllib import unquote
 
 from google.cloud.exceptions import GoogleCloudError
@@ -23,8 +22,6 @@ import fence
 from fence.errors import NotFound
 from fence.models import (
     Project,
-    Bucket,
-    GoogleBucketAccessGroup,
     AccessPrivilege,
     UserServiceAccount,
     ServiceAccountAccessPrivilege,
@@ -319,8 +316,27 @@ def patch_user_service_account(
         )
     }
 
-    granting_project_ids = set()
-    for project_auth_id in project_access:
+    granting_project_ids = get_project_ids_from_project_auth_ids(
+        session, project_access)
+
+    to_add = set.difference(granting_project_ids, accessed_project_ids)
+    to_delete = set.difference(accessed_project_ids, granting_project_ids)
+
+    _revoke_user_service_account_from_google(session, to_delete, service_account)
+    add_user_service_account_to_google(session, to_add, service_account)
+    _revoke_user_service_account_from_db(session, to_delete, service_account)
+    add_user_service_account_to_db(session, to_add, service_account)
+
+
+def get_project_ids_from_project_auth_ids(session, auth_ids):
+    """
+    Return the Project.id's for the given list of Project.auth_id's
+
+    Args:
+        auth_ids (List(str)): list of project auth ids
+    """
+    project_ids = set()
+    for project_auth_id in auth_ids:
         project = (
             session.query(Project)
             .filter_by(auth_id=project_auth_id)
@@ -330,15 +346,8 @@ def patch_user_service_account(
             raise fence.errors.NotFound(
                     'There is no {} in Fence db'
                     .format(project_auth_id))
-        granting_project_ids.add(project.id)
-
-    to_add = set.difference(granting_project_ids, accessed_project_ids)
-    to_delete = set.difference(accessed_project_ids, granting_project_ids)
-
-    _revoke_user_service_account_from_google(session, to_delete, service_account)
-    _add_user_service_account_to_google(session, to_add, service_account)
-    _revoke_user_service_account_from_db(session, to_delete, service_account)
-    _add_user_service_account_to_db(session, to_add, service_account)
+        project_ids.add(project.id)
+    return project_ids
 
 
 def _force_remove_service_account_from_access_db(
@@ -473,7 +482,7 @@ def _revoke_user_service_account_from_google(
                         .format(service_account.email, access_group.email, exc))
 
 
-def _add_user_service_account_to_google(
+def add_user_service_account_to_google(
         session, to_add_project_ids, service_account):
     """
     Add service account to google access groups
@@ -546,7 +555,7 @@ def _revoke_user_service_account_from_db(
     session.commit()
 
 
-def _add_user_service_account_to_db(
+def add_user_service_account_to_db(
         session, to_add_project_ids, service_account):
     """
     Add user service account to service account
@@ -628,6 +637,7 @@ def _get_google_access_groups(session, project_id):
         access_groups.extend(groups)
 
     return access_groups
+
 
 def extend_service_account_access(service_account_email, db=None):
     """

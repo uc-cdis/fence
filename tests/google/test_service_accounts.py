@@ -226,7 +226,7 @@ def test_invalid_service_account_registration_errors(
 
 def test_valid_service_account_registration(
         app, db_session, client,
-        encoded_jwt_service_accounts_access,cloud_manager,
+        encoded_jwt_service_accounts_access, cloud_manager,
         valid_google_project_patcher, valid_service_account_patcher):
     """
     Test that a valid service account registration request returns
@@ -283,7 +283,7 @@ def test_valid_service_account_registration(
         cloud_manager.return_value
         .__enter__.return_value
         .add_member_to_group.return_value
-    ) = {}
+    ) = {'id': 'sa@gmail.com'}
 
     assert len(db_session.query(UserServiceAccount).all()) == 0
     assert len(db_session.query(ServiceAccountAccessPrivilege).all()) == 0

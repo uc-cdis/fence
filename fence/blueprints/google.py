@@ -4,10 +4,9 @@ from urllib import unquote
 
 import flask
 from flask_restful import Resource
-import time
-
 
 from cirrus import GoogleCloudManager
+from cirrus.google_cloud.errors import GoogleAPIError
 
 from fence.auth import current_token, require_auth_header
 from fence.restful import RestfulApi
@@ -22,15 +21,12 @@ from fence.resources.google.access_utils import (
     extend_service_account_access,
     get_current_service_account_project_access,
     patch_user_service_account,
+    get_project_ids_from_project_auth_ids,
+    add_user_service_account_to_google,
+    add_user_service_account_to_db,
 
 )
-from fence.models import (
-    GoogleBucketAccessGroup,
-    Project,
-    UserServiceAccount,
-    ServiceAccountAccessPrivilege,
-    ServiceAccountToGoogleBucketAccessGroup,
-)
+from fence.models import UserServiceAccount
 from flask_sqlalchemy_session import current_session
 
 
@@ -92,25 +88,21 @@ class GoogleServiceAccountRoot(Resource):
         if error_response.get('success') is not True:
             return error_response, 400
 
-        with GoogleCloudManager(google_project_id) as google_project:
-            service_account = google_project.get_service_account(service_account_email)
+        sa_exists = (
+            current_session
+            .query(UserServiceAccount)
+            .filter_by(email=service_account_email)
+            .all()
+        )
 
-            sa_exists = len(
-                current_session
-                .query(UserServiceAccount)
-                .filter_by(google_unique_id=service_account.get('uniqueId'))
-                .filter_by(google_project_id=google_project_id)
-                .all()
-            ) != 0
-
-            if sa_exists:
-                error_response['success'] = False
-                error_response['errors']['service_account_email'] = {
-                    'status': 409,
-                    'error': 'Conflict',
-                    'error_description': 'Service Account already registered.'
-                }
-                return error_response, 400
+        if sa_exists:
+            error_response['success'] = False
+            error_response['errors']['service_account_email'] = {
+                'status': 409,
+                'error': 'Conflict',
+                'error_description': 'Service Account already registered.'
+            }
+            return error_response, 400
 
         new_service_account = self._register_new_service_account(
             service_account_email, google_project_id, project_access)
@@ -139,7 +131,8 @@ class GoogleServiceAccountRoot(Resource):
             (dict): dictionary representing service account object
         """
         with GoogleCloudManager(google_project_id) as google_project:
-            service_account = google_project.get_service_account(service_account_email)
+            service_account = google_project.get_service_account(
+                service_account_email)
 
         db_service_account = UserServiceAccount(
             google_unique_id=service_account.get('uniqueId'),
@@ -150,49 +143,14 @@ class GoogleServiceAccountRoot(Resource):
         current_session.add(db_service_account)
         current_session.commit()
 
-        exp_time = (
-            int(time.time()) + flask.current_app.config.get(
-                'GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN',
-                604800
-            )
-        )
+        project_ids = get_project_ids_from_project_auth_ids(
+            current_session, project_access)
 
-        for project_auth_id in project_access:
-            project = (
-                current_session
-                .query(Project)
-                .filter_by(auth_id=project_auth_id)
-                .first()
-            )
-            db_access_privilege = ServiceAccountAccessPrivilege(
-                project_id=project.id,
-                service_account_id=db_service_account.id
-            )
-            current_session.add(db_access_privilege)
-            current_session.commit()
+        add_user_service_account_to_db(
+            current_session, project_ids, db_service_account)
 
-            for bucket in project.buckets:
-                gbags = (
-                    current_session
-                    .query(GoogleBucketAccessGroup)
-                    .filter_by(bucket_id=bucket.id)
-                    .all()
-                )
-                for gbag in gbags:
-                    service_account_to_gbag = (
-                        ServiceAccountToGoogleBucketAccessGroup(
-                            service_account_id=db_service_account.id,
-                            access_group_id=gbag.id,
-                            expires=exp_time))
-                    current_session.add(service_account_to_gbag)
-
-                    with GoogleCloudManager() as prj:
-                        prj.add_member_to_group(
-                            member_email=service_account_email,
-                            group_id=gbag.email
-                        )
-
-            current_session.commit()
+        add_user_service_account_to_google(
+            current_session, project_ids, db_service_account)
 
         return service_account
 
