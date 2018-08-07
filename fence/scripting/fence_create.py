@@ -579,6 +579,34 @@ def delete_expired_service_accounts(DB):
                 session.commit()
 
 
+def verify_bucket_access_group(DB):
+    """
+    Go through all the google group members, remove them from Google group and Google
+    user service account if they are not in Fence
+    """
+    import fence.settings
+    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+
+    driver = SQLAlchemyDriver(DB)
+    with driver.session as session:
+        access_groups = session.query(GoogleBucketAccessGroup).all()
+        for access_group in access_groups:
+            with GoogleCloudManager() as manager:
+                members = manager.get_group_members(access_group.email)
+                for member in members:
+                    pass
+
+
+def _verify_google_group_member(member):
+    """
+    """
+
+def _verify_google_service_account_member(member):
+    """
+    """
+
+
+
 class JWTCreator(object):
 
     required_kwargs = [
