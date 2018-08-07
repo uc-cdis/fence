@@ -55,7 +55,9 @@ NOTE: You can use the following helper assert functions when developing more
 """
 import json
 import pytest
+import time
 from io import StringIO
+from urllib import quote
 
 from fence.models import (
     Bucket,
@@ -130,7 +132,44 @@ def test_google_service_account_monitor(
     assert response.json['service_account_email'] == 'test123@example.com'
 
 
-# @pytest.mark.skip(reason="not implemented yet")
+def test_patch_service_account_no_project_change(
+        client, app, db_session, encoded_jwt_service_accounts_access,
+        register_user_service_account, user_can_manage_service_account_mock,
+        valid_user_service_account_mock,
+        update_service_account_permissions_mock):
+    """
+    Test that patching with no change to project_access successfully extends
+    access for all projects the service account currently has access to.
+    """
+    encoded_creds_jwt = encoded_jwt_service_accounts_access['jwt']
+    service_account = register_user_service_account['service_account']
+    update_service_account_permissions_mock.return_value = ("", 200)
+
+    response = client.patch(
+        '/google/service_accounts/{}'.format(quote(service_account.email)),
+        headers={'Authorization': 'Bearer ' + encoded_creds_jwt},
+        content_type='application/json'
+    )
+    # check if success
+    assert str(response.status_code).startswith('2')
+
+    service_account_accesses = (
+        db_session.query(
+            ServiceAccountToGoogleBucketAccessGroup)
+        .filter_by(service_account_id=service_account.id)
+    ).all()
+
+    # ensure access is the same
+    assert (
+        len(service_account_accesses)
+        == len(register_user_service_account['bucket_access_groups'])
+    )
+
+    # make sure we actually extended access past the current time
+    for access in service_account_accesses:
+        assert access.expires > int(time.time())
+
+
 def test_invalid_service_account_dry_run_errors(
         client, app, encoded_jwt_service_accounts_access,
         valid_service_account_patcher):
@@ -159,7 +198,6 @@ def test_invalid_service_account_dry_run_errors(
     assert response.status_code != 200
 
 
-# @pytest.mark.skip(reason="not implemented yet")
 def test_invalid_service_account_registration_errors(
         client, app, encoded_jwt_service_accounts_access,
         valid_service_account_patcher):
@@ -262,6 +300,7 @@ def test_valid_service_account_registration(
     assert len(db_session.query(UserServiceAccount).all()) == 1
     assert len(db_session.query(ServiceAccountAccessPrivilege).all()) == 1
     assert len(db_session.query(ServiceAccountToGoogleBucketAccessGroup).all()) == 1
+
 
 def _assert_expected_service_account_response_structure(data):
     assert 'service_account_email' in data
