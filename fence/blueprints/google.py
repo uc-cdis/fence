@@ -489,7 +489,7 @@ def _get_service_account_error_status(
                     },
                     "projectB": {
                         "status": 403,
-                        "error": "Unauthorized",
+                        "error": "unauthorized",
                         "error_description": "Not all users have access requested"
                     }
                 }
@@ -550,7 +550,7 @@ def _get_service_account_email_error_status(validity_info):
 
     response = {
         'status': 403,
-        'error': 'Unauthorized',
+        'error': 'unauthorized',
         'error_description': ''
     }
 
@@ -574,38 +574,52 @@ def _get_service_account_email_error_status(validity_info):
 
 
 def _get_google_project_id_error_status(validity_info):
-
+    has_access = validity_info.get('monitor_has_access')
     valid_parent_org = validity_info.get('valid_parent_org')
     valid_membership = validity_info.get('valid_membership')
     service_accounts_validity = validity_info.get('service_accounts')
 
+    if has_access and valid_parent_org and valid_membership and service_accounts_validity:
+        return {
+            'status': 200,
+            'error': None,
+            'error_description': ''
+        }
+
+    if not has_access:
+        return {
+            'status': 404,
+            'error': 'monitor_not_found',
+            'error_description': (
+                'Fence\'s monitoring service account '
+                'does not have access to the project.'
+            )
+        }
+
     response = {
-        'status': 200,
-        'error': None,
+        'status': 403,
+        'error': 'unauthorized',
         'error_description': '',
         'service_account_validity': {}
     }
 
-    for sa_account_id, sa_validity in service_accounts_validity:
-        if sa_account_id != validity_info.new_service_account:
-            response['service_account_validity'][sa_account_id] = (
-                sa_validity.get_info
-            )
-            if not sa_validity:
-                response['status'] = 403
-                response['error'] = 'Unauthorized'
-                response['error_description'] = 'Project has one or more invalid service accounts.'
-
     if not valid_parent_org:
-        response['status'] = 403
-        response['error'] = 'Unauthorized'
         response['error_description'] += 'Project has parent organization. '
 
     if not valid_membership:
-        response['status'] = 403
-        response['error'] = 'Unauthorized'
         response['error_description'] += 'Project has invalid membership. '
 
+<<<<<<< HEAD
+=======
+    for sa_account_id, sa_validity in service_accounts_validity:
+        if sa_account_id != validity_info.new_service_account:
+            response['service_account_validity'][sa_account_id] = (
+                sa_validity.get_info()
+            )
+            if not sa_validity:
+                response['error_description'] = 'Project has one or more invalid service accounts.'
+
+>>>>>>> 3214a428180a1baadd648ce2dfa3f38e70b50f87
     return response
 
 
@@ -622,7 +636,7 @@ def _get_project_access_error_status(validity_info):
 
     response = {
         'status': 403,
-        'error': 'Unauthorized',
+        'error': 'unauthorized',
         'error_description': 'Not all users have access requested',
         'invalid_access': []
     }

@@ -39,6 +39,29 @@ ALLOWED_SERVICE_ACCOUNT_TYPES = [
 ]
 
 
+def can_access_google_project(google_project_id):
+    """
+    Whether or not fence can access the given google project.
+
+    Args:
+        google_project_id (str): Google project ID
+
+    Returns:
+        bool: Whether or not fence can access the given google project.
+    """
+    try:
+        with GoogleCloudManager(google_project_id) as g_mgr:
+            response = g_mgr.get_project_info()
+            project_id = response.get('projectId')
+
+            if not project_id:
+                return False
+    except Exception:
+        return False
+
+    return True
+
+
 def can_user_manage_service_account(user_id, account_id):
     """
     Return whether or not the user has permission to update and/or delete the
