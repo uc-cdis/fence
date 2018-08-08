@@ -17,7 +17,7 @@ from fence.resources.google.access_utils import (
     google_project_has_parent_org,
     google_project_has_valid_membership,
     do_all_users_have_access_to_project,
-    get_project_id_from_auth_id,
+    get_project_from_auth_id,
     can_access_google_project,
 )
 
@@ -231,7 +231,7 @@ class GoogleProjectValidity(ValidityInfo):
         service_accounts = (
             get_registered_service_accounts(self.google_project_id)
         )
-        service_account_access = (
+        service_account_project_access = (
             get_project_access_from_service_accounts(service_accounts)
         )
 
@@ -240,17 +240,17 @@ class GoogleProjectValidity(ValidityInfo):
 
         # extend list with any provided access to test
         for provided_access in self.new_service_account_access:
-            project_id = get_project_id_from_auth_id(provided_access)
+            project = get_project_from_auth_id(provided_access)
 
             # if provided access doesn't exist, set error in project_validity
-            if not project_id:
+            if not project:
                 project_validity = ValidityInfo()
                 project_validity.set('exists', False)
-                project_validity.set('all_users_have_access', False)
+                project_validity.set('all_users_have_access', None)
                 project_access_validities.set(
                     str(provided_access), project_validity)
             else:
-                service_account_access.append(project_id)
+                service_account_project_access.append(project)
 
         # make sure all the users of the project actually have access to all
         # the data the service accounts have access to
@@ -259,14 +259,15 @@ class GoogleProjectValidity(ValidityInfo):
 
         all_user_ids = get_user_ids_from_google_members(project_members)
 
-        for project in service_account_access:
+        for project in service_account_project_access:
             project_validity = ValidityInfo()
             project_validity.set('exists', True)
             valid_access = do_all_users_have_access_to_project(
-                all_user_ids, project)
+                all_user_ids, project.id)
             project_validity.set('all_users_have_access', valid_access)
 
-            project_access_validities.set(str(project), project_validity)
+            project_access_validities.set(
+                str(project.auth_id), project_validity)
 
         self.set('access', project_access_validities)
         return

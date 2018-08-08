@@ -539,7 +539,6 @@ def _get_service_account_error_status(
 
 
 def _get_service_account_email_error_status(validity_info):
-
     service_accounts_validity = validity_info.get('service_accounts')
     if service_accounts_validity:
         return {
@@ -561,7 +560,7 @@ def _get_service_account_email_error_status(validity_info):
                     'Service account requested for registration is invalid.'
                 )
                 response['service_account_validity'] = {
-                    str(sa_account_id): sa_validity._info
+                    str(sa_account_id): sa_validity.get_info()
                 }
             else:
                 return {
@@ -621,7 +620,6 @@ def _get_google_project_id_error_status(validity_info):
 
 
 def _get_project_access_error_status(validity_info):
-
     access_validity = validity_info.get('access')
 
     if access_validity:
@@ -634,13 +632,27 @@ def _get_project_access_error_status(validity_info):
     response = {
         'status': 403,
         'error': 'unauthorized',
-        'error_description': 'Not all users have access requested',
-        'invalid_access': []
+        'error_description': '',
+        'project_validity': {}
     }
 
-    for project, valid in access_validity:
-        if not valid:
-            response['invalid_access'].append(project)
+    for project, validity in access_validity:
+        if not validity.get('exists'):
+            # this not found trumps the general unauthorized to provide
+            # more info
+            response['status'] = 404
+            response['error'] = 'project_not_found'
+            response['error_description'] += (
+                'A project requested for access '
+                'could not be found by the given identifier. '
+            )
+
+        if not validity.get('all_users_have_access'):
+            response['error_description'] += 'Not all users have necessary access to project(s).'
+
+        response['project_validity'].update(
+            {str(project): validity.get_info()}
+        )
 
     return response
 

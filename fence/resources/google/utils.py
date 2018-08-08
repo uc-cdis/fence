@@ -518,12 +518,12 @@ def get_project_access_from_service_accounts(service_accounts):
     Get a list of projects all the provided service accounts have
     access to. list will be of UserServiceAccount db objects
 
-    Returns a list of project_ids
+    Returns a list of Project objects
     """
-    project_ids = []
+    projects = []
     for service_account in service_accounts:
         access = [
-            access_privilege.project_id
+            access_privilege.project
             for access_privilege in (
                 current_session
                 .query(ServiceAccountAccessPrivilege)
@@ -532,8 +532,8 @@ def get_project_access_from_service_accounts(service_accounts):
             )
             if access_privilege.project is not None
         ]
-        project_ids.extend(access)
-    return list(set(project_ids))
+        projects.extend(access)
+    return list(projects)
 
 
 def get_service_account_ids_from_google_project(project_id):

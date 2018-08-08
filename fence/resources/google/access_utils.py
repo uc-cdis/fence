@@ -817,17 +817,16 @@ def _get_google_access_groups_for_service_account(service_account):
     ]
 
 
-def get_project_id_from_auth_id(project_auth_id, db=None):
+def get_project_from_auth_id(project_auth_id, db=None):
     """
-    Return a Project.id given a Project.auth_id (or None if it doesnt exist.)
+    Return a Project given a Project.auth_id (or None if it doesnt exist.)
 
     Args:
         project_auth_id (str): Project.auth_id
 
     Returns:
-        int: Project.id
+        int: Project
     """
-    project_id = None
     session = get_db_session(db)
 
     project = (
@@ -835,7 +834,4 @@ def get_project_id_from_auth_id(project_auth_id, db=None):
         .filter_by(auth_id=project_auth_id).first()
     )
 
-    if project:
-        project_id = project.id
-
-    return project_id
+    return project
