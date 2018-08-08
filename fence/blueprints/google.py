@@ -603,17 +603,17 @@ def _get_google_project_id_error_status(validity_info):
             )
             if not sa_validity:
                 response['status'] = 403
-                response['error'] = 'Unauthorized'
+                response['error'] = 'unauthorized'
                 response['error_description'] = 'Project has one or more invalid service accounts.'
 
     if not valid_parent_org:
         response['status'] = 403
-        response['error'] = 'Unauthorized'
+        response['error'] = 'unauthorized'
         response['error_description'] += 'Project has parent organization. '
 
     if not valid_membership:
         response['status'] = 403
-        response['error'] = 'Unauthorized'
+        response['error'] = 'unauthorized'
         response['error_description'] += 'Project has invalid membership. '
 
     return response
@@ -622,33 +622,27 @@ def _get_google_project_id_error_status(validity_info):
 def _get_project_access_error_status(validity_info):
     access_validity = validity_info.get('access')
 
-    if access_validity:
-        return {
-            'status': 200,
-            'error': None,
-            'error_description': ''
-        }
-
     response = {
-        'status': 403,
-        'error': 'unauthorized',
+        'status': 200,
+        'error': None,
         'error_description': '',
         'project_validity': {}
     }
 
     for project, validity in access_validity:
-        if not validity.get('exists'):
-            # this not found trumps the general unauthorized to provide
-            # more info
+        if validity.get('all_users_have_access') is False:
+            response['status'] = 403
+            response['error'] = 'unauthorized'
+            response['error_description'] += 'Not all users have necessary access to project(s).'
+
+        if validity.get('exists') is False:
+            # this not found trumps the general unauthorized status/error
             response['status'] = 404
             response['error'] = 'project_not_found'
             response['error_description'] += (
                 'A project requested for access '
                 'could not be found by the given identifier. '
             )
-
-        if not validity.get('all_users_have_access'):
-            response['error_description'] += 'Not all users have necessary access to project(s).'
 
         response['project_validity'].update(
             {str(project): validity.get_info()}
