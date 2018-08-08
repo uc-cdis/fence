@@ -80,6 +80,9 @@ class ValidityInfo(Mapping):
     def __str__(self):
         return str(self._info)
 
+    def get_info(self):
+        return self._info
+
 
 class GoogleProjectValidity(ValidityInfo):
     """

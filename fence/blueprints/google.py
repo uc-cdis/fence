@@ -603,9 +603,12 @@ def _get_google_project_id_error_status(validity_info):
 
     response['service_account_validity'] = {}
     for sa_account_id, sa_validity in service_accounts_validity:
-        response['service_account_validity'][sa_account_id] = (
-            sa_validity._info
-        )
+        if sa_account_id != validity_info.new_service_account:
+            response['service_account_validity'][sa_account_id] = (
+                sa_validity.get_info
+            )
+            if not sa_validity:
+                response['error_description'] += 'Project has one or more invalid service accounts.'
 
     return response
 
