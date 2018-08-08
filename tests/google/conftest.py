@@ -178,6 +178,7 @@ def valid_google_project_patcher():
     parent_org_mock.return_value = False
     valid_membership_mock.return_value = True
     users_have_access_mock.return_value = True
+    project_service_accounts_mock.return_value = []
 
     for patched_function in patches:
         patched_function.start()
