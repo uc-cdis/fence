@@ -586,13 +586,18 @@ def _get_google_project_id_error_status(validity_info):
         }
 
     valid_parent_org = validity_info.get('valid_parent_org')
-    valid_membership = validity_info.get('valid_membership')
+    valid_member_types = validity_info.get('valid_member_types')
+    members_exist_in_fence = validity_info.get('members_exist_in_fence')
     service_accounts_validity = validity_info.get('service_accounts')
 
     response = {
         'status': 200,
         'error': None,
         'error_description': '',
+        'membership_validity': {
+            'valid_member_types': valid_member_types,
+            'members_exist_in_fence': members_exist_in_fence
+        },
         'service_account_validity': {}
     }
 
@@ -604,17 +609,24 @@ def _get_google_project_id_error_status(validity_info):
             if not sa_validity:
                 response['status'] = 403
                 response['error'] = 'unauthorized'
-                response['error_description'] = 'Project has one or more invalid service accounts.'
+                response['error_description'] = 'Project has one or more invalid service accounts. '
 
     if not valid_parent_org:
         response['status'] = 403
         response['error'] = 'unauthorized'
         response['error_description'] += 'Project has parent organization. '
 
-    if not valid_membership:
+    if not valid_member_types:
         response['status'] = 403
         response['error'] = 'unauthorized'
-        response['error_description'] += 'Project has invalid membership. '
+        response['error_description'] += 'Project has invalid member types. '
+
+    if not members_exist_in_fence:
+        response['status'] = 403
+        response['error'] = 'unauthorized'
+        response['error_description'] += (
+            'Project members don\'t exist in fence.'
+        )
 
     return response
 
@@ -630,13 +642,12 @@ def _get_project_access_error_status(validity_info):
     }
 
     for project, validity in access_validity:
-        if validity.get('all_users_have_access') is False:
-            response['status'] = 403
-            response['error'] = 'unauthorized'
-            response['error_description'] += 'Not all users have necessary access to project(s).'
-
-        if validity.get('exists') is False:
-            # this not found trumps the general unauthorized status/error
+        if validity.get('exists'):
+            if not validity.get('all_users_have_access'):
+                response['status'] = 403
+                response['error'] = 'unauthorized'
+                response['error_description'] += 'Not all users have necessary access to project(s).'
+        else:
             response['status'] = 404
             response['error'] = 'project_not_found'
             response['error_description'] += (
