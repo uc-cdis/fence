@@ -18,6 +18,7 @@ from fence.resources.google.access_utils import (
     google_project_has_valid_membership,
     do_all_users_have_access_to_project,
     get_project_id_from_auth_id,
+    can_access_google_project,
 )
 
 
@@ -109,6 +110,7 @@ class GoogleProjectValidity(ValidityInfo):
         An example of the dict-like structure with validity info is:
 
         {
+            'monitor_has_access': True,
             'valid_parent_org': True,
             'valid_membership': True,
             'service_accounts': {
@@ -124,8 +126,14 @@ class GoogleProjectValidity(ValidityInfo):
                 }
             },
             'access': {
-                'ProjectA': True,
-                'ProjectB': False
+                'ProjectA': {
+                    'exists': True,
+                    'all_users_have_access': True
+                },
+                'ProjectB': {
+                    'exists': True,
+                    'all_users_have_access': True
+                },
             }
         }
     """
@@ -154,6 +162,7 @@ class GoogleProjectValidity(ValidityInfo):
 
         # setup default values for error information, will get updated in
         # check_validity
+        self._info['monitor_has_access'] = None
         self._info['valid_parent_org'] = None
         self._info['valid_membership'] = None
         self._info['service_accounts'] = {}
@@ -168,6 +177,13 @@ class GoogleProjectValidity(ValidityInfo):
         Args:
             early_return (bool, optional): Description
         """
+        has_access = can_access_google_project(self.google_project_id)
+        self.set('monitor_has_access', has_access)
+
+        # always early return if we can't access the project
+        if not has_access:
+            return
+
         valid_parent_org = (
             not google_project_has_parent_org(self.google_project_id)
         )
