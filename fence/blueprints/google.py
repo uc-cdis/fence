@@ -583,7 +583,7 @@ def _get_google_project_id_error_status(validity_info):
         'status': 200,
         'error': None,
         'error_description': '',
-        'service_accounts_validity': {}
+        'service_account_validity': {}
     }
 
     for sa_account_id, sa_validity in service_accounts_validity:
