@@ -568,12 +568,12 @@ def get_user_ids_from_google_members(members):
     result = []
     for member in members:
         google_account = current_session.query(UserGoogleAccount).filter(
-            UserGoogleAccount.email == member).first()
+            UserGoogleAccount.email == member.lower()).first()
         if google_account:
             result.append(google_account.user_id)
         else:
             raise NotFound(
-                'Member {} does not have a linked Google Account.'
+                'Google member {} does not exist as a linked Google Account.'
                 .format(member)
             )
 
