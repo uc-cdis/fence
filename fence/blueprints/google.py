@@ -609,8 +609,6 @@ def _get_google_project_id_error_status(validity_info):
     if not valid_membership:
         response['error_description'] += 'Project has invalid membership. '
 
-<<<<<<< HEAD
-=======
     for sa_account_id, sa_validity in service_accounts_validity:
         if sa_account_id != validity_info.new_service_account:
             response['service_account_validity'][sa_account_id] = (
@@ -619,7 +617,6 @@ def _get_google_project_id_error_status(validity_info):
             if not sa_validity:
                 response['error_description'] = 'Project has one or more invalid service accounts.'
 
->>>>>>> 3214a428180a1baadd648ce2dfa3f38e70b50f87
     return response
 
 
