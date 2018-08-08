@@ -5,7 +5,8 @@ import flask
 from flask_sqlalchemy_session import current_session
 from sqlalchemy import desc
 
-from cirrus import GoogleCloudManager, GooglePolicyMember
+from cirrus import GoogleCloudManager
+from cirrus.google_cloud.iam import GooglePolicyMember
 from cirrus.google_cloud.utils import (
     get_valid_service_account_id_for_client,
     get_valid_service_account_id_for_user
