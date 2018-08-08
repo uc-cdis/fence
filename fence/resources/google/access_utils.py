@@ -268,6 +268,8 @@ def is_user_member_of_all_google_projects(
             format(user_id, google_project_ids, exc))
         return False
 
+    return True
+
 
 def do_all_users_have_access_to_project(user_ids, project_auth_id):
     # user_ids will be list of user ids
