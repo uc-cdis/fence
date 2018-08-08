@@ -18,7 +18,7 @@ from cirrus.google_cloud import (
 )
 
 import fence
-from fence.errors import NotFound
+from fence.errors import NotFound, NotSupported
 from fence.models import (
     User,
     Project,
@@ -30,7 +30,7 @@ from fence.models import (
 )
 from fence.resources.google.utils import (
     get_db_session,
-    get_user_ids_from_google_members,
+    get_users_from_google_members,
 )
 
 ALLOWED_SERVICE_ACCOUNT_TYPES = [
@@ -108,47 +108,47 @@ def google_project_has_parent_org(project_id):
         return False
 
 
-def google_project_has_valid_membership(project_id):
+def get_google_project_valid_users_and_service_accounts(project_id):
     """
-    Checks if a google project only has members of type
-    USER or SERVICE_ACCOUNT and that the project's members
-    exist in fence's db
+    Gets google project members of type
+    USER or SERVICE_ACCOUNT and raises an error if it finds a member
+    that isn't one of those types.
 
     Args:
-        google_project(GoogleCloudManager): google project to check members of
+        project_id (str): Google project ID
 
     Return:
-        Bool: True iff project members are only users and/or service accounts
+        List[cirrus.google_cloud.iam.GooglePolicyMember]: Members on the
+            google project
+
+    Raises:
+        NotSupported: Member is invalid type
     """
-    valid = True
     try:
         with GoogleCloudManager(project_id) as prj:
             members = prj.get_project_membership(project_id)
             for member in members:
                 if not(member.member_type == GooglePolicyMember.SERVICE_ACCOUNT or
                         member.member_type == GooglePolicyMember.USER):
-                    valid = False
-
-            # ensure that all the members on the project exist
-            # in our db
-            member_emails = [
-                member.email_id
-                for member in members
+                    raise NotSupported(
+                        'Member {} has invalid type: {}'.format(
+                            member.email_id, member.member_type)
+                    )
+            users = [
+                member for member in members
                 if member.member_type == GooglePolicyMember.USER
             ]
-            try:
-                get_user_ids_from_google_members(member_emails)
-            except NotFound:
-                valid = False
-
+            service_accounts = [
+                member for member in members
+                if member.member_type == GooglePolicyMember.SERVICE_ACCOUNT
+            ]
+            return users, service_accounts
     except Exception as exc:
         flask.current_app.logger.debug((
-            'validity of Google Project (id: {}) membership '
-            'determined False due to error. Details: {}')
+            'validity of Google Project (id: {}) members '
+            'could not complete. Details: {}')
             .format(project_id, exc))
-        valid = False
-
-    return valid
+        raise
 
 
 def is_valid_service_account_type(project_id, account_id):
@@ -294,14 +294,14 @@ def is_user_member_of_all_google_projects(
     return True
 
 
-def do_all_users_have_access_to_project(user_ids, project_id):
-    # user_ids will be list of user ids
-    # check if all user ids has access to a project with project_id
-    for user_id in user_ids:
+def do_all_users_have_access_to_project(users, project_id):
+    # users will be list of fence.model.User's
+    # check if all users has access to a project with project_id
+    for user in users:
         access_privilege = (
             current_session
             .query(AccessPrivilege)
-            .filter(AccessPrivilege.user_id == user_id)
+            .filter(AccessPrivilege.user_id == user.id)
             .filter(AccessPrivilege.project_id == project_id)
         ).first()
 

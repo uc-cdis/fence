@@ -139,11 +139,11 @@ def valid_google_project_patcher():
 
     valid_membership_mock = MagicMock()
     patches.append(patch(
-        'fence.resources.google.access_utils.google_project_has_valid_membership',
+        'fence.resources.google.access_utils.get_google_project_valid_users_and_service_accounts',
         valid_membership_mock
     ))
     patches.append(patch(
-        'fence.resources.google.validity.google_project_has_valid_membership',
+        'fence.resources.google.validity.get_google_project_valid_users_and_service_accounts',
         valid_membership_mock
     ))
 
@@ -171,7 +171,7 @@ def valid_google_project_patcher():
 
     project_service_accounts_mock = MagicMock()
     patches.append(patch(
-        'fence.resources.google.validity.get_service_account_ids_from_google_project',
+        'fence.resources.google.validity.get_service_account_ids_from_google_members',
         project_service_accounts_mock
     ))
 
@@ -187,7 +187,7 @@ def valid_google_project_patcher():
         'google_project_has_parent_org': (
             parent_org_mock
         ),
-        'google_project_has_valid_membership': (
+        'get_google_project_valid_users_and_service_accounts': (
             valid_membership_mock
         ),
         'do_all_users_have_access_to_project': (
@@ -199,7 +199,7 @@ def valid_google_project_patcher():
         'get_project_access_from_service_accounts': (
             project_access_mock
         ),
-        'get_service_account_ids_from_google_project': (
+        'get_service_account_ids_from_google_members': (
             project_service_accounts_mock
         ),
     }

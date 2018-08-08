@@ -6,8 +6,8 @@ from collections import Mapping
 from fence.resources.google.utils import (
     get_registered_service_accounts,
     get_project_access_from_service_accounts,
-    get_user_ids_from_google_members,
-    get_service_account_ids_from_google_project,
+    get_users_from_google_members,
+    get_service_account_ids_from_google_members,
     get_user_emails_on_google_project,
 )
 from fence.resources.google.access_utils import (
@@ -15,7 +15,7 @@ from fence.resources.google.access_utils import (
     service_account_has_external_access,
     is_service_account_from_google_project,
     google_project_has_parent_org,
-    google_project_has_valid_membership,
+    get_google_project_valid_users_and_service_accounts,
     do_all_users_have_access_to_project,
     get_project_from_auth_id,
     can_access_google_project,
@@ -164,7 +164,8 @@ class GoogleProjectValidity(ValidityInfo):
         # check_validity
         self._info['monitor_has_access'] = None
         self._info['valid_parent_org'] = None
-        self._info['valid_membership'] = None
+        self._info['valid_member_types'] = None
+        self._info['members_exist_in_fence'] = None
         self._info['service_accounts'] = {}
         self._info['access'] = {}
 
@@ -191,15 +192,36 @@ class GoogleProjectValidity(ValidityInfo):
         if not valid_parent_org and early_return:
             return
 
-        valid_membership = (
-            google_project_has_valid_membership(self.google_project_id)
-        )
-        self.set('valid_membership', valid_membership)
-        if not valid_membership and early_return:
-            return
+        user_members = None
+        service_account_members = None
+        try:
+            user_members, service_account_members = (
+                get_google_project_valid_users_and_service_accounts(
+                    self.google_project_id)
+            )
+            self.set('valid_member_types', True)
+        except Exception:
+            self.set('valid_member_types', False)
+            if early_return:
+                return
+
+        # if we have valid members, we can check if they exist in fence
+        users_in_project = None
+        if user_members:
+            try:
+                users_in_project = (
+                    get_users_from_google_members(
+                        self.google_project_id, user_members)
+                )
+                self.set('members_exist_in_fence', True)
+            except Exception:
+                self.set('members_exist_in_fence', False)
+                if early_return:
+                    return
 
         service_accounts = (
-            get_service_account_ids_from_google_project(self.google_project_id)
+            get_service_account_ids_from_google_members(
+                service_account_members)
         )
 
         if self.new_service_account:
@@ -254,16 +276,16 @@ class GoogleProjectValidity(ValidityInfo):
 
         # make sure all the users of the project actually have access to all
         # the data the service accounts have access to
-        project_members = get_user_emails_on_google_project(
-            self.google_project_id)
-
-        all_user_ids = get_user_ids_from_google_members(project_members)
-
         for project in service_account_project_access:
             project_validity = ValidityInfo()
             project_validity.set('exists', True)
-            valid_access = do_all_users_have_access_to_project(
-                all_user_ids, project.id)
+
+            # if all the users exist in our db, we can check if they have valid
+            # access
+            valid_access = None
+            if users_in_project:
+                valid_access = do_all_users_have_access_to_project(
+                    users_in_project, project.id)
             project_validity.set('all_users_have_access', valid_access)
 
             project_access_validities.set(

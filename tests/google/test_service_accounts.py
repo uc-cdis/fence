@@ -309,8 +309,7 @@ def test_invalid_google_project_has_invalid_membership(
     """
     Test that an invalid service account gives us the expected error structure
     """
-    (valid_google_project_patcher['google_project_has_valid_membership']
-        .return_value) = False
+    valid_google_project_patcher['get_google_project_valid_users_and_service_accounts'].side_effect = Exception()
     encoded_creds_jwt = encoded_jwt_service_accounts_access['jwt']
     project_access = ["project_a", "project_b"]
     invalid_service_account = {

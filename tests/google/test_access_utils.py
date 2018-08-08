@@ -30,7 +30,7 @@ from fence.models import (
 from fence.resources.google.access_utils import (
     is_valid_service_account_type,
     service_account_has_external_access,
-    google_project_has_valid_membership,
+    get_google_project_valid_users_and_service_accounts,
     google_project_has_valid_service_accounts,
     _force_remove_service_account_from_access_db,
     force_remove_service_account_from_access,
@@ -205,7 +205,7 @@ def test_project_has_valid_membership(cloud_manager, db_session):
         get_users_mock
     )
     get_users_patcher.start()
-    assert google_project_has_valid_membership(cloud_manager.project_id)
+    assert get_google_project_valid_users_and_service_accounts(cloud_manager.project_id)
     get_users_patcher.stop()
 
 
@@ -220,7 +220,7 @@ def test_project_has_invalid_membership(cloud_manager, db_session):
         GooglePolicyMember("user", "user@gmail.com"),
         GooglePolicyMember("otherType", "other@gmail.com")
     ]
-    assert not google_project_has_valid_membership(cloud_manager.project_id)
+    assert not get_google_project_valid_users_and_service_accounts(cloud_manager.project_id)
 
 
 def test_project_has_valid_service_accounts(cloud_manager):

@@ -536,41 +536,47 @@ def get_project_access_from_service_accounts(service_accounts):
     return list(projects)
 
 
-def get_service_account_ids_from_google_project(project_id):
+def get_service_account_ids_from_google_members(members):
     """
-    Get list of all service account ids associated with a project
+    Get list of all service account ids given service account members on a
+    google project
 
     Args:
-        project_id(str): unique Id of project
+        members(List[cirrus.google_cloud.iam.GooglePolicyMember]): Members on
+            the google project who are of type User
 
     Return:
         list<str>: list of service account ids (emails)
     """
-    try:
-        with GoogleCloudManager(project_id) as prj:
-            return [acc['email'] for acc in prj.get_all_service_accounts()]
-    except Exception as exc:
-        flask.current_app.logger.debug((
-            'Could not get service account IDs of Google '
-            'Project (project id: {}) Details: {}')
-            .format(project_id, exc))
-        return []
+    return [
+        member.email_id for member in members
+        if member.member_type == GooglePolicyMember.SERVICE_ACCOUNT
+    ]
 
 
-def get_user_ids_from_google_members(members):
+def get_users_from_google_members(members):
     """
-     get all user ids from google members
-     Args:
-        members(list): list of google email
-     Returns:
-        list of user ids
+    Get User objects for all members on a Google project by checking db.
+
+    Args:
+        members(List[cirrus.google_cloud.iam.GooglePolicyMember]): Members on
+            the google project who are of type User
+
+    Return:
+        List[fence.models.User]: Users from our db for members on Google project
+
+    Raises:
+        NotFound: Member on google project doesn't exist in our db
     """
     result = []
     for member in members:
-        google_account = current_session.query(UserGoogleAccount).filter(
-            UserGoogleAccount.email == member.lower()).first()
-        if google_account:
-            result.append(google_account.user_id)
+        linked_google_account = (
+            current_session.query(UserGoogleAccount)
+            .filter(UserGoogleAccount.email == member.email_id.lower()).first()
+        )
+
+        if linked_google_account:
+            result.append(linked_google_account)
         else:
             raise NotFound(
                 'Google member {} does not exist as a linked Google Account.'
