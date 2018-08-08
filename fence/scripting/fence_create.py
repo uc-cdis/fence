@@ -584,6 +584,13 @@ def verify_bucket_access_group(DB):
     """
     Go through all the google group members, remove them from Google group and Google
     user service account if they are not in Fence
+
+    Args:
+        DB(str): db connection string
+
+    Returns:
+        None
+
     """
     import fence.settings
     cirrus_config.update(**fence.settings.CIRRUS_CFG)
@@ -616,7 +623,8 @@ def _verify_google_group_member(session, access_group, member):
     Delete if the member which is a google group is not in Fence.
 
     Args:
-        session: db session
+        session(Session): db session
+        access_group(GoogleBucketAccessGroup): access group
         member(dict): group member info
 
     Returns:
@@ -647,8 +655,9 @@ def _verify_google_service_account_member(session, access_group, member):
     Delete if the member which is a service account is not in Fence.
 
     Args:
-        session: db session
-        members(dict): service account member
+        session(session): db session
+        access_group(GoogleBucketAccessGroup): access group
+        members(dict): service account member info
 
     Returns:
         None
