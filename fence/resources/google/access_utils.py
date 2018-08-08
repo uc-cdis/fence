@@ -20,8 +20,10 @@ from cirrus.google_cloud import (
 import fence
 from fence.errors import NotFound
 from fence.models import (
+    User,
     Project,
     AccessPrivilege,
+    UserGoogleAccount,
     UserServiceAccount,
     ServiceAccountAccessPrivilege,
     ServiceAccountToGoogleBucketAccessGroup,
@@ -109,6 +111,7 @@ def google_project_has_valid_membership(project_id):
             member_emails = [
                 member.email_id
                 for member in members
+                if member.member_type == GooglePolicyMember.USER
             ]
             try:
                 get_user_ids_from_google_members(member_emails)
@@ -208,7 +211,8 @@ def is_service_account_from_google_project(service_account, project_id):
         return False
 
 
-def is_user_member_of_all_google_projects(user_id, google_project_ids):
+def is_user_member_of_all_google_projects(
+        user_id, google_project_ids, db=None):
     """
     Return whether or not the given user is a member of ALL of the provided
     Google project IDs.
@@ -224,8 +228,45 @@ def is_user_member_of_all_google_projects(user_id, google_project_ids):
         bool: whether or not the given user is a member of ALL of the provided
               Google project IDs
     """
-    # TODO actually check
-    raise NotImplementedError('Functionality not yet available...')
+    session = get_db_session(db)
+    user = (
+        session.query(User)
+        .filter_by(id=user_id)
+        .first()
+    )
+    if not user:
+        flask.current_app.logger.debug((
+            'Could not determine if user (id: {} is from projects:'
+            ' {} due to error. User does not exist...').
+            format(user_id, google_project_ids))
+        return False
+
+    linked_google_account = (
+        current_session.query(UserGoogleAccount)
+        .filter(UserGoogleAccount.user_id == user_id).first()
+    )
+
+    try:
+        for google_project_id in google_project_ids:
+            with GoogleCloudManager(google_project_id) as g_mgr:
+                member_emails = [
+                    member.email_id
+                    for member in g_mgr.get_project_membership(google_project_id)
+                ]
+
+                # first check if user.email is in project, then linked account
+                if not (user.email and user.email in member_emails):
+                    if not (linked_google_account
+                            and linked_google_account.email in member_emails
+                            ):
+                        # no user email is in project
+                        return False
+    except Exception as exc:
+        flask.current_app.logger.debug((
+            'Could not determine if user (id: {} is from projects:'
+            ' {} due to error. Details: {}').
+            format(user_id, google_project_ids, exc))
+        return False
 
 
 def do_all_users_have_access_to_project(user_ids, project_auth_id):

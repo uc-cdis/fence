@@ -152,7 +152,11 @@ class GoogleServiceAccountRoot(Resource):
         add_user_service_account_to_google(
             current_session, project_ids, db_service_account)
 
-        return service_account
+        return {
+            'service_account_email': service_account.get('email'),
+            'google_project_id': service_account.get('projectId'),
+            'project_access': project_access
+        }
 
 
 class GoogleServiceAccount(Resource):
