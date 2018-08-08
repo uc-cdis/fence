@@ -75,7 +75,7 @@ def google_project_has_parent_org(project_id):
     """
     try:
         with GoogleCloudManager(project_id) as prj:
-            return prj.get_project_organization()
+            return prj.has_parent_organization()
     except Exception as exc:
         flask.current_app.logger.debug((
             'Could not determine if Google project (id: {}) has parent org'

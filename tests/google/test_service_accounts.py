@@ -177,7 +177,7 @@ def test_invalid_service_account_dry_run_errors(
     Test that an invalid service account gives us the expected error structure
     """
 
-    valid_service_account_patcher['service_account_has_external_access'] = True
+    valid_service_account_patcher['service_account_has_external_access'].return_value = True
 
     encoded_creds_jwt = encoded_jwt_service_accounts_access['jwt']
     project_access = ["project_a", "project_b"]
@@ -193,18 +193,17 @@ def test_invalid_service_account_dry_run_errors(
         data=json.dumps(invalid_service_account),
         content_type='application/json')
 
+    assert response.status_code != 200
     _assert_expected_error_response_structure(response, project_access)
 
-    assert response.status_code != 200
 
-
-def test_invalid_service_account_registration_errors(
+def test_invalid_service_account_has_external_access(
         client, app, encoded_jwt_service_accounts_access,
-        valid_service_account_patcher):
+        valid_service_account_patcher, valid_google_project_patcher):
     """
     Test that an invalid service account gives us the expected error structure
     """
-    valid_service_account_patcher['service_account_has_external_access'] = True
+    valid_service_account_patcher['service_account_has_external_access'].return_value = True
     encoded_creds_jwt = encoded_jwt_service_accounts_access['jwt']
     project_access = ["project_a", "project_b"]
     invalid_service_account = {
@@ -219,9 +218,145 @@ def test_invalid_service_account_registration_errors(
         data=json.dumps(invalid_service_account),
         content_type='application/json')
 
+    assert response.status_code == 400
     _assert_expected_error_response_structure(response, project_access)
+    assert response.json['errors']['service_account_email']['status'] == 403
 
-    assert response.status_code != 200
+
+def test_invalid_service_account_has_invalid_type(
+        client, app, encoded_jwt_service_accounts_access,
+        valid_service_account_patcher, valid_google_project_patcher):
+    """
+    Test that an invalid service account gives us the expected error structure
+    """
+    valid_service_account_patcher['is_valid_service_account_type'].return_value = False
+    encoded_creds_jwt = encoded_jwt_service_accounts_access['jwt']
+    project_access = ["project_a", "project_b"]
+    invalid_service_account = {
+          "service_account_email": "test123@test.com",
+          "google_project_id": "some-google-project-872340ajsdkj",
+          "project_access": project_access
+    }
+
+    response = client.post(
+        '/google/service_accounts',
+        headers={'Authorization': 'Bearer ' + encoded_creds_jwt},
+        data=json.dumps(invalid_service_account),
+        content_type='application/json')
+
+    assert response.status_code == 400
+    _assert_expected_error_response_structure(response, project_access)
+    assert response.json['errors']['service_account_email']['status'] == 403
+
+
+def test_invalid_service_account_not_owned_by_project(
+        client, app, encoded_jwt_service_accounts_access,
+        valid_service_account_patcher, valid_google_project_patcher):
+    """
+    Test that an invalid service account gives us the expected error structure
+    """
+    (valid_service_account_patcher['is_service_account_from_google_project']
+        .return_value) = False
+    encoded_creds_jwt = encoded_jwt_service_accounts_access['jwt']
+    project_access = ["project_a", "project_b"]
+    invalid_service_account = {
+          "service_account_email": "test123@test.com",
+          "google_project_id": "some-google-project-872340ajsdkj",
+          "project_access": project_access
+    }
+
+    response = client.post(
+        '/google/service_accounts',
+        headers={'Authorization': 'Bearer ' + encoded_creds_jwt},
+        data=json.dumps(invalid_service_account),
+        content_type='application/json')
+
+    assert response.status_code == 400
+    _assert_expected_error_response_structure(response, project_access)
+    assert response.json['errors']['service_account_email']['status'] == 403
+
+
+def test_invalid_google_project_has_parent_org(
+        client, app, encoded_jwt_service_accounts_access,
+        valid_service_account_patcher, valid_google_project_patcher):
+    """
+    Test that an invalid service account gives us the expected error structure
+    """
+    (valid_google_project_patcher['google_project_has_parent_org']
+        .return_value) = True
+    encoded_creds_jwt = encoded_jwt_service_accounts_access['jwt']
+    project_access = ["project_a", "project_b"]
+    invalid_service_account = {
+          "service_account_email": "test123@test.com",
+          "google_project_id": "some-google-project-872340ajsdkj",
+          "project_access": project_access
+    }
+
+    response = client.post(
+        '/google/service_accounts',
+        headers={'Authorization': 'Bearer ' + encoded_creds_jwt},
+        data=json.dumps(invalid_service_account),
+        content_type='application/json')
+
+    assert response.status_code == 400
+    _assert_expected_error_response_structure(response, project_access)
+    assert response.json['errors']['google_project_id']['status'] == 403
+
+
+def test_invalid_google_project_has_invalid_membership(
+        client, app, encoded_jwt_service_accounts_access,
+        valid_service_account_patcher, valid_google_project_patcher):
+    """
+    Test that an invalid service account gives us the expected error structure
+    """
+    (valid_google_project_patcher['google_project_has_valid_membership']
+        .return_value) = False
+    encoded_creds_jwt = encoded_jwt_service_accounts_access['jwt']
+    project_access = ["project_a", "project_b"]
+    invalid_service_account = {
+          "service_account_email": "test123@test.com",
+          "google_project_id": "some-google-project-872340ajsdkj",
+          "project_access": project_access
+    }
+
+    response = client.post(
+        '/google/service_accounts',
+        headers={'Authorization': 'Bearer ' + encoded_creds_jwt},
+        data=json.dumps(invalid_service_account),
+        content_type='application/json')
+
+    assert response.status_code == 400
+    _assert_expected_error_response_structure(response, project_access)
+    assert response.json['errors']['google_project_id']['status'] == 403
+
+
+def test_invalid_google_project_no_access(
+        client, app, encoded_jwt_service_accounts_access,
+        valid_service_account_patcher, valid_google_project_patcher):
+    """
+    Test that an invalid service account gives us the expected error structure
+    """
+    (valid_google_project_patcher['do_all_users_have_access_to_project']
+        .return_value) = False
+    (valid_google_project_patcher['get_project_access_from_service_accounts']
+     .return_value) = []
+    encoded_creds_jwt = encoded_jwt_service_accounts_access['jwt']
+    project_access = ["project_a", "project_b"]
+    invalid_service_account = {
+          "service_account_email": "test123@test.com",
+          "google_project_id": "some-google-project-872340ajsdkj",
+          "project_access": project_access
+    }
+
+    response = client.post(
+        '/google/service_accounts',
+        headers={'Authorization': 'Bearer ' + encoded_creds_jwt},
+        data=json.dumps(invalid_service_account),
+        content_type='application/json')
+
+    assert response.status_code == 400
+    _assert_expected_error_response_structure(response, project_access)
+    assert response.json['errors']['project_access']['status'] == 403
 
 
 def test_valid_service_account_registration(
