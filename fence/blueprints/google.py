@@ -579,36 +579,34 @@ def _get_google_project_id_error_status(validity_info):
     valid_membership = validity_info.get('valid_membership')
     service_accounts_validity = validity_info.get('service_accounts')
 
-    if valid_parent_org and valid_membership and service_accounts_validity:
-        return {
-            'status': 200,
-            'error': None,
-            'error_description': ''
-        }
-
     response = {
-        'status': 403,
-        'error': 'Unauthorized',
-        'error_description': ''
+        'status': 200,
+        'error': None,
+        'error_description': '',
+        service_accounts_validity: {}
     }
 
-    if not valid_parent_org:
-        response['error_description'] += 'Project has parent organization. '
-
-    if not valid_membership:
-        response['error_description'] += 'Project has invalid membership. '
-
-    if not service_accounts_validity:
-        response['error_description'] += 'Project has one or more invalid service accounts.'
-
-    response['service_account_validity'] = {}
     for sa_account_id, sa_validity in service_accounts_validity:
         if sa_account_id != validity_info.new_service_account:
             response['service_account_validity'][sa_account_id] = (
                 sa_validity.get_info
             )
             if not sa_validity:
-                response['error_description'] += 'Project has one or more invalid service accounts.'
+                response['status'] = 403
+                response['error'] = 'Unauthorized'
+                response['error_description'] = 'Project has one or more invalid service accounts.'
+
+    if not valid_parent_org:
+        response['status'] = 403
+        response['error'] = 'Unauthorized'
+        response['error_description'] += 'Project has parent organization. '
+
+    if not valid_membership:
+        response['status'] = 403
+        response['error'] = 'Unauthorized'
+        response['error_description'] += 'Project has invalid membership. '
+
+    response['service_account_validity'] = {}
 
     return response
 
