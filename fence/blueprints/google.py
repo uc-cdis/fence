@@ -545,10 +545,17 @@ def _get_service_account_email_error_status(validity_info):
     for sa_account_id, sa_validity in service_accounts_validity:
         if sa_account_id == validity_info.new_service_account:
             if not sa_validity:
-                response['error_description'] = str(sa_validity)
+                return {
+                    'status': 403,
+                    'error': 'Unauthorized',
+                    'error_description': str(sa_validity)
+                }
             else:
-                response['status'] = 200
-                response['error'] = None
+                return {
+                    'status': 200,
+                    'error': None,
+                    'error_description': ''
+                }
 
     return response
 
