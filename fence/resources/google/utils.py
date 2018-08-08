@@ -517,6 +517,8 @@ def get_project_access_from_service_accounts(service_accounts):
     """
     Get a list of projects all the provided service accounts have
     access to. list will be of UserServiceAccount db objects
+
+    Returns a list of project_ids
     """
     project_ids = []
     for service_account in service_accounts:
@@ -524,11 +526,11 @@ def get_project_access_from_service_accounts(service_accounts):
             access_privilege.project_id
             for access_privilege in (
                 current_session
-                .query(ServiceAccountAccessPrivilege.project_id)
+                .query(ServiceAccountAccessPrivilege)
                 .filter_by(service_account_id=service_account.id)
                 .all()
             )
-            if access_privilege.project_id is not None
+            if access_privilege.project is not None
         ]
         project_ids.extend(access)
     return list(set(project_ids))

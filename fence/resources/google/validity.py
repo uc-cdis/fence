@@ -17,6 +17,7 @@ from fence.resources.google.access_utils import (
     google_project_has_parent_org,
     google_project_has_valid_membership,
     do_all_users_have_access_to_project,
+    get_project_id_from_auth_id,
 )
 
 
@@ -215,8 +216,22 @@ class GoogleProjectValidity(ValidityInfo):
             get_project_access_from_service_accounts(service_accounts)
         )
 
+        # use a generic validityinfo object to hold all the projects validity
+        project_access_validities = ValidityInfo()
+
         # extend list with any provided access to test
-        service_account_access.extend(self.new_service_account_access)
+        for provided_access in self.new_service_account_access:
+            project_id = get_project_id_from_auth_id(provided_access)
+
+            # if provided access doesn't exist, set error in project_validity
+            if not project_id:
+                project_validity = ValidityInfo()
+                project_validity.set('exists', False)
+                project_validity.set('all_users_have_access', False)
+                project_access_validities.set(
+                    str(provided_access), project_validity)
+            else:
+                service_account_access.append(project_id)
 
         # make sure all the users of the project actually have access to all
         # the data the service accounts have access to
@@ -225,14 +240,16 @@ class GoogleProjectValidity(ValidityInfo):
 
         all_user_ids = get_user_ids_from_google_members(project_members)
 
-        # use a generic validityinfo object to hold all the projects validity
-        project_access_validity = ValidityInfo()
         for project in service_account_access:
+            project_validity = ValidityInfo()
+            project_validity.set('exists', True)
             valid_access = do_all_users_have_access_to_project(
                 all_user_ids, project)
-            project_access_validity.set(str(project), valid_access)
+            project_validity.set('all_users_have_access', valid_access)
 
-        self.set('access', project_access_validity)
+            project_access_validities.set(str(project), project_validity)
+
+        self.set('access', project_access_validities)
         return
 
 
