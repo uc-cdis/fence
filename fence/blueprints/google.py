@@ -4,10 +4,9 @@ from urllib import unquote
 
 import flask
 from flask_restful import Resource
-import time
-
 
 from cirrus import GoogleCloudManager
+from cirrus.google_cloud.errors import GoogleAPIError
 
 from fence.auth import current_token, require_auth_header
 from fence.restful import RestfulApi
@@ -19,14 +18,15 @@ from fence.resources.google.access_utils import (
     get_google_project_from_service_account_email,
     get_service_account_email,
     force_remove_service_account_from_access,
+    extend_service_account_access,
+    get_current_service_account_project_access,
+    patch_user_service_account,
+    get_project_ids_from_project_auth_ids,
+    add_user_service_account_to_google,
+    add_user_service_account_to_db,
+
 )
-from fence.models import (
-    GoogleBucketAccessGroup,
-    Project,
-    UserServiceAccount,
-    ServiceAccountAccessPrivilege,
-    ServiceAccountToGoogleBucketAccessGroup,
-)
+from fence.models import UserServiceAccount
 from flask_sqlalchemy_session import current_session
 
 
@@ -57,7 +57,7 @@ class GoogleServiceAccountRoot(Resource):
         """
         Register a new service account
         """
-        payload = flask.request.get_json() or {}
+        payload = flask.request.get_json(silent=True) or {}
         service_account_email = payload.get('service_account_email')
         google_project_id = payload.get('google_project_id')
         project_access = payload.get('project_access')
@@ -88,25 +88,21 @@ class GoogleServiceAccountRoot(Resource):
         if error_response.get('success') is not True:
             return error_response, 400
 
-        with GoogleCloudManager(google_project_id) as google_project:
-            service_account = google_project.get_service_account(service_account_email)
+        sa_exists = (
+            current_session
+            .query(UserServiceAccount)
+            .filter_by(email=service_account_email)
+            .all()
+        )
 
-            sa_exists = len(
-                current_session
-                .query(UserServiceAccount)
-                .filter_by(google_unique_id=service_account.get('uniqueId'))
-                .filter_by(google_project_id=google_project_id)
-                .all()
-            ) != 0
-
-            if sa_exists:
-                error_response['success'] = False
-                error_response['errors']['service_account_email'] = {
-                    'status': 409,
-                    'error': 'Conflict',
-                    'error_description': 'Service Account already registered.'
-                }
-                return error_response, 400
+        if sa_exists:
+            error_response['success'] = False
+            error_response['errors']['service_account_email'] = {
+                'status': 409,
+                'error': 'Conflict',
+                'error_description': 'Service Account already registered.'
+            }
+            return error_response, 400
 
         new_service_account = self._register_new_service_account(
             service_account_email, google_project_id, project_access)
@@ -135,7 +131,8 @@ class GoogleServiceAccountRoot(Resource):
             (dict): dictionary representing service account object
         """
         with GoogleCloudManager(google_project_id) as google_project:
-            service_account = google_project.get_service_account(service_account_email)
+            service_account = google_project.get_service_account(
+                service_account_email)
 
         db_service_account = UserServiceAccount(
             google_unique_id=service_account.get('uniqueId'),
@@ -146,51 +143,20 @@ class GoogleServiceAccountRoot(Resource):
         current_session.add(db_service_account)
         current_session.commit()
 
-        exp_time = (
-            int(time.time()) + flask.current_app.config.get(
-                'GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN',
-                604800
-            )
-        )
+        project_ids = get_project_ids_from_project_auth_ids(
+            current_session, project_access)
 
-        for project_auth_id in project_access:
-            project = (
-                current_session
-                .query(Project)
-                .filter_by(auth_id=project_auth_id)
-                .first()
-            )
-            db_access_privilege = ServiceAccountAccessPrivilege(
-                project_id=project.id,
-                service_account_id=db_service_account.id
-            )
-            current_session.add(db_access_privilege)
-            current_session.commit()
+        add_user_service_account_to_db(
+            current_session, project_ids, db_service_account)
 
-            for bucket in project.buckets:
-                gbags = (
-                    current_session
-                    .query(GoogleBucketAccessGroup)
-                    .filter_by(bucket_id=bucket.id)
-                    .all()
-                )
-                for gbag in gbags:
-                    service_account_to_gbag = (
-                        ServiceAccountToGoogleBucketAccessGroup(
-                            service_account_id=db_service_account.id,
-                            access_group_id=gbag.id,
-                            expires=exp_time))
-                    current_session.add(service_account_to_gbag)
+        add_user_service_account_to_google(
+            current_session, project_ids, db_service_account)
 
-                    with GoogleCloudManager() as prj:
-                        prj.add_member_to_group(
-                            member_email=service_account_email,
-                            group_id=gbag.email
-                        )
-
-            current_session.commit()
-
-        return service_account
+        return {
+            'service_account_email': service_account.get('email'),
+            'google_project_id': service_account.get('projectId'),
+            'project_access': project_access
+        }
 
 
 class GoogleServiceAccount(Resource):
@@ -250,7 +216,7 @@ class GoogleServiceAccount(Resource):
         if id_ != '_dry_run':
             raise UserError('Cannot post with account id_.')
 
-        payload = flask.request.get_json() or {}
+        payload = flask.request.get_json(silent=True) or {}
         service_account_email = payload.get('service_account_email')
         google_project_id = payload.get('google_project_id')
         project_access = payload.get('project_access')
@@ -284,19 +250,22 @@ class GoogleServiceAccount(Resource):
             )
             return msg, 403
 
-        payload = flask.request.get_json() or {}
-        project_access = payload.get('project_access')
+        payload = flask.request.get_json(silent=True) or {}
+
+        service_account_email = get_service_account_email(id_)
 
         # check if the user requested to update more than project_access
-        if 'project_access' in payload:
-            del payload['project_access']
+        project_access = (
+            payload.pop('project_access', None)
+            or get_current_service_account_project_access(service_account_email)
+        )
+
         if payload:
             return (
                 'Cannot update provided fields: {}'.format(payload),
                 403
             )
 
-        service_account_email = get_service_account_email(id_)
         google_project_id = (
             get_google_project_from_service_account_email(service_account_email)
         )
@@ -306,8 +275,14 @@ class GoogleServiceAccount(Resource):
         if error_response.get('success') is not True:
             return error_response, 400
 
-        self._update_service_account_permissions(
-            service_account_email, project_access)
+        resp, status_code = self._update_service_account_permissions(
+            google_project_id, service_account_email, project_access)
+
+        if status_code != 200:
+            return resp, status_code
+
+        # extend access to all datasets
+        extend_service_account_access(service_account_email)
 
         return '', 204
 
@@ -384,7 +359,7 @@ class GoogleServiceAccount(Resource):
         raise NotImplementedError('Functionality not yet available...')
 
     def _update_service_account_permissions(
-            self, service_account_email, project_access):
+            self, google_project_id, service_account_email, project_access):
         """
         Update the given service account's permissions.
 
@@ -392,14 +367,36 @@ class GoogleServiceAccount(Resource):
                  given service account.
 
         Args:
+            google_project_id (str): google project id
             service_account_email (str): Google service account email
             project_access (List(str)): List of Project.auth_ids to authorize
                 the service account for
 
-        Raises:
-            NotImplementedError: Description
         """
-        raise NotImplementedError('Functionality not yet available...')
+        try:
+            patch_user_service_account(
+                    google_project_id, service_account_email, project_access)
+
+        except NotFound as exc:
+            return (
+                'Can not update the service accout {}. Detail {}'.
+                format(service_account_email, exc.message), 404
+            )
+        except GoogleAPIError as exc:
+            return (
+                'Can not update the service accout {}. Detail {}'.
+                format(service_account_email, exc.message), 400
+            )
+        except Exception:
+            return (
+                ' Can not delete the service account {}'.
+                format(service_account_email), 500
+            )
+
+        return (
+            'Successfully update service account  {}'
+            .format(service_account_email), 200
+        )
 
     @classmethod
     def _delete(self, id_):
@@ -545,10 +542,11 @@ def _get_service_account_email_error_status(validity_info):
     for sa_account_id, sa_validity in service_accounts_validity:
         if sa_account_id == validity_info.new_service_account:
             if not sa_validity:
-                return {
-                    'status': 403,
-                    'error': 'Unauthorized',
-                    'error_description': str(sa_validity)
+                response['error_description'] = (
+                    'Service account requested for registration is invalid.'
+                )
+                response['service_account_validity'] = {
+                    str(sa_account_id): sa_validity._info
                 }
             else:
                 return {
@@ -580,18 +578,19 @@ def _get_google_project_id_error_status(validity_info):
     }
 
     if not valid_parent_org:
-        response['error_description'] += 'Project has parent organization.'
+        response['error_description'] += 'Project has parent organization. '
+
     if not valid_membership:
-        response['error_description'] += '\nProject has invalid membership.'
+        response['error_description'] += 'Project has invalid membership. '
 
     if not service_accounts_validity:
-        response['error_description'] += '\nProject has one or more invalid service accounts.'
-        response['service_account_validity'] = {}
-        for sa_account_id, sa_validity in service_accounts_validity:
-            if not sa_validity:
-                response['service_account_validity'][sa_account_id] = (
-                    str(sa_validity)
-                )
+        response['error_description'] += 'Project has one or more invalid service accounts.'
+
+    response['service_account_validity'] = {}
+    for sa_account_id, sa_validity in service_accounts_validity:
+        response['service_account_validity'][sa_account_id] = (
+            sa_validity._info
+        )
 
     return response
 
