@@ -575,16 +575,6 @@ def _get_service_account_email_error_status(validity_info):
 
 def _get_google_project_id_error_status(validity_info):
     has_access = validity_info.get('monitor_has_access')
-    valid_parent_org = validity_info.get('valid_parent_org')
-    valid_membership = validity_info.get('valid_membership')
-    service_accounts_validity = validity_info.get('service_accounts')
-
-    if has_access and valid_parent_org and valid_membership and service_accounts_validity:
-        return {
-            'status': 200,
-            'error': None,
-            'error_description': ''
-        }
 
     if not has_access:
         return {
@@ -596,18 +586,16 @@ def _get_google_project_id_error_status(validity_info):
             )
         }
 
+    valid_parent_org = validity_info.get('valid_parent_org')
+    valid_membership = validity_info.get('valid_membership')
+    service_accounts_validity = validity_info.get('service_accounts')
+
     response = {
-        'status': 403,
-        'error': 'unauthorized',
+        'status': 200,
+        'error': None,
         'error_description': '',
         'service_account_validity': {}
     }
-
-    if not valid_parent_org:
-        response['error_description'] += 'Project has parent organization. '
-
-    if not valid_membership:
-        response['error_description'] += 'Project has invalid membership. '
 
     for sa_account_id, sa_validity in service_accounts_validity:
         if sa_account_id != validity_info.new_service_account:
@@ -615,7 +603,19 @@ def _get_google_project_id_error_status(validity_info):
                 sa_validity.get_info()
             )
             if not sa_validity:
+                response['status'] = 403
+                response['error'] = 'Unauthorized'
                 response['error_description'] = 'Project has one or more invalid service accounts.'
+
+    if not valid_parent_org:
+        response['status'] = 403
+        response['error'] = 'Unauthorized'
+        response['error_description'] += 'Project has parent organization. '
+
+    if not valid_membership:
+        response['status'] = 403
+        response['error'] = 'Unauthorized'
+        response['error_description'] += 'Project has invalid membership. '
 
     return response
 
