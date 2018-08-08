@@ -224,6 +224,21 @@ class GoogleServiceAccount(Resource):
         error_response = _get_service_account_error_status(
             service_account_email, google_project_id, project_access)
 
+        sa_exists = (
+            current_session
+            .query(UserServiceAccount)
+            .filter_by(email=service_account_email)
+            .all()
+        )
+
+        if sa_exists:
+            error_response['success'] = False
+            error_response['errors']['service_account_email'] = {
+                'status': 409,
+                'error': 'Conflict',
+                'error_description': 'Service Account already registered.'
+            }
+
         if error_response.get('success') is True:
             status = 200
         else:

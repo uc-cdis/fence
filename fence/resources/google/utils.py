@@ -6,6 +6,7 @@ from flask_sqlalchemy_session import current_session
 from sqlalchemy import desc
 
 from cirrus import GoogleCloudManager
+from cirrus.google_cloud.iam import GooglePolicyMember
 from cirrus.google_cloud.utils import (
     get_valid_service_account_id_for_client,
     get_valid_service_account_id_for_user
@@ -513,15 +514,24 @@ def get_registered_service_accounts(google_project_id):
 
 
 def get_project_access_from_service_accounts(service_accounts):
-    # get a list of projects all the provided service accounts have
-    # access to. list will be of UserServiceAccount db objects
-
-    project_ids = set()
+    """
+    Get a list of projects all the provided service accounts have
+    access to. list will be of UserServiceAccount db objects
+    """
+    project_ids = []
     for service_account in service_accounts:
-        project_ids.update((current_session
-                            .query(ServiceAccountAccessPrivilege.project_id)
-                            .filter_by(service_account_id=service_account.id)))
-    return list(project_ids)
+        access = [
+            access_privilege.project_id
+            for access_privilege in (
+                current_session
+                .query(ServiceAccountAccessPrivilege.project_id)
+                .filter_by(service_account_id=service_account.id)
+                .all()
+            )
+            if access_privilege.project_id is not None
+        ]
+        project_ids.extend(access)
+    return list(set(project_ids))
 
 
 def get_service_account_ids_from_google_project(project_id):
@@ -539,9 +549,9 @@ def get_service_account_ids_from_google_project(project_id):
             return [acc['email'] for acc in prj.get_all_service_accounts()]
     except Exception as exc:
         flask.current_app.logger.debug((
-        'Could not get service account IDs of Google'
-        ' Project (project id: {}) Details: {}').
-            format(project_id, exc))
+            'Could not get service account IDs of Google '
+            'Project (project id: {}) Details: {}')
+            .format(project_id, exc))
         return []
 
 
@@ -568,9 +578,32 @@ def get_user_ids_from_google_members(members):
     return result
 
 
+def get_user_emails_on_google_project(project_id):
+    """
+    Return a list of emails for every user on the given google project.
+
+    Args:
+        project_id (str): google project identifier
+
+    Returns:
+        List[str]: list of emails for every user on the given google project
+    """
+    with GoogleCloudManager(project_id) as prj:
+        members = prj.get_project_membership(project_id)
+
+        # ensure that all the members on the project exist
+        # in our db
+        member_emails = [
+            member.email_id
+            for member in members
+            if member.member_type == GooglePolicyMember.USER
+        ]
+
+        return member_emails
+
+
 def get_db_session(db):
     if db:
         return SQLAlchemyDriver(db).Session()
     else:
         return current_session
-

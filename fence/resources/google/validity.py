@@ -7,7 +7,8 @@ from fence.resources.google.utils import (
     get_registered_service_accounts,
     get_project_access_from_service_accounts,
     get_user_ids_from_google_members,
-    get_service_account_ids_from_google_project
+    get_service_account_ids_from_google_project,
+    get_user_emails_on_google_project,
 )
 from fence.resources.google.access_utils import (
     is_valid_service_account_type,
@@ -15,7 +16,7 @@ from fence.resources.google.access_utils import (
     is_service_account_from_google_project,
     google_project_has_parent_org,
     google_project_has_valid_membership,
-    do_all_users_have_access_to_project
+    do_all_users_have_access_to_project,
 )
 
 
@@ -199,7 +200,7 @@ class GoogleProjectValidity(ValidityInfo):
                 return
 
             # update project with error info from the service accounts
-            service_account_id = str(service_account)  # TODO should be email
+            service_account_id = str(service_account)
             service_accounts_validity.set(
                 service_account_id, service_account_validity_info)
 
@@ -219,7 +220,8 @@ class GoogleProjectValidity(ValidityInfo):
 
         # make sure all the users of the project actually have access to all
         # the data the service accounts have access to
-        project_members = []  # TODO get all members on google project
+        project_members = get_user_emails_on_google_project(
+            self.google_project_id)
 
         all_user_ids = get_user_ids_from_google_members(project_members)
 
