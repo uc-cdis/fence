@@ -599,7 +599,8 @@ def _get_google_project_id_error_status(validity_info):
     response = {
         'status': 403,
         'error': 'unauthorized',
-        'error_description': ''
+        'error_description': '',
+        'service_accounts_validity': {}
     }
 
     if not valid_parent_org:
@@ -608,17 +609,13 @@ def _get_google_project_id_error_status(validity_info):
     if not valid_membership:
         response['error_description'] += 'Project has invalid membership. '
 
-    if not service_accounts_validity:
-        response['error_description'] += 'Project has one or more invalid service accounts.'
-
-    response['service_account_validity'] = {}
     for sa_account_id, sa_validity in service_accounts_validity:
         if sa_account_id != validity_info.new_service_account:
             response['service_account_validity'][sa_account_id] = (
                 sa_validity.get_info()
             )
             if not sa_validity:
-                response['error_description'] += 'Project has one or more invalid service accounts.'
+                response['error_description'] = 'Project has one or more invalid service accounts.'
 
     return response
 
