@@ -271,18 +271,18 @@ def is_user_member_of_all_google_projects(
     return True
 
 
-def do_all_users_have_access_to_project(user_ids, project_auth_id):
+def do_all_users_have_access_to_project(user_ids, project_id):
     # user_ids will be list of user ids
-    # check if all user ids has access to a project with project_auth_id
+    # check if all user ids has access to a project with project_id
     for user_id in user_ids:
-        access_privillege = (
+        access_privilege = (
             current_session
             .query(AccessPrivilege)
-            .filter(AccessPrivilege.user_id == user_id
-                    and AccessPrivilege.project_id == project_auth_id)
+            .filter(AccessPrivilege.user_id == user_id)
+            .filter(AccessPrivilege.project_id == project_id)
         ).first()
 
-        if access_privillege is None:
+        if not access_privilege:
             return False
 
     return True
@@ -792,3 +792,27 @@ def _get_google_access_groups_for_service_account(service_account):
         for bucket in access_privilege.project.buckets
         for group in bucket.google_bucket_access_groups
     ]
+
+
+def get_project_id_from_auth_id(project_auth_id, db=None):
+    """
+    Return a Project.id given a Project.auth_id (or None if it doesnt exist.)
+
+    Args:
+        project_auth_id (str): Project.auth_id
+
+    Returns:
+        int: Project.id
+    """
+    project_id = None
+    session = get_db_session(db)
+
+    project = (
+        session.query(Project)
+        .filter_by(auth_id=project_auth_id).first()
+    )
+
+    if project:
+        project_id = project.id
+
+    return project_id

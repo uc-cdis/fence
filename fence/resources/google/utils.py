@@ -517,6 +517,8 @@ def get_project_access_from_service_accounts(service_accounts):
     """
     Get a list of projects all the provided service accounts have
     access to. list will be of UserServiceAccount db objects
+
+    Returns a list of project_ids
     """
     project_ids = []
     for service_account in service_accounts:
@@ -524,11 +526,11 @@ def get_project_access_from_service_accounts(service_accounts):
             access_privilege.project_id
             for access_privilege in (
                 current_session
-                .query(ServiceAccountAccessPrivilege.project_id)
+                .query(ServiceAccountAccessPrivilege)
                 .filter_by(service_account_id=service_account.id)
                 .all()
             )
-            if access_privilege.project_id is not None
+            if access_privilege.project is not None
         ]
         project_ids.extend(access)
     return list(set(project_ids))
@@ -566,12 +568,12 @@ def get_user_ids_from_google_members(members):
     result = []
     for member in members:
         google_account = current_session.query(UserGoogleAccount).filter(
-            UserGoogleAccount.email == member).first()
+            UserGoogleAccount.email == member.lower()).first()
         if google_account:
             result.append(google_account.user_id)
         else:
             raise NotFound(
-                'Member {} does not have a linked Google Account.'
+                'Google member {} does not exist as a linked Google Account.'
                 .format(member)
             )
 
