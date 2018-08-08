@@ -275,8 +275,13 @@ def do_all_users_have_access_to_project(user_ids, project_auth_id):
     # user_ids will be list of user ids
     # check if all user ids has access to a project with project_auth_id
     for user_id in user_ids:
-        access_privillege = current_session.query(AccessPrivilege).filter(
-            AccessPrivilege.user_id == user_id and AccessPrivilege.project_id == project_auth_id).first()
+        access_privillege = (
+            current_session
+            .query(AccessPrivilege)
+            .filter(AccessPrivilege.user_id == user_id
+                    and AccessPrivilege.project_id == project_auth_id)
+        ).first()
+
         if access_privillege is None:
             return False
 
