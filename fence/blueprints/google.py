@@ -25,9 +25,14 @@ from fence.resources.google.access_utils import (
     get_project_ids_from_project_auth_ids,
     add_user_service_account_to_google,
     add_user_service_account_to_db,
+    get_google_access_groups_for_service_account,
 
 )
-from fence.resources.google.utils import get_monitoring_service_account_email
+from fence.resources.google.utils import (
+    get_monitoring_service_account_email,
+    get_registered_service_accounts,
+    get_project_access_from_service_accounts
+)
 from fence.models import UserServiceAccount
 from flask_sqlalchemy_session import current_session
 
@@ -373,7 +378,41 @@ class GoogleServiceAccount(Resource):
               ]
             }
         """
-        raise NotImplementedError('Functionality not yet available...')
+        all_service_accounts = []
+        for google_project_id in google_project_ids:
+            output_service_accounts = []
+            project_service_accounts = (
+                get_registered_service_accounts(google_project_id)
+            )
+
+            for project_sa in project_service_accounts:
+                project_access = get_project_access_from_service_accounts(
+                    [project_sa]
+                )
+
+                # need to determine expiration by getting the access groups
+                # and then checking the expiration for each of them
+                bucket_access_groups = (
+                    get_google_access_groups_for_service_account(project_sa)
+                )
+                expirations = [
+                    sa_to_gbag.expires for sa_to_gbag in
+                    bucket_access_groups.to_access_groups
+                ]
+
+                output_sa = {
+                  "service_account_email": project_sa.email,
+                  "google_project_id": project_sa.google_project_id,
+                  "project_access": [
+                      project.auth_id for project in project_access
+                  ],
+                  "project_access_exp": min(expirations)
+                }
+                output_service_accounts.append(output_sa)
+
+            all_service_accounts.extend(output_service_accounts)
+
+        return all_service_accounts
 
     def _update_service_account_permissions(
             self, google_project_id, service_account_email, project_access):

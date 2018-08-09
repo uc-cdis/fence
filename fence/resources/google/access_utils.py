@@ -451,7 +451,7 @@ def _force_remove_service_account_from_access_db(
         .first()
     )
 
-    access_groups = _get_google_access_groups_for_service_account(
+    access_groups = get_google_access_groups_for_service_account(
         service_account)
 
     for bucket_access_group in access_groups:
@@ -506,7 +506,7 @@ def force_remove_service_account_from_access(
                 .format(service_account_email)
             )
 
-    access_groups = _get_google_access_groups_for_service_account(
+    access_groups = get_google_access_groups_for_service_account(
         service_account)
 
     for bucket_access_group in access_groups:
@@ -736,7 +736,7 @@ def extend_service_account_access(service_account_email, db=None):
     )
 
     if service_account:
-        bucket_access_groups = _get_google_access_groups_for_service_account(
+        bucket_access_groups = get_google_access_groups_for_service_account(
             service_account)
 
         # use configured time or 7 days
@@ -802,7 +802,7 @@ def get_current_service_account_project_access(service_account_email, db=None):
     return project_access
 
 
-def _get_google_access_groups_for_service_account(service_account):
+def get_google_access_groups_for_service_account(service_account):
     """
     Return list of fence.models.GoogleBucketAccessGroup objects that the
     given service account should have access to based on it's access
@@ -862,6 +862,12 @@ def remove_white_listed_service_account_ids(service_account_ids):
 
 
 def force_delete_service_account(service_account_email, db=None):
+    """
+    Delete from our db the given user service account by email.
+
+    Args:
+        service_account_email (str): user service account email
+    """
     session = get_db_session(db)
 
     sa = (
