@@ -12,7 +12,7 @@ Fence is a core service in Gen3 stack that has multiple capabilities:
 1. Act as a auth broker to integrate with an [Identity Provider](#identity-provider) and provide downstream authentication and authorization for Gen3 services.
 2. [Token management](#token-management).
 3. Act as an [OIDC provider](oidc--oauth2) to support external applications to use Gen3 services.
-4. [Issues short lived cloud native credentials to access data in various cloud storage services](#accessing-data)
+4. [Issue short lived cloud native credentials to access data in various cloud storage services](#accessing-data)
 
 
 ## API Documentation
@@ -34,8 +34,8 @@ At the moment, supported IDPs are:
 ## OIDC & OAuth2
 
 Fence acts as a central broker that supports multiple Identity Providers (IDPs).
-It exposes AuthN and AuthZ for users by acting as an OIDC IDP itself.
-In that sense, `fence` is both a `client` and `OpenID Provider (OP)`.
+It exposes AuthN and AuthZ for users by acting as an OIDC(OpenID Connect flow (an extension of OAuth2)) IDP itself.
+In that sense, `fence` is both a `client` and `OpenID Connect Provider (OP)`.
 
 ### Fence as Client
 
@@ -106,43 +106,55 @@ Users can be provided specific `privilege`'s on `projects` in the User Access
 File. A `project` is identified by a unique authorization identifier AKA `auth_id`.
 
 A `project` can be associated with various storage backends that store
-data for that given `project`. You can assign `read-storage` and `write-storage`
-privilieges to users who should have access to that stored data.
+object data for that given `project`. You can assign `read-storage` and `write-storage`
+privilieges to users who should have access to that stored object data.
 
 Depending on the backend, Fence can be configured to provide users access to
 the data in different ways.
 
+
+### Signed URLS
+
+Temporary signed URL is supported in all major commercial clouds. So this is the most 'cloud agnostic' way that we support to allow user to access data located in different platforms. Fence has the ability to request a specific file by its GUID(globally unique identifier) and retrieve a temporary
+signed URL for object data in AWS or GCP that will provide direct access to that object.
+
 ### Google Cloud Storage
 
-There are various mechanisms for end-users to access data stored within
+Whereas pre-signed URLs are a cloud agnostic solution, services and tools on Google Cloud Platform prefer to use service account keys.
+
+Fence provide various mechanisms for end-users to access data stored within
 Google Cloud Storage. They require some extra configuration and setup to
 function correctly.
 
-#### Signed URLS
 
-Ability to request a specific file by its UUID and retrieve a temporary
-signed URL that will provide direct access to that file.
+#### Temporary Google Credentials
 
-#### Temporary Credentials
-
-Obtain Google Service Account credentials that will have the same access
-a user does to data. One can then use these credentials to AuthN as that
+Fence issues temporary service account keys that will have the same
+access a user does to data.
+One can then use these credentials to AuthN as that
 service account and manipulate the data within Google's Cloud Platform.
 
-Note that these provided credentials are temporary and will expire after some
-time. You will need to request new ones regularly.
+Service account keys expirations are managed by Fence, we would revise
+the design after Google provides a way to issue temporary credentials
+that work seamlessly with its infrastructure and tooling.
+
 
 #### Google Account Linking
 
-Allows end-users to link a Google Account to their normal Fence User account.
-This will provide temporary data access to that Google account. The Google account
-will have the same access the user has.
+This is a deprecated method and is not recommended to be used generally.
 
-NOTE: The data access is temporary, though there is a Fence endpoint to
+Fence supports granting Google Account or Google Service Account owned by end-users temporary access to authorized data.
+We call this process 'google account linking' because we are linking the user's fence identity with his/her google identity.
+
+##### a. Linking Google Personal Account
+
+This allows an end-user to link their personl google account with their fence identity.
+
+The data access is temporary, though there is a Fence endpoint to
 extend access (without requiring the end-user to go through the entire
 linking process again).
 
-#### Service Account Registration
+##### b. Linking Google Service Account
 
 This allows an end-user to create their own personal Google Cloud Project
 and register a Google Service Account from that project to have access
@@ -221,7 +233,7 @@ fence-create sync --yaml user.yaml
 
 #### Register OAuth Client
 
-When you want to build an application that uses fence as a login service, or you want to use Gen3 APIs, you should register an OAuth client for this app.
+When you want to build an application that uses Gen3 resources on behalf of user, you should register an OAuth client for this app.
 Fence right now expose client registration via admin CLI because oauth2 client for a Gen3 Commons needs approval from the Commons' sponsors. If you are an external developer, you should submit a support ticket.
 
 As a Gen3 commons administrator, you can run following command for an approved client:
