@@ -8,21 +8,12 @@
 A `fence` separates protected resources from the outside world and allows
 only trusted entities to enter.
 
-Fence is an authentication (AuthN) and authorization (AuthZ) service used
-primarily by the Gen3 Data Commons Software Stack.
+Fence is a core service in Gen3 stack that has multiple capabilities:
+1. Act as a auth broker to integrate with an [Identity Provider](#identity-provider) and provide downstream authentication and authorization for Gen3 services.
+2. [Token management](#token-management).
+3. Act as an [OIDC provider](oidc--oauth2) to support external applications to use Gen3 services.
+4. [Issues short lived cloud native credentials to access data in various cloud storage services](#accessing-data)
 
-It utilizes OpenID Connect flow (an extension of OAuth2)
-to generate tokens for clients. It can also provide tokens directly
-to a user.
-
-Clients and users may then use those tokens with other
-Gen3 Data Commons services to access protected endpoints that require specific permissions.
-
-Fence can be configured to support different Identity Providers (IDPs) for AuthN.
-At the moment, supported IDPs are:
-- Google
-- Shibboleth
-  - NIH iTrust
 
 ## API Documentation
 
@@ -30,6 +21,14 @@ At the moment, supported IDPs are:
 
 YAML file for the OpenAPI documentation is found in the `openapis` folder (in
 the root directory); see the README in that folder for more details.
+
+
+## Identity Provider
+Fence can be configured to support different Identity Providers (IDPs) for AuthN.
+At the moment, supported IDPs are:
+- Google
+- Shibboleth
+  - NIH iTrust
 
 
 ## OIDC & OAuth2
@@ -255,9 +254,16 @@ fence-create client-list
 That command should output the full records for any registered OAuth clients.
 
 
-## Authentication and Authorization
+## Token management
 
-We use JSON Web Tokens (JWTs) as the format for our authentication mechanism. There are following types of tokens:
+Fence utilizes OpenID Connect flow (an extension of OAuth2)
+to generate tokens for clients. It can also provide tokens directly
+to a user.
+
+Clients and users may then use those tokens with other
+Gen3 Data Commons services to access protected endpoints that require specific permissions.
+
+We use JSON Web Tokens (JWTs) as the format for all tokens. There are following types of tokens:
 
 - OIDC id token, this token is supposed to be used by OIDC client to get user's identity from the token content
 - OIDC access token, this token can be sent to Gen3 services via bearer header and get protected resources.
