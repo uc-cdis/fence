@@ -475,8 +475,6 @@ def _force_remove_service_account_from_access_db(
 
     for access in access_privileges:
         session.delete(access)
-
-    session.delete(service_account)
     session.commit()
 
 
@@ -861,3 +859,16 @@ def remove_white_listed_service_account_ids(service_account_ids):
     if monitoring_service_account in service_account_ids:
         service_account_ids.remove(monitoring_service_account)
     return service_account_ids
+
+
+def force_delete_service_account(service_account_email, db=None):
+    session = get_db_session(db)
+
+    sa = (
+        session.query(UserServiceAccount)
+        .filter_by(email=service_account_email).first()
+    )
+
+    if sa:
+        session.delete(sa)
+        session.commit()

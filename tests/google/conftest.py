@@ -262,7 +262,6 @@ def setup_data(db_session):
     db_session.add(project1)
     db_session.add(project2)
     db_session.add(project3)
-
     db_session.commit()
 
     db_session.add(ProjectToBucket(project_id=project1.id, bucket_id=bucket.id))
