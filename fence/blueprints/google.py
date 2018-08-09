@@ -541,34 +541,26 @@ def _get_service_account_error_status(
 
 def _get_service_account_email_error_status(validity_info):
     service_accounts_validity = validity_info.get('service_accounts')
-    if service_accounts_validity:
-        return {
-            'status': 200,
-            'error': None,
-            'error_description': ''
-        }
 
     response = {
-        'status': 403,
-        'error': 'unauthorized',
-        'error_description': ''
+        'status': 200,
+        'error': None,
+        'error_description': '',
+        'service_account_validity': {}
     }
 
     for sa_account_id, sa_validity in service_accounts_validity:
         if sa_account_id == validity_info.new_service_account:
             if not sa_validity:
+                response['status'] = 403
+                response['error'] = 'unauthorized'
                 response['error_description'] = (
                     'Service account requested for registration is invalid.'
                 )
-                response['service_account_validity'] = {
-                    str(sa_account_id): sa_validity.get_info()
-                }
-            else:
-                return {
-                    'status': 200,
-                    'error': None,
-                    'error_description': ''
-                }
+
+            response['service_account_validity'] = {
+                str(sa_account_id): sa_validity.get_info()
+            }
 
     return response
 
