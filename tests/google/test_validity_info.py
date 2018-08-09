@@ -271,6 +271,7 @@ def test_invalid_google_project_access(valid_google_project_patcher, db_session)
     patcher['get_project_access_from_service_accounts'].return_value = [
         project
     ]
+    patcher['get_users_from_google_members'].return_value = ['test-user']
     patcher['do_all_users_have_access_to_project'].return_value = False
 
     google_project_validity = GoogleProjectValidity('some-project-id')

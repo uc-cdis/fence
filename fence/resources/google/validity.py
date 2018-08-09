@@ -208,7 +208,7 @@ class GoogleProjectValidity(ValidityInfo):
 
         # if we have valid members, we can check if they exist in fence
         users_in_project = None
-        if user_members:
+        if user_members is not None:
             try:
                 users_in_project = get_users_from_google_members(user_members)
                 self.set('members_exist_in_fence', True)
@@ -222,7 +222,7 @@ class GoogleProjectValidity(ValidityInfo):
                 service_account_members)
         )
 
-        service_accounts = remove_white_listed_service_account_ids(
+        remove_white_listed_service_account_ids(
             service_accounts)
 
         if self.new_service_account:

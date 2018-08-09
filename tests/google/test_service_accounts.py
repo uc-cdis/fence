@@ -172,7 +172,7 @@ def test_patch_service_account_no_project_change(
 
 def test_invalid_service_account_dry_run_errors(
         client, app, encoded_jwt_service_accounts_access,
-        valid_service_account_patcher):
+        valid_service_account_patcher, db_session):
     """
     Test that an invalid service account gives us the expected error structure
     """
@@ -180,7 +180,12 @@ def test_invalid_service_account_dry_run_errors(
     valid_service_account_patcher['service_account_has_external_access'].return_value = True
 
     encoded_creds_jwt = encoded_jwt_service_accounts_access['jwt']
+
+    db_session.add(Project(auth_id='project_a'))
+    db_session.add(Project(auth_id='project_b'))
+    db_session.commit()
     project_access = ["project_a", "project_b"]
+
     invalid_service_account = {
           "service_account_email": "test123@test.com",
           "google_project_id": "some-google-project-872340ajsdkj",
@@ -199,17 +204,34 @@ def test_invalid_service_account_dry_run_errors(
 
 def test_invalid_service_account_has_external_access(
         client, app, encoded_jwt_service_accounts_access,
-        valid_service_account_patcher, valid_google_project_patcher):
+        valid_service_account_patcher, valid_google_project_patcher, db_session,
+        cloud_manager):
     """
     Test that an invalid service account gives us the expected error structure
     """
-    valid_service_account_patcher['service_account_has_external_access'].return_value = True
+    sa_patcher = valid_service_account_patcher
+    proj_patcher = valid_google_project_patcher
+    sa_patcher['service_account_has_external_access'].return_value = True
+    proj_patcher['get_service_account_ids_from_google_members'].return_value = [
+        'test123@test.com'
+    ]
     encoded_creds_jwt = encoded_jwt_service_accounts_access['jwt']
+
+    (
+        cloud_manager.return_value
+        .__enter__.return_value
+        .get_service_account.return_value
+    ) = {'uniqueId': '0', 'email': 'test123@test.com'}
+
+    db_session.add(Project(auth_id='project_a'))
+    db_session.add(Project(auth_id='project_b'))
+    db_session.commit()
     project_access = ["project_a", "project_b"]
+
     invalid_service_account = {
-          "service_account_email": "test123@test.com",
-          "google_project_id": "some-google-project-872340ajsdkj",
-          "project_access": project_access
+        "service_account_email": "test123@test.com",
+        "google_project_id": "some-google-project-872340ajsdkj",
+        "project_access": project_access
     }
 
     response = client.post(
@@ -225,13 +247,25 @@ def test_invalid_service_account_has_external_access(
 
 def test_invalid_service_account_has_invalid_type(
         client, app, encoded_jwt_service_accounts_access,
-        valid_service_account_patcher, valid_google_project_patcher):
+        valid_service_account_patcher, valid_google_project_patcher,
+        db_session, cloud_manager):
     """
     Test that an invalid service account gives us the expected error structure
     """
     valid_service_account_patcher['is_valid_service_account_type'].return_value = False
     encoded_creds_jwt = encoded_jwt_service_accounts_access['jwt']
+
+    db_session.add(Project(auth_id='project_a'))
+    db_session.add(Project(auth_id='project_b'))
+    db_session.commit()
     project_access = ["project_a", "project_b"]
+
+    (
+        cloud_manager.return_value
+        .__enter__.return_value
+        .get_service_account.return_value
+    ) = {'uniqueId': '0', 'email': 'test123@test.com'}
+
     invalid_service_account = {
           "service_account_email": "test123@test.com",
           "google_project_id": "some-google-project-872340ajsdkj",
@@ -251,14 +285,26 @@ def test_invalid_service_account_has_invalid_type(
 
 def test_invalid_service_account_not_owned_by_project(
         client, app, encoded_jwt_service_accounts_access,
-        valid_service_account_patcher, valid_google_project_patcher):
+        valid_service_account_patcher, valid_google_project_patcher,
+        db_session, cloud_manager):
     """
     Test that an invalid service account gives us the expected error structure
     """
     (valid_service_account_patcher['is_service_account_from_google_project']
         .return_value) = False
     encoded_creds_jwt = encoded_jwt_service_accounts_access['jwt']
+
+    db_session.add(Project(auth_id='project_a'))
+    db_session.add(Project(auth_id='project_b'))
+    db_session.commit()
     project_access = ["project_a", "project_b"]
+
+    (
+        cloud_manager.return_value
+        .__enter__.return_value
+        .get_service_account.return_value
+    ) = {'uniqueId': '0', 'email': 'test123@test.com'}
+
     invalid_service_account = {
           "service_account_email": "test123@test.com",
           "google_project_id": "some-google-project-872340ajsdkj",
@@ -278,14 +324,26 @@ def test_invalid_service_account_not_owned_by_project(
 
 def test_invalid_google_project_has_parent_org(
         client, app, encoded_jwt_service_accounts_access,
-        valid_service_account_patcher, valid_google_project_patcher):
+        valid_service_account_patcher, valid_google_project_patcher,
+        db_session, cloud_manager):
     """
     Test that an invalid service account gives us the expected error structure
     """
     (valid_google_project_patcher['google_project_has_parent_org']
         .return_value) = True
     encoded_creds_jwt = encoded_jwt_service_accounts_access['jwt']
+
+    db_session.add(Project(auth_id='project_a'))
+    db_session.add(Project(auth_id='project_b'))
+    db_session.commit()
     project_access = ["project_a", "project_b"]
+
+    (
+        cloud_manager.return_value
+        .__enter__.return_value
+        .get_service_account.return_value
+    ) = {'uniqueId': '0', 'email': 'test123@test.com'}
+
     invalid_service_account = {
           "service_account_email": "test123@test.com",
           "google_project_id": "some-google-project-872340ajsdkj",
@@ -305,13 +363,25 @@ def test_invalid_google_project_has_parent_org(
 
 def test_invalid_google_project_has_invalid_membership(
         client, app, encoded_jwt_service_accounts_access,
-        valid_service_account_patcher, valid_google_project_patcher):
+        valid_service_account_patcher, valid_google_project_patcher,
+        db_session, cloud_manager):
     """
     Test that an invalid service account gives us the expected error structure
     """
     valid_google_project_patcher['get_google_project_valid_users_and_service_accounts'].side_effect = Exception()
     encoded_creds_jwt = encoded_jwt_service_accounts_access['jwt']
+
+    db_session.add(Project(auth_id='project_a'))
+    db_session.add(Project(auth_id='project_b'))
+    db_session.commit()
     project_access = ["project_a", "project_b"]
+
+    (
+        cloud_manager.return_value
+        .__enter__.return_value
+        .get_service_account.return_value
+    ) = {'uniqueId': '0', 'email': 'test123@test.com'}
+
     invalid_service_account = {
           "service_account_email": "test123@test.com",
           "google_project_id": "some-google-project-872340ajsdkj",
@@ -331,7 +401,8 @@ def test_invalid_google_project_has_invalid_membership(
 
 def test_invalid_google_project_no_access(
         client, app, encoded_jwt_service_accounts_access,
-        valid_service_account_patcher, valid_google_project_patcher):
+        valid_service_account_patcher, valid_google_project_patcher,
+        db_session):
     """
     Test that an invalid service account gives us the expected error structure
     """
@@ -355,7 +426,7 @@ def test_invalid_google_project_no_access(
 
     assert response.status_code == 400
     _assert_expected_error_response_structure(response, project_access)
-    assert response.json['errors']['project_access']['status'] == 403
+    assert response.json['errors']['project_access']['status'] != 200
 
 
 def test_valid_service_account_registration(

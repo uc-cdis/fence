@@ -147,6 +147,26 @@ def valid_google_project_patcher():
         valid_membership_mock
     ))
 
+    get_users_from_members_mock = MagicMock()
+    patches.append(patch(
+        'fence.resources.google.access_utils.get_users_from_google_members',
+        get_users_from_members_mock
+    ))
+    patches.append(patch(
+        'fence.resources.google.validity.get_users_from_google_members',
+        get_users_from_members_mock
+    ))
+
+    remove_white_listed_accounts_mock = MagicMock()
+    patches.append(patch(
+        'fence.resources.google.access_utils.remove_white_listed_service_account_ids',
+        remove_white_listed_accounts_mock
+    ))
+    patches.append(patch(
+        'fence.resources.google.validity.remove_white_listed_service_account_ids',
+        remove_white_listed_accounts_mock
+    ))
+
     users_have_access_mock = MagicMock()
     patches.append(patch(
         'fence.resources.google.access_utils.do_all_users_have_access_to_project',
@@ -176,7 +196,8 @@ def valid_google_project_patcher():
     ))
 
     parent_org_mock.return_value = False
-    valid_membership_mock.return_value = True
+    valid_membership_mock.return_value = [], []
+    get_users_from_members_mock.return_value = []
     users_have_access_mock.return_value = True
     project_service_accounts_mock.return_value = []
 
@@ -189,6 +210,12 @@ def valid_google_project_patcher():
         ),
         'get_google_project_valid_users_and_service_accounts': (
             valid_membership_mock
+        ),
+        'get_users_from_google_members': (
+            get_users_from_members_mock
+        ),
+        'remove_white_listed_service_account_ids': (
+            remove_white_listed_accounts_mock
         ),
         'do_all_users_have_access_to_project': (
             users_have_access_mock

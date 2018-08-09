@@ -440,7 +440,6 @@ def _force_remove_service_account_from_access_db(
         service account has to exist in db
 
     """
-
     session = get_db_session(db)
 
     service_account = (
@@ -491,7 +490,6 @@ def force_remove_service_account_from_access(
     Returns:
         None
     """
-
     session = get_db_session(db)
 
     service_account = (
