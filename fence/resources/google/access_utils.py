@@ -287,8 +287,8 @@ def is_user_member_of_all_google_projects(
     except Exception as exc:
         flask.current_app.logger.debug((
             'Could not determine if user (id: {} is from projects:'
-            ' {} due to error. Details: {}').
-            format(user_id, google_project_ids, exc))
+            ' {} due to error. Details: {}')
+            .format(user_id, google_project_ids, exc))
         return False
 
     return True

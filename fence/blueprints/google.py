@@ -69,18 +69,6 @@ class GoogleServiceAccountRoot(Resource):
         google_project_id = payload.get('google_project_id')
         project_access = payload.get('project_access')
 
-        # check if user has permission to get service accounts
-        # for these projects
-        user_id = current_token['sub']
-        authorized = is_user_member_of_all_google_projects(
-            user_id, [google_project_id])
-
-        if not authorized:
-            return (
-                'User is not a member on the provided Google project ID.',
-                403
-            )
-
         return self._post_new_service_account(
             service_account_email=service_account_email,
             google_project_id=google_project_id,
@@ -210,7 +198,8 @@ class GoogleServiceAccount(Resource):
 
         if not authorized:
             return (
-                'User is not a member on all the provided Google project IDs.',
+                'Could not determine if user is a member on all the '
+                'provided Google project IDs.',
                 403
             )
 
