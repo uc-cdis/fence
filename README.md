@@ -112,6 +112,8 @@ passed in an `Authorization` header.
 The following diagram illustrates the case in which one fence instance should
 use another fence instance as its identity provider.
 
+A use case for this is when we setup a fence instance that uses NIH login as the IdP, we need to go through a cumbersome approval process in NIH. So we would like to do it once for one central fence, and other fence instances just redirect to use this Fence as IdP for logging in via NIH.
+
 ![Multi-Tenant Flow](docs/multi-tenant_flow.png)
 
 #### Notes
