@@ -433,7 +433,8 @@ class GoogleServiceAccount(Resource):
         )
 
         try:
-            force_remove_service_account_from_access(service_account_email, google_project_id)
+            force_remove_service_account_from_access(
+                service_account_email, google_project_id)
         except NotFound as exc:
             return (
                 'Can not remove the service accout {}. Detail {}'.
@@ -618,7 +619,7 @@ def _get_google_project_id_error_status(validity_info):
         response['status'] = 403
         response['error'] = 'unauthorized'
         response['error_description'] += (
-            'Project members don\'t exist in fence.'
+            'Not all Google project members exist in fence.'
         )
 
     return response

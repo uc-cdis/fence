@@ -451,7 +451,8 @@ def _force_remove_service_account_from_access_db(
         .first()
     )
 
-    access_groups = service_account.to_access_groups
+    access_groups = _get_google_access_groups_for_service_account(
+        service_account)
 
     for bucket_access_group in access_groups:
         sa_to_group = (
@@ -474,6 +475,8 @@ def _force_remove_service_account_from_access_db(
 
     for access in access_privileges:
         session.delete(access)
+
+    session.delete(service_account)
     session.commit()
 
 
@@ -505,18 +508,17 @@ def force_remove_service_account_from_access(
                 .format(service_account_email)
             )
 
-    flask.current_app.logger.debug('1')
-    access_groups = service_account.to_access_groups
+    access_groups = _get_google_access_groups_for_service_account(
+        service_account)
+
     for bucket_access_group in access_groups:
         try:
-            with GoogleCloudManager(google_project_id) as g_manager:
-                flask.current_app.logger.debug('3')
+            with GoogleCloudManager() as g_manager:
                 g_manager.remove_member_from_group(
                     member_email=service_account.email,
-                    group_id=bucket_access_group.access_group_id
+                    group_id=bucket_access_group.email
                 )
         except Exception as exc:
-            flask.current_app.logger.debug('2: {}'.format(exc.message))
             raise GoogleAPIError(
                     'Can not remove memeber {} from access group. {}'
                     .format(service_account.email, exc))
