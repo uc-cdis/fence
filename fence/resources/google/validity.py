@@ -194,7 +194,7 @@ class GoogleProjectValidity(ValidityInfo):
             return
 
         user_members = None
-        service_account_members = None
+        service_account_members = []
         try:
             user_members, service_account_members = (
                 get_google_project_valid_users_and_service_accounts(
@@ -217,9 +217,6 @@ class GoogleProjectValidity(ValidityInfo):
                 if early_return:
                     return
 
-        if not service_account_members:
-            service_account_members = []
-            
         service_accounts = (
             get_service_account_ids_from_google_members(
                 service_account_members)
