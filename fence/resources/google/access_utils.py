@@ -31,6 +31,7 @@ from fence.models import (
 from fence.resources.google.utils import (
     get_db_session,
     get_users_from_google_members,
+    get_monitoring_service_account_email,
 )
 
 ALLOWED_SERVICE_ACCOUNT_TYPES = [
@@ -835,3 +836,20 @@ def get_project_from_auth_id(project_auth_id, db=None):
     )
 
     return project
+
+
+def remove_white_listed_service_account_ids(service_account_ids):
+    """
+    Remove any service account emails that should be ignored when
+    determining validitity.
+
+    Args:
+        service_account_ids (List[str]): Service account emails
+
+    Returns:
+        List[str]: Service account emails
+    """
+    monitoring_service_account = get_monitoring_service_account_email()
+    if monitoring_service_account in service_account_ids:
+        service_account_ids.remove(monitoring_service_account)
+    return service_account_ids

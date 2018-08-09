@@ -19,6 +19,7 @@ from fence.resources.google.access_utils import (
     do_all_users_have_access_to_project,
     get_project_from_auth_id,
     can_access_google_project,
+    remove_white_listed_service_account_ids,
 )
 
 
@@ -223,6 +224,9 @@ class GoogleProjectValidity(ValidityInfo):
             get_service_account_ids_from_google_members(
                 service_account_members)
         )
+
+        service_accounts = remove_white_listed_service_account_ids(
+            service_accounts)
 
         if self.new_service_account:
             service_accounts.append(self.new_service_account)

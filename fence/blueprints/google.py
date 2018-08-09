@@ -26,6 +26,7 @@ from fence.resources.google.access_utils import (
     add_user_service_account_to_db,
 
 )
+from fence.resources.google.utils import get_monitoring_service_account_email
 from fence.models import UserServiceAccount
 from flask_sqlalchemy_session import current_session
 
@@ -330,7 +331,7 @@ class GoogleServiceAccount(Resource):
         Returns:
             tuple(dict, int): (response_data, http_status_code)
         """
-        monitoring_account_email = _get_monitoring_account_email()
+        monitoring_account_email = get_monitoring_service_account_email()
         if not monitoring_account_email:
             error = (
                 'No monitoring service account. Fence is not currently '
@@ -646,7 +647,9 @@ def _get_project_access_error_status(validity_info):
             if not validity.get('all_users_have_access'):
                 response['status'] = 403
                 response['error'] = 'unauthorized'
-                response['error_description'] += 'Not all users have necessary access to project(s).'
+                message = 'Not all users have necessary access to project(s). '
+                if message not in response['error_description']:
+                    response['error_description'] += message
         else:
             response['status'] = 404
             response['error'] = 'project_not_found'
@@ -660,28 +663,3 @@ def _get_project_access_error_status(validity_info):
         )
 
     return response
-
-
-def _get_monitoring_account_email():
-    """
-    Get the monitoring email from the cirrus configuration. Use the
-    main/default application credentials as the monitoring service account.
-
-    This function should ONLY return the service account's email by
-    parsing the creds file.
-    """
-    app_creds_file = (
-        flask.current_app.config
-        .get('CIRRUS_CFG', {})
-        .get('GOOGLE_APPLICATION_CREDENTIALS')
-    )
-
-    creds_email = None
-    if app_creds_file and os.path.exists(app_creds_file):
-        with open(app_creds_file) as app_creds_file:
-            creds_email = (
-                json.load(app_creds_file)
-                .get('client_email')
-            )
-
-    return creds_email

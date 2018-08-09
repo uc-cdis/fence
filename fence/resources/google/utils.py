@@ -1,5 +1,6 @@
 import time
 import json
+import os
 from cryptography.fernet import Fernet
 import flask
 from flask_sqlalchemy_session import current_session
@@ -570,13 +571,9 @@ def get_users_from_google_members(members):
     """
     result = []
     for member in members:
-        linked_google_account = (
-            current_session.query(UserGoogleAccount)
-            .filter(UserGoogleAccount.email == member.email_id.lower()).first()
-        )
-
-        if linked_google_account:
-            result.append(linked_google_account)
+        user = get_user_from_google_member(member)
+        if user:
+            result.append(user)
         else:
             raise NotFound(
                 'Google member {} does not exist as a linked Google Account.'
@@ -584,6 +581,23 @@ def get_users_from_google_members(members):
             )
 
     return result
+
+
+def get_user_from_google_member(member):
+    """
+    Get User object for all members on a Google project by checking db.
+
+    Args:
+        member(cirrus.google_cloud.iam.GooglePolicyMember): Member on
+            the google project who are of type User
+
+    Return:
+        fence.models.User: User from our db for member on Google project
+    """
+    return (
+        current_session.query(UserGoogleAccount)
+        .filter(UserGoogleAccount.email == member.email_id.lower()).first()
+    )
 
 
 def get_user_emails_on_google_project(project_id):
@@ -608,6 +622,31 @@ def get_user_emails_on_google_project(project_id):
         ]
 
         return member_emails
+
+
+def get_monitoring_service_account_email():
+    """
+    Get the monitoring email from the cirrus configuration. Use the
+    main/default application credentials as the monitoring service account.
+
+    This function should ONLY return the service account's email by
+    parsing the creds file.
+    """
+    app_creds_file = (
+        flask.current_app.config
+        .get('CIRRUS_CFG', {})
+        .get('GOOGLE_APPLICATION_CREDENTIALS')
+    )
+
+    creds_email = None
+    if app_creds_file and os.path.exists(app_creds_file):
+        with open(app_creds_file) as app_creds_file:
+            creds_email = (
+                json.load(app_creds_file)
+                .get('client_email')
+            )
+
+    return creds_email
 
 
 def get_db_session(db):
