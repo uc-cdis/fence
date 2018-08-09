@@ -5,6 +5,7 @@ from urllib import unquote
 import flask
 from flask_restful import Resource
 
+from cirrus import GoogleCloudManager
 from cirrus.google_cloud.errors import GoogleAPIError
 
 from fence.auth import current_token, require_auth_header
@@ -17,11 +18,18 @@ from fence.resources.google.access_utils import (
     get_google_project_from_service_account_email,
     get_service_account_email,
     force_remove_service_account_from_access,
+    force_delete_service_account,
     extend_service_account_access,
     get_current_service_account_project_access,
     patch_user_service_account,
+    get_project_ids_from_project_auth_ids,
+    add_user_service_account_to_google,
+    add_user_service_account_to_db,
 
 )
+from fence.resources.google.utils import get_monitoring_service_account_email
+from fence.models import UserServiceAccount
+from flask_sqlalchemy_session import current_session
 
 
 def make_google_blueprint():
@@ -82,6 +90,22 @@ class GoogleServiceAccountRoot(Resource):
         if error_response.get('success') is not True:
             return error_response, 400
 
+        sa_exists = (
+            current_session
+            .query(UserServiceAccount)
+            .filter_by(email=service_account_email)
+            .all()
+        )
+
+        if sa_exists:
+            error_response['success'] = False
+            error_response['errors']['service_account_email'] = {
+                'status': 409,
+                'error': 'Conflict',
+                'error_description': 'Service Account already registered.'
+            }
+            return error_response, 400
+
         new_service_account = self._register_new_service_account(
             service_account_email, google_project_id, project_access)
 
@@ -89,8 +113,52 @@ class GoogleServiceAccountRoot(Resource):
 
     def _register_new_service_account(
             self, service_account_email, google_project_id, project_access):
-        # TODO
-        return {}
+        """
+        Add service account and related entries to database and add
+        service account to google bucket access groups
+
+        WARNING: this assumes that the project_access provided are all
+        valid Project.auth_ids, currently checked before this is called
+        in validity checking
+
+        Args:
+            service_account_email(str): email address of
+                service account to be registered
+            google_project_id(str): unique-id of google project
+            project_access(list<(str)>): list of project auth-ids which
+                identify which projects the service account should have
+                access to
+
+        Return:
+            (dict): dictionary representing service account object
+        """
+        with GoogleCloudManager(google_project_id) as google_project:
+            service_account = google_project.get_service_account(
+                service_account_email)
+
+        db_service_account = UserServiceAccount(
+            google_unique_id=service_account.get('uniqueId'),
+            email=service_account.get('email'),
+            google_project_id=google_project_id
+        )
+
+        current_session.add(db_service_account)
+        current_session.commit()
+
+        project_ids = get_project_ids_from_project_auth_ids(
+            current_session, project_access)
+
+        add_user_service_account_to_db(
+            current_session, project_ids, db_service_account)
+
+        add_user_service_account_to_google(
+            current_session, project_ids, db_service_account)
+
+        return {
+            'service_account_email': service_account.get('email'),
+            'google_project_id': service_account.get('projectId'),
+            'project_access': project_access
+        }
 
 
 class GoogleServiceAccount(Resource):
@@ -157,6 +225,21 @@ class GoogleServiceAccount(Resource):
 
         error_response = _get_service_account_error_status(
             service_account_email, google_project_id, project_access)
+
+        sa_exists = (
+            current_session
+            .query(UserServiceAccount)
+            .filter_by(email=service_account_email)
+            .all()
+        )
+
+        if sa_exists:
+            error_response['success'] = False
+            error_response['errors']['service_account_email'] = {
+                'status': 409,
+                'error': 'Conflict',
+                'error_description': 'Service Account already registered.'
+            }
 
         if error_response.get('success') is True:
             status = 200
@@ -249,7 +332,7 @@ class GoogleServiceAccount(Resource):
         Returns:
             tuple(dict, int): (response_data, http_status_code)
         """
-        monitoring_account_email = _get_monitoring_account_email()
+        monitoring_account_email = get_monitoring_service_account_email()
         if not monitoring_account_email:
             error = (
                 'No monitoring service account. Fence is not currently '
@@ -309,7 +392,7 @@ class GoogleServiceAccount(Resource):
         """
         try:
             patch_user_service_account(
-                    google_project_id, service_account_email, project_access)
+                google_project_id, service_account_email, project_access)
 
         except NotFound as exc:
             return (
@@ -351,7 +434,9 @@ class GoogleServiceAccount(Resource):
         )
 
         try:
-            force_remove_service_account_from_access(google_project_id, service_account_email)
+            force_remove_service_account_from_access(
+                service_account_email, google_project_id)
+            force_delete_service_account(service_account_email)
         except NotFound as exc:
             return (
                 'Can not remove the service accout {}. Detail {}'.
@@ -376,8 +461,6 @@ def _get_service_account_error_status(
     """
     Get a dictionary describing any errors that will occur if attempting
     to give service account specified permissions fails.
-
-    Response will ONLY contain { "success": True } if no errors.
 
     Args:
         service_account_email (str): Google service account email
@@ -410,7 +493,7 @@ def _get_service_account_error_status(
                     },
                     "projectB": {
                         "status": 403,
-                        "error": "Unauthorized",
+                        "error": "unauthorized",
                         "error_description": "Not all users have access requested"
                     }
                 }
@@ -451,81 +534,127 @@ def _get_service_account_error_status(
     )
 
     # all statuses must be 200 to be successful
-    project_statuses = [
-        error_details.get('status')
-        for project_name, error_details
-        in response['errors']['project_access'].iteritems()
-    ]
     if (response['errors']['service_account_email'].get('status') == 200
             and response['errors']['google_project_id'].get('status') == 200
-            and set(project_statuses) == {200}):
+            and response['errors']['project_access'].get('status') == 200):
         response['success'] = True
-        del response['errors']
 
     return response
 
 
 def _get_service_account_email_error_status(validity_info):
-    # TODO actually validate
-    validity_info = validity_info.get('service_accounts')
+    service_accounts_validity = validity_info.get('service_accounts')
+
     response = {
-        'status': 400,
+        'status': 200,
         'error': None,
-        'error_description': ''
+        'error_description': '',
+        'service_account_validity': {}
     }
+
+    for sa_account_id, sa_validity in service_accounts_validity:
+        if sa_account_id == validity_info.new_service_account:
+            if not sa_validity:
+                response['status'] = 403
+                response['error'] = 'unauthorized'
+                response['error_description'] = (
+                    'Service account requested for registration is invalid.'
+                )
+
+            response['service_account_validity'] = {
+                str(sa_account_id): sa_validity.get_info()
+            }
+
     return response
 
 
 def _get_google_project_id_error_status(validity_info):
-    # TODO actually validate
-    # valid_parent_org = validity_info.get('valid_parent_org')
-    # valid_membership = validity_info.get('valid_membership')
+    has_access = validity_info.get('monitor_has_access')
+
+    if not has_access:
+        return {
+            'status': 404,
+            'error': 'monitor_not_found',
+            'error_description': (
+                'Fence\'s monitoring service account '
+                'does not have access to the project.'
+            )
+        }
+
+    valid_parent_org = validity_info.get('valid_parent_org')
+    valid_member_types = validity_info.get('valid_member_types')
+    members_exist_in_fence = validity_info.get('members_exist_in_fence')
+    service_accounts_validity = validity_info.get('service_accounts')
+
     response = {
-        'status': 400,
+        'status': 200,
         'error': None,
-        'error_description': ''
+        'error_description': '',
+        'membership_validity': {
+            'valid_member_types': valid_member_types,
+            'members_exist_in_fence': members_exist_in_fence
+        },
+        'service_account_validity': {}
     }
+
+    for sa_account_id, sa_validity in service_accounts_validity:
+        if sa_account_id != validity_info.new_service_account:
+            response['service_account_validity'][sa_account_id] = (
+                sa_validity.get_info()
+            )
+            if not sa_validity:
+                response['status'] = 403
+                response['error'] = 'unauthorized'
+                response['error_description'] = 'Project has one or more invalid service accounts. '
+
+    if not valid_parent_org:
+        response['status'] = 403
+        response['error'] = 'unauthorized'
+        response['error_description'] += 'Project has parent organization. '
+
+    if not valid_member_types:
+        response['status'] = 403
+        response['error'] = 'unauthorized'
+        response['error_description'] += 'Project has invalid member types. '
+
+    if not members_exist_in_fence:
+        response['status'] = 403
+        response['error'] = 'unauthorized'
+        response['error_description'] += (
+            'Not all Google project members exist in fence.'
+        )
+
     return response
 
 
 def _get_project_access_error_status(validity_info):
-    validity_info = validity_info.get('access')
-    response = {}
-    # TODO check if permissions are valid
-    for project, info in validity_info:
-        # TODO check if all users on project have permissions, update status
-        #      and error info if there's an issue
-        response.update({
-            str(project): {
-                'status': 400,
-                'error': None,
-                'error_description': ''
-            }
-        })
+    access_validity = validity_info.get('access')
 
-    return response
+    response = {
+        'status': 200,
+        'error': None,
+        'error_description': '',
+        'project_validity': {}
+    }
 
-
-def _get_monitoring_account_email():
-    """
-    Get the monitoring email from the cirrus configuration. Use the
-    main/default application credentials as the monitoring service account.
-
-    This function should ONLY return the service account's email by
-    parsing the creds file.
-    """
-    app_creds_file = (
-        flask.current_app.config
-        .get('CIRRUS_CFG', {})
-        .get('GOOGLE_APPLICATION_CREDENTIALS')
-    )
-
-    creds_email = None
-    if app_creds_file and os.path.exists(app_creds_file):
-        with open(app_creds_file) as app_creds_file:
-            creds_email = (
-                json.load(app_creds_file)
-                .get('client_email')
+    for project, validity in access_validity:
+        if validity.get('exists'):
+            if not validity.get('all_users_have_access'):
+                response['status'] = 403
+                response['error'] = 'unauthorized'
+                message = 'Not all users have necessary access to project(s). '
+                if message not in response['error_description']:
+                    response['error_description'] += message
+        else:
+            response['status'] = 404
+            response['error'] = 'project_not_found'
+            response['error_description'] += (
+                'A project requested for access '
+                'could not be found by the given identifier. '
             )
 
-    return creds_email
+        response['project_validity'].update(
+            {str(project): validity.get_info()}
+        )
+
+    return response

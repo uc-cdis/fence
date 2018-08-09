@@ -17,6 +17,17 @@ from fence.models import (
 
 from tests import utils
 
+from flask_sqlalchemy_session import current_session
+
+from userdatamodel.models import (
+    Project,
+    Bucket,
+    ProjectToBucket,
+)
+from fence.models import (
+    GoogleBucketAccessGroup,
+)
+
 # Python 2 and 3 compatible
 try:
     from unittest.mock import MagicMock
@@ -128,12 +139,32 @@ def valid_google_project_patcher():
 
     valid_membership_mock = MagicMock()
     patches.append(patch(
-        'fence.resources.google.access_utils.google_project_has_valid_membership',
+        'fence.resources.google.access_utils.get_google_project_valid_users_and_service_accounts',
         valid_membership_mock
     ))
     patches.append(patch(
-        'fence.resources.google.validity.google_project_has_valid_membership',
+        'fence.resources.google.validity.get_google_project_valid_users_and_service_accounts',
         valid_membership_mock
+    ))
+
+    get_users_from_members_mock = MagicMock()
+    patches.append(patch(
+        'fence.resources.google.access_utils.get_users_from_google_members',
+        get_users_from_members_mock
+    ))
+    patches.append(patch(
+        'fence.resources.google.validity.get_users_from_google_members',
+        get_users_from_members_mock
+    ))
+
+    remove_white_listed_accounts_mock = MagicMock()
+    patches.append(patch(
+        'fence.resources.google.access_utils.remove_white_listed_service_account_ids',
+        remove_white_listed_accounts_mock
+    ))
+    patches.append(patch(
+        'fence.resources.google.validity.remove_white_listed_service_account_ids',
+        remove_white_listed_accounts_mock
     ))
 
     users_have_access_mock = MagicMock()
@@ -160,13 +191,15 @@ def valid_google_project_patcher():
 
     project_service_accounts_mock = MagicMock()
     patches.append(patch(
-        'fence.resources.google.validity.get_service_account_ids_from_google_project',
+        'fence.resources.google.validity.get_service_account_ids_from_google_members',
         project_service_accounts_mock
     ))
 
     parent_org_mock.return_value = False
-    valid_membership_mock.return_value = True
+    valid_membership_mock.return_value = [], []
+    get_users_from_members_mock.return_value = []
     users_have_access_mock.return_value = True
+    project_service_accounts_mock.return_value = []
 
     for patched_function in patches:
         patched_function.start()
@@ -175,8 +208,14 @@ def valid_google_project_patcher():
         'google_project_has_parent_org': (
             parent_org_mock
         ),
-        'google_project_has_valid_membership': (
+        'get_google_project_valid_users_and_service_accounts': (
             valid_membership_mock
+        ),
+        'get_users_from_google_members': (
+            get_users_from_members_mock
+        ),
+        'remove_white_listed_service_account_ids': (
+            remove_white_listed_accounts_mock
         ),
         'do_all_users_have_access_to_project': (
             users_have_access_mock
@@ -187,13 +226,14 @@ def valid_google_project_patcher():
         'get_project_access_from_service_accounts': (
             project_access_mock
         ),
-        'get_service_account_ids_from_google_project': (
+        'get_service_account_ids_from_google_members': (
             project_service_accounts_mock
         ),
     }
 
     for patched_function in patches:
         patched_function.stop()
+
 
 @pytest.fixture(scope='function')
 def setup_data(db_session):
@@ -222,7 +262,6 @@ def setup_data(db_session):
     db_session.add(project1)
     db_session.add(project2)
     db_session.add(project3)
-
     db_session.commit()
 
     db_session.add(ProjectToBucket(project_id=project1.id, bucket_id=bucket.id))

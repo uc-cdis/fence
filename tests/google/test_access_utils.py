@@ -15,7 +15,6 @@ from cirrus.google_cloud import (
     GOOGLE_API_SERVICE_ACCOUNT,
     USER_MANAGED_SERVICE_ACCOUNT,
 )
-from cirrus.google_cloud.errors import GoogleAPIError
 from cirrus.google_cloud.iam import (
     GooglePolicyMember
 )
@@ -30,7 +29,7 @@ from fence.models import (
 from fence.resources.google.access_utils import (
     is_valid_service_account_type,
     service_account_has_external_access,
-    google_project_has_valid_membership,
+    get_google_project_valid_users_and_service_accounts,
     google_project_has_valid_service_accounts,
     _force_remove_service_account_from_access_db,
     force_remove_service_account_from_access,
@@ -124,7 +123,7 @@ def test_service_account_has_role_in_service_policy(cloud_manager):
         return_value.get_service_account_policy.return_value
     ) = MockResponse(faked_json, 200)
 
-    assert service_account_has_external_access('test_service_account')
+    assert service_account_has_external_access('test_service_account', cloud_manager.project_id)
 
 
 def test_service_account_has_user_managed_key_in_service_policy(cloud_manager):
@@ -145,7 +144,7 @@ def test_service_account_has_user_managed_key_in_service_policy(cloud_manager):
         return_value.get_service_account_keys_inf.return_value
     ) = ['key1', 'key2']
 
-    assert service_account_has_external_access('test_service_account')
+    assert service_account_has_external_access('test_service_account', cloud_manager.project_id)
 
 
 def test_service_account_does_not_have_external_access(cloud_manager):
@@ -165,7 +164,7 @@ def test_service_account_does_not_have_external_access(cloud_manager):
         cloud_manager.return_value.__enter__.
         return_value.get_service_account_keys_info.return_value
     ) = []
-    assert not service_account_has_external_access('test_service_account')
+    assert not service_account_has_external_access('test_service_account', cloud_manager.project_id)
 
 
 def test_service_account_has_external_access_raise_exception(cloud_manager):
@@ -177,8 +176,8 @@ def test_service_account_has_external_access_raise_exception(cloud_manager):
         return_value.get_service_account_policy.return_value
     ) = MockResponse({}, 403)
 
-    with pytest.raises(GoogleAPIError):
-        assert service_account_has_external_access('test_service_account')
+    with pytest.raises(Exception):
+        assert service_account_has_external_access('test_service_account', cloud_manager.project_id)
 
 
 def test_project_has_valid_membership(cloud_manager, db_session):
@@ -201,11 +200,11 @@ def test_project_has_valid_membership(cloud_manager, db_session):
     # that these users exist in our db
     get_users_mock.return_value = [0, 1]
     get_users_patcher = patch(
-        'fence.resources.google.access_utils.get_user_ids_from_google_members',
+        'fence.resources.google.access_utils.get_users_from_google_members',
         get_users_mock
     )
     get_users_patcher.start()
-    assert google_project_has_valid_membership(cloud_manager.project_id)
+    assert get_google_project_valid_users_and_service_accounts(cloud_manager.project_id)
     get_users_patcher.stop()
 
 
@@ -220,7 +219,8 @@ def test_project_has_invalid_membership(cloud_manager, db_session):
         GooglePolicyMember("user", "user@gmail.com"),
         GooglePolicyMember("otherType", "other@gmail.com")
     ]
-    assert not google_project_has_valid_membership(cloud_manager.project_id)
+    with pytest.raises(Exception):
+        get_google_project_valid_users_and_service_accounts(cloud_manager.project_id)
 
 
 def test_project_has_valid_service_accounts(cloud_manager):
@@ -230,7 +230,7 @@ def test_project_has_valid_service_accounts(cloud_manager):
     # set up fake service accounts
     (
         cloud_manager.return_value.__enter__.return_value
-            .get_all_service_accounts.return_value
+        .get_all_service_accounts.return_value
     ) = [
         {
             'name': 'fakeSA1',
@@ -493,7 +493,7 @@ def test_remove_service_account_from_access(
     assert service_account
     assert access_projects == []
 
-    for access_group in  service_account.to_access_groups:
+    for access_group in service_account.to_access_groups:
         assert not(
             db_session.
             query(ServiceAccountToGoogleBucketAccessGroup).
@@ -523,7 +523,7 @@ def test_remove_service_account_raise_GoogleAPI_exc(
         return_value.remove_member_from_group.side_effect
     ) = Exception('exception')
 
-    with pytest.raises(GoogleAPIError):
+    with pytest.raises(Exception):
         assert force_remove_service_account_from_access('test@gmail.com', 'test')
 
 
@@ -785,7 +785,7 @@ def test_update_user_service_account_raise_GoogleAPI_exc(
         return_value.remove_member_from_group.side_effect
     ) = Exception('exception')
 
-    with pytest.raises(GoogleAPIError):
+    with pytest.raises(Exception):
         assert patch_user_service_account('test', 'test@gmail.com', ['test_auth_2'])
 
 
@@ -800,7 +800,7 @@ def test_update_user_service_account_raise_GoogleAPI_exc2(
         return_value.add_member_to_group.side_effect
     ) = Exception('exception')
 
-    with pytest.raises(GoogleAPIError):
+    with pytest.raises(Exception):
         assert patch_user_service_account('test', 'test@gmail.com', ['test_auth_1', 'test_auth_2','test_auth_3'])
 
 
@@ -815,7 +815,7 @@ def test_update_user_service_account_raise_GoogleAPI_exc3(
         return_value.add_member_to_group.return_value
         ) = {'a': 'b'}
 
-    with pytest.raises(GoogleAPIError):
+    with pytest.raises(Exception):
         assert patch_user_service_account('test', 'test@gmail.com', ['test_auth_1', 'test_auth_2','test_auth_3'])
 
 
@@ -830,6 +830,6 @@ def test_update_user_service_account_raise_GoogleAPI_exc4(
         return_value.delete_member_from_group.return_value
         ) = {'a': 'b'}
 
-    with pytest.raises(GoogleAPIError):
+    with pytest.raises(Exception):
         assert patch_user_service_account('test', 'test@gmail.com', ['test_auth_1'])
 
