@@ -280,9 +280,11 @@ def is_user_member_of_all_google_projects(
 
                 # first check if user.email is in project, then linked account
                 if not (user.email and user.email in member_emails):
+                    flask.current_app.logger.debug('a')
                     if not (linked_google_account
                             and linked_google_account.email in member_emails
                             ):
+                        flask.current_app.logger.debug('b')
                         # no user email is in project
                         return False
     except Exception as exc:
