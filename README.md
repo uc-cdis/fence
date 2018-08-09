@@ -1,5 +1,4 @@
 # Fence
-> AuthN and AuthZ service
 
 [![Build Status](https://travis-ci.org/uc-cdis/fence.svg?branch=master)](https://travis-ci.org/uc-cdis/fence)
 [![Codacy Quality Badge](https://api.codacy.com/project/badge/Grade/1cb2ec9cc64049488d140f44027c4422)](https://www.codacy.com/app/uc-cdis/fence?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=uc-cdis/fence&amp;utm_campaign=Badge_Grade)
@@ -9,7 +8,7 @@ A `fence` separates protected resources from the outside world and allows
 only trusted entities to enter.
 
 Fence is a core service in Gen3 stack that has multiple capabilities:
-1. Act as a auth broker to integrate with an [Identity Provider](#identity-provider) and provide downstream authentication and authorization for Gen3 services.
+1. Act as an auth broker to integrate with an [Identity Provider](#identity-provider) and provide downstream authentication and authorization for Gen3 services.
 2. [Token management](#token-management).
 3. Act as an [OIDC provider](oidc--oauth2) to support external applications to use Gen3 services.
 4. [Issue short lived cloud native credentials to access data in various cloud storage services](#accessing-data)
@@ -144,11 +143,7 @@ signed URL for object data in AWS or GCP that will provide direct access to that
 
 ### Google Cloud Storage
 
-Whereas pre-signed URLs are a cloud agnostic solution, services and tools on Google Cloud Platform prefer to use service account keys.
-
-Fence provide various mechanisms for end-users to access data stored within
-Google Cloud Storage. They require some extra configuration and setup to
-function correctly.
+Whereas pre-signed URL is a cloud agnostic solution, services and tools on Google Cloud Platform prefer to use service account keys. Because of that, fence provides support for generating temporary google service account credentials to be easily used together with google utilities.
 
 
 #### Temporary Google Credentials
