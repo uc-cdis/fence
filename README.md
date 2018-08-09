@@ -31,6 +31,131 @@ At the moment, supported IDPs are:
 YAML file for the OpenAPI documentation is found in the `openapis` folder (in
 the root directory); see the README in that folder for more details.
 
+
+## OIDC & OAuth2
+
+Fence acts as a central broker that supports multiple Identity Providers (IDPs).
+It exposes AuthN and AuthZ for users by acting as an OIDC IDP itself.
+In that sense, `fence` is both a `client` and `OpenID Provider (OP)`.
+
+### Fence as Client
+
+Example:
+
+- Google IAM is the OpenID Provider (OP)
+- Fence is the client
+- Google Calendar API is the resource provider
+
+### Fence as OpenID Provider (OP)
+
+- Fence is the OP
+- A third-party application is the client
+- Our microservices (e.g. [`sheepdog`](https://github.com/uc-cdis/sheepdog)) are resource providers
+
+### Example Flows
+
+Note that the `3rd Party App` acts as the `client` in these examples.
+
+[//]: # (See /docs folder for README on how to regenerate these sequence diagrams)
+
+#### Flow: Client Registration
+
+![Client Registration](docs/client_registration.png)
+
+#### Flow: OpenID Connect
+
+![OIDC Flow](docs/openid_connect_flow.png)
+
+If the third-party application doesn't need to use any Gen3 resources (and just
+wants to authenticate the user), after the handshake is finished they can just get
+needed information in the `ID token`.
+
+#### Flow: Using Tokens for Access
+
+If a third-party application want to use Gen3 resources like
+`fence`/`sheepdog`/`peregrine`, they call those services with an `Access Token`
+passed in an `Authorization` header.
+
+![Using Access Token](docs/token_use_for_access.png)
+
+#### Flow: Refresh Token Use
+
+![Using Refresh Token](docs/refresh_token_use.png)
+
+#### Flow: Refresh Token Use (Token is Expired)
+
+![Using Expired Refresh Token](docs/refresh_token_use_expired.png)
+
+#### Flow: Multi-Tenant Fence
+
+The following diagram illustrates the case in which one fence instance should
+use another fence instance as its identity provider.
+
+![Multi-Tenant Flow](docs/multi-tenant_flow.png)
+
+#### Notes
+
+See the [OIDC specification](http://openid.net/specs/openid-connect-core-1_0.html) for more details.
+Additionally, see the [OAuth2 specification](https://tools.ietf.org/html/rfc6749).
+
+## Accessing Data
+
+Fence has multiple options that provide a mechanism to access data. The access
+to data can be moderated through authorization information in a User Access File.
+
+Users can be provided specific `privilege`'s on `projects` in the User Access
+File. A `project` is identified by a unique authorization identifier AKA `auth_id`.
+
+A `project` can be associated with various storage backends that store
+data for that given `project`. You can assign `read-storage` and `write-storage`
+privilieges to users who should have access to that stored data.
+
+Depending on the backend, Fence can be configured to provide users access to
+the data in different ways.
+
+### Google Cloud Storage
+
+There are various mechanisms for end-users to access data stored within
+Google Cloud Storage. They require some extra configuration and setup to
+function correctly.
+
+#### Signed URLS
+
+Ability to request a specific file by its UUID and retrieve a temporary
+signed URL that will provide direct access to that file.
+
+#### Temporary Credentials
+
+Obtain Google Service Account credentials that will have the same access
+a user does to data. One can then use these credentials to AuthN as that
+service account and manipulate the data within Google's Cloud Platform.
+
+Note that these provided credentials are temporary and will expire after some
+time. You will need to request new ones regularly.
+
+#### Google Account Linking
+
+Allows end-users to link a Google Account to their normal Fence User account.
+This will provide temporary data access to that Google account. The Google account
+will have the same access the user has.
+
+NOTE: The data access is temporary, though there is a Fence endpoint to
+extend access (without requiring the end-user to go through the entire
+linking process again).
+
+#### Service Account Registration
+
+This allows an end-user to create their own personal Google Cloud Project
+and register a Google Service Account from that project to have access
+to data. While this method allows the most flexibility, it is also the
+most complicated and requires strict adherence to a number of rules and
+restrictions.
+
+This method also requires Fence to have access to that
+end-user's Google project. Fence is then able to monitor the project
+for any anomolies that may unintentionally provide data access to entities
+who should not have access.
+
 ## Setup
 
 #### Install Requirements and Fence
@@ -97,27 +222,28 @@ fence-create sync --yaml user.yaml
 
 #### Register OAuth Client
 
-Using gdcapi for example:
+When you want to build an application that uses fence as a login service, or you want to use Gen3 APIs, you should register an OAuth client for this app.
+Fence right now expose client registration via admin CLI because oauth2 client for a Gen3 Commons needs approval from the Commons' sponsors. If you are an external developer, you should submit a support ticket.
+
+As a Gen3 commons administrator, you can run following command for an approved client:
 ```bash
-fence-create client-create --client gdcapi --urls http://localhost/api/v0/oauth2/authorize --username test
+fence-create client-create --client CLIENT_NAME --urls OAUTH_REDIRECT_URL --username USERNAME
 ```
-That command should output a tuple of `(client_id, client_secret)` which must be
-saved so that `gdcapi` (for example) can be run as an OAuth client to use with
+This command should output a tuple of `(client_id, client_secret)` which must be
+saved by the OAuth client to use with
 `fence`.
 
 #### Modify OAuth Client
 
-Using gdcapi for example:
 ```bash
-fence-create client-modify --client gdcapi --urls http://localhost/api/v0/oauth2/authorize
+fence-create client-modify --client CLIENT_NAME --urls http://localhost/api/v0/oauth2/authorize
 ```
 That command should output any modifications to the client.
 
 #### Delete OAuth Client
 
-Using gdcapi for example:
 ```bash
-fence-create client-delete --client gdcapi
+fence-create client-delete --client CLIENT_NAME
 ```
 That command should output the result of the deletion attempt.
 
@@ -131,7 +257,13 @@ That command should output the full records for any registered OAuth clients.
 
 ## Authentication and Authorization
 
-We use JSON Web Tokens (JWTs) as the format for our authentication mechanism.
+We use JSON Web Tokens (JWTs) as the format for our authentication mechanism. There are following types of tokens:
+
+- OIDC id token, this token is supposed to be used by OIDC client to get user's identity from the token content
+- OIDC access token, this token can be sent to Gen3 services via bearer header and get protected resources.
+- OIDC refresh token, this token can be sent to fence to request a new access / id token.
+
+
 
 ### JWT Information
 
@@ -273,128 +405,3 @@ able to read the key.
 
 Fence will use the first keypair in the list to sign the tokens it issues
 through OAuth.
-
-## OIDC & OAuth2
-
-Fence acts as a central broker that supports multiple Identity Providers (IDPs).
-It exposes AuthN and AuthZ for users by acting as an OIDC IDP itself.
-In that sense, `fence` is both a `client` and `OpenID Provider (OP)`.
-
-### Fence as Client
-
-Example:
-
-- Google IAM is the OpenID Provider (OP)
-- Fence is the client
-- Google Calendar API is the resource provider
-
-### Fence as OpenID Provider (OP)
-
-- Fence is the OP
-- A third-party application is the client
-- Our microservices (e.g. [`sheepdog`](https://github.com/uc-cdis/sheepdog)) are resource providers
-
-### Example Flows
-
-Note that the `3rd Party App` acts as the `client` in these examples.
-
-[//]: # (See /docs folder for README on how to regenerate these sequence diagrams)
-
-#### Flow: Client Registration
-
-![Client Registration](docs/client_registration.png)
-
-#### Flow: OpenID Connect
-
-![OIDC Flow](docs/openid_connect_flow.png)
-
-If the third-party application doesn't need to use any Gen3 resources (and just
-wants to authenticate the user), after the handshake is finished they can just get
-needed information in the `ID token`.
-
-#### Flow: Using Tokens for Access
-
-If a third-party application want to use Gen3 resources like
-`fence`/`sheepdog`/`peregrine`, they call those services with an `Access Token`
-passed in an `Authorization` header.
-
-![Using Access Token](docs/token_use_for_access.png)
-
-#### Flow: Refresh Token Use
-
-![Using Refresh Token](docs/refresh_token_use.png)
-
-#### Flow: Refresh Token Use (Token is Expired)
-
-![Using Expired Refresh Token](docs/refresh_token_use_expired.png)
-
-#### Flow: Multi-Tenant Fence
-
-The following diagram illustrates the case in which one fence instance should
-use another fence instance as its identity provider.
-
-![Multi-Tenant Flow](docs/multi-tenant_flow.png)
-
-#### Notes
-
-See the [OIDC specification](http://openid.net/specs/openid-connect-core-1_0.html) for more details.
-Additionally, see the [OAuth2 specification](https://tools.ietf.org/html/rfc6749).
-
-## Accessing Data
-
-Fence has multiple options that provide a mechanism to access data. The access
-to data can be moderated through authorization information in a User Access File.
-
-Users can be provided specific `privilege`'s on `projects` in the User Access
-File. A `project` is identified by a unique authorization identifier AKA `auth_id`.
-
-A `project` can be associated with various storage backends that store
-data for that given `project`. You can assign `read-storage` and `write-storage`
-privilieges to users who should have access to that stored data.
-
-Depending on the backend, Fence can be configured to provide users access to
-the data in different ways.
-
-### Google Cloud Storage
-
-There are various mechanisms for end-users to access data stored within
-Google Cloud Storage. They require some extra configuration and setup to
-function correctly.
-
-#### Signed URLS
-
-Ability to request a specific file by its UUID and retrieve a temporary
-signed URL that will provide direct access to that file.
-
-#### Temporary Credentials
-
-Obtain Google Service Account credentials that will have the same access
-a user does to data. One can then use these credentials to AuthN as that
-service account and manipulate the data within Google's Cloud Platform.
-
-Note that these provided credentials are temporary and will expire after some
-time. You will need to request new ones regularly.
-
-#### Google Account Linking
-
-Allows end-users to link a Google Account to their normal Fence User account.
-This will provide temporary data access to that Google account. The Google account
-will have the same access the user has.
-
-NOTE: The data access is temporary, though there is a Fence endpoint to
-extend access (without requiring the end-user to go through the entire
-linking process again).
-
-#### Service Account Registration
-
-This allows an end-user to create their own personal Google Cloud Project
-and register a Google Service Account from that project to have access
-to data. While this method allows the most flexibility, it is also the
-most complicated and requires strict adherence to a number of rules and
-restrictions.
-
-This method also requires Fence to have access to that
-end-user's Google project. Fence is then able to monitor the project
-for any anomolies that may unintentionally provide data access to entities
-who should not have access.
-
