@@ -277,7 +277,7 @@ def is_user_member_of_all_google_projects(
                     member.email_id
                     for member in g_mgr.get_project_membership(google_project_id)
                 ]
-                flask.current_app.logger.debug('Is {} in member emails?'.format(user.email))
+                flask.current_app.logger.debug('Is {} or {} in member emails?'.format(user.email, linked_google_account.email))
                 for email in member_emails:
                     flask.current_app.logger.debug(email)
                 # first check if user.email is in project, then linked account
