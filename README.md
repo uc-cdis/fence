@@ -22,6 +22,28 @@ Fence is a core service in Gen3 stack that has multiple capabilities:
 YAML file for the OpenAPI documentation is found in the `openapis` folder (in
 the root directory); see the README in that folder for more details.
 
+## Terminologies
+
+#### OAuth2
+A widely used protocol for delegating access to an application to use resources on behalf of a user.
+
+https://tools.ietf.org/html/rfc6749
+
+https://oauth.net/2/
+
+#### OIDC
+OpenID Connect - an extention of OAuth2 which provides more detailed specification about the handshake. It introduced a new type of token - id token, which is specifically designed to be consumed by clients to get the identity information of the user.
+
+http://openid.net/specs/openid-connect-core-1_0.html
+
+#### AuthN
+Authentication - "Who you are"
+
+#### AuthZ
+Authorization - "What can you do, what resources do you have access to"
+
+#### IdP
+Identity Provider - the service which let user login and provide the identity of the user to downstream services. Example: google login, university login, NIH Login.
 
 ## Identity Provider
 Fence can be configured to support different Identity Providers (IDPs) for AuthN.
