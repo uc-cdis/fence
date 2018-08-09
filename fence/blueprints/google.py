@@ -69,6 +69,18 @@ class GoogleServiceAccountRoot(Resource):
         google_project_id = payload.get('google_project_id')
         project_access = payload.get('project_access')
 
+        # check if user has permission to get service accounts
+        # for these projects
+        user_id = current_token['sub']
+        authorized = is_user_member_of_all_google_projects(
+            user_id, [google_project_id])
+
+        if not authorized:
+            return (
+                'User is not a member on the provided Google project ID.',
+                403
+            )
+
         return self._post_new_service_account(
             service_account_email=service_account_email,
             google_project_id=google_project_id,
@@ -227,6 +239,18 @@ class GoogleServiceAccount(Resource):
         service_account_email = payload.get('service_account_email')
         google_project_id = payload.get('google_project_id')
         project_access = payload.get('project_access')
+
+        # check if user has permission to get service accounts
+        # for these projects
+        user_id = current_token['sub']
+        authorized = is_user_member_of_all_google_projects(
+            user_id, [google_project_id])
+
+        if not authorized:
+            return (
+                'User is not a member on the provided Google project ID.',
+                403
+            )
 
         error_response = _get_service_account_error_status(
             service_account_email, google_project_id, project_access)
@@ -395,9 +419,13 @@ class GoogleServiceAccount(Resource):
                 bucket_access_groups = (
                     get_google_access_groups_for_service_account(project_sa)
                 )
+
+                sa_to_gbags = []
+                for gbag in bucket_access_groups:
+                    sa_to_gbags.extend(gbag.to_access_groups)
+
                 expirations = [
-                    sa_to_gbag.expires for sa_to_gbag in
-                    bucket_access_groups.to_access_groups
+                    sa_to_gbag.expires for sa_to_gbag in sa_to_gbags
                 ]
 
                 output_sa = {
@@ -406,7 +434,7 @@ class GoogleServiceAccount(Resource):
                   "project_access": [
                       project.auth_id for project in project_access
                   ],
-                  "project_access_exp": min(expirations)
+                  "project_access_exp": min(expirations or 0)
                 }
                 output_service_accounts.append(output_sa)
 

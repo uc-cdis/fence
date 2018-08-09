@@ -51,7 +51,7 @@ def can_access_google_project(google_project_id):
         bool: Whether or not fence can access the given google project.
     """
     try:
-        with GoogleCloudManager(google_project_id) as g_mgr:
+        with GoogleCloudManager(google_project_id, use_default=False) as g_mgr:
             response = g_mgr.get_project_info()
             project_id = response.get('projectId')
 
@@ -98,7 +98,7 @@ def google_project_has_parent_org(project_id):
         organization
     """
     try:
-        with GoogleCloudManager(project_id) as prj:
+        with GoogleCloudManager(project_id, use_default=False) as prj:
             return prj.has_parent_organization()
     except Exception as exc:
         flask.current_app.logger.debug((
@@ -126,7 +126,7 @@ def get_google_project_valid_users_and_service_accounts(project_id):
         NotSupported: Member is invalid type
     """
     try:
-        with GoogleCloudManager(project_id) as prj:
+        with GoogleCloudManager(project_id, use_default=False) as prj:
             members = prj.get_project_membership(project_id)
             for member in members:
                 if not(member.member_type == GooglePolicyMember.SERVICE_ACCOUNT or
@@ -167,7 +167,7 @@ def is_valid_service_account_type(project_id, account_id):
         in ALLOWED_SERVICE_ACCOUNT_TYPES
     """
     try:
-        with GoogleCloudManager(project_id) as g_mgr:
+        with GoogleCloudManager(project_id, use_default=False) as g_mgr:
             return (g_mgr.
                     get_service_account_type(account_id)
                     in ALLOWED_SERVICE_ACCOUNT_TYPES)
@@ -189,7 +189,7 @@ def service_account_has_external_access(service_account, google_project_id):
     Returns:
         bool: whether or not the service account has external access
     """
-    with GoogleCloudManager(google_project_id) as g_mgr:
+    with GoogleCloudManager(google_project_id, use_default=False) as g_mgr:
         response = g_mgr.get_service_account_policy(service_account)
         if response.status_code != 200:
             flask.current_app.logger.debug(
@@ -223,7 +223,7 @@ def is_service_account_from_google_project(service_account, project_id):
         given Google Project
     """
     try:
-        with GoogleCloudManager(project_id) as g_mgr:
+        with GoogleCloudManager(project_id, use_default=False) as g_mgr:
             all_accounts = g_mgr.get_all_service_accounts()
             emails = [acc.get('email') for acc in all_accounts]
             return service_account in emails
@@ -272,21 +272,16 @@ def is_user_member_of_all_google_projects(
 
     try:
         for google_project_id in google_project_ids:
-            with GoogleCloudManager(google_project_id) as g_mgr:
+            with GoogleCloudManager(google_project_id, use_default=False) as g_mgr:
                 member_emails = [
                     member.email_id.lower()
                     for member in g_mgr.get_project_membership(google_project_id)
                 ]
-                flask.current_app.logger.debug('Is {} or {} in member emails?'.format(user.email, linked_google_account.email))
-                for email in member_emails:
-                    flask.current_app.logger.debug(email)
                 # first check if user.email is in project, then linked account
                 if not (user.email and user.email in member_emails):
-                    flask.current_app.logger.debug('a')
                     if not (linked_google_account
                             and linked_google_account.email in member_emails
                             ):
-                        flask.current_app.logger.debug('b')
                         # no user email is in project
                         return False
     except Exception as exc:
@@ -328,7 +323,7 @@ def google_project_has_valid_service_accounts(project_id):
         Bool: True iff all service accounts are valid
     """
     try:
-        with GoogleCloudManager(project_id) as prj:
+        with GoogleCloudManager(project_id, use_default=False) as prj:
             service_accounts = prj.get_all_service_accounts()
 
             if any(service_account_has_external_access(acc.get('email'), project_id)
