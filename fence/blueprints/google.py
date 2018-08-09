@@ -433,7 +433,7 @@ class GoogleServiceAccount(Resource):
         )
 
         try:
-            force_remove_service_account_from_access(google_project_id, service_account_email)
+            force_remove_service_account_from_access(service_account_email, google_project_id)
         except NotFound as exc:
             return (
                 'Can not remove the service accout {}. Detail {}'.

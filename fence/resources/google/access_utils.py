@@ -274,10 +274,12 @@ def is_user_member_of_all_google_projects(
         for google_project_id in google_project_ids:
             with GoogleCloudManager(google_project_id) as g_mgr:
                 member_emails = [
-                    member.email_id
+                    member.email_id.lower()
                     for member in g_mgr.get_project_membership(google_project_id)
                 ]
-
+                flask.current_app.logger.debug('Is {} or {} in member emails?'.format(user.email, linked_google_account.email))
+                for email in member_emails:
+                    flask.current_app.logger.debug(email)
                 # first check if user.email is in project, then linked account
                 if not (user.email and user.email in member_emails):
                     flask.current_app.logger.debug('a')
@@ -502,15 +504,19 @@ def force_remove_service_account_from_access(
                 '{} does not exist in DB'
                 .format(service_account_email)
             )
+
+    flask.current_app.logger.debug('1')
     access_groups = service_account.to_access_groups
     for bucket_access_group in access_groups:
         try:
             with GoogleCloudManager(google_project_id) as g_manager:
+                flask.current_app.logger.debug('3')
                 g_manager.remove_member_from_group(
                     member_email=service_account.email,
                     group_id=bucket_access_group.access_group_id
                 )
         except Exception as exc:
+            flask.current_app.logger.debug('2: {}'.format(exc.message))
             raise GoogleAPIError(
                     'Can not remove memeber {} from access group. {}'
                     .format(service_account.email, exc))
