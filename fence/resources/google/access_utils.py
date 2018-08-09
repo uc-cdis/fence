@@ -274,7 +274,7 @@ def is_user_member_of_all_google_projects(
         for google_project_id in google_project_ids:
             with GoogleCloudManager(google_project_id) as g_mgr:
                 member_emails = [
-                    member.email_id
+                    member.email_id.lower()
                     for member in g_mgr.get_project_membership(google_project_id)
                 ]
                 flask.current_app.logger.debug('Is {} or {} in member emails?'.format(user.email, linked_google_account.email))
