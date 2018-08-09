@@ -217,6 +217,9 @@ class GoogleProjectValidity(ValidityInfo):
                 if early_return:
                     return
 
+        if not service_account_members:
+            service_account_members = []
+            
         service_accounts = (
             get_service_account_ids_from_google_members(
                 service_account_members)
