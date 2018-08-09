@@ -8,7 +8,6 @@ from fence.resources.google.utils import (
     get_project_access_from_service_accounts,
     get_users_from_google_members,
     get_service_account_ids_from_google_members,
-    get_user_emails_on_google_project,
 )
 from fence.resources.google.access_utils import (
     is_valid_service_account_type,
