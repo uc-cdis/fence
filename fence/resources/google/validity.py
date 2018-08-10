@@ -3,11 +3,12 @@ Objects with validity checking for Google service account registration.
 """
 from collections import Mapping
 
+from cirrus import GoogleCloudManager
+
 from fence.resources.google.utils import (
     get_registered_service_accounts,
     get_project_access_from_service_accounts,
     get_users_from_google_members,
-    get_service_account_ids_from_google_members,
 )
 from fence.resources.google.access_utils import (
     is_valid_service_account_type,
@@ -17,9 +18,11 @@ from fence.resources.google.access_utils import (
     get_google_project_valid_users_and_service_accounts,
     do_all_users_have_access_to_project,
     get_project_from_auth_id,
-    can_access_google_project,
     remove_white_listed_service_account_ids,
     is_user_member_of_all_google_projects,
+    get_google_project_membership,
+    is_fence_user_in_google_project_user_members,
+    get_google_project_cloud_manager,
 )
 
 
@@ -111,6 +114,7 @@ class GoogleProjectValidity(ValidityInfo):
         An example of the dict-like structure with validity info is:
 
         {
+            'user_has_access': True,
             'monitor_has_access': True,
             'valid_parent_org': True,
             'valid_membership': True,
@@ -182,32 +186,30 @@ class GoogleProjectValidity(ValidityInfo):
         Args:
             early_return (bool, optional): Description
         """
-        has_access = can_access_google_project(self.google_project_id)
-        self.set('monitor_has_access', has_access)
-        # always early return if we can't access the project
-        if not has_access:
-            return
+        cloud_manager = get_google_project_cloud_manager(
+            self.google_project_id)
+        # test that the monitoring service account has access by attempting
+        # to get project membership
+        google_project_membership = get_google_project_membership(cloud_manager)
 
-        user_has_access = is_user_member_of_all_google_projects(
-            self.user_id, [self.google_project_id])
-        self.set('user_has_access', user_has_access)
-        if not user_has_access:
-            # always early return if user isn't a member on the project
-            return
-
-        valid_parent_org = (
-            not google_project_has_parent_org(self.google_project_id)
-        )
-        self.set('valid_parent_org', valid_parent_org)
-        if not valid_parent_org and early_return:
-            return
-
-        user_members = None
+        # defaults first, we'll populate as we go
+        google_project_user_members = None
+        fence_users_in_project = []
         service_account_members = []
+
+        # if we couldn't get project membership, we don't have access to the
+        # project
+        if not google_project_membership:
+            self.set('monitor_has_access', False)
+            # always early return if we can't access the project
+            return
+        else:
+            self.set('monitor_has_access', True)
+
         try:
-            user_members, service_account_members = (
+            google_project_user_members, service_account_members = (
                 get_google_project_valid_users_and_service_accounts(
-                    self.google_project_id)
+                    cloud_manager)
             )
             self.set('valid_member_types', True)
         except Exception:
@@ -215,24 +217,36 @@ class GoogleProjectValidity(ValidityInfo):
             if early_return:
                 return
 
+        user_has_access = is_fence_user_in_google_project_user_members(
+            self.user_id, google_project_user_members)
+        self.set('user_has_access', user_has_access)
+        if not user_has_access:
+            # always early return if user isn't a member on the project
+            return
+
         # if we have valid members, we can check if they exist in fence
-        users_in_project = None
-        if user_members is not None:
+        if google_project_user_members is not None:
             try:
-                users_in_project = get_users_from_google_members(user_members)
+                fence_users_in_project = get_users_from_google_members(
+                    google_project_user_members)
                 self.set('members_exist_in_fence', True)
             except Exception:
                 self.set('members_exist_in_fence', False)
                 if early_return:
                     return
 
-        service_accounts = (
-            get_service_account_ids_from_google_members(
-                service_account_members)
+        valid_parent_org = (
+            not google_project_has_parent_org(cloud_manager)
         )
+        self.set('valid_parent_org', valid_parent_org)
+        if not valid_parent_org and early_return:
+            return
 
-        remove_white_listed_service_account_ids(
-            service_accounts)
+        service_accounts = [
+            member.email_id for member in service_account_members
+        ]
+
+        remove_white_listed_service_account_ids(service_accounts)
 
         if self.new_service_account:
             service_accounts.append(self.new_service_account)
@@ -243,7 +257,7 @@ class GoogleProjectValidity(ValidityInfo):
         service_accounts_validity = ValidityInfo()
         for service_account in service_accounts:
             service_account_validity_info = GoogleServiceAccountValidity(
-                service_account, self.google_project_id
+                service_account, self.google_project_id, cloud_manager
             )
             service_account_validity_info.check_validity(
                 early_return=early_return
@@ -293,15 +307,19 @@ class GoogleProjectValidity(ValidityInfo):
             # if all the users exist in our db, we can check if they have valid
             # access
             valid_access = None
-            if users_in_project:
+            if fence_users_in_project:
                 valid_access = do_all_users_have_access_to_project(
-                    users_in_project, project.id)
+                    fence_users_in_project, project.id)
             project_validity.set('all_users_have_access', valid_access)
 
             project_access_validities.set(
                 str(project.auth_id), project_validity)
 
         self.set('access', project_access_validities)
+
+        if cloud_manager:
+            cloud_manager.__exit__()
+
         return
 
 
@@ -334,9 +352,12 @@ class GoogleServiceAccountValidity(ValidityInfo):
         }
     """
 
-    def __init__(self, account_id, google_project_id, *args, **kwargs):
+    def __init__(
+            self, account_id, google_project_id, cloud_manager,
+            *args, **kwargs):
         self.account_id = account_id
         self.google_project_id = google_project_id
+        self.cloud_manager = cloud_manager
         super(GoogleServiceAccountValidity, self).__init__(*args, **kwargs)
 
         # setup default values for error information, will get updated in
@@ -357,13 +378,14 @@ class GoogleServiceAccountValidity(ValidityInfo):
             # owned by the project
             return
 
-        valid_type = is_valid_service_account_type(self.google_project_id, self.account_id)
+        valid_type = is_valid_service_account_type(self.account_id)
         self.set('valid_type', valid_type)
         if not valid_type and early_return:
             return
 
         no_external_access = not (
-            service_account_has_external_access(self.account_id, self.google_project_id)
+            service_account_has_external_access(
+                self.account_id, self.cloud_manager)
         )
         self.set('no_external_access', no_external_access)
         if not no_external_access and early_return:

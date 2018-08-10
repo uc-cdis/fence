@@ -15,6 +15,11 @@ except ImportError:
     from mock import patch
 
 
+class MockServiceAccountMember(object):
+    def __init__(self, email_id):
+        self.email_id = email_id
+
+
 def test_dict_like_validity_object():
     test_validity = ValidityInfo()
 
@@ -71,9 +76,12 @@ def test_valid_google_project_service_accounts(
     """
     patcher = valid_google_project_patcher
 
-    patcher['get_service_account_ids_from_google_members'].return_value = [
-        'some-account-id', 'some-other-account-id'
-    ]
+    patcher['get_google_project_valid_users_and_service_accounts'].return_value = (
+        [], [
+            MockServiceAccountMember('some-account-id'),
+            MockServiceAccountMember('some-other-account-id')
+        ]
+    )
 
     google_project_validity = GoogleProjectValidity('some-project-id')
 
@@ -157,14 +165,14 @@ def test_valid_google_project_access(
     )
 
 
-def test_valid_google_service_account(valid_service_account_patcher):
+def test_valid_google_service_account(valid_service_account_patcher, cloud_manager):
     """
     Test that when everything is valid, the GoogleServiceAccountValidity
     is valid and has the expected information.
     """
     google_service_account_validity = (
         GoogleServiceAccountValidity(
-            'some-account-id', 'some-google-project-id')
+            'some-account-id', 'some-google-project-id', cloud_manager)
     )
 
     # should evaluate to true by default
@@ -304,7 +312,7 @@ def test_invalid_google_project_access(valid_google_project_patcher, db_session)
 
 
 def test_invalid_google_service_account_type(
-        valid_service_account_patcher):
+        valid_service_account_patcher, cloud_manager):
     """
     Test that when the Google Service Account is invalid, the resulting
     GoogleServiceAccountValidity is False-y and contains the expected
@@ -317,7 +325,7 @@ def test_invalid_google_service_account_type(
 
     google_service_account_validity = (
         GoogleServiceAccountValidity(
-            'some-account-id', 'some-google-project-id')
+            'some-account-id', 'some-google-project-id', cloud_manager)
     )
 
     # should evaluate to true by default
@@ -340,7 +348,7 @@ def test_invalid_google_service_account_type(
 
 
 def test_invalid_google_service_account_access(
-        valid_service_account_patcher):
+        valid_service_account_patcher, cloud_manager):
     """
     Test that when the Google Service Account is invalid, the resulting
     GoogleServiceAccountValidity is False-y and contains the expected
@@ -354,7 +362,7 @@ def test_invalid_google_service_account_access(
 
     google_service_account_validity = (
         GoogleServiceAccountValidity(
-            'some-account-id', 'some-google-project-id')
+            'some-account-id', 'some-google-project-id', cloud_manager)
     )
 
     # should evaluate to true by default
@@ -377,7 +385,7 @@ def test_invalid_google_service_account_access(
 
 
 def test_invalid_google_service_account_ownership(
-        valid_service_account_patcher):
+        valid_service_account_patcher, cloud_manager):
     """
     Test that when the Google Service Account is invalid, the resulting
     GoogleServiceAccountValidity is False-y and contains the expected
@@ -391,7 +399,7 @@ def test_invalid_google_service_account_ownership(
 
     google_service_account_validity = (
         GoogleServiceAccountValidity(
-            'some-account-id', 'some-google-project-id')
+            'some-account-id', 'some-google-project-id', cloud_manager)
     )
 
     # should evaluate to true by default

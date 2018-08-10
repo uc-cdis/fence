@@ -81,6 +81,11 @@ except ImportError:
 EXPECTED_ERROR_RESPONSE_KEYS = set(['status', 'error', 'error_description'])
 
 
+class MockServiceAccountMember(object):
+    def __init__(self, email_id):
+        self.email_id = email_id
+
+
 def test_google_service_account_monitor_none(
         client, app, encoded_jwt_service_accounts_access,
         monkeypatch):
@@ -212,9 +217,9 @@ def test_invalid_service_account_has_external_access(
     sa_patcher = valid_service_account_patcher
     proj_patcher = valid_google_project_patcher
     sa_patcher['service_account_has_external_access'].return_value = True
-    proj_patcher['get_service_account_ids_from_google_members'].return_value = [
-        'test123@test.com'
-    ]
+    proj_patcher['get_google_project_valid_users_and_service_accounts'].return_value = (
+        [], [MockServiceAccountMember('test123@test.com')]
+    )
     encoded_creds_jwt = encoded_jwt_service_accounts_access['jwt']
 
     (
@@ -261,9 +266,7 @@ def test_invalid_service_account_has_invalid_type(
     project_access = ["project_a", "project_b"]
 
     (
-        cloud_manager.return_value
-        .__enter__.return_value
-        .get_service_account.return_value
+        cloud_manager.get_service_account.return_value
     ) = {'uniqueId': '0', 'email': 'test123@test.com'}
 
     invalid_service_account = {
@@ -300,9 +303,7 @@ def test_invalid_service_account_not_owned_by_project(
     project_access = ["project_a", "project_b"]
 
     (
-        cloud_manager.return_value
-        .__enter__.return_value
-        .get_service_account.return_value
+        cloud_manager.get_service_account.return_value
     ) = {'uniqueId': '0', 'email': 'test123@test.com'}
 
     invalid_service_account = {
@@ -339,9 +340,7 @@ def test_invalid_google_project_has_parent_org(
     project_access = ["project_a", "project_b"]
 
     (
-        cloud_manager.return_value
-        .__enter__.return_value
-        .get_service_account.return_value
+        cloud_manager.get_service_account.return_value
     ) = {'uniqueId': '0', 'email': 'test123@test.com'}
 
     invalid_service_account = {
@@ -377,9 +376,7 @@ def test_invalid_google_project_has_invalid_membership(
     project_access = ["project_a", "project_b"]
 
     (
-        cloud_manager.return_value
-        .__enter__.return_value
-        .get_service_account.return_value
+        cloud_manager.get_service_account.return_value
     ) = {'uniqueId': '0', 'email': 'test123@test.com'}
 
     invalid_service_account = {
@@ -476,9 +473,7 @@ def test_valid_service_account_registration(
     }
 
     (
-        cloud_manager.return_value
-        .__enter__.return_value
-        .get_service_account.return_value
+        cloud_manager.get_service_account.return_value
     ) = {
         "uniqueId": "sa_unique_id",
         "email": "sa@gmail.com"

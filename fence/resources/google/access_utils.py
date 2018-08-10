@@ -40,27 +40,46 @@ ALLOWED_SERVICE_ACCOUNT_TYPES = [
 ]
 
 
-def can_access_google_project(google_project_id):
+def get_google_project_cloud_manager(project_id):
     """
-    Whether or not fence can access the given google project.
+    Return a GoogleCloudManager for the given google project. If there are any
+    issues, this will return None.
+
+    WARNING: remember to __exit__ the context manager
 
     Args:
-        google_project_id (str): Google project ID
+        project_id (str): Google project id
 
     Returns:
-        bool: Whether or not fence can access the given google project.
+        GoogleCloudManager: context manager already entered
     """
     try:
-        with GoogleCloudManager(google_project_id, use_default=False) as g_mgr:
-            response = g_mgr.get_project_info()
-            project_id = response.get('projectId')
+        return GoogleCloudManager(project_id, use_default=False).__enter__()
+    except Exception as exc:
+        return None
 
-            if not project_id:
-                return False
-    except Exception:
-        return False
 
-    return True
+def get_google_project_membership(cloud_manager):
+    """
+    Return the membership for the given google project. If there are any
+    issues with retrieving membership, this will return None.
+
+    Args:
+        cloud_manager (cirrus.GoogleCloudManager): Cloud manager with access
+            to the necessary projects/APIs on a Google Project
+
+    Returns:
+        List[cirrus.google_cloud.iam.GooglePolicyMember]: Members on the
+            project
+    """
+    try:
+        return cloud_manager.get_project_membership(cloud_manager.project_id)
+    except Exception as exc:
+        flask.current_app.logger.debug((
+            'Getting membership of Google Project (id: {}) '
+            'could not complete. Details: {}')
+            .format(cloud_manager.project_id, exc))
+        return None
 
 
 def can_user_manage_service_account(user_id, account_id):
@@ -85,38 +104,40 @@ def can_user_manage_service_account(user_id, account_id):
         user_id, [service_account_project])
 
 
-def google_project_has_parent_org(project_id):
+def google_project_has_parent_org(cloud_manager):
     """
     Checks if google project has parent org. Wraps
     GoogleCloudManager.has_parent_organization()
 
     Args:
         project_id(str): unique id for project
+        cloud_manager (cirrus.GoogleCloudManager): Cloud manager with access
+            to the necessary projects/APIs
 
     Returns:
         Bool: True iff google project has a parent
         organization
     """
     try:
-        with GoogleCloudManager(project_id, use_default=False) as prj:
-            return prj.has_parent_organization()
+        return cloud_manager.has_parent_organization()
     except Exception as exc:
         flask.current_app.logger.debug((
             'Could not determine if Google project (id: {}) has parent org'
             'due to error (Details: {})'.
-            format(project_id, exc)
+            format(cloud_manager.project_id, exc)
         ))
         return False
 
 
-def get_google_project_valid_users_and_service_accounts(project_id):
+def get_google_project_valid_users_and_service_accounts(cloud_manager):
     """
     Gets google project members of type
     USER or SERVICE_ACCOUNT and raises an error if it finds a member
     that isn't one of those types.
 
     Args:
-        project_id (str): Google project ID
+        cloud_manager (cirrus.GoogleCloudManager): Cloud manager with access
+            to the necessary projects/APIs
 
     Return:
         List[cirrus.google_cloud.iam.GooglePolicyMember]: Members on the
@@ -126,87 +147,92 @@ def get_google_project_valid_users_and_service_accounts(project_id):
         NotSupported: Member is invalid type
     """
     try:
-        with GoogleCloudManager(project_id, use_default=False) as prj:
-            members = prj.get_project_membership(project_id)
-            for member in members:
-                if not(member.member_type == GooglePolicyMember.SERVICE_ACCOUNT or
-                        member.member_type == GooglePolicyMember.USER):
-                    raise NotSupported(
-                        'Member {} has invalid type: {}'.format(
-                            member.email_id, member.member_type)
-                    )
-            users = [
-                member for member in members
-                if member.member_type == GooglePolicyMember.USER
-            ]
-            service_accounts = [
-                member for member in members
-                if member.member_type == GooglePolicyMember.SERVICE_ACCOUNT
-            ]
-            return users, service_accounts
+        members = cloud_manager.get_project_membership(cloud_manager.project_id)
     except Exception as exc:
         flask.current_app.logger.debug((
             'validity of Google Project (id: {}) members '
             'could not complete. Details: {}')
-            .format(project_id, exc))
+            .format(cloud_manager.project_id, exc))
         raise
 
+    for member in members:
+        if not(member.member_type == GooglePolicyMember.SERVICE_ACCOUNT or
+                member.member_type == GooglePolicyMember.USER):
+            raise NotSupported(
+                'Member {} has invalid type: {}'.format(
+                    member.email_id, member.member_type)
+            )
 
-def is_valid_service_account_type(project_id, account_id):
+    users = [
+        member for member in members
+        if member.member_type == GooglePolicyMember.USER
+    ]
+    service_accounts = [
+        member for member in members
+        if member.member_type == GooglePolicyMember.SERVICE_ACCOUNT
+    ]
+
+    return users, service_accounts
+
+
+def is_valid_service_account_type(account_id, cloud_manager):
     """
     Checks service account type against allowed service account types
     for service account registration
 
     Args:
-        project_id(str): project identifier for project associated
-            with service account
         account_id(str): account identifier to check valid type
+        cloud_manager (cirrus.GoogleCloudManager): Cloud manager with access
+            to the necessary projects/APIs
 
     Returns:
         Bool: True if service acocunt type is allowed as defined
         in ALLOWED_SERVICE_ACCOUNT_TYPES
     """
     try:
-        with GoogleCloudManager(project_id, use_default=False) as g_mgr:
-            return (g_mgr.
-                    get_service_account_type(account_id)
-                    in ALLOWED_SERVICE_ACCOUNT_TYPES)
+        return (
+            cloud_manager.get_service_account_type(account_id)
+            in ALLOWED_SERVICE_ACCOUNT_TYPES
+        )
     except Exception as exc:
         flask.current_app.logger.debug((
             'validity of Google service account {} (google project: {}) type '
             'determined False due to error. Details: {}').
-            format(account_id, project_id, exc))
+            format(account_id, exc))
         return False
 
 
-def service_account_has_external_access(service_account, google_project_id):
+def service_account_has_external_access(service_account, cloud_manager):
     """
     Checks if service account has external access or not.
 
     Args:
         service_account(str): service account
+        cloud_manager (cirrus.GoogleCloudManager): Cloud manager with access
+            to the necessary projects/APIs
 
     Returns:
         bool: whether or not the service account has external access
     """
-    with GoogleCloudManager(google_project_id, use_default=False) as g_mgr:
-        response = g_mgr.get_service_account_policy(service_account)
-        if response.status_code != 200:
-            flask.current_app.logger.debug(
-                'Unable to get IAM policy for service account {}\n{}.'
-                .format(service_account, response.json()))
-            # if there is an exception, assume it has external access
+    response = cloud_manager.get_service_account_policy(service_account)
+    if response.status_code != 200:
+        flask.current_app.logger.debug(
+            'Unable to get IAM policy for service account {}\n{}.'
+            .format(service_account, response.json()))
+        # if there is an exception, assume it has external access
+        return True
+
+    json_obj = response.json()
+    # In the case that a service account does not have any role, Google API
+    # returns a json object without bindings key
+    if 'bindings' in json_obj:
+        policy = GooglePolicy.from_json(json_obj)
+        if policy.roles:
             return True
 
-        json_obj = response.json()
-        # In the case that a service account does not have any role, Google API
-        # returns a json object without bindings key
-        if 'bindings' in json_obj:
-            policy = GooglePolicy.from_json(json_obj)
-            if policy.roles:
-                return True
-        if g_mgr.get_service_account_keys_info(service_account):
-            return True
+    if cloud_manager.get_service_account_keys_info(service_account):
+        return True
+
     return False
 
 
@@ -327,7 +353,7 @@ def google_project_has_valid_service_accounts(project_id):
         with GoogleCloudManager(project_id, use_default=False) as prj:
             service_accounts = prj.get_all_service_accounts()
 
-            if any(service_account_has_external_access(acc.get('email'), project_id)
+            if any(service_account_has_external_access(acc.get('email'), prj)
                    for acc in service_accounts):
                 return False
 
@@ -874,3 +900,47 @@ def force_delete_service_account(service_account_email, db=None):
     if sa:
         session.delete(sa)
         session.commit()
+
+
+def is_fence_user_in_google_project_user_members(
+        user_id, project_members, db=None):
+    """
+    Determine whether or not the given user_id exists as a Google member
+    in the provided list of GooglePolicyMembers for a given project.
+
+    Args:
+        user_id (int): Fence user id
+        project_members (List[cirrus.google_cloud.iam.GooglePolicyMember]):
+            list of GooglePolicyMembers for a given project
+
+    Returns:
+        bool: whether or not the given user_id exists as a Google member
+              in the provided list
+    """
+    session = get_db_session(db)
+    user = (
+        session.query(User)
+        .filter_by(id=user_id)
+        .first()
+    )
+    if not user:
+        return False
+
+    linked_google_account = (
+        current_session.query(UserGoogleAccount)
+        .filter(UserGoogleAccount.user_id == user_id).first()
+    )
+
+    member_emails = [
+        member.email_id.lower()
+        for member in project_members
+    ]
+    # first check if user.email is in project, then linked account
+    if not (user.email and user.email in member_emails):
+        if not (linked_google_account
+                and linked_google_account.email in member_emails
+                ):
+            # no user email is in project
+            return False
+
+    return True
