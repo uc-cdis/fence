@@ -7,11 +7,11 @@
 A `fence` separates protected resources from the outside world and allows
 only trusted entities to enter.
 
-Fence is a core service in Gen3 stack that has multiple capabilities:
+Fence is a core service of the Gen3 stack that has multiple capabilities:
 1. Act as an auth broker to integrate with an [Identity Provider](#identity-provider) and provide downstream authentication and authorization for Gen3 services.
-2. [Token management](#token-management).
+2. [Manage tokens](#token-management).
 3. Act as an [OIDC provider](oidc--oauth2) to support external applications to use Gen3 services.
-4. [Issue short lived cloud native credentials to access data in various cloud storage services](#accessing-data)
+4. [Issue short lived, cloud native credentials to access data in various cloud storage services](#accessing-data)
 
 
 ## API Documentation
@@ -23,6 +23,16 @@ the root directory); see the README in that folder for more details.
 
 ## Terminologies
 
+
+#### AuthN
+Authentication - establishes "who you are" with the application through communication with an [Identity Provider](#IdP).
+
+#### AuthZ
+Authorization - establishes "what you can do" and "which resources you have access to" within the application.
+
+#### IdP
+Identity Provider - the service that lets a user login and provides the identity of the user to downstream services. Example: Google login, University login, NIH Login.
+
 #### OAuth2
 A widely used protocol for delegating access to an application to use resources on behalf of a user.
 
@@ -31,31 +41,24 @@ https://tools.ietf.org/html/rfc6749
 https://oauth.net/2/
 
 #### OIDC
-OpenID Connect - an extention of OAuth2 which provides more detailed specification about the handshake. It introduced a new type of token - id token, which is specifically designed to be consumed by clients to get the identity information of the user.
+OpenID Connect - an extention of OAuth2 which provides more detailed specification about the handshake. It introduced a new type of token, the id token, that is specifically designed to be consumed by clients to get the identity information of the user.
 
 http://openid.net/specs/openid-connect-core-1_0.html
 
-#### AuthN
-Authentication - "Who you are"
-
-#### AuthZ
-Authorization - "What can you do, what resources do you have access to"
-
-#### IdP
-Identity Provider - the service which let user login and provide the identity of the user to downstream services. Example: google login, university login, NIH Login.
-
 ## Identity Provider
-Fence can be configured to support different Identity Providers (IDPs) for AuthN.
-At the moment, supported IDPs are:
+Fence can be configured to support different Identity Providers (IdPs) for AuthN.
+At the moment, supported IDPs include:
 - Google
 - Shibboleth
   - NIH iTrust
+  - InCommon
+  - eduGAIN
 
 
 ## OIDC & OAuth2
 
-Fence acts as a central broker that supports multiple Identity Providers (IDPs).
-It exposes AuthN and AuthZ for users by acting as an OIDC(OpenID Connect flow (an extension of OAuth2)) IDP itself.
+Fence acts as a central broker that supports multiple Identity Providers (IdPs).
+It exposes AuthN and AuthZ for users by acting as an OIDC ([OpenID Connect](#ODIC) flow) IdP itself.
 In that sense, `fence` is both a `client` and `OpenID Connect Provider (OP)`.
 
 ### Fence as Client
@@ -70,7 +73,7 @@ Example:
 
 - Fence is the OP
 - A third-party application is the client
-- Our microservices (e.g. [`sheepdog`](https://github.com/uc-cdis/sheepdog)) are resource providers
+- Gen3 microservices (e.g. [`sheepdog`](https://github.com/uc-cdis/sheepdog)) are resource providers
 
 ### Example Flows
 
@@ -87,12 +90,12 @@ Note that the `3rd Party App` acts as the `client` in these examples.
 ![OIDC Flow](docs/openid_connect_flow.png)
 
 If the third-party application doesn't need to use any Gen3 resources (and just
-wants to authenticate the user), after the handshake is finished they can just get
-needed information in the `ID token`.
+wants to authenticate the user), they can just get
+needed information in the `ID token` after the handshake is finished .
 
 #### Flow: Using Tokens for Access
 
-If a third-party application want to use Gen3 resources like
+If a third-party application wants to use Gen3 resources like
 `fence`/`sheepdog`/`peregrine`, they call those services with an `Access Token`
 passed in an `Authorization` header.
 
@@ -111,7 +114,7 @@ passed in an `Authorization` header.
 The following diagram illustrates the case in which one fence instance should
 use another fence instance as its identity provider.
 
-A use case for this is when we setup a fence instance that uses NIH login as the IdP, we need to go through a cumbersome approval process in NIH. So we would like to do it once for one central fence, and other fence instances just redirect to use this Fence as IdP for logging in via NIH.
+A use case for this is when we setup a fence instance that uses NIH login as the IdP. Here, we go through a detailed approval process in NIH. Therefore we would like to do it once for a single lead Fence instance, allowing other fence instances simply to redirect to use the lead Fence as an IdP for logging in via NIH.
 
 ![Multi-Tenant Flow](docs/multi-tenant_flow.png)
 
@@ -130,7 +133,8 @@ File. A `project` is identified by a unique authorization identifier AKA `auth_i
 
 A `project` can be associated with various storage backends that store
 object data for that given `project`. You can assign `read-storage` and `write-storage`
-privilieges to users who should have access to that stored object data.
+privilieges to users who should have access to that stored object data. `read` and 
+`write` allow access to the data stored in a graph database.
 
 Depending on the backend, Fence can be configured to provide users access to
 the data in different ways.
@@ -138,12 +142,12 @@ the data in different ways.
 
 ### Signed URLS
 
-Temporary signed URL is supported in all major commercial clouds. So this is the most 'cloud agnostic' way that we support to allow user to access data located in different platforms. Fence has the ability to request a specific file by its GUID(globally unique identifier) and retrieve a temporary
+Temporary signed URLs are supported in all major commercial clouds. Signed URLs are the most 'cloud agnostic' way to allow users to access data located in different platforms. Fence has the ability to request a specific file by its GUID (globally unique identifier) and retrieve a temporary
 signed URL for object data in AWS or GCP that will provide direct access to that object.
 
 ### Google Cloud Storage
 
-Whereas pre-signed URL is a cloud agnostic solution, services and tools on Google Cloud Platform prefer to use service account keys. Because of that, fence provides support for generating temporary google service account credentials to be easily used together with google utilities.
+Whereas pre-signed URL is a cloud agnostic solution, services and tools on Google Cloud Platform prefer to use service account keys. Because of that, Fence provides support for generating temporary Google service account credentials to be easily used together with Google utilities.
 
 
 #### Temporary Google Credentials
@@ -153,8 +157,8 @@ access a user does to data.
 One can then use these credentials to AuthN as that
 service account and manipulate the data within Google's Cloud Platform.
 
-Service account keys expirations are managed by Fence, we would revise
-the design after Google provides a way to issue temporary credentials
+Service account keys expirations are managed by Fence, this design
+should be revised after Google provides a way to issue temporary credentials
 that work seamlessly with its infrastructure and tooling.
 
 
@@ -163,11 +167,11 @@ that work seamlessly with its infrastructure and tooling.
 This is a deprecated method and is not recommended to be used generally.
 
 Fence supports granting Google Account or Google Service Account owned by end-users temporary access to authorized data.
-We call this process 'google account linking' because we are linking the user's fence identity with his/her google identity.
+We call this process 'google account linking' because we are linking the user's Fence identity with his/her google identity.
 
 ##### a. Linking Google Personal Account
 
-This allows an end-user to link their personl google account with their fence identity.
+This allows an end-user to link their personl google account with their Fence identity.
 
 The data access is temporary, though there is a Fence endpoint to
 extend access (without requiring the end-user to go through the entire
@@ -183,7 +187,7 @@ restrictions.
 
 This method also requires Fence to have access to that
 end-user's Google project. Fence is then able to monitor the project
-for any anomolies that may unintentionally provide data access to entities
+for any anomalies that may unintentionally provide data access to entities
 who should not have access.
 
 ## Setup
@@ -207,10 +211,9 @@ Remember to fill out `fence/local_settings.py`!
 
 #### Set Up Databases
 
-Because the tests clear out the database every time they are run, if you would
-like to keep a persistent database for manual testing and general local usage
-simply create a second test database with a different name, as in the
-instructions below.
+The tests clear out the database every time they are run. If you want
+to keep a persistent database for manual testing and general local usage,
+create a second test database with a different name:
 
 > NOTE: Requires a minimum of Postgres v9.4 (because of `JSONB` types used)
 
@@ -252,8 +255,8 @@ fence-create sync --yaml user.yaml
 
 #### Register OAuth Client
 
-When you want to build an application that uses Gen3 resources on behalf of user, you should register an OAuth client for this app.
-Fence right now expose client registration via admin CLI because oauth2 client for a Gen3 Commons needs approval from the Commons' sponsors. If you are an external developer, you should submit a support ticket.
+When you want to build an application that uses Gen3 resources on behalf of a user, you should register an OAuth client for this app.
+Fence right now exposes client registration via admin CLI, because the Oauth2 client for a Gen3 commons needs approval from the sponsor of the commons. If you are an external developer, you should submit a support ticket.
 
 As a Gen3 commons administrator, you can run following command for an approved client:
 ```bash
@@ -287,18 +290,17 @@ That command should output the full records for any registered OAuth clients.
 
 ## Token management
 
-Fence utilizes OpenID Connect flow (an extension of OAuth2)
-to generate tokens for clients. It can also provide tokens directly
-to a user.
+Fence utilizes [OpenID Connect](#OIDC) to generate tokens 
+for clients. It can also provide tokens directly to a user.
 
 Clients and users may then use those tokens with other
 Gen3 Data Commons services to access protected endpoints that require specific permissions.
 
-We use JSON Web Tokens (JWTs) as the format for all tokens. There are following types of tokens:
+We use JSON Web Tokens (JWTs) as the format for all tokens of the following types:
 
-- OIDC id token, this token is supposed to be used by OIDC client to get user's identity from the token content
-- OIDC access token, this token can be sent to Gen3 services via bearer header and get protected resources.
-- OIDC refresh token, this token can be sent to fence to request a new access / id token.
+- OIDC ID token: this token is used by the OIDC client to get a user's identity from the token content
+- OIDC access token: this token can be sent to Gen3 services via bearer header and get protected resources.
+- OIDC refresh token: this token can be sent to fence to request a new access / id token.
 
 
 
@@ -399,13 +401,13 @@ We use JSON Web Tokens (JWTs) as the format for all tokens. There are following 
 ### Keypair Configuration
 
 Fence uses RSA keypairs to sign and allow verification of JWTs that it issues.
-When the application is initialized, fence loads in keypair files from the
+When the application is initialized, Fence loads in keypair files from the
 `keys` directory. To store keypair files, use the following procedure:
      - Create a subdirectory in the `fence/keys` directory, named with a
        unique identifier, preferably a timestamp in ISO 8601 format of when
        the keys are created. The name of the directory is used for the `kid`
        (key ID) for those keys; the default (assuming the directory is named
-        with an ISO timestamp) looks like this:
+       with an ISO timestamp) looks like this:
 
            fence_key_2018-05-01T14:00:00Z
 
@@ -427,7 +429,7 @@ openssl rsa -pubout -in private_key.pem -out public_key.pem
 #     openssl rsa -in private_key.pem -pubout -out public_key.pem
 ```
 It's not a bad idea to confirm that the files actually say `RSA PRIVATE KEY`
-and `PUBLIC KEY` (and in fact fence will require that the private key files it
+and `PUBLIC KEY` (and in fact Fence will require that the private key files it
 uses actually say "PRIVATE KEY" and that the public keys do not).
 
 Files containing public/private keys should have this format (the format used
