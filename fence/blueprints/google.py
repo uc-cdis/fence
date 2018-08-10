@@ -245,18 +245,6 @@ class GoogleServiceAccount(Resource):
         google_project_id = payload.get('google_project_id')
         project_access = payload.get('project_access')
 
-        # check if user has permission to get service accounts
-        # for these projects
-        user_id = current_token['sub']
-        authorized = is_user_member_of_all_google_projects(
-            user_id, [google_project_id])
-
-        if not authorized:
-            return (
-                'User is not a member on the provided Google project ID.',
-                403
-            )
-
         error_response = _get_service_account_error_status(
             service_account_email, google_project_id, project_access)
 
