@@ -227,7 +227,7 @@ def is_service_account_from_google_project(service_account_email, project_id):
             get_google_project_from_service_account_email(
                 service_account_email)
         )
-        assert sa_google_project == project_id
+        return sa_google_project == project_id
     except Exception as exc:
         flask.current_app.logger.debug((
             'Could not determine if service account (id: {} is from project'
