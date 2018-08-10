@@ -209,6 +209,74 @@ class GoogleServiceAccountRoot(Resource):
             'project_access': project_access
         }
 
+    def _get_project_service_accounts(self, google_project_ids):
+        """
+        Return a list of service accounts for the given Google Cloud
+        Project IDs.
+
+        WARNING: NO AUTHORIZATION CHECK DONE HERE. This will blindly return
+                 all service accounts for the given projects.
+
+        Args:
+            google_project_ids (List(str)): List of unique google project ids
+
+        Raises:
+            List(dict): List of service accounts
+
+            Example:
+            {
+              "service_accounts": [
+                {
+                  "service_account_email": "string",
+                  "google_project_id": "string",
+                  "project_access": [
+                    "string"
+                  ],
+                  "project_access_exp": 0
+                }
+              ]
+            }
+        """
+        all_service_accounts = []
+        for google_project_id in google_project_ids:
+            output_service_accounts = []
+            project_service_accounts = (
+                get_registered_service_accounts(google_project_id)
+            )
+
+            for project_sa in project_service_accounts:
+                project_access = get_project_access_from_service_accounts(
+                    [project_sa]
+                )
+
+                # need to determine expiration by getting the access groups
+                # and then checking the expiration for each of them
+                bucket_access_groups = (
+                    get_google_access_groups_for_service_account(project_sa)
+                )
+
+                sa_to_gbags = []
+                for gbag in bucket_access_groups:
+                    sa_to_gbags.extend(gbag.to_access_groups)
+
+                expirations = [
+                    sa_to_gbag.expires for sa_to_gbag in sa_to_gbags
+                ]
+
+                output_sa = {
+                  "service_account_email": project_sa.email,
+                  "google_project_id": project_sa.google_project_id,
+                  "project_access": [
+                      project.auth_id for project in project_access
+                  ],
+                  "project_access_exp": min(expirations or 0)
+                }
+                output_service_accounts.append(output_sa)
+
+            all_service_accounts.extend(output_service_accounts)
+
+        return all_service_accounts
+
 
 class GoogleServiceAccount(Resource):
 
@@ -370,74 +438,6 @@ class GoogleServiceAccount(Resource):
             'service_account_email': monitoring_account_email
         }
         return response, 200
-
-    def _get_project_service_accounts(self, google_project_ids):
-        """
-        Return a list of service accounts for the given Google Cloud
-        Project IDs.
-
-        WARNING: NO AUTHORIZATION CHECK DONE HERE. This will blindly return
-                 all service accounts for the given projects.
-
-        Args:
-            google_project_ids (List(str)): List of unique google project ids
-
-        Raises:
-            List(dict): List of service accounts
-
-            Example:
-            {
-              "service_accounts": [
-                {
-                  "service_account_email": "string",
-                  "google_project_id": "string",
-                  "project_access": [
-                    "string"
-                  ],
-                  "project_access_exp": 0
-                }
-              ]
-            }
-        """
-        all_service_accounts = []
-        for google_project_id in google_project_ids:
-            output_service_accounts = []
-            project_service_accounts = (
-                get_registered_service_accounts(google_project_id)
-            )
-
-            for project_sa in project_service_accounts:
-                project_access = get_project_access_from_service_accounts(
-                    [project_sa]
-                )
-
-                # need to determine expiration by getting the access groups
-                # and then checking the expiration for each of them
-                bucket_access_groups = (
-                    get_google_access_groups_for_service_account(project_sa)
-                )
-
-                sa_to_gbags = []
-                for gbag in bucket_access_groups:
-                    sa_to_gbags.extend(gbag.to_access_groups)
-
-                expirations = [
-                    sa_to_gbag.expires for sa_to_gbag in sa_to_gbags
-                ]
-
-                output_sa = {
-                  "service_account_email": project_sa.email,
-                  "google_project_id": project_sa.google_project_id,
-                  "project_access": [
-                      project.auth_id for project in project_access
-                  ],
-                  "project_access_exp": min(expirations or 0)
-                }
-                output_service_accounts.append(output_sa)
-
-            all_service_accounts.extend(output_service_accounts)
-
-        return all_service_accounts
 
     def _update_service_account_permissions(
             self, google_project_id, service_account_email, project_access):
