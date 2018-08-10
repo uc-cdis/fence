@@ -38,15 +38,15 @@ OPENID_CONNECT = {
     'fence': {
         'client_id': '',
         'client_secret': '',
-        'api_base_url': '',
-        'authorize_url': '',
-        'access_token_url': '',
-        'refresh_token_url': '',
+        'api_base_url': 'FENCE_ROOT_ENDPOINT',
+        'authorize_url': 'FENCE_ROOT_ENDPOINT/oauth2/authorize',
+        'access_token_url': 'FENCE_ROOT_ENDPOINT/oauth2/token',
+        'refresh_token_url': 'FENCE_ROOT_ENDPOINT/oauth2/token',
         'client_kwargs': {
             'scope': 'openid user',
-            'redirect_uri': '',
+            'redirect_uri': 'BASE_URL/login/fence/login',
         },
-        'name': ''
+        'name': 'NIH'
     },
 }
 
