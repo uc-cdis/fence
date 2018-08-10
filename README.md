@@ -42,7 +42,7 @@ Authentication - "Who you are"
 Authorization - "What can you do, what resources do you have access to"
 
 #### IdP
-Identity Provider - the service which let user login and provide the identity of the user to downstream services. Example: google login, university login, NIH Login.
+Identity Provider - the service which let user login and provide the identity of the user to downstream services. Example: Google login, university login, NIH Login.
 
 ## Identity Provider
 Fence can be configured to support different Identity Providers (IDPs) for AuthN.
@@ -143,7 +143,7 @@ signed URL for object data in AWS or GCP that will provide direct access to that
 
 ### Google Cloud Storage
 
-Whereas pre-signed URL is a cloud agnostic solution, services and tools on Google Cloud Platform prefer to use service account keys. Because of that, fence provides support for generating temporary google service account credentials to be easily used together with google utilities.
+Whereas pre-signed URL is a cloud agnostic solution, services and tools on Google Cloud Platform prefer to use service account. Because of that, fence provides support for generating temporary Google service account credentials to be easily used together with Google utilities.
 
 
 #### Temporary Google Credentials
@@ -163,11 +163,11 @@ that work seamlessly with its infrastructure and tooling.
 This is a deprecated method and is not recommended to be used generally.
 
 Fence supports granting Google Account or Google Service Account owned by end-users temporary access to authorized data.
-We call this process 'google account linking' because we are linking the user's fence identity with his/her google identity.
+We call this process 'Google account linking' because we are linking the user's fence identity with his/her Google identity.
 
 ##### a. Linking Google Personal Account
 
-This allows an end-user to link their personl google account with their fence identity.
+This allows an end-user to link their personl Google account with their fence identity.
 
 The data access is temporary, though there is a Fence endpoint to
 extend access (without requiring the end-user to go through the entire
