@@ -269,7 +269,7 @@ class GoogleServiceAccountRoot(Resource):
                   "project_access": [
                       project.auth_id for project in project_access
                   ],
-                  "project_access_exp": min(expirations or 0)
+                  "project_access_exp": min(expirations or [0])
                 }
                 output_service_accounts.append(output_sa)
 
