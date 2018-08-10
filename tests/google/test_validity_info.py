@@ -402,12 +402,15 @@ def test_invalid_google_service_account_ownership(
     # should evaluate to true since all checks should result in valid project
     assert not google_service_account_validity
 
-    # test that it contains the default error information and it's true
+    # test that it contains the default error information
+    # valid_type and no_external_access should be NULL
+    # cannot determine validity of those fields because
+    # account not owned by project
     assert 'valid_type' in google_service_account_validity
-    assert google_service_account_validity['valid_type']
+    assert not google_service_account_validity['valid_type']
 
     assert 'no_external_access' in google_service_account_validity
-    assert google_service_account_validity['no_external_access']
+    assert not google_service_account_validity['no_external_access']
 
     assert 'owned_by_project' in google_service_account_validity
     assert not google_service_account_validity['owned_by_project']
