@@ -341,11 +341,22 @@ class GoogleServiceAccountValidity(ValidityInfo):
 
         # setup default values for error information, will get updated in
         # check_validity
+        self._info['owned_by_project'] = None
         self._info['valid_type'] = None
         self._info['no_external_access'] = None
-        self._info['owned_by_project'] = None
 
     def check_validity(self, early_return=True):
+        is_owned_by_google_project = (
+            is_service_account_from_google_project(
+                self.account_id,
+                self.google_project_id)
+        )
+        self.set('owned_by_project', is_owned_by_google_project)
+        if not is_owned_by_google_project:
+            # we cannot determine further information if the account isn't
+            # owned by the project
+            return
+
         valid_type = is_valid_service_account_type(self.google_project_id, self.account_id)
         self.set('valid_type', valid_type)
         if not valid_type and early_return:
@@ -356,13 +367,4 @@ class GoogleServiceAccountValidity(ValidityInfo):
         )
         self.set('no_external_access', no_external_access)
         if not no_external_access and early_return:
-            return
-
-        is_owned_by_google_project = (
-            is_service_account_from_google_project(
-                self.account_id,
-                self.google_project_id)
-        )
-        self.set('owned_by_project', is_owned_by_google_project)
-        if not early_return and early_return:
             return

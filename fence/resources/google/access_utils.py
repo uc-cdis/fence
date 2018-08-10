@@ -210,28 +210,29 @@ def service_account_has_external_access(service_account, google_project_id):
     return False
 
 
-def is_service_account_from_google_project(service_account, project_id):
+def is_service_account_from_google_project(service_account_email, project_id):
     """
     Checks if service account is among project's service acounts
 
     Args:
-        service_account(str): uniqueId of service account
+        service_account_email(str): service account email
         project_id(str): uniqueId of Google Cloud Project
 
     Return:
-        Bool: True iff the given service_account is from the
+        Bool: True iff the given service_account_email is from the
         given Google Project
     """
     try:
-        with GoogleCloudManager(project_id, use_default=False) as g_mgr:
-            all_accounts = g_mgr.get_all_service_accounts()
-            emails = [acc.get('email') for acc in all_accounts]
-            return service_account in emails
+        sa_google_project = (
+            get_google_project_from_service_account_email(
+                service_account_email)
+        )
+        assert sa_google_project == project_id
     except Exception as exc:
         flask.current_app.logger.debug((
             'Could not determine if service account (id: {} is from project'
             ' (id: {}) due to error. Details: {}').
-            format(service_account, project_id, exc))
+            format(service_account_email, project_id, exc))
         return False
 
 
