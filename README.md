@@ -45,6 +45,7 @@ OpenID Connect - an extention of OAuth2 which provides more detailed specificati
 
 http://openid.net/specs/openid-connect-core-1_0.html
 
+
 ## Identity Provider
 Fence can be configured to support different Identity Providers (IdPs) for AuthN.
 At the moment, supported IDPs include:
@@ -147,7 +148,9 @@ signed URL for object data in AWS or GCP that will provide direct access to that
 
 ### Google Cloud Storage
 
-Whereas pre-signed URL is a cloud agnostic solution, services and tools on Google Cloud Platform prefer to use service account keys. Because of that, Fence provides support for generating temporary Google service account credentials to be easily used together with Google utilities.
+
+Whereas pre-signed URL is a cloud agnostic solution, services and tools on Google Cloud Platform prefer to use service account. Because of that, Fence provides support for generating temporary Google service account credentials to be easily used together with Google utilities.
+
 
 
 #### Temporary Google Credentials
@@ -167,11 +170,13 @@ that work seamlessly with its infrastructure and tooling.
 This is a deprecated method and is not recommended to be used generally.
 
 Fence supports granting Google Account or Google Service Account owned by end-users temporary access to authorized data.
+
 We call this process 'google account linking' because we are linking the user's Fence identity with his/her google identity.
 
 ##### a. Linking Google Personal Account
 
-This allows an end-user to link their personl google account with their Fence identity.
+This allows an end-user to link their personal Google account with their Fence identity.
+
 
 The data access is temporary, though there is a Fence endpoint to
 extend access (without requiring the end-user to go through the entire
