@@ -64,6 +64,7 @@ class GoogleServiceAccountRoot(Resource):
         """
         Register a new service account
         """
+        user_id = current_token['sub']
         payload = flask.request.get_json(silent=True) or {}
         service_account_email = payload.get('service_account_email')
         google_project_id = payload.get('google_project_id')
@@ -73,6 +74,7 @@ class GoogleServiceAccountRoot(Resource):
             service_account_email=service_account_email,
             google_project_id=google_project_id,
             project_access=project_access,
+            user_id=user_id
         )
 
     @require_auth_header({'google_service_account'})
@@ -117,7 +119,8 @@ class GoogleServiceAccountRoot(Resource):
         return response, 200
 
     def _post_new_service_account(
-            self, service_account_email, google_project_id, project_access):
+            self, service_account_email, google_project_id, project_access,
+            user_id):
         """
         Return response tuple for registering a new service account
 
@@ -131,7 +134,7 @@ class GoogleServiceAccountRoot(Resource):
             tuple(dict, int): (response_data, http_status_code)
         """
         error_response = _get_service_account_error_status(
-            service_account_email, google_project_id, project_access)
+            service_account_email, google_project_id, project_access, user_id)
 
         if error_response.get('success') is not True:
             return error_response, 400
@@ -240,13 +243,14 @@ class GoogleServiceAccount(Resource):
         if id_ != '_dry_run':
             raise UserError('Cannot post with account id_.')
 
+        user_id = current_token['sub']
         payload = flask.request.get_json(silent=True) or {}
         service_account_email = payload.get('service_account_email')
         google_project_id = payload.get('google_project_id')
         project_access = payload.get('project_access')
 
         error_response = _get_service_account_error_status(
-            service_account_email, google_project_id, project_access)
+            service_account_email, google_project_id, project_access, user_id)
 
         sa_exists = (
             current_session
@@ -309,7 +313,7 @@ class GoogleServiceAccount(Resource):
             get_google_project_from_service_account_email(service_account_email)
         )
         error_response = _get_service_account_error_status(
-            service_account_email, google_project_id, project_access)
+            service_account_email, google_project_id, project_access, user_id)
 
         if error_response.get('success') is not True:
             return error_response, 400
@@ -517,7 +521,7 @@ class GoogleServiceAccount(Resource):
 
 
 def _get_service_account_error_status(
-        service_account_email, google_project_id, project_access):
+        service_account_email, google_project_id, project_access, user_id):
     """
     Get a dictionary describing any errors that will occur if attempting
     to give service account specified permissions fails.
@@ -573,7 +577,8 @@ def _get_service_account_error_status(
         GoogleProjectValidity(
             google_project_id=google_project_id,
             new_service_account=service_account_email,
-            new_service_account_access=project_access
+            new_service_account_access=project_access,
+            user_id=user_id
         )
     )
     project_validity.check_validity(early_return=False)
@@ -630,7 +635,6 @@ def _get_service_account_email_error_status(validity_info):
 
 def _get_google_project_id_error_status(validity_info):
     has_access = validity_info.get('monitor_has_access')
-
     if not has_access:
         return {
             'status': 404,
@@ -638,7 +642,22 @@ def _get_google_project_id_error_status(validity_info):
             'error_description': (
                 'Fence\'s monitoring service account '
                 'does not have access to the project.'
-            )
+            ),
+            'membership_validity': {},
+            'service_account_validity': {}
+        }
+
+    user_has_access = validity_info.get('user_has_access')
+    if not user_has_access:
+        return {
+            'status': 403,
+            'error': 'unauthorized_user',
+            'error_description': (
+                'Current user is not an authorized member on the provided '
+                'Google Project.'
+            ),
+            'membership_validity': {},
+            'service_account_validity': {}
         }
 
     valid_parent_org = validity_info.get('valid_parent_org')

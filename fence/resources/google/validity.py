@@ -19,6 +19,7 @@ from fence.resources.google.access_utils import (
     get_project_from_auth_id,
     can_access_google_project,
     remove_white_listed_service_account_ids,
+    is_user_member_of_all_google_projects,
 )
 
 
@@ -141,6 +142,7 @@ class GoogleProjectValidity(ValidityInfo):
             self, google_project_id,
             new_service_account=None,
             new_service_account_access=None,
+            user_id=None,
             *args, **kwargs):
         """
         Initialize
@@ -158,10 +160,12 @@ class GoogleProjectValidity(ValidityInfo):
         self.google_project_id = google_project_id
         self.new_service_account = new_service_account
         self.new_service_account_access = new_service_account_access or []
+        self.user_id = user_id
         super(GoogleProjectValidity, self).__init__(*args, **kwargs)
 
         # setup default values for error information, will get updated in
         # check_validity
+        self._info['user_has_access'] = None
         self._info['monitor_has_access'] = None
         self._info['valid_parent_org'] = None
         self._info['valid_member_types'] = None
@@ -180,9 +184,15 @@ class GoogleProjectValidity(ValidityInfo):
         """
         has_access = can_access_google_project(self.google_project_id)
         self.set('monitor_has_access', has_access)
-
         # always early return if we can't access the project
         if not has_access:
+            return
+
+        user_has_access = is_user_member_of_all_google_projects(
+            self.user_id, [self.google_project_id])
+        self.set('user_has_access', user_has_access)
+        if not user_has_access:
+            # always early return if user isn't a member on the project
             return
 
         valid_parent_org = (
