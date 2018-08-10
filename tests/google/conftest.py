@@ -195,11 +195,22 @@ def valid_google_project_patcher():
         project_service_accounts_mock
     ))
 
+    user_has_access_mock = MagicMock()
+    patches.append(patch(
+        'fence.resources.google.access_utils.is_user_member_of_all_google_projects',
+        user_has_access_mock
+    ))
+    patches.append(patch(
+        'fence.resources.google.validity.is_user_member_of_all_google_projects',
+        user_has_access_mock
+    ))
+
     parent_org_mock.return_value = False
     valid_membership_mock.return_value = [], []
     get_users_from_members_mock.return_value = []
     users_have_access_mock.return_value = True
     project_service_accounts_mock.return_value = []
+    user_has_access_mock.return_value = True
 
     for patched_function in patches:
         patched_function.start()
