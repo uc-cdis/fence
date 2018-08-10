@@ -776,7 +776,7 @@ paths:
       responses:
         '302':
           description: redirect to session-stored redirect value
-  /google/service_accounts/ (IN PROGRESS):
+  /google/service_accounts/:
     post:
       tags:
         - google
@@ -806,7 +806,35 @@ paths:
               $ref: '#/components/schemas/GoogleServiceAccount'
         description: ServiceAccount object to register
         required: true
-  /google/service_accounts/_dry_run (IN PROGRESS):
+    get:
+      tags:
+        - google
+      summary: Get a list of Google Service Accounts
+      description: |
+        Get a list of service accounts for the given Google Cloud Project IDs.
+        > **NOTE: This will only provide service account information for
+        Google Cloud Projects if the current user is a member of those
+        projects**
+      parameters:
+        - name: google_project_ids
+          required: true
+          in: query
+          description: |
+            Google Cloud Project IDs to get service accounts for.
+            Use a comma-separated list: `project_a,project_b,project_c`
+          schema:
+            type: string
+      operationId: listGoogleServiceAccount
+      responses:
+        '200':
+          description: List of service accounts for specified projects
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/GoogleServiceAccounts'
+        '403':
+          description: User is not a member on all the provided project ids
+  /google/service_accounts/_dry_run:
     post:
       tags:
         - google
@@ -860,35 +888,7 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/AdminGoogleServiceAccount'
-  '/google/service_accounts/{id} (IN PROGRESS)':
-    get:
-      tags:
-        - google
-      summary: Get a list of Google Service Accounts
-      description: |
-        Get a list of service accounts for the given Google Cloud Project IDs.
-        > **NOTE: This will only provide service account information for
-        Google Cloud Projects if the current user is a member of those
-        projects**
-      parameters:
-        - name: id
-          required: true
-          in: path
-          description: |
-            Google Cloud Project IDs to get service accounts for.
-            Use a comma-separated list: `project_a,project_b,project_c`
-          schema:
-            type: string
-      operationId: listGoogleServiceAccount
-      responses:
-        '200':
-          description: List of service accounts for specified projects
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/GoogleServiceAccounts'
-        '403':
-          description: User is not a member on all the provided project ids
+  /google/service_accounts/{id}:
     delete:
       tags:
         - google

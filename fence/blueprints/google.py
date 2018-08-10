@@ -75,7 +75,7 @@ class GoogleServiceAccountRoot(Resource):
             project_access=project_access,
         )
 
-    # @require_auth_header({'google_service_account'})
+    @require_auth_header({'google_service_account'})
     def get(self):
         google_projects = flask.request.args.get('google_project_ids')
 
@@ -224,35 +224,10 @@ class GoogleServiceAccount(Resource):
         if id_ == 'monitor':
             return self._get_monitoring_service_account_response()
 
-        # if not monitor, we should assume google project ids and parse
-        google_project_ids = [
-            project_id.strip()
-            for project_id in
-            unquote(id_).split(',')
-        ]
-
-        # check if user has permission to get service accounts
-        # for these projects
-        user_id = current_token['sub']
-        authorized = is_user_member_of_all_google_projects(
-            user_id, google_project_ids)
-
-        if not authorized:
-            return (
-                'Could not determine if user is a member on all the '
-                'provided Google project IDs.',
-                403
-            )
-
-        service_accounts = self._get_project_service_accounts(
-            google_project_ids=google_project_ids
+        return (
+            'Currently getting a specific service account is not supported.',
+            400
         )
-
-        response = {
-            'service_accounts': service_accounts
-        }
-
-        return response, 200
 
     @require_auth_header({'google_service_account'})
     def post(self, id_):
