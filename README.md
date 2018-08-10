@@ -263,6 +263,14 @@ This command should output a tuple of `(client_id, client_secret)` which must be
 saved by the OAuth client to use with
 `fence`.
 
+#### Register Internal Oauth Client
+
+As a Gen3 commons administrator, if you want to create an oauth client that skips user consent step, use the following command:
+
+```bash
+fence-create client-create --client CLIENT_NAME --urls OAUTH_REDIRECT_URL --username USERNAME --auto-approve
+```
+
 #### Modify OAuth Client
 
 ```bash
