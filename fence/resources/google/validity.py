@@ -8,7 +8,6 @@ from fence.resources.google.utils import (
     get_project_access_from_service_accounts,
     get_users_from_google_members,
     get_service_account_ids_from_google_members,
-    get_user_emails_on_google_project,
 )
 from fence.resources.google.access_utils import (
     is_valid_service_account_type,
@@ -20,6 +19,7 @@ from fence.resources.google.access_utils import (
     get_project_from_auth_id,
     can_access_google_project,
     remove_white_listed_service_account_ids,
+    is_user_member_of_all_google_projects,
 )
 
 
@@ -142,6 +142,7 @@ class GoogleProjectValidity(ValidityInfo):
             self, google_project_id,
             new_service_account=None,
             new_service_account_access=None,
+            user_id=None,
             *args, **kwargs):
         """
         Initialize
@@ -159,10 +160,12 @@ class GoogleProjectValidity(ValidityInfo):
         self.google_project_id = google_project_id
         self.new_service_account = new_service_account
         self.new_service_account_access = new_service_account_access or []
+        self.user_id = user_id
         super(GoogleProjectValidity, self).__init__(*args, **kwargs)
 
         # setup default values for error information, will get updated in
         # check_validity
+        self._info['user_has_access'] = None
         self._info['monitor_has_access'] = None
         self._info['valid_parent_org'] = None
         self._info['valid_member_types'] = None
@@ -181,9 +184,15 @@ class GoogleProjectValidity(ValidityInfo):
         """
         has_access = can_access_google_project(self.google_project_id)
         self.set('monitor_has_access', has_access)
-
         # always early return if we can't access the project
         if not has_access:
+            return
+
+        user_has_access = is_user_member_of_all_google_projects(
+            self.user_id, [self.google_project_id])
+        self.set('user_has_access', user_has_access)
+        if not user_has_access:
+            # always early return if user isn't a member on the project
             return
 
         valid_parent_org = (
@@ -332,11 +341,22 @@ class GoogleServiceAccountValidity(ValidityInfo):
 
         # setup default values for error information, will get updated in
         # check_validity
+        self._info['owned_by_project'] = None
         self._info['valid_type'] = None
         self._info['no_external_access'] = None
-        self._info['owned_by_project'] = None
 
     def check_validity(self, early_return=True):
+        is_owned_by_google_project = (
+            is_service_account_from_google_project(
+                self.account_id,
+                self.google_project_id)
+        )
+        self.set('owned_by_project', is_owned_by_google_project)
+        if not is_owned_by_google_project:
+            # we cannot determine further information if the account isn't
+            # owned by the project
+            return
+
         valid_type = is_valid_service_account_type(self.google_project_id, self.account_id)
         self.set('valid_type', valid_type)
         if not valid_type and early_return:
@@ -347,13 +367,4 @@ class GoogleServiceAccountValidity(ValidityInfo):
         )
         self.set('no_external_access', no_external_access)
         if not no_external_access and early_return:
-            return
-
-        is_owned_by_google_project = (
-            is_service_account_from_google_project(
-                self.account_id,
-                self.google_project_id)
-        )
-        self.set('owned_by_project', is_owned_by_google_project)
-        if not early_return and early_return:
             return

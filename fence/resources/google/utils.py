@@ -600,30 +600,6 @@ def get_user_from_google_member(member):
     )
 
 
-def get_user_emails_on_google_project(project_id):
-    """
-    Return a list of emails for every user on the given google project.
-
-    Args:
-        project_id (str): google project identifier
-
-    Returns:
-        List[str]: list of emails for every user on the given google project
-    """
-    with GoogleCloudManager(project_id) as prj:
-        members = prj.get_project_membership(project_id)
-
-        # ensure that all the members on the project exist
-        # in our db
-        member_emails = [
-            member.email_id
-            for member in members
-            if member.member_type == GooglePolicyMember.USER
-        ]
-
-        return member_emails
-
-
 def get_monitoring_service_account_email():
     """
     Get the monitoring email from the cirrus configuration. Use the
