@@ -195,7 +195,31 @@ end-user's Google project. Fence is then able to monitor the project
 for any anomalies that may unintentionally provide data access to entities
 who should not have access.
 
-## Setup
+## Deployment
+We recommend using the [fence docker image](https://quay.io/repository/cdis/fence) for deployment in production.
+
+You should separately manage secret files below and mount them to the docker container:
+- Provision your local_settings.py with database and other credentials
+- Provision your jwt public & private key pairs in a directory with structure:
+```
+./YOUR_KEY_ID/jwt_private_key.pem
+./YOUR_KEY_ID/jwt_public_key.pem
+```
+
+Then run
+```
+docker run -d -v /path/to/local_settings.py:/var/www/fence/local_settings.py -v /path/to/key_dir:/fence/keys --name=fence -p 80:80 fence
+```
+
+### Deployment without docker
+If your orchestration/configuration management framework does not use docker, you can deploy with apache2 and mod_wsgi.
+- install the same set of dependencies as in [Dockerfile](https://github.com/uc-cdis/fence/blob/master/Dockerfile#L10-L35)
+- clone fence in `/fence`(or somewhere else and update apache config accordingly), and [install fence](https://github.com/uc-cdis/fence/blob/master/Dockerfile#L43-L44).
+- follow similar apache2 configuration as in [Dockerfile](https://github.com/uc-cdis/fence/blob/master/Dockerfile#L45-L62)
+- provision the secrets same as the docker deployment instruction
+
+
+## Development Setup
 
 #### Install Requirements and Fence
 
