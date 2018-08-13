@@ -854,6 +854,14 @@ def remove_white_listed_service_account_ids(service_account_ids):
     monitoring_service_account = get_monitoring_service_account_email()
     if monitoring_service_account in service_account_ids:
         service_account_ids.remove(monitoring_service_account)
+
+    if 'WHITE_LISTED_SERVICE_ACCOUNT_EMAILS' in flask.current_app.config:
+        whitelist = (flask.current_app.config
+                     .get('WHITE_LISTED_SERVICE_ACCOUNT_EMAILS'))
+        for email in whitelist:
+            if email in service_account_ids:
+                service_account_ids.remove(email)
+
     return service_account_ids
 
 
