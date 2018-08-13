@@ -1,12 +1,13 @@
 import time
 import json
+import os
 from cryptography.fernet import Fernet
 import flask
 from flask_sqlalchemy_session import current_session
 from sqlalchemy import desc
-from google.cloud.exceptions import GoogleCloudError
 
 from cirrus import GoogleCloudManager
+from cirrus.google_cloud.iam import GooglePolicyMember
 from cirrus.google_cloud.utils import (
     get_valid_service_account_id_for_client,
     get_valid_service_account_id_for_user
@@ -17,11 +18,12 @@ from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
 
 from fence.auth import current_token
 from fence.models import (
+    GoogleServiceAccount,
     GoogleServiceAccountKey,
     UserGoogleAccount,
-    GoogleServiceAccount,
     UserGoogleAccountToProxyGroup,
-    UserServiceAccount
+    UserServiceAccount,
+    ServiceAccountAccessPrivilege,
 )
 from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME
 from fence.errors import NotSupported, NotFound
@@ -506,81 +508,120 @@ def get_prefix_for_google_proxy_groups():
     return prefix
 
 
-def get_google_projects_with_registered_service_accounts(db=None):
+def get_registered_service_accounts(google_project_id):
+    return (current_session.query(UserServiceAccount)
+            .filter_by(google_project_id=google_project_id).all())
+
+
+def get_project_access_from_service_accounts(service_accounts):
     """
-    Return a set with all the Google Project id's that
-    have registered service accounts.
+    Get a list of projects all the provided service accounts have
+    access to. list will be of UserServiceAccount db objects
+
+    Returns a list of Project objects
     """
-    registered_service_accounts = get_all_registered_service_accounts(db)
-    google_projects = set([
-        sa.google_project_id
-        for sa in registered_service_accounts
-    ])
-    return google_projects
+    projects = []
+    for service_account in service_accounts:
+        access = [
+            access_privilege.project
+            for access_privilege in (
+                current_session
+                .query(ServiceAccountAccessPrivilege)
+                .filter_by(service_account_id=service_account.id)
+                .all()
+            )
+            if access_privilege.project is not None
+        ]
+        projects.extend(access)
+    return list(projects)
 
 
-def get_registered_service_accounts(google_project, db=None):
-    session = get_db_session(db)
-    # TODO return a list of UserServiceAccount db objects for project
-    raise NotImplementedError('Functionality not yet available...')
-
-
-def get_all_registered_service_accounts(db=None):
-    session = get_db_session(db)
-    return session.query(UserServiceAccount).all()
-
-
-def get_project_access_from_service_accounts(service_accounts, db=None):
-    # get a list of projects all the provided service accounts have
-    # access to. list will be of UserServiceAccount db objects
-    # TODO
-    session = get_db_session(db)
-    raise NotImplementedError('Functionality not yet available...')
-
-
-def get_service_account_ids_from_google_project(project_id):
+def get_service_account_ids_from_google_members(members):
     """
-    Get list of all service account ids associated with a project
+    Get list of all service account ids given service account members on a
+    google project
 
     Args:
-        project_id(str): unique Id of project
+        members(List[cirrus.google_cloud.iam.GooglePolicyMember]): Members on
+            the google project who are of type User
 
     Return:
         list<str>: list of service account ids (emails)
     """
-    try:
-        with GoogleCloudManager(project_id) as prj:
-            return [acc['email'] for acc in prj.get_all_service_accounts()]
-    except GoogleCloudError as exc:
-        flask.current_app.logger.debug(
-            'Could not get service account IDs of Google '
-            'Project (project id: {}) Details: {}'
-            .format(project_id, exc))
-        return []
+    return [
+        member.email_id for member in members
+        if member.member_type == GooglePolicyMember.SERVICE_ACCOUNT
+    ]
 
 
-def get_user_ids_from_google_members(members, db=None):
+def get_users_from_google_members(members):
     """
-     get all user ids from google members
-     Args:
-        members(list): list of google email
-     Returns:
-        list of user ids
+    Get User objects for all members on a Google project by checking db.
+
+    Args:
+        members(List[cirrus.google_cloud.iam.GooglePolicyMember]): Members on
+            the google project who are of type User
+
+    Return:
+        List[fence.models.User]: Users from our db for members on Google project
+
+    Raises:
+        NotFound: Member on google project doesn't exist in our db
     """
-    session = get_db_session(db)
     result = []
     for member in members:
-        google_account = session.query(UserGoogleAccount).filter(
-            UserGoogleAccount.email == member).first()
-        if google_account:
-            result.append(google_account.user_id)
+        user = get_user_from_google_member(member)
+        if user:
+            result.append(user)
         else:
             raise NotFound(
-                'Member {} does not have a linked Google Account.'
+                'Google member {} does not exist as a linked Google Account.'
                 .format(member)
             )
 
     return result
+
+
+def get_user_from_google_member(member):
+    """
+    Get User object for all members on a Google project by checking db.
+
+    Args:
+        member(cirrus.google_cloud.iam.GooglePolicyMember): Member on
+            the google project who are of type User
+
+    Return:
+        fence.models.User: User from our db for member on Google project
+    """
+    return (
+        current_session.query(UserGoogleAccount)
+        .filter(UserGoogleAccount.email == member.email_id.lower()).first()
+    )
+
+
+def get_monitoring_service_account_email():
+    """
+    Get the monitoring email from the cirrus configuration. Use the
+    main/default application credentials as the monitoring service account.
+
+    This function should ONLY return the service account's email by
+    parsing the creds file.
+    """
+    app_creds_file = (
+        flask.current_app.config
+        .get('CIRRUS_CFG', {})
+        .get('GOOGLE_APPLICATION_CREDENTIALS')
+    )
+
+    creds_email = None
+    if app_creds_file and os.path.exists(app_creds_file):
+        with open(app_creds_file) as app_creds_file:
+            creds_email = (
+                json.load(app_creds_file)
+                .get('client_email')
+            )
+
+    return creds_email
 
 
 def get_db_session(db):

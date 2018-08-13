@@ -776,7 +776,7 @@ paths:
       responses:
         '302':
           description: redirect to session-stored redirect value
-  /google/service_accounts/ (PLANNING):
+  /google/service_accounts/:
     post:
       tags:
         - google
@@ -806,7 +806,35 @@ paths:
               $ref: '#/components/schemas/GoogleServiceAccount'
         description: ServiceAccount object to register
         required: true
-  /google/service_accounts/_dry_run (PLANNING):
+    get:
+      tags:
+        - google
+      summary: Get a list of Google Service Accounts
+      description: |
+        Get a list of service accounts for the given Google Cloud Project IDs.
+        > **NOTE: This will only provide service account information for
+        Google Cloud Projects if the current user is a member of those
+        projects**
+      parameters:
+        - name: google_project_ids
+          required: true
+          in: query
+          description: |
+            Google Cloud Project IDs to get service accounts for.
+            Use a comma-separated list: `project_a,project_b,project_c`
+          schema:
+            type: string
+      operationId: listGoogleServiceAccount
+      responses:
+        '200':
+          description: List of service accounts for specified projects
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/GoogleServiceAccounts'
+        '403':
+          description: User is not a member on all the provided project ids
+  /google/service_accounts/_dry_run:
     post:
       tags:
         - google
@@ -860,35 +888,7 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/AdminGoogleServiceAccount'
-  '/google/service_accounts/{id} (PLANNING)':
-    get:
-      tags:
-        - google
-      summary: Get a list of Google Service Accounts
-      description: |
-        Get a list of service accounts for the given Google Cloud Project IDs.
-        > **NOTE: This will only provide service account information for
-        Google Cloud Projects if the current user is a member of those
-        projects**
-      parameters:
-        - name: id
-          required: true
-          in: path
-          description: |
-            Google Cloud Project IDs to get service accounts for.
-            Use a comma-separated list: `project_a,project_b,project_c`
-          schema:
-            type: string
-      operationId: listGoogleServiceAccount
-      responses:
-        '200':
-          description: List of service accounts for specified projects
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/GoogleServiceAccounts'
-        '403':
-          description: User is not a member on all the provided project ids
+  /google/service_accounts/{id}:
     delete:
       tags:
         - google
@@ -913,13 +913,20 @@ paths:
       tags:
         - google
       summary: Update a Google Service Account
-      description: >-
+      description: |
         Update a Google Cloud Project's service account to change access to
         controlled data and/or extend access to data. This will extend the
-        service accounts access to data. It will also modify access if a patch
-        document is provided with new access.
+        service account's access to data. It will also modify access if a
+        patch document is provided with new access.
 
-        > WARNING: Provided patch document will *fully replace* previous data.
+        > *NOTE*: If you do not provide a patch document (e.g. no payload),
+        this will extend access to ALL PREVIOUS DATA. If you want to REMOVE
+        access, either use the DELETE endpoint or provide a patch document
+        with an empty list for "project_access". It's important to note that
+        providing {"project_access": []} is different than not including a
+        payload at all.
+
+        > **WARNING**: Provided patch document will *fully replace* previous data.
         It will NOT extend previous data by provided values, it will FULLY
         REPLACE the data with what's provided.
       operationId: updateGoogleServiceAccount
@@ -931,7 +938,7 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        '204':
           description: 'success, updated service account access'
         '400':
           description: 'failure, trying to update service account access resulted in errors'
@@ -1080,6 +1087,18 @@ components:
                 'error_description':
                   type: string
                   description: More details about the error
+                'service_account_validity':
+                  type: object
+                  properties:
+                    service_account_id:
+                      type: object
+                      properties:
+                        no_external_access:
+                          type: boolean
+                        owned_by_project:
+                          type: boolean
+                        valid_type:
+                          type: boolean
             google_project_id:
               type: object
               properties:
@@ -1092,21 +1111,35 @@ components:
                 'error_description':
                   type: string
                   description: More details about the error
+                'membership_validity':
+                  type: object
+                  properties:
+                    'valid_member_types':
+                      type: boolean
+                    'members_exist_in_fence':
+                      type: boolean
             project_access:
               type: object
               properties:
-                project_name:
+                'status':
+                  type: integer
+                  description: HTTP Status code representing the validity/success for this field
+                'error':
+                  type: string
+                  description: Specific error name
+                'error_description':
+                  type: string
+                  description: More details about the error
+                'project_validity':
                   type: object
                   properties:
-                    'status':
-                      type: integer
-                      description: HTTP Status code representing the validity/success for this field
-                    'error':
-                      type: string
-                      description: Specific error name
-                    'error_description':
-                      type: string
-                      description: More details about the error
+                    project_id:
+                      type: object
+                      properties:
+                        all_users_have_access:
+                          type: boolean
+                        exists:
+                          type: boolean
       example:
         success: false
         errors:
@@ -1114,19 +1147,29 @@ components:
             'status': 200
             'error': null
             'error_description': ''
+            'service_account_validity':
+              'some-service-account@project-id.iam.gserviceaccount.com':
+                'no_external_access': true
+                'owned_by_project': true
+                'valid_type': true
           google_project_id:
             'status': 200
             'error': null
             'error_description': ''
+            'membership_validity':
+              valid_member_types: true
+              members_exist_in_fence: true
           project_access:
-            ProjectA:
-              'status': 200
-              'error': null
-              'error_description': ''
-            ProjectB:
-              'status': 403
-              'error': 'Unauthorized'
-              'error_description': 'Not all users have access requested'
+            'status': 403
+            'error': 'Unauthorized'
+            'error_description': 'Not all users have access requested'
+            'project_validity':
+              'ProjectA':
+                'all_users_have_access': false
+                'exists': true
+              'ProjectB':
+                'all_users_have_access': true
+                'exists': true
     GoogleServiceAccountProjectAccess:
       type: object
       required:
