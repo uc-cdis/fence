@@ -10,16 +10,13 @@ from flask_sqlalchemy_session import current_session
 
 from cirrus.google_cloud.iam import GooglePolicyMember
 
+from cirrus.google_cloud.errors import GoogleAPIError
+from cirrus.google_cloud.iam import GooglePolicy
 from cirrus import GoogleCloudManager
 from cirrus.google_cloud import (
     COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
     USER_MANAGED_SERVICE_ACCOUNT,
 )
-from cirrus.google_cloud.errors import GoogleAPIError
-from cirrus.google_cloud.iam import GooglePolicy
-from cirrus.google_cloud.iam import GooglePolicyMember
-import flask
-from google.cloud.exceptions import GoogleCloudError
 
 import fence
 from fence.errors import NotFound, NotSupported
@@ -30,11 +27,10 @@ from fence.models import (
     UserGoogleAccount,
     UserServiceAccount,
     ServiceAccountAccessPrivilege,
-    ServiceAccountToGoogleBucketAccessGroup
+    ServiceAccountToGoogleBucketAccessGroup,
 )
 from fence.resources.google.utils import (
     get_db_session,
-    get_users_from_google_members,
     get_monitoring_service_account_email,
 )
 

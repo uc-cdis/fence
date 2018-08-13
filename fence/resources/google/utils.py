@@ -26,6 +26,7 @@ from fence.models import (
     ServiceAccountAccessPrivilege,
 )
 from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME
+from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
 from fence.errors import NotSupported, NotFound
 
 
