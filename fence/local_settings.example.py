@@ -139,10 +139,11 @@ S3_BUCKETS = {
 ENABLED_IDENTITY_PROVIDERS = {
     # ID for which of the providers to default to.
     'default': 'google',
-    # Information for identity providers.
+    # Information for identity providers. The name will be what show
+    # up in portal login page
     'providers': {
         'fence': {
-            'name': 'Fence Multi-Tenant OAuth',
+            'name': 'NIH Login',
         },
         'google': {
             'name': 'Google OAuth',
