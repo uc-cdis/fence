@@ -598,8 +598,8 @@ def verify_bucket_access_group(DB):
     driver = SQLAlchemyDriver(DB)
     with driver.session as session:
         access_groups = session.query(GoogleBucketAccessGroup).all()
-        for access_group in access_groups:
-            with GoogleCloudManager() as manager:
+        with GoogleCloudManager() as manager:
+            for access_group in access_groups:
                 try:
                     members = manager.get_group_members(access_group.email)
                 except GoogleAuthError as e:
@@ -644,10 +644,10 @@ def _verify_google_group_member(session, access_group, member):
     if not any([email for email in account_emails if email == member.get('email')]):
         try:
             with GoogleCloudManager() as manager:
-                manager.delete_group(member.get('email'))
+                manager.remove_member_from_group(member.get('email'), access_group.email)
         except Exception as e:
-            print("ERROR: Could not delete google group memeber {}. Detail {}"
-                  .format(member.get('email'), e))
+            print("ERROR: Could not remove google group memeber {} from access group {}. Detail {}"
+                  .format(member.get('email'), access_group.email, e))
 
 
 def _verify_google_service_account_member(session, access_group, member):
@@ -677,11 +677,10 @@ def _verify_google_service_account_member(session, access_group, member):
     if not any([email for email in account_emails if email == member.get('email')]):
         try:
             with GoogleCloudManager() as manager:
-                manager.delete_service_account(member.get('email'))
+                manager.remove_member_from_group(member.get('email'), access_group.email)
         except Exception as e:
-            print("ERROR: Could not delete service account memeber {}. Detail {}"
-                  .format(member.get('email'), e))
-
+            print("ERROR: Could not remove service account memeber {} from access group {}. Detail {}"
+                  .format(member.get('email'), access_group.email, e))
 
 
 class JWTCreator(object):

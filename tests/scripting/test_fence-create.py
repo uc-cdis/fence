@@ -561,7 +561,7 @@ def test_verify_google_group_member(
     _verify_google_group_member(db_session, access_group, member)
     assert (
         cloud_manager.return_value.__enter__.
-        return_value.delete_group.called
+        return_value.remove_member_from_group.called
     )
 
 
@@ -588,7 +588,7 @@ def test_verify_google_group_member_not_call_delete_operation(
     _verify_google_group_member(db_session, access_group, member)
     assert not (
         cloud_manager.return_value.__enter__.
-        return_value.delete_group.called
+        return_value.remove_member_from_group.called
     )
 
 
@@ -615,7 +615,7 @@ def test_verify_google_service_account_member_call_delete_operation(
     _verify_google_service_account_member(db_session, access_group, member)
     assert (
         cloud_manager.return_value.__enter__.
-        return_value.delete_service_account.called
+        return_value.remove_member_from_group.called
     )
 
 
@@ -642,5 +642,5 @@ def test_verify_google_service_account_member_not_call_delete_operation(
     _verify_google_service_account_member(db_session, access_group, member)
     assert not (
         cloud_manager.return_value.__enter__.
-        return_value.delete_service_account.called
+        return_value.remove_member_from_group.called
     )
