@@ -341,7 +341,7 @@ def authorized_service_account_management_claims(
         dict: dictionary of claims
     """
     # TODO add new scope for /google/service_accounts endpoints
-    aud = ['access', 'data', 'user', 'openid']
+    aud = ['access', 'data', 'user', 'openid', 'google_service_account']
     iss = current_app.config['BASE_URL']
     jti = new_jti()
     iat, exp = iat_and_exp()

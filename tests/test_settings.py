@@ -156,3 +156,7 @@ CIRRUS_CFG = {}
 ARBORIST = {
     'base_url': '/arborist',
 }
+
+WHITE_LISTED_SERVICE_ACCOUNT_EMAILS = [
+    'test@0', 'test@123', 'test@456',
+]

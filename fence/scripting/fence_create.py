@@ -8,6 +8,7 @@ import pprint
 
 from authlib.common.encoding import to_unicode
 from cirrus import GoogleCloudManager
+from cirrus.google_cloud.errors import GoogleAuthError
 from cirrus.config import config as cirrus_config
 from cdispyutils.log import get_logger
 from sqlalchemy import func
@@ -22,7 +23,7 @@ from userdatamodel.models import (
     Project,
     StorageAccess,
     User,
-    ProjectToBucket
+    ProjectToBucket,
 )
 
 from fence.jwt.token import (
@@ -39,7 +40,7 @@ from fence.models import (
     GoogleBucketAccessGroup,
     GoogleProxyGroupToGoogleBucketAccessGroup,
     UserRefreshToken,
-    ServiceAccountToGoogleBucketAccessGroup
+    ServiceAccountToGoogleBucketAccessGroup,
 )
 from fence.utils import create_client
 from fence.sync.sync_users import UserSyncer
@@ -579,6 +580,109 @@ def delete_expired_service_accounts(DB):
                               .format(record.service_account.email, e.message))
 
                 session.commit()
+
+
+def verify_bucket_access_group(DB):
+    """
+    Go through all the google group members, remove them from Google group and Google
+    user service account if they are not in Fence
+
+    Args:
+        DB(str): db connection string
+
+    Returns:
+        None
+
+    """
+    import fence.settings
+    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+
+    driver = SQLAlchemyDriver(DB)
+    with driver.session as session:
+        access_groups = session.query(GoogleBucketAccessGroup).all()
+        with GoogleCloudManager() as manager:
+            for access_group in access_groups:
+                try:
+                    members = manager.get_group_members(access_group.email)
+                except GoogleAuthError as e:
+                    print("ERROR: Authentication error!!!. Detail {}"
+                          .format(e.message))
+                    return
+                except Exception as e:
+                    print("ERROR: Could not list group members of {}. Detail {}"
+                          .format(access_group.email, e))
+                    return
+
+                for member in members:
+                    if member.get('type') == 'GROUP':
+                        _verify_google_group_member(session, access_group, member)
+                    elif member.get('type') == 'USER':
+                        _verify_google_service_account_member(session, access_group, member)
+
+
+def _verify_google_group_member(session, access_group, member):
+    """
+    Delete if the member which is a google group is not in Fence.
+
+    Args:
+        session(Session): db session
+        access_group(GoogleBucketAccessGroup): access group
+        member(dict): group member info
+
+    Returns:
+        None
+
+    """
+    account_emails = [
+            granted_group.proxy_group.email
+            for granted_group in (
+                session
+                .query(GoogleProxyGroupToGoogleBucketAccessGroup)
+                .filter_by(access_group_id=access_group.id)
+                .all()
+            )
+    ]
+
+    if not any([email for email in account_emails if email == member.get('email')]):
+        try:
+            with GoogleCloudManager() as manager:
+                manager.remove_member_from_group(member.get('email'), access_group.email)
+        except Exception as e:
+            print("ERROR: Could not remove google group memeber {} from access group {}. Detail {}"
+                  .format(member.get('email'), access_group.email, e))
+
+
+def _verify_google_service_account_member(session, access_group, member):
+    """
+    Delete if the member which is a service account is not in Fence.
+
+    Args:
+        session(session): db session
+        access_group(GoogleBucketAccessGroup): access group
+        members(dict): service account member info
+
+    Returns:
+        None
+
+    """
+
+    account_emails = [
+        account.service_account.email
+        for account in (
+            session
+            .query(ServiceAccountToGoogleBucketAccessGroup)
+            .filter_by(access_group_id=access_group.id)
+            .all()
+        )
+    ]
+
+    if not any([email for email in account_emails if email == member.get('email')]):
+        try:
+            with GoogleCloudManager() as manager:
+                manager.remove_member_from_group(member.get('email'), access_group.email)
+        except Exception as e:
+            print("ERROR: Could not remove service account memeber {} from access group {}. Detail {}"
+                  .format(member.get('email'), access_group.email, e))
 
 
 class JWTCreator(object):

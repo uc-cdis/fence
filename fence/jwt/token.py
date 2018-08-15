@@ -30,11 +30,13 @@ SCOPE_DESCRIPTION = {
 SESSION_ALLOWED_SCOPES = [
     'openid', 'user', 'credentials', 'data', 'admin',
     'google_credentials', 'google_service_account']
+
 USER_ALLOWED_SCOPES = [
     'fence', 'openid', 'user', 'data', 'admin',
     'google_credentials', 'google_service_account']
+
 CLIENT_ALLOWED_SCOPES = [
-    'openid', 'user', 'data', 'admin',
+    'openid', 'user', 'data',
     'google_credentials', 'google_service_account']
 
 

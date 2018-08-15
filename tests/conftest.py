@@ -775,6 +775,7 @@ def patch_app_db_session(app, monkeypatch):
             'fence.auth',
             'fence.resources.google.utils',
             'fence.blueprints.link',
+            'fence.blueprints.google',
             'fence.oidc.jwt_generator',
             'fence.user',
         ]
@@ -912,6 +913,7 @@ def cloud_manager():
     patch('fence.resources.google.utils.GoogleCloudManager', manager).start()
     patch('fence.scripting.fence_create.GoogleCloudManager', manager).start()
     patch('fence.resources.google.access_utils.GoogleCloudManager', manager).start()
+    patch('fence.blueprints.google.GoogleCloudManager', manager).start()
     manager.return_value.__enter__.return_value.get_access_key.return_value = {
         "type": "service_account",
         "project_id": "project-id",
