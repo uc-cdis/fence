@@ -36,6 +36,7 @@ from fence.resources.google.access_utils import (
     extend_service_account_access,
     get_current_service_account_project_access,
     patch_user_service_account,
+    remove_white_listed_service_account_ids,
 )
 
 
@@ -833,3 +834,12 @@ def test_update_user_service_account_raise_GoogleAPI_exc4(
     with pytest.raises(Exception):
         assert patch_user_service_account('test', 'test@gmail.com', ['test_auth_1'])
 
+
+def test_whitelisted_service_accounts(app, db_session, client,
+                                      encoded_jwt_service_accounts_access, cloud_manager,
+                                      valid_google_project_patcher, valid_service_account_patcher):
+    service_account_ids = ['test@123', 'test@456', 'test@789']
+    remove_white_listed_service_account_ids(service_account_ids)
+    assert 'test@123' not in service_account_ids
+    assert 'test@456' not in service_account_ids
+    assert 'test@789' in service_account_ids
