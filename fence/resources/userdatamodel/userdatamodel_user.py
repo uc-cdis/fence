@@ -22,11 +22,11 @@ __all__ = [
 
 
 def get_user(current_session, username):
-    return  current_session.query(User).filter(User.username == username).first()
+    return current_session.query(User).filter(User.username == username).first()
 
 
 def get_user_accesses(current_session):
-    return  (
+    return (
         current_session.query(User)
         .join(User.groups)
         .filter(User.id == flask.g.user.id)

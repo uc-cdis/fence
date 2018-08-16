@@ -224,3 +224,8 @@ def admin_required(f):
             raise Unauthorized("Require admin user")
         return f(*args, **kwargs)
     return wrapper
+
+
+def admin_login_required(function):
+    """Compose the login required and admin required decorators."""
+    return login_required({'admin'})(admin_required(function))

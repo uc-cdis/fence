@@ -7,7 +7,6 @@ from collections import OrderedDict
 from boto3 import client
 import uuid
 import json
-import mock
 import os
 import copy
 
@@ -34,6 +33,7 @@ import fence
 from fence import app_init
 from fence import models
 from fence.jwt.keys import Keypair
+from fence.jwt.token import generate_signed_access_token
 
 import tests
 from tests import test_settings
@@ -976,11 +976,11 @@ def mock_get(monkeypatch, example_keys_response):
 
         def get(url):
             """Define a mock ``get`` function to return a mocked response."""
-            mocked_response = mock.MagicMock(requests.Response)
+            mocked_response = MagicMock(requests.Response)
             mocked_response.json.return_value = urls_to_responses[url]
             return mocked_response
 
-        monkeypatch.setattr('requests.get', mock.MagicMock(side_effect=get))
+        monkeypatch.setattr('requests.get', MagicMock(side_effect=get))
 
     return do_patch
 
