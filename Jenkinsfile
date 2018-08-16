@@ -16,6 +16,12 @@ pipeline {
             branch: 'master'
           )
         }
+        dir('data-simulator') {
+          git(
+            url: 'https://github.com/occ-data/data-simulator.git',
+            branch: 'master'
+          )
+        }
         dir('cdis-manifest') {
           git(
             url: 'https://github.com/uc-cdis/cdis-manifest.git',
@@ -34,12 +40,21 @@ pipeline {
       steps {
         script {
           service = "$env.JOB_NAME".split('/')[1]
-          def timestamp = (("${currentBuild.timeInMillis}".substring(0, 10) as Integer) - 60)
+          def timestamp = (("${currentBuild.timeInMillis}".substring(0, 10) as Integer) - 120)
+          def timeout = (("${currentBuild.timeInMillis}".substring(0, 10) as Integer) + 3600)
           curlUrl = "$env.QUAY_API"+service+"/build/?since="+timestamp
           fullQuery = "curl -s "+curlUrl+/ | jq '.builds[] | "\(.tags[]),\(.display_name),\(.phase)"'/
           
           def testBool = false
           while(testBool != true) {
+            currentTime = new Date().getTime()/1000 as Integer
+            println "currentTime is: "+currentTime
+
+            if(currentTime > timeout) {
+              currentBuild.result = 'ABORTED'
+              error("aborting build due to timeout")
+            }
+
             sleep(30)
             resList = sh(script: fullQuery, returnStdout: true).trim().split('"\n"')
             for (String res in resList) {
@@ -81,7 +96,6 @@ pipeline {
         dir("cdis-manifest/$dirname") {
           withEnv(["masterBranch=$service:master", "targetBranch=$service:$quaySuffix"]) {
             sh 'sed -i -e "s,'+"$env.masterBranch,$env.targetBranch"+',g" manifest.json'
-            sh 'cat manifest.json'
           }
         }
       }
