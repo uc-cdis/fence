@@ -38,15 +38,15 @@ OPENID_CONNECT = {
     'fence': {
         'client_id': '',
         'client_secret': '',
-        'api_base_url': '',
-        'authorize_url': '',
-        'access_token_url': '',
-        'refresh_token_url': '',
+        'api_base_url': 'FENCE_ROOT_ENDPOINT',
+        'authorize_url': 'FENCE_ROOT_ENDPOINT/oauth2/authorize',
+        'access_token_url': 'FENCE_ROOT_ENDPOINT/oauth2/token',
+        'refresh_token_url': 'FENCE_ROOT_ENDPOINT/oauth2/token',
         'client_kwargs': {
             'scope': 'openid user',
-            'redirect_uri': '',
+            'redirect_uri': 'BASE_URL/login/fence/login',
         },
-        'name': ''
+        'name': 'NIH'
     },
 }
 
@@ -139,10 +139,11 @@ S3_BUCKETS = {
 ENABLED_IDENTITY_PROVIDERS = {
     # ID for which of the providers to default to.
     'default': 'google',
-    # Information for identity providers.
+    # Information for identity providers. The name will be what show
+    # up in portal login page
     'providers': {
         'fence': {
-            'name': 'Fence Multi-Tenant OAuth',
+            'name': 'NIH Login',
         },
         'google': {
             'name': 'Google OAuth',
@@ -186,3 +187,5 @@ if os.path.exists(fence_creds):
         HTTP_PROXY = data['HTTP_PROXY']
         dbGaP = data["dbGaP"]
         GOOGLE_GROUP_PREFIX = data.get('GOOGLE_GROUP_PREFIX')
+        WHITE_LISTED_SERVICE_ACCOUNT_EMAILS = data.get('WHITE_LISTED_SERVICE_ACCOUNT_EMAILS')
+
