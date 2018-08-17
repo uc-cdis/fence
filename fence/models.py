@@ -25,8 +25,8 @@ from userdatamodel import Base
 from userdatamodel.models import (
     AccessPrivilege, Application, AuthorizationProvider, Bucket, Certificate,
     CloudProvider, ComputeAccess, GoogleProxyGroup, HMACKeyPair,
-    HMACKeyPairArchive, IdentityProvider, Project, ProjectToBucket, Group,
-    S3Credential, StorageAccess, User, Tag, UserToBucket, UserToGroup
+    HMACKeyPairArchive, IdentityProvider, Policy, Project, ProjectToBucket,
+    Group, S3Credential, StorageAccess, User, Tag, UserToBucket, UserToGroup
 )
 
 

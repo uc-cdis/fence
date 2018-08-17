@@ -20,7 +20,8 @@ class AuthorizeResponse(object):
             if response.status_code == 302:
                 self.location = response.headers['Location']
             else:
-                self.location = response.json['redirect']
+                if getattr(response, 'json'):
+                    self.location = response.json['redirect']
         except (KeyError, ValueError):
             self.location = None
         try:

@@ -1,6 +1,10 @@
 import pytest
+import yaml
 
 from fence import models
+from fence.sync.sync_users import _format_policy_id
+
+from tests.dbgap_sync.conftest import LOCAL_YAML_DIR
 
 
 @pytest.mark.parametrize('syncer', ['google', 'cleversafe'], indirect=True)
@@ -40,8 +44,9 @@ def test_sync(syncer, db_session, storage_client):
     user_access = db_session.query(
         models.AccessPrivilege).filter_by(user=user).all()
 
-    assert set(user_access[0].privilege) == set([
-        'create', 'read', 'update', 'delete', 'upload'])
+    assert set(user_access[0].privilege) == {
+        'create', 'read', 'update', 'delete', 'upload'
+    }
     assert len(user_access) == 1
 
     user = db_session.query(models.User).filter_by(
@@ -50,8 +55,7 @@ def test_sync(syncer, db_session, storage_client):
     user_access = db_session.query(
         models.AccessPrivilege).filter_by(user=user).all()
 
-    if user_access:
-        raise AssertionError
+    assert not user_access
 
 
 @pytest.mark.parametrize('syncer', ['google', 'cleversafe'], indirect=True)
@@ -206,3 +210,82 @@ def test_sync_two_user_info(syncer, db_session, storage_client):
     assert userinfo1 == {'userA': {'email': 'c@email', 'display_name': 'user C', 'phone_numer': '232-456-123'},
                          'userB': {'email': 'b@email', 'display_name': 'user B', 'phone_numer': '232-456-789', 'role': 'admin'}
                          }
+
+
+@pytest.mark.parametrize('syncer', ['google', 'cleversafe'], indirect=True)
+def test_update_arborist(syncer, db_session):
+    """
+    Check that the ``syncer.arborist_client`` (which is a ``MagicMock``) is
+    called appropriately. Also test that the policies for users are created in
+    the database correctly, and registered to the User models.
+    """
+    syncer.sync()
+
+    # These projects and permissions are collected from the syncer fixture. In
+    # future should refactor to make project mapping its own fixture and not
+    # duplicate in the tests here.
+
+    # Check
+    expect_resources = [
+        'phs000179.c1',
+        'phs000178.c1',
+        'test',
+        'phs000178.c2',
+        'TCGA-PCAWG',
+        'phs000178',
+    ]
+    for resource in expect_resources:
+        assert syncer.arborist_client.create_resource.called_with(
+            '/project', {'name': resource}
+        )
+
+    # Same with roles
+    permissions = [
+        'delete',
+        'update',
+        'upload',
+        'create',
+        'read',
+        'read-storage',
+    ]
+    expect_roles = [
+        {
+            'id': permission,
+            'permissions': [
+                {
+                    'id': permission,
+                    'action': {'method': permission, 'service': ''},
+                }
+            ],
+        }
+        for permission in permissions
+    ]
+    for role in expect_roles:
+        assert syncer.arborist_client.create_role.called_with(role)
+
+    with open(LOCAL_YAML_DIR, 'r') as f:
+        user_data = yaml.safe_load(f)
+
+    policies = db_session.query(models.Policy).all()
+    policy_ids = [policy.id for policy in policies]
+
+    # For every user in the user data, check that the matching policies were
+    # created, and also granted to this user, i.e. the entry in the database
+    # for this user has policies for everything in the original user data.
+    for user, data in user_data['users'].items():
+        if 'projects' not in data:
+            continue
+        for project in data['projects']:
+            auth_id = project['auth_id']
+            for privilege in project['privilege']:
+                policy_id = _format_policy_id(auth_id, privilege)
+                assert policy_id in policy_ids
+                user_policies = (
+                    db_session
+                    .query(models.User)
+                    .filter_by(username=user)
+                    .first()
+                    .policies
+                )
+                user_policy_ids = [policy.id for policy in user_policies]
+                assert policy_id in user_policy_ids
