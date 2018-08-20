@@ -140,14 +140,6 @@ def get_google_project_valid_users_and_service_accounts(project_id):
                         'Member {} has invalid type: {}'.format(
                             member.email_id, member.member_type)
                     )
-            users = [
-                member for member in members
-                if member.member_type == GooglePolicyMember.USER
-            ]
-            service_accounts = [
-                member for member in members
-                if member.member_type == GooglePolicyMember.SERVICE_ACCOUNT
-            ]
             return users, service_accounts
     except Exception as exc:
         flask.current_app.logger.debug((
