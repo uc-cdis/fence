@@ -1,13 +1,11 @@
 from addict import Dict
 import jwt
 import pytest
-import time
 
 from fence.models import (
     Project,
     ProjectToBucket,
     Bucket,
-    ProjectToBucket,
     CloudProvider,
     UserServiceAccount,
     ServiceAccountToGoogleBucketAccessGroup,
@@ -16,17 +14,6 @@ from fence.models import (
 )
 
 from tests import utils
-
-from flask_sqlalchemy_session import current_session
-
-from userdatamodel.models import (
-    Project,
-    Bucket,
-    ProjectToBucket,
-)
-from fence.models import (
-    GoogleBucketAccessGroup,
-)
 
 # Python 2 and 3 compatible
 try:
@@ -189,10 +176,10 @@ def valid_google_project_patcher():
         project_access_mock
     ))
 
-    project_service_accounts_mock = MagicMock()
+    fence_user_is_member_mock = MagicMock()
     patches.append(patch(
-        'fence.resources.google.validity.get_service_account_ids_from_google_members',
-        project_service_accounts_mock
+        'fence.resources.google.validity.is_fence_user_in_google_project_user_members',
+        fence_user_is_member_mock
     ))
 
     user_has_access_mock = MagicMock()
@@ -209,7 +196,7 @@ def valid_google_project_patcher():
     valid_membership_mock.return_value = [], []
     get_users_from_members_mock.return_value = []
     users_have_access_mock.return_value = True
-    project_service_accounts_mock.return_value = []
+    fence_user_is_member_mock.return_value = True
     user_has_access_mock.return_value = True
 
     for patched_function in patches:
@@ -237,8 +224,8 @@ def valid_google_project_patcher():
         'get_project_access_from_service_accounts': (
             project_access_mock
         ),
-        'get_service_account_ids_from_google_members': (
-            project_service_accounts_mock
+        'is_fence_user_in_google_project_user_members': (
+            fence_user_is_member_mock
         ),
     }
 

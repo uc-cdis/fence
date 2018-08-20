@@ -7,7 +7,6 @@ from flask_sqlalchemy_session import current_session
 from sqlalchemy import desc
 
 from cirrus import GoogleCloudManager
-from cirrus.google_cloud.iam import GooglePolicyMember
 from cirrus.google_cloud.utils import (
     get_valid_service_account_id_for_client,
     get_valid_service_account_id_for_user
@@ -26,7 +25,6 @@ from fence.models import (
     ServiceAccountAccessPrivilege,
 )
 from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME
-from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
 from fence.errors import NotSupported, NotFound
 
 
@@ -535,24 +533,6 @@ def get_project_access_from_service_accounts(service_accounts):
         ]
         projects.extend(access)
     return list(projects)
-
-
-def get_service_account_ids_from_google_members(members):
-    """
-    Get list of all service account ids given service account members on a
-    google project
-
-    Args:
-        members(List[cirrus.google_cloud.iam.GooglePolicyMember]): Members on
-            the google project who are of type User
-
-    Return:
-        list<str>: list of service account ids (emails)
-    """
-    return [
-        member.email_id for member in members
-        if member.member_type == GooglePolicyMember.SERVICE_ACCOUNT
-    ]
 
 
 def get_users_from_google_members(members):

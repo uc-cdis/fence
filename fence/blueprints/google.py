@@ -1,4 +1,3 @@
-import json
 import os
 from urllib import unquote
 
@@ -181,13 +180,9 @@ class GoogleServiceAccountRoot(Resource):
         Return:
             (dict): dictionary representing service account object
         """
-        with GoogleCloudManager(google_project_id) as google_project:
-            service_account = google_project.get_service_account(
-                service_account_email)
-
         db_service_account = UserServiceAccount(
-            google_unique_id=service_account.get('uniqueId'),
-            email=service_account.get('email'),
+            google_unique_id=service_account_email,
+            email=service_account_email,
             google_project_id=google_project_id
         )
 
@@ -204,8 +199,8 @@ class GoogleServiceAccountRoot(Resource):
             current_session, project_ids, db_service_account)
 
         return {
-            'service_account_email': service_account.get('email'),
-            'google_project_id': service_account.get('projectId'),
+            'service_account_email': service_account_email,
+            'google_project_id': google_project_id,
             'project_access': project_access
         }
 
@@ -351,16 +346,6 @@ class GoogleServiceAccount(Resource):
             id_ (str): Google service account identifier to update
         """
         user_id = current_token['sub']
-        # check if user has permission to update the service account
-        authorized = can_user_manage_service_account(user_id, id_)
-
-        if not authorized:
-            msg = (
-                'User "{}" does not have permission to update the provided '
-                'service account "{}".'.format(user_id, id_)
-            )
-            return msg, 403
-
         payload = flask.request.get_json(silent=True) or {}
 
         service_account_email = get_service_account_email(id_)
