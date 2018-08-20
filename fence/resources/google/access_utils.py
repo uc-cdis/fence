@@ -128,18 +128,15 @@ def get_google_project_valid_users_and_service_accounts(project_id):
     try:
         with GoogleCloudManager(project_id, use_default=False) as prj:
             members = prj.get_project_membership(project_id)
-            users = []
-            service_accounts = []
-            for member in members:
-                if member.member_type == GooglePolicyMember.USER:
-                    users.append(member)
-                elif member.member_type == GooglePolicyMember.SERVICE_ACCOUNT:
-                    service_accounts.append(member)
-                else:
-                    raise NotSupported(
-                        'Member {} has invalid type: {}'.format(
-                            member.email_id, member.member_type)
-                    )
+            users = [member for member in members
+                     if member.member_type == GooglePolicyMember.USER]
+            service_accounts = [member for member in members
+                                if member.member_type
+                                == GooglePolicyMember.SERVICE_ACCOUNT]
+            if len(users) + len(service_accounts) != len(members):
+                raise NotSupported(
+                    'Some member has invalid type.'
+                )
             return users, service_accounts
     except Exception as exc:
         flask.current_app.logger.debug((
