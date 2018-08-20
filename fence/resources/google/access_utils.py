@@ -128,9 +128,14 @@ def get_google_project_valid_users_and_service_accounts(project_id):
     try:
         with GoogleCloudManager(project_id, use_default=False) as prj:
             members = prj.get_project_membership(project_id)
+            users = []
+            service_accounts = []
             for member in members:
-                if not(member.member_type == GooglePolicyMember.SERVICE_ACCOUNT or
-                        member.member_type == GooglePolicyMember.USER):
+                if member.member_type == GooglePolicyMember.USER:
+                    users.append(member)
+                elif member.member_type == GooglePolicyMember.SERVICE_ACCOUNT:
+                    service_accounts.append(member)
+                else:
                     raise NotSupported(
                         'Member {} has invalid type: {}'.format(
                             member.email_id, member.member_type)
