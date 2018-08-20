@@ -726,9 +726,10 @@ class UserSyncer(object):
             with self.driver.session as s:
                 self._sync(s)
 
-    def _download_dbgap_file_list(self):
+    def _sync(self, sess):
         """
-        Download files from the dbgap server.
+        Collect files from dbgap server, sync csv and yaml files to storage
+        backend and fence DB
         """
         dbgap_file_list = []
         tmpdir = tempfile.mkdtemp()
@@ -742,50 +743,41 @@ class UserSyncer(object):
                 dbgap_file_list = glob.glob(os.path.join(tmpdir, '*'))
             except Exception as e:
                 self.logger.info(e)
+        permissions = [{'read-storage'}] * len(dbgap_file_list)
+        user_projects, user_info = self._parse_csv(
+            dict(zip(dbgap_file_list, permissions)),
+            encrypted=True,
+            sess=sess,
+        )
         try:
             shutil.rmtree(tmpdir)
         except OSError as e:
             self.logger.info(e)
             if e.errno != errno.ENOENT:
                 raise
-        return dbgap_file_list
-
-    def _sync(self, sess):
-        """
-        Collect files from dbgap server, sync csv and yaml files to storage
-        backend and fence DB
-        """
-        dbgap_file_list = self._download_dbgap_file_list()
-
-        permissions = [['read-storage']] * len(dbgap_file_list)
-        user_projects, user_info = self._parse_csv(
-            dict(zip(dbgap_file_list, permissions)),
-            encrypted=True,
-            sess=sess,
-        )
 
         local_csv_file_list = []
         if self.sync_from_local_csv_dir:
             local_csv_file_list = glob.glob(
                 os.path.join(self.sync_from_local_csv_dir, '*'))
 
-        permissions = [['read-storage']] * len(local_csv_file_list)
-        user_projects2, user_info2 = self._parse_csv(
+        permissions = [{'read-storage'}] * len(local_csv_file_list)
+        user_projects_csv, user_info_csv = self._parse_csv(
             dict(zip(local_csv_file_list, permissions)),
             encrypted=False,
             sess=sess,
         )
 
-        user_projects3, user_info3 = self._parse_yaml(
+        user_projects_yaml, user_info_yaml = self._parse_yaml(
             self.sync_from_local_yaml_file, encrypted=False
         )
 
-        self.sync_two_phsids_dict(user_projects2, user_projects)
-        self.sync_two_user_info_dict(user_info2, user_info)
+        self.sync_two_phsids_dict(user_projects_csv, user_projects)
+        self.sync_two_user_info_dict(user_info_csv, user_info)
 
         # privilleges in yaml files overide ones in csv files
-        self.sync_two_phsids_dict(user_projects3, user_projects)
-        self.sync_two_user_info_dict(user_info3, user_info)
+        self.sync_two_phsids_dict(user_projects_yaml, user_projects)
+        self.sync_two_user_info_dict(user_info_yaml, user_info)
 
         if user_projects:
             self.logger.info('Sync to db and storage backend')
