@@ -226,8 +226,8 @@ class UserSyncer(object):
             (
                 {
                     username: {
-                        'project1': ['read-storage','write-storage'],
-                        'project2': ['read-storage'],
+                        'project1': {'read-storage','write-storage'},
+                        'project2': {'read-storage'},
                         }
                 },
                 {
@@ -386,11 +386,12 @@ class UserSyncer(object):
         Merge pshid1 into phsids2
 
         Args:
-            phsids1, phsids2: nested dicts of
+            phsids1, phsids2: nested dicts mapping phsids to sets of permissions
+
             {
                 username: {
-                    phsid1: ['read-storage','write-storage'],
-                    phsid2: ['read-storage'],
+                    phsid1: {'read-storage','write-storage'},
+                    phsid2: {'read-storage'},
                 }
             }
 
@@ -743,7 +744,7 @@ class UserSyncer(object):
                 dbgap_file_list = glob.glob(os.path.join(tmpdir, '*'))
             except Exception as e:
                 self.logger.info(e)
-        permissions = [{'read-storage'}] * len(dbgap_file_list)
+        permissions = [{'read-storage'} for _ in dbgap_file_list]
         user_projects, user_info = self._parse_csv(
             dict(zip(dbgap_file_list, permissions)),
             encrypted=True,
@@ -761,7 +762,7 @@ class UserSyncer(object):
             local_csv_file_list = glob.glob(
                 os.path.join(self.sync_from_local_csv_dir, '*'))
 
-        permissions = [{'read-storage'}] * len(local_csv_file_list)
+        permissions = [{'read-storage'} for _ in local_csv_file_list]
         user_projects_csv, user_info_csv = self._parse_csv(
             dict(zip(local_csv_file_list, permissions)),
             encrypted=False,
