@@ -1,8 +1,8 @@
 #!groovy
 
-@Library('cdis-jenkins-lib')
+@Library('cdis-jenkins-lib@feat/jenkins-gen-pipeline') _
 
-microservicePipeline(name: 'test')
+microservicePipeline()
 
 // pipeline {
 //   agent any
