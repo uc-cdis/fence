@@ -312,48 +312,6 @@ def do_all_users_have_access_to_project(users, project_id):
     return True
 
 
-def google_project_has_valid_service_accounts(project_id):
-    """
-    Checks if all service accounts in a project do not
-    have external access. Also checks that all service
-    account members in IAM Policy are from the given
-    project.
-    Args:
-        project_id(str): unique id of project
-    ReturnsL
-        Bool: True iff all service accounts are valid
-    """
-    try:
-        with GoogleCloudManager(project_id, use_default=False) as prj:
-            service_accounts = prj.get_all_service_accounts()
-
-            if any(service_account_has_external_access(acc.get('email'), project_id)
-                   for acc in service_accounts):
-                return False
-
-            members = prj.get_project_membership(project_id)
-
-    except Exception as exc:
-        flask.current_app.logger.debug((
-            "Could not determine validity of service accounts"
-            "for project (id: {}) due to error. Details: {}".
-            format(project_id,exc)
-        ))
-        return False
-
-    sa_members = [GooglePolicyMember(
-        GooglePolicyMember.SERVICE_ACCOUNT,
-        sa.get('email'))
-        for sa in service_accounts]
-
-    for mem in members:
-        if mem.member_type == GooglePolicyMember.SERVICE_ACCOUNT:
-            if mem not in sa_members:
-                return False
-
-    return True
-
-
 def patch_user_service_account(
         google_project_id, service_account_email, project_access, db=None):
     """
