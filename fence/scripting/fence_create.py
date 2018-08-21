@@ -1067,10 +1067,12 @@ def link_external_bucket(
             provider_id=google_cloud_provider.id
         )
         current_session.add(bucket_db_entry)
+        current_session.commit()
         privileges = ['read']
 
         access_group = _create_google_bucket_access_group(
             current_session, name, bucket_db_entry.id, google_project_id,
             privileges)
-    pprint('bucket access group email: {}'.format(access_group.email))
+
+    pprint.pprint('bucket access group email: {}'.format(access_group.email))
     return access_group.email
