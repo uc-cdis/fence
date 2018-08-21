@@ -322,6 +322,7 @@ class UserSyncer(object):
                     'display_name': display_name,
                     'phone_number': phonenum,
                     'tags': {'k1':'v1', 'k2': 'v2'}
+                    'admin': is_admin
                 }
             }
         """
@@ -479,6 +480,8 @@ class UserSyncer(object):
         self._grant_from_storage(to_update, user_project, sess)
         self._update_from_db(sess, to_update, user_project)
 
+        self._validate_and_upadate_user_admin(sess)
+
     def _revoke_from_db(self, sess, to_delete):
         """
         Revoke user access to projects in the auth database
@@ -503,6 +506,27 @@ class UserSyncer(object):
                     .format(username, project_auth_id)
                 )
                 sess.delete(access)
+
+        sess.commit()
+
+    def _validate_and_upadate_user_admin(self, sess):
+        """
+        Make sure there is no admin user without project access
+
+        Args:
+            sess: sqlalchemy session
+        Returns:
+            None
+        """
+        for admin_user in (
+                sess
+                .query(User)
+                .filter_by(is_admin=True)
+                .all()
+                ):
+            if not admin_user.project_access:
+                admin_user.is_admin = False
+                sess.add(admin_user)
         sess.commit()
 
     def _update_from_db(self, sess, to_update, user_project):
@@ -543,7 +567,7 @@ class UserSyncer(object):
             sess: sqlalchemy session
             to_add: a set of (username, project.auth_id) to be granted
             user_project:
-                a dictionary of {username: {project: ['read','write']}
+                a dictionary of {username: {project: {'read','write'}}
         Return:
             None
         """
@@ -579,7 +603,7 @@ class UserSyncer(object):
         Args:
             sess: sqlalchemy session
             user_info:
-                a dict of {username: {display_name, phone_number, tags: {k:v}}}
+                a dict of {username: {display_name, phone_number, tags, admin}
 
         Return:
             None
@@ -666,7 +690,7 @@ class UserSyncer(object):
             to_add: a set of (username, project.auth_id)  to be granted
             user_project: a dictionary like:
 
-                    {username: {phsid: ['read-storage','write-storage']}}
+                    {username: {phsid: {'read-storage','write-storage'}}}
 
         Return:
             None
