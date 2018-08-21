@@ -480,7 +480,7 @@ class UserSyncer(object):
         self._grant_from_storage(to_update, user_project, sess)
         self._update_from_db(sess, to_update, user_project)
 
-        self._validate_and_upadate_user_admin(sess)
+        self._validate_and_update_user_admin(sess)
 
     def _revoke_from_db(self, sess, to_delete):
         """
@@ -509,7 +509,7 @@ class UserSyncer(object):
 
         sess.commit()
 
-    def _validate_and_upadate_user_admin(self, sess):
+    def _validate_and_update_user_admin(self, sess):
         """
         Make sure there is no admin user without project access
 
