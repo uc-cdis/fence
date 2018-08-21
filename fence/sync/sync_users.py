@@ -480,7 +480,7 @@ class UserSyncer(object):
         self._grant_from_storage(to_update, user_project, sess)
         self._update_from_db(sess, to_update, user_project)
 
-        self._validate_and_update_user_admin(sess)
+        self._validate_and_update_user_admin(sess, user_info)
 
     def _revoke_from_db(self, sess, to_delete):
         """
@@ -509,12 +509,22 @@ class UserSyncer(object):
 
         sess.commit()
 
-    def _validate_and_update_user_admin(self, sess):
+    def _validate_and_update_user_admin(self, sess, user_info):
         """
-        Make sure there is no admin user without project access
+        Make sure there is no admin user that is not in yaml/csv files
 
         Args:
             sess: sqlalchemy session
+            user_info: a dict of
+            {
+                username: {
+                    'email': email,
+                    'display_name': display_name,
+                    'phone_number': phonenum,
+                    'tags': {'k1':'v1', 'k2': 'v2'}
+                    'admin': is_admin
+                }
+            }
         Returns:
             None
         """
@@ -524,9 +534,13 @@ class UserSyncer(object):
                 .filter_by(is_admin=True)
                 .all()
                 ):
-            if not admin_user.project_access:
+            if admin_user.username not in user_info:
                 admin_user.is_admin = False
                 sess.add(admin_user)
+                self.logger.info(
+                    "remove admin access from {} in db"
+                    .format(admin_user.username)
+                )
         sess.commit()
 
     def _update_from_db(self, sess, to_update, user_project):
