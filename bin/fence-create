@@ -15,6 +15,7 @@ from fence.scripting.fence_create import (
     delete_users,
     google_init,
     list_client_action,
+    link_external_bucket,
     link_bucket_to_project,
     modify_client_action,
     remove_expired_google_accounts_from_proxy_groups,
@@ -159,6 +160,11 @@ def parse_arguments():
         'read write. Currently create a Google Bucket Access Group per '
         'privilege.')
 
+    external_bucket_create = subparsers.add_parser('link-external-bucket')
+    external_bucket_create.add_argument(
+        '--bucket-name', required=True,
+        help='Name for the bucket, must be globally unique throughout Google')
+
     google_logging_bucket_create = subparsers.add_parser(
         'google-logging-bucket-create')
     google_logging_bucket_create.add_argument(
@@ -299,6 +305,12 @@ def main():
             args.unique_name,
             storage_class=args.storage_class,
             google_project_id=args.google_project_id)
+    elif args.action == 'link-external-bucket':
+        link_external_bucket(
+            DB,
+            name=args.bucket_name,
+        )
+
     elif args.action == 'link-bucket-to-project':
         link_bucket_to_project(
             DB,
