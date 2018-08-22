@@ -134,8 +134,13 @@ def get_google_project_valid_users_and_service_accounts(project_id):
                                 if member.member_type
                                 == GooglePolicyMember.SERVICE_ACCOUNT]
             if len(users) + len(service_accounts) != len(members):
+                invalid_members = (
+                    [member for member in members
+                     if member.member_type != GooglePolicyMember.USER and
+                     member.member_type != GooglePolicyMember.SERVICE_ACCOUNT])
                 raise NotSupported(
-                    'Some member has invalid type.'
+                    'Member(s) ({}) have invalid type.'
+                    .format(",".join(invalid_members))
                 )
             return users, service_accounts
     except Exception as exc:
