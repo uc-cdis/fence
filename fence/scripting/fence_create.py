@@ -1148,7 +1148,7 @@ def _get_or_create_google_provider(db_session):
 
 
 def link_external_bucket(
-        DB, name):
+        db_session, name):
 
     """
     Link with bucket owned by an external party. This will create the bucket
@@ -1163,9 +1163,7 @@ def link_external_bucket(
 
     google_project_id = cirrus_config.GOOGLE_PROJECT_ID
 
-
-    driver = SQLAlchemyDriver(DB)
-    with driver.session as current_session:
+    with db_session as current_session:
         google_cloud_provider = _get_or_create_google_provider(current_session)
 
         bucket_db_entry = Bucket(
