@@ -43,13 +43,13 @@ def validation_check(db):
             # the data access, that's done whe the project's validated
             if not _is_valid_service_account(sa_email, google_project_id):
                 print(
-                    '    INVALID SERVICE ACCOUNT DETECTED. REMOVING...'
+                    'INVALID SERVICE ACCOUNT DETECTED. REMOVING...'
                     .format(sa_email))
                 force_remove_service_account_from_access(
                     [sa_email], google_project_id, db=db)
                 continue
 
-            print('    VALID.')
+            print('VALID.')
 
         if not _is_valid_google_project(google_project_id, db=db):
             # for now, if we detect in invalid project, remove ALL service
@@ -69,14 +69,19 @@ def validation_check(db):
         print('VALID.')
 
 
-def _is_valid_service_account(sa_email, google_project_id, db=None):
+def _is_valid_service_account(sa_email, google_project_id):
     """
     Validate the given registered service account and remove if invalid.
+
+    Args:
+        sa_email(str): service account email
+        google_project_id(str): google project id
+    
     """
     try:
         sa_validity = GoogleServiceAccountValidity(sa_email, google_project_id)
         sa_validity.check_validity(early_return=True)
-    except Exception as exc:
+    except Exception:
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
         sa_validity = False
@@ -92,7 +97,7 @@ def _is_valid_google_project(google_project_id, db=None):
     try:
         project_validity = GoogleProjectValidity(google_project_id)
         project_validity.check_validity(early_return=True, db=db)
-    except Exception as exc:
+    except Exception:
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
         project_validity = False

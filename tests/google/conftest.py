@@ -273,7 +273,27 @@ def setup_data(db_session):
             email='test@gmail.com',
             google_project_id='test'
     )
+    user_1 = UserServiceAccount(
+            google_unique_id='test_id',
+            email='1@example.com',
+            google_project_id='test'
+    )
+    user_2 = UserServiceAccount(
+            google_unique_id='test_id',
+            email='2@example.com',
+            google_project_id='test'
+    )
+    user_3 = UserServiceAccount(
+            google_unique_id='test_id',
+            email='3@example.com',
+            google_project_id='test'
+    )
+
     db_session.add(user)
+    db_session.add(user_1)
+    db_session.add(user_2)
+    db_session.add(user_3)
+
     db_session.add(cp)
     db_session.commit()
 
@@ -300,6 +320,10 @@ def setup_data(db_session):
 
     db_session.add(ServiceAccountAccessPrivilege(project_id=project1.id, service_account_id=user.id))
     db_session.add(ServiceAccountAccessPrivilege(project_id=project2.id, service_account_id=user.id))
+
+    db_session.add(ServiceAccountAccessPrivilege(project_id=project1.id, service_account_id=user_1.id))
+    db_session.add(ServiceAccountAccessPrivilege(project_id=project1.id, service_account_id=user_2.id))
+    db_session.add(ServiceAccountAccessPrivilege(project_id=project1.id, service_account_id=user_3.id))
 
     access_grp = GoogleBucketAccessGroup(
         bucket_id=bucket.id, email='access_grp_test1@gmail.com'

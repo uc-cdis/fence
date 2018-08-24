@@ -354,10 +354,14 @@ def patch_user_service_account(
     to_add = set.difference(granting_project_ids, accessed_project_ids)
     to_delete = set.difference(accessed_project_ids, granting_project_ids)
 
-    _revoke_user_service_account_from_google(session, to_delete, service_account)
-    add_user_service_account_to_google(session, to_add, service_account)
-    _revoke_user_service_account_from_db(session, to_delete, service_account)
-    add_user_service_account_to_db(session, to_add, service_account)
+    _revoke_user_service_account_from_google(
+        session, to_delete, google_project_id, service_account)
+    add_user_service_account_to_google(
+        session, to_add, google_project_id, service_account)
+    _revoke_user_service_account_from_db(
+        session, to_delete, service_account)
+    add_user_service_account_to_db(
+        session, to_add, service_account)
 
 
 def get_project_ids_from_project_auth_ids(session, auth_ids):
@@ -365,7 +369,7 @@ def get_project_ids_from_project_auth_ids(session, auth_ids):
     Return the Project.id's for the given list of Project.auth_id's
 
     Args:
-        auth_ids (List(str)): list of project auth ids
+        auth_ids (set(str)): list of project auth ids
     """
     project_ids = set()
     for project_auth_id in auth_ids:
@@ -466,7 +470,7 @@ def force_remove_service_account_from_access(
 
     for bucket_access_group in access_groups:
         try:
-            with GoogleCloudManager() as g_manager:
+            with GoogleCloudManager(google_project_id, use_default=False) as g_manager:
                 g_manager.remove_member_from_group(
                     member_email=service_account.email,
                     group_id=bucket_access_group.email
@@ -480,13 +484,14 @@ def force_remove_service_account_from_access(
 
 
 def _revoke_user_service_account_from_google(
-        session, to_delete_project_ids, service_account):
+        session, to_delete_project_ids, google_project_id, service_account):
     """
     revoke service account from google access group
 
     Args:
         session(current_session): db session
         to_delete_project_ids (List(str)): list of project ids
+        google_project_id (str): google project id
         service_account (UserServiceAccount): user service account
 
     Returns:
@@ -499,7 +504,7 @@ def _revoke_user_service_account_from_google(
         for access_group in access_groups:
             try:
                 # TODO: Need to remove outer try/catch after major refactor
-                with GoogleCloudManager() as g_manager:
+                with GoogleCloudManager(google_project_id, use_default=False) as g_manager:
                     if not g_manager.remove_member_from_group(
                             member_email=service_account.email,
                             group_id=access_group.email):
@@ -517,13 +522,14 @@ def _revoke_user_service_account_from_google(
 
 
 def add_user_service_account_to_google(
-        session, to_add_project_ids, service_account):
+        session, to_add_project_ids, google_project_id, service_account):
     """
     Add service account to google access groups
 
     Args:
         session(current_session): db session
-        to_add_project_ids (List(str)): list of project ids
+        to_add_project_ids (List(id)): list of project ids
+        google_project_id (str): google project id
         service_account (UserServiceAccount): user service account
 
     """
@@ -532,7 +538,7 @@ def add_user_service_account_to_google(
         for access_group in access_groups:
             try:
                 # TODO: Need to remove try/catch after major refactor
-                with GoogleCloudManager() as g_manager:
+                with GoogleCloudManager(google_project_id, use_default=False) as g_manager:
                     response = g_manager.add_member_to_group(
                         member_email=service_account.email,
                         group_id=access_group.email
@@ -597,7 +603,7 @@ def add_user_service_account_to_db(
 
     Args:
         sess(current_session): db session
-        to_add_project_ids(List(str)): List of project id
+        to_add_project_ids(List(int)): List of project id
         service_account(UserServiceAccount): user service account
 
     Returns:
@@ -656,7 +662,7 @@ def _get_google_access_groups(session, project_id):
 
     Args:
         session(current_session): db session
-        project_id (str): project id in db
+        project_id (int): project id in db
 
     Returns:
         List(GoogleBucketAccessGroup)
@@ -840,3 +846,45 @@ def force_delete_service_account(service_account_email, db=None):
     if sa:
         session.delete(sa)
         session.commit()
+
+
+def force_add_service_accounts_to_access(
+        service_account_emails, google_project_id, project_access, db=None):
+    """
+    service_account_emails(list(str)): list of account emails
+    google_project_id(str):  google project id
+    project_access(list(str)): list of projects
+    """
+    session = get_db_session(db)
+
+    with GoogleCloudManager(google_project_id) as google_project:
+        for service_account_email in service_account_emails:
+            g_service_account = google_project.get_service_account(
+                service_account_email)
+            sa = (
+                session.query(UserServiceAccount)
+                .filter_by(email=service_account_email).first()
+            )
+            if not sa:
+                sa = UserServiceAccount(
+                    google_unique_id=g_service_account.get('uniqueId'),
+                    email=service_account_email,
+                    google_project_id=google_project_id
+                )
+                session.add(sa)
+                session.commit()
+
+            project_ids = set()
+            for project in project_access:
+                project_db = (
+                    session.query(Project)
+                    .filter_by(auth_id=project).first()
+                )
+                if project_db:
+                    project_ids.add(project_db.id)
+
+            add_user_service_account_to_db(
+                session, project_ids, sa)
+
+            add_user_service_account_to_google(
+                session, project_ids, google_project_id, sa)
