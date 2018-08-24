@@ -53,7 +53,7 @@ class ArboristClient(object):
         response = requests.get(self._resource_url + resource_path)
         if response.status_code == 404:
             return None
-        return response.get_json()
+        return response.json()
 
     def list_policies(self):
         """

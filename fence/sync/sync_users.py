@@ -313,7 +313,7 @@ class UserSyncer(object):
                 username: {
                     'project1': {'read-storage','write-storage'},
                     'project2': {'read-storage'},
-                    }
+                }
             }
             user_info: a dict of
             {
