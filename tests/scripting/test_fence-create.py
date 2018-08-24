@@ -20,6 +20,7 @@ from fence.models import (
 from fence.scripting.fence_create import (
     delete_users, JWTCreator, delete_client_action,
     delete_expired_service_accounts,
+    link_external_bucket,
     verify_bucket_access_group,
     _verify_google_group_member,
     _verify_google_service_account_member,
@@ -644,3 +645,43 @@ def test_verify_google_service_account_member_not_call_delete_operation(
         cloud_manager.return_value.__enter__.
         return_value.remove_member_from_group.called
     )
+
+def test_link_external_bucket(
+        app, cloud_manager, db_session):
+
+    (cloud_manager.return_value.__enter__.
+     return_value.create_group.return_value) = (
+        {'email': 'test_bucket_read_gbag@someemail.com'})
+
+    bucket_count_before = (
+        db_session.
+        query(Bucket).
+        count()
+    )
+    gbag_count_before =(
+        db_session.
+        query(GoogleBucketAccessGroup).
+        count()
+    )
+
+    from fence.settings import DB
+    linked_gbag_email = link_external_bucket(DB, "test_bucket")
+
+    bucket_count_after = (
+        db_session.
+        query(Bucket).
+        count()
+    )
+    gbag_count_after = (
+        db_session.
+        query(GoogleBucketAccessGroup).
+        count()
+    )
+
+    assert (
+        cloud_manager.return_value.__enter__.
+        return_value.create_group.called
+    )
+
+    assert bucket_count_after == bucket_count_before + 1
+    assert gbag_count_after == gbag_count_before + 1
