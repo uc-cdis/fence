@@ -1,32 +1,35 @@
-import os
-from StringIO import StringIO
-from collections import defaultdict
 from contextlib import contextmanager
 from csv import DictReader
+import errno
 import glob
-import yaml
+import os
 import re
+from StringIO import StringIO
 import subprocess as sp
 import tempfile
 import shutil
-import errno
-import paramiko
-from paramiko.proxy import ProxyCommand
 from stat import S_ISDIR
-from sqlalchemy import func
+import yaml
 
 from cdispyutils.log import get_logger
+import paramiko
+from paramiko.proxy import ProxyCommand
+from sqlalchemy import func
 from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.models import (
-    Project,
-    User,
-    Tag,
     AccessPrivilege,
-    AuthorizationProvider
+    AuthorizationProvider,
+    Policy,
+    Project,
+    Tag,
+    User,
 )
-
+from fence.rbac.client import ArboristClient
 from fence.resources.storage import StorageManager
+
+def _format_policy_id(auth_id, privilege):
+    return '{}-{}'.format(auth_id, privilege)
 
 
 def download_dir(sftp, remote_dir, local_dir):
@@ -51,10 +54,10 @@ def download_dir(sftp, remote_dir, local_dir):
 class UserSyncer(object):
 
     def __init__(
-            self, dbGaP, DB, project_mapping,
-            storage_credentials=None, db_session=None,
-            is_sync_from_dbgap_server=False,
-            sync_from_local_csv_dir=None, sync_from_local_yaml_file=None):
+            self, dbGaP, DB, project_mapping, storage_credentials=None,
+            db_session=None, is_sync_from_dbgap_server=False,
+            sync_from_local_csv_dir=None, sync_from_local_yaml_file=None,
+            arborist=None):
         """
         Syncs ACL files from dbGap to auth database and storage backends
         Args:
@@ -64,8 +67,10 @@ class UserSyncer(object):
             storage_credentials: a dict containing creds for storage backends
             sync_from_dir: path to an alternative dir to sync from instead of
                            dbGaP
+            arborist:
+                base URL for arborist service if the syncer should also create
+                resources in arborist
         """
-
         self.sync_from_local_csv_dir = sync_from_local_csv_dir
         self.sync_from_local_yaml_file = sync_from_local_yaml_file
         self.is_sync_from_dbgap_server = is_sync_from_dbgap_server
@@ -80,88 +85,105 @@ class UserSyncer(object):
         self._projects = dict()
         self.logger = get_logger('user_syncer')
 
+        self.arborist_client = None
+        if arborist:
+            self.arborist_client = ArboristClient(arborist_base_url=arborist)
+
         if storage_credentials:
             self.storage_manager = StorageManager(
                 storage_credentials,
                 logger=self.logger
             )
 
-    def _match_pattern(self, filepath, encrypted=True):
+    @staticmethod
+    def _match_pattern(filepath, encrypted=True):
         """
         Check if the filename match dbgap access control file patern
+
         Args:
             filepath (str): path to file
             encrypted (bool): whether the file is encrypted
+
         Returns:
             bool: whether the pattern matches
         """
-        pattern = "authentication_file_phs(\d{6}).(csv|txt)"
+        pattern = r"authentication_file_phs(\d{6}).(csv|txt)"
         if encrypted:
-            pattern += '.enc$'
-        else:
-            pattern += '$'
-        return (re.match(pattern,
-                         os.path.basename(filepath)))
+            pattern += '.enc'
+        pattern += '$'
+        return re.match(pattern, os.path.basename(filepath))
 
     def _get_from_sftp_with_proxy(self, path):
         """
         Download all data from sftp sever to a local dir
+
         Args:
             path (str): path to local directory
+
         Returns:
             None
         """
-
         proxy = None
         if self.server.get('proxy', '') != '':
-            proxy = ProxyCommand('ssh -i ~/.ssh/id_rsa '
-                                 '{}@{} nc {} {}'.format(
-                                     self.server.get('proxy_user', ''),
-                                     self.server.get('proxy', ''), self.server.get('host', ''), self.server.get('port', 22)))
+            proxy = ProxyCommand(
+                'ssh -i ~/.ssh/id_rsa {user}@{proxy} nc {host} {port}'
+                .format(
+                    user=self.server.get('proxy_user', ''),
+                    proxy=self.server.get('proxy', ''),
+                    host=self.server.get('host', ''),
+                    port=self.server.get('port', 22),
+                )
+            )
 
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.WarningPolicy())
+        with paramiko.SSHClient() as client:
+            client.set_missing_host_key_policy(paramiko.WarningPolicy())
+            parameters = {
+                "hostname": self.server.get('host', ''),
+                "username": self.server.get('username', ''),
+                "password": self.server.get('password', ''),
+                "port": self.server.get('port', 22),
+            }
+            if proxy:
+                parameters['sock'] = proxy
+            client.connect(**parameters)
+            with client.open_sftp() as sftp:
+                download_dir(sftp, './', path)
 
-        parameters = {
-            "hostname": self.server.get('host', ''),
-            "username": self.server.get('username', ''),
-            "password": self.server.get('password', ''),
-            "port": self.server.get('port', 22),
-        }
-
-        if proxy:
-            parameters['sock'] = proxy
-        client.connect(**parameters)
-        sftp = client.open_sftp()
-
-        download_dir(sftp, './', path)
-
-        sftp.close()
-        client.close()
         if proxy:
             proxy.close()
 
     def _get_from_ftp_with_proxy(self, path):
         """
         Download data from ftp sever to alocal dir
+
         Args:
             path(str): path to local files
+
         Returns:
             None
         """
-        execstr = ("lftp -u {},{}  {} -e \"set ftp:proxy http://{}; mirror . {}; exit\"".format(self.server.get('username',
-                                                                                                                ''), self.server.get('password', ''), self.server.get('host', ''), self.server.get('proxy', ''), path))
+        execstr = (
+            "lftp -u {},{}  {} -e \"set ftp:proxy http://{}; mirror . {}; exit\""
+            .format(
+                self.server.get('username', ''),
+                self.server.get('password', ''),
+                self.server.get('host', ''),
+                self.server.get('proxy', ''),
+                path,
+            )
+        )
         os.system(execstr)
 
     @contextmanager
     def _read_file(self, filepath, encrypted=True):
         """
-        Context manager for reading and optionally decrypting file
-        it only decrypts files encrypted by unix 'crypt' tool
-        which is used by dbGaP.
+        Context manager for reading and optionally decrypting file it only
+        decrypts files encrypted by unix 'crypt' tool which is used by dbGaP.
+
         Args:
             filepath (str): path to the file
             encrypted (bool): whether the file is encrypted
+
         Returns:
             Generator[file-like class]: file like object for the file
         """
@@ -172,11 +194,12 @@ class UserSyncer(object):
                 self.logger.error(
                     'Need to install crypt to decrypt files from dbgap')
                 exit(1)
-            p = sp.Popen(["crypt", self.dbgap_key],
-                         stdin=open(filepath, 'r'),
-                         stdout=sp.PIPE,
-                         stderr=open(os.devnull, 'w')
-                         )
+            p = sp.Popen(
+                ["crypt", self.dbgap_key],
+                stdin=open(filepath, 'r'),
+                stdout=sp.PIPE,
+                stderr=open(os.devnull, 'w'),
+            )
             yield StringIO(p.communicate()[0])
         else:
             f = open(filepath, 'r')
@@ -186,27 +209,36 @@ class UserSyncer(object):
     def _parse_csv(self, file_dict, sess, encrypted=True):
         """
         parse csv files to python dict
+
         Args:
             fild_dict: a dictionary with key(file path) and value(privileges)
             encrypted: whether those files are encrypted
             sess: sqlalchemy session
+
         Return:
-            user_project: a nested dict of
-            {
-                username: {
-                    'project1': {'read-storage','write-storage'},
-                    'project2': {'read-storage'},
+            Tuple[[dict, dict]]:
+                (user_project, user_info) where user_project is a mapping from
+                usernames to project permissions and user_info is a mapping
+                from usernames to user details, such as email
+
+        Example:
+
+            (
+                {
+                    username: {
+                        'project1': {'read-storage','write-storage'},
+                        'project2': {'read-storage'},
+                        }
+                },
+                {
+                    username: {
+                        'email': 'email@mail.com',
+                        'display_name': 'display name',
+                        'phone_umber': '123-456-789',
+                        'tags': {'dbgap_role': 'PI'}
                     }
-            }
-            user_info: a dict of
-            {
-                username: {
-                    'email': 'email@mail.com',
-                    'display_name': 'display name',
-                    'phone_umber': '123-456-789',
-                    'tags': {'dbgap_role': 'PI'}
-                }
-            }
+                },
+            )
 
         """
         user_projects = dict()
@@ -219,14 +251,13 @@ class UserSyncer(object):
                 continue
 
             with self._read_file(filepath, encrypted=encrypted) as f:
-                csv = DictReader(f, quotechar='"',
-                                 skipinitialspace=True)
+                csv = DictReader(f, quotechar='"', skipinitialspace=True)
                 for row in csv:
                     username = row.get('login', '')
                     if username == '':
                         continue
 
-                    phsid_privileges = defaultdict(set)
+                    phsid_privileges = {}
                     phsid = row.get('phsid', '').split('.')
                     dbgap_project = phsid[0]
                     if len(phsid) > 1 and self.parse_consent_code:
@@ -249,11 +280,9 @@ class UserSyncer(object):
                             if project.name is None:
                                 project.name = dbgap_project
                             self._projects[dbgap_project] = project
-                        phsid_privileges = {
-                            dbgap_project: privileges}
+                        phsid_privileges = {dbgap_project: set(privileges)}
                         if username in user_projects:
-                            user_projects[username].update(
-                                phsid_privileges)
+                            user_projects[username].update(phsid_privileges)
                         else:
                             user_projects[username] = phsid_privileges
 
@@ -261,12 +290,13 @@ class UserSyncer(object):
                             dbgap_project, []):
                         try:
                             phsid_privileges = {
-                                element_dict['auth_id']: privileges}
-                            if username in user_projects:
-                                user_projects[username].update(
-                                    phsid_privileges)
-                            else:
-                                user_projects[username] = phsid_privileges
+                                element_dict['auth_id']: set(privileges),
+                            }
+                            if username not in user_projects:
+                                user_projects[username] = {}
+                            user_projects[username].update(
+                                phsid_privileges
+                            )
                         except ValueError as e:
                             self.logger.info(e)
         return user_projects, user_info
@@ -306,13 +336,13 @@ class UserSyncer(object):
                 data = yaml.safe_load(stream)
                 users = data.get('users', {})
                 for username, details in users.iteritems():
-                    privileges = defaultdict(set)
+                    privileges = {}
 
                     try:
                         for project in details.get('projects', {}):
-                            privileges[project['auth_id']
-                                       ] = set(project['privilege'])
-
+                            privileges[project['auth_id']] = set(
+                                project['privilege']
+                            )
                     except KeyError as e:
                         self.logger.info(e)
                         continue
@@ -325,66 +355,79 @@ class UserSyncer(object):
                         'admin': details.get('admin', False),
                     }
 
-                    if not username in user_project:
-                        user_project[username] = (privileges)
+                    if username not in user_project:
+                        user_project[username] = privileges
                     else:
-                        user_project[username].add(privileges)
+                        user_project[username].update(privileges)
         except IOError as e:
             self.logger.info(e)
 
         return user_project, user_info
 
-    @classmethod
-    def sync_two_user_info_dict(self, user_info1, user_info2):
+    @staticmethod
+    def sync_two_user_info_dict(user_info1, user_info2):
         """
-        merge user_info1 into user_info2
+        Merge user_info1 into user_info2, which are both nested dicts like:
+
+            {username: {'email': 'abc@email.com'}}
+
         Args:
-            user_info1, user_info2: nested dicts of {username: {'email': 'abc@email.com'}}
+            user_info1 (dict)
+            user_info2 (dict)
+
         Returns:
             None
         """
-        for user, info1 in user_info1.iteritems():
-            info2 = user_info2.get(user)
-            if not info2:
-                user_info2.update({user: info1})
-                continue
-            user_info2[user] = info1
+        user_info2.update(user_info1)
 
-    @classmethod
-    def sync_two_phsids_dict(self, phsids1, phsids2):
+    @staticmethod
+    def sync_two_phsids_dict(phsids1, phsids2):
         """
-        merge pshid1 into phsids2
+        Merge pshid1 into phsids2
+
         Args:
-            phsids1, phsids2: nested dicts of
+            phsids1, phsids2: nested dicts mapping phsids to sets of permissions
+
             {
                 username: {
                     phsid1: {'read-storage','write-storage'},
                     phsid2: {'read-storage'},
-                    }
+                }
             }
-        Returns:
+
+        Return:
             None
-        Explaination:
-            consider merging projects of the same user: {user1: {phsid1: privillege1}} and {user1: {phsid2: privillege2}}:
-                case 1: phsid1 != phsid2. Output: {user1: {phsid1: privillege1,
-                                                           phsid2: privillege2}}
-                case2: phsid1 == phsid2 and privillege1! = privillege2. Output {user1: {phsid1: uion(privillege1, privillege2)}}
+
+        Explanation:
+            Consider merging projects of the same user:
+
+                {user1: {phsid1: privillege1}}
+
+                {user1: {phsid2: privillege2}}
+
+            case 1: phsid1 != phsid2. Output:
+
+                {user1: {phsid1: privillege1, phsid2: privillege2}}
+
+            case 2: phsid1 == phsid2 and privillege1! = privillege2. Output:
+
+                {user1: {phsid1: union(privillege1, privillege2)}}
+
             For the other cases, just simple addition
         """
         for user, projects1 in phsids1.iteritems():
-            projects2 = phsids2.get(user)
-            if not projects2:
-                phsids2.update({user: projects1})
-                continue
-            for phsid1, privilege1 in projects1.iteritems():
-                if phsid1 in phsids2[user]:
+            if not phsids2.get(user):
+                phsids2[user] = projects1
+            else:
+                for phsid1, privilege1 in projects1.iteritems():
+                    if phsid1 not in phsids2[user]:
+                        phsids2[user][phsid1] = set()
                     phsids2[user][phsid1].update(privilege1)
-                else:
-                    phsids2[user][phsid1] = privilege1
 
     def sync_to_db_and_storage_backend(self, user_project, user_info, sess):
         """
         sync user access control to database and storage backend
+
         Args:
             user_project(dict): a dictionary of
             {
@@ -396,19 +439,21 @@ class UserSyncer(object):
             user_info(dict): a dictionary of {username: user_info{}}
             use_mapping(bool)
             sess: a sqlalchemy session
+
         Return:
             None
         """
         self._init_projects(user_project, sess)
 
-        auth_provider_list = [self._get_or_create(
-            sess, AuthorizationProvider, name='dbGaP'),
-            self._get_or_create(
-            sess, AuthorizationProvider, name='fence')]
+        auth_provider_list = [
+            self._get_or_create(sess, AuthorizationProvider, name='dbGaP'),
+            self._get_or_create(sess, AuthorizationProvider, name='fence'),
+        ]
 
         cur_db_user_project_list = {
-            (ua.user.username, ua.project.auth_id) for
-            ua in sess.query(AccessPrivilege).all()}
+            (ua.user.username, ua.project.auth_id)
+            for ua in sess.query(AccessPrivilege).all()
+        }
 
         syncing_user_project_list = set()
         for username, projects in user_project.iteritems():
@@ -426,8 +471,9 @@ class UserSyncer(object):
         self._revoke_from_storage(to_delete, sess)
         self._revoke_from_db(sess, to_delete)
         self._grant_from_storage(to_add, user_project, sess)
-        self._grant_from_db(sess, to_add, user_info,
-                            user_project, auth_provider_list)
+        self._grant_from_db(
+            sess, to_add, user_info, user_project, auth_provider_list
+        )
 
         # re-grant
         self._grant_from_storage(to_update, user_project, sess)
@@ -436,6 +482,7 @@ class UserSyncer(object):
     def _revoke_from_db(self, sess, to_delete):
         """
         Revoke user access to projects in the auth database
+
         Args:
             sess: sqlalchemy session
             to_delete: a set of (username, project.auth_id) to be revoked from db
@@ -443,55 +490,70 @@ class UserSyncer(object):
             None
         """
         for (username, project_auth_id) in to_delete:
-
-            q = (sess.query(AccessPrivilege)
-                 .filter(AccessPrivilege.user.has(username=username))
-                 .filter(AccessPrivilege.project.has(auth_id=project_auth_id))
-                 .all())
+            q = (
+                sess
+                .query(AccessPrivilege)
+                .filter(AccessPrivilege.user.has(username=username))
+                .filter(AccessPrivilege.project.has(auth_id=project_auth_id))
+                .all()
+            )
             for access in q:
                 self.logger.info(
                     "revoke {} access to {} in db"
-                    .format(username, project_auth_id))
+                    .format(username, project_auth_id)
+                )
                 sess.delete(access)
         sess.commit()
 
     def _update_from_db(self, sess, to_update, user_project):
         """
         Update user access to projects in the auth database
+
         Args:
             sess: sqlalchemy session
-            to_update: a set of (username, project.auth_id) to be updated from db
+            to_update:
+                a set of (username, project.auth_id) to be updated from db
+
         Return:
             None
         """
 
         for (username, project_auth_id) in to_update:
-            q = (sess.query(AccessPrivilege)
-                 .filter(AccessPrivilege.user.has(username=username))
-                 .filter(AccessPrivilege.project.has(auth_id=project_auth_id))
-                 .all())
+            q = (
+                sess
+                .query(AccessPrivilege)
+                .filter(AccessPrivilege.user.has(username=username))
+                .filter(AccessPrivilege.project.has(auth_id=project_auth_id))
+                .all()
+            )
             for access in q:
                 access.privilege = user_project[username][project_auth_id]
                 self.logger.info(
                     "update {} with {} access to {} in db"
-                    .format(username, access.privilege, project_auth_id))
+                    .format(username, access.privilege, project_auth_id)
+                )
 
         sess.commit()
 
     def _grant_from_db(
-            self, sess, to_add, user_info,
-            user_project, auth_provider_list):
+            self, sess, to_add, user_info, user_project, auth_provider_list):
         """
         Grant user access to projects in the auth database
         Args:
             sess: sqlalchemy session
             to_add: a set of (username, project.auth_id) to be granted
-            user_project: a dictionary of {username: {project: {'read','write'}}
+            user_project:
+                a dictionary of {username: {project: ['read','write']}
         Return:
             None
         """
         for (username, project_auth_id) in to_add:
-            u = sess.query(User).filter(func.lower(User.username) == username.lower()).first()
+            u = (
+                sess
+                .query(User)
+                .filter(func.lower(User.username) == username.lower())
+                .first()
+            )
             auth_provider = auth_provider_list[0]
             if 'dbgap_role' not in user_info[username]['tags']:
                 auth_provider = auth_provider_list[1]
@@ -503,8 +565,9 @@ class UserSyncer(object):
                     user_project[username][project_auth_id]),
                 auth_provider=auth_provider)
             self.logger.info(
-                'grant user {} to {} with access'
-                .format(username, user_access.project, user_access.privilege))
+                'grant user {} to {} with access {}'
+                .format(username, user_access.project, user_access.privilege)
+            )
             sess.add(user_access)
 
         sess.commit()
@@ -512,15 +575,23 @@ class UserSyncer(object):
     def _upsert_userinfo(self, sess, user_info):
         """
         update user info to database.
+
         Args:
             sess: sqlalchemy session
-            user_info: a dict of {username: {display_name, phone_number, tags: {k:v}}}
+            user_info:
+                a dict of {username: {display_name, phone_number, tags: {k:v}}}
+
         Return:
             None
         """
 
         for username in user_info:
-            u = sess.query(User).filter(func.lower(User.username) == username.lower()).first()
+            u = (
+                sess
+                .query(User)
+                .filter(func.lower(User.username) == username.lower())
+                .first()
+            )
 
             if u is None:
                 self.logger.info('create user {}'.format(username))
@@ -557,22 +628,27 @@ class UserSyncer(object):
 
     def _revoke_from_storage(self, to_delete, sess):
         """
-        If a project have storage backend,
-        revoke user's access to buckets in the storage backend
+        If a project have storage backend, revoke user's access to buckets in
+        the storage backend.
+
         Args:
             to_delete: a set of (username, project.auth_id) to be revoked
+
         Return:
             None
         """
         for (username, project_auth_id) in to_delete:
-            project = sess.query(Project).filter(
-                Project.auth_id == project_auth_id).first()
+            project = (
+                sess
+                .query(Project)
+                .filter(Project.auth_id == project_auth_id)
+                .first()
+            )
             for sa in project.storage_access:
-
                 self.logger.info(
                     'revoke {} access to {} in {}'
-                    .format(username, project_auth_id, sa.provider.name))
-
+                    .format(username, project_auth_id, sa.provider.name)
+                )
                 self.storage_manager.revoke_access(
                     provider=sa.provider.name,
                     username=username,
@@ -583,25 +659,28 @@ class UserSyncer(object):
 
     def _grant_from_storage(self, to_add, user_project, sess):
         """
-        If a project have storage backend,
-        grant user's access to buckets in the storage backend
+        If a project have storage backend, grant user's access to buckets in
+        the storage backend.
+
         Args:
             to_add: a set of (username, project.auth_id)  to be granted
-            user_project: a dictionary of {username: {phsid: {'read-storage','write-storage'}}
+            user_project: a dictionary like:
+
+                    {username: {phsid: ['read-storage','write-storage']}}
+
         Return:
             None
         """
-
         for (username, project_auth_id) in to_add:
             project = self._projects[project_auth_id]
             for sa in project.storage_access:
                 access = list(user_project[username][project_auth_id])
-
                 self.logger.info(
                     'grant {} access {} to {} in {}'
                     .format(
-                        username, access, project_auth_id, sa.provider.name))
-
+                        username, access, project_auth_id, sa.provider.name
+                    )
+                )
                 self.storage_manager.grant_access(
                     provider=sa.provider.name,
                     username=username,
@@ -614,7 +693,6 @@ class UserSyncer(object):
         """
         initialize projects
         """
-
         if self.project_mapping:
             for projects in self.project_mapping.values():
                 for p in projects:
@@ -622,8 +700,12 @@ class UserSyncer(object):
                     self._projects[p['auth_id']] = project
         for _, projects in user_project.iteritems():
             for project_name in projects.keys():
-                project = sess.query(Project).filter(
-                    Project.auth_id == project_name).first()
+                project = (
+                    sess
+                    .query(Project)
+                    .filter(Project.auth_id == project_name)
+                    .first()
+                )
                 if not project:
                     data = {'name': project_name, 'auth_id': project_name}
                     project = self._get_or_create(sess, Project, **data)
@@ -647,9 +729,8 @@ class UserSyncer(object):
 
     def _sync(self, sess):
         """
-        Collect files from dbgap server
-        sync csv and yaml files to storage backend and fence DB
-
+        Collect files from dbgap server, sync csv and yaml files to storage
+        backend and fence DB
         """
         dbgap_file_list = []
         tmpdir = tempfile.mkdtemp()
@@ -663,16 +744,12 @@ class UserSyncer(object):
                 dbgap_file_list = glob.glob(os.path.join(tmpdir, '*'))
             except Exception as e:
                 self.logger.info(e)
-
-        privillege_list = []
-        for _ in xrange(len(dbgap_file_list)):
-            privillege_list.append({'read-storage'})
-
-        user_projects1, user_info1 = self._parse_csv(
-            dict(zip(dbgap_file_list, privillege_list)),
+        permissions = [{'read-storage'} for _ in dbgap_file_list]
+        user_projects, user_info = self._parse_csv(
+            dict(zip(dbgap_file_list, permissions)),
             encrypted=True,
-            sess=sess)
-
+            sess=sess,
+        )
         try:
             shutil.rmtree(tmpdir)
         except OSError as e:
@@ -685,29 +762,143 @@ class UserSyncer(object):
             local_csv_file_list = glob.glob(
                 os.path.join(self.sync_from_local_csv_dir, '*'))
 
-        local_privillege_list = []
-        for _ in xrange(len(local_csv_file_list)):
-            local_privillege_list.append({'read-storage'})
-
-        user_projects2, user_info2 = self._parse_csv(
-            dict(zip(local_csv_file_list, local_privillege_list)),
+        permissions = [{'read-storage'} for _ in local_csv_file_list]
+        user_projects_csv, user_info_csv = self._parse_csv(
+            dict(zip(local_csv_file_list, permissions)),
             encrypted=False,
-            sess=sess)
+            sess=sess,
+        )
 
-        user_projects3, user_info3 = self._parse_yaml(
-            self.sync_from_local_yaml_file, encrypted=False)
+        user_projects_yaml, user_info_yaml = self._parse_yaml(
+            self.sync_from_local_yaml_file, encrypted=False
+        )
 
-        self.sync_two_phsids_dict(user_projects2, user_projects1)
-        self.sync_two_user_info_dict(user_info2, user_info1)
+        self.sync_two_phsids_dict(user_projects_csv, user_projects)
+        self.sync_two_user_info_dict(user_info_csv, user_info)
 
         # privilleges in yaml files overide ones in csv files
-        self.sync_two_phsids_dict(user_projects3, user_projects1)
-        self.sync_two_user_info_dict(user_info3, user_info1)
+        self.sync_two_phsids_dict(user_projects_yaml, user_projects)
+        self.sync_two_user_info_dict(user_info_yaml, user_info)
 
-        if len(user_projects1) > 0:
+        if user_projects:
             self.logger.info('Sync to db and storage backend')
-            self.sync_to_db_and_storage_backend(
-                user_projects1, user_info1, sess)
+            self.sync_to_db_and_storage_backend(user_projects, user_info, sess)
             self.logger.info('Finish syncing to db and storage backend')
         else:
-            self.logger.info('No users for syncing!!!')
+            self.logger.info('No users for syncing')
+
+        self.logger.info('Synchronizing arborist')
+        success = self._update_arborist(user_projects, sess)
+        if success:
+            self.logger.info('Finished synchronizing arborist')
+
+    def _update_arborist(self, user_projects, session):
+        """
+        Create roles and resources in arborist from the information in
+        ``user_projects``.
+
+        The projects are sent to arborist as resources with paths like
+        ``/projects/{project}``. Roles are created with just the original names
+        for the privileges like ``"read-storage"`` etc.
+
+        Args:
+            user_projects (dict)
+            session (sqlalchemy.Session)
+
+        Return:
+            bool: success
+        """
+        if not self.arborist_client:
+            self.logger.warn('no arborist client set; skipping arborist sync')
+            return False
+        if not self.arborist_client.healthy():
+            self.logger.error(
+                'arborist service is unavailable; skipping arborist sync'
+            )
+            return False
+
+        # Keep track of stuff added already so we don't try to send duplicates
+        # to arborist.
+        created_projects = set()
+        created_roles = set()
+
+        # First make sure that the `/projects` "directory" exists in arborist.
+        projects = self.arborist_client.get_resource('/projects')
+        if not projects:
+            response = self.arborist_client.create_resource(
+                '/',
+                {
+                    'name': 'projects',
+                    'description': 'directory for dbgap projects',
+                },
+            )
+            if 'error' in response:
+                self.logger.error(
+                    'could not create projects directory in arborist: '
+                    + response['error']
+                )
+                return False
+
+        for username, projects in user_projects.iteritems():
+            user = (
+                session
+                .query(User)
+                .filter(func.lower(User.username) == username.lower())
+                .first()
+            )
+            for project, permissions in projects.iteritems():
+                project_errored = False
+                if project not in created_projects:
+                    response = self.arborist_client.create_resource(
+                        '/projects',
+                        {'name': project},
+                    )
+                    if 'error' in response:
+                        project_errored = True
+                        self.logger.error(
+                            'error trying to create resource in arborist: {}'
+                            .format(response['error'])
+                        )
+                    created_projects.add(project)
+                for permission in permissions:
+                    # "permission" in the dbgap sense, not the arborist sense
+                    permission_errored = False
+                    if permission not in created_roles:
+                        response = self.arborist_client.create_role({
+                            'id': permission,
+                            'permissions': [
+                                {
+                                    'id': permission,
+                                    'action': {
+                                        'service': '',
+                                        'method': permission,
+                                    },
+                                }
+                            ],
+                        })
+                        if 'error' in response:
+                            permission_errored = True
+                            self.logger.error(
+                                'error trying to create role in arborist: {}'
+                                .format(response['error'])
+                            )
+                        created_roles.add(permission)
+
+                    # If everything was created fine, grant a policy to this
+                    # user which contains exactly just this project as a
+                    # resource, with this permission as a role.
+                    if not project_errored and not permission_errored:
+                        policy_id = _format_policy_id(project, permission)
+                        policy = (
+                            session
+                            .query(Policy)
+                            .filter_by(id=policy_id)
+                            .first()
+                        )
+                        if not policy:
+                            policy = Policy(id=policy_id)
+                        if policy not in user.policies:
+                            user.policies.append(policy)
+
+        session.commit()
+        return True

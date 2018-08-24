@@ -15,19 +15,11 @@ from flask import (
 )
 from flask_sqlalchemy_session import current_session
 
-from fence.auth import (
-    login_required,
-    admin_required,
-)
+from fence.auth import admin_login_required
 from fence.resources import admin
 
 
 blueprint = Blueprint('admin', __name__)
-
-
-def admin_login_required(function):
-    """Compose the login required and admin required decorators."""
-    return login_required({'admin'})(admin_required(function))
 
 
 def debug_log(function):

@@ -21,6 +21,7 @@ from fence.scripting.fence_create import (
     remove_expired_google_service_account_keys,
     sync_users,
     delete_expired_service_accounts,
+    verify_bucket_access_group,
 )
 from fence.scripting.google_monitor import (
     validation_check
@@ -98,6 +99,7 @@ def parse_arguments():
     user_delete.add_argument('--users', required=True, nargs='+')
 
     subparsers.add_parser('expired-service-account-delete')
+    subparsers.add_parser('bucket-access-group-verify')
 
     hmac_create = subparsers.add_parser('hmac-create')
     hmac_create.add_argument('yaml-input')
@@ -117,6 +119,11 @@ def parse_arguments():
         '--sync_from_dbgap',
         help='sync from dbgap server True/False',
         default='False')
+    dbgap_sync.add_argument(
+        '--arborist',
+        help='the base URL for the arborist service to sync to',
+        default=None,
+    )
 
     bucket_link_to_project = subparsers.add_parser('link-bucket-to-project')
     bucket_link_to_project.add_argument(
@@ -273,10 +280,15 @@ def main():
         delete_users(DB, args.users)
     elif args.action == 'expired-service-account-delete':
         delete_expired_service_accounts(DB)
+    elif args.action == 'bucket-access-group-verify':
+        verify_bucket_access_group(DB)
     elif args.action == 'sync':
-        sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
-                   projects=args.project_mapping, is_sync_from_dbgap_server=str2bool(args.sync_from_dbgap),
-                   sync_from_local_csv_dir=args.csv_dir, sync_from_local_yaml_file=args.yaml)
+        sync_users(
+            dbGaP, STORAGE_CREDENTIALS, DB, projects=args.project_mapping,
+            is_sync_from_dbgap_server=str2bool(args.sync_from_dbgap),
+            sync_from_local_csv_dir=args.csv_dir,
+            sync_from_local_yaml_file=args.yaml, arborist=args.arborist,
+        )
     elif args.action == 'google-manage-keys':
         remove_expired_google_service_account_keys(DB)
     elif args.action == 'google-init':

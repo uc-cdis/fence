@@ -2,18 +2,19 @@ from collections import OrderedDict
 import os
 
 from authutils.oauth2.client import OAuthClient
+import cirrus
 import flask
-from flask.ext.cors import CORS
+from flask_cors import CORS
 from flask_sqlalchemy_session import flask_scoped_session, current_session
 import urlparse
 from userdatamodel.driver import SQLAlchemyDriver
 
-import cirrus
 from fence.auth import logout, build_redirect_url
 from fence.errors import UserError
 from fence.jwt import keys
 from fence.models import migrate
 from fence.oidc.server import server
+from fence.rbac.client import ArboristClient
 from fence.resources.aws.boto_manager import BotoManager
 from fence.resources.openid.google_oauth2 import Oauth2Client as GoogleClient
 from fence.resources.storage import StorageManager
@@ -24,6 +25,7 @@ import fence.blueprints.admin
 import fence.blueprints.data
 import fence.blueprints.login
 import fence.blueprints.oauth2
+import fence.blueprints.rbac
 import fence.blueprints.storage_creds
 import fence.blueprints.user
 import fence.blueprints.well_known
@@ -90,6 +92,12 @@ def app_register_blueprints(app):
 
     google_blueprint = fence.blueprints.google.make_google_blueprint()
     app.register_blueprint(google_blueprint, url_prefix='/google')
+
+    if app.config.get('ARBORIST'):
+        app.register_blueprint(
+            fence.blueprints.rbac.blueprint,
+            url_prefix='/rbac'
+        )
 
     @app.route('/')
     def root():
@@ -168,6 +176,10 @@ def app_sessions(app):
     if configured_fence:
         app.fence_client = OAuthClient(**app.config['OPENID_CONNECT']['fence'])
     app.session_interface = UserSessionInterface()
+    if app.config.get('ARBORIST'):
+        app.arborist = ArboristClient(
+            arborist_base_url=app.config['ARBORIST']['base_url']
+        )
 
 
 def app_init(app, settings='fence.settings', root_dir=None):

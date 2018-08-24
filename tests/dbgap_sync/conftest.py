@@ -1,4 +1,3 @@
-import pytest
 import os
 # Python 2 and 3 compatible
 try:
@@ -12,11 +11,14 @@ from cirrus import GoogleCloudManager
 from cdisutilstest.code.storage_client_mock import (
     get_client, StorageClientMocker
 )
-from fence.sync.sync_users import UserSyncer
-from fence.resources import userdatamodel as udm
+import pytest
 from userdatamodel import Base
 from userdatamodel.models import *
 from userdatamodel.driver import SQLAlchemyDriver
+
+from fence.rbac.client import ArboristClient
+from fence.sync.sync_users import UserSyncer
+from fence.resources import userdatamodel as udm
 
 from ..test_settings import DB
 
@@ -138,11 +140,14 @@ def syncer(db_session, request):
     dbGap = {}
 
     syncer_obj = UserSyncer(
-        dbGaP=dbGap, DB=DB, db_session=db_session, project_mapping=project_mapping,
+        dbGaP=dbGap, DB=DB, db_session=db_session,
+        project_mapping=project_mapping,
         storage_credentials=storage_credentials,
         is_sync_from_dbgap_server=False,
         sync_from_local_csv_dir=LOCAL_CSV_DIR,
-        sync_from_local_yaml_file=LOCAL_YAML_DIR)
+        sync_from_local_yaml_file=LOCAL_YAML_DIR,
+    )
+    syncer_obj.arborist_client = MagicMock(ArboristClient)
 
     for element in provider:
         udm.create_provider(
@@ -158,11 +163,9 @@ def syncer(db_session, request):
             for bucket in sa['buckets']:
                 syncer_obj.storage_manager.create_bucket(
                     sa['name'], db_session, bucket, p)
-    test_users = []
-    for u in users:
-        user = User(**u)
-        test_users.append(user)
-        db_session.add(user)
+
+    for user in users:
+        db_session.add(User(**user))
 
     db_session.commit()
 

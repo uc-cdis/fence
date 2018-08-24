@@ -101,6 +101,10 @@ SESSION_COOKIE_SECURE = False
 ENABLE_CSRF_PROTECTION = True
 INDEXD = '/index'
 
+ARBORIST = {
+    'base_url': '/rbac',
+}
+
 AWS_CREDENTIALS = {
     'CRED1': {
         'aws_access_key_id': '',
@@ -187,3 +191,5 @@ if os.path.exists(fence_creds):
         HTTP_PROXY = data['HTTP_PROXY']
         dbGaP = data["dbGaP"]
         GOOGLE_GROUP_PREFIX = data.get('GOOGLE_GROUP_PREFIX')
+        WHITE_LISTED_SERVICE_ACCOUNT_EMAILS = data.get('WHITE_LISTED_SERVICE_ACCOUNT_EMAILS')
+
