@@ -1042,7 +1042,7 @@ def _get_or_create_google_provider(db_session):
 
 
 def link_external_bucket(
-        db_session, name):
+        current_session, name):
 
     """
     Link with bucket owned by an external party. This will create the bucket
@@ -1057,20 +1057,19 @@ def link_external_bucket(
 
     google_project_id = cirrus_config.GOOGLE_PROJECT_ID
 
-    with db_session as current_session:
-        google_cloud_provider = _get_or_create_google_provider(current_session)
+    google_cloud_provider = _get_or_create_google_provider(current_session)
 
-        bucket_db_entry = Bucket(
-            name=name,
-            provider_id=google_cloud_provider.id
-        )
-        current_session.add(bucket_db_entry)
-        current_session.commit()
-        privileges = ['read']
+    bucket_db_entry = Bucket(
+        name=name,
+        provider_id=google_cloud_provider.id
+    )
+    current_session.add(bucket_db_entry)
+    current_session.commit()
+    privileges = ['read']
 
-        access_group = _create_google_bucket_access_group(
-            current_session, name, bucket_db_entry.id, google_project_id,
-            privileges)
+    access_group = _create_google_bucket_access_group(
+        current_session, name, bucket_db_entry.id, google_project_id,
+        privileges)
 
     pprint.pprint('bucket access group email: {}'.format(access_group.email))
     return access_group.email
