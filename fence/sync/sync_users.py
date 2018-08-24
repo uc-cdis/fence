@@ -890,11 +890,17 @@ class UserSyncer(object):
                     # resource, with this permission as a role.
                     if not project_errored and not permission_errored:
                         policy_id = _format_policy_id(project, permission)
-                        self.arborist_client.create_policy({
+                        response = self.arborist_client.create_policy({
                             'id': policy_id,
                             'role_ids': [permission],
                             'resource_paths': [resource_path],
                         })
+                        if 'error' in response:
+                            self.logger.error(
+                                'error trying to create policy in arborist: {}'
+                                .format(response['error'])
+                            )
+                            continue
                         policy = (
                             session
                             .query(Policy)
