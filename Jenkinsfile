@@ -1,5 +1,5 @@
 #!groovy
 
-@Library('cdis-jenkins-lib@feat/jenkins-gen-pipeline') _
+@Library('cdis-jenkins-lib') _
 
 microservicePipeline()
