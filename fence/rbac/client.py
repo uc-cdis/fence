@@ -174,3 +174,8 @@ class ArboristClient(object):
             dict: response JSON from arborist
         """
         return _request_get_json(requests.post(self._role_url, json=role_json))
+
+    def create_policy(self, policy_json):
+        return _request_get_json(requests.post(
+            self._policy_url, json=policy_json
+        ))

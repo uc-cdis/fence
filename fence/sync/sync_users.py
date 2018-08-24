@@ -860,6 +860,7 @@ class UserSyncer(object):
                             .format(response['error'])
                         )
                     created_projects.add(project)
+                    resource_path = '/projects/{}'.format(project)
                 for permission in permissions:
                     # "permission" in the dbgap sense, not the arborist sense
                     permission_errored = False
@@ -889,6 +890,11 @@ class UserSyncer(object):
                     # resource, with this permission as a role.
                     if not project_errored and not permission_errored:
                         policy_id = _format_policy_id(project, permission)
+                        self.arborist_client.create_policy({
+                            'id': policy_id,
+                            'role_ids': [permission],
+                            'resource_paths': [resource_path],
+                        })
                         policy = (
                             session
                             .query(Policy)
