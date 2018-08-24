@@ -808,6 +808,7 @@ class UserSyncer(object):
         Return:
             bool: success
         """
+        self.logger.info('working on arborist sync')
         if not self.arborist_client:
             self.logger.warn('no arborist client set; skipping arborist sync')
             return False
@@ -849,6 +850,10 @@ class UserSyncer(object):
             for project, permissions in projects.iteritems():
                 project_errored = False
                 if project not in created_projects:
+                    resource_path = '/projects/{}'.format(project)
+                    self.logger.info(
+                        'creating resource {}'.format(resource_path)
+                    )
                     response = self.arborist_client.create_resource(
                         '/projects',
                         {'name': project},
@@ -860,11 +865,11 @@ class UserSyncer(object):
                             .format(response['error'])
                         )
                     created_projects.add(project)
-                    resource_path = '/projects/{}'.format(project)
                 for permission in permissions:
                     # "permission" in the dbgap sense, not the arborist sense
                     permission_errored = False
                     if permission not in created_roles:
+                        self.logger.info('creating role {}'.format(permission))
                         response = self.arborist_client.create_role({
                             'id': permission,
                             'permissions': [
@@ -890,6 +895,16 @@ class UserSyncer(object):
                     # resource, with this permission as a role.
                     if not project_errored and not permission_errored:
                         policy_id = _format_policy_id(project, permission)
+                        if self.arborist_client.get_policy(policy_id):
+                            self.logger.info(
+                                'policy {} already exists, skipping'
+                                .format(policy_id)
+                            )
+                            continue
+
+                        self.logger.info(
+                            'creating policy {}'.format(policy_id)
+                        )
                         response = self.arborist_client.create_policy({
                             'id': policy_id,
                             'role_ids': [permission],

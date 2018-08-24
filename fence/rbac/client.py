@@ -179,3 +179,12 @@ class ArboristClient(object):
         return _request_get_json(requests.post(
             self._policy_url, json=policy_json
         ))
+
+    def get_policy(self, policy_id):
+        """
+        Return the JSON representation of a policy with this ID.
+        """
+        response = requests.get(self._policy_url + policy_id)
+        if response.status_code == 404:
+            return None
+        return response.json()
