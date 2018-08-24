@@ -13,7 +13,7 @@ from fence.resources.google.utils import (
     get_all_registered_service_accounts
 )
 from fence.resources.google.access_utils import (
-    remove_service_accounts_from_access
+    force_remove_service_account_from_access
 )
 
 
@@ -45,7 +45,7 @@ def validation_check(db):
                 print(
                     '    INVALID SERVICE ACCOUNT DETECTED. REMOVING...'
                     .format(sa_email))
-                remove_service_accounts_from_access(
+                force_remove_service_account_from_access(
                     [sa_email], google_project_id, db=db)
                 continue
 
@@ -62,7 +62,7 @@ def validation_check(db):
                 'INVALID GOOGLE PROJECT DETECTED. '
                 'REMOVING ALL SERVICE ACCOUNTS...'
                 .format(google_project_id))
-            remove_service_accounts_from_access(
+            force_remove_service_account_from_access(
                 sa_emails, google_project_id, db=db)
             continue
 
