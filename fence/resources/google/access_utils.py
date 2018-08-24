@@ -31,6 +31,7 @@ from fence.models import (
 )
 from fence.resources.google.utils import (
     get_db_session,
+    get_users_from_google_members,
     get_monitoring_service_account_email,
 )
 
