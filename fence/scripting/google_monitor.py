@@ -43,7 +43,7 @@ def validation_check(db):
             # the data access, that's done whe the project's validated
             if not _is_valid_service_account(sa_email, google_project_id):
                 print(
-                    'INVALID SERVICE ACCOUNT DETECTED. REMOVING...'
+                    'INVALID SERVICE ACCOUNT {} DETECTED. REMOVING...'
                     .format(sa_email))
                 force_remove_service_account_from_access(
                     [sa_email], google_project_id, db=db)
@@ -59,7 +59,7 @@ def validation_check(db):
             # it may be possible to isolate it and only remove that
             # from access.
             print(
-                'INVALID GOOGLE PROJECT DETECTED. '
+                'INVALID GOOGLE PROJECT {} DETECTED. '
                 'REMOVING ALL SERVICE ACCOUNTS...'
                 .format(google_project_id))
             force_remove_service_account_from_access(
@@ -76,7 +76,6 @@ def _is_valid_service_account(sa_email, google_project_id):
     Args:
         sa_email(str): service account email
         google_project_id(str): google project id
-    
     """
     try:
         sa_validity = GoogleServiceAccountValidity(sa_email, google_project_id)
