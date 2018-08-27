@@ -479,7 +479,7 @@ def app(kid, rsa_private_key, rsa_public_key):
     mocker.mock_functions()
     root_dir = os.path.dirname(os.path.realpath(__file__))
     app_init(fence.app, test_settings, root_dir=root_dir)
-
+    fence.app.config['TESTING'] = True
     # We want to set up the keys so that the test application can load keys
     # from the test keys directory, but the default keypair used will be the
     # one using the fixtures. So, stick the keypair at the front of the
