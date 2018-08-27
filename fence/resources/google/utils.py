@@ -24,6 +24,7 @@ from fence.models import (
     UserGoogleAccountToProxyGroup,
     UserServiceAccount,
     ServiceAccountAccessPrivilege,
+    ServiceAccountToGoogleBucketAccessGroup,
 )
 from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME
 from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
@@ -507,6 +508,21 @@ def get_prefix_for_google_proxy_groups():
             'This namespaces the Google groups for security and safety.'
         )
     return prefix
+
+def get_all_registered_service_accounts(db=None):
+    """
+    Get all registerd service accounts from db
+    """
+    registered_service_accounts = []
+    for account in (
+            current_session
+            .query(ServiceAccountToGoogleBucketAccessGroup)
+            .all()
+    ):
+        registered_service_accounts.extend(get_registered_service_accounts(
+            account.service_account.google_project_id))
+
+    return registered_service_accounts
 
 
 def get_registered_service_accounts(google_project_id):
