@@ -13,13 +13,13 @@ def test_sync(syncer, db_session, storage_client):
     syncer.sync()
 
     users = db_session.query(models.User).all()
-    assert len(users) == 10
+    assert len(users) == 11
 
     tags = db_session.query(models.Tag).all()
     assert len(tags) == 7
 
     proj = db_session.query(models.Project).all()
-    assert len(proj) == 8
+    assert len(proj) == 11
 
 
     user = db_session.query(models.User).filter_by(username='USERC').one()
@@ -47,7 +47,7 @@ def test_sync(syncer, db_session, storage_client):
     assert set(user_access[0].privilege) == {
         'create', 'read', 'update', 'delete', 'upload'
     }
-    assert len(user_access) == 1
+    assert len(user_access) == 2
 
     user = db_session.query(models.User).filter_by(
         username='deleted_user@gmail.com').one()
