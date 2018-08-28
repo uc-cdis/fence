@@ -15,6 +15,7 @@ from fence.scripting.fence_create import (
     delete_users,
     google_init,
     list_client_action,
+    link_external_bucket,
     link_bucket_to_project,
     modify_client_action,
     remove_expired_google_accounts_from_proxy_groups,
@@ -22,6 +23,9 @@ from fence.scripting.fence_create import (
     sync_users,
     delete_expired_service_accounts,
     verify_bucket_access_group,
+)
+from fence.scripting.google_monitor import (
+    validation_check
 )
 
 
@@ -166,6 +170,11 @@ def parse_arguments():
         'read write. Currently create a Google Bucket Access Group per '
         'privilege.')
 
+    external_bucket_create = subparsers.add_parser('link-external-bucket')
+    external_bucket_create.add_argument(
+        '--bucket-name', required=True,
+        help='Name for the bucket, must be globally unique throughout Google')
+
     google_logging_bucket_create = subparsers.add_parser(
         'google-logging-bucket-create')
     google_logging_bucket_create.add_argument(
@@ -182,6 +191,9 @@ def parse_arguments():
 
     manage_google_keys = subparsers.add_parser('google-manage-keys')
     init_google = subparsers.add_parser('google-init')
+    manage_user_registrations = (
+        subparsers.add_parser('google-manage-user-registrations')
+    )
     manage_google_accounts = (
         subparsers.add_parser('google-manage-account-access')
     )
@@ -287,6 +299,8 @@ def main():
         remove_expired_google_service_account_keys(DB)
     elif args.action == 'google-init':
         google_init(DB)
+    elif args.action == 'google-manage-user-registrations':
+        validation_check(DB)
     elif args.action == 'google-manage-account-access':
         remove_expired_google_accounts_from_proxy_groups(DB)
     elif args.action == 'google-bucket-create':
@@ -311,6 +325,12 @@ def main():
             args.unique_name,
             storage_class=args.storage_class,
             google_project_id=args.google_project_id)
+    elif args.action == 'link-external-bucket':
+        link_external_bucket(
+            DB,
+            name=args.bucket_name,
+        )
+
     elif args.action == 'link-bucket-to-project':
         link_bucket_to_project(
             DB,
