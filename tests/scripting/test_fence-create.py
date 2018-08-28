@@ -664,7 +664,8 @@ def test_link_external_bucket(
         count()
     )
 
-    linked_gbag_email = link_external_bucket(db_session, "test_bucket")
+    from fence.settings import DB
+    linked_gbag_email = link_external_bucket(DB, "test_bucket")
 
     bucket_count_after = (
         db_session.
