@@ -332,45 +332,93 @@ class UserSyncer(object):
         user_project = dict()
         user_info = dict()
 
-        if filepath is None:
-            return user_project, user_info
-
+        data = dict()
         try:
             with self._read_file(filepath, encrypted=encrypted) as stream:
                 data = yaml.safe_load(stream)
-                users = data.get('users', {})
-                resources = data.get('resources')
-                for username, details in users.iteritems():
-                    privileges = {}
-
-                    try:
-                        for project in details.get('projects', {}):
-                            privileges[project['auth_id']] = set(
-                                project['privilege']
-                            )
-                            privileges[project['resource']] = set(
-                                project['privilege']
-                            )
-                    except KeyError as e:
-                        self.logger.info(e)
-                        continue
-
-                    user_info[username] = {
-                        'email': details.get('email', username),
-                        'display_name': details.get('display_name', ''),
-                        'phone_number': details.get('phone_number', ''),
-                        'tags': details.get('tags', {}),
-                        'admin': details.get('admin', False),
-                    }
-
-                    if username not in user_project:
-                        user_project[username] = privileges
-                    else:
-                        user_project[username].update(privileges)
         except IOError as e:
-            self.logger.info(e)
+            self.logger.error(e)
+            return dict(), dict()
 
-        return user_project, user_info, resources
+        users = data.get('users', {})
+        for username, details in users.iteritems():
+            # users should occur only once each; skip if already processed
+            if username in user_project:
+                self.logger.error(
+                    'user `{}` occurs multiple times (skipping)'
+                    .format(username)
+                )
+
+            privileges = {}
+
+            try:
+                for project in details.get('projects', {}):
+                    privileges[project['auth_id']] = set(project['privilege'])
+            except KeyError as e:
+                self.logger.error('project missing field: {}'.format(e))
+                continue
+
+            user_info[username] = {
+                'email': details.get('email', username),
+                'display_name': details.get('display_name', ''),
+                'phone_number': details.get('phone_number', ''),
+                'tags': details.get('tags', {}),
+                'admin': details.get('admin', False),
+            }
+            user_project[username] = privileges
+
+        return user_project, user_info
+
+    def _parse_resources_from_yaml(self, filepath, encrypted=True):
+        """
+        Args:
+            filepath (str): path to user yaml file
+
+        Return:
+            Tuple[
+                Mapping[str, Mapping[str, Set[str]]],
+                Mapping[str, Union[str, Mapping[...]]],
+            ]:
+                the type is complicated---there's two parts:
+                    - first the per-resource-path permissions for every user:
+                        username -> (mapping: resource path -> set(permission))
+                    - second the entire resource tree that gets handed to
+                      arborist, which is a recursive type
+        """
+        data = dict()
+        try:
+            with self._read_file(filepath, encrypted=encrypted) as f:
+                data = yaml.safe_load(f)
+        except IOError as e:
+            self.logger.error(e)
+
+        users = data.get('users', {})
+        result = dict()
+        # resources should be the resource tree to construct in arborist
+        resources = data.get('resources')
+
+        for username, user_info in users.iteritems():
+            # users should occur only once each; skip if already processed
+            if username in result:
+                self.logger.error(
+                    'user `{}` occurs multiple times (skipping)'
+                    .format(username)
+                )
+                continue
+            resource_permissions = dict()
+            for project in user_info.get('projects', {}):
+                try:
+                    resource_permissions[project['resource']] = set(
+                        project['privilege']
+                    )
+                except KeyError as e:
+                    self.logger.error(
+                        'user YAML file: project for user {} missing field {}'
+                        .format(username, e)
+                    )
+            result[username] = resource_permissions
+
+        return result, resources
 
     @staticmethod
     def sync_two_user_info_dict(user_info1, user_info2):
@@ -777,7 +825,11 @@ class UserSyncer(object):
             sess=sess,
         )
 
-        user_projects_yaml, user_info_yaml, resources = self._parse_yaml(
+        user_projects_yaml, user_info_yaml = self._parse_yaml(
+            self.sync_from_local_yaml_file, encrypted=False
+        )
+
+        user_arborist_info, resources = self._parse_resources_from_yaml(
             self.sync_from_local_yaml_file, encrypted=False
         )
 
@@ -797,7 +849,7 @@ class UserSyncer(object):
 
         if resources:
             self.logger.info('Synchronizing arborist')
-            success = self._update_arborist(sess, resources, user_projects)
+            success = self._update_arborist(sess, resources, user_arborist_info)
             if success:
                 self.logger.info('Finished synchronizing arborist')
             else:
