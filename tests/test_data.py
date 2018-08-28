@@ -54,7 +54,7 @@ def test_indexd_upload_file(
 
 
 @pytest.mark.parametrize(
-    'indexd_client', ['gs', 's3', 'gs_acl', 's3_acl', 's3-external'], indirect=True)
+    'indexd_client', ['gs', 's3', 'gs_acl', 's3_acl', 's3_external'], indirect=True)
 def test_indexd_download_file_no_protocol(
         client, oauth_client, user_client, indexd_client, kid,
         rsa_private_key, google_proxy_group, primary_google_service_account, cloud_manager,

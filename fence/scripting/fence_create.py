@@ -956,7 +956,7 @@ def create_or_update_google_bucket(
 
         if public is not None and not public:
             for privilege in allowed_privileges:
-                _create_google_bucket_access_group(
+                _setup_google_bucket_access_group(
                     db_session=current_session,
                     google_bucket_name=name,
                     bucket_db_id=bucket_db_entry.id,
@@ -1028,17 +1028,7 @@ def _create_or_update_google_bucket_and_db(
             access_logs_bucket=access_logs_bucket)
 
         # add bucket to db
-        google_cloud_provider = (
-            db_session.query(
-                CloudProvider).filter_by(name='google').first()
-        )
-        if not google_cloud_provider:
-            google_cloud_provider = CloudProvider(
-                name='google',
-                description='Google Cloud Platform',
-                service='general')
-            db_session.add(google_cloud_provider)
-            db_session.commit()
+        google_cloud_provider = _get_or_create_google_provider(db_session)
 
         bucket_db_entry = (
             db_session.query(Bucket).filter_by(
@@ -1096,9 +1086,33 @@ def _create_or_update_google_bucket_and_db(
     return bucket_db_entry
 
 
-def _create_google_bucket_access_group(
+def _setup_google_bucket_access_group(
         db_session, google_bucket_name, bucket_db_id, google_project_id,
         storage_creds_project_id, privileges):
+
+    access_group = _create_google_bucket_access_group(
+        db_session, google_bucket_name, bucket_db_id, google_project_id,
+        privileges)
+    # use storage creds to update bucket iam
+    storage_manager = GoogleCloudManager(
+        storage_creds_project_id,
+        creds=cirrus_config.configs['GOOGLE_STORAGE_CREDS'])
+    with storage_manager as g_mgr:
+        g_mgr.give_group_access_to_bucket(
+            access_group.email, google_bucket_name, access=privileges)
+
+    print(
+        'Successfully created Google Bucket Access Group {} '
+        'for Google Bucket {}.'
+        .format(access_group.email, google_bucket_name)
+    )
+
+    return access_group
+
+
+def _create_google_bucket_access_group(
+        db_session, google_bucket_name, bucket_db_id, google_project_id,
+        privileges):
     access_group = None
     # use default creds for creating group and iam policies
     with GoogleCloudManager(google_project_id) as g_mgr:
@@ -1115,19 +1129,53 @@ def _create_google_bucket_access_group(
         )
         db_session.add(access_group)
         db_session.commit()
-
-    # use storage creds to update bucket iam
-    storage_manager = GoogleCloudManager(
-        storage_creds_project_id,
-        creds=cirrus_config.configs['GOOGLE_STORAGE_CREDS'])
-    with storage_manager as g_mgr:
-        g_mgr.give_group_access_to_bucket(
-            group_email, google_bucket_name, access=privileges)
-
-    print(
-        'Successfully created Google Bucket Access Group {} '
-        'for Google Bucket {}.'
-        .format(group_email, google_bucket_name)
-    )
-
     return access_group
+
+
+def _get_or_create_google_provider(db_session):
+    google_cloud_provider = (
+        db_session.query(
+            CloudProvider).filter_by(name='google').first()
+    )
+    if not google_cloud_provider:
+        google_cloud_provider = CloudProvider(
+            name='google',
+            description='Google Cloud Platform',
+            service='general')
+        db_session.add(google_cloud_provider)
+        db_session.commit()
+    return google_cloud_provider
+
+
+def link_external_bucket(
+        current_session, name):
+
+    """
+    Link with bucket owned by an external party. This will create the bucket
+    in fence database and create a google group to access the bucket in both
+    Google and fence database.
+    The external party will need to add the google group read access to bucket
+    afterwards.
+    """
+
+    import fence.settings
+    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+
+    google_project_id = cirrus_config.GOOGLE_PROJECT_ID
+
+    google_cloud_provider = _get_or_create_google_provider(current_session)
+
+    bucket_db_entry = Bucket(
+        name=name,
+        provider_id=google_cloud_provider.id
+    )
+    current_session.add(bucket_db_entry)
+    current_session.commit()
+    privileges = ['read']
+
+    access_group = _create_google_bucket_access_group(
+        current_session, name, bucket_db_entry.id, google_project_id,
+        privileges)
+
+    pprint.pprint('bucket access group email: {}'.format(access_group.email))
+    return access_group.email
