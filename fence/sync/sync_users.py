@@ -908,6 +908,8 @@ class UserSyncer(object):
                 .filter(func.lower(User.username) == username.lower())
                 .first()
             )
+            # reset user policies; update to exactly what's in the yaml file
+            user.policies = []
             for path, permissions in projects.iteritems():
                 for permission in permissions:
                     # "permission" in the dbgap sense, not the arborist sense
@@ -956,12 +958,11 @@ class UserSyncer(object):
                         self.logger.info(
                             'created policy `{}`'.format(policy_id)
                         )
-                    if policy not in user.policies:
-                        user.policies.append(policy)
-                        self.logger.info(
-                            'granted policy `{}` to user `{}`'
-                            .format(policy_id, user.username)
-                        )
+                    user.policies.append(policy)
+                    self.logger.info(
+                        'granted policy `{}` to user `{}`'
+                        .format(policy_id, user.username)
+                    )
 
         session.commit()
         return True
