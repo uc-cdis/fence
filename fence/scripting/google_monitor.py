@@ -46,7 +46,7 @@ def validation_check(db):
                     'INVALID SERVICE ACCOUNT {} DETECTED. REMOVING...'
                     .format(sa_email))
                 force_remove_service_account_from_access(
-                    [sa_email], google_project_id, db=db)
+                    sa_email, google_project_id, db=db)
                 continue
 
             print('VALID.')

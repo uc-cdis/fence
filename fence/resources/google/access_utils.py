@@ -477,8 +477,8 @@ def force_remove_service_account_from_access(
                 )
         except Exception as exc:
             raise GoogleAPIError(
-                    'Can not remove memeber {} from access group. {}'
-                    .format(service_account.email, exc))
+                    'Can not remove memeber {} from access group {}. Detail {}'
+                    .format(service_account.email, bucket_access_group.email, exc))
 
     _force_remove_service_account_from_access_db(service_account_email, db)
 
