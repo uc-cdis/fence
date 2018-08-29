@@ -173,7 +173,7 @@ class GoogleProjectValidity(ValidityInfo):
         self._info['service_accounts'] = {}
         self._info['access'] = {}
 
-    def check_validity(self, early_return=True):
+    def check_validity(self, early_return=True, db=None):
         """
         Determine whether or not project is valid for registration. If
         early_return is False, this object will store information about the
@@ -358,6 +358,7 @@ class GoogleServiceAccountValidity(ValidityInfo):
             return
 
         valid_type = is_valid_service_account_type(self.google_project_id, self.account_id)
+
         self.set('valid_type', valid_type)
         if not valid_type and early_return:
             return

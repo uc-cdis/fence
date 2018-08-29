@@ -322,6 +322,7 @@ class UserSyncer(object):
                     'display_name': display_name,
                     'phone_number': phonenum,
                     'tags': {'k1':'v1', 'k2': 'v2'}
+                    'admin': is_admin
                 }
             }
         """
@@ -479,6 +480,8 @@ class UserSyncer(object):
         self._grant_from_storage(to_update, user_project, sess)
         self._update_from_db(sess, to_update, user_project)
 
+        self._validate_and_update_user_admin(sess, user_info)
+
     def _revoke_from_db(self, sess, to_delete):
         """
         Revoke user access to projects in the auth database
@@ -503,6 +506,41 @@ class UserSyncer(object):
                     .format(username, project_auth_id)
                 )
                 sess.delete(access)
+
+        sess.commit()
+
+    def _validate_and_update_user_admin(self, sess, user_info):
+        """
+        Make sure there is no admin user that is not in yaml/csv files
+
+        Args:
+            sess: sqlalchemy session
+            user_info: a dict of
+            {
+                username: {
+                    'email': email,
+                    'display_name': display_name,
+                    'phone_number': phonenum,
+                    'tags': {'k1':'v1', 'k2': 'v2'}
+                    'admin': is_admin
+                }
+            }
+        Returns:
+            None
+        """
+        for admin_user in (
+                sess
+                .query(User)
+                .filter_by(is_admin=True)
+                .all()
+                ):
+            if admin_user.username not in user_info:
+                admin_user.is_admin = False
+                sess.add(admin_user)
+                self.logger.info(
+                    "remove admin access from {} in db"
+                    .format(admin_user.username)
+                )
         sess.commit()
 
     def _update_from_db(self, sess, to_update, user_project):
@@ -543,7 +581,7 @@ class UserSyncer(object):
             sess: sqlalchemy session
             to_add: a set of (username, project.auth_id) to be granted
             user_project:
-                a dictionary of {username: {project: ['read','write']}
+                a dictionary of {username: {project: {'read','write'}}
         Return:
             None
         """
@@ -579,7 +617,7 @@ class UserSyncer(object):
         Args:
             sess: sqlalchemy session
             user_info:
-                a dict of {username: {display_name, phone_number, tags: {k:v}}}
+                a dict of {username: {display_name, phone_number, tags, admin}
 
         Return:
             None
@@ -666,7 +704,7 @@ class UserSyncer(object):
             to_add: a set of (username, project.auth_id)  to be granted
             user_project: a dictionary like:
 
-                    {username: {phsid: ['read-storage','write-storage']}}
+                    {username: {phsid: {'read-storage','write-storage'}}}
 
         Return:
             None
