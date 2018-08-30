@@ -340,9 +340,10 @@ class UserSyncer(object):
             # users should occur only once each; skip if already processed
             if username in user_project:
                 self.logger.error(
-                    'user `{}` occurs multiple times (skipping)'
+                    'user `{}` occurs multiple times'
                     .format(username)
                 )
+                raise EnvironmentError('invalid yaml file')
 
             privileges = {}
 
@@ -822,14 +823,13 @@ class UserSyncer(object):
             user_projects_yaml, user_info_yaml = self._parse_yaml(
                 self.sync_from_local_yaml_file, encrypted=False
             )
-        except IOError as e:
-            self.logger.error(e)
+            user_arborist_info, resources = self._parse_resources_from_yaml(
+                self.sync_from_local_yaml_file, encrypted=False
+            )
+        except EnvironmentError as e:
+            self.logger.error(str(e))
             self.logger.error('aborting early')
             return
-
-        user_arborist_info, resources = self._parse_resources_from_yaml(
-            self.sync_from_local_yaml_file, encrypted=False
-        )
 
         self.sync_two_phsids_dict(user_projects_csv, user_projects)
         self.sync_two_user_info_dict(user_info_csv, user_info)
