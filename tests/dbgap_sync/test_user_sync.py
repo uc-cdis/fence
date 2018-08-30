@@ -292,9 +292,8 @@ def test_update_arborist(syncer, db_session):
         if 'projects' not in data:
             continue
         for project in data['projects']:
-            auth_id = project['auth_id']
             for privilege in project['privilege']:
-                policy_id = _format_policy_id(auth_id, privilege)
+                policy_id = _format_policy_id(project['resource'], privilege)
                 assert policy_id in policy_ids
                 user_policies = (
                     db_session

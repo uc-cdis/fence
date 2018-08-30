@@ -29,8 +29,8 @@ from fence.rbac.client import ArboristClient, ArboristError
 from fence.resources.storage import StorageManager
 
 
-def _format_policy_id(auth_id, privilege):
-    return '{}-{}'.format(auth_id, privilege)
+def _format_policy_id(path, privilege):
+    return '{}-{}'.format('.'.join(filter(bool, path.split('/'))), privilege)
 
 
 def download_dir(sftp, remote_dir, local_dir):
@@ -332,13 +332,8 @@ class UserSyncer(object):
         user_project = dict()
         user_info = dict()
 
-        data = dict()
-        try:
-            with self._read_file(filepath, encrypted=encrypted) as stream:
-                data = yaml.safe_load(stream)
-        except IOError as e:
-            self.logger.error(e)
-            return dict(), dict()
+        with self._read_file(filepath, encrypted=encrypted) as stream:
+            data = yaml.safe_load(stream)
 
         users = data.get('users', {})
         for username, details in users.iteritems():
@@ -386,11 +381,8 @@ class UserSyncer(object):
                       arborist, which is a recursive type
         """
         data = dict()
-        try:
-            with self._read_file(filepath, encrypted=encrypted) as f:
-                data = yaml.safe_load(f)
-        except IOError as e:
-            self.logger.error(e)
+        with self._read_file(filepath, encrypted=encrypted) as f:
+            data = yaml.safe_load(f)
 
         users = data.get('users', {})
         result = dict()
@@ -400,11 +392,12 @@ class UserSyncer(object):
         for username, user_info in users.iteritems():
             # users should occur only once each; skip if already processed
             if username in result:
-                self.logger.error(
-                    'user `{}` occurs multiple times (skipping)'
+                msg = (
+                    'invalid yaml file: user `{}` occurs multiple times'
                     .format(username)
                 )
-                continue
+                self.logger.error(msg)
+                raise EnvironmentError(msg)
             resource_permissions = dict()
             for project in user_info.get('projects', {}):
                 try:
@@ -825,9 +818,14 @@ class UserSyncer(object):
             sess=sess,
         )
 
-        user_projects_yaml, user_info_yaml = self._parse_yaml(
-            self.sync_from_local_yaml_file, encrypted=False
-        )
+        try:
+            user_projects_yaml, user_info_yaml = self._parse_yaml(
+                self.sync_from_local_yaml_file, encrypted=False
+            )
+        except IOError as e:
+            self.logger.error(e)
+            self.logger.error('aborting early')
+            return
 
         user_arborist_info, resources = self._parse_resources_from_yaml(
             self.sync_from_local_yaml_file, encrypted=False
@@ -893,15 +891,8 @@ class UserSyncer(object):
         created_roles = set()
         created_policies = set()
 
-        for username, projects in user_projects.iteritems():
+        for username, user_resources in user_projects.iteritems():
             self.logger.info('processing user `{}`'.format(username))
-            projects = {
-                path: permissions
-                for path, permissions in projects.iteritems()
-                if path.startswith('/')
-            }
-            if not projects:
-                continue
             user = (
                 session
                 .query(User)
@@ -910,7 +901,7 @@ class UserSyncer(object):
             )
             # reset user policies; update to exactly what's in the yaml file
             user.policies = []
-            for path, permissions in projects.iteritems():
+            for path, permissions in user_resources.iteritems():
                 for permission in permissions:
                     # "permission" in the dbgap sense, not the arborist sense
                     if permission not in created_roles:
@@ -934,8 +925,10 @@ class UserSyncer(object):
                     # If everything was created fine, grant a policy to
                     # this user which contains exactly just this resource,
                     # with this permission as a role.
-                    project = path.split('/')[-1]
-                    policy_id = _format_policy_id(project, permission)
+
+                    # format project '/x/y/z' -> 'x.y.z'
+                    # so the policy id will be something like 'x.y.z-create'
+                    policy_id = _format_policy_id(path, permission)
                     if policy_id not in created_policies:
                         try:
                             self.arborist_client.create_policy({
