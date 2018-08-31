@@ -30,7 +30,8 @@ from fence.resources.storage import StorageManager
 
 
 def _format_policy_id(path, privilege):
-    return '{}-{}'.format('.'.join(filter(bool, path.split('/'))), privilege)
+    resource = '.'.join(name for name in path.split('/') if name)
+    return '{}-{}'.format(resource, privilege)
 
 
 def download_dir(sftp, remote_dir, local_dir):
