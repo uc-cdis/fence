@@ -107,7 +107,7 @@ def syncer(db_session, request):
         {'username': 'test_user1@gmail.com', 'is_admin': False,
             'email': 'test_user1@gmail.com'},
         {'username': 'deleted_user@gmail.com',
-            'is_admin': False, 'email': 'deleted_user@gmail.com'},
+            'is_admin': True, 'email': 'deleted_user@gmail.com'},
         {'username': 'TESTUSERD', 'is_admin': True, 'email': 'userD@gmail.com'}
     ]
 

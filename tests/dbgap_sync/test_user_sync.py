@@ -67,6 +67,7 @@ def test_sync(syncer, db_session, storage_client):
 
     user = db_session.query(models.User).filter_by(
         username='deleted_user@gmail.com').one()
+    assert not user.is_admin
 
     user_access = db_session.query(
         models.AccessPrivilege).filter_by(user=user).all()
