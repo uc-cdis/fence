@@ -2,6 +2,19 @@ cloud_providers: {}
 
 groups: {}
 
+# Define the resource tree which will be uploaded to arborist.
+resources:
+  name: programs
+  subresources:
+  - name: test
+    subresources:
+    - name: projects
+      subresources:
+      - name: test
+  - name: test_program
+
+# auth_id field in projects exists for pre-arborist backwards-compatibility
+
 users:
   cdis:
     admin: True
@@ -9,6 +22,7 @@ users:
     admin: True
     projects:
     - auth_id: test
+      resource: /programs/test/projects/test
       privilege: ['create', 'read', 'update', 'delete', 'upload']
     tags:
       role: reseacher
@@ -17,13 +31,22 @@ users:
     display_name: Test User 2
     projects:
     - auth_id: test
+      resource: /programs/test/projects/test
       privilege: ['create', 'read', 'update', 'delete', 'upload']
   test_user3@gmail.com:
     admin: True
     projects:
     - auth_id: test
+      resource: /programs/test/projects/test
       privilege: ['create', 'read', 'update', 'delete', 'upload']
     display_name: Test User 3
     tags:
       role: PI
       organization: ABC
+  test_user4@gmail.com:
+    admin: False
+    projects:
+    - auth_id: test_program
+      resource: /programs/test_program
+      privilege: ['create', 'read', 'update', 'delete', 'upload']
+    display_name: Test User 4 (program access)

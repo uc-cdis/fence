@@ -5,7 +5,10 @@ RBAC.
 
 import json
 
+from cdislogging import get_logger
 import requests
+
+from fence.errors import APIError
 
 
 def _request_get_json(response):
@@ -19,12 +22,18 @@ def _request_get_json(response):
         return {'error': str(e)}
 
 
+class ArboristError(APIError):
+
+    pass
+
+
 class ArboristClient(object):
     """
     A singleton class for interfacing with the RBAC engine, "arborist".
     """
 
-    def __init__(self, arborist_base_url='http://arborist-service/'):
+    def __init__(self, logger=None, arborist_base_url='http://arborist-service/'):
+        self.logger = logger or get_logger('ArboristClient')
         self._base_url = arborist_base_url.strip('/')
         self._policy_url = self._base_url + '/policy/'
         self._resource_url = self._base_url + '/resource'
@@ -37,7 +46,10 @@ class ArboristClient(object):
         Return:
             bool: whether arborist service is available
         """
-        response = requests.get(self._base_url + '/health')
+        try:
+            response = requests.get(self._base_url + '/health')
+        except requests.RequestException:
+            return False
         return response.status_code == 200
 
     def get_resource(self, resource_path):
@@ -124,6 +136,9 @@ class ArboristClient(object):
 
         Return:
             dict: response JSON from arborist
+
+        Raises:
+            - ArboristError: if the operation failed (couldn't create resource)
         """
         # To add a subresource, all we actually have to do is POST the resource
         # JSON to its parent in arborist:
@@ -135,7 +150,14 @@ class ArboristClient(object):
         #     /resource/parent/new_resource
         #
         path = self._resource_url + parent_path
-        return _request_get_json(requests.post(path, json=resource_json))
+        response = _request_get_json(requests.post(path, json=resource_json))
+        if 'error' in response:
+            self.logger.error(
+                'could not create resource `{}` in arborist: '.format(path)
+                + response['error']
+            )
+            raise ArboristError(response['error'])
+        return response
 
     def create_role(self, role_json):
         """
@@ -172,5 +194,29 @@ class ArboristClient(object):
 
         Return:
             dict: response JSON from arborist
+
+        Raises:
+            - ArboristError: if the operation failed (couldn't create role)
         """
-        return _request_get_json(requests.post(self._role_url, json=role_json))
+        response = _request_get_json(requests.post(self._role_url, json=role_json))
+        if 'error' in response:
+            self.logger.error(
+                'could not create role `{}` in arborist: {}'
+                .format(role_json['id'], response['error'])
+            )
+            raise ArboristError(response['error'])
+        self.logger.info('created role {}'.format(role_json['id']))
+        return response
+
+    def create_policy(self, policy_json):
+        response = _request_get_json(requests.post(
+            self._policy_url, json=policy_json
+        ))
+        if 'error' in response:
+            self.logger.error(
+                'could not create policy `{}` in arborist: {}'
+                .format(policy_json['id'], response['error'])
+            )
+            raise ArboristError(response['error'])
+        self.logger.info('created policy {}'.format(policy_json['id']))
+        return response

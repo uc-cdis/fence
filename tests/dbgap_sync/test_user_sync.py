@@ -8,18 +8,34 @@ from tests.dbgap_sync.conftest import LOCAL_YAML_DIR
 
 
 @pytest.mark.parametrize('syncer', ['google', 'cleversafe'], indirect=True)
+def test_sync_missing_file(syncer, monkeypatch, db_session):
+    """
+    Test that if the YAML file doesn't exist then the syncer doesn't do
+    anything with the arborist client
+    """
+    monkeypatch.setattr(
+        syncer, 'sync_from_local_yaml_file', 'this-file-is-not-real'
+    )
+    # should fail gracefully
+    syncer.sync()
+    assert syncer.arborist_client.create_resource.not_called()
+    assert syncer.arborist_client.create_role.not_called()
+    assert syncer.arborist_client.create_policy.not_called()
+
+
+@pytest.mark.parametrize('syncer', ['google', 'cleversafe'], indirect=True)
 def test_sync(syncer, db_session, storage_client):
 
     syncer.sync()
 
     users = db_session.query(models.User).all()
-    assert len(users) == 10
+    assert len(users) == 11
 
     tags = db_session.query(models.Tag).all()
     assert len(tags) == 7
 
     proj = db_session.query(models.Project).all()
-    assert len(proj) == 8
+    assert len(proj) == 9
 
 
     user = db_session.query(models.User).filter_by(username='USERC').one()
@@ -277,9 +293,8 @@ def test_update_arborist(syncer, db_session):
         if 'projects' not in data:
             continue
         for project in data['projects']:
-            auth_id = project['auth_id']
             for privilege in project['privilege']:
-                policy_id = _format_policy_id(auth_id, privilege)
+                policy_id = _format_policy_id(project['resource'], privilege)
                 assert policy_id in policy_ids
                 user_policies = (
                     db_session

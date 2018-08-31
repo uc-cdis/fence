@@ -30,6 +30,11 @@ def mock_arborist_client(app, monkeypatch):
 
 
 @pytest.fixture
+def arborist_client():
+    return ArboristClient()
+
+
+@pytest.fixture
 def example_policies():
     """
     Create some example policies and also add them to the database.
