@@ -24,6 +24,9 @@ from fence.scripting.fence_create import (
     delete_expired_service_accounts,
     verify_bucket_access_group,
 )
+from fence.scripting.google_monitor import (
+    validation_check
+)
 
 
 def str2bool(v):
@@ -188,6 +191,9 @@ def parse_arguments():
 
     manage_google_keys = subparsers.add_parser('google-manage-keys')
     init_google = subparsers.add_parser('google-init')
+    manage_user_registrations = (
+        subparsers.add_parser('google-manage-user-registrations')
+    )
     manage_google_accounts = (
         subparsers.add_parser('google-manage-account-access')
     )
@@ -293,6 +299,8 @@ def main():
         remove_expired_google_service_account_keys(DB)
     elif args.action == 'google-init':
         google_init(DB)
+    elif args.action == 'google-manage-user-registrations':
+        validation_check(DB)
     elif args.action == 'google-manage-account-access':
         remove_expired_google_accounts_from_proxy_groups(DB)
     elif args.action == 'google-bucket-create':
