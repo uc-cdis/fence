@@ -37,9 +37,8 @@ def fence_oauth_client(app, db_session, oauth_user, fence_oauth_client_url):
     )
     db_session.add(models.Client(
         client_id=client_id, client_secret=hashed_secret, user=test_user,
-        allowed_scopes=['openid', 'user'],
-        _redirect_uris=fence_oauth_client_url, description='',
-        is_confidential=True, name='fence_oauth_client'
+        allowed_scopes=['openid', 'user'], redirect_uris=fence_oauth_client_url,
+        description='', is_confidential=True, name='fence_oauth_client'
     ))
     db_session.commit()
     return Dict(

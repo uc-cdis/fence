@@ -158,7 +158,6 @@ class Keypair(object):
 
         return cls(kid, public_key, private_key)
 
-
     def public_key_to_jwk(self):
         """
         Get the JWK representation of the public key in this keypair according

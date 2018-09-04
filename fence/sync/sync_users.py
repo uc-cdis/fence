@@ -28,6 +28,7 @@ from fence.models import (
 from fence.rbac.client import ArboristClient
 from fence.resources.storage import StorageManager
 
+
 def _format_policy_id(auth_id, privilege):
     return '{}-{}'.format(auth_id, privilege)
 

@@ -44,10 +44,10 @@ def create_client(
             raise Exception('client {} already exists'.format(name))
             return
         client = Client(
-            client_id=client_id, client_secret=hashed_secret,
-            user=user, _redirect_uris=urls,
-            _allowed_scopes=' '.join(CLIENT_ALLOWED_SCOPES),
-            description=description, name=name, auto_approve=auto_approve)
+            client_id=client_id, client_secret=hashed_secret, user=user,
+            redirect_uris=urls, _allowed_scopes=' '.join(CLIENT_ALLOWED_SCOPES),
+            description=description, name=name, auto_approve=auto_approve,
+        )
         s.add(client)
         s.commit()
     return client_id, client_secret

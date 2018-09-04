@@ -26,6 +26,7 @@ from authlib.specs.rfc6749.errors import (
 from fence.errors import Unauthorized
 from fence.jwt.token import SCOPE_DESCRIPTION
 from fence.models import Client
+from fence.oidc.endpoints import RevocationEndpoint
 from fence.oidc.server import server
 from fence.utils import clear_cookies
 from fence.user import get_current_user
@@ -83,11 +84,12 @@ def authorize(*args, **kwargs):
         return flask.redirect(login_url)
 
     try:
-        grant = server.validate_authorization_request()
+        grant = server.validate_consent_request(end_user=user)
+        grant.validate_prompt(user)
     except OAuth2Error as e:
         raise Unauthorized('{} failed to authorize'.format(str(e)))
 
-    client_id = grant.params.get('client_id')
+    client_id = grant.client.client_id
 
     with flask.current_app.db.session as session:
         client = (
@@ -97,7 +99,8 @@ def authorize(*args, **kwargs):
             .first()
         )
 
-    confirm = grant.params.get('confirm')
+    confirm = flask.request.form.get('confirm') or flask.request.args.get('confirm')
+
     if client.auto_approve:
         confirm = 'yes'
     if confirm is not None:
@@ -140,12 +143,9 @@ def _authorize(user, grant, client):
         grant (fence.oidc.grants.AuthorizationCodeGrant): request grant
         client (fence.models.Client): request client
     """
-    prompts = grant.params.get('prompt')
-
     scope = flask.request.args.get('scope')
-
     response = _get_auth_response_for_prompts(
-        prompts, grant, user, client, scope
+        grant.prompt, grant, user, client, scope
     )
 
     return response
@@ -237,7 +237,7 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
             pass
 
     if show_consent_screen:
-        shown_scopes = scope.split(' ')
+        shown_scopes = [] if not scope else scope.split(' ')
         if 'openid' in shown_scopes:
             shown_scopes.remove('openid')
 
@@ -302,7 +302,7 @@ def revoke_token():
     Return:
         Tuple[str, int]: JSON response and status code
     """
-    return server.create_revocation_response()
+    return server.create_endpoint_response(RevocationEndpoint.ENDPOINT_NAME)
 
 
 @blueprint.route('/errors', methods=['GET'])

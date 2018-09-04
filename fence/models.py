@@ -13,6 +13,7 @@ from authlib.flask.oauth2.sqla import (
     OAuth2AuthorizationCodeMixin,
     OAuth2ClientMixin,
 )
+import bcrypt
 import flask
 from sqlalchemy import (
     Integer, BigInteger, String, Column, Boolean, Text, MetaData, Table
@@ -59,18 +60,32 @@ class Client(Base, OAuth2ClientMixin):
 
     _allowed_scopes = Column(Text, nullable=False, default='')
 
-    _redirect_uris = Column(Text)
     _default_scopes = Column(Text)
     _scopes = ['compute', 'storage', 'user']
 
-    def __init__(self, **kwargs):
+    def __init__(self, client_id, **kwargs):
+        """
+        NOTE that for authlib, the client must have an attribute ``redirect_uri`` which
+        is a newline-delimited list of valid redirect URIs.
+        """
         if 'allowed_scopes' in kwargs:
             allowed_scopes = kwargs.pop('allowed_scopes')
             if isinstance(allowed_scopes, list):
                 kwargs['_allowed_scopes'] = ' '.join(allowed_scopes)
             else:
                 kwargs['_allowed_scopes'] = allowed_scopes
-        super(Client, self).__init__(**kwargs)
+        if 'redirect_uris' in kwargs:
+            redirect_uris = kwargs.pop('redirect_uris')
+            if isinstance(redirect_uris, list):
+                kwargs['redirect_uri'] = '\n'.join(redirect_uris)
+            else:
+                kwargs['redirect_uri'] = redirect_uris
+        # default grant types to just 'authorization_code'
+        if 'grant_types' in kwargs:
+            self.grant_types = kwargs.pop('grant_types')
+        else:
+            self.grant_types = ['authorization_code']
+        super(Client, self).__init__(client_id=client_id, **kwargs)
 
     @property
     def allowed_scopes(self):
@@ -87,12 +102,6 @@ class Client(Base, OAuth2ClientMixin):
         if self.is_confidential is False:
             return 'public'
         return 'confidential'
-
-    @property
-    def redirect_uris(self):
-        if self._redirect_uris:
-            return self._redirect_uris.split()
-        return []
 
     @property
     def default_redirect_uri(self):
@@ -114,15 +123,40 @@ class Client(Base, OAuth2ClientMixin):
                 .first()
             )
 
+    def check_client_type(self, client_type):
+        return (
+            (client_type == "confidential" and self.is_confidential)
+            or (client_type == "public" and not self.is_confidential)
+        )
+
+    def check_client_secret(self, client_secret):
+        check_hash = bcrypt.hashpw(
+            client_secret.encode('utf-8'), self.client_secret.encode('utf-8')
+        )
+        return check_hash == self.client_secret
+
     def check_requested_scopes(self, scopes):
         return set(self.allowed_scopes).issuperset(scopes)
+
+    def check_token_endpoint_auth_method(self, method):
+        """
+        Only basic auth is supported. If anything else gets added, change this
+        """
+        auth_methods = ['client_secret_basic', 'client_secret_post']
+        return (
+            (self.is_confidential and method in auth_methods)
+            or (not self.is_confidential and method == 'none')
+        )
 
     def validate_scopes(self, scopes):
         scopes = scopes[0].split(',')
         return all(scope in self._scopes for scope in scopes)
 
-    def check_redirect_uri(self, redirect_uri):
-        return redirect_uri in self.redirect_uris
+    def check_response_type(self, response_type):
+        """
+        Only ``code`` is supported.
+        """
+        return response_type == "code"
 
 
 class AuthorizationCode(Base, OAuth2AuthorizationCodeMixin):

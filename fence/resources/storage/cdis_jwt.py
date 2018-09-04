@@ -8,22 +8,6 @@ from fence.jwt.validate import validate_jwt
 from fence.models import UserRefreshToken
 
 
-def create_id_token(
-        user, keypair, expires_in, client_id, audiences=None,
-        auth_time=None, max_age=None, nonce=None):
-    try:
-        return (
-            token.generate_signed_id_token(
-                keypair.kid, keypair.private_key, user, expires_in, client_id,
-                audiences=audiences, auth_time=auth_time, max_age=max_age,
-                nonce=nonce
-            )
-            .token
-        )
-    except Exception as e:
-        return flask.jsonify({'errors': e.message})
-
-
 def create_access_token(user, keypair, api_key, expires_in, scopes):
     try:
         claims = validate_jwt(

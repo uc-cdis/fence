@@ -10,10 +10,12 @@ from authlib.specs.rfc6749.grants import (
     RefreshTokenGrant as AuthlibRefreshTokenGrant
 )
 from authlib.specs.rfc6749.util import scope_to_list
+import flask
 
 from fence.jwt.blacklist import is_token_blacklisted
 from fence.jwt.errors import JWTError
 from fence.jwt.validate import validate_jwt
+from fence.models import User
 
 
 class RefreshTokenGrant(AuthlibRefreshTokenGrant):
@@ -27,6 +29,12 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
     NOTE: ``self._authenticated_token`` is the refresh token claims as a
     dictionary; ``self.params['refresh_token']`` is the actual string.
     """
+
+    TOKEN_ENDPOINT_AUTH_METHODS = [
+        'client_secret_basic',
+        'client_secret_post',
+        'none',
+    ]
 
     def authenticate_refresh_token(self, refresh_token):
         """
@@ -55,43 +63,35 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         """
         return token
 
-    def authenticate_client(self):
+    def authenticate_user(self, claims):
         """
-        Authenticate the client issuing the refresh request.
-
-        NOTE: this overrides the method from authlib in order to change the
-        checking on the client secret. Fence stores client secrets as hashes,
-        so the check on the incoming client secret in the request must be
-        changed accordingly.
+        Return user from the claims (decoded from JWT). Required for authlib.
         """
-        client_params = self.parse_basic_auth_header()
+        user_id = claims.get('sub')
+        if not user_id:
+            return None
+        with flask.current_app.db.session as session:
+            return session.query(User).filter_by(id=user_id).first()
 
-        # If the client params from the basic auth header are empty, then the
-        # client must be not a confidential client.
-        if not client_params:
-            client_id = self.params.get('client_id')
-            client = self.get_and_validate_client(client_id)
-            if client.is_confidential or client.client_secret:
-                raise UnauthorizedClientError(uri=self.uri)
-            return client
-
-        client_id, client_secret = client_params
-        client = self.get_and_validate_client(client_id)
-        # Check the hash of the provided client secret against stored hash.
-        stored_hash = client.client_secret
-        check_hash = bcrypt.hashpw(
-            client_secret.encode('utf-8'), stored_hash.encode('utf-8')
-        )
-        if check_hash != stored_hash:
-            raise InvalidClientError(uri=self.uri)
-        return client
+    def validate_token_request(self):
+        """
+        Override over authlib to allow public clients to use refresh tokens.
+        """
+        client = self.authenticate_token_endpoint_client()
+        if not client.check_grant_type(self.GRANT_TYPE):
+            raise UnauthorizedClientError('invalid grant type')
+        self.request.client = client
+        self.authenticate_token_endpoint_client()
+        token = self._validate_request_token()
+        self._validate_token_scope(token)
+        self.request.credential = token
 
     def validate_access_token_request(self):
         """
         Override the parent method from authlib to not fail immediately for
         public clients.
         """
-        client = self.authenticate_client()
+        client = self.authenticate_token_endpoint_client()
         if not client.check_grant_type(self.GRANT_TYPE):
             raise UnauthorizedClientError(uri=self.uri)
         self._authenticated_client = client
@@ -119,8 +119,10 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
 
         self._authenticated_token = refresh_claims
 
-    def create_access_token_response(self):
+    def create_token_response(self):
         """
+        OVERRIDES method from authlib.
+
         Docs from authlib:
 
             If valid and authorized, the authorization server issues an access
@@ -128,20 +130,27 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
             verification or is invalid, the authorization server returns an
             error response as described in Section 5.2.
         """
-        scope = self.params.get('scope')
-        if not scope:
-            scope = self._authenticated_token['aud']
+        credential = self.request.credential
+        user = self.authenticate_user(credential)
+        if not user:
+            raise InvalidRequestError('There is no "user" for this token.')
 
-        token = self.token_generator(
-            client=self._authenticated_client,
-            grant_type=self.GRANT_TYPE,
+        scope = self.request.scope
+        if not scope:
+            scope = credential['aud']
+
+        client = self.request.client
+        expires_in = credential['exp']
+        token = self.generate_token(
+            client,
+            self.GRANT_TYPE,
+            user=user,
+            expires_in=expires_in,
             scope=scope,
-            refresh_token=self.params.get('refresh_token'),
-            refresh_token_claims=self._authenticated_token,
         )
-        self.create_access_token(
-            token,
-            self._authenticated_client,
-            self._authenticated_token
-        )
+        # TODO: logger
+
+        self.request.user = user
+        self.server.save_token(token, self.request)
+        token = self.process_token(token, self.request)
         return 200, token, self.TOKEN_RESPONSE_HEADER

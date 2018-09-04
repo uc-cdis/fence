@@ -29,10 +29,15 @@ except ImportError:
 # only receive traffic from internal (CDIS) clients, and can safely use HTTP.
 os.environ['AUTHLIB_INSECURE_TRANSPORT'] = 'true'
 
-
 APPLICATION_ROOT = '/user'
 DEBUG = True
+
 OAUTH2_PROVIDER_ERROR_URI = "/api/oauth2/errors"
+
+OAUTH2_TOKEN_EXPIRES_IN = {
+    'authorization_code': 1200,
+    'implicit': 1200,
+}
 
 #: ``ACCESS_TOKEN_EXPIRES_IN: int``
 #: The number of seconds after an access token is issued until it expires.
