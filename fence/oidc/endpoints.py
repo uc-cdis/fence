@@ -1,8 +1,5 @@
 import authlib.specs.rfc7009
-from authlib.specs.rfc7009.errors import (
-    InvalidClientError,
-    OAuth2Error,
-)
+from authlib.specs.rfc7009.errors import InvalidClientError, OAuth2Error
 import bcrypt
 import flask
 
@@ -37,8 +34,7 @@ class RevocationEndpoint(authlib.specs.rfc7009.RevocationEndpoint):
         client_params = self.parse_basic_auth_header()
         if not client_params:
             flask.current_app.logger.debug(
-                'validating client in revoke request:'
-                ' missing client auth header'
+                "validating client in revoke request:" " missing client auth header"
             )
             raise InvalidClientError(uri=self.uri)
 
@@ -46,20 +42,20 @@ class RevocationEndpoint(authlib.specs.rfc7009.RevocationEndpoint):
         client = self.client_model.get_by_client_id(client_id)
         if not client:
             flask.current_app.logger.debug(
-                'validating client in revoke request:'
-                ' no client with matching client id:'
-                + ' ' + client_id
+                "validating client in revoke request:"
+                " no client with matching client id:" + " " + client_id
             )
             raise InvalidClientError(uri=self.uri)
 
         # The stored client secret is hashed, so hash the secret from basic
         # authorization header to check against stored hash.
         hashed = client.client_secret
-        if bcrypt.hashpw(
-                client_secret.encode('utf-8'),
-                hashed.encode('utf-8')) != hashed:
+        if (
+            bcrypt.hashpw(client_secret.encode("utf-8"), hashed.encode("utf-8"))
+            != hashed
+        ):
             flask.current_app.logger.debug(
-                'client secret hash does not match stored secret hash'
+                "client secret hash does not match stored secret hash"
             )
             raise InvalidClientError(uri=self.uri)
 
@@ -73,12 +69,12 @@ class RevocationEndpoint(authlib.specs.rfc7009.RevocationEndpoint):
             Tuple[int, dict, dict]: (status_code, body, headers)
         """
         headers = [
-            ('Content-Type', 'application/json'),
-            ('Cache-Control', 'no-store'),
-            ('Pragma', 'no-cache'),
+            ("Content-Type", "application/json"),
+            ("Cache-Control", "no-store"),
+            ("Pragma", "no-cache"),
         ]
         status = 204
-        message = ''
+        message = ""
         try:
             # The authorization server first validates the client credentials
             self.validate_authenticate_client()
@@ -89,7 +85,7 @@ class RevocationEndpoint(authlib.specs.rfc7009.RevocationEndpoint):
             self.invalidate_token(self._token)
         except OAuth2Error as error:
             status = error.status_code
-            message = dict(error.get_body()).get('error_description')
+            message = dict(error.get_body()).get("error_description")
             headers = error.get_headers()
             # Errors from authlib have extra methods which are supposed to be
             # used for returning error values from the authentication endpoint.
@@ -98,5 +94,5 @@ class RevocationEndpoint(authlib.specs.rfc7009.RevocationEndpoint):
             status = error.code
             message = error.message
         finally:
-            body = {'error': message} if message != '' else {}
+            body = {"error": message} if message != "" else {}
         return (status, body, headers)

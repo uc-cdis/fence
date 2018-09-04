@@ -8,7 +8,10 @@ from fence.jwt.token import (
     generate_signed_refresh_token,
 )
 from fence.models import AuthorizationCode, User
-from fence.resources.google.utils import get_linked_google_account_email, get_linked_google_account_exp
+from fence.resources.google.utils import (
+    get_linked_google_account_email,
+    get_linked_google_account_exp,
+)
 
 import fence.settings
 
@@ -28,9 +31,16 @@ class JWTGenerator(BearerToken):
         pass
 
     def __call__(
-            self, client, grant_type, expires_in=None, scope=None,
-            include_refresh_token=True, nonce=None, refresh_token=None,
-            refresh_token_claims=None):
+        self,
+        client,
+        grant_type,
+        expires_in=None,
+        scope=None,
+        include_refresh_token=True,
+        nonce=None,
+        refresh_token=None,
+        refresh_token_claims=None,
+    ):
         """
         Generate the token response, which looks like the following:
 
@@ -63,26 +73,24 @@ class JWTGenerator(BearerToken):
         # Find the ``User`` model.
         # The way to do this depends on the grant type.
         user = None
-        if grant_type == 'authorization_code':
+        if grant_type == "authorization_code":
             # For authorization code grant, get the code from either the query
             # string or the form data, and use that to look up the user.
-            if flask.request.method == 'GET':
-                code = flask.request.args.get('code')
+            if flask.request.method == "GET":
+                code = flask.request.args.get("code")
             else:
-                code = flask.request.form.get('code')
+                code = flask.request.form.get("code")
             user = (
-                current_session
-                .query(AuthorizationCode)
+                current_session.query(AuthorizationCode)
                 .filter_by(code=code)
                 .first()
                 .user
             )
-        if grant_type == 'refresh_token':
+        if grant_type == "refresh_token":
             # For refresh token, the user ID is the ``sub`` field in the token.
             user = (
-                current_session
-                .query(User)
-                .filter_by(id=int(refresh_token_claims['sub']))
+                current_session.query(User)
+                .filter_by(id=int(refresh_token_claims["sub"]))
                 .first()
             )
 
@@ -91,52 +99,43 @@ class JWTGenerator(BearerToken):
         linked_google_email = get_linked_google_account_email(user.id)
         linked_google_account_exp = get_linked_google_account_exp(user.id)
 
-        id_token = (
-            generate_signed_id_token(
-                kid=keypair.kid,
-                private_key=keypair.private_key,
-                user=user,
-                expires_in=self.ACCESS_TOKEN_EXPIRES_IN,
-                client_id=client.client_id,
-                audiences=scope,
-                nonce=nonce,
-                linked_google_email=linked_google_email,
-                linked_google_account_exp=linked_google_account_exp
-            )
-            .token
-        )
-        access_token = (
-            generate_signed_access_token(
-                kid=keypair.kid,
-                private_key=keypair.private_key,
-                user=user,
-                expires_in=self.ACCESS_TOKEN_EXPIRES_IN,
-                scopes=scope,
-                client_id=client.client_id,
-                linked_google_email=linked_google_email
-            )
-            .token
-        )
+        id_token = generate_signed_id_token(
+            kid=keypair.kid,
+            private_key=keypair.private_key,
+            user=user,
+            expires_in=self.ACCESS_TOKEN_EXPIRES_IN,
+            client_id=client.client_id,
+            audiences=scope,
+            nonce=nonce,
+            linked_google_email=linked_google_email,
+            linked_google_account_exp=linked_google_account_exp,
+        ).token
+        access_token = generate_signed_access_token(
+            kid=keypair.kid,
+            private_key=keypair.private_key,
+            user=user,
+            expires_in=self.ACCESS_TOKEN_EXPIRES_IN,
+            scopes=scope,
+            client_id=client.client_id,
+            linked_google_email=linked_google_email,
+        ).token
         # If ``refresh_token`` was passed (for instance from the refresh
         # grant), use that instead of generating a new one.
         if refresh_token is None:
-            refresh_token = (
-                generate_signed_refresh_token(
-                    kid=keypair.kid,
-                    private_key=keypair.private_key,
-                    user=user,
-                    expires_in=self.REFRESH_TOKEN_EXPIRES_IN,
-                    scopes=scope,
-                    client_id=client.client_id,
-                )
-                .token
-            )
+            refresh_token = generate_signed_refresh_token(
+                kid=keypair.kid,
+                private_key=keypair.private_key,
+                user=user,
+                expires_in=self.REFRESH_TOKEN_EXPIRES_IN,
+                scopes=scope,
+                client_id=client.client_id,
+            ).token
         # ``expires_in`` is just the access token expiration time.
         expires_in = self.ACCESS_TOKEN_EXPIRES_IN
         return {
-            'token_type': 'Bearer',
-            'id_token': id_token,
-            'access_token': access_token,
-            'refresh_token': refresh_token,
-            'expires_in': expires_in,
+            "token_type": "Bearer",
+            "id_token": id_token,
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "expires_in": expires_in,
         }

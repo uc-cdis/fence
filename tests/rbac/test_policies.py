@@ -13,6 +13,7 @@ something like this:
 """
 
 import json
+
 try:
     import mock
 except ImportError:
@@ -31,9 +32,9 @@ def test_list_policies(db_session, client, example_policies):
     for policy in example_policies:
         db_session.add(policy)
 
-    policies_response = client.get('/rbac/policies/').json
-    assert 'policies' in policies_response
-    policy_ids = policies_response['policies']
+    policies_response = client.get("/rbac/policies/").json
+    assert "policies" in policies_response
+    policy_ids = policies_response["policies"]
     assert set(policy_ids) == set(policy.id for policy in example_policies)
 
 
@@ -46,16 +47,16 @@ def test_list_user_policies(db_session, client, user_client, example_policies):
     user = db_session.query(User).filter_by(id=user_client.user_id).first()
     user.policies = example_policies
 
-    path = '/rbac/user/{}/policies/'.format(user_client.user_id)
+    path = "/rbac/user/{}/policies/".format(user_client.user_id)
     policies_response = client.get(path)
-    assert 'policies' in policies_response.json
+    assert "policies" in policies_response.json
     policies_from_db = _get_user_policy_ids(user_client.user_id)
-    assert set(policies_from_db) == set(policies_response.json['policies'])
+    assert set(policies_from_db) == set(policies_response.json["policies"])
 
 
 def test_grant_policy_to_user(
-        client, db_session, user_client, example_policies,
-        mock_arborist_client):
+    client, db_session, user_client, example_policies, mock_arborist_client
+):
     """
     Test granting an additional policy to a user and check in the policy
     listing endpoint and the database that the change goes through correctly.
@@ -65,18 +66,18 @@ def test_grant_policy_to_user(
         db_session.add(policy)
 
     # Get the list of policies before adding a new one
-    path = '/rbac/user/{}/policies/'.format(user_client.user_id)
-    policies_before = client.get(path).json['policies']
+    path = "/rbac/user/{}/policies/".format(user_client.user_id)
+    policies_before = client.get(path).json["policies"]
 
     # Grant user one additional policy for example
-    policies = {'policies': [example_policies[0].id]}
+    policies = {"policies": [example_policies[0].id]}
     response = client.post(
-        path, data=json.dumps(policies), content_type='application/json'
+        path, data=json.dumps(policies), content_type="application/json"
     )
     assert response.status_code == 204
 
     # Check that the new one was added correctly (shows up in endpoint).
-    policies_after = client.get(path).json['policies']
+    policies_after = client.get(path).json["policies"]
     assert len(policies_after) == len(policies_before) + 1
     assert example_policies[0].id in policies_after
     # Check new policy is in database.
@@ -85,8 +86,8 @@ def test_grant_policy_to_user(
 
 
 def test_replace_user_policies(
-        client, db_session, user_client, example_policies,
-        mock_arborist_client):
+    client, db_session, user_client, example_policies, mock_arborist_client
+):
     """
     Test overwriting the policies granted to a user and check in the policy
     listing endpoint and the database that the change goes through correctly.
@@ -104,16 +105,16 @@ def test_replace_user_policies(
 
     # Hit the endpoint and change the user's policies to be every even test
     # policy.
-    path = '/rbac/user/{}/policies/'.format(user_client.user_id)
-    policies = {'policies': [policy.id for policy in policies_even]}
+    path = "/rbac/user/{}/policies/".format(user_client.user_id)
+    policies = {"policies": [policy.id for policy in policies_even]}
     response = client.put(
-        path, data=json.dumps(policies), content_type='application/json'
+        path, data=json.dumps(policies), content_type="application/json"
     )
     assert response.status_code == 204
 
     # Check policies from endpoint.
     expected_policy_ids = [policy.id for policy in policies_even]
-    policies_after = client.get(path).json['policies']
+    policies_after = client.get(path).json["policies"]
     assert set(policies_after) == set(expected_policy_ids)
     # Check policies in database.
     user_policies_from_db = _get_user_policy_ids(user_client.user_id)
@@ -125,12 +126,12 @@ def test_revoke_user_policies(client, user_client):
     Test revoking all the policies granted to a user using the
     ``/rbac/user/policies/`` endpoint with a ``DELETE`` call.
     """
-    path = '/rbac/user/{}/policies/'.format(user_client.user_id)
+    path = "/rbac/user/{}/policies/".format(user_client.user_id)
     response = client.delete(path)
     assert response.status_code == 204
 
     # Check policies response for the user is empty.
-    policies_after = client.get(path).json['policies']
+    policies_after = client.get(path).json["policies"]
     assert policies_after == []
     # Check policies in database are empty.
     db_policies = _get_user_policy_ids(user_client.user_id)
@@ -142,23 +143,16 @@ def test_create_policy(client, db_session):
     Test creating a policy using the ``/rbac/policies/`` endpoint, adding the
     policy in the fence database and also registering it in arborist.
     """
-    policies = {'policies': ['test-policy-1', 'test-policy-2']}
+    policies = {"policies": ["test-policy-1", "test-policy-2"]}
     with (
-        mock.patch.object(
-            ArboristClient, 'policies_not_exist', return_value=[]
-        )
+        mock.patch.object(ArboristClient, "policies_not_exist", return_value=[])
     ) as mock_policies_not_exist:
         response = client.post(
-            '/rbac/policies/',
+            "/rbac/policies/",
             data=json.dumps(policies),
-            content_type='application/json',
+            content_type="application/json",
         )
         mock_policies_not_exist.assert_called_once()
     assert response.status_code == 201
-    policy = (
-        db_session
-        .query(Policy)
-        .filter(Policy.id == 'test-policy-1')
-        .first()
-    )
+    policy = db_session.query(Policy).filter(Policy.id == "test-policy-1").first()
     assert policy

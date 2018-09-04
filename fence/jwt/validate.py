@@ -24,18 +24,24 @@ def validate_purpose(claims, pur):
             if the claims do not contain a purpose claim or if it doesn't match
             the expected value
     """
-    if 'pur' not in claims:
-        raise JWTPurposeError('claims missing `pur` claim')
-    if claims['pur'] != pur:
+    if "pur" not in claims:
+        raise JWTPurposeError("claims missing `pur` claim")
+    if claims["pur"] != pur:
         raise JWTPurposeError(
-            'claims have incorrect purpose: expected {}, got {}'
-            .format(pur, claims['pur'])
+            "claims have incorrect purpose: expected {}, got {}".format(
+                pur, claims["pur"]
+            )
         )
 
 
 def validate_jwt(
-        encoded_token=None, aud=None, purpose=None, public_key=None,
-        attempt_refresh=False, **kwargs):
+    encoded_token=None,
+    aud=None,
+    purpose=None,
+    public_key=None,
+    attempt_refresh=False,
+    **kwargs
+):
     """
     Validate a JWT and return the claims.
 
@@ -63,24 +69,20 @@ def validate_jwt(
     """
     if encoded_token is None:
         try:
-            encoded_token = (
-                flask.request
-                .headers['Authorization']
-                .split(' ')[1]
-            )
+            encoded_token = flask.request.headers["Authorization"].split(" ")[1]
         except IndexError:
-            raise JWTError('could not parse authorization header')
+            raise JWTError("could not parse authorization header")
         except KeyError:
-            raise JWTError('no authorization header provided')
-    aud = aud or {'openid'}
+            raise JWTError("no authorization header provided")
+    aud = aud or {"openid"}
     aud = set(aud)
-    iss = flask.current_app.config['BASE_URL']
+    iss = flask.current_app.config["BASE_URL"]
     issuers = [iss]
-    oidc_iss = flask.current_app.config.get('OIDC_ISSUER')
+    oidc_iss = flask.current_app.config.get("OIDC_ISSUER")
     if oidc_iss:
         issuers.append(oidc_iss)
     try:
-        token_iss = jwt.decode(encoded_token, verify=False).get('iss')
+        token_iss = jwt.decode(encoded_token, verify=False).get("iss")
     except jwt.InvalidTokenError as e:
         raise JWTError(e.message)
     attempt_refresh = attempt_refresh and (token_iss != iss)
@@ -98,32 +100,27 @@ def validate_jwt(
             **kwargs
         )
     except authutils.errors.JWTError as e:
-        msg = 'Invalid token : {}'.format(str(e))
+        msg = "Invalid token : {}".format(str(e))
         unverified_claims = jwt.decode(encoded_token, verify=False)
-        if '' in unverified_claims['aud']:
-            msg += '; was OIDC client configured with scopes?'
+        if "" in unverified_claims["aud"]:
+            msg += "; was OIDC client configured with scopes?"
         raise JWTError(msg)
     if purpose:
         validate_purpose(claims, purpose)
-    if 'pur' not in claims:
-        raise JWTError(
-            'token {} missing purpose (`pur`) claim'
-            .format(claims['jti'])
-        )
+    if "pur" not in claims:
+        raise JWTError("token {} missing purpose (`pur`) claim".format(claims["jti"]))
 
     # For refresh tokens and API keys specifically, check that they are not
     # blacklisted.
-    if claims['pur'] == 'refresh' or claims['pur'] == 'api_key':
-        if is_blacklisted(claims['jti']):
-            raise JWTError('token is blacklisted')
+    if claims["pur"] == "refresh" or claims["pur"] == "api_key":
+        if is_blacklisted(claims["jti"]):
+            raise JWTError("token is blacklisted")
 
     return claims
 
 
 def require_jwt(aud=None, purpose=None):
-
     def decorator(f):
-
         def wrapper(*args, **kwargs):
 
             validate_jwt(aud=aud, purpose=purpose)

@@ -138,12 +138,16 @@ class GoogleProjectValidity(ValidityInfo):
             }
         }
     """
+
     def __init__(
-            self, google_project_id,
-            new_service_account=None,
-            new_service_account_access=None,
-            user_id=None,
-            *args, **kwargs):
+        self,
+        google_project_id,
+        new_service_account=None,
+        new_service_account_access=None,
+        user_id=None,
+        *args,
+        **kwargs
+    ):
         """
         Initialize
 
@@ -165,13 +169,13 @@ class GoogleProjectValidity(ValidityInfo):
 
         # setup default values for error information, will get updated in
         # check_validity
-        self._info['user_has_access'] = None
-        self._info['monitor_has_access'] = None
-        self._info['valid_parent_org'] = None
-        self._info['valid_member_types'] = None
-        self._info['members_exist_in_fence'] = None
-        self._info['service_accounts'] = {}
-        self._info['access'] = {}
+        self._info["user_has_access"] = None
+        self._info["monitor_has_access"] = None
+        self._info["valid_parent_org"] = None
+        self._info["valid_member_types"] = None
+        self._info["members_exist_in_fence"] = None
+        self._info["service_accounts"] = {}
+        self._info["access"] = {}
 
     def check_validity(self, early_return=True, db=None):
         """
@@ -183,35 +187,33 @@ class GoogleProjectValidity(ValidityInfo):
             early_return (bool, optional): Description
         """
         has_access = can_access_google_project(self.google_project_id)
-        self.set('monitor_has_access', has_access)
+        self.set("monitor_has_access", has_access)
         # always early return if we can't access the project
         if not has_access:
             return
 
         user_has_access = is_user_member_of_all_google_projects(
-            self.user_id, [self.google_project_id])
-        self.set('user_has_access', user_has_access)
+            self.user_id, [self.google_project_id]
+        )
+        self.set("user_has_access", user_has_access)
         if not user_has_access:
             # always early return if user isn't a member on the project
             return
 
-        valid_parent_org = (
-            not google_project_has_parent_org(self.google_project_id)
-        )
-        self.set('valid_parent_org', valid_parent_org)
+        valid_parent_org = not google_project_has_parent_org(self.google_project_id)
+        self.set("valid_parent_org", valid_parent_org)
         if not valid_parent_org and early_return:
             return
 
         user_members = None
         service_account_members = []
         try:
-            user_members, service_account_members = (
-                get_google_project_valid_users_and_service_accounts(
-                    self.google_project_id)
+            user_members, service_account_members = get_google_project_valid_users_and_service_accounts(
+                self.google_project_id
             )
-            self.set('valid_member_types', True)
+            self.set("valid_member_types", True)
         except Exception:
-            self.set('valid_member_types', False)
+            self.set("valid_member_types", False)
             if early_return:
                 return
 
@@ -220,19 +222,17 @@ class GoogleProjectValidity(ValidityInfo):
         if user_members is not None:
             try:
                 users_in_project = get_users_from_google_members(user_members)
-                self.set('members_exist_in_fence', True)
+                self.set("members_exist_in_fence", True)
             except Exception:
-                self.set('members_exist_in_fence', False)
+                self.set("members_exist_in_fence", False)
                 if early_return:
                     return
 
-        service_accounts = (
-            get_service_account_ids_from_google_members(
-                service_account_members)
+        service_accounts = get_service_account_ids_from_google_members(
+            service_account_members
         )
 
-        remove_white_listed_service_account_ids(
-            service_accounts)
+        remove_white_listed_service_account_ids(service_accounts)
 
         if self.new_service_account:
             service_accounts.append(self.new_service_account)
@@ -245,26 +245,23 @@ class GoogleProjectValidity(ValidityInfo):
             service_account_validity_info = GoogleServiceAccountValidity(
                 service_account, self.google_project_id
             )
-            service_account_validity_info.check_validity(
-                early_return=early_return
-            )
+            service_account_validity_info.check_validity(early_return=early_return)
             if not service_account_validity_info and early_return:
                 return
 
             # update project with error info from the service accounts
             service_account_id = str(service_account)
             service_accounts_validity.set(
-                service_account_id, service_account_validity_info)
+                service_account_id, service_account_validity_info
+            )
 
-        self.set('service_accounts', service_accounts_validity)
+        self.set("service_accounts", service_accounts_validity)
 
         # get the service accounts for the project to determine all the data
         # the project can access through the service accounts
-        service_accounts = (
-            get_registered_service_accounts(self.google_project_id)
-        )
-        service_account_project_access = (
-            get_project_access_from_service_accounts(service_accounts)
+        service_accounts = get_registered_service_accounts(self.google_project_id)
+        service_account_project_access = get_project_access_from_service_accounts(
+            service_accounts
         )
 
         # use a generic validityinfo object to hold all the projects validity
@@ -277,10 +274,9 @@ class GoogleProjectValidity(ValidityInfo):
             # if provided access doesn't exist, set error in project_validity
             if not project:
                 project_validity = ValidityInfo()
-                project_validity.set('exists', False)
-                project_validity.set('all_users_have_access', None)
-                project_access_validities.set(
-                    str(provided_access), project_validity)
+                project_validity.set("exists", False)
+                project_validity.set("all_users_have_access", None)
+                project_access_validities.set(str(provided_access), project_validity)
             else:
                 service_account_project_access.append(project)
 
@@ -288,20 +284,20 @@ class GoogleProjectValidity(ValidityInfo):
         # the data the service accounts have access to
         for project in service_account_project_access:
             project_validity = ValidityInfo()
-            project_validity.set('exists', True)
+            project_validity.set("exists", True)
 
             # if all the users exist in our db, we can check if they have valid
             # access
             valid_access = None
             if users_in_project:
                 valid_access = do_all_users_have_access_to_project(
-                    users_in_project, project.id)
-            project_validity.set('all_users_have_access', valid_access)
+                    users_in_project, project.id
+                )
+            project_validity.set("all_users_have_access", valid_access)
 
-            project_access_validities.set(
-                str(project.auth_id), project_validity)
+            project_access_validities.set(str(project.auth_id), project_validity)
 
-        self.set('access', project_access_validities)
+        self.set("access", project_access_validities)
         return
 
 
@@ -341,31 +337,31 @@ class GoogleServiceAccountValidity(ValidityInfo):
 
         # setup default values for error information, will get updated in
         # check_validity
-        self._info['owned_by_project'] = None
-        self._info['valid_type'] = None
-        self._info['no_external_access'] = None
+        self._info["owned_by_project"] = None
+        self._info["valid_type"] = None
+        self._info["no_external_access"] = None
 
     def check_validity(self, early_return=True):
-        is_owned_by_google_project = (
-            is_service_account_from_google_project(
-                self.account_id,
-                self.google_project_id)
+        is_owned_by_google_project = is_service_account_from_google_project(
+            self.account_id, self.google_project_id
         )
-        self.set('owned_by_project', is_owned_by_google_project)
+        self.set("owned_by_project", is_owned_by_google_project)
         if not is_owned_by_google_project:
             # we cannot determine further information if the account isn't
             # owned by the project
             return
 
-        valid_type = is_valid_service_account_type(self.google_project_id, self.account_id)
+        valid_type = is_valid_service_account_type(
+            self.google_project_id, self.account_id
+        )
 
-        self.set('valid_type', valid_type)
+        self.set("valid_type", valid_type)
         if not valid_type and early_return:
             return
 
         no_external_access = not (
             service_account_has_external_access(self.account_id, self.google_project_id)
         )
-        self.set('no_external_access', no_external_access)
+        self.set("no_external_access", no_external_access)
         if not no_external_access and early_return:
             return

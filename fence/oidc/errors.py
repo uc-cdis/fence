@@ -5,6 +5,7 @@ class OIDCError(AuthError):
     """
     Base class for errors specified by OIDC.
     """
+
     pass
 
 
@@ -16,9 +17,9 @@ class InteractionRequiredError(OIDCError):
     completed without displaying a user interface for End-User interaction.
     """
 
-    def __init__(self, message='', error_uri=None):
+    def __init__(self, message="", error_uri=None):
         super(InteractionRequiredError, self).__init__(message, error_uri)
-        self.error_code = 'interaction_required'
+        self.error_code = "interaction_required"
 
 
 class LoginRequiredError(OIDCError):
@@ -29,9 +30,9 @@ class LoginRequiredError(OIDCError):
     displaying a user interface for End-User authentication.
     """
 
-    def __init__(self, message='', error_uri=None):
+    def __init__(self, message="", error_uri=None):
         super(InteractionRequiredError, self).__init__(message, error_uri)
-        self.error_code = 'interaction_required'
+        self.error_code = "interaction_required"
 
 
 class AccountSelectionRequiredError(OIDCError):
@@ -45,9 +46,9 @@ class AccountSelectionRequiredError(OIDCError):
     use.
     """
 
-    def __init__(self, message='', error_uri=None):
+    def __init__(self, message="", error_uri=None):
         super(InteractionRequiredError, self).__init__(message, error_uri)
-        self.error_code = 'interaction_required'
+        self.error_code = "interaction_required"
 
 
 class ConsentRequiredError(OIDCError):
@@ -58,9 +59,9 @@ class ConsentRequiredError(OIDCError):
     a user interface for End-User consent.
     """
 
-    def __init__(self, message='', error_uri=None):
+    def __init__(self, message="", error_uri=None):
         super(InteractionRequiredError, self).__init__(message, error_uri)
-        self.error_code = 'interaction_required'
+        self.error_code = "interaction_required"
 
 
 class InvalidRequestUriError(OIDCError):
@@ -69,9 +70,9 @@ class InvalidRequestUriError(OIDCError):
     invalid data.
     """
 
-    def __init__(self, message='', error_uri=None):
+    def __init__(self, message="", error_uri=None):
         super(InteractionRequiredError, self).__init__(message, error_uri)
-        self.error_code = 'interaction_required'
+        self.error_code = "interaction_required"
 
 
 class InvalidRequestObjectError(OIDCError):
@@ -79,9 +80,9 @@ class InvalidRequestObjectError(OIDCError):
     The request parameter contains an invalid Request Object.
     """
 
-    def __init__(self, message='', error_uri=None):
+    def __init__(self, message="", error_uri=None):
         super(InteractionRequiredError, self).__init__(message, error_uri)
-        self.error_code = 'interaction_required'
+        self.error_code = "interaction_required"
 
 
 class RequestNotSupportedError(OIDCError):
@@ -89,9 +90,9 @@ class RequestNotSupportedError(OIDCError):
     The OP does not support use of the request parameter defined in Section 6.
     """
 
-    def __init__(self, message='', error_uri=None):
+    def __init__(self, message="", error_uri=None):
         super(InteractionRequiredError, self).__init__(message, error_uri)
-        self.error_code = 'interaction_required'
+        self.error_code = "interaction_required"
 
 
 class RequestUriNotSupportedError(OIDCError):
@@ -100,9 +101,9 @@ class RequestUriNotSupportedError(OIDCError):
     6.
     """
 
-    def __init__(self, message='', error_uri=None):
+    def __init__(self, message="", error_uri=None):
         super(InteractionRequiredError, self).__init__(message, error_uri)
-        self.error_code = 'interaction_required'
+        self.error_code = "interaction_required"
 
 
 class RegistrationNotSupportedError(OIDCError):
@@ -111,6 +112,6 @@ class RegistrationNotSupportedError(OIDCError):
     Section 7.2.1.
     """
 
-    def __init__(self, message='', error_uri=None):
+    def __init__(self, message="", error_uri=None):
         super(InteractionRequiredError, self).__init__(message, error_uri)
-        self.error_code = 'interaction_required'
+        self.error_code = "interaction_required"
