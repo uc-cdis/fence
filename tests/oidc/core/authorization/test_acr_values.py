@@ -22,7 +22,9 @@ def test_acr_values(client, oauth_client):
     Test the very basic requirement that including the ``acr_values`` parameter
     does not cause any errors and the acr claim is represented in the resulting token.
     """
-    data = {'acr_values': ''}
-    token_response = oauth2.get_token_response(client, oauth_client, code_request_data=data).json
-    id_token = validate_jwt(token_response['id_token'], {'openid'})
-    assert 'acr' in id_token
+    data = {"acr_values": ""}
+    token_response = oauth2.get_token_response(
+        client, oauth_client, code_request_data=data
+    ).json
+    id_token = validate_jwt(token_response["id_token"], {"openid"})
+    assert "acr" in id_token

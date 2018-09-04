@@ -22,7 +22,7 @@ def test_ui_locale_no_errors(oauth_test_client):
     Test the very basic requirement that including the ``ui_locales`` parameter
     does not cause any errors.
     """
-    data = {'confirm': 'yes', 'ui_locales': 'fr-CA fr en'}
+    data = {"confirm": "yes", "ui_locales": "fr-CA fr en"}
     auth_response = oauth_test_client.authorize(data=data).response
     assert auth_response.status_code == 200
-    assert 'redirect' in auth_response.json
+    assert "redirect" in auth_response.json
