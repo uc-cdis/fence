@@ -939,7 +939,8 @@ class UserSyncer(object):
         # Set up the resource tree in arborist
         if resources:
             try:
-                self.arborist_client.create_resource('/', resources)
+                for resource in resources:
+                    self.arborist_client.create_resource('/', resource)
             except ArboristError as e:
                 self.logger.error(e)
                 return False
