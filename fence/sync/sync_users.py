@@ -24,6 +24,7 @@ from fence.models import (
     Project,
     Tag,
     User,
+    users_to_policies,
 )
 from fence.rbac.client import ArboristClient, ArboristError
 from fence.resources.storage import StorageManager
@@ -66,7 +67,6 @@ def arborist_role_for_permission(permission):
             }
         ],
     }
-
 
 
 class UserSyncer(object):
@@ -907,6 +907,10 @@ class UserSyncer(object):
         else:
             self.logger.info('No resources specified; skipping arborist sync')
 
+    def _reset_user_access(self, session):
+        session.execute(users_to_policies.delete())
+        # TODO: revoke admin access etc
+
     def _update_arborist(self, session, resources, user_projects):
         """
         Create roles and resources in arborist from the information in
@@ -943,6 +947,8 @@ class UserSyncer(object):
         created_roles = set()
         created_policies = set()
 
+        self._reset_user_access(session)
+
         for username, user_resources in user_projects.iteritems():
             self.logger.info('processing user `{}`'.format(username))
             user = (
@@ -951,8 +957,7 @@ class UserSyncer(object):
                 .filter(func.lower(User.username) == username.lower())
                 .first()
             )
-            # reset user policies; update to exactly what's in the yaml file
-            user.policies = []
+
             for path, permissions in user_resources.iteritems():
                 for permission in permissions:
                     # "permission" in the dbgap sense, not the arborist sense
