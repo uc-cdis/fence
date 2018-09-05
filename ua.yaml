@@ -25,6 +25,8 @@ users:
         admin: True
         projects:
           - auth_id: bar
+            path: /programs/test/projects/bar
             privilege: ['read', 'update', 'create', 'delete']
           - auth_id: quux
+            path: /programs/test/projects/quux
             privilege: ['read', 'update', 'create', 'delete']
