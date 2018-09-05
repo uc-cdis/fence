@@ -419,15 +419,12 @@ class UserSyncer(object):
                 raise EnvironmentError(msg)
             resource_permissions = dict()
             for project in user_info.get('projects', {}):
+                # project may not have `resource` field
                 try:
-                    resource_permissions[project['resource']] = set(
-                        project['privilege']
-                    )
-                except KeyError as e:
-                    self.logger.error(
-                        'user YAML file: project for user {} missing field {}'
-                        .format(username, e)
-                    )
+                    resource = project['resource']
+                except KeyError:
+                    continue
+                resource_permissions[resource] = set(project['privilege'])
             result[username] = resource_permissions
 
         return result, resources
