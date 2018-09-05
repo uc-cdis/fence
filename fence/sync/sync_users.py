@@ -53,6 +53,22 @@ def download_dir(sftp, remote_dir, local_dir):
             sftp.get(remote_path, local_path)
 
 
+def arborist_role_for_permission(permission):
+    return {
+        'id': permission,
+        'permissions': [
+            {
+                'id': permission,
+                'action': {
+                    'service': '',
+                    'method': permission,
+                },
+            }
+        ],
+    }
+
+
+
 class UserSyncer(object):
 
     def __init__(
@@ -945,20 +961,14 @@ class UserSyncer(object):
                     # "permission" in the dbgap sense, not the arborist sense
                     if permission not in created_roles:
                         try:
-                            self.arborist_client.create_role({
-                                'id': permission,
-                                'permissions': [
-                                    {
-                                        'id': permission,
-                                        'action': {
-                                            'service': '',
-                                            'method': permission,
-                                        },
-                                    }
-                                ],
-                            })
-                        except ArboristError:
-                            continue
+                            self.arborist_client.create_role(
+                                arborist_role_for_permission(permission)
+                            )
+                        except ArboristError as e:
+                            self.logger.info(
+                                'not creating role for permission `{}`; {}'
+                                .format(permission, str(e))
+                            )
                         created_roles.add(permission)
 
                     # If everything was created fine, grant a policy to
@@ -976,7 +986,11 @@ class UserSyncer(object):
                                 'role_ids': [permission],
                                 'resource_paths': [path],
                             })
-                        except ArboristError:
+                        except ArboristError as e:
+                            self.logger.info(
+                                'not creating policy in arborist; {}'
+                                .format(str(e))
+                            )
                             continue
                         created_policies.add(policy_id)
                     policy = (
@@ -987,6 +1001,7 @@ class UserSyncer(object):
                     )
                     if not policy:
                         policy = Policy(id=policy_id)
+                        session.add(policy)
                         self.logger.info(
                             'created policy `{}`'.format(policy_id)
                         )
