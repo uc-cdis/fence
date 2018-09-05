@@ -603,7 +603,7 @@ class UserSyncer(object):
                     user_project[username][project_auth_id]),
                 auth_provider=auth_provider)
             self.logger.info(
-                'grant user {} to {} with access {}'
+                'grant user `{}` to project `{}` with access `{}`'
                 .format(username, user_access.project, user_access.privilege)
             )
             sess.add(user_access)
@@ -890,7 +890,7 @@ class UserSyncer(object):
                 if project not in created_projects:
                     resource_path = '/projects/{}'.format(project)
                     self.logger.info(
-                        'creating resource {}'.format(resource_path)
+                        'creating resource `{}`'.format(resource_path)
                     )
                     response = self.arborist_client.create_resource(
                         '/projects',
@@ -899,7 +899,7 @@ class UserSyncer(object):
                     if 'error' in response:
                         project_errored = True
                         self.logger.error(
-                            'error trying to create resource in arborist: {}'
+                            'error trying to create resource in arborist: `{}`'
                             .format(response['error'])
                         )
                     created_projects.add(project)
@@ -907,7 +907,7 @@ class UserSyncer(object):
                     # "permission" in the dbgap sense, not the arborist sense
                     permission_errored = False
                     if permission not in created_roles:
-                        self.logger.info('creating role {}'.format(permission))
+                        self.logger.info('creating role `{}`'.format(permission))
                         response = self.arborist_client.create_role({
                             'id': permission,
                             'permissions': [
@@ -923,7 +923,7 @@ class UserSyncer(object):
                         if 'error' in response:
                             permission_errored = True
                             self.logger.error(
-                                'error trying to create role in arborist: {}'
+                                'error trying to create role in arborist: `{}`'
                                 .format(response['error'])
                             )
                         created_roles.add(permission)
@@ -935,13 +935,13 @@ class UserSyncer(object):
                         policy_id = _format_policy_id(project, permission)
                         if self.arborist_client.get_policy(policy_id):
                             self.logger.info(
-                                'policy {} already exists, skipping'
+                                'policy `{}` already exists, skipping'
                                 .format(policy_id)
                             )
                             continue
 
                         self.logger.info(
-                            'creating policy {}'.format(policy_id)
+                            'creating policy `{}`'.format(policy_id)
                         )
                         response = self.arborist_client.create_policy({
                             'id': policy_id,
@@ -962,6 +962,7 @@ class UserSyncer(object):
                         )
                         if not policy:
                             policy = Policy(id=policy_id)
+                            session.add(policy)
                         if policy not in user.policies:
                             user.policies.append(policy)
 

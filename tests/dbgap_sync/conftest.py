@@ -148,6 +148,7 @@ def syncer(db_session, request):
         sync_from_local_yaml_file=LOCAL_YAML_DIR,
     )
     syncer_obj.arborist_client = MagicMock(ArboristClient)
+    syncer_obj.arborist_client.get_policy.side_effect = lambda _: None
 
     for element in provider:
         udm.create_provider(
