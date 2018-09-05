@@ -988,7 +988,6 @@ class UserSyncer(object):
                                 'not creating policy in arborist; {}'
                                 .format(str(e))
                             )
-                            continue
                         created_policies.add(policy_id)
                     policy = (
                         session
