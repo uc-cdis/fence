@@ -422,8 +422,9 @@ def _force_remove_service_account_from_access_db(
             )
             .first()
         )
-        session.delete(sa_to_group)
-        session.commit()
+        if sa_to_group:
+            session.delete(sa_to_group)
+            session.commit()
 
     # delete all access privileges
     access_privileges = (
