@@ -509,23 +509,23 @@ def get_prefix_for_google_proxy_groups():
         )
     return prefix
 
+
 def get_all_registered_service_accounts(db):
     """
     Get all registerd service accounts from db
     """
-    driver = SQLAlchemyDriver(db)
+    session = get_db_session(db)
     registered_service_accounts = []
-    with driver.session as session:
-        for account in (
-                session
-                .query(ServiceAccountToGoogleBucketAccessGroup)
-                .all()
-        ):
-            registered_service_accounts.extend(
-                session.query(UserServiceAccount)
-                .filter_by(google_project_id=account.service_account.google_project_id)
-                .all()
-            )
+    for account in (
+            session
+            .query(ServiceAccountToGoogleBucketAccessGroup)
+            .all()
+    ):
+        registered_service_accounts.extend(
+            session.query(UserServiceAccount)
+            .filter_by(google_project_id=account.service_account.google_project_id)
+            .all()
+        )
 
     return registered_service_accounts
 
