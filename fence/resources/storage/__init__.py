@@ -420,6 +420,9 @@ class StorageManager(object):
         session.add(storage_user_access_db_entry)
         session.commit()
 
+    # FIXME: create a delete() on GoogleProxyGroupToGoogleBucketAccessGroup and use here.
+    #        previous attempts to use similar delete() calls on other models resulting in errors
+    #        with mismatched sessions during testing
     @staticmethod
     def _remove_google_db_entry_for_bucket_access(
         storage_user, bucket_access_group, session
