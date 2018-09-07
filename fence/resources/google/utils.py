@@ -510,7 +510,7 @@ def get_prefix_for_google_proxy_groups():
     return prefix
 
 
-def get_all_registered_service_accounts(db):
+def get_all_registered_service_accounts(db=None):
     """
     Get all registerd service accounts from db
     """
