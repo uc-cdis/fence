@@ -178,7 +178,7 @@ def app_sessions(app):
     app.session_interface = UserSessionInterface()
     if app.config.get('ARBORIST'):
         app.arborist = ArboristClient(
-            arborist_base_url=app.config['ARBORIST']['base_url']
+            arborist_base_url=app.config['ARBORIST']
         )
 
 

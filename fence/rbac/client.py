@@ -65,7 +65,7 @@ class ArboristClient(object):
         response = requests.get(self._resource_url + resource_path)
         if response.status_code == 404:
             return None
-        return response.get_json()
+        return response.json()
 
     def list_policies(self):
         """
@@ -207,6 +207,15 @@ class ArboristClient(object):
             raise ArboristError(response['error'])
         self.logger.info('created role {}'.format(role_json['id']))
         return response
+
+    def get_policy(self, policy_id):
+        """
+        Return the JSON representation of a policy with this ID.
+        """
+        response = requests.get(self._policy_url + policy_id)
+        if response.status_code == 404:
+            return None
+        return response.json()
 
     def create_policy(self, policy_json):
         response = _request_get_json(requests.post(
