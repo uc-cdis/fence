@@ -689,7 +689,7 @@ def _get_google_access_groups(session, project_id):
         groups = bucket.google_bucket_access_groups
         access_groups.extend(groups)
 
-    return access_groups
+    return set(access_groups)
 
 
 def extend_service_account_access(service_account_email, db=None):
