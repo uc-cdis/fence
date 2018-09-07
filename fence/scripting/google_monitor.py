@@ -7,14 +7,11 @@ handle invalid service accounts and projects.
 """
 
 from fence.resources.google.validity import (
-    GoogleProjectValidity, GoogleServiceAccountValidity
+    GoogleProjectValidity,
+    GoogleServiceAccountValidity,
 )
-from fence.resources.google.utils import (
-    get_all_registered_service_accounts
-)
-from fence.resources.google.access_utils import (
-    force_remove_service_account_from_access
-)
+from fence.resources.google.utils import get_all_registered_service_accounts
+from fence.resources.google.access_utils import force_remove_service_account_from_access
 
 
 def validation_check(db):
@@ -32,24 +29,25 @@ def validation_check(db):
                 and delays from the google API
     """
     registered_service_accounts = get_all_registered_service_accounts(db=db)
-    project_service_account_mapping = (
-        _get_project_service_account_mapping(registered_service_accounts)
+    project_service_account_mapping = _get_project_service_account_mapping(
+        registered_service_accounts
     )
     for google_project_id, sa_emails in project_service_account_mapping.iteritems():
-        print('Validating Google Project: {}'.format(google_project_id))
+        print("Validating Google Project: {}".format(google_project_id))
         for sa_email in sa_emails:
-            print('    Validating Google Service Account: {}'.format(sa_email))
+            print("    Validating Google Service Account: {}".format(sa_email))
             # Do some basic service account checks, this won't validate
             # the data access, that's done whe the project's validated
             if not _is_valid_service_account(sa_email, google_project_id):
                 print(
-                    'INVALID SERVICE ACCOUNT {} DETECTED. REMOVING...'
-                    .format(sa_email))
+                    "INVALID SERVICE ACCOUNT {} DETECTED. REMOVING...".format(sa_email)
+                )
                 force_remove_service_account_from_access(
-                    sa_email, google_project_id, db=db)
+                    sa_email, google_project_id, db=db
+                )
                 continue
 
-            print('VALID.')
+            print("VALID.")
 
         if not _is_valid_google_project(google_project_id, db=db):
             # for now, if we detect in invalid project, remove ALL service
@@ -59,15 +57,16 @@ def validation_check(db):
             # it may be possible to isolate it and only remove that
             # from access.
             print(
-                'INVALID GOOGLE PROJECT {} DETECTED. '
-                'REMOVING ALL SERVICE ACCOUNTS...'
-                .format(google_project_id))
+                "INVALID GOOGLE PROJECT {} DETECTED. "
+                "REMOVING ALL SERVICE ACCOUNTS...".format(google_project_id)
+            )
             for sa_email in sa_emails:
                 force_remove_service_account_from_access(
-                    sa_email, google_project_id, db=db)
+                    sa_email, google_project_id, db=db
+                )
             continue
 
-        print('VALID.')
+        print("VALID.")
 
 
 def _is_valid_service_account(sa_email, google_project_id):
@@ -110,10 +109,7 @@ def _get_google_project_ids_from_service_accounts(registered_service_accounts):
     Return a set of just the google project ids that have registered
     service accounts.
     """
-    google_projects = set([
-        sa.google_project_id
-        for sa in registered_service_accounts
-    ])
+    google_projects = set([sa.google_project_id for sa in registered_service_accounts])
     return google_projects
 
 

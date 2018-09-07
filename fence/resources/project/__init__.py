@@ -10,7 +10,12 @@ this logic.
 """
 
 from fence.resources.userdatamodel import (
-    get_project, get_all_projects, get_project_info, create_project,
-    delete_project, create_bucket_on_project, delete_bucket_on_project,
-    list_buckets_on_project
+    get_project,
+    get_all_projects,
+    get_project_info,
+    create_project,
+    delete_project,
+    create_bucket_on_project,
+    delete_bucket_on_project,
+    list_buckets_on_project,
 )

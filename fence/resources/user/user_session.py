@@ -53,10 +53,7 @@ class UserSession(SessionMixin):
 
         if session_token:
             try:
-                jwt_info = validate_jwt(
-                    session_token,
-                    aud={'fence'}
-                )
+                jwt_info = validate_jwt(session_token, aud={"fence"})
             except JWTError:
                 # if session token is invalid, create a new
                 # empty one silently
@@ -71,19 +68,16 @@ class UserSession(SessionMixin):
 
     def _get_initial_session_token(self):
         keypair = current_app.keypairs[0]
-        session_token = (
-            generate_signed_session_token(
-                kid=keypair.kid,
-                private_key=keypair.private_key,
-                expires_in=current_app.config.get('SESSION_TIMEOUT'),
-            )
-            .token
-        )
+        session_token = generate_signed_session_token(
+            kid=keypair.kid,
+            private_key=keypair.private_key,
+            expires_in=current_app.config.get("SESSION_TIMEOUT"),
+        ).token
         self._encoded_token = session_token
         initial_token = validate_jwt(
             session_token,
-            aud={'fence'},
-            purpose='session',
+            aud={"fence"},
+            purpose="session",
             public_key=default_public_key(),
         )
         return initial_token
@@ -99,8 +93,9 @@ class UserSession(SessionMixin):
             # to the issue time for the JWT and passed into future tokens
             # to keep track of the overall lifetime of the session
             token = create_session_token(
-                current_app.keypairs[0], app.config.get('SESSION_TIMEOUT'),
-                self.session_token['context']
+                current_app.keypairs[0],
+                app.config.get("SESSION_TIMEOUT"),
+                self.session_token["context"],
             )
             self._encoded_token = token
 
@@ -110,27 +105,26 @@ class UserSession(SessionMixin):
         """
         get a value from session json
         """
-        return self.session_token['context'].get(key, *args)
+        return self.session_token["context"].get(key, *args)
 
     def pop(self, key, default):
-        return self.session_token['context'].pop(key, default)
+        return self.session_token["context"].pop(key, default)
 
     def clear(self):
         """
         clear current session
         """
         self._encoded_token = None
-        self.session_token = {'context': {}}
+        self.session_token = {"context": {}}
 
     def clear_if_expired(self, app):
         if self._encoded_token:
             now = int(time.time())
-            is_expired = (self.session_token['exp'] <= now)
-            end_of_life = (
-                self.session_token['context']['session_started']
-                + app.config.get('SESSION_LIFETIME')
-            )
-            lifetime_over = (end_of_life <= now)
+            is_expired = self.session_token["exp"] <= now
+            end_of_life = self.session_token["context"][
+                "session_started"
+            ] + app.config.get("SESSION_LIFETIME")
+            lifetime_over = end_of_life <= now
             if is_expired or lifetime_over:
                 self.clear()
         else:
@@ -138,10 +132,10 @@ class UserSession(SessionMixin):
             self.clear()
 
     def __contains__(self, key):
-        return key in self.session_token['context']
+        return key in self.session_token["context"]
 
     def __getitem__(self, key):
-        return self.session_token['context'][key]
+        return self.session_token["context"][key]
 
     def __setitem__(self, key, value):
         # If token doesn't exists, create the first session token when
@@ -149,11 +143,11 @@ class UserSession(SessionMixin):
         if not self._encoded_token:
             self.create_initial_token()
 
-        self.session_token['context'][key] = value
+        self.session_token["context"][key] = value
         self.modified = True
 
     def __delitem__(self, key):
-        del self.session_token['context'][key]
+        del self.session_token["context"][key]
         self.modified = True
 
     def __iter__(self):
@@ -165,7 +159,6 @@ class UserSession(SessionMixin):
 
 
 class UserSessionInterface(SessionInterface):
-
     def __init__(self):
         super(UserSessionInterface, self).__init__()
 
@@ -184,7 +177,7 @@ class UserSessionInterface(SessionInterface):
 
     @staticmethod
     def get_expiration_time(app, session):
-        token_expiration = session.session_token['exp']
+        token_expiration = session.session_token["exp"]
         timeout = datetime.fromtimestamp(token_expiration, pytz.utc)
         return timeout
 
@@ -193,9 +186,11 @@ class UserSessionInterface(SessionInterface):
         token = session.get_updated_token(app)
         if token:
             response.set_cookie(
-                app.session_cookie_name, token,
-                expires=self.get_expiration_time(app, session), httponly=True,
-                domain=domain
+                app.session_cookie_name,
+                token,
+                expires=self.get_expiration_time(app, session),
+                httponly=True,
+                domain=domain,
             )
             # try to get user, execption means they're not logged in
             try:
@@ -207,18 +202,22 @@ class UserSessionInterface(SessionInterface):
 
             # user_id == '' in session means no login has occured, which is
             # okay if user is hitting with just an access_token
-            if user_sess_id != '' and not user:
+            if user_sess_id != "" and not user:
                 response.set_cookie(
-                    app.config['ACCESS_TOKEN_COOKIE_NAME'],
+                    app.config["ACCESS_TOKEN_COOKIE_NAME"],
                     expires=0,
-                    httponly=True, domain=domain)
+                    httponly=True,
+                    domain=domain,
+                )
             # check that the current user is the one from the session,
             # clear access token if not
-            elif user_sess_id != '' and user.id != user_sess_id:
+            elif user_sess_id != "" and user.id != user_sess_id:
                 response.set_cookie(
-                    app.config['ACCESS_TOKEN_COOKIE_NAME'],
+                    app.config["ACCESS_TOKEN_COOKIE_NAME"],
                     expires=0,
-                    httponly=True, domain=domain)
+                    httponly=True,
+                    domain=domain,
+                )
 
             # if a user is logged in and doesn't have an access token, let's
             # generate one
@@ -236,13 +235,14 @@ class UserSessionInterface(SessionInterface):
             #       expiration it just won't be stored in the cookie
             #       anymore
             response.set_cookie(
-                app.session_cookie_name,
-                expires=0,
-                httponly=True, domain=domain)
+                app.session_cookie_name, expires=0, httponly=True, domain=domain
+            )
             response.set_cookie(
-                app.config['ACCESS_TOKEN_COOKIE_NAME'],
+                app.config["ACCESS_TOKEN_COOKIE_NAME"],
                 expires=0,
-                httponly=True, domain=domain)
+                httponly=True,
+                domain=domain,
+            )
 
 
 def _get_valid_access_token(app, session, request):
@@ -250,18 +250,13 @@ def _get_valid_access_token(app, session, request):
     Return a valid access token. If at any point access token is determined
     invalid, this will return None.
     """
-    access_token = (
-        request.cookies.get(app.config['ACCESS_TOKEN_COOKIE_NAME'], None)
-    )
+    access_token = request.cookies.get(app.config["ACCESS_TOKEN_COOKIE_NAME"], None)
 
     if not access_token:
         return None
 
     try:
-        valid_access_token = validate_jwt(
-            access_token,
-            purpose='access'
-        )
+        valid_access_token = validate_jwt(access_token, purpose="access")
     except Exception as exc:
         return None
 
@@ -288,10 +283,10 @@ def _get_valid_access_token(app, session, request):
 
 def _clear_session_if_expired(app, session):
     now = int(time.time())
-    is_expired = (session.session_token['exp'] <= now)
-    lifetime = app.config.get('SESSION_LIFETIME')
-    end_of_life = session['session_started'] + lifetime
-    lifetime_over = (end_of_life <= now)
+    is_expired = session.session_token["exp"] <= now
+    lifetime = app.config.get("SESSION_LIFETIME")
+    end_of_life = session["session_started"] + lifetime
+    lifetime_over = end_of_life <= now
     if is_expired or lifetime_over:
         session.clear()
 
@@ -301,27 +296,30 @@ def _create_access_token_cookie(app, session, response, user):
     scopes = SESSION_ALLOWED_SCOPES
 
     now = int(time.time())
-    expiration = now + app.config.get('ACCESS_TOKEN_EXPIRES_IN')
+    expiration = now + app.config.get("ACCESS_TOKEN_EXPIRES_IN")
 
     # try to get from current session, if it's not there, we have to hit db
-    linked_google_email = session.get('linked_google_email')
+    linked_google_email = session.get("linked_google_email")
     if not linked_google_email:
         linked_google_email = get_linked_google_account_email(user.id)
 
-    access_token = (
-        generate_signed_access_token(
-            keypair.kid, keypair.private_key, user,
-            app.config.get('ACCESS_TOKEN_EXPIRES_IN'), scopes,
-            forced_exp_time=expiration,
-            linked_google_email=linked_google_email
-        )
-        .token
-    )
+    access_token = generate_signed_access_token(
+        keypair.kid,
+        keypair.private_key,
+        user,
+        app.config.get("ACCESS_TOKEN_EXPIRES_IN"),
+        scopes,
+        forced_exp_time=expiration,
+        linked_google_email=linked_google_email,
+    ).token
 
     domain = app.session_interface.get_cookie_domain(app)
     response.set_cookie(
-        app.config['ACCESS_TOKEN_COOKIE_NAME'], access_token,
-        expires=expiration, httponly=True, domain=domain
+        app.config["ACCESS_TOKEN_COOKIE_NAME"],
+        access_token,
+        expires=expiration,
+        httponly=True,
+        domain=domain,
     )
 
     return response
@@ -332,7 +330,7 @@ def _get_user_id_from_session(session):
     Get user's identifier from the session. It could be their id or username
     since both are unique.
     """
-    user_sess_id = session.session_token.get('sub')
+    user_sess_id = session.session_token.get("sub")
     if user_sess_id:
         try:
             user_sess_id = int(user_sess_id)
@@ -347,7 +345,7 @@ def _get_user_id_from_access_token(access_token):
     """
     Get user's identifier from the access token claims
     """
-    token_user_id = access_token.get('sub')
+    token_user_id = access_token.get("sub")
     if token_user_id:
         try:
             token_user_id = int(token_user_id)

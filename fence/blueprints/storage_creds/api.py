@@ -9,10 +9,7 @@ from fence.jwt.blacklist import blacklist_token
 from fence.jwt.token import USER_ALLOWED_SCOPES
 from fence.models import UserRefreshToken
 
-from fence.resources.storage.cdis_jwt import (
-    create_user_access_token,
-    create_api_key,
-)
+from fence.resources.storage.cdis_jwt import create_user_access_token, create_api_key
 
 
 class ApiKeyList(Resource):
@@ -20,7 +17,7 @@ class ApiKeyList(Resource):
     For ``/credentials/api`` endpoint.
     """
 
-    @require_auth_header({'credentials'})
+    @require_auth_header({"credentials"})
     def get(self):
         """
         List access keys for user
@@ -46,22 +43,18 @@ class ApiKeyList(Resource):
 
         with flask.current_app.db.session as session:
             tokens = (
-                session
-                .query(UserRefreshToken)
+                session.query(UserRefreshToken)
                 .filter_by(userid=user_id)
                 .order_by(UserRefreshToken.expires.desc())
                 .all()
             )
             result = {
-                'jtis': [
-                    {'jti': item.jti, 'exp': item.expires}
-                    for item in tokens
-                ]
+                "jtis": [{"jti": item.jti, "exp": item.expires} for item in tokens]
             }
 
         return flask.jsonify(result)
 
-    @require_auth_header({'credentials'})
+    @require_auth_header({"credentials"})
     def post(self):
         """
         Generate a key for user
@@ -85,37 +78,31 @@ class ApiKeyList(Resource):
 
         # fence identifies access_token endpoint, openid is the default
         # scope for service endpoints
-        default_scope = ['fence', 'openid']
-        content_type = flask.request.headers.get('Content-Type')
-        if content_type == 'application/x-www-form-urlencoded':
-            scope = flask.request.form.getlist('scope')
+        default_scope = ["fence", "openid"]
+        content_type = flask.request.headers.get("Content-Type")
+        if content_type == "application/x-www-form-urlencoded":
+            scope = flask.request.form.getlist("scope")
         else:
             try:
-                scope = (
-                    json.loads(flask.request.data)
-                    .get('scope')
-                ) or []
+                scope = (json.loads(flask.request.data).get("scope")) or []
             except ValueError:
                 scope = []
         if not isinstance(scope, list):
-            scope = scope.split(',')
+            scope = scope.split(",")
         scope.extend(default_scope)
         for s in scope:
             if s not in USER_ALLOWED_SCOPES:
-                flask.abort(
-                    400, 'Scope {} is not supported'.format(s))
-        max_ttl = flask.current_app.config.get('MAX_API_KEY_TTL', 2592000)
-        expires_in = min(int(flask.request.args.get('expires_in', max_ttl)), max_ttl)
+                flask.abort(400, "Scope {} is not supported".format(s))
+        max_ttl = flask.current_app.config.get("MAX_API_KEY_TTL", 2592000)
+        expires_in = min(int(flask.request.args.get("expires_in", max_ttl)), max_ttl)
         api_key, claims = create_api_key(
-            user_id, flask.current_app.keypairs[0], expires_in, scope,
-            client_id
+            user_id, flask.current_app.keypairs[0], expires_in, scope, client_id
         )
-        return flask.jsonify(dict(key_id=claims['jti'], api_key=api_key))
+        return flask.jsonify(dict(key_id=claims["jti"], api_key=api_key))
 
 
 class ApiKey(Resource):
-
-    @require_auth_header({'credentials'})
+    @require_auth_header({"credentials"})
     def delete(self, access_key):
         """
         Delete a key for user
@@ -131,22 +118,18 @@ class ApiKey(Resource):
         jti = access_key
         with flask.current_app.db.session as session:
             api_key = (
-                session
-                .query(UserRefreshToken)
+                session.query(UserRefreshToken)
                 .filter_by(jti=jti, userid=user_id)
                 .first()
             )
         if not api_key:
-            flask.abort(
-                404, 'token not found with JTI {} for current user'
-                .format(jti))
+            flask.abort(404, "token not found with JTI {} for current user".format(jti))
         blacklist_token(jti, api_key.expires)
 
-        return '', 204
+        return "", 204
 
 
 class AccessKey(Resource):
-
     def post(self):
         """
         Generate an access_token for user given api_key
@@ -167,18 +150,20 @@ class AccessKey(Resource):
                 "access_token": "token_value"
             }
         """
-        if flask.request.headers.get('Content-Type') == 'application/x-www-form-urlencoded':
-            api_key = flask.request.form.get('api_key')
+        if (
+            flask.request.headers.get("Content-Type")
+            == "application/x-www-form-urlencoded"
+        ):
+            api_key = flask.request.form.get("api_key")
         else:
             try:
-                api_key = json.loads(flask.request.data).get('api_key')
+                api_key = json.loads(flask.request.data).get("api_key")
             except ValueError:
                 api_key = None
         if not api_key:
-            flask.abort(
-                    400, 'Please provide an api_key in payload')
-        max_ttl = flask.current_app.config.get('MAX_ACCESS_TOKEN_TTL', 3600)
-        expires_in = min(int(flask.request.args.get('expires_in', max_ttl)), max_ttl)
+            flask.abort(400, "Please provide an api_key in payload")
+        max_ttl = flask.current_app.config.get("MAX_ACCESS_TOKEN_TTL", 3600)
+        expires_in = min(int(flask.request.args.get("expires_in", max_ttl)), max_ttl)
         result = create_user_access_token(
             flask.current_app.keypairs[0], api_key, expires_in
         )

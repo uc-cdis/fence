@@ -40,10 +40,7 @@ def load_keypairs(keys_dir):
             formatted in ISO
     """
     # Get the absolute paths for the keypair directories.
-    keypair_directories = [
-        os.path.join(keys_dir, d)
-        for d in os.listdir(keys_dir)
-    ]
+    keypair_directories = [os.path.join(keys_dir, d) for d in os.listdir(keys_dir)]
 
     def key(keypair_dir):
         """
@@ -56,9 +53,7 @@ def load_keypairs(keys_dir):
         try:
             return dateutil.parser.parse(keypair_dir)
         except ValueError:
-            return datetime.datetime.fromtimestamp(int(
-                os.stat(keypair_dir).st_mtime
-            ))
+            return datetime.datetime.fromtimestamp(int(os.stat(keypair_dir).st_mtime))
 
     # Sort the keypair directories to load from in the order described in
     # ``key``.
@@ -66,9 +61,7 @@ def load_keypairs(keys_dir):
 
     # Load the keypairs from the directories.
     keypairs = [
-        Keypair.from_directory(d)
-        for d in keypair_directories
-        if os.path.isdir(d)
+        Keypair.from_directory(d) for d in keypair_directories if os.path.isdir(d)
     ]
 
     return keypairs
@@ -94,14 +87,10 @@ class Keypair(object):
         # Raise an error if either key does not match our expectations that the
         # private key should be private and the public key should not be
         # private.
-        if 'PRIVATE KEY' not in private_key:
-            raise ValueError(
-                'received private key that was not an RSA private key'
-            )
-        if 'PRIVATE KEY' in public_key:
-            raise ValueError(
-                'received public key that was actually an RSA private key'
-            )
+        if "PRIVATE KEY" not in private_key:
+            raise ValueError("received private key that was not an RSA private key")
+        if "PRIVATE KEY" in public_key:
+            raise ValueError("received public key that was actually an RSA private key")
 
         self.kid = kid
         self.public_key = public_key
@@ -131,33 +120,30 @@ class Keypair(object):
             EnvironmentError: if the public or private key files are missing
         """
         if naming_function is None:
-            naming_function = lambda d: 'fence_key_' + d
+            naming_function = lambda d: "fence_key_" + d
 
-        pub_filepath = os.path.join(keys_dir, 'jwt_public_key.pem')
-        prv_filepath = os.path.join(keys_dir, 'jwt_private_key.pem')
+        pub_filepath = os.path.join(keys_dir, "jwt_public_key.pem")
+        prv_filepath = os.path.join(keys_dir, "jwt_private_key.pem")
 
         if not os.path.isfile(pub_filepath):
             raise EnvironmentError(
-                'missing public key file; expected file to exist: '
-                + pub_filepath
+                "missing public key file; expected file to exist: " + pub_filepath
             )
 
         if not os.path.isfile(prv_filepath):
             raise EnvironmentError(
-                'missing public key file; expected file to exist: '
-                + prv_filepath
+                "missing public key file; expected file to exist: " + prv_filepath
             )
 
-        with open(pub_filepath, 'r') as f:
+        with open(pub_filepath, "r") as f:
             public_key = f.read()
 
-        with open(prv_filepath, 'r') as f:
+        with open(prv_filepath, "r") as f:
             private_key = f.read()
 
         kid = naming_function(os.path.basename(keys_dir))
 
         return cls(kid, public_key, private_key)
-
 
     def public_key_to_jwk(self):
         """
@@ -174,12 +160,8 @@ class Keypair(object):
             dict: JWK representation of the public key
         """
         n, e = _rsa_public_numbers(self.public_key)
-        jwk_dict = jwk.construct(self.public_key, algorithm='RS256').to_dict()
-        jwk_dict.update({
-            'use': 'sig',
-            'key_ops': 'verify',
-            'kid': self.kid,
-        })
+        jwk_dict = jwk.construct(self.public_key, algorithm="RS256").to_dict()
+        jwk_dict.update({"use": "sig", "key_ops": "verify", "kid": self.kid})
         return jwk_dict
 
 

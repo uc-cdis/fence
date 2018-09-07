@@ -12,37 +12,37 @@ def test_all_scopes_have_description():
         assert scope in SCOPE_DESCRIPTION
 
 
-@pytest.mark.parametrize('method', ['GET', 'POST'])
+@pytest.mark.parametrize("method", ["GET", "POST"])
 def test_oauth2_authorize(oauth_test_client, method):
     """Test ``/oauth2/authorize``."""
-    data = {'confirm': 'yes'}
+    data = {"confirm": "yes"}
     oauth_test_client.authorize(method=method, data=data)
 
 
-@pytest.mark.parametrize('method', ['GET', 'POST'])
+@pytest.mark.parametrize("method", ["GET", "POST"])
 def test_oauth2_authorize_get_public_client(oauth_test_client_public, method):
     """Test ``/oauth2/authorize`` with a public client."""
-    data = {'confirm': 'yes'}
+    data = {"confirm": "yes"}
     oauth_test_client_public.authorize(method=method, data=data)
 
 
 def test_oauth2_token_post(oauth_test_client):
     """Test ``POST /oauth2/token``."""
-    data = {'confirm': 'yes'}
+    data = {"confirm": "yes"}
     oauth_test_client.authorize(data=data)
     oauth_test_client.token()
 
 
 def test_oauth2_token_post_public_client(oauth_test_client_public):
     """Test ``POST /oauth2/token`` for public client."""
-    data = {'confirm': 'yes'}
+    data = {"confirm": "yes"}
     oauth_test_client_public.authorize(data=data)
     oauth_test_client_public.token()
 
 
 def test_oauth2_token_refresh(oauth_test_client):
     """Test the refresh endpoint."""
-    data = {'confirm': 'yes'}
+    data = {"confirm": "yes"}
     oauth_test_client.authorize(data=data)
     oauth_test_client.token()
     oauth_test_client.refresh()
@@ -50,7 +50,7 @@ def test_oauth2_token_refresh(oauth_test_client):
 
 def test_oauth2_token_refresh_public_client(oauth_test_client_public):
     """Test the refresh endpoint for public client."""
-    data = {'confirm': 'yes'}
+    data = {"confirm": "yes"}
     oauth_test_client_public.authorize(data=data)
     oauth_test_client_public.token()
     oauth_test_client_public.refresh()
@@ -64,7 +64,7 @@ def test_oauth2_token_post_revoke(oauth_test_client):
     - ``POST /oauth2/revoke`` to revoke the refresh token
     - Refresh token should no longer be usable at this point.
     """
-    data = {'confirm': 'yes'}
+    data = {"confirm": "yes"}
     oauth_test_client.authorize(data=data)
     oauth_test_client.token()
     oauth_test_client.revoke()
@@ -73,4 +73,4 @@ def test_oauth2_token_post_revoke(oauth_test_client):
     oauth_test_client.refresh(refresh_token, do_asserts=False)
     response = oauth_test_client.refresh_response.response
     assert response.status_code == 400
-    assert response.json['error'] == 'invalid_request'
+    assert response.json["error"] == "invalid_request"

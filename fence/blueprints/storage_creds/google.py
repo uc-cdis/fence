@@ -14,7 +14,7 @@ from fence.resources.google.utils import (
     create_google_access_key,
     get_service_account,
     get_or_create_service_account,
-    get_or_create_proxy_group_id
+    get_or_create_proxy_group_id,
 )
 
 
@@ -23,7 +23,7 @@ class GoogleCredentialsList(Resource):
     For ``/credentials/google`` endpoint.
     """
 
-    @require_auth_header({'google_credentials'})
+    @require_auth_header({"google_credentials"})
     def get(self):
         """
         List access keys for user
@@ -55,29 +55,27 @@ class GoogleCredentialsList(Resource):
             }
 
         """
-        client_id = current_token.get('azp') or None
-        user_id = current_token['sub']
-        username = (
-            current_token
-            .get('context', {})
-            .get('user', {})
-            .get('name')
-        )
+        client_id = current_token.get("azp") or None
+        user_id = current_token["sub"]
+        username = current_token.get("context", {}).get("user", {}).get("name")
 
         with GoogleCloudManager() as g_cloud_manager:
             proxy_group_id = get_or_create_proxy_group_id()
-            service_account = (
-                get_or_create_service_account(
-                    client_id=client_id, user_id=user_id,
-                    username=username, proxy_group_id=proxy_group_id))
+            service_account = get_or_create_service_account(
+                client_id=client_id,
+                user_id=user_id,
+                username=username,
+                proxy_group_id=proxy_group_id,
+            )
 
             keys = g_cloud_manager.get_service_account_keys_info(
-                service_account.google_unique_id)
-            result = {'access_keys': keys}
+                service_account.google_unique_id
+            )
+            result = {"access_keys": keys}
 
         return flask.jsonify(result)
 
-    @require_auth_header({'google_credentials'})
+    @require_auth_header({"google_credentials"})
     def post(self):
         """
         Generate a keypair for user
@@ -110,14 +108,11 @@ class GoogleCredentialsList(Resource):
         user_id = current_token["sub"]
         client_id = current_token.get("azp") or None
         proxy_group_id = get_or_create_proxy_group_id()
-        username = (
-            current_token.get('context', {})
-            .get('user', {})
-            .get('name')
-        )
+        username = current_token.get("context", {}).get("user", {}).get("name")
 
         key, service_account = create_google_access_key(
-            client_id, user_id, username, proxy_group_id)
+            client_id, user_id, username, proxy_group_id
+        )
 
         if client_id is None:
             self.handle_user_service_account_creds(key, service_account)
@@ -139,18 +134,16 @@ class GoogleCredentialsList(Resource):
         different mechanism than the Client SAs was required.
         """
         # x days * 24 hr/day * 60 min/hr * 60 s/min = y seconds
-        expires_in = (
-            cirrus_config.SERVICE_KEY_EXPIRATION_IN_DAYS * 24 * 60 * 60
-        )
+        expires_in = cirrus_config.SERVICE_KEY_EXPIRATION_IN_DAYS * 24 * 60 * 60
         expiration_time = int(time.time()) + int(expires_in)
-        key_id = key.get('private_key_id')
+        key_id = key.get("private_key_id")
         add_custom_service_account_key_expiration(
-            key_id, service_account.id, expires=expiration_time)
+            key_id, service_account.id, expires=expiration_time
+        )
 
 
 class GoogleCredentials(Resource):
-
-    @require_auth_header({'google_credentials'})
+    @require_auth_header({"google_credentials"})
     def delete(self, access_key):
         """
         .. http:get: /google/(string: access_key)
@@ -168,33 +161,35 @@ class GoogleCredentials(Resource):
             service_account = get_service_account(client_id, user_id)
 
             if service_account:
-                keys_for_account = (
-                    g_cloud.get_service_account_keys_info(
-                        service_account.google_unique_id)
+                keys_for_account = g_cloud.get_service_account_keys_info(
+                    service_account.google_unique_id
                 )
 
                 # Only delete the key if is owned by current client's SA
                 all_client_keys = [
-                    key['name'].split('/')[-1]
-                    for key in keys_for_account
+                    key["name"].split("/")[-1] for key in keys_for_account
                 ]
                 if access_key in all_client_keys:
                     g_cloud.delete_service_account_key(
-                        service_account.google_unique_id, access_key)
+                        service_account.google_unique_id, access_key
+                    )
 
                     db_entry = (
                         current_session.query(GoogleServiceAccountKey)
-                        .filter_by(key_id=access_key).first()
+                        .filter_by(key_id=access_key)
+                        .first()
                     )
                     if db_entry:
                         current_session.delete(db_entry)
                         current_session.commit()
                 else:
                     flask.abort(
-                        404, 'Could not delete key ' + access_key +
-                        '. Not found for current user.')
+                        404,
+                        "Could not delete key "
+                        + access_key
+                        + ". Not found for current user.",
+                    )
             else:
-                flask.abort(
-                    404, 'Could not find service account for current user.')
+                flask.abort(404, "Could not find service account for current user.")
 
-        return '', 204
+        return "", 204
