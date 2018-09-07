@@ -86,10 +86,10 @@ def can_user_manage_service_account(user_id, account_id):
         user_id, [service_account_project])
 
 
-def google_project_has_parent_org(project_id):
+def get_google_project_parent_org(project_id):
     """
     Checks if google project has parent org. Wraps
-    GoogleCloudManager.has_parent_organization()
+    GoogleCloudManager.get_project_organization()
 
     Args:
         project_id(str): unique id for project
@@ -100,7 +100,7 @@ def google_project_has_parent_org(project_id):
     """
     try:
         with GoogleCloudManager(project_id, use_default=False) as prj:
-            return prj.has_parent_organization()
+            return prj.get_project_organization()
     except Exception as exc:
         flask.current_app.logger.debug((
             'Could not determine if Google project (id: {}) has parent org'
@@ -827,6 +827,26 @@ def remove_white_listed_service_account_ids(service_account_ids):
                     service_account_ids.remove(email)
 
     return service_account_ids
+
+
+def remove_white_listed_parent_orgs(parent_orgs):
+    """
+    Remove any service account emails that should be ignored when
+    determining validitity.
+
+    Args:
+        parent_orgs (List[str]): parent organizations
+
+    Returns:
+        List[str]: parent orgs
+    """
+    if 'WHITE_LISTED_GOOGLE_PARENT_ORGS' in flask.current_app.config:
+        for email in (flask.current_app.config
+                      .get('WHITE_LISTED_GOOGLE_PARENT_ORGS', [])):
+                if email in parent_orgs:
+                    parent_orgs.remove(email)
+
+    return parent_orgs
 
 
 def force_delete_service_account(service_account_email, db=None):
