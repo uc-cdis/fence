@@ -23,9 +23,8 @@ from fence.scripting.fence_create import (
     sync_users,
     delete_expired_service_accounts,
     verify_bucket_access_group,
-)
-from fence.scripting.google_monitor import (
-    validation_check
+    verify_user_registration,
+
 )
 
 
@@ -300,7 +299,7 @@ def main():
     elif args.action == 'google-init':
         google_init(DB)
     elif args.action == 'google-manage-user-registrations':
-        validation_check(DB)
+        verify_user_registration(DB)
     elif args.action == 'google-manage-account-access':
         remove_expired_google_accounts_from_proxy_groups(DB)
     elif args.action == 'google-bucket-create':
