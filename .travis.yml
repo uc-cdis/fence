@@ -26,7 +26,7 @@ install:
   - psql -c 'SELECT version();' -U postgres
   - python setup.py install
   - psql -U postgres -c "create database fence_test_tmp"
-  - userdatamodel-init --db fence_test_tmp
+  - if [[ $TRAVIS_PYTHON_VERSION != 3.6 ]]; then userdatamodel-init --db fence_test_tmp; fi
   - if [[ $TRAVIS_PYTHON_VERSION == 3.6 ]]; then pip install -e git+https://git@github.com/uc-cdis/wool.git#egg=wool; fi
 
 before_script:
