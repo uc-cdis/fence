@@ -25,7 +25,7 @@ def mock_arborist_client(app, monkeypatch):
     Return:
     """
     mock_client = MagicMock(ArboristClient)
-    monkeypatch.setattr(app, 'arborist', mock_client)
+    monkeypatch.setattr(app, "arborist", mock_client)
     return mock_client
 
 
@@ -43,9 +43,9 @@ def example_policies():
         List[fence.models.Policy]: list of policies added
     """
     policies = [
-        Policy(id='apple'),
-        Policy(id='banana'),
-        Policy(id='canteloupe'),
-        Policy(id='durian'),
+        Policy(id="apple"),
+        Policy(id="banana"),
+        Policy(id="canteloupe"),
+        Policy(id="durian"),
     ]
     return policies

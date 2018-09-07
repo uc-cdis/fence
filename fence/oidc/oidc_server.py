@@ -1,9 +1,6 @@
 from authlib.common.urls import urlparse, url_decode
 from authlib.flask.oauth2 import AuthorizationServer
-from authlib.specs.rfc6749.errors import (
-    InvalidGrantError,
-    InsecureTransportError,
-)
+from authlib.specs.rfc6749.errors import InvalidGrantError, InsecureTransportError
 import flask
 
 from fence.oidc.jwt_generator import JWTGenerator

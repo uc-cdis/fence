@@ -9,7 +9,7 @@ def test_confidential_client_valid(oauth_test_client):
     Test that a confidential client including a basic authorization header in
     the request containing its secret is successfully issued a token.
     """
-    oauth_test_client.authorize(data={'confirm': 'yes'})
+    oauth_test_client.authorize(data={"confirm": "yes"})
     oauth_test_client.token()
 
 
@@ -20,9 +20,9 @@ def test_confidential_client_invalid(oauth_test_client, monkeypatch):
     ``unauthorized_client``.
     """
     # Disable the basic auth header.
-    monkeypatch.setattr(oauth_test_client, '_auth_header', {})
-    oauth_test_client.authorize(data={'confirm': 'yes'})
+    monkeypatch.setattr(oauth_test_client, "_auth_header", {})
+    oauth_test_client.authorize(data={"confirm": "yes"})
     token_response = oauth_test_client.token(do_asserts=False).response
     assert token_response.status_code == 400, token_response.json
-    assert 'error' in token_response.json, token_response.json
-    assert token_response.json['error'] == 'unauthorized_client'
+    assert "error" in token_response.json, token_response.json
+    assert token_response.json["error"] == "unauthorized_client"

@@ -4,10 +4,15 @@ from functools import wraps
 from storageclient import get_client
 
 from fence.models import (
-    CloudProvider, Bucket, ProjectToBucket, GoogleBucketAccessGroup, User
+    CloudProvider,
+    Bucket,
+    ProjectToBucket,
+    GoogleBucketAccessGroup,
+    User,
 )
 from fence.errors import NotSupported, InternalError, Unauthorized, NotFound
 from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME
+
 
 def check_exist(f):
     @wraps(f)
@@ -21,56 +26,56 @@ def check_exist(f):
 
 # NOTE: new storage privileges are expected to have -storage as a suffix
 #       ex: delete-storage
-PRIVILEGES = [
-    "read-storage",
-    "write-storage",
-    "admin"
-]
+PRIVILEGES = ["read-storage", "write-storage", "admin"]
 
 
 def get_endpoints_descriptions(providers, session):
     desc = {}
     for provider in providers:
-        if provider == 'cdis':
-            desc['/cdis'] = 'access to Gen3 APIs'
+        if provider == "cdis":
+            desc["/cdis"] = "access to Gen3 APIs"
         else:
             p = session.query(CloudProvider).filter_by(name=provider).first()
             if p is None:
                 raise InternalError(
-                    "{} is not supported by the system!".format(provider))
-            desc['/' + provider] = p.description or ''
+                    "{} is not supported by the system!".format(provider)
+                )
+            desc["/" + provider] = p.description or ""
     return desc
 
 
 class StorageManager(object):
-
     def __init__(self, credentials, logger):
         self.logger = logger
         self.clients = {}
         for provider, config in credentials.iteritems():
-            if 'backend' not in config:
+            if "backend" not in config:
                 self.logger.error(
-                    "Storage provider {} is not configured with backend"
-                    .format(provider))
+                    "Storage provider {} is not configured with backend".format(
+                        provider
+                    )
+                )
                 raise InternalError("Something went wrong")
 
-            backend = config['backend']
+            backend = config["backend"]
             creds = copy.deepcopy(config)
-            del creds['backend']
+            del creds["backend"]
             self.clients[provider] = get_client(config=config, backend=backend)
 
     def check_auth(self, provider, user):
         """
         check if the user should be authorized to storage resources
         """
-        storage_access = any([
-            'read-storage' in item
-            for item in user.project_access.values()
-        ])
-        backend_access = any([
-           sa.provider.name == provider for p in user.projects.values()
-           for sa in p.storage_access
-        ])
+        storage_access = any(
+            ["read-storage" in item for item in user.project_access.values()]
+        )
+        backend_access = any(
+            [
+                sa.provider.name == provider
+                for p in user.projects.values()
+                for sa in p.storage_access
+            ]
+        )
         if storage_access and backend_access:
             return True
         else:
@@ -122,16 +127,21 @@ class StorageManager(object):
         :param session: sqlalchemy session
         :param bucketname: name of the bucket
         """
-        provider = session.query(CloudProvider).filter(
-            CloudProvider.name == provider).one()
-        bucket = session.query(Bucket).filter(
-            Bucket.name == bucketname).first()
+        provider = (
+            session.query(CloudProvider).filter(CloudProvider.name == provider).one()
+        )
+        bucket = session.query(Bucket).filter(Bucket.name == bucketname).first()
         if not bucket:
             bucket = Bucket(name=bucketname, provider=provider)
             bucket = session.merge(bucket)
-        if not session.query(ProjectToBucket).filter(
+        if (
+            not session.query(ProjectToBucket)
+            .filter(
                 ProjectToBucket.bucket_id == bucket.id,
-                ProjectToBucket.project_id == project.id).first():
+                ProjectToBucket.project_id == project.id,
+            )
+            .first()
+        ):
             project_to_bucket = ProjectToBucket(bucket=bucket, project=project)
             session.add(project_to_bucket)
         c = self.clients[provider.name]
@@ -148,11 +158,9 @@ class StorageManager(object):
         :param provider: storage backend provider
         """
         access = self._get_valid_access_privileges(access)
-        storage_user = self._get_or_create_storage_user(
-            username, provider, session)
+        storage_user = self._get_or_create_storage_user(username, provider, session)
 
-        storage_username = StorageManager._get_storage_username(
-            storage_user, provider)
+        storage_username = StorageManager._get_storage_username(storage_user, provider)
 
         if storage_username:
             for b in project.buckets:
@@ -171,8 +179,7 @@ class StorageManager(object):
         if storage_user is None:
             return
 
-        storage_username = StorageManager._get_storage_username(
-            storage_user, provider)
+        storage_username = StorageManager._get_storage_username(storage_user, provider)
 
         if storage_username:
             for b in project.buckets:
@@ -188,8 +195,9 @@ class StorageManager(object):
         access = self._get_valid_access_privileges(access)
         storage_username = StorageManager._get_storage_username(user, provider)
 
-        return (storage_username and self.clients[provider].has_bucket_access(
-            bucket.name, storage_username))
+        return storage_username and self.clients[provider].has_bucket_access(
+            bucket.name, storage_username
+        )
 
     @check_exist
     def get_or_create_user(self, provider, user):
@@ -323,23 +331,24 @@ class StorageManager(object):
             user = session.query(User).filter_by(username=username).first()
             if not user:
                 raise NotFound(
-                    'User not found with username {}. For Google Storage '
-                    'Backend user\'s must already exist in the db and have a '
-                    'Google Proxy Group.'
-                    .format(username))
+                    "User not found with username {}. For Google Storage "
+                    "Backend user's must already exist in the db and have a "
+                    "Google Proxy Group.".format(username)
+                )
         else:
             user = self.clients[provider].get_or_create_user(username)
         return user
 
-    def _update_access_to_bucket(
-            self, bucket, provider, storage_username, access):
+    def _update_access_to_bucket(self, bucket, provider, storage_username, access):
         # Need different logic for google (since buckets can have multiple
         # access groups)
         if provider == STORAGE_ACCESS_PROVIDER_NAME:
             if not bucket.google_bucket_access_groups:
                 raise NotFound(
-                    'Google bucket {} does not have any access groups.'
-                    .format(bucket.name))
+                    "Google bucket {} does not have any access groups.".format(
+                        bucket.name
+                    )
+                )
 
             access = StorageManager._get_bucket_access_privileges(access)
 
@@ -351,8 +360,7 @@ class StorageManager(object):
                     # NOTE: bucket_name for Google is the Google Access Group's
                     #       email address.
                     # TODO Update storageclient API for more clarity
-                    self.clients[provider].add_bucket_acl(
-                        bucket_name, storage_username)
+                    self.clients[provider].add_bucket_acl(bucket_name, storage_username)
                 else:
                     # In the case of google, since we have multiple groups
                     # with access to the bucket, we need to also remove access
@@ -360,23 +368,22 @@ class StorageManager(object):
                     # to just read.
                     bucket_name = bucket_access_group.email
                     self.clients[provider].delete_bucket_acl(
-                        bucket_name, storage_username)
+                        bucket_name, storage_username
+                    )
         else:
             self.clients[provider].add_bucket_acl(
-                bucket.name, storage_username, access=access)
+                bucket.name, storage_username, access=access
+            )
 
-    def _revoke_access_to_bucket(
-            self, bucket, provider, storage_username):
+    def _revoke_access_to_bucket(self, bucket, provider, storage_username):
         # Need different logic for google (since buckets can have multiple
         # access groups)
         if provider == STORAGE_ACCESS_PROVIDER_NAME:
             for bucket_access_group in bucket.google_bucket_access_groups:
                 bucket_name = bucket_access_group.email
-                self.clients[provider].delete_bucket_acl(
-                    bucket_name, storage_username)
+                self.clients[provider].delete_bucket_acl(bucket_name, storage_username)
         else:
-            self.clients[provider].delete_bucket_acl(
-                bucket.name, storage_username)
+            self.clients[provider].delete_bucket_acl(bucket.name, storage_username)
 
     @staticmethod
     def _get_storage_username(user, provider):
@@ -409,8 +416,5 @@ class StorageManager(object):
             List(str): Simplified list of bucket privileges
         """
         access = StorageManager._get_valid_access_privileges(access_list)
-        bucket_access = [
-            access_level.split('-')[0]
-            for access_level in access
-        ]
+        bucket_access = [access_level.split("-")[0] for access_level in access]
         return bucket_access
