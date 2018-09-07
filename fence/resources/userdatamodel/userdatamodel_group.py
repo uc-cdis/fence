@@ -1,5 +1,4 @@
 from fence.models import Project, User, AccessPrivilege, Group, UserToGroup
-from fence.errors import NotFound, UserError
 
 __all__ = [
     "clear_projects_in_group",
