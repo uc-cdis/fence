@@ -8,23 +8,25 @@ logger = get_logger(__name__)
 try:
     from fence.local_settings import *
 except ImportError:
-    logger.warn('no module fence.local_settings')
+    logger.warn("no module fence.local_settings")
 
 # WARNING: the test database is cleared every run
-DB = 'postgresql://postgres@localhost:5432/fence_test_tmp'
+DB = "postgresql://postgres@localhost:5432/fence_test_tmp"
 
 MOCK_AUTH = True
 
 DEBUG = False
 OAUTH2_PROVIDER_ERROR_URI = "/oauth2/errors"
 
-BASE_URL = 'https://bionimbus-pdc.opensciencedatacloud.org/user'
-APPLICATION_ROOT = '/user'
+BASE_URL = "https://bionimbus-pdc.opensciencedatacloud.org/user"
+APPLICATION_ROOT = "/user"
 
-SHIBBOLETH_HEADER = 'persistent_id'
-SSO_URL = 'https://itrusteauth.nih.gov/affwebservices/public/saml2sso?SPID=https://bionimbus-pdc.opensciencedatacloud.org/shibboleth&RelayState='
-SINGLE_LOGOUT = 'https://itrusteauth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl=https://bionimbus-pdc.opensciencedatacloud.org/storage/login'
-ITRUST_GLOBAL_LOGOUT = 'https://auth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl='
+SHIBBOLETH_HEADER = "persistent_id"
+SSO_URL = "https://itrusteauth.nih.gov/affwebservices/public/saml2sso?SPID=https://bionimbus-pdc.opensciencedatacloud.org/shibboleth&RelayState="
+SINGLE_LOGOUT = "https://itrusteauth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl=https://bionimbus-pdc.opensciencedatacloud.org/storage/login"
+ITRUST_GLOBAL_LOGOUT = (
+    "https://auth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl="
+)
 
 LOGOUT = "https://bionimbus-pdc.opensciencedatacloud.org/auth/logout/?next=/Shibboleth.sso/Logout%3Freturn%3Dhttps%3A%2F%2Fbionimbus-pdc.opensciencedatacloud.org/api"
 BIONIMBUS_ACCOUNT_ID = 123456789012
@@ -35,7 +37,7 @@ ACCESS_TOKEN_EXPIRES_IN = 1200
 
 #: ``ACCESS_TOKEN_COOKIE_NAME: str``
 #: The name of the browser cookie in which the access token will be stored.
-ACCESS_TOKEN_COOKIE_NAME = 'access_token'
+ACCESS_TOKEN_COOKIE_NAME = "access_token"
 
 #: ``REFRESH_TOKEN_EXPIRES_IN: int``
 #: The number of seconds after a refresh token is issued until it expires.
@@ -63,56 +65,39 @@ GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN = 86400
 #: The name of the browser cookie in which the session token will be stored.
 #: Note that the session token also stores information for the
 #: ``flask.session`` in the ``context`` field of the token.
-SESSION_COOKIE_NAME = 'fence'
+SESSION_COOKIE_NAME = "fence"
 
 HMAC_ENCRYPTION_KEY = Fernet.generate_key()
 ENABLE_CSRF_PROTECTION = False
 
 STORAGE_CREDENTIALS = {
-    'test-cleversafe': {
-        'backend': 'cleversafe'
+    "test-cleversafe": {"backend": "cleversafe"},
+    "google": {
+        "backend": "google",
+        "google_project_id": "some-project-id-239870as9f23flkja8010",
     },
-    'google': {
-        'backend': 'google',
-        'google_project_id': 'some-project-id-239870as9f23flkja8010'
-    }
 }
 
 AWS_CREDENTIALS = {
-    "CRED1": {
-        'aws_access_key_id': '',
-        'aws_secret_access_key': ''
-    },
-    "CRED2": {
-        'aws_access_key_id': '',
-        'aws_secret_access_key': ''
-    }
+    "CRED1": {"aws_access_key_id": "", "aws_secret_access_key": ""},
+    "CRED2": {"aws_access_key_id": "", "aws_secret_access_key": ""},
 }
 
-ASSUMED_ROLES = {
-}
+ASSUMED_ROLES = {}
 
 S3_BUCKETS = {
     # 'cdis-presigned-url-test': {
     #     'cred': 'fence-bot',
     #     'type': 'internal'
     # },
-    'bucket1': {
-        'cred': 'CRED1',
+    "bucket1": {"cred": "CRED1"},
+    "bucket2": {"cred": "CRED2"},
+    "bucket3": {"cred": "CRED1"},
+    "bucket4": {"cred": "*"},
+    "bucket5": {
+        "cred": "CRED2",
+        "role-arn": "arn:aws:iam::707767160287:role/bucket_reader_writer_to_cdistest-presigned-url_role",
     },
-    'bucket2': {
-        'cred': 'CRED2',
-    },
-    'bucket3': {
-        'cred': 'CRED1',
-    },
-    'bucket4': {
-        'cred': '*',
-    },
-    'bucket5': {
-        'cred': 'CRED2',
-        'role-arn': 'arn:aws:iam::707767160287:role/bucket_reader_writer_to_cdistest-presigned-url_role',
-    }
 }
 
 # S3_BUCKETS = {
@@ -124,38 +109,24 @@ S3_BUCKETS = {
 
 ENABLED_IDENTITY_PROVIDERS = {
     # ID for which of the providers to default to.
-    'default': 'google',
+    "default": "google",
     # Information for identity providers.
-    'providers': {
-        'fence': {
-            'name': 'Fence Multi-Tenant OAuth',
-        },
-        'google': {
-            'name': 'Google OAuth',
-        },
-        'shibboleth': {
-            'name': 'NIH Login',
-        },
+    "providers": {
+        "fence": {"name": "Fence Multi-Tenant OAuth"},
+        "google": {"name": "Google OAuth"},
+        "shibboleth": {"name": "NIH Login"},
     },
 }
 
-SHIBBOLETH_HEADER = 'persistent_id'
+SHIBBOLETH_HEADER = "persistent_id"
 
-OPENID_CONNECT = {
-    'google': {
-        'client_id': '',
-        'client_secret': '',
-        'redirect_url': ''
-    },
-}
+OPENID_CONNECT = {"google": {"client_id": "", "client_secret": "", "redirect_url": ""}}
 
-GOOGLE_GROUP_PREFIX = 'test'
+GOOGLE_GROUP_PREFIX = "test"
 
 CIRRUS_CFG = {}
 
-ARBORIST = '/arborist'
+ARBORIST = "/arborist"
 
 
-WHITE_LISTED_SERVICE_ACCOUNT_EMAILS = [
-    'test@0', 'test@123', 'test@456',
-]
+WHITE_LISTED_SERVICE_ACCOUNT_EMAILS = ["test@0", "test@123", "test@456"]

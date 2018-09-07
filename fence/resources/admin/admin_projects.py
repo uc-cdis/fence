@@ -2,9 +2,13 @@ from fence.resources import project as pj
 from flask import current_app
 
 __all__ = [
-    'get_project_info', 'get_all_projects', 'create_project', 'delete_project',
-    'create_bucket_on_project', 'delete_bucket_on_project',
-    'list_buckets_on_project'
+    "get_project_info",
+    "get_all_projects",
+    "create_project",
+    "delete_project",
+    "create_bucket_on_project",
+    "delete_bucket_on_project",
+    "list_buckets_on_project",
 ]
 
 
@@ -31,7 +35,7 @@ def create_project(current_session, projectname, authid, storageaccesses):
     Returns a dictionary.
     """
     if pj.create_project(current_session, projectname, authid, storageaccesses):
-        return {'result': 'success'}
+        return {"result": "success"}
 
 
 def delete_project(current_session, project_name):
@@ -41,10 +45,10 @@ def delete_project(current_session, project_name):
     Returns a dictionary.
     """
     response = pj.delete_project(current_session, project_name)
-    if response['result'] == 'success':
-        for user in response['users_to_remove']:
+    if response["result"] == "success":
+        for user in response["users_to_remove"]:
             current_app.storage_manager.delete_user(user[0].backend, user[1])
-        return {'result': 'success'}
+        return {"result": "success"}
 
 
 def create_bucket_on_project(current_session, project_name, bucket_name, provider_name):
@@ -54,24 +58,18 @@ def create_bucket_on_project(current_session, project_name, bucket_name, provide
     Returns a dictionary.
     """
     response = pj.create_bucket_on_project(
-        current_session,
-        project_name,
-        bucket_name,
-        provider_name
+        current_session, project_name, bucket_name, provider_name
     )
     project = pj.get_project(current_session, project_name)
     if response["result"] == "success":
         current_app.storage_manager.create_bucket(
-            response["provider"].name,
-            current_session,
-            response["bucket"].name,
-            project
+            response["provider"].name, current_session, response["bucket"].name, project
         )
         for user_pair in response["users_to_update"]:
             current_app.storage_manager.update_bucket_acl(
                 response["provider"].name,
                 response["bucket"],
-                (user_pair[0], user_pair[1])
+                (user_pair[0], user_pair[1]),
             )
         return {"result": "success"}
     else:
@@ -84,21 +82,15 @@ def delete_bucket_on_project(current_session, project_name, bucket_name):
     and on the storage associated with that bucket.
     Returns a dictionary.
     """
-    response = pj.delete_bucket_on_project(
-        current_session,
-        project_name,
-        bucket_name
-    )
+    response = pj.delete_bucket_on_project(current_session, project_name, bucket_name)
     if response["result"] == "success":
         current_app.storage_manager.delete_bucket(
-            response["provider"].name,
-            bucket_name
+            response["provider"].name, bucket_name
         )
         return {"result": "success"}
     else:
         current_app.storage_manager.delete_bucket(
-            response["provider"].name,
-            bucket_name
+            response["provider"].name, bucket_name
         )
         return {"result": response["result"]}
 

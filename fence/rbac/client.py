@@ -19,7 +19,7 @@ def _request_get_json(response):
     try:
         return response.json()
     except json.decoder.JSONDecodeError as e:
-        return {'error': str(e)}
+        return {"error": str(e)}
 
 
 class ArboristError(APIError):
@@ -32,12 +32,12 @@ class ArboristClient(object):
     A singleton class for interfacing with the RBAC engine, "arborist".
     """
 
-    def __init__(self, logger=None, arborist_base_url='http://arborist-service/'):
-        self.logger = logger or get_logger('ArboristClient')
-        self._base_url = arborist_base_url.strip('/')
-        self._policy_url = self._base_url + '/policy/'
-        self._resource_url = self._base_url + '/resource'
-        self._role_url = self._base_url + '/role/'
+    def __init__(self, logger=None, arborist_base_url="http://arborist-service/"):
+        self.logger = logger or get_logger("ArboristClient")
+        self._base_url = arborist_base_url.strip("/")
+        self._policy_url = self._base_url + "/policy/"
+        self._resource_url = self._base_url + "/resource"
+        self._role_url = self._base_url + "/role/"
 
     def healthy(self):
         """
@@ -47,7 +47,7 @@ class ArboristClient(object):
             bool: whether arborist service is available
         """
         try:
-            response = requests.get(self._base_url + '/health')
+            response = requests.get(self._base_url + "/health")
         except requests.RequestException:
             return False
         return response.status_code == 200
@@ -94,11 +94,9 @@ class ArboristClient(object):
         Return:
             list: policies (if any) that don't exist in arborist
         """
-        existing_policies = self.list_policies().get['policies']
+        existing_policies = self.list_policies().get["policies"]
         return [
-            policy_id
-            for policy_id in policy_ids
-            if policy_id not in existing_policies
+            policy_id for policy_id in policy_ids if policy_id not in existing_policies
         ]
 
     def create_resource(self, parent_path, resource_json):
@@ -151,12 +149,12 @@ class ArboristClient(object):
         #
         path = self._resource_url + parent_path
         response = _request_get_json(requests.post(path, json=resource_json))
-        if 'error' in response:
+        if "error" in response:
             self.logger.error(
-                'could not create resource `{}` in arborist: '.format(path)
-                + response['error']
+                "could not create resource `{}` in arborist: ".format(path)
+                + response["error"]
             )
-            raise ArboristError(response['error'])
+            raise ArboristError(response["error"])
         return response
 
     def create_role(self, role_json):
@@ -199,13 +197,14 @@ class ArboristClient(object):
             - ArboristError: if the operation failed (couldn't create role)
         """
         response = _request_get_json(requests.post(self._role_url, json=role_json))
-        if 'error' in response:
+        if "error" in response:
             self.logger.error(
-                'could not create role `{}` in arborist: {}'
-                .format(role_json['id'], response['error'])
+                "could not create role `{}` in arborist: {}".format(
+                    role_json["id"], response["error"]
+                )
             )
-            raise ArboristError(response['error'])
-        self.logger.info('created role {}'.format(role_json['id']))
+            raise ArboristError(response["error"])
+        self.logger.info("created role {}".format(role_json["id"]))
         return response
 
     def get_policy(self, policy_id):
@@ -218,14 +217,13 @@ class ArboristClient(object):
         return response.json()
 
     def create_policy(self, policy_json):
-        response = _request_get_json(requests.post(
-            self._policy_url, json=policy_json
-        ))
-        if 'error' in response:
+        response = _request_get_json(requests.post(self._policy_url, json=policy_json))
+        if "error" in response:
             self.logger.error(
-                'could not create policy `{}` in arborist: {}'
-                .format(policy_json['id'], response['error'])
+                "could not create policy `{}` in arborist: {}".format(
+                    policy_json["id"], response["error"]
+                )
             )
-            raise ArboristError(response['error'])
-        self.logger.info('created policy {}'.format(policy_json['id']))
+            raise ArboristError(response["error"])
+        self.logger.info("created policy {}".format(policy_json["id"]))
         return response
