@@ -2,7 +2,9 @@
 Tests for the fence.resources.google.access_utils.ValidityInfo object
 """
 from fence.resources.google.validity import (
-    ValidityInfo, GoogleProjectValidity, GoogleServiceAccountValidity
+    ValidityInfo,
+    GoogleProjectValidity,
+    GoogleServiceAccountValidity,
 )
 from fence.models import Project
 
@@ -22,15 +24,15 @@ def test_dict_like_validity_object():
     assert test_validity
 
     # adding a new item should still result in "true" validity
-    test_validity['test_validity123'] = True
+    test_validity["test_validity123"] = True
     assert test_validity
 
     # adding a new FALSE item should result in FALSE validity
-    test_validity['test_validity567'] = False
+    test_validity["test_validity567"] = False
     assert not test_validity
 
     for key, _ in test_validity:
-        assert key in ['test_validity123', 'test_validity567']
+        assert key in ["test_validity123", "test_validity567"]
 
 
 def test_valid_google_project(valid_google_project_patcher):
@@ -38,7 +40,7 @@ def test_valid_google_project(valid_google_project_patcher):
     Test that when everything is valid, the GoogleProjectValidity is valid
     and has the expected information.
     """
-    google_project_validity = GoogleProjectValidity('some-project-id')
+    google_project_validity = GoogleProjectValidity("some-project-id")
 
     # should evaluate to true by default
     assert google_project_validity
@@ -49,21 +51,22 @@ def test_valid_google_project(valid_google_project_patcher):
     assert google_project_validity
 
     # test that it contains the default error information and it's true
-    assert 'valid_parent_org' in google_project_validity
-    assert google_project_validity['valid_parent_org']
+    assert "valid_parent_org" in google_project_validity
+    assert google_project_validity["valid_parent_org"]
 
-    assert 'valid_member_types' in google_project_validity
-    assert google_project_validity['valid_member_types']
+    assert "valid_member_types" in google_project_validity
+    assert google_project_validity["valid_member_types"]
 
-    assert 'members_exist_in_fence' in google_project_validity
-    assert google_project_validity['members_exist_in_fence']
+    assert "members_exist_in_fence" in google_project_validity
+    assert google_project_validity["members_exist_in_fence"]
 
-    assert 'service_accounts' in google_project_validity
-    assert 'access' in google_project_validity
+    assert "service_accounts" in google_project_validity
+    assert "access" in google_project_validity
 
 
 def test_valid_google_project_service_accounts(
-        valid_google_project_patcher, valid_service_account_patcher):
+    valid_google_project_patcher, valid_service_account_patcher
+):
     """
     Test that when everything is valid and there are service accounts (which
     are also all valid), the GoogleProjectValidity is valid
@@ -71,11 +74,12 @@ def test_valid_google_project_service_accounts(
     """
     patcher = valid_google_project_patcher
 
-    patcher['get_service_account_ids_from_google_members'].return_value = [
-        'some-account-id', 'some-other-account-id'
+    patcher["get_service_account_ids_from_google_members"].return_value = [
+        "some-account-id",
+        "some-other-account-id",
     ]
 
-    google_project_validity = GoogleProjectValidity('some-project-id')
+    google_project_validity = GoogleProjectValidity("some-project-id")
 
     # should evaluate to true by default before checking validity
     assert google_project_validity
@@ -86,29 +90,26 @@ def test_valid_google_project_service_accounts(
     assert google_project_validity
 
     # test that it contains the correct error information
-    assert 'valid_parent_org' in google_project_validity
-    assert google_project_validity['valid_parent_org']
+    assert "valid_parent_org" in google_project_validity
+    assert google_project_validity["valid_parent_org"]
 
-    assert 'valid_member_types' in google_project_validity
-    assert google_project_validity['valid_member_types']
+    assert "valid_member_types" in google_project_validity
+    assert google_project_validity["valid_member_types"]
 
-    assert 'members_exist_in_fence' in google_project_validity
-    assert google_project_validity['members_exist_in_fence']
+    assert "members_exist_in_fence" in google_project_validity
+    assert google_project_validity["members_exist_in_fence"]
 
-    assert 'service_accounts' in google_project_validity
-    assert hasattr(google_project_validity['service_accounts'], '__iter__')
-    assert 'some-account-id' in (
-        google_project_validity['service_accounts']
-    )
-    assert 'some-other-account-id' in (
-        google_project_validity['service_accounts']
-    )
+    assert "service_accounts" in google_project_validity
+    assert hasattr(google_project_validity["service_accounts"], "__iter__")
+    assert "some-account-id" in (google_project_validity["service_accounts"])
+    assert "some-other-account-id" in (google_project_validity["service_accounts"])
 
-    assert 'access' in google_project_validity
+    assert "access" in google_project_validity
 
 
 def test_valid_google_project_access(
-        valid_google_project_patcher, valid_service_account_patcher, db_session):
+    valid_google_project_patcher, valid_service_account_patcher, db_session
+):
     """
     Test that when everything is valid and there are access to data through
     projects (access is all valid), the GoogleProjectValidity is valid
@@ -116,17 +117,18 @@ def test_valid_google_project_access(
     """
     patcher = valid_google_project_patcher
 
-    project1 = Project(auth_id='some-project-auth-id')
-    project2 = Project(auth_id='some-other-project-auth-id')
+    project1 = Project(auth_id="some-project-auth-id")
+    project2 = Project(auth_id="some-other-project-auth-id")
     db_session.add(project1)
     db_session.add(project2)
     db_session.commit()
 
-    patcher['get_project_access_from_service_accounts'].return_value = [
-        project1, project2
+    patcher["get_project_access_from_service_accounts"].return_value = [
+        project1,
+        project2,
     ]
 
-    google_project_validity = GoogleProjectValidity('some-project-id')
+    google_project_validity = GoogleProjectValidity("some-project-id")
 
     # should evaluate to true by default before checking validity
     assert google_project_validity
@@ -137,24 +139,20 @@ def test_valid_google_project_access(
     assert google_project_validity
 
     # test that it contains the correct error information
-    assert 'valid_parent_org' in google_project_validity
-    assert google_project_validity['valid_parent_org']
+    assert "valid_parent_org" in google_project_validity
+    assert google_project_validity["valid_parent_org"]
 
-    assert 'valid_member_types' in google_project_validity
-    assert google_project_validity['valid_member_types']
+    assert "valid_member_types" in google_project_validity
+    assert google_project_validity["valid_member_types"]
 
-    assert 'members_exist_in_fence' in google_project_validity
-    assert google_project_validity['members_exist_in_fence']
+    assert "members_exist_in_fence" in google_project_validity
+    assert google_project_validity["members_exist_in_fence"]
 
-    assert 'service_accounts' in google_project_validity
-    assert 'access' in google_project_validity
-    assert hasattr(google_project_validity['access'], '__iter__')
-    assert 'some-project-auth-id' in (
-        google_project_validity['access']
-    )
-    assert 'some-other-project-auth-id' in (
-        google_project_validity['access']
-    )
+    assert "service_accounts" in google_project_validity
+    assert "access" in google_project_validity
+    assert hasattr(google_project_validity["access"], "__iter__")
+    assert "some-project-auth-id" in (google_project_validity["access"])
+    assert "some-other-project-auth-id" in (google_project_validity["access"])
 
 
 def test_valid_google_service_account(valid_service_account_patcher):
@@ -162,9 +160,8 @@ def test_valid_google_service_account(valid_service_account_patcher):
     Test that when everything is valid, the GoogleServiceAccountValidity
     is valid and has the expected information.
     """
-    google_service_account_validity = (
-        GoogleServiceAccountValidity(
-            'some-account-id', 'some-google-project-id')
+    google_service_account_validity = GoogleServiceAccountValidity(
+        "some-account-id", "some-google-project-id"
     )
 
     # should evaluate to true by default
@@ -176,14 +173,14 @@ def test_valid_google_service_account(valid_service_account_patcher):
     assert google_service_account_validity
 
     # test that it contains the default error information and it's true
-    assert 'valid_type' in google_service_account_validity
-    assert google_service_account_validity['valid_type']
+    assert "valid_type" in google_service_account_validity
+    assert google_service_account_validity["valid_type"]
 
-    assert 'no_external_access' in google_service_account_validity
-    assert google_service_account_validity['no_external_access']
+    assert "no_external_access" in google_service_account_validity
+    assert google_service_account_validity["no_external_access"]
 
-    assert 'owned_by_project' in google_service_account_validity
-    assert google_service_account_validity['owned_by_project']
+    assert "owned_by_project" in google_service_account_validity
+    assert google_service_account_validity["owned_by_project"]
 
 
 def test_invalid_google_project_parent_org(valid_google_project_patcher):
@@ -195,9 +192,9 @@ def test_invalid_google_project_parent_org(valid_google_project_patcher):
     invalid).
     """
     patcher = valid_google_project_patcher
-    patcher['google_project_has_parent_org'].return_value = True
+    patcher["google_project_has_parent_org"].return_value = True
 
-    google_project_validity = GoogleProjectValidity('some-project-id')
+    google_project_validity = GoogleProjectValidity("some-project-id")
 
     # should evaluate to true by default before checking validity
     assert google_project_validity
@@ -208,17 +205,17 @@ def test_invalid_google_project_parent_org(valid_google_project_patcher):
     assert not google_project_validity
 
     # test that it contains the correct error information
-    assert 'valid_parent_org' in google_project_validity
-    assert not google_project_validity['valid_parent_org']
+    assert "valid_parent_org" in google_project_validity
+    assert not google_project_validity["valid_parent_org"]
 
-    assert 'valid_member_types' in google_project_validity
-    assert google_project_validity['valid_member_types']
+    assert "valid_member_types" in google_project_validity
+    assert google_project_validity["valid_member_types"]
 
-    assert 'members_exist_in_fence' in google_project_validity
-    assert google_project_validity['members_exist_in_fence']
+    assert "members_exist_in_fence" in google_project_validity
+    assert google_project_validity["members_exist_in_fence"]
 
-    assert 'service_accounts' in google_project_validity
-    assert 'access' in google_project_validity
+    assert "service_accounts" in google_project_validity
+    assert "access" in google_project_validity
 
 
 def test_invalid_google_project_membership(valid_google_project_patcher):
@@ -229,9 +226,11 @@ def test_invalid_google_project_membership(valid_google_project_patcher):
     Here we're testing when the Google Project has invalid membership.
     """
     patcher = valid_google_project_patcher
-    patcher['get_google_project_valid_users_and_service_accounts'].side_effect = Exception()
+    patcher[
+        "get_google_project_valid_users_and_service_accounts"
+    ].side_effect = Exception()
 
-    google_project_validity = GoogleProjectValidity('some-project-id')
+    google_project_validity = GoogleProjectValidity("some-project-id")
 
     # should evaluate to true by default before checking validity
     assert google_project_validity
@@ -242,17 +241,17 @@ def test_invalid_google_project_membership(valid_google_project_patcher):
     assert not google_project_validity
 
     # test that it contains the correct error information
-    assert 'valid_parent_org' in google_project_validity
-    assert google_project_validity['valid_parent_org']
+    assert "valid_parent_org" in google_project_validity
+    assert google_project_validity["valid_parent_org"]
 
-    assert 'valid_member_types' in google_project_validity
-    assert not google_project_validity['valid_member_types']
+    assert "valid_member_types" in google_project_validity
+    assert not google_project_validity["valid_member_types"]
 
-    assert 'members_exist_in_fence' in google_project_validity
-    assert not google_project_validity['members_exist_in_fence']
+    assert "members_exist_in_fence" in google_project_validity
+    assert not google_project_validity["members_exist_in_fence"]
 
-    assert 'service_accounts' in google_project_validity
-    assert 'access' in google_project_validity
+    assert "service_accounts" in google_project_validity
+    assert "access" in google_project_validity
 
 
 def test_invalid_google_project_access(valid_google_project_patcher, db_session):
@@ -264,17 +263,15 @@ def test_invalid_google_project_access(valid_google_project_patcher, db_session)
     """
     patcher = valid_google_project_patcher
 
-    project = Project(auth_id='some-project-auth-id')
+    project = Project(auth_id="some-project-auth-id")
     db_session.add(project)
     db_session.commit()
 
-    patcher['get_project_access_from_service_accounts'].return_value = [
-        project
-    ]
-    patcher['get_users_from_google_members'].return_value = ['test-user']
-    patcher['do_all_users_have_access_to_project'].return_value = False
+    patcher["get_project_access_from_service_accounts"].return_value = [project]
+    patcher["get_users_from_google_members"].return_value = ["test-user"]
+    patcher["do_all_users_have_access_to_project"].return_value = False
 
-    google_project_validity = GoogleProjectValidity('some-project-id')
+    google_project_validity = GoogleProjectValidity("some-project-id")
 
     # should evaluate to true by default before checking validity
     assert google_project_validity
@@ -285,26 +282,23 @@ def test_invalid_google_project_access(valid_google_project_patcher, db_session)
     assert not google_project_validity
 
     # test that it contains the correct error information
-    assert 'valid_parent_org' in google_project_validity
-    assert google_project_validity['valid_parent_org']
+    assert "valid_parent_org" in google_project_validity
+    assert google_project_validity["valid_parent_org"]
 
-    assert 'valid_member_types' in google_project_validity
-    assert google_project_validity['valid_member_types']
+    assert "valid_member_types" in google_project_validity
+    assert google_project_validity["valid_member_types"]
 
-    assert 'members_exist_in_fence' in google_project_validity
-    assert google_project_validity['members_exist_in_fence']
+    assert "members_exist_in_fence" in google_project_validity
+    assert google_project_validity["members_exist_in_fence"]
 
-    assert 'service_accounts' in google_project_validity
-    assert 'access' in google_project_validity
-    assert hasattr(google_project_validity['access'], '__iter__')
-    assert 'some-project-auth-id' in (
-        google_project_validity['access']
-    )
-    assert not google_project_validity['access']['some-project-auth-id']
+    assert "service_accounts" in google_project_validity
+    assert "access" in google_project_validity
+    assert hasattr(google_project_validity["access"], "__iter__")
+    assert "some-project-auth-id" in (google_project_validity["access"])
+    assert not google_project_validity["access"]["some-project-auth-id"]
 
 
-def test_invalid_google_service_account_type(
-        valid_service_account_patcher):
+def test_invalid_google_service_account_type(valid_service_account_patcher):
     """
     Test that when the Google Service Account is invalid, the resulting
     GoogleServiceAccountValidity is False-y and contains the expected
@@ -313,11 +307,10 @@ def test_invalid_google_service_account_type(
     Here we're testing when the Google Service Account's type is invalid.
     """
     patcher = valid_service_account_patcher
-    patcher['is_valid_service_account_type'].return_value = False
+    patcher["is_valid_service_account_type"].return_value = False
 
-    google_service_account_validity = (
-        GoogleServiceAccountValidity(
-            'some-account-id', 'some-google-project-id')
+    google_service_account_validity = GoogleServiceAccountValidity(
+        "some-account-id", "some-google-project-id"
     )
 
     # should evaluate to true by default
@@ -329,18 +322,17 @@ def test_invalid_google_service_account_type(
     assert not google_service_account_validity
 
     # test that it contains the default error information and it's true
-    assert 'valid_type' in google_service_account_validity
-    assert not google_service_account_validity['valid_type']
+    assert "valid_type" in google_service_account_validity
+    assert not google_service_account_validity["valid_type"]
 
-    assert 'no_external_access' in google_service_account_validity
-    assert google_service_account_validity['no_external_access']
+    assert "no_external_access" in google_service_account_validity
+    assert google_service_account_validity["no_external_access"]
 
-    assert 'owned_by_project' in google_service_account_validity
-    assert google_service_account_validity['owned_by_project']
+    assert "owned_by_project" in google_service_account_validity
+    assert google_service_account_validity["owned_by_project"]
 
 
-def test_invalid_google_service_account_access(
-        valid_service_account_patcher):
+def test_invalid_google_service_account_access(valid_service_account_patcher):
     """
     Test that when the Google Service Account is invalid, the resulting
     GoogleServiceAccountValidity is False-y and contains the expected
@@ -350,11 +342,10 @@ def test_invalid_google_service_account_access(
     which is not allowed).
     """
     patcher = valid_service_account_patcher
-    patcher['service_account_has_external_access'].return_value = True
+    patcher["service_account_has_external_access"].return_value = True
 
-    google_service_account_validity = (
-        GoogleServiceAccountValidity(
-            'some-account-id', 'some-google-project-id')
+    google_service_account_validity = GoogleServiceAccountValidity(
+        "some-account-id", "some-google-project-id"
     )
 
     # should evaluate to true by default
@@ -366,18 +357,17 @@ def test_invalid_google_service_account_access(
     assert not google_service_account_validity
 
     # test that it contains the default error information and it's true
-    assert 'valid_type' in google_service_account_validity
-    assert google_service_account_validity['valid_type']
+    assert "valid_type" in google_service_account_validity
+    assert google_service_account_validity["valid_type"]
 
-    assert 'no_external_access' in google_service_account_validity
-    assert not google_service_account_validity['no_external_access']
+    assert "no_external_access" in google_service_account_validity
+    assert not google_service_account_validity["no_external_access"]
 
-    assert 'owned_by_project' in google_service_account_validity
-    assert google_service_account_validity['owned_by_project']
+    assert "owned_by_project" in google_service_account_validity
+    assert google_service_account_validity["owned_by_project"]
 
 
-def test_invalid_google_service_account_ownership(
-        valid_service_account_patcher):
+def test_invalid_google_service_account_ownership(valid_service_account_patcher):
     """
     Test that when the Google Service Account is invalid, the resulting
     GoogleServiceAccountValidity is False-y and contains the expected
@@ -387,11 +377,10 @@ def test_invalid_google_service_account_ownership(
     provided Google Project (which is not allowed).
     """
     patcher = valid_service_account_patcher
-    patcher['is_service_account_from_google_project'].return_value = False
+    patcher["is_service_account_from_google_project"].return_value = False
 
-    google_service_account_validity = (
-        GoogleServiceAccountValidity(
-            'some-account-id', 'some-google-project-id')
+    google_service_account_validity = GoogleServiceAccountValidity(
+        "some-account-id", "some-google-project-id"
     )
 
     # should evaluate to true by default
@@ -406,14 +395,14 @@ def test_invalid_google_service_account_ownership(
     # valid_type and no_external_access should be NULL
     # cannot determine validity of those fields because
     # account not owned by project
-    assert 'valid_type' in google_service_account_validity
-    assert not google_service_account_validity['valid_type']
+    assert "valid_type" in google_service_account_validity
+    assert not google_service_account_validity["valid_type"]
 
-    assert 'no_external_access' in google_service_account_validity
-    assert not google_service_account_validity['no_external_access']
+    assert "no_external_access" in google_service_account_validity
+    assert not google_service_account_validity["no_external_access"]
 
-    assert 'owned_by_project' in google_service_account_validity
-    assert not google_service_account_validity['owned_by_project']
+    assert "owned_by_project" in google_service_account_validity
+    assert not google_service_account_validity["owned_by_project"]
 
 
 def test_dict_like_validity_object_nested():
@@ -427,13 +416,13 @@ def test_dict_like_validity_object_nested():
     assert test_validity
 
     # adding a new FALSE item should result in FALSE validity
-    nested_test_validity['test_validity567'] = False
+    nested_test_validity["test_validity567"] = False
     assert not nested_test_validity
 
     # top level should be false now
-    test_validity['nested'] = nested_test_validity
+    test_validity["nested"] = nested_test_validity
     assert not test_validity
 
-    assert 'nested' in test_validity
-    assert 'test_validity567' in test_validity['nested']
-    assert test_validity['nested']['test_validity567'] is False
+    assert "nested" in test_validity
+    assert "test_validity567" in test_validity["nested"]
+    assert test_validity["nested"]["test_validity567"] is False

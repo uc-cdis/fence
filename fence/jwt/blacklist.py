@@ -26,7 +26,7 @@ class BlacklistedToken(Base):
     Table listing the key ids of tokens to blacklist.
     """
 
-    __tablename__ = 'blacklisted_token'
+    __tablename__ = "blacklisted_token"
 
     # The JWT id `jti`, a UUID4.
     jti = Column(String(36), primary_key=True)
@@ -55,12 +55,7 @@ def blacklist_token(jti, exp):
     # Add JWT id to blacklist table.
     with flask.current_app.db.session as session:
         session.add(BlacklistedToken(jti=jti, exp=exp))
-        (
-            session
-            .query(UserRefreshToken)
-            .filter_by(jti=jti, expires=exp)
-            .delete()
-        )
+        (session.query(UserRefreshToken).filter_by(jti=jti, expires=exp).delete())
         session.commit()
 
 
@@ -94,25 +89,23 @@ def blacklist_encoded_token(encoded_token, public_key=None):
     public_key = public_key or keys.default_public_key()
     try:
         claims = jwt.decode(
-            encoded_token, public_key, algorithm='RS256', audience='openid'
+            encoded_token, public_key, algorithm="RS256", audience="openid"
         )
     except jwt.InvalidTokenError as e:
-        raise BlacklistingError('failed to decode token: {}'.format(e))
+        raise BlacklistingError("failed to decode token: {}".format(e))
     try:
-        jti = claims['jti']
-        exp = claims['exp']
-        pur = claims['pur']
+        jti = claims["jti"]
+        exp = claims["exp"]
+        pur = claims["pur"]
     except KeyError as e:
-        raise BlacklistingError('token missing claim: {}'.format(e))
+        raise BlacklistingError("token missing claim: {}".format(e))
 
     # Do checks.
     # Check that JWT id is UUID4 (this raises a ValueError otherwise).
     uuid.UUID(jti, version=4)
     # Must be refresh token or API key in order to revoke.
-    if pur != 'refresh' and pur != 'api_key':
-        raise BlacklistingError(
-            'can only blacklist refresh tokens and API keys'
-        )
+    if pur != "refresh" and pur != "api_key":
+        raise BlacklistingError("can only blacklist refresh tokens and API keys")
 
     blacklist_token(jti, exp)
 
@@ -145,11 +138,8 @@ def is_token_blacklisted(encoded_token, public_key=None):
     public_key = public_key or keys.default_public_key()
     try:
         token = jwt.decode(
-            encoded_token, public_key, algorithm='RS256', audience='openid'
+            encoded_token, public_key, algorithm="RS256", audience="openid"
         )
     except jwt.exceptions.InvalidTokenError as e:
-        raise JWTError(
-            'could not decode token to check blacklisting: {}'
-            .format(e)
-        )
-    return is_blacklisted(token['jti'])
+        raise JWTError("could not decode token to check blacklisting: {}".format(e))
+    return is_blacklisted(token["jti"])

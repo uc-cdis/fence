@@ -1,10 +1,7 @@
 import bcrypt
 
 from authlib.common.security import generate_token
-from authlib.specs.rfc6749.errors import (
-    InvalidClientError,
-    UnauthorizedClientError,
-)
+from authlib.specs.rfc6749.errors import InvalidClientError, UnauthorizedClientError
 from authlib.specs.rfc6749.grants import (
     AuthorizationCodeGrant as AuthlibAuthorizationCodeGrant
 )
@@ -15,7 +12,6 @@ from fence.models import AuthorizationCode
 
 
 class AuthorizationCodeGrant(AuthlibAuthorizationCodeGrant):
-
     def __init__(self, uri, params, headers, client_model, token_generator):
         super(AuthorizationCodeGrant, self).__init__(
             uri, params, headers, client_model, token_generator
@@ -33,10 +29,10 @@ class AuthorizationCodeGrant(AuthlibAuthorizationCodeGrant):
         code = AuthorizationCode(
             code=generate_token(50),
             client_id=client.client_id,
-            redirect_uri=kwargs.get('redirect_uri', ''),
-            scope=kwargs.get('scope', ''),
+            redirect_uri=kwargs.get("redirect_uri", ""),
+            scope=kwargs.get("scope", ""),
             user_id=user.id,
-            nonce=kwargs.get('nonce'),
+            nonce=kwargs.get("nonce"),
         )
 
         with flask.current_app.db.session as session:
@@ -104,14 +100,10 @@ class AuthorizationCodeGrant(AuthlibAuthorizationCodeGrant):
         token = self.token_generator(
             client,
             self.GRANT_TYPE,
-            scope=get_obj_value(self._authorization_code, 'scope'),
+            scope=get_obj_value(self._authorization_code, "scope"),
             nonce=self._authorization_code.nonce,
         )
-        self.create_access_token(
-            token,
-            client,
-            self._authorization_code
-        )
+        self.create_access_token(token, client, self._authorization_code)
         self.delete_authorization_code(self._authorization_code)
         return 200, token, self.TOKEN_RESPONSE_HEADER
 
@@ -142,9 +134,10 @@ class AuthorizationCodeGrant(AuthlibAuthorizationCodeGrant):
             client = self.get_and_validate_client(client_id)
             # Client secrets are stored as hash.
             hashed = client.client_secret
-            if bcrypt.hashpw(
-                    client_secret.encode('utf-8'),
-                    hashed.encode('utf-8')) != hashed:
+            if (
+                bcrypt.hashpw(client_secret.encode("utf-8"), hashed.encode("utf-8"))
+                != hashed
+            ):
                 raise InvalidClientError(uri=self.uri)
 
             return client
@@ -152,9 +145,9 @@ class AuthorizationCodeGrant(AuthlibAuthorizationCodeGrant):
         # require client authentication for confidential clients or for any
         # client that was issued client credentials (or with other
         # authentication requirements)
-        client_id = self.params.get('client_id')
+        client_id = self.params.get("client_id")
         client = self.get_and_validate_client(client_id)
-        if client.check_client_type('confidential') or client.client_secret:
+        if client.check_client_type("confidential") or client.client_secret:
             raise UnauthorizedClientError(uri=self.uri)
 
         return client

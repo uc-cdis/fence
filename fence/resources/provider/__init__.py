@@ -7,6 +7,4 @@ as an interface to keep congruence with the rest of the modules at this level.
 Please use and expand accordingly.
 """
 
-from fence.resources.userdatamodel import (
-    get_provider, create_provider, delete_provider
-)
+from fence.resources.userdatamodel import get_provider, create_provider, delete_provider
