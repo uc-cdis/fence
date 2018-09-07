@@ -45,6 +45,8 @@ from fence.models import (
 from fence.utils import create_client
 from fence.sync.sync_users import UserSyncer
 
+from fence.scripting.google_monitor import validation_check
+
 logger = get_logger(__name__)
 
 
@@ -1181,3 +1183,13 @@ def link_external_bucket(
 
     pprint.pprint('bucket access group email: {}'.format(access_group.email))
     return access_group.email
+
+
+def verify_user_registration(DB):
+    """
+    Validate user registration
+    """
+
+    import fence.settings
+    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    validation_check(DB)
