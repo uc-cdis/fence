@@ -680,7 +680,7 @@ def _get_google_access_groups(session, project_id):
         project_id (int): project id in db
 
     Returns:
-        List(GoogleBucketAccessGroup)
+        set(GoogleBucketAccessGroup)
     """
     access_groups = set()
     project = session.query(Project).filter_by(id=project_id).first()
