@@ -13,12 +13,13 @@ from fence.resources.google.access_utils import (
     is_valid_service_account_type,
     service_account_has_external_access,
     is_service_account_from_google_project,
-    google_project_has_parent_org,
+    get_google_project_parent_org,
     get_google_project_valid_users_and_service_accounts,
     do_all_users_have_access_to_project,
     get_project_from_auth_id,
     can_access_google_project,
     remove_white_listed_service_account_ids,
+    is_org_whitelisted,
     is_user_member_of_all_google_projects,
 )
 
@@ -200,8 +201,16 @@ class GoogleProjectValidity(ValidityInfo):
             # always early return if user isn't a member on the project
             return
 
-        valid_parent_org = not google_project_has_parent_org(self.google_project_id)
+        parent_org = get_google_project_parent_org(self.google_project_id)
+        valid_parent_org = True
+
+        # if there is an org, let's remove whitelisted orgs and then check validity
+        # again
+        if parent_org:
+            valid_parent_org = is_org_whitelisted(parent_org)
+
         self.set("valid_parent_org", valid_parent_org)
+
         if not valid_parent_org and early_return:
             return
 

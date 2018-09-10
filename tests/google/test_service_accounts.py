@@ -352,7 +352,7 @@ def test_invalid_service_account_not_owned_by_project(
     assert response.json["errors"]["service_account_email"]["status"] == 403
 
 
-def test_invalid_google_project_has_parent_org(
+def test_invalid_get_google_project_parent_org(
     client,
     app,
     encoded_jwt_service_accounts_access,
@@ -364,7 +364,9 @@ def test_invalid_google_project_has_parent_org(
     """
     Test that an invalid service account gives us the expected error structure
     """
-    (valid_google_project_patcher["google_project_has_parent_org"].return_value) = True
+    (
+        valid_google_project_patcher["get_google_project_parent_org"].return_value
+    ) = "some-parent-org"
     encoded_creds_jwt = encoded_jwt_service_accounts_access["jwt"]
 
     db_session.add(Project(auth_id="project_a"))
@@ -392,6 +394,54 @@ def test_invalid_google_project_has_parent_org(
     assert response.status_code == 400
     _assert_expected_error_response_structure(response, project_access)
     assert response.json["errors"]["google_project_id"]["status"] == 403
+
+
+def test_valid_get_google_project_parent_org(
+    client,
+    app,
+    encoded_jwt_service_accounts_access,
+    valid_service_account_patcher,
+    valid_google_project_patcher,
+    db_session,
+    cloud_manager,
+    monkeypatch,
+):
+    """
+    Test that a valid service account gives us the expected response when it has
+    parent org BUT that org is whitelisted.
+    """
+    monkeypatch.setitem(
+        app.config, "WHITE_LISTED_GOOGLE_PARENT_ORGS", ["whitelisted-parent-org"]
+    )
+
+    (
+        valid_google_project_patcher["get_google_project_parent_org"].return_value
+    ) = "whitelisted-parent-org"
+    encoded_creds_jwt = encoded_jwt_service_accounts_access["jwt"]
+
+    db_session.add(Project(auth_id="project_a"))
+    db_session.add(Project(auth_id="project_b"))
+    db_session.commit()
+    project_access = ["project_a", "project_b"]
+
+    (
+        cloud_manager.return_value.__enter__.return_value.get_service_account.return_value
+    ) = {"uniqueId": "0", "email": "test123@test.com"}
+
+    valid_service_account = {
+        "service_account_email": "test123@test.com",
+        "google_project_id": "some-google-project-872340ajsdkj",
+        "project_access": project_access,
+    }
+
+    response = client.post(
+        "/google/service_accounts",
+        headers={"Authorization": "Bearer " + encoded_creds_jwt},
+        data=json.dumps(valid_service_account),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
 
 
 def test_invalid_google_project_has_invalid_membership(

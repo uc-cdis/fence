@@ -133,13 +133,13 @@ def valid_google_project_patcher():
     parent_org_mock = MagicMock()
     patches.append(
         patch(
-            "fence.resources.google.access_utils.google_project_has_parent_org",
+            "fence.resources.google.access_utils.get_google_project_parent_org",
             parent_org_mock,
         )
     )
     patches.append(
         patch(
-            "fence.resources.google.validity.google_project_has_parent_org",
+            "fence.resources.google.validity.get_google_project_parent_org",
             parent_org_mock,
         )
     )
@@ -238,7 +238,7 @@ def valid_google_project_patcher():
         )
     )
 
-    parent_org_mock.return_value = False
+    parent_org_mock.return_value = None
     valid_membership_mock.return_value = [], []
     get_users_from_members_mock.return_value = []
     users_have_access_mock.return_value = True
@@ -249,7 +249,7 @@ def valid_google_project_patcher():
         patched_function.start()
 
     yield {
-        "google_project_has_parent_org": (parent_org_mock),
+        "get_google_project_parent_org": (parent_org_mock),
         "get_google_project_valid_users_and_service_accounts": (valid_membership_mock),
         "get_users_from_google_members": (get_users_from_members_mock),
         "remove_white_listed_service_account_ids": (remove_white_listed_accounts_mock),

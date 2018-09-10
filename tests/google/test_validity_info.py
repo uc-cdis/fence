@@ -183,7 +183,7 @@ def test_valid_google_service_account(valid_service_account_patcher):
     assert google_service_account_validity["owned_by_project"]
 
 
-def test_invalid_google_project_parent_org(valid_google_project_patcher):
+def test_invalid_google_project_parent_org(app, valid_google_project_patcher):
     """
     Test that when the Google Project is invalid, the resulting
     GoogleProjectValidity is False-y and contains the expected information.
@@ -192,7 +192,7 @@ def test_invalid_google_project_parent_org(valid_google_project_patcher):
     invalid).
     """
     patcher = valid_google_project_patcher
-    patcher["google_project_has_parent_org"].return_value = True
+    patcher["get_google_project_parent_org"].return_value = "some-parent-org"
 
     google_project_validity = GoogleProjectValidity("some-project-id")
 

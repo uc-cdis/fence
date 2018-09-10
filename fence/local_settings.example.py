@@ -175,3 +175,4 @@ if os.path.exists(fence_creds):
         WHITE_LISTED_SERVICE_ACCOUNT_EMAILS = data.get(
             "WHITE_LISTED_SERVICE_ACCOUNT_EMAILS"
         )
+        WHITE_LISTED_GOOGLE_PARENT_ORGS = data.get("WHITE_LISTED_GOOGLE_PARENT_ORGS")
