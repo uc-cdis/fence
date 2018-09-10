@@ -30,7 +30,7 @@ pyyaml
 -e git+https://git@github.com/uc-cdis/cdiserrors.git@0.1.0#egg=cdiserrors
 -e git+https://git@github.com/uc-cdis/cdislogging.git@master#egg=cdislogging
 -e git+https://github.com/uc-cdis/storage-client.git@0.2.1#egg=storageclient-0.2.1
--e git+https://github.com/uc-cdis/userdatamodel.git@1.1.6#egg=userdatamodel
+-e git+https://github.com/uc-cdis/userdatamodel.git@1.1.7#egg=userdatamodel
 -e git+https://github.com/uc-cdis/datamodelutils.git@0.3.0#egg=datamodelutils
 -e git+https://github.com/uc-cdis/cdis-python-utils.git@0.2.10#egg=cdispyutils
 -e git+https://github.com/uc-cdis/cirrus.git@0.1.5#egg=cirrus-0.1.5
