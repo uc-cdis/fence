@@ -94,8 +94,7 @@ def get_google_project_parent_org(project_id):
         project_id(str): unique id for project
 
     Returns:
-        Bool: True iff google project has a parent
-        organization
+        str: The Google projects parent organization name or None if it does't have one
     """
     try:
         with GoogleCloudManager(project_id, use_default=False) as prj:
@@ -107,7 +106,7 @@ def get_google_project_parent_org(project_id):
                 "due to error (Details: {})".format(project_id, exc)
             )
         )
-        return False
+        return None
 
 
 def get_google_project_valid_users_and_service_accounts(project_id):
