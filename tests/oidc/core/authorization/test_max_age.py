@@ -14,7 +14,7 @@ from fence.jwt.validate import validate_jwt
 
 
 def test_reauthenticate_end_user(oauth_test_client):
-    data = {'confirm': 'yes', 'max_age': 0}
+    data = {"confirm": "yes", "max_age": 0}
 
     # TODO
 
@@ -26,8 +26,8 @@ def test_id_token_contains_auth_time(oauth_test_client):
     Test that if ``max_age`` is included in the authentication request, then
     the ID token returned contains an ``auth_time`` claim.
     """
-    data = {'confirm': 'yes', 'max_age': 3600}
+    data = {"confirm": "yes", "max_age": 3600}
     oauth_test_client.authorize(data=data)
     id_token = oauth_test_client.token().id_token
-    id_token_claims = validate_jwt(id_token, {'openid'})
-    assert 'auth_time' in id_token_claims
+    id_token_claims = validate_jwt(id_token, {"openid"})
+    assert "auth_time" in id_token_claims

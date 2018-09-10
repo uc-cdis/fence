@@ -9,13 +9,17 @@ The `migrate` function in this file is called every init and can be used for
 database migrations.
 """
 
-from authlib.flask.oauth2.sqla import (
-    OAuth2AuthorizationCodeMixin,
-    OAuth2ClientMixin,
-)
+from authlib.flask.oauth2.sqla import OAuth2AuthorizationCodeMixin, OAuth2ClientMixin
 import flask
 from sqlalchemy import (
-    Integer, BigInteger, String, Column, Boolean, Text, MetaData, Table
+    Integer,
+    BigInteger,
+    String,
+    Column,
+    Boolean,
+    Text,
+    MetaData,
+    Table,
 )
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship, backref
@@ -23,17 +27,34 @@ from sqlalchemy.schema import ForeignKey
 from fence.jwt.token import CLIENT_ALLOWED_SCOPES
 from userdatamodel import Base
 from userdatamodel.models import (
-    AccessPrivilege, Application, AuthorizationProvider, Bucket, Certificate,
-    CloudProvider, ComputeAccess, GoogleProxyGroup, HMACKeyPair,
-    HMACKeyPairArchive, IdentityProvider, Policy, Project, ProjectToBucket,
-    Group, S3Credential, StorageAccess, User, Tag, UserToBucket, UserToGroup,
+    AccessPrivilege,
+    Application,
+    AuthorizationProvider,
+    Bucket,
+    Certificate,
+    CloudProvider,
+    ComputeAccess,
+    GoogleProxyGroup,
+    Group,
+    HMACKeyPair,
+    HMACKeyPairArchive,
+    IdentityProvider,
+    Policy,
+    Project,
+    ProjectToBucket,
+    S3Credential,
+    StorageAccess,
+    Tag,
+    User,
+    UserToBucket,
+    UserToGroup,
     users_to_policies,
 )
 
 
 class Client(Base, OAuth2ClientMixin):
 
-    __tablename__ = 'client'
+    __tablename__ = "client"
 
     client_id = Column(String(40), primary_key=True)
     # this is hashed secret
@@ -48,8 +69,7 @@ class Client(Base, OAuth2ClientMixin):
     # required if you need to support client credential
     user_id = Column(Integer, ForeignKey(User.id))
     user = relationship(
-        'User',
-        backref=backref('clients', cascade='all, delete-orphan')
+        "User", backref=backref("clients", cascade="all, delete-orphan")
     )
 
     # this is for internal microservices to skip user grant
@@ -58,24 +78,24 @@ class Client(Base, OAuth2ClientMixin):
     # public or confidential
     is_confidential = Column(Boolean, default=True)
 
-    _allowed_scopes = Column(Text, nullable=False, default='')
+    _allowed_scopes = Column(Text, nullable=False, default="")
 
     _redirect_uris = Column(Text)
     _default_scopes = Column(Text)
-    _scopes = ['compute', 'storage', 'user']
+    _scopes = ["compute", "storage", "user"]
 
     def __init__(self, **kwargs):
-        if 'allowed_scopes' in kwargs:
-            allowed_scopes = kwargs.pop('allowed_scopes')
+        if "allowed_scopes" in kwargs:
+            allowed_scopes = kwargs.pop("allowed_scopes")
             if isinstance(allowed_scopes, list):
-                kwargs['_allowed_scopes'] = ' '.join(allowed_scopes)
+                kwargs["_allowed_scopes"] = " ".join(allowed_scopes)
             else:
-                kwargs['_allowed_scopes'] = allowed_scopes
+                kwargs["_allowed_scopes"] = allowed_scopes
         super(Client, self).__init__(**kwargs)
 
     @property
     def allowed_scopes(self):
-        return self._allowed_scopes.split(' ')
+        return self._allowed_scopes.split(" ")
 
     @property
     def client_type(self):
@@ -86,8 +106,8 @@ class Client(Base, OAuth2ClientMixin):
         ``False`` should the client be considered public.
         """
         if self.is_confidential is False:
-            return 'public'
-        return 'confidential'
+            return "public"
+        return "confidential"
 
     @property
     def redirect_uris(self):
@@ -108,18 +128,13 @@ class Client(Base, OAuth2ClientMixin):
     @staticmethod
     def get_by_client_id(client_id):
         with flask.current_app.db.session as session:
-            return (
-                session
-                .query(Client)
-                .filter_by(client_id=client_id)
-                .first()
-            )
+            return session.query(Client).filter_by(client_id=client_id).first()
 
     def check_requested_scopes(self, scopes):
         return set(self.allowed_scopes).issuperset(scopes)
 
     def validate_scopes(self, scopes):
-        scopes = scopes[0].split(',')
+        scopes = scopes[0].split(",")
         return all(scope in self._scopes for scope in scopes)
 
     def check_redirect_uri(self, redirect_uri):
@@ -128,34 +143,31 @@ class Client(Base, OAuth2ClientMixin):
 
 class AuthorizationCode(Base, OAuth2AuthorizationCodeMixin):
 
-    __tablename__ = 'authorization_code'
+    __tablename__ = "authorization_code"
 
     id = Column(Integer, primary_key=True)
 
-    user_id = Column(
-        Integer, ForeignKey('User.id', ondelete='CASCADE')
-    )
+    user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"))
     user = relationship(
-        'User',
-        backref=backref('authorization_codes', cascade='all, delete-orphan')
+        "User", backref=backref("authorization_codes", cascade="all, delete-orphan")
     )
 
     nonce = Column(String, nullable=True)
 
-    _scope = Column(Text, default='')
+    _scope = Column(Text, default="")
 
     def __init__(self, **kwargs):
-        if 'scope' in kwargs:
-            scope = kwargs.pop('scope')
+        if "scope" in kwargs:
+            scope = kwargs.pop("scope")
             if isinstance(scope, list):
-                kwargs['_scope'] = ' '.join(scope)
+                kwargs["_scope"] = " ".join(scope)
             else:
-                kwargs['_scope'] = scope
+                kwargs["_scope"] = scope
         super(AuthorizationCode, self).__init__(**kwargs)
 
     @property
     def scope(self):
-        return self._scope.split(' ')
+        return self._scope.split(" ")
 
 
 class UserRefreshToken(Base):
@@ -179,37 +191,18 @@ class GoogleServiceAccount(Base):
     # The uniqueId google provides to resources is ONLY unique within
     # the given project, so we shouldn't rely on that for a primary key (in
     # case we're ever juggling mult. projects)
-    google_unique_id = Column(
-        String,
-        unique=False,
-        nullable=False
-    )
+    google_unique_id = Column(String, unique=False, nullable=False)
 
-    client_id = Column(
-        String(40),
-    )
+    client_id = Column(String(40))
 
-    user_id = Column(
-        Integer,
-        ForeignKey(User.id),
-        nullable=False
-    )
+    user_id = Column(Integer, ForeignKey(User.id), nullable=False)
     user = relationship(
-        'User',
-        backref=backref(
-            'google_service_accounts', cascade='all, delete-orphan')
+        "User", backref=backref("google_service_accounts", cascade="all, delete-orphan")
     )
 
-    google_project_id = Column(
-        String,
-        nullable=False
-    )
+    google_project_id = Column(String, nullable=False)
 
-    email = Column(
-        String,
-        unique=True,
-        nullable=False
-    )
+    email = Column(String, unique=True, nullable=False)
 
     def delete(self):
         with flask.current_app.db.session as session:
@@ -223,17 +216,9 @@ class UserGoogleAccount(Base):
 
     id = Column(Integer, primary_key=True)
 
-    email = Column(
-        String,
-        unique=True,
-        nullable=False
-    )
+    email = Column(String, unique=True, nullable=False)
 
-    user_id = Column(
-        Integer,
-        ForeignKey(User.id),
-        nullable=False
-    )
+    user_id = Column(Integer, ForeignKey(User.id), nullable=False)
 
     def delete(self):
         with flask.current_app.db.session as session:
@@ -246,17 +231,11 @@ class UserGoogleAccountToProxyGroup(Base):
     __tablename__ = "user_google_account_to_proxy_group"
 
     user_google_account_id = Column(
-        Integer,
-        ForeignKey(UserGoogleAccount.id),
-        nullable=False,
-        primary_key=True
+        Integer, ForeignKey(UserGoogleAccount.id), nullable=False, primary_key=True
     )
 
     proxy_group_id = Column(
-        String,
-        ForeignKey(GoogleProxyGroup.id),
-        nullable=False,
-        primary_key=True
+        String, ForeignKey(GoogleProxyGroup.id), nullable=False, primary_key=True
     )
 
     expires = Column(BigInteger)
@@ -276,9 +255,7 @@ class GoogleServiceAccountKey(Base):
     key_id = Column(String, nullable=False)
 
     service_account_id = Column(
-        Integer,
-        ForeignKey(GoogleServiceAccount.id),
-        nullable=False
+        Integer, ForeignKey(GoogleServiceAccount.id), nullable=False
     )
 
     expires = Column(BigInteger)
@@ -296,21 +273,13 @@ class GoogleBucketAccessGroup(Base):
     __tablename__ = "google_bucket_access_group"
     id = Column(Integer, primary_key=True)
 
-    bucket_id = Column(
-        Integer,
-        ForeignKey(Bucket.id),
-        nullable=False,
-    )
+    bucket_id = Column(Integer, ForeignKey(Bucket.id), nullable=False)
     bucket = relationship(
-        'Bucket',
-        backref=backref(
-            'google_bucket_access_groups', cascade='all, delete-orphan')
+        "Bucket",
+        backref=backref("google_bucket_access_groups", cascade="all, delete-orphan"),
     )
 
-    email = Column(
-        String,
-        nullable=False
-    )
+    email = Column(String, nullable=False)
 
     # specify what kind of storage access this group has e.g. ['read-storage']
     privileges = Column(ARRAY(String))
@@ -326,26 +295,18 @@ class GoogleProxyGroupToGoogleBucketAccessGroup(Base):
     __tablename__ = "google_proxy_group_to_google_bucket_access_group"
     id = Column(Integer, primary_key=True)
 
-    proxy_group_id = Column(
-        String,
-        ForeignKey(GoogleProxyGroup.id),
-        nullable=False
-    )
+    proxy_group_id = Column(String, ForeignKey(GoogleProxyGroup.id), nullable=False)
     proxy_group = relationship(
-        'GoogleProxyGroup',
-        backref=backref(
-            'bucket_access_groups', cascade='all, delete-orphan')
+        "GoogleProxyGroup",
+        backref=backref("bucket_access_groups", cascade="all, delete-orphan"),
     )
 
     access_group_id = Column(
-        Integer,
-        ForeignKey(GoogleBucketAccessGroup.id),
-        nullable=False
+        Integer, ForeignKey(GoogleBucketAccessGroup.id), nullable=False
     )
     access_group = relationship(
-        'GoogleBucketAccessGroup',
-        backref=backref(
-            'proxy_groups_with_access', cascade='all, delete-orphan')
+        "GoogleBucketAccessGroup",
+        backref=backref("proxy_groups_with_access", cascade="all, delete-orphan"),
     )
 
 
@@ -356,17 +317,11 @@ class UserServiceAccount(Base):
     # The uniqueId google provides to resources is ONLY unique within
     # the given project, so we shouldn't rely on that for a primary key (in
     # case we're ever juggling mult. projects)
-    google_unique_id = Column(
-        String,
-        nullable=False)
+    google_unique_id = Column(String, nullable=False)
 
-    email = Column(
-        String,
-        nullable=False)
+    email = Column(String, nullable=False)
 
-    google_project_id = Column(
-        String,
-        nullable=False)
+    google_project_id = Column(String, nullable=False)
 
 
 class ServiceAccountAccessPrivilege(Base):
@@ -374,25 +329,20 @@ class ServiceAccountAccessPrivilege(Base):
 
     id = Column(Integer, primary_key=True)
 
-    project_id = Column(
-        Integer,
-        ForeignKey(Project.id),
-        nullable=False)
+    project_id = Column(Integer, ForeignKey(Project.id), nullable=False)
 
     project = relationship(
-        'Project',
-        backref=backref(
-            'sa_access_privileges', cascade='all, delete-orphan'))
+        "Project", backref=backref("sa_access_privileges", cascade="all, delete-orphan")
+    )
 
     service_account_id = Column(
-        Integer,
-        ForeignKey(UserServiceAccount.id),
-        nullable=False)
+        Integer, ForeignKey(UserServiceAccount.id), nullable=False
+    )
 
     service_account = relationship(
-        'UserServiceAccount',
-        backref=backref(
-            'access_privileges', cascade='all, delete-orphan'))
+        "UserServiceAccount",
+        backref=backref("access_privileges", cascade="all, delete-orphan"),
+    )
 
 
 class ServiceAccountToGoogleBucketAccessGroup(Base):
@@ -400,148 +350,154 @@ class ServiceAccountToGoogleBucketAccessGroup(Base):
     id = Column(Integer, primary_key=True)
 
     service_account_id = Column(
-        Integer,
-        ForeignKey(UserServiceAccount.id),
-        nullable=False)
+        Integer, ForeignKey(UserServiceAccount.id), nullable=False
+    )
 
     service_account = relationship(
-        'UserServiceAccount',
-        backref=backref(
-            'to_access_groups', cascade='all, delete-orphan'))
+        "UserServiceAccount",
+        backref=backref("to_access_groups", cascade="all, delete-orphan"),
+    )
 
     expires = Column(BigInteger)
 
     access_group_id = Column(
-        Integer,
-        ForeignKey(GoogleBucketAccessGroup.id),
-        nullable=False)
+        Integer, ForeignKey(GoogleBucketAccessGroup.id), nullable=False
+    )
 
     access_group = relationship(
-        'GoogleBucketAccessGroup',
-        backref=backref(
-            'to_access_groups', cascade='all, delete-orphan'))
+        "GoogleBucketAccessGroup",
+        backref=backref("to_access_groups", cascade="all, delete-orphan"),
+    )
 
 
-to_timestamp = "CREATE OR REPLACE FUNCTION pc_datetime_to_timestamp(datetoconvert timestamp) " \
-               "RETURNS BIGINT AS " \
-               "$BODY$ " \
-               "select extract(epoch from $1)::BIGINT " \
-               "$BODY$ " \
-               "LANGUAGE 'sql' IMMUTABLE STRICT;"
+to_timestamp = "CREATE OR REPLACE FUNCTION pc_datetime_to_timestamp(datetoconvert timestamp) " "RETURNS BIGINT AS " "$BODY$ " "select extract(epoch from $1)::BIGINT " "$BODY$ " "LANGUAGE 'sql' IMMUTABLE STRICT;"
 
 
 def migrate(driver):
     if not driver.engine.dialect.supports_alter:
-        print("This engine dialect doesn't support altering so we are not migrating even if necessary!")
+        print(
+            "This engine dialect doesn't support altering so we are not migrating even if necessary!"
+        )
         return
 
     md = MetaData()
 
-    table = Table(UserRefreshToken.__tablename__, md, autoload=True, autoload_with=driver.engine)
-    if str(table.c.expires.type) != 'BIGINT':
+    table = Table(
+        UserRefreshToken.__tablename__, md, autoload=True, autoload_with=driver.engine
+    )
+    if str(table.c.expires.type) != "BIGINT":
         print("Altering table %s expires to BIGINT" % (UserRefreshToken.__tablename__))
         with driver.session as session:
             session.execute(to_timestamp)
         with driver.session as session:
-            session.execute("ALTER TABLE {} ALTER COLUMN expires TYPE BIGINT USING pc_datetime_to_timestamp(expires);".format(UserRefreshToken.__tablename__))
+            session.execute(
+                "ALTER TABLE {} ALTER COLUMN expires TYPE BIGINT USING pc_datetime_to_timestamp(expires);".format(
+                    UserRefreshToken.__tablename__
+                )
+            )
 
     # oidc migration
 
     table = Table(Client.__tablename__, md, autoload=True, autoload_with=driver.engine)
-    if not any([index.name == 'ix_name' for index in table.indexes]):
+    if not any([index.name == "ix_name" for index in table.indexes]):
         with driver.session as session:
             session.execute(
-                "ALTER TABLE {} ADD constraint ix_name unique (name);"
-                .format(Client.__tablename__)
+                "ALTER TABLE {} ADD constraint ix_name unique (name);".format(
+                    Client.__tablename__
+                )
             )
 
-    if '_allowed_scopes' not in table.c:
+    if "_allowed_scopes" not in table.c:
         print(
-            "Altering table {} to add _allowed_scopes column"
-            .format(Client.__tablename__)
+            "Altering table {} to add _allowed_scopes column".format(
+                Client.__tablename__
+            )
         )
         with driver.session as session:
             session.execute(
-                "ALTER TABLE {} ADD COLUMN _allowed_scopes VARCHAR;"
-                .format(Client.__tablename__)
+                "ALTER TABLE {} ADD COLUMN _allowed_scopes VARCHAR;".format(
+                    Client.__tablename__
+                )
             )
             for client in session.query(Client):
                 if not client._allowed_scopes:
-                    client._allowed_scopes = ' '.join(CLIENT_ALLOWED_SCOPES)
+                    client._allowed_scopes = " ".join(CLIENT_ALLOWED_SCOPES)
                     session.add(client)
             session.commit()
             session.execute(
-                "ALTER TABLE {} ALTER COLUMN _allowed_scopes SET NOT NULL;"
-                .format(Client.__tablename__)
+                "ALTER TABLE {} ALTER COLUMN _allowed_scopes SET NOT NULL;".format(
+                    Client.__tablename__
+                )
             )
 
     add_column_if_not_exist(
         table_name=GoogleProxyGroup.__tablename__,
-        column=Column('email', String),
+        column=Column("email", String),
         driver=driver,
-        metadata=md
+        metadata=md,
     )
 
     drop_foreign_key_column_if_exist(
         table_name=GoogleProxyGroup.__tablename__,
-        column_name='user_id',
+        column_name="user_id",
         driver=driver,
-        metadata=md
+        metadata=md,
     )
 
     _add_google_project_id(driver, md)
 
     drop_unique_constraint_if_exist(
         table_name=GoogleServiceAccount.__tablename__,
-        column_name='google_unique_id',
+        column_name="google_unique_id",
         driver=driver,
-        metadata=md
+        metadata=md,
     )
 
     drop_unique_constraint_if_exist(
         table_name=GoogleServiceAccount.__tablename__,
-        column_name='google_project_id',
+        column_name="google_project_id",
         driver=driver,
-        metadata=md
+        metadata=md,
     )
 
     add_column_if_not_exist(
         table_name=GoogleBucketAccessGroup.__tablename__,
-        column=Column('privileges', ARRAY(String)),
+        column=Column("privileges", ARRAY(String)),
         driver=driver,
-        metadata=md
+        metadata=md,
     )
 
 
 def add_foreign_key_column_if_not_exist(
-        table_name, column_name, column_type, fk_table_name, fk_column_name, driver,
-        metadata):
+    table_name,
+    column_name,
+    column_type,
+    fk_table_name,
+    fk_column_name,
+    driver,
+    metadata,
+):
     column = Column(column_name, column_type)
-    add_column_if_not_exist(
-        table_name, column, driver, metadata)
+    add_column_if_not_exist(table_name, column, driver, metadata)
     add_foreign_key_constraint_if_not_exist(
-        table_name, column_name, fk_table_name, fk_column_name, driver,
-        metadata)
+        table_name, column_name, fk_table_name, fk_column_name, driver, metadata
+    )
 
 
 def drop_foreign_key_column_if_exist(table_name, column_name, driver, metadata):
-    drop_foreign_key_constraint_if_exist(
-        table_name, column_name, driver, metadata)
+    drop_foreign_key_constraint_if_exist(table_name, column_name, driver, metadata)
     drop_column_if_exist(table_name, column_name, driver, metadata)
 
 
-def add_column_if_not_exist(
-        table_name, column, driver, metadata):
+def add_column_if_not_exist(table_name, column, driver, metadata):
     column_name = column.compile(dialect=driver.engine.dialect)
     column_type = column.type.compile(driver.engine.dialect)
 
-    table = Table(
-        table_name, metadata, autoload=True, autoload_with=driver.engine)
+    table = Table(table_name, metadata, autoload=True, autoload_with=driver.engine)
     if str(column_name) not in table.c:
         with driver.session as session:
-            command = (
-                "ALTER TABLE \"{}\" ADD COLUMN {} {}"
-                .format(table_name, column_name, column_type)
+            command = 'ALTER TABLE "{}" ADD COLUMN {} {}'.format(
+                table_name, column_name, column_type
             )
             if not column.nullable:
                 command += " NOT NULL"
@@ -552,22 +508,19 @@ def add_column_if_not_exist(
 
 
 def drop_column_if_exist(table_name, column_name, driver, metadata):
-    table = Table(
-        table_name, metadata, autoload=True, autoload_with=driver.engine)
+    table = Table(table_name, metadata, autoload=True, autoload_with=driver.engine)
     if column_name in table.c:
         with driver.session as session:
             session.execute(
-                "ALTER TABLE \"{}\" DROP COLUMN {};"
-                .format(table_name, column_name)
+                'ALTER TABLE "{}" DROP COLUMN {};'.format(table_name, column_name)
             )
             session.commit()
 
 
 def add_foreign_key_constraint_if_not_exist(
-        table_name, column_name, fk_table_name, fk_column_name,
-        driver, metadata):
-    table = Table(
-        table_name, metadata, autoload=True, autoload_with=driver.engine)
+    table_name, column_name, fk_table_name, fk_column_name, driver, metadata
+):
+    table = Table(table_name, metadata, autoload=True, autoload_with=driver.engine)
     foreign_key_name = "{}_{}_fkey".format(table_name.lower(), column_name)
 
     if column_name in table.c:
@@ -575,39 +528,36 @@ def add_foreign_key_constraint_if_not_exist(
         if foreign_key_name not in foreign_keys:
             with driver.session as session:
                 session.execute(
-                    "ALTER TABLE \"{}\" ADD CONSTRAINT {} "
-                    "FOREIGN KEY({}) REFERENCES {} ({});"
-                    .format(
-                        table_name, foreign_key_name, column_name,
-                        fk_table_name, fk_column_name
+                    'ALTER TABLE "{}" ADD CONSTRAINT {} '
+                    "FOREIGN KEY({}) REFERENCES {} ({});".format(
+                        table_name,
+                        foreign_key_name,
+                        column_name,
+                        fk_table_name,
+                        fk_column_name,
                     )
                 )
                 session.commit()
 
 
-def drop_foreign_key_constraint_if_exist(
-        table_name, column_name, driver, metadata):
-    table = Table(
-        table_name, metadata, autoload=True, autoload_with=driver.engine)
+def drop_foreign_key_constraint_if_exist(table_name, column_name, driver, metadata):
+    table = Table(table_name, metadata, autoload=True, autoload_with=driver.engine)
     foreign_key_name = "{}_{}_fkey".format(table_name.lower(), column_name)
 
     if column_name in table.c:
-        foreign_keys = [
-            fk.name for fk in getattr(table.c, column_name).foreign_keys
-        ]
+        foreign_keys = [fk.name for fk in getattr(table.c, column_name).foreign_keys]
         if foreign_key_name in foreign_keys:
             with driver.session as session:
                 session.execute(
-                    "ALTER TABLE \"{}\" DROP CONSTRAINT {};"
-                    .format(table_name, foreign_key_name)
+                    'ALTER TABLE "{}" DROP CONSTRAINT {};'.format(
+                        table_name, foreign_key_name
+                    )
                 )
                 session.commit()
 
 
-def add_unique_constraint_if_not_exist(
-        table_name, column_name, driver, metadata):
-    table = Table(
-        table_name, metadata, autoload=True, autoload_with=driver.engine)
+def add_unique_constraint_if_not_exist(table_name, column_name, driver, metadata):
+    table = Table(table_name, metadata, autoload=True, autoload_with=driver.engine)
     index_name = "{}_{}_key".format(table_name, column_name)
 
     if column_name in table.c:
@@ -616,24 +566,20 @@ def add_unique_constraint_if_not_exist(
         if index_name not in indexes:
             with driver.session as session:
                 session.execute(
-                    "ALTER TABLE \"{}\" ADD CONSTRAINT {} UNIQUE ({});"
-                    .format(
+                    'ALTER TABLE "{}" ADD CONSTRAINT {} UNIQUE ({});'.format(
                         table_name, index_name, column_name
                     )
                 )
                 session.commit()
 
 
-def drop_unique_constraint_if_exist(
-        table_name, column_name, driver, metadata):
-    table = Table(
-        table_name, metadata, autoload=True, autoload_with=driver.engine)
+def drop_unique_constraint_if_exist(table_name, column_name, driver, metadata):
+    table = Table(table_name, metadata, autoload=True, autoload_with=driver.engine)
     constraint_name = "{}_{}_key".format(table_name, column_name)
 
     if column_name in table.c:
         constraints = [
-            constaint.name
-            for constaint in getattr(table.c, column_name).constraints
+            constaint.name for constaint in getattr(table.c, column_name).constraints
         ]
 
         unique_index = None
@@ -644,36 +590,35 @@ def drop_unique_constraint_if_exist(
         if constraint_name in constraints or unique_index:
             with driver.session as session:
                 session.execute(
-                    "ALTER TABLE \"{}\" DROP CONSTRAINT {};"
-                    .format(table_name, constraint_name)
+                    'ALTER TABLE "{}" DROP CONSTRAINT {};'.format(
+                        table_name, constraint_name
+                    )
                 )
                 session.commit()
 
 
-def drop_default_value(
-        table_name, column_name, driver, metadata):
-    table = Table(
-        table_name, metadata, autoload=True, autoload_with=driver.engine)
+def drop_default_value(table_name, column_name, driver, metadata):
+    table = Table(table_name, metadata, autoload=True, autoload_with=driver.engine)
 
     if column_name in table.c:
         with driver.session as session:
             session.execute(
-                "ALTER TABLE \"{}\" ALTER COLUMN \"{}\" DROP DEFAULT;"
-                .format(table_name, column_name)
+                'ALTER TABLE "{}" ALTER COLUMN "{}" DROP DEFAULT;'.format(
+                    table_name, column_name
+                )
             )
             session.commit()
 
 
-def add_not_null_constraint(
-        table_name, column_name, driver, metadata):
-    table = Table(
-        table_name, metadata, autoload=True, autoload_with=driver.engine)
+def add_not_null_constraint(table_name, column_name, driver, metadata):
+    table = Table(table_name, metadata, autoload=True, autoload_with=driver.engine)
 
     if column_name in table.c:
         with driver.session as session:
             session.execute(
-                "ALTER TABLE \"{}\" ALTER COLUMN \"{}\" SET NOT NULL;"
-                .format(table_name, column_name)
+                'ALTER TABLE "{}" ALTER COLUMN "{}" SET NOT NULL;'.format(
+                    table_name, column_name
+                )
             )
             session.commit()
 
@@ -696,15 +641,15 @@ def _add_google_project_id(driver, md):
     # add new google_project_id column
     add_column_if_not_exist(
         table_name=GoogleServiceAccount.__tablename__,
-        column=Column('google_project_id', String),
+        column=Column("google_project_id", String),
         driver=driver,
-        metadata=md)
+        metadata=md,
+    )
 
     # make rows have unique values for new column
     with driver.session as session:
-        rows_to_make_unique = (
-            session.query(GoogleServiceAccount)
-            .filter(GoogleServiceAccount.google_project_id.is_(None))
+        rows_to_make_unique = session.query(GoogleServiceAccount).filter(
+            GoogleServiceAccount.google_project_id.is_(None)
         )
         count = 0
         for row in rows_to_make_unique:
@@ -715,7 +660,7 @@ def _add_google_project_id(driver, md):
     # add not null constraint
     add_not_null_constraint(
         table_name=GoogleServiceAccount.__tablename__,
-        column_name='google_project_id',
+        column_name="google_project_id",
         driver=driver,
-        metadata=md
+        metadata=md,
     )

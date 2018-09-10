@@ -11,7 +11,7 @@ class OtherCredentialsList(Resource):
     For ``/credentials/<provider>`` endpoint.
     """
 
-    @require_auth_header({'credentials'})
+    @require_auth_header({"credentials"})
     def get(self, provider):
         """
         List access keys for user
@@ -39,26 +39,15 @@ class OtherCredentialsList(Resource):
         # TODO hopefully we can remove this db call eventually, but
         # StorageManager class requires some updates
         with flask.current_app.db.session as session:
-            user = (
-                session
-                .query(User)
-                .filter_by(id=user_id)
-                .first()
-            )
+            user = session.query(User).filter_by(id=user_id).first()
 
-        result = (
-            flask.current_app
-            .storage_manager
-            .list_keypairs(provider, user)
-        )
-        keys = {
-            'access_keys':
-                [{'access_key': item['access_key']} for item in result]}
+        result = flask.current_app.storage_manager.list_keypairs(provider, user)
+        keys = {"access_keys": [{"access_key": item["access_key"]} for item in result]}
         result = keys
 
         return flask.jsonify(result)
 
-    @require_auth_header({'credentials'})
+    @require_auth_header({"credentials"})
     def post(self, provider):
         """
         Generate a keypair for user
@@ -82,20 +71,14 @@ class OtherCredentialsList(Resource):
         # TODO hopefully we can remove this db call eventually, but
         # StorageManager class requires some updates
         with flask.current_app.db.session as session:
-            user = (
-                session
-                .query(User)
-                .filter_by(id=user_id)
-                .first()
-            )
+            user = session.query(User).filter_by(id=user_id).first()
 
-        return flask.jsonify(flask.current_app.storage_manager.create_keypair(
-            provider, user
-        ))
+        return flask.jsonify(
+            flask.current_app.storage_manager.create_keypair(provider, user)
+        )
 
 
 class OtherCredentials(Resource):
-
     def delete(self, provider, access_key):
         """
         Delete a keypair for user
@@ -111,14 +94,8 @@ class OtherCredentials(Resource):
         # TODO hopefully we can remove this db call eventually, but
         # StorageManager class requires some updates
         with flask.current_app.db.session as session:
-            user = (
-                session
-                .query(User)
-                .filter_by(id=user_id)
-                .first()
-            )
+            user = session.query(User).filter_by(id=user_id).first()
 
-        flask.current_app.storage_manager.delete_keypair(
-            provider, user, access_key)
+        flask.current_app.storage_manager.delete_keypair(provider, user, access_key)
 
-        return '', 204
+        return "", 204
