@@ -872,9 +872,10 @@ class UserSyncer(object):
         else:
             self.logger.info("No resources specified; skipping arborist sync")
 
-    def _reset_user_access(self, session):
+    @staticmethod
+    def _reset_user_access(session):
         session.execute(users_to_policies.delete())
-        # TODO: revoke admin access etc
+        # TODO (rudyardrichter 2018-09-10): revoke admin access etc
 
     def _update_arborist(self, session, resources, user_projects):
         """
