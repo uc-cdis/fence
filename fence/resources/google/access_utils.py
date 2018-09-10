@@ -682,14 +682,14 @@ def _get_google_access_groups(session, project_id):
     Returns:
         List(GoogleBucketAccessGroup)
     """
-    access_groups = []
+    access_groups = set()
     project = session.query(Project).filter_by(id=project_id).first()
 
     for bucket in project.buckets:
         groups = bucket.google_bucket_access_groups
-        access_groups.extend(groups)
+        access_groups.update(groups)
 
-    return set(access_groups)
+    return access_groups
 
 
 def extend_service_account_access(service_account_email, db=None):
