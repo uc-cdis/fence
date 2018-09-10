@@ -18,7 +18,7 @@ def _request_get_json(response):
     """
     try:
         return response.json()
-    except json.decoder.JSONDecodeError as e:
+    except ValueError as e:
         return {'error': str(e)}
 
 
