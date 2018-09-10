@@ -24,6 +24,7 @@ from fence.models import (
     Project,
     Tag,
     User,
+    users_to_policies,
 )
 from fence.rbac.client import ArboristClient, ArboristError
 from fence.resources.storage import StorageManager
@@ -871,6 +872,11 @@ class UserSyncer(object):
         else:
             self.logger.info("No resources specified; skipping arborist sync")
 
+    @staticmethod
+    def _reset_user_access(session):
+        session.execute(users_to_policies.delete())
+        # TODO (rudyardrichter 2018-09-10): revoke admin access etc
+
     def _update_arborist(self, session, resources, user_projects):
         """
         Create roles and resources in arborist from the information in
@@ -896,14 +902,22 @@ class UserSyncer(object):
 
         # Set up the resource tree in arborist
         if resources:
+            # see if arborist has identical resource tree already
             try:
-                self.arborist_client.create_resource("/", resources)
+                for resource in resources:
+                    # don't care about response from delete
+                    self.arborist_client.delete_resource(
+                        "/" + resource["name"]
+                    )
+                    self.arborist_client.create_resource("/", resource)
             except ArboristError as e:
                 self.logger.error(e)
                 return False
 
         created_roles = set()
         created_policies = set()
+
+        self._reset_user_access(session)
 
         for username, user_resources in user_projects.iteritems():
             self.logger.info("processing user `{}`".format(username))
@@ -912,8 +926,7 @@ class UserSyncer(object):
                 .filter(func.lower(User.username) == username.lower())
                 .first()
             )
-            # reset user policies; update to exactly what's in the yaml file
-            user.policies = []
+
             for path, permissions in user_resources.iteritems():
                 for permission in permissions:
                     # "permission" in the dbgap sense, not the arborist sense
@@ -951,7 +964,6 @@ class UserSyncer(object):
                             self.logger.info(
                                 "not creating policy in arborist; {}".format(str(e))
                             )
-                            continue
                         created_policies.add(policy_id)
                     policy = session.query(Policy).filter_by(id=policy_id).first()
                     if not policy:
