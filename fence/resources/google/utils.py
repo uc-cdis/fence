@@ -619,11 +619,19 @@ def get_user_from_google_member(member):
     Return:
         fence.models.User: User from our db for member on Google project
     """
-    return (
+    linked_google_account = (
         current_session.query(UserGoogleAccount)
         .filter(UserGoogleAccount.email == member.email_id.lower())
         .first()
     )
+    if linked_google_account:
+        return (
+            current_session.query(User)
+            .filter(User.id == linked_google_account.user_id)
+            .first()
+        )
+
+    return None
 
 
 def get_monitoring_service_account_email():
