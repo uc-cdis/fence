@@ -355,7 +355,6 @@ class StorageManager(object):
                     #       email address.
                     # TODO Update storageclient API for more clarity
                     self.clients[provider].add_bucket_acl(bucket_name, storage_username)
-
                 else:
                     # In the case of google, since we have multiple groups
                     # with access to the bucket, we need to also remove access
@@ -375,9 +374,6 @@ class StorageManager(object):
         # access groups)
         if provider == STORAGE_ACCESS_PROVIDER_NAME:
             for bucket_access_group in bucket.google_bucket_access_groups:
-                StorageManager._remove_google_db_entry_for_bucket_access(
-                    bucket_access_group
-                )
                 bucket_name = bucket_access_group.email
                 self.clients[provider].delete_bucket_acl(bucket_name, storage_username)
         else:
