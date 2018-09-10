@@ -21,33 +21,40 @@ alphanumeric = string.ascii_uppercase + string.ascii_lowercase + string.digits
 
 
 def random_str(length):
-    return ''.join(rng.choice(alphanumeric) for _ in xrange(length))
+    return "".join(rng.choice(alphanumeric) for _ in xrange(length))
 
 
 def json_res(data):
-    return flask.Response(json.dumps(data), mimetype='application/json')
+    return flask.Response(json.dumps(data), mimetype="application/json")
 
 
 def create_client(
-        username, urls, DB, name='', description='', auto_approve=False,
-        is_admin=False):
+    username, urls, DB, name="", description="", auto_approve=False, is_admin=False
+):
     driver = SQLAlchemyDriver(DB)
     client_id = random_str(40)
     client_secret = random_str(55)
     hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
     with driver.session as s:
-        user = s.query(User).filter(func.lower(User.username) == username.lower()).first()
+        user = (
+            s.query(User).filter(func.lower(User.username) == username.lower()).first()
+        )
         if not user:
             user = User(username=username, is_admin=is_admin)
             s.add(user)
         if s.query(Client).filter(Client.name == name).first():
-            raise Exception('client {} already exists'.format(name))
+            raise Exception("client {} already exists".format(name))
             return
         client = Client(
-            client_id=client_id, client_secret=hashed_secret,
-            user=user, _redirect_uris=urls,
-            _allowed_scopes=' '.join(CLIENT_ALLOWED_SCOPES),
-            description=description, name=name, auto_approve=auto_approve)
+            client_id=client_id,
+            client_secret=hashed_secret,
+            user=user,
+            _redirect_uris=urls,
+            _allowed_scopes=" ".join(CLIENT_ALLOWED_SCOPES),
+            description=description,
+            name=name,
+            auto_approve=auto_approve,
+        )
         s.add(client)
         s.commit()
     return client_id, client_secret
@@ -56,21 +63,20 @@ def create_client(
 def hash_secret(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        has_secret = 'client_secret' in flask.request.form
-        has_client_id = 'client_id' in flask.request.form
+        has_secret = "client_secret" in flask.request.form
+        has_client_id = "client_id" in flask.request.form
         if flask.request.form and has_secret and has_client_id:
             form = flask.request.form.to_dict()
             with flask.current_app.db.session as session:
                 client = (
-                    session
-                    .query(Client)
-                    .filter(Client.client_id == form['client_id'])
+                    session.query(Client)
+                    .filter(Client.client_id == form["client_id"])
                     .first()
                 )
                 if client:
-                    form['client_secret'] = bcrypt.hashpw(
-                        form['client_secret'].encode('utf-8'),
-                        client.client_secret.encode('utf-8')
+                    form["client_secret"] = bcrypt.hashpw(
+                        form["client_secret"].encode("utf-8"),
+                        client.client_secret.encode("utf-8"),
                     )
                 flask.request.form = ImmutableMultiDict(form)
 
@@ -84,13 +90,14 @@ def wrap_list_required(f):
     def wrapper(d, *args, **kwargs):
         data_is_a_list = False
         if isinstance(d, list):
-            d = {'data': d}
+            d = {"data": d}
             data_is_a_list = True
         if not data_is_a_list:
             return f(d, *args, **kwargs)
         else:
             result = f(d, *args, **kwargs)
-            return result['data']
+            return result["data"]
+
     return wrapper
 
 
@@ -131,8 +138,8 @@ def convert_value(d, converter):
 
 
 def to_underscore(s):
-    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', s)
-    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+    s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", s)
+    return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
 
 
 def strip(s):
@@ -146,13 +153,13 @@ def clear_cookies(response):
     Set all cookies to empty and expired.
     """
     for cookie_name in flask.request.cookies.values():
-        response.set_cookie(cookie_name, '', expires=0)
+        response.set_cookie(cookie_name, "", expires=0)
 
 
 def get_error_params(error, description):
-    params = ''
+    params = ""
     if error:
-        args = {'error': error, 'error_description': description}
+        args = {"error": error, "error_description": description}
         params = urlencode(args)
     return params
 
@@ -173,16 +180,12 @@ def append_query_params(original_url, **kwargs):
             query_params[key] = [value]
 
     new_query_string = urlencode(query_params, doseq=True)
-    new_url = (
-        urlunsplit((scheme, netloc, path, new_query_string, fragment))
-    )
+    new_url = urlunsplit((scheme, netloc, path, new_query_string, fragment))
     return new_url
 
 
 def split_url_and_query_params(url):
     scheme, netloc, path, query_string, fragment = urlsplit(url)
     query_params = parse_qs(query_string)
-    url = (
-        urlunsplit((scheme, netloc, path, None, fragment))
-    )
+    url = urlunsplit((scheme, netloc, path, None, fragment))
     return url, query_params

@@ -30,12 +30,12 @@ OIDC specification of authentication request parameter ``display``:
 import pytest
 
 
-@pytest.mark.parametrize('display', ['page', 'popup', 'touch', 'wap'])
+@pytest.mark.parametrize("display", ["page", "popup", "touch", "wap"])
 def test_display_option_page(oauth_test_client, display):
     """
     Test the very basic requirement that including the ``display`` parameter
     with the given value does not cause any errors.
     """
-    data = {'confirm': 'yes', 'display': display}
+    data = {"confirm": "yes", "display": display}
     auth_response = oauth_test_client.authorize(data=data).response
     assert auth_response.status_code == 200

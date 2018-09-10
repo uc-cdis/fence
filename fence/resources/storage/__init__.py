@@ -15,6 +15,7 @@ from fence.errors import NotSupported, InternalError, Unauthorized, NotFound
 from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME as GOOGLE_PROVIDER
 
 
+
 def check_exist(f):
     @wraps(f)
     def wrapper(self, provider, *args, **kwargs):
@@ -344,9 +345,7 @@ class StorageManager(object):
             user = self.clients[provider].get_or_create_user(username)
         return user
 
-    def _update_access_to_bucket(
-        self, bucket, provider, storage_user, storage_username, access, session
-    ):
+    def _update_access_to_bucket(self, bucket, provider, storage_username, access):
         # Need different logic for google (since buckets can have multiple
         # access groups)
         if provider == GOOGLE_PROVIDER:
@@ -390,9 +389,7 @@ class StorageManager(object):
                 bucket.name, storage_username, access=access
             )
 
-    def _revoke_access_to_bucket(
-        self, bucket, provider, storage_user, storage_username, session
-    ):
+    def _revoke_access_to_bucket(self, bucket, provider, storage_username):
         # Need different logic for google (since buckets can have multiple
         # access groups)
         if provider == GOOGLE_PROVIDER:
@@ -405,40 +402,6 @@ class StorageManager(object):
         else:
             self.clients[provider].delete_bucket_acl(bucket.name, storage_username)
 
-    @staticmethod
-    def _add_google_db_entry_for_bucket_access(
-        storage_user, bucket_access_group, session
-    ):
-        """
-        Add a db entry specifying that a given user has storage access
-        to the provided Google bucket access group
-        """
-        storage_user_access_db_entry = GoogleProxyGroupToGoogleBucketAccessGroup(
-            proxy_group_id=storage_user.google_proxy_group_id,
-            access_group_id=bucket_access_group.id,
-        )
-        session.add(storage_user_access_db_entry)
-        session.commit()
-
-    @staticmethod
-    def _remove_google_db_entry_for_bucket_access(
-        storage_user, bucket_access_group, session
-    ):
-        """
-        Remove the db entry specifying that a given user has storage access
-        to the provided Google bucket access group
-        """
-        storage_user_access_db_entry = (
-            session.query(GoogleProxyGroupToGoogleBucketAccessGroup)
-            .filter_by(
-                proxy_group_id=storage_user.google_proxy_group_id,
-                access_group_id=bucket_access_group.id,
-            )
-            .first()
-        )
-        if storage_user_access_db_entry:
-            session.remove(storage_user_access_db_entry)
-            session.commit()
 
     @staticmethod
     def _get_storage_username(user, provider):
