@@ -18,7 +18,7 @@ def _request_get_json(response):
     """
     try:
         return response.json()
-    except json.decoder.JSONDecodeError as e:
+    except ValueError as e:
         return {"error": str(e)}
 
 
@@ -99,7 +99,7 @@ class ArboristClient(object):
             policy_id for policy_id in policy_ids if policy_id not in existing_policies
         ]
 
-    def create_resource(self, parent_path, resource_json):
+    def create_resource(self, parent_path, resource_json, overwrite=False):
         """
         Create a new resource in arborist (does not affect fence database or
         otherwise have any interaction with userdatamodel).
@@ -150,12 +150,16 @@ class ArboristClient(object):
         path = self._resource_url + parent_path
         response = _request_get_json(requests.post(path, json=resource_json))
         if "error" in response:
+            msg = response["error"].get("message", str(response["error"]))
             self.logger.error(
-                "could not create resource `{}` in arborist: ".format(path)
-                + response["error"]
+                "could not create resource `{}` in arborist: {}"
+                .format(path, msg)
             )
             raise ArboristError(response["error"])
         return response
+
+    def delete_resource(self, path):
+        return _request_get_json(requests.delete(self._resource_url + path))
 
     def create_role(self, role_json):
         """
