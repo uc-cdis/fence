@@ -131,14 +131,18 @@ def valid_google_project_patcher():
     patches = []
 
     parent_org_mock = MagicMock()
-    patches.append(patch(
-        'fence.resources.google.access_utils.get_google_project_parent_org',
-        parent_org_mock
-    ))
-    patches.append(patch(
-        'fence.resources.google.validity.get_google_project_parent_org',
-        parent_org_mock
-    ))
+    patches.append(
+        patch(
+            "fence.resources.google.access_utils.get_google_project_parent_org",
+            parent_org_mock,
+        )
+    )
+    patches.append(
+        patch(
+            "fence.resources.google.validity.get_google_project_parent_org",
+            parent_org_mock,
+        )
+    )
 
     valid_membership_mock = MagicMock()
     patches.append(
@@ -245,30 +249,14 @@ def valid_google_project_patcher():
         patched_function.start()
 
     yield {
-        'get_google_project_parent_org': (
-            parent_org_mock
-        ),
-        'get_google_project_valid_users_and_service_accounts': (
-            valid_membership_mock
-        ),
-        'get_users_from_google_members': (
-            get_users_from_members_mock
-        ),
-        'remove_white_listed_service_account_ids': (
-            remove_white_listed_accounts_mock
-        ),
-        'do_all_users_have_access_to_project': (
-            users_have_access_mock
-        ),
-        'get_registered_service_accounts': (
-            get_registered_service_accounts_mock
-        ),
-        'get_project_access_from_service_accounts': (
-            project_access_mock
-        ),
-        'get_service_account_ids_from_google_members': (
-            project_service_accounts_mock
-        ),
+        "get_google_project_parent_org": (parent_org_mock),
+        "get_google_project_valid_users_and_service_accounts": (valid_membership_mock),
+        "get_users_from_google_members": (get_users_from_members_mock),
+        "remove_white_listed_service_account_ids": (remove_white_listed_accounts_mock),
+        "do_all_users_have_access_to_project": (users_have_access_mock),
+        "get_registered_service_accounts": (get_registered_service_accounts_mock),
+        "get_project_access_from_service_accounts": (project_access_mock),
+        "get_service_account_ids_from_google_members": (project_service_accounts_mock),
     }
 
     for patched_function in patches:

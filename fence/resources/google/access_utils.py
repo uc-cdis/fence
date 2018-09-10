@@ -845,11 +845,12 @@ def remove_white_listed_parent_orgs(parent_orgs):
     Returns:
         List[str]: parent orgs
     """
-    if 'WHITE_LISTED_GOOGLE_PARENT_ORGS' in flask.current_app.config:
-        for email in (flask.current_app.config
-                      .get('WHITE_LISTED_GOOGLE_PARENT_ORGS', [])):
-                if email in parent_orgs:
-                    parent_orgs.remove(email)
+    if "WHITE_LISTED_GOOGLE_PARENT_ORGS" in flask.current_app.config:
+        for email in flask.current_app.config.get(
+            "WHITE_LISTED_GOOGLE_PARENT_ORGS", []
+        ):
+            if email in parent_orgs:
+                parent_orgs.remove(email)
 
     return parent_orgs
 

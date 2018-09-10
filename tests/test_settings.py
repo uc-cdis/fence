@@ -128,8 +128,6 @@ CIRRUS_CFG = {}
 
 ARBORIST = "/arborist"
 
-WHITE_LISTED_SERVICE_ACCOUNT_EMAILS = [
-    'test@0', 'test@123', 'test@456',
-]
+WHITE_LISTED_SERVICE_ACCOUNT_EMAILS = ["test@0", "test@123", "test@456"]
 
 WHITE_LISTED_GOOGLE_PARENT_ORGS = []

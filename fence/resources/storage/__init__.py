@@ -15,7 +15,6 @@ from fence.errors import NotSupported, InternalError, Unauthorized, NotFound
 from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME as GOOGLE_PROVIDER
 
 
-
 def check_exist(f):
     @wraps(f)
     def wrapper(self, provider, *args, **kwargs):
@@ -401,7 +400,6 @@ class StorageManager(object):
                 self.clients[provider].delete_bucket_acl(bucket_name, storage_username)
         else:
             self.clients[provider].delete_bucket_acl(bucket.name, storage_username)
-
 
     @staticmethod
     def _get_storage_username(user, provider):

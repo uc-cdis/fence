@@ -201,9 +201,7 @@ class GoogleProjectValidity(ValidityInfo):
             # always early return if user isn't a member on the project
             return
 
-        parent_org = (
-            get_google_project_parent_org(self.google_project_id)
-        )
+        parent_org = get_google_project_parent_org(self.google_project_id)
         valid_parent_org = True
 
         # if there is an org, let's remove whitelisted orgs and then check validity
@@ -211,7 +209,7 @@ class GoogleProjectValidity(ValidityInfo):
         if parent_org:
             valid_parent_org = not remove_white_listed_parent_orgs([parent_org])
 
-        self.set('valid_parent_org', valid_parent_org)
+        self.set("valid_parent_org", valid_parent_org)
 
         if not valid_parent_org and early_return:
             return

@@ -192,7 +192,7 @@ def test_invalid_google_project_parent_org(app, valid_google_project_patcher):
     invalid).
     """
     patcher = valid_google_project_patcher
-    patcher['get_google_project_parent_org'].return_value = "some-parent-org"
+    patcher["get_google_project_parent_org"].return_value = "some-parent-org"
 
     google_project_validity = GoogleProjectValidity("some-project-id")
 

@@ -364,9 +364,9 @@ def test_invalid_get_google_project_parent_org(
     """
     Test that an invalid service account gives us the expected error structure
     """
-    (valid_google_project_patcher["get_google_project_parent_org"].return_value) = (
-        "some-parent-org"
-    )
+    (
+        valid_google_project_patcher["get_google_project_parent_org"].return_value
+    ) = "some-parent-org"
     encoded_creds_jwt = encoded_jwt_service_accounts_access["jwt"]
 
     db_session.add(Project(auth_id="project_a"))
@@ -414,9 +414,9 @@ def test_valid_get_google_project_parent_org(
         app.config, "WHITE_LISTED_GOOGLE_PARENT_ORGS", ["whitelisted-parent-org"]
     )
 
-    (valid_google_project_patcher["get_google_project_parent_org"].return_value) = (
-        "whitelisted-parent-org"
-    )
+    (
+        valid_google_project_patcher["get_google_project_parent_org"].return_value
+    ) = "whitelisted-parent-org"
     encoded_creds_jwt = encoded_jwt_service_accounts_access["jwt"]
 
     db_session.add(Project(auth_id="project_a"))
