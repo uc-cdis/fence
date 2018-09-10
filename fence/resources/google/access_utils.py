@@ -843,7 +843,9 @@ def is_org_whitelisted(parent_org):
     Returns:
         bool: whether or not the provide Google parent organization is whitelisted
     """
-    return parent_org in flask.current_app.config.get("WHITE_LISTED_GOOGLE_PARENT_ORGS")
+    return parent_org in flask.current_app.config.get(
+        "WHITE_LISTED_GOOGLE_PARENT_ORGS", {}
+    )
 
 
 def force_delete_service_account(service_account_email, db=None):
