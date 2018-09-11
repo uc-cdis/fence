@@ -19,7 +19,7 @@ from fence.resources.google.access_utils import (
     get_project_from_auth_id,
     can_access_google_project,
     remove_white_listed_service_account_ids,
-    remove_white_listed_parent_orgs,
+    is_org_whitelisted,
     is_user_member_of_all_google_projects,
 )
 
@@ -207,7 +207,7 @@ class GoogleProjectValidity(ValidityInfo):
         # if there is an org, let's remove whitelisted orgs and then check validity
         # again
         if parent_org:
-            valid_parent_org = not remove_white_listed_parent_orgs([parent_org])
+            valid_parent_org = is_org_whitelisted(parent_org)
 
         self.set("valid_parent_org", valid_parent_org)
 

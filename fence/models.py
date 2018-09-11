@@ -35,19 +35,20 @@ from userdatamodel.models import (
     CloudProvider,
     ComputeAccess,
     GoogleProxyGroup,
+    Group,
     HMACKeyPair,
     HMACKeyPairArchive,
     IdentityProvider,
     Policy,
     Project,
     ProjectToBucket,
-    Group,
     S3Credential,
     StorageAccess,
-    User,
     Tag,
+    User,
     UserToBucket,
     UserToGroup,
+    users_to_policies,
 )
 
 

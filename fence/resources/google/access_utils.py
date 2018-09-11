@@ -94,8 +94,7 @@ def get_google_project_parent_org(project_id):
         project_id(str): unique id for project
 
     Returns:
-        Bool: True iff google project has a parent
-        organization
+        str: The Google projects parent organization name or None if it does't have one
     """
     try:
         with GoogleCloudManager(project_id, use_default=False) as prj:
@@ -107,7 +106,7 @@ def get_google_project_parent_org(project_id):
                 "due to error (Details: {})".format(project_id, exc)
             )
         )
-        return False
+        return None
 
 
 def get_google_project_valid_users_and_service_accounts(project_id):
@@ -680,14 +679,14 @@ def _get_google_access_groups(session, project_id):
         project_id (int): project id in db
 
     Returns:
-        List(GoogleBucketAccessGroup)
+        set(GoogleBucketAccessGroup)
     """
-    access_groups = []
+    access_groups = set()
     project = session.query(Project).filter_by(id=project_id).first()
 
     for bucket in project.buckets:
         groups = bucket.google_bucket_access_groups
-        access_groups.extend(groups)
+        access_groups.update(groups)
 
     return access_groups
 
@@ -834,25 +833,19 @@ def remove_white_listed_service_account_ids(service_account_ids):
     return service_account_ids
 
 
-def remove_white_listed_parent_orgs(parent_orgs):
+def is_org_whitelisted(parent_org):
     """
-    Remove any service account emails that should be ignored when
-    determining validitity.
+    Return whether or not the provide Google parent organization is whitelisted
 
     Args:
-        parent_orgs (List[str]): parent organizations
+        parent_org (str): Google parent organization
 
     Returns:
-        List[str]: parent orgs
+        bool: whether or not the provide Google parent organization is whitelisted
     """
-    if "WHITE_LISTED_GOOGLE_PARENT_ORGS" in flask.current_app.config:
-        for email in flask.current_app.config.get(
-            "WHITE_LISTED_GOOGLE_PARENT_ORGS", []
-        ):
-            if email in parent_orgs:
-                parent_orgs.remove(email)
-
-    return parent_orgs
+    return parent_org in flask.current_app.config.get(
+        "WHITE_LISTED_GOOGLE_PARENT_ORGS", {}
+    )
 
 
 def force_delete_service_account(service_account_email, db=None):
