@@ -248,17 +248,31 @@ class GoogleProjectValidity(ValidityInfo):
                 if early_return:
                     return
 
+        # use a generic validityinfo object to hold all the service accounts
+        # validity. then check all the service accounts. Top level will be
+        # invalid if any service accounts are invalid
         new_service_account_validity = ValidityInfo()
         if self.new_service_account:
             service_account_validity_info = GoogleServiceAccountValidity(
                 self.new_service_account, self.google_project_id, google_project_number
             )
-            service_account_validity_info.check_validity(early_return=early_return)
+
+            service_account_id = str(self.new_service_account)
+            # we do NOT need to check the service account type and external access
+            # for google-managed accounts.
+            if is_google_managed_service_account(service_account_id):
+                service_account_validity_info.check_validity(
+                    early_return=early_return, check_type_and_access=False
+                )
+            else:
+                service_account_validity_info.check_validity(
+                    early_return=early_return, check_type_and_access=True
+                )
+
             if not service_account_validity_info and early_return:
                 return
 
             # update project with error info from the service accounts
-            service_account_id = str(self.new_service_account)
             new_service_account_validity.set(
                 service_account_id, service_account_validity_info
             )
@@ -283,9 +297,7 @@ class GoogleProjectValidity(ValidityInfo):
             )
 
             # we do NOT need to check the service account type and external access
-            # for the other service accounts (which may include google-managed accounts)
-            # we only care if these accounts belong to this project
-            #
+            # for google-managed accounts.
             if is_google_managed_service_account(service_account_id):
                 service_account_validity_info.check_validity(
                     early_return=early_return, check_type_and_access=False
