@@ -15,12 +15,16 @@ from fence.scripting.fence_create import (
     delete_users,
     google_init,
     list_client_action,
+    link_external_bucket,
     link_bucket_to_project,
     modify_client_action,
     remove_expired_google_accounts_from_proxy_groups,
     remove_expired_google_service_account_keys,
     sync_users,
     delete_expired_service_accounts,
+    verify_bucket_access_group,
+    verify_user_registration,
+
 )
 
 
@@ -95,6 +99,7 @@ def parse_arguments():
     user_delete.add_argument('--users', required=True, nargs='+')
 
     subparsers.add_parser('expired-service-account-delete')
+    subparsers.add_parser('bucket-access-group-verify')
 
     hmac_create = subparsers.add_parser('hmac-create')
     hmac_create.add_argument('yaml-input')
@@ -114,6 +119,11 @@ def parse_arguments():
         '--sync_from_dbgap',
         help='sync from dbgap server True/False',
         default='False')
+    dbgap_sync.add_argument(
+        '--arborist',
+        help='the base URL for the arborist service to sync to',
+        default=None,
+    )
 
     bucket_link_to_project = subparsers.add_parser('link-bucket-to-project')
     bucket_link_to_project.add_argument(
@@ -159,6 +169,11 @@ def parse_arguments():
         'read write. Currently create a Google Bucket Access Group per '
         'privilege.')
 
+    external_bucket_create = subparsers.add_parser('link-external-bucket')
+    external_bucket_create.add_argument(
+        '--bucket-name', required=True,
+        help='Name for the bucket, must be globally unique throughout Google')
+
     google_logging_bucket_create = subparsers.add_parser(
         'google-logging-bucket-create')
     google_logging_bucket_create.add_argument(
@@ -175,6 +190,9 @@ def parse_arguments():
 
     manage_google_keys = subparsers.add_parser('google-manage-keys')
     init_google = subparsers.add_parser('google-init')
+    manage_user_registrations = (
+        subparsers.add_parser('google-manage-user-registrations')
+    )
     manage_google_accounts = (
         subparsers.add_parser('google-manage-account-access')
     )
@@ -267,14 +285,21 @@ def main():
         delete_users(DB, args.users)
     elif args.action == 'expired-service-account-delete':
         delete_expired_service_accounts(DB)
+    elif args.action == 'bucket-access-group-verify':
+        verify_bucket_access_group(DB)
     elif args.action == 'sync':
-        sync_users(dbGaP, STORAGE_CREDENTIALS, DB,
-                   projects=args.project_mapping, is_sync_from_dbgap_server=str2bool(args.sync_from_dbgap),
-                   sync_from_local_csv_dir=args.csv_dir, sync_from_local_yaml_file=args.yaml)
+        sync_users(
+            dbGaP, STORAGE_CREDENTIALS, DB, projects=args.project_mapping,
+            is_sync_from_dbgap_server=str2bool(args.sync_from_dbgap),
+            sync_from_local_csv_dir=args.csv_dir,
+            sync_from_local_yaml_file=args.yaml, arborist=args.arborist,
+        )
     elif args.action == 'google-manage-keys':
         remove_expired_google_service_account_keys(DB)
     elif args.action == 'google-init':
         google_init(DB)
+    elif args.action == 'google-manage-user-registrations':
+        verify_user_registration(DB)
     elif args.action == 'google-manage-account-access':
         remove_expired_google_accounts_from_proxy_groups(DB)
     elif args.action == 'google-bucket-create':
@@ -299,6 +324,12 @@ def main():
             args.unique_name,
             storage_class=args.storage_class,
             google_project_id=args.google_project_id)
+    elif args.action == 'link-external-bucket':
+        link_external_bucket(
+            DB,
+            name=args.bucket_name,
+        )
+
     elif args.action == 'link-bucket-to-project':
         link_bucket_to_project(
             DB,

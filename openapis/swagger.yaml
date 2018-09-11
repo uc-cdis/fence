@@ -39,6 +39,8 @@ tags:
     description: Google functionality
   - name: keys
     description: Get public keys used to validate JWTs issued by fence
+  - name: rbac
+    description: Manage policies for role-based access control (RBAC)
 paths:
   /oauth2/authorize:
     get:
@@ -776,7 +778,7 @@ paths:
       responses:
         '302':
           description: redirect to session-stored redirect value
-  /google/service_accounts/ (PLANNING):
+  /google/service_accounts/:
     post:
       tags:
         - google
@@ -806,7 +808,35 @@ paths:
               $ref: '#/components/schemas/GoogleServiceAccount'
         description: ServiceAccount object to register
         required: true
-  /google/service_accounts/_dry_run (PLANNING):
+    get:
+      tags:
+        - google
+      summary: Get a list of Google Service Accounts
+      description: |
+        Get a list of service accounts for the given Google Cloud Project IDs.
+        > **NOTE: This will only provide service account information for
+        Google Cloud Projects if the current user is a member of those
+        projects**
+      parameters:
+        - name: google_project_ids
+          required: true
+          in: query
+          description: |
+            Google Cloud Project IDs to get service accounts for.
+            Use a comma-separated list: `project_a,project_b,project_c`
+          schema:
+            type: string
+      operationId: listGoogleServiceAccount
+      responses:
+        '200':
+          description: List of service accounts for specified projects
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/GoogleServiceAccounts'
+        '403':
+          description: User is not a member on all the provided project ids
+  /google/service_accounts/_dry_run:
     post:
       tags:
         - google
@@ -834,7 +864,7 @@ paths:
             schema:
               $ref: '#/components/schemas/GoogleServiceAccount'
         description: ServiceAccount object to register
-  /google/service_accounts/monitor (PLANNING):
+  /google/service_accounts/monitor:
     get:
       tags:
         - google
@@ -850,41 +880,17 @@ paths:
         removed, all access to data will be removed.
       operationId: adminGoogleServiceAccount
       responses:
+        '404':
+          description: >-
+            No monitoring service account is configured. In other words,
+            fence does not currently support user-registered service accounts.
         '200':
           description: Monitoring service account information
           content:
             '*/*':
               schema:
                 $ref: '#/components/schemas/AdminGoogleServiceAccount'
-  '/google/service_accounts/{id} (PLANNING)':
-    get:
-      tags:
-        - google
-      summary: Get a list of Google Service Accounts
-      description: |
-        Get a list of service accounts for the given Google Cloud Project IDs.
-        > **NOTE: This will only provide service account information for
-        Google Cloud Projects if the current user is a member of those
-        projects**
-      parameters:
-        - name: id
-          required: true
-          in: path
-          description: |
-            Google Cloud Project IDs to get service accounts for.
-            Use a comma-separated list: `project_a,project_b,project_c`
-          schema:
-            type: string
-      operationId: listGoogleServiceAccount
-      responses:
-        '200':
-          description: List of service accounts for specified projects
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/GoogleServiceAccounts'
-        '403':
-          description: User is not a member on all the provided project ids
+  /google/service_accounts/{id}:
     delete:
       tags:
         - google
@@ -909,13 +915,20 @@ paths:
       tags:
         - google
       summary: Update a Google Service Account
-      description: >-
+      description: |
         Update a Google Cloud Project's service account to change access to
         controlled data and/or extend access to data. This will extend the
-        service accounts access to data. It will also modify access if a patch
-        document is provided with new access.
+        service account's access to data. It will also modify access if a
+        patch document is provided with new access.
 
-        > WARNING: Provided patch document will *fully replace* previous data.
+        > *NOTE*: If you do not provide a patch document (e.g. no payload),
+        this will extend access to ALL PREVIOUS DATA. If you want to REMOVE
+        access, either use the DELETE endpoint or provide a patch document
+        with an empty list for "project_access". It's important to note that
+        providing {"project_access": []} is different than not including a
+        payload at all.
+
+        > **WARNING**: Provided patch document will *fully replace* previous data.
         It will NOT extend previous data by provided values, it will FULLY
         REPLACE the data with what's provided.
       operationId: updateGoogleServiceAccount
@@ -927,7 +940,7 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        '204':
           description: 'success, updated service account access'
         '400':
           description: 'failure, trying to update service account access resulted in errors'
@@ -943,6 +956,196 @@ paths:
             schema:
               $ref: '#/components/schemas/GoogleServiceAccountProjectAccess'
         description: ServiceAccount fields to update
+  '/rbac/policies/':
+    get:
+      tags:
+        - rbac
+      summary: List IDs for existing policies that can be granted to users
+      responses:
+        200:
+          description: list of policies
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  'policies':
+                    type: array
+                    items:
+                      type: string
+                example:
+                  policies:
+                    - policy-abc
+                    - policy-xyz
+    post:
+      tags:
+        - rbac
+      summary: Create a new policy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                'policies':
+                  type: array
+                  items: string
+              required:
+                - id
+              example:
+                policies:
+                  - 'some-policy-1'
+                  - 'some-policy-2'
+                  - 'some-policy-3'
+      responses:
+        201:
+          description: created policy successfully
+  '/rbac/policies/{policyID}':
+    delete:
+      tags:
+        - rbac
+      parameters:
+        - in: path
+          name: policyID
+          schema:
+            type: string
+          required: true
+          description: unique identifier for a policy in the fence database
+      summary: Delete an existing policy
+      responses:
+        201:
+          description: policy deleted successfully
+        404:
+          description: no policy exists with the given ID
+  '/rbac/user/{userID}/policies/':
+    get:
+      tags:
+        - rbac
+      parameters:
+        - in: path
+          name: userID
+          schema:
+            type: string
+          required: true
+          description: unique identifier for a user in the fence data model
+      summary: List the policies granted to a user
+      responses:
+        200:
+          description: list of policies
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  'policies':
+                    type: array
+                    items:
+                      type: string
+                example:
+                  'policies':
+                    - 'policy-abc'
+                    - 'policy-xyz'
+        404:
+          description: no user exists with ID given in the path
+    post:
+      tags:
+        - rbac
+      parameters:
+        - in: path
+          name: userID
+          schema:
+            type: string
+          required: true
+          description: unique identifier for a user in the fence data model
+      summary: grant a list of policies to the user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                'policies':
+                  type: array
+                  items:
+                    type: string
+              example:
+                'policies':
+                  - 'policy-abc'
+                  - 'policy-xyz'
+      responses:
+        204:
+          description: successfully granted policies to user
+        404:
+          description: no user exists with ID given in the path
+    put:
+      tags:
+        - rbac
+      parameters:
+        - in: path
+          name: userID
+          schema:
+            type: string
+          required: true
+          description: unique identifier for a user in the fence data model
+      summary: overwrite a user's existing policies with a new list
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                'policies':
+                  type: array
+                  items:
+                    type: string
+              example:
+                'policies':
+                  - 'policy-abc'
+                  - 'policy-xyz'
+      responses:
+        204:
+          description: successfully granted policies to user
+        404:
+          description: no user exists with ID given in the path
+    delete:
+      tags:
+        - rbac
+      parameters:
+        - in: path
+          name: userID
+          schema:
+            type: string
+          required: true
+          description: unique identifier for a user in the fence data model
+      summary: revoke all policies from a user
+      responses:
+        204:
+          description: successfully revoked policies
+        404:
+          description: no user exists with ID given in the path
+  '/user/{userID}/policies/{policyID}':
+    delete:
+      tags:
+        - rbac
+      parameters:
+        - in: path
+          name: userID
+          schema:
+            type: string
+          required: true
+          description: unique identifier for a user in the fence data model
+        - in: path
+          name: policyID
+          schema:
+            type: string
+          required: true
+          description: unique identifier for a policy in the fence database
+      summary: revoke a specific policy from a user
+      responses:
+        204:
+          description: successfully revoked the policy
+        404:
+          description: no user exists with ID given in the path
   /.well-known/jwks:
     get:
       tags:
@@ -1076,6 +1279,18 @@ components:
                 'error_description':
                   type: string
                   description: More details about the error
+                'service_account_validity':
+                  type: object
+                  properties:
+                    service_account_id:
+                      type: object
+                      properties:
+                        no_external_access:
+                          type: boolean
+                        owned_by_project:
+                          type: boolean
+                        valid_type:
+                          type: boolean
             google_project_id:
               type: object
               properties:
@@ -1088,21 +1303,35 @@ components:
                 'error_description':
                   type: string
                   description: More details about the error
+                'membership_validity':
+                  type: object
+                  properties:
+                    'valid_member_types':
+                      type: boolean
+                    'members_exist_in_fence':
+                      type: boolean
             project_access:
               type: object
               properties:
-                project_name:
+                'status':
+                  type: integer
+                  description: HTTP Status code representing the validity/success for this field
+                'error':
+                  type: string
+                  description: Specific error name
+                'error_description':
+                  type: string
+                  description: More details about the error
+                'project_validity':
                   type: object
                   properties:
-                    'status':
-                      type: integer
-                      description: HTTP Status code representing the validity/success for this field
-                    'error':
-                      type: string
-                      description: Specific error name
-                    'error_description':
-                      type: string
-                      description: More details about the error
+                    project_id:
+                      type: object
+                      properties:
+                        all_users_have_access:
+                          type: boolean
+                        exists:
+                          type: boolean
       example:
         success: false
         errors:
@@ -1110,19 +1339,29 @@ components:
             'status': 200
             'error': null
             'error_description': ''
+            'service_account_validity':
+              'some-service-account@project-id.iam.gserviceaccount.com':
+                'no_external_access': true
+                'owned_by_project': true
+                'valid_type': true
           google_project_id:
             'status': 200
             'error': null
             'error_description': ''
+            'membership_validity':
+              valid_member_types: true
+              members_exist_in_fence: true
           project_access:
-            ProjectA:
-              'status': 200
-              'error': null
-              'error_description': ''
-            ProjectB:
-              'status': 403
-              'error': 'Unauthorized'
-              'error_description': 'Not all users have access requested'
+            'status': 403
+            'error': 'Unauthorized'
+            'error_description': 'Not all users have access requested'
+            'project_validity':
+              'ProjectA':
+                'all_users_have_access': false
+                'exists': true
+              'ProjectB':
+                'all_users_have_access': true
+                'exists': true
     GoogleServiceAccountProjectAccess:
       type: object
       required:

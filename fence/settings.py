@@ -4,8 +4,8 @@ from cdislogging import get_logger
 
 logger = get_logger(__name__)
 # default settings if local_settings is not present
-BASE_URL = 'http://localhost/user'
-APP_NAME = 'Gen3 Data Commons'
+BASE_URL = "http://localhost/user"
+APP_NAME = "Gen3 Data Commons"
 
 SESSION_COOKIE_SECURE = True
 
@@ -20,17 +20,18 @@ except ImportError:
     # If it doesn't, look in ``/var/www/fence``.
     try:
         import imp
-        imp.load_source('local_settings', '/var/www/fence/local_settings.py')
+
+        imp.load_source("local_settings", "/var/www/fence/local_settings.py")
     except IOError:
         logger.warn("local_settings is not found")
 
 
 # Use this setting when fence will be deployed in such a way that fence will
 # only receive traffic from internal (CDIS) clients, and can safely use HTTP.
-os.environ['AUTHLIB_INSECURE_TRANSPORT'] = 'true'
+os.environ["AUTHLIB_INSECURE_TRANSPORT"] = "true"
 
 
-APPLICATION_ROOT = '/user'
+APPLICATION_ROOT = "/user"
 DEBUG = True
 OAUTH2_PROVIDER_ERROR_URI = "/api/oauth2/errors"
 
@@ -40,7 +41,7 @@ ACCESS_TOKEN_EXPIRES_IN = 1200
 
 #: ``ACCESS_TOKEN_COOKIE_NAME: str``
 #: The name of the browser cookie in which the access token will be stored.
-ACCESS_TOKEN_COOKIE_NAME = 'access_token'
+ACCESS_TOKEN_COOKIE_NAME = "access_token"
 
 #: ``REFRESH_TOKEN_EXPIRES_IN: int``
 #: The number of seconds after a refresh token is issued until it expires.
@@ -65,8 +66,14 @@ GOOGLE_SERVICE_ACCOUNT_KEY_FOR_URL_SIGNING_EXPIRES_IN = 2592000
 #: access until it expires.
 GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN = 86400
 
+#: ``GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN: int``
+#: The number of seconds after a User's Google Service account is added to bucket
+#: access until it expires.
+#: 7 days = 604800 seconds
+GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN = 604800
+
 #: ``SESSION_COOKIE_NAME: str``
 #: The name of the browser cookie in which the session token will be stored.
 #: Note that the session token also stores information for the
 #: ``flask.session`` in the ``context`` field of the token.
-SESSION_COOKIE_NAME = 'fence'
+SESSION_COOKIE_NAME = "fence"

@@ -16,6 +16,12 @@ pipeline {
             branch: 'master'
           )
         }
+        dir('data-simulator') {
+          git(
+            url: 'https://github.com/occ-data/data-simulator.git',
+            branch: 'master'
+          )
+        }
         dir('cdis-manifest') {
           git(
             url: 'https://github.com/uc-cdis/cdis-manifest.git',
@@ -27,6 +33,9 @@ pipeline {
             url: 'https://github.com/uc-cdis/cloud-automation.git',
             branch: 'master'
           )
+          script {
+            env.GEN3_HOME=env.WORKSPACE+"/cloud-automation"
+          }
         }
       }
     }
@@ -34,12 +43,21 @@ pipeline {
       steps {
         script {
           service = "$env.JOB_NAME".split('/')[1]
-          def timestamp = (("${currentBuild.timeInMillis}".substring(0, 10) as Integer) - 60)
+          def timestamp = (("${currentBuild.timeInMillis}".substring(0, 10) as Integer) - 120)
+          def timeout = (("${currentBuild.timeInMillis}".substring(0, 10) as Integer) + 3600)
           curlUrl = "$env.QUAY_API"+service+"/build/?since="+timestamp
           fullQuery = "curl -s "+curlUrl+/ | jq '.builds[] | "\(.tags[]),\(.display_name),\(.phase)"'/
           
           def testBool = false
           while(testBool != true) {
+            currentTime = new Date().getTime()/1000 as Integer
+            println "currentTime is: "+currentTime
+
+            if(currentTime > timeout) {
+              currentBuild.result = 'ABORTED'
+              error("aborting build due to timeout")
+            }
+
             sleep(30)
             resList = sh(script: fullQuery, returnStdout: true).trim().split('"\n"')
             for (String res in resList) {
@@ -68,6 +86,10 @@ pipeline {
 
           env.KUBECTL_NAMESPACE = namespaces[randNum]
           println "selected namespace $env.KUBECTL_NAMESPACE on executor $env.EXECUTOR_NUMBER"
+
+          println "attempting to lock namespace with a wait time of 5 minutes"
+          uid = BUILD_TAG.replaceAll(' ', '_').replaceAll('%2F', '_')
+          sh("bash cloud-automation/gen3/bin/kube-lock.sh jenkins "+uid+" 3600 -w 300")
         }
       }
     }
@@ -81,7 +103,6 @@ pipeline {
         dir("cdis-manifest/$dirname") {
           withEnv(["masterBranch=$service:master", "targetBranch=$service:$quaySuffix"]) {
             sh 'sed -i -e "s,'+"$env.masterBranch,$env.targetBranch"+',g" manifest.json'
-            sh 'cat manifest.json'
           }
         }
       }
@@ -132,6 +153,10 @@ pipeline {
       //slackSend color: 'bad', message: "https://jenkins.planx-pla.net $env.JOB_NAME pipeline unstable"
     }
     always {
+      script {
+        uid = BUILD_TAG.replaceAll(' ', '_').replaceAll('%2F', '_')
+        sh("bash cloud-automation/gen3/bin/kube-unlock.sh jenkins "+uid)
+      }
       echo "done"
       junit "gen3-qa/output/*.xml"
     }

@@ -4,12 +4,19 @@ from fence import blueprints
 
 
 class OAuth2Client(authlib.client.OAuthClient):
-
     def __init__(
-            self, client_key=None, client_secret=None, access_token_url=None,
-            access_token_params=None, refresh_token_url=None,
-            refresh_token_params=None, authorize_url=None, api_base_url=None,
-            client_kwargs=None, **kwargs):
+        self,
+        client_key=None,
+        client_secret=None,
+        access_token_url=None,
+        access_token_params=None,
+        refresh_token_url=None,
+        refresh_token_params=None,
+        authorize_url=None,
+        api_base_url=None,
+        client_kwargs=None,
+        **kwargs
+    ):
         """
         Args:
             client_key (Optional[str]): the client ID

@@ -22,8 +22,7 @@ def reload_modules(module_name):
     # actually exist, even if it does. To do this, patch-delete the attribute
     # and reload all the fence modules.
     fence_submodules = [
-        module for module in sys.modules.keys()
-        if module.startswith(module_name)
+        module for module in sys.modules.keys() if module.startswith(module_name)
     ]
     for module in fence_submodules:
         if sys.modules[module]:
@@ -70,34 +69,36 @@ class FakeModule(object):
         sys.modules[self.real_name] = self.real_module
 
 
-@pytest.mark.filterwarnings('ignore')
+@pytest.mark.filterwarnings("ignore")
 def test_import_without_local_settings(app, monkeypatch):
     """
     Simply try to import fence when ``fence.local_settings`` doesn't exist.
     """
-    with FakeModule('fence', 'test_fence'):
+    with FakeModule("fence", "test_fence"):
         # Take out the local settings module and reload ``test_fence``.
-        monkeypatch.delattr('test_fence.local_settings', raising=False)
-        reload_modules('test_fence')
+        monkeypatch.delattr("test_fence.local_settings", raising=False)
+        reload_modules("test_fence")
         # Now try to import fence.
         import test_fence
-        assert hasattr(test_fence, 'app')
+
+        assert hasattr(test_fence, "app")
 
 
-@pytest.mark.filterwarnings('ignore')
+@pytest.mark.filterwarnings("ignore")
 def test_import_fence_would_break(monkeypatch):
     """
     Sort of test the previous test by making sure that if ``local_settings.py``
     did not exist and we tried to use it, things would go horribly wrong.
     """
-    with FakeModule('fence', 'test_fence'):
+    with FakeModule("fence", "test_fence"):
         # Take out the local settings module and reload ``test_fence``.
-        monkeypatch.delattr('test_fence.local_settings', raising=False)
-        reload_modules('test_fence')
+        monkeypatch.delattr("test_fence.local_settings", raising=False)
+        reload_modules("test_fence")
         # Import ``test_fence`` and make sure that using the local settings
         # would break things.
         import test_fence
-        assert not hasattr(test_fence, 'local_settings')
+
+        assert not hasattr(test_fence, "local_settings")
         # Try to get an arbitrary variable from ``local_settings`` and make
         # sure it fails.
         with pytest.raises(AttributeError):

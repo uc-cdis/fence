@@ -12,15 +12,13 @@ def create_basic_header(username, password):
 
     Use this to send client credentials in the authorization header.
     """
-    text = '{}:{}'.format(username, password)
+    text = "{}:{}".format(username, password)
     auth = to_unicode(base64.b64encode(to_bytes(text)))
-    return {'Authorization': 'Basic ' + auth}
+    return {"Authorization": "Basic " + auth}
 
 
 def create_basic_header_for_client(oauth_client):
     """
     Wrap ``create_basic_header`` to make a header for the client.
     """
-    return create_basic_header(
-        oauth_client.client_id, oauth_client.client_secret
-    )
+    return create_basic_header(oauth_client.client_id, oauth_client.client_secret)

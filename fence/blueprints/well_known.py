@@ -6,30 +6,24 @@ This blueprint defines the endpoints under ``.well-known/``, which includes:
 
 import flask
 
-from fence.jwt.token import (
-    USER_ALLOWED_SCOPES,
-    CLIENT_ALLOWED_SCOPES,
-)
+from fence.jwt.token import USER_ALLOWED_SCOPES, CLIENT_ALLOWED_SCOPES
 
 
-blueprint = flask.Blueprint('.well-known', __name__)
+blueprint = flask.Blueprint(".well-known", __name__)
 
 
-@blueprint.route('/jwks', methods=['GET'])
+@blueprint.route("/jwks", methods=["GET"])
 def jwks():
     """
     Return the JWK set currently in use by fence.
 
     The return value from this endpoint is defined by RFC 7517.
     """
-    keys = [
-        keypair.public_key_to_jwk()
-        for keypair in flask.current_app.keypairs
-    ]
-    return flask.jsonify({'keys': keys})
+    keys = [keypair.public_key_to_jwk() for keypair in flask.current_app.keypairs]
+    return flask.jsonify({"keys": keys})
 
 
-@blueprint.route('/openid-configuration')
+@blueprint.route("/openid-configuration")
 def openid_configuration():
     """
     Return the OIDC provider configuration describing fence.
@@ -49,7 +43,7 @@ def openid_configuration():
     config = flask.current_app.config
 
     # Get basic provider information.
-    issuer = config.get('OIDC_ISSUER') or config['BASE_URL']
+    issuer = config.get("OIDC_ISSUER") or config["BASE_URL"]
 
     # "Subject type" means the method used to assign the ``sub`` field in JWTs.
     # Fence sets the ``sub`` field to the user ID, so ``sub`` is the same
@@ -58,14 +52,14 @@ def openid_configuration():
     #
     # Docs here:
     # http://openid.net/specs/openid-connect-core-1_0.html#SubjectIDTypes
-    subject_types_supported = ['public']
+    subject_types_supported = ["public"]
 
     # Get various (absolute) URLs relevant for OAuth2/OIDC.
-    path_to = lambda url: config['BASE_URL'].strip('/') + url
-    jwks_uri = path_to(flask.url_for('.jwks'))
-    authorization_endpoint = path_to(flask.url_for('oauth2.authorize'))
-    token_endpoint = path_to(flask.url_for('oauth2.get_token'))
-    userinfo_endpoint = path_to(flask.url_for('user.user_info'))
+    path_to = lambda url: config["BASE_URL"].strip("/") + url
+    jwks_uri = path_to(flask.url_for(".jwks"))
+    authorization_endpoint = path_to(flask.url_for("oauth2.authorize"))
+    token_endpoint = path_to(flask.url_for("oauth2.get_token"))
+    userinfo_endpoint = path_to(flask.url_for("user.user_info"))
     registration_endpoint = None  # not yet supported
 
     # List all the scopes allowed in OAuth2 requests.
@@ -73,46 +67,48 @@ def openid_configuration():
 
     # List of all the claims which fence MAY set in the ID token.
     claims_supported = [
-        'aud',
-        'sub',
-        'iss',
-        'exp',
-        'jti',
-        'auth_time',
-        'azp',
-        'nonce',
-        'context',
+        "aud",
+        "sub",
+        "iss",
+        "exp",
+        "jti",
+        "auth_time",
+        "azp",
+        "nonce",
+        "context",
     ]
 
-    return flask.jsonify({
-        'issuer': issuer,
-        'authorization_endpoint': authorization_endpoint,
-        'token_endpoint': token_endpoint,
-        'userinfo_endpoint': userinfo_endpoint,
-        'registration_endpoint': registration_endpoint,
-        'jwks_uri': jwks_uri,
-        'scopes_supported': scopes_supported,
-        'response_types_supported': ['openid', 'code', 'token'],
-        'response_modes_supported': [],
-        'grant_types_supported': ['authorization'],
-        'subject_types_supported': subject_types_supported,
-        'id_token_signing_alg_values_supported': ['RS256'],
-        'id_token_encryption_alg_values_supported': [],
-        'id_token_encryption_enc_values_supported': [],
-        'request_object_signing_alg_values_supported': [],
-        'request_object_encryption_alg_values_supported': [],
-        'request_object_encryption_enc_values_supported': [],
-        'token_endpoint_auth_methods_supported': ['client_secret_basic'],
-        'display_values_supported': ['page'],
-        'claim_types_supported': ['normal'],
-        'claims_supported': claims_supported,
-        'service_documentation': 'https://github.com/uc-cdis/fence/',
-        'claims_locales_supported': ['en'],
-        'ui_locales_supported': ['en'],
-        'claims_parameter_supported': False,
-        'request_parameter_supported': False,
-        'request_uri_parameter_supported': False,
-        'require_request_uri_registration': False,
-        'op_policy_url': None,
-        'op_tos_uri': None,
-    })
+    return flask.jsonify(
+        {
+            "issuer": issuer,
+            "authorization_endpoint": authorization_endpoint,
+            "token_endpoint": token_endpoint,
+            "userinfo_endpoint": userinfo_endpoint,
+            "registration_endpoint": registration_endpoint,
+            "jwks_uri": jwks_uri,
+            "scopes_supported": scopes_supported,
+            "response_types_supported": ["openid", "code", "token"],
+            "response_modes_supported": [],
+            "grant_types_supported": ["authorization"],
+            "subject_types_supported": subject_types_supported,
+            "id_token_signing_alg_values_supported": ["RS256"],
+            "id_token_encryption_alg_values_supported": [],
+            "id_token_encryption_enc_values_supported": [],
+            "request_object_signing_alg_values_supported": [],
+            "request_object_encryption_alg_values_supported": [],
+            "request_object_encryption_enc_values_supported": [],
+            "token_endpoint_auth_methods_supported": ["client_secret_basic"],
+            "display_values_supported": ["page"],
+            "claim_types_supported": ["normal"],
+            "claims_supported": claims_supported,
+            "service_documentation": "https://github.com/uc-cdis/fence/",
+            "claims_locales_supported": ["en"],
+            "ui_locales_supported": ["en"],
+            "claims_parameter_supported": False,
+            "request_parameter_supported": False,
+            "request_uri_parameter_supported": False,
+            "require_request_uri_registration": False,
+            "op_policy_url": None,
+            "op_tos_uri": None,
+        }
+    )
