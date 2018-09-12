@@ -1301,7 +1301,8 @@ def force_update_google_link(
                     "from session. Unable to link Google account."
                 )
 
-        expiration = GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN
+        now = int(time.time())
+        expiration = now + GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN
         account_in_proxy_group = (
             session.query(UserGoogleAccountToProxyGroup)
                 .filter(
