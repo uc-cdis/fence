@@ -227,11 +227,17 @@ def is_service_account_from_google_project(
                 or service_account_name == project_number
                 or service_account_name == project_id
             )
-        else:
-            sa_google_project = get_google_project_from_user_managed_service_account_email(
-                service_account_email
-            )
-        return sa_google_project == project_id
+
+        # if it's a user-created project SA, the id is in the domain, otherwise,
+        # attempt to parse it out of the name
+        domain = service_account_email.split("@")[-1]
+        if "iam.gserviceaccount.com" in domain:
+            return domain.split(".")[0] == project_id
+
+        return (
+            service_account_name == "{}-compute".format(project_number)
+            or service_account_name == project_id
+        )
 
     except Exception as exc:
         flask.current_app.logger.debug(
