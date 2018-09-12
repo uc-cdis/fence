@@ -48,6 +48,7 @@ from fence.sync.sync_users import UserSyncer
 from fence.scripting.google_monitor import validation_check
 
 from fence.errors import Unauthorized
+from fence.settings import GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN
 
 logger = get_logger(__name__)
 
@@ -1267,6 +1268,9 @@ def force_update_google_link(
         session.commit()
         return new_user_google_account
 
+    import fence.settings
+    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+
     user_id = None
     proxy_group_id = None
     db = SQLAlchemyDriver(DB)
@@ -1297,7 +1301,7 @@ def force_update_google_link(
                     "from session. Unable to link Google account."
                 )
 
-        expiration = 8200
+        expiration = GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN
         account_in_proxy_group = (
             session.query(UserGoogleAccountToProxyGroup)
                 .filter(
