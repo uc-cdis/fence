@@ -1289,7 +1289,7 @@ def force_update_google_link(
         if not user_google_account:
             if user_id is not None:
                 user_google_account = _add_new_user_google_account(
-                    user_id, google_email, db
+                    user_id, google_email, session
                 )
             else:
                 raise Unauthorized(
