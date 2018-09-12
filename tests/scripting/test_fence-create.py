@@ -31,9 +31,6 @@ from fence.scripting.fence_create import (
     delete_client_action,
     delete_expired_service_accounts,
     link_external_bucket,
-    verify_bucket_access_group,
-    _verify_google_group_member,
-    _verify_google_service_account_member,
 )
 
 
@@ -473,192 +470,6 @@ def test_delete_not_expired_service_account(app, db_session):
     assert len(records) == 1
 
 
-def test_verify_bucket_access_group_no_interested_accounts(
-    app, cloud_manager, db_session, setup_test_data
-):
-    """
-    Test that Google API returns no interested accounts
-    """
-    import fence
-
-    fence.settings = MagicMock()
-    (
-        cloud_manager.return_value.__enter__.return_value.get_group_members.return_value
-    ) = [
-        {
-            "kind": "admin#directory#member",
-            "etag": "etag1",
-            "id": "id1",
-            "email": "test@gmail.com",
-            "role": "role1",
-            "type": "type",
-        }
-    ]
-
-    fence.scripting.fence_create._verify_google_group_member = MagicMock()
-    fence.scripting.fence_create._verify_google_service_account_member = MagicMock()
-    verify_bucket_access_group(app.config["DB"])
-
-    assert not fence.scripting.fence_create._verify_google_group_member.called
-    assert not fence.scripting.fence_create._verify_google_service_account_member.called
-
-
-def test_verify_bucket_access_group(app, cloud_manager, db_session, setup_test_data):
-    """
-    Test that Google API returns no interested accounts
-    """
-    import fence
-
-    fence.settings = MagicMock()
-    (
-        cloud_manager.return_value.__enter__.return_value.get_group_members.return_value
-    ) = [
-        {
-            "kind": "admin#directory#member",
-            "etag": "etag1",
-            "id": "id1",
-            "email": "test1@gmail.com",
-            "role": "role1",
-            "type": "type",
-        },
-        {
-            "kind": "admin#directory#member",
-            "etag": "etag2",
-            "id": "id2",
-            "email": "test2@gmail.com",
-            "role": "role2",
-            "type": "GROUP",
-        },
-        {
-            "kind": "admin#directory#member",
-            "etag": "etag3",
-            "id": "id3",
-            "email": "test3@gmail.com",
-            "role": "role3",
-            "type": "GROUP",
-        },
-        {
-            "kind": "admin#directory#member",
-            "etag": "etag4",
-            "id": "id4",
-            "email": "test4@gmail.com",
-            "role": "role4",
-            "type": "USER",
-        },
-    ]
-
-    fence.scripting.fence_create._verify_google_group_member = MagicMock()
-    (fence.scripting.fence_create._verify_google_service_account_member) = MagicMock()
-    verify_bucket_access_group(app.config["DB"])
-
-    assert (fence.scripting.fence_create._verify_google_group_member.call_count) == 2
-    assert (
-        fence.scripting.fence_create._verify_google_service_account_member.call_count
-    ) == 1
-
-
-def test_verify_google_group_member(app, cloud_manager, db_session, setup_test_data):
-    """
-    Test that successfully deletes google group members which are not in Fence
-    """
-    access_group = (
-        db_session.query(GoogleBucketAccessGroup)
-        .filter_by(email="access_grp_test1@gmail.com")
-        .first()
-    )
-    member = {
-        "kind": "admin#directory#member",
-        "etag": "etag4",
-        "id": "id4",
-        "email": "test4@gmail.com",
-        "role": "role4",
-        "type": "GROUP",
-    }
-
-    _verify_google_group_member(db_session, access_group, member)
-    assert (
-        cloud_manager.return_value.__enter__.return_value.remove_member_from_group.called
-    )
-
-
-def test_verify_google_group_member_not_call_delete_operation(
-    app, cloud_manager, db_session, setup_test_data
-):
-    """
-    Test that does not delete google group members which are in Fence
-    """
-    access_group = (
-        db_session.query(GoogleBucketAccessGroup)
-        .filter_by(email="access_grp_test1@gmail.com")
-        .first()
-    )
-    member = {
-        "kind": "admin#directory#member",
-        "etag": "etag4",
-        "id": "id4",
-        "email": "group1@mail.com",
-        "role": "role4",
-        "type": "GROUP",
-    }
-
-    _verify_google_group_member(db_session, access_group, member)
-    assert not (
-        cloud_manager.return_value.__enter__.return_value.remove_member_from_group.called
-    )
-
-
-def test_verify_google_service_account_member_call_delete_operation(
-    app, cloud_manager, db_session, setup_test_data
-):
-    """
-    Test that deletes a google user member which is not in Fence
-    """
-    access_group = (
-        db_session.query(GoogleBucketAccessGroup)
-        .filter_by(email="access_grp_test1@gmail.com")
-        .first()
-    )
-    member = {
-        "kind": "admin#directory#member",
-        "etag": "etag4",
-        "id": "id4",
-        "email": "deleteting@mail.com",
-        "role": "role4",
-        "type": "USER",
-    }
-
-    _verify_google_service_account_member(db_session, access_group, member)
-    assert (
-        cloud_manager.return_value.__enter__.return_value.remove_member_from_group.called
-    )
-
-
-def test_verify_google_service_account_member_not_call_delete_operation(
-    app, cloud_manager, db_session, setup_test_data
-):
-    """
-    Test that does not delete a google user member which is in Fence
-    """
-    access_group = (
-        db_session.query(GoogleBucketAccessGroup)
-        .filter_by(email="access_grp_test1@gmail.com")
-        .first()
-    )
-    member = {
-        "kind": "admin#directory#member",
-        "etag": "etag4",
-        "id": "id4",
-        "email": "user1@gmail.com",
-        "role": "role",
-        "type": "USER",
-    }
-
-    _verify_google_service_account_member(db_session, access_group, member)
-    assert not (
-        cloud_manager.return_value.__enter__.return_value.remove_member_from_group.called
-    )
-
-
 def test_link_external_bucket(app, cloud_manager, db_session):
 
     (cloud_manager.return_value.__enter__.return_value.create_group.return_value) = {
@@ -668,7 +479,7 @@ def test_link_external_bucket(app, cloud_manager, db_session):
     bucket_count_before = db_session.query(Bucket).count()
     gbag_count_before = db_session.query(GoogleBucketAccessGroup).count()
 
-    linked_gbag_email = link_external_bucket(app.config['DB'], "test_bucket")
+    linked_gbag_email = link_external_bucket(app.config["DB"], "test_bucket")
 
     bucket_count_after = db_session.query(Bucket).count()
     gbag_count_after = db_session.query(GoogleBucketAccessGroup).count()
