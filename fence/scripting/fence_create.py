@@ -47,6 +47,8 @@ from fence.sync.sync_users import UserSyncer
 
 from fence.scripting.google_monitor import validation_check
 
+from fence.errors import Unauthorized
+
 logger = get_logger(__name__)
 
 
@@ -1228,3 +1230,98 @@ def verify_user_registration(DB):
 
     cirrus_config.update(**fence.settings.CIRRUS_CFG)
     validation_check(DB)
+
+
+def force_update_google_link(
+        DB, username, google_email
+):
+    """
+    WARNING: This function circumvents Google Auth flow, and should only be
+    used for internal testing!
+    WARNING: This function assumes that a user already has a proxy group!
+
+    Adds user's google account to proxy group and/or updates expiration for
+    that google account's access.
+    WARNING: This assumes that provided arguments represent valid information.
+             This BLINDLY adds without verification. Do verification
+             before this.
+    Specifically, this ASSUMES that the proxy group provided belongs to the
+    given user and that the user has ALREADY authenticated to prove the
+    provided google_email is also their's.
+
+    Args:
+        DB
+        username (str): Username to link with
+        google_email (str): Google email to link to
+
+    Raises:
+        NotFound: Linked Google account not found
+        Unauthorized: Couldn't determine user
+
+    Returns:
+        Expiration time of the newly updated google account's access
+    """
+    def _add_new_user_google_account(user_id, google_email, session):
+        new_user_google_account = UserGoogleAccount(email=google_email, user_id=user_id)
+        session.add(new_user_google_account)
+        session.commit()
+        return new_user_google_account
+
+    user_id = None
+    proxy_group_id = None
+    db = SQLAlchemyDriver(DB)
+    with db.session as session:
+        user_account = (
+            session.query(User)
+                .filter(User.username == username)
+                .first()
+        )
+        if user_account:
+            user_id = user_account.id
+            proxy_group_id = user_account.google_proxy_group_id
+
+        user_google_account = (
+            session.query(UserGoogleAccount)
+                .filter(UserGoogleAccount.email == google_email)
+                .first()
+        )
+
+        if not user_google_account:
+            if user_id is not None:
+                user_google_account = _add_new_user_google_account(
+                    user_id, google_email, db
+                )
+            else:
+                raise Unauthorized(
+                    "Could not determine authed user "
+                    "from session. Unable to link Google account."
+                )
+
+        expiration = 8200
+        account_in_proxy_group = (
+            session.query(UserGoogleAccountToProxyGroup)
+                .filter(
+                UserGoogleAccountToProxyGroup.user_google_account_id
+                == user_google_account.id
+            )
+                .first()
+        )
+        if account_in_proxy_group:
+            account_in_proxy_group.expires = expiration
+        else:
+            account_in_proxy_group = UserGoogleAccountToProxyGroup(
+                user_google_account_id=user_google_account.id,
+                proxy_group_id=proxy_group_id,
+                expires=expiration,
+            )
+            session.add(account_in_proxy_group)
+
+            # add google email to proxy group
+            with GoogleCloudManager() as g_manager:
+                g_manager.add_member_to_group(
+                    member_email=google_email, group_id=proxy_group_id
+                )
+
+        session.commit()
+
+        return expiration
