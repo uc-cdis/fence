@@ -356,9 +356,7 @@ class StorageManager(object):
 
         if not bucket.google_bucket_access_groups:
             raise NotFound(
-                "Google bucket {} does not have any access groups.".format(
-                    bucket.name
-                )
+                "Google bucket {} does not have any access groups.".format(bucket.name)
             )
 
         access = StorageManager._get_bucket_access_privileges(access)
@@ -373,9 +371,16 @@ class StorageManager(object):
                 # TODO Update storageclient API for more clarity
                 self.clients[provider].add_bucket_acl(bucket_name, storage_username)
 
+                self.logger.info(
+                    "User {}'s Google proxy group ({}) added to Google Bucket Access Group {}.".format(
+                        storage_user.email, storage_username, bucket_name
+                    )
+                )
+
                 StorageManager._add_google_db_entry_for_bucket_access(
                     storage_user, bucket_access_group, session
                 )
+
             else:
                 # In the case of google, since we have multiple groups
                 # with access to the bucket, we need to also remove access
@@ -386,8 +391,12 @@ class StorageManager(object):
                 )
 
                 bucket_name = bucket_access_group.email
-                self.clients[provider].delete_bucket_acl(
-                    bucket_name, storage_username
+                self.clients[provider].delete_bucket_acl(bucket_name, storage_username)
+
+                self.logger.info(
+                    "User {}'s Google proxy group ({}) removed from Google Bucket Access Group {}.".format(
+                        storage_user.email, storage_username, bucket_name
+                    )
                 )
 
     def _revoke_access_to_bucket(
@@ -402,6 +411,12 @@ class StorageManager(object):
                 )
                 bucket_name = bucket_access_group.email
                 self.clients[provider].delete_bucket_acl(bucket_name, storage_username)
+
+                self.logger.info(
+                    "User {}'s Google proxy group ({}) removed from Google Bucket Access Group {}.".format(
+                        storage_user.email, storage_username, bucket_name
+                    )
+                )
         else:
             self.clients[provider].delete_bucket_acl(bucket.name, storage_username)
 

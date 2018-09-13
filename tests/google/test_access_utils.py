@@ -32,7 +32,6 @@ from fence.resources.google.access_utils import (
     _force_remove_service_account_from_access_db,
     force_remove_service_account_from_access,
     extend_service_account_access,
-    get_current_service_account_project_access,
     patch_user_service_account,
     remove_white_listed_service_account_ids,
 )
@@ -54,7 +53,7 @@ def test_is_valid_service_account_type_compute_engine_default(cloud_manager):
     """
     (
         cloud_manager.return_value.__enter__.return_value.get_service_account_type.return_value
-    ) = COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT
+    ) = COMPUTE_ENGINE_API_SERVICE_ACCOUNT
     assert is_valid_service_account_type(cloud_manager.project_id, 1)
 
 
@@ -76,7 +75,7 @@ def test_not_valid_service_account_type_compute_engine_api(cloud_manager):
     """
     (
         cloud_manager.return_value.__enter__.return_value.get_service_account_type.return_value
-    ) = COMPUTE_ENGINE_API_SERVICE_ACCOUNT
+    ) = COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT
     assert not is_valid_service_account_type(cloud_manager.project_id, 1)
 
 
@@ -292,23 +291,6 @@ def test_extend_service_account_access(db_session, register_user_service_account
     # make sure we actually extended access past the current time
     for access in service_account_accesses:
         assert access.expires > int(time.time())
-
-
-def test_get_current_service_account_project_access(
-    db_session, register_user_service_account
-):
-    """
-    Test that we get all the correct info for a service accounts project
-    access.
-    """
-    service_account = register_user_service_account["service_account"]
-    project_auth_ids = [
-        project.auth_id for project in register_user_service_account["projects"]
-    ]
-
-    access = get_current_service_account_project_access(service_account.email)
-
-    assert access == project_auth_ids
 
 
 def test_update_user_service_account_success(cloud_manager, db_session, setup_data):
