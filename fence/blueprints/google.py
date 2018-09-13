@@ -249,7 +249,11 @@ class GoogleServiceAccountRoot(Resource):
                 for gbag in bucket_access_groups:
                     sa_to_gbags.extend(gbag.to_access_groups)
 
-                expirations = [sa_to_gbag.expires for sa_to_gbag in sa_to_gbags]
+                expirations = [
+                    sa_to_gbag.expires
+                    for sa_to_gbag in sa_to_gbags
+                    if sa_to_gbag.service_account_id == project_sa.id
+                ]
 
                 output_sa = {
                     "service_account_email": project_sa.email,
