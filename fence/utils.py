@@ -5,6 +5,7 @@ import json
 from random import SystemRandom
 import re
 import string
+import requests
 from sqlalchemy import func
 from urllib import urlencode
 from urlparse import parse_qs, urlsplit, urlunsplit
@@ -189,3 +190,24 @@ def split_url_and_query_params(url):
     query_params = parse_qs(query_string)
     url = urlunsplit((scheme, netloc, path, None, fragment))
     return url, query_params
+
+
+def send_email(from_email, to_emails, subject, text, email_url, api_key):
+    """
+    Send email to group of emails
+
+    Args:
+        from_email(str): from email
+        to_emails(list): list of emails to receive the messages
+        text(str): the text message
+        email_url(str): api endpoint
+        api_key(str): api key
+    """
+    requests.post(email_url, auth=('api', api_key), data = {
+        'from': from_email,
+        'to': to_emails,
+        ''
+        'subject': subject,
+        'text': text
+    })
+
