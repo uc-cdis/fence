@@ -14,7 +14,7 @@ from cirrus.google_cloud.errors import GoogleAPIError
 from cirrus.google_cloud.iam import GooglePolicy
 from cirrus import GoogleCloudManager
 from cirrus.google_cloud import (
-    COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
+    COMPUTE_ENGINE_API_SERVICE_ACCOUNT,
     USER_MANAGED_SERVICE_ACCOUNT,
 )
 
@@ -37,7 +37,7 @@ from fence.resources.google.utils import (
 )
 
 ALLOWED_SERVICE_ACCOUNT_TYPES = [
-    COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
+    COMPUTE_ENGINE_API_SERVICE_ACCOUNT,
     USER_MANAGED_SERVICE_ACCOUNT,
 ]
 
