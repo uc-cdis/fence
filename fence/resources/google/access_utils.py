@@ -14,7 +14,7 @@ from cirrus.google_cloud.errors import GoogleAPIError
 from cirrus.google_cloud.iam import GooglePolicy
 from cirrus import GoogleCloudManager
 from cirrus.google_cloud import (
-    COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
+    COMPUTE_ENGINE_API_SERVICE_ACCOUNT,
     USER_MANAGED_SERVICE_ACCOUNT,
 )
 
@@ -33,56 +33,37 @@ from fence.resources.google.utils import (
     get_db_session,
     get_users_from_google_members,
     get_monitoring_service_account_email,
+    is_google_managed_service_account,
 )
 
 ALLOWED_SERVICE_ACCOUNT_TYPES = [
-    COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
+    COMPUTE_ENGINE_API_SERVICE_ACCOUNT,
     USER_MANAGED_SERVICE_ACCOUNT,
 ]
 
 
-def can_access_google_project(google_project_id):
+def get_google_project_number(google_project_id):
     """
-    Whether or not fence can access the given google project.
+    Return a project's "projectNumber" which uniquely identifies it.
+    This will only be successful if fence can access info about the given google project.
 
     Args:
         google_project_id (str): Google project ID
 
     Returns:
-        bool: Whether or not fence can access the given google project.
+        str: string repsentation of an int64 uniquely identifying a Google project
     """
     try:
         with GoogleCloudManager(google_project_id, use_default=False) as g_mgr:
             response = g_mgr.get_project_info()
-            project_id = response.get("projectId")
+            project_number = response.get("projectNumber")
 
-            if not project_id:
-                return False
+            if not project_number:
+                return None
+
+            return project_number
     except Exception:
-        return False
-
-    return True
-
-
-def can_user_manage_service_account(user_id, account_id):
-    """
-    Return whether or not the user has permission to update and/or delete the
-    given service account.
-
-    Args:
-        user_id (int): user's identifier
-        account_id (str): service account identifier
-
-    Returns:
-        bool: Whether or not the user has permission
-    """
-    service_account_email = get_service_account_email(account_id)
-    service_account_project = get_google_project_from_service_account_email(
-        service_account_email
-    )
-
-    # check if user is on project
-    return is_user_member_of_all_google_projects(user_id, [service_account_project])
+        return None
 
 
 def get_google_project_parent_org(project_id):
@@ -222,7 +203,9 @@ def service_account_has_external_access(service_account, google_project_id):
     return False
 
 
-def is_service_account_from_google_project(service_account_email, project_id):
+def is_service_account_from_google_project(
+    service_account_email, project_id, project_number
+):
     """
     Checks if service account is among project's service acounts
 
@@ -235,10 +218,27 @@ def is_service_account_from_google_project(service_account_email, project_id):
         given Google Project
     """
     try:
-        sa_google_project = get_google_project_from_service_account_email(
-            service_account_email
+        service_account_name = service_account_email.split("@")[0]
+
+        if is_google_managed_service_account(service_account_email):
+            return (
+                service_account_name == "service-{}".format(project_number)
+                or service_account_name == "project-{}".format(project_number)
+                or service_account_name == project_number
+                or service_account_name == project_id
+            )
+
+        # if it's a user-created project SA, the id is in the domain, otherwise,
+        # attempt to parse it out of the name
+        domain = service_account_email.split("@")[-1]
+        if "iam.gserviceaccount.com" in domain:
+            return domain.split(".")[0] == project_id
+
+        return (
+            service_account_name == "{}-compute".format(project_number)
+            or service_account_name == project_id
         )
-        return sa_google_project == project_id
+
     except Exception as exc:
         flask.current_app.logger.debug(
             (
@@ -655,9 +655,19 @@ def add_user_service_account_to_db(session, to_add_project_ids, service_account)
     session.commit()
 
 
-def get_google_project_from_service_account_email(service_account_email):
+def get_registered_service_account_from_email(service_account_email):
     """
     Parse email to get google project id
+    """
+    session = get_db_session()
+    return (
+        session.query(UserServiceAccount).filter_by(email=service_account_email).first()
+    )
+
+
+def get_google_project_from_user_managed_service_account_email(service_account_email):
+    """
+    Parse email to get google project id for a User-Managed service account
     """
     words = service_account_email.split("@")
     return words[1].split(".")[0]
@@ -736,37 +746,6 @@ def extend_service_account_access(service_account_email, db=None):
             bucket_access.expires = expiration_time
 
         session.commit()
-
-
-def get_current_service_account_project_access(service_account_email, db=None):
-    """
-    Return a list of project auth_ids the service account currently has
-    access to.
-
-    Args:
-        service_account_email (str): service account email
-
-    Returns:
-        List[str]: List of Project.auth_ids
-
-    Raises:
-        NotFound: if service account doesn't exist
-    """
-    session = get_db_session(db)
-
-    service_account = (
-        session.query(UserServiceAccount).filter_by(email=service_account_email).first()
-    )
-
-    if not service_account:
-        raise NotFound("No service account {} exists.".format(service_account_email))
-
-    project_access = [
-        access_privilege.project.auth_id
-        for access_privilege in service_account.access_privileges
-    ]
-
-    return project_access
 
 
 def get_google_access_groups_for_service_account(service_account):

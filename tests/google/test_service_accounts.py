@@ -592,6 +592,79 @@ def test_valid_service_account_registration(
     assert len(db_session.query(ServiceAccountToGoogleBucketAccessGroup).all()) == 1
 
 
+def test_valid_service_account_registration_multiple_service_accounts(
+    app,
+    db_session,
+    client,
+    encoded_jwt_service_accounts_access,
+    cloud_manager,
+    valid_google_project_patcher,
+    valid_service_account_patcher,
+):
+    """
+    Test that a valid service account registration request returns
+    200 and succesfully creates entries in database when the Google project
+    has both another valid service account in the project and a Google-managed
+    system service account.
+    """
+    proj_patcher = valid_google_project_patcher
+    project = Project(id=1, auth_id="some_auth_id")
+
+    bucket = Bucket(id=1)
+
+    db_session.add(project)
+    db_session.add(bucket)
+    db_session.commit()
+
+    project_to_bucket = ProjectToBucket(project_id=1, bucket_id=1)
+
+    db_session.add(project_to_bucket)
+    db_session.commit()
+
+    gbag = GoogleBucketAccessGroup(id=1, bucket_id=1, email="gbag@gmail.com")
+
+    db_session.add(gbag)
+    db_session.commit()
+
+    google_project_id = "project-id"
+    encoded_creds_jwt = encoded_jwt_service_accounts_access["jwt"]
+    project_access = ["some_auth_id"]
+    proj_patcher["get_service_account_ids_from_google_members"].return_value = [
+        "test-{}@test.com".format(google_project_id),
+        "{}@compute-system.iam.gserviceaccount.com".format(google_project_id),
+    ]
+    valid_service_account = {
+        "service_account_email": "sa@gmail.com",
+        "google_project_id": google_project_id,
+        "project_access": project_access,
+    }
+
+    (
+        cloud_manager.return_value.__enter__.return_value.get_service_account.return_value
+    ) = {"uniqueId": "sa_unique_id", "email": "sa@gmail.com"}
+
+    (
+        cloud_manager.return_value.__enter__.return_value.add_member_to_group.return_value
+    ) = {"id": "sa@gmail.com"}
+
+    assert len(db_session.query(UserServiceAccount).all()) == 0
+    assert len(db_session.query(ServiceAccountAccessPrivilege).all()) == 0
+    assert len(db_session.query(ServiceAccountToGoogleBucketAccessGroup).all()) == 0
+
+    response = client.post(
+        "/google/service_accounts",
+        headers={"Authorization": "Bearer " + encoded_creds_jwt},
+        data=json.dumps(valid_service_account),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+
+    assert len(db_session.query(UserServiceAccount).all()) == 1
+    assert len(db_session.query(ServiceAccountAccessPrivilege).all()) == 1
+    assert len(db_session.query(ServiceAccountToGoogleBucketAccessGroup).all()) == 1
+
+
 def test_register_service_account_already_exists(
     app,
     db_session,

@@ -60,12 +60,13 @@ def test_valid_google_project(valid_google_project_patcher):
     assert "members_exist_in_fence" in google_project_validity
     assert google_project_validity["members_exist_in_fence"]
 
+    assert "new_service_account" in google_project_validity
     assert "service_accounts" in google_project_validity
     assert "access" in google_project_validity
 
 
 def test_valid_google_project_service_accounts(
-    valid_google_project_patcher, valid_service_account_patcher
+    app, valid_google_project_patcher, valid_service_account_patcher
 ):
     """
     Test that when everything is valid and there are service accounts (which
@@ -99,6 +100,7 @@ def test_valid_google_project_service_accounts(
     assert "members_exist_in_fence" in google_project_validity
     assert google_project_validity["members_exist_in_fence"]
 
+    assert "new_service_account" in google_project_validity
     assert "service_accounts" in google_project_validity
     assert hasattr(google_project_validity["service_accounts"], "__iter__")
     assert "some-account-id" in (google_project_validity["service_accounts"])
@@ -148,6 +150,7 @@ def test_valid_google_project_access(
     assert "members_exist_in_fence" in google_project_validity
     assert google_project_validity["members_exist_in_fence"]
 
+    assert "new_service_account" in google_project_validity
     assert "service_accounts" in google_project_validity
     assert "access" in google_project_validity
     assert hasattr(google_project_validity["access"], "__iter__")
@@ -214,6 +217,7 @@ def test_invalid_google_project_parent_org(app, valid_google_project_patcher):
     assert "members_exist_in_fence" in google_project_validity
     assert google_project_validity["members_exist_in_fence"]
 
+    assert "new_service_account" in google_project_validity
     assert "service_accounts" in google_project_validity
     assert "access" in google_project_validity
 
@@ -250,6 +254,7 @@ def test_invalid_google_project_membership(valid_google_project_patcher):
     assert "members_exist_in_fence" in google_project_validity
     assert not google_project_validity["members_exist_in_fence"]
 
+    assert "new_service_account" in google_project_validity
     assert "service_accounts" in google_project_validity
     assert "access" in google_project_validity
 
@@ -291,6 +296,7 @@ def test_invalid_google_project_access(valid_google_project_patcher, db_session)
     assert "members_exist_in_fence" in google_project_validity
     assert google_project_validity["members_exist_in_fence"]
 
+    assert "new_service_account" in google_project_validity
     assert "service_accounts" in google_project_validity
     assert "access" in google_project_validity
     assert hasattr(google_project_validity["access"], "__iter__")
