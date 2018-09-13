@@ -53,7 +53,7 @@ def test_is_valid_service_account_type_compute_engine_default(cloud_manager):
     """
     (
         cloud_manager.return_value.__enter__.return_value.get_service_account_type.return_value
-    ) = COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT
+    ) = COMPUTE_ENGINE_API_SERVICE_ACCOUNT
     assert is_valid_service_account_type(cloud_manager.project_id, 1)
 
 
@@ -75,7 +75,7 @@ def test_not_valid_service_account_type_compute_engine_api(cloud_manager):
     """
     (
         cloud_manager.return_value.__enter__.return_value.get_service_account_type.return_value
-    ) = COMPUTE_ENGINE_API_SERVICE_ACCOUNT
+    ) = COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT
     assert not is_valid_service_account_type(cloud_manager.project_id, 1)
 
 
