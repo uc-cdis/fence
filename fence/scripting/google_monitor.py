@@ -11,8 +11,12 @@ from fence.resources.google.validity import (
     GoogleServiceAccountValidity,
 )
 from fence.resources.google.utils import get_all_registered_service_accounts
-from fence.resources.google.access_utils import force_remove_service_account_from_access
+from fence.resources.google.access_utils import (
+    force_remove_service_account_from_access,
+    get_google_project_valid_users_and_service_accounts,
+)
 
+from fence import utils
 
 def validation_check(db):
     """
@@ -37,7 +41,7 @@ def validation_check(db):
         for sa_email in sa_emails:
             print("    Validating Google Service Account: {}".format(sa_email))
             # Do some basic service account checks, this won't validate
-            # the data access, that's done whe the project's validated
+            # the data access, that's done when the project's validated
             if not _is_valid_service_account(sa_email, google_project_id):
                 print(
                     "INVALID SERVICE ACCOUNT {} DETECTED. REMOVING...".format(sa_email)
@@ -45,6 +49,11 @@ def validation_check(db):
                 force_remove_service_account_from_access(
                     sa_email, google_project_id, db=db
                 )
+                _send_emails_informing_service_account_removal(
+                    _get_user_email_list_from_google_project_with_owner_role(
+                        google_project_id),
+                    [sa_email])
+
                 continue
 
             print("VALID.")
@@ -64,6 +73,10 @@ def validation_check(db):
                 force_remove_service_account_from_access(
                     sa_email, google_project_id, db=db
                 )
+                _send_emails_informing_service_account_removal(
+                    _get_user_email_list_from_google_project_with_owner_role(
+                        google_project_id),
+                    [sa_email])
             continue
 
         print("VALID.")
@@ -138,3 +151,49 @@ def _get_project_service_account_mapping(registered_service_accounts):
             output[sa.google_project_id] = [sa.email]
 
     return output
+
+
+def _get_user_email_list_from_google_project_with_owner_role(project_id):
+    """
+    Get a list of emails associated to google project id
+
+    Args:
+        project_id(str): project id
+
+    Returns:
+        list(str): list of emails belong to the project
+
+    """
+    users, _ = get_google_project_valid_users_and_service_accounts(project_id)
+    return [u.email_id for u in users if 'Owner' in u.roles]
+
+
+def _send_emails_informing_service_account_removal(to_emails, service_account_emails):
+    """
+    Send emails to list of emails
+
+    Args:
+        to_emails(list(str)): list of email addaresses
+        service_account_emails(list(str)): service account emails to delete
+
+    Returns:
+        httpResponse or None: None if input list is empty
+
+    Exceptions:
+        ValueError
+
+    """
+
+    if not to_emails:
+        return None
+
+    from fence.settings import REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION
+    from_email = REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["from"]
+    subject = REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["subject"]
+    text = REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["content"]
+    domain = REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["domain"]
+
+    content = text.format(service_account_emails)
+
+    return utils.send_email(from_email, to_emails, subject, content, domain)
+

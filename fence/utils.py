@@ -192,18 +192,37 @@ def split_url_and_query_params(url):
     return url, query_params
 
 
-def send_email(from_email, to_emails, subject, text, email_url, api_key):
+def send_email(from_email, to_emails, subject, text, smtp_domain):
     """
-    Send email to group of emails
+    Send email to group of emails using mail gun api.
+
+    https://app.mailgun.com/
 
     Args:
         from_email(str): from email
         to_emails(list): list of emails to receive the messages
         text(str): the text message
-        email_url(str): api endpoint
-        api_key(str): api key
+        smtp_domain(dict): smtp domain server
+
+            {
+                "smtp_hostname": "smtp.mailgun.org",
+                "default_login": "postmaster@mailgun.planx-pla.net",
+                "api_url": "https://api.mailgun.net/v3/mailgun.planx-pla.net",
+                "smtp_password": password",
+                "api_key": "api key"
+            }
+
+    Returns:
+        Http response
+
+    Exceptions:
+        KeyError
+
     """
-    requests.post(email_url, auth=('api', api_key), data = {
+    api_key = smtp_domain['api_key']
+    email_url = smtp_domain['api_url'] + '/messages'
+
+    return requests.post(email_url, auth=('api', api_key), data = {
         'from': from_email,
         'to': to_emails,
         ''
