@@ -5,6 +5,7 @@ from authutils.oauth2.client import OAuthClient
 import flask
 from flask.ext.cors import CORS
 from flask_sqlalchemy_session import flask_scoped_session, current_session
+from cdislogging import get_stream_handler
 import urlparse
 from userdatamodel.driver import SQLAlchemyDriver
 
@@ -171,6 +172,7 @@ def app_sessions(app):
 
 
 def app_init(app, settings='fence.settings', root_dir=None):
+    app.logger.addHandler(get_stream_handler())
     app_config(app, settings=settings, root_dir=root_dir)
     app_sessions(app)
     app_register_blueprints(app)
