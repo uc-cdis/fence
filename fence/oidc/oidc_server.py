@@ -3,10 +3,7 @@ from authlib.flask.oauth2 import AuthorizationServer
 from authlib.specs.rfc6749.authenticate_client import (
     ClientAuthentication as AuthlibClientAuthentication
 )
-from authlib.specs.rfc6749.errors import (
-    InvalidClientError,
-    InsecureTransportError,
-)
+from authlib.specs.rfc6749.errors import InvalidClientError, InsecureTransportError
 import flask
 
 from fence.oidc.jwt_generator import generate_token

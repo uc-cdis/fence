@@ -68,7 +68,6 @@ class JWTResult(object):
 
 
 class UnsignedIDToken(AuthlibCodeIDToken):
-
     def __init__(self, token, header=None, **kwargs):
         header = header or {}
         super(UnsignedIDToken, self).__init__(token, header, **kwargs)
