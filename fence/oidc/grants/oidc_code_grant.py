@@ -1,7 +1,4 @@
-import bcrypt
-
 from authlib.common.security import generate_token
-from authlib.specs.rfc6749.errors import InvalidClientError, UnauthorizedClientError
 from authlib.specs.oidc import grants
 from authlib.specs.oidc.errors import (
     AccountSelectionRequiredError,
@@ -18,7 +15,8 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
 
     TOKEN_ENDPOINT_AUTH_METHODS = ["client_secret_basic", "client_secret_post", "none"]
 
-    def create_authorization_code(self, client, grant_user, request):
+    @staticmethod
+    def create_authorization_code(client, grant_user, request):
         """
         Create an ``AuthorizationCode`` model for the current OAuth request
         from the given client and user.
@@ -73,7 +71,8 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
         self.delete_authorization_code(authorization_code)
         return 200, token, self.TOKEN_RESPONSE_HEADER
 
-    def parse_authorization_code(self, code, client):
+    @staticmethod
+    def parse_authorization_code(code, client):
         """
         Search for an ``AuthorizationCode`` matching the given code string and
         client.
@@ -95,7 +94,8 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
             return None
         return authorization_code
 
-    def delete_authorization_code(self, authorization_code):
+    @staticmethod
+    def delete_authorization_code(authorization_code):
         """
         Delete a saved authorization code.
 
@@ -110,14 +110,17 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
             session.delete(authorization_code)
             session.commit()
 
-    def authenticate_user(self, authorization_code):
+    @staticmethod
+    def authenticate_user(authorization_code):
         with flask.current_app.db.session as session:
             return session.query(User).filter_by(id=authorization_code.user_id).first()
 
-    def authenticate_client(self):
-        print()
-
     def validate_nonce(self, required=False):
+        """
+        Override method in authlib to skip adding ``exists_nonce`` hook on server. I
+        don't think this needs to exist according to OIDC spec but this stays consistent
+        with authlib so here we are
+        """
         if required:
             if not self.request.nonce:
                 raise InvalidRequestError("Missing `nonce`")
@@ -127,6 +130,8 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
                     .filter_by(nonce=self.request.nonce)
                     .first()
                 )
+                if not code:
+                    raise InvalidRequestError("Replay attack")
         return True
 
     def validate_prompt(self, end_user):

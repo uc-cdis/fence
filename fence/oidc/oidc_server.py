@@ -5,7 +5,6 @@ from authlib.specs.rfc6749.authenticate_client import (
 )
 from authlib.specs.rfc6749.errors import (
     InvalidClientError,
-    InvalidGrantError,
     InsecureTransportError,
 )
 import flask
@@ -14,6 +13,11 @@ from fence.oidc.jwt_generator import generate_token
 
 
 class ClientAuthentication(AuthlibClientAuthentication):
+    """
+    For authlib implementation---this class is a callable that goes on the OIDC server
+    in order to authenticate OAuth clients.
+    """
+
     def authenticate(self, request, methods):
         """
         Override method from authlib

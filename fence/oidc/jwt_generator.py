@@ -1,4 +1,3 @@
-from authlib.specs.rfc6750 import BearerToken
 import flask
 from flask_sqlalchemy_session import current_session
 

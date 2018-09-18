@@ -57,7 +57,8 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         """
         return token
 
-    def authenticate_user(self, claims):
+    @staticmethod
+    def authenticate_user(claims):
         """
         Return user from the claims (decoded from JWT). Required for authlib.
         """

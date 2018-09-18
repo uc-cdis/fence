@@ -166,7 +166,8 @@ class Client(Base, OAuth2ClientMixin):
         scopes = scopes[0].split(",")
         return all(scope in self._scopes for scope in scopes)
 
-    def check_response_type(self, response_type):
+    @staticmethod
+    def check_response_type(response_type):
         """
         Only ``code`` is supported.
         """

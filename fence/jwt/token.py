@@ -4,7 +4,6 @@ import uuid
 
 from authlib.common.encoding import to_unicode
 from authlib.specs.oidc import CodeIDToken as AuthlibCodeIDToken
-from authlib.specs.rfc7519 import InvalidClaimError
 import flask
 import jwt
 
