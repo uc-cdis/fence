@@ -5,6 +5,11 @@ This file contains scripts to monitor user-registered service accounts and
 their respective Google projects. The functions in this file will also
 handle invalid service accounts and projects.
 """
+from cirrus.google_cloud.iam import GooglePolicyMember
+from cirrus.google_cloud.errors import GoogleAPIError
+from cirrus.google_cloud.iam import GooglePolicy
+from cirrus import GoogleCloudManager
+
 
 from fence.resources.google.validity import (
     GoogleProjectValidity,
@@ -13,10 +18,10 @@ from fence.resources.google.validity import (
 from fence.resources.google.utils import get_all_registered_service_accounts
 from fence.resources.google.access_utils import (
     force_remove_service_account_from_access,
-    get_google_project_valid_users_and_service_accounts,
 )
 
 from fence import utils
+from fence.errors import NotFound, NotSupported
 
 def validation_check(db):
     """
@@ -52,7 +57,7 @@ def validation_check(db):
                 _send_emails_informing_service_account_removal(
                     _get_user_email_list_from_google_project_with_owner_role(
                         google_project_id),
-                    [sa_email])
+                    [sa_email], google_project_id)
 
                 continue
 
@@ -76,7 +81,7 @@ def validation_check(db):
                 _send_emails_informing_service_account_removal(
                     _get_user_email_list_from_google_project_with_owner_role(
                         google_project_id),
-                    [sa_email])
+                    [sa_email], google_project_id)
             continue
 
         print("VALID.")
@@ -164,17 +169,49 @@ def _get_user_email_list_from_google_project_with_owner_role(project_id):
         list(str): list of emails belong to the project
 
     """
-    users, _ = get_google_project_valid_users_and_service_accounts(project_id)
-    return [u.email_id for u in users if 'Owner' in u.roles]
+    try:
+        with GoogleCloudManager(project_id, use_default=False) as prj:
+            members = prj.get_project_membership(project_id)
+            for member in members:
+                if not (
+                    member.member_type == GooglePolicyMember.SERVICE_ACCOUNT
+                    or member.member_type == GooglePolicyMember.USER
+                ):
+                    raise NotSupported(
+                        "Member {} has invalid type: {}".format(
+                            member.email_id, member.member_type
+                        )
+                    )
+            users = [
+                member
+                for member in members
+                if member.member_type == GooglePolicyMember.USER
+            ]
+
+            return list({
+                u.email_id
+                for u in users
+                for role in u.roles
+                if role.name.upper() == "OWNER"})
+
+    except Exception as exc:
+        print(
+            (
+                "validity of Google Project (id: {}) members "
+                "could not complete. Details: {}"
+            ).format(project_id, exc)
+        )
+        raise
 
 
-def _send_emails_informing_service_account_removal(to_emails, service_account_emails):
+def _send_emails_informing_service_account_removal(to_emails, service_account_emails, project_id):
     """
     Send emails to list of emails
 
     Args:
         to_emails(list(str)): list of email addaresses
         service_account_emails(list(str)): service account emails to delete
+        project_id(str): google project id
 
     Returns:
         httpResponse or None: None if input list is empty
@@ -192,8 +229,7 @@ def _send_emails_informing_service_account_removal(to_emails, service_account_em
     subject = REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["subject"]
     text = REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["content"]
     domain = REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["domain"]
-
-    content = text.format(service_account_emails)
+    content = text.format(service_account_emails, project_id)
 
     return utils.send_email(from_email, to_emails, subject, content, domain)
 

@@ -186,12 +186,12 @@ REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION = {
     "from": "test@planx-pla.net",
     "contact number": "123456789",
     "content": """
-    
+
     Service accouts {} were removed from access control lists because some \
     users or service accounts of GCP project {} are not authorized to access\
     the data sets associated to the service accounts, or do not \
-    adhere to ISB-CGC's security policies.
-    
+    adhere to the security policies.
+
     """
 }
 
