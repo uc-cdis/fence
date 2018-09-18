@@ -183,14 +183,15 @@ GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS = {
 REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION = {
     "domain": "smtp domain",
     "subject": "User service account removal notification",
-    "from": "test@planx-pla.net",
+    "from": "do-not-reply@planx-pla.net",
+    "admin": [],
     "contact number": "123456789",
     "content": """
 
     Service accouts {} were removed from access control lists because some \
-    users or service accounts of GCP project {} are not authorized to access\
-    the data sets associated to the service accounts, or do not \
-    adhere to the security policies.
+users or service accounts of GCP project {} are not authorized to access \
+the data sets associated to the service accounts, or do not \
+adhere to the security policies.
 
     """
 }

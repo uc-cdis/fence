@@ -229,6 +229,8 @@ def _send_emails_informing_service_account_removal(to_emails, service_account_em
     subject = REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["subject"]
     text = REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["content"]
     domain = REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["domain"]
+    if REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["admin"]:
+        to_emails.extend(REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["admin"])
     content = text.format(service_account_emails, project_id)
 
     return utils.send_email(from_email, to_emails, subject, content, domain)
