@@ -11,47 +11,42 @@ from fence.resources.storage import get_endpoints_descriptions
 from fence.restful import RestfulApi
 
 ALL_RESOURCES = {
-    '/api': 'access to CDIS APIs',
-    '/ceph': 'access to Ceph storage',
-    '/cleversafe': 'access to cleversafe storage',
-    '/aws-s3': 'access to AWS S3 storage',
-    '/google': 'access to Google storage'
+    "/api": "access to CDIS APIs",
+    "/ceph": "access to Ceph storage",
+    "/cleversafe": "access to cleversafe storage",
+    "/aws-s3": "access to AWS S3 storage",
+    "/google": "access to Google storage",
 }
 
 
 def make_creds_blueprint():
-    blueprint = flask.Blueprint('credentials', __name__)
+    blueprint = flask.Blueprint("credentials", __name__)
     blueprint_api = RestfulApi(blueprint)
 
+    blueprint_api.add_resource(GoogleCredentialsList, "/google", strict_slashes=False)
     blueprint_api.add_resource(
-        GoogleCredentialsList, '/google', strict_slashes=False
-    )
-    blueprint_api.add_resource(
-        GoogleCredentials, '/google/<access_key>', strict_slashes=False
+        GoogleCredentials, "/google/<access_key>", strict_slashes=False
     )
 
     # TODO: REMOVE DEPRECATED /cdis ENDPOINTS
     # temporarily leaving them here to give time for users to make switch
+    blueprint_api.add_resource(ApiKeyList, "/api", "/cdis", strict_slashes=False)
     blueprint_api.add_resource(
-        ApiKeyList, '/api', '/cdis', strict_slashes=False
+        ApiKey, "/api/<access_key>", "/cdis/<access_key>", strict_slashes=False
     )
     blueprint_api.add_resource(
-        ApiKey, '/api/<access_key>', '/cdis/<access_key>', strict_slashes=False
-    )
-    blueprint_api.add_resource(
-        AccessKey, '/api/access_token', '/cdis/access_token',
-        strict_slashes=False
+        AccessKey, "/api/access_token", "/cdis/access_token", strict_slashes=False
     )
 
     blueprint_api.add_resource(
-        OtherCredentialsList, '/<provider>', strict_slashes=False
+        OtherCredentialsList, "/<provider>", strict_slashes=False
     )
     blueprint_api.add_resource(
-        OtherCredentials, '/<provider>/<access_key>', strict_slashes=False
+        OtherCredentials, "/<provider>/<access_key>", strict_slashes=False
     )
 
-    @blueprint.route('/', methods=['GET'])
-    @require_auth_header({'credentials'})
+    @blueprint.route("/", methods=["GET"])
+    @require_auth_header({"credentials"})
     def list_sources():
         """
         List different resources user can have credentials
@@ -73,8 +68,7 @@ def make_creds_blueprint():
                 "/google", "access to Google Cloud storage"
             }
         """
-        services = flask.current_app.config.get('STORAGES', [])
-        return flask.jsonify(get_endpoints_descriptions(
-            services, current_session))
+        services = flask.current_app.config.get("STORAGES", [])
+        return flask.jsonify(get_endpoints_descriptions(services, current_session))
 
     return blueprint

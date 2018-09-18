@@ -14,11 +14,11 @@ from fence.errors import NotFound, UserError
 from fence.models import Policy, User
 
 
-blueprint = flask.Blueprint('rbac', __name__)
+blueprint = flask.Blueprint("rbac", __name__)
 
 
-@blueprint.route('/policies/', methods=['GET'])
-@login_required({'admin'})
+@blueprint.route("/policies/", methods=["GET"])
+@login_required({"admin"})
 def list_policies():
     """
     List all the existing policies. (In fence, not arborist.)
@@ -34,32 +34,31 @@ def list_policies():
     """
     with flask.current_app.db.session as session:
         policies = _list_all_policies(session)
-    return flask.jsonify({'policies': [policy.id for policy in policies]})
+    return flask.jsonify({"policies": [policy.id for policy in policies]})
 
 
-@blueprint.route('/policies/', methods=['POST'])
-@login_required({'admin'})
+@blueprint.route("/policies/", methods=["POST"])
+@login_required({"admin"})
 def create_policy():
     """
     Create new policies in the fence database, *without* granting it to any
     users. The policy *must* already exist in arborist, otherwise this
     operation will fail.
     """
-    policy_ids = flask.request.get_json().get('policies', [])
+    policy_ids = flask.request.get_json().get("policies", [])
     missing = flask.current_app.arborist.policies_not_exist(policy_ids)
     if missing:
         raise ValueError(
-            'the following policies do not exist in arborist: '
-            + ', '.join(missing)
+            "the following policies do not exist in arborist: " + ", ".join(missing)
         )
     with flask.current_app.db.session as session:
         for policy_id in policy_ids:
             session.add(Policy(id=policy_id))
-    return flask.jsonify({'created': policy_ids}), 201
+    return flask.jsonify({"created": policy_ids}), 201
 
 
-@blueprint.route('/policies/<policy_id>', methods=['DELETE'])
-@login_required({'admin'})
+@blueprint.route("/policies/<policy_id>", methods=["DELETE"])
+@login_required({"admin"})
 def delete_policy(policy_id):
     """
     Delete a policy from the database.
@@ -69,18 +68,13 @@ def delete_policy(policy_id):
     maintainers) can use this endpoint to remove the same policy from fence.
     """
     with flask.current_app.db.session as session:
-        policy_to_delete = (
-            session
-            .query(Policy)
-            .filter(Policy.id == policy_id)
-            .first()
-        )
+        policy_to_delete = session.query(Policy).filter(Policy.id == policy_id).first()
         session.delete(policy_to_delete)
-    return '', 204
+    return "", 204
 
 
-@blueprint.route('/user/<user_id>/policies/', methods=['GET'])
-@login_required({'admin'})
+@blueprint.route("/user/<user_id>/policies/", methods=["GET"])
+@login_required({"admin"})
 def list_user_policies(user_id):
     """
     List the policies that this user has access to.
@@ -88,50 +82,50 @@ def list_user_policies(user_id):
     Output will be in the same format as the ``/policy/`` endpoint, but
     only containing policies this user has access to.
     """
-    return flask.jsonify({'policies': _get_user_policy_ids(user_id)})
+    return flask.jsonify({"policies": _get_user_policy_ids(user_id)})
 
 
-@blueprint.route('/user/<user_id>/policies/', methods=['POST'])
-@login_required({'admin'})
+@blueprint.route("/user/<user_id>/policies/", methods=["POST"])
+@login_required({"admin"})
 def grant_policy_to_user(user_id):
     """
     Grant additional policies to a user.
     """
-    policy_ids = _validate_policy_ids(flask.request.get_json().get('policies'))
+    policy_ids = _validate_policy_ids(flask.request.get_json().get("policies"))
 
     with flask.current_app.db.session as session:
         policies = lookup_policies(policy_ids)
         user = session.query(User).filter(User.id == user_id).first()
         if not user:
-            raise ValueError('no user exists with ID: {}'.format(user_id))
+            raise ValueError("no user exists with ID: {}".format(user_id))
         user.policies.extend(policies)
         session.commit()
 
-    return '', 204
+    return "", 204
 
 
-@blueprint.route('/user/<user_id>/policies/', methods=['PUT'])
-@login_required({'admin'})
+@blueprint.route("/user/<user_id>/policies/", methods=["PUT"])
+@login_required({"admin"})
 def replace_user_policies(user_id):
     """
     Overwrite the user's existing policies and replace them with the ones
     provided in the request.
     """
-    policy_ids = _validate_policy_ids(flask.request.get_json().get('policies'))
+    policy_ids = _validate_policy_ids(flask.request.get_json().get("policies"))
 
     with flask.current_app.db.session as session:
         policies = lookup_policies(policy_ids)
         user = session.query(User).filter_by(id=user_id).first()
         if not user:
-            raise NotFound('no user exists with ID: {}'.format(user_id))
+            raise NotFound("no user exists with ID: {}".format(user_id))
         user.policies = policies
         session.commit()
 
-    return '', 204
+    return "", 204
 
 
-@blueprint.route('/user/<user_id>/policies/', methods=['DELETE'])
-@login_required({'admin'})
+@blueprint.route("/user/<user_id>/policies/", methods=["DELETE"])
+@login_required({"admin"})
 def revoke_user_policies(user_id):
     """
     Revoke all the policies which this user has access to.
@@ -139,15 +133,15 @@ def revoke_user_policies(user_id):
     with flask.current_app.db.session as session:
         user = session.query(User).filter_by(id=user_id).first()
         if not user:
-            raise NotFound('no user exists with ID: {}'.format(user_id))
+            raise NotFound("no user exists with ID: {}".format(user_id))
         # Set user's policies to empty list.
         user.policies = []
         session.commit()
-    return '', 204
+    return "", 204
 
 
-@blueprint.route('/user/<user_id>/policies/<policy_id>', methods=['DELETE'])
-@login_required({'admin'})
+@blueprint.route("/user/<user_id>/policies/<policy_id>", methods=["DELETE"])
+@login_required({"admin"})
 def revoke_user_policy(user_id, policy_id):
     """
     Revoke a specific policy (the policy ID in the path) granted to a user
@@ -156,10 +150,10 @@ def revoke_user_policy(user_id, policy_id):
     with flask.current_app.db.session as session:
         user = session.query(User).filter_by(User.id == user_id).first()
         if not user:
-            raise NotFound('no user exists with ID: {}'.format(user_id))
+            raise NotFound("no user exists with ID: {}".format(user_id))
         user.policies.remove(policy_id)
         session.flush()
-    return '', 204
+    return "", 204
 
 
 def lookup_policies(policy_ids):
@@ -183,10 +177,7 @@ def lookup_policies(policy_ids):
         for policy_id in policy_ids:
             policy = session.query(Policy).filter_by(id=policy_id).first()
             if not policy:
-                raise ValueError(
-                    'policy not registered in fence: {}'
-                    .format(policy_id)
-                )
+                raise ValueError("policy not registered in fence: {}".format(policy_id))
             policies.append(policy)
     return policies
 
@@ -218,7 +209,7 @@ def _get_user_policy_ids(user_id):
     with flask.current_app.db.session as session:
         user = session.query(User).filter(User.id == user_id).first()
         if not user:
-            raise NotFound('no user exists with ID: {}'.format(user_id))
+            raise NotFound("no user exists with ID: {}".format(user_id))
         return [policy.id for policy in user.policies]
 
 
@@ -237,13 +228,12 @@ def _validate_policy_ids(policy_ids):
         UserError: if the policy ID list fails to validate
     """
     if not policy_ids:
-        raise UserError('JSON missing required value `policies`')
-    missing_policies = flask.current_app.arborist.policies_not_exist(
-        policy_ids
-    )
+        raise UserError("JSON missing required value `policies`")
+    missing_policies = flask.current_app.arborist.policies_not_exist(policy_ids)
     if any(missing_policies):
         raise UserError(
-            'policies with these IDs do not exist in arborist: {}'
-            .format(missing_policies)
+            "policies with these IDs do not exist in arborist: {}".format(
+                missing_policies
+            )
         )
     return policy_ids

@@ -1310,6 +1310,18 @@ components:
                       type: boolean
                     'members_exist_in_fence':
                       type: boolean
+                'service_account_validity':
+                  type: object
+                  properties:
+                    service_account_id:
+                      type: object
+                      properties:
+                        no_external_access:
+                          type: boolean
+                        owned_by_project:
+                          type: boolean
+                        valid_type:
+                          type: boolean
             project_access:
               type: object
               properties:
@@ -1351,6 +1363,11 @@ components:
             'membership_validity':
               valid_member_types: true
               members_exist_in_fence: true
+            'service_account_validity':
+              'another-service-account@project-id.iam.gserviceaccount.com':
+                'no_external_access': true
+                'owned_by_project': true
+                'valid_type': true
           project_access:
             'status': 403
             'error': 'Unauthorized'

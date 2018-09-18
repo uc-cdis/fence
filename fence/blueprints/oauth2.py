@@ -86,12 +86,11 @@ def authorize(*args, **kwargs):
         raise Unauthorized("{} failed to authorize".format(str(e)))
 
     client_id = grant.client.client_id
-
     with flask.current_app.db.session as session:
         client = session.query(Client).filter_by(client_id=client_id).first()
 
+    # TODO: any way to get from grant?
     confirm = flask.request.form.get("confirm") or flask.request.args.get("confirm")
-
     if client.auto_approve:
         confirm = "yes"
     if confirm is not None:
@@ -136,7 +135,6 @@ def _authorize(user, grant, client):
     """
     scope = flask.request.args.get("scope")
     response = _get_auth_response_for_prompts(grant.prompt, grant, user, client, scope)
-
     return response
 
 

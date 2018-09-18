@@ -18,7 +18,9 @@ from fence.auth import require_auth_header
 from fence.resources.google.utils import (
     get_or_create_proxy_group_id,
     get_default_google_account_expiration,
-    get_users_linked_google_email)
+    get_users_linked_google_email,
+    get_linked_google_account_email,
+)
 
 from fence.utils import clear_cookies, append_query_params
 
@@ -28,15 +30,11 @@ def make_link_blueprint():
     Return:
         flask.Blueprint: the blueprint used for ``/link`` endpoints
     """
-    blueprint = flask.Blueprint('link', __name__)
+    blueprint = flask.Blueprint("link", __name__)
     blueprint_api = RestfulApi(blueprint)
 
-    blueprint_api.add_resource(
-        GoogleLinkRedirect, '/google', strict_slashes=False
-    )
-    blueprint_api.add_resource(
-        GoogleCallback, '/google/callback', strict_slashes=False
-    )
+    blueprint_api.add_resource(GoogleLinkRedirect, "/google", strict_slashes=False)
+    blueprint_api.add_resource(GoogleCallback, "/google/callback", strict_slashes=False)
 
     return blueprint
 
@@ -50,7 +48,7 @@ class GoogleLinkRedirect(Resource):
     will have access to the same resources the user does.
     """
 
-    @require_auth_header({'user'})
+    @require_auth_header({"user"})
     def get(self):
         """
         Link a user's Google Account by running the oauth2 flow with
@@ -68,7 +66,7 @@ class GoogleLinkRedirect(Resource):
         """
         return GoogleLinkRedirect._link_google_account()
 
-    @require_auth_header({'user'})
+    @require_auth_header({"user"})
     def patch(self):
         """
         Extend access of the user's linked Google account.
@@ -77,7 +75,7 @@ class GoogleLinkRedirect(Resource):
         """
         return GoogleLinkRedirect._extend_account_expiration()
 
-    @require_auth_header({'user'})
+    @require_auth_header({"user"})
     def delete(self):
         """
         Permanently remove a user's linked Google account. This will first
@@ -91,76 +89,93 @@ class GoogleLinkRedirect(Resource):
 
     @staticmethod
     def _link_google_account():
-        provided_redirect = flask.request.args.get('redirect')
+        provided_redirect = flask.request.args.get("redirect")
 
         if not provided_redirect:
-            raise UserError({'error': 'No redirect provided.'})
+            raise UserError({"error": "No redirect provided."})
 
-        user_id = current_token['sub']
+        user_id = current_token["sub"]
         google_email = get_users_linked_google_email(user_id)
         proxy_group = get_or_create_proxy_group_id()
 
         # Set session flag to signify that we're linking and not logging in
         # Save info needed for linking in session since we need to AuthN first
-        flask.session['google_link'] = True
-        flask.session['user_id'] = user_id
-        flask.session['google_proxy_group_id'] = proxy_group
-        flask.session['linked_google_email'] = google_email
+        flask.session["google_link"] = True
+        flask.session["user_id"] = user_id
+        flask.session["google_proxy_group_id"] = proxy_group
+        flask.session["linked_google_email"] = google_email
 
         if not google_email:
             # save off provided redirect in session and initiate Google AuthN
-            flask.session['redirect'] = provided_redirect
+            flask.session["redirect"] = provided_redirect
             flask.redirect_url = flask.current_app.google_client.get_auth_url()
 
             # Tell Google to let user select an account
             flask.redirect_url = append_query_params(
-                flask.redirect_url, prompt='select_account'
+                flask.redirect_url, prompt="select_account"
             )
         else:
-            # skip Google AuthN, already linked, error
-            redirect_with_errors = append_query_params(
-                provided_redirect,
-                error='g_acnt_link_error',
-                error_description='User already has a linked Google account.')
-            flask.redirect_url = redirect_with_errors
+            # double check that the token isn't stale by hitting db
+            linked_email_in_db = get_linked_google_account_email(user_id)
+
+            if linked_email_in_db:
+                # skip Google AuthN, already linked, error
+                redirect_with_errors = append_query_params(
+                    provided_redirect,
+                    error='g_acnt_link_error',
+                    error_description='User already has a linked Google account.')
+                flask.redirect_url = redirect_with_errors
+                _clear_google_link_info_from_session()
+            else:
+                # TODO can we handle this error?
+                redirect_with_errors = append_query_params(
+                    provided_redirect,
+                    error='g_acnt_link_error',
+                    error_description='Stale access token, please refresh.')
+                flask.redirect_url = redirect_with_errors
+                _clear_google_link_info_from_session()
 
         return flask.redirect(flask.redirect_url)
 
     @staticmethod
     def _extend_account_expiration():
-        user_id = current_token['sub']
+        user_id = current_token["sub"]
         google_email = get_users_linked_google_email(user_id)
         proxy_group = get_or_create_proxy_group_id()
 
         access_expiration = _force_update_user_google_account(
-            user_id, google_email, proxy_group, _allow_new=False)
+            user_id, google_email, proxy_group, _allow_new=False
+        )
 
-        return {'exp': access_expiration}, 200
+        return {"exp": access_expiration}, 200
 
     @staticmethod
     def _unlink_google_account():
-        user_id = current_token['sub']
+        user_id = current_token["sub"]
 
         g_account = (
             current_session.query(UserGoogleAccount)
-            .filter(UserGoogleAccount.user_id == user_id).first()
+            .filter(UserGoogleAccount.user_id == user_id)
+            .first()
         )
 
         if not g_account:
             error_message = {
-                'error': 'g_acnt_link_error',
-                'error_description': (
-                    'Couldn\'t unlink account for user, no linked Google '
-                    'account found.'
-                )
+                "error": "g_acnt_link_error",
+                "error_description": (
+                    "Couldn't unlink account for user, no linked Google "
+                    "account found."
+                ),
             }
+            _clear_google_link_info_from_session()
             return error_message, 404
 
         g_account_access = (
             current_session.query(UserGoogleAccountToProxyGroup)
             .filter(
-                UserGoogleAccountToProxyGroup
-                .user_google_account_id == g_account.id).first()
+                UserGoogleAccountToProxyGroup.user_google_account_id == g_account.id
+            )
+            .first()
         )
 
         if g_account_access:
@@ -168,16 +183,17 @@ class GoogleLinkRedirect(Resource):
                 with GoogleCloudManager() as g_manager:
                     g_manager.remove_member_from_group(
                         member_email=g_account.email,
-                        group_id=g_account_access.proxy_group_id
+                        group_id=g_account_access.proxy_group_id,
                     )
             except Exception as exc:
                 error_message = {
-                    'error': 'g_acnt_access_error',
-                    'error_description': (
-                        'Couldn\'t remove account from user\'s proxy group, '
-                        'Google API failure. Exception: {}'.format(exc)
-                    )
+                    "error": "g_acnt_access_error",
+                    "error_description": (
+                        "Couldn't remove account from user's proxy group, "
+                        "Google API failure. Exception: {}".format(exc)
+                    ),
                 }
+                _clear_google_link_info_from_session()
                 return error_message, 400
 
             current_session.delete(g_account_access)
@@ -189,14 +205,13 @@ class GoogleLinkRedirect(Resource):
         # clear session and cookies so access token and session don't have
         # outdated linkage info
         flask.session.clear()
-        response = flask.make_response('', 200)
+        response = flask.make_response("", 200)
         clear_cookies(response)
 
         return response
 
 
 class GoogleCallback(Resource):
-
     def get(self):
         """
         Link a user's Google account after AuthN.
@@ -210,23 +225,24 @@ class GoogleCallback(Resource):
         Raises:
             UserError: No redirect provided
         """
-        provided_redirect = flask.session.get('redirect')
-        code = flask.request.args.get('code')
+        provided_redirect = flask.session.get("redirect")
+        code = flask.request.args.get("code")
 
         google_reponse = flask.current_app.google_client.get_user_id(code)
-        email = google_reponse.get('email')
+        email = google_reponse.get("email")
 
-        error = ''
-        error_description = ''
+        error = ""
+        error_description = ""
+
+        # get info from session and then clear it
+        user_id = flask.session.get('user_id')
+        proxy_group = flask.session.get('google_proxy_group_id')
+        _clear_google_link_info_from_session()
 
         if not email:
-            error = 'g_acnt_auth_failure'
+            error = "g_acnt_auth_failure"
             error_description = google_reponse
         else:
-            user_id = flask.session.get('user_id')
-            proxy_group = flask.session.get('google_proxy_group_id')
-            _clear_google_link_info_from_session()
-
             error, error_description = (
                 get_errors_update_user_google_account_dry_run(
                     user_id, email, proxy_group, _already_authed=True)
@@ -234,27 +250,25 @@ class GoogleCallback(Resource):
 
             if not error:
                 exp = _force_update_user_google_account(
-                    user_id, email, proxy_group, _allow_new=True)
+                    user_id, email, proxy_group, _allow_new=True
+                )
 
+                # TODO: perhaps this is problematic??
                 # keep linked email in session so when session refreshes access
                 # token, we don't have to hit db to see if user has linked acnt
                 # NOTE: This only saves us from a db hit if they maintain their
                 # session
-                flask.session['linked_google_email'] = email
+                flask.session["linked_google_email"] = email
 
         # if we have a redirect, follow it and add any errors
         if provided_redirect:
             if error:
                 redirect_with_params = append_query_params(
-                    provided_redirect,
-                    error=error,
-                    error_description=error_description
+                    provided_redirect, error=error, error_description=error_description
                 )
             else:
                 redirect_with_params = append_query_params(
-                    provided_redirect,
-                    linked_email=email,
-                    exp=exp
+                    provided_redirect, linked_email=email, exp=exp
                 )
 
             return flask.redirect(redirect_with_params)
@@ -264,11 +278,12 @@ class GoogleCallback(Resource):
             if error:
                 raise UserError({error: error_description})
             else:
-                raise UserError({'error': 'No redirect provided.'})
+                raise UserError({"error": "No redirect provided."})
 
 
 def get_errors_update_user_google_account_dry_run(
-        user_id, google_email, proxy_group, _already_authed=False):
+    user_id, google_email, proxy_group, _already_authed=False
+):
     """
     Gets error and details for attempting to add user's google account to
     proxy group and/or updating expiration for that google account's access.
@@ -298,36 +313,39 @@ def get_errors_update_user_google_account_dry_run(
 
     user_google_account = (
         current_session.query(UserGoogleAccount)
-        .filter(UserGoogleAccount.email == google_email).first()
+        .filter(UserGoogleAccount.email == google_email)
+        .first()
     )
 
     if not user_google_account:
         if _already_authed:
             if not user_id:
-                error = 'g_acnt_link_error'
+                error = "g_acnt_link_error"
                 error_description = (
-                    'Could not determine authed user '
-                    'from session. Unable to link Google account.')
+                    "Could not determine authed user "
+                    "from session. Unable to link Google account."
+                )
         else:
-            error = 'g_acnt_link_error'
+            error = "g_acnt_link_error"
             error_description = (
-                'User doesn\'t have a linked Google account. Cannot '
-                'extend expiration.')
+                "User doesn't have a linked Google account. Cannot "
+                "extend expiration."
+            )
     elif not proxy_group:
-        error = 'g_acnt_access_error'
+        error = "g_acnt_access_error"
         error_description = (
-            'No proxy group found for user {}. Could not give Google Account '
-            'access. Proxy groups are created automatically on a timed '
-            'schedule. Please try again later.'
-            .format(user_id)
+            "No proxy group found for user {}. Could not give Google Account "
+            "access. Proxy groups are created automatically on a timed "
+            "schedule. Please try again later.".format(user_id)
         )
     else:
         if user_google_account.user_id != user_id:
-            error = 'g_acnt_link_error'
+            error = "g_acnt_link_error"
             error_description = (
-                'Could not link Google account. '
-                'The account specified is '
-                'already linked to a different user.')
+                "Could not link Google account. "
+                "The account specified is "
+                "already linked to a different user."
+            )
         else:
             # valid, no errors
             pass
@@ -336,7 +354,8 @@ def get_errors_update_user_google_account_dry_run(
 
 
 def _force_update_user_google_account(
-        user_id, google_email, proxy_group_id, _allow_new=False):
+    user_id, google_email, proxy_group_id, _allow_new=False
+):
     """
     Adds user's google account to proxy group and/or updates expiration for
     that google account's access.
@@ -365,22 +384,26 @@ def _force_update_user_google_account(
     """
     user_google_account = (
         current_session.query(UserGoogleAccount)
-        .filter(UserGoogleAccount.email == google_email).first()
+        .filter(UserGoogleAccount.email == google_email)
+        .first()
     )
 
     if not user_google_account:
         if _allow_new:
             if user_id is not None:
-                user_google_account = (
-                    _add_new_user_google_account(user_id, google_email))
+                user_google_account = _add_new_user_google_account(
+                    user_id, google_email
+                )
             else:
                 raise Unauthorized(
-                    'Could not determine authed user '
-                    'from session. Unable to link Google account.')
+                    "Could not determine authed user "
+                    "from session. Unable to link Google account."
+                )
         else:
             raise NotFound(
-                'User does not have a linked Google account. Update '
-                'was attempted and failed.')
+                "User does not have a linked Google account. Update "
+                "was attempted and failed."
+            )
 
     expiration = get_default_google_account_expiration()
     account_in_proxy_group = (
@@ -388,7 +411,8 @@ def _force_update_user_google_account(
         .filter(
             UserGoogleAccountToProxyGroup.user_google_account_id
             == user_google_account.id
-        ).first()
+        )
+        .first()
     )
     if account_in_proxy_group:
         account_in_proxy_group.expires = expiration
@@ -396,19 +420,19 @@ def _force_update_user_google_account(
         account_in_proxy_group = UserGoogleAccountToProxyGroup(
             user_google_account_id=user_google_account.id,
             proxy_group_id=proxy_group_id,
-            expires=expiration
+            expires=expiration,
         )
         current_session.add(account_in_proxy_group)
 
         _add_google_email_to_proxy_group(
-            google_email=google_email, proxy_group_id=proxy_group_id)
+            google_email=google_email, proxy_group_id=proxy_group_id
+        )
 
     flask.current_app.logger.info(
-        'Adding user\'s (id: {}) Google account to their proxy group (id: {}).'
-        ' Expiration: {}'.format(
-            user_google_account.user_id,
-            proxy_group_id,
-            expiration)
+        "Adding user's (id: {}) Google account to their proxy group (id: {})."
+        " Expiration: {}".format(
+            user_google_account.user_id, proxy_group_id, expiration
+        )
     )
 
     current_session.commit()
@@ -417,14 +441,11 @@ def _force_update_user_google_account(
 
 
 def _add_new_user_google_account(user_id, google_email):
-    user_google_account = UserGoogleAccount(
-        email=google_email,
-        user_id=user_id
-    )
+    user_google_account = UserGoogleAccount(email=google_email, user_id=user_id)
     current_session.add(user_google_account)
     flask.current_app.logger.info(
-        'Linking Google account {} to user with id {}.'.format(
-            google_email, user_id))
+        "Linking Google account {} to user with id {}.".format(google_email, user_id)
+    )
     current_session.commit()
     return user_google_account
 
@@ -432,11 +453,12 @@ def _add_new_user_google_account(user_id, google_email):
 def _add_google_email_to_proxy_group(google_email, proxy_group_id):
     with GoogleCloudManager() as g_manager:
         g_manager.add_member_to_group(
-            member_email=google_email, group_id=proxy_group_id)
+            member_email=google_email, group_id=proxy_group_id
+        )
 
 
 def _clear_google_link_info_from_session():
     # remove google linking info from session
-    flask.session.pop('google_link', None)
-    flask.session.pop('user_id', None)
-    flask.session.pop('google_proxy_group_id', None)
+    flask.session.pop("google_link", None)
+    flask.session.pop("user_id", None)
+    flask.session.pop("google_proxy_group_id", None)

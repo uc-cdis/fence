@@ -1,8 +1,4 @@
-from fence.jwt.blacklist import (
-    blacklist_token,
-    is_blacklisted,
-    is_token_blacklisted,
-)
+from fence.jwt.blacklist import blacklist_token, is_blacklisted, is_token_blacklisted
 
 from tests import utils
 
