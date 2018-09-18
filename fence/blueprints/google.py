@@ -1,5 +1,5 @@
-import json
 import os
+import json
 from urllib import unquote
 
 import flask
@@ -14,13 +14,11 @@ from fence.errors import UserError, NotFound
 from fence.resources.google.validity import GoogleProjectValidity
 from fence.resources.google.access_utils import (
     is_user_member_of_all_google_projects,
-    can_user_manage_service_account,
-    get_google_project_from_service_account_email,
+    get_registered_service_account_from_email,
     get_service_account_email,
     force_remove_service_account_from_access,
     force_delete_service_account,
     extend_service_account_access,
-    get_current_service_account_project_access,
     patch_user_service_account,
     get_project_ids_from_project_auth_ids,
     add_user_service_account_to_google,
@@ -251,7 +249,11 @@ class GoogleServiceAccountRoot(Resource):
                 for gbag in bucket_access_groups:
                     sa_to_gbags.extend(gbag.to_access_groups)
 
-                expirations = [sa_to_gbag.expires for sa_to_gbag in sa_to_gbags]
+                expirations = [
+                    sa_to_gbag.expires
+                    for sa_to_gbag in sa_to_gbags
+                    if sa_to_gbag.service_account_id == project_sa.id
+                ]
 
                 output_sa = {
                     "service_account_email": project_sa.email,
@@ -335,9 +337,37 @@ class GoogleServiceAccount(Resource):
             id_ (str): Google service account identifier to update
         """
         user_id = current_token["sub"]
-        # check if user has permission to update the service account
-        authorized = can_user_manage_service_account(user_id, id_)
+        payload = flask.request.get_json(silent=True) or {}
 
+        service_account_email = get_service_account_email(id_)
+        registered_service_account = get_registered_service_account_from_email(
+            service_account_email
+        )
+        if not registered_service_account:
+            raise NotFound(
+                "Could not find a registered service account from given email {}".format(
+                    service_account_email
+                )
+            )
+
+        # check if the user requested to update more than project_access
+        project_access = payload.pop("project_access", None)
+
+        # if not provided, use service accounts current access
+        if not project_access:
+            project_access = [
+                access_privilege.project.auth_id
+                for access_privilege in registered_service_account.access_privileges
+            ]
+
+        # if they're trying to patch more fields, error out, we only support the above
+        if payload:
+            return ("Cannot update provided fields: {}".format(payload), 403)
+
+        google_project_id = registered_service_account.google_project_id
+
+        # check if user has permission to update the service account
+        authorized = is_user_member_of_all_google_projects(user_id, [google_project_id])
         if not authorized:
             msg = (
                 'User "{}" does not have permission to update the provided '
@@ -345,21 +375,6 @@ class GoogleServiceAccount(Resource):
             )
             return msg, 403
 
-        payload = flask.request.get_json(silent=True) or {}
-
-        service_account_email = get_service_account_email(id_)
-
-        # check if the user requested to update more than project_access
-        project_access = payload.pop(
-            "project_access", None
-        ) or get_current_service_account_project_access(service_account_email)
-
-        if payload:
-            return ("Cannot update provided fields: {}".format(payload), 403)
-
-        google_project_id = get_google_project_from_service_account_email(
-            service_account_email
-        )
         error_response = _get_service_account_error_status(
             service_account_email, google_project_id, project_access, user_id
         )
@@ -388,8 +403,22 @@ class GoogleServiceAccount(Resource):
             id_ (str): Google service account email to delete
         """
         user_id = current_token["sub"]
+
+        service_account_email = get_service_account_email(id_)
+        registered_service_account = get_registered_service_account_from_email(
+            service_account_email
+        )
+        if not registered_service_account:
+            raise NotFound(
+                "Could not find a registered service account from given email {}".format(
+                    service_account_email
+                )
+            )
+
+        google_project_id = registered_service_account.google_project_id
+
         # check if user has permission to delete the service account
-        authorized = can_user_manage_service_account(user_id, id_)
+        authorized = is_user_member_of_all_google_projects(user_id, [google_project_id])
 
         if not authorized:
             return (
@@ -479,9 +508,11 @@ class GoogleServiceAccount(Resource):
         """
 
         service_account_email = get_service_account_email(id_)
-        google_project_id = get_google_project_from_service_account_email(
+        registered_service_account = get_registered_service_account_from_email(
             service_account_email
         )
+
+        google_project_id = registered_service_account.google_project_id
 
         try:
             force_remove_service_account_from_access(
@@ -594,7 +625,7 @@ def _get_service_account_error_status(
 
 
 def _get_service_account_email_error_status(validity_info):
-    service_accounts_validity = validity_info.get("service_accounts")
+    service_accounts_validity = validity_info.get("new_service_account")
 
     response = {
         "status": 200,

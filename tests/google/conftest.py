@@ -455,7 +455,9 @@ def user_can_manage_service_account_mock():
     mock = MagicMock()
     mock.return_value = True
 
-    patcher = patch("fence.blueprints.google.can_user_manage_service_account", mock)
+    patcher = patch(
+        "fence.blueprints.google.is_user_member_of_all_google_projects", mock
+    )
 
     patcher.start()
     yield mock
