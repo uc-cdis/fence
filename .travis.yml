@@ -16,7 +16,7 @@ addons:
   postgresql: "9.4"
 
 env:
-  - REPOSITORY="uc-cdis/authutils" PR_NUMBER="$TRAVIS_PULL_REQUEST"
+  - REPOSITORY="uc-cdis/fence" PR_NUMBER="$TRAVIS_PULL_REQUEST"
 
 install:
   - pip uninstall -y six || true # travis installs wrong version
