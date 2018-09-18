@@ -16,6 +16,7 @@ from werkzeug.datastructures import ImmutableMultiDict
 
 from fence.models import Client, User
 from fence.jwt.token import CLIENT_ALLOWED_SCOPES
+from fence.settings import GUN_MAIL
 
 rng = SystemRandom()
 alphanumeric = string.ascii_uppercase + string.ascii_lowercase + string.digits
@@ -219,10 +220,11 @@ def send_email(from_email, to_emails, subject, text, smtp_domain):
         KeyError
 
     """
-    api_key = smtp_domain['api_key']
-    email_url = smtp_domain['api_url'] + '/messages'
 
-    return requests.post(email_url, auth=('api', api_key), data = {
+    api_key = GUN_MAIL[smtp_domain]['api_key']
+    email_url = GUN_MAIL[smtp_domain]['api_url'] + '/messages'
+
+    return requests.post(email_url, auth=('api', api_key), data={
         'from': from_email,
         'to': to_emails,
         ''
