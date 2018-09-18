@@ -21,18 +21,16 @@ class FenceRedirect(Resource):
 
     def get(self):
         """Handle ``GET /login/fence``."""
-        oauth2_redirect_uri = (
-            flask.current_app.fence_client.client_kwargs.get('redirect_uri')
+        oauth2_redirect_uri = flask.current_app.fence_client.client_kwargs.get(
+            "redirect_uri"
         )
-        redirect_url = flask.request.args.get('redirect')
+        redirect_url = flask.request.args.get("redirect")
         if redirect_url:
-            flask.session['redirect'] = redirect_url
-        authorization_url, state = (
-            flask.current_app
-            .fence_client
-            .generate_authorize_redirect(oauth2_redirect_uri)
+            flask.session["redirect"] = redirect_url
+        authorization_url, state = flask.current_app.fence_client.generate_authorize_redirect(
+            oauth2_redirect_uri
         )
-        flask.session['state'] = state
+        flask.session["state"] = state
         return flask.redirect(authorization_url)
 
 
@@ -48,24 +46,23 @@ class FenceLogin(Resource):
         # Check that the state passed back from IDP fence is the same as the
         # one stored previously.
         mismatched_state = (
-            'state' not in flask.request.args
-            or 'state' not in flask.session
-            or flask.request.args['state'] != flask.session.pop('state', '')
+            "state" not in flask.request.args
+            or "state" not in flask.session
+            or flask.request.args["state"] != flask.session.pop("state", "")
         )
         if mismatched_state:
-            raise Unauthorized('authorization request failed; state mismatch')
+            raise Unauthorized("authorization request failed; state mismatch")
         # Get the token response and log in the user.
         redirect_uri = flask.current_app.fence_client.session.redirect_uri
         tokens = flask.current_app.fence_client.fetch_access_token(
             redirect_uri, **flask.request.args.to_dict()
         )
         id_token_claims = validate_jwt(
-            tokens['id_token'], aud={'openid'}, purpose='id',
-            attempt_refresh=True
+            tokens["id_token"], aud={"openid"}, purpose="id", attempt_refresh=True
         )
-        username = id_token_claims['context']['user']['name']
+        username = id_token_claims["context"]["user"]["name"]
         login_user(flask.request, username, IdentityProvider.fence)
 
-        if 'redirect' in flask.session:
-            return flask.redirect(flask.session.get('redirect'))
-        return flask.jsonify({'username': username})
+        if "redirect" in flask.session:
+            return flask.redirect(flask.session.get("redirect"))
+        return flask.jsonify({"username": username})

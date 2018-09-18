@@ -1,6 +1,8 @@
 from authlib.common.urls import urlparse, url_decode
 from authlib.flask.oauth2 import AuthorizationServer
-from authlib.specs.rfc6749.authenticate_client import ClientAuthentication as AuthlibClientAuthentication
+from authlib.specs.rfc6749.authenticate_client import (
+    ClientAuthentication as AuthlibClientAuthentication
+)
 from authlib.specs.rfc6749.errors import (
     InvalidClientError,
     InvalidGrantError,
@@ -12,7 +14,6 @@ from fence.oidc.jwt_generator import generate_token
 
 
 class ClientAuthentication(AuthlibClientAuthentication):
-
     def authenticate(self, request, methods):
         """
         Override method from authlib
@@ -21,8 +22,8 @@ class ClientAuthentication(AuthlibClientAuthentication):
         # don't allow confidential clients to not use auth
         if client.is_confidential:
             m = list(methods)
-            if 'none' in m:
-                m.remove('none')
+            if "none" in m:
+                m.remove("none")
             client = super(ClientAuthentication, self).authenticate(request, m)
         return client
 
@@ -44,5 +45,5 @@ class OIDCServer(AuthorizationServer):
         self.app = app
         self.generate_token = generate_token
         self.init_jwt_config(app)
-        if getattr(self, 'query_client'):
+        if getattr(self, "query_client"):
             self.authenticate_client = ClientAuthentication(query_client)

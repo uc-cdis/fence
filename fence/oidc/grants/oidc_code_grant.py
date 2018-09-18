@@ -1,10 +1,7 @@
 import bcrypt
 
 from authlib.common.security import generate_token
-from authlib.specs.rfc6749.errors import (
-    InvalidClientError,
-    UnauthorizedClientError,
-)
+from authlib.specs.rfc6749.errors import InvalidClientError, UnauthorizedClientError
 from authlib.specs.oidc import grants
 from authlib.specs.oidc.errors import (
     AccountSelectionRequiredError,
@@ -19,11 +16,7 @@ from fence.models import AuthorizationCode, User
 
 class OpenIDCodeGrant(grants.OpenIDCodeGrant):
 
-    TOKEN_ENDPOINT_AUTH_METHODS = [
-        'client_secret_basic',
-        'client_secret_post',
-        'none',
-    ]
+    TOKEN_ENDPOINT_AUTH_METHODS = ["client_secret_basic", "client_secret_post", "none"]
 
     def create_authorization_code(self, client, grant_user, request):
         """
@@ -40,7 +33,7 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
             redirect_uri=request.redirect_uri,
             scope=request.scope,
             user_id=grant_user.id,
-            nonce=request.data.get('nonce'),
+            nonce=request.data.get("nonce"),
         )
 
         with flask.current_app.db.session as session:
@@ -63,7 +56,7 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
         scope = authorization_code.get_scope()
 
         query_args = dict(self.request.query_params)
-        nonce = self.request.body.get('nonce') or query_args.get('nonce')
+        nonce = self.request.body.get("nonce") or query_args.get("nonce")
 
         token = self.generate_token(
             client,
@@ -119,11 +112,7 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
 
     def authenticate_user(self, authorization_code):
         with flask.current_app.db.session as session:
-            return (
-                session.query(User)
-                .filter_by(id=authorization_code.user_id)
-                .first()
-            )
+            return session.query(User).filter_by(id=authorization_code.user_id).first()
 
     def authenticate_client(self):
         print()
@@ -131,7 +120,7 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
     def validate_nonce(self, required=False):
         if required:
             if not self.request.nonce:
-                raise InvalidRequestError('Missing `nonce`')
+                raise InvalidRequestError("Missing `nonce`")
             with flask.current_app.db.session as session:
                 code = (
                     session.query(AuthorizationCode)
@@ -147,27 +136,27 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
         prompt = self.request.prompt
         if not prompt:
             if not end_user:
-                self.prompt = 'login'
+                self.prompt = "login"
             return self
 
-        if prompt == 'none' and not end_user:
+        if prompt == "none" and not end_user:
             raise LoginRequiredError()
 
         prompts = prompt.split()
-        if 'none' in prompts and len(prompts) > 1:
+        if "none" in prompts and len(prompts) > 1:
             # If this parameter contains none with any other value,
             # an error is returned
             raise InvalidRequestError('Invalid "prompt" parameter.')
-        if 'login' in prompts:
-            prompt = 'login'
-        if 'consent' in prompts:
+        if "login" in prompts:
+            prompt = "login"
+        if "consent" in prompts:
             if not end_user:
                 raise ConsentRequiredError()
-            prompt = 'consent'
-        elif 'select_account' in prompts:
+            prompt = "consent"
+        elif "select_account" in prompts:
             if not end_user:
                 raise AccountSelectionRequiredError()
-            prompt = 'select_account'
+            prompt = "select_account"
 
         if prompt:
             self.prompt = prompt

@@ -6,9 +6,7 @@ from authlib.specs.rfc6749.errors import (
     InvalidScopeError,
     UnauthorizedClientError,
 )
-from authlib.specs.rfc6749.grants import (
-    RefreshTokenGrant as AuthlibRefreshTokenGrant
-)
+from authlib.specs.rfc6749.grants import RefreshTokenGrant as AuthlibRefreshTokenGrant
 from authlib.specs.rfc6749.util import scope_to_list
 import flask
 
@@ -30,11 +28,7 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
     dictionary; ``self.params['refresh_token']`` is the actual string.
     """
 
-    TOKEN_ENDPOINT_AUTH_METHODS = [
-        'client_secret_basic',
-        'client_secret_post',
-        'none',
-    ]
+    TOKEN_ENDPOINT_AUTH_METHODS = ["client_secret_basic", "client_secret_post", "none"]
 
     def authenticate_refresh_token(self, refresh_token):
         """
@@ -53,7 +47,7 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
                 return
         except JWTError:
             return
-        return validate_jwt(refresh_token, purpose='refresh')
+        return validate_jwt(refresh_token, purpose="refresh")
 
     def create_access_token(self, token, client, authenticated_token):
         """
@@ -67,7 +61,7 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         """
         Return user from the claims (decoded from JWT). Required for authlib.
         """
-        user_id = claims.get('sub')
+        user_id = claims.get("sub")
         if not user_id:
             return None
         with flask.current_app.db.session as session:
@@ -79,7 +73,7 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         """
         client = self.authenticate_token_endpoint_client()
         if not client.check_grant_type(self.GRANT_TYPE):
-            raise UnauthorizedClientError('invalid grant type')
+            raise UnauthorizedClientError("invalid grant type")
         self.request.client = client
         self.authenticate_token_endpoint_client()
         token = self._validate_request_token()
@@ -96,7 +90,7 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
             raise UnauthorizedClientError(uri=self.uri)
         self._authenticated_client = client
 
-        refresh_token = self.params.get('refresh_token')
+        refresh_token = self.params.get("refresh_token")
         if refresh_token is None:
             raise InvalidRequestError(
                 'Missing "refresh_token" in request.', uri=self.uri
@@ -108,9 +102,9 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
                 'Invalid "refresh_token" in request.', uri=self.uri
             )
 
-        scope = self.params.get('scope')
+        scope = self.params.get("scope")
         if scope:
-            original_scope = refresh_claims['scope']
+            original_scope = refresh_claims["scope"]
             if not original_scope:
                 raise InvalidScopeError(uri=self.uri)
             original_scope = set(scope_to_list(original_scope))
@@ -137,16 +131,12 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
 
         scope = self.request.scope
         if not scope:
-            scope = credential['aud']
+            scope = credential["aud"]
 
         client = self.request.client
-        expires_in = credential['exp']
+        expires_in = credential["exp"]
         token = self.generate_token(
-            client,
-            self.GRANT_TYPE,
-            user=user,
-            expires_in=expires_in,
-            scope=scope,
+            client, self.GRANT_TYPE, user=user, expires_in=expires_in, scope=scope
         )
         # TODO: logger
 
