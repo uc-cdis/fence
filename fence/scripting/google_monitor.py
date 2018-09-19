@@ -6,8 +6,6 @@ their respective Google projects. The functions in this file will also
 handle invalid service accounts and projects.
 """
 from cirrus.google_cloud.iam import GooglePolicyMember
-from cirrus.google_cloud.errors import GoogleAPIError
-from cirrus.google_cloud.iam import GooglePolicy
 from cirrus import GoogleCloudManager
 
 
@@ -21,7 +19,7 @@ from fence.resources.google.access_utils import (
 )
 
 from fence import utils
-from fence.errors import NotFound, NotSupported
+from fence.errors import NotSupported
 
 def validation_check(db):
     """
