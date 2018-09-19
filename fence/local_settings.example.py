@@ -188,7 +188,7 @@ REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION = {
     "contact number": "123456789",
     "content": """
 
-    Service accouts {} were removed from access control lists because some \
+    Service accounts {} were removed from access control lists because some \
 users or service accounts of GCP project {} are not authorized to access \
 the data sets associated to the service accounts, or do not \
 adhere to the security policies.
