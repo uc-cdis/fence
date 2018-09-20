@@ -455,7 +455,7 @@ class StorageManager(object):
             .first()
         )
         if storage_user_access_db_entry:
-            session.remove(storage_user_access_db_entry)
+            session.delete(storage_user_access_db_entry)
             session.commit()
 
     @staticmethod
