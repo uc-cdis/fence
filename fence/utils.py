@@ -232,4 +232,3 @@ def send_email(from_email, to_emails, subject, text, smtp_domain):
         'subject': subject,
         'text': text
     })
-

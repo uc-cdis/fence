@@ -186,9 +186,9 @@ REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION = {
     "from": "do-not-reply@planx-pla.net",
     "admin": [],
     "contact number": "123456789",
-    "content": """
+    "content_singular": """
 
-    Service accounts {} were removed from access control lists because some \
+    The service accounts were removed from access control data because some \
 users or service accounts of GCP project {} are not authorized to access \
 the data sets associated to the service accounts, or do not \
 adhere to the security policies.
