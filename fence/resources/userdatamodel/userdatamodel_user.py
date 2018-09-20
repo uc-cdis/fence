@@ -50,7 +50,7 @@ def delete_user(current_session, username):
     for row in groups:
         current_session.delete(row)
 
-    #cloud_providers = []
+    # cloud_providers = []
     for row in accesses:
         # commenting until we figure out why this is in ComputeQuota
         """

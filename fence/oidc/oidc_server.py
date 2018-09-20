@@ -3,9 +3,10 @@ from authlib.flask.oauth2 import AuthorizationServer
 from authlib.specs.rfc6749.authenticate_client import (
     ClientAuthentication as AuthlibClientAuthentication
 )
-from authlib.specs.rfc6749.errors import InvalidClientError, InsecureTransportError
+from authlib.specs.rfc6749.errors import InvalidClientError as AuthlibClientError
 import flask
 
+from fence.oidc.errors import InvalidClientError
 from fence.oidc.jwt_generator import generate_token
 
 
@@ -25,7 +26,13 @@ class ClientAuthentication(AuthlibClientAuthentication):
             m = list(methods)
             if "none" in m:
                 m.remove("none")
-            client = super(ClientAuthentication, self).authenticate(request, m)
+            try:
+                client = super(ClientAuthentication, self).authenticate(request, m)
+            except AuthlibClientError:
+                raise InvalidClientError(
+                    "OAuth client failed to authenticate; client ID or secret is"
+                    " missing or incorrect"
+                )
         return client
 
 

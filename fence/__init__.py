@@ -34,7 +34,6 @@ import fence.blueprints.user
 import fence.blueprints.well_known
 import fence.blueprints.link
 import fence.blueprints.google
-import fence.client
 
 
 app = flask.Flask(__name__)

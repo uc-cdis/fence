@@ -8,12 +8,12 @@ from authlib.specs.oidc.errors import (
 from authlib.specs.rfc6749 import InvalidRequestError
 import flask
 
-from fence.models import AuthorizationCode, User
+from fence.models import AuthorizationCode, ClientAuthType, User
 
 
 class OpenIDCodeGrant(grants.OpenIDCodeGrant):
 
-    TOKEN_ENDPOINT_AUTH_METHODS = ["client_secret_basic", "client_secret_post", "none"]
+    TOKEN_ENDPOINT_AUTH_METHODS = [auth_type.value for auth_type in ClientAuthType]
 
     @staticmethod
     def create_authorization_code(client, grant_user, request):
@@ -138,7 +138,7 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
         """
         Override method in authlib to fix behavior with login prompt.
         """
-        prompt = self.request.prompt
+        prompt = getattr(self.request, "prompt", None)
         if not prompt:
             if not end_user:
                 self.prompt = "login"

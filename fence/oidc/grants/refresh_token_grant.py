@@ -13,7 +13,7 @@ import flask
 from fence.jwt.blacklist import is_token_blacklisted
 from fence.jwt.errors import JWTError
 from fence.jwt.validate import validate_jwt
-from fence.models import User
+from fence.models import ClientAuthType, User
 
 
 class RefreshTokenGrant(AuthlibRefreshTokenGrant):
@@ -28,7 +28,7 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
     dictionary; ``self.params['refresh_token']`` is the actual string.
     """
 
-    TOKEN_ENDPOINT_AUTH_METHODS = ["client_secret_basic", "client_secret_post", "none"]
+    TOKEN_ENDPOINT_AUTH_METHODS = [auth_type.value for auth_type in ClientAuthType]
 
     def authenticate_refresh_token(self, refresh_token):
         """
@@ -139,7 +139,8 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         token = self.generate_token(
             client, self.GRANT_TYPE, user=user, expires_in=expires_in, scope=scope
         )
-        # TODO: logger
+        # TODO
+        flask.current_app.logger.info("")
 
         self.request.user = user
         self.server.save_token(token, self.request)

@@ -9,6 +9,8 @@ APP_NAME = "Gen3 Data Commons"
 
 SESSION_COOKIE_SECURE = True
 
+MOCK_STORAGE = True
+
 # ``local_settings"" is not installed under the fence module in produdction.
 # Instead, it should be located at ``/var/www/local_settings.py``. If it is
 # located elsewhere, use that location in ``imp.load_source`` instead of

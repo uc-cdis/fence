@@ -8,5 +8,6 @@ def query_client(client_id):
         return session.query(Client).filter_by(client_id=client_id).first()
 
 
-def authenticate_public_client(query_client, request):
-    print()
+def authenticate_public_client(query, request):
+    client = query(request.client.client_id)
+    return bool(client)
