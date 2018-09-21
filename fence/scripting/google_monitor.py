@@ -19,7 +19,6 @@ from fence.resources.google.access_utils import (
 )
 
 from fence import utils
-from fence.errors import NotSupported
 
 
 def validation_check(db):
@@ -58,7 +57,8 @@ def validation_check(db):
                     _get_service_account_removal_reason(validity_info))
 
         print("Validating Google Project: {}".format(google_project_id))
-        if not _is_valid_google_project(google_project_id, db=db):
+        google_project_validity = _is_valid_google_project(google_project_id, db=db)
+        if not google_project_validity:
             # for now, if we detect in invalid project, remove ALL service
             # accounts from access for that project.
             #
@@ -73,7 +73,8 @@ def validation_check(db):
                 force_remove_service_account_from_access(
                     sa_email, google_project_id, db=db
                 )
-            invalid_service_account_reasons[sa_email] = "the project is invalid"
+            invalid_service_account_reasons[sa_email] = (
+                _get_project_removal_reason(google_project_validity))
 
     _send_emails_informing_service_account_removal(
         _get_user_email_list_from_google_project_with_owner_role(
@@ -127,19 +128,49 @@ def _get_service_account_removal_reason(service_account_validity):
         str: the reason service account was removed
     """
     if not isinstance(service_account_validity, GoogleServiceAccountValidity):
-        return None
+        return ""
 
-    valid_type = service_account_validity['valid_type']
-    no_external_access = service_account_validity['no_external_access']
+    removal_reason = ""
 
-    removal_reason = None
+    if service_account_validity['valid_type'] is False:
+        removal_reason += "\n\t\t-It must be a Compute Engine service account or an user-managed service account."
+    if service_account_validity['no_external_access'] is False:
+        removal_reason += "\n\t\t-It has either roles attached to it or service account keys generated. We do not allow this because we need to restrict external access.\n"
+    if service_account_validity['owned_by_project'] is False:
+        removal_reason += "\n\t\t-It is not owned by the project.\n"
 
-    if not valid_type:
-        removal_reason = "it must be a compute engine service account or an user-managed service account.\n"
-    elif not no_external_access:
-        removal_reason = "it does not have external access.\n"
-    else:
-        removal_reason = "it is not owned by the project.\n"
+    return removal_reason
+
+
+def _get_project_removal_reason(google_project_validity):
+    """
+    Get service account removal reason
+
+    Args:
+        google_project_validity(GoogleProjectValidity): google project validity
+
+    Returns:
+        str: the reason project was removed
+    """
+    if not isinstance(google_project_validity, GoogleProjectValidity):
+        return ""
+
+    removal_reason = ""
+
+    if google_project_validity["user_has_access"] is False:
+        removal_reason += "\n\t\t-User isn't a member on the project."
+
+    if google_project_validity["monitor_has_access"] is False:
+        removal_reason += "\n\t\t-Can not access the project."
+
+    if google_project_validity["valid_parent_org"] is False:
+        removal_reason += "\n\t\t-Project has a parent orgnization."
+
+    if google_project_validity["valid_member_types"] is False:
+        removal_reason += "\n\t\t-There are members in the project other than Google users or Google service accounts."
+
+    if google_project_validity["members_exist_in_fence"] is False:
+        removal_reason += "\n\t\t-Some Google members do not exist in authentication database."
 
     return removal_reason
 
@@ -191,39 +222,20 @@ def _get_user_email_list_from_google_project_with_owner_role(project_id):
         list(str): list of emails belong to the project
 
     """
-    try:
-        with GoogleCloudManager(project_id, use_default=False) as prj:
-            members = prj.get_project_membership(project_id)
-            for member in members:
-                if not (
-                    member.member_type == GooglePolicyMember.SERVICE_ACCOUNT
-                    or member.member_type == GooglePolicyMember.USER
-                ):
-                    raise NotSupported(
-                        "Member {} has invalid type: {}".format(
-                            member.email_id, member.member_type
-                        )
-                    )
-            users = [
-                member
-                for member in members
-                if member.member_type == GooglePolicyMember.USER
-            ]
 
-            return list({
-                u.email_id
-                for u in users
-                for role in u.roles
-                if role.name.upper() == "OWNER"})
+    with GoogleCloudManager(project_id, use_default=False) as prj:
+        members = prj.get_project_membership(project_id)
+        users = [
+            member
+            for member in members
+            if member.member_type == GooglePolicyMember.USER
+        ]
 
-    except Exception as exc:
-        print(
-            (
-                "validity of Google Project (id: {}) members "
-                "could not complete. Details: {}"
-            ).format(project_id, exc)
-        )
-        raise
+        return list({
+            u.email_id
+            for u in users
+            for role in u.roles
+            if role.name.upper() == "OWNER"})
 
 
 def _send_emails_informing_service_account_removal(
@@ -260,7 +272,7 @@ def _send_emails_informing_service_account_removal(
 
     for email, removal_reason in invalid_service_account_reasons.iteritems():
         if removal_reason:
-            content += ("\n\t - Service account {} was removed since {}"
-                        .format(email, removal_reason))
+            content += ("\n\t - Service account {} was removed from Google project {} {}"
+                        .format(email, project_id, removal_reason))
 
     return utils.send_email(from_email, to_emails, subject, content, domain)

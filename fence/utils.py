@@ -228,7 +228,6 @@ def send_email(from_email, to_emails, subject, text, smtp_domain):
     return requests.post(email_url, auth=('api', api_key), data={
         'from': from_email,
         'to': to_emails,
-        ''
         'subject': subject,
         'text': text
     })
