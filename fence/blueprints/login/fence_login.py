@@ -51,7 +51,10 @@ class FenceLogin(Resource):
             or flask.request.args["state"] != flask.session.pop("state", "")
         )
         if mismatched_state:
-            raise Unauthorized("authorization request failed; state mismatch")
+            raise Unauthorized(
+                "Login flow was interrupted (state mismatch). Please go back to the"
+                " login page for the original application to continue."
+            )
         # Get the token response and log in the user.
         redirect_uri = flask.current_app.fence_client.session.redirect_uri
         tokens = flask.current_app.fence_client.fetch_access_token(
