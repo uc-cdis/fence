@@ -371,7 +371,7 @@ def _force_update_user_google_account(
     Args:
         user_id (str): User's identifier
         google_email (str): User's Google email
-        proxy_group (str): User's Proxy Google group id
+        proxy_group_id (str): User's Proxy Google group id
         _allow_new (bool, optional): Whether or not a new linkage between
             Google email and the given user should be allowed
 
@@ -391,8 +391,11 @@ def _force_update_user_google_account(
     if not user_google_account:
         if _allow_new:
             if user_id is not None:
-                user_google_account = _add_new_user_google_account(
-                    user_id, google_email
+                user_google_account = add_new_user_google_account(
+                    user_id, google_email, current_session
+                )
+                flask.current_app.logger.info(
+                    "Linking Google account {} to user with id {}.".format(google_email, user_id)
                 )
             else:
                 raise Unauthorized(
@@ -406,8 +409,48 @@ def _force_update_user_google_account(
             )
 
     expiration = get_default_google_account_expiration()
+
+    force_update_user_google_account_expiration(
+        user_google_account, proxy_group_id, google_email, expiration, current_session
+    )
+
+    flask.current_app.logger.info(
+        "Adding user's (id: {}) Google account to their proxy group (id: {})."
+        " Expiration: {}".format(
+            user_google_account.user_id, proxy_group_id, expiration
+        )
+    )
+
+    current_session.commit()
+
+    return expiration
+
+
+def force_update_user_google_account_expiration(
+    user_google_account, proxy_group_id, google_email, expiration, session
+):
+    """
+    Adds user's google account to proxy group and/or updates expiration for
+    that google account's access.
+
+    WARNING: This assumes that provided arguments represent valid information.
+             This BLINDLY adds without verification. Do verification
+             before this.
+
+    Specifically, this ASSUMES that the proxy group provided belongs to the
+    given user and that the user has ALREADY authenticated to prove the
+    provided google_email is also their's.
+
+    Args:
+        user_google_account (str): User's linked Google account
+        google_email (str): User's Google email
+        proxy_group_id (str): User's Proxy Google group id
+        expiration (int): new expiration for User's linked Google account to live in
+            the proxy group
+        session: db session to work with
+    """
     account_in_proxy_group = (
-        current_session.query(UserGoogleAccountToProxyGroup)
+        session.query(UserGoogleAccountToProxyGroup)
         .filter(
             UserGoogleAccountToProxyGroup.user_google_account_id
             == user_google_account.id
@@ -422,31 +465,17 @@ def _force_update_user_google_account(
             proxy_group_id=proxy_group_id,
             expires=expiration,
         )
-        current_session.add(account_in_proxy_group)
+        session.add(account_in_proxy_group)
 
         _add_google_email_to_proxy_group(
             google_email=google_email, proxy_group_id=proxy_group_id
         )
 
-    flask.current_app.logger.info(
-        "Adding user's (id: {}) Google account to their proxy group (id: {})."
-        " Expiration: {}".format(
-            user_google_account.user_id, proxy_group_id, expiration
-        )
-    )
 
-    current_session.commit()
-
-    return expiration
-
-
-def _add_new_user_google_account(user_id, google_email):
+def add_new_user_google_account(user_id, google_email, session):
     user_google_account = UserGoogleAccount(email=google_email, user_id=user_id)
-    current_session.add(user_google_account)
-    flask.current_app.logger.info(
-        "Linking Google account {} to user with id {}.".format(google_email, user_id)
-    )
-    current_session.commit()
+    session.add(user_google_account)
+    session.commit()
     return user_google_account
 
 
