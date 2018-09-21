@@ -49,6 +49,10 @@ from fence.scripting.google_monitor import validation_check
 
 from fence.errors import Unauthorized
 from fence.settings import GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN
+from fence.blueprints.link import (
+    force_update_user_google_account_expiration,
+    add_new_user_google_account
+)
 
 logger = get_logger(__name__)
 
@@ -1262,17 +1266,9 @@ def force_update_google_link(
     Returns:
         Expiration time of the newly updated google account's access
     """
-    def _add_new_user_google_account(user_id, google_email, session):
-        new_user_google_account = UserGoogleAccount(email=google_email, user_id=user_id)
-        session.add(new_user_google_account)
-        session.commit()
-        return new_user_google_account
-
     import fence.settings
     cirrus_config.update(**fence.settings.CIRRUS_CFG)
 
-    user_id = None
-    proxy_group_id = None
     db = SQLAlchemyDriver(DB)
     with db.session as session:
         user_account = (
@@ -1283,49 +1279,28 @@ def force_update_google_link(
         if user_account:
             user_id = user_account.id
             proxy_group_id = user_account.google_proxy_group_id
+        else:
+            raise Unauthorized(
+                "Could not determine authed user "
+                "from session. Unable to link Google account."
+            )
 
         user_google_account = (
             session.query(UserGoogleAccount)
                 .filter(UserGoogleAccount.email == google_email)
                 .first()
         )
-
         if not user_google_account:
-            if user_id is not None:
-                user_google_account = _add_new_user_google_account(
-                    user_id, google_email, session
-                )
-            else:
-                raise Unauthorized(
-                    "Could not determine authed user "
-                    "from session. Unable to link Google account."
-                )
+            user_google_account = add_new_user_google_account(
+                user_id, google_email, session
+            )
 
         now = int(time.time())
         expiration = now + GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN
-        account_in_proxy_group = (
-            session.query(UserGoogleAccountToProxyGroup)
-                .filter(
-                UserGoogleAccountToProxyGroup.user_google_account_id
-                == user_google_account.id
-            )
-                .first()
-        )
-        if account_in_proxy_group:
-            account_in_proxy_group.expires = expiration
-        else:
-            account_in_proxy_group = UserGoogleAccountToProxyGroup(
-                user_google_account_id=user_google_account.id,
-                proxy_group_id=proxy_group_id,
-                expires=expiration,
-            )
-            session.add(account_in_proxy_group)
 
-            # add google email to proxy group
-            with GoogleCloudManager() as g_manager:
-                g_manager.add_member_to_group(
-                    member_email=google_email, group_id=proxy_group_id
-                )
+        force_update_user_google_account_expiration(
+            user_google_account, proxy_group_id, google_email, expiration, session
+        )
 
         session.commit()
 
