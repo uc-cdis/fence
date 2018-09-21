@@ -411,7 +411,7 @@ def _force_update_user_google_account(
     expiration = get_default_google_account_expiration()
 
     force_update_user_google_account_expiration(
-        user_google_account, google_email, proxy_group_id, expiration, current_session
+        user_google_account, proxy_group_id, google_email, expiration, current_session
     )
 
     flask.current_app.logger.info(
@@ -447,6 +447,7 @@ def force_update_user_google_account_expiration(
         proxy_group_id (str): User's Proxy Google group id
         expiration (int): new expiration for User's linked Google account to live in
             the proxy group
+        session: db session to work with
     """
     account_in_proxy_group = (
         session.query(UserGoogleAccountToProxyGroup)
