@@ -65,6 +65,10 @@ def get_google_project_number(google_project_id):
     except Exception:
         return None
 
+def get_google_project_membership(project_id):
+
+    with GoogleCloudManager(project_id, use_default=False) as prj:
+        return prj.get_project_membership(project_id)
 
 def get_google_project_parent_org(project_id):
     """
@@ -90,7 +94,7 @@ def get_google_project_parent_org(project_id):
         return None
 
 
-def get_google_project_valid_users_and_service_accounts(project_id):
+def get_google_project_valid_users_and_service_accounts(project_id, membership=[]):
     """
     Gets google project members of type
     USER or SERVICE_ACCOUNT and raises an error if it finds a member
@@ -108,7 +112,7 @@ def get_google_project_valid_users_and_service_accounts(project_id):
     """
     try:
         with GoogleCloudManager(project_id, use_default=False) as prj:
-            members = prj.get_project_membership(project_id)
+            members = prj.get_project_membership(project_id) if membership == [] else membership
             for member in members:
                 if not (
                     member.member_type == GooglePolicyMember.SERVICE_ACCOUNT
@@ -249,7 +253,7 @@ def is_service_account_from_google_project(
         return False
 
 
-def is_user_member_of_all_google_projects(user_id, google_project_ids, db=None):
+def is_user_member_of_all_google_projects(user_id, google_project_ids, db=None, membership=[]):
     """
     Return whether or not the given user is a member of ALL of the provided
     Google project IDs.
@@ -288,7 +292,7 @@ def is_user_member_of_all_google_projects(user_id, google_project_ids, db=None):
                 member_emails = [
                     member.email_id.lower()
                     for member in g_mgr.get_project_membership(google_project_id)
-                ]
+                ] if membership == [] else membership
                 # first check if user.email is in project, then linked account
                 if not (user.email and user.email in member_emails):
                     if not (

@@ -14,6 +14,7 @@ from fence.resources.google.access_utils import (
     is_valid_service_account_type,
     service_account_has_external_access,
     is_service_account_from_google_project,
+    get_google_project_membership,
     get_google_project_parent_org,
     get_google_project_valid_users_and_service_accounts,
     do_all_users_have_access_to_project,
@@ -204,8 +205,10 @@ class GoogleProjectValidity(ValidityInfo):
         if not has_access:
             return
 
+        membership = get_google_project_membership(self.google_project_id)
+
         user_has_access = is_user_member_of_all_google_projects(
-            self.user_id, [self.google_project_id]
+            self.user_id, [self.google_project_id], membership=membership
         )
         self.set("user_has_access", user_has_access)
         if not user_has_access:
@@ -229,7 +232,7 @@ class GoogleProjectValidity(ValidityInfo):
         service_account_members = []
         try:
             user_members, service_account_members = get_google_project_valid_users_and_service_accounts(
-                self.google_project_id
+                self.google_project_id, membership=membership
             )
             self.set("valid_member_types", True)
         except Exception:
