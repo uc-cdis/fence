@@ -47,6 +47,12 @@ def make_google_blueprint():
     )
 
     blueprint_api.add_resource(
+        GoogleServiceAccountDryRun,
+        "/service_accounts/_dry_run/<id_>",
+        strict_slashes=False,
+    )
+
+    blueprint_api.add_resource(
         GoogleServiceAccount, "/service_accounts/<id_>", strict_slashes=False
     )
 
@@ -336,47 +342,15 @@ class GoogleServiceAccount(Resource):
         Args:
             id_ (str): Google service account identifier to update
         """
-        user_id = current_token["sub"]
-        payload = flask.request.get_json(silent=True) or {}
+        (
+            user_id,
+            service_account_email,
+            project_access,
+            google_project_id,
+        ) = _patch_service_account_parse_request(id_)
 
-        service_account_email = get_service_account_email(id_)
-        registered_service_account = get_registered_service_account_from_email(
-            service_account_email
-        )
-        if not registered_service_account:
-            raise NotFound(
-                "Could not find a registered service account from given email {}".format(
-                    service_account_email
-                )
-            )
-
-        # check if the user requested to update more than project_access
-        project_access = payload.pop("project_access", None)
-
-        # if not provided, use service accounts current access
-        if not project_access:
-            project_access = [
-                access_privilege.project.auth_id
-                for access_privilege in registered_service_account.access_privileges
-            ]
-
-        # if they're trying to patch more fields, error out, we only support the above
-        if payload:
-            return ("Cannot update provided fields: {}".format(payload), 403)
-
-        google_project_id = registered_service_account.google_project_id
-
-        # check if user has permission to update the service account
-        authorized = is_user_member_of_all_google_projects(user_id, [google_project_id])
-        if not authorized:
-            msg = (
-                'User "{}" does not have permission to update the provided '
-                'service account "{}".'.format(user_id, id_)
-            )
-            return msg, 403
-
-        error_response = _get_service_account_error_status(
-            service_account_email, google_project_id, project_access, user_id
+        error_response = _get_patched_service_account_error_status(
+            id_, user_id, service_account_email, project_access, google_project_id
         )
 
         if error_response.get("success") is not True:
@@ -537,6 +511,94 @@ class GoogleServiceAccount(Resource):
             return (" Can not delete the service account {}".format(id_), 500)
 
         return "Successfully delete service account  {}".format(id_), 200
+
+
+class GoogleServiceAccountDryRun(Resource):
+    @require_auth_header({"google_service_account"})
+    def patch(self, id_):
+        """
+        Dry run (test updating a service account without actually doing it)
+
+        Args:
+            id_ (str): Google service account identifier to update
+        """
+        (
+            user_id,
+            service_account_email,
+            project_access,
+            google_project_id,
+        ) = _patch_service_account_parse_request(id_)
+
+        error_response = _get_patched_service_account_error_status(
+            id_, user_id, service_account_email, project_access, google_project_id
+        )
+
+        # this is where it actually does stuff in the non-dryrun endpoint
+
+        if error_response.get("success") is True:
+            status = 200
+        else:
+            status = 400
+
+        return error_response, status
+
+
+def _patch_service_account_parse_request(id_):
+    user_id = current_token["sub"]
+    payload = flask.request.get_json(silent=True) or {}
+
+    service_account_email = get_service_account_email(id_)
+    registered_service_account = get_registered_service_account_from_email(
+        service_account_email
+    )
+    if not registered_service_account:
+        raise NotFound(
+            "Could not find a registered service account from given email {}".format(
+                service_account_email
+            )
+        )
+
+    # check if the user requested to update more than project_access
+    project_access = payload.pop("project_access", None)
+
+    # if the field is not provided at all, use service accounts current access
+    # NOTE: the user can provide project_access=[] to remove all datasets so checking
+    #       `if not project_access` here will NOT work
+    #
+    #       In other words, to extend access you don't provide the field. To remove all
+    #       access you provide it as an empty list
+    if project_access is None:
+        project_access = [
+            access_privilege.project.auth_id
+            for access_privilege in registered_service_account.access_privileges
+        ]
+
+    # if they're trying to patch more fields, error out, we only support the above
+    if payload:
+        return ("Cannot update provided fields: {}".format(payload), 403)
+
+    google_project_id = registered_service_account.google_project_id
+
+    return (user_id, service_account_email, project_access, google_project_id)
+
+
+def _get_patched_service_account_error_status(
+    id_, user_id, service_account_email, project_access, google_project_id
+):
+    # check if user has permission to update the service account
+    authorized = is_user_member_of_all_google_projects(user_id, [google_project_id])
+    if not authorized:
+        msg = (
+            'User "{}" does not have permission to update the provided '
+            'service account "{}".'.format(user_id, id_)
+        )
+        return msg, 403
+
+    error_response = _get_service_account_error_status(
+        service_account_email, google_project_id, project_access, user_id
+    )
+
+    return error_response
 
 
 def _get_service_account_error_status(
