@@ -152,7 +152,7 @@ def clear_cookies(response):
     """
     Set all cookies to empty and expired.
     """
-    for cookie_name in flask.request.cookies.values():
+    for cookie_name in flask.request.cookies.keys():
         response.set_cookie(cookie_name, "", expires=0)
 
 
