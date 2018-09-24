@@ -300,6 +300,14 @@ fence-create client-list
 ```
 That command should output the full records for any registered OAuth clients.
 
+#### Set up for External Buckets on Google
+
+```bash
+fence-create link-external-bucket --bucket-name demo-bucket
+fence-create link-bucket-to-project --bucket_id demo-bucket --bucket_provider google --project_auth_id test-project
+```
+
+The link-external-bucket returns an email for a Google group which needs to be added to access to the bucket `demo-bucket`.
 
 ## Token management
 
