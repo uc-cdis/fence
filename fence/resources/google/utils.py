@@ -655,7 +655,7 @@ def get_monitoring_service_account_email():
 
 
 def is_google_managed_service_account(
-            service_account_email, settings_from_local=None):
+            service_account_email, settings_from_local=False):
     """
     Return whether or not the given service account email represents a Google
     managed account (e.g. not user-created).

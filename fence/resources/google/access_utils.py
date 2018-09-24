@@ -66,13 +66,14 @@ def get_google_project_number(google_project_id):
         return None
 
 
-def get_google_project_parent_org(project_id, console_log=None):
+def get_google_project_parent_org(project_id, console_log=False):
     """
     Checks if google project has parent org. Wraps
     GoogleCloudManager.get_project_organization()
 
     Args:
         project_id(str): unique id for project
+        console_log(bool): whether using console_log or not
 
     Returns:
         str: The Google projects parent organization name or None if it does't have one
@@ -81,22 +82,19 @@ def get_google_project_parent_org(project_id, console_log=None):
         with GoogleCloudManager(project_id, use_default=False) as prj:
             return prj.get_project_organization()
     except Exception as exc:
+        stm = (
+                "Could not determine if Google project (id: {}) has parent org"
+                "due to error (Details: {})".format(project_id, exc)
+        )
+
         if console_log:
-            print(
-                    "Could not determine if Google project (id: {}) has parent org"
-                    "due to error (Details: {})".format(project_id, exc)
-                )
+            print(stm)
         else:
-            flask.current_app.logger.debug(
-                (
-                    "Could not determine if Google project (id: {}) has parent org"
-                    "due to error (Details: {})".format(project_id, exc)
-                )
-            )
+            flask.current_app.logger.debug(stm)
         return None
 
 
-def get_google_project_valid_users_and_service_accounts(project_id, console_log=None):
+def get_google_project_valid_users_and_service_accounts(project_id, console_log=False):
     """
     Gets google project members of type
     USER or SERVICE_ACCOUNT and raises an error if it finds a member
@@ -104,6 +102,7 @@ def get_google_project_valid_users_and_service_accounts(project_id, console_log=
 
     Args:
         project_id (str): Google project ID
+        console_log(bool): whether using console_log or not
 
     Return:
         List[cirrus.google_cloud.iam.GooglePolicyMember]: Members on the
@@ -137,24 +136,20 @@ def get_google_project_valid_users_and_service_accounts(project_id, console_log=
             ]
             return users, service_accounts
     except Exception as exc:
+        stm = (
+                "validity of Google Project (id: {}) members "
+                "could not complete. Details: {}"
+        ).format(project_id, exc)
+
         if console_log:
-            print(
-                (
-                    "validity of Google Project (id: {}) members "
-                    "could not complete. Details: {}"
-                ).format(project_id, exc)
-            )
+            print(stm)
         else:
-            flask.current_app.logger.debug(
-                (
-                    "validity of Google Project (id: {}) members "
-                    "could not complete. Details: {}"
-                ).format(project_id, exc)
-            )
+            flask.current_app.logger.debug(stm)
+
         raise
 
 
-def is_valid_service_account_type(project_id, account_id, console_log=None):
+def is_valid_service_account_type(project_id, account_id, console_log=False):
     """
     Checks service account type against allowed service account types
     for service account registration
@@ -176,29 +171,27 @@ def is_valid_service_account_type(project_id, account_id, console_log=None):
                 in ALLOWED_SERVICE_ACCOUNT_TYPES
             )
     except Exception as exc:
+        stm = (
+                "validity of Google service account {} (google project: {}) type "
+                "determined False due to error. Details: {}"
+        ).format(account_id, project_id, exc)
+
         if console_log:
-            print(
-                (
-                    "validity of Google service account {} (google project: {}) type "
-                    "determined False due to error. Details: {}"
-                ).format(account_id, project_id, exc)
-            )
+            print(stm)
         else:
-            flask.current_app.logger.debug(
-                (
-                    "validity of Google service account {} (google project: {}) type "
-                    "determined False due to error. Details: {}"
-                ).format(account_id, project_id, exc)
-            )
+            flask.current_app.logger.debug(stm)
+
         return False
 
 
-def service_account_has_external_access(service_account, google_project_id, console_log=None):
+def service_account_has_external_access(service_account, google_project_id, console_log=False):
     """
     Checks if service account has external access or not.
 
     Args:
         service_account(str): service account
+        google_project_id(str): google project id
+        console_log(bool): whether using console_log or not
 
     Returns:
         bool: whether or not the service account has external access
@@ -206,18 +199,16 @@ def service_account_has_external_access(service_account, google_project_id, cons
     with GoogleCloudManager(google_project_id, use_default=False) as g_mgr:
         response = g_mgr.get_service_account_policy(service_account)
         if response.status_code != 200:
+            stm = (
+                "Unable to get IAM policy for service account {}\n{}."
+                .format(service_account, response.json())
+            )
+
             if console_log:
-                print(
-                    "Unable to get IAM policy for service account {}\n{}.".format(
-                        service_account, response.json()
-                    )
-                )
+                print(stm)
             else:
-                flask.current_app.logger.debug(
-                    "Unable to get IAM policy for service account {}\n{}.".format(
-                        service_account, response.json()
-                    )
-                )
+                flask.current_app.logger.debug(stm)
+
             # if there is an exception, assume it has external access
             return True
 
@@ -234,7 +225,7 @@ def service_account_has_external_access(service_account, google_project_id, cons
 
 
 def is_service_account_from_google_project(
-    service_account_email, project_id, project_number, console_log=None, settings_from_local=None
+    service_account_email, project_id, project_number, console_log=False, settings_from_local=False
 ):
     """
     Checks if service account is among project's service acounts
@@ -272,24 +263,20 @@ def is_service_account_from_google_project(
         )
 
     except Exception as exc:
+        stm = (
+                "Could not determine if service account (id: {} is from project"
+                " (id: {}) due to error. Details: {}"
+        ).format(service_account_email, project_id, exc)
+
         if console_log:
-            print(
-                (
-                    "Could not determine if service account (id: {} is from project"
-                    " (id: {}) due to error. Details: {}"
-                ).format(service_account_email, project_id, exc)
-            )
+            print(stm)
         else:
-            flask.current_app.logger.debug(
-                (
-                    "Could not determine if service account (id: {} is from project"
-                    " (id: {}) due to error. Details: {}"
-                ).format(service_account_email, project_id, exc)
-            )
+            flask.current_app.logger.debug(stm)
+
         return False
 
 
-def is_user_member_of_all_google_projects(user_id, google_project_ids, console_log=None, db=None):
+def is_user_member_of_all_google_projects(user_id, google_project_ids, console_log=False, db=None):
     """
     Return whether or not the given user is a member of ALL of the provided
     Google project IDs.
@@ -300,6 +287,8 @@ def is_user_member_of_all_google_projects(user_id, google_project_ids, console_l
     Args:
         user_id (int): User identifier
         google_project_ids (List(str)): List of unique google project ids
+        console_log(bool): whether using console_log or not
+        db(str): db connection string
 
     Returns:
         bool: whether or not the given user is a member of ALL of the provided
@@ -308,16 +297,18 @@ def is_user_member_of_all_google_projects(user_id, google_project_ids, console_l
     session = get_db_session(db)
     user = session.query(User).filter_by(id=user_id).first()
     if not user:
-        flask.current_app.logger.debug(
-            (
+        stm = (
                 "Could not determine if user (id: {} is from projects:"
                 " {} due to error. User does not exist..."
-            ).format(user_id, google_project_ids)
-        )
+        ).format(user_id, google_project_ids)
+        if console_log:
+            print(stm)
+        else:
+            flask.current_app.logger.debug(stm)
         return False
 
     linked_google_account = (
-        current_session.query(UserGoogleAccount)
+        session.query(UserGoogleAccount)
         .filter(UserGoogleAccount.user_id == user_id)
         .first()
     )
@@ -338,20 +329,15 @@ def is_user_member_of_all_google_projects(user_id, google_project_ids, console_l
                         # no user email is in project
                         return False
     except Exception as exc:
+        stm = (
+                "Could not determine if user (id: {} is from projects:"
+                " {} due to error. Details: {}"
+        ).format(user_id, google_project_ids, exc)
+
         if console_log:
-            print(
-                (
-                    "Could not determine if user (id: {} is from projects:"
-                    " {} due to error. Details: {}"
-                ).format(user_id, google_project_ids, exc)
-            )
+            print(stm)
         else:
-            flask.current_app.logger.debug(
-                (
-                    "Could not determine if user (id: {} is from projects:"
-                    " {} due to error. Details: {}"
-                ).format(user_id, google_project_ids, exc)
-            )
+            flask.current_app.logger.debug(stm)
             return False
 
     return True
@@ -385,6 +371,7 @@ def patch_user_service_account(
         google_project_id (str): google project id
         service_account_email (str): service account email
         project_access (List(str)): list of projects
+        db(str): db connection string
 
     Returns:
         None
@@ -448,6 +435,7 @@ def _force_remove_service_account_from_access_db(service_account_email, db=None)
 
     Args:
         service_account_email (str): service account email
+        db(str): db connection string
 
     Returns:
         None
@@ -758,6 +746,7 @@ def extend_service_account_access(service_account_email, db=None):
 
     Args:
         service_account_email (str): service account email
+        db(str): db connection string
     """
     session = get_db_session(db)
 
@@ -835,7 +824,7 @@ def get_project_from_auth_id(project_auth_id, db=None):
     return project
 
 
-def remove_white_listed_service_account_ids(service_account_ids, settings_from_local=None):
+def remove_white_listed_service_account_ids(service_account_ids, settings_from_local=False):
     """
     Remove any service account emails that should be ignored when
     determining validitity.
@@ -864,7 +853,7 @@ def remove_white_listed_service_account_ids(service_account_ids, settings_from_l
     return service_account_ids
 
 
-def is_org_whitelisted(parent_org, settings_from_local=None):
+def is_org_whitelisted(parent_org, settings_from_local=False):
     """
     Return whether or not the provide Google parent organization is whitelisted
 
@@ -888,6 +877,7 @@ def force_delete_service_account(service_account_email, db=None):
 
     Args:
         service_account_email (str): user service account email
+        db(str): db connection string
     """
     session = get_db_session(db)
 
@@ -907,6 +897,7 @@ def force_add_service_accounts_to_access(
     service_account_emails(list(str)): list of account emails
     google_project_id(str):  google project id
     project_access(list(str)): list of projects
+    db(str): db connection string
     """
     session = get_db_session(db)
 

@@ -187,7 +187,7 @@ class GoogleProjectValidity(ValidityInfo):
         self._info["service_accounts"] = {}
         self._info["access"] = {}
 
-    def check_validity(self, early_return=True, db=None, settings_from_local=None, console_log=None):
+    def check_validity(self, early_return=True, db=None, settings_from_local=False, console_log=False):
         """
         Determine whether or not project is valid for registration. If
         early_return is False, this object will store information about the
@@ -205,7 +205,7 @@ class GoogleProjectValidity(ValidityInfo):
             return
 
         user_has_access = is_user_member_of_all_google_projects(
-            self.user_id, [self.google_project_id], console_log=console_log
+            self.user_id, [self.google_project_id], console_log=console_log, db=db
         )
         self.set("user_has_access", user_has_access)
         if not user_has_access:
@@ -407,8 +407,9 @@ class GoogleServiceAccountValidity(ValidityInfo):
         self._info["valid_type"] = None
         self._info["no_external_access"] = None
 
-    def check_validity(self, early_return=True, 
-                       check_type_and_access=True, console_log=None, settings_from_local=None):
+    def check_validity(self, early_return=True,
+                       check_type_and_access=True, console_log=False, settings_from_local=False):
+
         is_owned_by_google_project = is_service_account_from_google_project(
             self.account_id, self.google_project_id,
             self.google_project_number, console_log=console_log, settings_from_local=settings_from_local
