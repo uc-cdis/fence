@@ -1230,7 +1230,6 @@ def verify_user_registration(DB):
     """
     Validate user registration
     """
-
     import fence.settings
 
     cirrus_config.update(**fence.settings.CIRRUS_CFG)
@@ -1267,7 +1266,6 @@ def force_update_google_link(
         Expiration time of the newly updated google account's access
     """
     import fence.settings
-    cirrus_config.update(**fence.settings.CIRRUS_CFG)
 
     db = SQLAlchemyDriver(DB)
     with db.session as session:

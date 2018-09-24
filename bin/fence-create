@@ -312,6 +312,7 @@ def main():
     elif args.action == 'google-init':
         google_init(DB)
     elif args.action == 'google-manage-user-registrations':
+        import local_settings
         verify_user_registration(DB)
     elif args.action == 'google-manage-account-access':
         remove_expired_google_accounts_from_proxy_groups(DB)

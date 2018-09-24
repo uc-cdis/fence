@@ -76,10 +76,10 @@ def validation_check(db):
             invalid_service_account_reasons[sa_email] = (
                 _get_project_removal_reason(google_project_validity))
 
-    _send_emails_informing_service_account_removal(
-        _get_user_email_list_from_google_project_with_owner_role(
-            google_project_id),
-        invalid_service_account_reasons, google_project_id)
+        _send_emails_informing_service_account_removal(
+            _get_user_email_list_from_google_project_with_owner_role(
+                google_project_id),
+            invalid_service_account_reasons, google_project_id)
 
 
 def _is_valid_service_account(sa_email, google_project_id):
@@ -92,7 +92,8 @@ def _is_valid_service_account(sa_email, google_project_id):
     """
     try:
         sa_validity = GoogleServiceAccountValidity(sa_email, google_project_id)
-        sa_validity.check_validity(early_return=True)
+        sa_validity.check_validity(
+                early_return=True, console_log=True, settings_from_local=True)
     except Exception:
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
@@ -108,7 +109,8 @@ def _is_valid_google_project(google_project_id, db=None):
     """
     try:
         project_validity = GoogleProjectValidity(google_project_id)
-        project_validity.check_validity(early_return=True, db=db)
+        project_validity.check_validity(
+                early_return=True, db=db, console_log=True, settings_from_local=True)
     except Exception:
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
