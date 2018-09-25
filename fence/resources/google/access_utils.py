@@ -45,7 +45,8 @@ ALLOWED_SERVICE_ACCOUNT_TYPES = [
 def get_google_project_number(google_project_id):
     """
     Return a project's "projectNumber" which uniquely identifies it.
-    This will only be successful if fence can access info about the given google project.
+    This will only be successful if fence can access info about the given google project
+    and the necessary Google APIs are enabled.
 
     Args:
         google_project_id (str): Google project ID

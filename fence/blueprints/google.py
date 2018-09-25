@@ -720,7 +720,8 @@ def _get_google_project_id_error_status(validity_info):
             "error": "monitor_not_found",
             "error_description": (
                 "Fence's monitoring service account "
-                "does not have access to the project."
+                "does not have access to the project and/or the necessary "
+                "Google APIs are not enabled."
             ),
             "membership_validity": {},
             "service_account_validity": {},
