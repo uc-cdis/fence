@@ -120,7 +120,7 @@ def test_prompt_none_logged_in_client_cfg(oauth_test_client, check_render_templa
 
 @pytest.mark.skip(reason=NO_PRECONFIGURED_CONSENT)
 @pytest.mark.parametrize("preconfigured_consent", ["yes", "no"])  # example
-def test_prompt_none_console_logged_in_client_cfg(
+def test_prompt_none_not_logged_in_client_cfg(
     preconfigured_consent,
     app,
     oauth_test_client,
@@ -139,7 +139,7 @@ def test_prompt_none_console_logged_in_client_cfg(
 
 
 @pytest.mark.skip(reason=NO_PRECONFIGURED_CONSENT)
-def test_prompt_none_console_logged_in_client_not_cfg(
+def test_prompt_none_not_logged_in_client_not_cfg(
     app, oauth_test_client, patch_mock_auth_off, check_render_template
 ):
     """
