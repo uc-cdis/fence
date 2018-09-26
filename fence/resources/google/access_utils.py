@@ -94,7 +94,8 @@ def get_google_project_parent_org(project_id):
                 "due to error (Details: {})".format(project_id, exc)
         )
 
-def get_google_project_valid_users_and_service_accounts(project_id, membership=[]):
+
+def get_google_project_valid_users_and_service_accounts(project_id, membership=None):
     """
     Gets google project members of type
     USER or SERVICE_ACCOUNT and raises an error if it finds a member
@@ -102,6 +103,7 @@ def get_google_project_valid_users_and_service_accounts(project_id, membership=[
 
     Args:
         project_id (str): Google project ID
+        membership (List(GooglePolicyMember): pre-calculated list of members
 
     Return:
         List[cirrus.google_cloud.iam.GooglePolicyMember]: Members on the
@@ -112,11 +114,7 @@ def get_google_project_valid_users_and_service_accounts(project_id, membership=[
     """
     try:
         with GoogleCloudManager(project_id, use_default=False) as prj:
-            members = (
-                prj.get_project_membership(project_id)
-                if membership == []
-                else membership
-            )
+            members = membership or prj.get_project_membership(project_id)
             for member in members:
                 if not (
                     member.member_type == GooglePolicyMember.SERVICE_ACCOUNT
@@ -253,7 +251,7 @@ def is_service_account_from_google_project(
 
 
 def is_user_member_of_all_google_projects(
-        user_id, google_project_ids, db=None, membership=[]
+        user_id, google_project_ids, db=None, membership=None
 ):
     """
     Return whether or not the given user is a member of ALL of the provided
@@ -266,6 +264,7 @@ def is_user_member_of_all_google_projects(
         user_id (int): User identifier
         google_project_ids (List(str)): List of unique google project ids
         db(str): db connection string
+        membership (List(GooglePolicyMember) : pre-calculated list of members
 
     Returns:
         bool: whether or not the given user is a member of ALL of the provided
@@ -289,11 +288,7 @@ def is_user_member_of_all_google_projects(
     try:
         for google_project_id in google_project_ids:
             with GoogleCloudManager(google_project_id, use_default=False) as g_mgr:
-                members = (
-                    g_mgr.get_project_membership()
-                    if membership == []
-                    else membership
-                )
+                members = membership or g_mgr.get_project_membership()
                 member_emails = [
                     member.email_id.lower()
                     for member in members
