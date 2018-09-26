@@ -289,10 +289,11 @@ def is_user_member_of_all_google_projects(user_id, google_project_ids, db=None, 
     try:
         for google_project_id in google_project_ids:
             with GoogleCloudManager(google_project_id, use_default=False) as g_mgr:
+                members = g_mgr.get_project_membership() if membership == [] else membership
                 member_emails = [
                     member.email_id.lower()
-                    for member in g_mgr.get_project_membership(google_project_id)
-                ] if membership == [] else membership
+                    for member in members
+                ]
                 # first check if user.email is in project, then linked account
                 if not (user.email and user.email in member_emails):
                     if not (
