@@ -27,6 +27,7 @@ import fence.blueprints.data
 import fence.blueprints.login
 import fence.blueprints.oauth2
 import fence.blueprints.rbac
+import fence.blueprints.misc
 import fence.blueprints.storage_creds
 import fence.blueprints.user
 import fence.blueprints.well_known
@@ -94,6 +95,8 @@ def app_register_blueprints(app):
 
     if app.config.get("ARBORIST"):
         app.register_blueprint(fence.blueprints.rbac.blueprint, url_prefix="/rbac")
+
+    fence.blueprints.misc.register_misc(app)
 
     @app.route("/")
     def root():
