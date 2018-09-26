@@ -16,8 +16,9 @@ from werkzeug.datastructures import ImmutableMultiDict
 
 from fence.models import Client, User
 from fence.jwt.token import CLIENT_ALLOWED_SCOPES
+from logging import getLogger
 
-
+logger = getLogger(__name__)
 rng = SystemRandom()
 alphanumeric = string.ascii_uppercase + string.ascii_lowercase + string.digits
 
@@ -220,7 +221,11 @@ def send_email(from_email, to_emails, subject, text, smtp_domain):
         KeyError
 
     """
+    
     from fence.settings import GUN_MAIL
+    if GUN_MAIL is None:
+        logger.error("The GUN MAIL is not configured !!!")
+        return None
 
     api_key = GUN_MAIL[smtp_domain]['api_key']
     email_url = GUN_MAIL[smtp_domain]['api_url'] + '/messages'
