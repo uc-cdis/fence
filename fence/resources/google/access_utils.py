@@ -70,6 +70,16 @@ def get_google_project_number(google_project_id):
         return None
 
 def get_google_project_membership(project_id):
+    """
+    Returns GCM get_project_membership() result, which is a list of all
+    members on the projects IAM
+
+    Args:
+        project_id(str): unique id for project
+
+    Returns
+        List(GooglePolicyMember): list of members on project's IAM
+    """
 
     with GoogleCloudManager(project_id, use_default=False) as prj:
         return prj.get_project_membership(project_id)
@@ -103,7 +113,8 @@ def get_google_project_valid_users_and_service_accounts(project_id, membership=N
 
     Args:
         project_id (str): Google project ID
-        membership (List(GooglePolicyMember): pre-calculated list of members
+        membership (List(GooglePolicyMember): pre-calculated list of members,
+            Will make call to Google API if membership is None
 
     Return:
         List[cirrus.google_cloud.iam.GooglePolicyMember]: Members on the
@@ -264,7 +275,8 @@ def is_user_member_of_all_google_projects(
         user_id (int): User identifier
         google_project_ids (List(str)): List of unique google project ids
         db(str): db connection string
-        membership (List(GooglePolicyMember) : pre-calculated list of members
+        membership (List(GooglePolicyMember) : pre-calculated list of members,
+            Will make call to Google API if membership is None
 
     Returns:
         bool: whether or not the given user is a member of ALL of the provided
