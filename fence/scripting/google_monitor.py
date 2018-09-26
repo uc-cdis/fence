@@ -8,11 +8,11 @@ handle invalid service accounts and projects.
 from cirrus.google_cloud.iam import GooglePolicyMember
 from cirrus import GoogleCloudManager
 
-
 from fence.resources.google.validity import (
     GoogleProjectValidity,
     GoogleServiceAccountValidity,
 )
+
 from fence.resources.google.utils import get_all_registered_service_accounts
 from fence.resources.google.access_utils import (
     force_remove_service_account_from_access,
@@ -21,7 +21,7 @@ from fence.resources.google.access_utils import (
 from fence import utils
 
 
-def validation_check(db):
+def validation_check(db, config=None):
     """
     Google validation check for all user-registered service accounts
     and projects.
@@ -45,7 +45,7 @@ def validation_check(db):
             print("Validating Google Service Account: {}".format(sa_email))
             # Do some basic service account checks, this won't validate
             # the data access, that's done when the project's validated
-            validity_info = _is_valid_service_account(sa_email, google_project_id)
+            validity_info = _is_valid_service_account(sa_email, google_project_id, config=config)
             if not validity_info:
                 print(
                     "INVALID SERVICE ACCOUNT {} DETECTED. REMOVING...".format(sa_email)
@@ -57,7 +57,7 @@ def validation_check(db):
                     _get_service_account_removal_reason(validity_info))
 
         print("Validating Google Project: {}".format(google_project_id))
-        google_project_validity = _is_valid_google_project(google_project_id, db=db)
+        google_project_validity = _is_valid_google_project(google_project_id, db=db, config=config)
         if not google_project_validity:
             # for now, if we detect in invalid project, remove ALL service
             # accounts from access for that project.
@@ -82,7 +82,7 @@ def validation_check(db):
             invalid_service_account_reasons, google_project_id)
 
 
-def _is_valid_service_account(sa_email, google_project_id):
+def _is_valid_service_account(sa_email, google_project_id, config=None):
     """
     Validate the given registered service account and remove if invalid.
 
@@ -93,16 +93,16 @@ def _is_valid_service_account(sa_email, google_project_id):
     try:
         sa_validity = GoogleServiceAccountValidity(sa_email, google_project_id)
         sa_validity.check_validity(
-                early_return=True, console_log=True, settings_from_local=True)
+                early_return=True, config=config)
     except Exception:
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
-        sa_validity = False
+        sa_validity = None
 
     return sa_validity
 
 
-def _is_valid_google_project(google_project_id, db=None):
+def _is_valid_google_project(google_project_id, db=None, config=None):
     """
     Validate the given google project id and remove all registered service
     accounts under that project if invalid.
@@ -110,11 +110,11 @@ def _is_valid_google_project(google_project_id, db=None):
     try:
         project_validity = GoogleProjectValidity(google_project_id)
         project_validity.check_validity(
-                early_return=True, db=db, console_log=True, settings_from_local=True)
+                early_return=True, db=db, config=config)
     except Exception:
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
-        project_validity = False
+        project_validity = None
 
     return project_validity
 
@@ -129,7 +129,7 @@ def _get_service_account_removal_reason(service_account_validity):
     Returns:
         str: the reason service account was removed
     """
-    if not isinstance(service_account_validity, GoogleServiceAccountValidity):
+    if service_account_validity is None:
         return ""
 
     removal_reason = ""
@@ -154,7 +154,8 @@ def _get_project_removal_reason(google_project_validity):
     Returns:
         str: the reason project was removed
     """
-    if not isinstance(google_project_validity, GoogleProjectValidity):
+
+    if google_project_validity is None:
         return ""
 
     removal_reason = ""

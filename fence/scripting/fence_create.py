@@ -1226,14 +1226,14 @@ def link_external_bucket(db, name):
     return access_group.email
 
 
-def verify_user_registration(DB):
+def verify_user_registration(DB, config):
     """
     Validate user registration
     """
     import fence.settings
-
     cirrus_config.update(**fence.settings.CIRRUS_CFG)
-    validation_check(DB)
+
+    validation_check(DB, config)
 
 
 def force_update_google_link(
@@ -1266,13 +1266,14 @@ def force_update_google_link(
         Expiration time of the newly updated google account's access
     """
     import fence.settings
+    cirrus_config.update(**fence.settings.CIRRUS_CFG)
 
     db = SQLAlchemyDriver(DB)
     with db.session as session:
         user_account = (
             session.query(User)
-                .filter(User.username == username)
-                .first()
+            .filter(User.username == username)
+            .first()
         )
         if user_account:
             user_id = user_account.id
