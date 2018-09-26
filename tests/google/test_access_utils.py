@@ -161,12 +161,25 @@ def test_service_account_has_external_access_raise_exception(cloud_manager):
     """
     (
         cloud_manager.return_value.__enter__.return_value.get_service_account_policy.return_value
-    ) = MockResponse({}, 403)
+    ) = Exception("exception")
 
     with pytest.raises(Exception):
         assert service_account_has_external_access(
             "test_service_account", cloud_manager.project_id
         )
+
+
+def test_service_account_has_external_access_no_authorization(cloud_manager):
+    """
+    In the case that a exception is raised when there is no access to the service account policy
+    """
+    (
+        cloud_manager.return_value.__enter__.return_value.get_service_account_policy.return_value
+    ) = MockResponse({}, 403)
+
+    assert service_account_has_external_access(
+        "test_service_account", cloud_manager.project_id
+    )
 
 
 def test_project_has_valid_membership(cloud_manager, db_session):
