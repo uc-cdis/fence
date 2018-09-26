@@ -6,7 +6,9 @@ except ImportError:
     from mock import MagicMock
     from mock import patch
 
+import fence
 from fence.scripting.google_monitor import validation_check
+
 from fence.models import (
     UserServiceAccount,
     ServiceAccountAccessPrivilege,
@@ -35,6 +37,16 @@ def test_validation_check_one_invalid(
     ]
 
     (
+        fence.scripting.google_monitor
+        ._get_user_email_list_from_google_project_with_owner_role
+    ) = MagicMock()
+
+    (
+        fence.scripting.google_monitor
+        ._send_emails_informing_service_account_removal
+    ) = MagicMock()
+
+    (
         cloud_manager.return_value.__enter__.return_value.get_service_account.return_value
     ) = {"uniqueId": "1111111"}
 
@@ -45,7 +57,10 @@ def test_validation_check_one_invalid(
     )
 
     validation_check(db=None)
-
+    assert (
+        fence.scripting.google_monitor
+        ._send_emails_informing_service_account_removal.call_count == 1
+    )
     _assert_access("1@example.com", db_session)
     _assert_access(invalid_service_account_patcher, db_session, has_access=False)
     _assert_access("3@example.com", db_session)
@@ -64,6 +79,16 @@ def test_validation_check_multiple_same_project(
     """
     registered_service_accounts = ["1@example.com", "2@example.com", "3@example.com"]
 
+    (
+        fence.scripting.google_monitor
+        ._get_user_email_list_from_google_project_with_owner_role
+    ) = MagicMock()
+
+    (
+        fence.scripting.google_monitor
+        ._send_emails_informing_service_account_removal
+    ) = MagicMock()
+
     force_add_service_accounts_to_access(
         service_account_emails=registered_service_accounts,
         google_project_id="google_project_x",
@@ -71,7 +96,10 @@ def test_validation_check_multiple_same_project(
     )
 
     validation_check(db=None)
-
+    assert (
+        fence.scripting.google_monitor
+        ._send_emails_informing_service_account_removal.call_count == 1
+    )
     _assert_access("1@example.com", db_session)
     _assert_access("2@example.com", db_session)
     _assert_access("3@example.com", db_session)
@@ -91,6 +119,16 @@ def test_validation_check_multiple_diff_projects(
     registered_service_accounts = ["1@example.com"]
     registered_service_accounts_2 = ["2@example.com", "3@example.com"]
 
+    (
+        fence.scripting.google_monitor
+        ._get_user_email_list_from_google_project_with_owner_role
+    ) = MagicMock()
+
+    (
+        fence.scripting.google_monitor
+        ._send_emails_informing_service_account_removal
+    ) = MagicMock()
+
     force_add_service_accounts_to_access(
         service_account_emails=registered_service_accounts,
         google_project_id="google_project_x",
@@ -104,7 +142,10 @@ def test_validation_check_multiple_diff_projects(
     )
 
     validation_check(db=None)
-
+    assert (
+        fence.scripting.google_monitor
+        ._send_emails_informing_service_account_removal.call_count == 1
+    )
     _assert_access("1@example.com", db_session)
     _assert_access("2@example.com", db_session)
     _assert_access("3@example.com", db_session)

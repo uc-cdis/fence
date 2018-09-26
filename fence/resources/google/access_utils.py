@@ -19,6 +19,8 @@ from cirrus.google_cloud import (
 )
 
 import fence
+from logging import getLogger
+
 from fence.errors import NotFound, NotSupported
 from fence.models import (
     User,
@@ -35,6 +37,8 @@ from fence.resources.google.utils import (
     get_monitoring_service_account_email,
     is_google_managed_service_account,
 )
+
+logger = getLogger(__name__)
 
 ALLOWED_SERVICE_ACCOUNT_TYPES = [
     COMPUTE_ENGINE_API_SERVICE_ACCOUNT,
@@ -85,14 +89,10 @@ def get_google_project_parent_org(project_id):
         with GoogleCloudManager(project_id, use_default=False) as prj:
             return prj.get_project_organization()
     except Exception as exc:
-        flask.current_app.logger.debug(
-            (
+        logger.error(
                 "Could not determine if Google project (id: {}) has parent org"
                 "due to error (Details: {})".format(project_id, exc)
-            )
         )
-        return None
-
 
 def get_google_project_valid_users_and_service_accounts(project_id, membership=[]):
     """
@@ -135,12 +135,11 @@ def get_google_project_valid_users_and_service_accounts(project_id, membership=[
             ]
             return users, service_accounts
     except Exception as exc:
-        flask.current_app.logger.debug(
-            (
-                "validity of Google Project (id: {}) members "
-                "could not complete. Details: {}"
-            ).format(project_id, exc)
-        )
+        logger.error(
+            "validity of Google Project (id: {}) members "
+            "could not complete. Details: {}"
+            .format(project_id, exc))
+
         raise
 
 
@@ -165,13 +164,10 @@ def is_valid_service_account_type(project_id, account_id):
                 in ALLOWED_SERVICE_ACCOUNT_TYPES
             )
     except Exception as exc:
-        flask.current_app.logger.debug(
-            (
-                "validity of Google service account {} (google project: {}) type "
-                "determined False due to error. Details: {}"
-            ).format(account_id, project_id, exc)
-        )
-        return False
+        logger.error(
+            "validity of Google service account {} (google project: {}) type "
+            "determined False due to error. Details: {}"
+            .format(account_id, project_id, exc))
 
 
 def service_account_has_external_access(service_account, google_project_id):
@@ -180,6 +176,7 @@ def service_account_has_external_access(service_account, google_project_id):
 
     Args:
         service_account(str): service account
+        google_project_id(str): google project id
 
     Returns:
         bool: whether or not the service account has external access
@@ -187,10 +184,9 @@ def service_account_has_external_access(service_account, google_project_id):
     with GoogleCloudManager(google_project_id, use_default=False) as g_mgr:
         response = g_mgr.get_service_account_policy(service_account)
         if response.status_code != 200:
-            flask.current_app.logger.debug(
-                "Unable to get IAM policy for service account {}\n{}.".format(
-                    service_account, response.json()
-                )
+            logger.error(
+                "Unable to get IAM policy for service account {}\n{}."
+                .format(service_account, response.json())
             )
             # if there is an exception, assume it has external access
             return True
@@ -208,7 +204,7 @@ def service_account_has_external_access(service_account, google_project_id):
 
 
 def is_service_account_from_google_project(
-    service_account_email, project_id, project_number
+    service_account_email, project_id, project_number, google_managed_sa_domains=None
 ):
     """
     Checks if service account is among project's service acounts
@@ -224,7 +220,8 @@ def is_service_account_from_google_project(
     try:
         service_account_name = service_account_email.split("@")[0]
 
-        if is_google_managed_service_account(service_account_email):
+        if is_google_managed_service_account(
+                service_account_email, google_managed_sa_domains):
             return (
                 service_account_name == "service-{}".format(project_number)
                 or service_account_name == "project-{}".format(project_number)
@@ -244,12 +241,10 @@ def is_service_account_from_google_project(
         )
 
     except Exception as exc:
-        flask.current_app.logger.debug(
-            (
-                "Could not determine if service account (id: {} is from project"
-                " (id: {}) due to error. Details: {}"
-            ).format(service_account_email, project_id, exc)
-        )
+        logger.error(
+            "Could not determine if service account (id: {} is from project"
+            " (id: {}) due to error. Details: {}"
+            .format(service_account_email, project_id, exc))
         return False
 
 
@@ -264,6 +259,7 @@ def is_user_member_of_all_google_projects(user_id, google_project_ids, db=None, 
     Args:
         user_id (int): User identifier
         google_project_ids (List(str)): List of unique google project ids
+        db(str): db connection string
 
     Returns:
         bool: whether or not the given user is a member of ALL of the provided
@@ -272,16 +268,14 @@ def is_user_member_of_all_google_projects(user_id, google_project_ids, db=None, 
     session = get_db_session(db)
     user = session.query(User).filter_by(id=user_id).first()
     if not user:
-        flask.current_app.logger.debug(
-            (
-                "Could not determine if user (id: {} is from projects:"
-                " {} due to error. User does not exist..."
-            ).format(user_id, google_project_ids)
-        )
+        logger.error(
+            "Could not determine if user (id: {} is from projects:"
+            " {} due to error. User does not exist..."
+            .format(user_id, google_project_ids))
         return False
 
     linked_google_account = (
-        current_session.query(UserGoogleAccount)
+        session.query(UserGoogleAccount)
         .filter(UserGoogleAccount.user_id == user_id)
         .first()
     )
@@ -303,12 +297,10 @@ def is_user_member_of_all_google_projects(user_id, google_project_ids, db=None, 
                         # no user email is in project
                         return False
     except Exception as exc:
-        flask.current_app.logger.debug(
-            (
-                "Could not determine if user (id: {} is from projects:"
-                " {} due to error. Details: {}"
-            ).format(user_id, google_project_ids, exc)
-        )
+        logger.error(
+            "Could not determine if user (id: {} is from projects:"
+            " {} due to error. Details: {}"
+            .format(user_id, google_project_ids, exc))
         return False
 
     return True
@@ -342,6 +334,7 @@ def patch_user_service_account(
         google_project_id (str): google project id
         service_account_email (str): service account email
         project_access (List(str)): list of projects
+        db(str): db connection string
 
     Returns:
         None
@@ -405,6 +398,7 @@ def _force_remove_service_account_from_access_db(service_account_email, db=None)
 
     Args:
         service_account_email (str): service account email
+        db(str): db connection string
 
     Returns:
         None
@@ -715,6 +709,7 @@ def extend_service_account_access(service_account_email, db=None):
 
     Args:
         service_account_email (str): service account email
+        db(str): db connection string
     """
     session = get_db_session(db)
 
@@ -792,7 +787,7 @@ def get_project_from_auth_id(project_auth_id, db=None):
     return project
 
 
-def remove_white_listed_service_account_ids(service_account_ids):
+def remove_white_listed_service_account_ids(service_account_ids, white_listed_sa_email=None):
     """
     Remove any service account emails that should be ignored when
     determining validitity.
@@ -807,17 +802,18 @@ def remove_white_listed_service_account_ids(service_account_ids):
     if monitoring_service_account in service_account_ids:
         service_account_ids.remove(monitoring_service_account)
 
-    if "WHITE_LISTED_SERVICE_ACCOUNT_EMAILS" in flask.current_app.config:
-        for email in flask.current_app.config.get(
-            "WHITE_LISTED_SERVICE_ACCOUNT_EMAILS", []
-        ):
-            if email in service_account_ids:
-                service_account_ids.remove(email)
+    white_listed_sa_email = (
+        white_listed_sa_email or flask.current_app.config.get("WHITE_LISTED_SERVICE_ACCOUNT_EMAILS", [])
+    )
+
+    for email in white_listed_sa_email:
+        if email in service_account_ids:
+            service_account_ids.remove(email)
 
     return service_account_ids
 
 
-def is_org_whitelisted(parent_org):
+def is_org_whitelisted(parent_org, white_listed_google_parent_orgs=None):
     """
     Return whether or not the provide Google parent organization is whitelisted
 
@@ -827,9 +823,11 @@ def is_org_whitelisted(parent_org):
     Returns:
         bool: whether or not the provide Google parent organization is whitelisted
     """
-    return parent_org in flask.current_app.config.get(
-        "WHITE_LISTED_GOOGLE_PARENT_ORGS", {}
-    )
+
+    white_listed_google_parent_orgs = (
+        white_listed_google_parent_orgs or flask.current_app.config.get("WHITE_LISTED_GOOGLE_PARENT_ORGS", {}))
+    
+    return parent_org in white_listed_google_parent_orgs
 
 
 def force_delete_service_account(service_account_email, db=None):
@@ -838,6 +836,7 @@ def force_delete_service_account(service_account_email, db=None):
 
     Args:
         service_account_email (str): user service account email
+        db(str): db connection string
     """
     session = get_db_session(db)
 
@@ -857,6 +856,7 @@ def force_add_service_accounts_to_access(
     service_account_emails(list(str)): list of account emails
     google_project_id(str):  google project id
     project_access(list(str)): list of projects
+    db(str): db connection string
     """
     session = get_db_session(db)
 

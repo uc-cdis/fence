@@ -180,6 +180,20 @@ GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS = {
     "storage-transfer-service.iam.gserviceaccount.com",
 }
 
+REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION = {
+    "domain": "smtp domain",
+    "subject": "User service account removal notification",
+    "from": "do-not-reply@planx-pla.net",
+    "admin": [],
+    "contact number": "123456789",
+    "content": """
+    The service accounts were removed from access control data because some \
+users or service accounts of GCP project {} are not authorized to access \
+the data sets associated to the service accounts, or do not \
+adhere to the security policies.
+    """
+}
+
 SUPPORT_EMAIL_FOR_ERRORS = None
 dbGaP = {}
 if os.path.exists(fence_creds):
@@ -202,3 +216,4 @@ if os.path.exists(fence_creds):
         GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS.update(
             data.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS", [])
         )
+        GUN_MAIL = data.get("GUN_MAIL")
