@@ -654,16 +654,20 @@ def get_monitoring_service_account_email():
     return creds_email
 
 
-def is_google_managed_service_account(service_account_email):
+def is_google_managed_service_account(
+            service_account_email, google_managed_service_account_domains=None):
     """
     Return whether or not the given service account email represents a Google
     managed account (e.g. not user-created).
     """
     service_account_domain = "{}".format(service_account_email.split("@")[-1])
 
-    google_managed_service_account_domains = flask.current_app.config.get(
-        "GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS", []
+    google_managed_service_account_domains = (
+        google_managed_service_account_domains or flask.current_app.config.get(
+            "GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS", []
+        )
     )
+
     return service_account_domain in google_managed_service_account_domains
 
 
