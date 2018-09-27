@@ -575,7 +575,7 @@ def _patch_service_account_parse_request(id_):
 
     # if they're trying to patch more fields, error out, we only support the above
     if payload:
-        return ("Cannot update provided fields: {}".format(payload), 403)
+        raise UserError("Cannot update provided fields: {}".format(payload))
 
     google_project_id = registered_service_account.google_project_id
 
