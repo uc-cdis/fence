@@ -11,6 +11,7 @@ except ImportError:
 from sqlalchemy import or_
 
 from cirrus.google_cloud import (
+    GoogleCloudManager,
     COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
     COMPUTE_ENGINE_API_SERVICE_ACCOUNT,
     GOOGLE_API_SERVICE_ACCOUNT,
@@ -52,9 +53,9 @@ def test_is_valid_service_account_type_compute_engine_default(cloud_manager):
     for service account registration
     """
     (
-        cloud_manager.return_value.__enter__.return_value.get_service_account_type.return_value
+        cloud_manager.get_service_account_type.return_value
     ) = COMPUTE_ENGINE_API_SERVICE_ACCOUNT
-    assert is_valid_service_account_type(cloud_manager.project_id, 1)
+    assert is_valid_service_account_type(1, cloud_manager)
 
 
 def test_not_valid_service_account_type_google_api(cloud_manager):
@@ -63,9 +64,9 @@ def test_not_valid_service_account_type_google_api(cloud_manager):
     for service account registration
     """
     (
-        cloud_manager.return_value.__enter__.return_value.get_service_account_type.return_value
+        cloud_manager.get_service_account_type.return_value
     ) = GOOGLE_API_SERVICE_ACCOUNT
-    assert not is_valid_service_account_type(cloud_manager.project_id, 1)
+    assert not is_valid_service_account_type(1, cloud_manager)
 
 
 def test_not_valid_service_account_type_compute_engine_api(cloud_manager):
@@ -74,9 +75,9 @@ def test_not_valid_service_account_type_compute_engine_api(cloud_manager):
     for service account registration
     """
     (
-        cloud_manager.return_value.__enter__.return_value.get_service_account_type.return_value
+        cloud_manager.get_service_account_type.return_value
     ) = COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT
-    assert not is_valid_service_account_type(cloud_manager.project_id, 1)
+    assert not is_valid_service_account_type(1, cloud_manager)
 
 
 def test_is_valid_service_account_type_user_managed(cloud_manager):
@@ -85,9 +86,9 @@ def test_is_valid_service_account_type_user_managed(cloud_manager):
     for service account registration
     """
     (
-        cloud_manager.return_value.__enter__.return_value.get_service_account_type.return_value
+        cloud_manager.get_service_account_type.return_value
     ) = USER_MANAGED_SERVICE_ACCOUNT
-    assert is_valid_service_account_type(cloud_manager.project_id, 1)
+    assert is_valid_service_account_type(1, cloud_manager)
 
 
 def test_service_account_has_role_in_service_policy(cloud_manager):
@@ -110,11 +111,11 @@ def test_service_account_has_role_in_service_policy(cloud_manager):
     }
 
     (
-        cloud_manager.return_value.__enter__.return_value.get_service_account_policy.return_value
+        cloud_manager.get_service_account_policy.return_value
     ) = MockResponse(faked_json, 200)
 
     assert service_account_has_external_access(
-        "test_service_account", cloud_manager.project_id
+        "test_service_account", cloud_manager
     )
 
 
@@ -125,15 +126,15 @@ def test_service_account_has_user_managed_key_in_service_policy(cloud_manager):
     faked_json = {"etag": "ACAB"}
 
     (
-        cloud_manager.return_value.__enter__.return_value.get_service_account_policy.return_value
+        cloud_manager.get_service_account_policy.return_value
     ) = MockResponse(faked_json, 200)
 
     (
-        cloud_manager.return_value.__enter__.return_value.get_service_account_keys_inf.return_value
+        cloud_manager.get_service_account_keys_info.return_value
     ) = ["key1", "key2"]
 
     assert service_account_has_external_access(
-        "test_service_account", cloud_manager.project_id
+        "test_service_account", cloud_manager
     )
 
 
@@ -144,14 +145,14 @@ def test_service_account_does_not_have_external_access(cloud_manager):
     faked_json = {"etag": "ACAB"}
 
     (
-        cloud_manager.return_value.__enter__.return_value.get_service_account_policy.return_value
+        cloud_manager.get_service_account_policy.return_value
     ) = MockResponse(faked_json, 200)
 
     (
-        cloud_manager.return_value.__enter__.return_value.get_service_account_keys_info.return_value
+        cloud_manager.get_service_account_keys_info.return_value
     ) = []
     assert not service_account_has_external_access(
-        "test_service_account", cloud_manager.project_id
+        "test_service_account", cloud_manager
     )
 
 
@@ -160,12 +161,12 @@ def test_service_account_has_external_access_raise_exception(cloud_manager):
     In the case that a exception is raised when there is no access to the service account policy
     """
     (
-        cloud_manager.return_value.__enter__.return_value.get_service_account_policy.return_value
+        cloud_manager.get_service_account_policy.return_value
     ) = Exception("exception")
 
     with pytest.raises(Exception):
         assert service_account_has_external_access(
-            "test_service_account", cloud_manager.project_id
+            "test_service_account", cloud_manager
         )
 
 
@@ -174,11 +175,11 @@ def test_service_account_has_external_access_no_authorization(cloud_manager):
     In the case that a exception is raised when there is no access to the service account policy
     """
     (
-        cloud_manager.return_value.__enter__.return_value.get_service_account_policy.return_value
+        cloud_manager.get_service_account_policy.return_value
     ) = MockResponse({}, 403)
 
     assert service_account_has_external_access(
-        "test_service_account", cloud_manager.project_id
+        "test_service_account", cloud_manager
     )
 
 
@@ -188,7 +189,7 @@ def test_project_has_valid_membership(cloud_manager, db_session):
     has valid membership
     """
     (
-        cloud_manager.return_value.__enter__.return_value.get_project_membership.return_value
+        cloud_manager.get_project_membership.return_value
     ) = [
         GooglePolicyMember("user", "user@gmail.com"),
         GooglePolicyMember("serviceAccount", "sa@gmail.com"),
@@ -205,7 +206,7 @@ def test_project_has_valid_membership(cloud_manager, db_session):
         get_users_mock,
     )
     get_users_patcher.start()
-    assert get_google_project_valid_users_and_service_accounts(cloud_manager.project_id)
+    assert get_google_project_valid_users_and_service_accounts(cloud_manager.project_id, cloud_manager)
     get_users_patcher.stop()
 
 
@@ -215,13 +216,13 @@ def test_project_has_invalid_membership(cloud_manager, db_session):
      has invalid membership
      """
     (
-        cloud_manager.return_value.__enter__.return_value.get_project_membership.return_value
+        cloud_manager.get_project_membership.return_value
     ) = [
         GooglePolicyMember("user", "user@gmail.com"),
         GooglePolicyMember("otherType", "other@gmail.com"),
     ]
     with pytest.raises(Exception):
-        get_google_project_valid_users_and_service_accounts(cloud_manager.project_id)
+        get_google_project_valid_users_and_service_accounts(cloud_manager.project_id, cloud_manager)
 
 
 def test_remove_service_account_from_access(cloud_manager, db_session, setup_data):
