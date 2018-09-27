@@ -1,2 +1,2 @@
-VERSION=""
-COMMIT=""
+VERSION = ""
+COMMIT = ""

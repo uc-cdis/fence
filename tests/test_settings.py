@@ -168,7 +168,7 @@ users or service accounts of GCP project {} are not authorized to access \
 the data sets associated to the service accounts, or do not \
 adhere to the security policies.
 
-    """
+    """,
 }
 
 GUN_MAIL = {}

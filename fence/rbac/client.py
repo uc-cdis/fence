@@ -152,8 +152,7 @@ class ArboristClient(object):
         if "error" in response:
             msg = response["error"].get("message", str(response["error"]))
             self.logger.error(
-                "could not create resource `{}` in arborist: {}"
-                .format(path, msg)
+                "could not create resource `{}` in arborist: {}".format(path, msg)
             )
             raise ArboristError(response["error"])
         return response

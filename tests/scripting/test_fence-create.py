@@ -401,7 +401,9 @@ def test_delete_expired_service_accounts(cloud_manager, app, db_session):
     import fence
 
     fence.settings = MagicMock()
-    cloud_manager.return_value.__enter__.return_value.remove_member_from_group.return_value = {}
+    cloud_manager.return_value.__enter__.return_value.remove_member_from_group.return_value = (
+        {}
+    )
     _setup_service_account_to_google_bucket_access_group(db_session)
     service_accounts = db_session.query(UserServiceAccount).all()
     google_bucket_access_grps = db_session.query(GoogleBucketAccessGroup).all()
