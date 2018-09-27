@@ -170,6 +170,8 @@ class GoogleProjectValidity(ValidityInfo):
             new_service_account_access (List(str), optional): List of
                 Project.auth_ids to attempt to provide the new service account
                 access to
+            user_id (None, optional): User requesting validation. ONLY pass this if you
+                want to check if the user is a member of this project.
         """
         self.google_project_id = google_project_id
         self.new_service_account = new_service_account
@@ -207,13 +209,14 @@ class GoogleProjectValidity(ValidityInfo):
 
         membership = get_google_project_membership(self.google_project_id)
 
-        user_has_access = is_user_member_of_all_google_projects(
-            self.user_id, [self.google_project_id], membership=membership, db=db
-        )
-        self.set("user_has_access", user_has_access)
-        if not user_has_access:
-            # always early return if user isn't a member on the project
-            return
+        if self.user_id is not None:
+            user_has_access = is_user_member_of_all_google_projects(
+                self.user_id, [self.google_project_id], membership=membership, db=db
+            )
+            self.set("user_has_access", user_has_access)
+            if not user_has_access:
+                # always early return if user isn't a member on the project
+                return
 
         parent_org = get_google_project_parent_org(self.google_project_id)
         valid_parent_org = True
@@ -226,7 +229,9 @@ class GoogleProjectValidity(ValidityInfo):
 
         if parent_org:
             valid_parent_org = is_org_whitelisted(
-                parent_org, white_listed_google_parent_orgs=white_listed_google_parent_orgs)
+                parent_org,
+                white_listed_google_parent_orgs=white_listed_google_parent_orgs,
+            )
 
         self.set("valid_parent_org", valid_parent_org)
 
@@ -415,15 +420,19 @@ class GoogleServiceAccountValidity(ValidityInfo):
         self._info["valid_type"] = None
         self._info["no_external_access"] = None
 
-    def check_validity(self, early_return=True,
-                       check_type_and_access=True, config=None):
+    def check_validity(
+        self, early_return=True, check_type_and_access=True, config=None
+    ):
 
         google_managed_sa_domains = (
-            config["GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAIN"] if config else None)
+            config["GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAIN"] if config else None
+        )
 
         is_owned_by_google_project = is_service_account_from_google_project(
-            self.account_id, self.google_project_id,
-            self.google_project_number, google_managed_sa_domains=google_managed_sa_domains
+            self.account_id,
+            self.google_project_id,
+            self.google_project_number,
+            google_managed_sa_domains=google_managed_sa_domains,
         )
         self.set("owned_by_project", is_owned_by_google_project)
         if not is_owned_by_google_project:

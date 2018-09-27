@@ -119,9 +119,7 @@ class GoogleServiceAccountRoot(Resource):
             google_project_id (str): Google project identifier
             project_access (List(str)): List of Project.auth_ids to authorize
                 the service account for
-
-        Returns:
-            tuple(dict, int): (response_data, http_status_code)
+            user_id (int): User requesting new SA
         """
         error_response = _get_service_account_error_status(
             service_account_email, google_project_id, project_access, user_id
@@ -551,6 +549,7 @@ def _get_service_account_error_status(
         google_project_id (str): Google project identifier
         project_access (List(str)): List of Project.auth_ids to authorize
             the service account for
+        user_id (int): User requesting SA error status
 
     Returns:
         dict: error information if unsuccessful, { "success": True } otherwise
