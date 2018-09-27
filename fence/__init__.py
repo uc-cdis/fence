@@ -36,6 +36,7 @@ import fence.blueprints.google
 import fence.client
 
 from cdislogging import get_logger
+
 logger = get_logger(__name__)
 
 app = flask.Flask(__name__)

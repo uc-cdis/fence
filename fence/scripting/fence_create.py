@@ -51,7 +51,7 @@ from fence.errors import Unauthorized
 from fence.settings import GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN
 from fence.blueprints.link import (
     force_update_user_google_account_expiration,
-    add_new_user_google_account
+    add_new_user_google_account,
 )
 
 logger = get_logger(__name__)
@@ -1231,14 +1231,13 @@ def verify_user_registration(DB, config):
     Validate user registration
     """
     import fence.settings
+
     cirrus_config.update(**fence.settings.CIRRUS_CFG)
 
     validation_check(DB, config)
 
 
-def force_update_google_link(
-        DB, username, google_email
-):
+def force_update_google_link(DB, username, google_email):
     """
     WARNING: This function circumvents Google Auth flow, and should only be
     used for internal testing!
@@ -1266,15 +1265,12 @@ def force_update_google_link(
         Expiration time of the newly updated google account's access
     """
     import fence.settings
+
     cirrus_config.update(**fence.settings.CIRRUS_CFG)
 
     db = SQLAlchemyDriver(DB)
     with db.session as session:
-        user_account = (
-            session.query(User)
-            .filter(User.username == username)
-            .first()
-        )
+        user_account = session.query(User).filter(User.username == username).first()
         if user_account:
             user_id = user_account.id
             proxy_group_id = user_account.google_proxy_group_id
@@ -1286,8 +1282,8 @@ def force_update_google_link(
 
         user_google_account = (
             session.query(UserGoogleAccount)
-                .filter(UserGoogleAccount.email == google_email)
-                .first()
+            .filter(UserGoogleAccount.email == google_email)
+            .first()
         )
         if not user_google_account:
             user_google_account = add_new_user_google_account(

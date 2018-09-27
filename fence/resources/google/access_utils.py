@@ -86,9 +86,10 @@ def get_google_project_parent_org(project_id):
             return prj.get_project_organization()
     except Exception as exc:
         logger.error(
-                "Could not determine if Google project (id: {}) has parent org"
-                "due to error (Details: {})".format(project_id, exc)
+            "Could not determine if Google project (id: {}) has parent org"
+            "due to error (Details: {})".format(project_id, exc)
         )
+
 
 def get_google_project_valid_users_and_service_accounts(project_id):
     """
@@ -133,8 +134,8 @@ def get_google_project_valid_users_and_service_accounts(project_id):
     except Exception as exc:
         logger.error(
             "validity of Google Project (id: {}) members "
-            "could not complete. Details: {}"
-            .format(project_id, exc))
+            "could not complete. Details: {}".format(project_id, exc)
+        )
 
         raise
 
@@ -162,8 +163,10 @@ def is_valid_service_account_type(project_id, account_id):
     except Exception as exc:
         logger.error(
             "validity of Google service account {} (google project: {}) type "
-            "determined False due to error. Details: {}"
-            .format(account_id, project_id, exc))
+            "determined False due to error. Details: {}".format(
+                account_id, project_id, exc
+            )
+        )
 
 
 def service_account_has_external_access(service_account, google_project_id):
@@ -181,8 +184,9 @@ def service_account_has_external_access(service_account, google_project_id):
         response = g_mgr.get_service_account_policy(service_account)
         if response.status_code != 200:
             logger.error(
-                "Unable to get IAM policy for service account {}\n{}."
-                .format(service_account, response.json())
+                "Unable to get IAM policy for service account {}\n{}.".format(
+                    service_account, response.json()
+                )
             )
             # if there is an exception, assume it has external access
             return True
@@ -217,7 +221,8 @@ def is_service_account_from_google_project(
         service_account_name = service_account_email.split("@")[0]
 
         if is_google_managed_service_account(
-                service_account_email, google_managed_sa_domains):
+            service_account_email, google_managed_sa_domains
+        ):
             return (
                 service_account_name == "service-{}".format(project_number)
                 or service_account_name == "project-{}".format(project_number)
@@ -239,8 +244,10 @@ def is_service_account_from_google_project(
     except Exception as exc:
         logger.error(
             "Could not determine if service account (id: {} is from project"
-            " (id: {}) due to error. Details: {}"
-            .format(service_account_email, project_id, exc))
+            " (id: {}) due to error. Details: {}".format(
+                service_account_email, project_id, exc
+            )
+        )
         return False
 
 
@@ -266,8 +273,10 @@ def is_user_member_of_all_google_projects(user_id, google_project_ids, db=None):
     if not user:
         logger.error(
             "Could not determine if user (id: {} is from projects:"
-            " {} due to error. User does not exist..."
-            .format(user_id, google_project_ids))
+            " {} due to error. User does not exist...".format(
+                user_id, google_project_ids
+            )
+        )
         return False
 
     linked_google_account = (
@@ -294,8 +303,8 @@ def is_user_member_of_all_google_projects(user_id, google_project_ids, db=None):
     except Exception as exc:
         logger.error(
             "Could not determine if user (id: {} is from projects:"
-            " {} due to error. Details: {}"
-            .format(user_id, google_project_ids, exc))
+            " {} due to error. Details: {}".format(user_id, google_project_ids, exc)
+        )
         return False
 
     return True
@@ -782,7 +791,9 @@ def get_project_from_auth_id(project_auth_id, db=None):
     return project
 
 
-def remove_white_listed_service_account_ids(service_account_ids, white_listed_sa_email=None):
+def remove_white_listed_service_account_ids(
+    service_account_ids, white_listed_sa_email=None
+):
     """
     Remove any service account emails that should be ignored when
     determining validitity.
@@ -797,8 +808,8 @@ def remove_white_listed_service_account_ids(service_account_ids, white_listed_sa
     if monitoring_service_account in service_account_ids:
         service_account_ids.remove(monitoring_service_account)
 
-    white_listed_sa_email = (
-        white_listed_sa_email or flask.current_app.config.get("WHITE_LISTED_SERVICE_ACCOUNT_EMAILS", [])
+    white_listed_sa_email = white_listed_sa_email or flask.current_app.config.get(
+        "WHITE_LISTED_SERVICE_ACCOUNT_EMAILS", []
     )
 
     for email in white_listed_sa_email:
@@ -820,8 +831,10 @@ def is_org_whitelisted(parent_org, white_listed_google_parent_orgs=None):
     """
 
     white_listed_google_parent_orgs = (
-        white_listed_google_parent_orgs or flask.current_app.config.get("WHITE_LISTED_GOOGLE_PARENT_ORGS", {}))
-    
+        white_listed_google_parent_orgs
+        or flask.current_app.config.get("WHITE_LISTED_GOOGLE_PARENT_ORGS", {})
+    )
+
     return parent_org in white_listed_google_parent_orgs
 
 
