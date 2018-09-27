@@ -516,18 +516,21 @@ def get_prefix_for_google_proxy_groups():
 
 def get_all_registered_service_accounts(db=None):
     """
-    Get all registerd service accounts from db
+    Get all registered service accounts from db
     """
     session = get_db_session(db)
-    registered_service_accounts = []
-    for account in session.query(ServiceAccountToGoogleBucketAccessGroup).all():
-        registered_service_accounts.extend(
-            session.query(UserServiceAccount)
-            .filter_by(google_project_id=account.service_account.google_project_id)
-            .all()
-        )
 
-    return registered_service_accounts
+    registered_service_accounts = (
+        session.query(UserServiceAccount)
+        .join(ServiceAccountToGoogleBucketAccessGroup)
+        .filter(
+            UserServiceAccount.id
+            == ServiceAccountToGoogleBucketAccessGroup.service_account_id
+        )
+        .all()
+    )
+
+    return list(registered_service_accounts)
 
 
 def get_registered_service_accounts(google_project_id):
@@ -655,7 +658,8 @@ def get_monitoring_service_account_email():
 
 
 def is_google_managed_service_account(
-            service_account_email, google_managed_service_account_domains=None):
+    service_account_email, google_managed_service_account_domains=None
+):
     """
     Return whether or not the given service account email represents a Google
     managed account (e.g. not user-created).
@@ -663,9 +667,8 @@ def is_google_managed_service_account(
     service_account_domain = "{}".format(service_account_email.split("@")[-1])
 
     google_managed_service_account_domains = (
-        google_managed_service_account_domains or flask.current_app.config.get(
-            "GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS", []
-        )
+        google_managed_service_account_domains
+        or flask.current_app.config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS", [])
     )
 
     return service_account_domain in google_managed_service_account_domains
