@@ -509,6 +509,9 @@ def force_remove_service_account_from_access(
 
     _force_remove_service_account_from_access_db(service_account_email, db)
 
+    session.delete(service_account)
+    session.commit()
+
 
 def _revoke_user_service_account_from_google(
     session, to_delete_project_ids, google_project_id, service_account
@@ -856,25 +859,6 @@ def is_org_whitelisted(parent_org, white_listed_google_parent_orgs=None):
     )
 
     return parent_org in white_listed_google_parent_orgs
-
-
-def force_delete_service_account(service_account_email, db=None):
-    """
-    Delete from our db the given user service account by email.
-
-    Args:
-        service_account_email (str): user service account email
-        db(str): db connection string
-    """
-    session = get_db_session(db)
-
-    sa = (
-        session.query(UserServiceAccount).filter_by(email=service_account_email).first()
-    )
-
-    if sa:
-        session.delete(sa)
-        session.commit()
 
 
 def force_add_service_accounts_to_access(

@@ -17,7 +17,6 @@ from fence.resources.google.access_utils import (
     get_registered_service_account_from_email,
     get_service_account_email,
     force_remove_service_account_from_access,
-    force_delete_service_account,
     extend_service_account_access,
     patch_user_service_account,
     get_project_ids_from_project_auth_ids,
@@ -516,7 +515,6 @@ class GoogleServiceAccount(Resource):
             force_remove_service_account_from_access(
                 service_account_email, google_project_id
             )
-            force_delete_service_account(service_account_email)
         except NotFound as exc:
             return (
                 "Can not remove the service accout {}. Detail {}".format(
