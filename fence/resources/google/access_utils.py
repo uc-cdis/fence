@@ -6,8 +6,6 @@ import time
 import flask
 from urllib import unquote
 
-from flask_sqlalchemy_session import current_session
-
 from cirrus.google_cloud.iam import GooglePolicyMember
 
 from cirrus.google_cloud.errors import GoogleAPIError
@@ -330,12 +328,13 @@ def is_user_member_of_all_google_projects(
     return True
 
 
-def do_all_users_have_access_to_project(users, project_id):
+def do_all_users_have_access_to_project(users, project_id, db=None):
+    session = get_db_session(db)
     # users will be list of fence.model.User's
     # check if all users has access to a project with project_id
     for user in users:
         access_privilege = (
-            current_session.query(AccessPrivilege)
+            session.query(AccessPrivilege)
             .filter(AccessPrivilege.user_id == user.id)
             .filter(AccessPrivilege.project_id == project_id)
         ).first()

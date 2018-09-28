@@ -103,7 +103,7 @@ def _is_valid_service_account(sa_email, google_project_id, config=None):
     except Exception as exc:
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
-        print("Project determined invalid due to unhandled exception:")
+        print("Service Account determined invalid due to unhandled exception:")
         print(exc)
         sa_validity = None
 

@@ -364,7 +364,7 @@ class GoogleProjectValidity(ValidityInfo):
             valid_access = None
             if users_in_project:
                 valid_access = do_all_users_have_access_to_project(
-                    users_in_project, project.id
+                    users_in_project, project.id, db=db
                 )
             project_validity.set("all_users_have_access", valid_access)
 
@@ -423,9 +423,8 @@ class GoogleServiceAccountValidity(ValidityInfo):
     def check_validity(
         self, early_return=True, check_type_and_access=True, config=None
     ):
-
         google_managed_sa_domains = (
-            config["GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAIN"] if config else None
+            config["GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS"] if config else None
         )
 
         is_owned_by_google_project = is_service_account_from_google_project(
