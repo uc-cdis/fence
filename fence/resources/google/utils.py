@@ -637,7 +637,7 @@ def get_user_from_google_member(member, db=None):
     return None
 
 
-def get_monitoring_service_account_email():
+def get_monitoring_service_account_email(app_creds_file=None):
     """
     Get the monitoring email from the cirrus configuration. Use the
     main/default application credentials as the monitoring service account.
@@ -645,9 +645,9 @@ def get_monitoring_service_account_email():
     This function should ONLY return the service account's email by
     parsing the creds file.
     """
-    app_creds_file = flask.current_app.config.get("CIRRUS_CFG", {}).get(
-        "GOOGLE_APPLICATION_CREDENTIALS"
-    )
+    app_creds_file = app_creds_file or flask.current_app.config.get(
+        "CIRRUS_CFG", {}
+    ).get("GOOGLE_APPLICATION_CREDENTIALS")
 
     creds_email = None
     if app_creds_file and os.path.exists(app_creds_file):

@@ -807,7 +807,7 @@ def get_project_from_auth_id(project_auth_id, db=None):
 
 
 def remove_white_listed_service_account_ids(
-    service_account_ids, white_listed_sa_emails=None
+    service_account_ids, app_creds_file=None, white_listed_sa_emails=None
 ):
     """
     Remove any service account emails that should be ignored when
@@ -819,7 +819,8 @@ def remove_white_listed_service_account_ids(
     Returns:
         List[str]: Service account emails
     """
-    monitoring_service_account = get_monitoring_service_account_email()
+    monitoring_service_account = get_monitoring_service_account_email(app_creds_file)
+
     if monitoring_service_account in service_account_ids:
         service_account_ids.remove(monitoring_service_account)
 

@@ -299,9 +299,14 @@ class GoogleProjectValidity(ValidityInfo):
         white_listed_service_accounts = (
             config.get("WHITE_LISTED_SERVICE_ACCOUNT_EMAILS") if config else None
         )
+        app_creds_file = (
+            config.get("GOOGLE_APPLICATION_CREDENTIALS") if config else None
+        )
 
         remove_white_listed_service_account_ids(
-            service_accounts, white_listed_sa_emails=white_listed_service_accounts
+            service_accounts,
+            app_creds_file=app_creds_file,
+            white_listed_sa_emails=white_listed_service_accounts,
         )
 
         # use a generic validityinfo object to hold all the service accounts
