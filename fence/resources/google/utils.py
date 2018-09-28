@@ -582,7 +582,7 @@ def get_service_account_ids_from_google_members(members):
     ]
 
 
-def get_users_from_google_members(members):
+def get_users_from_google_members(members, db=None):
     """
     Get User objects for all members on a Google project by checking db.
 
@@ -599,7 +599,7 @@ def get_users_from_google_members(members):
     result = []
     for member in members:
         print("member: {}".format(member))
-        user = get_user_from_google_member(member)
+        user = get_user_from_google_member(member, db=db)
         print("user: {}".format(user))
         if user:
             result.append(user)
@@ -613,7 +613,7 @@ def get_users_from_google_members(members):
     return result
 
 
-def get_user_from_google_member(member):
+def get_user_from_google_member(member, db=None):
     """
     Get User object for all members on a Google project by checking db.
 
@@ -624,9 +624,11 @@ def get_user_from_google_member(member):
     Return:
         fence.models.User: User from our db for member on Google project
     """
+    session = get_db_session(db)
+
     print("searching for : {}".format(member.email_id.lower()))
     linked_google_account = (
-        current_session.query(UserGoogleAccount)
+        session.query(UserGoogleAccount)
         .filter(UserGoogleAccount.email == member.email_id.lower().strip())
         .first()
     )
@@ -634,9 +636,7 @@ def get_user_from_google_member(member):
     if linked_google_account:
         print("linked_account: {}".format(linked_google_account.user_id))
         return (
-            current_session.query(User)
-            .filter(User.id == linked_google_account.user_id)
-            .first()
+            session.query(User).filter(User.id == linked_google_account.user_id).first()
         )
 
     return None
