@@ -53,6 +53,11 @@ def validation_check(db, config=None):
                 force_remove_service_account_from_access(
                     sa_email, google_project_id, db=db
                 )
+
+                # remove from list so we don't try to remove again
+                # if project is invalid too
+                sa_emails.remove(sa_email)
+
                 invalid_service_account_reasons[sa_email] = (
                     _get_service_account_removal_reason(validity_info))
 
