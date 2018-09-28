@@ -416,12 +416,14 @@ def get_project_ids_from_project_auth_ids(session, auth_ids):
     return project_ids
 
 
-def _force_remove_service_account_from_access_db(service_account_email, db=None):
+def _force_remove_service_account_from_access_db(
+    service_account, access_groups, db=None
+):
     """
     Remove the access of service account from db.
 
     Args:
-        service_account_email (str): service account email
+        service_account (str): service account email
         db(str): db connection string
 
     Returns:
@@ -432,12 +434,6 @@ def _force_remove_service_account_from_access_db(service_account_email, db=None)
 
     """
     session = get_db_session(db)
-
-    service_account = (
-        session.query(UserServiceAccount).filter_by(email=service_account_email).first()
-    )
-
-    access_groups = get_google_access_groups_for_service_account(service_account)
 
     for bucket_access_group in access_groups:
         sa_to_group = (
@@ -461,7 +457,7 @@ def _force_remove_service_account_from_access_db(service_account_email, db=None)
 
     for access in access_privileges:
         session.delete(access)
-    session.commit()
+        session.commit()
 
 
 def force_remove_service_account_from_access(
@@ -502,15 +498,12 @@ def force_remove_service_account_from_access(
                 )
         except Exception as exc:
             raise GoogleAPIError(
-                "Can not remove memeber {} from access group {}. Detail {}".format(
+                "Can not remove member {} from access group {}. Detail {}".format(
                     service_account.email, bucket_access_group.email, exc
                 )
             )
 
-    _force_remove_service_account_from_access_db(service_account_email, db)
-
-    session.delete(service_account)
-    session.commit()
+    _force_remove_service_account_from_access_db(service_account, access_groups, db)
 
 
 def _revoke_user_service_account_from_google(
@@ -859,6 +852,22 @@ def is_org_whitelisted(parent_org, white_listed_google_parent_orgs=None):
     )
 
     return parent_org in white_listed_google_parent_orgs
+
+
+def force_delete_service_account(service_account_email, db=None):
+    """
+    Delete from our db the given user service account by email.
+     Args:
+        service_account_email (str): user service account email
+        db(str): db connection string
+    """
+    session = get_db_session(db)
+    sa = (
+        session.query(UserServiceAccount).filter_by(email=service_account_email).first()
+    )
+    if sa:
+        session.delete(sa)
+        session.commit()
 
 
 def force_add_service_accounts_to_access(
