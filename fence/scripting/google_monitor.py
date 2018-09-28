@@ -5,6 +5,7 @@ This file contains scripts to monitor user-registered service accounts and
 their respective Google projects. The functions in this file will also
 handle invalid service accounts and projects.
 """
+import traceback
 from cirrus.google_cloud.iam import GooglePolicyMember
 from cirrus import GoogleCloudManager
 
@@ -104,7 +105,7 @@ def _is_valid_service_account(sa_email, google_project_id, config=None):
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
         print("Service Account determined invalid due to unhandled exception:")
-        print(exc)
+        traceback.print_exc()
         sa_validity = None
 
     return sa_validity
@@ -123,7 +124,7 @@ def _is_valid_google_project(google_project_id, db=None, config=None):
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
         print("Project determined invalid due to unhandled exception:")
-        print(exc)
+        traceback.print_exc()
         project_validity = None
 
     return project_validity
