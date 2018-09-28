@@ -534,7 +534,7 @@ def _revoke_user_service_account_from_google(
                         member_email=service_account.email, group_id=access_group.email
                     ):
 
-                        flask.current_app.logger.debug(
+                        logger.debug(
                             "Removed {} from google group {}".format(
                                 service_account.email, access_group.email
                             )
@@ -574,7 +574,7 @@ def add_user_service_account_to_google(
                         member_email=service_account.email, group_id=access_group.email
                     )
                     if response.get("id", None):
-                        flask.current_app.logger.debug(
+                        logger.debug(
                             "Successfully add member {} to google group {}.".format(
                                 service_account.email, access_group.email
                             )
@@ -807,7 +807,7 @@ def get_project_from_auth_id(project_auth_id, db=None):
 
 
 def remove_white_listed_service_account_ids(
-    service_account_ids, white_listed_sa_email=None
+    service_account_ids, white_listed_sa_emails=None
 ):
     """
     Remove any service account emails that should be ignored when
@@ -823,11 +823,12 @@ def remove_white_listed_service_account_ids(
     if monitoring_service_account in service_account_ids:
         service_account_ids.remove(monitoring_service_account)
 
-    white_listed_sa_email = white_listed_sa_email or flask.current_app.config.get(
-        "WHITE_LISTED_SERVICE_ACCOUNT_EMAILS", []
-    )
+    if white_listed_sa_emails is None:
+        white_listed_sa_emails = flask.current_app.config.get(
+            "WHITE_LISTED_SERVICE_ACCOUNT_EMAILS", []
+        )
 
-    for email in white_listed_sa_email:
+    for email in white_listed_sa_emails:
         if email in service_account_ids:
             service_account_ids.remove(email)
 
@@ -845,10 +846,8 @@ def is_org_whitelisted(parent_org, white_listed_google_parent_orgs=None):
         bool: whether or not the provide Google parent organization is whitelisted
     """
 
-    white_listed_google_parent_orgs = (
-        white_listed_google_parent_orgs
-        or flask.current_app.config.get("WHITE_LISTED_GOOGLE_PARENT_ORGS", {})
-    )
+    if white_listed_google_parent_orgs is None:
+        flask.current_app.config.get("WHITE_LISTED_GOOGLE_PARENT_ORGS", {})
 
     return parent_org in white_listed_google_parent_orgs
 

@@ -296,7 +296,13 @@ class GoogleProjectValidity(ValidityInfo):
             service_account_members
         )
 
-        remove_white_listed_service_account_ids(service_accounts)
+        white_listed_service_accounts = (
+            config.get("WHITE_LISTED_SERVICE_ACCOUNT_EMAILS") if config else None
+        )
+
+        remove_white_listed_service_account_ids(
+            service_accounts, white_listed_sa_emails=white_listed_service_accounts
+        )
 
         # use a generic validityinfo object to hold all the service accounts
         # validity. then check all the service accounts. Top level will be
