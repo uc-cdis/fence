@@ -100,9 +100,11 @@ def _is_valid_service_account(sa_email, google_project_id, config=None):
         sa_validity = GoogleServiceAccountValidity(sa_email, google_project_id)
         sa_validity.check_validity(
                 early_return=True, config=config)
-    except Exception:
+    except Exception as exc:
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
+        print("Project determined invalid due to unhandled exception:")
+        print(exc)
         sa_validity = None
 
     return sa_validity
@@ -117,9 +119,11 @@ def _is_valid_google_project(google_project_id, db=None, config=None):
         project_validity = GoogleProjectValidity(google_project_id)
         project_validity.check_validity(
                 early_return=True, db=db, config=config)
-    except Exception:
+    except Exception as exc:
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
+        print("Project determined invalid due to unhandled exception:")
+        print(exc)
         project_validity = None
 
     return project_validity
