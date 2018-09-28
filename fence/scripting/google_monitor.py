@@ -74,8 +74,6 @@ def validation_check(db, config=None):
                 "INVALID GOOGLE PROJECT {} DETECTED. "
                 "REMOVING ALL SERVICE ACCOUNTS...".format(google_project_id)
             )
-            import pprint
-            pprint.pprint(google_project_validity._info)
             for sa_email in sa_emails:
                 force_remove_service_account_from_access(
                     sa_email, google_project_id, db=db

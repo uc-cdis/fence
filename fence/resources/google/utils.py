@@ -598,9 +598,7 @@ def get_users_from_google_members(members, db=None):
     """
     result = []
     for member in members:
-        print("member: {}".format(member))
         user = get_user_from_google_member(member, db=db)
-        print("user: {}".format(user))
         if user:
             result.append(user)
         else:
@@ -626,15 +624,12 @@ def get_user_from_google_member(member, db=None):
     """
     session = get_db_session(db)
 
-    print("searching for : {}".format(member.email_id.lower()))
     linked_google_account = (
         session.query(UserGoogleAccount)
         .filter(UserGoogleAccount.email == member.email_id.lower().strip())
         .first()
     )
-    print("linked_account: {}".format(linked_google_account))
     if linked_google_account:
-        print("linked_account: {}".format(linked_google_account.user_id))
         return (
             session.query(User).filter(User.id == linked_google_account.user_id).first()
         )
