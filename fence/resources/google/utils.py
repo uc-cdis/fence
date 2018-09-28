@@ -627,9 +627,10 @@ def get_user_from_google_member(member):
     print("searching for : {}".format(member.email_id.lower()))
     linked_google_account = (
         current_session.query(UserGoogleAccount)
-        .filter(UserGoogleAccount.email == member.email_id.lower())
+        .filter(UserGoogleAccount.email == member.email_id.lower().strip())
         .first()
     )
+    print("linked_account: {}".format(linked_google_account))
     if linked_google_account:
         print("linked_account: {}".format(linked_google_account.user_id))
         return (
