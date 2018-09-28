@@ -598,7 +598,9 @@ def get_users_from_google_members(members):
     """
     result = []
     for member in members:
+        print("member: {}".format(member))
         user = get_user_from_google_member(member)
+        print("user: {}".format(user))
         if user:
             result.append(user)
         else:
@@ -622,12 +624,14 @@ def get_user_from_google_member(member):
     Return:
         fence.models.User: User from our db for member on Google project
     """
+    print("searching for : {}".format(member.email_id.lower()))
     linked_google_account = (
         current_session.query(UserGoogleAccount)
         .filter(UserGoogleAccount.email == member.email_id.lower())
         .first()
     )
     if linked_google_account:
+        print("linked_account: {}".format(linked_google_account.user_id))
         return (
             current_session.query(User)
             .filter(User.id == linked_google_account.user_id)

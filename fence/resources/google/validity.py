@@ -254,6 +254,7 @@ class GoogleProjectValidity(ValidityInfo):
         users_in_project = None
         if user_members is not None:
             try:
+                print(user_members)
                 users_in_project = get_users_from_google_members(user_members)
                 self.set("members_exist_in_fence", True)
             except Exception:
