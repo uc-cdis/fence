@@ -271,9 +271,16 @@ class GoogleProjectValidity(ValidityInfo):
             )
 
             service_account_id = str(self.new_service_account)
+
+            google_sa_domains = (
+                config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS") if config else None
+            )
             # we do NOT need to check the service account type and external access
             # for google-managed accounts.
-            if is_google_managed_service_account(service_account_id):
+            if is_google_managed_service_account(
+                service_account_id,
+                google_managed_service_account_domains=google_sa_domains,
+            ):
                 service_account_validity_info.check_validity(
                     early_return=early_return, check_type_and_access=False
                 )
@@ -320,9 +327,15 @@ class GoogleProjectValidity(ValidityInfo):
                 service_account, self.google_project_id, google_project_number
             )
 
+            google_sa_domains = (
+                config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS") if config else None
+            )
             # we do NOT need to check the service account type and external access
             # for google-managed accounts.
-            if is_google_managed_service_account(service_account_id):
+            if is_google_managed_service_account(
+                service_account_id,
+                google_managed_service_account_domains=google_sa_domains,
+            ):
                 service_account_validity_info.check_validity(
                     early_return=early_return, check_type_and_access=False
                 )
