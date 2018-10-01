@@ -203,40 +203,44 @@ def create_google_access_key(client_id, user_id, username, proxy_group_id):
     return key, service_account
 
 
-def _get_linked_google_account(user_id):
+def _get_linked_google_account(user_id, db=None):
     """
     Hit db to check for linked google account of user
     """
+    session = get_db_session(db)
+
     g_account = (
-        current_session.query(UserGoogleAccount)
+        session.query(UserGoogleAccount)
         .filter(UserGoogleAccount.user_id == user_id)
         .first()
     )
     return g_account
 
 
-def get_linked_google_account_email(user_id):
+def get_linked_google_account_email(user_id, db=None):
     """
     Hit db to check for linked google account email of user
     """
     google_email = None
     if user_id:
-        g_account = _get_linked_google_account(user_id)
+        g_account = _get_linked_google_account(user_id, db=db)
         if g_account:
             google_email = g_account.email
     return google_email
 
 
-def get_linked_google_account_exp(user_id):
+def get_linked_google_account_exp(user_id, db=None):
     """
     Hit db to check for expiration of linked google account of user
     """
+    session = get_db_session(db)
+
     google_account_exp = 0
     if user_id:
-        g_account = _get_linked_google_account(user_id)
+        g_account = _get_linked_google_account(user_id, db=db)
         if g_account:
             g_account_to_proxy_group = (
-                current_session.query(UserGoogleAccountToProxyGroup)
+                session.query(UserGoogleAccountToProxyGroup)
                 .filter(
                     UserGoogleAccountToProxyGroup.user_google_account_id == g_account.id
                 )
@@ -533,27 +537,31 @@ def get_all_registered_service_accounts(db=None):
     return list(registered_service_accounts)
 
 
-def get_registered_service_accounts(google_project_id):
+def get_registered_service_accounts(google_project_id, db=None):
+    session = get_db_session(db)
+
     return (
-        current_session.query(UserServiceAccount)
+        session.query(UserServiceAccount)
         .filter_by(google_project_id=google_project_id)
         .all()
     )
 
 
-def get_project_access_from_service_accounts(service_accounts):
+def get_project_access_from_service_accounts(service_accounts, db=None):
     """
     Get a list of projects all the provided service accounts have
     access to. list will be of UserServiceAccount db objects
 
     Returns a list of Project objects
     """
+    session = get_db_session(db)
+
     projects = []
     for service_account in service_accounts:
         access = [
             access_privilege.project
             for access_privilege in (
-                current_session.query(ServiceAccountAccessPrivilege)
+                session.query(ServiceAccountAccessPrivilege)
                 .filter_by(service_account_id=service_account.id)
                 .all()
             )

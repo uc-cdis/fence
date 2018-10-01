@@ -360,9 +360,11 @@ class GoogleProjectValidity(ValidityInfo):
 
         # get the service accounts for the project to determine all the data
         # the project can access through the service accounts
-        service_accounts = get_registered_service_accounts(self.google_project_id)
+        service_accounts = get_registered_service_accounts(
+            self.google_project_id, db=db
+        )
         service_account_project_access = get_project_access_from_service_accounts(
-            service_accounts
+            service_accounts, db=db
         )
 
         # use a generic validityinfo object to hold all the projects validity
