@@ -849,7 +849,9 @@ def is_org_whitelisted(parent_org, white_listed_google_parent_orgs=None):
     """
 
     if white_listed_google_parent_orgs is None:
-        flask.current_app.config.get("WHITE_LISTED_GOOGLE_PARENT_ORGS", {})
+        white_listed_google_parent_orgs = flask.current_app.config.get(
+            "WHITE_LISTED_GOOGLE_PARENT_ORGS", {}
+        )
 
     return parent_org in white_listed_google_parent_orgs
 

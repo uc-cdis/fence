@@ -291,13 +291,16 @@ class GoogleProjectValidity(ValidityInfo):
                     early_return=early_return, check_type_and_access=True, config=config
                 )
 
-            if not service_account_validity_info and early_return:
-                return
-
             # update project with error info from the service accounts
             new_service_account_validity.set(
                 service_account_id, service_account_validity_info
             )
+
+            if not service_account_validity_info and early_return:
+                # if we need to return early for invalid SA, make sure to include
+                # error details and invalidate the overall validity
+                self.set("new_service_account", new_service_account_validity)
+                return
 
         self.set("new_service_account", new_service_account_validity)
 
@@ -348,13 +351,16 @@ class GoogleProjectValidity(ValidityInfo):
                     early_return=early_return, check_type_and_access=True, config=config
                 )
 
-            if not service_account_validity_info and early_return:
-                return
-
             # update project with error info from the service accounts
             service_accounts_validity.set(
                 service_account_id, service_account_validity_info
             )
+
+            if not service_account_validity_info and early_return:
+                # if we need to return early for invalid SA, make sure to include
+                # error details and invalidate the overall validity
+                self.set("service_accounts", service_accounts_validity)
+                return
 
         self.set("service_accounts", service_accounts_validity)
 
