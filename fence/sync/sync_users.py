@@ -906,10 +906,7 @@ class UserSyncer(object):
             try:
                 for resource in resources:
                     # don't care about response from delete
-                    self.arborist_client.delete_resource(
-                        "/" + resource["name"]
-                    )
-                    self.arborist_client.create_resource("/", resource)
+                    self.arborist_client.delete_resource("/" + resource["name"])
             except ArboristError as e:
                 self.logger.error(e)
                 return False
