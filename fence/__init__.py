@@ -6,6 +6,7 @@ import cirrus
 import flask
 from flask_cors import CORS
 from flask_sqlalchemy_session import flask_scoped_session, current_session
+from cdislogging import get_stream_handler
 import urlparse
 from userdatamodel.driver import SQLAlchemyDriver
 
@@ -26,6 +27,7 @@ import fence.blueprints.data
 import fence.blueprints.login
 import fence.blueprints.oauth2
 import fence.blueprints.rbac
+import fence.blueprints.misc
 import fence.blueprints.storage_creds
 import fence.blueprints.user
 import fence.blueprints.well_known
@@ -33,6 +35,8 @@ import fence.blueprints.link
 import fence.blueprints.google
 import fence.client
 
+from cdislogging import get_logger
+logger = get_logger(__name__)
 
 app = flask.Flask(__name__)
 CORS(app=app, headers=["content-type", "accept"], expose_headers="*")
@@ -43,6 +47,7 @@ def app_config(app, settings="fence.settings", root_dir=None):
     Set up the config for the Flask app.
     """
     app.config.from_object(settings)
+    app.__dict__["logger"] = logger
     if "BASE_URL" not in app.config:
         base_url = app.config["HOSTNAME"]
         if not base_url.startswith("http"):
@@ -93,6 +98,8 @@ def app_register_blueprints(app):
 
     if app.config.get("ARBORIST"):
         app.register_blueprint(fence.blueprints.rbac.blueprint, url_prefix="/rbac")
+
+    fence.blueprints.misc.register_misc(app)
 
     @app.route("/")
     def root():
@@ -169,6 +176,7 @@ def app_sessions(app):
 
 
 def app_init(app, settings="fence.settings", root_dir=None):
+    app.logger.addHandler(get_stream_handler())
     app_config(app, settings=settings, root_dir=root_dir)
     app_sessions(app)
     app_register_blueprints(app)

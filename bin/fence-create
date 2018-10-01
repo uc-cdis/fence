@@ -24,6 +24,7 @@ from fence.scripting.fence_create import (
     delete_expired_service_accounts,
     verify_bucket_access_group,
     verify_user_registration,
+    force_update_google_link,
 
 )
 
@@ -229,6 +230,18 @@ def parse_arguments():
         help='time in seconds until token expiration',
     )
 
+    force_link_google = subparsers.add_parser('force-link-google')
+    force_link_google.add_argument(
+        '--username',
+        required=True,
+        help='User to link with',
+    )
+    force_link_google.add_argument(
+        '--google-email',
+        required=True,
+        help='Email to link to',
+    )
+
     return parser.parse_args()
 
 
@@ -299,7 +312,13 @@ def main():
     elif args.action == 'google-init':
         google_init(DB)
     elif args.action == 'google-manage-user-registrations':
-        verify_user_registration(DB)
+        import local_settings
+        config = {}
+        config["GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS"] = local_settings.GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS
+        config["WHITE_LISTED_SERVICE_ACCOUNT_EMAILS"] = local_settings.WHITE_LISTED_SERVICE_ACCOUNT_EMAILS
+        config["WHITE_LISTED_GOOGLE_PARENT_ORGS"] = local_settings.WHITE_LISTED_GOOGLE_PARENT_ORGS
+        config["WHITE_LISTED_SERVICE_ACCOUNT_EMAILS"] = local_settings.WHITE_LISTED_SERVICE_ACCOUNT_EMAILS
+        verify_user_registration(DB, config)
     elif args.action == 'google-manage-account-access':
         remove_expired_google_accounts_from_proxy_groups(DB)
     elif args.action == 'google-bucket-create':
@@ -363,6 +382,13 @@ def main():
                 .format(args.type)
             )
             sys.exit(1)
+    elif args.action == 'force-link-google':
+        exp = force_update_google_link(
+            DB,
+            username=args.username,
+            google_email=args.google_email
+        )
+        print(exp)
 
 
 if __name__ == '__main__':

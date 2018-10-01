@@ -16,7 +16,7 @@ def add_new_g_acnt_mock(db_session):
     mock.return_value.id = 0
     mock.return_value.email = "test"
 
-    patcher = patch("fence.blueprints.link._add_new_user_google_account", mock)
+    patcher = patch("fence.blueprints.link.add_new_user_google_account", mock)
     patcher.start()
 
     yield mock

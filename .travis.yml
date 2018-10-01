@@ -16,7 +16,7 @@ addons:
   postgresql: "9.4"
 
 env:
-  - REPOSITORY="uc-cdis/authutils" PR_NUMBER="$TRAVIS_PULL_REQUEST"
+  - REPOSITORY="uc-cdis/fence" PR_NUMBER="$TRAVIS_PULL_REQUEST"
 
 install:
   - pip uninstall -y six || true # travis installs wrong version
@@ -30,6 +30,7 @@ install:
   - if [[ $TRAVIS_PYTHON_VERSION == 3.6 ]]; then pip install -e git+https://git@github.com/uc-cdis/wool.git#egg=wool; fi
 
 before_script:
+  - sudo rm -f /etc/boto.cfg
   - mkdir -p tests/resources/keys; cd tests/resources/keys; openssl genrsa -out test_private_key.pem 2048; openssl rsa -in test_private_key.pem -pubout -out test_public_key.pem
   - openssl genrsa -out test_private_key_2.pem 2048; openssl rsa -in test_private_key_2.pem -pubout -out test_public_key_2.pem
   - cd -
