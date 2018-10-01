@@ -79,7 +79,7 @@ def get_google_project_membership(project_id, google_cloud_manager):
         List(GooglePolicyMember): list of members on project's IAM
     """
 
-    google_cloud_manager.get_project_membership(project_id)
+    return google_cloud_manager.get_project_membership(project_id)
 
 
 def get_google_project_parent_org(google_cloud_manager):
@@ -94,12 +94,13 @@ def get_google_project_parent_org(google_cloud_manager):
         str: The Google projects parent organization name or None if it does't have one
     """
     try:
-        google_cloud_manager.get_project_organization()
+        return google_cloud_manager.get_project_organization()
     except Exception as exc:
         logger.error(
                 "Could not determine if Google project (id: {}) has parent org"
                 "due to error (Details: {})".format(google_cloud_manager.project_id, exc)
         )
+        return None
 
 
 def get_google_project_valid_users_and_service_accounts(
@@ -333,11 +334,17 @@ def is_user_member_of_all_google_projects(
         bool: whether or not the given user is a member of ALL of the provided
               Google project IDs
     """
+    is_member = False
     for google_project_id in google_project_ids:
         google_cloud_manager = GoogleCloudManager(google_project_id)
         google_cloud_manager.open()
-        is_user_member_of_google_project(user_id, google_cloud_manager, db, membership)
+        is_member = is_user_member_of_google_project(user_id, google_cloud_manager, db, membership)
         google_cloud_manager.close()
+
+        if not is_member:
+            return False
+
+    return True
 
 
 def do_all_users_have_access_to_project(users, project_id):
