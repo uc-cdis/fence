@@ -237,7 +237,8 @@ def is_service_account_from_google_project(
         service_account_name = service_account_email.split("@")[0]
 
         if is_google_managed_service_account(
-            service_account_email, google_managed_sa_domains
+            service_account_email,
+            google_managed_service_account_domains=google_managed_sa_domains,
         ):
             return (
                 service_account_name == "service-{}".format(project_number)

@@ -282,11 +282,13 @@ class GoogleProjectValidity(ValidityInfo):
                 google_managed_service_account_domains=google_sa_domains,
             ):
                 service_account_validity_info.check_validity(
-                    early_return=early_return, check_type_and_access=False
+                    early_return=early_return,
+                    check_type_and_access=False,
+                    config=config,
                 )
             else:
                 service_account_validity_info.check_validity(
-                    early_return=early_return, check_type_and_access=True
+                    early_return=early_return, check_type_and_access=True, config=config
                 )
 
             if not service_account_validity_info and early_return:
@@ -337,11 +339,13 @@ class GoogleProjectValidity(ValidityInfo):
                 google_managed_service_account_domains=google_sa_domains,
             ):
                 service_account_validity_info.check_validity(
-                    early_return=early_return, check_type_and_access=False
+                    early_return=early_return,
+                    check_type_and_access=False,
+                    config=config,
                 )
             else:
                 service_account_validity_info.check_validity(
-                    early_return=early_return, check_type_and_access=True
+                    early_return=early_return, check_type_and_access=True, config=config
                 )
 
             if not service_account_validity_info and early_return:
