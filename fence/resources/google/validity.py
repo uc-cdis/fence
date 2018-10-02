@@ -249,7 +249,7 @@ class GoogleProjectValidity(ValidityInfo):
                 get_google_project_valid_users_and_service_accounts(
                     self.google_project_id,
                     self.google_cloud_manager,
-                    membership)
+                    membership=membership)
             )
             self.set("valid_member_types", True)
         except Exception:

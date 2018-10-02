@@ -99,7 +99,9 @@ def get_google_project_parent_org(google_cloud_manager):
     except Exception as exc:
         logger.error(
                 "Could not determine if Google project (id: {}) has parent org"
-                "due to error (Details: {})".format(google_cloud_manager.project_id, exc)
+                "due to error (Details: {})"
+                .format(getattr(google_cloud_manager, "project_id", "unknown")
+                        , exc)
         )
         return None
 
@@ -309,7 +311,8 @@ def is_user_member_of_google_project(
         logger.error(
             "Could not determine if user (id: {} is from project:"
             " {} due to error. Details: {}"
-            .format(user_id, google_cloud_manager.project_id, exc))
+            .format(getattr(google_cloud_manager, "project_id", "unknown"),
+                    exc))
         return False
 
     return True
