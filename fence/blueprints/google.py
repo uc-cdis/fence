@@ -419,10 +419,8 @@ class GoogleServiceAccount(Resource):
         google_project_id = registered_service_account.google_project_id
 
         # check if user has permission to delete the service account
-        gcm = GoogleCloudManager(google_project_id)
-        gcm.open()
-        authorized = is_user_member_of_google_project(user_id, gcm)
-        gcm.close()
+        with GoogleCloudManager(google_project_id) as gcm:
+            authorized = is_user_member_of_google_project(user_id, gcm)
 
         if not authorized:
             return (

@@ -57,13 +57,14 @@ def get_google_project_number(google_project_id, google_cloud_manager):
     Returns:
         str: string repsentation of an int64 uniquely identifying a Google project
     """
-    response = google_cloud_manager.get_project_info()
-    project_number = response.get("projectNumber")
-
-    if not project_number:
+    try:
+        response = google_cloud_manager.get_project_info()
+        return response.get("projectNumber")
+    except Exception as exc:
+        logger.error("Could not determine google project number for Project"
+                     "ID: {} due to error. (Details : {})"
+                     .format(google_project_id, exc))
         return None
-
-    return project_number
 
 
 def get_google_project_membership(project_id, google_cloud_manager):
@@ -336,15 +337,13 @@ def is_user_member_of_all_google_projects(
     """
     is_member = False
     for google_project_id in google_project_ids:
-        google_cloud_manager = GoogleCloudManager(google_project_id)
-        google_cloud_manager.open()
-        is_member = is_user_member_of_google_project(user_id, google_cloud_manager, db, membership)
-        google_cloud_manager.close()
+        with GoogleCloudManager(google_project_id) as google_cloud_manager:
+            is_member = is_user_member_of_google_project(user_id, google_cloud_manager, db, membership)
 
-        if not is_member:
-            return False
+            if not is_member:
+                return False
 
-    return True
+    return is_member
 
 
 def do_all_users_have_access_to_project(users, project_id):
