@@ -38,7 +38,7 @@ def build_redirect_url(hostname, path):
 def login_user(request, username, provider):
     user = current_session.query(
         User).filter(func.lower(User.username) == username.lower()).first()
-    if not user:
+    if not user and current_app.config.get(['INSERT_ON_LOGIN'], True):
         user = User(username=username)
         idp = (
             current_session.query(IdentityProvider)
@@ -49,6 +49,8 @@ def login_user(request, username, provider):
         user.identity_provider = idp
         current_session.add(user)
         current_session.commit()
+    else:
+	raise Unauthorized("Please login")
     flask.g.user = user
     flask.g.scopes = ["_all"]
     flask.g.token = None
