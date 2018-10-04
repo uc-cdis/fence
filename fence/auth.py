@@ -39,7 +39,7 @@ def login_user(request, username, provider):
     user = current_session.query(
         User).filter(func.lower(User.username) == username.lower()).first()
     if not user:
-        if current_app.config.get(['INSERT_ON_LOGIN'], True):
+        if flask.current_app.config.get(['INSERT_ON_LOGIN'], True):
             user = User(username=username)
             idp = (
                 current_session.query(IdentityProvider)
