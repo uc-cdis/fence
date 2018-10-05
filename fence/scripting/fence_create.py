@@ -1230,15 +1230,14 @@ def link_external_bucket(db, name):
     return access_group.email
 
 
-def verify_user_registration(DB):
+def verify_user_registration(DB, config):
     """
     Validate user registration
     """
-
     import fence.settings
-
     cirrus_config.update(**fence.settings.CIRRUS_CFG)
-    validation_check(DB)
+
+    validation_check(DB, config)
 
 
 def force_update_google_link(DB, username, google_email):

@@ -29,12 +29,15 @@ import fence.blueprints.data
 import fence.blueprints.login
 import fence.blueprints.oauth2
 import fence.blueprints.rbac
+import fence.blueprints.misc
 import fence.blueprints.storage_creds
 import fence.blueprints.user
 import fence.blueprints.well_known
 import fence.blueprints.link
 import fence.blueprints.google
 
+from cdislogging import get_logger
+logger = get_logger(__name__)
 
 app = flask.Flask(__name__)
 CORS(app=app, headers=["content-type", "accept"], expose_headers="*")
@@ -45,6 +48,7 @@ def app_config(app, settings="fence.settings", root_dir=None):
     Set up the config for the Flask app.
     """
     app.config.from_object(settings)
+    app.__dict__["logger"] = logger
     if "BASE_URL" not in app.config:
         base_url = app.config["HOSTNAME"]
         if not base_url.startswith("http"):
@@ -107,6 +111,8 @@ def app_register_blueprints(app):
 
     if app.config.get("ARBORIST"):
         app.register_blueprint(fence.blueprints.rbac.blueprint, url_prefix="/rbac")
+
+    fence.blueprints.misc.register_misc(app)
 
     @app.route("/")
     def root():

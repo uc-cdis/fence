@@ -5,6 +5,7 @@ import json
 from random import SystemRandom
 import re
 import string
+import requests
 from sqlalchemy import func
 from urllib import urlencode
 from urlparse import parse_qs, urlsplit, urlunsplit
@@ -15,6 +16,7 @@ from werkzeug.datastructures import ImmutableMultiDict
 
 from fence.models import Client, GrantType, User
 from fence.jwt.token import CLIENT_ALLOWED_SCOPES
+
 
 rng = SystemRandom()
 alphanumeric = string.ascii_uppercase + string.ascii_lowercase + string.digits
@@ -167,7 +169,7 @@ def clear_cookies(response):
     """
     Set all cookies to empty and expired.
     """
-    for cookie_name in flask.request.cookies.values():
+    for cookie_name in flask.request.cookies.keys():
         response.set_cookie(cookie_name, "", expires=0)
 
 
@@ -204,3 +206,43 @@ def split_url_and_query_params(url):
     query_params = parse_qs(query_string)
     url = urlunsplit((scheme, netloc, path, None, fragment))
     return url, query_params
+
+
+def send_email(from_email, to_emails, subject, text, smtp_domain):
+    """
+    Send email to group of emails using mail gun api.
+
+    https://app.mailgun.com/
+
+    Args:
+        from_email(str): from email
+        to_emails(list): list of emails to receive the messages
+        text(str): the text message
+        smtp_domain(dict): smtp domain server
+
+            {
+                "smtp_hostname": "smtp.mailgun.org",
+                "default_login": "postmaster@mailgun.planx-pla.net",
+                "api_url": "https://api.mailgun.net/v3/mailgun.planx-pla.net",
+                "smtp_password": password",
+                "api_key": "api key"
+            }
+
+    Returns:
+        Http response
+
+    Exceptions:
+        KeyError
+
+    """
+    from fence.settings import GUN_MAIL
+
+    api_key = GUN_MAIL[smtp_domain]['api_key']
+    email_url = GUN_MAIL[smtp_domain]['api_url'] + '/messages'
+
+    return requests.post(email_url, auth=('api', api_key), data={
+        'from': from_email,
+        'to': to_emails,
+        'subject': subject,
+        'text': text
+    })
