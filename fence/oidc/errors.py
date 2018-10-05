@@ -6,7 +6,26 @@ class OIDCError(AuthError):
     Base class for errors specified by OIDC.
     """
 
-    pass
+    status_code = 400
+    error_code = "oidc_error"
+
+    def __init__(self, message=""):
+        self.message = message
+
+    def __str__(self):
+        msg = self.error_code
+        if self.message:
+            msg += self.message
+        return msg
+
+
+class InvalidClientError(OIDCError):
+    """
+    The client in an OIDC request has failed to authorize.
+    """
+
+    status_code = 401
+    error_code = "invalid_client"
 
 
 class InteractionRequiredError(OIDCError):
@@ -17,12 +36,10 @@ class InteractionRequiredError(OIDCError):
     completed without displaying a user interface for End-User interaction.
     """
 
-    def __init__(self, message="", error_uri=None):
-        super(InteractionRequiredError, self).__init__(message, error_uri)
-        self.error_code = "interaction_required"
+    error_code = "interaction_required"
 
 
-class LoginRequiredError(OIDCError):
+class LoginRequiredError(InteractionRequiredError):
     """
     The Authorization Server requires End-User authentication. This error MAY
     be returned when the prompt parameter value in the Authentication Request
@@ -30,12 +47,10 @@ class LoginRequiredError(OIDCError):
     displaying a user interface for End-User authentication.
     """
 
-    def __init__(self, message="", error_uri=None):
-        super(InteractionRequiredError, self).__init__(message, error_uri)
-        self.error_code = "interaction_required"
+    pass
 
 
-class AccountSelectionRequiredError(OIDCError):
+class AccountSelectionRequiredError(InteractionRequiredError):
     """
     The End-User is REQUIRED to select a session at the Authorization Server.
     The End-User MAY be authenticated at the Authorization Server with
@@ -46,12 +61,10 @@ class AccountSelectionRequiredError(OIDCError):
     use.
     """
 
-    def __init__(self, message="", error_uri=None):
-        super(InteractionRequiredError, self).__init__(message, error_uri)
-        self.error_code = "interaction_required"
+    pass
 
 
-class ConsentRequiredError(OIDCError):
+class ConsentRequiredError(InteractionRequiredError):
     """
     The Authorization Server requires End-User consent. This error MAY be
     returned when the prompt parameter value in the Authentication Request is
@@ -59,59 +72,47 @@ class ConsentRequiredError(OIDCError):
     a user interface for End-User consent.
     """
 
-    def __init__(self, message="", error_uri=None):
-        super(InteractionRequiredError, self).__init__(message, error_uri)
-        self.error_code = "interaction_required"
+    pass
 
 
-class InvalidRequestUriError(OIDCError):
+class InvalidRequestUriError(InteractionRequiredError):
     """
     The request_uri in the Authorization Request returns an error or contains
     invalid data.
     """
 
-    def __init__(self, message="", error_uri=None):
-        super(InteractionRequiredError, self).__init__(message, error_uri)
-        self.error_code = "interaction_required"
+    pass
 
 
-class InvalidRequestObjectError(OIDCError):
+class InvalidRequestObjectError(InteractionRequiredError):
     """
     The request parameter contains an invalid Request Object.
     """
 
-    def __init__(self, message="", error_uri=None):
-        super(InteractionRequiredError, self).__init__(message, error_uri)
-        self.error_code = "interaction_required"
+    pass
 
 
-class RequestNotSupportedError(OIDCError):
+class RequestNotSupportedError(InteractionRequiredError):
     """
     The OP does not support use of the request parameter defined in Section 6.
     """
 
-    def __init__(self, message="", error_uri=None):
-        super(InteractionRequiredError, self).__init__(message, error_uri)
-        self.error_code = "interaction_required"
+    pass
 
 
-class RequestUriNotSupportedError(OIDCError):
+class RequestUriNotSupportedError(InteractionRequiredError):
     """
     The OP does not support use of the request_uri parameter defined in Section
     6.
     """
 
-    def __init__(self, message="", error_uri=None):
-        super(InteractionRequiredError, self).__init__(message, error_uri)
-        self.error_code = "interaction_required"
+    pass
 
 
-class RegistrationNotSupportedError(OIDCError):
+class RegistrationNotSupportedError(InteractionRequiredError):
     """
     The OP does not support use of the registration parameter defined in
     Section 7.2.1.
     """
 
-    def __init__(self, message="", error_uri=None):
-        super(InteractionRequiredError, self).__init__(message, error_uri)
-        self.error_code = "interaction_required"
+    pass

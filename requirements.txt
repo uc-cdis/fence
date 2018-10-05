@@ -1,10 +1,11 @@
-Authlib[crypto]==0.4.1
+Authlib==0.9
 oauth2client<4.0dev>=2.0.0
 addict==2.1.1
 boto>=2.36.0<3.0.0
 botocore>=1.7<1.10.39
 boto3>=1.5<1.6
 cryptography>=2.1.2
+enum34>=1.1.6
 Flask==0.10.1
 Flask-CORS==3.0.3
 Flask_OAuthlib==0.9.4

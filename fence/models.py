@@ -9,7 +9,10 @@ The `migrate` function in this file is called every init and can be used for
 database migrations.
 """
 
+from enum import Enum
+
 from authlib.flask.oauth2.sqla import OAuth2AuthorizationCodeMixin, OAuth2ClientMixin
+import bcrypt
 import flask
 from sqlalchemy import (
     Integer,
@@ -52,6 +55,33 @@ from userdatamodel.models import (
 )
 
 
+class ClientAuthType(Enum):
+    """
+    List the possible types of OAuth client authentication, which are
+
+    - None (no authentication).
+    - Basic (using basic HTTP authorization header to include the client ID & secret).
+    - POST (the client ID & secret are included in the body of a POST request).
+
+    These all have a corresponding string which identifies them to authlib.
+    """
+
+    none = "none"
+    basic = "client_secret_basic"
+    post = "client_secret_post"
+
+
+class GrantType(Enum):
+    """
+    Enumerate the allowed grant types for the OAuth2 flow.
+    """
+
+    code = "authorization_code"
+    refresh = "refresh_token"
+    implicit = "implicit"
+    client_credentials = "client_credentials"
+
+
 class Client(Base, OAuth2ClientMixin):
 
     __tablename__ = "client"
@@ -78,20 +108,37 @@ class Client(Base, OAuth2ClientMixin):
     # public or confidential
     is_confidential = Column(Boolean, default=True)
 
+    # NOTE: DEPRECATED
+    # Client now uses `redirect_uri` column, from authlib client model
+    _redirect_uris = Column(Text)
+
     _allowed_scopes = Column(Text, nullable=False, default="")
 
-    _redirect_uris = Column(Text)
     _default_scopes = Column(Text)
     _scopes = ["compute", "storage", "user"]
 
-    def __init__(self, **kwargs):
+    # note that authlib adds a response_type column which is not used here
+
+    def __init__(self, client_id, **kwargs):
+        """
+        NOTE that for authlib, the client must have an attribute ``redirect_uri`` which
+        is a newline-delimited list of valid redirect URIs.
+        """
         if "allowed_scopes" in kwargs:
             allowed_scopes = kwargs.pop("allowed_scopes")
             if isinstance(allowed_scopes, list):
                 kwargs["_allowed_scopes"] = " ".join(allowed_scopes)
             else:
                 kwargs["_allowed_scopes"] = allowed_scopes
-        super(Client, self).__init__(**kwargs)
+        if "redirect_uris" in kwargs:
+            redirect_uris = kwargs.pop("redirect_uris")
+            if isinstance(redirect_uris, list):
+                kwargs["redirect_uri"] = "\n".join(redirect_uris)
+            else:
+                kwargs["redirect_uri"] = redirect_uris
+        # default grant types to just 'authorization_code'
+        self.grant_types = kwargs.pop("grant_types", ["authorization_code"])
+        super(Client, self).__init__(client_id=client_id, **kwargs)
 
     @property
     def allowed_scopes(self):
@@ -110,12 +157,6 @@ class Client(Base, OAuth2ClientMixin):
         return "confidential"
 
     @property
-    def redirect_uris(self):
-        if self._redirect_uris:
-            return self._redirect_uris.split()
-        return []
-
-    @property
     def default_redirect_uri(self):
         return self.redirect_uris[0]
 
@@ -130,15 +171,43 @@ class Client(Base, OAuth2ClientMixin):
         with flask.current_app.db.session as session:
             return session.query(Client).filter_by(client_id=client_id).first()
 
+    def check_client_type(self, client_type):
+        return (client_type == "confidential" and self.is_confidential) or (
+            client_type == "public" and not self.is_confidential
+        )
+
+    def check_client_secret(self, client_secret):
+        check_hash = bcrypt.hashpw(
+            client_secret.encode("utf-8"), self.client_secret.encode("utf-8")
+        )
+        return check_hash == self.client_secret
+
     def check_requested_scopes(self, scopes):
+        if "openid" not in scopes:
+            return False
         return set(self.allowed_scopes).issuperset(scopes)
+
+    def check_token_endpoint_auth_method(self, method):
+        """
+        Only basic auth is supported. If anything else gets added, change this
+        """
+        protected_types = [ClientAuthType.basic.value, ClientAuthType.post.value]
+        return (self.is_confidential and method in protected_types) or (
+            not self.is_confidential and method == ClientAuthType.none.value
+        )
 
     def validate_scopes(self, scopes):
         scopes = scopes[0].split(",")
         return all(scope in self._scopes for scope in scopes)
 
-    def check_redirect_uri(self, redirect_uri):
-        return redirect_uri in self.redirect_uris
+    def check_response_type(self, response_type):
+        allowed_response_types = []
+        if "authorization_code" in self.grant_types:
+            allowed_response_types.append("code")
+        if "implicit" in self.grant_types:
+            allowed_response_types.append("id_token")
+            allowed_response_types.append("id_token token")
+        return response_type in allowed_response_types
 
 
 class AuthorizationCode(Base, OAuth2AuthorizationCodeMixin):
@@ -467,6 +536,8 @@ def migrate(driver):
         metadata=md,
     )
 
+    _update_for_authlib(driver, md)
+
 
 def add_foreign_key_column_if_not_exist(
     table_name,
@@ -489,7 +560,7 @@ def drop_foreign_key_column_if_exist(table_name, column_name, driver, metadata):
     drop_column_if_exist(table_name, column_name, driver, metadata)
 
 
-def add_column_if_not_exist(table_name, column, driver, metadata):
+def add_column_if_not_exist(table_name, column, driver, metadata, default=None):
     column_name = column.compile(dialect=driver.engine.dialect)
     column_type = column.type.compile(driver.engine.dialect)
 
@@ -501,6 +572,11 @@ def add_column_if_not_exist(table_name, column, driver, metadata):
             )
             if not column.nullable:
                 command += " NOT NULL"
+            if getattr(column, "default"):
+                default = column.default.arg
+                if isinstance(default, str):
+                    default = "'{}'".format(default)
+                command += " DEFAULT {}".format(default)
             command += ";"
 
             session.execute(command)
@@ -664,3 +740,92 @@ def _add_google_project_id(driver, md):
         driver=driver,
         metadata=md,
     )
+
+
+def _update_for_authlib(driver, md):
+    """
+    Going to authlib=0.9, the OAuth2ClientMixin from authlib, which the client model
+    inherits from, adds these new columns, some of which were added directly to the
+    client model in order to override some things like nullability.
+    """
+    CLIENT_COLUMNS_TO_ADD = [
+        Column("issued_at", Integer),
+        Column("expires_at", Integer, nullable=False, default=0),
+        Column("redirect_uri", Text, nullable=False, default=""),
+        Column(
+            "token_endpoint_auth_method",
+            String(48),
+            default="client_secret_basic",
+            server_default="client_secret_basic",
+        ),
+        Column("grant_type", Text, nullable=False, default=""),
+        Column("response_type", Text, nullable=False, default=""),
+        Column("scope", Text, nullable=False, default=""),
+        Column("client_name", String(100)),
+        Column("client_uri", Text),
+        Column("logo_uri", Text),
+        Column("contact", Text),
+        Column("tos_uri", Text),
+        Column("policy_uri", Text),
+        Column("jwks_uri", Text),
+        Column("jwks_text", Text),
+        Column("i18n_metadata", Text),
+        Column("software_id", String(36)),
+        Column("software_version", String(48)),
+    ]
+    add_client_col = lambda col: add_column_if_not_exist(
+        Client.__tablename__, column=col, driver=driver, metadata=md
+    )
+    map(add_client_col, CLIENT_COLUMNS_TO_ADD)
+    CODE_COLUMNS_TO_ADD = [Column("response_type", Text, default="")]
+
+    with driver.session as session:
+        for client in session.query(Client).all():
+            # add redirect_uri
+            if not client.redirect_uri:
+                redirect_uris = getattr(client, "_redirect_uris") or ""
+                client.redirect_uri = "\n".join(redirect_uris.split())
+            # add grant_type; everything prior to migration was just using code grant
+            if not client.grant_type:
+                client.grant_type = "authorization_code"
+        session.commit()
+
+    add_code_col = lambda col: add_column_if_not_exist(
+        AuthorizationCode.__tablename__, column=col, driver=driver, metadata=md
+    )
+    map(add_code_col, CODE_COLUMNS_TO_ADD)
+    with driver.session as session:
+        session.execute("ALTER TABLE client ALTER COLUMN client_secret DROP NOT NULL")
+        session.commit()
+
+    # these ones are "manual"
+    table = Table(
+        AuthorizationCode.__tablename__, md, autoload=True, autoload_with=driver.engine
+    )
+    auth_code_columns = list(map(str, table.columns))
+    tablename = AuthorizationCode.__tablename__
+    # delete expires_at column
+    if "{}.expires_at".format(tablename) in auth_code_columns:
+        with driver.session as session:
+            session.execute("ALTER TABLE {} DROP COLUMN expires_at;".format(tablename))
+            session.commit()
+    # add auth_time column
+    if "{}.auth_time".format(tablename) not in auth_code_columns:
+        with driver.session as session:
+            command = "ALTER TABLE {} ADD COLUMN auth_time Integer NOT NULL DEFAULT extract(epoch from now());".format(
+                tablename
+            )
+            session.execute(command)
+            session.commit()
+    # make sure modifiers on auth_time column are correct
+    with driver.session as session:
+        session.execute(
+            "ALTER TABLE {} ALTER COLUMN auth_time SET NOT NULL;".format(tablename)
+        )
+        session.commit()
+        session.execute(
+            "ALTER TABLE {} ALTER COLUMN auth_time SET DEFAULT extract(epoch from now());".format(
+                tablename
+            )
+        )
+        session.commit()
