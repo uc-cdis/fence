@@ -143,7 +143,7 @@ class OAuth2TestClient(object):
         # This will be set to the token response from the refresh method.
         self.refresh_response = None
 
-    def _path_for_authorize(self, params=None):
+    def _path_for_authorize(self, params=None, urlencode=True):
         """
         Return the path for the authorization endpoint.
 
@@ -154,11 +154,33 @@ class OAuth2TestClient(object):
             str: authorize endpoint path including query string params
         """
         path = self.PATH_AUTHORIZE
+
         if params:
-            path += "?" + urllib.urlencode(query=params)
+            url_encoded_params = urllib.urlencode(query=params)
+
+            # if we don't want percent encoding done automatically in the tests,
+            # forcibly replace the encoded strings with
+            # previous values (used for testing how endpoints handle if not percent
+            # encoded)
+            if not urlencode:
+                for param, value in params.iteritems():
+                    encoded = urllib.urlencode(query={param: value})
+                    url_encoded_params = url_encoded_params.replace(
+                        encoded, "{}={}".format(param, value)
+                    )
+
+            path += "?" + url_encoded_params
+
         return path
 
-    def authorize(self, method="POST", data=None, do_asserts=True, include_auth=True):
+    def authorize(
+        self,
+        method="POST",
+        data=None,
+        do_asserts=True,
+        include_auth=True,
+        urlencode=True,
+    ):
         """
         Call the authorize endpoint.
 
@@ -186,11 +208,14 @@ class OAuth2TestClient(object):
 
         if method == "GET":
             response = self._client.get(
-                path=self._path_for_authorize(params=data), headers=headers
+                path=self._path_for_authorize(params=data, urlencode=urlencode),
+                headers=headers,
             )
         elif method == "POST":
             response = self._client.post(
-                path=self._path_for_authorize(), headers=headers, data=data
+                path=self._path_for_authorize(urlencode=urlencode),
+                headers=headers,
+                data=data,
             )
         else:
             raise ValueError("cannot use method {}".format(method))

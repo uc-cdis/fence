@@ -5,6 +5,10 @@ from authlib.specs.rfc6749.authenticate_client import (
 )
 from authlib.specs.rfc6749.errors import InvalidClientError as AuthlibClientError
 import flask
+from flask import Response, json
+from flask import request as flask_req
+from authlib.specs.rfc6749 import OAuth2Request
+import urllib
 
 from fence.oidc.errors import InvalidClientError
 from fence.oidc.jwt_generator import generate_token
@@ -55,3 +59,24 @@ class OIDCServer(AuthorizationServer):
         self.init_jwt_config(app)
         if getattr(self, "query_client"):
             self.authenticate_client = ClientAuthentication(query_client)
+
+    def validate_consent_request(self, *args, **kwargs):
+        request = kwargs.pop("request", None)
+        kwargs["request"] = _ensure_spaces_percent_encoded(request)
+        return super(OIDCServer, self).validate_consent_request(*args, **kwargs)
+
+    def create_token_response(self, *args, **kwargs):
+        request = kwargs.pop("request", None)
+        kwargs["request"] = _ensure_spaces_percent_encoded(request)
+        return super(OIDCServer, self).create_token_response(*args, **kwargs)
+
+    def create_endpoint_response(self, *args, **kwargs):
+        request = kwargs.pop("request", None)
+        kwargs["request"] = _ensure_spaces_percent_encoded(request)
+        return super(OIDCServer, self).create_endpoint_response(*args, **kwargs)
+
+
+def _ensure_spaces_percent_encoded(request):
+    q = request or flask_req
+    q.url = q.url.replace(" ", "%20")
+    return q
