@@ -140,7 +140,7 @@ class UnsignedIDToken(AuthlibCodeIDToken):
         token = cls(payload, headers)
 
         if verify:
-            token.validate(now=max_age)
+            token.validate()
 
         return token
 
