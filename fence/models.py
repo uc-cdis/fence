@@ -796,6 +796,7 @@ def _update_for_authlib(driver, md):
     map(add_code_col, CODE_COLUMNS_TO_ADD)
     with driver.session as session:
         session.execute("ALTER TABLE client ALTER COLUMN client_secret DROP NOT NULL")
+        session.commit()
 
     # these ones are "manual"
     table = Table(
@@ -818,5 +819,13 @@ def _update_for_authlib(driver, md):
             session.commit()
     # make sure modifiers on auth_time column are correct
     with driver.session as session:
-        session.execute("ALTER TABLE {} ALTER COLUMN auth_time SET NOT NULL;".format(tablename))
-        session.execute("ALTER TABLE {} ALTER COLUMN auth_time SET DEFAULT extract(epoch from now());".format(tablename))
+        session.execute(
+            "ALTER TABLE {} ALTER COLUMN auth_time SET NOT NULL;".format(tablename)
+        )
+        session.commit()
+        session.execute(
+            "ALTER TABLE {} ALTER COLUMN auth_time SET DEFAULT extract(epoch from now());".format(
+                tablename
+            )
+        )
+        session.commit()
