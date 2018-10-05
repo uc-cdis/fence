@@ -47,6 +47,13 @@ class OIDCServer(AuthorizationServer):
     Specific OAuth grants (authorization code, refresh token) are added on to
     a server instance using ``OIDCServer.register_grant_endpoint(grant)``. For
     usage, see ``fence/oidc/server.py``.
+
+    NOTE: As of Authlib==0.9 there is a bug with percent encoding spaces
+          See https://github.com/lepture/authlib/issues/93
+
+          As a temporary workaround until it is patched in authlib, we are overriding
+          some methods and modifying the `.url` of the request to make sure that
+          spaces are percent encoded.
     """
 
     def init_app(self, app, query_client=None, save_token=None):
