@@ -28,28 +28,20 @@ def fence_oauth_client(app, db_session, oauth_user, fence_oauth_client_url):
     """
     client_id = "fence_instance"
     client_secret = fence.utils.random_str(50)
-    # FIXME: If this is added back,
-    #        tests/multi_tenant/test_multi_tenant.py::test_redirect_from_oauth
-    #        will hang on a postgres command during db migration scripts
-    #        (specifically "ALTER TABLE client ALTER COLUMN client_secret DROP NOT NULL")
-    #        NOTE: It seems like there's a transaction in postgres that isn't complete by the
-    #              time that ALTER comes around. and then it hangs. :tableflip:
-    #              Tests still pass without this code so... :shrug:
-    # hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
-    # test_user = db_session.query(models.User).filter_by(id=oauth_user.user_id).first()
-    # db_session.add(
-    #     models.Client(
-    #         client_id=client_id,
-    #         client_secret=hashed_secret,
-    #         user=test_user,
-    #         allowed_scopes=["openid", "user"],
-    #         redirect_uris=fence_oauth_client_url,
-    #         description="",
-    #         is_confidential=True,
-    #         name="fence_oauth_client",
-    #     )
-    # )
-    # db_session.commit()
+    hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
+    test_user = db_session.query(models.User).filter_by(id=oauth_user.user_id).first()
+    db_session.add(
+        models.Client(
+            client_id=client_id,
+            client_secret=hashed_secret,
+            user=test_user,
+            allowed_scopes=["openid", "user"],
+            redirect_uris=fence_oauth_client_url,
+            description="",
+            is_confidential=True,
+            name="fence_oauth_client",
+        )
+    )
     return Dict(
         client_id=client_id, client_secret=client_secret, url=fence_oauth_client_url
     )
