@@ -1,7 +1,7 @@
 from authlib.common.urls import urlparse, url_decode
 from authlib.flask.oauth2 import AuthorizationServer
 from authlib.specs.rfc6749.authenticate_client import (
-    ClientAuthentication as AuthlibClientAuthentication
+    ClientAuthentication as AuthlibClientAuthentication,
 )
 from authlib.specs.rfc6749.errors import InvalidClientError as AuthlibClientError
 import flask
