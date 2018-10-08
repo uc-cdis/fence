@@ -117,10 +117,8 @@ def create_client_action(
 def delete_client_action(DB, client_name):
     import fence.settings
 
-    google_configured = False
     try:
         cirrus_config.update(**fence.settings.CIRRUS_CFG)
-        google_configured = True
     except AttributeError:
         # no cirrus config, continue anyway. we don't have client service accounts
         # to delete
@@ -137,9 +135,9 @@ def delete_client_action(DB, client_name):
                 raise Exception("client {} does not exist".format(client_name))
 
             clients = current_session.query(Client).filter(Client.name == client_name)
-            if google_configured:
-                for client in clients:
-                    _remove_client_service_accounts(current_session, client)
+
+            for client in clients:
+                _remove_client_service_accounts(current_session, client)
             clients.delete()
             current_session.commit()
 
@@ -153,25 +151,24 @@ def _remove_client_service_accounts(db_session, client):
         GoogleServiceAccount.client_id == client.client_id
     )
 
-    if client_service_accounts:
-        with GoogleCloudManager() as g_mgr:
-            for service_account in client_service_accounts:
+    with GoogleCloudManager() as g_mgr:
+        for service_account in client_service_accounts:
+            print(
+                "Deleting client {}'s service account: {}".format(
+                    client.name, service_account.email
+                )
+            )
+            response = g_mgr.delete_service_account(service_account.email)
+            if not response.get("error"):
+                db_session.delete(service_account)
+                db_session.commit()
+            else:
+                print("ERROR - from Google: {}".format(response))
                 print(
-                    "Deleting client {}'s service account: {}".format(
-                        client.name, service_account.email
+                    "ERROR - Could not delete client service account: {}".format(
+                        service_account.email
                     )
                 )
-                response = g_mgr.delete_service_account(service_account.email)
-                if not response.get("error"):
-                    db_session.delete(service_account)
-                    db_session.commit()
-                else:
-                    print("ERROR - from Google: {}".format(response))
-                    print(
-                        "ERROR - Could not delete client service account: {}".format(
-                            service_account.email
-                        )
-                    )
 
 
 def sync_users(
@@ -460,9 +457,9 @@ def remove_expired_google_service_account_keys(db):
             GoogleServiceAccountKey
         ).filter(GoogleServiceAccountKey.expires <= current_time)
 
-        with GoogleCloudManager() as g_mgr:
-            # handle service accounts with default max expiration
-            for service_account, client in client_service_accounts:
+        # handle service accounts with default max expiration
+        for service_account, client in client_service_accounts:
+            with GoogleCloudManager() as g_mgr:
                 g_mgr.handle_expired_service_account_keys(
                     service_account.google_unique_id
                 )
