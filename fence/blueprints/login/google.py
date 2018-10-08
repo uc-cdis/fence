@@ -4,6 +4,7 @@ from flask_restful import Resource
 from fence.auth import login_user
 from fence.errors import UserError
 from fence.models import IdentityProvider
+from fence.utils import append_query_params
 
 
 class GoogleRedirect(Resource):
@@ -11,7 +12,11 @@ class GoogleRedirect(Resource):
         flask.redirect_url = flask.request.args.get("redirect")
         if flask.redirect_url:
             flask.session["redirect"] = flask.redirect_url
-        return flask.redirect(flask.current_app.google_client.get_auth_url())
+
+        google_auth_url = flask.current_app.google_client.get_auth_url()
+        # Tell Google to let user select an account
+        google_auth_url = append_query_params(google_auth_url, prompt="select_account")
+        return flask.redirect(google_auth_url)
 
 
 class GoogleLogin(Resource):
