@@ -21,7 +21,9 @@ class FenceRedirect(Resource):
 
     def get(self):
         """Handle ``GET /login/fence``."""
-        oauth2_redirect_uri = flask.current_app.fence_client.session.redirect_uri
+        oauth2_redirect_uri = flask.current_app.fence_client.client_kwargs.get(
+            "redirect_uri"
+        )
         redirect_url = flask.request.args.get("redirect")
         if redirect_url:
             flask.session["redirect"] = redirect_url
