@@ -25,9 +25,9 @@ To support the 3 methods of access mentioned above, we have a generic architectu
 
 That architecture involves Google's concept of **groups** and use of their **IAM Policies** in the Google Cloud Platform. The following diagram shows the layers between the user themselves and the bucket.
 
-![Google Access Architecture](docs/images/g_architecture.png)
+![Google Access Architecture](images/g_architecture.png)
 
-Working backwards from the Google Bucket itself, we have a **Google Bucket Access Group**, which, as you probably guessed, provides access to the bucket. That group is assigned a **role** on the Google **resource** (the Google Bucket). **Roles** provide a set of permissions (like read privileges). The combinations of those roles on the bucket, become the bucket's **Policy**. You can read more about Google's IAM terms and concepts in [their docs](https://cloud.google.com/iam/docs/overview).
+Working backwards from the Google Bucket itself, we have a **Google Bucket Access Group**, which, as you probably guessed, provides access to the bucket. That group is assigned a **role** on the Google **resource** (the Google Bucket). **Roles** provide a set of permissions (like read privileges). The combinations of those roles on the bucket, become the bucket's **Policy**. You can read more about Google's IAM terms and concepts in [their docs](https://cloud.google.com/iam/overview).
 
 The important thing to note here is that *any* entity inside that Google Bucket Access Group (GBAG) will have whatever role/permissions were set between the GBAG and the Bucket itself with Google's IAM.
 
@@ -39,7 +39,7 @@ Google groups contain **members** (another Google term) and a Google group can b
 
 So a more representative diagram of the structures that allow users to get access to the buckets may look something like this:
 
-![Representative Google Access Architecture](docs/images/rep_g_architecture.png)
+![Representative Google Access Architecture](images/rep_g_architecture.png)
 
 #### User's Proxy Group
 
@@ -69,7 +69,7 @@ This allows clients to manage their temporary credentials without the chance of 
 
 Each Client Service Account is a member in the User's Proxy Group, meaning it has the same access that the user themselves have.
 
-![Temporary Service Account Credentials](docs/images/g_sa_creds.png)
+![Temporary Service Account Credentials](images/g_sa_creds.png)
 
 > WARNING: By default, Google Service Account Keys have an expiration of 10 years. To create a more manageable and secure expiration you must manually "expire" the keys by deleting them with a cronjob (once they are alive longer than a configured expiration). Fence's command line tool `fence-create` has a function for expiring keys that you should run on a schedule. Check out `fence-create google-manage-keys --help`
 
@@ -77,5 +77,5 @@ Each Client Service Account is a member in the User's Proxy Group, meaning it ha
 
 > TODO
 
-![Google Account Linking](docs/images/g_accnt_link.png)
-![Google Account Linking After Expiration](docs/images/g_accnt_link_2.png)
+![Google Account Linking](images/g_accnt_link.png)
+![Google Account Linking After Expiration](images/g_accnt_link_2.png)
