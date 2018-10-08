@@ -812,32 +812,30 @@ def get_project_from_auth_id(project_auth_id, db=None):
     return project
 
 
-def remove_white_listed_service_account_ids(
-    service_account_ids, white_listed_sa_email=None
-):
+def remove_white_listed_service_account_ids(sa_ids, white_listed_sa_email=None):
     """
     Remove any service account emails that should be ignored when
     determining validitity.
 
     Args:
-        service_account_ids (List[str]): Service account emails
+        sa_ids (List[str]): Service account emails
 
     Returns:
         List[str]: Service account emails
     """
     monitoring_service_account = get_monitoring_service_account_email()
-    if monitoring_service_account in service_account_ids:
-        service_account_ids.remove(monitoring_service_account)
+    if monitoring_service_account in sa_ids:
+        sa_ids.remove(monitoring_service_account)
 
     white_listed_sa_email = white_listed_sa_email or flask.current_app.config.get(
         "WHITE_LISTED_SERVICE_ACCOUNT_EMAILS", []
     )
 
     for email in white_listed_sa_email:
-        if email in service_account_ids:
-            service_account_ids.remove(email)
+        if email in sa_ids:
+            sa_ids.remove(email)
 
-    return service_account_ids
+    return sa_ids
 
 
 def is_org_whitelisted(parent_org, white_listed_google_parent_orgs=None):

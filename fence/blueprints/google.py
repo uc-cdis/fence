@@ -10,7 +10,7 @@ from cirrus.google_cloud.errors import GoogleAPIError
 
 from fence.auth import current_token, require_auth_header
 from fence.restful import RestfulApi
-from fence.errors import UserError, NotFound
+from fence.errors import UserError, NotFound, Unauthorized
 from fence.resources.google.validity import GoogleProjectValidity
 from fence.resources.google.access_utils import (
     is_user_member_of_all_google_projects,
@@ -545,7 +545,6 @@ class GoogleServiceAccountDryRun(Resource):
 
 def _patch_service_account_parse_request(id_):
     user_id = current_token["sub"]
-    payload = flask.request.get_json(silent=True) or {}
 
     service_account_email = get_service_account_email(id_)
     registered_service_account = get_registered_service_account_from_email(
@@ -558,8 +557,14 @@ def _patch_service_account_parse_request(id_):
             )
         )
 
+    payload = flask.request.get_json(silent=True) or {}
+
     # check if the user requested to update more than project_access
     project_access = payload.pop("project_access", None)
+
+    # if they're trying to patch more fields, error out, we only support the above
+    if payload:
+        raise UserError("Cannot update provided fields: {}".format(payload))
 
     # if the field is not provided at all, use service accounts current access
     # NOTE: the user can provide project_access=[] to remove all datasets so checking
@@ -572,10 +577,6 @@ def _patch_service_account_parse_request(id_):
             access_privilege.project.auth_id
             for access_privilege in registered_service_account.access_privileges
         ]
-
-    # if they're trying to patch more fields, error out, we only support the above
-    if payload:
-        raise UserError("Cannot update provided fields: {}".format(payload))
 
     google_project_id = registered_service_account.google_project_id
 
@@ -592,7 +593,7 @@ def _get_patched_service_account_error_status(
             'User "{}" does not have permission to update the provided '
             'service account "{}".'.format(user_id, id_)
         )
-        return msg, 403
+        raise Unauthorized(msg)
 
     error_response = _get_service_account_error_status(
         service_account_email, google_project_id, project_access, user_id
