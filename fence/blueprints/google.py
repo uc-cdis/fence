@@ -11,7 +11,6 @@ from cirrus.google_cloud.errors import GoogleAPIError
 from fence.auth import current_token, require_auth_header
 from fence.restful import RestfulApi
 from fence.errors import UserError, NotFound, Unauthorized
-from fence.resources.google.validity import GoogleProjectValidity
 from fence.resources.google.access_utils import (
     is_user_member_of_all_google_projects,
     get_registered_service_account_from_email,
@@ -30,6 +29,7 @@ from fence.resources.google.utils import (
     get_registered_service_accounts,
     get_project_access_from_service_accounts,
 )
+from fence.resources.google.service_account import GoogleServiceAccountRegistration
 from fence.models import UserServiceAccount
 from flask_sqlalchemy_session import current_session
 
@@ -67,16 +67,15 @@ class GoogleServiceAccountRoot(Resource):
         """
         user_id = current_token["sub"]
         payload = flask.request.get_json(silent=True) or {}
-        service_account_email = payload.get("service_account_email")
-        google_project_id = payload.get("google_project_id")
-        project_access = payload.get("project_access")
 
-        return self._post_new_service_account(
-            service_account_email=service_account_email,
-            google_project_id=google_project_id,
-            project_access=project_access,
+        sa = GoogleServiceAccountRegistration(
+            email=payload.get("service_account_email"),
+            project_access=payload.get("project_access"),
+            google_project_id=payload.get("google_project_id"),
             user_id=user_id,
         )
+
+        return self._post_new_service_account(sa)
 
     @require_auth_header({"google_service_account"})
     def get(self):
@@ -114,32 +113,26 @@ class GoogleServiceAccountRoot(Resource):
 
         return response, 200
 
-    def _post_new_service_account(
-        self, service_account_email, google_project_id, project_access, user_id
-    ):
+    def _post_new_service_account(self, sa):
         """
         Return response tuple for registering a new service account
 
         Args:
-            service_account_email (str): Google service account email
-            google_project_id (str): Google project identifier
-            project_access (List(str)): List of Project.auth_ids to authorize
-                the service account for
+            sa (
+                fence.resources.google.service_account.GoogleServiceAccountRegistration
+            ): the service account object with its email, project_access, a google project,
+               and optionally a user who is attempting to modify/add
 
         Returns:
             tuple(dict, int): (response_data, http_status_code)
         """
-        error_response = _get_service_account_error_status(
-            service_account_email, google_project_id, project_access, user_id
-        )
+        error_response = _get_service_account_error_status(sa)
 
         if error_response.get("success") is not True:
             return error_response, 400
 
         sa_exists = (
-            current_session.query(UserServiceAccount)
-            .filter_by(email=service_account_email)
-            .all()
+            current_session.query(UserServiceAccount).filter_by(email=sa.email).all()
         )
 
         if sa_exists:
@@ -151,15 +144,11 @@ class GoogleServiceAccountRoot(Resource):
             }
             return error_response, 400
 
-        new_service_account = self._register_new_service_account(
-            service_account_email, google_project_id, project_access
-        )
+        new_service_account = self._register_new_service_account(sa)
 
         return new_service_account, 200
 
-    def _register_new_service_account(
-        self, service_account_email, google_project_id, project_access
-    ):
+    def _register_new_service_account(self, sa):
         """
         Add service account and related entries to database and add
         service account to google bucket access groups
@@ -169,42 +158,40 @@ class GoogleServiceAccountRoot(Resource):
         in validity checking
 
         Args:
-            service_account_email(str): email address of
-                service account to be registered
-            google_project_id(str): unique-id of google project
-            project_access(list<(str)>): list of project auth-ids which
-                identify which projects the service account should have
-                access to
+            sa (
+                fence.resources.google.service_account.GoogleServiceAccountRegistration
+            ): the service account object with its email, project_access, a google project,
+               and optionally a user who is attempting to modify/add
 
         Return:
             (dict): dictionary representing service account object
         """
-        with GoogleCloudManager(google_project_id) as google_project:
-            service_account = google_project.get_service_account(service_account_email)
+        with GoogleCloudManager(sa.google_project_id) as google_project:
+            g_service_account = google_project.get_service_account(sa.email)
 
         db_service_account = UserServiceAccount(
-            google_unique_id=service_account.get("uniqueId"),
-            email=service_account.get("email"),
-            google_project_id=google_project_id,
+            google_unique_id=g_service_account.get("uniqueId"),
+            email=g_service_account.get("email"),
+            google_project_id=sa.google_project_id,
         )
 
         current_session.add(db_service_account)
         current_session.commit()
 
         project_ids = get_project_ids_from_project_auth_ids(
-            current_session, project_access
+            current_session, sa.project_access
         )
 
         add_user_service_account_to_db(current_session, project_ids, db_service_account)
 
         add_user_service_account_to_google(
-            current_session, project_ids, google_project_id, db_service_account
+            current_session, project_ids, sa.google_project_id, db_service_account
         )
 
         return {
-            "service_account_email": service_account.get("email"),
-            "google_project_id": service_account.get("projectId"),
-            "project_access": project_access,
+            "service_account_email": g_service_account.get("email"),
+            "google_project_id": g_service_account.get("projectId"),
+            "project_access": sa.project_access,
         }
 
     def _get_project_service_accounts(self, google_project_ids):
@@ -305,18 +292,18 @@ class GoogleServiceAccount(Resource):
 
         user_id = current_token["sub"]
         payload = flask.request.get_json(silent=True) or {}
-        service_account_email = payload.get("service_account_email")
-        google_project_id = payload.get("google_project_id")
-        project_access = payload.get("project_access")
 
-        error_response = _get_service_account_error_status(
-            service_account_email, google_project_id, project_access, user_id
+        sa = GoogleServiceAccountRegistration(
+            email=payload.get("service_account_email"),
+            project_access=payload.get("project_access"),
+            google_project_id=payload.get("google_project_id"),
+            user_id=user_id,
         )
 
+        error_response = _get_service_account_error_status(sa)
+
         sa_exists = (
-            current_session.query(UserServiceAccount)
-            .filter_by(email=service_account_email)
-            .all()
+            current_session.query(UserServiceAccount).filter_by(email=sa.email).all()
         )
 
         if sa_exists:
@@ -342,29 +329,20 @@ class GoogleServiceAccount(Resource):
         Args:
             id_ (str): Google service account identifier to update
         """
-        (
-            user_id,
-            service_account_email,
-            project_access,
-            google_project_id,
-        ) = _patch_service_account_parse_request(id_)
+        sa = _get_service_account_for_patch(id_)
 
-        error_response = _get_patched_service_account_error_status(
-            id_, user_id, service_account_email, project_access, google_project_id
-        )
+        error_response = _get_patched_service_account_error_status(id_, sa)
 
         if error_response.get("success") is not True:
             return error_response, 400
 
-        resp, status_code = self._update_service_account_permissions(
-            google_project_id, service_account_email, project_access
-        )
+        resp, status_code = self._update_service_account_permissions(sa)
 
         if status_code != 200:
             return resp, status_code
 
         # extend access to all datasets
-        extend_service_account_access(service_account_email)
+        extend_service_account_access(sa.email)
 
         return "", 204
 
@@ -422,9 +400,7 @@ class GoogleServiceAccount(Resource):
         response = {"service_account_email": monitoring_account_email}
         return response, 200
 
-    def _update_service_account_permissions(
-        self, google_project_id, service_account_email, project_access
-    ):
+    def _update_service_account_permissions(self, sa):
         """
         Update the given service account's permissions.
 
@@ -432,41 +408,34 @@ class GoogleServiceAccount(Resource):
                  given service account.
 
         Args:
-            google_project_id (str): google project id
-            service_account_email (str): Google service account email
-            project_access (List(str)): List of Project.auth_ids to authorize
-                the service account for
-
+            sa (
+                fence.resources.google.service_account.GoogleServiceAccountRegistration
+            ): the service account object with its email, project_access, a google project,
+               and optionally a user who is attempting to modify/add
         """
         try:
             patch_user_service_account(
-                google_project_id, service_account_email, project_access
+                sa.google_project_id, sa.email, sa.project_access
             )
 
         except NotFound as exc:
             return (
                 "Can not update the service accout {}. Detail {}".format(
-                    service_account_email, exc.message
+                    sa.email, exc.message
                 ),
                 404,
             )
         except GoogleAPIError as exc:
             return (
                 "Can not update the service accout {}. Detail {}".format(
-                    service_account_email, exc.message
+                    sa.email, exc.message
                 ),
                 400,
             )
         except Exception:
-            return (
-                " Can not delete the service account {}".format(service_account_email),
-                500,
-            )
+            return (" Can not delete the service account {}".format(sa.email), 500)
 
-        return (
-            "Successfully update service account  {}".format(service_account_email),
-            200,
-        )
+        return ("Successfully update service account  {}".format(sa.email), 200)
 
     @classmethod
     def _delete(self, id_):
@@ -522,16 +491,9 @@ class GoogleServiceAccountDryRun(Resource):
         Args:
             id_ (str): Google service account identifier to update
         """
-        (
-            user_id,
-            service_account_email,
-            project_access,
-            google_project_id,
-        ) = _patch_service_account_parse_request(id_)
+        sa = _get_service_account_for_patch(id_)
 
-        error_response = _get_patched_service_account_error_status(
-            id_, user_id, service_account_email, project_access, google_project_id
-        )
+        error_response = _get_patched_service_account_error_status(id_, sa)
 
         # this is where it actually does stuff in the non-dryrun endpoint
 
@@ -543,7 +505,7 @@ class GoogleServiceAccountDryRun(Resource):
         return error_response, status
 
 
-def _patch_service_account_parse_request(id_):
+def _get_service_account_for_patch(id_):
     user_id = current_token["sub"]
 
     service_account_email = get_service_account_email(id_)
@@ -580,40 +542,48 @@ def _patch_service_account_parse_request(id_):
 
     google_project_id = registered_service_account.google_project_id
 
-    return (user_id, service_account_email, project_access, google_project_id)
+    return GoogleServiceAccountRegistration(
+        service_account_email, project_access, google_project_id, user_id=user_id
+    )
 
 
-def _get_patched_service_account_error_status(
-    id_, user_id, service_account_email, project_access, google_project_id
-):
+def _get_patched_service_account_error_status(id_, sa):
+    """
+    Get error status for attempting to patch given service account with access.
+
+    Args:
+        id_ (str): Google service account identifier to update
+        sa (
+            fence.resources.google.service_account.GoogleServiceAccountRegistration
+        ): the service account object with its email, project_access, a google project,
+           and optionally a user who is attempting to modify/add
+    """
     # check if user has permission to update the service account
-    authorized = is_user_member_of_all_google_projects(user_id, [google_project_id])
+    authorized = is_user_member_of_all_google_projects(
+        sa.user_id, [sa.google_project_id]
+    )
     if not authorized:
         msg = (
             'User "{}" does not have permission to update the provided '
-            'service account "{}".'.format(user_id, id_)
+            'service account "{}".'.format(sa.user_id, id_)
         )
         raise Unauthorized(msg)
 
-    error_response = _get_service_account_error_status(
-        service_account_email, google_project_id, project_access, user_id
-    )
+    error_response = _get_service_account_error_status(sa)
 
     return error_response
 
 
-def _get_service_account_error_status(
-    service_account_email, google_project_id, project_access, user_id
-):
+def _get_service_account_error_status(sa):
     """
     Get a dictionary describing any errors that will occur if attempting
     to give service account specified permissions fails.
 
     Args:
-        service_account_email (str): Google service account email
-        google_project_id (str): Google project identifier
-        project_access (List(str)): List of Project.auth_ids to authorize
-            the service account for
+        sa (
+            fence.resources.google.service_account.GoogleServiceAccountRegistration
+        ): the service account object with its email, project_access, a google project,
+           and optionally a user who is attempting to modify/add
 
     Returns:
         dict: error information if unsuccessful, { "success": True } otherwise
@@ -656,13 +626,7 @@ def _get_service_account_error_status(
         },
     }
 
-    project_validity = GoogleProjectValidity(
-        google_project_id=google_project_id,
-        new_service_account=service_account_email,
-        new_service_account_access=project_access,
-        user_id=user_id,
-    )
-    project_validity.check_validity(early_return=False)
+    project_validity = sa.get_project_validity()
 
     response["errors"][
         "service_account_email"

@@ -353,7 +353,7 @@ def patch_user_service_account(
     """
     Update user service account which includes
     - Add and remove project access and bucket groups to/from fence db
-    - Add and remove access memebers to/from google access group
+    - Add and remove access members to/from google access group
 
     Args:
         google_project_id (str): google project id
