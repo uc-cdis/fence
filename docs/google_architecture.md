@@ -19,7 +19,7 @@ Google Cloud Platform project(s). In order to automate group management in Googl
 
 Once cirrus has access to manage groups and is configured with proper credentials to access a Google Cloud Platform project, you can use the Python library within Fence.
 
-### Data Access Google Architecture
+### Data Access: Google Architecture
 
 To support the 3 methods of access mentioned above, we have a generic architecture that provides linkage between an end-user and rights to access a Google storage bucket.
 
@@ -33,11 +33,13 @@ The important thing to note here is that *any* entity inside that Google Bucket 
 
 So, now we can control access to the bucket by adding and removing entities from the GBAG (instead of having to modify the bucket's IAM Policy all the time). This is, in fact, the way Google recommends dynamically controlling access to a bucket.
 
+> NOTE: The `fence-create` command line tool has helpful methods for creating new buckets (which automates the creation of these GBAGs). Check out `fence-create --help` and search for sub-commands with `bucket` in their name. You can get more details for a subcommand with `fence-create <sub-command> --help`.
+
 #### Groups within Groups
 
-Google groups contain **members** (another Google term) and a Google group can be a member. So, this allows you to nest Google groups, e.g. have groups inside of other groups.
+Google groups contain **members** (another Google term) and a Google group can be a member. This means that you can nest Google groups, e.g. have groups inside of other groups.
 
-So a more representative diagram of the structures that allow users to get access to the buckets may look something like this:
+A more representative diagram of the structures that allow users to get access to the buckets may look something like this:
 
 ![Representative Google Access Architecture](images/rep_g_architecture.png)
 
@@ -49,6 +51,8 @@ This means that other Google accounts (like a personal email) can be in this Use
 
 The User Proxy Groups also allows a central location for Google Service Accounts that are given the same access as the user (which are used for the **Temporary Service Account Credentials** and **Signed URL** access method).
 
+This makes the granting and removal of data access for a given user very simple. Just remove their Proxy Group from a Google Bucket Access Group. All entities that use to have access to the bucket no longer have access.
+
 ### Crash Course: Fence Clients
 
 Fence supports OpenID Connect / Oauth2 flows to allow outside applications to request access to user's data and do things on their behalf. Users **must** consent to this before the outside application is given access.
@@ -57,13 +61,13 @@ The Google Access methods mentioned above all require special client scopes (whi
 
 The scopes that allow access to these methods are also available for individual users without going through an outside application. This means that users themselves are able to hit these endpoints to get access via the 3 different methods.
 
-> NOTE: When these docs talks about `clients` accessing data, it's reasonable to assume that this means both `clients` and `users` themselves. Much of the algorithms behave similarly if the user themselves were to request access without going through an outside application.
+> NOTE: When these docs talk about `clients` accessing data, it's reasonable to assume that this means both `clients` and `users` themselves. Much of the algorithms behave similarly if the user themselves were to request access without going through an outside application.
 
 ### Temporary Service Account Credentials
 
 Fence allows clients (and users themselves) to generate temporary credentials which they can use in Google's Cloud Platform to access data that the user has access to. This is done by using Google's **Service Accounts** and generating a **Service Account Key** to provide to the client. This key will allow the client to authenticate as that service account (which is controlled by Fence).
 
-Each client (AKA outside application) that a user consents to get access through will get their own **Client Service Account** that is associated directly with a given user. In other works, there's a 1:many relationship between a user and their Client Service Accounts.
+Each client (AKA outside application) that a user consents to get access through will get their own **Client Service Account** that is associated directly with a given user. In other works, there's a one-to-many relationship between a user and their Client Service Accounts.
 
 This allows clients to manage their temporary credentials without the chance of interfering with another client's. Fence provides capability to create and delete these keys through its API.
 
@@ -77,13 +81,13 @@ Each Client Service Account is a member in the User's Proxy Group, meaning it ha
 
 There are two steps in this access method but they are related. If you want to access data directly by signing in with your Google account, then you can just do the **Google Account Linking**.
 
-If, however, users have their own Google Projects and want to provide access to data to data inside those projects, they can go through **Service Account Regsitration** to provide a user's own Google Service Account with temporary access to the data. This allows users to spin up virtual machines in their own projects and run computations on data they have access to.
+If, however, users have their own Google Projects and want to provide access to data to data inside those projects, they can go through **Service Account Regsitration** to provide a Google Service Account with temporary access to the data. This allows users to spin up virtual machines in their own projects and run computations on data they have access to.
 
 While Service Account Registration may provide the most flexibility, it is also the hardest to monitor and ensure security of data. Thus, *clients and users who wish to use this access method must adhere to very specific setup instructions, configurations, and rules restricting certain features of Google's Cloud Platform*.
 
 #### Google Account Linking
 
-Fence allows users to "link" another Google Account to their account they use to sign into fence. Typically, this is necessary where the IDP is *not* Google but you want to provide access to data on Google through the 3 access methods.
+Fence allows users to "link" a Google Account to their fence identity. Typically, this is necessary where the identity provider that fence uses is *not* Google but you want to provide access to data on Google through the 3 access methods.
 
 ---
 
@@ -95,7 +99,7 @@ A user logs into fence with their eRA Commons ID. To get access to data through 
 
 ---
 
-Google Account Linking is achieved by sending the user through the beginning of the OIDC flow with Google. The user is redirected to a Google Login page and whichever account they succesfully log in to, becomes linked to their primary user account.
+Google Account Linking is achieved by sending the user through the beginning of the OIDC flow with Google. The user is redirected to a Google Login page and whichever account they succesfully log in to becomes linked to their fence identity.
 
 ![Google Account Linking](images/g_accnt_link.png)
 
@@ -103,7 +107,7 @@ We require the user to log in so that we can authenticate them and only link an 
 
 Once linked, the user's Google Account is then placed *temporarily* inside their Proxy Group. This means that the user could log into Google's Cloud Platform with their Google Account and access data.
 
-> NOTE: The linking process should provide temporary access to data such that explicit refreshing of access is required. In order to remove a linked Google Account from access, you must remove that account from the Proxy Group. The `fence-create` tool has a script that could be run as a cronjob to accomplish this. Check out `fence-create google-manage-account-access --help` for details.
+> NOTE: The linking process should provide temporary access to data such that explicit refreshing of access is required. In order to remove a linked Google Account from access, you must remove that account from the Proxy Group *manually*. The `fence-create` tool has a script that could be run as a cronjob to accomplish this. Check out `fence-create google-manage-account-access --help` for details.
 
 At the moment, the *link* between the User and their Google Account does not expire. The access to data *does* expire though. Explicit refreshing of access must be done by an authenticated user or valid client with those permissions through Fence's API.
 
@@ -127,9 +131,11 @@ This diagram shows a single Google Project with 3 users (`UserA`, `UserB`, and `
 
 ---
 
-The project service account, `Service Account A`, has been registered for access to a fence `Project` which has data in `Bucket Y`. Thus, by using `Service Account A`, any user in the project (`UserA`, `UserB`, and `UserC`) can access data in `Bucket Y` (in a Compute Engine Virtual Machine for example).
+The project service account, `Service Account A`, has been registered for access to a fence `Project` which has data in `Bucket Y`. The service account is given access by placing it *directly in the Google Bucket Access Group*.
 
-The user must request fence `Projects` that the service account should have access to. *Everyone* on the Google Project **must** have access to those fence Projects or registration will be invalid. This ensures that everyone on the project actually has access to the data the service account is allowed to access.
+Now, by using `Service Account A`, any user in the project (`UserA`, `UserB`, and `UserC`) can access data in `Bucket Y` (in a Compute Engine Virtual Machine for example).
+
+The user must request fence `Projects` that the service account should have access to. *Everyone* on the Google Project **must** have access to those fence `Projects` or registration will be invalid. This ensures that everyone on the project actually has access to the data the service account is allowed to access.
 
 ---
 
