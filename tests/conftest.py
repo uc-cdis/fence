@@ -751,10 +751,11 @@ def oauth_client(app, db_session, oauth_user):
             client_secret=hashed_secret,
             user=test_user,
             allowed_scopes=["openid", "user", "fence"],
-            _redirect_uris=url,
+            redirect_uris=[url],
             description="",
             is_confidential=True,
             name="testclient",
+            grant_types=["authorization_code", "refresh_token"],
         )
     )
     db_session.commit()
@@ -782,10 +783,11 @@ def oauth_client_B(app, request, db_session):
             client_secret=hashed_secret,
             user=test_user,
             allowed_scopes=["openid", "user", "fence"],
-            _redirect_uris=url,
+            redirect_uris=[url],
             description="",
             is_confidential=True,
             name="testclientb",
+            grant_types=["authorization_code", "refresh_token"],
         )
     )
     db_session.commit()
@@ -806,10 +808,11 @@ def oauth_client_public(app, db_session, oauth_user):
             client_id=client_id,
             user=test_user,
             allowed_scopes=["openid", "user", "fence"],
-            _redirect_uris=url,
+            redirect_uris=[url],
             description="",
             is_confidential=False,
             name="testclient-public",
+            grant_types=["authorization_code", "refresh_token"],
         )
     )
     db_session.commit()

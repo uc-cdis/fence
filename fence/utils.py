@@ -14,7 +14,7 @@ import flask
 from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.datastructures import ImmutableMultiDict
 
-from fence.models import Client, User
+from fence.models import Client, GrantType, User
 from fence.jwt.token import CLIENT_ALLOWED_SCOPES
 
 
@@ -31,12 +31,25 @@ def json_res(data):
 
 
 def create_client(
-    username, urls, DB, name="", description="", auto_approve=False, is_admin=False
+    username,
+    urls,
+    DB,
+    name="",
+    description="",
+    auto_approve=False,
+    is_admin=False,
+    grant_types=None,
+    confidential=True,
 ):
+    grant_types = grant_types or [GrantType.code.value]
     driver = SQLAlchemyDriver(DB)
     client_id = random_str(40)
-    client_secret = random_str(55)
-    hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
+    client_secret = None
+    hashed_secret = None
+    if confidential:
+        client_secret = random_str(55)
+        hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
+    auth_method = 'client_secret_basic' if confidential else 'none'
     with driver.session as s:
         user = (
             s.query(User).filter(func.lower(User.username) == username.lower()).first()
@@ -46,16 +59,18 @@ def create_client(
             s.add(user)
         if s.query(Client).filter(Client.name == name).first():
             raise Exception("client {} already exists".format(name))
-            return
         client = Client(
             client_id=client_id,
             client_secret=hashed_secret,
             user=user,
-            _redirect_uris=urls,
+            redirect_uris=urls,
             _allowed_scopes=" ".join(CLIENT_ALLOWED_SCOPES),
             description=description,
             name=name,
             auto_approve=auto_approve,
+            grant_types=grant_types,
+            is_confidential=confidential,
+            token_endpoint_auth_method=auth_method,
         )
         s.add(client)
         s.commit()

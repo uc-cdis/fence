@@ -1,9 +1,16 @@
-from fence import app, app_config, app_register_blueprints, app_sessions
+from fence import (
+    app,
+    app_config,
+    app_config_oauth,
+    app_register_blueprints,
+    app_sessions,
+)
 from fence.oidc.server import server
 
 app_config(app)
+app_config_oauth(app)
 
-if app.config.get("MOCK_STORAGE", False):
+if app.config.get("MOCK_STORAGE"):
     from mock import patch
     from cdisutilstest.code.storage_client_mock import get_client
 
