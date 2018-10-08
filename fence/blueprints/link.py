@@ -122,16 +122,18 @@ class GoogleLinkRedirect(Resource):
                 # skip Google AuthN, already linked, error
                 redirect_with_errors = append_query_params(
                     provided_redirect,
-                    error='g_acnt_link_error',
-                    error_description='User already has a linked Google account.')
+                    error="g_acnt_link_error",
+                    error_description="User already has a linked Google account.",
+                )
                 flask.redirect_url = redirect_with_errors
                 _clear_google_link_info_from_session()
             else:
                 # TODO can we handle this error?
                 redirect_with_errors = append_query_params(
                     provided_redirect,
-                    error='g_acnt_link_error',
-                    error_description='Stale access token, please refresh.')
+                    error="g_acnt_link_error",
+                    error_description="Stale access token, please refresh.",
+                )
                 flask.redirect_url = redirect_with_errors
                 _clear_google_link_info_from_session()
 
@@ -235,17 +237,16 @@ class GoogleCallback(Resource):
         error_description = ""
 
         # get info from session and then clear it
-        user_id = flask.session.get('user_id')
-        proxy_group = flask.session.get('google_proxy_group_id')
+        user_id = flask.session.get("user_id")
+        proxy_group = flask.session.get("google_proxy_group_id")
         _clear_google_link_info_from_session()
 
         if not email:
             error = "g_acnt_auth_failure"
             error_description = google_reponse
         else:
-            error, error_description = (
-                get_errors_update_user_google_account_dry_run(
-                    user_id, email, proxy_group, _already_authed=True)
+            error, error_description = get_errors_update_user_google_account_dry_run(
+                user_id, email, proxy_group, _already_authed=True
             )
 
             if not error:
@@ -395,7 +396,9 @@ def _force_update_user_google_account(
                     user_id, google_email, current_session
                 )
                 flask.current_app.logger.info(
-                    "Linking Google account {} to user with id {}.".format(google_email, user_id)
+                    "Linking Google account {} to user with id {}.".format(
+                        google_email, user_id
+                    )
                 )
             else:
                 raise Unauthorized(

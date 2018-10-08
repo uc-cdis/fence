@@ -36,13 +36,21 @@ def fence_oauth_client(app, db_session, oauth_user, fence_oauth_client_url):
             client_secret=hashed_secret,
             user=test_user,
             allowed_scopes=["openid", "user"],
-            _redirect_uris=fence_oauth_client_url,
+            redirect_uris=fence_oauth_client_url,
             description="",
             is_confidential=True,
             name="fence_oauth_client",
         )
     )
-    db_session.commit()
+    # FIXME: If this is added back,
+    #        tests/multi_tenant/test_multi_tenant.py::test_redirect_from_oauth
+    #        will hang on a postgres command during db migration scripts
+    #        (specifically "ALTER TABLE client ALTER COLUMN client_secret DROP NOT NULL")
+    #        NOTE: It seems like there's a transaction in postgres that isn't complete by the
+    #              time that ALTER comes around. and then that ALTER deadlocks with the
+    #              other transaction somehow. :tableflip:
+    #              Tests still pass without this code so... :shrug:
+    # db_session.commit()
     return Dict(
         client_id=client_id, client_secret=client_secret, url=fence_oauth_client_url
     )

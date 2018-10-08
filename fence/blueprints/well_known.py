@@ -7,6 +7,7 @@ This blueprint defines the endpoints under ``.well-known/``, which includes:
 import flask
 
 from fence.jwt.token import USER_ALLOWED_SCOPES, CLIENT_ALLOWED_SCOPES
+from fence.models import ClientAuthType
 
 
 blueprint = flask.Blueprint(".well-known", __name__)
@@ -97,7 +98,7 @@ def openid_configuration():
             "request_object_signing_alg_values_supported": [],
             "request_object_encryption_alg_values_supported": [],
             "request_object_encryption_enc_values_supported": [],
-            "token_endpoint_auth_methods_supported": ["client_secret_basic"],
+            "token_endpoint_auth_methods_supported": [ClientAuthType.basic.value],
             "display_values_supported": ["page"],
             "claim_types_supported": ["normal"],
             "claims_supported": claims_supported,

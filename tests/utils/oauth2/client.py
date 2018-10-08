@@ -158,7 +158,7 @@ class OAuth2TestClient(object):
             path += "?" + urllib.urlencode(query=params)
         return path
 
-    def authorize(self, method="POST", data=None, do_asserts=True):
+    def authorize(self, method="POST", data=None, do_asserts=True, include_auth=True):
         """
         Call the authorize endpoint.
 
@@ -182,13 +182,15 @@ class OAuth2TestClient(object):
         if isinstance(data["scope"], list):
             data["scope"] = " ".join(data["scope"])
 
+        headers = self._auth_header if include_auth else {}
+
         if method == "GET":
             response = self._client.get(
-                path=self._path_for_authorize(params=data), headers=self._auth_header
+                path=self._path_for_authorize(params=data), headers=headers
             )
         elif method == "POST":
             response = self._client.post(
-                path=self._path_for_authorize(), headers=self._auth_header, data=data
+                path=self._path_for_authorize(), headers=headers, data=data
             )
         else:
             raise ValueError("cannot use method {}".format(method))
@@ -211,7 +213,7 @@ class OAuth2TestClient(object):
 
         return self.authorize_response
 
-    def token(self, code=None, data=None, do_asserts=True):
+    def token(self, code=None, data=None, do_asserts=True, include_auth=True):
         """
         Make a request to the token endpoint to get a set of tokens.
 
@@ -234,11 +236,10 @@ class OAuth2TestClient(object):
         }
         default_data.update(data)
         data = default_data
-        if self.client_secret:
+        if self.client_secret and include_auth:
             data["client_secret"] = self.client_secret
-        response = self._client.post(
-            self.PATH_TOKEN, headers=self._auth_header, data=data
-        )
+        headers = self._auth_header if include_auth else {}
+        response = self._client.post(self.PATH_TOKEN, headers=headers, data=data)
         self.token_response = TokenResponse(response)
         if do_asserts:
             self.token_response.do_asserts()
@@ -288,4 +289,4 @@ class OAuth2TestClient(object):
             self.PATH_REVOKE, headers=self._auth_header, data={"token": refresh_token}
         )
         if do_asserts:
-            assert response.status_code == 204
+            assert response.status_code == 200
