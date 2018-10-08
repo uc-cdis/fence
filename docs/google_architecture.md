@@ -146,3 +146,7 @@ If someone attempting to register `Service Account A` with fence `Projects` that
 ![Service Account Registration](images/sa_invalid_reg.png)
 
 ---
+
+### Signed URLs
+
+> TODO
