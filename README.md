@@ -84,11 +84,11 @@ Note that the `3rd Party App` acts as the `client` in these examples.
 
 #### Flow: Client Registration
 
-![Client Registration](docs/client_registration.png)
+![Client Registration](docs/images/seq_diagrams/client_registration.png)
 
 #### Flow: OpenID Connect
 
-![OIDC Flow](docs/openid_connect_flow.png)
+![OIDC Flow](docs/images/seq_diagrams/openid_connect_flow.png)
 
 If the third-party application doesn't need to use any Gen3 resources (and just
 wants to authenticate the user), they can just get
@@ -100,15 +100,15 @@ If a third-party application wants to use Gen3 resources like
 `fence`/`sheepdog`/`peregrine`, they call those services with an `Access Token`
 passed in an `Authorization` header.
 
-![Using Access Token](docs/token_use_for_access.png)
+![Using Access Token](docs/images/seq_diagrams/token_use_for_access.png)
 
 #### Flow: Refresh Token Use
 
-![Using Refresh Token](docs/refresh_token_use.png)
+![Using Refresh Token](docs/images/seq_diagrams/refresh_token_use.png)
 
 #### Flow: Refresh Token Use (Token is Expired)
 
-![Using Expired Refresh Token](docs/refresh_token_use_expired.png)
+![Using Expired Refresh Token](docs/images/seq_diagrams/refresh_token_use_expired.png)
 
 #### Flow: Multi-Tenant Fence
 
@@ -117,7 +117,7 @@ use another fence instance as its identity provider.
 
 A use case for this is when we setup a fence instance that uses NIH login as the IdP. Here, we go through a detailed approval process in NIH. Therefore we would like to do it once for a single lead Fence instance, allowing other fence instances simply to redirect to use the lead Fence as an IdP for logging in via NIH.
 
-![Multi-Tenant Flow](docs/multi-tenant_flow.png)
+![Multi-Tenant Flow](docs/images/seq_diagrams/multi-tenant_flow.png)
 
 #### Notes
 
