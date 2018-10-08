@@ -136,14 +136,12 @@ def delete_client_action(DB, client_name):
             ):
                 raise Exception("client {} does not exist".format(client_name))
 
-            clients = (
-                current_session.query(Client).filter(Client.name == client_name).all()
-            )
-            for client in clients:
-                if google_configured:
+            clients = current_session.query(Client).filter(Client.name == client_name)
+            if google_configured:
+                for client in clients:
                     _remove_client_service_accounts(current_session, client)
-                current_session.delete(client)
-                current_session.commit()
+            clients.delete()
+            current_session.commit()
 
         print("Client {} deleted".format(client_name))
     except Exception as e:
@@ -151,10 +149,8 @@ def delete_client_action(DB, client_name):
 
 
 def _remove_client_service_accounts(db_session, client):
-    client_service_accounts = (
-        db_session.query(GoogleServiceAccount)
-        .filter(GoogleServiceAccount.client_id == client.client_id)
-        .all()
+    client_service_accounts = db_session.query(GoogleServiceAccount).filter(
+        GoogleServiceAccount.client_id == client.client_id
     )
 
     if client_service_accounts:
