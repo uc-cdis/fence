@@ -47,7 +47,8 @@ ALLOWED_SERVICE_ACCOUNT_TYPES = [
 def get_google_project_number(google_project_id):
     """
     Return a project's "projectNumber" which uniquely identifies it.
-    This will only be successful if fence can access info about the given google project.
+    This will only be successful if fence can access info about the given google project
+    and the necessary Google APIs are enabled.
 
     Args:
         google_project_id (str): Google project ID
@@ -352,7 +353,7 @@ def patch_user_service_account(
     """
     Update user service account which includes
     - Add and remove project access and bucket groups to/from fence db
-    - Add and remove access memebers to/from google access group
+    - Add and remove access members to/from google access group
 
     Args:
         google_project_id (str): google project id
@@ -808,14 +809,14 @@ def get_project_from_auth_id(project_auth_id, db=None):
 
 
 def remove_white_listed_service_account_ids(
-    service_account_ids, app_creds_file=None, white_listed_sa_emails=None
+    sa_ids, app_creds_file=None, white_listed_sa_emails=None
 ):
     """
     Remove any service account emails that should be ignored when
     determining validitity.
 
     Args:
-        service_account_ids (List[str]): Service account emails
+        sa_ids (List[str]): Service account emails
 
     Returns:
         List[str]: Service account emails
@@ -827,14 +828,14 @@ def remove_white_listed_service_account_ids(
 
     monitoring_service_account = get_monitoring_service_account_email(app_creds_file)
 
-    if monitoring_service_account in service_account_ids:
-        service_account_ids.remove(monitoring_service_account)
+    if monitoring_service_account in sa_ids:
+        sa_ids.remove(monitoring_service_account)
 
     for email in white_listed_sa_emails:
-        if email in service_account_ids:
-            service_account_ids.remove(email)
+        if email in sa_ids:
+            sa_ids.remove(email)
 
-    return service_account_ids
+    return sa_ids
 
 
 def is_org_whitelisted(parent_org, white_listed_google_parent_orgs=None):
@@ -848,10 +849,10 @@ def is_org_whitelisted(parent_org, white_listed_google_parent_orgs=None):
         bool: whether or not the provide Google parent organization is whitelisted
     """
 
-    if white_listed_google_parent_orgs is None:
-        white_listed_google_parent_orgs = flask.current_app.config.get(
-            "WHITE_LISTED_GOOGLE_PARENT_ORGS", {}
-        )
+    white_listed_google_parent_orgs = (
+        white_listed_google_parent_orgs
+        or flask.current_app.config.get("WHITE_LISTED_GOOGLE_PARENT_ORGS", {})
+    )
 
     return parent_org in white_listed_google_parent_orgs
 
