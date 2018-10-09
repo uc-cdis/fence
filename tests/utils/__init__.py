@@ -363,7 +363,15 @@ def authorized_download_credentials_context_claims(
     Return:
         dict: dictionary of claims
     """
-    aud = ["access", "data", "user", "openid", "credentials", "google_credentials"]
+    aud = [
+        "access",
+        "data",
+        "user",
+        "openid",
+        "credentials",
+        "google_link",
+        "google_credentials",
+    ]
     iss = current_app.config["BASE_URL"]
     jti = new_jti()
     iat, exp = iat_and_exp()
