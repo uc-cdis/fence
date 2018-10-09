@@ -83,6 +83,7 @@ class IndexedFile(object):
             self.index_document.get("urls", [])
         )
         self.public = check_public(self.set_acls)
+        self.size = self.index_document.get("size", 0)
 
     def get_signed_url(self, protocol, action, expires_in):
         if not self.public and not self.check_authorization(action):
@@ -290,10 +291,13 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 bucket_cred = s3_buckets[pattern]
                 break
         if bucket_cred is None:
+            flask.current_app.logger.error(
+                "No bucket credential configured for bucket {}".format(self.parsed_url.netloc)
+            )
             raise Unauthorized("permission denied for bucket")
 
         cred_key = get_value(
-            bucket_cred, "cred", InternalError("credential of that bucket is missing")
+            bucket_cred, "cred", InternalError("Credential not defined for bucket {} using cred {}".format(self.parsed_url.netloc, bucket_cred))
         )
         if cred_key == "*":
             return {"aws_access_key_id": "*"}
