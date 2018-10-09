@@ -56,7 +56,7 @@ class FenceLogin(Resource):
                 " login page for the original application to continue."
             )
         # Get the token response and log in the user.
-        redirect_uri = flask.current_app.fence_client.session.redirect_uri
+        redirect_uri = flask.current_app.fence_client._get_session().redirect_uri
         tokens = flask.current_app.fence_client.fetch_access_token(
             redirect_uri, **flask.request.args.to_dict()
         )
