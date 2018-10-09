@@ -820,15 +820,15 @@ def remove_white_listed_service_account_ids(
     Returns:
         List[str]: Service account emails
     """
-    monitoring_service_account = get_monitoring_service_account_email(app_creds_file)
-
-    if monitoring_service_account in service_account_ids:
-        service_account_ids.remove(monitoring_service_account)
-
     if white_listed_sa_emails is None:
         white_listed_sa_emails = flask.current_app.config.get(
             "WHITE_LISTED_SERVICE_ACCOUNT_EMAILS", []
         )
+
+    monitoring_service_account = get_monitoring_service_account_email(app_creds_file)
+
+    if monitoring_service_account in service_account_ids:
+        service_account_ids.remove(monitoring_service_account)
 
     for email in white_listed_sa_emails:
         if email in service_account_ids:
