@@ -11,6 +11,7 @@ from cirrus.google_cloud.errors import GoogleAPIError
 from fence.auth import current_token, require_auth_header
 from fence.restful import RestfulApi
 from fence.errors import UserError, NotFound, Unauthorized
+from fence.resources.google.validity import GoogleProjectValidity
 from fence.resources.google.access_utils import (
     is_user_member_of_all_google_projects,
     get_registered_service_account_from_email,
@@ -29,7 +30,6 @@ from fence.resources.google.utils import (
     get_registered_service_accounts,
     get_project_access_from_service_accounts,
 )
-from fence.resources.google.service_account import GoogleServiceAccountRegistration
 from fence.models import UserServiceAccount
 from flask_sqlalchemy_session import current_session
 
@@ -57,6 +57,33 @@ def make_google_blueprint():
     )
 
     return blueprint
+
+
+class GoogleServiceAccountRegistration(object):
+    """
+    Data class for certain functions in /google endpoints. Represents a registered
+    service account and it's basic information. You can optionally include a user_id,
+    which represents which user is interacting w/ or requesting changes for the
+    given registered service account.
+    """
+
+    def __init__(self, email, project_access, google_project_id, user_id=None):
+        """
+        Return a GoogleServiceAccountRegistration instance
+
+        Args:
+            email(str): email address of
+                service account to be registered
+            google_project_id(str): unique-id of google project
+            project_access(List[str]): list of project auth-ids which
+                identify which projects the service account should have
+                access to
+            user_id (str, optional): Description
+        """
+        self.email = email
+        self.project_access = project_access
+        self.google_project_id = google_project_id
+        self.user_id = user_id
 
 
 class GoogleServiceAccountRoot(Resource):
@@ -626,7 +653,13 @@ def _get_service_account_error_status(sa):
         },
     }
 
-    project_validity = sa.get_project_validity()
+    project_validity = GoogleProjectValidity(
+        google_project_id=sa.google_project_id,
+        new_service_account=sa.email,
+        new_service_account_access=sa.project_access,
+        user_id=sa.user_id,
+    )
+    project_validity.check_validity(early_return=False)
 
     response["errors"][
         "service_account_email"
