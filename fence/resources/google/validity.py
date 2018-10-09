@@ -226,7 +226,9 @@ class GoogleProjectValidity(ValidityInfo):
 
         if parent_org:
             valid_parent_org = is_org_whitelisted(
-                parent_org, white_listed_google_parent_orgs=white_listed_google_parent_orgs)
+                parent_org,
+                white_listed_google_parent_orgs=white_listed_google_parent_orgs,
+            )
 
         self.set("valid_parent_org", valid_parent_org)
 
@@ -415,15 +417,19 @@ class GoogleServiceAccountValidity(ValidityInfo):
         self._info["valid_type"] = None
         self._info["no_external_access"] = None
 
-    def check_validity(self, early_return=True,
-                       check_type_and_access=True, config=None):
+    def check_validity(
+        self, early_return=True, check_type_and_access=True, config=None
+    ):
 
         google_managed_sa_domains = (
-            config["GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAIN"] if config else None)
+            config["GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAIN"] if config else None
+        )
 
         is_owned_by_google_project = is_service_account_from_google_project(
-            self.account_id, self.google_project_id,
-            self.google_project_number, google_managed_sa_domains=google_managed_sa_domains
+            self.account_id,
+            self.google_project_id,
+            self.google_project_number,
+            google_managed_sa_domains=google_managed_sa_domains,
         )
         self.set("owned_by_project", is_owned_by_google_project)
         if not is_owned_by_google_project:

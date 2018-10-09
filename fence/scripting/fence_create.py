@@ -1235,6 +1235,7 @@ def verify_user_registration(DB, config):
     Validate user registration
     """
     import fence.settings
+
     cirrus_config.update(**fence.settings.CIRRUS_CFG)
 
     validation_check(DB, config)
