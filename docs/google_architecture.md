@@ -5,11 +5,11 @@
 Fence can issue short lived, cloud native credentials to access data in various cloud storage services. For Google, there are a handful of data access methods:
 
 1. Signed URLs
-* Generate URLs that provide temporary, authenticated, access to anyone with the URL
+    * Generate URLs that provide temporary, authenticated, access to anyone with the URL
 2. Temporary Service Account Credentials
-* Grant temporary access to authorized data via Google Service Account (for use in Google's Cloud Platform)
+    * Grant temporary access to authorized data via Google Service Account (for use in Google's Cloud Platform)
 3. Google Account Linking and Service Account Registration
-* Grant end-user Google Accounts and Google Projects temporary access to authorized data
+    * Grant end-user Google Accounts and Google Projects temporary access to authorized data
 
 We'll talk about each one of those in-depth here (and even delve into the internal details a bit). First, we'll take an overall look at the Fence + Google architecture.
 
