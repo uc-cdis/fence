@@ -49,7 +49,7 @@ def create_client(
     if confidential:
         client_secret = random_str(55)
         hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
-    auth_method = 'client_secret_basic' if confidential else 'none'
+    auth_method = "client_secret_basic" if confidential else "none"
     with driver.session as s:
         user = (
             s.query(User).filter(func.lower(User.username) == username.lower()).first()
@@ -237,12 +237,11 @@ def send_email(from_email, to_emails, subject, text, smtp_domain):
     """
     from fence.settings import GUN_MAIL
 
-    api_key = GUN_MAIL[smtp_domain]['api_key']
-    email_url = GUN_MAIL[smtp_domain]['api_url'] + '/messages'
+    api_key = GUN_MAIL[smtp_domain]["api_key"]
+    email_url = GUN_MAIL[smtp_domain]["api_url"] + "/messages"
 
-    return requests.post(email_url, auth=('api', api_key), data={
-        'from': from_email,
-        'to': to_emails,
-        'subject': subject,
-        'text': text
-    })
+    return requests.post(
+        email_url,
+        auth=("api", api_key),
+        data={"from": from_email, "to": to_emails, "subject": subject, "text": text},
+    )

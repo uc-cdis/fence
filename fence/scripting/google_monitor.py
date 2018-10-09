@@ -14,9 +14,7 @@ from fence.resources.google.validity import (
 )
 
 from fence.resources.google.utils import get_all_registered_service_accounts
-from fence.resources.google.access_utils import (
-    force_remove_service_account_from_access,
-)
+from fence.resources.google.access_utils import force_remove_service_account_from_access
 
 from fence import utils
 
@@ -45,7 +43,9 @@ def validation_check(db, config=None):
             print("Validating Google Service Account: {}".format(sa_email))
             # Do some basic service account checks, this won't validate
             # the data access, that's done when the project's validated
-            validity_info = _is_valid_service_account(sa_email, google_project_id, config=config)
+            validity_info = _is_valid_service_account(
+                sa_email, google_project_id, config=config
+            )
             if not validity_info:
                 print(
                     "INVALID SERVICE ACCOUNT {} DETECTED. REMOVING...".format(sa_email)
@@ -53,11 +53,14 @@ def validation_check(db, config=None):
                 force_remove_service_account_from_access(
                     sa_email, google_project_id, db=db
                 )
-                invalid_service_account_reasons[sa_email] = (
-                    _get_service_account_removal_reason(validity_info))
+                invalid_service_account_reasons[
+                    sa_email
+                ] = _get_service_account_removal_reason(validity_info)
 
         print("Validating Google Project: {}".format(google_project_id))
-        google_project_validity = _is_valid_google_project(google_project_id, db=db, config=config)
+        google_project_validity = _is_valid_google_project(
+            google_project_id, db=db, config=config
+        )
         if not google_project_validity:
             # for now, if we detect in invalid project, remove ALL service
             # accounts from access for that project.
@@ -73,13 +76,15 @@ def validation_check(db, config=None):
                 force_remove_service_account_from_access(
                     sa_email, google_project_id, db=db
                 )
-            invalid_service_account_reasons[sa_email] = (
-                _get_project_removal_reason(google_project_validity))
+            invalid_service_account_reasons[sa_email] = _get_project_removal_reason(
+                google_project_validity
+            )
 
         _send_emails_informing_service_account_removal(
-            _get_user_email_list_from_google_project_with_owner_role(
-                google_project_id),
-            invalid_service_account_reasons, google_project_id)
+            _get_user_email_list_from_google_project_with_owner_role(google_project_id),
+            invalid_service_account_reasons,
+            google_project_id,
+        )
 
 
 def _is_valid_service_account(sa_email, google_project_id, config=None):
@@ -92,8 +97,7 @@ def _is_valid_service_account(sa_email, google_project_id, config=None):
     """
     try:
         sa_validity = GoogleServiceAccountValidity(sa_email, google_project_id)
-        sa_validity.check_validity(
-                early_return=True, config=config)
+        sa_validity.check_validity(early_return=True, config=config)
     except Exception:
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
@@ -109,8 +113,7 @@ def _is_valid_google_project(google_project_id, db=None, config=None):
     """
     try:
         project_validity = GoogleProjectValidity(google_project_id)
-        project_validity.check_validity(
-                early_return=True, db=db, config=config)
+        project_validity.check_validity(early_return=True, db=db, config=config)
     except Exception:
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
@@ -134,11 +137,11 @@ def _get_service_account_removal_reason(service_account_validity):
 
     removal_reason = ""
 
-    if service_account_validity['valid_type'] is False:
+    if service_account_validity["valid_type"] is False:
         removal_reason += "\n\t\t-It must be a Compute Engine service account or an user-managed service account."
-    if service_account_validity['no_external_access'] is False:
+    if service_account_validity["no_external_access"] is False:
         removal_reason += "\n\t\t-It has either roles attached to it or service account keys generated. We do not allow this because we need to restrict external access.\n"
-    if service_account_validity['owned_by_project'] is False:
+    if service_account_validity["owned_by_project"] is False:
         removal_reason += "\n\t\t-It is not owned by the project.\n"
 
     return removal_reason
@@ -173,7 +176,9 @@ def _get_project_removal_reason(google_project_validity):
         removal_reason += "\n\t\t-There are members in the project other than Google users or Google service accounts."
 
     if google_project_validity["members_exist_in_fence"] is False:
-        removal_reason += "\n\t\t-Some Google members do not exist in authentication database."
+        removal_reason += (
+            "\n\t\t-Some Google members do not exist in authentication database."
+        )
 
     return removal_reason
 
@@ -234,15 +239,19 @@ def _get_user_email_list_from_google_project_with_owner_role(project_id):
             if member.member_type == GooglePolicyMember.USER
         ]
 
-        return list({
-            u.email_id
-            for u in users
-            for role in u.roles
-            if role.name.upper() == "OWNER"})
+        return list(
+            {
+                u.email_id
+                for u in users
+                for role in u.roles
+                if role.name.upper() == "OWNER"
+            }
+        )
 
 
 def _send_emails_informing_service_account_removal(
-            to_emails, invalid_service_account_reasons, project_id):
+    to_emails, invalid_service_account_reasons, project_id
+):
     """
     Send emails to list of emails
 
@@ -263,6 +272,7 @@ def _send_emails_informing_service_account_removal(
         return None
 
     from fence.settings import REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION
+
     from_email = REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["from"]
     subject = REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["subject"]
 
@@ -275,7 +285,8 @@ def _send_emails_informing_service_account_removal(
 
     for email, removal_reason in invalid_service_account_reasons.iteritems():
         if removal_reason:
-            content += ("\n\t - Service account {} was removed from Google project {} {}"
-                        .format(email, project_id, removal_reason))
+            content += "\n\t - Service account {} was removed from Google project {} {}".format(
+                email, project_id, removal_reason
+            )
 
     return utils.send_email(from_email, to_emails, subject, content, domain)

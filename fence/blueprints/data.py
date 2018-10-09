@@ -281,9 +281,9 @@ class S3IndexedFileLocation(IndexedFileLocation):
             InternalError("buckets not configured"),
         )
         if len(aws_creds) == 0 and len(s3_buckets) == 0:
-            raise InternalError("no bucket is configured")
+            raise InternalError("Download through buckets not configured.")
         if len(aws_creds) == 0 and len(s3_buckets) > 0:
-            raise InternalError("credential for buckets is not configured")
+            raise InternalError("No credentials configured for bucket download.")
 
         bucket_cred = None
         for pattern in s3_buckets:
@@ -292,12 +292,22 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 break
         if bucket_cred is None:
             flask.current_app.logger.error(
-                "No bucket credential configured for bucket {}".format(self.parsed_url.netloc)
+                "No bucket credential configured for bucket {}".format(
+                    self.parsed_url.netloc
+                )
             )
-            raise Unauthorized("permission denied for bucket")
+            raise Unauthorized(
+                "The bucket with this data is not configured for download."
+            )
 
         cred_key = get_value(
-            bucket_cred, "cred", InternalError("Credential not defined for bucket {} using cred {}".format(self.parsed_url.netloc, bucket_cred))
+            bucket_cred,
+            "cred",
+            InternalError(
+                "Credential not defined for bucket {} using cred {}".format(
+                    self.parsed_url.netloc, bucket_cred
+                )
+            ),
         )
         if cred_key == "*":
             return {"aws_access_key_id": "*"}
@@ -306,7 +316,11 @@ class S3IndexedFileLocation(IndexedFileLocation):
             return get_value(
                 aws_creds,
                 cred_key,
-                InternalError("aws credential of that bucket is not found"),
+                InternalError(
+                    "aws credential for bucket {} is not found".format(
+                        self.parsed_url.netloc
+                    )
+                ),
             )
         else:
             return S3IndexedFileLocation.assume_role(

@@ -191,7 +191,7 @@ REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION = {
 users or service accounts of GCP project {} are not authorized to access \
 the data sets associated to the service accounts, or do not \
 adhere to the security policies.
-    """
+    """,
 }
 
 SUPPORT_EMAIL_FOR_ERRORS = None
