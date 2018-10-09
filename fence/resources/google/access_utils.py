@@ -6,8 +6,6 @@ import time
 import flask
 from urllib import unquote
 
-from flask_sqlalchemy_session import current_session
-
 from cirrus.google_cloud.iam import GooglePolicyMember
 
 from cirrus.google_cloud.errors import GoogleAPIError
@@ -240,7 +238,8 @@ def is_service_account_from_google_project(
         service_account_name = service_account_email.split("@")[0]
 
         if is_google_managed_service_account(
-            service_account_email, google_managed_sa_domains
+            service_account_email,
+            google_managed_service_account_domains=google_managed_sa_domains,
         ):
             return (
                 service_account_name == "service-{}".format(project_number)
@@ -295,7 +294,7 @@ def is_user_member_of_all_google_projects(
     user = session.query(User).filter_by(id=user_id).first()
     if not user:
         logger.error(
-            "Could not determine if user (id: {} is from projects:"
+            "Could not determine if user (id: {}) is from projects:"
             " {} due to error. User does not exist...".format(
                 user_id, google_project_ids
             )
@@ -323,7 +322,7 @@ def is_user_member_of_all_google_projects(
                         return False
     except Exception as exc:
         logger.error(
-            "Could not determine if user (id: {} is from projects:"
+            "Could not determine if user (id: {}) is from projects:"
             " {} due to error. Details: {}".format(user_id, google_project_ids, exc)
         )
         return False
@@ -331,12 +330,13 @@ def is_user_member_of_all_google_projects(
     return True
 
 
-def do_all_users_have_access_to_project(users, project_id):
+def do_all_users_have_access_to_project(users, project_id, db=None):
+    session = get_db_session(db)
     # users will be list of fence.model.User's
     # check if all users has access to a project with project_id
     for user in users:
         access_privilege = (
-            current_session.query(AccessPrivilege)
+            session.query(AccessPrivilege)
             .filter(AccessPrivilege.user_id == user.id)
             .filter(AccessPrivilege.project_id == project_id)
         ).first()
@@ -417,12 +417,14 @@ def get_project_ids_from_project_auth_ids(session, auth_ids):
     return project_ids
 
 
-def _force_remove_service_account_from_access_db(service_account_email, db=None):
+def _force_remove_service_account_from_access_db(
+    service_account, access_groups, db=None
+):
     """
     Remove the access of service account from db.
 
     Args:
-        service_account_email (str): service account email
+        service_account (str): service account email
         db(str): db connection string
 
     Returns:
@@ -433,12 +435,6 @@ def _force_remove_service_account_from_access_db(service_account_email, db=None)
 
     """
     session = get_db_session(db)
-
-    service_account = (
-        session.query(UserServiceAccount).filter_by(email=service_account_email).first()
-    )
-
-    access_groups = get_google_access_groups_for_service_account(service_account)
 
     for bucket_access_group in access_groups:
         sa_to_group = (
@@ -503,12 +499,12 @@ def force_remove_service_account_from_access(
                 )
         except Exception as exc:
             raise GoogleAPIError(
-                "Can not remove memeber {} from access group {}. Detail {}".format(
+                "Can not remove member {} from access group {}. Detail {}".format(
                     service_account.email, bucket_access_group.email, exc
                 )
             )
 
-    _force_remove_service_account_from_access_db(service_account_email, db)
+    _force_remove_service_account_from_access_db(service_account, access_groups, db)
 
 
 def _revoke_user_service_account_from_google(
@@ -540,7 +536,7 @@ def _revoke_user_service_account_from_google(
                         member_email=service_account.email, group_id=access_group.email
                     ):
 
-                        flask.current_app.logger.debug(
+                        logger.debug(
                             "Removed {} from google group {}".format(
                                 service_account.email, access_group.email
                             )
@@ -580,7 +576,7 @@ def add_user_service_account_to_google(
                         member_email=service_account.email, group_id=access_group.email
                     )
                     if response.get("id", None):
-                        flask.current_app.logger.debug(
+                        logger.debug(
                             "Successfully add member {} to google group {}.".format(
                                 service_account.email, access_group.email
                             )
@@ -812,7 +808,9 @@ def get_project_from_auth_id(project_auth_id, db=None):
     return project
 
 
-def remove_white_listed_service_account_ids(sa_ids, white_listed_sa_email=None):
+def remove_white_listed_service_account_ids(
+    sa_ids, app_creds_file=None, white_listed_sa_emails=None
+):
     """
     Remove any service account emails that should be ignored when
     determining validitity.
@@ -823,15 +821,17 @@ def remove_white_listed_service_account_ids(sa_ids, white_listed_sa_email=None):
     Returns:
         List[str]: Service account emails
     """
-    monitoring_service_account = get_monitoring_service_account_email()
+    if white_listed_sa_emails is None:
+        white_listed_sa_emails = flask.current_app.config.get(
+            "WHITE_LISTED_SERVICE_ACCOUNT_EMAILS", []
+        )
+
+    monitoring_service_account = get_monitoring_service_account_email(app_creds_file)
+
     if monitoring_service_account in sa_ids:
         sa_ids.remove(monitoring_service_account)
 
-    white_listed_sa_email = white_listed_sa_email or flask.current_app.config.get(
-        "WHITE_LISTED_SERVICE_ACCOUNT_EMAILS", []
-    )
-
-    for email in white_listed_sa_email:
+    for email in white_listed_sa_emails:
         if email in sa_ids:
             sa_ids.remove(email)
 
@@ -860,17 +860,14 @@ def is_org_whitelisted(parent_org, white_listed_google_parent_orgs=None):
 def force_delete_service_account(service_account_email, db=None):
     """
     Delete from our db the given user service account by email.
-
-    Args:
+     Args:
         service_account_email (str): user service account email
         db(str): db connection string
     """
     session = get_db_session(db)
-
     sa = (
         session.query(UserServiceAccount).filter_by(email=service_account_email).first()
     )
-
     if sa:
         session.delete(sa)
         session.commit()
