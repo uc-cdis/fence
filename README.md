@@ -151,7 +151,7 @@ Fence has the ability to request a specific file by its GUID (globally unique id
 
 Whereas pre-signed URL is a cloud agnostic solution, services and tools on Google Cloud Platform prefer to use Google's concept of a "Service Account". Because of that, Fence provides a few more methods to access data in Google.
 
-See ![Fence and Google](docs/google_architecture.md) for more details on data access methods specific to Google.
+See [Fence and Google](docs/google_architecture.md) for more details on data access methods specific to Google.
 
 ## Setup
 
