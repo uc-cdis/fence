@@ -5,12 +5,15 @@
 Fence can issue short lived, cloud native credentials to access data in various cloud storage services. For Google, there are a handful of data access methods:
 
 1. Signed URLs
+* Generate URLs that provide temporary, authenticated, access to anyone with the URL
 2. Temporary Service Account Credentials
+* Grant temporary access to authorized data via Google Service Account (for use in Google's Cloud Platform)
 3. Google Account Linking and Service Account Registration
+* Grant end-user Google Accounts and Google Projects temporary access to authorized data
 
-We'll talk about each one of those in-depth here. First though, an overall look at the Fence+Google architecture.
+We'll talk about each one of those in-depth here (and even delve into the internal details a bit). First, we'll take an overall look at the Fence + Google architecture.
 
-### Fence -> cirrus -> Google
+### Fence -> cirrus -> Google: A library wrapping Google's API
 
 We have a library that wraps Google's public API called [cirrus](https://github.com/uc-cdis/cirrus). Our design is such that fence does not hit Google's API directly, but goes through cirrus. For all of cirrus's features to work, a very specific setup is required, which is detailed in cirrus's README.
 
@@ -21,13 +24,13 @@ Once cirrus has access to manage groups and is configured with proper credential
 
 ### Data Access: Google Architecture
 
-To support the 3 methods of access mentioned above, we have a generic architecture that provides linkage between an end-user and rights to access a Google storage bucket.
+To support the 3 methods of access mentioned above, we have a generic architecture that provides linkage between an end-user and rights to access a Google Storage bucket.
 
 That architecture involves Google's concept of **groups** and use of their **IAM Policies** in the Google Cloud Platform. The following diagram shows the layers between the user themselves and the bucket.
 
 ![Google Access Architecture](images/g_architecture.png)
 
-Working backwards from the Google Bucket itself, we have a **Google Bucket Access Group**, which, as you probably guessed, provides access to the bucket. That group is assigned a **role** on the Google **resource** (the Google Bucket). **Roles** provide a set of permissions (like read privileges). The combinations of those roles on the bucket, become the bucket's **Policy**. You can read more about Google's IAM terms and concepts in [their docs](https://cloud.google.com/iam/overview).
+Working backwards from the Google Bucket itself, we have a **Google Bucket Access Group**, which, as you probably guessed, is a Google Group that provides access to the bucket. That group is assigned a **role** on the Google **resource** (the Google Bucket). **Roles** provide a set of permissions (like read privileges). The combinations of those roles on the bucket become the bucket's **Policy**. You can read more about Google's IAM terms and concepts in [their docs](https://cloud.google.com/iam/overview).
 
 The important thing to note here is that *any* entity inside that Google Bucket Access Group (GBAG) will have whatever role/permissions were set between the GBAG and the Bucket itself with Google's IAM.
 
@@ -51,11 +54,11 @@ This means that other Google accounts (like a personal email) can be in this Use
 
 The User Proxy Groups also allows a central location for Google Service Accounts that are given the same access as the user (which are used for the **Temporary Service Account Credentials** and **Signed URL** access method).
 
-This makes the granting and removal of data access for a given user very simple. Just remove their Proxy Group from a Google Bucket Access Group. All entities that use to have access to the bucket no longer have access.
+This makes the granting and removal of data access for a given user very simple. Just remove their Proxy Group from a Google Bucket Access Group. All entities that had access to the bucket no longer have access.
 
 ### Crash Course: Fence Clients
 
-Fence supports OpenID Connect / Oauth2 flows to allow outside applications to request access to user's data and do things on their behalf. Users **must** consent to this before the outside application is given access.
+Fence supports OpenID Connect / Oauth2 flows to allow outside applications to request access to user's data and perform actions on their behalf. Users **must** consent to this before the outside application is given access.
 
 The Google Access methods mentioned above all require special client scopes (which allow the client to ask the user for this access), and the user must consent to the client using these methods.
 
@@ -67,7 +70,7 @@ The scopes that allow access to these methods are also available for individual 
 
 Fence allows clients (and users themselves) to generate temporary credentials which they can use in Google's Cloud Platform to access data that the user has access to. This is done by using Google's **Service Accounts** and generating a **Service Account Key** to provide to the client. This key will allow the client to authenticate as that service account (which is controlled by Fence).
 
-Each client (AKA outside application) that a user consents to get access through will get their own **Client Service Account** that is associated directly with a given user. In other works, there's a one-to-many relationship between a user and their Client Service Accounts.
+Each client (AKA outside application) will get their own **Client Service Account** that is associated directly with a given user. In other works, there's a one-to-many relationship between a user and their Client Service Accounts.
 
 This allows clients to manage their temporary credentials without the chance of interfering with another client's. Fence provides capability to create and delete these keys through its API.
 
@@ -77,11 +80,18 @@ Each Client Service Account is a member in the User's Proxy Group, meaning it ha
 
 > WARNING: By default, Google Service Account Keys have an expiration of 10 years. To create a more manageable and secure expiration you must manually "expire" the keys by deleting them with a cronjob (once they are alive longer than a configured expiration). Fence's command line tool `fence-create` has a function for expiring keys that you should run on a schedule. Check out `fence-create google-manage-keys --help`
 
+Note that internally, we handle users themselves generating these temporary credentials differently. A user is given a **Primary Service Account** which is essentially the same thing as a Client Service Account, but is meant for use solely by the user themself (e.g. not going through a client or outside applcation but hitting the API directly).
+
+At the moment, we track keys generated for the Primary Service Account in our db. Client Service Accounts are expired by checking their creation time through Google's API.
+
+One special use-case for the Primary Service Account is its use for signing URLs (see the Signed URLs section below).
+
+
 ### Google Account Linking and Service Account Registration
 
 There are two steps in this access method but they are related. If you want to access data directly by signing in with your Google account, then you can just do the **Google Account Linking**.
 
-If, however, users have their own Google Projects and want to provide access to data to data inside those projects, they can go through **Service Account Regsitration** to provide a Google Service Account with temporary access to the data. This allows users to spin up virtual machines in their own projects and run computations on data they have access to.
+If, however, users have their own Google Projects and want to provide access to data to data inside those projects, they can go through **Service Account Registration** to provide a Google Service Account with temporary access to the data. This allows users to spin up virtual machines in their own projects and run computations on data they have access to.
 
 While Service Account Registration may provide the most flexibility, it is also the hardest to monitor and ensure security of data. Thus, *clients and users who wish to use this access method must adhere to very specific setup instructions, configurations, and rules restricting certain features of Google's Cloud Platform*.
 
@@ -129,8 +139,6 @@ This diagram shows a single Google Project with 3 users (`UserA`, `UserB`, and `
 
 ![Service Account Registration](images/sa_reg.png)
 
----
-
 The project service account, `Service Account A`, has been registered for access to a fence `Project` which has data in `Bucket Y`. The service account is given access by placing it *directly in the Google Bucket Access Group*.
 
 Now, by using `Service Account A`, any user in the project (`UserA`, `UserB`, and `UserC`) can access data in `Bucket Y` (in a Compute Engine Virtual Machine for example).
@@ -149,4 +157,20 @@ If someone attempting to register `Service Account A` with fence `Projects` that
 
 ### Signed URLs
 
-> TODO
+Fence facilitates the creation of Signed URLs to access Google Storage objects. These URLs provide temporary, authenticated, access to anyone with the URL but must be generated by someone who has access.
+
+![Signed URLs](images/signed_urls.png)
+
+Design Requirements:
+
+* Resulting URL can be traced back to the user who created it
+    * For security / logging purposes
+* Clients and Users should maintain the ability to manage as many service account keys as possible
+    * Google's limit is 10 keys per Service Account
+    * Want to make sure we're not creating a *new* key every time a signed URL is requested
+
+To meet these requirements, we use a single key generated by the user's **Primary Service Account** to sign the URL. In this way, we can trace back the URL to a given user (since the Primary Service Account email is guaranteed to contain the `user_id`).
+
+We make sure that the key we generate for the Primary Service Account has a later expiration time than when users create their own keys (although this is configurable in fence). By default, the key used for signing URLs lasts 30 days, while service account keys created by users for the Primary Service Account last 7 days.
+
+Fence manages the rotation of the key for URL signing automatically.

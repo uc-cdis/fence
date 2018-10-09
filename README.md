@@ -134,7 +134,7 @@ File. A `project` is identified by a unique authorization identifier AKA `auth_i
 
 A `project` can be associated with various storage backends that store
 object data for that given `project`. You can assign `read-storage` and `write-storage`
-privilieges to users who should have access to that stored object data. `read` and 
+privilieges to users who should have access to that stored object data. `read` and
 `write` allow access to the data stored in a graph database.
 
 Depending on the backend, Fence can be configured to provide users access to
@@ -143,57 +143,15 @@ the data in different ways.
 
 ### Signed URLS
 
-Temporary signed URLs are supported in all major commercial clouds. Signed URLs are the most 'cloud agnostic' way to allow users to access data located in different platforms. Fence has the ability to request a specific file by its GUID (globally unique identifier) and retrieve a temporary
-signed URL for object data in AWS or GCP that will provide direct access to that object.
+Temporary signed URLs are supported in all major commercial clouds. Signed URLs are the most 'cloud agnostic' way to allow users to access data located in different platforms.
+
+Fence has the ability to request a specific file by its GUID (globally unique identifier) and retrieve a temporary signed URL for object data in AWS or GCP that will provide direct access to that object.
 
 ### Google Cloud Storage
 
+Whereas pre-signed URL is a cloud agnostic solution, services and tools on Google Cloud Platform prefer to use Google's concept of a "Service Account". Because of that, Fence provides a few more methods to access data in Google.
 
-Whereas pre-signed URL is a cloud agnostic solution, services and tools on Google Cloud Platform prefer to use service account. Because of that, Fence provides support for generating temporary Google service account credentials to be easily used together with Google utilities.
-
-
-
-#### Temporary Google Credentials
-
-Fence issues temporary service account keys that will have the same
-access a user does to data.
-One can then use these credentials to AuthN as that
-service account and manipulate the data within Google's Cloud Platform.
-
-Service account keys expirations are managed by Fence, this design
-should be revised after Google provides a way to issue temporary credentials
-that work seamlessly with its infrastructure and tooling.
-
-
-#### Google Account Linking
-
-This is a deprecated method and is not recommended to be used generally.
-
-Fence supports granting Google Account or Google Service Account owned by end-users temporary access to authorized data.
-
-We call this process 'google account linking' because we are linking the user's Fence identity with his/her google identity.
-
-##### a. Linking Google Personal Account
-
-This allows an end-user to link their personal Google account with their Fence identity.
-
-
-The data access is temporary, though there is a Fence endpoint to
-extend access (without requiring the end-user to go through the entire
-linking process again).
-
-##### b. Linking Google Service Account
-
-This allows an end-user to create their own personal Google Cloud Project
-and register a Google Service Account from that project to have access
-to data. While this method allows the most flexibility, it is also the
-most complicated and requires strict adherence to a number of rules and
-restrictions.
-
-This method also requires Fence to have access to that
-end-user's Google project. Fence is then able to monitor the project
-for any anomalies that may unintentionally provide data access to entities
-who should not have access.
+See ![Fence and Google](docs/google_architecture.md) for more details on data access methods specific to Google.
 
 ## Setup
 
@@ -311,7 +269,7 @@ The link-external-bucket returns an email for a Google group which needs to be a
 
 ## Token management
 
-Fence utilizes [OpenID Connect](#OIDC) to generate tokens 
+Fence utilizes [OpenID Connect](#OIDC) to generate tokens
 for clients. It can also provide tokens directly to a user.
 
 Clients and users may then use those tokens with other
