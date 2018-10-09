@@ -48,7 +48,7 @@ class GoogleLinkRedirect(Resource):
     will have access to the same resources the user does.
     """
 
-    @require_auth_header({"user"})
+    @require_auth_header({"google_link"})
     def get(self):
         """
         Link a user's Google Account by running the oauth2 flow with
@@ -66,7 +66,7 @@ class GoogleLinkRedirect(Resource):
         """
         return GoogleLinkRedirect._link_google_account()
 
-    @require_auth_header({"user"})
+    @require_auth_header({"google_link"})
     def patch(self):
         """
         Extend access of the user's linked Google account.
@@ -75,7 +75,7 @@ class GoogleLinkRedirect(Resource):
         """
         return GoogleLinkRedirect._extend_account_expiration()
 
-    @require_auth_header({"user"})
+    @require_auth_header({"google_link"})
     def delete(self):
         """
         Permanently remove a user's linked Google account. This will first

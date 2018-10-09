@@ -228,11 +228,20 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
         if "openid" in shown_scopes:
             shown_scopes.remove("openid")
 
-        enabled_idps = flask.current_app.config.get("OPENID_CONNECT", {})
+        oidc_clients_info = flask.current_app.config.get("OPENID_CONNECT", {})
+        enabled_idps = flask.current_app.config.get(
+            "ENABLED_IDENTITY_PROVIDERS", {}
+        ).get("providers", {})
+
         idp_names = []
         for idp, info in enabled_idps.iteritems():
-            # prefer name if its there, then just use the key for the provider
-            idp_name = info.get("name") or idp.title()
+            # prefer name if its there (in the enabled idps or in the oidc client cfg)
+            # then just use the key for the provider if you can't find those
+            idp_name = (
+                info.get("name")
+                or oidc_clients_info.get(idp, {}).get("name")
+                or idp.title()
+            )
             idp_names.append(idp_name)
 
         resource_description = [
