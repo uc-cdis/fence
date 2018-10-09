@@ -1,5 +1,5 @@
+from authlib.specs.rfc6749.errors import InvalidClientError, OAuth2Error
 import authlib.specs.rfc7009
-from authlib.specs.rfc7009.errors import InvalidClientError, OAuth2Error
 import bcrypt
 import flask
 
@@ -21,7 +21,7 @@ class RevocationEndpoint(authlib.specs.rfc7009.RevocationEndpoint):
         """
         return token
 
-    def invalidate_token(self, token):
+    def revoke_token(self, token):
         """
         Revoke a token.
         """

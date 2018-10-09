@@ -14,6 +14,8 @@ from fence.auth import logout, build_redirect_url
 from fence.errors import UserError
 from fence.jwt import keys
 from fence.models import migrate
+from fence.oidc.jwt_generator import generate_token
+from fence.oidc.client import query_client
 from fence.oidc.server import server
 from fence.rbac.client import ArboristClient
 from fence.resources.aws.boto_manager import BotoManager
@@ -33,7 +35,6 @@ import fence.blueprints.user
 import fence.blueprints.well_known
 import fence.blueprints.link
 import fence.blueprints.google
-import fence.client
 
 from cdislogging import get_logger
 logger = get_logger(__name__)
@@ -59,7 +60,7 @@ def app_config(app, settings="fence.settings", root_dir=None):
 
     if root_dir is None:
         root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    if "AWS_CREDENTIALS" in app.config and len(app.config["AWS_CREDENTIALS"]) > 0:
+    if app.config.get("AWS_CREDENTIALS"):
         value = app.config["AWS_CREDENTIALS"].values()[0]
         app.boto = BotoManager(value, logger=app.logger)
         app.register_blueprint(fence.blueprints.data.blueprint, url_prefix="/data")
@@ -73,6 +74,18 @@ def app_config(app, settings="fence.settings", root_dir=None):
     }
 
     cirrus.config.config.update(**app.config.get("CIRRUS_CFG", {}))
+
+
+def configure_oidc(app, overrides=None):
+    """
+    NOTE: app must have loaded keypairs already as ``app.keypairs``.
+    """
+    overrides = overrides or {}
+    settings = {
+        "OAUTH2_JWT_KEY": keys.default_private_key(app),
+        "OAUTH2_JWT_ISS": app.config["BASE_URL"],
+    }
+    settings.update(overrides)
 
 
 def app_register_blueprints(app):
@@ -175,12 +188,24 @@ def app_sessions(app):
         app.arborist = ArboristClient(arborist_base_url=app.config["ARBORIST"])
 
 
+def app_config_oauth(app):
+    # authlib OIDC settings
+    settings = {
+        "OAUTH2_JWT_ENABLED": True,
+        "OAUTH2_JWT_ALG": "RS256",
+        "OAUTH2_JWT_ISS": app.config["BASE_URL"],
+        "OAUTH2_JWT_KEY": app.keypairs[0].private_key,
+    }
+    app.config.update(settings)
+
+
 def app_init(app, settings="fence.settings", root_dir=None):
     app.logger.addHandler(get_stream_handler())
     app_config(app, settings=settings, root_dir=root_dir)
     app_sessions(app)
     app_register_blueprints(app)
-    server.init_app(app)
+    app_config_oauth(app)
+    server.init_app(app, query_client=query_client)
 
 
 @app.errorhandler(Exception)
