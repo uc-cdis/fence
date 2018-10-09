@@ -457,7 +457,7 @@ def _force_remove_service_account_from_access_db(
 
     for access in access_privileges:
         session.delete(access)
-        session.commit()
+    session.commit()
 
 
 def force_remove_service_account_from_access(
