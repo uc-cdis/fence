@@ -13,7 +13,7 @@ pipeline {
         dir('gen3-qa') {
           git(
             url: 'https://github.com/uc-cdis/gen3-qa.git',
-            branch: 'master'
+            branch: 'fix/Jenkinsfile'
           )
         }
         dir('data-simulator') {
@@ -24,8 +24,8 @@ pipeline {
         }
         dir('cdis-manifest') {
           git(
-            url: 'https://github.com/uc-cdis/cdis-manifest.git',
-            branch: 'QA'
+            url: 'https://github.com/uc-cdis/gitops-qa.git',
+            branch: 'master'
           )
         }
         dir('cloud-automation') {
@@ -36,6 +36,12 @@ pipeline {
           script {
             env.GEN3_HOME=env.WORKSPACE+"/cloud-automation"
           }
+        }
+        dir('data-simulator') {
+          git(
+            url: 'https://github.com/occ-data/data-simulator.git',
+            branch: 'master'
+          )
         }
       }
     }
@@ -49,7 +55,10 @@ pipeline {
           fullQuery = "curl -s "+curlUrl+/ | jq '.builds[] | "\(.tags[]),\(.display_name),\(.phase)"'/
           
           def testBool = false
-          while(testBool != true) {
+          def allComplete = false
+
+          while(testBool != true && allComplete != true) {
+            allComplete = true
             currentTime = new Date().getTime()/1000 as Integer
             println "currentTime is: "+currentTime
 
@@ -59,17 +68,27 @@ pipeline {
             }
 
             sleep(30)
+
             resList = sh(script: fullQuery, returnStdout: true).trim().split('"\n"')
+            println "Got quay result: " + resList.join("\n")
+
             for (String res in resList) {
               fields = res.replaceAll('"', "").split(',')
-
-              if(fields[0].startsWith("$env.GIT_BRANCH".replaceAll("/", "_"))) {
-                if("$env.GIT_COMMIT".startsWith(fields[1])) {
-                  testBool = fields[2].endsWith("complete")
-                  break
-                } else {
-                  currentBuild.result = 'ABORTED'
-                  error("aborting build due to out of date git hash\npipeline: $env.GIT_COMMIT\nquay: "+fields[1])
+              //
+              // if all pending builds are complete, then assume there's nothing to wait
+              // for even if a build for our commit is not pending.
+              // that can happen if someone re-runs a Jenkins job or whatever
+              //
+              if (fields.length > 2) {
+                allComplete = allComplete && fields[2].endsWith("complete")
+                if(fields[0].startsWith("$env.GIT_BRANCH".replaceAll("/", "_"))) {
+                  if("$env.GIT_COMMIT".startsWith(fields[1])) {
+                    testBool = fields[2].endsWith("complete")
+                    break
+                  } else {
+                    currentBuild.result = 'ABORTED'
+                    error("aborting build due to out of date git hash\npipeline: $env.GIT_COMMIT\nquay: "+fields[1])
+                  }
                 }
               }
             }
@@ -80,16 +99,18 @@ pipeline {
     stage('SelectNamespace') {
       steps {
         script {
-          String[] namespaces = ['qa-bloodpac', 'qa-brain', 'qa-kidsfirst', 'qa-niaid']
+          String[] namespaces = ['jenkins-brain']
           int modNum = namespaces.length/2
-          int randNum = (new Random().nextInt(modNum) + ((env.EXECUTOR_NUMBER as Integer) * 2)) % namespaces.length
+          int randNum = 0;  // always use bloodpac for now (new Random().nextInt(modNum) + ((env.EXECUTOR_NUMBER as Integer) * 2)) % namespaces.length
 
-          env.KUBECTL_NAMESPACE = namespaces[randNum]
+          if( ! env.KUBECTL_NAMESPACE ) {
+            env.KUBECTL_NAMESPACE = namespaces[randNum];
+          }
           println "selected namespace $env.KUBECTL_NAMESPACE on executor $env.EXECUTOR_NUMBER"
 
           println "attempting to lock namespace with a wait time of 5 minutes"
           uid = BUILD_TAG.replaceAll(' ', '_').replaceAll('%2F', '_')
-          sh("bash cloud-automation/gen3/bin/kube-lock.sh jenkins "+uid+" 3600 -w 300")
+          sh("bash cloud-automation/gen3/bin/klock.sh lock jenkins "+uid+" 3600 -w 300")
         }
       }
     }
@@ -120,19 +141,11 @@ pipeline {
         }
       }
     }
-    stage('RunInstall') {
-      steps {
-        dir('gen3-qa') {
-          withEnv(['GEN3_NOPROXY=true']) {
-            sh "bash ./run-install.sh"
-          }
-        }
-      }
-    }
     stage('RunTests') {
       steps {
         dir('gen3-qa') {
-          withEnv(['GEN3_NOPROXY=true', "vpc_name=$env.KUBECTL_NAMESPACE", "GEN3_HOME=$env.WORKSPACE/cloud-automation"]) {
+          withEnv(['GEN3_NOPROXY=true', "vpc_name=$env.KUBECTL_NAMESPACE", "NAMESPACE=$env.KUBECTL_NAMESPACE", "GEN3_HOME=$env.WORKSPACE/cloud-automation", , "TEST_DATA_PATH=$env.WORKSPACE/testData/"]) {
+            sh "bash ./jenkins-simulate-data.sh $env.KUBECTL_NAMESPACE"
             sh "bash ./run-tests.sh $env.KUBECTL_NAMESPACE"
           }
         }
@@ -154,8 +167,10 @@ pipeline {
     }
     always {
       script {
+        // junit archiver does not like old looking files
+        sh("touch gen3-qa/output/*.xml")
         uid = BUILD_TAG.replaceAll(' ', '_').replaceAll('%2F', '_')
-        sh("bash cloud-automation/gen3/bin/kube-unlock.sh jenkins "+uid)
+        sh("bash cloud-automation/gen3/bin/klock.sh unlock jenkins "+uid)
       }
       echo "done"
       junit "gen3-qa/output/*.xml"
