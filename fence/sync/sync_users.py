@@ -897,7 +897,8 @@ class UserSyncer(object):
             self.logger.warn("no arborist client set; skipping arborist sync")
             return False
         if not self.arborist_client.healthy():
-            self.logger.error("arborist service is unavailable; skipping arborist sync")
+            self.logger.error(
+                "arborist service is unavailable; skipping arborist sync")
             return False
 
         # Set up the resource tree in arborist
@@ -905,9 +906,8 @@ class UserSyncer(object):
             # see if arborist has identical resource tree already
             try:
                 for resource in resources:
-                    # don't care about response from delete
-                    self.arborist_client.delete_resource("/" + resource["name"])
-                    self.arborist_client.create_resource("/", resource)
+                    self.arborist_client.create_resource(
+                        "/", resource, overwrite=True)
             except ArboristError as e:
                 self.logger.error(e)
                 return False
@@ -916,9 +916,6 @@ class UserSyncer(object):
         created_policies = set()
 
         self._reset_user_access(session)
-        # wipe policies
-        for policy in self.arborist_client.list_policies()["policy_ids"]:
-            self.arborist_client.delete_policy(policy)
 
         for username, user_resources in user_projects.iteritems():
             self.logger.info("processing user `{}`".format(username))
@@ -938,9 +935,8 @@ class UserSyncer(object):
                             )
                         except ArboristError as e:
                             self.logger.info(
-                                "not creating role for permission `{}`; {}".format(
-                                    permission, str(e)
-                                )
+                                "not creating role for permission `{}`; {}"
+                                .format(permission, str(e))
                             )
                         created_roles.add(permission)
 
