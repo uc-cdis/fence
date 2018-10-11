@@ -77,7 +77,7 @@ class ArboristClient(object):
         Example:
 
             {
-                "policies": [
+                "policy_ids": [
                     "policy-abc",
                     "policy-xyz"
                 ]
