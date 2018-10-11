@@ -787,7 +787,7 @@ def _update_for_authlib(driver, md):
                 client.redirect_uri = "\n".join(redirect_uris.split())
             # add grant_type; everything prior to migration was just using code grant
             if not client.grant_type:
-                client.grant_type = "authorization_code"
+                client.grant_type = "authorization_code refresh_token"
         session.commit()
 
     add_code_col = lambda col: add_column_if_not_exist(
