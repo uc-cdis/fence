@@ -219,6 +219,9 @@ class ArboristClient(object):
             return None
         return response.json()
 
+    def delete_policy(self, path):
+        return _request_get_json(requests.delete(self._policy_url + path))
+
     def create_policy(self, policy_json):
         response = _request_get_json(requests.post(self._policy_url, json=policy_json))
         if "error" in response:

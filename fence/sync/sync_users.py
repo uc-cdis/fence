@@ -916,6 +916,9 @@ class UserSyncer(object):
         created_policies = set()
 
         self._reset_user_access(session)
+        # wipe policies
+        for policy in self.arborist_client.list_policies()['policies']:
+            self.arborist_client.delete_policy(policy)
 
         for username, user_resources in user_projects.iteritems():
             self.logger.info("processing user `{}`".format(username))
