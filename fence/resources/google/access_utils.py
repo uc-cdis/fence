@@ -309,9 +309,10 @@ def is_user_member_of_google_project(
                 return False
     except Exception as exc:
         logger.error(
-            "Could not determine if user (id: {} is from project:"
+            "Could not determine if user (id: {}) is from project:"
             " {} due to error. Details: {}"
-            .format(getattr(google_cloud_manager, "project_id", "unknown"),
+            .format(user.id,
+                    getattr(google_cloud_manager, "project_id", "unknown"),
                     exc))
         return False
 
