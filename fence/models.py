@@ -144,7 +144,7 @@ class Client(Base, OAuth2ClientMixin):
         if isinstance(grant_types, list):
             kwargs["grant_type"] = "\n".join(grant_types)
         else:
-            # assume it's already in correct format with spaces if not a list
+            # assume it's already in correct format
             kwargs["grant_type"] = grant_types
 
         super(Client, self).__init__(client_id=client_id, **kwargs)
