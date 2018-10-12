@@ -26,6 +26,11 @@ from userdatamodel.models import (
     ProjectToBucket,
 )
 
+from fence.blueprints.link import (
+    force_update_user_google_account_expiration,
+    add_new_user_google_account,
+)
+from fence.errors import Unauthorized
 from fence.jwt.token import (
     generate_signed_access_token,
     generate_signed_refresh_token,
@@ -42,17 +47,10 @@ from fence.models import (
     UserRefreshToken,
     ServiceAccountToGoogleBucketAccessGroup,
 )
-from fence.utils import create_client
-from fence.sync.sync_users import UserSyncer
-
 from fence.scripting.google_monitor import validation_check
-
-from fence.errors import Unauthorized
 from fence.settings import GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN
-from fence.blueprints.link import (
-    force_update_user_google_account_expiration,
-    add_new_user_google_account
-)
+from fence.sync.sync_users import UserSyncer
+from fence.utils import create_client
 
 logger = get_logger(__name__)
 
@@ -103,9 +101,15 @@ def modify_client_action(
         s.commit()
 
 
-def create_client_action(DB, username=None, client=None, urls=None, auto_approve=False):
+def create_client_action(
+    DB, username=None, client=None, urls=None, auto_approve=False, **kwargs
+):
     try:
-        print(create_client(username, urls, DB, name=client, auto_approve=auto_approve))
+        print(
+            create_client(
+                username, urls, DB, name=client, auto_approve=auto_approve, **kwargs
+            )
+        )
     except Exception as e:
         print(e.message)
 
@@ -116,8 +120,8 @@ def delete_client_action(DB, client_name):
     try:
         cirrus_config.update(**fence.settings.CIRRUS_CFG)
     except AttributeError:
-        # no cirrus config, continue anyway. Google APIs will probably fail.
-        # this is okay if clients don't have any Google service accounts
+        # no cirrus config, continue anyway. we don't have client service accounts
+        # to delete
         pass
 
     try:
@@ -131,6 +135,7 @@ def delete_client_action(DB, client_name):
                 raise Exception("client {} does not exist".format(client_name))
 
             clients = current_session.query(Client).filter(Client.name == client_name)
+
             for client in clients:
                 _remove_client_service_accounts(current_session, client)
             clients.delete()
@@ -145,6 +150,7 @@ def _remove_client_service_accounts(db_session, client):
     client_service_accounts = db_session.query(GoogleServiceAccount).filter(
         GoogleServiceAccount.client_id == client.client_id
     )
+
     with GoogleCloudManager() as g_mgr:
         for service_account in client_service_accounts:
             print(
@@ -451,9 +457,9 @@ def remove_expired_google_service_account_keys(db):
             GoogleServiceAccountKey
         ).filter(GoogleServiceAccountKey.expires <= current_time)
 
-        with GoogleCloudManager() as g_mgr:
-            # handle service accounts with default max expiration
-            for service_account, client in client_service_accounts:
+        # handle service accounts with default max expiration
+        for service_account, client in client_service_accounts:
+            with GoogleCloudManager() as g_mgr:
                 g_mgr.handle_expired_service_account_keys(
                     service_account.google_unique_id
                 )
@@ -1231,14 +1237,13 @@ def verify_user_registration(DB, config):
     Validate user registration
     """
     import fence.settings
+
     cirrus_config.update(**fence.settings.CIRRUS_CFG)
 
     validation_check(DB, config)
 
 
-def force_update_google_link(
-        DB, username, google_email
-):
+def force_update_google_link(DB, username, google_email):
     """
     WARNING: This function circumvents Google Auth flow, and should only be
     used for internal testing!
@@ -1266,15 +1271,12 @@ def force_update_google_link(
         Expiration time of the newly updated google account's access
     """
     import fence.settings
+
     cirrus_config.update(**fence.settings.CIRRUS_CFG)
 
     db = SQLAlchemyDriver(DB)
     with db.session as session:
-        user_account = (
-            session.query(User)
-            .filter(User.username == username)
-            .first()
-        )
+        user_account = session.query(User).filter(User.username == username).first()
         if user_account:
             user_id = user_account.id
             proxy_group_id = user_account.google_proxy_group_id
@@ -1286,8 +1288,8 @@ def force_update_google_link(
 
         user_google_account = (
             session.query(UserGoogleAccount)
-                .filter(UserGoogleAccount.email == google_email)
-                .first()
+            .filter(UserGoogleAccount.email == google_email)
+            .first()
         )
         if not user_google_account:
             user_google_account = add_new_user_google_account(

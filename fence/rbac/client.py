@@ -77,7 +77,7 @@ class ArboristClient(object):
         Example:
 
             {
-                "policies": [
+                "policy_ids": [
                     "policy-abc",
                     "policy-xyz"
                 ]
@@ -152,8 +152,7 @@ class ArboristClient(object):
         if "error" in response:
             msg = response["error"].get("message", str(response["error"]))
             self.logger.error(
-                "could not create resource `{}` in arborist: {}"
-                .format(path, msg)
+                "could not create resource `{}` in arborist: {}".format(path, msg)
             )
             raise ArboristError(response["error"])
         return response
@@ -219,6 +218,9 @@ class ArboristClient(object):
         if response.status_code == 404:
             return None
         return response.json()
+
+    def delete_policy(self, path):
+        return _request_get_json(requests.delete(self._policy_url + path))
 
     def create_policy(self, policy_json):
         response = _request_get_json(requests.post(self._policy_url, json=policy_json))

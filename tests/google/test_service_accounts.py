@@ -144,15 +144,15 @@ def test_patch_service_account_no_project_change(
     register_user_service_account,
     user_can_manage_service_account_mock,
     valid_user_service_account_mock,
-    update_service_account_permissions_mock,
+    revoke_user_service_account_from_google_mock,
+    add_user_service_account_to_google_mock,
 ):
     """
-    Test that patching with no change to project_access successfully extends
+    Test that patching with no arg project_access successfully extends
     access for all projects the service account currently has access to.
     """
     encoded_creds_jwt = encoded_jwt_service_accounts_access["jwt"]
     service_account = register_user_service_account["service_account"]
-    update_service_account_permissions_mock.return_value = ("", 200)
 
     response = client.patch(
         "/google/service_accounts/{}".format(quote(service_account.email)),
@@ -176,6 +176,166 @@ def test_patch_service_account_no_project_change(
     # make sure we actually extended access past the current time
     for access in service_account_accesses:
         assert access.expires > int(time.time())
+
+
+def test_patch_service_account_dry_run_valid_empty_arg(
+    client,
+    app,
+    db_session,
+    encoded_jwt_service_accounts_access,
+    register_user_service_account,
+    user_can_manage_service_account_mock,
+    valid_user_service_account_mock,
+    revoke_user_service_account_from_google_mock,
+    add_user_service_account_to_google_mock,
+):
+    """
+    Test that patching with no arg project_access against _dry_run says the PATCH
+    would successfully extend access.
+    """
+    encoded_creds_jwt = encoded_jwt_service_accounts_access["jwt"]
+    service_account = register_user_service_account["service_account"]
+
+    response = client.patch(
+        "/google/service_accounts/_dry_run/{}".format(quote(service_account.email)),
+        headers={"Authorization": "Bearer " + encoded_creds_jwt},
+        content_type="application/json",
+    )
+    # check if success
+    assert str(response.status_code).startswith("2")
+    assert "success" in response.json
+    assert response.json.get("success")
+
+    service_account_accesses = (
+        db_session.query(ServiceAccountToGoogleBucketAccessGroup).filter_by(
+            service_account_id=service_account.id
+        )
+    ).all()
+
+    # ensure access is the same as before
+    assert len(service_account_accesses) == len(
+        register_user_service_account["bucket_access_groups"]
+    )
+
+
+def test_patch_service_account_dry_run_valid_new_access(
+    client,
+    app,
+    db_session,
+    encoded_jwt_service_accounts_access,
+    register_user_service_account,
+    user_can_manage_service_account_mock,
+    valid_user_service_account_mock,
+    revoke_user_service_account_from_google_mock,
+    add_user_service_account_to_google_mock,
+):
+    """
+    Test that patching with new project_access against _dry_run says the PATCH
+    would successfully extend access if it's valid. BUT make sure it does NOT
+    actually change the access.
+    """
+    encoded_creds_jwt = encoded_jwt_service_accounts_access["jwt"]
+    service_account = register_user_service_account["service_account"]
+
+    response = client.patch(
+        "/google/service_accounts/_dry_run/{}".format(quote(service_account.email)),
+        headers={"Authorization": "Bearer " + encoded_creds_jwt},
+        content_type="application/json",
+        data={"project_access": ["another-valid-project"]},
+    )
+    # check if success
+    assert str(response.status_code).startswith("2")
+    assert "success" in response.json
+    assert response.json.get("success")
+
+    service_account_accesses = (
+        db_session.query(ServiceAccountToGoogleBucketAccessGroup).filter_by(
+            service_account_id=service_account.id
+        )
+    ).all()
+
+    # ensure access is the same as before even though it was valid (since it's
+    # the dry_run endpoint)
+    assert len(service_account_accesses) == len(
+        register_user_service_account["bucket_access_groups"]
+    )
+
+
+def test_patch_service_account_dry_run_invalid(
+    client,
+    app,
+    db_session,
+    encoded_jwt_service_accounts_access,
+    register_user_service_account,
+    user_can_manage_service_account_mock,
+    invalid_user_service_account_mock,
+    revoke_user_service_account_from_google_mock,
+    add_user_service_account_to_google_mock,
+):
+    """
+    Test that patching against dry_run when it would be invalid does not modify access.
+    """
+    encoded_creds_jwt = encoded_jwt_service_accounts_access["jwt"]
+    service_account = register_user_service_account["service_account"]
+
+    response = client.patch(
+        "/google/service_accounts/_dry_run/{}".format(quote(service_account.email)),
+        headers={"Authorization": "Bearer " + encoded_creds_jwt},
+        content_type="application/json",
+        data=json.dumps({"project_access": ["this-project-doesnt-exist"]}),
+    )
+    # check if success
+    assert str(response.status_code).startswith("4")
+    assert "success" in response.json
+    assert not response.json.get("success")
+
+    service_account_accesses = (
+        db_session.query(ServiceAccountToGoogleBucketAccessGroup).filter_by(
+            service_account_id=service_account.id
+        )
+    ).all()
+
+    # ensure access is the same
+    assert len(service_account_accesses) == len(
+        register_user_service_account["bucket_access_groups"]
+    )
+
+
+def test_patch_service_account_remove_all_access(
+    client,
+    app,
+    db_session,
+    encoded_jwt_service_accounts_access,
+    register_user_service_account,
+    user_can_manage_service_account_mock,
+    valid_user_service_account_mock,
+    revoke_user_service_account_from_google_mock,
+    add_user_service_account_to_google_mock,
+):
+    """
+    Test that patching with project_access as empty list successfully removes
+    all projects the service account currently has access to.
+    """
+    encoded_creds_jwt = encoded_jwt_service_accounts_access["jwt"]
+    service_account = register_user_service_account["service_account"]
+
+    response = client.patch(
+        "/google/service_accounts/{}".format(quote(service_account.email)),
+        headers={"Authorization": "Bearer " + encoded_creds_jwt},
+        content_type="application/json",
+        data=json.dumps({"project_access": []}),
+    )
+    # check if success
+    assert str(response.status_code).startswith("2")
+
+    service_account_accesses = (
+        db_session.query(ServiceAccountToGoogleBucketAccessGroup).filter_by(
+            service_account_id=service_account.id
+        )
+    ).all()
+
+    # ensure access is the same
+    assert len(service_account_accesses) == 0
 
 
 def test_invalid_service_account_dry_run_errors(

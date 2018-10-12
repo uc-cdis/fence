@@ -906,9 +906,7 @@ class UserSyncer(object):
             try:
                 for resource in resources:
                     # don't care about response from delete
-                    self.arborist_client.delete_resource(
-                        "/" + resource["name"]
-                    )
+                    self.arborist_client.delete_resource("/" + resource["name"])
                     self.arborist_client.create_resource("/", resource)
             except ArboristError as e:
                 self.logger.error(e)
@@ -918,6 +916,9 @@ class UserSyncer(object):
         created_policies = set()
 
         self._reset_user_access(session)
+        # wipe policies
+        for policy in self.arborist_client.list_policies()["policy_ids"]:
+            self.arborist_client.delete_policy(policy)
 
         for username, user_resources in user_projects.iteritems():
             self.logger.info("processing user `{}`".format(username))

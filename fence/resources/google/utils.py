@@ -203,40 +203,44 @@ def create_google_access_key(client_id, user_id, username, proxy_group_id):
     return key, service_account
 
 
-def _get_linked_google_account(user_id):
+def _get_linked_google_account(user_id, db=None):
     """
     Hit db to check for linked google account of user
     """
+    session = get_db_session(db)
+
     g_account = (
-        current_session.query(UserGoogleAccount)
+        session.query(UserGoogleAccount)
         .filter(UserGoogleAccount.user_id == user_id)
         .first()
     )
     return g_account
 
 
-def get_linked_google_account_email(user_id):
+def get_linked_google_account_email(user_id, db=None):
     """
     Hit db to check for linked google account email of user
     """
     google_email = None
     if user_id:
-        g_account = _get_linked_google_account(user_id)
+        g_account = _get_linked_google_account(user_id, db=db)
         if g_account:
             google_email = g_account.email
     return google_email
 
 
-def get_linked_google_account_exp(user_id):
+def get_linked_google_account_exp(user_id, db=None):
     """
     Hit db to check for expiration of linked google account of user
     """
+    session = get_db_session(db)
+
     google_account_exp = 0
     if user_id:
-        g_account = _get_linked_google_account(user_id)
+        g_account = _get_linked_google_account(user_id, db=db)
         if g_account:
             g_account_to_proxy_group = (
-                current_session.query(UserGoogleAccountToProxyGroup)
+                session.query(UserGoogleAccountToProxyGroup)
                 .filter(
                     UserGoogleAccountToProxyGroup.user_google_account_id == g_account.id
                 )
@@ -516,41 +520,48 @@ def get_prefix_for_google_proxy_groups():
 
 def get_all_registered_service_accounts(db=None):
     """
-    Get all registerd service accounts from db
+    Get all registered service accounts from db
     """
     session = get_db_session(db)
-    registered_service_accounts = []
-    for account in session.query(ServiceAccountToGoogleBucketAccessGroup).all():
-        registered_service_accounts.extend(
-            session.query(UserServiceAccount)
-            .filter_by(google_project_id=account.service_account.google_project_id)
-            .all()
+
+    registered_service_accounts = (
+        session.query(UserServiceAccount)
+        .join(ServiceAccountToGoogleBucketAccessGroup)
+        .filter(
+            UserServiceAccount.id
+            == ServiceAccountToGoogleBucketAccessGroup.service_account_id
         )
+        .all()
+    )
 
-    return registered_service_accounts
+    return list(registered_service_accounts)
 
 
-def get_registered_service_accounts(google_project_id):
+def get_registered_service_accounts(google_project_id, db=None):
+    session = get_db_session(db)
+
     return (
-        current_session.query(UserServiceAccount)
+        session.query(UserServiceAccount)
         .filter_by(google_project_id=google_project_id)
         .all()
     )
 
 
-def get_project_access_from_service_accounts(service_accounts):
+def get_project_access_from_service_accounts(service_accounts, db=None):
     """
     Get a list of projects all the provided service accounts have
     access to. list will be of UserServiceAccount db objects
 
     Returns a list of Project objects
     """
+    session = get_db_session(db)
+
     projects = []
     for service_account in service_accounts:
         access = [
             access_privilege.project
             for access_privilege in (
-                current_session.query(ServiceAccountAccessPrivilege)
+                session.query(ServiceAccountAccessPrivilege)
                 .filter_by(service_account_id=service_account.id)
                 .all()
             )
@@ -579,7 +590,7 @@ def get_service_account_ids_from_google_members(members):
     ]
 
 
-def get_users_from_google_members(members):
+def get_users_from_google_members(members, db=None):
     """
     Get User objects for all members on a Google project by checking db.
 
@@ -595,7 +606,7 @@ def get_users_from_google_members(members):
     """
     result = []
     for member in members:
-        user = get_user_from_google_member(member)
+        user = get_user_from_google_member(member, db=db)
         if user:
             result.append(user)
         else:
@@ -608,7 +619,7 @@ def get_users_from_google_members(members):
     return result
 
 
-def get_user_from_google_member(member):
+def get_user_from_google_member(member, db=None):
     """
     Get User object for all members on a Google project by checking db.
 
@@ -619,22 +630,22 @@ def get_user_from_google_member(member):
     Return:
         fence.models.User: User from our db for member on Google project
     """
+    session = get_db_session(db)
+
     linked_google_account = (
-        current_session.query(UserGoogleAccount)
-        .filter(UserGoogleAccount.email == member.email_id.lower())
+        session.query(UserGoogleAccount)
+        .filter(UserGoogleAccount.email == member.email_id.lower().strip())
         .first()
     )
     if linked_google_account:
         return (
-            current_session.query(User)
-            .filter(User.id == linked_google_account.user_id)
-            .first()
+            session.query(User).filter(User.id == linked_google_account.user_id).first()
         )
 
     return None
 
 
-def get_monitoring_service_account_email():
+def get_monitoring_service_account_email(app_creds_file=None):
     """
     Get the monitoring email from the cirrus configuration. Use the
     main/default application credentials as the monitoring service account.
@@ -642,9 +653,9 @@ def get_monitoring_service_account_email():
     This function should ONLY return the service account's email by
     parsing the creds file.
     """
-    app_creds_file = flask.current_app.config.get("CIRRUS_CFG", {}).get(
-        "GOOGLE_APPLICATION_CREDENTIALS"
-    )
+    app_creds_file = app_creds_file or flask.current_app.config.get(
+        "CIRRUS_CFG", {}
+    ).get("GOOGLE_APPLICATION_CREDENTIALS")
 
     creds_email = None
     if app_creds_file and os.path.exists(app_creds_file):
@@ -655,7 +666,8 @@ def get_monitoring_service_account_email():
 
 
 def is_google_managed_service_account(
-            service_account_email, google_managed_service_account_domains=None):
+    service_account_email, google_managed_service_account_domains=None
+):
     """
     Return whether or not the given service account email represents a Google
     managed account (e.g. not user-created).
@@ -663,9 +675,8 @@ def is_google_managed_service_account(
     service_account_domain = "{}".format(service_account_email.split("@")[-1])
 
     google_managed_service_account_domains = (
-        google_managed_service_account_domains or flask.current_app.config.get(
-            "GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS", []
-        )
+        google_managed_service_account_domains
+        or flask.current_app.config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS", [])
     )
 
     return service_account_domain in google_managed_service_account_domains

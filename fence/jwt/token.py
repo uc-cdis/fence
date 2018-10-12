@@ -4,7 +4,6 @@ import uuid
 
 from authlib.common.encoding import to_unicode
 from authlib.specs.oidc import CodeIDToken as AuthlibCodeIDToken
-from authlib.specs.oidc import IDTokenError
 import flask
 import jwt
 
@@ -69,8 +68,9 @@ class JWTResult(object):
 
 
 class UnsignedIDToken(AuthlibCodeIDToken):
-    def __init__(self, token):
-        super(UnsignedIDToken, self).__init__(token)
+    def __init__(self, token, header=None, **kwargs):
+        header = header or {}
+        super(UnsignedIDToken, self).__init__(token, header, **kwargs)
 
     def get_signed_and_encoded_token(self, kid, private_key):
         """
@@ -84,57 +84,10 @@ class UnsignedIDToken(AuthlibCodeIDToken):
             str: UTF-8 encoded JWT ID token signed with ``private_key``
         """
         headers = {"kid": kid}
-        token = jwt.encode(self.token, private_key, headers=headers, algorithm="RS256")
+        headers.update(self.header)
+        token = jwt.encode(self, private_key, headers=headers, algorithm="RS256")
         token = to_unicode(token)
         return token
-
-    def validate_auth_time(self, max_age):
-        """
-        Validate that the token isn't too old (in other words, the
-        time since user last authN'd is less than `max_age`)
-
-        Args:
-            max_age (int): max number of seconds allowed since last user AuthN
-
-        Raises:
-            IDTokenError: Either max_age is provided and there's no auth_time
-                          field, or the token is too old
-        """
-        # Patch authlib to actually check max_age against auth_time and handle
-        super(UnsignedIDToken, self).validate_auth_time(max_age)
-        if max_age:
-            age = int(time.time()) - self.auth_time
-            if max_age < age:
-                # FIXME: OP MUST attempt to actively re-authenticate the
-                # End-User
-                raise IDTokenError(
-                    "too old. age since auth_time is greater than max_age"
-                )
-
-    def validate(self, client_id, issuer=None, max_age=None, nonce=None):
-        """
-        Validate the current token. Exceptions are thrown if there are
-        issues
-
-        Args:
-            client_id (Optional[str]):
-                Client identifier, defaults to current client in flask's
-                context
-            issuer (Optional[str]):
-                Issuer Identifier for the Issuer of the response, Defaults to
-                this app's BASE_URL
-            max_age (Optional[int]):
-                max number of seconds allowed since last user AuthN
-            nonce (Optional[str]):
-                string value used to associate a Client session with an ID
-                Token
-        """
-        issuer = issuer or flask.current_app.config.get("BASE_URL")
-        now = time.time()
-
-        super(UnsignedIDToken, self).validate(
-            issuer=issuer, client_id=client_id, max_age=max_age, nonce=nonce, now=now
-        )
 
     @classmethod
     def from_signed_and_encoded_token(
@@ -176,20 +129,18 @@ class UnsignedIDToken(AuthlibCodeIDToken):
         issuer = issuer or flask.current_app.config.get("BASE_URL")
         public_key = public_key or keys.default_public_key()
 
-        token = jwt.decode(
+        payload = jwt.decode(
             encoded_token,
             public_key,
             algorithms="RS256",
             verify=verify,
             audience=client_id,
         )
-
-        token = cls(token)
+        headers = {}
+        token = cls(payload, headers)
 
         if verify:
-            token.validate(
-                client_id=client_id, issuer=issuer, max_age=max_age, nonce=nonce
-            )
+            token.validate()
 
         return token
 
@@ -299,7 +250,7 @@ def generate_signed_id_token(
         **kwargs
     )
     signed_token = token.get_signed_and_encoded_token(kid, private_key)
-    return JWTResult(token=signed_token, kid=kid, claims=token.token)
+    return JWTResult(token=signed_token, kid=kid, claims=token)
 
 
 def generate_signed_refresh_token(
@@ -569,12 +520,11 @@ def generate_id_token(
         "issuing JWT ID token\n" + json.dumps(claims, indent=4)
     )
 
-    token = UnsignedIDToken(claims)
-    token.validate(
-        issuer=flask.current_app.config.get("BASE_URL"),
-        client_id=client_id,
-        max_age=max_age,
-        nonce=nonce,
-    )
+    token_options = {
+        "iss": {"essential": True, "value": flask.current_app.config.get("BASE_URL")},
+        "nonce": {"value": nonce},
+    }
+    token = UnsignedIDToken(claims, options=token_options)
+    token.validate()
 
     return token

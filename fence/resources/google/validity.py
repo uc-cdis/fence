@@ -173,6 +173,8 @@ class GoogleProjectValidity(ValidityInfo):
             new_service_account_access (List(str), optional): List of
                 Project.auth_ids to attempt to provide the new service account
                 access to
+            user_id (None, optional): User requesting validation. ONLY pass this if you
+                want to check if the user is a member of this project.
         """
         self.google_project_id = google_project_id
         self.new_service_account = new_service_account
@@ -235,7 +237,9 @@ class GoogleProjectValidity(ValidityInfo):
 
         if parent_org:
             valid_parent_org = is_org_whitelisted(
-                parent_org, white_listed_google_parent_orgs=white_listed_google_parent_orgs)
+                parent_org,
+                white_listed_google_parent_orgs=white_listed_google_parent_orgs,
+            )
 
         self.set("valid_parent_org", valid_parent_org)
 
@@ -261,7 +265,7 @@ class GoogleProjectValidity(ValidityInfo):
         users_in_project = None
         if user_members is not None:
             try:
-                users_in_project = get_users_from_google_members(user_members)
+                users_in_project = get_users_from_google_members(user_members, db=db)
                 self.set("members_exist_in_fence", True)
             except Exception:
                 self.set("members_exist_in_fence", False)
@@ -280,24 +284,36 @@ class GoogleProjectValidity(ValidityInfo):
             )
 
             service_account_id = str(self.new_service_account)
+
+            google_sa_domains = (
+                config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS") if config else None
+            )
             # we do NOT need to check the service account type and external access
             # for google-managed accounts.
-            if is_google_managed_service_account(service_account_id):
+            if is_google_managed_service_account(
+                service_account_id,
+                google_managed_service_account_domains=google_sa_domains,
+            ):
                 service_account_validity_info.check_validity(
-                    early_return=early_return, check_type_and_access=False
+                    early_return=early_return,
+                    check_type_and_access=False,
+                    config=config,
                 )
             else:
                 service_account_validity_info.check_validity(
-                    early_return=early_return, check_type_and_access=True
+                    early_return=early_return, check_type_and_access=True, config=config
                 )
-
-            if not service_account_validity_info and early_return:
-                return
 
             # update project with error info from the service accounts
             new_service_account_validity.set(
                 service_account_id, service_account_validity_info
             )
+
+            if not service_account_validity_info and early_return:
+                # if we need to return early for invalid SA, make sure to include
+                # error details and invalidate the overall validity
+                self.set("new_service_account", new_service_account_validity)
+                return
 
         self.set("new_service_account", new_service_account_validity)
 
@@ -305,7 +321,18 @@ class GoogleProjectValidity(ValidityInfo):
             service_account_members
         )
 
-        remove_white_listed_service_account_ids(service_accounts)
+        white_listed_service_accounts = (
+            config.get("WHITE_LISTED_SERVICE_ACCOUNT_EMAILS") if config else None
+        )
+        app_creds_file = (
+            config.get("GOOGLE_APPLICATION_CREDENTIALS") if config else None
+        )
+
+        remove_white_listed_service_account_ids(
+            service_accounts,
+            app_creds_file=app_creds_file,
+            white_listed_sa_emails=white_listed_service_accounts,
+        )
 
         # use a generic validityinfo object to hold all the service accounts
         # validity. then check all the service accounts. Top level will be
@@ -320,32 +347,45 @@ class GoogleProjectValidity(ValidityInfo):
                 google_cloud_manager=self.google_cloud_manager
             )
 
+            google_sa_domains = (
+                config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS") if config else None
+            )
             # we do NOT need to check the service account type and external access
             # for google-managed accounts.
-            if is_google_managed_service_account(service_account_id):
+            if is_google_managed_service_account(
+                service_account_id,
+                google_managed_service_account_domains=google_sa_domains,
+            ):
                 service_account_validity_info.check_validity(
-                    early_return=early_return, check_type_and_access=False
+                    early_return=early_return,
+                    check_type_and_access=False,
+                    config=config,
                 )
             else:
                 service_account_validity_info.check_validity(
-                    early_return=early_return, check_type_and_access=True
+                    early_return=early_return, check_type_and_access=True, config=config
                 )
-
-            if not service_account_validity_info and early_return:
-                return
 
             # update project with error info from the service accounts
             service_accounts_validity.set(
                 service_account_id, service_account_validity_info
             )
 
+            if not service_account_validity_info and early_return:
+                # if we need to return early for invalid SA, make sure to include
+                # error details and invalidate the overall validity
+                self.set("service_accounts", service_accounts_validity)
+                return
+
         self.set("service_accounts", service_accounts_validity)
 
         # get the service accounts for the project to determine all the data
         # the project can access through the service accounts
-        service_accounts = get_registered_service_accounts(self.google_project_id)
+        service_accounts = get_registered_service_accounts(
+            self.google_project_id, db=db
+        )
         service_account_project_access = get_project_access_from_service_accounts(
-            service_accounts
+            service_accounts, db=db
         )
 
         # use a generic validityinfo object to hold all the projects validity
@@ -375,7 +415,7 @@ class GoogleProjectValidity(ValidityInfo):
             valid_access = None
             if users_in_project:
                 valid_access = do_all_users_have_access_to_project(
-                    users_in_project, project.id
+                    users_in_project, project.id, db=db
                 )
             project_validity.set("all_users_have_access", valid_access)
 
@@ -442,11 +482,14 @@ class GoogleServiceAccountValidity(ValidityInfo):
         self.google_cloud_manager.open()
 
         google_managed_sa_domains = (
-            config["GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAIN"] if config else None)
+            config["GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS"] if config else None
+        )
 
         is_owned_by_google_project = is_service_account_from_google_project(
-            self.account_id, self.google_project_id,
-            self.google_project_number, google_managed_sa_domains=google_managed_sa_domains
+            self.account_id,
+            self.google_project_id,
+            self.google_project_number,
+            google_managed_sa_domains=google_managed_sa_domains,
         )
         self.set("owned_by_project", is_owned_by_google_project)
         if not is_owned_by_google_project:
