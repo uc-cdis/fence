@@ -897,8 +897,7 @@ class UserSyncer(object):
             self.logger.warn("no arborist client set; skipping arborist sync")
             return False
         if not self.arborist_client.healthy():
-            self.logger.error(
-                "arborist service is unavailable; skipping arborist sync")
+            self.logger.error("arborist service is unavailable; skipping arborist sync")
             return False
 
         # Set up the resource tree in arborist
@@ -906,8 +905,7 @@ class UserSyncer(object):
             # see if arborist has identical resource tree already
             try:
                 for resource in resources:
-                    self.arborist_client.create_resource(
-                        "/", resource, overwrite=True)
+                    self.arborist_client.create_resource("/", resource, overwrite=True)
             except ArboristError as e:
                 self.logger.error(e)
                 return False
@@ -935,8 +933,9 @@ class UserSyncer(object):
                             )
                         except ArboristError as e:
                             self.logger.info(
-                                "not creating role for permission `{}`; {}"
-                                .format(permission, str(e))
+                                "not creating role for permission `{}`; {}".format(
+                                    permission, str(e)
+                                )
                             )
                         created_roles.add(permission)
 

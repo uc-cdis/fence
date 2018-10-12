@@ -151,7 +151,7 @@ class ArboristClient(object):
         response = requests.post(path, json=resource_json)
         if response.status_code == 409:
             if overwrite:
-                resource_path = path + resource_json['name']
+                resource_path = path + resource_json["name"]
                 return self.update_resource(resource_path, resource_json)
             else:
                 return None
@@ -159,8 +159,7 @@ class ArboristClient(object):
         if "error" in data:
             msg = data["error"].get("message", str(data["error"]))
             self.logger.error(
-                "could not create resource `{}` in arborist: {}"
-                .format(path, msg)
+                "could not create resource `{}` in arborist: {}".format(path, msg)
             )
             raise ArboristError(data["error"])
         self.logger.info("created resource {}".format(resource_json["name"]))
@@ -171,8 +170,7 @@ class ArboristClient(object):
         if "error" in response:
             msg = response["error"].get("message", str(response["error"]))
             self.logger.error(
-                "could not update resource `{}` in arborist: {}"
-                .format(path, msg)
+                "could not update resource `{}` in arborist: {}".format(path, msg)
             )
             raise ArboristError(response["error"])
         self.logger.info("updated resource {}".format(resource_json["name"]))
@@ -224,7 +222,7 @@ class ArboristClient(object):
         data = _request_get_json(response)
         if response.status_code == 409:
             return None
-        if 'error' in data:
+        if "error" in data:
             self.logger.error(
                 "could not create role `{}` in arborist: {}".format(
                     role_json["id"], data["error"]
