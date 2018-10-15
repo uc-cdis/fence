@@ -136,8 +136,17 @@ class Client(Base, OAuth2ClientMixin):
                 kwargs["redirect_uri"] = "\n".join(redirect_uris)
             else:
                 kwargs["redirect_uri"] = redirect_uris
-        # default grant types to just 'authorization_code'
-        self.grant_types = kwargs.pop("grant_types", ["authorization_code"])
+        # default grant types to allow for auth code flow and resfreshing
+        grant_types = kwargs.pop("grant_types", None) or [
+            GrantType.code.value,
+            GrantType.refresh.value,
+        ]
+        if isinstance(grant_types, list):
+            kwargs["grant_type"] = "\n".join(grant_types)
+        else:
+            # assume it's already in correct format
+            kwargs["grant_type"] = grant_types
+
         super(Client, self).__init__(client_id=client_id, **kwargs)
 
     @property
@@ -787,7 +796,7 @@ def _update_for_authlib(driver, md):
                 client.redirect_uri = "\n".join(redirect_uris.split())
             # add grant_type; everything prior to migration was just using code grant
             if not client.grant_type:
-                client.grant_type = "authorization_code"
+                client.grant_type = "authorization_code\nrefresh_token"
         session.commit()
 
     add_code_col = lambda col: add_column_if_not_exist(

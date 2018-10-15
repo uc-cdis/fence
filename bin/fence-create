@@ -50,7 +50,7 @@ def parse_arguments():
 
     client_create = subparsers.add_parser("client-create")
     client_create.add_argument("--client", required=True)
-    client_create.add_argument("--urls", required=True)
+    client_create.add_argument("--urls", required=True, nargs="+")
     client_create.add_argument(
         "--username",
         help="user(can represent an organization) that owns the client",
@@ -340,15 +340,27 @@ def main():
         remove_expired_google_service_account_keys(DB)
     elif args.action == "google-init":
         google_init(DB)
-    elif args.action == 'google-manage-user-registrations':
+    elif args.action == "google-manage-user-registrations":
         import local_settings
+
         config = {}
-        config["GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS"] = local_settings.GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS
-        config["WHITE_LISTED_SERVICE_ACCOUNT_EMAILS"] = local_settings.WHITE_LISTED_SERVICE_ACCOUNT_EMAILS
-        config["WHITE_LISTED_GOOGLE_PARENT_ORGS"] = local_settings.WHITE_LISTED_GOOGLE_PARENT_ORGS
-        config["WHITE_LISTED_SERVICE_ACCOUNT_EMAILS"] = local_settings.WHITE_LISTED_SERVICE_ACCOUNT_EMAILS
+        config[
+            "GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS"
+        ] = local_settings.GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS
+        config[
+            "WHITE_LISTED_SERVICE_ACCOUNT_EMAILS"
+        ] = local_settings.WHITE_LISTED_SERVICE_ACCOUNT_EMAILS
+        config[
+            "WHITE_LISTED_GOOGLE_PARENT_ORGS"
+        ] = local_settings.WHITE_LISTED_GOOGLE_PARENT_ORGS
+        config[
+            "WHITE_LISTED_SERVICE_ACCOUNT_EMAILS"
+        ] = local_settings.WHITE_LISTED_SERVICE_ACCOUNT_EMAILS
+        config["GOOGLE_APPLICATION_CREDENTIALS"] = local_settings.CIRRUS_CFG.get(
+            "GOOGLE_APPLICATION_CREDENTIALS"
+        )
         verify_user_registration(DB, config)
-    elif args.action == 'google-manage-account-access':
+    elif args.action == "google-manage-account-access":
         remove_expired_google_accounts_from_proxy_groups(DB)
     elif args.action == "google-bucket-create":
         # true if true provided, false if anything else provided, leave as
