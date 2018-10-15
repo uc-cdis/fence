@@ -77,7 +77,7 @@ class ArboristClient(object):
         Example:
 
             {
-                "policies": [
+                "policy_ids": [
                     "policy-abc",
                     "policy-xyz"
                 ]
@@ -148,13 +148,32 @@ class ArboristClient(object):
         #     /resource/parent/new_resource
         #
         path = self._resource_url + parent_path
-        response = _request_get_json(requests.post(path, json=resource_json))
-        if "error" in response:
-            msg = response["error"].get("message", str(response["error"]))
+        response = requests.post(path, json=resource_json)
+        if response.status_code == 409:
+            if overwrite:
+                resource_path = path + resource_json["name"]
+                return self.update_resource(resource_path, resource_json)
+            else:
+                return None
+        data = _request_get_json(response)
+        if "error" in data:
+            msg = data["error"].get("message", str(data["error"]))
             self.logger.error(
                 "could not create resource `{}` in arborist: {}".format(path, msg)
             )
+            raise ArboristError(data["error"])
+        self.logger.info("created resource {}".format(resource_json["name"]))
+        return data
+
+    def update_resource(self, path, resource_json):
+        response = _request_get_json(requests.put(path, json=resource_json))
+        if "error" in response:
+            msg = response["error"].get("message", str(response["error"]))
+            self.logger.error(
+                "could not update resource `{}` in arborist: {}".format(path, msg)
+            )
             raise ArboristError(response["error"])
+        self.logger.info("updated resource {}".format(resource_json["name"]))
         return response
 
     def delete_resource(self, path):
@@ -199,16 +218,19 @@ class ArboristClient(object):
         Raises:
             - ArboristError: if the operation failed (couldn't create role)
         """
-        response = _request_get_json(requests.post(self._role_url, json=role_json))
-        if "error" in response:
+        response = requests.post(self._role_url, json=role_json)
+        data = _request_get_json(response)
+        if response.status_code == 409:
+            return None
+        if "error" in data:
             self.logger.error(
                 "could not create role `{}` in arborist: {}".format(
-                    role_json["id"], response["error"]
+                    role_json["id"], data["error"]
                 )
             )
-            raise ArboristError(response["error"])
+            raise ArboristError(data["error"])
         self.logger.info("created role {}".format(role_json["id"]))
-        return response
+        return data
 
     def get_policy(self, policy_id):
         """
@@ -219,14 +241,20 @@ class ArboristClient(object):
             return None
         return response.json()
 
-    def create_policy(self, policy_json):
-        response = _request_get_json(requests.post(self._policy_url, json=policy_json))
-        if "error" in response:
+    def delete_policy(self, path):
+        return _request_get_json(requests.delete(self._policy_url + path))
+
+    def create_policy(self, policy_json, skip_if_exists=True):
+        response = requests.post(self._policy_url, json=policy_json)
+        data = _request_get_json(response)
+        if response.status_code == 409:
+            return None
+        if "error" in data:
             self.logger.error(
                 "could not create policy `{}` in arborist: {}".format(
-                    policy_json["id"], response["error"]
+                    policy_json["id"], data["error"]
                 )
             )
-            raise ArboristError(response["error"])
+            raise ArboristError(data["error"])
         self.logger.info("created policy {}".format(policy_json["id"]))
-        return response
+        return data
