@@ -118,7 +118,9 @@ def _is_valid_service_account(sa_email, google_project_id, config=None):
         sa_email(str): service account email
         google_project_id(str): google project id
     """
-    google_project_number = get_google_project_number(google_project_id)
+    with GoogleCloudManager(google_project_id) as gcm:
+        google_project_number = get_google_project_number(google_project_id, gcm)
+        
     has_access = bool(google_project_number)
     if not has_access:
         # if our monitor doesn't have access at this point, just don't return any

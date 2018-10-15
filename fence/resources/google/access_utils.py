@@ -52,6 +52,7 @@ def get_google_project_number(google_project_id, google_cloud_manager):
 
     Args:
         google_project_id (str): Google project ID
+        google_cloud_manager (GoogleCloudManager): cloud manager instance
 
     Returns:
         str: string repsentation of an int64 uniquely identifying a Google project
