@@ -192,6 +192,54 @@ psql -U test postgres -c 'create database fence_test'
 userdatamodel-init --db fence_test --username test --password test
 ```
 
+#### Keypair Configuration
+
+Fence uses RSA keypairs to sign and allow verification of JWTs that it issues.
+When the application is initialized, Fence loads in keypair files from the
+`keys` directory. To store keypair files, use the following procedure:
+     - Create a subdirectory in the `fence/keys` directory, named with a
+       unique identifier, preferably a timestamp in ISO 8601 format of when
+       the keys are created. The name of the directory is used for the `kid`
+       (key ID) for those keys; the default (assuming the directory is named
+       with an ISO timestamp) looks like this:
+
+           fence_key_2018-05-01T14:00:00Z
+
+     - Generate a private and public keypair following the RSA 256 algorithm
+       and store those in that directory. The key files must be named
+       `jwt_public_key.pem` and `jwt_private_key.pem`.
+
+To generate a keypair using `openssl`:
+```bash
+# Generate the private key.
+openssl genpkey -algorithm RSA -out jwt_private_key.pem -pkeyopt rsa_keygen_bits:2048
+
+# Generate the public key.
+openssl rsa -pubout -in jwt_private_key.pem -out jwt_public_key.pem
+
+# Depending on the `openssl` distribution, you may find these work instead:
+#
+#     openssl rsa -out private_key.pem 2048
+#     openssl rsa -in private_key.pem -pubout -out public_key.pem
+```
+It's not a bad idea to confirm that the files actually say `RSA PRIVATE KEY`
+and `PUBLIC KEY` (and in fact Fence will require that the private key files it
+uses actually say "PRIVATE KEY" and that the public keys do not).
+
+Files containing public/private keys should have this format (the format used
+by `openssl` for generating RSA keys):
+```
+-----BEGIN PUBLIC KEY-----
+... [key is here] ...
+-----END PUBLIC KEY-----
+```
+If a key is not in this format, then `PyJWT` will raise errors about not being
+able to read the key.
+
+Fence will use the first keypair in the list to sign the tokens it issues
+through OAuth.
+
+
 #### Create User Access File
 You can setup user access via admin fence script providing a user yaml file
 Example user yaml:
@@ -228,44 +276,6 @@ fence-create client-create --client CLIENT_NAME --urls OAUTH_REDIRECT_URL --user
 This command should output a tuple of `(client_id, client_secret)` which must be
 saved by the OAuth client to use with
 `fence`.
-
-#### Register Internal Oauth Client
-
-As a Gen3 commons administrator, if you want to create an oauth client that skips user consent step, use the following command:
-
-```bash
-fence-create client-create --client CLIENT_NAME --urls OAUTH_REDIRECT_URL --username USERNAME --auto-approve
-```
-
-#### Modify OAuth Client
-
-```bash
-fence-create client-modify --client CLIENT_NAME --urls http://localhost/api/v0/oauth2/authorize
-```
-That command should output any modifications to the client.
-
-#### Delete OAuth Client
-
-```bash
-fence-create client-delete --client CLIENT_NAME
-```
-That command should output the result of the deletion attempt.
-
-#### List OAuth Clients
-
-```bash
-fence-create client-list
-```
-That command should output the full records for any registered OAuth clients.
-
-#### Set up for External Buckets on Google
-
-```bash
-fence-create link-external-bucket --bucket-name demo-bucket
-fence-create link-bucket-to-project --bucket_id demo-bucket --bucket_provider google --project_auth_id test-project
-```
-
-The link-external-bucket returns an email for a Google group which needs to be added to access to the bucket `demo-bucket`.
 
 ## Token management
 
@@ -377,53 +387,50 @@ We use JSON Web Tokens (JWTs) as the format for all tokens of the following type
 }
 ```
 
-### Keypair Configuration
+## fence-create: Automating common tasks with a command line interface
 
-Fence uses RSA keypairs to sign and allow verification of JWTs that it issues.
-When the application is initialized, Fence loads in keypair files from the
-`keys` directory. To store keypair files, use the following procedure:
-     - Create a subdirectory in the `fence/keys` directory, named with a
-       unique identifier, preferably a timestamp in ISO 8601 format of when
-       the keys are created. The name of the directory is used for the `kid`
-       (key ID) for those keys; the default (assuming the directory is named
-       with an ISO timestamp) looks like this:
+fence-create is a command line utility that is bundled with fence and allows you to automate some commons tasks within fence. For the latest and greatest run the command `fence-create --help`.
 
-           fence_key_2018-05-01T14:00:00Z
+WARNING: fence-create directly modifies the database in some cases and may circumvent security checks (most of these utilities are used for testing). BE CAREFUL when you're running these commands and make sure you know what they're doing.
 
-     - Generate a private and public keypair following the RSA 256 algorithm
-       and store those in that directory. The key files must be named
-       `jwt_public_key.pem` and `jwt_private_key.pem`.
 
-To generate a keypair using `openssl`:
+#### Register Internal Oauth Client
+
+As a Gen3 commons administrator, if you want to create an oauth client that skips user consent step, use the following command:
+
 ```bash
-# Generate the private key.
-openssl genpkey -algorithm RSA -out private_key.pem -pkeyopt rsa_keygen_bits:2048
-
-# Generate the public key.
-openssl rsa -pubout -in private_key.pem -out public_key.pem
-
-# Depending on the `openssl` distribution, you may find these work instead:
-#
-#     openssl rsa -out private_key.pem 2048
-#     openssl rsa -in private_key.pem -pubout -out public_key.pem
+fence-create client-create --client CLIENT_NAME --urls OAUTH_REDIRECT_URL --username USERNAME --auto-approve
 ```
-It's not a bad idea to confirm that the files actually say `RSA PRIVATE KEY`
-and `PUBLIC KEY` (and in fact Fence will require that the private key files it
-uses actually say "PRIVATE KEY" and that the public keys do not).
 
-Files containing public/private keys should have this format (the format used
-by `openssl` for generating RSA keys):
+#### Modify OAuth Client
+
+```bash
+fence-create client-modify --client CLIENT_NAME --urls http://localhost/api/v0/oauth2/authorize
 ```
------BEGIN PUBLIC KEY-----
-... [key is here] ...
------END PUBLIC KEY-----
+That command should output any modifications to the client.
+
+#### Delete OAuth Client
+
+```bash
+fence-create client-delete --client CLIENT_NAME
 ```
-If a key is not in this format, then `PyJWT` will raise errors about not being
-able to read the key.
+That command should output the result of the deletion attempt.
 
-Fence will use the first keypair in the list to sign the tokens it issues
-through OAuth.
+#### List OAuth Clients
 
+```bash
+fence-create client-list
+```
+That command should output the full records for any registered OAuth clients.
+
+#### Set up for External Buckets on Google
+
+```bash
+fence-create link-external-bucket --bucket-name demo-bucket
+fence-create link-bucket-to-project --bucket_id demo-bucket --bucket_provider google --project_auth_id test-project
+```
+
+The link-external-bucket returns an email for a Google group which needs to be added to access to the bucket `demo-bucket`.
 
 ## Default Expiration Times in Fence
 

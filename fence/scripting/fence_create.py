@@ -120,8 +120,8 @@ def delete_client_action(DB, client_name):
     try:
         cirrus_config.update(**fence.settings.CIRRUS_CFG)
     except AttributeError:
-        # no cirrus config, continue anyway. Google APIs will probably fail.
-        # this is okay if clients don't have any Google service accounts
+        # no cirrus config, continue anyway. we don't have client service accounts
+        # to delete
         pass
 
     try:
@@ -135,6 +135,7 @@ def delete_client_action(DB, client_name):
                 raise Exception("client {} does not exist".format(client_name))
 
             clients = current_session.query(Client).filter(Client.name == client_name)
+
             for client in clients:
                 _remove_client_service_accounts(current_session, client)
             clients.delete()
@@ -149,6 +150,7 @@ def _remove_client_service_accounts(db_session, client):
     client_service_accounts = db_session.query(GoogleServiceAccount).filter(
         GoogleServiceAccount.client_id == client.client_id
     )
+
     with GoogleCloudManager() as g_mgr:
         for service_account in client_service_accounts:
             print(
@@ -455,9 +457,9 @@ def remove_expired_google_service_account_keys(db):
             GoogleServiceAccountKey
         ).filter(GoogleServiceAccountKey.expires <= current_time)
 
-        with GoogleCloudManager() as g_mgr:
-            # handle service accounts with default max expiration
-            for service_account, client in client_service_accounts:
+        # handle service accounts with default max expiration
+        for service_account, client in client_service_accounts:
+            with GoogleCloudManager() as g_mgr:
                 g_mgr.handle_expired_service_account_keys(
                     service_account.google_unique_id
                 )
@@ -1235,6 +1237,7 @@ def verify_user_registration(DB, config):
     Validate user registration
     """
     import fence.settings
+
     cirrus_config.update(**fence.settings.CIRRUS_CFG)
 
     validation_check(DB, config)

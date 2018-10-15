@@ -586,13 +586,37 @@ def valid_user_service_account_mock():
 
 
 @pytest.fixture(scope="function")
-def update_service_account_permissions_mock():
+def invalid_user_service_account_mock():
+    mock = MagicMock()
+    mock.return_value = {"success": False}
+
+    patcher = patch("fence.blueprints.google._get_service_account_error_status", mock)
+
+    patcher.start()
+    yield mock
+    patcher.stop()
+
+
+@pytest.fixture(scope="function")
+def revoke_user_service_account_from_google_mock():
     mock = MagicMock()
 
     patcher = patch(
-        "fence.blueprints.google.GoogleServiceAccount"
-        "._update_service_account_permissions",
+        "fence.resources.google.access_utils._revoke_user_service_account_from_google",
         mock,
+    )
+
+    patcher.start()
+    yield mock
+    patcher.stop()
+
+
+@pytest.fixture(scope="function")
+def add_user_service_account_to_google_mock():
+    mock = MagicMock()
+
+    patcher = patch(
+        "fence.resources.google.access_utils.add_user_service_account_to_google", mock
     )
 
     patcher.start()

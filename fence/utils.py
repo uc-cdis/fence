@@ -41,7 +41,7 @@ def create_client(
     grant_types=None,
     confidential=True,
 ):
-    grant_types = grant_types or [GrantType.code.value]
+    grant_types = grant_types
     driver = SQLAlchemyDriver(DB)
     client_id = random_str(40)
     client_secret = None
@@ -49,7 +49,7 @@ def create_client(
     if confidential:
         client_secret = random_str(55)
         hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
-    auth_method = 'client_secret_basic' if confidential else 'none'
+    auth_method = "client_secret_basic" if confidential else "none"
     with driver.session as s:
         user = (
             s.query(User).filter(func.lower(User.username) == username.lower()).first()
