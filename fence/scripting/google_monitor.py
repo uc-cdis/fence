@@ -26,10 +26,7 @@ from fence.resources.google.access_utils import (
 )
 
 from fence import utils
-from fence.errors import Unauthorized
-from cdislogging import get_logger
-
-logger = get_logger(__name__)
+from fence.config import config
 
 
 def validation_check(db, config=None):
@@ -445,16 +442,14 @@ def _send_emails_informing_service_account_removal(
     if not to_emails:
         return None
 
-    from fence.settings import REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION
+    from_email = config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["from"]
+    subject = config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["subject"]
 
-    from_email = REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["from"]
-    subject = REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["subject"]
+    domain = config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["domain"]
+    if config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["admin"]:
+        to_emails.extend(config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["admin"])
 
-    domain = REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["domain"]
-    if REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["admin"]:
-        to_emails.extend(REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["admin"])
-
-    text = REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["content"]
+    text = config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["content"]
     content = text.format(project_id)
 
     for email, removal_reasons in invalid_service_account_reasons.iteritems():

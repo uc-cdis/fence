@@ -1,11 +1,4 @@
-from fence import (
-    app,
-    app_config,
-    app_config_oauth,
-    app_register_blueprints,
-    app_sessions,
-)
-from fence.oidc.server import server
+from fence import app, app_config, app_register_blueprints, app_sessions
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -33,5 +26,4 @@ if app.config.get('MOCK_STORAGE', False):
 
 app_sessions(app)
 app_register_blueprints(app)
-server.init_app(app)
 app.run(debug=True, port=8000)

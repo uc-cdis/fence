@@ -1,15 +1,11 @@
 from collections import OrderedDict
 import os
-import glob
-from yaml import safe_load as yaml_load
 
 from authutils.oauth2.client import OAuthClient
-import cirrus
 import flask
 from flask_cors import CORS
 from flask_sqlalchemy_session import flask_scoped_session, current_session
 from cdislogging import get_stream_handler
-import urlparse
 from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.auth import logout, build_redirect_url
@@ -26,6 +22,7 @@ from fence.resources.storage import StorageManager
 from fence.resources.user.user_session import UserSessionInterface
 from fence.error_handler import get_error_response
 from fence.utils import random_str
+from fence.config import config
 import fence.blueprints.admin
 import fence.blueprints.data
 import fence.blueprints.login
@@ -131,103 +128,28 @@ def app_config(
     if root_dir is None:
         root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
-    app.logger.info('Loading settings...')
+    # load fence's config singleton with a file
+    config.load(config_path, file_name)
+
+    logger.info("Loading settings...")
     app.config.from_object(settings)
 
-    search_folders = app.config.get('CONFIG_SEARCH_FOLDERS', [])
+    # load all config into flask app config for now, we should PREFER getting config
+    # directly from the fence config singleton in the code though
+    app.config.update(**config._configs)
 
-    # TODO remove try, except when local_settings.py is no longer supported
-    try:
-        config_path = config_path or get_config_path(search_folders, file_name)
-    except IOError:
-        # TODO local_settings.py is being deprecated. Fow now, support
-        # not proving a yaml configuration but log a warning.
-        app.logger.warning(
-            'No fence YAML configuration found. Will attempt '
-            'to run without. If still using deprecated local_settings.py, you '
-            'can ignore this warning but PLEASE upgrade to using the newest '
-            'configuration format. local_settings.py is DEPRECATED!!')
-        config_path = None
-
-    if config_path:
-        _load_configuration_files(app, config_path)
-
-    if 'ROOT_URL' not in app.config:
-        url = urlparse.urlparse(app.config['BASE_URL'])
-        app.config['ROOT_URL'] = '{}://{}'.format(url.scheme, url.netloc)
-
-    if 'AWS_CREDENTIALS' in app.config and len(app.config['AWS_CREDENTIALS']) > 0:
-        value = app.config['AWS_CREDENTIALS'].values()[0]
+    if "AWS_CREDENTIALS" in config and len(config["AWS_CREDENTIALS"]) > 0:
+        value = config["AWS_CREDENTIALS"].values()[0]
         app.boto = BotoManager(value, logger=app.logger)
         app.register_blueprint(fence.blueprints.data.blueprint, url_prefix="/data")
 
     _load_keys(app, root_dir)
 
-    # allow authlib traffic on http for development if enabled. By default
-    # it requires https.
-    #
-    # NOTE: use when fence will be deployed in such a way that fence will
-    #       only receive traffic from internal clients, and can safely use HTTP
-    if app.config.get('AUTHLIB_INSECURE_TRANSPORT'):
-        os.environ['AUTHLIB_INSECURE_TRANSPORT'] = 'true'
-
-    # if we're mocking storage, ignore the storage backends provided
-    # since they'll cause errors if misconfigured
-    if app.config.get('MOCK_STORAGE', False):
-        app.config['STORAGE_CREDENTIALS'] = {}
-
     app.storage_manager = StorageManager(
-        app.config['STORAGE_CREDENTIALS'],
-        logger=app.logger
+        config["STORAGE_CREDENTIALS"], logger=app.logger
     )
 
     _setup_oidc_clients(app)
-
-    # expand urls based on provided vars
-    _expand_base_url(app)
-    _expand_api_base_url(app)
-
-    cirrus.config.config.update(**app.config.get('CIRRUS_CFG', {}))
-
-
-def _load_configuration_files(app, provided_config_path):
-    app.logger.info('Loading default configuration...')
-    config = yaml_load(
-        open(os.path.join(
-               os.path.dirname(os.path.abspath(__file__)),
-               'config-default.yaml'))
-    )
-
-    app.logger.info('Loading configuration: {}'.format(provided_config_path))
-    provided_configurations = yaml_load(open(provided_config_path))
-
-    # only update known configuration values. In the situation
-    # where the provided config does not have a certain value,
-    # the default will be used.
-    common_keys = {
-        key: value
-        for (key, value) in config.iteritems()
-        if key in provided_configurations
-    }
-    keys_to_update = {
-        key: value
-        for (key, value) in provided_configurations.iteritems()
-        if key in common_keys
-    }
-    unknown_keys = {
-        key: value
-        for (key, value) in provided_configurations.iteritems()
-        if key not in common_keys
-    }
-
-    config.update(keys_to_update)
-
-    if unknown_keys:
-        app.logger.warning(
-            'Unknown key(s) {} found in {}. Will be ignored.'
-            .format(unknown_keys.keys(), provided_config_path))
-
-    app.config.update(config)
 
 
 def _load_keys(app, root_dir):
@@ -271,136 +193,6 @@ def _setup_oidc_clients(app):
     )
     if configured_fence:
         app.fence_client = OAuthClient(**app.config['OPENID_CONNECT']['fence'])
-
-
-def _expand_base_url(app):
-    """
-    Replaces {{BASE_URL}} in specific configuration vars with the actual
-    balue of BASE_URL
-    """
-    server_name = app.config.get('SERVER_NAME')
-    if server_name:
-        provided_value = app.config['SERVER_NAME']
-        app.config['SERVER_NAME'] = (
-            provided_value.replace('{{BASE_URL}}', app.config['BASE_URL'])
-        )
-
-    google_redirect = (
-        app.config.get('OPENID_CONNECT', {})
-        .get('google', {})
-        .get('redirect_url')
-    )
-    if google_redirect:
-        provided_value = app.config['OPENID_CONNECT']['google']['redirect_url']
-        app.config['OPENID_CONNECT']['google']['redirect_url'] = (
-            provided_value.replace('{{BASE_URL}}', app.config['BASE_URL'])
-        )
-
-    default_logout = app.config.get('DEFAULT_LOGIN_URL')
-    if default_logout:
-        provided_value = app.config['DEFAULT_LOGIN_URL']
-        app.config['DEFAULT_LOGIN_URL'] = (
-            provided_value.replace('{{BASE_URL}}', app.config['BASE_URL'])
-        )
-
-    shib_url = app.config.get('SSO_URL')
-    if shib_url:
-        provided_value = app.config['SSO_URL']
-        app.config['SSO_URL'] = (
-            provided_value.replace('{{BASE_URL}}', app.config['BASE_URL'])
-        )
-
-    access_token_url = (
-        app.config.get('OPENID_CONNECT', {})
-        .get('fence', {})
-        .get('client_kwargs', {})
-        .get('redirect_uri')
-    )
-    if access_token_url:
-        provided_value = (
-            app.config['OPENID_CONNECT']['fence']['client_kwargs']['redirect_uri']
-        )
-        app.config['OPENID_CONNECT']['fence']['client_kwargs']['redirect_uri'] = (
-            provided_value.replace('{{BASE_URL}}', app.config['BASE_URL'])
-        )
-
-
-def _expand_api_base_url(app):
-    """
-    Replaces {{api_base_url}} in specific configuration vars with the actual
-    balue of api_base_url
-    """
-    api_base_url = (
-        app.config.get('OPENID_CONNECT', {})
-        .get('fence', {})
-        .get('api_base_url')
-    )
-    if api_base_url is not None:
-        authorize_url = (
-            app.config.get('OPENID_CONNECT', {})
-            .get('fence', {})
-            .get('authorize_url')
-        )
-        if authorize_url:
-            provided_value = (
-                app.config['OPENID_CONNECT']['fence']['authorize_url']
-            )
-            app.config['OPENID_CONNECT']['fence']['authorize_url'] = (
-                provided_value.replace('{{api_base_url}}', api_base_url)
-            )
-
-        access_token_url = (
-            app.config.get('OPENID_CONNECT', {})
-            .get('fence', {})
-            .get('access_token_url')
-        )
-        if access_token_url:
-            provided_value = (
-                app.config['OPENID_CONNECT']['fence']['access_token_url']
-            )
-            app.config['OPENID_CONNECT']['fence']['access_token_url'] = (
-                provided_value.replace('{{api_base_url}}', api_base_url)
-            )
-
-        refresh_token_url = (
-            app.config.get('OPENID_CONNECT', {})
-            .get('fence', {})
-            .get('refresh_token_url')
-        )
-        if refresh_token_url:
-            provided_value = (
-                app.config['OPENID_CONNECT']['fence']['refresh_token_url']
-            )
-            app.config['OPENID_CONNECT']['fence']['refresh_token_url'] = (
-                provided_value.replace('{{api_base_url}}', api_base_url)
-            )
-
-
-def get_config_path(search_folders, file_name='*config.yaml'):
-    """
-    Return the path of a single configuration file ending in config.yaml
-    from one of the search folders.
-
-    NOTE: Will return the first match it finds. If multiple are found,
-    this will error out.
-    """
-    possible_configs = []
-    for folder in search_folders:
-        config_path = os.path.join(folder, file_name)
-        possible_files = glob.glob(config_path)
-        possible_configs.extend(possible_files)
-
-    if len(possible_configs) == 1:
-        return possible_configs[0]
-    elif len(possible_configs) > 1:
-        raise IOError(
-            'Multiple config.yaml files found: {}. Please specify which '
-            'configuration to use with "python run.py -c some-config.yaml".'
-            .format(str(possible_configs)))
-    else:
-        raise IOError(
-            'Could not find config.yaml. Searched in the following locations: '
-            '{}'.format(str(search_folders)))
 
 
 @app.errorhandler(Exception)
