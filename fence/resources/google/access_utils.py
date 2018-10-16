@@ -44,7 +44,7 @@ ALLOWED_SERVICE_ACCOUNT_TYPES = [
 ]
 
 
-def get_google_project_number(google_project_id):
+def get_google_project_number(google_project_id, google_cloud_manager):
     """
     Return a project's "projectNumber" which uniquely identifies it.
     This will only be successful if fence can access info about the given google project
@@ -52,61 +52,62 @@ def get_google_project_number(google_project_id):
 
     Args:
         google_project_id (str): Google project ID
+        google_cloud_manager (GoogleCloudManager): cloud manager instance
 
     Returns:
         str: string repsentation of an int64 uniquely identifying a Google project
     """
     try:
-        with GoogleCloudManager(google_project_id, use_default=False) as g_mgr:
-            response = g_mgr.get_project_info()
-            project_number = response.get("projectNumber")
-
-            if not project_number:
-                return None
-
-            return project_number
-    except Exception:
+        response = google_cloud_manager.get_project_info()
+        return response.get("projectNumber")
+    except Exception as exc:
+        logger.error("Could not determine google project number for Project"
+                     "ID: {} due to error. (Details : {})"
+                     .format(google_project_id, exc))
         return None
 
 
-def get_google_project_membership(project_id):
+def get_google_project_membership(project_id, google_cloud_manager):
     """
     Returns GCM get_project_membership() result, which is a list of all
     members on the projects IAM
 
     Args:
         project_id(str): unique id for project
+        google_cloud_manager(GoogleCloudManager): cloud manager instance
 
     Returns
         List(GooglePolicyMember): list of members on project's IAM
     """
 
-    with GoogleCloudManager(project_id, use_default=False) as prj:
-        return prj.get_project_membership(project_id)
+    return google_cloud_manager.get_project_membership(project_id)
 
 
-def get_google_project_parent_org(project_id):
+def get_google_project_parent_org(google_cloud_manager):
     """
     Checks if google project has parent org. Wraps
     GoogleCloudManager.get_project_organization()
 
     Args:
-        project_id(str): unique id for project
+        google_cloud_manager(GoogleCloudManager): cloud manager instance
 
     Returns:
         str: The Google projects parent organization name or None if it does't have one
     """
     try:
-        with GoogleCloudManager(project_id, use_default=False) as prj:
-            return prj.get_project_organization()
+        return google_cloud_manager.get_project_organization()
     except Exception as exc:
         logger.error(
-            "Could not determine if Google project (id: {}) has parent org"
-            "due to error (Details: {})".format(project_id, exc)
+                "Could not determine if Google project (id: {}) has parent org"
+                "due to error (Details: {})"
+                .format(getattr(google_cloud_manager, "project_id", "unknown")
+                        , exc)
         )
+        return None
 
 
-def get_google_project_valid_users_and_service_accounts(project_id, membership=None):
+def get_google_project_valid_users_and_service_accounts(
+        project_id, google_cloud_manager, membership=None):
     """
     Gets google project members of type
     USER or SERVICE_ACCOUNT and raises an error if it finds a member
@@ -114,6 +115,7 @@ def get_google_project_valid_users_and_service_accounts(project_id, membership=N
 
     Args:
         project_id (str): Google project ID
+        google_cloud_manager(GoogleCloudManager): cloud manager instance
         membership (List(GooglePolicyMember): pre-calculated list of members,
             Will make call to Google API if membership is None
 
@@ -125,29 +127,28 @@ def get_google_project_valid_users_and_service_accounts(project_id, membership=N
         NotSupported: Member is invalid type
     """
     try:
-        with GoogleCloudManager(project_id, use_default=False) as prj:
-            members = membership or prj.get_project_membership(project_id)
-            for member in members:
-                if not (
-                    member.member_type == GooglePolicyMember.SERVICE_ACCOUNT
-                    or member.member_type == GooglePolicyMember.USER
-                ):
-                    raise NotSupported(
-                        "Member {} has invalid type: {}".format(
-                            member.email_id, member.member_type
-                        )
+        members = membership or google_cloud_manager.get_project_membership(project_id)
+        for member in members:
+            if not (
+                member.member_type == GooglePolicyMember.SERVICE_ACCOUNT
+                or member.member_type == GooglePolicyMember.USER
+            ):
+                raise NotSupported(
+                    "Member {} has invalid type: {}".format(
+                        member.email_id, member.member_type
                     )
-            users = [
-                member
-                for member in members
-                if member.member_type == GooglePolicyMember.USER
-            ]
-            service_accounts = [
-                member
-                for member in members
-                if member.member_type == GooglePolicyMember.SERVICE_ACCOUNT
-            ]
-            return users, service_accounts
+                )
+        users = [
+            member
+            for member in members
+            if member.member_type == GooglePolicyMember.USER
+        ]
+        service_accounts = [
+            member
+            for member in members
+            if member.member_type == GooglePolicyMember.SERVICE_ACCOUNT
+        ]
+        return users, service_accounts
     except Exception as exc:
         logger.error(
             "validity of Google Project (id: {}) members "
@@ -157,36 +158,33 @@ def get_google_project_valid_users_and_service_accounts(project_id, membership=N
         raise
 
 
-def is_valid_service_account_type(project_id, account_id):
+def is_valid_service_account_type(account_id, google_cloud_manager):
     """
     Checks service account type against allowed service account types
     for service account registration
 
     Args:
-        project_id(str): project identifier for project associated
-            with service account
         account_id(str): account identifier to check valid type
+        google_cloud_manager(GoogleCloudManager): cloud manager instance
 
     Returns:
         Bool: True if service acocunt type is allowed as defined
         in ALLOWED_SERVICE_ACCOUNT_TYPES
     """
     try:
-        with GoogleCloudManager(project_id, use_default=False) as g_mgr:
-            return (
-                g_mgr.get_service_account_type(account_id)
-                in ALLOWED_SERVICE_ACCOUNT_TYPES
-            )
+        sa_type = google_cloud_manager.get_service_account_type(account_id)
+        return (
+            sa_type
+            in ALLOWED_SERVICE_ACCOUNT_TYPES
+        )
     except Exception as exc:
         logger.error(
             "validity of Google service account {} (google project: {}) type "
-            "determined False due to error. Details: {}".format(
-                account_id, project_id, exc
-            )
-        )
+            "determined False due to error. Details: {}"
+            .format(account_id, google_cloud_manager.project_id, exc))
 
 
-def service_account_has_external_access(service_account, google_project_id):
+def service_account_has_external_access(service_account, google_cloud_manager):
     """
     Checks if service account has external access or not.
 
@@ -197,26 +195,24 @@ def service_account_has_external_access(service_account, google_project_id):
     Returns:
         bool: whether or not the service account has external access
     """
-    with GoogleCloudManager(google_project_id, use_default=False) as g_mgr:
-        response = g_mgr.get_service_account_policy(service_account)
-        if response.status_code != 200:
-            logger.error(
-                "Unable to get IAM policy for service account {}\n{}.".format(
-                    service_account, response.json()
-                )
-            )
-            # if there is an exception, assume it has external access
-            return True
+    response = google_cloud_manager.get_service_account_policy(service_account)
+    if response.status_code != 200:
+        logger.error(
+            "Unable to get IAM policy for service account {}\n{}."
+            .format(service_account, response.json())
+        )
+        # if there is an exception, assume it has external access
+        return True
 
-        json_obj = response.json()
-        # In the case that a service account does not have any role, Google API
-        # returns a json object without bindings key
-        if "bindings" in json_obj:
-            policy = GooglePolicy.from_json(json_obj)
-            if policy.roles:
-                return True
-        if g_mgr.get_service_account_keys_info(service_account):
+    json_obj = response.json()
+    # In the case that a service account does not have any role, Google API
+    # returns a json object without bindings key
+    if "bindings" in json_obj:
+        policy = GooglePolicy.from_json(json_obj)
+        if policy.roles:
             return True
+    if google_cloud_manager.get_service_account_keys_info(service_account):
+        return True
     return False
 
 
@@ -269,8 +265,66 @@ def is_service_account_from_google_project(
         return False
 
 
+def is_user_member_of_google_project(
+        user_id, google_cloud_manager, db=None, membership=None
+):
+    """
+        Return whether or not the given user is a member of the provided
+        Google project ID.
+
+        This will verify that either the user's email or their linked Google
+        account email exists as a member in the project.
+
+        Args:
+            user_id (int): User identifier
+            google_cloud_manager (GoogleCloudManager): cloud manager instance
+            db(str): db connection string
+            membership (List(GooglePolicyMember) : pre-calculated list of members,
+                Will make call to Google API if membership is None
+
+        Returns:
+            bool: whether or not the given user is a member of ALL of the provided
+                  Google project IDs
+        """
+    session = get_db_session(db)
+    user = session.query(User).filter_by(id=user_id).first()
+    if not user:
+        logger.error(
+            "Could not determine if user (id: {} is from project:"
+            " {} due to error. User does not exist..."
+                .format(user_id, google_cloud_manager.project_id))
+        return False
+
+    linked_google_account = (
+        session.query(UserGoogleAccount)
+            .filter(UserGoogleAccount.user_id == user_id)
+            .first()
+    )
+
+    try:
+        members = membership or google_cloud_manager.get_project_membership()
+        member_emails = [member.email_id.lower() for member in members]
+        # first check if user.email is in project, then linked account
+        if not (user.email and user.email in member_emails):
+            if not (
+                linked_google_account
+                and linked_google_account.email in member_emails
+            ):
+                # no user email is in project
+                return False
+    except Exception as exc:
+        logger.error(
+            "Could not determine if user (id: {}) is from project:"
+            " {} due to error. Details: {}"
+            .format(user.id,
+                    getattr(google_cloud_manager, "project_id", "unknown"),
+                    exc))
+        return False
+
+    return True
+
 def is_user_member_of_all_google_projects(
-    user_id, google_project_ids, db=None, membership=None
+        user_id, google_project_ids, db=None, membership=None,
 ):
     """
     Return whether or not the given user is a member of ALL of the provided
@@ -290,44 +344,15 @@ def is_user_member_of_all_google_projects(
         bool: whether or not the given user is a member of ALL of the provided
               Google project IDs
     """
-    session = get_db_session(db)
-    user = session.query(User).filter_by(id=user_id).first()
-    if not user:
-        logger.error(
-            "Could not determine if user (id: {}) is from projects:"
-            " {} due to error. User does not exist...".format(
-                user_id, google_project_ids
-            )
-        )
-        return False
+    is_member = False
+    for google_project_id in google_project_ids:
+        with GoogleCloudManager(google_project_id) as google_cloud_manager:
+            is_member = is_user_member_of_google_project(user_id, google_cloud_manager, db, membership)
 
-    linked_google_account = (
-        session.query(UserGoogleAccount)
-        .filter(UserGoogleAccount.user_id == user_id)
-        .first()
-    )
+            if not is_member:
+                return False
 
-    try:
-        for google_project_id in google_project_ids:
-            with GoogleCloudManager(google_project_id, use_default=False) as g_mgr:
-                members = membership or g_mgr.get_project_membership()
-                member_emails = [member.email_id.lower() for member in members]
-                # first check if user.email is in project, then linked account
-                if not (user.email and user.email in member_emails):
-                    if not (
-                        linked_google_account
-                        and linked_google_account.email in member_emails
-                    ):
-                        # no user email is in project
-                        return False
-    except Exception as exc:
-        logger.error(
-            "Could not determine if user (id: {}) is from projects:"
-            " {} due to error. Details: {}".format(user_id, google_project_ids, exc)
-        )
-        return False
-
-    return True
+    return is_member
 
 
 def do_all_users_have_access_to_project(users, project_id, db=None):
