@@ -48,7 +48,7 @@ def app_init(
         file_name=config_file_name)
     app_sessions(app)
     app_register_blueprints(app)
-    server.init_app(app)
+    server.init_app(app, query_client=query_client)
 
 
 def app_sessions(app):
@@ -144,12 +144,25 @@ def app_config(
         app.register_blueprint(fence.blueprints.data.blueprint, url_prefix="/data")
 
     _load_keys(app, root_dir)
+    _set_authlib_key(app)
 
     app.storage_manager = StorageManager(
         config["STORAGE_CREDENTIALS"], logger=app.logger
     )
 
     _setup_oidc_clients(app)
+    _setup_arborist_client(app)
+
+    with open("tmp-new-cfg.yaml", "w+") as file:
+        for key, value in app.config.iteritems():
+            file.write('"{}": {}\n'.format(key, value))
+
+
+def _set_authlib_key(app):
+    # authlib OIDC settings
+    settings = {"OAUTH2_JWT_KEY": keys.default_private_key(app)}
+    app.config.update(settings)
+    config.update(settings)
 
 
 def _load_keys(app, root_dir):
@@ -193,6 +206,11 @@ def _setup_oidc_clients(app):
     )
     if configured_fence:
         app.fence_client = OAuthClient(**app.config['OPENID_CONNECT']['fence'])
+
+
+def _setup_arborist_client(app):
+    if config.get("ARBORIST"):
+        app.arborist = ArboristClient(arborist_base_url=config["ARBORIST"])
 
 
 @app.errorhandler(Exception)

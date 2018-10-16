@@ -50,6 +50,13 @@ class Config(Mapping):
     def __str__(self):
         return str(self._configs)
 
+    def update(self, *args, **kwargs):
+        """
+        update configuration properties
+        """
+        self._configs.update(*args)
+        self._configs.update(kwargs)
+
     def load(self, config_path=None, file_name=None):
         # TODO remove try, except when local_settings.py is no longer supported
         try:

@@ -279,8 +279,6 @@ SEND_TO: 'example@gmail.com'
 OAUTH2_JWT_ALG: 'RS256'
 OAUTH2_JWT_ENABLED: true
 OAUTH2_JWT_ISS: '{{BASE_URL}}'
-# TODO how to fill this out?
-OAUTH2_JWT_KEY: ''
 OAUTH2_PROVIDER_ERROR_URI: '/api/oauth2/errors'
 
 ########################################################################################

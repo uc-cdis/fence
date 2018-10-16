@@ -16,15 +16,7 @@ from cdisutilstest.code.storage_client_mock import (
 from fence.sync.sync_users import UserSyncer
 from fence.resources import userdatamodel as udm
 
-from userdatamodel import Base
-from userdatamodel.models import *
-from userdatamodel.driver import SQLAlchemyDriver
-
-from fence.models import (
-    AccessPrivilege,
-    AuthorizationProvider,
-    User,
-)
+from fence.models import AccessPrivilege, AuthorizationProvider, User
 
 LOCAL_CSV_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data/csv")
 
@@ -90,7 +82,10 @@ def syncer(app, db_session):
     ).get('DB')
 
     syncer_obj = UserSyncer(
-        dbGaP=dbGap, DB=test_db, db_session=db_session, project_mapping=project_mapping,
+        dbGaP=dbGap,
+        DB=test_db,
+        db_session=db_session,
+        project_mapping=project_mapping,
         storage_credentials=storage_credentials,
         is_sync_from_dbgap_server=False,
         sync_from_local_csv_dir=LOCAL_CSV_DIR,

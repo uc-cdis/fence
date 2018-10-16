@@ -15,6 +15,8 @@ ACCESS_TOKEN_COOKIE_NAME = 'access_token'
 #: ``flask.session`` in the ``context`` field of the token.
 SESSION_COOKIE_NAME = 'fence'
 
+OAUTH2_TOKEN_EXPIRES_IN = {"authorization_code": 1200, "implicit": 1200}
+
 #: ``ACCESS_TOKEN_EXPIRES_IN: int``
 #: The number of seconds after an access token is issued until it expires.
 ACCESS_TOKEN_EXPIRES_IN = 1200
@@ -38,6 +40,12 @@ SESSION_LIFETIME = 28800
 GOOGLE_SERVICE_ACCOUNT_KEY_FOR_URL_SIGNING_EXPIRES_IN = 2592000
 
 #: ``GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN: int``
+#: The number of seconds after a User's Google Service account is added to bucket
+#: access until it expires.
+#: 7 days = 604800 seconds
+GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN = 604800
+
+#: ``GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN: int``
 #: The number of seconds after a User's Google account is added to bucket
 #: access until it expires.
 GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN = 86400
@@ -53,97 +61,3 @@ MAX_API_KEY_TTL = 2592000
 #: ``MAX_ACCESS_TOKEN_TTL: int``
 #: The number of seconds after an access token is issued until it expires.
 MAX_ACCESS_TOKEN_TTL = 3600
-
-AWS_CREDENTIALS = {
-    "CRED1": {"aws_access_key_id": "", "aws_secret_access_key": ""},
-    "CRED2": {"aws_access_key_id": "", "aws_secret_access_key": ""},
-}
-
-ASSUMED_ROLES = {}
-
-S3_BUCKETS = {
-    # 'cdis-presigned-url-test': {
-    #     'cred': 'fence-bot',
-    #     'type': 'internal'
-    # },
-    "bucket1": {"cred": "CRED1"},
-    "bucket2": {"cred": "CRED2"},
-    "bucket3": {"cred": "CRED1"},
-    "bucket4": {"cred": "*"},
-    "bucket5": {
-        "cred": "CRED2",
-        "role-arn": "arn:aws:iam::707767160287:role/bucket_reader_writer_to_cdistest-presigned-url_role",
-    },
-}
-
-# S3_BUCKETS = {
-#     "bucket1": "CRED1",
-#     "bucket2": "CRED2",
-#     "bucket3": "CRED1",
-#     "bucket4": "*",
-# }
-
-ENABLED_IDENTITY_PROVIDERS = {
-    # ID for which of the providers to default to.
-    "default": "google",
-    # Information for identity providers.
-    "providers": {
-        "fence": {"name": "Fence Multi-Tenant OAuth"},
-        "google": {"name": "Google OAuth"},
-        "shibboleth": {"name": "NIH Login"},
-    },
-}
-
-SHIBBOLETH_HEADER = "persistent_id"
-
-OPENID_CONNECT = {"google": {"client_id": "", "client_secret": "", "redirect_url": ""}}
-
-GOOGLE_GROUP_PREFIX = "test"
-
-CIRRUS_CFG = {}
-
-ARBORIST = "/arborist"
-
-WHITE_LISTED_SERVICE_ACCOUNT_EMAILS = ["test@0", "test@123", "test@456"]
-
-WHITE_LISTED_GOOGLE_PARENT_ORGS = []
-
-GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS = {
-    "dataflow-service-producer-prod.iam.gserviceaccount.com",
-    "cloudbuild.gserviceaccount.com",
-    "cloud-ml.google.com.iam.gserviceaccount.com",
-    "container-engine-robot.iam.gserviceaccount.com",
-    "dataflow-service-producer-prod.iam.gserviceaccount.com",
-    "sourcerepo-service-accounts.iam.gserviceaccount.com",
-    "dataproc-accounts.iam.gserviceaccount.com",
-    "gae-api-prod.google.com.iam.gserviceaccount.com",
-    "genomics-api.google.com.iam.gserviceaccount.com",
-    "containerregistry.iam.gserviceaccount.com",
-    "container-analysis.iam.gserviceaccount.com",
-    "cloudservices.gserviceaccount.com",
-    "stackdriver-service.iam.gserviceaccount.com",
-    "appspot.gserviceaccount.com",
-    "partnercontent.gserviceaccount.com",
-    "trifacta-gcloud-prod.iam.gserviceaccount.com",
-    "gcf-admin-robot.iam.gserviceaccount.com",
-    "compute-system.iam.gserviceaccount.com",
-    "gcp-sa-websecurityscanner.iam.gserviceaccount.com",
-    "storage-transfer-service.iam.gserviceaccount.com",
-}
-
-REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION = {
-    "domain": "smtp domain",
-    "subject": "User service account removal notification",
-    "from": "do-not-reply@planx-pla.net",
-    "admin": [],
-    "content": """
-
-    Service accounts {} were removed from access control lists because some \
-users or service accounts of GCP project {} are not authorized to access \
-the data sets associated to the service accounts, or do not \
-adhere to the security policies.
-
-    """,
-}
-
-GUN_MAIL = {}
