@@ -9,6 +9,7 @@ from fence.blueprints.storage_creds.other import OtherCredentialsList
 from fence.blueprints.storage_creds.other import OtherCredentials
 from fence.resources.storage import get_endpoints_descriptions
 from fence.restful import RestfulApi
+from fence.config import config
 
 ALL_RESOURCES = {
     "/api": "access to CDIS APIs",
@@ -68,7 +69,13 @@ def make_creds_blueprint():
                 "/google", "access to Google Cloud storage"
             }
         """
-        services = flask.current_app.config.get("STORAGES", [])
+        services = set(
+            [
+                info.get("backend")
+                for name, info in config["STORAGE_CREDENTIALS"].iteritems()
+                if info.get("backend")
+            ]
+        )
         return flask.jsonify(get_endpoints_descriptions(services, current_session))
 
     return blueprint

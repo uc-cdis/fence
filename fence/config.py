@@ -75,7 +75,7 @@ class Config(Mapping):
             config_path = None
 
         if config_path:
-            self._load_configuration_files(config_path)
+            self._load_configuration_file(config_path)
 
         if "ROOT_URL" not in self._configs:
             url = urlparse.urlparse(self._configs["BASE_URL"])
@@ -100,7 +100,7 @@ class Config(Mapping):
 
         cirrus.config.config.update(**self._configs.get("CIRRUS_CFG", {}))
 
-    def _load_configuration_files(self, provided_config_path):
+    def _load_configuration_file(self, provided_config_path):
         logger.info("Loading default configuration...")
         config = yaml_load(
             open(
@@ -248,6 +248,13 @@ class Config(Mapping):
                 self._configs["OPENID_CONNECT"]["fence"][
                     "refresh_token_url"
                 ] = provided_value.replace("{{api_base_url}}", api_base_url)
+
+            oidc_issuer = self._configs.get("OIDC_ISSUER", {})
+            if oidc_issuer:
+                provided_value = self._configs["OIDC_ISSUER"]
+                self._configs["OIDC_ISSUER"] = provided_value.replace(
+                    "{{api_base_url}}", api_base_url
+                )
 
 
 def get_config_path(search_folders, file_name="*config.yaml"):
