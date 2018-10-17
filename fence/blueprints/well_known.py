@@ -90,7 +90,7 @@ def openid_configuration():
             "scopes_supported": scopes_supported,
             "response_types_supported": ["openid", "code", "token"],
             "response_modes_supported": [],
-            "grant_types_supported": ["authorization"],
+            "grant_types_supported": ["authorization_code", "implicit"],
             "subject_types_supported": subject_types_supported,
             "id_token_signing_alg_values_supported": ["RS256"],
             "id_token_encryption_alg_values_supported": [],
