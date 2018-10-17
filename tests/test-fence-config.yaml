@@ -28,7 +28,7 @@ BASE_URL: 'http://localhost/user'
 # postgres db to connect to
 # connection url format:
 #     postgresql://[user[:password]@][netloc][:port][/dbname]
-DB: 'postgresql://postgres:postgres@localhost:5432/fence_test_tmp'
+DB: 'postgresql://postgres@localhost:5432/fence_test_tmp'
 # Name and port number of the server for Flask.
 #     NOTE: Uncomment to use. You CANNOT use this when developing on localhost.
 #           When deploying fence externally, simply uncomment.
