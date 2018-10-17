@@ -22,8 +22,10 @@ from fence.resources.google.access_utils import (
     get_google_project_number,
     remove_white_listed_service_account_ids,
     is_org_whitelisted,
+    is_user_member_of_google_project,
     is_user_member_of_all_google_projects,
 )
+from cirrus.google_cloud import GoogleCloudManager
 
 
 class ValidityInfo(Mapping):
@@ -155,6 +157,7 @@ class GoogleProjectValidity(ValidityInfo):
         new_service_account=None,
         new_service_account_access=None,
         user_id=None,
+        google_cloud_manager=None,
         *args,
         **kwargs
     ):
@@ -177,6 +180,8 @@ class GoogleProjectValidity(ValidityInfo):
         self.new_service_account = new_service_account
         self.new_service_account_access = new_service_account_access or []
         self.user_id = user_id
+        self.google_cloud_manager = google_cloud_manager or GoogleCloudManager(google_project_id)
+
         super(GoogleProjectValidity, self).__init__(*args, **kwargs)
 
         # setup default values for error information, will get updated in
@@ -199,7 +204,10 @@ class GoogleProjectValidity(ValidityInfo):
         Args:
             early_return (bool, optional): Description
         """
-        google_project_number = get_google_project_number(self.google_project_id)
+
+        self.google_cloud_manager.open()
+
+        google_project_number = get_google_project_number(self.google_project_id, self.google_cloud_manager)
         has_access = bool(google_project_number)
 
         self.set("monitor_has_access", has_access)
@@ -207,18 +215,18 @@ class GoogleProjectValidity(ValidityInfo):
         if not has_access:
             return
 
-        membership = get_google_project_membership(self.google_project_id)
+        membership = get_google_project_membership(
+            self.google_project_id, self.google_cloud_manager)
 
-        if self.user_id is not None:
-            user_has_access = is_user_member_of_all_google_projects(
-                self.user_id, [self.google_project_id], membership=membership, db=db
-            )
-            self.set("user_has_access", user_has_access)
-            if not user_has_access:
-                # always early return if user isn't a member on the project
-                return
+        user_has_access = is_user_member_of_google_project(
+            self.user_id, self.google_cloud_manager, membership=membership, db=db
+        )
+        self.set("user_has_access", user_has_access)
+        if not user_has_access:
+            # always early return if user isn't a member on the project
+            return
 
-        parent_org = get_google_project_parent_org(self.google_project_id)
+        parent_org = get_google_project_parent_org(self.google_cloud_manager)
         valid_parent_org = True
 
         # if there is an org, let's remove whitelisted orgs and then check validity
@@ -241,8 +249,11 @@ class GoogleProjectValidity(ValidityInfo):
         user_members = None
         service_account_members = []
         try:
-            user_members, service_account_members = get_google_project_valid_users_and_service_accounts(
-                self.google_project_id, membership=membership
+            user_members, service_account_members = (
+                get_google_project_valid_users_and_service_accounts(
+                    self.google_project_id,
+                    self.google_cloud_manager,
+                    membership=membership)
             )
             self.set("valid_member_types", True)
         except Exception:
@@ -267,7 +278,9 @@ class GoogleProjectValidity(ValidityInfo):
         new_service_account_validity = ValidityInfo()
         if self.new_service_account:
             service_account_validity_info = GoogleServiceAccountValidity(
-                self.new_service_account, self.google_project_id, google_project_number
+                self.new_service_account, self.google_project_id,
+                google_project_number=google_project_number,
+                google_cloud_manager=self.google_cloud_manager
             )
 
             service_account_id = str(self.new_service_account)
@@ -329,7 +342,9 @@ class GoogleProjectValidity(ValidityInfo):
             service_account_id = str(service_account)
 
             service_account_validity_info = GoogleServiceAccountValidity(
-                service_account, self.google_project_id, google_project_number
+                service_account, self.google_project_id,
+                google_project_number=google_project_number,
+                google_cloud_manager=self.google_cloud_manager
             )
 
             google_sa_domains = (
@@ -407,6 +422,7 @@ class GoogleProjectValidity(ValidityInfo):
             project_access_validities.set(str(project.auth_id), project_validity)
 
         self.set("access", project_access_validities)
+        self.google_cloud_manager.close()
         return
 
 
@@ -441,13 +457,17 @@ class GoogleServiceAccountValidity(ValidityInfo):
     """
 
     def __init__(
-        self, account_id, google_project_id, google_project_number=None, *args, **kwargs
+        self, account_id, google_project_id, google_cloud_manager=None,
+            google_project_number=None, *args, **kwargs
     ):
         self.account_id = account_id
         self.google_project_id = google_project_id
 
         # default to the given project id if not provided
         self.google_project_number = google_project_number or google_project_id
+        self.google_cloud_manager = (
+                google_cloud_manager or
+                GoogleCloudManager(google_project_id))
         super(GoogleServiceAccountValidity, self).__init__(*args, **kwargs)
 
         # setup default values for error information, will get updated in
@@ -456,9 +476,11 @@ class GoogleServiceAccountValidity(ValidityInfo):
         self._info["valid_type"] = None
         self._info["no_external_access"] = None
 
-    def check_validity(
-        self, early_return=True, check_type_and_access=True, config=None
-    ):
+    def check_validity(self, early_return=True,
+                       check_type_and_access=True, config=None):
+
+        self.google_cloud_manager.open()
+
         google_managed_sa_domains = (
             config["GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS"] if config else None
         )
@@ -477,7 +499,7 @@ class GoogleServiceAccountValidity(ValidityInfo):
 
         if check_type_and_access:
             valid_type = is_valid_service_account_type(
-                self.google_project_id, self.account_id
+                self.account_id, self.google_cloud_manager
             )
 
             self.set("valid_type", valid_type)
@@ -486,9 +508,11 @@ class GoogleServiceAccountValidity(ValidityInfo):
 
             no_external_access = not (
                 service_account_has_external_access(
-                    self.account_id, self.google_project_id
+                    self.account_id, self.google_cloud_manager
                 )
             )
             self.set("no_external_access", no_external_access)
             if not no_external_access and early_return:
                 return
+
+        self.google_cloud_manager.close()

@@ -239,6 +239,18 @@ def valid_google_project_patcher():
             user_has_access_mock,
         )
     )
+    patches.append(
+        patch(
+            "fence.resources.google.access_utils.is_user_member_of_google_project",
+            user_has_access_mock,
+        )
+    )
+    patches.append(
+        patch(
+            "fence.resources.google.validity.is_user_member_of_google_project",
+            user_has_access_mock,
+        )
+    )
 
     parent_org_mock.return_value = None
     valid_membership_mock.return_value = [], []

@@ -14,6 +14,7 @@ from fence.errors import UserError, NotFound, Unauthorized
 from fence.resources.google.validity import GoogleProjectValidity
 from fence.resources.google.access_utils import (
     is_user_member_of_all_google_projects,
+    is_user_member_of_google_project,
     get_registered_service_account_from_email,
     get_service_account_email,
     force_remove_service_account_from_access,
@@ -397,7 +398,8 @@ class GoogleServiceAccount(Resource):
         google_project_id = registered_service_account.google_project_id
 
         # check if user has permission to delete the service account
-        authorized = is_user_member_of_all_google_projects(user_id, [google_project_id])
+        with GoogleCloudManager(google_project_id) as gcm:
+            authorized = is_user_member_of_google_project(user_id, gcm)
 
         if not authorized:
             return (
