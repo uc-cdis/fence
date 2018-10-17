@@ -1,15 +1,15 @@
 ---
 ############################### Fence Configuration ####################################
-# This file contains configuration necessary for the fence microservice.
+# This file contains various configurations for the fence microservice.
 #
 # README:
-# - This is initially configured for minimal local development with reasonable defaults
+# - This is initially configured for minimal local development with reasonable defaults.
 # - Descriptions for each of the configurations (if any) will be *above* the variable as
 #   comments.
 # - Some configuration variables will have examples commented out below them.
 # - This is broken up into 2 main sections for REQUIRED and OPTIONAL configurations.
 #     - Optional configs will note what features or endpoints they support
-# - Underneath each main section the variables are logically grouped under other
+# - Underneath each main section the variables are logically grouped under named
 #   sections.
 #
 # NOTE: Login is NOT ready out of the box. Fill out REQUIRED configurations first
@@ -46,13 +46,17 @@ ENCRYPTION_KEY: ''
 # DEBUG & SECURITY SETTINGS
 #   - Modify based on whether you're in a dev environment or in production
 # //////////////////////////////////////////////////////////////////////////////////////
+# flask's debug setting
+# WARNING: DO NOT ENABLE IN PRODUCTION
 DEBUG: true
+# if true, will automatically login a user with username "test"
 MOCK_AUTH: false
+# if true, will ignore anything configured in STORAGE_CREDENTIALS
 MOCK_STORAGE: true
 # allow OIDC traffic on http for development. By default it requires https.
 #
-# WARNING: ONLY set to true when fence will be deployed in such a way that fence will
-#          receive traffic from internal clients and can safely use HTTP.
+# WARNING: ONLY set to true when fence will be deployed in such a way that it will
+#          ONLY receive traffic from internal clients and can safely use HTTP.
 AUTHLIB_INSECURE_TRANSPORT: true
 
 # set if you want browsers to only send cookies with requests over HTTPS
@@ -109,7 +113,9 @@ OIDC_ISSUER: '{{api_base_url}}'
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # LOGIN
-#   - Modify based on which OIDC clients you configured above
+#   - Modify based on which OIDC client(s) you configured above
+#   - NOTE: You can have multiple IDPs for users to login with, but one has to be set
+#           as the default
 # //////////////////////////////////////////////////////////////////////////////////////
 # Login url for identity provider (IDP):
 #   Google? Use: '{{BASE_URL}}/login/google'
@@ -122,16 +128,15 @@ DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
 # See ``fence/blueprints/login/__init__.py`` for which identity providers can
 # be loaded.
 #
-# TODO is this still needed?
 ENABLED_IDENTITY_PROVIDERS:
   # ID for which of the providers to default to
   default: 'google'
   # Information for identity providers
   providers:
     google:
-      name: 'Google OAuth'
+      name: 'Google Login'
     fence:
-      name: 'Fence Multi-Tenant OAuth'
+      name: 'Fence Multi-Tenant Login'
 # The following can be used for shibboleth login, simply uncomment.
 #
 # NOTE: Don't enable shibboleth if the deployment is not protected by
@@ -142,26 +147,21 @@ ENABLED_IDENTITY_PROVIDERS:
 #      name: 'NIH Login'
 
 # //////////////////////////////////////////////////////////////////////////////////////
-# AUTHLIB CONFIGURATION (library used for OIDC flow)
-#   - Already contains reasonable defaults, be careful modifying these
+# LIBRARY CONFIGURATION (authlib & flask)
+#   - Already contains reasonable defaults
 # //////////////////////////////////////////////////////////////////////////////////////
+# authlib-specific configs for OIDC flow and JWTs
+# NOTE: the OAUTH2_JWT_KEY cfg gets set automatically by fence if keys are setup
+#       correctly
 OAUTH2_JWT_ALG: 'RS256'
 OAUTH2_JWT_ENABLED: true
 OAUTH2_JWT_ISS: '{{BASE_URL}}'
 OAUTH2_PROVIDER_ERROR_URI: '/api/oauth2/errors'
 
-# //////////////////////////////////////////////////////////////////////////////////////
-# FENCE PATHS
-#   - Already contains reasonable defaults
-# //////////////////////////////////////////////////////////////////////////////////////
 # used for flask, "path mounted under by the application / web server"
 # since we deploy as microservices, fence is typically under {{base}}/user
 # this is also why our BASE_URL default ends in /user
-# TODO is this still needed?
 APPLICATION_ROOT: '/user'
-# directory the fence code will be deployed under. used to help locate files
-# TODO is this still needed?
-ROOT_DIR: '/fence'
 
 ########################################################################################
 #                               OPTIONAL CONFIGURATIONS                                #

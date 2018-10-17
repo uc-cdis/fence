@@ -280,7 +280,7 @@ def main():
     if os.environ.get("ROOT_DIR"):
         ROOT_DIR = os.environ["ROOT_DIR"]
     else:
-        ROOT_DIR = "/fence"
+        ROOT_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
     if os.environ.get("dbGaP"):
         dbGaP = os.environ["dbGaP"]

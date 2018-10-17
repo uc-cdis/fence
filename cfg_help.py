@@ -45,46 +45,50 @@ from shutil import copyfile
 import sys
 
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
-LOCAL_CONFIG_FOLDER = '/etc/gen3/fence'
+LOCAL_CONFIG_FOLDER = "/etc/gen3/fence"
 
 
 def main():
     parser = argparse.ArgumentParser()
-    subparsers = parser.add_subparsers(title='action', dest='action')
+    subparsers = parser.add_subparsers(title="action", dest="action")
 
-    create = subparsers.add_parser('create')
+    create = subparsers.add_parser("create")
     create.add_argument(
-        '-n', '--name',
-        default='fence-config.yaml',
+        "-n",
+        "--name",
+        default="fence-config.yaml",
         help=(
-            'configuration file name if you want something '
-            'other than "fence-config.yaml"')
+            "configuration file name if you want something "
+            'other than "fence-config.yaml"'
+        ),
     )
     create.add_argument(
-        '--config_path',
+        "--config_path",
         help=(
-            'Full path to a yaml config file to create. '
-            'Will override/ignore name if provided.')
+            "Full path to a yaml config file to create. "
+            "Will override/ignore name if provided."
+        ),
     )
 
-    edit = subparsers.add_parser('get')
+    edit = subparsers.add_parser("get")
     edit.add_argument(
-        '-n', '--name',
-        default='fence-config.yaml',
+        "-n",
+        "--name",
+        default="fence-config.yaml",
         help=(
-            'configuration file name if you used something '
-            'other than "fence-config.yaml"')
+            "configuration file name if you used something "
+            'other than "fence-config.yaml"'
+        ),
     )
 
     args = parser.parse_args()
 
-    if args.action == 'create':
+    if args.action == "create":
         sys.stdout.write(create_config_file(args.name, args.config_path))
-    elif args.action == 'get':
+    elif args.action == "get":
         sys.stdout.write(get_config_file(args.name))
     else:
-        raise ValueError(
-            '{} is not a recognized action.'.format(args.actions))
+        raise ValueError("{} is not a recognized action.".format(args.actions))
 
 
 def create_config_file(file_name, full_path=None):
@@ -93,7 +97,7 @@ def create_config_file(file_name, full_path=None):
     if dir_name and not os.path.exists(dir_name):
         os.makedirs(os.path.dirname(config_path))
 
-    copyfile(os.path.join(ROOT_DIR, 'fence/config-default.yaml'), config_path)
+    copyfile(os.path.join(ROOT_DIR, "fence/config-default.yaml"), config_path)
 
     return config_path
 
@@ -104,15 +108,17 @@ def get_config_file(file_name):
         config_path = get_config_path(search_folders, file_name=file_name)
     except IOError:
         raise IOError(
-            'Config file {file_name} could not be found in the search '
-            'locations: {search_folders}. Run '
-            '"cfg_help.py create -n {file_name}" first.'
-            .format(file_name=file_name, search_folders=search_folders))
+            "Config file {file_name} could not be found in the search "
+            "locations: {search_folders}. Run "
+            '"cfg_help.py create -n {file_name}" first.'.format(
+                file_name=file_name, search_folders=search_folders
+            )
+        )
 
     return config_path
 
 
-def get_config_path(search_folders, file_name='*config.yaml'):
+def get_config_path(search_folders, file_name="*config.yaml"):
     """
     Return the path of a single configuration file ending in config.yaml
     from one of the search folders.
@@ -131,14 +137,17 @@ def get_config_path(search_folders, file_name='*config.yaml'):
         return possible_configs[0]
     elif possible_cfgs_count > 1:
         raise IOError(
-            'Multiple config.yaml files found: {}. Please specify which '
-            'configuration to use with "python run.py -c some-config.yaml".'
-            .format(str(possible_configs)))
+            "Multiple config.yaml files found: {}. Please specify which "
+            'configuration to use with "python run.py -c some-config.yaml".'.format(
+                str(possible_configs)
+            )
+        )
     else:
         raise IOError(
-            'Could not find config.yaml. Searched in the following locations: '
-            '{}'.format(str(search_folders)))
+            "Could not find config.yaml. Searched in the following locations: "
+            "{}".format(str(search_folders))
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
