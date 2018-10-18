@@ -81,12 +81,6 @@ OPENID_CONNECT:
     # this is be the allowed redirect back to fence, should not need to change
     redirect_url: '{{BASE_URL}}/login/google/login'
 
-# Fence Multi-Tenant Issuer
-# configure this to the base URL for the provider fence
-# (i.e. `BASE_URL` in the provider fence config).
-# This is probably the same as the `api_base_url` you set above
-OIDC_ISSUER: '{{api_base_url}}'
-
 # //////////////////////////////////////////////////////////////////////////////////////
 # LOGIN
 #   - Modify based on which OIDC client(s) you configured above

@@ -7,6 +7,8 @@ import jwt
 from fence.jwt.blacklist import is_blacklisted
 from fence.jwt.errors import JWTError, JWTPurposeError
 
+from fence.config import config
+
 
 def validate_purpose(claims, pur):
     """
@@ -78,7 +80,9 @@ def validate_jwt(
     aud = set(aud)
     iss = flask.current_app.config["BASE_URL"]
     issuers = [iss]
-    oidc_iss = flask.current_app.config.get("OIDC_ISSUER")
+    oidc_iss = (
+        config.get("OPENID_CONNECT", {}).get("fence", {}).get("api_base_url", None)
+    )
     if oidc_iss:
         issuers.append(oidc_iss)
     try:
