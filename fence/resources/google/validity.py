@@ -180,7 +180,9 @@ class GoogleProjectValidity(ValidityInfo):
         self.new_service_account = new_service_account
         self.new_service_account_access = new_service_account_access or []
         self.user_id = user_id
-        self.google_cloud_manager = google_cloud_manager or GoogleCloudManager(google_project_id)
+        self.google_cloud_manager = google_cloud_manager or GoogleCloudManager(
+            google_project_id
+        )
 
         super(GoogleProjectValidity, self).__init__(*args, **kwargs)
 
@@ -253,11 +255,8 @@ class GoogleProjectValidity(ValidityInfo):
         user_members = None
         service_account_members = []
         try:
-            user_members, service_account_members = (
-                get_google_project_valid_users_and_service_accounts(
-                    self.google_project_id,
-                    self.google_cloud_manager,
-                    membership=membership)
+            user_members, service_account_members = get_google_project_valid_users_and_service_accounts(
+                self.google_project_id, self.google_cloud_manager, membership=membership
             )
             self.set("valid_member_types", True)
         except Exception:
@@ -282,9 +281,10 @@ class GoogleProjectValidity(ValidityInfo):
         new_service_account_validity = ValidityInfo()
         if self.new_service_account:
             service_account_validity_info = GoogleServiceAccountValidity(
-                self.new_service_account, self.google_project_id,
+                self.new_service_account,
+                self.google_project_id,
                 google_project_number=google_project_number,
-                google_cloud_manager=self.google_cloud_manager
+                google_cloud_manager=self.google_cloud_manager,
             )
 
             service_account_id = str(self.new_service_account)
@@ -346,9 +346,10 @@ class GoogleProjectValidity(ValidityInfo):
             service_account_id = str(service_account)
 
             service_account_validity_info = GoogleServiceAccountValidity(
-                service_account, self.google_project_id,
+                service_account,
+                self.google_project_id,
                 google_project_number=google_project_number,
-                google_cloud_manager=self.google_cloud_manager
+                google_cloud_manager=self.google_cloud_manager,
             )
 
             google_sa_domains = (
@@ -461,17 +462,22 @@ class GoogleServiceAccountValidity(ValidityInfo):
     """
 
     def __init__(
-        self, account_id, google_project_id, google_cloud_manager=None,
-            google_project_number=None, *args, **kwargs
+        self,
+        account_id,
+        google_project_id,
+        google_cloud_manager=None,
+        google_project_number=None,
+        *args,
+        **kwargs
     ):
         self.account_id = account_id
         self.google_project_id = google_project_id
 
         # default to the given project id if not provided
         self.google_project_number = google_project_number or google_project_id
-        self.google_cloud_manager = (
-                google_cloud_manager or
-                GoogleCloudManager(google_project_id))
+        self.google_cloud_manager = google_cloud_manager or GoogleCloudManager(
+            google_project_id
+        )
         super(GoogleServiceAccountValidity, self).__init__(*args, **kwargs)
 
         # setup default values for error information, will get updated in
@@ -480,8 +486,9 @@ class GoogleServiceAccountValidity(ValidityInfo):
         self._info["valid_type"] = None
         self._info["no_external_access"] = None
 
-    def check_validity(self, early_return=True,
-                       check_type_and_access=True, config=None):
+    def check_validity(
+        self, early_return=True, check_type_and_access=True, config=None
+    ):
 
         self.google_cloud_manager.open()
 
