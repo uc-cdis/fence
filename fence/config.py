@@ -2,9 +2,12 @@ import os
 from collections import Mapping
 import glob
 from yaml import safe_load as yaml_load
+from yaml.scanner import ScannerError
 import urlparse
 
 import cirrus
+from jinja2 import Template
+
 
 from fence.settings import CONFIG_SEARCH_FOLDERS
 
@@ -67,7 +70,7 @@ class Config(Mapping):
             # TODO local_settings.py is being deprecated. Fow now, support
             # not proving a yaml configuration but log a warning.
             logger.warning(
-                "No fence YAML configuration found. Will attempt "
+                "No YAML configuration found. Will attempt "
                 "to run without. If still using deprecated local_settings.py, you "
                 "can ignore this warning but PLEASE upgrade to using the newest "
                 "configuration format. local_settings.py is DEPRECATED!!"
@@ -77,28 +80,7 @@ class Config(Mapping):
         if config_path:
             self._load_configuration_file(config_path)
 
-        if "ROOT_URL" not in self._configs:
-            url = urlparse.urlparse(self._configs["BASE_URL"])
-            self._configs["ROOT_URL"] = "{}://{}".format(url.scheme, url.netloc)
-
-        # allow authlib traffic on http for development if enabled. By default
-        # it requires https.
-        #
-        # NOTE: use when fence will be deployed in such a way that fence will
-        #       only receive traffic from internal clients, and can safely use HTTP
-        if self._configs.get("AUTHLIB_INSECURE_TRANSPORT"):
-            os.environ["AUTHLIB_INSECURE_TRANSPORT"] = "true"
-
-        # if we're mocking storage, ignore the storage backends provided
-        # since they'll cause errors if misconfigured
-        if self._configs.get("MOCK_STORAGE", False):
-            self._configs["STORAGE_CREDENTIALS"] = {}
-
-        # expand urls based on provided vars
-        self._expand_base_url()
-        self._expand_api_base_url()
-
-        cirrus.config.config.update(**self._configs.get("CIRRUS_CFG", {}))
+        self._post_process()
 
     def _load_configuration_file(self, provided_config_path):
         logger.info("Loading default configuration...")
@@ -111,7 +93,11 @@ class Config(Mapping):
         )
 
         logger.info("Loading configuration: {}".format(provided_config_path))
-        provided_configurations = yaml_load(open(provided_config_path))
+
+        # treat cfg as template and replace vars, returning an updated dict
+        provided_configurations = nested_render(
+            yaml_load(open(provided_config_path)), {}, {}
+        )
 
         # only update known configuration values. In the situation
         # where the provided config does not have a certain value,
@@ -143,118 +129,102 @@ class Config(Mapping):
 
         self._configs.update(config)
 
-    def _expand_base_url(self):
+        import pprint
+
+        pprint.pprint(self._configs)
+
+    def _post_process(self):
         """
-        Replaces {{BASE_URL}} in specific configuration vars with the actual
-        balue of BASE_URL
+        Do some post processing to the configuration (set env vars if necessary,
+        do more complex modifications/changes to vars, etc.)
+
+        Called after loading the configuration and doing the template-replace.
         """
-        server_name = self._configs.get("SERVER_NAME")
-        if server_name:
-            provided_value = self._configs["SERVER_NAME"]
-            self._configs["SERVER_NAME"] = provided_value.replace(
-                "{{BASE_URL}}", self._configs["BASE_URL"]
+        pass
+
+
+def nested_render(cfg, fully_rendered_cfgs, replacements):
+    """
+    Template render the provided cfg by recurisevly replacing {{var}}'s which values
+    from the current "namespace".
+
+    The nested config is treated like nested namespaces where the inner variables
+    are only available in current block and further nested blocks.
+
+    Said the opposite way: the namespace with available vars that can be used
+    includes the current block's vars and parent block vars.
+
+    This means that you can do replacements for top-level
+    (global namespaced) config vars anywhere, but you can only use inner configs within
+    that block or further nested blocks.
+
+    An example is worth a thousand words:
+
+        ---------------------------------------------------------------------------------
+        fence-config.yaml
+        --------------------------------------------------------------------------------
+        BASE_URL: 'http://localhost/user'
+        OPENID_CONNECT:
+          fence:
+            api_base_url: 'http://other_fence/user'
+            client_kwargs:
+              redirect_uri: '{{BASE_URL}}/login/fence/login'
+            authorize_url: '{{api_base_url}}/oauth2/authorize'
+        THIS_WONT_WORK: '{{api_base_url}}/test'
+        --------------------------------------------------------------------------------
+
+    "redirect_uri" will become "http://localhost/user/login/fence/login"
+        - BASE_URL is in the global namespace so it can be used in this nested cfg
+
+    "authorize_url" will become "http://other_fence/user/oauth2/authorize"
+        - api_base_url is in the current namespace, so it is available
+
+    "THIS_WONT_WORK" will become "/test"
+        - Why? api_base_url is not in the current namespace and so we cannot use that
+          as a replacement. the configuration (instead of failing) will replace with
+          an empty string
+
+    Args:
+        cfg (TYPE): Description
+        fully_rendered_cfgs (TYPE): Description
+        replacements (TYPE): Description
+
+    Returns:
+        dict: Configurations with template vars replaced
+    """
+    try:
+        for key, value in cfg.iteritems():
+            replacements.update(cfg)
+            fully_rendered_cfgs[key] = {}
+            fully_rendered_cfgs[key] = nested_render(
+                value,
+                fully_rendered_cfgs=fully_rendered_cfgs[key],
+                replacements=replacements,
             )
+            # new namespace, remove current vars (no longer available as replacements)
+            for old_cfg, value in cfg.iteritems():
+                replacements.pop(old_cfg, None)
 
-        google_redirect = (
-            self._configs.get("OPENID_CONNECT", {})
-            .get("google", {})
-            .get("redirect_url")
-        )
-        if google_redirect:
-            provided_value = self._configs["OPENID_CONNECT"]["google"]["redirect_url"]
-            self._configs["OPENID_CONNECT"]["google"][
-                "redirect_url"
-            ] = provided_value.replace("{{BASE_URL}}", self._configs["BASE_URL"])
+        return fully_rendered_cfgs
+    except AttributeError:
+        # it's not a dict, so lets try to render it. But only if it's
+        # truthy (which means there's actually something to replace)
+        if cfg:
+            t = Template(str(cfg))
+            rendered_value = t.render(**replacements)
+            try:
+                cfg = yaml_load(rendered_value)
+            except ScannerError:
+                # it's not loading into yaml, so let's assume it's a string with special
+                # chars such as: {}[],&*#?|:-<>=!%@\)
+                #
+                # in YAML, we have to "quote" a string with special chars.
+                #
+                # since yaml_load isn't loading from a file, we need to wrap the Python
+                # str in actual quotes.
+                cfg = yaml_load('"{}"'.format(rendered_value))
 
-        default_logout = self._configs.get("DEFAULT_LOGIN_URL")
-        if default_logout:
-            provided_value = self._configs["DEFAULT_LOGIN_URL"]
-            self._configs["DEFAULT_LOGIN_URL"] = provided_value.replace(
-                "{{BASE_URL}}", self._configs["BASE_URL"]
-            )
-
-        shib_url = self._configs.get("SSO_URL")
-        if shib_url:
-            provided_value = self._configs["SSO_URL"]
-            self._configs["SSO_URL"] = provided_value.replace(
-                "{{BASE_URL}}", self._configs["BASE_URL"]
-            )
-
-        access_token_url = (
-            self._configs.get("OPENID_CONNECT", {})
-            .get("fence", {})
-            .get("client_kwargs", {})
-            .get("redirect_uri")
-        )
-        if access_token_url:
-            provided_value = self._configs["OPENID_CONNECT"]["fence"]["client_kwargs"][
-                "redirect_uri"
-            ]
-            self._configs["OPENID_CONNECT"]["fence"]["client_kwargs"][
-                "redirect_uri"
-            ] = provided_value.replace("{{BASE_URL}}", self._configs["BASE_URL"])
-
-        authlib_jwt_iss = self._configs.get("OAUTH2_JWT_ISS")
-        if authlib_jwt_iss:
-            provided_value = self._configs["OAUTH2_JWT_ISS"]
-            self._configs["OAUTH2_JWT_ISS"] = provided_value.replace(
-                "{{BASE_URL}}", self._configs["BASE_URL"]
-            )
-
-    def _expand_api_base_url(self):
-        """
-        Replaces {{api_base_url}} in specific configuration vars with the actual
-        balue of api_base_url
-        """
-        api_base_url = (
-            self._configs.get("OPENID_CONNECT", {}).get("fence", {}).get("api_base_url")
-        )
-        if api_base_url is not None:
-            authorize_url = (
-                self._configs.get("OPENID_CONNECT", {})
-                .get("fence", {})
-                .get("authorize_url")
-            )
-            if authorize_url:
-                provided_value = self._configs["OPENID_CONNECT"]["fence"][
-                    "authorize_url"
-                ]
-                self._configs["OPENID_CONNECT"]["fence"][
-                    "authorize_url"
-                ] = provided_value.replace("{{api_base_url}}", api_base_url)
-
-            access_token_url = (
-                self._configs.get("OPENID_CONNECT", {})
-                .get("fence", {})
-                .get("access_token_url")
-            )
-            if access_token_url:
-                provided_value = self._configs["OPENID_CONNECT"]["fence"][
-                    "access_token_url"
-                ]
-                self._configs["OPENID_CONNECT"]["fence"][
-                    "access_token_url"
-                ] = provided_value.replace("{{api_base_url}}", api_base_url)
-
-            refresh_token_url = (
-                self._configs.get("OPENID_CONNECT", {})
-                .get("fence", {})
-                .get("refresh_token_url")
-            )
-            if refresh_token_url:
-                provided_value = self._configs["OPENID_CONNECT"]["fence"][
-                    "refresh_token_url"
-                ]
-                self._configs["OPENID_CONNECT"]["fence"][
-                    "refresh_token_url"
-                ] = provided_value.replace("{{api_base_url}}", api_base_url)
-
-            oidc_issuer = self._configs.get("OIDC_ISSUER", {})
-            if oidc_issuer:
-                provided_value = self._configs["OIDC_ISSUER"]
-                self._configs["OIDC_ISSUER"] = provided_value.replace(
-                    "{{api_base_url}}", api_base_url
-                )
+        return cfg
 
 
 def get_config_path(search_folders, file_name="*config.yaml"):
@@ -287,4 +257,29 @@ def get_config_path(search_folders, file_name="*config.yaml"):
         )
 
 
-config = Config()
+class FenceConfig(Config):
+    def __init__(self, *args, **kwargs):
+        super(FenceConfig, self).__init__(*args, **kwargs)
+
+    def _post_process(self):
+        if "ROOT_URL" not in self._configs:
+            url = urlparse.urlparse(self._configs["BASE_URL"])
+            self._configs["ROOT_URL"] = "{}://{}".format(url.scheme, url.netloc)
+
+        # allow authlib traffic on http for development if enabled. By default
+        # it requires https.
+        #
+        # NOTE: use when fence will be deployed in such a way that fence will
+        #       only receive traffic from internal clients, and can safely use HTTP
+        if self._configs.get("AUTHLIB_INSECURE_TRANSPORT"):
+            os.environ["AUTHLIB_INSECURE_TRANSPORT"] = "true"
+
+        # if we're mocking storage, ignore the storage backends provided
+        # since they'll cause errors if misconfigured
+        if self._configs.get("MOCK_STORAGE", False):
+            self._configs["STORAGE_CREDENTIALS"] = {}
+
+        cirrus.config.config.update(**self._configs.get("CIRRUS_CFG", {}))
+
+
+config = FenceConfig()
