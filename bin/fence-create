@@ -420,14 +420,15 @@ def main():
             scopes=args.scopes,
             expires_in=args.exp,
         )
-        if args.type == "access_token":
+        token_type = str(args.type).strip().lower()
+        if token_type == "access_token" or token_type == "access":
             print(jwt_creator.create_access_token().token)
-        elif args.type == "refresh_token":
+        elif token_type == "refresh_token" or token_type == "refresh":
             print(jwt_creator.create_refresh_token().token)
         else:
             print(
                 'invalid token type "{}"; expected "access" or "refresh"'.format(
-                    args.type
+                    token_type
                 )
             )
             sys.exit(1)
