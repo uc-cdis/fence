@@ -207,7 +207,9 @@ class GoogleProjectValidity(ValidityInfo):
 
         self.google_cloud_manager.open()
 
-        google_project_number = get_google_project_number(self.google_project_id, self.google_cloud_manager)
+        google_project_number = get_google_project_number(
+            self.google_project_id, self.google_cloud_manager
+        )
         has_access = bool(google_project_number)
 
         self.set("monitor_has_access", has_access)
@@ -216,15 +218,17 @@ class GoogleProjectValidity(ValidityInfo):
             return
 
         membership = get_google_project_membership(
-            self.google_project_id, self.google_cloud_manager)
-
-        user_has_access = is_user_member_of_google_project(
-            self.user_id, self.google_cloud_manager, membership=membership, db=db
+            self.google_project_id, self.google_cloud_manager
         )
-        self.set("user_has_access", user_has_access)
-        if not user_has_access:
-            # always early return if user isn't a member on the project
-            return
+
+        if self.user_id is not None:
+            user_has_access = is_user_member_of_google_project(
+                self.user_id, self.google_cloud_manager, membership=membership, db=db
+            )
+            self.set("user_has_access", user_has_access)
+            if not user_has_access:
+                # always early return if user isn't a member on the project
+                return
 
         parent_org = get_google_project_parent_org(self.google_cloud_manager)
         valid_parent_org = True
