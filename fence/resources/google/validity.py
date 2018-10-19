@@ -510,7 +510,8 @@ class GoogleServiceAccountValidity(ValidityInfo):
                 return
 
             (sa_exists, sa_policy_response) = (
-                get_service_account_policy_if_exists(self.google_cloud_manager)
+                get_service_account_policy_if_exists(
+                    self.account_id, self.google_cloud_manager)
             )
             self.set("exists", sa_exists)
             if not sa_exists:

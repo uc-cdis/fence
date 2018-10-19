@@ -189,7 +189,7 @@ def test_service_account_does_not_exist(cloud_manager):
         cloud_manager.get_service_account_policy.return_value
     ) = MockResponse({}, 404)
 
-    (exists, response) = get_service_account_policy_if_exists(cloud_manager)
+    (exists, response) = get_service_account_policy_if_exists("test", cloud_manager)
     assert not exists
 
 def test_project_has_valid_membership(cloud_manager, db_session):
