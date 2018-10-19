@@ -184,18 +184,19 @@ def is_valid_service_account_type(account_id, google_cloud_manager):
             .format(account_id, google_cloud_manager.project_id, exc))
 
 
-def service_account_has_external_access(service_account, google_cloud_manager):
+def service_account_has_external_access(service_account, google_cloud_manager, policy=None):
     """
     Checks if service account has external access or not.
 
     Args:
         service_account(str): service account
         google_project_id(str): google project id
+        policy(dict): response from previous call to get_service_account_policy
 
     Returns:
         bool: whether or not the service account has external access
     """
-    response = google_cloud_manager.get_service_account_policy(service_account)
+    response = policy or google_cloud_manager.get_service_account_policy(service_account)
     if response.status_code != 200:
         logger.error(
             "Unable to get IAM policy for service account {}\n{}."

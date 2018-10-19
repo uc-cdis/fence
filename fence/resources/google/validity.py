@@ -498,6 +498,7 @@ class GoogleServiceAccountValidity(ValidityInfo):
             return
 
         if check_type_and_access:
+
             valid_type = is_valid_service_account_type(
                 self.account_id, self.google_cloud_manager
             )
@@ -506,9 +507,24 @@ class GoogleServiceAccountValidity(ValidityInfo):
             if not valid_type and early_return:
                 return
 
+            sa_policy_response = self.google_cloud_manager.get_service_account_policy()
+            if sa_policy_response.status_code != 200:
+                if sa_policy_response.status_code == 404:
+                    sa_exists = False
+                else:
+                    sa_exists = None
+            else:
+                sa_exists = True
+
+            self.set("exists", sa_exists)
+            if not sa_exists:
+                return
+
             no_external_access = not (
                 service_account_has_external_access(
-                    self.account_id, self.google_cloud_manager
+                    self.account_id,
+                    self.google_cloud_manager,
+                    sa_policy_response
                 )
             )
             self.set("no_external_access", no_external_access)

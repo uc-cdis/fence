@@ -699,11 +699,18 @@ def _get_service_account_email_error_status(validity_info):
     for sa_account_id, sa_validity in service_accounts_validity:
         if sa_account_id == validity_info.new_service_account:
             if not sa_validity:
-                response["status"] = 403
-                response["error"] = "unauthorized"
-                response[
-                    "error_description"
-                ] = "Service account requested for registration is invalid."
+                if sa_validity['exists']:
+                    response["status"] = 403
+                    response["error"] = "unauthorized"
+                    response[
+                        "error_description"
+                    ] = "Service account requested for registration is invalid."
+                else:
+                    response["status"] = 404
+                    response["error"] = "Not Found"
+                    response["error_description"] = (
+                        "Service account could not be found."
+                    )
 
             response["service_account_validity"] = {
                 str(sa_account_id): sa_validity.get_info()
