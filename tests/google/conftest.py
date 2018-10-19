@@ -114,7 +114,7 @@ def valid_service_account_patcher():
     get_policy_mock = MagicMock()
     patches.append(
         patch(
-            "fence.resources.google.validity.get_service_account_policy",
+            "fence.resources.google.validity.GoogleCloudManager.get_service_account_policy",
             get_policy_mock
         )
     )
