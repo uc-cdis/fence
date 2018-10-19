@@ -940,3 +940,17 @@ def force_add_service_accounts_to_access(
             add_user_service_account_to_google(
                 session, project_ids, google_project_id, sa
             )
+
+
+def get_service_account_policy_if_exists(google_cloud_manager):
+
+    sa_policy_response = google_cloud_manager.get_service_account_policy()
+    if sa_policy_response.status_code != 200:
+        if sa_policy_response.status_code == 404:
+            sa_exists = False
+        else:
+            sa_exists = None
+    else:
+        sa_exists = True
+
+    return sa_exists, sa_policy_response

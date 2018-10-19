@@ -20,6 +20,7 @@ from fence.resources.google.access_utils import (
     do_all_users_have_access_to_project,
     get_project_from_auth_id,
     get_google_project_number,
+    get_service_account_policy_if_exists,
     remove_white_listed_service_account_ids,
     is_org_whitelisted,
     is_user_member_of_google_project,
@@ -475,6 +476,7 @@ class GoogleServiceAccountValidity(ValidityInfo):
         self._info["owned_by_project"] = None
         self._info["valid_type"] = None
         self._info["no_external_access"] = None
+        self._info["exists"] = None
 
     def check_validity(self, early_return=True,
                        check_type_and_access=True, config=None):
@@ -507,15 +509,9 @@ class GoogleServiceAccountValidity(ValidityInfo):
             if not valid_type and early_return:
                 return
 
-            sa_policy_response = self.google_cloud_manager.get_service_account_policy()
-            if sa_policy_response.status_code != 200:
-                if sa_policy_response.status_code == 404:
-                    sa_exists = False
-                else:
-                    sa_exists = None
-            else:
-                sa_exists = True
-
+            (sa_exists, sa_policy_response) = (
+                get_service_account_policy_if_exists(self.google_cloud_manager)
+            )
             self.set("exists", sa_exists)
             if not sa_exists:
                 return

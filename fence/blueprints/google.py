@@ -699,7 +699,7 @@ def _get_service_account_email_error_status(validity_info):
     for sa_account_id, sa_validity in service_accounts_validity:
         if sa_account_id == validity_info.new_service_account:
             if not sa_validity:
-                if sa_validity['exists']:
+                if sa_validity['exists'] or sa_validity['exists'] is None:
                     response["status"] = 403
                     response["error"] = "unauthorized"
                     response[
