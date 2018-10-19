@@ -123,7 +123,7 @@ def valid_service_account_patcher():
     external_access_mock.return_value = False
     from_google_project_mock.return_value = True
 
-    get_policy_response = MagicMock(spec=Response)
+    get_policy_response = MagicMock()
     get_policy_response.status_code = 200
 
     get_policy_mock.return_value = get_policy_response
