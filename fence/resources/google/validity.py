@@ -525,7 +525,7 @@ class GoogleServiceAccountValidity(ValidityInfo):
                 sa_policy = get_service_account_policy(
                     self.account_id, self.google_cloud_manager)
                 sa_exists = True
-            except NotFound as exc:
+            except NotFound:
                 sa_exists = False
 
             self.set("exists", sa_exists)
