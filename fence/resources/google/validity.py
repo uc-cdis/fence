@@ -3,6 +3,7 @@ Objects with validity checking for Google service account registration.
 """
 from collections import Mapping
 
+from fence.errors import NotFound
 from fence.resources.google.utils import (
     get_registered_service_accounts,
     get_project_access_from_service_accounts,
@@ -20,7 +21,7 @@ from fence.resources.google.access_utils import (
     do_all_users_have_access_to_project,
     get_project_from_auth_id,
     get_google_project_number,
-    get_service_account_policy_if_exists,
+    get_service_account_policy,
     remove_white_listed_service_account_ids,
     is_org_whitelisted,
     is_user_member_of_google_project,
@@ -520,10 +521,13 @@ class GoogleServiceAccountValidity(ValidityInfo):
             if not valid_type and early_return:
                 return
 
-            (sa_exists, sa_policy_response) = (
-                get_service_account_policy_if_exists(
+            try:
+                sa_policy = get_service_account_policy(
                     self.account_id, self.google_cloud_manager)
-            )
+                sa_exists = True
+            except NotFound as exc:
+                sa_exists = False
+
             self.set("exists", sa_exists)
             if not sa_exists:
                 return
@@ -532,7 +536,7 @@ class GoogleServiceAccountValidity(ValidityInfo):
                 service_account_has_external_access(
                     self.account_id,
                     self.google_cloud_manager,
-                    sa_policy_response
+                    sa_policy
                 )
             )
             self.set("no_external_access", no_external_access)

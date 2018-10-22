@@ -942,15 +942,10 @@ def force_add_service_accounts_to_access(
             )
 
 
-def get_service_account_policy_if_exists(account, google_cloud_manager):
+def get_service_account_policy(account, google_cloud_manager):
 
-    sa_policy_response = google_cloud_manager.get_service_account_policy(account)
-    if sa_policy_response.status_code != 200:
-        if sa_policy_response.status_code == 404:
-            sa_exists = False
-        else:
-            sa_exists = None
+    sa_policy = google_cloud_manager.get_service_account_policy(account)
+    if sa_policy.status_code != 200:
+        raise NotFound
     else:
-        sa_exists = True
-
-    return sa_exists, sa_policy_response
+        return sa_policy

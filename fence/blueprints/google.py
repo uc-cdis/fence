@@ -707,9 +707,9 @@ def _get_service_account_email_error_status(validity_info):
                     ] = "Service account requested for registration is invalid."
                 else:
                     response["status"] = 404
-                    response["error"] = "Not Found"
+                    response["error"] = "not_accessible"
                     response["error_description"] = (
-                        "Service account could not be found."
+                        "Either the service account doesn't exist or we were unable to retrieve its Policy"
                     )
 
             response["service_account_validity"] = {
