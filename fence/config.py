@@ -25,8 +25,8 @@ class Config(Mapping):
     def __init__(self):
         self._configs = {}
 
-    def get(self, key, *args):
-        return self._configs.get(key, *args)
+    def get(self, key, default=None):
+        return self._configs.get(key, default=default)
 
     def set(self, key, value):
         self._configs.__setitem__(key, value)
@@ -242,8 +242,27 @@ def get_config_path(search_folders, file_name="*config.yaml"):
     this will error out.
     """
     possible_configs = []
+    print(search_folders)
     for folder in search_folders:
+        print(folder)
         config_path = os.path.join(folder, file_name)
+        """
+        FIXME
+        Traceback (most recent call last):
+          File "/var/www/fence/wsgi.py", line 4, in <module>
+            app_init(app)
+          File "/fence/fence/__init__.py", line 58, in app_init
+            file_name=config_file_name,
+          File "/fence/fence/__init__.py", line 151, in app_config
+            config.load(config_path, file_name)
+          File "/fence/fence/config.py", line 67, in load
+            CONFIG_SEARCH_FOLDERS, file_name
+          File "/fence/fence/config.py", line 241, in get_config_path
+            config_path = os.path.join(folder, file_name)
+          File "/usr/lib/python2.7/posixpath.py", line 75, in join
+            if b.startswith('/'):
+        AttributeError: 'NoneType' object has no attribute 'startswith'
+        """
         possible_files = glob.glob(config_path)
         possible_configs.extend(possible_files)
 
