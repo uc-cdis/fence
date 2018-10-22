@@ -86,7 +86,7 @@ Design Requirements:
 
 To meet these requirements, we use a single service account key generated for the user's **Primary Service Account** to sign the URL. In this way, we can trace back the URL to a given user (since the Primary Service Account email is guaranteed to contain the `user_id`). For details on Primary Service Accounts, continue reading the [Temporary Service Account Credentials](#temporary-service-account-credentials) section.
 
-We make sure that the key we generate for the Primary Service Account has a later expiration time than when users create their own keys (although this is configurable in fence). By default, the key used for signing URLs lasts 30 days, while service account keys created by users for the Primary Service Account last 7 days.
+We also make sure that the key we use for URL signing has a later expiration time than when users create their own keys (although this is configurable in fence). By default, the key used for signing URLs lasts 30 days, while service account keys created by users for the Primary Service Account last 7 days.
 
 Fence manages the rotation of the key for URL signing automatically.
 
@@ -114,7 +114,7 @@ One special use-case for the Primary Service Account is its use for signing URLs
 
 There are two steps in this access method but they are related. If you want to access data directly by signing in with your Google account, then you can just do the **Google Account Linking**.
 
-If, however, users have their own Google Projects and want to provide access to data to data inside those projects, they can go through **Service Account Registration** to provide a Google Service Account with temporary access to the data. This allows users to spin up virtual machines in their own projects and run computations on data they have access to.
+If, however, users have their own Google Projects and want to provide access to data inside those projects, they can go through **Service Account Registration** to provide a Google Service Account with temporary access to the data. This allows users to spin up virtual machines in their own projects and run computations on data they have access to.
 
 While Service Account Registration may provide the most flexibility, it is also the hardest to monitor and ensure security of data. Thus, *clients and users who wish to use this access method must adhere to very specific setup instructions, configurations, and rules restricting certain features of Google's Cloud Platform*.
 
