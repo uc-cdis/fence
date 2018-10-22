@@ -10,7 +10,7 @@ only trusted entities to enter.
 Fence is a core service of the Gen3 stack that has multiple capabilities:
 1. Act as an auth broker to integrate with an [Identity Provider](#identity-provider) and provide downstream authentication and authorization for Gen3 services.
 2. [Manage tokens](#token-management).
-3. Act as an [OIDC provider](oidc--oauth2) to support external applications to use Gen3 services.
+3. Act as an [OIDC provider](#oidc--oauth2) to support external applications to use Gen3 services.
 4. [Issue short lived, cloud native credentials to access data in various cloud storage services](#accessing-data)
 
 
