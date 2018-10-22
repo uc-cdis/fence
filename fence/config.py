@@ -63,9 +63,15 @@ class Config(Mapping):
     def load(self, config_path=None, file_name=None):
         # TODO remove try, except when local_settings.py is no longer supported
         try:
-            config_path = config_path or get_config_path(
-                CONFIG_SEARCH_FOLDERS, file_name
-            )
+            cfg_search_folders = CONFIG_SEARCH_FOLDERS
+            if not cfg_search_folders:
+                logger.warning(
+                    "CONFIG_SEARCH_FOLDERS not set, this is required to "
+                    "search for configuration. Will attempt to search in current directory."
+                )
+                cfg_search_folders = os.path.dirname(os.path.abspath(__file__))
+
+            config_path = config_path or get_config_path(cfg_search_folders, file_name)
         except IOError:
             # TODO local_settings.py is being deprecated. Fow now, support
             # not proving a yaml configuration but log a warning.
