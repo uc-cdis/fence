@@ -32,7 +32,7 @@ That architecture involves Google's concept of **groups** and use of their **IAM
 
 ![Google Access Architecture](images/g_architecture.png)
 
-Working backwards from the Google Bucket itself, we have a **Google Bucket Access Group**, which, as you probably guessed, is a Google Group that provides access to the bucket. That group is assigned a **role** on the Google **resource** (the Google Bucket). **Roles** provide a set of permissions (like read privileges). The combinations of those roles on the bucket become the bucket's **Policy**. You can read more about Google's IAM terms and concepts in [their docs](https://cloud.google.com/iam/overview).
+Working backwards from the Google Bucket itself, we have a **Google Bucket Access Group**, which, as you probably guessed, is a Google Group that provides access to the bucket. That group is assigned a **role** on the Google **resource** (the Google Bucket). **Roles** provide a set of permissions (like read privileges). The combinations of those roles on the bucket become the bucket's **Policy**. You can read more about Google's IAM terms and concepts in [their docs](https://cloud.google.com/iam/docs).
 
 The important thing to note here is that *any* entity inside that Google Bucket Access Group (GBAG) will have whatever role/permissions were set between the GBAG and the Bucket itself with Google's IAM.
 
