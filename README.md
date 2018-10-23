@@ -10,7 +10,7 @@ only trusted entities to enter.
 Fence is a core service of the Gen3 stack that has multiple capabilities:
 1. Act as an auth broker to integrate with an [Identity Provider](#identity-provider) and provide downstream authentication and authorization for Gen3 services.
 2. [Manage tokens](#token-management).
-3. Act as an [OIDC provider](oidc--oauth2) to support external applications to use Gen3 services.
+3. Act as an [OIDC provider](#oidc--oauth2) to support external applications to use Gen3 services.
 4. [Issue short lived, cloud native credentials to access data in various cloud storage services](#accessing-data)
 
 
@@ -84,11 +84,11 @@ Note that the `3rd Party App` acts as the `client` in these examples.
 
 #### Flow: Client Registration
 
-![Client Registration](docs/client_registration.png)
+![Client Registration](docs/images/seq_diagrams/client_registration.png)
 
 #### Flow: OpenID Connect
 
-![OIDC Flow](docs/openid_connect_flow.png)
+![OIDC Flow](docs/images/seq_diagrams/openid_connect_flow.png)
 
 If the third-party application doesn't need to use any Gen3 resources (and just
 wants to authenticate the user), they can just get
@@ -100,15 +100,15 @@ If a third-party application wants to use Gen3 resources like
 `fence`/`sheepdog`/`peregrine`, they call those services with an `Access Token`
 passed in an `Authorization` header.
 
-![Using Access Token](docs/token_use_for_access.png)
+![Using Access Token](docs/images/seq_diagrams/token_use_for_access.png)
 
 #### Flow: Refresh Token Use
 
-![Using Refresh Token](docs/refresh_token_use.png)
+![Using Refresh Token](docs/images/seq_diagrams/refresh_token_use.png)
 
 #### Flow: Refresh Token Use (Token is Expired)
 
-![Using Expired Refresh Token](docs/refresh_token_use_expired.png)
+![Using Expired Refresh Token](docs/images/seq_diagrams/refresh_token_use_expired.png)
 
 #### Flow: Multi-Tenant Fence
 
@@ -117,7 +117,7 @@ use another fence instance as its identity provider.
 
 A use case for this is when we setup a fence instance that uses NIH login as the IdP. Here, we go through a detailed approval process in NIH. Therefore we would like to do it once for a single lead Fence instance, allowing other fence instances simply to redirect to use the lead Fence as an IdP for logging in via NIH.
 
-![Multi-Tenant Flow](docs/multi-tenant_flow.png)
+![Multi-Tenant Flow](docs/images/seq_diagrams/multi-tenant_flow.png)
 
 #### Notes
 
@@ -143,57 +143,15 @@ the data in different ways.
 
 ### Signed URLS
 
-Temporary signed URLs are supported in all major commercial clouds. Signed URLs are the most 'cloud agnostic' way to allow users to access data located in different platforms. Fence has the ability to request a specific file by its GUID (globally unique identifier) and retrieve a temporary
-signed URL for object data in AWS or GCP that will provide direct access to that object.
+Temporary signed URLs are supported in all major commercial clouds. Signed URLs are the most 'cloud agnostic' way to allow users to access data located in different platforms.
+
+Fence has the ability to request a specific file by its GUID (globally unique identifier) and retrieve a temporary signed URL for object data in AWS or GCP that will provide direct access to that object.
 
 ### Google Cloud Storage
 
+Whereas pre-signed URL is a cloud agnostic solution, services and tools on Google Cloud Platform prefer to use Google's concept of a "Service Account". Because of that, Fence provides a few more methods to access data in Google.
 
-Whereas pre-signed URL is a cloud agnostic solution, services and tools on Google Cloud Platform prefer to use service account. Because of that, Fence provides support for generating temporary Google service account credentials to be easily used together with Google utilities.
-
-
-
-#### Temporary Google Credentials
-
-Fence issues temporary service account keys that will have the same
-access a user does to data.
-One can then use these credentials to AuthN as that
-service account and manipulate the data within Google's Cloud Platform.
-
-Service account keys expirations are managed by Fence, this design
-should be revised after Google provides a way to issue temporary credentials
-that work seamlessly with its infrastructure and tooling.
-
-
-#### Google Account Linking
-
-This is a deprecated method and is not recommended to be used generally.
-
-Fence supports granting Google Account or Google Service Account owned by end-users temporary access to authorized data.
-
-We call this process 'google account linking' because we are linking the user's Fence identity with his/her google identity.
-
-##### a. Linking Google Personal Account
-
-This allows an end-user to link their personal Google account with their Fence identity.
-
-
-The data access is temporary, though there is a Fence endpoint to
-extend access (without requiring the end-user to go through the entire
-linking process again).
-
-##### b. Linking Google Service Account
-
-This allows an end-user to create their own personal Google Cloud Project
-and register a Google Service Account from that project to have access
-to data. While this method allows the most flexibility, it is also the
-most complicated and requires strict adherence to a number of rules and
-restrictions.
-
-This method also requires Fence to have access to that
-end-user's Google project. Fence is then able to monitor the project
-for any anomalies that may unintentionally provide data access to entities
-who should not have access.
+See [Fence and Google](docs/google_architecture.md) for more details on data access methods specific to Google.
 
 ## Setup
 
@@ -473,3 +431,23 @@ fence-create link-bucket-to-project --bucket_id demo-bucket --bucket_provider go
 ```
 
 The link-external-bucket returns an email for a Google group which needs to be added to access to the bucket `demo-bucket`.
+
+## Default Expiration Times in Fence
+
+Table contains various artifacts in fence that have temporary lifetimes and their default values.
+
+> NOTE: "SA" in the below table stands for Service Account
+
+| Name                                 | Lifetime     | Extendable? | Maximum Lifetime      | Details
+|--------------------------------------|--------------|-------------|-----------------------|------------------------------------------------------------------------------------------|
+| Access Token                         | 20 minutes   | TRUE        | Life of Refresh Token |                                                                                          |
+| Refresh Token                        | 30 days      | FALSE       | N/A                   |                                                                                          |
+| User's SA Account Access             | 7 days       | TRUE        | N/A                   | Access to data (e.g. length it stays in the proxy group)                                 |
+| User's Google Account Access         | 1 day        | TRUE        | N/A                   | After AuthN, how long we associate a Google email with the given user                    |
+| User's Google Account Linkage        | Indefinite   | N/A         | N/A                   | Can optionally provide an expiration less than 1 hour                                    |
+| Google Signed URL                    | Up to 1 hour | FALSE       | N/A                   | Can optionally provide an expiration less than 1 hour                                    |
+| AWS Signed URL                       | Up to 1 hour | FALSE       | N/A                   | Obtained by an oauth client through /credentials/google                                  |
+| Client SA (for User) Key             | 10 days      | FALSE       | N/A                   | Obtained by the user themselves for temp access                              |
+| User Primary SA Key                  | 10 days      | FALSE       | N/A                   | Used for Google URL signing                                                              |
+| User Primary SA Key for URL Signing  | 30 days      | FALSE       | N/A                   |                                                                                          |
+| Sliding Session Window               | 30 minutes   | TRUE        | 8 hours               | access_token cookies get generated automatically when expired if session is still active |
