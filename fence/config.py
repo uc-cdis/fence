@@ -26,7 +26,7 @@ class Config(Mapping):
         self._configs = {}
 
     def get(self, key, default=None):
-        return self._configs.get(key, default=default)
+        return self._configs.get(key, default)
 
     def set(self, key, value):
         self._configs.__setitem__(key, value)
@@ -85,11 +85,10 @@ class Config(Mapping):
 
         if config_path:
             self._load_configuration_file(config_path)
-
-        self._post_process()
+            self._post_process()
 
     def _load_configuration_file(self, provided_config_path):
-        logger.info("Loading default configuration...")
+        logger.info("Finding default configuration...")
         config = yaml_load(
             open(
                 os.path.join(
@@ -98,7 +97,7 @@ class Config(Mapping):
             )
         )
 
-        logger.info("Loading configuration: {}".format(provided_config_path))
+        logger.info("Applying configuration: {}".format(provided_config_path))
 
         # treat cfg as template and replace vars, returning an updated dict
         provided_configurations = nested_render(

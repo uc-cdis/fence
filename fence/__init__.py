@@ -128,11 +128,12 @@ def app_config(
     if root_dir is None:
         root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
-    # load fence's config singleton with a file
-    config.load(config_path, file_name)
-
     logger.info("Loading settings...")
     app.config.from_object(settings)
+
+    # dump the settings into the config before loading a configuration file
+    config.update(dict(app.config))
+    config.load(config_path, file_name)
 
     # load all config into flask app config for now, we should PREFER getting config
     # directly from the fence config singleton in the code though
