@@ -145,7 +145,7 @@ def app_config(
         app.register_blueprint(fence.blueprints.data.blueprint, url_prefix="/data")
 
     _load_keys(app, root_dir)
-    _set_authlib_key(app)
+    _set_authlib_cfgs(app)
 
     app.storage_manager = StorageManager(
         config["STORAGE_CREDENTIALS"], logger=app.logger
@@ -155,11 +155,20 @@ def app_config(
     _setup_arborist_client(app)
 
 
-def _set_authlib_key(app):
+def _set_authlib_cfgs(app):
     # authlib OIDC settings
+    # key will need to be added
     settings = {"OAUTH2_JWT_KEY": keys.default_private_key(app)}
     app.config.update(settings)
     config.update(settings)
+
+    # only add the following if not already provided
+    config.setdefault("OAUTH2_JWT_ENABLED", True)
+    config.setdefault("OAUTH2_JWT_ALG", "RS256")
+    config.setdefault("OAUTH2_JWT_ISS", app.config["BASE_URL"])
+    app.config.setdefault("OAUTH2_JWT_ENABLED", True)
+    app.config.setdefault("OAUTH2_JWT_ALG", "RS256")
+    app.config.setdefault("OAUTH2_JWT_ISS", app.config["BASE_URL"])
 
 
 def _load_keys(app, root_dir):

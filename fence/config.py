@@ -31,6 +31,9 @@ class Config(Mapping):
     def set(self, key, value):
         self._configs.__setitem__(key, value)
 
+    def setdefault(self, key, default=None):
+        self._configs.setdefault(key, default)
+
     def __setitem__(self, key, value):
         self._configs.__setitem__(key, value)
 
@@ -56,6 +59,8 @@ class Config(Mapping):
     def update(self, *args, **kwargs):
         """
         update configuration properties
+
+        support passing dictionary or keyword args
         """
         self._configs.update(*args)
         self._configs.update(kwargs)
