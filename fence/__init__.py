@@ -154,10 +154,6 @@ def app_config(
     _setup_oidc_clients(app)
     _setup_arborist_client(app)
 
-    with open("tmp-new-cfg.yaml", "w+") as file:
-        for key, value in app.config.iteritems():
-            file.write('"{}": {}\n'.format(key, value))
-
 
 def _set_authlib_key(app):
     # authlib OIDC settings
