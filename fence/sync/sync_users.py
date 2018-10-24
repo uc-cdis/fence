@@ -772,15 +772,20 @@ class UserSyncer(object):
                     project = self._get_or_create(sess, Project, **p)
                     self._projects[p["auth_id"]] = project
         for _, projects in user_project.iteritems():
-            for project_name in projects.keys():
-                project = (
-                    sess.query(Project).filter(Project.auth_id == project_name).first()
-                )
+            for auth_id in projects.keys():
+                project = sess.query(Project).filter(Project.auth_id == auth_id).first()
                 if not project:
-                    data = {"name": project_name, "auth_id": project_name}
+                    project_name = auth_id
+                    n = 0
+                    while (
+                        sess.query(Project).filter(Project.name == project_name).first()
+                    ):
+                        n += 1
+                        project_name = auth_id + "_{}".format(n)
+                    data = {"name": project_name, "auth_id": auth_id}
                     project = self._get_or_create(sess, Project, **data)
-                if project_name not in self._projects:
-                    self._projects[project_name] = project
+                if auth_id not in self._projects:
+                    self._projects[auth_id] = project
 
     @classmethod
     def _get_or_create(self, sess, model, **kwargs):
