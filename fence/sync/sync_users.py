@@ -15,6 +15,7 @@ from cdispyutils.log import get_logger
 import paramiko
 from paramiko.proxy import ProxyCommand
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.models import (
@@ -775,15 +776,17 @@ class UserSyncer(object):
             for auth_id in projects.keys():
                 project = sess.query(Project).filter(Project.auth_id == auth_id).first()
                 if not project:
-                    project_name = auth_id
-                    n = 0
-                    while (
-                        sess.query(Project).filter(Project.name == project_name).first()
-                    ):
-                        n += 1
-                        project_name = auth_id + "_{}".format(n)
-                    data = {"name": project_name, "auth_id": auth_id}
-                    project = self._get_or_create(sess, Project, **data)
+                    data = {"name": auth_id, "auth_id": auth_id}
+                    try:
+                        project = self._get_or_create(sess, Project, **data)
+                    except IntegrityError as e:
+                        sess.rollback()
+                        self.logger.error(str(e))
+                        raise Exception(
+                            "Project {} already exists. Detail {}. Please contact your system administrator.".format(
+                                auth_id, str(e)
+                            )
+                        )
                 if auth_id not in self._projects:
                     self._projects[auth_id] = project
 
