@@ -20,6 +20,7 @@ from cirrus.google_cloud import (
 from cirrus.google_cloud.iam import GooglePolicyMember
 
 import fence
+from fence.errors import NotFound
 from fence.models import (
     Project,
     UserServiceAccount,
@@ -189,8 +190,8 @@ def test_service_account_does_not_exist(cloud_manager):
         cloud_manager.get_service_account_policy.return_value
     ) = MockResponse({}, 404)
 
-    response = get_service_account_policy("test", cloud_manager)
-    assert response.status_code == 404
+    with pytest.raises(NotFound):
+        get_service_account_policy("test", cloud_manager)
 
 def test_project_has_valid_membership(cloud_manager, db_session):
     """
