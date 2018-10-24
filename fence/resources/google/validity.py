@@ -495,6 +495,17 @@ class GoogleServiceAccountValidity(ValidityInfo):
 
         self.google_cloud_manager.open()
 
+        try:
+            sa_policy = get_service_account_policy(
+                self.account_id, self.google_cloud_manager)
+            sa_exists = True
+        except NotFound:
+            sa_exists = False
+
+        self.set("exists", sa_exists)
+        if not sa_exists:
+            return
+
         google_managed_sa_domains = (
             config["GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS"] if config else None
         )
@@ -519,17 +530,6 @@ class GoogleServiceAccountValidity(ValidityInfo):
 
             self.set("valid_type", valid_type)
             if not valid_type and early_return:
-                return
-
-            try:
-                sa_policy = get_service_account_policy(
-                    self.account_id, self.google_cloud_manager)
-                sa_exists = True
-            except NotFound:
-                sa_exists = False
-
-            self.set("exists", sa_exists)
-            if not sa_exists:
                 return
 
             no_external_access = not (

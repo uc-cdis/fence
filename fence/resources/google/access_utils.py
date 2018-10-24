@@ -943,9 +943,20 @@ def force_add_service_accounts_to_access(
 
 
 def get_service_account_policy(account, google_cloud_manager):
+    """
+    Get the policy for the service account identified by `account`,
+    using the provided cloud_manager
 
+    Args:
+        account(str): service account identifier
+        google_cloud_manager: cloud_manager instance
+    Returns:
+        (Response): returns response from Google API
+
+    """
     sa_policy = google_cloud_manager.get_service_account_policy(account)
     if sa_policy.status_code != 200:
-        raise NotFound
+        raise NotFound("Unable to get Service Account policy (status: {})"
+                       .format(sa_policy.status_code))
     else:
         return sa_policy
