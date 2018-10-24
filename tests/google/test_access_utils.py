@@ -30,7 +30,7 @@ from fence.resources.google.access_utils import (
     is_valid_service_account_type,
     service_account_has_external_access,
     get_google_project_valid_users_and_service_accounts,
-    get_service_account_policy_if_exists,
+    get_service_account_policy,
     _force_remove_service_account_from_access_db,
     force_remove_service_account_from_access,
     extend_service_account_access,
@@ -189,8 +189,8 @@ def test_service_account_does_not_exist(cloud_manager):
         cloud_manager.get_service_account_policy.return_value
     ) = MockResponse({}, 404)
 
-    (exists, response) = get_service_account_policy_if_exists("test", cloud_manager)
-    assert not exists
+    response = get_service_account_policy("test", cloud_manager)
+    assert response.status_code == 404
 
 def test_project_has_valid_membership(cloud_manager, db_session):
     """
