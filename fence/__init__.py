@@ -133,17 +133,15 @@ def app_config(
 
     # dump the settings into the config before loading a configuration file
     config.update(dict(app.config))
+
+    # load the configuration file, this overwrites anything from settings/local_settings
     config.load(config_path, file_name)
 
-    # load all config into flask app config for now, we should PREFER getting config
+    # load all config back into flask app config for now, we should PREFER getting config
     # directly from the fence config singleton in the code though
     app.config.update(**config._configs)
 
-    if "AWS_CREDENTIALS" in config and len(config["AWS_CREDENTIALS"]) > 0:
-        value = config["AWS_CREDENTIALS"].values()[0]
-        app.boto = BotoManager(value, logger=app.logger)
-        app.register_blueprint(fence.blueprints.data.blueprint, url_prefix="/data")
-
+    _setup_data_endpoint_and_boto(app)
     _load_keys(app, root_dir)
     _set_authlib_cfgs(app)
 
@@ -166,9 +164,11 @@ def _set_authlib_cfgs(app):
     config.setdefault("OAUTH2_JWT_ENABLED", True)
     config.setdefault("OAUTH2_JWT_ALG", "RS256")
     config.setdefault("OAUTH2_JWT_ISS", app.config["BASE_URL"])
+    config.setdefault("OAUTH2_PROVIDER_ERROR_URI", "/api/oauth2/errors")
     app.config.setdefault("OAUTH2_JWT_ENABLED", True)
     app.config.setdefault("OAUTH2_JWT_ALG", "RS256")
     app.config.setdefault("OAUTH2_JWT_ISS", app.config["BASE_URL"])
+    app.config.setdefault("OAUTH2_PROVIDER_ERROR_URI", "/api/oauth2/errors")
 
 
 def _load_keys(app, root_dir):
@@ -217,6 +217,13 @@ def _setup_oidc_clients(app):
 def _setup_arborist_client(app):
     if config.get("ARBORIST"):
         app.arborist = ArboristClient(arborist_base_url=config["ARBORIST"])
+
+
+def _setup_data_endpoint_and_boto(app):
+    if "AWS_CREDENTIALS" in config and len(config["AWS_CREDENTIALS"]) > 0:
+        value = config["AWS_CREDENTIALS"].values()[0]
+        app.boto = BotoManager(value, logger=app.logger)
+        app.register_blueprint(fence.blueprints.data.blueprint, url_prefix="/data")
 
 
 @app.errorhandler(Exception)

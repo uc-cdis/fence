@@ -90,7 +90,8 @@ class Config(Mapping):
 
         if config_path:
             self._load_configuration_file(config_path)
-            self._post_process()
+
+        self._post_process()
 
     def _load_configuration_file(self, provided_config_path):
         logger.info("Finding default configuration...")
@@ -270,7 +271,7 @@ class FenceConfig(Config):
         super(FenceConfig, self).__init__(*args, **kwargs)
 
     def _post_process(self):
-        if "ROOT_URL" not in self._configs:
+        if "ROOT_URL" not in self._configs and "BASE_URL" in self._configs:
             url = urlparse.urlparse(self._configs["BASE_URL"])
             self._configs["ROOT_URL"] = "{}://{}".format(url.scheme, url.netloc)
 
