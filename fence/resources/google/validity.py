@@ -510,10 +510,11 @@ class GoogleServiceAccountValidity(ValidityInfo):
             google_managed_sa_domains=google_managed_sa_domains,
         )
         self.set("owned_by_project", is_owned_by_google_project)
-        
+
         try:
             sa_policy = get_service_account_policy(
-                self.account_id, self.google_cloud_manager)
+                self.account_id, self.google_cloud_manager
+            )
             sa_exists = True
         except NotFound:
             sa_exists = False
@@ -534,9 +535,7 @@ class GoogleServiceAccountValidity(ValidityInfo):
 
             no_external_access = not (
                 service_account_has_external_access(
-                    self.account_id,
-                    self.google_cloud_manager,
-                    sa_policy
+                    self.account_id, self.google_cloud_manager, sa_policy
                 )
             )
             self.set("no_external_access", no_external_access)
