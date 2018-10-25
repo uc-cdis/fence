@@ -137,6 +137,7 @@ def valid_service_account_patcher():
         "is_valid_service_account_type": (valid_type_mock),
         "service_account_has_external_access": (external_access_mock),
         "is_service_account_from_google_project": (from_google_project_mock),
+        "get_service_account_policy": (get_policy_mock)
     }
 
     for patched_function in patches:
