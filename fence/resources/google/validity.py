@@ -518,10 +518,10 @@ class GoogleServiceAccountValidity(ValidityInfo):
                 )
             else:
                 project_id = self.account_id.split("@")[-1].split(".")[0]
-                gcm = GoogleCloudManager(project_id)
-                sa_policy = get_service_account_policy(
-                    self.account_id, gcm
-                )
+                with GoogleCloudManager(project_id) as gcm:
+                    sa_policy = get_service_account_policy(
+                        self.account_id, gcm
+                    )
             sa_exists = True
         except NotFound:
             sa_exists = False
