@@ -125,19 +125,22 @@ class GoogleProjectValidity(ValidityInfo):
                 'account@something.com': {
                     'valid_type': True,
                     'no_external_access': True,
-                    'owned_by_project': True
+                    'owned_by_project': True,
+                    'exists': True
                 },
             }
             'service_accounts': {
                 'someaccount@something.com': {
                     'valid_type': None,
                     'no_external_access': True,
-                    'owned_by_project': True
+                    'owned_by_project': True,
+                    'exists': True
                 },
                 'other_service_account_in_project@something.com': {
                     'valid_type': None,
                     'no_external_access': True,
-                    'owned_by_project': True
+                    'owned_by_project': True,
+                    'exists': True
                 }
             },
             'access': {
@@ -459,7 +462,8 @@ class GoogleServiceAccountValidity(ValidityInfo):
         {
             'valid_type': True,
             'no_external_access': True,
-            'owned_by_project': True
+            'owned_by_project': True,
+            'exists': True
         }
     """
 
