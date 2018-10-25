@@ -448,7 +448,14 @@ class ServiceAccountToGoogleBucketAccessGroup(Base):
     )
 
 
-to_timestamp = "CREATE OR REPLACE FUNCTION pc_datetime_to_timestamp(datetoconvert timestamp) " "RETURNS BIGINT AS " "$BODY$ " "select extract(epoch from $1)::BIGINT " "$BODY$ " "LANGUAGE 'sql' IMMUTABLE STRICT;"
+to_timestamp = (
+    "CREATE OR REPLACE FUNCTION pc_datetime_to_timestamp(datetoconvert timestamp) "
+    "RETURNS BIGINT AS "
+    "$BODY$ "
+    "select extract(epoch from $1)::BIGINT "
+    "$BODY$ "
+    "LANGUAGE 'sql' IMMUTABLE STRICT;"
+)
 
 
 def migrate(driver):
