@@ -111,9 +111,24 @@ def valid_service_account_patcher():
         )
     )
 
+    get_policy_mock = MagicMock()
+    patches.append(
+        patch(
+            "fence.resources.google.access_utils.get_service_account_policy",
+            get_policy_mock
+        )
+    )
+    patches.append(
+        patch(
+            "fence.resources.google.validity.get_service_account_policy",
+            get_policy_mock
+        )
+    )
+
     valid_type_mock.return_value = True
     external_access_mock.return_value = False
     from_google_project_mock.return_value = True
+    get_policy_mock.return_value = None
 
     for patched_function in patches:
         patched_function.start()
@@ -122,6 +137,7 @@ def valid_service_account_patcher():
         "is_valid_service_account_type": (valid_type_mock),
         "service_account_has_external_access": (external_access_mock),
         "is_service_account_from_google_project": (from_google_project_mock),
+        "get_service_account_policy": (get_policy_mock)
     }
 
     for patched_function in patches:
