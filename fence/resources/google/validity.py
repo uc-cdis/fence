@@ -512,9 +512,16 @@ class GoogleServiceAccountValidity(ValidityInfo):
         self.set("owned_by_project", is_owned_by_google_project)
 
         try:
-            sa_policy = get_service_account_policy(
-                self.account_id, self.google_cloud_manager
-            )
+            if is_owned_by_google_project:
+                sa_policy = get_service_account_policy(
+                    self.account_id, self.google_cloud_manager
+                )
+            else:
+                project_id = self.account_id.split("@")[-1].split(".")[0]
+                gcm = GoogleCloudManager(project_id)
+                sa_policy = get_service_account_policy(
+                    self.account_id, gcm
+                )
             sa_exists = True
         except NotFound:
             sa_exists = False
