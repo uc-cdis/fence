@@ -505,10 +505,7 @@ class GoogleServiceAccountValidity(ValidityInfo):
             sa_exists = True
         except NotFound:
             sa_exists = False
-
         self.set("exists", sa_exists)
-        if not sa_exists:
-            return
 
         google_managed_sa_domains = (
             config["GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS"] if config else None
@@ -521,9 +518,8 @@ class GoogleServiceAccountValidity(ValidityInfo):
             google_managed_sa_domains=google_managed_sa_domains,
         )
         self.set("owned_by_project", is_owned_by_google_project)
-        if not is_owned_by_google_project:
-            # we cannot determine further information if the account isn't
-            # owned by the project
+
+        if not sa_exists or not is_owned_by_google_project:
             return
 
         if check_type_and_access:
