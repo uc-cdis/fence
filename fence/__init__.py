@@ -129,16 +129,19 @@ def app_config(
         root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
     logger.info("Loading settings...")
-    app.config.from_object(settings)
+    # not using app.config.from_object because we don't want all the extra flask cfg
+    # vars inside our singleton when we pass these through in the next step
+    settings_cfg = flask.Config(app.config.root_path)
+    settings_cfg.from_object(settings)
 
-    # dump the settings into the config before loading a configuration file
-    config.update(dict(app.config))
+    # dump the settings into the config singleton before loading a configuration file
+    config.update(dict(settings_cfg))
 
     # load the configuration file, this overwrites anything from settings/local_settings
     config.load(config_path, file_name)
 
     # load all config back into flask app config for now, we should PREFER getting config
-    # directly from the fence config singleton in the code though
+    # directly from the fence config singleton in the code though.
     app.config.update(**config._configs)
 
     _setup_data_endpoint_and_boto(app)

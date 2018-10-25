@@ -290,5 +290,35 @@ class FenceConfig(Config):
 
         cirrus.config.config.update(**self._configs.get("CIRRUS_CFG", {}))
 
+        # backwards compatibility if no new YAML cfg provided
+        # these cfg use to be in settings.py so we need to make sure they gets defaulted
+        self._set_default("APPLICATION_ROOT")
+        self._set_default("SESSION_COOKIE_SECURE")
+        self._set_default("ACCESS_TOKEN_COOKIE_NAME")
+        self._set_default("SESSION_COOKIE_NAME")
+        self._set_default("OAUTH2_TOKEN_EXPIRES_IN")
+        self._set_default("ACCESS_TOKEN_EXPIRES_IN")
+        self._set_default("REFRESH_TOKEN_EXPIRES_IN")
+        self._set_default("SESSION_TIMEOUT")
+        self._set_default("SESSION_LIFETIME")
+        self._set_default("GOOGLE_SERVICE_ACCOUNT_KEY_FOR_URL_SIGNING_EXPIRES_IN")
+        self._set_default("GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN")
+        self._set_default("GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN")
+        self._set_default("ACCESS_TOKEN_EXPIRES_IN")
+        self._set_default("ACCESS_TOKEN_EXPIRES_IN")
+        self._set_default("ACCESS_TOKEN_EXPIRES_IN")
+
+    def _set_default(self, key, default_config=None, allow_none=False):
+        default_config = default_config or yaml_load(
+            open(
+                os.path.join(
+                    os.path.dirname(os.path.abspath(__file__)), "config-default.yaml"
+                )
+            )
+        )
+
+        if key not in self._configs or (not allow_none and self._configs[key] is None):
+            self._configs[key] = default_config.get(key)
+
 
 config = FenceConfig()

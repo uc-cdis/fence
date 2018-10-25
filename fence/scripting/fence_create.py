@@ -49,7 +49,7 @@ from fence.models import (
     query_for_user,
 )
 from fence.scripting.google_monitor import validation_check
-from fence.settings import GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN
+from fence.config import config
 from fence.sync.sync_users import UserSyncer
 from fence.utils import create_client
 
@@ -1297,7 +1297,7 @@ def force_update_google_link(DB, username, google_email):
             )
 
         now = int(time.time())
-        expiration = now + GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN
+        expiration = now + config["GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN"]
 
         force_update_user_google_account_expiration(
             user_google_account, proxy_group_id, google_email, expiration, session
