@@ -701,7 +701,7 @@ def _get_service_account_email_error_status(validity_info):
     for sa_account_id, sa_validity in service_accounts_validity:
         if sa_account_id == validity_info.new_service_account:
             if not sa_validity:
-                if sa_validity['exists']:
+                if sa_validity["exists"]:
                     response["status"] = 403
                     response["error"] = "unauthorized"
                     response[
@@ -710,9 +710,9 @@ def _get_service_account_email_error_status(validity_info):
                 else:
                     response["status"] = 404
                     response["error"] = "not_accessible"
-                    response["error_description"] = (
-                        "Either the service account doesn't exist or we were unable to retrieve its Policy"
-                    )
+                    response[
+                        "error_description"
+                    ] = "Either the service account doesn't exist or we were unable to retrieve its Policy"
 
             response["service_account_validity"] = {
                 str(sa_account_id): sa_validity.get_info()

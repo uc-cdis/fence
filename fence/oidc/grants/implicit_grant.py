@@ -7,7 +7,6 @@ from fence.models import AuthorizationCode
 
 
 class ImplicitGrant(OpenIDImplicitGrant):
-
     def validate_nonce(self, required=False):
         """
         Override method in authlib to skip adding ``exists_nonce`` hook on server. I
@@ -39,7 +38,7 @@ class ImplicitGrant(OpenIDImplicitGrant):
             )
             params = [(k, token_response[k]) for k in token_response]
             if state:
-                params.append(('state', state))
+                params.append(("state", state))
         else:
             error = AccessDeniedError(state=state)
             params = error.get_body()
