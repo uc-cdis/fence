@@ -360,14 +360,14 @@ class GoogleServiceAccount(Resource):
         """
         logger.debug("BJR: ENTER PATCH")
         sa = _get_service_account_for_patch(id_)
-
+        logger.debug("BJR: SA: {}".format(sa))
         error_response = _get_patched_service_account_error_status(id_, sa)
-
+        logger.debug("BJR: error status: {}".format(error_response.get("success")))
         if error_response.get("success") is not True:
             return error_response, 400
-
+        logger.debug("BJR: did not early return")
         resp, status_code = self._update_service_account_permissions(sa)
-
+        logger.debug("BJR: update status_code: {}".format(status_code))
         if status_code != 200:
             return resp, status_code
 
