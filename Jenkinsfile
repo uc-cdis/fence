@@ -4,5 +4,5 @@
 
 testPipeline {
   myName = 'helloworld'
-  String[] namespaceChoices = ["jenkins-brain", "jenkins-niaid"]
+  namespaceChoices = ["jenkins-brain", "jenkins-niaid"]
 }
