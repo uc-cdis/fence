@@ -17,7 +17,7 @@ from cirrus.google_cloud import (
 )
 
 import fence
-from logging import getLogger
+from cdislogging import get_logger
 
 from fence.errors import NotFound, NotSupported
 from fence.models import (
@@ -36,7 +36,7 @@ from fence.resources.google.utils import (
     is_google_managed_service_account,
 )
 
-logger = getLogger(__name__)
+logger = get_logger(__name__)
 
 ALLOWED_SERVICE_ACCOUNT_TYPES = [
     COMPUTE_ENGINE_API_SERVICE_ACCOUNT,
