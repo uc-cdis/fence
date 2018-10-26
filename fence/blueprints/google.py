@@ -33,7 +33,8 @@ from fence.resources.google.utils import (
 )
 from fence.models import UserServiceAccount
 from flask_sqlalchemy_session import current_session
-
+from logging import getLogger
+logger = getLogger(__name__)
 
 def make_google_blueprint():
     """
@@ -357,6 +358,7 @@ class GoogleServiceAccount(Resource):
         Args:
             id_ (str): Google service account identifier to update
         """
+        logger.debug("BJR: ENTER PATCH")
         sa = _get_service_account_for_patch(id_)
 
         error_response = _get_patched_service_account_error_status(id_, sa)
