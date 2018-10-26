@@ -134,11 +134,11 @@ def delete_client_action(DB, client_name):
             ):
                 raise Exception("client {} does not exist".format(client_name))
 
-            clients = current_session.query(Client).filter(Client.name == client_name)
+            clients = current_session.query(Client).filter(Client.name == client_name).all()
 
             for client in clients:
                 _remove_client_service_accounts(current_session, client)
-            clients.delete()
+                current_session.delete(client)
             current_session.commit()
 
         print("Client {} deleted".format(client_name))
@@ -149,26 +149,27 @@ def delete_client_action(DB, client_name):
 def _remove_client_service_accounts(db_session, client):
     client_service_accounts = db_session.query(GoogleServiceAccount).filter(
         GoogleServiceAccount.client_id == client.client_id
-    )
+    ).all()
 
-    with GoogleCloudManager() as g_mgr:
-        for service_account in client_service_accounts:
-            print(
-                "Deleting client {}'s service account: {}".format(
-                    client.name, service_account.email
-                )
-            )
-            response = g_mgr.delete_service_account(service_account.email)
-            if not response.get("error"):
-                db_session.delete(service_account)
-                db_session.commit()
-            else:
-                print("ERROR - from Google: {}".format(response))
+    if client_service_accounts:
+        with GoogleCloudManager() as g_mgr:
+            for service_account in client_service_accounts:
                 print(
-                    "ERROR - Could not delete client service account: {}".format(
-                        service_account.email
+                    "Deleting client {}'s service account: {}".format(
+                        client.name, service_account.email
                     )
                 )
+                response = g_mgr.delete_service_account(service_account.email)
+                if not response.get("error"):
+                    db_session.delete(service_account)
+                    db_session.commit()
+                else:
+                    print("ERROR - from Google: {}".format(response))
+                    print(
+                        "ERROR - Could not delete client service account: {}".format(
+                            service_account.email
+                        )
+                    )
 
 
 def sync_users(

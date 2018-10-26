@@ -8,6 +8,7 @@ from fence.resources.google.validity import (
 )
 from fence.models import Project
 from fence.errors import NotFound
+
 # Python 2 and 3 compatible
 try:
     from unittest.mock import MagicMock
@@ -419,8 +420,8 @@ def test_invalid_service_account_does_not_exist(valid_service_account_patcher):
     """
 
     patcher = valid_service_account_patcher
-    patcher["get_service_account_policy"].side_effect = (
-        NotFound("Test SA Policy Not Found")
+    patcher["get_service_account_policy"].side_effect = NotFound(
+        "Test SA Policy Not Found"
     )
 
     google_service_account_validity = GoogleServiceAccountValidity(
@@ -438,7 +439,9 @@ def test_invalid_service_account_does_not_exist(valid_service_account_patcher):
     assert not google_service_account_validity["exists"]
 
 
-def test_invalid_service_account_does_not_exist_external_access(valid_service_account_patcher):
+def test_invalid_service_account_does_not_exist_external_access(
+    valid_service_account_patcher
+):
     """
     Test that when a Service Account that does not exist is requested
     for registration, the GoogleServiceAccountValidity is False-y and
@@ -446,8 +449,8 @@ def test_invalid_service_account_does_not_exist_external_access(valid_service_ac
     """
 
     patcher = valid_service_account_patcher
-    patcher["get_service_account_policy"].side_effect = (
-        NotFound("Test SA Policy Not Found")
+    patcher["get_service_account_policy"].side_effect = NotFound(
+        "Test SA Policy Not Found"
     )
 
     google_service_account_validity = GoogleServiceAccountValidity(

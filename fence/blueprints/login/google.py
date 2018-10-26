@@ -11,6 +11,10 @@ class GoogleRedirect(Resource):
         flask.redirect_url = flask.request.args.get("redirect")
         if flask.redirect_url:
             flask.session["redirect"] = flask.redirect_url
+
+        if flask.current_app.config.get("MOCK_GOOGLE_AUTH", False):
+            return _login("test@example.com")
+
         return flask.redirect(flask.current_app.google_client.get_auth_url())
 
 
@@ -27,8 +31,16 @@ class GoogleLogin(Resource):
             result = flask.current_app.google_client.get_user_id(code)
             email = result.get("email")
             if email:
-                login_user(flask.request, email, IdentityProvider.google)
-                if flask.session.get("redirect"):
-                    return flask.redirect(flask.session.get("redirect"))
-                return flask.jsonify({"username": email})
+                return _login(email)
             raise UserError(result)
+
+
+def _login(email):
+    """
+    Login user with given email from Google, then redirect if session has a saved
+    redirect.
+    """
+    login_user(flask.request, email, IdentityProvider.google)
+    if flask.session.get("redirect"):
+        return flask.redirect(flask.session.get("redirect"))
+    return flask.jsonify({"username": email})
