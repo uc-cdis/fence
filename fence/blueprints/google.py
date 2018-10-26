@@ -33,8 +33,8 @@ from fence.resources.google.utils import (
 )
 from fence.models import UserServiceAccount
 from flask_sqlalchemy_session import current_session
-from logging import getLogger
-logger = getLogger(__name__)
+from cdislogging import get_logger
+logger = get_logger(__name__)
 
 def make_google_blueprint():
     """
