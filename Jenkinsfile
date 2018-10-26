@@ -4,5 +4,11 @@
 
 testPipeline {
   myName = 'helloworld'
-  namespaceChoices = ["jenkins-brain", "jenkins-niaid"]
+
+  namespaceChoices = [
+    "jenkins-brain",
+    "jenkins-niaid"
+  ]
+
+  skipDeploy = 'true'
 }
