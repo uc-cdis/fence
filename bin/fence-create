@@ -267,15 +267,22 @@ def main():
     # get database information
     sys.path.append(args.path)
 
+    # load the configuration
+    # FIXME? This import doesn't work if it's at the top of the file and you call
+    #        fence-create...
+    from fence.config import config
+
+    config.load()
+
     if os.environ.get("FENCE_DB"):
         DB = os.environ["FENCE_DB"]
     else:
-        from fence.settings import DB
+        DB = config.get("DB")
 
     if os.environ.get("BASE_URL"):
         BASE_URL = os.environ["BASE_URL"]
     else:
-        from fence.settings import BASE_URL
+        BASE_URL = config.get("BASE_URL")
 
     if os.environ.get("ROOT_DIR"):
         ROOT_DIR = os.environ["ROOT_DIR"]
@@ -285,12 +292,12 @@ def main():
     if os.environ.get("dbGaP"):
         dbGaP = os.environ["dbGaP"]
     else:
-        from fence.settings import dbGaP
+        dbGaP = config.get("dbGaP")
 
     if os.environ.get("STORAGE_CREDENTIALS"):
         STORAGE_CREDENTIALS = os.environ["STORAGE_CREDENTIALS"]
     else:
-        from fence.settings import STORAGE_CREDENTIALS
+        STORAGE_CREDENTIALS = config.get("STORAGE_CREDENTIALS")
 
     if args.action == "create":
         yaml_input = args.__dict__["yaml-input"]
@@ -343,25 +350,7 @@ def main():
     elif args.action == "google-init":
         google_init(DB)
     elif args.action == "google-manage-user-registrations":
-        import local_settings
-
-        config = {}
-        config[
-            "GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS"
-        ] = local_settings.GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS
-        config[
-            "WHITE_LISTED_SERVICE_ACCOUNT_EMAILS"
-        ] = local_settings.WHITE_LISTED_SERVICE_ACCOUNT_EMAILS
-        config[
-            "WHITE_LISTED_GOOGLE_PARENT_ORGS"
-        ] = local_settings.WHITE_LISTED_GOOGLE_PARENT_ORGS
-        config[
-            "WHITE_LISTED_SERVICE_ACCOUNT_EMAILS"
-        ] = local_settings.WHITE_LISTED_SERVICE_ACCOUNT_EMAILS
-        config["GOOGLE_APPLICATION_CREDENTIALS"] = local_settings.CIRRUS_CFG.get(
-            "GOOGLE_APPLICATION_CREDENTIALS"
-        )
-        verify_user_registration(DB, config)
+        verify_user_registration(DB)
     elif args.action == "google-manage-account-access":
         remove_expired_google_accounts_from_proxy_groups(DB)
     elif args.action == "google-bucket-create":
