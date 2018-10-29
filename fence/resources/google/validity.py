@@ -29,6 +29,8 @@ from fence.resources.google.access_utils import (
 )
 from cirrus.google_cloud import GoogleCloudManager
 
+from cdislogging import get_logger
+logger = get_logger(__name__)
 
 class ValidityInfo(Mapping):
     """
@@ -305,12 +307,18 @@ class GoogleProjectValidity(ValidityInfo):
             ):
                 service_account_validity_info.check_validity(
                     early_return=early_return,
-                    check_type_and_access=False,
+                    check_type=True,
+                    check_exists=True,
+                    check_access=False,
                     config=config,
                 )
             else:
                 service_account_validity_info.check_validity(
-                    early_return=early_return, check_type_and_access=True, config=config
+                    early_return=early_return,
+                    check_type=True,
+                    check_exists=True,
+                    check_access=True,
+                    config=config,
                 )
 
             # update project with error info from the service accounts
@@ -343,6 +351,13 @@ class GoogleProjectValidity(ValidityInfo):
             white_listed_sa_emails=white_listed_service_accounts,
         )
 
+        # don't double check service account being registered
+        try:
+            service_accounts.remove(self.new_service_account)
+        except ValueError as ve:
+            logger.debug("Service Account requested for registration is not a"
+                         "member of the Google project.")
+
         # use a generic validityinfo object to hold all the service accounts
         # validity. then check all the service accounts. Top level will be
         # invalid if any service accounts are invalid
@@ -368,12 +383,18 @@ class GoogleProjectValidity(ValidityInfo):
             ):
                 service_account_validity_info.check_validity(
                     early_return=early_return,
-                    check_type_and_access=False,
+                    check_type=False,
+                    check_exists=False,
+                    check_access=False,
                     config=config,
                 )
             else:
                 service_account_validity_info.check_validity(
-                    early_return=early_return, check_type_and_access=True, config=config
+                    early_return=early_return,
+                    check_type=True,
+                    check_exists=True,
+                    check_access=True,
+                    config=config
                 )
 
             # update project with error info from the service accounts
@@ -494,23 +515,16 @@ class GoogleServiceAccountValidity(ValidityInfo):
         self._info["exists"] = None
 
     def check_validity(
-        self, early_return=True, check_type_and_access=True, config=None
+        self, early_return=True,
+        check_type=True,
+        check_access=True,
+        check_exists=True,
+        config=None
     ):
 
         self.google_cloud_manager.open()
 
-        try:
-            sa_policy = get_service_account_policy(
-                self.account_id, self.google_cloud_manager
-            )
-            sa_exists = True
-        except NotFound:
-            sa_exists = False
-
-        self.set("exists", sa_exists)
-        if not sa_exists:
-            return
-
+        #check ownership
         google_managed_sa_domains = (
             config["GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS"] if config else None
         )
@@ -525,17 +539,39 @@ class GoogleServiceAccountValidity(ValidityInfo):
         if not is_owned_by_google_project:
             # we cannot determine further information if the account isn't
             # owned by the project
+            self.google_cloud_manager.close()
             return
 
-        if check_type_and_access:
-
+        if check_type:
             valid_type = is_valid_service_account_type(
                 self.account_id, self.google_cloud_manager
             )
 
             self.set("valid_type", valid_type)
             if not valid_type and early_return:
+                self.google_cloud_manager.close()
                 return
+
+        if check_exists:
+            try:
+                sa_policy = get_service_account_policy(
+                    self.account_id, self.google_cloud_manager
+                )
+                sa_exists = True
+            except NotFound:
+                sa_exists = False
+
+            self.set("exists", sa_exists)
+            if not sa_exists:
+                self.google_cloud_manager.close()
+                return
+
+        if check_access:
+
+            if not check_exists:
+                logger.warning("Service Account existence was not checked."
+                               "Access check requires Service Account policy"
+                               "& may fail if service account does not exist")
 
             no_external_access = not (
                 service_account_has_external_access(
@@ -544,6 +580,7 @@ class GoogleServiceAccountValidity(ValidityInfo):
             )
             self.set("no_external_access", no_external_access)
             if not no_external_access and early_return:
+                self.google_cloud_manager.close()
                 return
 
         self.google_cloud_manager.close()

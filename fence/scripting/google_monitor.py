@@ -14,7 +14,11 @@ from fence.resources.google.validity import (
     GoogleServiceAccountValidity,
 )
 
-from fence.resources.google.utils import get_all_registered_service_accounts
+from fence.resources.google.utils import (
+    get_all_registered_service_accounts,
+    is_google_managed_service_account,
+)
+
 from fence.resources.google.access_utils import (
     get_google_project_number,
     force_remove_service_account_from_access,
@@ -132,7 +136,28 @@ def _is_valid_service_account(sa_email, google_project_id, config=None):
         sa_validity = GoogleServiceAccountValidity(
             sa_email, google_project_id, google_project_number=google_project_number
         )
-        sa_validity.check_validity(early_return=True, config=config)
+        google_sa_domains = (
+            config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS") if config else None
+        )
+        if is_google_managed_service_account(
+                sa_email,
+                google_managed_service_account_domains=google_sa_domains
+        ):
+            sa_validity.check_validity(
+                early_return=True,
+                check_type=True,
+                check_exists=True,
+                check_access=False,
+                config=config,
+            )
+        else:
+            sa_validity.check_validity(
+                early_return=True,
+                check_type=True,
+                check_exists=True,
+                check_access=True,
+                config=config,
+            )
     except Exception:
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
