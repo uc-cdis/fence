@@ -279,6 +279,14 @@ def main():
     else:
         DB = config.get("DB")
 
+    # attempt to get from settings, this is backwards-compatibility for integration
+    # tests
+    if DB is None:
+        try:
+            from fence.settings import DB
+        except ImportError:
+            pass
+
     if os.environ.get("BASE_URL"):
         BASE_URL = os.environ["BASE_URL"]
     else:
