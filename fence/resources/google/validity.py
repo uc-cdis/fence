@@ -567,6 +567,7 @@ class GoogleServiceAccountValidity(ValidityInfo):
                 gcm.close()
                 return
 
+        # check if the SA's policy is accesible
         if check_policy_accessible:
             policy_accessible = True
             try:
@@ -580,14 +581,14 @@ class GoogleServiceAccountValidity(ValidityInfo):
             finally:
                 self.set("policy_accessible", policy_accessible)
         else:
+            policy_accessible = None
             sa_policy = None
 
         if check_access:
 
             if not policy_accessible:
-                logger.warning("Service Account policy was not checked."
-                               "Access check requires Service Account policy"
-                               "& may fail if service account does not exist")
+                logger.warning("Access check requires Service Account policy"
+                               "& may fail if policy is not accessible")
 
             no_external_access = not (
                 service_account_has_external_access(
