@@ -354,13 +354,14 @@ class GoogleProjectValidity(ValidityInfo):
         )
 
         # don't double check service account being registered
-        try:
-            service_accounts.remove(self.new_service_account)
-        except ValueError as ve:
-            logger.debug(
-                "Service Account requested for registration is not a"
-                "member of the Google project."
-            )
+        if self.new_service_account:
+            try:
+                service_accounts.remove(self.new_service_account)
+            except ValueError as ve:
+                logger.debug(
+                    "Service Account requested for registration is not a"
+                    "member of the Google project."
+                )
 
         # use a generic validityinfo object to hold all the service accounts
         # validity. then check all the service accounts. Top level will be
