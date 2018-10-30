@@ -390,7 +390,7 @@ class GoogleProjectValidity(ValidityInfo):
                     early_return=early_return,
                     check_type=False,
                     check_policy_accessible=False,
-                    check_externa_access=False,
+                    check_external_access=False,
                     config=config,
                 )
             else:

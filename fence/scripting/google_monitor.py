@@ -154,7 +154,7 @@ def _is_valid_service_account(sa_email, google_project_id, config=None):
                 early_return=True,
                 check_type=True,
                 check_policy_accessible=True,
-                check_access=True,
+                check_external_access=True,
                 config=config,
             )
     except Exception:
