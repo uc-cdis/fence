@@ -8,7 +8,7 @@ import flask
 import jwt
 
 from fence.jwt import keys
-
+from fence.config import config
 
 SCOPE_DESCRIPTION = {
     "openid": "default scope",
@@ -126,7 +126,7 @@ class UnsignedIDToken(AuthlibCodeIDToken):
                              from decoding the provided encoded token
         """
         # Use application defaults if not provided
-        issuer = issuer or flask.current_app.config.get("BASE_URL")
+        issuer = issuer or config.get("BASE_URL")
         public_key = public_key or keys.default_public_key()
 
         payload = jwt.decode(
@@ -179,7 +179,7 @@ def generate_signed_session_token(kid, private_key, expires_in, context=None):
     headers = {"kid": kid}
     iat, exp = issued_and_expiration_times(expires_in)
 
-    issuer = flask.current_app.config.get("BASE_URL")
+    issuer = config.get("BASE_URL")
 
     # Create context based on provided information
     if not context:
@@ -276,7 +276,7 @@ def generate_signed_refresh_token(
     sub = str(user.id)
     if not iss:
         try:
-            iss = flask.current_app.config.get("BASE_URL")
+            iss = config.get("BASE_URL")
         except RuntimeError:
             raise ValueError(
                 "must provide value for `iss` (issuer) field if"
@@ -330,7 +330,7 @@ def generate_api_key(kid, private_key, user_id, expires_in, scopes, client_id):
         "pur": "api_key",
         "aud": scopes,
         "sub": sub,
-        "iss": flask.current_app.config.get("BASE_URL"),
+        "iss": config.get("BASE_URL"),
         "iat": iat,
         "exp": exp,
         "jti": jti,
@@ -381,7 +381,7 @@ def generate_signed_access_token(
     jti = str(uuid.uuid4())
     if not iss:
         try:
-            iss = flask.current_app.config.get("BASE_URL")
+            iss = config.get("BASE_URL")
         except RuntimeError:
             raise ValueError(
                 "must provide value for `iss` (issuer) field if"
@@ -459,7 +459,7 @@ def generate_id_token(
         UnsignedIDToken: Unsigned ID token
     """
     iat, exp = issued_and_expiration_times(expires_in)
-    issuer = flask.current_app.config.get("BASE_URL")
+    issuer = config.get("BASE_URL")
 
     # include client_id if not already in audiences
     if audiences:
@@ -521,7 +521,7 @@ def generate_id_token(
     )
 
     token_options = {
-        "iss": {"essential": True, "value": flask.current_app.config.get("BASE_URL")},
+        "iss": {"essential": True, "value": config.get("BASE_URL")},
         "nonce": {"value": nonce},
     }
     token = UnsignedIDToken(claims, options=token_options)
