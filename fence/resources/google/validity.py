@@ -308,7 +308,7 @@ class GoogleProjectValidity(ValidityInfo):
                 service_account_validity_info.check_validity(
                     early_return=early_return,
                     check_type=True,
-                    check_exists=True,
+                    check_policy_accessible=True,
                     check_access=False,
                     config=config,
                 )
@@ -316,7 +316,7 @@ class GoogleProjectValidity(ValidityInfo):
                 service_account_validity_info.check_validity(
                     early_return=early_return,
                     check_type=True,
-                    check_exists=True,
+                    check_policy_accessible=True,
                     check_access=True,
                     config=config,
                 )
@@ -384,7 +384,7 @@ class GoogleProjectValidity(ValidityInfo):
                 service_account_validity_info.check_validity(
                     early_return=early_return,
                     check_type=False,
-                    check_exists=False,
+                    check_policy_accessible=False,
                     check_access=False,
                     config=config,
                 )
@@ -392,7 +392,7 @@ class GoogleProjectValidity(ValidityInfo):
                 service_account_validity_info.check_validity(
                     early_return=early_return,
                     check_type=True,
-                    check_exists=True,
+                    check_policy_accessible=True,
                     check_access=True,
                     config=config
                 )
@@ -512,13 +512,13 @@ class GoogleServiceAccountValidity(ValidityInfo):
         self._info["owned_by_project"] = None
         self._info["valid_type"] = None
         self._info["no_external_access"] = None
-        self._info["exists"] = None
+        self._info["policy_accessible"] = None
 
     def check_validity(
         self, early_return=True,
         check_type=True,
         check_access=True,
-        check_exists=True,
+        check_policy_accessible=True,
         config=None
     ):
 
@@ -537,6 +537,11 @@ class GoogleServiceAccountValidity(ValidityInfo):
         )
         self.set("owned_by_project", is_owned_by_google_project)
 
+        # select the GCM to use for the remainder of the checks
+        # if the account is not owned by the google project then
+        # it is invalid, however, if Fence has access to the SA's
+        # project, we can still check the other conditions
+
         if is_owned_by_google_project:
             gcm = self.google_cloud_manager
         else:
@@ -544,12 +549,14 @@ class GoogleServiceAccountValidity(ValidityInfo):
             if early_return:
                 return
             try:
+                # check to see if we can access the project the SA belongs to
                 project_id = self.account_id.split("@")[-1].split(".")[0]
                 gcm = GoogleCloudManager(project_id)
                 gcm.open()
             except NotFound:
                 return
 
+        # check if the SA is an allowed type
         if check_type:
             valid_type = is_valid_service_account_type(
                 self.account_id, gcm
@@ -560,24 +567,25 @@ class GoogleServiceAccountValidity(ValidityInfo):
                 gcm.close()
                 return
 
-        if check_exists:
+        if check_policy_accessible:
+            policy_accessible = True
             try:
                 sa_policy = get_service_account_policy(
                     self.account_id, gcm
                 )
-                sa_exists = True
             except NotFound:
-                sa_exists = False
-
-            self.set("exists", sa_exists)
-            if not sa_exists:
+                policy_accessible = False
                 gcm.close()
                 return
+            finally:
+                self.set("policy_accessible", policy_accessible)
+        else:
+            sa_policy = None
 
         if check_access:
 
-            if not check_exists:
-                logger.warning("Service Account existence was not checked."
+            if not policy_accessible:
+                logger.warning("Service Account policy was not checked."
                                "Access check requires Service Account policy"
                                "& may fail if service account does not exist")
 

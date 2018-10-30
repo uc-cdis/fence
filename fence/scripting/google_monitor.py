@@ -146,7 +146,7 @@ def _is_valid_service_account(sa_email, google_project_id, config=None):
             sa_validity.check_validity(
                 early_return=True,
                 check_type=True,
-                check_exists=True,
+                check_policy_accessible=True,
                 check_access=False,
                 config=config,
             )
@@ -154,7 +154,7 @@ def _is_valid_service_account(sa_email, google_project_id, config=None):
             sa_validity.check_validity(
                 early_return=True,
                 check_type=True,
-                check_exists=True,
+                check_policy_accessible=True,
                 check_access=True,
                 config=config,
             )

@@ -425,8 +425,8 @@ def test_invalid_service_account_does_not_exist(valid_service_account_patcher):
 
     # should be invalid due to being unable to get service account policy
     assert not google_service_account_validity
-    assert "exists" in google_service_account_validity
-    assert not google_service_account_validity["exists"]
+    assert "policy_accessible" in google_service_account_validity
+    assert not google_service_account_validity["policy_accessible"]
 
 
 def test_invalid_service_account_does_not_exist_external_access(
