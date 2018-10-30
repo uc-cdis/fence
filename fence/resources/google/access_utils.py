@@ -783,7 +783,11 @@ def extend_service_account_access(service_account_email, db=None):
         expiration_time = int(time.time()) + flask.current_app.config.get(
             "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN", 604800
         )
-        logger.debug("Service Account ({}) access extended to {}.".format(service_account.email, expiration_time))
+        logger.debug(
+            "Service Account ({}) access extended to {}.".format(
+                service_account.email, expiration_time
+            )
+        )
         for access_group in bucket_access_groups:
             bucket_access = (
                 session.query(ServiceAccountToGoogleBucketAccessGroup)

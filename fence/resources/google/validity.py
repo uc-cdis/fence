@@ -30,7 +30,9 @@ from fence.resources.google.access_utils import (
 from cirrus.google_cloud import GoogleCloudManager
 
 from cdislogging import get_logger
+
 logger = get_logger(__name__)
+
 
 class ValidityInfo(Mapping):
     """
@@ -355,8 +357,10 @@ class GoogleProjectValidity(ValidityInfo):
         try:
             service_accounts.remove(self.new_service_account)
         except ValueError as ve:
-            logger.debug("Service Account requested for registration is not a"
-                         "member of the Google project.")
+            logger.debug(
+                "Service Account requested for registration is not a"
+                "member of the Google project."
+            )
 
         # use a generic validityinfo object to hold all the service accounts
         # validity. then check all the service accounts. Top level will be
@@ -394,7 +398,7 @@ class GoogleProjectValidity(ValidityInfo):
                     check_type=True,
                     check_policy_accessible=True,
                     check_access=True,
-                    config=config
+                    config=config,
                 )
 
             # update project with error info from the service accounts
@@ -515,16 +519,17 @@ class GoogleServiceAccountValidity(ValidityInfo):
         self._info["policy_accessible"] = None
 
     def check_validity(
-        self, early_return=True,
+        self,
+        early_return=True,
         check_type=True,
         check_access=True,
         check_policy_accessible=True,
-        config=None
+        config=None,
     ):
 
         self.google_cloud_manager.open()
 
-        #check ownership
+        # check ownership
         google_managed_sa_domains = (
             config["GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS"] if config else None
         )
@@ -558,9 +563,7 @@ class GoogleServiceAccountValidity(ValidityInfo):
 
         # check if the SA is an allowed type
         if check_type:
-            valid_type = is_valid_service_account_type(
-                self.account_id, gcm
-            )
+            valid_type = is_valid_service_account_type(self.account_id, gcm)
 
             self.set("valid_type", valid_type)
             if not valid_type and early_return:
@@ -571,9 +574,7 @@ class GoogleServiceAccountValidity(ValidityInfo):
         if check_policy_accessible:
             policy_accessible = True
             try:
-                sa_policy = get_service_account_policy(
-                    self.account_id, gcm
-                )
+                sa_policy = get_service_account_policy(self.account_id, gcm)
             except NotFound:
                 policy_accessible = False
                 gcm.close()
@@ -587,13 +588,13 @@ class GoogleServiceAccountValidity(ValidityInfo):
         if check_access:
 
             if not policy_accessible:
-                logger.warning("Access check requires Service Account policy"
-                               "& may fail if policy is not accessible")
+                logger.warning(
+                    "Access check requires Service Account policy"
+                    "& may fail if policy is not accessible"
+                )
 
             no_external_access = not (
-                service_account_has_external_access(
-                    self.account_id, gcm, sa_policy
-                )
+                service_account_has_external_access(self.account_id, gcm, sa_policy)
             )
             self.set("no_external_access", no_external_access)
             if not no_external_access and early_return:

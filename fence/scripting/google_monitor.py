@@ -140,8 +140,7 @@ def _is_valid_service_account(sa_email, google_project_id, config=None):
             config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS") if config else None
         )
         if is_google_managed_service_account(
-                sa_email,
-                google_managed_service_account_domains=google_sa_domains
+            sa_email, google_managed_service_account_domains=google_sa_domains
         ):
             sa_validity.check_validity(
                 early_return=True,
