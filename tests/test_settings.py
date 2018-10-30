@@ -100,6 +100,8 @@ S3_BUCKETS = {
     },
 }
 
+DATA_UPLOAD_BUCKET = "bucket1"
+
 # S3_BUCKETS = {
 #     "bucket1": "CRED1",
 #     "bucket2": "CRED2",

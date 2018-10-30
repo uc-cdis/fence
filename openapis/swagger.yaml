@@ -298,6 +298,40 @@ paths:
                 $ref: '#/components/schemas/SignedURL'
         '400':
           description: 'Invalid input: UUID not found or invalid location'
+  '/data/upload':
+    post:
+      tags:
+        - data
+      summary: >-
+        Create a new blank record in indexd to use for uploading a data file
+      description: >-
+        This is the first step on the API side for the data upload flow.  This
+        endpoint causes fence to make a request to indexd to create a new, blank
+        index record, and returns the GUID for this new record and a presigned
+        URL which a client can then use to upload their data file directly to a
+        storage bucket. No parameters are accepted because fence retrieves the
+        username from the current token to send to indexd for the `uploader`
+        field in the new record.
+      security:
+        - OAuth2:
+          - user
+          - data
+      operationId: uploadBlank
+      responses:
+        201:
+          description: successful operation; created new record in indexd
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  guid:
+                    type: string
+                    description: >-
+                      the GUID from the newly created record in indexd
+                  url:
+                    type: string
+                    description: the presigned URL usable for data upload
   '/data/upload/{file_id}':
     get:
       tags:
