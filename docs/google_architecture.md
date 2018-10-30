@@ -156,6 +156,59 @@ In order to register a Service Account, *all* users in the Google Project must h
 
 ---
 
+#### Google Project and Service Account Validity Checking
+
+In order to register a Service Account, the Service Account and its associated Project must pass a series of validity checks.
+
+Projects are always validated against the following checks:
+* Fence monitor has access to project
+   * Key: `monitor_has_access`
+   * Checks if the Fence monitoring service account can access the project.
+* User has access to project
+   * Key: `user_has_access`
+   * Checks if the current user is an authorized member on the project.
+* Project has valid parent organization
+   * Key: `valid_parent_org`
+   * Checks if the project either has no parent organization, or if it does, it is included on the whitelist of parent. organizations (defined in Fence config).
+* Project only has valid member types
+   * Key: `valid_member_types`
+   * Checks if the project ony has members that are User Accounts or Service Accounts.
+* Project members exist in fence
+   * Key: `members_exist_in_fence`
+   * Checks if the User members on the project exist in the fence DB
+* Project has valid service accounts
+   * Key: `service_accounts`
+   * Checks if the Service Account members on the project pass the Service Account validity checks detailed below.
+  
+Service Accounts on the project, as well as the Service Account being registered, are validated against some combination of the following checks (which ones ultimately depend on the type of Service Account and whether or not the Service Account is currently being registered or not).
+
+* Service Account is owned by Project identified in the request
+   * Key: `owned_by_project`
+   * Checks if the Service Account is owned by the project
+* Service Account is of valid type
+   * Key: `valid_type`
+   * Checks if the Service Account is a User Managed Service Account or a Compute Engine API Service Account
+* Service Account policy is accessible
+   * Key: `policy_accessible`
+   * Checks if the Service Account's policy is accessible
+* Service Account has no external access
+   * Key: `no_external_access`
+   * Checks if the Service Account has no IAM roles and no access keys
+
+These checks are applied according to the following logic:
+
+* If the service account is User Managed:
+   * check: `owned_by_project`, `valid_type`, `policy_accessible`, `no_external_access`
+* ElIf the service account is Google Managed:
+   * If the service account is registered or currently being registered:
+      * check: `owned_by_project`, `valid_type`, `policy_accessible`
+   * ElIf the service account is not registered/being registered and is a member on the project:
+      * check: `owned_by_project`
+
+Service Accounts are validated according to this logic regardless of whether or not it is during Service Account registration or the `google-manage-user-registrations` cronjob. However, during the cronjob validation, service accounts are validated before the project is validated.
+
+---
+
 ##### Example:
 
 This diagram shows a single Google Project with 3 users (`UserA`, `UserB`, and `UserC`). All of them have already gone through the linking process with fence to associate their Google Account with their fence identity.
