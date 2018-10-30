@@ -536,26 +536,34 @@ class GoogleServiceAccountValidity(ValidityInfo):
             google_managed_sa_domains=google_managed_sa_domains,
         )
         self.set("owned_by_project", is_owned_by_google_project)
-        if not is_owned_by_google_project:
-            # we cannot determine further information if the account isn't
-            # owned by the project
+
+        if is_owned_by_google_project:
+            gcm = self.google_cloud_manager
+        else:
             self.google_cloud_manager.close()
-            return
+            if early_return:
+                return
+            try:
+                project_id = self.account_id.split("@")[-1].split(".")[0]
+                gcm = GoogleCloudManager(project_id)
+                gcm.open()
+            except NotFound:
+                return
 
         if check_type:
             valid_type = is_valid_service_account_type(
-                self.account_id, self.google_cloud_manager
+                self.account_id, gcm
             )
 
             self.set("valid_type", valid_type)
             if not valid_type and early_return:
-                self.google_cloud_manager.close()
+                gcm.close()
                 return
 
         if check_exists:
             try:
                 sa_policy = get_service_account_policy(
-                    self.account_id, self.google_cloud_manager
+                    self.account_id, gcm
                 )
                 sa_exists = True
             except NotFound:
@@ -563,7 +571,7 @@ class GoogleServiceAccountValidity(ValidityInfo):
 
             self.set("exists", sa_exists)
             if not sa_exists:
-                self.google_cloud_manager.close()
+                gcm.close()
                 return
 
         if check_access:
@@ -575,12 +583,12 @@ class GoogleServiceAccountValidity(ValidityInfo):
 
             no_external_access = not (
                 service_account_has_external_access(
-                    self.account_id, self.google_cloud_manager, sa_policy
+                    self.account_id, gcm, sa_policy
                 )
             )
             self.set("no_external_access", no_external_access)
             if not no_external_access and early_return:
-                self.google_cloud_manager.close()
+                gcm.close()
                 return
 
-        self.google_cloud_manager.close()
+        gcm.close()
