@@ -146,7 +146,7 @@ def _is_valid_service_account(sa_email, google_project_id, config=None):
                 early_return=True,
                 check_type=True,
                 check_policy_accessible=True,
-                check_access=False,
+                check_external_access=False,
                 config=config,
             )
         else:

@@ -311,7 +311,7 @@ class GoogleProjectValidity(ValidityInfo):
                     early_return=early_return,
                     check_type=True,
                     check_policy_accessible=True,
-                    check_access=False,
+                    check_external_access=False,
                     config=config,
                 )
             else:
@@ -319,7 +319,7 @@ class GoogleProjectValidity(ValidityInfo):
                     early_return=early_return,
                     check_type=True,
                     check_policy_accessible=True,
-                    check_access=True,
+                    check_external_access=True,
                     config=config,
                 )
 
@@ -357,9 +357,9 @@ class GoogleProjectValidity(ValidityInfo):
         if self.new_service_account:
             try:
                 service_accounts.remove(self.new_service_account)
-            except ValueError as ve:
+            except ValueError:
                 logger.debug(
-                    "Service Account requested for registration is not a"
+                    "Service Account requested for registration is not a "
                     "member of the Google project."
                 )
 
@@ -390,7 +390,7 @@ class GoogleProjectValidity(ValidityInfo):
                     early_return=early_return,
                     check_type=False,
                     check_policy_accessible=False,
-                    check_access=False,
+                    check_externa_access=False,
                     config=config,
                 )
             else:
@@ -398,7 +398,7 @@ class GoogleProjectValidity(ValidityInfo):
                     early_return=early_return,
                     check_type=True,
                     check_policy_accessible=True,
-                    check_access=True,
+                    check_external_access=True,
                     config=config,
                 )
 
@@ -523,7 +523,7 @@ class GoogleServiceAccountValidity(ValidityInfo):
         self,
         early_return=True,
         check_type=True,
-        check_access=True,
+        check_external_access=True,
         check_policy_accessible=True,
         config=None,
     ):
@@ -542,6 +542,8 @@ class GoogleServiceAccountValidity(ValidityInfo):
             google_managed_sa_domains=google_managed_sa_domains,
         )
         self.set("owned_by_project", is_owned_by_google_project)
+        if not is_owned_by_google_project and early_return:
+            return
 
         # select the GCM to use for the remainder of the checks
         # if the account is not owned by the google project then
@@ -552,14 +554,13 @@ class GoogleServiceAccountValidity(ValidityInfo):
             gcm = self.google_cloud_manager
         else:
             self.google_cloud_manager.close()
-            if early_return:
-                return
             try:
                 # check to see if we can access the project the SA belongs to
                 project_id = self.account_id.split("@")[-1].split(".")[0]
                 gcm = GoogleCloudManager(project_id)
                 gcm.open()
-            except NotFound:
+            except Exception:
+                logger.debug("The Service Act.'s project couldn't be accessed")
                 return
 
         # check if the SA is an allowed type
@@ -571,10 +572,12 @@ class GoogleServiceAccountValidity(ValidityInfo):
                 gcm.close()
                 return
 
-        # check if the SA's policy is accesible
+        # check if the SA's policy is accessible
+        policy_accessible = None
+        sa_policy = None
         if check_policy_accessible:
-            policy_accessible = True
             try:
+                policy_accessible = True
                 sa_policy = get_service_account_policy(self.account_id, gcm)
             except NotFound:
                 policy_accessible = False
@@ -582,17 +585,15 @@ class GoogleServiceAccountValidity(ValidityInfo):
                 return
             finally:
                 self.set("policy_accessible", policy_accessible)
-        else:
-            policy_accessible = None
-            sa_policy = None
 
-        if check_access:
+        if check_external_access:
 
             if not policy_accessible:
                 logger.warning(
                     "Access check requires Service Account policy"
                     "& may fail if policy is not accessible"
                 )
+                return
 
             no_external_access = not (
                 service_account_has_external_access(self.account_id, gcm, sa_policy)
