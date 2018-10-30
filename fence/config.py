@@ -78,8 +78,8 @@ class Config(Mapping):
 
             config_path = config_path or get_config_path(cfg_search_folders, file_name)
         except IOError:
-            # TODO local_settings.py is being deprecated. Fow now, support
-            # not proving a yaml configuration but log a warning.
+            # TODO (DEPRECATE LOCAL_SETTINGS): actually raise error here.
+            # Fow now, support not proving a yaml configuration but log a warning.
             logger.warning(
                 "No YAML configuration found. Will attempt "
                 "to run without. If still using deprecated local_settings.py, you "

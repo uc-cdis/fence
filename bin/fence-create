@@ -272,6 +272,17 @@ def main():
     #        fence-create...
     from fence.config import config
 
+    # replicate cfg loading done in flask app to maintain backwards compatibility
+    # TODO (DEPRECATE LOCAL_SETTINGS): REMOVE this when putting cfg in
+    # settings/local_settings is deprecated
+    import flask
+
+    settings_cfg = flask.Config(".")
+    settings_cfg.from_object("fence.settings")
+    config.update(dict(settings_cfg))
+
+    # END - TODO (DEPRECATE LOCAL_SETTINGS): REMOVE
+
     config.load()
 
     if os.environ.get("FENCE_DB"):

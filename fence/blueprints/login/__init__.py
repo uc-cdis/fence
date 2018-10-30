@@ -38,9 +38,7 @@ def make_login_blueprint(app):
         default_idp = None
         idps = {}
 
-    # Mapping from IDP ID (what goes in ``fence/local_settings.py`` in
-    # ``ENABLED_IDENTITY_PROVIDERS``) to the name in the URL on the blueprint
-    # (see below).
+    # Mapping from IDP ID to the name in the URL on the blueprint (see below).
     IDP_URL_MAP = {"fence": "fence", "google": "google", "shibboleth": "shib"}
 
     # check if google is configured as a client. we will at least need a

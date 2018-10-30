@@ -15,6 +15,7 @@ CONFIG_SEARCH_FOLDERS = ["/var/www/fence", "/etc/gen3/fence"]
 
 # WARNING: USE OF local_settings.py IS DEPRECATED.
 #          WILL BE REMOVED IN FUTURE RELEASE.
+# TODO (DEPRECATE LOCAL_SETTINGS): remove this entire block
 #
 # Please convert to using new configuration yaml file in one of the
 # CONFIG_SEARCH_FOLDERS.
