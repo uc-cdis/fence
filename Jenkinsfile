@@ -14,7 +14,8 @@
 //}
 
 import uchicago.cdis.*
-Map pipelineDefinition = {
+Map pipelineDefinition = [
+    myVariable: "hello world"
+]
 
-}
 new MicroservicePipeline().execute()
