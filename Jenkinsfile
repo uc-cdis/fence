@@ -18,4 +18,4 @@ Map pipelineDefinition = [
     myVariable: "hello world"
 ]
 
-new MicroservicePipeline().execute()
+new MicroservicePipeline(pipelineDefinition).execute()
