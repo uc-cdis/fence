@@ -1,5 +1,4 @@
 import os
-from collections import Mapping
 import glob
 from yaml import safe_load as yaml_load
 from yaml.scanner import ScannerError
@@ -11,12 +10,12 @@ from jinja2 import Template
 
 from fence.settings import CONFIG_SEARCH_FOLDERS
 
-from logging import getLogger
+from cdislogging import get_logger
 
-logger = getLogger(__name__)
+logger = get_logger(__name__)
 
 
-class Config(Mapping):
+class Config(dict):
     """
     Configuration singleton that's instantiated on module load.
     Allows updating from a config file by using .update()
@@ -62,7 +61,14 @@ class Config(Mapping):
 
         support passing dictionary or keyword args
         """
-        self._configs.update(*args)
+        if len(args) > 1:
+            raise TypeError(
+                "update expected at most 1 arguments, got {}".format(len(args))
+            )
+
+        if args:
+            self._configs.update(dict(args[0]))
+
         self._configs.update(kwargs)
 
     def load(self, config_path=None, file_name=None):

@@ -126,27 +126,25 @@ def get_config_path(search_folders, file_name="*config.yaml"):
     NOTE: Will return the first match it finds. If multiple are found,
     this will error out.
     """
-    possible_configs = []
-    for folder in search_folders:
-        config_path = os.path.join(folder, file_name)
-        possible_files = glob.glob(config_path)
-        possible_configs.extend(possible_files)
+    possible_configs = [
+        glob.glob(os.path.join(folder, file_name)) for folder in search_folders
+    ]
 
-    possible_cfgs_count = len(possible_configs)
-    if possible_cfgs_count == 1:
-        return possible_configs[0]
-    elif possible_cfgs_count > 1:
+    if not possible_configs:
+        raise IOError(
+            "Could not find config.yaml. Searched in the following locations: "
+            "{}".format(str(search_folders))
+        )
+
+    if len(possible_configs) > 1:
         raise IOError(
             "Multiple config.yaml files found: {}. Please specify which "
             'configuration to use with "python run.py -c some-config.yaml".'.format(
                 str(possible_configs)
             )
         )
-    else:
-        raise IOError(
-            "Could not find config.yaml. Searched in the following locations: "
-            "{}".format(str(search_folders))
-        )
+
+    return possible_configs[0]
 
 
 if __name__ == "__main__":
