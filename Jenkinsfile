@@ -2,7 +2,7 @@
 
 @Library('cdis-jenkins-lib@refactor/microservices') _
 
-testPipeline {
+runPipeline {
   pipeline = 'microservice'
 
   namespaces = [
