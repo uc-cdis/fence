@@ -3,9 +3,9 @@
 @Library('cdis-jenkins-lib@refactor/microservices') _
 
 testPipeline {
-  myName = 'helloworld'
+  pipeline = 'microservice'
 
-  namespaceChoices = [
+  namespaces = [
     "jenkins-brain",
     "jenkins-niaid"
   ]
