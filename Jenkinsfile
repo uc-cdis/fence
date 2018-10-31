@@ -2,13 +2,19 @@
 
 @Library('cdis-jenkins-lib@refactor/microservices') _
 
-runPipeline {
-  pipeline = 'microservice'
+//runPipeline {
+//  pipeline = 'microservice'
 
-  namespaces = [
-    "jenkins-brain",
-    "jenkins-niaid"
-  ]
+//  namespaces = [
+//    "jenkins-brain",
+//    "jenkins-niaid"
+//  ]
 
-  skipDeploy = 'true'
+//  skipDeploy = 'true'
+//}
+
+import uchicago.cdis.*
+Map pipelineDefinition = {
+
 }
+new MicroservicePipeline().execute()
