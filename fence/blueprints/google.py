@@ -554,7 +554,7 @@ def _get_service_account_for_patch(id_):
 
     # if they're trying to patch more fields, error out, we only support the above
     if payload:
-        raise UserError("Cannot update provided fields: {}".format(payload))
+        raise Unauthorized("Cannot update provided fields: {}".format(payload))
 
     # if the field is not provided at all, use service accounts current access
     # NOTE: the user can provide project_access=[] to remove all datasets so checking
