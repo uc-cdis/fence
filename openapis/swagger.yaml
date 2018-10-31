@@ -1345,6 +1345,8 @@ components:
                           type: boolean
                         valid_type:
                           type: boolean
+                        policy_accessible:
+                          type: boolean
             google_project_id:
               type: object
               properties:
@@ -1375,6 +1377,8 @@ components:
                         owned_by_project:
                           type: boolean
                         valid_type:
+                          type: boolean
+                        'policy_accessible':
                           type: boolean
             project_access:
               type: object
@@ -1410,6 +1414,7 @@ components:
                 'no_external_access': true
                 'owned_by_project': true
                 'valid_type': true
+                'policy_accessible': true
           google_project_id:
             'status': 200
             'error': null
@@ -1422,6 +1427,7 @@ components:
                 'no_external_access': true
                 'owned_by_project': true
                 'valid_type': true
+                'policy_accessible': true
           project_access:
             'status': 403
             'error': 'Unauthorized'
