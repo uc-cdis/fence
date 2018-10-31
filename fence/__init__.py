@@ -156,6 +156,26 @@ def app_config(
     _setup_arborist_client(app)
 
 
+def _setup_data_endpoint_and_boto(app):
+    if "AWS_CREDENTIALS" in config and len(config["AWS_CREDENTIALS"]) > 0:
+        value = config["AWS_CREDENTIALS"].values()[0]
+        app.boto = BotoManager(value, logger=app.logger)
+        app.register_blueprint(fence.blueprints.data.blueprint, url_prefix="/data")
+
+
+def _load_keys(app, root_dir):
+    if root_dir is None:
+        root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+
+    app.keypairs = keys.load_keypairs(os.path.join(root_dir, "keys"))
+
+    app.jwt_public_keys = {
+        app.config["BASE_URL"]: OrderedDict(
+            [(str(keypair.kid), str(keypair.public_key)) for keypair in app.keypairs]
+        )
+    }
+
+
 def _set_authlib_cfgs(app):
     # authlib OIDC settings
     # key will need to be added
@@ -172,21 +192,6 @@ def _set_authlib_cfgs(app):
     app.config.setdefault("OAUTH2_JWT_ALG", "RS256")
     app.config.setdefault("OAUTH2_JWT_ISS", app.config["BASE_URL"])
     app.config.setdefault("OAUTH2_PROVIDER_ERROR_URI", "/api/oauth2/errors")
-
-
-def _load_keys(app, root_dir):
-    if root_dir is None:
-        root_dir = os.path.dirname(
-                os.path.dirname(os.path.realpath(__file__)))
-
-    app.keypairs = keys.load_keypairs(os.path.join(root_dir, 'keys'))
-
-    app.jwt_public_keys = {
-        app.config['BASE_URL']: OrderedDict([
-            (str(keypair.kid), str(keypair.public_key))
-            for keypair in app.keypairs
-        ])
-    }
 
 
 def _setup_oidc_clients(app):
@@ -220,13 +225,6 @@ def _setup_oidc_clients(app):
 def _setup_arborist_client(app):
     if config.get("ARBORIST"):
         app.arborist = ArboristClient(arborist_base_url=config["ARBORIST"])
-
-
-def _setup_data_endpoint_and_boto(app):
-    if "AWS_CREDENTIALS" in config and len(config["AWS_CREDENTIALS"]) > 0:
-        value = config["AWS_CREDENTIALS"].values()[0]
-        app.boto = BotoManager(value, logger=app.logger)
-        app.register_blueprint(fence.blueprints.data.blueprint, url_prefix="/data")
 
 
 @app.errorhandler(Exception)

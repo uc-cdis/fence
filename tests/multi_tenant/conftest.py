@@ -10,6 +10,7 @@ import pytest
 from fence import models
 from fence import app_init
 from fence.jwt.keys import Keypair
+from fence.config import config
 import fence.blueprints.login
 
 from tests import test_settings
@@ -104,6 +105,7 @@ def fence_client_app(
     client_app.fence_client = OAuthClient(
         **client_app.config["OPENID_CONNECT"]["fence"]
     )
+
     return client_app
 
 

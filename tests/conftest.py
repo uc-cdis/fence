@@ -34,6 +34,7 @@ import fence
 from fence import app_init
 from fence import models
 from fence.jwt.keys import Keypair
+from fence.config import config
 from fence.jwt.token import generate_signed_access_token
 
 import tests
@@ -490,6 +491,11 @@ def app(kid, rsa_private_key, rsa_public_key):
     fence.app.jwt_public_keys[fence.app.config["BASE_URL"]] = OrderedDict(
         reversed(list(fence.app.jwt_public_keys[fence.app.config["BASE_URL"]].items()))
     )
+
+    fence.app.config["ENCRYPTION_KEY"] = Fernet.generate_key()
+
+    config.update(BASE_URL=fence.app.config["BASE_URL"])
+    config.update(ENCRYPTION_KEY=fence.app.config["ENCRYPTION_KEY"])
 
     return fence.app
 

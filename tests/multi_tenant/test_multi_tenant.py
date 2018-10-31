@@ -10,6 +10,7 @@ import urlparse
 # urllib.parse
 
 import fence
+from fence.config import config
 
 from tests.utils import oauth2
 from tests.utils import remove_qs
@@ -20,6 +21,11 @@ def test_redirect_from_oauth(fence_client_app, oauth_client):
     Test that the ``/oauth2/authorize`` endpoint on the client redirects to the
     ``/login/fence`` endpoint, also on the client.
     """
+    config.update(OPENID_CONNECT=fence_client_app.config["OPENID_CONNECT"])
+    config.update(BASE_URL=fence_client_app.config["BASE_URL"])
+    config.update(MOCK_AUTH=fence_client_app.config["MOCK_AUTH"])
+    config.update(DEFAULT_LOGIN_URL=fence_client_app.config["DEFAULT_LOGIN_URL"])
+
     with fence_client_app.test_client() as test_client:
         data = {
             "client_id": oauth_client.client_id,
@@ -55,6 +61,11 @@ def test_login(
     # app.
     monkeypatch.setattr("authutils.token.keys.refresh_jwt_public_keys", lambda: None)
 
+    config.update(OPENID_CONNECT=fence_client_app.config["OPENID_CONNECT"])
+    config.update(BASE_URL=fence_client_app.config["BASE_URL"])
+    config.update(MOCK_AUTH=fence_client_app.config["MOCK_AUTH"])
+    config.update(DEFAULT_LOGIN_URL=fence_client_app.config["DEFAULT_LOGIN_URL"])
+
     with fence_client_app.test_client() as fence_client_client:
         # Part 1.
         redirect_url_quote = urllib.quote("/login/fence/login")
@@ -62,6 +73,9 @@ def test_login(
         response_login_fence = fence_client_client.get(path)
         # This should be pointing at ``/oauth2/authorize`` of the IDP fence.
         assert "/oauth2/authorize" in response_login_fence.location
+
+    config.update(BASE_URL=app.config["BASE_URL"])
+    config.update(ENCRYPTION_KEY=app.config["ENCRYPTION_KEY"])
 
     with app.test_client() as client:
         # Part 2.
