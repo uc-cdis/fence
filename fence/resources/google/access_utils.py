@@ -17,7 +17,7 @@ from cirrus.google_cloud import (
 )
 
 import fence
-from logging import getLogger
+from cdislogging import get_logger
 
 from fence.errors import NotFound, NotSupported
 from fence.models import (
@@ -36,7 +36,7 @@ from fence.resources.google.utils import (
     is_google_managed_service_account,
 )
 
-logger = getLogger(__name__)
+logger = get_logger(__name__)
 
 ALLOWED_SERVICE_ACCOUNT_TYPES = [
     COMPUTE_ENGINE_API_SERVICE_ACCOUNT,
@@ -782,6 +782,11 @@ def extend_service_account_access(service_account_email, db=None):
         # use configured time or 7 days
         expiration_time = int(time.time()) + flask.current_app.config.get(
             "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN", 604800
+        )
+        logger.debug(
+            "Service Account ({}) access extended to {}.".format(
+                service_account.email, expiration_time
+            )
         )
         for access_group in bucket_access_groups:
             bucket_access = (

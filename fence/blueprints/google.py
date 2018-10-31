@@ -33,6 +33,9 @@ from fence.resources.google.utils import (
 )
 from fence.models import UserServiceAccount
 from flask_sqlalchemy_session import current_session
+from cdislogging import get_logger
+
+logger = get_logger(__name__)
 
 
 def make_google_blueprint():
@@ -358,14 +361,10 @@ class GoogleServiceAccount(Resource):
             id_ (str): Google service account identifier to update
         """
         sa = _get_service_account_for_patch(id_)
-
         error_response = _get_patched_service_account_error_status(id_, sa)
-
         if error_response.get("success") is not True:
             return error_response, 400
-
         resp, status_code = self._update_service_account_permissions(sa)
-
         if status_code != 200:
             return resp, status_code
 
@@ -699,7 +698,7 @@ def _get_service_account_email_error_status(validity_info):
     for sa_account_id, sa_validity in service_accounts_validity:
         if sa_account_id == validity_info.new_service_account:
             if not sa_validity:
-                if sa_validity["exists"]:
+                if sa_validity["policy_accessible"]:
                     response["status"] = 403
                     response["error"] = "unauthorized"
                     response[
@@ -707,7 +706,7 @@ def _get_service_account_email_error_status(validity_info):
                     ] = "Service account requested for registration is invalid."
                 else:
                     response["status"] = 404
-                    response["error"] = "not_accessible"
+                    response["error"] = "policy_not_accessible"
                     response[
                         "error_description"
                     ] = "Either the service account doesn't exist or we were unable to retrieve its Policy"
