@@ -30,6 +30,12 @@ class Unauthorized(APIError):
         self.code = 401
 
 
+class Forbidden(APIError):
+    def __init__(self, message):
+        self.message = str(message)
+        self.code = 403
+
+
 class NotFound(APIError):
     def __init__(self, message):
         self.message = str(message)
