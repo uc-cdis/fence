@@ -17,6 +17,7 @@ from userdatamodel.driver import SQLAlchemyDriver
 from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
 
 from fence.auth import current_token
+from fence.config import config
 from fence.models import (
     GoogleServiceAccount,
     GoogleServiceAccountKey,
@@ -680,7 +681,7 @@ def is_google_managed_service_account(
 
     google_managed_service_account_domains = (
         google_managed_service_account_domains
-        or flask.current_app.config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS", [])
+        or config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS", [])
     )
 
     return service_account_domain in google_managed_service_account_domains
