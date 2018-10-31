@@ -543,6 +543,7 @@ class GoogleServiceAccountValidity(ValidityInfo):
         )
         self.set("owned_by_project", is_owned_by_google_project)
         if not is_owned_by_google_project and early_return:
+            self.google_cloud_manager.close()
             return
 
         # select the GCM to use for the remainder of the checks
@@ -560,7 +561,12 @@ class GoogleServiceAccountValidity(ValidityInfo):
                 gcm = GoogleCloudManager(project_id)
                 gcm.open()
             except Exception:
-                logger.debug("The Service Act.'s project couldn't be accessed")
+                logger.debug(
+                    "Could not access the Google Project for Service "
+                    "Account {}. Unable to continue validity "
+                    "checkingwithout access to the project, "
+                    "early exit.".format(self.account_id)
+                )
                 return
 
         # check if the SA is an allowed type
@@ -590,9 +596,12 @@ class GoogleServiceAccountValidity(ValidityInfo):
 
             if not policy_accessible:
                 logger.warning(
-                    "Access check requires Service Account policy"
-                    "& may fail if policy is not accessible"
+                    "Invalid function use. External Access check requires "
+                    "Service Account Policy & may fail if policy is not "
+                    "accessible. If you want to check external access, make "
+                    "sure you are also checking policy_accessible. "
                 )
+                gcm.close()
                 return
 
             no_external_access = not (
