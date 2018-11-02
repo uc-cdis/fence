@@ -126,9 +126,10 @@ def get_config_path(search_folders, file_name="*config.yaml"):
     NOTE: Will return the first match it finds. If multiple are found,
     this will error out.
     """
-    possible_configs = [
-        glob.glob(os.path.join(folder, file_name)) for folder in search_folders
-    ]
+    possible_configs = []
+
+    for folder in search_folders:
+        possible_configs.extend(glob.glob(os.path.join(folder, file_name)))
 
     if not possible_configs:
         raise IOError(

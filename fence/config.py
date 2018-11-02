@@ -101,13 +101,10 @@ class Config(dict):
 
     def _load_configuration_file(self, provided_config_path):
         logger.info("Finding default configuration...")
-        config = yaml_load(
-            open(
-                os.path.join(
-                    os.path.dirname(os.path.abspath(__file__)), "config-default.yaml"
-                )
-            )
+        default_cfg_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "config-default.yaml"
         )
+        config = yaml_load(open(default_cfg_path))
 
         logger.info("Applying configuration: {}".format(provided_config_path))
 
@@ -124,6 +121,11 @@ class Config(dict):
             for (key, value) in config.iteritems()
             if key in provided_configurations
         }
+        keys_not_provided = {
+            key: value
+            for (key, value) in config.iteritems()
+            if key not in provided_configurations
+        }
         keys_to_update = {
             key: value
             for (key, value) in provided_configurations.iteritems()
@@ -136,6 +138,13 @@ class Config(dict):
         }
 
         config.update(keys_to_update)
+
+        if keys_not_provided:
+            logger.warning(
+                "Did not provide key(s) {} in {}. Will be set to default value(s) from {}.".format(
+                    keys_not_provided.keys(), provided_config_path, default_cfg_path
+                )
+            )
 
         if unknown_keys:
             logger.warning(
@@ -298,21 +307,37 @@ class FenceConfig(Config):
 
         # backwards compatibility if no new YAML cfg provided
         # these cfg use to be in settings.py so we need to make sure they gets defaulted
-        self._set_default("APPLICATION_ROOT")
-        self._set_default("SESSION_COOKIE_SECURE")
-        self._set_default("ACCESS_TOKEN_COOKIE_NAME")
-        self._set_default("SESSION_COOKIE_NAME")
-        self._set_default("OAUTH2_TOKEN_EXPIRES_IN")
-        self._set_default("ACCESS_TOKEN_EXPIRES_IN")
-        self._set_default("REFRESH_TOKEN_EXPIRES_IN")
-        self._set_default("SESSION_TIMEOUT")
-        self._set_default("SESSION_LIFETIME")
-        self._set_default("GOOGLE_SERVICE_ACCOUNT_KEY_FOR_URL_SIGNING_EXPIRES_IN")
-        self._set_default("GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN")
-        self._set_default("GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN")
-        self._set_default("ACCESS_TOKEN_EXPIRES_IN")
-        self._set_default("ACCESS_TOKEN_EXPIRES_IN")
-        self._set_default("ACCESS_TOKEN_EXPIRES_IN")
+        default_config = yaml_load(
+            open(
+                os.path.join(
+                    os.path.dirname(os.path.abspath(__file__)), "config-default.yaml"
+                )
+            )
+        )
+
+        self._set_default("APPLICATION_ROOT", default_config=default_config)
+        self._set_default("SESSION_COOKIE_SECURE", default_config=default_config)
+        self._set_default("ACCESS_TOKEN_COOKIE_NAME", default_config=default_config)
+        self._set_default("SESSION_COOKIE_NAME", default_config=default_config)
+        self._set_default("OAUTH2_TOKEN_EXPIRES_IN", default_config=default_config)
+        self._set_default("ACCESS_TOKEN_EXPIRES_IN", default_config=default_config)
+        self._set_default("REFRESH_TOKEN_EXPIRES_IN", default_config=default_config)
+        self._set_default("SESSION_TIMEOUT", default_config=default_config)
+        self._set_default("SESSION_LIFETIME", default_config=default_config)
+        self._set_default(
+            "GOOGLE_SERVICE_ACCOUNT_KEY_FOR_URL_SIGNING_EXPIRES_IN",
+            default_config=default_config,
+        )
+        self._set_default(
+            "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN",
+            default_config=default_config,
+        )
+        self._set_default(
+            "GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN", default_config=default_config
+        )
+        self._set_default("ACCESS_TOKEN_EXPIRES_IN", default_config=default_config)
+        self._set_default("ACCESS_TOKEN_EXPIRES_IN", default_config=default_config)
+        self._set_default("ACCESS_TOKEN_EXPIRES_IN", default_config=default_config)
 
     def _set_default(self, key, default_config=None, allow_none=False):
         default_config = default_config or yaml_load(
