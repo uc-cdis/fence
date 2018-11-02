@@ -50,6 +50,7 @@ def validation_check(db, config=None):
     invalid_project_reasons = {}
 
     for google_project_id, sa_emails in project_service_account_mapping.iteritems():
+        sa_emails_removed = []
         for sa_email in sa_emails:
             print("Validating Google Service Account: {}".format(sa_email))
             # Do some basic service account checks, this won't validate
@@ -66,12 +67,15 @@ def validation_check(db, config=None):
                 )
                 # remove from list so we don't try to remove again
                 # if project is invalid too
-                sa_emails.remove(sa_email)
+                sa_emails_removed.append(sa_email)
 
                 invalid_registered_service_account_reasons[
                     sa_email
                 ] = _get_service_account_removal_reasons(validity_info)
                 email_required = True
+
+        for sa_email in sa_emails_removed:
+            sa_emails.remove(sa_email)
 
         print("Validating Google Project: {}".format(google_project_id))
         google_project_validity = _is_valid_google_project(
