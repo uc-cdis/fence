@@ -14,7 +14,6 @@ import yaml
 from cdispyutils.log import get_logger
 import paramiko
 from paramiko.proxy import ProxyCommand
-from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from userdatamodel.driver import SQLAlchemyDriver
 
@@ -26,6 +25,7 @@ from fence.models import (
     Tag,
     User,
     users_to_policies,
+    query_for_user,
 )
 from fence.rbac.client import ArboristClient, ArboristError
 from fence.resources.storage import StorageManager
@@ -626,11 +626,8 @@ class UserSyncer(object):
             None
         """
         for (username, project_auth_id) in to_add:
-            u = (
-                sess.query(User)
-                .filter(func.lower(User.username) == username.lower())
-                .first()
-            )
+            u = query_for_user(session=sess, username=username)
+
             auth_provider = auth_provider_list[0]
             if "dbgap_role" not in user_info[username]["tags"]:
                 auth_provider = auth_provider_list[1]
@@ -664,11 +661,7 @@ class UserSyncer(object):
         """
 
         for username in user_info:
-            u = (
-                sess.query(User)
-                .filter(func.lower(User.username) == username.lower())
-                .first()
-            )
+            u = query_for_user(session=sess, username=username)
 
             if u is None:
                 self.logger.info("create user {}".format(username))
@@ -925,11 +918,7 @@ class UserSyncer(object):
 
         for username, user_resources in user_projects.iteritems():
             self.logger.info("processing user `{}`".format(username))
-            user = (
-                session.query(User)
-                .filter(func.lower(User.username) == username.lower())
-                .first()
-            )
+            user = query_for_user(session=session, username=username)
 
             for path, permissions in user_resources.iteritems():
                 for permission in permissions:

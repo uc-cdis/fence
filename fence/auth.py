@@ -8,11 +8,10 @@ from authutils.token.validate import set_current_token
 from authutils.token.validate import validate_request
 import flask
 from flask_sqlalchemy_session import current_session
-from sqlalchemy import func
 
 from fence.errors import Unauthorized, InternalError
 from fence.jwt.validate import validate_jwt
-from fence.models import User, IdentityProvider
+from fence.models import User, IdentityProvider, query_for_user
 from fence.user import get_current_user
 from fence.utils import clear_cookies
 
@@ -37,11 +36,8 @@ def build_redirect_url(hostname, path):
 
 
 def login_user(request, username, provider):
-    user = (
-        current_session.query(User)
-        .filter(func.lower(User.username) == username.lower())
-        .first()
-    )
+    user = query_for_user(session=current_session, username=username)
+
     if not user:
         user = User(username=username)
         idp = (

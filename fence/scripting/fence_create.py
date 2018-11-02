@@ -46,6 +46,7 @@ from fence.models import (
     GoogleProxyGroupToGoogleBucketAccessGroup,
     UserRefreshToken,
     ServiceAccountToGoogleBucketAccessGroup,
+    query_for_user,
 )
 from fence.scripting.google_monitor import validation_check
 from fence.settings import GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN
@@ -392,9 +393,8 @@ def create_users_with_group(DB, s, data):
     data_groups = data["groups"]
     for username, data in data["users"].iteritems():
         is_existing_user = True
-        user = (
-            s.query(User).filter(func.lower(User.username) == username.lower()).first()
-        )
+        user = query_for_user(session=s, username=username)
+
         admin = data.get("admin", False)
 
         if not user:

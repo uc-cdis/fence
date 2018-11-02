@@ -26,6 +26,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship, backref
+from sqlalchemy import func
 from sqlalchemy.schema import ForeignKey
 from fence.jwt.token import CLIENT_ALLOWED_SCOPES
 from userdatamodel import Base
@@ -53,6 +54,14 @@ from userdatamodel.models import (
     UserToGroup,
     users_to_policies,
 )
+
+
+def query_for_user(session, username):
+    return (
+        session.query(User)
+        .filter(func.lower(User.username) == username.lower())
+        .first()
+    )
 
 
 class ClientAuthType(Enum):
