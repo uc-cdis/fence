@@ -211,6 +211,12 @@ def _get_service_account_removal_reasons(service_account_validity):
         )
     if service_account_validity["owned_by_project"] is False:
         removal_reasons.append("It is not owned by the project.")
+    if service_account_validity["policy_accessible"] is False:
+        removal_reasons.append(
+            "Either it doesn't exist in Google or "
+            "we could not access its policy, "
+            "which is need for further checks."
+        )
 
     return removal_reasons
 
