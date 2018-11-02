@@ -25,9 +25,23 @@ class InternalError(APIError):
 
 
 class Unauthorized(APIError):
+    """
+    Used for AuthN-related errors in most cases.
+    """
+
     def __init__(self, message):
         self.message = str(message)
         self.code = 401
+
+
+class Forbidden(APIError):
+    """
+    Used for AuthZ-related errors in most cases.
+    """
+
+    def __init__(self, message):
+        self.message = str(message)
+        self.code = 403
 
 
 class NotFound(APIError):

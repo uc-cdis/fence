@@ -932,6 +932,10 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/GoogleServiceAccountErrors'
+        '403':
+          description: 'forbidden, cannot modify the provided fields'
+        '401':
+          description: 'unauthorized, can modify provided fields but user does not have permission to update this service account'
       requestBody:
         content:
           application/json:
@@ -997,7 +1001,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/GoogleServiceAccountErrors'
         '403':
-          description: 'forbidden, user cannot modify this service account or provided fields cannot be altered'
+          description: 'forbidden, cannot modify the provided fields'
+        '401':
+          description: 'unauthorized, can modify provided fields but user does not have permission to update this service account'
       requestBody:
         content:
           application/json:

@@ -10,7 +10,7 @@ from cirrus.google_cloud.errors import GoogleAPIError
 
 from fence.auth import current_token, require_auth_header
 from fence.restful import RestfulApi
-from fence.errors import UserError, NotFound, Unauthorized
+from fence.errors import UserError, NotFound, Unauthorized, Forbidden
 from fence.resources.google.validity import GoogleProjectValidity
 from fence.resources.google.access_utils import (
     is_user_member_of_all_google_projects,
@@ -554,7 +554,7 @@ def _get_service_account_for_patch(id_):
 
     # if they're trying to patch more fields, error out, we only support the above
     if payload:
-        raise UserError("Cannot update provided fields: {}".format(payload))
+        raise Forbidden("Cannot update provided fields: {}".format(payload))
 
     # if the field is not provided at all, use service accounts current access
     # NOTE: the user can provide project_access=[] to remove all datasets so checking
