@@ -2,6 +2,7 @@ import copy
 from functools import wraps
 
 from storageclient import get_client
+from sqlalchemy import func
 
 from fence.models import (
     CloudProvider,
@@ -311,7 +312,11 @@ class StorageManager(object):
             fence.models.User: User with username
         """
         if provider == GOOGLE_PROVIDER:
-            return session.query(User).filter_by(username=username).first()
+            return (
+                session.query(User)
+                .filter(func.lower(User.username) == username.lower())
+                .first()
+            )
 
         return self.clients[provider].get_user(username)
 
@@ -332,7 +337,11 @@ class StorageManager(object):
             fence.models.User: User with username
         """
         if provider == GOOGLE_PROVIDER:
-            user = session.query(User).filter_by(username=username).first()
+            user = (
+                session.query(User)
+                .filter(func.lower(User.username) == username.lower())
+                .first()
+            )
             if not user:
                 raise NotFound(
                     "User not found with username {}. For Google Storage "

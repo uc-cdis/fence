@@ -1277,7 +1277,11 @@ def force_update_google_link(DB, username, google_email):
 
     db = SQLAlchemyDriver(DB)
     with db.session as session:
-        user_account = session.query(User).filter(User.username == username).first()
+        user_account = (
+            session.query(User)
+            .filter(func.lower(User.username) == username.lower())
+            .first()
+        )
         if user_account:
             user_id = user_account.id
             proxy_group_id = user_account.google_proxy_group_id

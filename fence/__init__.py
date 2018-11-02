@@ -161,6 +161,7 @@ def app_sessions(app):
     app.storage_manager = StorageManager(
         app.config["STORAGE_CREDENTIALS"], logger=app.logger
     )
+
     enabled_idp_ids = app.config["ENABLED_IDENTITY_PROVIDERS"]["providers"].keys()
     # Add OIDC client for Google if configured.
     configured_google = (

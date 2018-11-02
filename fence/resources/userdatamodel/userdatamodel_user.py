@@ -1,3 +1,5 @@
+from sqlalchemy import func
+
 from fence.errors import NotFound, UserError
 from fence.models import (
     Project,
@@ -23,7 +25,11 @@ __all__ = [
 
 
 def get_user(current_session, username):
-    return current_session.query(User).filter(User.username == username).first()
+    return (
+        current_session.query(User)
+        .filter(func.lower(User.username) == username.lower())
+        .first()
+    )
 
 
 def get_user_accesses(current_session):
@@ -36,7 +42,11 @@ def delete_user(current_session, username):
     """
     Delete the user with the given username
     """
-    user = current_session.query(User).filter(User.username == username).first()
+    user = (
+        current_session.query(User)
+        .filter(func.lower(User.username) == username.lower())
+        .first()
+    )
     if not user:
         msg = "".join(["user name ", username, " not found"])
         raise NotFound(msg)
