@@ -1,9 +1,8 @@
 import flask
 from flask_sqlalchemy_session import current_session
-from sqlalchemy import func
 
 from fence.errors import Unauthorized
-from fence.models import User
+from fence.models import query_for_user
 
 
 def get_current_user(flask_session=None):
@@ -13,8 +12,4 @@ def get_current_user(flask_session=None):
         username = "test"
     if not username:
         raise Unauthorized("User not logged in")
-    return (
-        current_session.query(User)
-        .filter(func.lower(User.username) == username.lower())
-        .first()
-    )
+    return query_for_user(session=current_session, username=username)

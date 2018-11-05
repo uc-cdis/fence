@@ -10,10 +10,9 @@ from fence.resources.google.utils import (
 )
 from fence.resources.userdatamodel import delete_user, get_user_groups
 import smtplib
-from sqlalchemy import func
 
 from fence.errors import NotFound, UserError, InternalError
-from fence.models import User
+from fence.models import query_for_user
 
 
 def update_user_resource(username, resource):
@@ -39,11 +38,7 @@ def update_user_resource(username, resource):
 
 
 def find_user(username, session):
-    user = (
-        session.query(User)
-        .filter(func.lower(User.username) == username.lower())
-        .first()
-    )
+    user = query_for_user(session=session, username=username)
     if not user:
         raise NotFound("user {} not found".format(username))
     return user

@@ -16,6 +16,7 @@ from fence.models import (
     StorageAccess,
     ProjectToBucket,
     UserToBucket,
+    query_for_user,
 )
 
 import tests
@@ -32,7 +33,7 @@ def read_file(filename):
 def create_user(users, db_session, is_admin=False):
     s = db_session
     for username in users.keys():
-        user = s.query(User).filter(User.username == username).first()
+        user = query_for_user(session=s, username=username)
         if not user:
             user = User(username=username, is_admin=is_admin)
             s.add(user)
@@ -64,7 +65,7 @@ def create_user(users, db_session, is_admin=False):
 def create_awg_user(users, db_session):
     s = db_session
     for username in users.keys():
-        user = s.query(User).filter(User.username == username).first()
+        user = query_for_user(session=s, username=username)
         if not user:
             user = User(username=username)
             s.add(user)

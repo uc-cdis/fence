@@ -46,6 +46,7 @@ from fence.models import (
     GoogleProxyGroupToGoogleBucketAccessGroup,
     UserRefreshToken,
     ServiceAccountToGoogleBucketAccessGroup,
+    query_for_user,
 )
 from fence.scripting.google_monitor import validation_check
 from fence.settings import GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN
@@ -134,7 +135,9 @@ def delete_client_action(DB, client_name):
             ):
                 raise Exception("client {} does not exist".format(client_name))
 
-            clients = current_session.query(Client).filter(Client.name == client_name).all()
+            clients = (
+                current_session.query(Client).filter(Client.name == client_name).all()
+            )
 
             for client in clients:
                 _remove_client_service_accounts(current_session, client)
@@ -147,9 +150,11 @@ def delete_client_action(DB, client_name):
 
 
 def _remove_client_service_accounts(db_session, client):
-    client_service_accounts = db_session.query(GoogleServiceAccount).filter(
-        GoogleServiceAccount.client_id == client.client_id
-    ).all()
+    client_service_accounts = (
+        db_session.query(GoogleServiceAccount)
+        .filter(GoogleServiceAccount.client_id == client.client_id)
+        .all()
+    )
 
     if client_service_accounts:
         with GoogleCloudManager() as g_mgr:
@@ -388,9 +393,8 @@ def create_users_with_group(DB, s, data):
     data_groups = data["groups"]
     for username, data in data["users"].iteritems():
         is_existing_user = True
-        user = (
-            s.query(User).filter(func.lower(User.username) == username.lower()).first()
-        )
+        user = query_for_user(session=s, username=username)
+
         admin = data.get("admin", False)
 
         if not user:
@@ -781,11 +785,8 @@ class JWTCreator(object):
         """
         driver = SQLAlchemyDriver(self.db)
         with driver.session as current_session:
-            user = (
-                current_session.query(User)
-                .filter(func.lower(User.username) == self.username.lower())
-                .first()
-            )
+            user = query_for_user(session=current_session, username=self.username)
+
             if not user:
                 raise EnvironmentError(
                     "no user found with given username: " + self.username
@@ -808,11 +809,8 @@ class JWTCreator(object):
         """
         driver = SQLAlchemyDriver(self.db)
         with driver.session as current_session:
-            user = (
-                current_session.query(User)
-                .filter(func.lower(User.username) == self.username.lower())
-                .first()
-            )
+            user = query_for_user(session=current_session, username=self.username)
+
             if not user:
                 raise EnvironmentError(
                     "no user found with given username: " + self.username
@@ -1277,7 +1275,8 @@ def force_update_google_link(DB, username, google_email):
 
     db = SQLAlchemyDriver(DB)
     with db.session as session:
-        user_account = session.query(User).filter(User.username == username).first()
+        user_account = query_for_user(session=session, username=username)
+
         if user_account:
             user_id = user_account.id
             proxy_group_id = user_account.google_proxy_group_id
