@@ -6,7 +6,6 @@ from random import SystemRandom
 import re
 import string
 import requests
-from sqlalchemy import func
 from urllib import urlencode
 from urlparse import parse_qs, urlsplit, urlunsplit
 
@@ -14,7 +13,7 @@ import flask
 from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.datastructures import ImmutableMultiDict
 
-from fence.models import Client, GrantType, User
+from fence.models import Client, GrantType, User, query_for_user
 from fence.jwt.token import CLIENT_ALLOWED_SCOPES
 
 
@@ -51,9 +50,8 @@ def create_client(
         hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
     auth_method = "client_secret_basic" if confidential else "none"
     with driver.session as s:
-        user = (
-            s.query(User).filter(func.lower(User.username) == username.lower()).first()
-        )
+        user = query_for_user(session=s, username=username)
+
         if not user:
             user = User(username=username, is_admin=is_admin)
             s.add(user)

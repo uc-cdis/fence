@@ -10,6 +10,7 @@ from fence.models import (
     GoogleBucketAccessGroup,
     User,
     GoogleProxyGroupToGoogleBucketAccessGroup,
+    query_for_user,
 )
 from fence.errors import NotSupported, InternalError, Unauthorized, NotFound
 from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME as GOOGLE_PROVIDER
@@ -311,7 +312,7 @@ class StorageManager(object):
             fence.models.User: User with username
         """
         if provider == GOOGLE_PROVIDER:
-            return session.query(User).filter_by(username=username).first()
+            return query_for_user(session=session, username=username)
 
         return self.clients[provider].get_user(username)
 
@@ -332,7 +333,8 @@ class StorageManager(object):
             fence.models.User: User with username
         """
         if provider == GOOGLE_PROVIDER:
-            user = session.query(User).filter_by(username=username).first()
+            user = query_for_user(session=session, username=username.lower())
+
             if not user:
                 raise NotFound(
                     "User not found with username {}. For Google Storage "
