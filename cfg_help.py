@@ -41,11 +41,12 @@ NOTE: If using in production with wsgi.py, fence will still look for
 import argparse
 import glob
 import os
+from os.path import expanduser
 from shutil import copyfile
 import sys
 
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
-LOCAL_CONFIG_FOLDER = "/etc/gen3/fence"
+LOCAL_CONFIG_FOLDER = "{}/.gen3/fence".format(expanduser("~"))
 
 
 def main():
