@@ -785,11 +785,8 @@ class JWTCreator(object):
         """
         driver = SQLAlchemyDriver(self.db)
         with driver.session as current_session:
-            user = (
-                current_session.query(User)
-                .filter(func.lower(User.username) == self.username.lower())
-                .first()
-            )
+            user = query_for_user(session=current_session, username=self.username)
+
             if not user:
                 raise EnvironmentError(
                     "no user found with given username: " + self.username
@@ -812,11 +809,8 @@ class JWTCreator(object):
         """
         driver = SQLAlchemyDriver(self.db)
         with driver.session as current_session:
-            user = (
-                current_session.query(User)
-                .filter(func.lower(User.username) == self.username.lower())
-                .first()
-            )
+            user = query_for_user(session=current_session, username=self.username)
+
             if not user:
                 raise EnvironmentError(
                     "no user found with given username: " + self.username
@@ -1281,11 +1275,8 @@ def force_update_google_link(DB, username, google_email):
 
     db = SQLAlchemyDriver(DB)
     with db.session as session:
-        user_account = (
-            session.query(User)
-            .filter(func.lower(User.username) == username.lower())
-            .first()
-        )
+        user_account = query_for_user(session=session, username=username)
+
         if user_account:
             user_id = user_account.id
             proxy_group_id = user_account.google_proxy_group_id

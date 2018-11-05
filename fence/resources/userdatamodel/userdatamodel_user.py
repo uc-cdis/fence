@@ -11,6 +11,7 @@ from fence.models import (
     AccessPrivilege,
     Group,
     UserToGroup,
+    query_for_user,
 )
 
 
@@ -25,11 +26,7 @@ __all__ = [
 
 
 def get_user(current_session, username):
-    return (
-        current_session.query(User)
-        .filter(func.lower(User.username) == username.lower())
-        .first()
-    )
+    return query_for_user(session=current_session, username=username)
 
 
 def get_user_accesses(current_session):
@@ -42,11 +39,8 @@ def delete_user(current_session, username):
     """
     Delete the user with the given username
     """
-    user = (
-        current_session.query(User)
-        .filter(func.lower(User.username) == username.lower())
-        .first()
-    )
+    user = query_for_user(session=current_session, username=username)
+
     if not user:
         msg = "".join(["user name ", username, " not found"])
         raise NotFound(msg)
