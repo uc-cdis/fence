@@ -348,7 +348,7 @@ CIRRUS_CFG:
 # setup for more info on Cloud Identity)
 #
 # NOTE: Make this short! Less than 8 characters if possible. Google has
-# length restrictions on group names.
+#       length restrictions on group names.
 GOOGLE_GROUP_PREFIX: ''
 
 # //////////////////////////////////////////////////////////////////////////////////////
