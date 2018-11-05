@@ -354,18 +354,18 @@ GOOGLE_GROUP_PREFIX: ''
 # //////////////////////////////////////////////////////////////////////////////////////
 # EMAIL
 #   - Support for sending emails from fence. Used for user certificates
-#     and `/google/service_accounts` endpoints ()
+#     and `/google/service_accounts` endpoints
 # //////////////////////////////////////////////////////////////////////////////////////
 # Gun Mail Service (for sending emails from fence)
 #
-# NOTE: Remove the [] and supply if needed. Example in comments below
-GUN_MAIL: []
-#  example.com:
-#    smtp_hostname: 'smtp.mailgun.org'
-#    api_key: '123456'
-#    default_login: 'postmaster@mailgun.example.com'
-#    api_url: 'https://api.mailgun.net/v3/mailgun.example.com'
-#    smtp_password: '123456'
+# NOTE: Example in comments below
+GUN_MAIL:
+  'datacommons.io':
+    smtp_hostname: 'smtp.mailgun.org'
+    api_key: ''
+    default_login: 'postmaster@mailgun.example.com'
+    api_url: 'https://api.mailgun.net/v3/mailgun.example.com'
+    smtp_password: ''
 
 # For emails regarding users certificates
 EMAIL_SERVER: 'localhost'
