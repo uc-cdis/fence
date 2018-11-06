@@ -68,7 +68,7 @@ def validation_check(db, config=None):
                 )
                 if not validity_info["policy_accessible"]:
                     print(
-                        "SERVICE ACCOUNT POLICY NOT ACCESSIBLE OR DOES NOT"
+                        "SERVICE ACCOUNT POLICY NOT ACCESSIBLE OR DOES NOT "
                         "EXIST. SERVICE ACCOUNT WILL BE REMOVED FROM FENCE DB"
                     )
                     force_remove_service_account_from_db(sa_email, db=db)
