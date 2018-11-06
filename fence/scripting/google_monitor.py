@@ -210,6 +210,13 @@ def _get_service_account_removal_reasons(service_account_validity):
     """
     removal_reasons = []
 
+    print("valid_type: {}".format(service_account_validity["valid_type"]))
+    print(
+        "no_external_access: {}".format(service_account_validity["no_external_access"])
+    )
+    print("owned_by_project: {}".format(service_account_validity["owned_by_project"]))
+    print("policy_accessible: {}".format(service_account_validity["policy_accessible"]))
+
     if service_account_validity is None:
         return removal_reasons
 
