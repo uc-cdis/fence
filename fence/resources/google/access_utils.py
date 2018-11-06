@@ -544,7 +544,13 @@ def force_remove_service_account_from_access(
 
 
 def force_remove_service_account_from_db(service_account_email, db=None):
+    """
+    remove service account from user_service_account table
 
+    Args:
+        service_account_email(str): service account to be removed from db
+        db(None, str): Optional db connection string
+    """
     session = get_db_session(db)
     service_account = (
         session.query(UserServiceAccount).filter_by(email=service_account_email).first()
