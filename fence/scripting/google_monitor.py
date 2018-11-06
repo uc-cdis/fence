@@ -59,10 +59,6 @@ def validation_check(db, config=None):
             validity_info = _is_valid_service_account(
                 sa_email, google_project_id, config=config
             )
-            print("valid_type: {}".format(validity_info["valid_type"]))
-            print("no_external_access: {}".format(validity_info["no_external_access"]))
-            print("owned_by_project: {}".format(validity_info["owned_by_project"]))
-            print("policy_accessible: {}".format(validity_info["policy_accessible"]))
             if not validity_info:
                 print(
                     "INVALID SERVICE ACCOUNT {} DETECTED. REMOVING...".format(sa_email)
