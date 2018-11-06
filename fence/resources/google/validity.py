@@ -612,6 +612,8 @@ class GoogleServiceAccountValidity(ValidityInfo):
                     "policy is not accessible or the service account does not "
                     "exist, this check may fail."
                 )
+                # don't return early, we can still check type without checking
+                # policy, however, if the SA doesn't exist, this will fail
 
             valid_type = is_valid_service_account_type(self.account_id, gcm)
 
