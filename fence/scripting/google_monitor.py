@@ -60,9 +60,7 @@ def validation_check(db, config=None):
                 sa_email, google_project_id, config=config
             )
             print("valid_type: {}".format(validity_info["valid_type"]))
-            print(
-                "no_external_access: {}".format(validity_info["no_external_access"])
-            )
+            print("no_external_access: {}".format(validity_info["no_external_access"]))
             print("owned_by_project: {}".format(validity_info["owned_by_project"]))
             print("policy_accessible: {}".format(validity_info["policy_accessible"]))
             if not validity_info:
@@ -72,7 +70,7 @@ def validation_check(db, config=None):
                 force_remove_service_account_from_access(
                     sa_email, google_project_id, db=db
                 )
-                if not validity_info["policy_accessible"]:
+                if validity_info["policy_accessible"] is False:
                     print(
                         "SERVICE ACCOUNT POLICY NOT ACCESSIBLE OR DOES NOT "
                         "EXIST. SERVICE ACCOUNT WILL BE REMOVED FROM FENCE DB"
