@@ -550,6 +550,7 @@ def force_remove_service_account_from_db(service_account_email, db=None):
         session.query(UserServiceAccount).filter_by(email=service_account_email).first()
     )
     session.delete(service_account)
+    session.commit()
 
 
 def _revoke_user_service_account_from_google(
