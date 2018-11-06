@@ -543,6 +543,15 @@ def force_remove_service_account_from_access(
     _force_remove_service_account_from_access_db(service_account, access_groups, db)
 
 
+def force_remove_service_account_from_db(service_account_email, db=None):
+
+    session = get_db_session(db)
+    service_account = (
+        session.query(UserServiceAccount).filter_by(email=service_account_email).first()
+    )
+    session.delete(service_account)
+
+
 def _revoke_user_service_account_from_google(
     session, to_delete_project_ids, google_project_id, service_account
 ):

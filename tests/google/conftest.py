@@ -24,6 +24,8 @@ from flask_sqlalchemy_session import current_session
 from userdatamodel.models import Project, Bucket, ProjectToBucket
 from fence.models import GoogleBucketAccessGroup
 
+from fence.resources.google.validity import GoogleServiceAccountValidity
+
 # Python 2 and 3 compatible
 try:
     from unittest.mock import MagicMock
@@ -571,7 +573,12 @@ def invalid_service_account_patcher(db_session):
 
     def mock_is_valid(sa_email, *args, **kwargs):
         if sa_email == invalid_service_account:
-            return False
+            validity = GoogleServiceAccountValidity("account_id", "project_id")
+            # set overall validity to False
+            # set policy_accessible to True so the SA is not removed from the DB
+            validity["policy_accessible"] = True
+            validity._valid = False
+            return validity
         return True
 
     patcher = patch(

@@ -22,6 +22,7 @@ from fence.resources.google.utils import (
 from fence.resources.google.access_utils import (
     get_google_project_number,
     force_remove_service_account_from_access,
+    force_remove_service_account_from_db,
 )
 
 from fence import utils
@@ -65,6 +66,13 @@ def validation_check(db, config=None):
                 force_remove_service_account_from_access(
                     sa_email, google_project_id, db=db
                 )
+                if not validity_info["policy_accessible"]:
+                    print(
+                        "SERVICE ACCOUNT POLICY NOT ACCESSIBLE OR DOES NOT"
+                        "EXIST. SERVICE ACCOUNT WILL BE REMOVED FROM FENCE DB"
+                    )
+                    force_remove_service_account_from_db(sa_email, db=db)
+
                 # remove from list so we don't try to remove again
                 # if project is invalid too
                 sa_emails_removed.append(sa_email)
