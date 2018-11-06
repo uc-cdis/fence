@@ -27,6 +27,10 @@ from fence.resources.google.access_utils import (
 
 from fence import utils
 
+from cdislogging import get_logger
+
+logger = get_logger(__name__)
+
 
 def validation_check(db, config=None):
     """
@@ -67,7 +71,7 @@ def validation_check(db, config=None):
                     sa_email, google_project_id, db=db
                 )
                 if validity_info["policy_accessible"] is False:
-                    print(
+                    logger.info(
                         "SERVICE ACCOUNT POLICY NOT ACCESSIBLE OR DOES NOT "
                         "EXIST. SERVICE ACCOUNT WILL BE REMOVED FROM FENCE DB"
                     )
@@ -214,20 +218,16 @@ def _get_service_account_removal_reasons(service_account_validity):
         return removal_reasons
 
     if service_account_validity["valid_type"] is False:
-        print("\tvalid_type: False")
         removal_reasons.append(
             "It must be a Compute Engine service account or an user-managed service account."
         )
     if service_account_validity["no_external_access"] is False:
-        print("\tno_external_access: False")
         removal_reasons.append(
             "It has either roles attached to it or service account keys generated. We do not allow this because we need to restrict external access."
         )
     if service_account_validity["owned_by_project"] is False:
-        print("\towned_by_project: False")
         removal_reasons.append("It is not owned by the project.")
     if service_account_validity["policy_accessible"] is False:
-        print("\tpolicy_accessible: False")
         removal_reasons.append(
             "Either it doesn't exist in Google or "
             "we could not access its policy, "

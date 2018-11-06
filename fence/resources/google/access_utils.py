@@ -555,8 +555,17 @@ def force_remove_service_account_from_db(service_account_email, db=None):
     service_account = (
         session.query(UserServiceAccount).filter_by(email=service_account_email).first()
     )
-    session.delete(service_account)
-    session.commit()
+
+    if not service_account:
+        logger.info(
+            "Service account ({}) requested for removal from database "
+            "was not found in the database.".format(service_account_email)
+        )
+    else:
+        session.delete(service_account)
+        session.commit()
+
+    return
 
 
 def _revoke_user_service_account_from_google(
