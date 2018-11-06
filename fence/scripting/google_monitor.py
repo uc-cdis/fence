@@ -214,16 +214,20 @@ def _get_service_account_removal_reasons(service_account_validity):
         return removal_reasons
 
     if service_account_validity["valid_type"] is False:
+        print("REASON: valid_type")
         removal_reasons.append(
             "It must be a Compute Engine service account or an user-managed service account."
         )
     if service_account_validity["no_external_access"] is False:
+        print("REASON: no_external_access")
         removal_reasons.append(
             "It has either roles attached to it or service account keys generated. We do not allow this because we need to restrict external access."
         )
     if service_account_validity["owned_by_project"] is False:
+        print("REASON: owned_by_project")
         removal_reasons.append("It is not owned by the project.")
     if service_account_validity["policy_accessible"] is False:
+        print("REASON: policy_accessible")
         removal_reasons.append(
             "Either it doesn't exist in Google or "
             "we could not access its policy, "
