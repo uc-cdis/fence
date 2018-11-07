@@ -341,12 +341,7 @@ def test_public_bucket_unsupported_protocol_file(
 
 
 def test_blank_index_upload(
-    app,
-    client,
-    auth_client,
-    upload_indexd_client,
-    encoded_creds_jwt,
-    user_client,
+    app, client, auth_client, upload_indexd_client, encoded_creds_jwt, user_client
 ):
     headers = {
         "Authorization": "Bearer " + encoded_creds_jwt.jwt,

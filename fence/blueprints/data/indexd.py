@@ -22,7 +22,7 @@ from fence.errors import (
     NotFound,
     NotSupported,
     Unauthorized,
-    UnavailableError ,
+    UnavailableError,
 )
 from fence.resources.google.utils import (
     get_or_create_primary_service_account_key,
@@ -173,8 +173,9 @@ class IndexedFile(object):
                 raise InternalError("internal error from indexd: {}".format(e))
         elif res.status_code == 404:
             flask.current_app.logger.error(
-                "Not Found. indexd could not find {}: {}"
-                .format(url + self.file_id, res.text)
+                "Not Found. indexd could not find {}: {}".format(
+                    url + self.file_id, res.text
+                )
             )
             raise NotFound("No indexed document found with id {}".format(self.file_id))
         else:

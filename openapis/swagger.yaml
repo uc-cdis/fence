@@ -317,6 +317,10 @@ paths:
           - user
           - data
       operationId: uploadBlank
+      parameters:
+        - name: filename
+          required: true
+          TODO
       responses:
         201:
           description: successful operation; created new record in indexd

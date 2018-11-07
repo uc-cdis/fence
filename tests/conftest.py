@@ -408,8 +408,7 @@ def indexd_client(app, request):
 
     # TODO (rudyardrichter, 2018-11-03): consolidate things needing to do this patch
     indexd_patcher = patch(
-        "fence.blueprints.data.indexd.IndexedFile.index_document",
-        record,
+        "fence.blueprints.data.indexd.IndexedFile.index_document", record
     )
     mocker.add_mock(indexd_patcher)
 
@@ -485,8 +484,7 @@ def unauthorized_indexd_client(app, request):
         }
 
     indexd_patcher = patch(
-        "fence.blueprints.data.indexd.IndexedFile.index_document",
-        record,
+        "fence.blueprints.data.indexd.IndexedFile.index_document", record
     )
     mocker.add_mock(indexd_patcher)
 
@@ -554,8 +552,7 @@ def public_indexd_client(app, request):
         }
 
     indexd_patcher = patch(
-        "fence.blueprints.data.indexd.IndexedFile.index_document",
-        record,
+        "fence.blueprints.data.indexd.IndexedFile.index_document", record
     )
     mocker.add_mock(indexd_patcher)
 
@@ -578,8 +575,7 @@ def upload_indexd_client(app, uploader_username):
         "updated_date": "",
     }
     indexd_patcher = patch(
-        "fence.blueprints.data.indexd.BlankIndex.index_document",
-        record,
+        "fence.blueprints.data.indexd.BlankIndex.index_document", record
     )
     mocker.add_mock(indexd_patcher)
     return type("UploadIndexClient", (object,), {"record": record})
@@ -662,8 +658,7 @@ def public_bucket_indexd_client(app, request):
         }
 
     indexd_patcher = patch(
-        "fence.blueprints.data.indexd.IndexedFile.index_document",
-        record,
+        "fence.blueprints.data.indexd.IndexedFile.index_document", record
     )
     mocker.add_mock(indexd_patcher)
 
