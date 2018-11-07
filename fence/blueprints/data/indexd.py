@@ -52,25 +52,7 @@ def get_signed_url_for_file(action, file_id):
     return {"url": signed_url}
 
 
-class IndexRecord(object):
-    """
-    Abstract base class for index records.
-
-    Note that this includes "blank" records for the data upload flow, so methods in this
-    class should not assume that the returned record will have any information in it for
-    sure, beyond the GUID.
-    """
-
-    __metaclass__ = ABCMeta
-
-    def __init__(self):
-        self.indexd = (
-            flask.current_app.config.get("INDEXD")
-            or flask.current_app.config["BASE_URL"]
-        )
-
-
-class BlankIndex(IndexRecord):
+class BlankIndex(object):
     """
     Create a new blank record in indexd, to use for the data upload flow.
 
@@ -80,7 +62,10 @@ class BlankIndex(IndexRecord):
     """
 
     def __init__(self, uploader=None):
-        super(BlankIndex, self).__init__()
+        self.indexd = (
+            flask.current_app.config.get("INDEXD")
+            or flask.current_app.config["BASE_URL"]
+        )
         self.uploader = uploader or current_token["context"]["user"]["name"]
 
     @property
@@ -94,18 +79,27 @@ class BlankIndex(IndexRecord):
 
     @cached_property
     def index_document(self):
+        """
+        Get the record from indexd for this index.
+
+        Return:
+            dict: response from indexd (the contents of the record)
+        """
         index_url = self.indexd.rstrip("/") + "/index"
         params = {"uploader": self.uploader}
         indexd_response = requests.post(index_url, json=params)
-        if indexd_response.status_code != 200 and indexd_response.status_code != 201:
+        if indexd_response.status_code not in [200, 201]:
             raise InternalError(
-                "received error from indexd trying to create blank record"
+                "received error from indexd trying to create blank record: {}".format(
+                    indexd_response.json()
+                )
             )
-        self.index_document = indexd_response.json()
+        return indexd_response.json()
 
     def make_signed_url(self, filename, expires_in=None):
         """
-        Upload only; S3 only.
+        Works for upload only; S3 only (only supported case for data upload flow
+        currently).
 
         Args:
             filename (str)
@@ -129,11 +123,11 @@ class IndexedFile(object):
     the physical file lives (could be multiple urls).
 
     TODO (rudyardrichter, 2018-11-03):
-        general clean up of indexd interface; have this class inherit from IndexRecord
-        and make things as consistent as possible between this and the "blank" records
-        (might be tricky since the purpose for the blank record class is to create a new
-        record in indexd, rather than look one up; that distinction could also be
-        cleaner).
+        general clean up of indexd interface; maybe have ABC for this class and blank
+        records, and make things as consistent as possible between this and the "blank"
+        records (might be tricky since the purpose for the blank record class is to
+        create a new record in indexd, rather than look one up; that distinction could
+        also be cleaner).
 
     Args:
         file_id (str): GUID for the file.
