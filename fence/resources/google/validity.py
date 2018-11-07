@@ -569,15 +569,6 @@ class GoogleServiceAccountValidity(ValidityInfo):
                 )
                 return
 
-        # check if the SA is an allowed type
-        if check_type:
-            valid_type = is_valid_service_account_type(self.account_id, gcm)
-
-            self.set("valid_type", valid_type)
-            if not valid_type and early_return:
-                gcm.close()
-                return
-
         # check if the SA's policy is accessible
         policy_accessible = None
         sa_policy = None
@@ -609,6 +600,25 @@ class GoogleServiceAccountValidity(ValidityInfo):
             )
             self.set("no_external_access", no_external_access)
             if not no_external_access and early_return:
+                gcm.close()
+                return
+
+        # check if the SA is an allowed type
+        if check_type:
+
+            if not policy_accessible:
+                logger.warning(
+                    "Policy access was not checked. If the service account's "
+                    "policy is not accessible or the service account does not "
+                    "exist, this check may fail."
+                )
+                # don't return early, we can still check type without checking
+                # policy, however, if the SA doesn't exist, this will fail
+
+            valid_type = is_valid_service_account_type(self.account_id, gcm)
+
+            self.set("valid_type", valid_type)
+            if not valid_type and early_return:
                 gcm.close()
                 return
 

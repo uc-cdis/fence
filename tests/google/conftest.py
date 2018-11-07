@@ -24,6 +24,8 @@ from flask_sqlalchemy_session import current_session
 from userdatamodel.models import Project, Bucket, ProjectToBucket
 from fence.models import GoogleBucketAccessGroup
 
+from fence.resources.google.validity import GoogleServiceAccountValidity
+
 # Python 2 and 3 compatible
 try:
     from unittest.mock import MagicMock
@@ -571,7 +573,91 @@ def invalid_service_account_patcher(db_session):
 
     def mock_is_valid(sa_email, *args, **kwargs):
         if sa_email == invalid_service_account:
-            return False
+            validity = GoogleServiceAccountValidity("account_id", "project_id")
+            # set overall validity to False
+            # set policy_accessible to True so the SA is not removed from the DB
+            validity["policy_accessible"] = True
+            validity._valid = False
+            return validity
+        return True
+
+    patcher = patch(
+        "fence.scripting.google_monitor._is_valid_service_account", mock_is_valid
+    )
+
+    patcher.start()
+    yield {
+        "service_account": user,
+        "projects": [project1],
+        "bucket_access_groups": [access_grp1],
+    }
+    patcher.stop()
+
+
+@pytest.fixture(scope="function")
+def invalid_service_account_not_exist(db_session):
+    invalid_service_account = "invalid@example.com"
+    user = UserServiceAccount(
+        google_unique_id="invalid_test_id",
+        email=invalid_service_account,
+        google_project_id="test",
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    cp = db_session.query(CloudProvider).filter_by(name="test").first()
+    if not cp:
+        cp = CloudProvider(name="test", endpoint="http://test.endpt")
+        db_session.add(cp)
+        db_session.commit()
+
+    bucket1 = db_session.query(Bucket).filter_by(name="bucket1").first()
+    if not bucket1:
+        bucket1 = Bucket(name="bucket1", provider_id=cp.id)
+        db_session.add(bucket1)
+        db_session.commit()
+
+    project1 = db_session.query(Project).filter_by(name="test_1").first()
+    if not project1:
+        project1 = Project(name="test_1", auth_id="test_auth_1")
+        db_session.add(project1)
+        db_session.commit()
+
+    access_grp1 = (
+        db_session.query(GoogleBucketAccessGroup)
+        .filter_by(email="test1@gmail.com")
+        .first()
+    )
+    if not access_grp1:
+        access_grp1 = GoogleBucketAccessGroup(
+            bucket_id=bucket1.id, email="test1@gmail.com"
+        )
+        db_session.add(access_grp1)
+        db_session.commit()
+
+    db_session.add(
+        ServiceAccountAccessPrivilege(
+            project_id=project1.id, service_account_id=user.id
+        )
+    )
+    db_session.commit()
+
+    # expiration set to 0 for testing that it gets set
+    current_time = 0
+    service_account_grp1 = ServiceAccountToGoogleBucketAccessGroup(
+        service_account_id=user.id, access_group_id=access_grp1.id, expires=current_time
+    )
+    db_session.add(service_account_grp1)
+    db_session.commit()
+
+    def mock_is_valid(sa_email, *args, **kwargs):
+        if sa_email == invalid_service_account:
+            validity = GoogleServiceAccountValidity("account_id", "project_id")
+            # set overall validity to False
+            # set policy_accessible to False so the SA is removed from the DB
+            validity["policy_accessible"] = False
+            validity._valid = False
+            return validity
         return True
 
     patcher = patch(

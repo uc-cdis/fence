@@ -543,6 +543,31 @@ def force_remove_service_account_from_access(
     _force_remove_service_account_from_access_db(service_account, access_groups, db)
 
 
+def force_remove_service_account_from_db(service_account_email, db=None):
+    """
+    remove service account from user_service_account table
+
+    Args:
+        service_account_email(str): service account to be removed from db
+        db(None, str): Optional db connection string
+    """
+    session = get_db_session(db)
+    service_account = (
+        session.query(UserServiceAccount).filter_by(email=service_account_email).first()
+    )
+
+    if not service_account:
+        logger.info(
+            "Service account ({}) requested for removal from database "
+            "was not found in the database.".format(service_account_email)
+        )
+    else:
+        session.delete(service_account)
+        session.commit()
+
+    return
+
+
 def _revoke_user_service_account_from_google(
     session, to_delete_project_ids, google_project_id, service_account
 ):

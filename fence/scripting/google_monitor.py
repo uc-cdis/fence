@@ -22,9 +22,14 @@ from fence.resources.google.utils import (
 from fence.resources.google.access_utils import (
     get_google_project_number,
     force_remove_service_account_from_access,
+    force_remove_service_account_from_db,
 )
 
 from fence import utils
+
+from cdislogging import get_logger
+
+logger = get_logger(__name__)
 
 
 def validation_check(db, config=None):
@@ -50,6 +55,7 @@ def validation_check(db, config=None):
     invalid_project_reasons = {}
 
     for google_project_id, sa_emails in project_service_account_mapping.iteritems():
+        sa_emails_removed = []
         for sa_email in sa_emails:
             print("Validating Google Service Account: {}".format(sa_email))
             # Do some basic service account checks, this won't validate
@@ -64,14 +70,24 @@ def validation_check(db, config=None):
                 force_remove_service_account_from_access(
                     sa_email, google_project_id, db=db
                 )
+                if validity_info["policy_accessible"] is False:
+                    logger.info(
+                        "SERVICE ACCOUNT POLICY NOT ACCESSIBLE OR DOES NOT "
+                        "EXIST. SERVICE ACCOUNT WILL BE REMOVED FROM FENCE DB"
+                    )
+                    force_remove_service_account_from_db(sa_email, db=db)
+
                 # remove from list so we don't try to remove again
                 # if project is invalid too
-                sa_emails.remove(sa_email)
+                sa_emails_removed.append(sa_email)
 
                 invalid_registered_service_account_reasons[
                     sa_email
                 ] = _get_service_account_removal_reasons(validity_info)
                 email_required = True
+
+        for sa_email in sa_emails_removed:
+            sa_emails.remove(sa_email)
 
         print("Validating Google Project: {}".format(google_project_id))
         google_project_validity = _is_valid_google_project(
@@ -211,6 +227,12 @@ def _get_service_account_removal_reasons(service_account_validity):
         )
     if service_account_validity["owned_by_project"] is False:
         removal_reasons.append("It is not owned by the project.")
+    if service_account_validity["policy_accessible"] is False:
+        removal_reasons.append(
+            "Either it doesn't exist in Google or "
+            "we could not access its policy, "
+            "which is need for further checks."
+        )
 
     return removal_reasons
 

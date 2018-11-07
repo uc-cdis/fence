@@ -83,6 +83,39 @@ def test_validation_check_one_invalid(
     )
 
 
+def test_validation_check_service_account_removed(
+    invalid_service_account_not_exist,
+    valid_google_project_patcher,
+    db_session,
+    cloud_manager,
+):
+    """
+    Test that an invalid service account whose policy does not exist is
+    removed from the database
+    """
+
+    (
+        fence.scripting.google_monitor._get_user_email_list_from_google_project_with_owner_role
+    ) = MagicMock()
+
+    (
+        fence.scripting.google_monitor._send_emails_informing_service_account_removal
+    ) = MagicMock()
+
+    (fence.scripting.google_monitor._get_service_account_removal_reasons) = MagicMock()
+
+    validation_check(db=None)
+    assert (
+        fence.scripting.google_monitor._send_emails_informing_service_account_removal.call_count
+        == 1
+    )
+    assert (
+        db_session.query(UserServiceAccount)
+        .filter_by(email=invalid_service_account_not_exist["service_account"].email)
+        .count()
+    ) == 0
+
+
 def test_validation_check_multiple_diff_projects(
     valid_service_account_patcher,
     valid_google_project_patcher,
