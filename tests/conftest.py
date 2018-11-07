@@ -563,25 +563,6 @@ def uploader_username():
 
 
 @pytest.fixture(scope="function")
-def upload_indexd_client(app, uploader_username):
-    mocker = Mocker()
-    mocker.mock_functions()
-    record = {
-        "did": uuid.uuid4(),
-        "baseid": "",
-        "rev": "",
-        "uploader": uploader_username,
-        "created_date": "",
-        "updated_date": "",
-    }
-    indexd_patcher = patch(
-        "fence.blueprints.data.indexd.BlankIndex.index_document", record
-    )
-    mocker.add_mock(indexd_patcher)
-    return type("UploadIndexClient", (object,), {"record": record})
-
-
-@pytest.fixture(scope="function")
 def public_bucket_indexd_client(app, request):
     mocker = Mocker()
     mocker.mock_functions()

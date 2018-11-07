@@ -64,7 +64,7 @@ class BlankIndex(object):
     def __init__(self, uploader=None):
         self.indexd = (
             flask.current_app.config.get("INDEXD")
-            or flask.current_app.config["BASE_URL"]
+            or flask.current_app.config["BASE_URL"] + "/index"
         )
         self.uploader = uploader or current_token["context"]["user"]["name"]
 
@@ -83,9 +83,11 @@ class BlankIndex(object):
         Get the record from indexd for this index.
 
         Return:
-            dict: response from indexd (the contents of the record)
+            dict:
+                response from indexd (the contents of the record), containing ``guid``
+                and ``url``
         """
-        index_url = self.indexd.rstrip("/") + "/index"
+        index_url = self.indexd.rstrip("/") + "/index/blank"
         params = {"uploader": self.uploader}
         indexd_response = requests.post(index_url, json=params)
         if indexd_response.status_code not in [200, 201]:
