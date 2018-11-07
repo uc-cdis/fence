@@ -63,7 +63,11 @@ def validation_check(db, config=None):
             validity_info = _is_valid_service_account(
                 sa_email, google_project_id, config=config
             )
-            if not validity_info:
+            # validity_info can be None if the monitor does not have access, which will
+            # be caught and handled during the Project check below. The logic in the
+            # endpoints is reversed (Project is checked first, not SAs) which is why
+            # there's is a sort of weird handling of it here.
+            if validity_info is False:
                 print(
                     "INVALID SERVICE ACCOUNT {} DETECTED. REMOVING...".format(sa_email)
                 )
