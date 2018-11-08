@@ -577,7 +577,7 @@ def invalid_service_account_patcher(db_session):
             # set overall validity to False
             # set policy_accessible to True so the SA is not removed from the DB
             validity["policy_accessible"] = True
-            validity._valid = False
+            validity["valid_type"] = False
             return validity
         return True
 
