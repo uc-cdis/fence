@@ -315,29 +315,23 @@ class FenceConfig(Config):
             )
         )
 
-        self._set_default("APPLICATION_ROOT", default_config=default_config)
-        self._set_default("SESSION_COOKIE_SECURE", default_config=default_config)
-        self._set_default("ACCESS_TOKEN_COOKIE_NAME", default_config=default_config)
-        self._set_default("SESSION_COOKIE_NAME", default_config=default_config)
-        self._set_default("OAUTH2_TOKEN_EXPIRES_IN", default_config=default_config)
-        self._set_default("ACCESS_TOKEN_EXPIRES_IN", default_config=default_config)
-        self._set_default("REFRESH_TOKEN_EXPIRES_IN", default_config=default_config)
-        self._set_default("SESSION_TIMEOUT", default_config=default_config)
-        self._set_default("SESSION_LIFETIME", default_config=default_config)
-        self._set_default(
+        defaults = [
+            "APPLICATION_ROOT",
+            "SESSION_COOKIE_SECURE",
+            "ACCESS_TOKEN_COOKIE_NAME",
+            "SESSION_COOKIE_NAME",
+            "OAUTH2_TOKEN_EXPIRES_IN",
+            "ACCESS_TOKEN_EXPIRES_IN",
+            "REFRESH_TOKEN_EXPIRES_IN",
+            "SESSION_TIMEOUT",
+            "SESSION_LIFETIME",
             "GOOGLE_SERVICE_ACCOUNT_KEY_FOR_URL_SIGNING_EXPIRES_IN",
-            default_config=default_config,
-        )
-        self._set_default(
             "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN",
-            default_config=default_config,
-        )
-        self._set_default(
-            "GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN", default_config=default_config
-        )
-        self._set_default("ACCESS_TOKEN_EXPIRES_IN", default_config=default_config)
-        self._set_default("ACCESS_TOKEN_EXPIRES_IN", default_config=default_config)
-        self._set_default("ACCESS_TOKEN_EXPIRES_IN", default_config=default_config)
+            "GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN",
+            "ACCESS_TOKEN_EXPIRES_IN",
+        ]
+        for default in defaults:
+            self._set_default(defaults, default_config=default_config)
 
     def _set_default(self, key, default_config=None, allow_none=False):
         default_config = default_config or yaml_load(

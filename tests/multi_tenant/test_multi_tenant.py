@@ -61,10 +61,14 @@ def test_login(
     # app.
     monkeypatch.setattr("authutils.token.keys.refresh_jwt_public_keys", lambda: None)
 
-    config.update(OPENID_CONNECT=fence_client_app.config["OPENID_CONNECT"])
-    config.update(BASE_URL=fence_client_app.config["BASE_URL"])
-    config.update(MOCK_AUTH=fence_client_app.config["MOCK_AUTH"])
-    config.update(DEFAULT_LOGIN_URL=fence_client_app.config["DEFAULT_LOGIN_URL"])
+    config.update(
+        {
+            "OPENID_CONNECT": fence_client_app.config["OPENID_CONNECT"],
+            "BASE_URL": fence_client_app.config["BASE_URL"],
+            "MOCK_AUTH": fence_client_app.config["MOCK_AUTH"],
+            "DEFAULT_LOGIN_URL": fence_client_app.config["DEFAULT_LOGIN_URL"],
+        }
+    )
 
     with fence_client_app.test_client() as fence_client_client:
         # Part 1.
@@ -74,8 +78,12 @@ def test_login(
         # This should be pointing at ``/oauth2/authorize`` of the IDP fence.
         assert "/oauth2/authorize" in response_login_fence.location
 
-    config.update(BASE_URL=app.config["BASE_URL"])
-    config.update(ENCRYPTION_KEY=app.config["ENCRYPTION_KEY"])
+    config.update(
+        {
+            "BASE_URL": app.config["BASE_URL"],
+            "ENCRYPTION_KEY": app.config["ENCRYPTION_KEY"],
+        }
+    )
 
     with app.test_client() as client:
         # Part 2.

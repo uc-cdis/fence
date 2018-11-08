@@ -72,7 +72,7 @@ def make_creds_blueprint():
         services = set(
             [
                 info.get("backend")
-                for name, info in config["STORAGE_CREDENTIALS"].iteritems()
+                for _, info in config["STORAGE_CREDENTIALS"].iteritems()
                 if info.get("backend")
             ]
         )
