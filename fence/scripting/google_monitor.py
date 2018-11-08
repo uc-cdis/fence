@@ -67,10 +67,9 @@ def validation_check(db, config=None):
             except Unauthorized:
                 """
                 is_validity_service_account can raise an exception if the monitor does 
-                not have access, which will be caught and handled during the Project check below
-                The logic in the
-                endpoints is reversed (Project is checked first, not SAs) which is why
-                there's is a sort of weird handling of it here.
+                not have access, which will be caught and handled during the Project check below   
+                The logic in theendpoints is reversed (Project is checked first, 
+                not SAs) which is whythere's is a sort of weird handling of it here.
                 """
                 logger.info(
                     "Monitor does not have access to validate "
