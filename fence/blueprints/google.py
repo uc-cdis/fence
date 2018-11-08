@@ -39,7 +39,7 @@ from cdislogging import get_logger
 logger = get_logger(__name__)
 
 
-class ValidationErrors(Enum, str):
+class ValidationErrors(str, Enum):
     MONITOR_NOT_FOUND = "monitor_not_found"
     UNAUTHORIZED_USER = "unauthorized_user"
     POLICY_NOT_ACCESSIBLE = "policy_not_accessible"
