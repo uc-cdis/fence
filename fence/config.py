@@ -331,7 +331,7 @@ class FenceConfig(Config):
             "ACCESS_TOKEN_EXPIRES_IN",
         ]
         for default in defaults:
-            self._set_default(defaults, default_config=default_config)
+            self._set_default(default, default_config=default_config)
 
     def _set_default(self, key, default_config=None, allow_none=False):
         default_config = default_config or yaml_load(
