@@ -46,15 +46,15 @@ def validation_check(db, config=None):
           TODO: Test this function with various amounts of service accounts
                 and delays from the google API
     """
-    email_required = False
     registered_service_accounts = get_all_registered_service_accounts(db=db)
     project_service_account_mapping = _get_project_service_account_mapping(
         registered_service_accounts
     )
-    invalid_registered_service_account_reasons = {}
-    invalid_project_reasons = {}
 
     for google_project_id, sa_emails in project_service_account_mapping.iteritems():
+        email_required = False
+        invalid_registered_service_account_reasons = {}
+        invalid_project_reasons = {}
         sa_emails_removed = []
         for sa_email in sa_emails:
             print("Validating Google Service Account: {}".format(sa_email))
