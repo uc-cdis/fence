@@ -18,6 +18,11 @@ addons:
 env:
   - REPOSITORY="uc-cdis/fence" PR_NUMBER="$TRAVIS_PULL_REQUEST"
 
+before_install:
+  - pip install -r https://raw.githubusercontent.com/uc-cdis/thWrapper/master/thog_requirements.txt
+  - wget https://raw.githubusercontent.com/uc-cdis/thWrapper/master/th_wrapper.py
+  - python th_wrapper.py -w truffles.json -c thog_config.json -g file://${PWD}/ --check
+
 install:
   - pip uninstall -y six || true # travis installs wrong version
   - pip uninstall -y userdatamodel || true

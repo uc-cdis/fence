@@ -1,0 +1,70 @@
+[
+    {
+        "branch": "origin/master",
+        "commit": "2c73d6665f41280cad2a1c0cc1a06f166974738775f31391999e14c995e46619",
+        "commitHash": "398887d3cb8ebeba088ea53b84ffd32b698a7955",
+        "diff": "4ce4ef2f8ac27a48780f1b85be5101f6fa9a343059ca87df8d24a9764e4c08fc",
+        "path": "tests/conftest.py",
+        "printDiff": "6cb8087d06ef002da393f5493d20b33c4e5929d2186d2ad78496a2896f860f01",
+        "reason": "High Entropy",
+        "stringsFound": [
+            "z9e4UA2MRRDX62TPd8sNpUCxVsqUDG3YGPWvPcwN",
+            "2BmWBPqwgUYcOSszCPlgWREeF7oPGowkeKk",
+            "7J4WApzkzxERdOQmAdrvshKSzUHg8Jqp1lw9tbiJfE2ExdOOIoJVmGLoDeAGnfzCd4fTsWcLbal9",
+            "z9e4UA2MRRDX62TPd8sNpUCxVsqUDG3YGPWvPcwN",
+            "2BmWBPqwgUYcOSszCPlgWREeF7oPGowkeKk",
+            "7J4WApzkzxERdOQmAdrvshKSzUHg8Jqp1lw9tbiJfE2ExdOOIoJVmGLoDeAGnfzCd4fTsWcLbal9"
+        ]
+    },
+    {
+        "branch": "origin/master",
+        "commit": "20cf83369fb01697d95382362a76a15e88094cd60d9c23ab9f8dbb5ebc0f2490",
+        "commitHash": "f49802e729c2e3b5713764cbbd9c36653126a471",
+        "diff": "2ef2d09fc20cbb6101fa0cca3649ac03c54313bcc20e868bfd9ed8bf309f0e67",
+        "path": "tests/conftest.py",
+        "printDiff": "dc0d2d543eed80a05fedc04e411f8eb0c9cb8835f455d6684d6db0617f877bfe",
+        "reason": "High Entropy",
+        "stringsFound": [
+            "z9e4UA2MRRDX62TPd8sNpUCxVsqUDG3YGPWvPcwN",
+            "2BmWBPqwgUYcOSszCPlgWREeF7oPGowkeKk",
+            "7J4WApzkzxERdOQmAdrvshKSzUHg8Jqp1lw9tbiJfE2ExdOOIoJVmGLoDeAGnfzCd4fTsWcLbal9",
+            "z9e4UA2MRRDX62TPd8sNpUCxVsqUDG3YGPWvPcwN",
+            "2BmWBPqwgUYcOSszCPlgWREeF7oPGowkeKk",
+            "7J4WApzkzxERdOQmAdrvshKSzUHg8Jqp1lw9tbiJfE2ExdOOIoJVmGLoDeAGnfzCd4fTsWcLbal9"
+        ]
+    },
+    {
+        "branch": "origin/master",
+        "commit": "af655b059820cdf2415693fef8c567215e812bde53b7ef0de4fcf2c559f8a1ca",
+        "commitHash": "eb25be46584f62d51c513eccc969ef672461c3f3",
+        "diff": "e6aa8c1cd19220a42080ef6e8a7e7dc7a4f927df4cfd81697474d9f33cefe04d",
+        "path": "tests/conftest.py",
+        "printDiff": "3f322fc2a328896b82945800b6eb9a10c292056482a7a330cb00a21c7597d96f",
+        "reason": "High Entropy",
+        "stringsFound": [
+            "z9e4UA2MRRDX62TPd8sNpUCxVsqUDG3YGPWvPcwN",
+            "2BmWBPqwgUYcOSszCPlgWREeF7oPGowkeKk",
+            "7J4WApzkzxERdOQmAdrvshKSzUHg8Jqp1lw9tbiJfE2ExdOOIoJVmGLoDeAGnfzCd4fTsWcLbal9",
+            "z9e4UA2MRRDX62TPd8sNpUCxVsqUDG3YGPWvPcwN",
+            "2BmWBPqwgUYcOSszCPlgWREeF7oPGowkeKk",
+            "7J4WApzkzxERdOQmAdrvshKSzUHg8Jqp1lw9tbiJfE2ExdOOIoJVmGLoDeAGnfzCd4fTsWcLbal9"
+        ]
+    },
+    {
+        "branch": "origin/master",
+        "commit": "d1c4222860f9e29816ca53f8575bd02add7c72c75de9a07512d7eaec38247307",
+        "commitHash": "93f8f7d4baa325e33cf5ab098f09e045432a8b3d",
+        "diff": "a738b3b533e4d1437490013769f494132f3e8bb0da46df3a81d47e86c4469f96",
+        "path": "tests/conftest.py",
+        "printDiff": "5fd6d8a5becb8b485c3576109e9ef77c63e4b0e214fa4266dc93fbc878a4a0c3",
+        "reason": "High Entropy",
+        "stringsFound": [
+            "z9e4UA2MRRDX62TPd8sNpUCxVsqUDG3YGPWvPcwN",
+            "2BmWBPqwgUYcOSszCPlgWREeF7oPGowkeKk",
+            "7J4WApzkzxERdOQmAdrvshKSzUHg8Jqp1lw9tbiJfE2ExdOOIoJVmGLoDeAGnfzCd4fTsWcLbal9",
+            "z9e4UA2MRRDX62TPd8sNpUCxVsqUDG3YGPWvPcwN",
+            "2BmWBPqwgUYcOSszCPlgWREeF7oPGowkeKk",
+            "7J4WApzkzxERdOQmAdrvshKSzUHg8Jqp1lw9tbiJfE2ExdOOIoJVmGLoDeAGnfzCd4fTsWcLbal9"
+        ]
+    }
+]
