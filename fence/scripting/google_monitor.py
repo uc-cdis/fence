@@ -26,7 +26,7 @@ from fence.resources.google.access_utils import (
 )
 
 from fence import utils
-
+from fence.errors import Unauthorized
 from cdislogging import get_logger
 
 logger = get_logger(__name__)
@@ -60,9 +60,23 @@ def validation_check(db, config=None):
             print("Validating Google Service Account: {}".format(sa_email))
             # Do some basic service account checks, this won't validate
             # the data access, that's done when the project's validated
-            validity_info = _is_valid_service_account(
-                sa_email, google_project_id, config=config
-            )
+            try:
+                validity_info = _is_valid_service_account(
+                    sa_email, google_project_id, config=config
+                )
+            except Unauthorized:
+                """
+                is_validity_service_account can raise an exception if the monitor does 
+                not have access, which will be caught and handled during the Project check below   
+                The logic in the endpoints is reversed (Project is checked first, 
+                not SAs) which is why there's is a sort of weird handling of it here.
+                """
+                logger.info(
+                    "Monitor does not have access to validate "
+                    "service account {}. This should be handled "
+                    "in project validation."
+                )
+                continue
             if not validity_info:
                 print(
                     "INVALID SERVICE ACCOUNT {} DETECTED. REMOVING...".format(sa_email)
@@ -146,7 +160,7 @@ def _is_valid_service_account(sa_email, google_project_id, config=None):
         # if our monitor doesn't have access at this point, just don't return any
         # information. When the project check runs, it will catch the monitor missing
         # error and add it to the removal reasons
-        return None
+        raise Unauthorized
 
     try:
         sa_validity = GoogleServiceAccountValidity(
