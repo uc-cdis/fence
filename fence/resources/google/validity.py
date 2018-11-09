@@ -203,6 +203,7 @@ class GoogleProjectValidity(ValidityInfo):
         self._info["valid_parent_org"] = None
         self._info["valid_member_types"] = None
         self._info["members_exist_in_fence"] = None
+        self._info["all_users_have_access"] = None
         self._info["new_service_account"] = {}
         self._info["service_accounts"] = {}
         self._info["access"] = {}
