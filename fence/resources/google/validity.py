@@ -683,7 +683,7 @@ class GoogleServiceAccountValidity(ValidityInfo):
         google_cloud_manager=None,
         google_project_number=None,
         *args,
-        **kwargs,
+        **kwargs
     ):
         self.account_id = account_id
         self.google_project_id = google_project_id
