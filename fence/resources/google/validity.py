@@ -261,7 +261,16 @@ class GoogleProjectValidity(ValidityInfo):
         membership = get_google_project_membership(
             self.google_project_id, self.google_cloud_manager
         )
-        logger.debug("Project Members: {}".format(str(membership)))
+        logger.debug(
+            "Project Members: {}".format(
+                str(
+                    [
+                        getattr(member, "email_id", "unknown_member_email")
+                        for member in membership
+                    ]
+                )
+            )
+        )
 
         if self.user_id is not None:
             logger.debug(
@@ -554,7 +563,7 @@ class GoogleProjectValidity(ValidityInfo):
             # access
             logger.debug(
                 "Checking that all users in project have "
-                "access to project with auth_id {}".format(
+                "access to project with id {}".format(
                     getattr(project, "id", "ERROR-could-not-get-project-id")
                 )
             )
@@ -566,8 +575,12 @@ class GoogleProjectValidity(ValidityInfo):
                 if not valid_access:
                     logger.warning(
                         "INVALID Some users do NOT have "
-                        "access to project with auth_id {}".format(
-                            getattr(project, "id", "ERROR-could-not-get-project-id")
+                        "access to project with id {}. users in project: {}".format(
+                            getattr(project, "id", "ERROR-could-not-get-project-id"),
+                            [
+                                getattr(user, "username", "unknown_user")
+                                for user in users_in_project
+                            ],
                         )
                     )
 
