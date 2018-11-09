@@ -139,6 +139,12 @@ def validation_check(db, config=None):
             email_required = True
 
         if email_required:
+            logger.debug(
+                "Sending email with service account removal reasons: {} and project "
+                "removal reasons: {}.".format(
+                    invalid_registered_service_account_reasons, invalid_project_reasons
+                )
+            )
             _send_emails_informing_service_account_removal(
                 _get_user_email_list_from_google_project_with_owner_role(
                     google_project_id
@@ -437,7 +443,7 @@ def _send_emails_informing_service_account_removal(
             for reason in removal_reasons:
                 content += "\n\t\t - {}".format(reason)
 
-    general_project_errors = invalid_project_reasons.get("general")
+    general_project_errors = invalid_project_reasons.get("general", {})
     non_reg_sa_errors = invalid_project_reasons.get(
         "non_registered_service_accounts", {}
     )
