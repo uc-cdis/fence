@@ -481,8 +481,8 @@ def _send_emails_informing_service_account_removal(
 
         if access_errors:
             for project, removal_reasons in access_errors.iteritems():
-                if removal_reason:
-                    content += "\n\t\t - {}".format(removal_reason)
+                for reason in removal_reasons:
+                    content += "\n\t\t - {}".format(reason)
 
         if non_reg_sa_errors:
             for sa_email, removal_reasons in non_reg_sa_errors.iteritems():
