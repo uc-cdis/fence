@@ -481,7 +481,7 @@ class GoogleProjectValidity(ValidityInfo):
         service_accounts_validity = ValidityInfo()
         for service_account in service_accounts:
             service_account_validity_info = self._get_project_sa_validity_info(
-                service_account
+                service_account, google_project_number, early_return, config
             )
 
             # update project with error info from the service accounts
