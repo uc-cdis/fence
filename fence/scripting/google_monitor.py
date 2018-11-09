@@ -250,7 +250,7 @@ def _get_service_account_removal_reasons(service_account_validity):
 
     for reason, valid in service_account_validity.get_info().iteritems():
         if not valid:
-            removal_reasons.append("Unknown reason: {}".format(reason))
+            logger.warning("Unknown reason: {}".format(reason))
 
     return removal_reasons
 
