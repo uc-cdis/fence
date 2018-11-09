@@ -169,7 +169,7 @@ class GoogleProjectValidity(ValidityInfo):
         user_id=None,
         google_cloud_manager=None,
         *args,
-        **kwargs,
+        **kwargs
     ):
         """
         Initialize
