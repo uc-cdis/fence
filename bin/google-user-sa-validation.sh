@@ -14,7 +14,9 @@ echo '<virtualhost *:80>
 rm -rf /var/run/apache2/apache2.pid
 /usr/sbin/apache2ctl start
 while [ $? -eq 0 ]; do
+    echo start validation $(date)
     fence-create google-manage-user-registrations
-    echo "{'last_run': '$(date)'}" >/google_job/status.json
+    echo finish validation $(date)
+    echo {\"last_run\": \"$(date)\"} >/google_job/status.json
 done
 
