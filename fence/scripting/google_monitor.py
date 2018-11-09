@@ -62,7 +62,7 @@ def validation_check(db, config=None):
             # the data access, that's done when the project's validated
             try:
                 validity_info = _is_valid_service_account(
-                    sa_email, google_project_id, db=db, config=config
+                    sa_email, google_project_id, config=config
                 )
             except Unauthorized:
                 """
@@ -158,7 +158,7 @@ def validation_check(db, config=None):
             )
 
 
-def _is_valid_service_account(sa_email, google_project_id, db=None, config=None):
+def _is_valid_service_account(sa_email, google_project_id, config=None):
     """
     Validate the given registered service account and remove if invalid.
 
