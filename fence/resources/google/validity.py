@@ -543,7 +543,8 @@ class GoogleProjectValidity(ValidityInfo):
         logger.debug(
             "GCP Data Access Validity - New project access requested (in addition to "
             "previous access): {}. Users on Google Project: {}".format(
-                service_account_project_access, users_in_project
+                service_account_project_access,
+                [user.username for user in users_in_project],
             )
         )
 
