@@ -57,7 +57,7 @@ def validation_check(db, config=None):
         invalid_project_reasons = {}
         sa_emails_removed = []
         for sa_email in sa_emails:
-            print("Validating Google Service Account: {}".format(sa_email))
+            logger.debug("Validating Google Service Account: {}".format(sa_email))
             # Do some basic service account checks, this won't validate
             # the data access, that's done when the project's validated
             try:
@@ -66,9 +66,9 @@ def validation_check(db, config=None):
                 )
             except Unauthorized:
                 """
-                is_validity_service_account can raise an exception if the monitor does 
-                not have access, which will be caught and handled during the Project check below   
-                The logic in the endpoints is reversed (Project is checked first, 
+                is_validity_service_account can raise an exception if the monitor does
+                not have access, which will be caught and handled during the Project check below
+                The logic in the endpoints is reversed (Project is checked first,
                 not SAs) which is why there's is a sort of weird handling of it here.
                 """
                 logger.info(
@@ -78,8 +78,10 @@ def validation_check(db, config=None):
                 )
                 continue
             if not validity_info:
-                print(
-                    "INVALID SERVICE ACCOUNT {} DETECTED. REMOVING...".format(sa_email)
+                logger.info(
+                    "INVALID SERVICE ACCOUNT {} DETECTED. REMOVING. Validity Information: {}".format(
+                        sa_email, str(validity_info.get_info())
+                    )
                 )
                 force_remove_service_account_from_access(
                     sa_email, google_project_id, db=db
@@ -103,7 +105,7 @@ def validation_check(db, config=None):
         for sa_email in sa_emails_removed:
             sa_emails.remove(sa_email)
 
-        print("Validating Google Project: {}".format(google_project_id))
+        logger.debug("Validating Google Project: {}".format(google_project_id))
         google_project_validity = _is_valid_google_project(
             google_project_id, db=db, config=config
         )
@@ -114,9 +116,11 @@ def validation_check(db, config=None):
             # TODO: If the issue is ONLY a specific service account,
             # it may be possible to isolate it and only remove that
             # from access.
-            print(
-                "INVALID GOOGLE PROJECT {} DETECTED. "
-                "REMOVING ALL SERVICE ACCOUNTS...".format(google_project_id)
+            logger.info(
+                "INVALID GOOGLE PROJECT {} DETECTED. REMOVING ALL SERVICE ACCOUNTS. "
+                "Validity Information: {}".format(
+                    google_project_id, str(google_project_validity.get_info())
+                )
             )
             for sa_email in sa_emails:
                 force_remove_service_account_from_access(
@@ -187,10 +191,13 @@ def _is_valid_service_account(sa_email, google_project_id, config=None):
                 check_external_access=True,
                 config=config,
             )
-    except Exception:
+    except Exception as exc:
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
-        print("Service Account determined invalid due to unhandled exception:")
+        logger.warning(
+            "Service Account {} determined invalid due to unhandled exception: {}. "
+            "Assuming service account is invalid.".format(sa_email, str(exc))
+        )
         traceback.print_exc()
         sa_validity = None
 
@@ -205,11 +212,13 @@ def _is_valid_google_project(google_project_id, db=None, config=None):
     try:
         project_validity = GoogleProjectValidity(google_project_id)
         project_validity.check_validity(early_return=True, db=db, config=config)
-
-    except Exception:
+    except Exception as exc:
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
-        print("Project determined invalid due to unhandled exception:")
+        logger.warning(
+            "Project {} determined invalid due to unhandled exception: {}. "
+            "Assuming project is invalid.".format(google_project_id, str(exc))
+        )
         traceback.print_exc()
         project_validity = None
 
