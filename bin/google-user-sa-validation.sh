@@ -15,6 +15,6 @@ rm -rf /var/run/apache2/apache2.pid
 /usr/sbin/apache2ctl start
 while [ $? -eq 0 ]; do
     fence-create google-manage-user-registrations
-    echo "{'last_run': '$(date)'}" >/google_job/status.json
+    echo {\"last_run\": \"$(date)\"} >/google_job/status.json
 done
 
