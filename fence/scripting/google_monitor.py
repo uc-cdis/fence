@@ -136,6 +136,9 @@ def validation_check(db, config=None):
             invalid_project_reasons[
                 "non_registered_service_accounts"
             ] = _get_invalid_sa_project_removal_reasons(google_project_validity)
+            invalid_project_reasons["access"] = _get_access_removal_reasons(
+                google_project_validity
+            )
             email_required = True
 
         if email_required:
@@ -290,11 +293,6 @@ def _get_general_project_removal_reasons(google_project_validity):
             "Cannot access the project, ensure monitoring service accounts have necessary permissions."
         )
 
-    if google_project_validity["all_users_have_access"] is False:
-        removal_reasons.append(
-            "Not all users on the Google Project have the required authorization to access the data."
-        )
-
     if google_project_validity["valid_parent_org"] is False:
         removal_reasons.append("Google Project has a parent orgnization.")
 
@@ -330,6 +328,29 @@ def _get_invalid_sa_project_removal_reasons(google_project_validity):
         if not sa_validity:
             removal_reasons[sa_email] = _get_service_account_removal_reasons(
                 sa_validity
+            )
+
+    return removal_reasons
+
+
+def _get_access_removal_reasons(google_project_validity):
+
+    removal_reasons = {}
+
+    if google_project_validity is None:
+        return removal_reasons
+
+    for project, access_validity in google_project_validity.get("access", {}):
+        if access_validity["exists"] is False:
+            removal_reasons.append(
+                "Data access project {} no longer exists.".format(project)
+            )
+
+        if access_validity["all_users_have_access"] is False:
+            removal_reasons.append(
+                "Not all users on the Google Project have access to data project {}.".format(
+                    project
+                )
             )
 
     return removal_reasons
@@ -447,12 +468,17 @@ def _send_emails_informing_service_account_removal(
     non_reg_sa_errors = invalid_project_reasons.get(
         "non_registered_service_accounts", {}
     )
-    if general_project_errors or non_reg_sa_errors:
+    access_errors = invalid_project_reasons.get("access")
+    if general_project_errors or non_reg_sa_errors or access_errors:
         content += (
             "\n\t - Google Project {} determined invalid. All service "
             "accounts with data access will be removed from access.".format(project_id)
         )
         for removal_reason in general_project_errors:
+            if removal_reason:
+                content += "\n\t\t - {}".format(removal_reason)
+
+        for removal_reason in access_errors:
             if removal_reason:
                 content += "\n\t\t - {}".format(removal_reason)
 
