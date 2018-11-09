@@ -244,6 +244,10 @@ def _get_service_account_removal_reasons(service_account_validity):
         removal_reasons.append(
             "It must be a Compute Engine service account or an user-managed service account."
         )
+    if service_account_validity["all_users_have_access"] is False:
+        removal_reasons.append(
+            "Not all users on the Google Project have the required authorization to access the data."
+        )
     if service_account_validity["no_external_access"] is False:
         removal_reasons.append(
             "It has either roles attached to it or service account keys generated. We do not allow this because we need to restrict external access."
