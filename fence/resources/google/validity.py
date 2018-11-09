@@ -486,7 +486,7 @@ class GoogleProjectValidity(ValidityInfo):
 
             # update project with error info from the service accounts
             service_accounts_validity.set(
-                service_account_id, service_account_validity_info
+                service_account, service_account_validity_info
             )
 
             if not service_account_validity_info and early_return:
