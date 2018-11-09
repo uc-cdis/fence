@@ -341,13 +341,14 @@ def _get_access_removal_reasons(google_project_validity):
         return removal_reasons
 
     for project, access_validity in google_project_validity.get("access", {}):
+        removal_reasons[project] = []
         if access_validity["exists"] is False:
-            removal_reasons.append(
+            removal_reasons[project].append(
                 "Data access project {} no longer exists.".format(project)
             )
 
         if access_validity["all_users_have_access"] is False:
-            removal_reasons.append(
+            removal_reasons[project].append(
                 "Not all users on the Google Project have access to data project {}.".format(
                     project
                 )
@@ -478,9 +479,10 @@ def _send_emails_informing_service_account_removal(
             if removal_reason:
                 content += "\n\t\t - {}".format(removal_reason)
 
-        for removal_reason in access_errors:
-            if removal_reason:
-                content += "\n\t\t - {}".format(removal_reason)
+        if access_errors:
+            for project, removal_reasons in access_errors.iteritems():
+                if removal_reason:
+                    content += "\n\t\t - {}".format(removal_reason)
 
         if non_reg_sa_errors:
             for sa_email, removal_reasons in non_reg_sa_errors.iteritems():
