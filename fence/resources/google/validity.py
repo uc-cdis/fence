@@ -538,10 +538,7 @@ class GoogleProjectValidity(ValidityInfo):
 
         logger.debug(
             "New project access requested (in addition to "
-            "previous access): {}. Users on Google Project: {}".format(
-                service_account_project_access,
-                [user.username for user in users_in_project],
-            )
+            "previous access): {}.".format(service_account_project_access)
         )
 
         # make sure all the users of the project actually have access to all
@@ -565,10 +562,9 @@ class GoogleProjectValidity(ValidityInfo):
                 )
                 if not valid_access:
                     logger.warning(
-                        "INVALID Some users {} do NOT have "
+                        "INVALID Some users do NOT have "
                         "access to project with auth_id {}".format(
-                            users_in_project,
-                            getattr(project, "id", "ERROR-could-not-get-project-id"),
+                            getattr(project, "id", "ERROR-could-not-get-project-id")
                         )
                     )
 
