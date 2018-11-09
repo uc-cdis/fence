@@ -80,7 +80,7 @@ def validation_check(db, config=None):
             if not validity_info:
                 logger.info(
                     "INVALID SERVICE ACCOUNT {} DETECTED. REMOVING. Validity Information: {}".format(
-                        sa_email, str(validity_info.get_info())
+                        sa_email, str(getattr(validity_info, "_info", None))
                     )
                 )
                 force_remove_service_account_from_access(
@@ -119,7 +119,8 @@ def validation_check(db, config=None):
             logger.info(
                 "INVALID GOOGLE PROJECT {} DETECTED. REMOVING ALL SERVICE ACCOUNTS. "
                 "Validity Information: {}".format(
-                    google_project_id, str(google_project_validity.get_info())
+                    google_project_id,
+                    str(getattr(google_project_validity, "_info", None)),
                 )
             )
             for sa_email in sa_emails:
