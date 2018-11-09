@@ -248,6 +248,10 @@ def _get_service_account_removal_reasons(service_account_validity):
             "which is need for further checks."
         )
 
+    for reason, valid in service_account_validity.iteritems():
+        if not valid:
+            removal_reasons.append("Unknown reason: {}".format(reason))
+
     return removal_reasons
 
 
