@@ -297,7 +297,7 @@ def main():
     if os.environ.get("BASE_URL"):
         BASE_URL = os.environ["BASE_URL"]
     else:
-        BASE_URL = config.get("BASE_URL")
+        BASE_URL = os.environ.get("BASE_URL") or config.get("BASE_URL")
 
     if os.environ.get("ROOT_DIR"):
         ROOT_DIR = os.environ["ROOT_DIR"]
