@@ -771,6 +771,8 @@ def _get_google_project_id_error_status(validity_info):
     user_has_access = validity_info.get("user_has_access")
     if not user_has_access:
         if not validity_info.google_project_id or validity_info.google_project_id == "":
+            # if the request doesn't include google_project_id, we want to report that
+            # instead of reporting the user doesn't have access to an unnamed project
             return {
                 "status": 400,
                 "error": ValidationErrors.GOOGLE_PROJECT_NOT_INCLUDED,
