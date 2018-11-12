@@ -3,6 +3,7 @@
 import argparse
 import os
 import sys
+import logging
 
 from fence.jwt import keys
 from fence.config import config
@@ -44,6 +45,12 @@ def parse_arguments():
         '--path',
         default='/var/www/fence/',
         help='path to find configuration',
+    )
+    parser.add_argument(
+        "--verbose",
+        help="whether or not to log to stdout",
+        action="store_true",
+        default=False,
     )
 
     subparsers = parser.add_subparsers(title="action", dest="action")
@@ -267,6 +274,9 @@ def main():
 
     # get database information
     sys.path.append(args.path)
+
+    if not args.verbose:
+        logging.disable(logging.CRITICAL)
 
     # replicate cfg loading done in flask app to maintain backwards compatibility
     # TODO (DEPRECATE LOCAL_SETTINGS): REMOVE this when putting cfg in
