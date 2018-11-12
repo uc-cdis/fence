@@ -396,7 +396,7 @@ class StorageManager(object):
                 self.clients[provider].delete_bucket_acl(bucket_name, storage_username)
 
                 self.logger.info(
-                    "User {}'s Google proxy group ({}) removed from Google Bucket Access Group {}.".format(
+                    "User {}'s Google proxy group ({}) removed or never existed in Google Bucket Access Group {}.".format(
                         storage_user.email, storage_username, bucket_name
                     )
                 )
@@ -415,7 +415,7 @@ class StorageManager(object):
                 self.clients[provider].delete_bucket_acl(bucket_name, storage_username)
 
                 self.logger.info(
-                    "User {}'s Google proxy group ({}) removed from Google Bucket Access Group {}.".format(
+                    "User {}'s Google proxy group ({}) removed or never existed in from Google Bucket Access Group {}.".format(
                         storage_user.email, storage_username, bucket_name
                     )
                 )
