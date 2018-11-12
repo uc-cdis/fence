@@ -379,7 +379,7 @@ def do_all_users_have_access_to_project(users, project_id, db=None):
 
         if not access_privilege:
             project = (session.query(Project).filter(Project.id == project_id)).first()
-            project_rep = project.auth_id or project_id
+            project_rep = project.auth_id if project else project_id
             logger.info(
                 "User ({}) does not have access to project ({}).".format(
                     user.email, project_rep
