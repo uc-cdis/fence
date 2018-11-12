@@ -4,6 +4,7 @@ import time
 from urlparse import urlparse
 import uuid
 
+from authutils import current_token
 from cached_property import cached_property
 import cirrus
 from cdispyutils.config import get_value
@@ -17,6 +18,7 @@ from fence.auth import (
     set_current_token,
     validate_request,
 )
+from fence.config import config
 from fence.errors import (
     InternalError,
     NotFound,
@@ -89,7 +91,11 @@ class BlankIndex(object):
         """
         index_url = self.indexd.rstrip("/") + "/index/blank"
         params = {"uploader": self.uploader}
-        indexd_response = requests.post(index_url, json=params)
+        indexd_response = requests.post(
+            index_url,
+            json=params,
+            auth=config["INDEXD_AUTH"],
+        )
         if indexd_response.status_code not in [200, 201]:
             raise InternalError(
                 "received error from indexd trying to create blank record: {}".format(
@@ -137,6 +143,23 @@ class IndexedFile(object):
 
     def __init__(self, file_id):
         self.file_id = file_id
+
+    @cached_property
+    def indexd_server(self):
+        indexd_server = (
+            flask.current_app.config.get("INDEXD")
+            or flask.current_app.config["BASE_URL"] + "/index"
+        )
+        return indexd_server.rstrip("/")
+
+    def delete_file_locations(self):
+        path = "{}/index/{}".format(self.indexd_server, self.file_id)
+        response = requests.put(path, json={"urls": []})
+        if response.status_code != 200:
+            raise InternalError(
+                "could not remove URLs from indexd record for file: {}"
+                .format(self.file_id)
+            )
 
     @cached_property
     def index_document(self):
@@ -240,6 +263,33 @@ class IndexedFile(object):
             )
         return len(self.set_acls & given_acls) > 0
 
+    @login_required({"data"})
+    def delete_files(self, urls=None, delete_all=True):
+        """
+        Delete the data files stored at all the locations for this indexed file.
+
+        If a list of URLs is specified, delete only files at those locations;
+        otherwise, delete files at all locations.
+
+        Args:
+            urls (Optional[List[str]])
+
+        Return:
+            None
+        """
+        locations_to_delete = []
+        if urls is None and delete_all:
+            locations_to_delete = self.indexed_file_locations
+        else:
+            locations_to_delete = [
+                location
+                for location in locations_to_delete
+                if location.url in urls
+            ]
+        for location in locations_to_delete:
+            bucket = location.bucket_name()
+            flask.current_app.boto.delete_data_file(bucket, self.file_id)
+
 
 class IndexedFileLocation(object):
     """
@@ -308,6 +358,21 @@ class S3IndexedFileLocation(IndexedFileLocation):
             ),
         }
 
+    def bucket_name(self):
+        """
+        Return:
+            Optional[str]: bucket name or None if not not in cofig
+        """
+        s3_buckets = get_value(
+            flask.current_app.config,
+            "S3_BUCKETS",
+            InternalError("buckets not configured"),
+        )
+        for bucket in s3_buckets:
+            if re.match("^" + bucket + "$", self.parsed_url.netloc):
+                return bucket
+        return None
+
     def get_credential_to_access_bucket(self, aws_creds, expires_in):
         s3_buckets = get_value(
             flask.current_app.config,
@@ -319,11 +384,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         if len(aws_creds) == 0 and len(s3_buckets) > 0:
             raise InternalError("credential for buckets is not configured")
 
-        bucket_cred = None
-        for pattern in s3_buckets:
-            if re.match("^" + pattern + "$", self.parsed_url.netloc):
-                bucket_cred = s3_buckets[pattern]
-                break
+        bucket_cred = s3_buckets.get(self.bucket_name())
         if bucket_cred is None:
             raise Unauthorized("permission denied for bucket")
 

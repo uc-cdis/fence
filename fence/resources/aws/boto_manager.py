@@ -1,7 +1,9 @@
+import uuid
+
 from boto3 import client
 from boto3.exceptions import Boto3Error
-from fence.errors import UserError, InternalError, UnavailableError
-import uuid
+
+from fence.errors import UserError, InternalError, UnavailableError, NotFound
 
 
 class BotoManager(object):
@@ -18,6 +20,33 @@ class BotoManager(object):
         self.logger = logger
         self.ec2 = None
         self.iam = None
+
+    def delete_data_file(self, bucket, guid):
+        """
+        We use buckets with versioning disabled.
+
+        See AWS docs here:
+
+            https://docs.aws.amazon.com/AmazonS3/latest/dev/DeletingObjectsfromVersioningSuspendedBuckets.html
+        """
+        try:
+            s3_objects = self.s3_client.list_objects(
+                Bucket=bucket,
+                Prefix=guid,
+                Delimiter="/",
+            )
+            if not s3_objects["Contents"]:
+                self.logger.info(
+                    "no file with GUID {} exists in bucket {}".format(guid, bucket)
+                )
+                raise NotFound("no file found with GUID {}".format(guid))
+            if len(s3_objects["Contents"]) > 1:
+                raise InternalError("multiple files found with GUID {}".format(guid))
+            key = s3_objects["Contents"][0]["Key"]
+            delete_response = self.s3_client.delete_object(Bucket=bucket, Key=key)
+        except (KeyError, Boto3Error) as e:
+            self.logger.exception(e)
+            raise InternalError("Failed to delete file: {}".format(e.message))
 
     def assume_role(self, role_arn, duration_seconds, config=None):
         try:
