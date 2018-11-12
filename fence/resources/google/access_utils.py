@@ -381,7 +381,8 @@ def do_all_users_have_access_to_project(users, project_id, db=None):
             project = (session.query(Project).filter(Project.id == project_id)).first()
             project_rep = project.auth_id if project else project_id
             logger.info(
-                "User ({}) does not have access to project ({}).".format(
+                "User ({}) does not have access to project ({}). There may be other "
+                "users that do not have access to this project.".format(
                     user.username.lower(), project_rep
                 )
             )
