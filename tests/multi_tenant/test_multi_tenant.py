@@ -21,10 +21,14 @@ def test_redirect_from_oauth(fence_client_app, oauth_client):
     Test that the ``/oauth2/authorize`` endpoint on the client redirects to the
     ``/login/fence`` endpoint, also on the client.
     """
-    config.update(OPENID_CONNECT=fence_client_app.config["OPENID_CONNECT"])
-    config.update(BASE_URL=fence_client_app.config["BASE_URL"])
-    config.update(MOCK_AUTH=fence_client_app.config["MOCK_AUTH"])
-    config.update(DEFAULT_LOGIN_URL=fence_client_app.config["DEFAULT_LOGIN_URL"])
+    config.update(
+        {
+            "OPENID_CONNECT": fence_client_app.config["OPENID_CONNECT"],
+            "BASE_URL": fence_client_app.config["BASE_URL"],
+            "MOCK_AUTH": fence_client_app.config["MOCK_AUTH"],
+            "DEFAULT_LOGIN_URL": fence_client_app.config["DEFAULT_LOGIN_URL"],
+        }
+    )
 
     with fence_client_app.test_client() as test_client:
         data = {
