@@ -469,7 +469,7 @@ class StorageManager(object):
             if user.google_proxy_group:
                 username = user.google_proxy_group.email
         else:
-            username = user.username
+            username = user.username.lower()
 
         return username
 
