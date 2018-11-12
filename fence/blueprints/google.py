@@ -45,6 +45,7 @@ class ValidationErrors(str, Enum):
     POLICY_NOT_ACCESSIBLE = "policy_not_accessible"
     UNAUTHORIZED = "unauthorized"
     PROJECT_NOT_FOUND = "project_not_found"
+    GOOGLE_PROJECT_NOT_INCLUDED = "google_project_not_included"
 
 
 def make_google_blueprint():
@@ -769,6 +770,16 @@ def _get_google_project_id_error_status(validity_info):
 
     user_has_access = validity_info.get("user_has_access")
     if not user_has_access:
+        if not validity_info.google_project_id or validity_info.google_project_id == "":
+            return {
+                "status": 400,
+                "error": ValidationErrors.GOOGLE_PROJECT_NOT_INCLUDED,
+                "error_description": (
+                    "Google Project ID (required) was not included in the request."
+                ),
+                "membership_validity": {},
+                "service_account_validity": {},
+            }
         return {
             "status": 403,
             "error": ValidationErrors.UNAUTHORIZED_USER,
