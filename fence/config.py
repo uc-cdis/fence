@@ -286,25 +286,6 @@ class FenceConfig(Config):
         super(FenceConfig, self).__init__(*args, **kwargs)
 
     def _post_process(self):
-        if "ROOT_URL" not in self._configs and "BASE_URL" in self._configs:
-            url = urlparse.urlparse(self._configs["BASE_URL"])
-            self._configs["ROOT_URL"] = "{}://{}".format(url.scheme, url.netloc)
-
-        # allow authlib traffic on http for development if enabled. By default
-        # it requires https.
-        #
-        # NOTE: use when fence will be deployed in such a way that fence will
-        #       only receive traffic from internal clients, and can safely use HTTP
-        if self._configs.get("AUTHLIB_INSECURE_TRANSPORT"):
-            os.environ["AUTHLIB_INSECURE_TRANSPORT"] = "true"
-
-        # if we're mocking storage, ignore the storage backends provided
-        # since they'll cause errors if misconfigured
-        if self._configs.get("MOCK_STORAGE", False):
-            self._configs["STORAGE_CREDENTIALS"] = {}
-
-        cirrus.config.config.update(**self._configs.get("CIRRUS_CFG", {}))
-
         # backwards compatibility if no new YAML cfg provided
         # these cfg use to be in settings.py so we need to make sure they gets defaulted
         default_config = yaml_load(
@@ -317,6 +298,7 @@ class FenceConfig(Config):
 
         defaults = [
             "APPLICATION_ROOT",
+            "AUTHLIB_INSECURE_TRANSPORT",
             "SESSION_COOKIE_SECURE",
             "ACCESS_TOKEN_COOKIE_NAME",
             "SESSION_COOKIE_NAME",
@@ -332,6 +314,28 @@ class FenceConfig(Config):
         ]
         for default in defaults:
             self._set_default(default, default_config=default_config)
+
+        if "ROOT_URL" not in self._configs and "BASE_URL" in self._configs:
+            url = urlparse.urlparse(self._configs["BASE_URL"])
+            self._configs["ROOT_URL"] = "{}://{}".format(url.scheme, url.netloc)
+
+        # allow authlib traffic on http for development if enabled. By default
+        # it requires https.
+        #
+        # NOTE: use when fence will be deployed in such a way that fence will
+        #       only receive traffic from internal clients, and can safely use HTTP
+        if (
+            self._configs.get("AUTHLIB_INSECURE_TRANSPORT")
+            and "AUTHLIB_INSECURE_TRANSPORT" not in os.environ
+        ):
+            os.environ["AUTHLIB_INSECURE_TRANSPORT"] = "true"
+
+        # if we're mocking storage, ignore the storage backends provided
+        # since they'll cause errors if misconfigured
+        if self._configs.get("MOCK_STORAGE", False):
+            self._configs["STORAGE_CREDENTIALS"] = {}
+
+        cirrus.config.config.update(**self._configs.get("CIRRUS_CFG", {}))
 
     def _set_default(self, key, default_config=None, allow_none=False):
         default_config = default_config or yaml_load(
