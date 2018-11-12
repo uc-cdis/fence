@@ -5,6 +5,7 @@ import os
 import sys
 
 from fence.jwt import keys
+from fence.config import config
 from fence.scripting.fence_create import (
     JWTCreator,
     create_client_action,
@@ -266,11 +267,6 @@ def main():
 
     # get database information
     sys.path.append(args.path)
-
-    # load the configuration
-    # FIXME? This import doesn't work if it's at the top of the file and you call
-    #        fence-create
-    from fence.config import config
 
     # replicate cfg loading done in flask app to maintain backwards compatibility
     # TODO (DEPRECATE LOCAL_SETTINGS): REMOVE this when putting cfg in
