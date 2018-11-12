@@ -281,10 +281,7 @@ def main():
 
     config.load()
 
-    if os.environ.get("FENCE_DB"):
-        DB = os.environ["FENCE_DB"]
-    else:
-        DB = config.get("DB")
+    DB = os.environ.get("FENCE_DB") or config.get("DB")
 
     # attempt to get from settings, this is backwards-compatibility for integration
     # tests
@@ -294,25 +291,14 @@ def main():
         except ImportError:
             pass
 
-    if os.environ.get("BASE_URL"):
-        BASE_URL = os.environ["BASE_URL"]
-    else:
-        BASE_URL = os.environ.get("BASE_URL") or config.get("BASE_URL")
-
-    if os.environ.get("ROOT_DIR"):
-        ROOT_DIR = os.environ["ROOT_DIR"]
-    else:
-        ROOT_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-
-    if os.environ.get("dbGaP"):
-        dbGaP = os.environ["dbGaP"]
-    else:
-        dbGaP = config.get("dbGaP")
-
-    if os.environ.get("STORAGE_CREDENTIALS"):
-        STORAGE_CREDENTIALS = os.environ["STORAGE_CREDENTIALS"]
-    else:
-        STORAGE_CREDENTIALS = config.get("STORAGE_CREDENTIALS")
+    BASE_URL = os.environ.get("BASE_URL") or config.get("BASE_URL")
+    ROOT_DIR = os.environ.get("ROOT_DIR") or os.path.dirname(
+        os.path.dirname(os.path.realpath(__file__))
+    )
+    dbGaP = os.environ.get("dbGaP") or config.get("dbGaP")
+    STORAGE_CREDENTIALS = os.environ.get("STORAGE_CREDENTIALS") or config.get(
+        "STORAGE_CREDENTIALS"
+    )
 
     if args.action == "create":
         yaml_input = args.__dict__["yaml-input"]
