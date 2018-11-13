@@ -570,8 +570,6 @@ class UserSyncer(object):
                 )
                 sess.delete(access)
 
-        sess.commit()
-
     def _validate_and_update_user_admin(self, sess, user_info):
         """
         Make sure there is no admin user that is not in yaml/csv files
@@ -600,7 +598,6 @@ class UserSyncer(object):
                         admin_user.username.lower()
                     )
                 )
-        sess.commit()
 
     def _update_from_db(self, sess, to_update, user_project):
         """
@@ -630,8 +627,6 @@ class UserSyncer(object):
                         username, access.privilege, project_auth_id
                     )
                 )
-
-        sess.commit()
 
     def _grant_from_db(self, sess, to_add, user_info, user_project, auth_provider_list):
         """
@@ -663,8 +658,6 @@ class UserSyncer(object):
                 )
             )
             sess.add(user_access)
-
-        sess.commit()
 
     def _upsert_userinfo(self, sess, user_info):
         """
@@ -713,8 +706,6 @@ class UserSyncer(object):
                     tag = Tag(key=k, value=v)
                     u.tags.append(tag)
 
-        sess.commit()
-
     def _revoke_from_storage(self, to_delete, sess):
         """
         If a project have storage backend, revoke user's access to buckets in
@@ -742,7 +733,6 @@ class UserSyncer(object):
                     project=project,
                     session=sess,
                 )
-        sess.commit()
 
     def _grant_from_storage(self, to_add, user_project, sess):
         """
@@ -989,5 +979,4 @@ class UserSyncer(object):
                         )
                     )
 
-        session.commit()
         return True
