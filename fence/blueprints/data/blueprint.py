@@ -30,15 +30,17 @@ def upload_data_file():
 
     """
     # make new record in indexd, with just the `uploader` field (and a GUID)
-    blank_index = BlankIndex()
     params = flask.request.get_json()
     if not params:
         raise UserError("wrong Content-Type; expected application/json")
     if "filename" not in params:
         raise UserError("missing required argument `filename`")
+    blank_index = BlankIndex()
+    max_ttl = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
+    expires_in = min(params.get("expires_in", max_ttl), max_ttl)
     response = {
         "guid": blank_index.guid,
-        "url": blank_index.make_signed_url(params["filename"]),
+        "url": blank_index.make_signed_url(params["filename"], expires_in=expires_in),
     }
     return flask.jsonify(response), 201
 

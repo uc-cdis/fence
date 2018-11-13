@@ -40,15 +40,12 @@ SUPPORTED_PROTOCOLS = ["s3", "http", "ftp", "https", "gs"]
 SUPPORTED_ACTIONS = ["upload", "download"]
 
 
-def _get_ttl():
-    max_ttl = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
-    return min(int(flask.request.args.get("expires_in", max_ttl)), max_ttl)
-
-
 def get_signed_url_for_file(action, file_id):
     requested_protocol = flask.request.args.get("protocol", None)
     indexed_file = IndexedFile(file_id)
-    signed_url = indexed_file.get_signed_url(requested_protocol, action, _get_ttl())
+    max_ttl = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
+    expires_in = min(int(flask.request.args.get("expires_in", max_ttl)), max_ttl)
+    signed_url = indexed_file.get_signed_url(requested_protocol, action, expires_in)
     return {"url": signed_url}
 
 
