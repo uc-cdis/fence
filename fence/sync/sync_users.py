@@ -528,7 +528,9 @@ class UserSyncer(object):
             cur_db_user_project_list, syncing_user_project_list
         )
 
-        self._upsert_userinfo(sess, user_info_lowercase)
+        # when updating users we want to maintain case sesitivity in the username so
+        # pass the original, non-lowered user_info dict
+        self._upsert_userinfo(sess, user_info)
         self._revoke_from_storage(to_delete, sess)
         self._revoke_from_db(sess, to_delete)
         self._grant_from_storage(to_add, user_project_lowercase, sess)
