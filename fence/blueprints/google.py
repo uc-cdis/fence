@@ -825,7 +825,8 @@ def _get_google_project_id_error_status(validity_info):
         response["error"] = ValidationErrors.UNAUTHORIZED
         response[
             "error_description"
-        ] += "Not all Google project members have registered with the Data Commons Framework."
+        ] += ("Not all Google project members have registered with {}."
+              .format(flask.current_app.config.get("APP_NAME", "Gen3")))
 
     return response
 
