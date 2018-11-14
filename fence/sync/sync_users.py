@@ -509,7 +509,8 @@ class UserSyncer(object):
             for ua in sess.query(AccessPrivilege).all()
         }
 
-        # db expects usernames to be lowercase so create a new dict as we iterate over
+        # we need to compare db -> whitelist case-insensitively for username
+        # db stores case-sensitively, but we need to query case-insensitively
         user_project_lowercase = {}
         syncing_user_project_list = set()
         for username, projects in user_project.iteritems():
@@ -517,7 +518,6 @@ class UserSyncer(object):
             for project, _ in projects.iteritems():
                 syncing_user_project_list.add((username.lower(), project))
 
-        # db expects usernames to be lowercase so create a new dict
         user_info_lowercase = {
             username.lower(): info for username, info in user_info.iteritems()
         }
