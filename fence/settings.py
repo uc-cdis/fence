@@ -27,15 +27,19 @@ CONFIG_SEARCH_FOLDERS = ["/var/www/fence", "{}/.gen3/fence".format(expanduser("~
 # ``/var/www/local_settings.py``, just below.
 def use_deprecated_settings():
     ENCRYPTION_KEY = HMAC_ENCRYPTION_KEY
+
+
 try:
     # Import everything from ``local_settings``, if it exists.
     from local_settings import *
+
     use_deprecated_settings()
 except ImportError:
     # If it doesn't, look in ``/var/www/fence``.
     try:
         import imp
-        imp.load_source('local_settings', '/var/www/fence/local_settings.py')
+
+        imp.load_source("local_settings", "/var/www/fence/local_settings.py")
         use_deprecated_settings()
     except IOError:
         pass

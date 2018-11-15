@@ -10,9 +10,13 @@ except ImportError:
 from yaml import safe_load as yaml_load
 
 from cirrus import GoogleCloudManager
-from cdisutilstest.code.storage_client_mock import (
-    get_client, StorageClientMocker
-)
+from cdisutilstest.code.storage_client_mock import get_client, StorageClientMocker
+import pytest
+from userdatamodel import Base
+from userdatamodel.models import *
+from userdatamodel.driver import SQLAlchemyDriver
+
+from fence.rbac.client import ArboristClient
 from fence.sync.sync_users import UserSyncer
 from fence.resources import userdatamodel as udm
 
@@ -26,12 +30,59 @@ LOCAL_YAML_DIR = os.path.join(
 
 
 @pytest.fixture
-def syncer(app, db_session):
-    provider = [{
-        'name': 'test-cleversafe',
-        'backend': 'cleversafe'
-    },
-    ]
+def storage_client():
+    """
+    Fixture to patch the StorageClientMocker methods so we can test if they
+    get called and what args they get called with.
+
+    This patches the functions we want to test in StorageClientMocker. This
+    DOES NOT actually patch the entire function call though, we STILL CALL
+    the function in StorageClientMocker.
+
+    The purpose of this fixture is a wrapper so we can check
+    calls into StorageClientMocker, it doesn't change functionality.
+    """
+    storage_client_mock = MagicMock()
+
+    # ensure storage client is patched
+    patcher = patch("fence.resources.storage.get_client", get_client)
+    patcher.start()
+
+    storage_client_mock.return_value.get_user = patch.object(
+        StorageClientMocker, "get_user", side_effect=StorageClientMocker.get_user
+    )
+
+    storage_client_mock.return_value.get_or_create_user = patch.object(
+        StorageClientMocker,
+        "get_or_create_user",
+        side_effect=StorageClientMocker.get_or_create_user,
+    )
+
+    storage_client_mock.return_value.add_bucket_acl = patch.object(
+        StorageClientMocker,
+        "add_bucket_acl",
+        side_effect=StorageClientMocker.add_bucket_acl,
+    )
+
+    storage_client_mock.return_value.delete_bucket = patch.object(
+        StorageClientMocker,
+        "delete_bucket",
+        side_effect=StorageClientMocker.delete_bucket,
+    )
+
+    return storage_client_mock
+
+
+@pytest.fixture
+def syncer(db_session, request):
+    if request.param == "google":
+        backend = "google"
+    else:
+        backend = "cleversafe"
+
+    backend_name = "test-" + backend
+    storage_credentials = {str(backend_name): {"backend": backend}}
+    provider = [{"name": backend_name, "backend": backend}]
 
     users = [
         {"username": "TESTUSERB", "is_admin": True, "email": "userA@gmail.com"},
@@ -76,10 +127,13 @@ def syncer(app, db_session):
 
     dbGap = {}
     test_db = yaml_load(
-        open(os.path.join(
-               os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-               'test-fence-config.yaml'))
-    ).get('DB')
+        open(
+            os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                "test-fence-config.yaml",
+            )
+        )
+    ).get("DB")
 
     syncer_obj = UserSyncer(
         dbGaP=dbGap,

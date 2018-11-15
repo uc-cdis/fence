@@ -6,8 +6,10 @@ their respective Google projects. The functions in this file will also
 handle invalid service accounts and projects.
 """
 import traceback
+
 from cirrus.google_cloud.iam import GooglePolicyMember
 from cirrus import GoogleCloudManager
+from cdislogging import get_logger
 
 from fence.resources.google.validity import (
     GoogleProjectValidity,
@@ -27,6 +29,9 @@ from fence.resources.google.access_utils import (
 
 from fence import utils
 from fence.config import config
+from fence.errors import Unauthorized
+
+logger = get_logger(__name__)
 
 
 def validation_check(db):
@@ -57,7 +62,22 @@ def validation_check(db):
             logger.debug("Validating Google Service Account: {}".format(sa_email))
             # Do some basic service account checks, this won't validate
             # the data access, that's done when the project's validated
-            validity_info = _is_valid_service_account(sa_email, google_project_id)
+            try:
+                validity_info = _is_valid_service_account(sa_email, google_project_id)
+            except Unauthorized:
+                """
+                is_validity_service_account can raise an exception if the monitor does
+                not have access, which will be caught and handled during the Project check below
+                The logic in the endpoints is reversed (Project is checked first,
+                not SAs) which is why there's is a sort of weird handling of it here.
+                """
+                logger.info(
+                    "Monitor does not have access to validate "
+                    "service account {}. This should be handled "
+                    "in project validation."
+                )
+                continue
+
             if not validity_info:
                 logger.info(
                     "INVALID SERVICE ACCOUNT {} DETECTED. REMOVING. Validity Information: {}".format(
@@ -83,8 +103,12 @@ def validation_check(db):
                 ] = _get_service_account_removal_reasons(validity_info)
                 email_required = True
 
-        print("Validating Google Project: {}".format(google_project_id))
+        for sa_email in sa_emails_removed:
+            sa_emails.remove(sa_email)
+
+        logger.debug("Validating Google Project: {}".format(google_project_id))
         google_project_validity = _is_valid_google_project(google_project_id, db=db)
+
         if not google_project_validity:
             # for now, if we detect in invalid project, remove ALL service
             # accounts from access for that project.
@@ -156,8 +180,23 @@ def _is_valid_service_account(sa_email, google_project_id):
         sa_validity = GoogleServiceAccountValidity(
             sa_email, google_project_id, google_project_number=google_project_number
         )
-        sa_validity.check_validity(early_return=True)
-    except Exception:
+
+        if is_google_managed_service_account(sa_email):
+            sa_validity.check_validity(
+                early_return=True,
+                check_type=True,
+                check_policy_accessible=True,
+                check_external_access=False,
+            )
+        else:
+            sa_validity.check_validity(
+                early_return=True,
+                check_type=True,
+                check_policy_accessible=True,
+                check_external_access=True,
+            )
+
+    except Exception as exc:
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
         logger.warning(
@@ -178,8 +217,7 @@ def _is_valid_google_project(google_project_id, db=None):
     try:
         project_validity = GoogleProjectValidity(google_project_id)
         project_validity.check_validity(early_return=True, db=db)
-
-    except Exception:
+    except Exception as exc:
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
         logger.warning(

@@ -2,8 +2,6 @@ from collections import OrderedDict
 
 from fence.jwt.keys import load_keypairs
 
-from tests import utils
-
 
 def test_reconstruct_keys_dict(app, client):
     """

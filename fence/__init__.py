@@ -35,17 +35,28 @@ import fence.blueprints.well_known
 import fence.blueprints.link
 import fence.blueprints.google
 
+from cdislogging import get_logger
+
+logger = get_logger(__name__)
 
 app = flask.Flask(__name__)
 CORS(app=app, headers=["content-type", "accept"], expose_headers="*")
 
 
 def app_init(
-        app, settings='fence.settings', root_dir=None, config_path=None,
-        config_file_name=None):
+    app,
+    settings="fence.settings",
+    root_dir=None,
+    config_path=None,
+    config_file_name=None,
+):
     app_config(
-        app, settings=settings, root_dir=root_dir, config_path=config_path,
-        file_name=config_file_name)
+        app,
+        settings=settings,
+        root_dir=root_dir,
+        config_path=config_path,
+        file_name=config_file_name,
+    )
     app_sessions(app)
     app_register_blueprints(app)
     server.init_app(app, query_client=query_client)
@@ -53,50 +64,61 @@ def app_init(
 
 def app_sessions(app):
     app.url_map.strict_slashes = False
-    app.db = SQLAlchemyDriver(app.config['DB'])
+    app.db = SQLAlchemyDriver(app.config["DB"])
     migrate(app.db)
     session = flask_scoped_session(app.db.Session, app)  # noqa
     app.session_interface = UserSessionInterface()
 
 
 def app_register_blueprints(app):
-    app.register_blueprint(fence.blueprints.oauth2.blueprint, url_prefix='/oauth2')
-    app.register_blueprint(fence.blueprints.user.blueprint, url_prefix='/user')
+    app.register_blueprint(fence.blueprints.oauth2.blueprint, url_prefix="/oauth2")
+    app.register_blueprint(fence.blueprints.user.blueprint, url_prefix="/user")
 
     creds_blueprint = fence.blueprints.storage_creds.make_creds_blueprint()
-    app.register_blueprint(creds_blueprint, url_prefix='/credentials')
+    app.register_blueprint(creds_blueprint, url_prefix="/credentials")
 
-    app.register_blueprint(fence.blueprints.admin.blueprint, url_prefix='/admin')
-    app.register_blueprint(fence.blueprints.well_known.blueprint, url_prefix='/.well-known')
+    app.register_blueprint(fence.blueprints.admin.blueprint, url_prefix="/admin")
+    app.register_blueprint(
+        fence.blueprints.well_known.blueprint, url_prefix="/.well-known"
+    )
 
     login_blueprint = fence.blueprints.login.make_login_blueprint(app)
-    app.register_blueprint(login_blueprint, url_prefix='/login')
-    link_blueprint = fence.blueprints.link.make_link_blueprint()
-    app.register_blueprint(link_blueprint, url_prefix='/link')
+    app.register_blueprint(login_blueprint, url_prefix="/login")
 
-    @app.route('/')
+    link_blueprint = fence.blueprints.link.make_link_blueprint()
+    app.register_blueprint(link_blueprint, url_prefix="/link")
+
+    google_blueprint = fence.blueprints.google.make_google_blueprint()
+    app.register_blueprint(google_blueprint, url_prefix="/google")
+
+    if app.config.get("ARBORIST"):
+        app.register_blueprint(fence.blueprints.rbac.blueprint, url_prefix="/rbac")
+
+    fence.blueprints.misc.register_misc(app)
+
+    @app.route("/")
     def root():
         """
         Register the root URL.
         """
         endpoints = {
-            'oauth2 endpoint': '/oauth2',
-            'user endpoint': '/user',
-            'keypair endpoint': '/credentials'
+            "oauth2 endpoint": "/oauth2",
+            "user endpoint": "/user",
+            "keypair endpoint": "/credentials",
         }
         return flask.jsonify(endpoints)
 
-    @app.route('/logout')
+    @app.route("/logout")
     def logout_endpoint():
-        root = app.config.get('BASE_URL', '')
-        request_next = flask.request.args.get('next', root)
-        if request_next.startswith('https') or request_next.startswith('http'):
+        root = app.config.get("BASE_URL", "")
+        request_next = flask.request.args.get("next", root)
+        if request_next.startswith("https") or request_next.startswith("http"):
             next_url = request_next
         else:
-            next_url = build_redirect_url(app.config.get('ROOT_URL', ''), request_next)
+            next_url = build_redirect_url(app.config.get("ROOT_URL", ""), request_next)
         return logout(next_url=next_url)
 
-    @app.route('/jwt/keys')
+    @app.route("/jwt/keys")
     def public_keys():
         """
         Return the public keys which can be used to verify JWTs signed by fence.
@@ -111,17 +133,14 @@ def app_register_blueprints(app):
                 ]
             }
         """
-        return flask.jsonify({
-            'keys': [
-                (keypair.kid, keypair.public_key)
-                for keypair in app.keypairs
-            ]
-        })
+        return flask.jsonify(
+            {"keys": [(keypair.kid, keypair.public_key) for keypair in app.keypairs]}
+        )
 
 
 def app_config(
-        app, settings='fence.settings', root_dir=None, config_path=None,
-        file_name=None):
+    app, settings="fence.settings", root_dir=None, config_path=None, file_name=None
+):
     """
     Set up the config for the Flask app.
     """
@@ -195,31 +214,29 @@ def _set_authlib_cfgs(app):
 
 
 def _setup_oidc_clients(app):
-    enabled_idp_ids = (
-        app.config['ENABLED_IDENTITY_PROVIDERS']['providers'].keys()
-    )
+    enabled_idp_ids = app.config["ENABLED_IDENTITY_PROVIDERS"]["providers"].keys()
 
     # Add OIDC client for Google if configured.
     configured_google = (
-        'OPENID_CONNECT' in app.config
-        and 'google' in app.config['OPENID_CONNECT']
-        and 'google' in enabled_idp_ids
+        "OPENID_CONNECT" in app.config
+        and "google" in app.config["OPENID_CONNECT"]
+        and "google" in enabled_idp_ids
     )
     if configured_google:
         app.google_client = GoogleClient(
-            app.config['OPENID_CONNECT']['google'],
-            HTTP_PROXY=app.config.get('HTTP_PROXY'),
-            logger=app.logger
+            app.config["OPENID_CONNECT"]["google"],
+            HTTP_PROXY=app.config.get("HTTP_PROXY"),
+            logger=app.logger,
         )
 
     # Add OIDC client for multi-tenant fence if configured.
     configured_fence = (
-        'OPENID_CONNECT' in app.config
-        and 'fence' in app.config['OPENID_CONNECT']
-        and 'fence' in enabled_idp_ids
+        "OPENID_CONNECT" in app.config
+        and "fence" in app.config["OPENID_CONNECT"]
+        and "fence" in enabled_idp_ids
     )
     if configured_fence:
-        app.fence_client = OAuthClient(**app.config['OPENID_CONNECT']['fence'])
+        app.fence_client = OAuthClient(**app.config["OPENID_CONNECT"]["fence"])
 
 
 def _setup_arborist_client(app):

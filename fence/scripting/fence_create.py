@@ -1,12 +1,10 @@
 import os
 import os.path
 import time
-import uuid
 import yaml
 import json
 import pprint
 
-from authlib.common.encoding import to_unicode
 from cirrus import GoogleCloudManager
 from cirrus.google_cloud.errors import GoogleAuthError
 from cirrus.config import config as cirrus_config
