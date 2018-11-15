@@ -1,83 +1,45 @@
-import os
+"""
+Fence Configuration Support Settings
 
-from cdislogging import get_logger
+NOTE TO DEVELOPERS: This is NOT intended to be a place for configurable variables.
+                    Please put new cfg into the config-default.yaml
 
-logger = get_logger(__name__)
-# default settings if local_settings is not present
-BASE_URL = "http://localhost/user"
-APP_NAME = "Gen3 Data Commons"
+This exists primarily as a legacy support for old configuration, but has been
+repurposed to hold some info used when searching for a provided configuration variable.
+"""
+from os.path import expanduser
 
-SESSION_COOKIE_SECURE = True
+# Folders to look in for the *config.yaml for fence
+CONFIG_SEARCH_FOLDERS = ["/var/www/fence", "{}/.gen3/fence".format(expanduser("~"))]
 
-MOCK_STORAGE = True
+# PLEASE USE NEW config-default.yaml FOR CONFIGURATION VARIABLES, NOT THIS FILE!
 
+# WARNING: USE OF local_settings.py IS DEPRECATED.
+#          WILL BE REMOVED IN FUTURE RELEASE.
+# TODO (DEPRECATE LOCAL_SETTINGS): remove this entire block
+#
+# Please convert to using new configuration yaml file in one of the
+# CONFIG_SEARCH_FOLDERS.
+#
 # ``local_settings"" is not installed under the fence module in produdction.
 # Instead, it should be located at ``/var/www/local_settings.py``. If it is
 # located elsewhere, use that location in ``imp.load_source`` instead of
 # ``/var/www/local_settings.py``, just below.
+def use_deprecated_settings():
+    ENCRYPTION_KEY = HMAC_ENCRYPTION_KEY
+
+
 try:
     # Import everything from ``local_settings``, if it exists.
     from local_settings import *
+
+    use_deprecated_settings()
 except ImportError:
     # If it doesn't, look in ``/var/www/fence``.
     try:
         import imp
 
         imp.load_source("local_settings", "/var/www/fence/local_settings.py")
+        use_deprecated_settings()
     except IOError:
-        logger.warn("local_settings is not found")
-
-
-# Use this setting when fence will be deployed in such a way that fence will
-# only receive traffic from internal (CDIS) clients, and can safely use HTTP.
-os.environ["AUTHLIB_INSECURE_TRANSPORT"] = "true"
-
-APPLICATION_ROOT = "/user"
-DEBUG = True
-
-OAUTH2_PROVIDER_ERROR_URI = "/api/oauth2/errors"
-
-OAUTH2_TOKEN_EXPIRES_IN = {"authorization_code": 1200, "implicit": 1200}
-
-#: ``ACCESS_TOKEN_EXPIRES_IN: int``
-#: The number of seconds after an access token is issued until it expires.
-ACCESS_TOKEN_EXPIRES_IN = 1200
-
-#: ``ACCESS_TOKEN_COOKIE_NAME: str``
-#: The name of the browser cookie in which the access token will be stored.
-ACCESS_TOKEN_COOKIE_NAME = "access_token"
-
-#: ``REFRESH_TOKEN_EXPIRES_IN: int``
-#: The number of seconds after a refresh token is issued until it expires.
-REFRESH_TOKEN_EXPIRES_IN = 2592000
-
-#: ``SESSION_TIMEOUT: int``
-#: The number of seconds after which a browser session is considered stale.
-SESSION_TIMEOUT = 1800
-
-#: ``SESSION_LIFETIME: int``
-#: The maximum session lifetime in seconds.
-SESSION_LIFETIME = 28800
-
-#: ``GOOGLE_SERVICE_ACCOUNT_KEY_FOR_URL_SIGNING_EXPIRES_IN: int``
-#: The number of seconds the user's Google service account key used for
-#: url signing will last before being expired/rotated
-#: 30 days = 2592000 seconds
-GOOGLE_SERVICE_ACCOUNT_KEY_FOR_URL_SIGNING_EXPIRES_IN = 2592000
-
-#: ``GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN: int``
-#: The number of seconds after a User's Google account is added to bucket
-#: access until it expires.
-GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN = 86400
-
-#: ``GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN: int``
-#: The number of seconds after a User's Google Service account is added to bucket
-#: access until it expires.
-#: 7 days = 604800 seconds
-GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN = 604800
-
-#: ``SESSION_COOKIE_NAME: str``
-#: The name of the browser cookie in which the session token will be stored.
-#: Note that the session token also stores information for the
-#: ``flask.session`` in the ``context`` field of the token.
-SESSION_COOKIE_NAME = "fence"
+        pass
