@@ -42,9 +42,7 @@ def str2bool(v):
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--path',
-        default='/var/www/fence/',
-        help='path to find configuration',
+        "--path", default="/var/www/fence/", help="path to find configuration"
     )
     parser.add_argument(
         "--verbose",

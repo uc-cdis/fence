@@ -311,6 +311,8 @@ class FenceConfig(Config):
             "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN",
             "GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN",
             "ACCESS_TOKEN_EXPIRES_IN",
+            "dbGaP",
+            "CIRRUS_CFG",
         ]
         for default in defaults:
             self._set_default(default, default_config=default_config)
