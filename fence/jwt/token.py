@@ -9,6 +9,7 @@ import jwt
 
 from fence.jwt import keys
 
+from fence.jwt.errors import JWTSizeError
 
 SCOPE_DESCRIPTION = {
     "openid": "default scope",

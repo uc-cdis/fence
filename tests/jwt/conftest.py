@@ -9,7 +9,7 @@ def encoded_jwt(kid, rsa_private_key):
     key.
 
     Args:
-        claims (dict): fixture
+        kid (str): fixture 
         rsa_private_key (str): fixture
 
     Return:
@@ -28,6 +28,7 @@ def encoded_jwt_expired(claims, kid, rsa_private_key):
 
     Args:
         claims (dict): fixture
+        kid (str): fixture 
         rsa_private_key (str): fixture
 
     Return:
@@ -51,6 +52,7 @@ def encoded_jwt_refresh_token(claims_refresh, kid, rsa_private_key):
 
     Args:
         claims_refresh (dict): fixture
+        kid (str): fixture 
         rsa_private_key (str): fixture
 
     Return:
@@ -60,3 +62,5 @@ def encoded_jwt_refresh_token(claims_refresh, kid, rsa_private_key):
     return jwt.encode(
         claims_refresh, key=rsa_private_key, headers=headers, algorithm="RS256"
     )
+
+
