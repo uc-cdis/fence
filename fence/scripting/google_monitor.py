@@ -6,8 +6,10 @@ their respective Google projects. The functions in this file will also
 handle invalid service accounts and projects.
 """
 import traceback
+
 from cirrus.google_cloud.iam import GooglePolicyMember
 from cirrus import GoogleCloudManager
+from cdislogging import get_logger
 
 from fence.resources.google.validity import (
     GoogleProjectValidity,
@@ -26,13 +28,13 @@ from fence.resources.google.access_utils import (
 )
 
 from fence import utils
+from fence.config import config
 from fence.errors import Unauthorized
-from cdislogging import get_logger
 
 logger = get_logger(__name__)
 
 
-def validation_check(db, config=None):
+def validation_check(db):
     """
     Google validation check for all user-registered service accounts
     and projects.
@@ -61,9 +63,7 @@ def validation_check(db, config=None):
             # Do some basic service account checks, this won't validate
             # the data access, that's done when the project's validated
             try:
-                validity_info = _is_valid_service_account(
-                    sa_email, google_project_id, config=config
-                )
+                validity_info = _is_valid_service_account(sa_email, google_project_id)
             except Unauthorized:
                 """
                 is_validity_service_account can raise an exception if the monitor does
@@ -77,6 +77,7 @@ def validation_check(db, config=None):
                     "in project validation."
                 )
                 continue
+
             if not validity_info:
                 logger.info(
                     "INVALID SERVICE ACCOUNT {} DETECTED. REMOVING. Validity Information: {}".format(
@@ -106,9 +107,8 @@ def validation_check(db, config=None):
             sa_emails.remove(sa_email)
 
         logger.debug("Validating Google Project: {}".format(google_project_id))
-        google_project_validity = _is_valid_google_project(
-            google_project_id, db=db, config=config
-        )
+        google_project_validity = _is_valid_google_project(google_project_id, db=db)
+
         if not google_project_validity:
             # for now, if we detect in invalid project, remove ALL service
             # accounts from access for that project.
@@ -158,7 +158,7 @@ def validation_check(db, config=None):
             )
 
 
-def _is_valid_service_account(sa_email, google_project_id, config=None):
+def _is_valid_service_account(sa_email, google_project_id):
     """
     Validate the given registered service account and remove if invalid.
 
@@ -180,18 +180,13 @@ def _is_valid_service_account(sa_email, google_project_id, config=None):
         sa_validity = GoogleServiceAccountValidity(
             sa_email, google_project_id, google_project_number=google_project_number
         )
-        google_sa_domains = (
-            config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS") if config else None
-        )
-        if is_google_managed_service_account(
-            sa_email, google_managed_service_account_domains=google_sa_domains
-        ):
+
+        if is_google_managed_service_account(sa_email):
             sa_validity.check_validity(
                 early_return=True,
                 check_type=True,
                 check_policy_accessible=True,
                 check_external_access=False,
-                config=config,
             )
         else:
             sa_validity.check_validity(
@@ -199,8 +194,8 @@ def _is_valid_service_account(sa_email, google_project_id, config=None):
                 check_type=True,
                 check_policy_accessible=True,
                 check_external_access=True,
-                config=config,
             )
+
     except Exception as exc:
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
@@ -214,14 +209,14 @@ def _is_valid_service_account(sa_email, google_project_id, config=None):
     return sa_validity
 
 
-def _is_valid_google_project(google_project_id, db=None, config=None):
+def _is_valid_google_project(google_project_id, db=None):
     """
     Validate the given google project id and remove all registered service
     accounts under that project if invalid.
     """
     try:
         project_validity = GoogleProjectValidity(google_project_id)
-        project_validity.check_validity(early_return=True, db=db, config=config)
+        project_validity.check_validity(early_return=True, db=db)
     except Exception as exc:
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
@@ -445,16 +440,14 @@ def _send_emails_informing_service_account_removal(
     if not to_emails:
         return None
 
-    from fence.settings import REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION
+    from_email = config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["from"]
+    subject = config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["subject"]
 
-    from_email = REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["from"]
-    subject = REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["subject"]
+    domain = config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["domain"]
+    if config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["admin"]:
+        to_emails.extend(config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["admin"])
 
-    domain = REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["domain"]
-    if REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["admin"]:
-        to_emails.extend(REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["admin"])
-
-    text = REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["content"]
+    text = config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["content"]
     content = text.format(project_id)
 
     for email, removal_reasons in invalid_service_account_reasons.iteritems():
