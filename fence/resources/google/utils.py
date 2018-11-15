@@ -17,6 +17,7 @@ from userdatamodel.driver import SQLAlchemyDriver
 from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
 
 from fence.auth import current_token
+from fence.config import config
 from fence.models import (
     GoogleServiceAccount,
     GoogleServiceAccountKey,
@@ -65,7 +66,7 @@ def get_or_create_primary_service_account_key(
     )
 
     if user_service_account_key:
-        fernet_key = Fernet(str(flask.current_app.config["HMAC_ENCRYPTION_KEY"]))
+        fernet_key = Fernet(str(flask.current_app.config["ENCRYPTION_KEY"]))
         private_key_bytes = fernet_key.decrypt(
             str(user_service_account_key.private_key)
         )
@@ -133,7 +134,7 @@ def create_primary_service_account_key(user_id, username, proxy_group_id, expire
 
     key_id = sa_private_key.get("private_key_id")
 
-    fernet_key = Fernet(str(flask.current_app.config["HMAC_ENCRYPTION_KEY"]))
+    fernet_key = Fernet(str(flask.current_app.config["ENCRYPTION_KEY"]))
     private_key_bytes = json.dumps(sa_private_key).encode("utf-8")
     private_key = fernet_key.encrypt(private_key_bytes)
 
@@ -676,7 +677,7 @@ def is_google_managed_service_account(
 
     google_managed_service_account_domains = (
         google_managed_service_account_domains
-        or flask.current_app.config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS", [])
+        or config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS", [])
     )
 
     return service_account_domain in google_managed_service_account_domains

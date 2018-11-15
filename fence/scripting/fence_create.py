@@ -1,12 +1,10 @@
 import os
 import os.path
 import time
-import uuid
 import yaml
 import json
 import pprint
 
-from authlib.common.encoding import to_unicode
 from cirrus import GoogleCloudManager
 from cirrus.google_cloud.errors import GoogleAuthError
 from cirrus.config import config as cirrus_config
@@ -49,7 +47,7 @@ from fence.models import (
     query_for_user,
 )
 from fence.scripting.google_monitor import validation_check
-from fence.settings import GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN
+from fence.config import config
 from fence.sync.sync_users import UserSyncer
 from fence.utils import create_client
 
@@ -116,10 +114,8 @@ def create_client_action(
 
 
 def delete_client_action(DB, client_name):
-    import fence.settings
-
     try:
-        cirrus_config.update(**fence.settings.CIRRUS_CFG)
+        cirrus_config.update(**config["CIRRUS_CFG"])
     except AttributeError:
         # no cirrus config, continue anyway. we don't have client service accounts
         # to delete
@@ -189,9 +185,9 @@ def sync_users(
 ):
     """
     sync ACL files from dbGap to auth db and storage backends
-    imports from local_settings is done here because dbGap is
+    imports from config is done here because dbGap is
     an optional requirment for fence so it might not be specified
-    in local_settings
+    in config
     Args:
         projects: path to project_mapping yaml file which contains mapping
         from dbgap phsids to projects in fence database
@@ -209,10 +205,8 @@ def sync_users(
               - name: CGCI
                 auth_id: phs000235
     """
-    import fence.settings
-
     try:
-        cirrus_config.update(**fence.settings.CIRRUS_CFG)
+        cirrus_config.update(**config["CIRRUS_CFG"])
     except AttributeError:
         # no cirrus config, continue anyway. Google APIs will probably fail.
         # this is okay if users don't need access to Google buckets
@@ -445,9 +439,7 @@ def google_init(db):
 
 
 def remove_expired_google_service_account_keys(db):
-    import fence.settings
-
-    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    cirrus_config.update(**config["CIRRUS_CFG"])
 
     db = SQLAlchemyDriver(db)
     with db.session as current_session:
@@ -512,9 +504,7 @@ def remove_expired_google_service_account_keys(db):
 
 
 def remove_expired_google_accounts_from_proxy_groups(db):
-    import fence.settings
-
-    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    cirrus_config.update(**config["CIRRUS_CFG"])
 
     db = SQLAlchemyDriver(db)
     with db.session as current_session:
@@ -587,9 +577,7 @@ def delete_expired_service_accounts(DB):
     """
     Delete all expired service accounts.
     """
-    import fence.settings
-
-    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    cirrus_config.update(**config["CIRRUS_CFG"])
 
     driver = SQLAlchemyDriver(DB)
     with driver.session as session:
@@ -634,9 +622,7 @@ def verify_bucket_access_group(DB):
         None
 
     """
-    import fence.settings
-
-    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    cirrus_config.update(**config["CIRRUS_CFG"])
 
     driver = SQLAlchemyDriver(DB)
     with driver.session as session:
@@ -970,9 +956,7 @@ def create_or_update_google_bucket(
             ['read'] for viewing access,
             ['write'] for creation rights but not viewing access
     """
-    import fence.settings
-
-    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    cirrus_config.update(**config["CIRRUS_CFG"])
 
     google_project_id = google_project_id or cirrus_config.GOOGLE_PROJECT_ID
 
@@ -1011,9 +995,7 @@ def create_or_update_google_bucket(
 
 
 def create_google_logging_bucket(name, storage_class=None, google_project_id=None):
-    import fence.settings
-
-    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    cirrus_config.update(**config["CIRRUS_CFG"])
 
     # determine project where buckets are located if not provided, default
     # to configured project if checking creds doesn't work
@@ -1208,9 +1190,7 @@ def link_external_bucket(db, name):
     afterwards.
     """
 
-    import fence.settings
-
-    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    cirrus_config.update(**config["CIRRUS_CFG"])
 
     google_project_id = cirrus_config.GOOGLE_PROJECT_ID
 
@@ -1231,15 +1211,13 @@ def link_external_bucket(db, name):
     return access_group.email
 
 
-def verify_user_registration(DB, config):
+def verify_user_registration(DB):
     """
     Validate user registration
     """
-    import fence.settings
+    cirrus_config.update(**config["CIRRUS_CFG"])
 
-    cirrus_config.update(**fence.settings.CIRRUS_CFG)
-
-    validation_check(DB, config)
+    validation_check(DB)
 
 
 def force_update_google_link(DB, username, google_email):
@@ -1269,9 +1247,7 @@ def force_update_google_link(DB, username, google_email):
     Returns:
         Expiration time of the newly updated google account's access
     """
-    import fence.settings
-
-    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    cirrus_config.update(**config["CIRRUS_CFG"])
 
     db = SQLAlchemyDriver(DB)
     with db.session as session:
@@ -1297,7 +1273,7 @@ def force_update_google_link(DB, username, google_email):
             )
 
         now = int(time.time())
-        expiration = now + GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN
+        expiration = now + config["GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN"]
 
         force_update_user_google_account_expiration(
             user_google_account, proxy_group_id, google_email, expiration, session

@@ -15,6 +15,7 @@ from cdispyutils.log import get_logger
 import paramiko
 from paramiko.proxy import ProxyCommand
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import func
 from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.models import (
@@ -504,14 +505,22 @@ class UserSyncer(object):
         ]
 
         cur_db_user_project_list = {
-            (ua.user.username, ua.project.auth_id)
+            (ua.user.username.lower(), ua.project.auth_id)
             for ua in sess.query(AccessPrivilege).all()
         }
 
+        # we need to compare db -> whitelist case-insensitively for username
+        # db stores case-sensitively, but we need to query case-insensitively
+        user_project_lowercase = {}
         syncing_user_project_list = set()
         for username, projects in user_project.iteritems():
+            user_project_lowercase[username.lower()] = projects
             for project, _ in projects.iteritems():
-                syncing_user_project_list.add((username, project))
+                syncing_user_project_list.add((username.lower(), project))
+
+        user_info_lowercase = {
+            username.lower(): info for username, info in user_info.iteritems()
+        }
 
         to_delete = set.difference(cur_db_user_project_list, syncing_user_project_list)
         to_add = set.difference(syncing_user_project_list, cur_db_user_project_list)
@@ -519,17 +528,25 @@ class UserSyncer(object):
             cur_db_user_project_list, syncing_user_project_list
         )
 
+        # when updating users we want to maintain case sesitivity in the username so
+        # pass the original, non-lowered user_info dict
         self._upsert_userinfo(sess, user_info)
         self._revoke_from_storage(to_delete, sess)
         self._revoke_from_db(sess, to_delete)
-        self._grant_from_storage(to_add, user_project, sess)
-        self._grant_from_db(sess, to_add, user_info, user_project, auth_provider_list)
+        self._grant_from_storage(to_add, user_project_lowercase, sess)
+        self._grant_from_db(
+            sess,
+            to_add,
+            user_info_lowercase,
+            user_project_lowercase,
+            auth_provider_list,
+        )
 
         # re-grant
-        self._grant_from_storage(to_update, user_project, sess)
-        self._update_from_db(sess, to_update, user_project)
+        self._grant_from_storage(to_update, user_project_lowercase, sess)
+        self._update_from_db(sess, to_update, user_project_lowercase)
 
-        self._validate_and_update_user_admin(sess, user_info)
+        self._validate_and_update_user_admin(sess, user_info_lowercase)
 
     def _revoke_from_db(self, sess, to_delete):
         """
@@ -544,8 +561,9 @@ class UserSyncer(object):
         for (username, project_auth_id) in to_delete:
             q = (
                 sess.query(AccessPrivilege)
-                .filter(AccessPrivilege.user.has(username=username))
                 .filter(AccessPrivilege.project.has(auth_id=project_auth_id))
+                .join(AccessPrivilege.user)
+                .filter(func.lower(User.username) == username)
                 .all()
             )
             for access in q:
@@ -553,8 +571,6 @@ class UserSyncer(object):
                     "revoke {} access to {} in db".format(username, project_auth_id)
                 )
                 sess.delete(access)
-
-        sess.commit()
 
     def _validate_and_update_user_admin(self, sess, user_info):
         """
@@ -576,13 +592,14 @@ class UserSyncer(object):
             None
         """
         for admin_user in sess.query(User).filter_by(is_admin=True).all():
-            if admin_user.username not in user_info:
+            if admin_user.username.lower() not in user_info:
                 admin_user.is_admin = False
                 sess.add(admin_user)
                 self.logger.info(
-                    "remove admin access from {} in db".format(admin_user.username)
+                    "remove admin access from {} in db".format(
+                        admin_user.username.lower()
+                    )
                 )
-        sess.commit()
 
     def _update_from_db(self, sess, to_update, user_project):
         """
@@ -600,8 +617,9 @@ class UserSyncer(object):
         for (username, project_auth_id) in to_update:
             q = (
                 sess.query(AccessPrivilege)
-                .filter(AccessPrivilege.user.has(username=username))
                 .filter(AccessPrivilege.project.has(auth_id=project_auth_id))
+                .join(AccessPrivilege.user)
+                .filter(func.lower(User.username) == username)
                 .all()
             )
             for access in q:
@@ -611,8 +629,6 @@ class UserSyncer(object):
                         username, access.privilege, project_auth_id
                     )
                 )
-
-        sess.commit()
 
     def _grant_from_db(self, sess, to_add, user_info, user_project, auth_provider_list):
         """
@@ -644,8 +660,6 @@ class UserSyncer(object):
                 )
             )
             sess.add(user_access)
-
-        sess.commit()
 
     def _upsert_userinfo(self, sess, user_info):
         """
@@ -694,8 +708,6 @@ class UserSyncer(object):
                     tag = Tag(key=k, value=v)
                     u.tags.append(tag)
 
-        sess.commit()
-
     def _revoke_from_storage(self, to_delete, sess):
         """
         If a project have storage backend, revoke user's access to buckets in
@@ -723,7 +735,6 @@ class UserSyncer(object):
                     project=project,
                     session=sess,
                 )
-        sess.commit()
 
     def _grant_from_storage(self, to_add, user_project, sess):
         """
@@ -970,5 +981,4 @@ class UserSyncer(object):
                         )
                     )
 
-        session.commit()
         return True
