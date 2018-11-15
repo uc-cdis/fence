@@ -1,4 +1,7 @@
 #!/bin/bash
+keeprun=0
+trap "{ keeprun=1; }" SIGTERM
+
 update-ca-certificates
 mkdir /google_job
 touch /google_job/status.json
@@ -18,5 +21,10 @@ while [ $? -eq 0 ]; do
     fence-create google-manage-user-registrations
     echo finish validation $(date)
     echo {\"last_run\": \"$(date)\"} >/google_job/status.json
+
+    if [ $keeprun -eq 1 ]; then
+        echo 'graceful shutdown'
+        exit 0
+    fi
 done
 
