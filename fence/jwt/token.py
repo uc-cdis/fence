@@ -209,8 +209,8 @@ def generate_signed_session_token(kid, private_key, expires_in, context=None):
     token = to_unicode(token, "UTF-8")
 
     # Browser may clip cookies larger than 4096 bytes
-    if len(token) > 4096: 
-        raise JWTSizeError('JWT exceeded 4096 bytes') 
+    if len(token) > 4096:
+        raise JWTSizeError("JWT exceeded 4096 bytes")
 
     return JWTResult(token=token, kid=kid, claims=claims)
 
@@ -438,7 +438,7 @@ def generate_signed_access_token(
 
     # Browser may clip cookies larger than 4096 bytes
     if len(token) > 4096:
-        raise JWTSizeError('JWT exceeded 4096 bytes')
+        raise JWTSizeError("JWT exceeded 4096 bytes")
 
     return JWTResult(token=token, kid=kid, claims=claims)
 

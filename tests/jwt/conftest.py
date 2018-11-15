@@ -62,5 +62,3 @@ def encoded_jwt_refresh_token(claims_refresh, kid, rsa_private_key):
     return jwt.encode(
         claims_refresh, key=rsa_private_key, headers=headers, algorithm="RS256"
     )
-
-
