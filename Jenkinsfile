@@ -1,6 +1,6 @@
 #!groovy
 
-@Library('cdis-jenkins-lib@refactor/microservices') _
+// @Library('cdis-jenkins-lib@refactor/microservices') _
 
 //runPipeline {
 //  pipeline = 'microservice'
@@ -13,9 +13,10 @@
 //  skipDeploy = 'true'
 //}
 
+// import uchicago.cdis.*
+// Map pipelineDefinition = [
+//     myVariable: "hello world"
+// ]
 import uchicago.cdis.*
-Map pipelineDefinition = [
-    myVariable: "hello world"
-]
 
-new StdPipeline(pipelineDefinition).execute()
+new MicroservicePipeline(this).execute()
