@@ -8,7 +8,7 @@ runPipeline {
 
   namespaces = [
     "jenkins-brain",
-    "jenkins-niaid".
+    "jenkins-niaid",
     "jenkins-dcf"
   ]
 
