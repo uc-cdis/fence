@@ -262,7 +262,7 @@ class UserSyncer(object):
         for filepath, privileges in file_dict.iteritems():
             self.logger.info("Reading file {}".format(filepath))
             if os.stat(filepath).st_size == 0:
-                continue
+                raise EnvironmentError("received empty file {}".format(filepath))
             if not self._match_pattern(filepath, encrypted=encrypted):
                 continue
 
