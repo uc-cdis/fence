@@ -1,18 +1,19 @@
 #!groovy
 
-@Library('cdis-jenkins-lib@refactor/lib')
-import uchicago.cdis.MicroservicePipeline
+@Library('cdis-jenkins-lib@refactor/microservices') _
+// import uchicago.cdis.MicroservicePipeline
 
-//runPipeline {
-//  pipeline = 'microservice'
+runPipeline {
+  pipeline = 'microservice'
 
-//  namespaces = [
-//    "jenkins-brain",
-//    "jenkins-niaid"
-//  ]
+  namespaces = [
+    "jenkins-brain",
+    "jenkins-niaid".
+    "jenkins-dcf"
+  ]
 
-//  skipDeploy = 'true'
-//}
+  skipDeploy = 'true'
+}
 
 // import uchicago.cdis.*
 // Map pipelineDefinition = [
@@ -20,4 +21,4 @@ import uchicago.cdis.MicroservicePipeline
 // ]
 
 
-new MicroservicePipeline(this).execute()
+// new MicroservicePipeline(this).execute()
