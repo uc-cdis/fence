@@ -19,11 +19,5 @@ import uchicago.cdis.MicroservicePipeline
 //     myVariable: "hello world"
 // ]
 
-stage('asdf') {
-  steps {
-    echo 'hello world'
-  }
-}
-
 
 new MicroservicePipeline(this).execute()
