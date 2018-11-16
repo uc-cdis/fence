@@ -1,6 +1,7 @@
 #!groovy
 
-// @Library('cdis-jenkins-lib@refactor/microservices') _
+@Library('cdis-jenkins-lib@refactor/lib')
+import uchicago.cdis.MicroservicePipeline
 
 //runPipeline {
 //  pipeline = 'microservice'
@@ -17,6 +18,6 @@
 // Map pipelineDefinition = [
 //     myVariable: "hello world"
 // ]
-import uchicago.cdis.*
+
 
 new MicroservicePipeline(this).execute()
