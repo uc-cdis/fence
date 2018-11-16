@@ -9,7 +9,7 @@ runPipeline {
   namespaces = [
     "jenkins-brain",
     "jenkins-niaid",
-    "jenkins-dcf"
+    "jenkins-dcp"
   ]
 
   skipDeploy = 'true'
