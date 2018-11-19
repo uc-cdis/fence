@@ -8,6 +8,7 @@ import flask
 
 from fence.jwt.token import USER_ALLOWED_SCOPES, CLIENT_ALLOWED_SCOPES
 from fence.models import ClientAuthType
+from fence.config import config
 
 
 blueprint = flask.Blueprint(".well-known", __name__)
@@ -40,8 +41,6 @@ def openid_configuration():
 
     https://accounts.google.com/.well-known/openid-configuration
     """
-    # Just an abbreviation for the config.
-    config = flask.current_app.config
 
     # Get basic provider information.
     oidc_iss = (

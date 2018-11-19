@@ -30,6 +30,7 @@ from fence.oidc.endpoints import RevocationEndpoint
 from fence.oidc.server import server
 from fence.utils import clear_cookies
 from fence.user import get_current_user
+from fence.config import config
 
 
 blueprint = flask.Blueprint("oauth2", __name__)
@@ -71,11 +72,11 @@ def authorize(*args, **kwargs):
 
     if need_authentication or not user:
         redirect_url = (
-            flask.current_app.config.get("BASE_URL") + flask.request.full_path
+            config.get("BASE_URL") + flask.request.full_path
         )
         params = {"redirect": redirect_url}
         login_url = add_params_to_uri(
-            flask.current_app.config.get("DEFAULT_LOGIN_URL"), params
+            config.get("DEFAULT_LOGIN_URL"), params
         )
         return flask.redirect(login_url)
 
@@ -228,7 +229,7 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
         if "openid" in shown_scopes:
             shown_scopes.remove("openid")
 
-        enabled_idps = flask.current_app.config.get("OPENID_CONNECT", {})
+        enabled_idps = config.get("OPENID_CONNECT", {})
         idp_names = []
         for idp, info in enabled_idps.iteritems():
             # prefer name if its there, then just use the key for the provider
@@ -245,7 +246,7 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
             grant=grant,
             user=user,
             client=client,
-            app_name=flask.current_app.config.get("APP_NAME"),
+            app_name=config.get("APP_NAME"),
             resource_description=resource_description,
         )
 

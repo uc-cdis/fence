@@ -21,7 +21,7 @@ args = parser.parse_args()
 app_config(app, config_path=args.config_path, file_name=args.config_file_name)
 
 
-if app.config.get("MOCK_STORAGE"):
+if config.get("MOCK_STORAGE"):
     from mock import patch
     from cdisutilstest.code.storage_client_mock import get_client
 

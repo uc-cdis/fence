@@ -7,12 +7,13 @@ from authlib.specs.rfc6749.errors import OAuth2Error
 from werkzeug.exceptions import HTTPException
 
 from fence.errors import APIError
+from fence.config import config 
 
 
 def get_error_response(error):
     details, status_code = get_error_details_and_status(error)
-    support_email = flask.current_app.config.get("SUPPORT_EMAIL_FOR_ERRORS")
-    app_name = flask.current_app.config.get("APP_NAME", "Gen3 Data Commons")
+    support_email = config.get("SUPPORT_EMAIL_FOR_ERRORS")
+    app_name = config.get("APP_NAME", "Gen3 Data Commons")
 
     message = details.get("message")
 

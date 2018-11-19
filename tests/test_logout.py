@@ -17,7 +17,7 @@ def test_redirect_url():
 def test_logout_if_anonymous(app, client, monkeypatch):
     """Logout when anonymous should display no error and successfully
     redirect user"""
-    monkeypatch.setitem(app.config, "MOCK_AUTH", False)
+    monkeypatch.setitem(config, "MOCK_AUTH", False)
     r = client.get("/logout")
     assert r.status_code == 302
 
@@ -41,10 +41,10 @@ def test_logout_itrust(client, db_session):
 
 def test_logout_fence(app, user_with_fence_provider, monkeypatch):
     other_fence_logout_url = "https://test-url.com"
-    monkeypatch.setitem(app.config, "MOCK_AUTH", False)
-    monkeypatch.setitem(app.config, "SHIBBOLETH_HEADER", None)
+    monkeypatch.setitem(config, "MOCK_AUTH", False)
+    monkeypatch.setitem(config, "SHIBBOLETH_HEADER", None)
     monkeypatch.setitem(
-        app.config,
+        config,
         "OPENID_CONNECT",
         {"fence": {"api_base_url": other_fence_logout_url}},
     )
@@ -53,7 +53,7 @@ def test_logout_fence(app, user_with_fence_provider, monkeypatch):
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={"username": username, "provider": "fence"},
     )
 

@@ -4,7 +4,7 @@ from flask_restful import Resource
 from fence.auth import login_user
 from fence.errors import UserError
 from fence.models import IdentityProvider
-
+from fence.config import config
 
 class GoogleRedirect(Resource):
     def get(self):
@@ -12,7 +12,7 @@ class GoogleRedirect(Resource):
         if flask.redirect_url:
             flask.session["redirect"] = flask.redirect_url
 
-        if flask.current_app.config.get("MOCK_GOOGLE_AUTH", False):
+        if config.get("MOCK_GOOGLE_AUTH", False):
             return _login("test@example.com")
 
         return flask.redirect(flask.current_app.google_client.get_auth_url())
@@ -23,7 +23,7 @@ class GoogleLogin(Resource):
         # Check if this is a request to link account vs. actually log in
         if flask.session.get("google_link"):
             return flask.redirect(
-                flask.current_app.config.get("BASE_URL", "")
+                config.get("BASE_URL", "")
                 + "/link/google/callback?code={}".format(flask.request.args.get("code"))
             )
         else:

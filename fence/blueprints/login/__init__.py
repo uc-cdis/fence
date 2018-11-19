@@ -13,12 +13,13 @@ from fence.blueprints.login.google import GoogleRedirect, GoogleLogin
 from fence.blueprints.login.shib import ShibbolethLoginStart, ShibbolethLoginFinish
 from fence.errors import InternalError
 from fence.restful import RestfulApi
+from fence.config import config
 
 
 def make_login_blueprint(app):
     """
     Args:
-        app (flask.Flask): a flask app (with `app.config` set up)
+        app (flask.Flask): a flask app 
 
     Return:
         flask.Blueprint: the blueprint used for ``/login`` endpoints
@@ -27,10 +28,17 @@ def make_login_blueprint(app):
         ValueError: if app is not amenably configured
     """
 
+    print("Starting make_login_blueprint(app)") 
+
     try:
-        default_idp = app.config["ENABLED_IDENTITY_PROVIDERS"]["default"]
-        idps = app.config["ENABLED_IDENTITY_PROVIDERS"]["providers"]
+        default_idp = config["ENABLED_IDENTITY_PROVIDERS"]["default"]
+        idps = config["ENABLED_IDENTITY_PROVIDERS"]["providers"]
+        print("In try block. Default idp: ", default_idp)
+        print("ipds: ", idps) 
+        print("In the config file, default is:")
+        print(config["ENABLED_IDENTITY_PROVIDERS"]["default"])
     except KeyError as e:
+        print("In except block") 
         app.logger.warn(
             "app not configured correctly with ENABLED_IDENTITY_PROVIDERS:"
             " missing {}".format(str(e))
@@ -44,11 +52,15 @@ def make_login_blueprint(app):
     # check if google is configured as a client. we will at least need a
     # a callback if it is
     google_client_exists = (
-        "OPENID_CONNECT" in app.config and "google" in app.config["OPENID_CONNECT"]
+        "OPENID_CONNECT" in config and "google" in config["OPENID_CONNECT"]
     )
 
     blueprint = flask.Blueprint("login", __name__)
     blueprint_api = RestfulApi(blueprint)
+
+    print("DEFAULT IDP")
+    print("IS:") 
+    print(default_idp) 
 
     @blueprint.route("", methods=["GET"])
     def default_login():
@@ -57,7 +69,7 @@ def make_login_blueprint(app):
         """
 
         def absolute_login_url(provider_id):
-            base_url = flask.current_app.config["BASE_URL"].rstrip("/")
+            base_url = config["BASE_URL"].rstrip("/")
             return base_url + "/login/{}".format(IDP_URL_MAP[provider_id])
 
         def provider_info(idp_id):
@@ -70,8 +82,14 @@ def make_login_blueprint(app):
             }
 
         try:
+            print("Endpoint") 
+            print("default_idp is:") 
+            print(default_idp) 
+            print("In the config file, default is:") 
+            print(config["ENABLED_IDENTITY_PROVIDERS"]["default"]) #<- how did this become Fence???  
             all_provider_info = [provider_info(idp_id) for idp_id in idps.keys()]
             default_provider_info = provider_info(default_idp)
+            print("Set default_provider_info. ID: ", default_provider_info["id"]) # TODO  
         except KeyError as e:
             raise InternalError("identity providers misconfigured: {}".format(str(e)))
 

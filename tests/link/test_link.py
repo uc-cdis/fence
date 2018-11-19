@@ -126,7 +126,7 @@ def test_google_link_auth_return(
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={
             "google_link": True,
             "user_id": user_id,
@@ -191,7 +191,7 @@ def test_patch_google_link(
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={
             "google_proxy_group_id": proxy_group_id,
             "linked_google_email": google_account,
@@ -232,7 +232,7 @@ def test_patch_google_link(
     # it gets set)
     assert account_in_proxy_group.expires != original_expiration
     assert account_in_proxy_group.expires <= (
-        int(time.time()) + app.config["GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN"]
+        int(time.time()) + config["GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN"]
     )
 
     assert not add_google_email_to_proxy_group_mock.called
@@ -263,7 +263,7 @@ def test_patch_google_link_account_not_in_token(
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={"google_proxy_group_id": proxy_group_id},
     )
 
@@ -301,7 +301,7 @@ def test_patch_google_link_account_not_in_token(
     # it gets set)
     assert account_in_proxy_group.expires != original_expiration
     assert account_in_proxy_group.expires <= (
-        int(time.time()) + app.config["GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN"]
+        int(time.time()) + config["GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN"]
     )
 
     assert not add_google_email_to_proxy_group_mock.called
@@ -324,7 +324,7 @@ def test_patch_google_link_account_doesnt_exist(
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={"google_proxy_group_id": proxy_group_id},
     )
 
@@ -378,7 +378,7 @@ def test_google_link_g_account_exists(
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={
             "google_link": True,
             "user_id": user_id,
@@ -444,7 +444,7 @@ def test_google_link_g_account_access_extension(
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={
             "google_link": True,
             "user_id": user_id,
@@ -486,7 +486,7 @@ def test_google_link_g_account_access_extension(
     # it gets set)
     assert account_in_proxy_group.expires != original_expiration
     assert account_in_proxy_group.expires <= (
-        int(time.time()) + app.config["GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN"]
+        int(time.time()) + config["GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN"]
     )
 
     assert not add_new_g_acnt_mock.called
@@ -532,7 +532,7 @@ def test_google_link_g_account_exists_linked_to_different_user(
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={
             "google_link": True,
             "user_id": user_id + 5,  # <- NOT the user whose g acnt exists
@@ -594,7 +594,7 @@ def test_google_link_no_proxy_group(
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={
             "google_link": True,
             "user_id": user_id,

@@ -5,6 +5,8 @@ import uuid
 
 from flask import current_app
 
+from fence.config import config
+
 from fence.models import (
     User,
     Project,
@@ -264,7 +266,7 @@ def unauthorized_context_claims(user_name, user_id):
         dict: dictionary of claims
     """
     aud = ["access", "data", "user", "openid"]
-    iss = current_app.config["BASE_URL"]
+    iss = config["BASE_URL"]
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
@@ -297,7 +299,7 @@ def authorized_download_context_claims(user_name, user_id):
         dict: dictionary of claims
     """
     aud = ["access", "data", "user", "openid"]
-    iss = current_app.config["BASE_URL"]
+    iss = config["BASE_URL"]
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
@@ -331,7 +333,7 @@ def authorized_service_account_management_claims(user_name, user_id, client_id):
     """
     # TODO add new scope for /google/service_accounts endpoints
     aud = ["access", "data", "user", "openid", "google_service_account"]
-    iss = current_app.config["BASE_URL"]
+    iss = config["BASE_URL"]
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
@@ -365,7 +367,7 @@ def authorized_download_credentials_context_claims(
         dict: dictionary of claims
     """
     aud = ["access", "data", "user", "openid", "credentials", "google_credentials"]
-    iss = current_app.config["BASE_URL"]
+    iss = config["BASE_URL"]
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
@@ -398,7 +400,7 @@ def authorized_upload_context_claims(user_name, user_id):
         dict: dictionary of claims
     """
     aud = ["access", "data", "user", "openid"]
-    iss = current_app.config["BASE_URL"]
+    iss = config["BASE_URL"]
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {

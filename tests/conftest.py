@@ -490,28 +490,26 @@ def app(kid, rsa_private_key, rsa_public_key):
         kid=kid, public_key=rsa_public_key, private_key=rsa_private_key
     )
     fence.app.keypairs = [fixture_keypair] + fence.app.keypairs
-    fence.app.jwt_public_keys[fence.app.config["BASE_URL"]][kid] = rsa_public_key
-    fence.app.jwt_public_keys[fence.app.config["BASE_URL"]] = OrderedDict(
-        reversed(list(fence.app.jwt_public_keys[fence.app.config["BASE_URL"]].items()))
+    fence.app.jwt_public_keys[config["BASE_URL"]][kid] = rsa_public_key
+    fence.app.jwt_public_keys[config["BASE_URL"]] = OrderedDict(
+        reversed(list(fence.app.jwt_public_keys[config["BASE_URL"]].items()))
     )
 
-    fence.app.config["ENCRYPTION_KEY"] = Fernet.generate_key()
-
-    config.update(BASE_URL=fence.app.config["BASE_URL"])
-    config.update(ENCRYPTION_KEY=fence.app.config["ENCRYPTION_KEY"])
+    config.update(BASE_URL=config["BASE_URL"])
+    config.update(ENCRYPTION_KEY=Fernet.generate_key()) 
 
     return fence.app
 
 
 @pytest.fixture(scope="function")
-def auth_client(app, request):
+def auth_client(request):
     """
     Flask application fixture.
     """
-    app.config["MOCK_AUTH"] = False
+    config["MOCK_AUTH"] = False
 
     def reset_authmock():
-        app.config["MOCK_AUTH"] = True
+        config["MOCK_AUTH"] = True
 
     request.addfinalizer(reset_authmock)
 
@@ -1065,8 +1063,13 @@ def remove_google_idp(app):
     in the openid connect clients.
     """
     saved_app_config = copy.deepcopy(app.config)
+    # Will not deep copy config, because it is global and cannot be changed
+    # later. Instead, save just these fields and then restore them using 
+    # config.update(). 
+    saved_config_enabled_idps = config["ENABLED_IDENTITY_PROVIDERS"]
+    saved_config_openid_connect = config["OPENID_CONNECT"]
 
-    override_setings = {
+    override_settings = {
         "ENABLED_IDENTITY_PROVIDERS": {
             # ID for which of the providers to default to.
             "default": "fence",
@@ -1084,9 +1087,12 @@ def remove_google_idp(app):
             }
         },
     }
-    app.config.update(override_setings)
+    app.config.update(override_settings)
+    config.update(override_settings) 
 
     yield
 
-    # restore old config
+    # restore old configs
     app.config = copy.deepcopy(saved_app_config)
+    config.update(saved_config_enabled_idps)
+    config.update(saved_config_openid_connect)
