@@ -29,12 +29,6 @@ BASE_URL: 'http://localhost/user'
 # connection url format:
 #     postgresql://[user[:password]@][netloc][:port][/dbname]
 DB: 'postgresql://postgres:postgres@localhost:5432/fence_test_tmp'
-# Name and port number of the server for Flask.
-#     NOTE: Set localhost to false when deployed fence in a production env.
-#           If you're developing on localhost and localhost is false, fence will NOT work.
-SERVER_NAME:
-  localhost: true
-  url: '{{BASE_URL}}'
 
 # A URL-safe base64-encoded 32-byte key for encrypting keys in db
 # in python you can use the following script to generate one:
