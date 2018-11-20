@@ -317,6 +317,14 @@ class FenceConfig(Config):
         for default in defaults:
             self._set_default(default, default_config=default_config)
 
+        # only include flask's SERVER_NAME cfg if we're in a prod env
+        # in other words, remove cfg if we're developing on localhost
+        if "SERVER_NAME" in self._configs:
+            if self._configs["SERVER_NAME"].get("localhost"):
+                self._configs.pop("SERVER_NAME")
+            else:
+                self._configs["SERVER_NAME"] = self._configs["SERVER_NAME"].get("url")
+
         if "ROOT_URL" not in self._configs and "BASE_URL" in self._configs:
             url = urlparse.urlparse(self._configs["BASE_URL"])
             self._configs["ROOT_URL"] = "{}://{}".format(url.scheme, url.netloc)
