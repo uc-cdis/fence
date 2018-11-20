@@ -8,9 +8,7 @@ import flask
 import jwt
 
 from fence.jwt import keys
-
 from fence.jwt.errors import JWTSizeError
-
 from fence.config import config
 
 SCOPE_DESCRIPTION = {
