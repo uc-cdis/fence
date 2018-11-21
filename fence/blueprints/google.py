@@ -45,6 +45,7 @@ class ValidationErrors(str, Enum):
     POLICY_NOT_ACCESSIBLE = "policy_not_accessible"
     UNAUTHORIZED = "unauthorized"
     PROJECT_NOT_FOUND = "project_not_found"
+    GOOGLE_PROJECT_NOT_INCLUDED = "google_project_not_included"
 
 
 def make_google_blueprint():
@@ -754,32 +755,7 @@ def _get_service_account_email_error_status(validity_info):
 
 def _get_google_project_id_error_status(validity_info):
     has_access = validity_info.get("monitor_has_access")
-    if not has_access:
-        return {
-            "status": 404,
-            "error": ValidationErrors.MONITOR_NOT_FOUND,
-            "error_description": (
-                "Fence's monitoring service account "
-                "does not have access to the project and/or the necessary "
-                "Google APIs are not enabled."
-            ),
-            "membership_validity": {},
-            "service_account_validity": {},
-        }
-
     user_has_access = validity_info.get("user_has_access")
-    if not user_has_access:
-        return {
-            "status": 403,
-            "error": ValidationErrors.UNAUTHORIZED_USER,
-            "error_description": (
-                "Current user is not an authorized member on the provided "
-                "Google Project."
-            ),
-            "membership_validity": {},
-            "service_account_validity": {},
-        }
-
     valid_parent_org = validity_info.get("valid_parent_org")
     valid_member_types = validity_info.get("valid_member_types")
     members_exist_in_fence = validity_info.get("members_exist_in_fence")
@@ -795,6 +771,34 @@ def _get_google_project_id_error_status(validity_info):
         },
         "service_account_validity": {},
     }
+
+    if not has_access:
+        response["status"] = 404
+        response["error"] = ValidationErrors.MONITOR_NOT_FOUND
+        response["error_description"] = (
+            "Fence's monitoring service account "
+            "does not have access to the project and/or the necessary "
+            "Google APIs are not enabled."
+        )
+        return response
+
+    if not user_has_access:
+        if not validity_info.google_project_id:
+            # if the request doesn't include google_project_id, we want to report that
+            # instead of reporting the user doesn't have access to an unnamed project
+            response["status"] = 400
+            response["error"] = ValidationErrors.GOOGLE_PROJECT_NOT_INCLUDED
+            response[
+                "error_description"
+            ] = "Google Project ID (required) was not included in the request."
+        else:
+            response["status"] = 403
+            response["error"] = ValidationErrors.UNAUTHORIZED_USER
+            response["error_description"] = (
+                "Current user is not an authorized member on the provided "
+                "Google Project."
+            )
+        return response
 
     for sa_account_id, sa_validity in service_accounts_validity:
         if sa_account_id != validity_info.new_service_account:

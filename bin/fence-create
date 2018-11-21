@@ -3,8 +3,10 @@
 import argparse
 import os
 import sys
+import logging
 
 from fence.jwt import keys
+from fence.config import config
 from fence.scripting.fence_create import (
     JWTCreator,
     create_client_action,
@@ -40,7 +42,13 @@ def str2bool(v):
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--path", default="/var/www/fence/", help="path to find local_settings.py"
+        "--path", default="/var/www/fence/", help="path to find configuration"
+    )
+    parser.add_argument(
+        "--verbose",
+        help="whether or not to log to stdout",
+        action="store_true",
+        default=False,
     )
 
     subparsers = parser.add_subparsers(title="action", dest="action")
@@ -265,30 +273,40 @@ def main():
     # get database information
     sys.path.append(args.path)
 
-    if os.environ.get("FENCE_DB"):
-        DB = os.environ["FENCE_DB"]
-    else:
-        from fence.settings import DB
+    if not args.verbose:
+        logging.disable(logging.CRITICAL)
 
-    if os.environ.get("BASE_URL"):
-        BASE_URL = os.environ["BASE_URL"]
-    else:
-        from fence.settings import BASE_URL
+    # replicate cfg loading done in flask app to maintain backwards compatibility
+    # TODO (DEPRECATE LOCAL_SETTINGS): REMOVE this when putting cfg in
+    # settings/local_settings is deprecated
+    import flask
 
-    if os.environ.get("ROOT_DIR"):
-        ROOT_DIR = os.environ["ROOT_DIR"]
-    else:
-        ROOT_DIR = "/fence"
+    settings_cfg = flask.Config(".")
+    settings_cfg.from_object("fence.settings")
+    config.update(dict(settings_cfg))
 
-    if os.environ.get("dbGaP"):
-        dbGaP = os.environ["dbGaP"]
-    else:
-        from fence.settings import dbGaP
+    # END - TODO (DEPRECATE LOCAL_SETTINGS): REMOVE
 
-    if os.environ.get("STORAGE_CREDENTIALS"):
-        STORAGE_CREDENTIALS = os.environ["STORAGE_CREDENTIALS"]
-    else:
-        from fence.settings import STORAGE_CREDENTIALS
+    config.load()
+
+    DB = os.environ.get("FENCE_DB") or config.get("DB")
+
+    # attempt to get from settings, this is backwards-compatibility for integration
+    # tests
+    if DB is None:
+        try:
+            from fence.settings import DB
+        except ImportError:
+            pass
+
+    BASE_URL = os.environ.get("BASE_URL") or config.get("BASE_URL")
+    ROOT_DIR = os.environ.get("ROOT_DIR") or os.path.dirname(
+        os.path.dirname(os.path.realpath(__file__))
+    )
+    dbGaP = os.environ.get("dbGaP") or config.get("dbGaP")
+    STORAGE_CREDENTIALS = os.environ.get("STORAGE_CREDENTIALS") or config.get(
+        "STORAGE_CREDENTIALS"
+    )
 
     if args.action == "create":
         yaml_input = args.__dict__["yaml-input"]
@@ -341,25 +359,7 @@ def main():
     elif args.action == "google-init":
         google_init(DB)
     elif args.action == "google-manage-user-registrations":
-        import local_settings
-
-        config = {}
-        config[
-            "GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS"
-        ] = local_settings.GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS
-        config[
-            "WHITE_LISTED_SERVICE_ACCOUNT_EMAILS"
-        ] = local_settings.WHITE_LISTED_SERVICE_ACCOUNT_EMAILS
-        config[
-            "WHITE_LISTED_GOOGLE_PARENT_ORGS"
-        ] = local_settings.WHITE_LISTED_GOOGLE_PARENT_ORGS
-        config[
-            "WHITE_LISTED_SERVICE_ACCOUNT_EMAILS"
-        ] = local_settings.WHITE_LISTED_SERVICE_ACCOUNT_EMAILS
-        config["GOOGLE_APPLICATION_CREDENTIALS"] = local_settings.CIRRUS_CFG.get(
-            "GOOGLE_APPLICATION_CREDENTIALS"
-        )
-        verify_user_registration(DB, config)
+        verify_user_registration(DB)
     elif args.action == "google-manage-account-access":
         remove_expired_google_accounts_from_proxy_groups(DB)
     elif args.action == "google-bucket-create":
@@ -418,14 +418,15 @@ def main():
             scopes=args.scopes,
             expires_in=args.exp,
         )
-        if args.type == "access_token":
+        token_type = str(args.type).strip().lower()
+        if token_type == "access_token" or token_type == "access":
             print(jwt_creator.create_access_token().token)
-        elif args.type == "refresh_token":
+        elif token_type == "refresh_token" or token_type == "refresh":
             print(jwt_creator.create_refresh_token().token)
         else:
             print(
                 'invalid token type "{}"; expected "access" or "refresh"'.format(
-                    args.type
+                    token_type
                 )
             )
             sys.exit(1)

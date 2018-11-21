@@ -1,7 +1,7 @@
 import urlparse
 import urllib
 from fence.resources.storage.cdis_jwt import create_session_token
-from fence.settings import SESSION_COOKIE_NAME
+from fence.config import config
 
 from fence.auth import build_redirect_url
 
@@ -61,7 +61,7 @@ def test_logout_fence(app, user_with_fence_provider, monkeypatch):
     # the username
     with app.test_client() as client:
         # manually set cookie for initial session
-        client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
+        client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
 
         r = client.get("/logout?next=https://some_site.com")
         assert r.status_code == 302
