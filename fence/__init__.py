@@ -189,7 +189,7 @@ def _load_keys(app, root_dir):
     app.keypairs = keys.load_keypairs(os.path.join(root_dir, "keys"))
 
     app.jwt_public_keys = {
-        config["BASE_URL"]: OrderedDict(
+        config["BASE_URL"]: OrderedDict(   #TODO: Unsure. Esp bc of bhvr in validate_jwt()
             [(str(keypair.kid), str(keypair.public_key)) for keypair in app.keypairs]
         )
     }
