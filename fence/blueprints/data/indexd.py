@@ -17,6 +17,7 @@ from fence.auth import (
     set_current_token,
     validate_request,
 )
+from fence.config import config
 from fence.errors import (
     InternalError,
     NotFound,
@@ -86,7 +87,8 @@ class BlankIndex(object):
         """
         index_url = self.indexd.rstrip("/") + "/index/blank"
         params = {"uploader": self.uploader}
-        indexd_response = requests.post(index_url, json=params)
+        auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
+        indexd_response = requests.post(index_url, json=params, auth=auth)
         if indexd_response.status_code not in [200, 201]:
             raise InternalError(
                 "received error from indexd trying to create blank record: {}".format(
