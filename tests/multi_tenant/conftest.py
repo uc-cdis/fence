@@ -88,11 +88,11 @@ def fence_client_app(
 
     client_app.jwt_public_keys["/"] = OrderedDict([(kid_2, rsa_public_key_2)])
 
-    config["BASE_URL"] = "/"
-    config["MOCK_AUTH"] = False
-    config["DEFAULT_LOGIN_URL"] = "/login/fence"
+    client_app.config["BASE_URL"] = "/"
+    client_app.config["MOCK_AUTH"] = False
+    client_app.config["DEFAULT_LOGIN_URL"] = "/login/fence"
     client_app.db.Session = lambda: db_session
-    config["OPENID_CONNECT"] = {
+    client_app.config["OPENID_CONNECT"] = {
         "fence": {
             "client_id": fence_oauth_client.client_id,
             "client_secret": fence_oauth_client.client_secret,
@@ -107,7 +107,7 @@ def fence_client_app(
         }
     }
     client_app.fence_client = OAuthClient(
-        **config["OPENID_CONNECT"]["fence"]
+        **client_app.config["OPENID_CONNECT"]["fence"]
     )
 
     return client_app

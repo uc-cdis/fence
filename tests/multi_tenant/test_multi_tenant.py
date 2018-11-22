@@ -23,10 +23,10 @@ def test_redirect_from_oauth(fence_client_app, oauth_client):
     """
     config.update(
         {
-            "OPENID_CONNECT": config["OPENID_CONNECT"],
-            "BASE_URL": config["BASE_URL"],
-            "MOCK_AUTH": config["MOCK_AUTH"],
-            "DEFAULT_LOGIN_URL": config["DEFAULT_LOGIN_URL"],
+            "OPENID_CONNECT": fence_client_app.config["OPENID_CONNECT"],
+            "BASE_URL": fence_client_app.config["BASE_URL"],
+            "MOCK_AUTH": fence_client_app.config["MOCK_AUTH"],
+            "DEFAULT_LOGIN_URL": fence_client_app.config["DEFAULT_LOGIN_URL"],
         }
     )
 
@@ -61,16 +61,19 @@ def test_login(
           the configured client URL with the code in the query string
           arguments
     """
+
+    print("********BEGINNING TEST_LOGIN****************")
+
     # Disable the keys refreshing since requests will not work with the client
     # app.
     monkeypatch.setattr("authutils.token.keys.refresh_jwt_public_keys", lambda: None)
 
     config.update(
         {
-            "OPENID_CONNECT": config["OPENID_CONNECT"],
-            "BASE_URL": config["BASE_URL"],
-            "MOCK_AUTH": config["MOCK_AUTH"],
-            "DEFAULT_LOGIN_URL": config["DEFAULT_LOGIN_URL"],
+            "OPENID_CONNECT": fence_client_app.config["OPENID_CONNECT"],
+            "BASE_URL": fence_client_app.config["BASE_URL"],
+            "MOCK_AUTH": fence_client_app.config["MOCK_AUTH"],
+            "DEFAULT_LOGIN_URL": fence_client_app.config["DEFAULT_LOGIN_URL"],
         }
     )
 
@@ -84,8 +87,8 @@ def test_login(
 
     config.update(
         {
-            "BASE_URL": config["BASE_URL"],
-            "ENCRYPTION_KEY": config["ENCRYPTION_KEY"],
+            "BASE_URL": app.config["BASE_URL"],
+            "ENCRYPTION_KEY": app.config["ENCRYPTION_KEY"],
         }
     )
 

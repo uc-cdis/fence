@@ -573,7 +573,6 @@ def test_valid_get_google_project_parent_org(
     Test that a valid service account gives us the expected response when it has
     parent org BUT that org is whitelisted.
     """
-    # from fence.config import config #TODO: Whaaaat why is this here
 
     monkeypatch.setitem(
         config, "WHITE_LISTED_GOOGLE_PARENT_ORGS", ["whitelisted-parent-org"]
