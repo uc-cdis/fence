@@ -1066,8 +1066,12 @@ def remove_google_idp(app):
     # Will not deep copy config, because it is global and cannot be changed
     # later. Instead, save just these fields and then restore them using 
     # config.update(). 
-    saved_config_enabled_idps = config["ENABLED_IDENTITY_PROVIDERS"]
-    saved_config_openid_connect = config["OPENID_CONNECT"]
+    saved_config_enabled_idps = {
+        "ENABLED_IDENTITY_PROVIDERS": config["ENABLED_IDENTITY_PROVIDERS"]
+    }
+    saved_config_openid_connect = {
+        "OPENID_CONNECT": config["OPENID_CONNECT"]
+    }
 
     override_settings = {
         "ENABLED_IDENTITY_PROVIDERS": {

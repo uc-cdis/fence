@@ -62,8 +62,6 @@ def test_login(
           arguments
     """
 
-    print("********BEGINNING TEST_LOGIN****************")
-
     # Disable the keys refreshing since requests will not work with the client
     # app.
     monkeypatch.setattr("authutils.token.keys.refresh_jwt_public_keys", lambda: None)

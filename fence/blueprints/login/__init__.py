@@ -28,17 +28,10 @@ def make_login_blueprint(app):
         ValueError: if app is not amenably configured
     """
 
-    print("Starting make_login_blueprint(app)") 
-
     try:
         default_idp = config["ENABLED_IDENTITY_PROVIDERS"]["default"]
         idps = config["ENABLED_IDENTITY_PROVIDERS"]["providers"]
-        print("In try block. Default idp: ", default_idp)
-        print("ipds: ", idps) 
-        print("In the config file, default is:")
-        print(config["ENABLED_IDENTITY_PROVIDERS"]["default"])
     except KeyError as e:
-        print("In except block") 
         app.logger.warn(
             "app not configured correctly with ENABLED_IDENTITY_PROVIDERS:"
             " missing {}".format(str(e))
@@ -57,10 +50,6 @@ def make_login_blueprint(app):
 
     blueprint = flask.Blueprint("login", __name__)
     blueprint_api = RestfulApi(blueprint)
-
-    print("DEFAULT IDP")
-    print("IS:") 
-    print(default_idp) 
 
     @blueprint.route("", methods=["GET"])
     def default_login():
@@ -82,14 +71,8 @@ def make_login_blueprint(app):
             }
 
         try:
-            print("Endpoint") 
-            print("default_idp is:") 
-            print(default_idp) 
-            print("In the config file, default is:") 
-            print(config["ENABLED_IDENTITY_PROVIDERS"]["default"]) #<- how did this become Fence???  
             all_provider_info = [provider_info(idp_id) for idp_id in idps.keys()]
             default_provider_info = provider_info(default_idp)
-            print("Set default_provider_info. ID: ", default_provider_info["id"]) # TODO  
         except KeyError as e:
             raise InternalError("identity providers misconfigured: {}".format(str(e)))
 
