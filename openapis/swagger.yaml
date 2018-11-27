@@ -317,10 +317,13 @@ paths:
           - user
           - data
       operationId: uploadBlank
-      parameters:
-        - name: filename
-          required: true
-          TODO
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestUploadBlank'
+
+
       responses:
         201:
           description: successful operation; created new record in indexd
@@ -1273,6 +1276,20 @@ components:
           scopes:
             user: generic user access
   schemas:
+    RequestUploadBlank:
+      type: object
+      required:
+      properties:
+        filename:
+          type: string
+          required: true
+          description: the file name to use for this upload
+        expires_in:
+          type: integer
+          description: optional integer specifying the presigned URL lifetime
+      example:
+        filename: "my_file.bam"
+        expires_in: 1200
     CredentialsSource:
       type: object
       required:

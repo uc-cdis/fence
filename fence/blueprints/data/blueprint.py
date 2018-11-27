@@ -1,9 +1,7 @@
 import flask
 
 from fence.auth import login_required, require_auth_header
-from fence.auth import validate_request
 from fence.errors import (
-    InternalError,
     NotFound,
     NotSupported,
     Unauthorized,

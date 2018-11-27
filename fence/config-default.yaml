@@ -303,7 +303,9 @@ S3_BUCKETS:
     cred: 'CRED1'
     role-arn: 'arn:aws:iam::role1'
 
-# this must be one of the first keys under `S3_BUCKETS`
+# `DATA_UPLOAD_BUCKET` specifies an S3 bucket to which data files are uploaded,
+# using the `/data/upload` endpoint. This must be one of the first keys under
+# `S3_BUCKETS` (since these are the buckets fence has credentials for).
 DATA_UPLOAD_BUCKET: 'bucket1'
 
 # //////////////////////////////////////////////////////////////////////////////////////

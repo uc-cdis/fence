@@ -1,4 +1,3 @@
-from abc import ABCMeta
 import re
 import time
 from urlparse import urlparse
@@ -97,7 +96,8 @@ class BlankIndex(object):
             )
         return indexd_response.json()
 
-    def make_signed_url(self, filename, expires_in=None):
+    @staticmethod
+    def make_signed_url(filename, expires_in=None):
         """
         Works for upload only; S3 only (only supported case for data upload flow
         currently).
