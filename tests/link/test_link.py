@@ -40,13 +40,35 @@ def test_google_link_redirect(client, app, encoded_creds_jwt):
 
 
 def test_google_link_redirect_no_google_idp(
-    client, app, remove_google_idp, encoded_creds_jwt
+    client, app, config_fixture, encoded_creds_jwt
 ):
     """
     Test that even if Google is not configured as an IDP, when we hit the link
     endpoint with valid creds, we get a redirect response.
     This should be redirecting to google's oauth
     """
+    # Don't include google in the enabled idps, but leave it configured
+    # in the openid connect clients:
+    override_settings = {
+        "ENABLED_IDENTITY_PROVIDERS": {
+            # ID for which of the providers to default to.
+            "default": "fence",
+            # Information for identity providers.
+            "providers": {
+                "fence": {"name": "Fence Multi-Tenant OAuth"},
+                "shibboleth": {"name": "NIH Login"},
+            },
+        },
+        "OPENID_CONNECT": {
+            "google": {
+                "client_id": "123",
+                "client_secret": "456",
+                "redirect_url": "789",
+            }
+        },
+    }
+    config.update(override_settings)
+
     encoded_credentials_jwt = encoded_creds_jwt["jwt"]
     redirect = "http://localhost"
 

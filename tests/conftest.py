@@ -496,7 +496,7 @@ def app(kid, rsa_private_key, rsa_public_key):
     )
 
     config.update(BASE_URL=config["BASE_URL"])
-    config.update(ENCRYPTION_KEY=Fernet.generate_key()) 
+    config.update(ENCRYPTION_KEY=Fernet.generate_key())
 
     return fence.app
 
@@ -1057,39 +1057,13 @@ def google_storage_client_mocker(app):
 
 
 @pytest.fixture(scope="function")
-def remove_google_idp(app):
+def config_fixture():
     """
-    Don't include google in the enabled idps, but leave it configured
-    in the openid connect clients.
+    Restore original config at teardown.
     """
-    saved_app_config = copy.deepcopy(app.config)
     saved_config = copy.deepcopy(config._configs)
-    # Make config fixture and reset at teardown (after yield) #TODO
-    # Or just repurpose this one and rewrite that one test #TODO
-
-    override_settings = {
-        "ENABLED_IDENTITY_PROVIDERS": {
-            # ID for which of the providers to default to.
-            "default": "fence",
-            # Information for identity providers.
-            "providers": {
-                "fence": {"name": "Fence Multi-Tenant OAuth"},
-                "shibboleth": {"name": "NIH Login"},
-            },
-        },
-        "OPENID_CONNECT": {
-            "google": {
-                "client_id": "123",
-                "client_secret": "456",
-                "redirect_url": "789",
-            }
-        },
-    }
-    app.config.update(override_settings)
-    config.update(override_settings) 
 
     yield
 
     # restore old configs
-    app.config = copy.deepcopy(saved_app_config)
     config.update(saved_config)
