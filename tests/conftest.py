@@ -1063,15 +1063,9 @@ def remove_google_idp(app):
     in the openid connect clients.
     """
     saved_app_config = copy.deepcopy(app.config)
-    # Will not deep copy config, because it is global and cannot be changed
-    # later. Instead, save just these fields and then restore them using 
-    # config.update(). 
-    saved_config_enabled_idps = {
-        "ENABLED_IDENTITY_PROVIDERS": config["ENABLED_IDENTITY_PROVIDERS"]
-    }
-    saved_config_openid_connect = {
-        "OPENID_CONNECT": config["OPENID_CONNECT"]
-    }
+    saved_config = copy.deepcopy(config._configs)
+    # Make config fixture and reset at teardown (after yield) #TODO
+    # Or just repurpose this one and rewrite that one test #TODO
 
     override_settings = {
         "ENABLED_IDENTITY_PROVIDERS": {
@@ -1098,5 +1092,4 @@ def remove_google_idp(app):
 
     # restore old configs
     app.config = copy.deepcopy(saved_app_config)
-    config.update(saved_config_enabled_idps)
-    config.update(saved_config_openid_connect)
+    config.update(saved_config)

@@ -79,7 +79,8 @@ def validate_jwt(
             raise JWTError("no authorization header provided")
     aud = aud or {"openid"}
     aud = set(aud)
-    iss = flask.current_app.config["BASE_URL"]  # TODO: Marking this to be checked
+    # TODO: See if vvv can use config if the multi-tenant tests are not in the picture.
+    iss = flask.current_app.config["BASE_URL"] 
     issuers = [iss]
     oidc_iss = (
         config.get("OPENID_CONNECT", {}).get("fence", {}).get("api_base_url", None)

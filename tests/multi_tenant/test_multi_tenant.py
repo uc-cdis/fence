@@ -5,6 +5,7 @@ at this code; otherwise it is likely for none of this to make any sense.
 
 import urllib
 import urlparse
+import copy # TODO remove if brosil ideyu
 
 # in python3:
 # urllib.parse
@@ -21,6 +22,14 @@ def test_redirect_from_oauth(fence_client_app, oauth_client):
     Test that the ``/oauth2/authorize`` endpoint on the client redirects to the
     ``/login/fence`` endpoint, also on the client.
     """
+    # Save these fields so that they can be reset later on 
+    saved_config_fields = {
+        "OPENID_CONNECT": config["OPENID_CONNECT"],
+        "BASE_URL": config["BASE_URL"],
+        "MOCK_AUTH": config["MOCK_AUTH"],
+        "DEFAULT_LOGIN_URL": config["DEFAULT_LOGIN_URL"]
+    } 
+
     config.update(
         {
             "OPENID_CONNECT": fence_client_app.config["OPENID_CONNECT"],
@@ -43,6 +52,9 @@ def test_redirect_from_oauth(fence_client_app, oauth_client):
         assert response_oauth_authorize.status_code == 302
         assert "/login/fence" in response_oauth_authorize.location
 
+    # restore old configs 
+    config.update(saved_config_fields)     
+
 
 def test_login(
     app,
@@ -61,6 +73,19 @@ def test_login(
           the configured client URL with the code in the query string
           arguments
     """
+    # TODO: vvv Cleaner this way, if possible after rewriting these tests. 
+    # saved_config = copy.deepcopy(config._configs) 
+
+    saved_config_fields = {
+        "OPENID_CONNECT": config["OPENID_CONNECT"],
+        "BASE_URL": config["BASE_URL"], 
+        "MOCK_AUTH": config["MOCK_AUTH"],
+        "DEFAULT_LOGIN_URL": config["DEFAULT_LOGIN_URL"],
+        "ENCRYPTION_KEY": config["ENCRYPTION_KEY"]
+    }
+
+    # TODO: Hopefully remove after rewriting tests.
+    saved_mockauth = {"MOCK_AUTH": config["MOCK_AUTH"]} 
 
     # Disable the keys refreshing since requests will not work with the client
     # app.
@@ -82,6 +107,10 @@ def test_login(
         response_login_fence = fence_client_client.get(path)
         # This should be pointing at ``/oauth2/authorize`` of the IDP fence.
         assert "/oauth2/authorize" in response_login_fence.location
+
+    # Either one of the following works. TODO: Hopefully remove after rewriting tests. 
+    #config.update(saved_config_fields)
+    config.update(saved_mockauth)
 
     config.update(
         {
@@ -110,3 +139,8 @@ def test_login(
         authorize_redirect = authorize_response.json["redirect"]
         assert remove_qs(authorize_redirect) == fence_oauth_client_url
         assert "code" in authorize_redirect
+
+    # restore old configs 
+    # config.update(saved_config) TODO hopefully use this version after rewrites 
+    config.update(saved_config_fields)
+
