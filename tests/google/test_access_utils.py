@@ -10,6 +10,7 @@ except ImportError:
     from mock import patch
 from sqlalchemy import or_
 
+from cirrus.errors import CirrusError
 from cirrus.google_cloud import (
     GoogleCloudManager,
     COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
@@ -268,9 +269,9 @@ def test_remove_service_account_raise_GoogleAPI_exc(
     """
     (
         cloud_manager.return_value.__enter__.return_value.remove_member_from_group.side_effect
-    ) = Exception("exception")
+    ) = CirrusError("exception")
 
-    with pytest.raises(Exception):
+    with pytest.raises(CirrusError):
         assert force_remove_service_account_from_access("test@gmail.com", "test")
 
 
@@ -483,9 +484,9 @@ def test_update_user_service_account_raise_GoogleAPI_exc(
     """
     (
         cloud_manager.return_value.__enter__.return_value.remove_member_from_group.side_effect
-    ) = Exception("exception")
+    ) = CirrusError("exception")
 
-    with pytest.raises(Exception):
+    with pytest.raises(CirrusError):
         assert patch_user_service_account("test", "test@gmail.com", ["test_auth_2"])
 
 
@@ -498,9 +499,9 @@ def test_update_user_service_account_raise_GoogleAPI_exc2(
     """
     (
         cloud_manager.return_value.__enter__.return_value.add_member_to_group.side_effect
-    ) = Exception("exception")
+    ) = CirrusError("exception")
 
-    with pytest.raises(Exception):
+    with pytest.raises(CirrusError):
         assert patch_user_service_account(
             "test", "test@gmail.com", ["test_auth_1", "test_auth_2", "test_auth_3"]
         )
@@ -517,7 +518,7 @@ def test_update_user_service_account_raise_GoogleAPI_exc3(
         cloud_manager.return_value.__enter__.return_value.add_member_to_group.return_value
     ) = {"a": "b"}
 
-    with pytest.raises(Exception):
+    with pytest.raises(CirrusError):
         assert patch_user_service_account(
             "test", "test@gmail.com", ["test_auth_1", "test_auth_2", "test_auth_3"]
         )
@@ -534,7 +535,7 @@ def test_update_user_service_account_raise_GoogleAPI_exc4(
         cloud_manager.return_value.__enter__.return_value.delete_member_from_group.return_value
     ) = {"a": "b"}
 
-    with pytest.raises(Exception):
+    with pytest.raises(CirrusError):
         assert patch_user_service_account("test", "test@gmail.com", ["test_auth_1"])
 
 
