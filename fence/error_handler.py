@@ -7,7 +7,7 @@ from authlib.specs.rfc6749.errors import OAuth2Error
 from werkzeug.exceptions import HTTPException
 
 from fence.errors import APIError
-from fence.config import config 
+from fence.config import config
 
 
 def get_error_response(error):

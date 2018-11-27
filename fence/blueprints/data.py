@@ -126,10 +126,7 @@ class IndexedFile(object):
         return signed_url
 
     def _get_index_document(self):
-        indexd_server = (
-            config.get("INDEXD")
-            or config["BASE_URL"] + "/index"
-        )
+        indexd_server = config.get("INDEXD") or config["BASE_URL"] + "/index"
         url = indexd_server + "/index/"
         try:
             res = requests.get(url + self.file_id)
@@ -277,9 +274,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
     def get_credential_to_access_bucket(self, aws_creds, expires_in):
         s3_buckets = get_value(
-            config,
-            "S3_BUCKETS",
-            InternalError("buckets not configured"),
+            config, "S3_BUCKETS", InternalError("buckets not configured")
         )
         if len(aws_creds) == 0 and len(s3_buckets) == 0:
             raise InternalError("no bucket is configured")
@@ -313,9 +308,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
     def get_signed_url(self, action, expires_in, public_data=False):
         aws_creds = get_value(
-            config,
-            "AWS_CREDENTIALS",
-            InternalError("credentials not configured"),
+            config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
 
         http_url = "https://{}.s3.amazonaws.com/{}".format(
@@ -325,7 +318,9 @@ class S3IndexedFileLocation(IndexedFileLocation):
         credential = self.get_credential_to_access_bucket(aws_creds, expires_in)
 
         aws_access_key_id = get_value(
-            credential, "aws_access_key_id", InternalError("aws configuration not found")
+            credential,
+            "aws_access_key_id",
+            InternalError("aws configuration not found"),
         )
         if aws_access_key_id == "*":
             return http_url

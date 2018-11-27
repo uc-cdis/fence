@@ -120,9 +120,7 @@ def test_google_service_account_monitor(
     # mock_path = patch('os.path.exists', True)
     mocked_open = patch("__builtin__.open", mock_open(read_data=creds_file))
 
-    monkeypatch.setitem(
-        config, "CIRRUS_CFG", {"GOOGLE_APPLICATION_CREDENTIALS": "."}
-    )
+    monkeypatch.setitem(config, "CIRRUS_CFG", {"GOOGLE_APPLICATION_CREDENTIALS": "."})
 
     mocked_open.start()
     mock_path.start()

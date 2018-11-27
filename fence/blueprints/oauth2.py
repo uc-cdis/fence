@@ -71,13 +71,9 @@ def authorize(*args, **kwargs):
         need_authentication = True
 
     if need_authentication or not user:
-        redirect_url = (
-            config.get("BASE_URL") + flask.request.full_path
-        )
+        redirect_url = config.get("BASE_URL") + flask.request.full_path
         params = {"redirect": redirect_url}
-        login_url = add_params_to_uri(
-            config.get("DEFAULT_LOGIN_URL"), params
-        )
+        login_url = add_params_to_uri(config.get("DEFAULT_LOGIN_URL"), params)
         return flask.redirect(login_url)
 
     try:

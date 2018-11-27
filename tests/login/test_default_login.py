@@ -1,5 +1,6 @@
 from fence.config import config
 
+
 def test_default_login(app, client):
     response_json = client.get("/login").json
     assert "default_provider" in response_json

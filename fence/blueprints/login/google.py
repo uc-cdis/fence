@@ -6,6 +6,7 @@ from fence.errors import UserError
 from fence.models import IdentityProvider
 from fence.config import config
 
+
 class GoogleRedirect(Resource):
     def get(self):
         flask.redirect_url = flask.request.args.get("redirect")

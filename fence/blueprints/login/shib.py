@@ -33,9 +33,7 @@ class ShibbolethLoginFinish(Resource):
         """
 
         if "SHIBBOLETH_HEADER" in config:
-            eppn = flask.request.headers.get(
-                config["SHIBBOLETH_HEADER"]
-            )
+            eppn = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
 
         else:
             raise InternalError("Missing shibboleth header configuration")

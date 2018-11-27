@@ -122,9 +122,9 @@ class UserSession(SessionMixin):
         if self._encoded_token:
             now = int(time.time())
             is_expired = self.session_token["exp"] <= now
-            end_of_life = self.session_token["context"][
-                "session_started"
-            ] + config.get("SESSION_LIFETIME")
+            end_of_life = self.session_token["context"]["session_started"] + config.get(
+                "SESSION_LIFETIME"
+            )
             lifetime_over = end_of_life <= now
             if is_expired or lifetime_over:
                 self.clear()

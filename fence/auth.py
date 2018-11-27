@@ -121,13 +121,9 @@ def login_required(scope=None):
                 return f(*args, **kwargs)
 
             eppn = None
-            enable_shib = "shibboleth" in config.get(
-                "ENABLED_IDENTITY_PROVIDERS", []
-            )
+            enable_shib = "shibboleth" in config.get("ENABLED_IDENTITY_PROVIDERS", [])
             if enable_shib and "SHIBBOLETH_HEADER" in config:
-                eppn = flask.request.headers.get(
-                    config["SHIBBOLETH_HEADER"]
-                )
+                eppn = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
 
             if config.get("MOCK_AUTH") is True:
                 eppn = "test"
@@ -157,7 +153,7 @@ def handle_login(scope):
 
     eppn = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
 
-    if config.get("MOCK_AUTH") is True:  
+    if config.get("MOCK_AUTH") is True:
         eppn = "test"
     # if there is authorization header for oauth
     if "Authorization" in flask.request.headers:

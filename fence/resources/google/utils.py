@@ -140,9 +140,7 @@ def create_primary_service_account_key(user_id, username, proxy_group_id, expire
 
     expires = expires or (
         int(time.time())
-        + config[
-            "GOOGLE_SERVICE_ACCOUNT_KEY_FOR_URL_SIGNING_EXPIRES_IN"
-        ]
+        + config["GOOGLE_SERVICE_ACCOUNT_KEY_FOR_URL_SIGNING_EXPIRES_IN"]
     )
 
     add_custom_service_account_key_expiration(
@@ -654,9 +652,9 @@ def get_monitoring_service_account_email(app_creds_file=None):
     This function should ONLY return the service account's email by
     parsing the creds file.
     """
-    app_creds_file = app_creds_file or config.get(
-        "CIRRUS_CFG", {}
-    ).get("GOOGLE_APPLICATION_CREDENTIALS")
+    app_creds_file = app_creds_file or config.get("CIRRUS_CFG", {}).get(
+        "GOOGLE_APPLICATION_CREDENTIALS"
+    )
 
     creds_email = None
     if app_creds_file and os.path.exists(app_creds_file):
