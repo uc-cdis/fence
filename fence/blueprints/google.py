@@ -7,6 +7,7 @@ import flask
 from flask_restful import Resource
 
 from cirrus import GoogleCloudManager
+from cirrus.errors import CirrusNotFound
 from cirrus.google_cloud.errors import GoogleAPIError
 
 from fence.auth import current_token, require_auth_header
@@ -456,7 +457,7 @@ class GoogleServiceAccount(Resource):
                 sa.google_project_id, sa.email, sa.project_access
             )
 
-        except NotFound as exc:
+        except CirrusNotFound as exc:
             return (
                 "Can not update the service accout {}. Detail {}".format(
                     sa.email, exc.message
@@ -500,7 +501,7 @@ class GoogleServiceAccount(Resource):
                 service_account_email, google_project_id
             )
             force_delete_service_account(service_account_email)
-        except NotFound as exc:
+        except CirrusNotFound as exc:
             return (
                 "Can not remove the service accout {}. Detail {}".format(
                     id_, exc.message
