@@ -784,7 +784,7 @@ class GoogleServiceAccountValidity(ValidityInfo):
             try:
                 policy_accessible = True
                 sa_policy = get_service_account_policy(self.account_id, gcm)
-            except NotFound:
+            except Exception:
                 policy_accessible = False
                 gcm.close()
                 return
