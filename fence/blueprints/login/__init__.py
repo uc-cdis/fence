@@ -19,7 +19,7 @@ from fence.config import config
 def make_login_blueprint(app):
     """
     Args:
-        app (flask.Flask): a flask app 
+        app (flask.Flask): a flask app (with `app.config` set up)
 
     Return:
         flask.Blueprint: the blueprint used for ``/login`` endpoints
