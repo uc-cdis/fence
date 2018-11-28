@@ -1,8 +1,14 @@
-from . import utils
-import jwt
+import json
+import mock
 import urlparse
+import uuid
+
+import jwt
 import pytest
+
 from fence.errors import NotSupported
+
+from tests import utils
 
 
 @pytest.mark.parametrize(
@@ -334,3 +340,40 @@ def test_public_bucket_unsupported_protocol_file(
     # response should not be JSON, should be HTML error page
     with pytest.raises(ValueError):
         response.json
+
+
+def test_blank_index_upload(app, client, auth_client, encoded_creds_jwt, user_client):
+    class MockResponse(object):
+        def __init__(self, data, status_code=200):
+            self.data = data
+            self.status_code = status_code
+
+        def json(self):
+            return self.data
+
+    with mock.patch(
+        "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
+    ) as mock_requests:
+        mock_requests.post.return_value = MockResponse(
+            {
+                "did": str(uuid.uuid4()),
+                "rev": str(uuid.uuid4())[:8],
+                "baseid": str(uuid.uuid4()),
+            }
+        )
+        mock_requests.post.return_value.status_code = 200
+        headers = {
+            "Authorization": "Bearer " + encoded_creds_jwt.jwt,
+            "Content-Type": "application/json",
+        }
+        data = json.dumps({"filename": "asdf"})
+        response = client.post("/data/upload", headers=headers, data=data)
+        indexd_url = app.config.get("INDEXD") or app.config.get("BASE_URL") + "/index"
+        endpoint = indexd_url + "/index/blank"
+        auth = ("gdcapi", "")
+        mock_requests.post.assert_called_once_with(
+            endpoint, auth=auth, json={"uploader": "test"}
+        )
+        assert response.status_code == 201, response
+        assert "guid" in response.json
+        assert "url" in response.json

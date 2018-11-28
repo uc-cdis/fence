@@ -303,6 +303,11 @@ S3_BUCKETS:
     cred: 'CRED1'
     role-arn: 'arn:aws:iam::role1'
 
+# `DATA_UPLOAD_BUCKET` specifies an S3 bucket to which data files are uploaded,
+# using the `/data/upload` endpoint. This must be one of the first keys under
+# `S3_BUCKETS` (since these are the buckets fence has credentials for).
+DATA_UPLOAD_BUCKET: 'bucket1'
+
 # //////////////////////////////////////////////////////////////////////////////////////
 # PROXY
 #   - Optional: If the api is behind firewall that needs to set http proxy
@@ -321,6 +326,11 @@ HTTP_PROXY:
 # NOTE: Leaving as null will force fence to default to {{BASE_URL}}/index
 # example value: 'https://example.com/index'
 INDEXD: null
+
+# this is the username which fence uses to make authenticated requests to indexd
+INDEXD_USERNAME: 'gdcapi'
+# this is the password which fence uses to make authenticated requests to indexd
+INDEXD_PASSWORD: ''
 
 # url where role-based access control microservice is running
 ARBORIST: null
