@@ -3,7 +3,7 @@
 @Library('cdis-jenkins-lib@refactor/microservices') _
 // import uchicago.cdis.MicroservicePipeline
 
-runPipeline {
+microservicePipeline2 {
   pipeline = 'microservice'
 
   namespaces = [
