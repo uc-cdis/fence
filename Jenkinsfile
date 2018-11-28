@@ -4,13 +4,13 @@
 // import uchicago.cdis.MicroservicePipeline
 
 config = [
-  pipeline: 'microservice'
+  pipeline: 'microservice',
 
   namespaces: [
     "jenkins-brain",
     "jenkins-niaid",
     "jenkins-dcp"
-  ]
+  ],
 
   skipDeploy: 'true'
 ]
