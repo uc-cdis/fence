@@ -40,7 +40,7 @@ def test_google_link_redirect(client, app, encoded_creds_jwt):
 
 
 def test_google_link_redirect_no_google_idp(
-    client, app, config_fixture, encoded_creds_jwt
+    client, app, restore_config, encoded_creds_jwt
 ):
     """
     Test that even if Google is not configured as an IDP, when we hit the link

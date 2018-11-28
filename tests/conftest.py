@@ -1057,7 +1057,7 @@ def google_storage_client_mocker(app):
 
 
 @pytest.fixture(scope="function")
-def config_fixture():
+def restore_config():
     """
     Restore original config at teardown.
     """

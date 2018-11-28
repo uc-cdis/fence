@@ -16,7 +16,7 @@ from tests.utils import oauth2
 from tests.utils import remove_qs
 
 
-def test_login(config_fixture, fence_client_app, monkeypatch, oauth_client):
+def test_login(restore_config, fence_client_app, monkeypatch, oauth_client):
     """
     1. Test that the ``/oauth2/authorize`` endpoint on the client redirects to the
     ``/login/fence`` endpoint, also on the client.
