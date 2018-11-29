@@ -3,17 +3,17 @@
 @Library('cdis-jenkins-lib@refactor/microservices') _
 // import uchicago.cdis.MicroservicePipeline
 
-config = [
-  pipeline: 'microservice',
+runPipeline {
+  pipeline = 'microservice',
 
-  namespaces: [
+  namespaces = [
     "jenkins-brain",
     "jenkins-niaid",
     "jenkins-dcp"
-  ],
+  ]
 
-  skipDeploy: 'true'
-]
+  skipDeploy = 'true'
+}
 
 microservicePipeline2(config)
 
