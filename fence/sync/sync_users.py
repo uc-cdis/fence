@@ -116,8 +116,6 @@ class UserSyncer(object):
                 storage_credentials, logger=self.logger
             )
 
-        self.storage_manager = StorageManager(storage_credentials, logger=self.logger)
-
     @staticmethod
     def _match_pattern(filepath, encrypted=True):
         """
