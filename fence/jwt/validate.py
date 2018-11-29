@@ -69,6 +69,7 @@ def validate_jwt(
             if auth header is missing, decoding fails, or the JWT fails to
             satisfy any expectation
     """
+
     if encoded_token is None:
         try:
             encoded_token = flask.request.headers["Authorization"].split(" ")[1]
@@ -78,7 +79,7 @@ def validate_jwt(
             raise JWTError("no authorization header provided")
     aud = aud or {"openid"}
     aud = set(aud)
-    iss = flask.current_app.config["BASE_URL"]
+    iss = config["BASE_URL"]
     issuers = [iss]
     oidc_iss = (
         config.get("OPENID_CONNECT", {}).get("fence", {}).get("api_base_url", None)

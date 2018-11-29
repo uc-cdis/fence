@@ -31,6 +31,8 @@ from fence.resources.google.utils import (
 )
 
 
+from fence.config import config
+
 ACTION_DICT = {
     "s3": {"upload": "PUT", "download": "GET"},
     "gs": {"upload": "PUT", "download": "GET"},
@@ -43,7 +45,7 @@ SUPPORTED_ACTIONS = ["upload", "download"]
 def get_signed_url_for_file(action, file_id):
     requested_protocol = flask.request.args.get("protocol", None)
     indexed_file = IndexedFile(file_id)
-    max_ttl = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
+    max_ttl = config.get("MAX_PRESIGNED_URL_TTL", 3600)
     expires_in = min(int(flask.request.args.get("expires_in", max_ttl)), max_ttl)
     signed_url = indexed_file.get_signed_url(requested_protocol, action, expires_in)
     return {"url": signed_url}
@@ -139,10 +141,7 @@ class IndexedFile(object):
 
     @cached_property
     def index_document(self):
-        indexd_server = (
-            flask.current_app.config.get("INDEXD")
-            or flask.current_app.config["BASE_URL"] + "/index"
-        )
+        indexd_server = config.get("INDEXD") or config["BASE_URL"] + "/index"
         url = indexd_server + "/index/"
         try:
             res = requests.get(url + self.file_id)
@@ -309,9 +308,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
     def get_credential_to_access_bucket(self, aws_creds, expires_in):
         s3_buckets = get_value(
-            flask.current_app.config,
-            "S3_BUCKETS",
-            InternalError("buckets not configured"),
+            config, "S3_BUCKETS", InternalError("buckets not configured")
         )
         if len(aws_creds) == 0 and len(s3_buckets) == 0:
             raise InternalError("no bucket is configured")
@@ -345,25 +342,25 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
     def get_signed_url(self, action, expires_in, public_data=False):
         aws_creds = get_value(
-            flask.current_app.config,
-            "AWS_CREDENTIALS",
-            InternalError("credentials not configured"),
+            config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
 
         http_url = "https://{}.s3.amazonaws.com/{}".format(
             self.parsed_url.netloc, self.parsed_url.path.strip("/")
         )
 
-        config = self.get_credential_to_access_bucket(aws_creds, expires_in)
+        credential = self.get_credential_to_access_bucket(aws_creds, expires_in)
 
         aws_access_key_id = get_value(
-            config, "aws_access_key_id", InternalError("aws configuration not found")
+            credential,
+            "aws_access_key_id",
+            InternalError("aws configuration not found"),
         )
         if aws_access_key_id == "*":
             return http_url
 
         region = flask.current_app.boto.get_bucket_region(
-            self.parsed_url.netloc, config
+            self.parsed_url.netloc, credential
         )
 
         user_info = {}
@@ -373,7 +370,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         url = generate_aws_presigned_url(
             http_url,
             ACTION_DICT["s3"][action],
-            config,
+            credential,
             "s3",
             region,
             expires_in,

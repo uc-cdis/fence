@@ -64,7 +64,7 @@ def app_init(
 
 def app_sessions(app):
     app.url_map.strict_slashes = False
-    app.db = SQLAlchemyDriver(app.config["DB"])
+    app.db = SQLAlchemyDriver(config["DB"])
     migrate(app.db)
     session = flask_scoped_session(app.db.Session, app)  # noqa
     app.session_interface = UserSessionInterface()
@@ -91,7 +91,7 @@ def app_register_blueprints(app):
     google_blueprint = fence.blueprints.google.make_google_blueprint()
     app.register_blueprint(google_blueprint, url_prefix="/google")
 
-    if app.config.get("ARBORIST"):
+    if config.get("ARBORIST"):
         app.register_blueprint(fence.blueprints.rbac.blueprint, url_prefix="/rbac")
 
     fence.blueprints.misc.register_misc(app)
@@ -110,12 +110,12 @@ def app_register_blueprints(app):
 
     @app.route("/logout")
     def logout_endpoint():
-        root = app.config.get("BASE_URL", "")
+        root = config.get("BASE_URL", "")
         request_next = flask.request.args.get("next", root)
         if request_next.startswith("https") or request_next.startswith("http"):
             next_url = request_next
         else:
-            next_url = build_redirect_url(app.config.get("ROOT_URL", ""), request_next)
+            next_url = build_redirect_url(config.get("ROOT_URL", ""), request_next)
         return logout(next_url=next_url)
 
     @app.route("/jwt/keys")
@@ -189,7 +189,7 @@ def _load_keys(app, root_dir):
     app.keypairs = keys.load_keypairs(os.path.join(root_dir, "keys"))
 
     app.jwt_public_keys = {
-        app.config["BASE_URL"]: OrderedDict(
+        config["BASE_URL"]: OrderedDict(
             [(str(keypair.kid), str(keypair.public_key)) for keypair in app.keypairs]
         )
     }
@@ -214,29 +214,29 @@ def _set_authlib_cfgs(app):
 
 
 def _setup_oidc_clients(app):
-    enabled_idp_ids = app.config["ENABLED_IDENTITY_PROVIDERS"]["providers"].keys()
+    enabled_idp_ids = config["ENABLED_IDENTITY_PROVIDERS"]["providers"].keys()
 
     # Add OIDC client for Google if configured.
     configured_google = (
-        "OPENID_CONNECT" in app.config
-        and "google" in app.config["OPENID_CONNECT"]
+        "OPENID_CONNECT" in config
+        and "google" in config["OPENID_CONNECT"]
         and "google" in enabled_idp_ids
     )
     if configured_google:
         app.google_client = GoogleClient(
-            app.config["OPENID_CONNECT"]["google"],
-            HTTP_PROXY=app.config.get("HTTP_PROXY"),
+            config["OPENID_CONNECT"]["google"],
+            HTTP_PROXY=config.get("HTTP_PROXY"),
             logger=app.logger,
         )
 
     # Add OIDC client for multi-tenant fence if configured.
     configured_fence = (
-        "OPENID_CONNECT" in app.config
-        and "fence" in app.config["OPENID_CONNECT"]
+        "OPENID_CONNECT" in config
+        and "fence" in config["OPENID_CONNECT"]
         and "fence" in enabled_idp_ids
     )
     if configured_fence:
-        app.fence_client = OAuthClient(**app.config["OPENID_CONNECT"]["fence"])
+        app.fence_client = OAuthClient(**config["OPENID_CONNECT"]["fence"])
 
 
 def _setup_arborist_client(app):
@@ -258,7 +258,7 @@ def check_csrf():
     no_username = not flask.session.get("username")
     if has_auth or no_username:
         return
-    if not app.config.get("ENABLE_CSRF_PROTECTION", True):
+    if not config.get("ENABLE_CSRF_PROTECTION", True):
         return
     # cookie based authentication
     if flask.request.method != "GET":
@@ -276,7 +276,7 @@ def set_csrf(response):
     Create a cookie for CSRF protection if one does not yet exist.
     """
     if not flask.request.cookies.get("csrftoken"):
-        secure = app.config.get("SESSION_COOKIE_SECURE", True)
+        secure = config.get("SESSION_COOKIE_SECURE", True)
         response.set_cookie("csrftoken", random_str(40), secure=secure)
 
     if flask.request.method in ["POST", "PUT", "DELETE"]:

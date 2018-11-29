@@ -59,7 +59,7 @@ def test_valid_session(app):
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={"username": username},
     )
 
@@ -78,7 +78,7 @@ def test_valid_session_modified(app):
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={"username": username},
     )
 
@@ -98,14 +98,14 @@ def test_valid_session_modified(app):
 
 def test_expired_session_lifetime(app):
     # make the start time be max lifetime ago (so it's expired)
-    lifetime = app.config.get("SESSION_LIFETIME")
+    lifetime = config.get("SESSION_LIFETIME")
     now = int(time.time())
     one_lifetime_ago = now - lifetime
     username = "Captain Janeway"
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context=dict(session_started=one_lifetime_ago, username=username),
     )
 
@@ -121,7 +121,7 @@ def test_expired_session_lifetime(app):
 def test_expired_session_timeout(app):
     # make the start time be one timeout in the past (so the
     # session is expired)
-    max_inactivity = app.config.get("SESSION_TIMEOUT")
+    max_inactivity = config.get("SESSION_TIMEOUT")
     now = int(time.time())
     last_active = now - max_inactivity
     username = "Captain Janeway"
@@ -150,7 +150,7 @@ def test_session_cleared(app):
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context=dict(username=username),
     )
 
@@ -186,13 +186,13 @@ def test_invalid_session_cookie(app):
 def test_valid_session_valid_access_token(
     app, db_session, test_user_a, test_user_b, monkeypatch
 ):
-    monkeypatch.setitem(app.config, "MOCK_AUTH", False)
+    monkeypatch.setitem(config, "MOCK_AUTH", False)
     user = db_session.query(User).filter_by(id=test_user_a["user_id"]).first()
     keypair = app.keypairs[0]
 
     test_session_jwt = create_session_token(
         keypair,
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={"username": user.username, "provider": "google"},
     )
 
@@ -202,7 +202,7 @@ def test_valid_session_valid_access_token(
         user=user,
         expires_in=config["ACCESS_TOKEN_EXPIRES_IN"],
         scopes=["openid", "user"],
-        iss=flask.current_app.config.get("BASE_URL"),
+        iss=config.get("BASE_URL"),
         forced_exp_time=None,
         client_id=None,
         linked_google_email=None,
@@ -232,13 +232,13 @@ def test_valid_session_valid_access_token_diff_user(
     is created for the logged in user and the response doesn't contain info
     for the non-logged in user.
     """
-    monkeypatch.setitem(app.config, "MOCK_AUTH", False)
+    monkeypatch.setitem(config, "MOCK_AUTH", False)
     user = db_session.query(User).filter_by(id=test_user_a["user_id"]).first()
     keypair = app.keypairs[0]
 
     test_session_jwt = create_session_token(
         keypair,
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={"username": user.username, "provider": "google"},
     )
 
@@ -250,7 +250,7 @@ def test_valid_session_valid_access_token_diff_user(
         user=other_user,
         expires_in=config["ACCESS_TOKEN_EXPIRES_IN"],
         scopes=["openid", "user"],
-        iss=flask.current_app.config.get("BASE_URL"),
+        iss=config.get("BASE_URL"),
     ).token
 
     with app.test_client() as client:

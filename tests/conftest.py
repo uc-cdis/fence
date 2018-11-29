@@ -204,28 +204,26 @@ def app(kid, rsa_private_key, rsa_public_key):
         kid=kid, public_key=rsa_public_key, private_key=rsa_private_key
     )
     fence.app.keypairs = [fixture_keypair] + fence.app.keypairs
-    fence.app.jwt_public_keys[fence.app.config["BASE_URL"]][kid] = rsa_public_key
-    fence.app.jwt_public_keys[fence.app.config["BASE_URL"]] = OrderedDict(
-        reversed(list(fence.app.jwt_public_keys[fence.app.config["BASE_URL"]].items()))
+    fence.app.jwt_public_keys[config["BASE_URL"]][kid] = rsa_public_key
+    fence.app.jwt_public_keys[config["BASE_URL"]] = OrderedDict(
+        reversed(list(fence.app.jwt_public_keys[config["BASE_URL"]].items()))
     )
 
-    fence.app.config["ENCRYPTION_KEY"] = Fernet.generate_key()
-
-    config.update(BASE_URL=fence.app.config["BASE_URL"])
-    config.update(ENCRYPTION_KEY=fence.app.config["ENCRYPTION_KEY"])
+    config.update(BASE_URL=config["BASE_URL"])
+    config.update(ENCRYPTION_KEY=Fernet.generate_key())
 
     return fence.app
 
 
 @pytest.fixture(scope="function")
-def auth_client(app, request):
+def auth_client(request):
     """
     Flask application fixture.
     """
-    app.config["MOCK_AUTH"] = False
+    config["MOCK_AUTH"] = False
 
     def reset_authmock():
-        app.config["MOCK_AUTH"] = True
+        config["MOCK_AUTH"] = True
 
     request.addfinalizer(reset_authmock)
 
@@ -991,34 +989,13 @@ def google_storage_client_mocker(app):
 
 
 @pytest.fixture(scope="function")
-def remove_google_idp(app):
+def restore_config():
     """
-    Don't include google in the enabled idps, but leave it configured
-    in the openid connect clients.
+    Restore original config at teardown.
     """
-    saved_app_config = copy.deepcopy(app.config)
-
-    override_setings = {
-        "ENABLED_IDENTITY_PROVIDERS": {
-            # ID for which of the providers to default to.
-            "default": "fence",
-            # Information for identity providers.
-            "providers": {
-                "fence": {"name": "Fence Multi-Tenant OAuth"},
-                "shibboleth": {"name": "NIH Login"},
-            },
-        },
-        "OPENID_CONNECT": {
-            "google": {
-                "client_id": "123",
-                "client_secret": "456",
-                "redirect_url": "789",
-            }
-        },
-    }
-    app.config.update(override_setings)
+    saved_config = copy.deepcopy(config._configs)
 
     yield
 
-    # restore old config
-    app.config = copy.deepcopy(saved_app_config)
+    # restore old configs
+    config.update(saved_config)
