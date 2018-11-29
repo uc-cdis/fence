@@ -4,6 +4,7 @@ addict==2.1.1
 boto>=2.36.0<3.0.0
 botocore>=1.7<1.10.39
 boto3>=1.5<1.6
+cached_property==1.5.1
 cryptography>=2.1.2
 enum34>=1.1.6
 Flask==0.12.4
@@ -34,5 +35,5 @@ pyyaml
 -e git+https://github.com/uc-cdis/userdatamodel.git@1.1.7#egg=userdatamodel
 -e git+https://github.com/uc-cdis/datamodelutils.git@0.4.0#egg=datamodelutils
 -e git+https://github.com/uc-cdis/cdis-python-utils.git@0.2.10#egg=cdispyutils
+-e git+https://github.com/uc-cdis/authutils.git@3.0.1#egg=authutils-3.0.1
 -e git+https://github.com/uc-cdis/cirrus.git@0.2.0#egg=cirrus-0.2.0
--e git+https://github.com/uc-cdis/authutils.git@2.0.1#egg=authutils-2.0.1

@@ -1,28 +1,35 @@
 import re
-
-import flask
-import requests
 import time
 from urlparse import urlparse
+import uuid
 
+from cached_property import cached_property
 import cirrus
-from fence.auth import login_required
-from fence.auth import set_current_token
-from fence.auth import validate_request
-from fence.auth import current_token
-from cdispyutils.hmac4 import generate_aws_presigned_url
 from cdispyutils.config import get_value
+from cdispyutils.hmac4 import generate_aws_presigned_url
+import flask
+import requests
 
+from fence.auth import (
+    current_token,
+    login_required,
+    set_current_token,
+    validate_request,
+)
+from fence.config import config
+from fence.errors import (
+    InternalError,
+    NotFound,
+    NotSupported,
+    Unauthorized,
+    UnavailableError,
+)
 from fence.resources.google.utils import (
     get_or_create_primary_service_account_key,
     create_primary_service_account_key,
     get_or_create_proxy_group_id,
 )
-from fence.errors import UnavailableError
-from fence.errors import NotFound
-from fence.errors import Unauthorized
-from fence.errors import NotSupported
-from fence.errors import InternalError
+
 
 from fence.config import config
 
@@ -35,97 +42,105 @@ SUPPORTED_PROTOCOLS = ["s3", "http", "ftp", "https", "gs"]
 SUPPORTED_ACTIONS = ["upload", "download"]
 
 
-blueprint = flask.Blueprint("data", __name__)
-
-
-@blueprint.route("/download/<path:file_id>", methods=["GET"])
-def download_file(file_id):
-    """
-    Get a presigned url to download a file given by file_id.
-    """
-    result = get_signed_url_for_file("download", file_id)
-    if not "redirect" in flask.request.args or not "url" in result:
-        return flask.jsonify(result)
-    else:
-        return flask.redirect(result["url"])
-
-
-@blueprint.route("/upload/<path:file_id>", methods=["GET"])
-def upload_file(file_id):
-    """
-    Get a presigned url to upload a file given by file_id.
-    """
-    result = get_signed_url_for_file("upload", file_id)
-    return flask.jsonify(result)
-
-
 def get_signed_url_for_file(action, file_id):
     requested_protocol = flask.request.args.get("protocol", None)
+    indexed_file = IndexedFile(file_id)
     max_ttl = config.get("MAX_PRESIGNED_URL_TTL", 3600)
     expires_in = min(int(flask.request.args.get("expires_in", max_ttl)), max_ttl)
-
-    indexed_file = IndexedFile(file_id)
     signed_url = indexed_file.get_signed_url(requested_protocol, action, expires_in)
-
     return {"url": signed_url}
+
+
+class BlankIndex(object):
+    """
+    Create a new blank record in indexd, to use for the data upload flow.
+
+    See docs on data upload flow for further details:
+
+        https://github.com/uc-cdis/cdis-wiki/tree/master/dev/gen3/data_upload
+    """
+
+    def __init__(self, uploader=None):
+        self.indexd = (
+            flask.current_app.config.get("INDEXD")
+            or flask.current_app.config["BASE_URL"] + "/index"
+        )
+        self.uploader = uploader or current_token["context"]["user"]["name"]
+
+    @property
+    def guid(self):
+        """
+        Return the GUID for this record in indexd.
+
+        Currently the field in indexd is actually called ``did``.
+        """
+        return self.index_document["did"]
+
+    @cached_property
+    def index_document(self):
+        """
+        Get the record from indexd for this index.
+
+        Return:
+            dict:
+                response from indexd (the contents of the record), containing ``guid``
+                and ``url``
+        """
+        index_url = self.indexd.rstrip("/") + "/index/blank"
+        params = {"uploader": self.uploader}
+        auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
+        indexd_response = requests.post(index_url, json=params, auth=auth)
+        if indexd_response.status_code not in [200, 201]:
+            raise InternalError(
+                "received error from indexd trying to create blank record: {}".format(
+                    indexd_response.json()
+                )
+            )
+        return indexd_response.json()
+
+    @staticmethod
+    def make_signed_url(filename, expires_in=None):
+        """
+        Works for upload only; S3 only (only supported case for data upload flow
+        currently).
+
+        Args:
+            filename (str)
+            expires_in (int)
+
+        Return:
+            S3IndexedFileLocation
+        """
+        try:
+            bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
+        except KeyError:
+            raise InternalError("fence not configured with data upload bucket")
+        guid = str(uuid.uuid4())
+        s3_url = "s3://{}/{}/{}".format(bucket, guid, filename)
+        return S3IndexedFileLocation(s3_url).get_signed_url("upload", expires_in)
 
 
 class IndexedFile(object):
     """
-    A file from the index service that will contain information about
-    access and where the physical file lives (could be multiple urls).
+    A file from the index service that will contain information about access and where
+    the physical file lives (could be multiple urls).
+
+    TODO (rudyardrichter, 2018-11-03):
+        general clean up of indexd interface; maybe have ABC for this class and blank
+        records, and make things as consistent as possible between this and the "blank"
+        records (might be tricky since the purpose for the blank record class is to
+        create a new record in indexd, rather than look one up; that distinction could
+        also be cleaner).
+
+    Args:
+        file_id (str): GUID for the file.
     """
 
     def __init__(self, file_id):
         self.file_id = file_id
-        self.index_document = self._get_index_document()
-        self.metadata = self.index_document.get("metadata", {})
-        self.set_acls = self._get_acls()
-        self.indexed_file_locations = self._get_indexed_file_locations(
-            self.index_document.get("urls", [])
-        )
-        self.public = check_public(self.set_acls)
 
-    def get_signed_url(self, protocol, action, expires_in):
-        if not self.public and not self.check_authorization(action):
-            raise Unauthorized("You don't have access permission on this file")
-
-        if action is not None and action not in SUPPORTED_ACTIONS:
-            raise NotSupported("action {} is not supported".format(action))
-
-        return self._get_signed_url(protocol, action, expires_in)
-
-    def _get_signed_url(self, protocol, action, expires_in):
-        signed_url = None
-
-        if protocol:
-            for file_location in self.indexed_file_locations:
-                # allow file location to be https, even if they specific http
-                if (file_location.protocol == protocol) or (
-                    protocol == "http" and file_location.protocol == "https"
-                ):
-                    signed_url = file_location.get_signed_url(
-                        action, expires_in, public_data=self.public
-                    )
-            if not signed_url:
-                raise NotFound(
-                    "File {} does not have a location with specified "
-                    "protocol {}.".format(self.file_id, protocol)
-                )
-
-        # no protocol specified, return first location as signed url
-        elif len(self.indexed_file_locations) > 0:
-            signed_url = self.indexed_file_locations[0].get_signed_url(
-                action, expires_in, public_data=self.public
-            )
-        else:
-            # at this point, they haven't specified a protocol and we don't
-            # have any actual locations, error out
-            raise NotFound("Can't find any file locations.")
-
-        return signed_url
-
-    def _get_index_document(self):
+    @cached_property
+    def index_document(self):
         indexd_server = config.get("INDEXD") or config["BASE_URL"] + "/index"
         url = indexd_server + "/index/"
         try:
@@ -152,30 +167,66 @@ class IndexedFile(object):
                 raise InternalError("internal error from indexd: {}".format(e))
         elif res.status_code == 404:
             flask.current_app.logger.error(
-                "Not Found. indexd could not find {}"
-                "\nIndexd's response: {}".format(url + self.file_id, res.text)
+                "Not Found. indexd could not find {}: {}".format(
+                    url + self.file_id, res.text
+                )
             )
             raise NotFound("No indexed document found with id {}".format(self.file_id))
         else:
             raise UnavailableError(res.text)
 
-    def _get_acls(self):
+    @cached_property
+    def indexed_file_locations(self):
+        urls = self.index_document.get("urls", [])
+        return list(map(IndexedFileLocation.from_url, urls))
+
+    def get_signed_url(self, protocol, action, expires_in):
+        if not self.public and not self.check_authorization(action):
+            raise Unauthorized("You don't have access permission on this file")
+        if action is not None and action not in SUPPORTED_ACTIONS:
+            raise NotSupported("action {} is not supported".format(action))
+        return self._get_signed_url(protocol, action, expires_in)
+
+    def _get_signed_url(self, protocol, action, expires_in):
+        if not protocol:
+            # no protocol specified, return first location as signed url
+            try:
+                return self.indexed_file_locations[0].get_signed_url(
+                    action, expires_in, public_data=self.public
+                )
+            except IndexError:
+                raise NotFound("Can't find any file locations.")
+
+        for file_location in self.indexed_file_locations:
+            # allow file location to be https, even if they specific http
+            if (file_location.protocol == protocol) or (
+                protocol == "http" and file_location.protocol == "https"
+            ):
+                return file_location.get_signed_url(
+                    action, expires_in, public_data=self.public
+                )
+
+        raise NotFound(
+            "File {} does not have a location with specified "
+            "protocol {}.".format(self.file_id, protocol)
+        )
+
+    @cached_property
+    def set_acls(self):
         if "acl" in self.index_document:
-            set_acls = set(self.index_document["acl"])
+            return set(self.index_document["acl"])
         elif "acls" in self.metadata:
-            set_acls = set(self.metadata["acls"].split(","))
+            return set(self.metadata["acls"].split(","))
         else:
             raise Unauthorized("This file is not accessible")
 
-        return set_acls
+    @cached_property
+    def metadata(self):
+        return self.index_document.get("metadata", {})
 
-    @staticmethod
-    def _get_indexed_file_locations(urls):
-        indexed_file_locations = []
-        for url in urls:
-            new_location = IndexedFileLocationFactory.create(url)
-            indexed_file_locations.append(new_location)
-        return indexed_file_locations
+    @cached_property
+    def public(self):
+        return check_public(self.set_acls)
 
     @login_required({"data"})
     def check_authorization(self, action):
@@ -186,33 +237,6 @@ class IndexedFile(object):
                 filter_auth_ids(action, flask.g.token["context"]["user"]["projects"])
             )
         return len(self.set_acls & given_acls) > 0
-
-
-class IndexedFileLocationFactory(object):
-    """
-    Responsible for the creation of IndexedFileLocation objects based on
-    the protocol for the given url.
-
-    This will determine where the object lives based on the protocol in url
-    (e.g. s3 or gs) and create the necessary sub-class that will handle actions
-    like signing urls for that location.
-    """
-
-    @staticmethod
-    def create(url):
-        location = urlparse(url)
-        protocol = location.scheme
-        if (protocol is not None) and (protocol not in SUPPORTED_PROTOCOLS):
-            raise NotSupported(
-                "The specified protocol {} is not supported".format(protocol)
-            )
-
-        if protocol == "s3":
-            return S3IndexedFileLocation(url)
-        elif protocol == "gs":
-            return GoogleStorageIndexedFileLocation(url)
-        else:
-            return IndexedFileLocation(url)
 
 
 class IndexedFileLocation(object):
@@ -228,17 +252,27 @@ class IndexedFileLocation(object):
         self.parsed_url = urlparse(url)
         self.protocol = self.parsed_url.scheme
 
+    @staticmethod
+    def from_url(url):
+        protocol = urlparse(url).scheme
+        if (protocol is not None) and (protocol not in SUPPORTED_PROTOCOLS):
+            raise NotSupported(
+                "The specified protocol {} is not supported".format(protocol)
+            )
+        if protocol == "s3":
+            return S3IndexedFileLocation(url)
+        elif protocol == "gs":
+            return GoogleStorageIndexedFileLocation(url)
+        return IndexedFileLocation(url)
+
     def get_signed_url(self, action, expires_in, public_data=False):
         return self.url
 
 
 class S3IndexedFileLocation(IndexedFileLocation):
     """
-    And indexed file that lives in an AWS S3 bucket.
+    An indexed file that lives in an AWS S3 bucket.
     """
-
-    def __init__(self, url):
-        super(S3IndexedFileLocation, self).__init__(url)
 
     @classmethod
     def assume_role(cls, aws_creds, bucket_cred, cred_key, expires_in):
@@ -360,9 +394,6 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     """
     And indexed file that lives in a Google Storage bucket.
     """
-
-    def __init__(self, url):
-        super(GoogleStorageIndexedFileLocation, self).__init__(url)
 
     def get_signed_url(self, action, expires_in, public_data=False):
         resource_path = (

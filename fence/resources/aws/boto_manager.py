@@ -5,6 +5,13 @@ import uuid
 
 
 class BotoManager(object):
+    """
+    AWS manager singleton.
+    """
+
+    URL_EXPIRATION_DEFAULT = 1800  # 30 minutes
+    URL_EXPIRATION_MAX = 86400  # 1 day
+
     def __init__(self, config, logger):
         self.sts_client = client("sts", **config)
         self.s3_client = client("s3", **config)
@@ -30,23 +37,26 @@ class BotoManager(object):
             raise UnavailableError("Fail to reach AWS: {}".format(ex.message))
 
     def presigned_url(self, bucket, key, expires, config, method="get_object"):
-        if config.has_key("aws_access_key_id"):
-            self.s3_client = client("s3", **config)
+        """
+        Args:
+            bucket (str): bucket name
+            key (str): key in bucket
+            expires (int): presigned URL expiration time, in seconds
+            config (dict): additional parameters if necessary (e.g. updating access key)
+            method (str): "get_object" or "put_object" (ClientMethod argument to boto)
+        """
         if method not in ["get_object", "put_object"]:
             raise UserError("method {} not allowed".format(method))
-        if expires is None:
-            expires = 1800
-        elif expires > 3600 * 24:
-            expires = 3600 * 24
-
-        url = self.s3_client.generate_presigned_url(
-            ClientMethod=method,
-            Params={"Bucket": bucket, "Key": key}
-            if method == "get_object"
-            else {"Bucket": bucket, "Key": key, "ServerSideEncryption": "AES256"},
-            ExpiresIn=expires,
+        if config.has_key("aws_access_key_id"):
+            self.s3_client = client("s3", **config)
+        expires = int(expires) or self.URL_EXPIRATION_DEFAULT
+        expires = min(expires, self.URL_EXPIRATION_MAX)
+        params = {"Bucket": bucket, "Key": key}
+        if method == "put_object":
+            params["ServerSideEncryption"] = "AES256"
+        return self.s3_client.generate_presigned_url(
+            ClientMethod=method, Params=params, ExpiresIn=expires
         )
-        return url
 
     def get_bucket_region(self, bucket, config):
         try:

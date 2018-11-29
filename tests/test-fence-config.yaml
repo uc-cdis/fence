@@ -290,6 +290,11 @@ HTTP_PROXY:
 # example value: 'https://example.com/index'
 INDEXD: null
 
+# this is the username which fence uses to make authenticated requests to indexd
+INDEXD_USERNAME: 'gdcapi'
+# this is the password which fence uses to make authenticated requests to indexd
+INDEXD_PASSWORD: ''
+
 # url where role-based access control microservice is running
 ARBORIST: '/arborist'
 
