@@ -4,7 +4,7 @@
 // import uchicago.cdis.MicroservicePipeline
 
 runPipeline {
-  pipeline = 'microservice',
+  pipeline = 'microservice'
 
   namespaces = [
     "jenkins-brain",
@@ -15,7 +15,7 @@ runPipeline {
   skipDeploy = 'true'
 }
 
-microservicePipeline2(config)
+// microservicePipeline2(config)
 
 // import uchicago.cdis.*
 // Map pipelineDefinition = [
