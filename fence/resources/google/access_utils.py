@@ -8,6 +8,7 @@ from urllib import unquote
 
 from cirrus.google_cloud.iam import GooglePolicyMember
 
+from cirrus.errors import CirrusError
 from cirrus.google_cloud.errors import GoogleAPIError
 from cirrus.google_cloud.iam import GooglePolicy
 from cirrus import GoogleCloudManager
@@ -61,7 +62,7 @@ def get_google_project_number(google_project_id, google_cloud_manager):
     try:
         response = google_cloud_manager.get_project_info()
         return response.get("projectNumber")
-    except Exception as exc:
+    except (CirrusError, Exception) as exc:
         logger.error(
             "Could not determine google project number for Project"
             "ID: {} due to error. (Details : {})".format(google_project_id, exc)
@@ -98,7 +99,7 @@ def get_google_project_parent_org(google_cloud_manager):
     """
     try:
         return google_cloud_manager.get_project_organization()
-    except Exception as exc:
+    except (CirrusError, Exception) as exc:
         logger.error(
             "Could not determine if Google project (id: {}) has parent org"
             "due to error (Details: {})".format(
@@ -152,7 +153,7 @@ def get_google_project_valid_users_and_service_accounts(
             if member.member_type == GooglePolicyMember.SERVICE_ACCOUNT
         ]
         return users, service_accounts
-    except Exception as exc:
+    except (CirrusError, Exception) as exc:
         logger.error(
             "validity of Google Project (id: {}) members "
             "could not complete. Details: {}".format(project_id, exc)
@@ -177,7 +178,7 @@ def is_valid_service_account_type(account_id, google_cloud_manager):
     try:
         sa_type = google_cloud_manager.get_service_account_type(account_id)
         return sa_type in ALLOWED_SERVICE_ACCOUNT_TYPES
-    except Exception as exc:
+    except (CirrusError, Exception) as exc:
         logger.error(
             "validity of Google service account {} (google project: {}) type "
             "determined False due to error. Details: {}".format(
@@ -263,7 +264,7 @@ def is_service_account_from_google_project(
             or service_account_name == project_id
         )
 
-    except Exception as exc:
+    except (CirrusError, Exception) as exc:
         logger.error(
             "Could not determine if service account (id: {} is from project"
             " (id: {}) due to error. Details: {}".format(
@@ -321,7 +322,7 @@ def is_user_member_of_google_project(
             ):
                 # no user email is in project
                 return False
-    except Exception as exc:
+    except (CirrusError, Exception) as exc:
         logger.error(
             "Could not determine if user (id: {}) is from project:"
             " {} due to error. Details: {}".format(
@@ -542,7 +543,7 @@ def force_remove_service_account_from_access(
                     member_email=service_account.email,
                     group_id=bucket_access_group.email,
                 )
-        except Exception as exc:
+        except (CirrusError, Exception) as exc:
             raise GoogleAPIError(
                 "Can not remove member {} from access group {}. Detail {}".format(
                     service_account.email, bucket_access_group.email, exc
@@ -613,7 +614,7 @@ def _revoke_user_service_account_from_google(
                         )
                     else:
                         raise GoogleAPIError("Can not remove {} from group {}")
-            except Exception as exc:
+            except (CirrusError, Exception) as exc:
                 raise GoogleAPIError(
                     "Can not remove {} from group {}. Detail {}".format(
                         service_account.email, access_group.email, exc
@@ -658,7 +659,7 @@ def add_user_service_account_to_google(
                             )
                         )
 
-            except Exception as exc:
+            except (CirrusError, Exception) as exc:
                 raise GoogleAPIError(
                     "Can not add {} to group {}. Detail {}".format(
                         service_account.email, access_group.email, exc

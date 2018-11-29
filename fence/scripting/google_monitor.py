@@ -196,7 +196,7 @@ def _is_valid_service_account(sa_email, google_project_id):
                 check_external_access=True,
             )
 
-    except Exception as exc:
+    except (CirrusError, Exception) as exc:
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
         logger.warning(
@@ -217,7 +217,7 @@ def _is_valid_google_project(google_project_id, db=None):
     try:
         project_validity = GoogleProjectValidity(google_project_id)
         project_validity.check_validity(early_return=True, db=db)
-    except Exception as exc:
+    except (CirrusError, Exception) as exc:
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
         logger.warning(

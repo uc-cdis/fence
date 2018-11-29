@@ -29,6 +29,7 @@ from fence.resources.google.access_utils import (
     is_user_member_of_all_google_projects,
 )
 from cirrus.google_cloud import GoogleCloudManager
+from cirrus.errors import CirrusError
 
 from cdislogging import get_logger
 
@@ -172,7 +173,7 @@ class GoogleProjectValidity(ValidityInfo):
         user_id=None,
         google_cloud_manager=None,
         *args,
-        **kwargs
+        **kwargs,
     ):
         """
         Initialize
@@ -334,7 +335,7 @@ class GoogleProjectValidity(ValidityInfo):
                 self.google_project_id, self.google_cloud_manager, membership=membership
             )
             self.set("valid_member_types", True)
-        except Exception:
+        except (CirrusError, Exception):
             self.set("valid_member_types", False)
             if early_return:
                 logger.warning(
@@ -352,7 +353,7 @@ class GoogleProjectValidity(ValidityInfo):
             try:
                 users_in_project = get_users_from_google_members(user_members, db=db)
                 self.set("members_exist_in_fence", True)
-            except Exception:
+            except (CirrusError, Exception):
                 self.set("members_exist_in_fence", False)
                 if early_return:
                     logger.warning(
@@ -693,7 +694,7 @@ class GoogleServiceAccountValidity(ValidityInfo):
         google_cloud_manager=None,
         google_project_number=None,
         *args,
-        **kwargs
+        **kwargs,
     ):
         self.account_id = account_id
         self.google_project_id = google_project_id
@@ -768,7 +769,7 @@ class GoogleServiceAccountValidity(ValidityInfo):
                 project_id = self.account_id.split("@")[-1].split(".")[0]
                 gcm = GoogleCloudManager(project_id)
                 gcm.open()
-            except Exception:
+            except (CirrusError, Exception):
                 logger.debug(
                     "Could not access the Google Project for Service "
                     "Account {}. Unable to continue validity "
@@ -784,7 +785,7 @@ class GoogleServiceAccountValidity(ValidityInfo):
             try:
                 policy_accessible = True
                 sa_policy = get_service_account_policy(self.account_id, gcm)
-            except Exception:
+            except (CirrusError, Exception):
                 policy_accessible = False
                 gcm.close()
                 return

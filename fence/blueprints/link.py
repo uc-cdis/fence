@@ -187,7 +187,7 @@ class GoogleLinkRedirect(Resource):
                         member_email=g_account.email,
                         group_id=g_account_access.proxy_group_id,
                     )
-            except Exception as exc:
+            except (CirrusError, Exception) as exc:
                 error_message = {
                     "error": "g_acnt_access_error",
                     "error_description": (

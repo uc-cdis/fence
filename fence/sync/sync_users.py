@@ -10,7 +10,9 @@ import tempfile
 import shutil
 from stat import S_ISDIR
 import yaml
+from mock import patch
 
+from cdisutilstest.code.storage_client_mock import get_client
 from cdispyutils.log import get_logger
 import paramiko
 from paramiko.proxy import ProxyCommand
@@ -111,10 +113,11 @@ class UserSyncer(object):
                 arborist_base_url=arborist, logger=self.logger
             )
 
-        if storage_credentials:
-            self.storage_manager = StorageManager(
-                storage_credentials, logger=self.logger
-            )
+        if not storage_credentials:
+            patcher = patch("fence.resources.storage.get_client", get_client)
+            patcher.start()
+
+        self.storage_manager = StorageManager(storage_credentials, logger=self.logger)
 
     @staticmethod
     def _match_pattern(filepath, encrypted=True):

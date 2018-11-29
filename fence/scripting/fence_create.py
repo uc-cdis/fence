@@ -548,7 +548,7 @@ def remove_expired_google_accounts_from_proxy_groups(db):
                                 response,
                             )
                         )
-                except Exception as exc:
+                except (CirrusError, Exception) as exc:
                     print(
                         "ERROR: Google returned an error when attempting to "
                         "remove member {} from proxy group {}. Error:\n{}\n".format(
@@ -600,7 +600,7 @@ def delete_expired_service_accounts(DB):
                                 record.service_account.email
                             )
                         )
-                    except Exception as e:
+                    except (CirrusError, Exception) as e:
                         print(
                             "ERROR: Could not delete service account {}. Details: {}".format(
                                 record.service_account.email, e.message
@@ -634,7 +634,7 @@ def verify_bucket_access_group(DB):
                 except GoogleAuthError as e:
                     print("ERROR: Authentication error!!!. Detail {}".format(e.message))
                     return
-                except Exception as e:
+                except (CirrusError, Exception) as e:
                     print(
                         "ERROR: Could not list group members of {}. Detail {}".format(
                             access_group.email, e
@@ -679,7 +679,7 @@ def _verify_google_group_member(session, access_group, member):
                 manager.remove_member_from_group(
                     member.get("email"), access_group.email
                 )
-        except Exception as e:
+        except (CirrusError, Exception) as e:
             print(
                 "ERROR: Could not remove google group memeber {} from access group {}. Detail {}".format(
                     member.get("email"), access_group.email, e
@@ -716,7 +716,7 @@ def _verify_google_service_account_member(session, access_group, member):
                 manager.remove_member_from_group(
                     member.get("email"), access_group.email
                 )
-        except Exception as e:
+        except (CirrusError, Exception) as e:
             print(
                 "ERROR: Could not remove service account memeber {} from access group {}. Detail {}".format(
                     member.get("email"), access_group.email, e
