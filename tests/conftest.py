@@ -913,6 +913,7 @@ def encoded_creds_jwt(
         user_id=user_client["user_id"],
         client_id=oauth_client["client_id"],
         proxy_group_id=google_proxy_group["id"],
+        username=user_client["username"],
     )
 
 
