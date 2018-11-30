@@ -33,7 +33,7 @@ def upload_data_file():
         raise UserError("wrong Content-Type; expected application/json")
     if "filename" not in params:
         raise UserError("missing required argument `filename`")
-    blank_index = BlankIndex()
+    blank_index = BlankIndex(filename=params["filename"])
     max_ttl = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
     expires_in = min(params.get("expires_in", max_ttl), max_ttl)
     response = {

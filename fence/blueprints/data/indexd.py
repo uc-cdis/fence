@@ -60,12 +60,13 @@ class BlankIndex(object):
         https://github.com/uc-cdis/cdis-wiki/tree/master/dev/gen3/data_upload
     """
 
-    def __init__(self, uploader=None):
+    def __init__(self, uploader=None, filename=None):
         self.indexd = (
             flask.current_app.config.get("INDEXD")
             or flask.current_app.config["BASE_URL"] + "/index"
         )
         self.uploader = uploader or current_token["context"]["user"]["name"]
+        self.filename = filename
 
     @property
     def guid(self):
@@ -87,7 +88,7 @@ class BlankIndex(object):
                 and ``url``
         """
         index_url = self.indexd.rstrip("/") + "/index/blank"
-        params = {"uploader": self.uploader}
+        params = {"uploader": self.uploader, "file_name": self.filename}
         auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
         indexd_response = requests.post(index_url, json=params, auth=auth)
         if indexd_response.status_code not in [200, 201]:
