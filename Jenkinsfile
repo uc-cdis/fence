@@ -5,6 +5,7 @@
 
 runPipeline {
   pipeline = 'microservice'
+  service = 'fence'
 
   namespaces = [
     "jenkins-brain",
