@@ -34,7 +34,6 @@ def build_redirect_url(hostname, path):
         redirect_base = "https://" + redirect_base
     return redirect_base + path
 
-
 def login_user(request, username, provider):
     user = current_session.query(
         User).filter(func.lower(User.username) == username.lower()).first()
@@ -51,7 +50,9 @@ def login_user(request, username, provider):
             current_session.add(user)
             current_session.commit()
         else:
-	    raise Unauthorized("Please login")
+	    origin_url = request.environ['HTTP_ORIGIN']
+	    redirect_response = flask.make_response(flask.redirect(origin_url+"?error=401"))
+	    return redirect_response 
     flask.g.user = user
     flask.g.scopes = ["_all"]
     flask.g.token = None
