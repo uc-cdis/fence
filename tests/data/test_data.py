@@ -372,8 +372,15 @@ def test_blank_index_upload(app, client, auth_client, encoded_creds_jwt, user_cl
         endpoint = indexd_url + "/index/blank"
         auth = ("gdcapi", "")
         mock_requests.post.assert_called_once_with(
-            endpoint, auth=auth, json={"uploader": "test"}
+            endpoint, auth=auth, json=mock.ANY
         )
+        # assert_called_once_with cannot handle multiple items in json
+        _, call_kwargs = mock_requests.post.call_args
+        assert call_kwargs["json"] == {
+            "uploader": "test",
+            "file_name": "asdf"
+        }
+
         assert response.status_code == 201, response
         assert "guid" in response.json
         assert "url" in response.json
