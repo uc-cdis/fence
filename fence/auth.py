@@ -51,7 +51,8 @@ def login_user(request, username, provider):
             current_session.commit()
         else:
 	    origin_url = request.environ['HTTP_ORIGIN']
-	    redirect_response = flask.make_response(flask.redirect(origin_url+"?error=401"))
+	    flask.current_app.logger.error("HTTP_ORIGIN: {0}".format(origin_url))
+    	    redirect_response = flask.make_response(flask.redirect(origin_url+"?error=401"))
 	    return redirect_response 
     flask.g.user = user
     flask.g.scopes = ["_all"]
