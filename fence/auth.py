@@ -50,11 +50,13 @@ def login_user(request, username, provider):
             current_session.add(user)
             current_session.commit()
         else:
-	    flask.current_app.logger.error("Request environ: {}".format(request.environ))
-	    flask.current_app.logger.error("Request headers: {}".format(request.headers))
-	    origin_url = request.environ.get('HTTP_ORIGIN',"http://www.google.es")
-	    flask.current_app.logger.error("HTTP_ORIGIN: {0}".format(origin_url))
-    	    redirect_response = flask.make_response(flask.redirect(origin_url+"?error=401"))
+	    root = app.config.get('APPLICATION_ROOT', '')
+            request_next = flask.request.args.get('next', root)
+            if request_next.startswith('https') or request_next.startswith('http'):
+                next_url = request_next
+            else:
+                next_url = build_redirect_url(app.config.get('ROOT_URL', ''), request_next)
+    	    redirect_response = flask.make_response(flask.redirect(next_url+"?error=401"))
 	    return redirect_response 
     flask.g.user = user
     flask.g.scopes = ["_all"]
