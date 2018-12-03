@@ -1280,7 +1280,7 @@ components:
       type: object
       required:
       properties:
-        filename:
+        file_name:
           type: string
           required: true
           description: the file name to use for this upload
@@ -1288,7 +1288,7 @@ components:
           type: integer
           description: optional integer specifying the presigned URL lifetime
       example:
-        filename: "my_file.bam"
+        file_name: "my_file.bam"
         expires_in: 1200
     CredentialsSource:
       type: object
