@@ -50,7 +50,7 @@ def login_user(request, username, provider):
             current_session.add(user)
             current_session.commit()
         else:
-	    root = app.config.get('APPLICATION_ROOT', '')
+	    root = flask.current_app.config.get('APPLICATION_ROOT', '')
             request_next = flask.request.args.get('next', root)
             if request_next.startswith('https') or request_next.startswith('http'):
                 next_url = request_next
