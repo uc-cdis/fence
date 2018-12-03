@@ -50,7 +50,9 @@ def login_user(request, username, provider):
             current_session.add(user)
             current_session.commit()
         else:
-	    origin_url = request.environ['HTTP_ORIGIN']
+	    flask.current_app.logger.error("Request environ: {}".format(request.environ))
+	    flask.current_app.logger.error("Request headers: {}".format(request.headers))
+	    origin_url = request.environ.get('HTTP_ORIGIN',"http://www.google.es")
 	    flask.current_app.logger.error("HTTP_ORIGIN: {0}".format(origin_url))
     	    redirect_response = flask.make_response(flask.redirect(origin_url+"?error=401"))
 	    return redirect_response 
