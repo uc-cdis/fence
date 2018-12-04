@@ -656,3 +656,95 @@ def test_google_link_no_proxy_group(
     assert not flask.session.get("google_proxy_group_id")
 
     assert not add_google_email_to_proxy_group_mock.called
+
+
+def test_google_link_redirect_when_google_mocked(
+    client, app, encoded_creds_jwt, monkeypatch
+):
+    """
+    Test that when we hit the link endpoint and we're mocking Google login, we
+    get redirected to the /link callback.
+    """
+    monkeypatch.setitem(config, "MOCK_GOOGLE_AUTH", True)
+    redirect = "http://localhost"
+
+    r = client.get(
+        "/link/google",
+        query_string={"redirect": redirect},
+        headers={"Authorization": "Bearer " + encoded_creds_jwt.jwt},
+    )
+
+    assert r.status_code == 302
+    url, query_params = split_url_and_query_params(r.location)
+    assert "/link/google/callback" in url
+    assert "code" in query_params
+
+
+def test_google_link_when_google_mocked(
+    app,
+    client,
+    db_session,
+    encoded_creds_jwt,
+    google_auth_get_user_info_mock,
+    add_google_email_to_proxy_group_mock,
+    monkeypatch,
+):
+    """
+    """
+    monkeypatch.setitem(config, "MOCK_GOOGLE_AUTH", True)
+
+    user_id = encoded_creds_jwt["user_id"]
+    proxy_group_id = encoded_creds_jwt["proxy_group_id"]
+
+    redirect = "http://localhost"
+    google_account = encoded_creds_jwt["username"]
+
+    test_session_jwt = create_session_token(
+        app.keypairs[0],
+        config.get("SESSION_TIMEOUT"),
+        context={
+            "google_link": True,
+            "user_id": user_id,
+            "google_proxy_group_id": proxy_group_id,
+            "redirect": redirect,
+        },
+    )
+
+    # manually set cookie for initial session
+    client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
+
+    headers = {"Authorization": "Bearer " + encoded_creds_jwt.jwt}
+
+    r_link = client.get(
+        "/link/google/", headers=headers, query_string={"redirect": redirect}
+    )
+
+    redirect_location = str(r_link.location).replace(config["BASE_URL"], "")
+    print(redirect_location)
+    r = client.get(redirect_location)
+
+    assert r.status_code == 302
+    parsed_url = urlparse(r.headers["Location"])
+    query_params = parse_qs(parsed_url.query)
+    response_redirect = urlunparse(
+        (parsed_url.scheme, parsed_url.netloc, parsed_url.path, "", "", "")
+    )
+    assert "exp" in query_params
+    assert query_params["linked_email"][0] == google_account
+    assert response_redirect == redirect
+
+    user_google_account = (
+        db_session.query(UserGoogleAccount)
+        .filter(
+            UserGoogleAccount.email == google_account,
+            UserGoogleAccount.user_id == user_id,
+        )
+        .first()
+    )
+    assert user_google_account
+
+    assert not flask.session.get("google_link")
+    assert not flask.session.get("user_id")
+    assert not flask.session.get("google_proxy_group_id")
+
+    assert add_google_email_to_proxy_group_mock.called
