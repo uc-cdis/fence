@@ -60,12 +60,13 @@ class BlankIndex(object):
         https://github.com/uc-cdis/cdis-wiki/tree/master/dev/gen3/data_upload
     """
 
-    def __init__(self, uploader=None):
+    def __init__(self, uploader=None, file_name=None):
         self.indexd = (
             flask.current_app.config.get("INDEXD")
             or flask.current_app.config["BASE_URL"] + "/index"
         )
         self.uploader = uploader or current_token["context"]["user"]["name"]
+        self.file_name = file_name
 
     @property
     def guid(self):
@@ -87,7 +88,7 @@ class BlankIndex(object):
                 and ``url``
         """
         index_url = self.indexd.rstrip("/") + "/index/blank"
-        params = {"uploader": self.uploader}
+        params = {"uploader": self.uploader, "file_name": self.file_name}
         auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
         indexd_response = requests.post(index_url, json=params, auth=auth)
         if indexd_response.status_code not in [200, 201]:
@@ -99,13 +100,13 @@ class BlankIndex(object):
         return indexd_response.json()
 
     @staticmethod
-    def make_signed_url(filename, expires_in=None):
+    def make_signed_url(file_name, expires_in=None):
         """
         Works for upload only; S3 only (only supported case for data upload flow
         currently).
 
         Args:
-            filename (str)
+            file_name (str)
             expires_in (int)
 
         Return:
@@ -116,7 +117,7 @@ class BlankIndex(object):
         except KeyError:
             raise InternalError("fence not configured with data upload bucket")
         guid = str(uuid.uuid4())
-        s3_url = "s3://{}/{}/{}".format(bucket, guid, filename)
+        s3_url = "s3://{}/{}/{}".format(bucket, guid, file_name)
         return S3IndexedFileLocation(s3_url).get_signed_url("upload", expires_in)
 
 
