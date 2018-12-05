@@ -50,14 +50,8 @@ def login_user(request, username, provider):
             current_session.add(user)
             current_session.commit()
         else:
-	    root = flask.current_app.config.get('APPLICATION_ROOT', '')
-            request_next = flask.request.args.get('redirect', root)
-            if request_next.startswith('https') or request_next.startswith('http'):
-                next_url = request_next
-            else:
-                next_url = build_redirect_url(flask.current_app.config.get('ROOT_URL', ''), request_next)
-	    flask.current_app.logger.error("Request redirection: {}?error=401".format(next_url))
-    	    redirect_response = flask.make_response(flask.redirect(next_url+"?error=401"))
+	    if 'redirect' in flask.session:
+    	    	redirect_response = flask.make_response(flask.redirect(flask.session.get('redirect')+"?error=401"))
 	    return redirect_response 
     flask.g.user = user
     flask.g.scopes = ["_all"]
