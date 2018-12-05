@@ -8,6 +8,7 @@ import flask
 
 from fence.jwt.token import USER_ALLOWED_SCOPES, CLIENT_ALLOWED_SCOPES
 from fence.models import ClientAuthType
+from fence.config import config
 
 
 blueprint = flask.Blueprint(".well-known", __name__)
@@ -40,11 +41,12 @@ def openid_configuration():
 
     https://accounts.google.com/.well-known/openid-configuration
     """
-    # Just an abbreviation for the config.
-    config = flask.current_app.config
 
     # Get basic provider information.
-    issuer = config.get("OIDC_ISSUER") or config["BASE_URL"]
+    oidc_iss = (
+        config.get("OPENID_CONNECT", {}).get("fence", {}).get("api_base_url", None)
+    )
+    issuer = oidc_iss or config["BASE_URL"]
 
     # "Subject type" means the method used to assign the ``sub`` field in JWTs.
     # Fence sets the ``sub`` field to the user ID, so ``sub`` is the same

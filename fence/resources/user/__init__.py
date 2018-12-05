@@ -13,6 +13,7 @@ import smtplib
 
 from fence.errors import NotFound, UserError, InternalError
 from fence.models import query_for_user
+from fence.config import config
 
 
 def update_user_resource(username, resource):
@@ -23,16 +24,16 @@ def update_user_resource(username, resource):
         resources = set(user.application.resources_granted or [])
         resources.add(resource)
         user.application.resources_granted = list(resources)
-        if "EMAIL_SERVER" in flask.current_app.config:
+        if "EMAIL_SERVER" in config:
             content = "You have been granted {} resources in Bionimbus Cloud.".format(
                 ", ".join(resources)
             )
             send_mail(
-                flask.current_app.config["SEND_FROM"],
+                config["SEND_FROM"],
                 [user.email],
                 "Account update from Bionimbus Cloud",
                 text=content,
-                server=flask.current_app.config["EMAIL_SERVER"],
+                server=config["EMAIL_SERVER"],
             )
         return get_user_info(user, session)
 

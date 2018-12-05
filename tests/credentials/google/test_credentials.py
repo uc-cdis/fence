@@ -18,6 +18,8 @@ from userdatamodel.user import (
 )
 from cdisutilstest.code.storage_client_mock import get_client
 
+from fence.config import config
+
 # Python 2 and 3 compatible
 try:
     from unittest.mock import MagicMock
@@ -142,7 +144,7 @@ def test_google_bucket_access_new_proxy_group(
     encoded_jwt_no_proxy_group,
     monkeypatch,
 ):
-    monkeypatch.setitem(app.config, "MOCK_AUTH", False)
+    monkeypatch.setitem(config, "MOCK_AUTH", False)
 
     user_id = encoded_jwt_no_proxy_group["user_id"]
     proj = Project(id=129, name="test_proj")
@@ -203,7 +205,7 @@ def test_google_bucket_access_denied_new_proxy_group(
     encoded_jwt_no_proxy_group,
     monkeypatch,
 ):
-    monkeypatch.setitem(app.config, "MOCK_AUTH", False)
+    monkeypatch.setitem(config, "MOCK_AUTH", False)
 
     user_id = encoded_jwt_no_proxy_group["user_id"]
     proj = Project(id=129, name="test_proj")
@@ -264,7 +266,7 @@ def test_google_bucket_access_existing_proxy_group(
     encoded_creds_jwt,
     monkeypatch,
 ):
-    monkeypatch.setitem(app.config, "MOCK_AUTH", False)
+    monkeypatch.setitem(config, "MOCK_AUTH", False)
 
     user_id = encoded_creds_jwt["user_id"]
     client_id = encoded_creds_jwt["client_id"]

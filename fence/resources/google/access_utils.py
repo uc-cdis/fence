@@ -19,6 +19,7 @@ from cirrus.google_cloud import (
 import fence
 from cdislogging import get_logger
 
+from fence.config import config
 from fence.errors import NotFound, NotSupported
 from fence.models import (
     User,
@@ -378,6 +379,14 @@ def do_all_users_have_access_to_project(users, project_id, db=None):
         ).first()
 
         if not access_privilege:
+            project = (session.query(Project).filter(Project.id == project_id)).first()
+            project_rep = project.auth_id if project else project_id
+            logger.info(
+                "User ({}) does not have access to project ({}). There may be other "
+                "users that do not have access to this project.".format(
+                    user.username.lower(), project_rep
+                )
+            )
             return False
 
     return True
@@ -722,7 +731,7 @@ def add_user_service_account_to_db(session, to_add_project_ids, service_account)
         access_groups = _get_google_access_groups(session, project_id)
 
         # use configured time or 7 days
-        expiration_time = int(time.time()) + flask.current_app.config.get(
+        expiration_time = int(time.time()) + config.get(
             "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN", 604800
         )
         for access_group in access_groups:
@@ -805,7 +814,7 @@ def extend_service_account_access(service_account_email, db=None):
         )
 
         # use configured time or 7 days
-        expiration_time = int(time.time()) + flask.current_app.config.get(
+        expiration_time = int(time.time()) + config.get(
             "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN", 604800
         )
         logger.debug(
@@ -888,9 +897,7 @@ def remove_white_listed_service_account_ids(
         List[str]: Service account emails
     """
     if white_listed_sa_emails is None:
-        white_listed_sa_emails = flask.current_app.config.get(
-            "WHITE_LISTED_SERVICE_ACCOUNT_EMAILS", []
-        )
+        white_listed_sa_emails = config.get("WHITE_LISTED_SERVICE_ACCOUNT_EMAILS", [])
 
     monitoring_service_account = get_monitoring_service_account_email(app_creds_file)
 
@@ -915,9 +922,8 @@ def is_org_whitelisted(parent_org, white_listed_google_parent_orgs=None):
         bool: whether or not the provide Google parent organization is whitelisted
     """
 
-    white_listed_google_parent_orgs = (
-        white_listed_google_parent_orgs
-        or flask.current_app.config.get("WHITE_LISTED_GOOGLE_PARENT_ORGS", {})
+    white_listed_google_parent_orgs = white_listed_google_parent_orgs or config.get(
+        "WHITE_LISTED_GOOGLE_PARENT_ORGS", {}
     )
 
     return parent_org in white_listed_google_parent_orgs

@@ -366,11 +366,16 @@ def test_blank_index_upload(app, client, auth_client, encoded_creds_jwt, user_cl
             "Authorization": "Bearer " + encoded_creds_jwt.jwt,
             "Content-Type": "application/json",
         }
-        data = json.dumps({"filename": "asdf"})
+        data = json.dumps({"file_name": "asdf"})
         response = client.post("/data/upload", headers=headers, data=data)
         indexd_url = app.config.get("INDEXD") or app.config.get("BASE_URL") + "/index"
         endpoint = indexd_url + "/index/blank"
-        mock_requests.post.assert_called_once_with(endpoint, json={"uploader": "test"})
+        auth = ("gdcapi", "")
+        mock_requests.post.assert_called_once_with(endpoint, auth=auth, json=mock.ANY)
+        # assert_called_once_with cannot handle multiple items in json
+        _, call_kwargs = mock_requests.post.call_args
+        assert call_kwargs["json"] == {"uploader": "test", "file_name": "asdf"}
+
         assert response.status_code == 201, response
         assert "guid" in response.json
         assert "url" in response.json

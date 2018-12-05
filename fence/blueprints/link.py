@@ -12,8 +12,9 @@ from fence.errors import UserError
 
 from fence.models import UserGoogleAccount
 from fence.models import UserGoogleAccountToProxyGroup
-from fence.auth import current_token
+from fence.auth import current_token, get_user_from_claims
 from fence.auth import require_auth_header
+from fence.config import config
 
 from fence.resources.google.utils import (
     get_or_create_proxy_group_id,
@@ -108,6 +109,14 @@ class GoogleLinkRedirect(Resource):
         if not google_email:
             # save off provided redirect in session and initiate Google AuthN
             flask.session["redirect"] = provided_redirect
+
+            # if we're mocking Google login, skip to callback
+            if config.get("MOCK_GOOGLE_AUTH", False):
+                flask.redirect_url = (
+                    config["BASE_URL"].strip("/") + "/link/google/callback?code=abc"
+                )
+                return flask.redirect(flask.redirect_url)
+
             flask.redirect_url = flask.current_app.google_client.get_auth_url()
 
             # Tell Google to let user select an account
@@ -230,8 +239,16 @@ class GoogleCallback(Resource):
         provided_redirect = flask.session.get("redirect")
         code = flask.request.args.get("code")
 
-        google_reponse = flask.current_app.google_client.get_user_id(code)
-        email = google_reponse.get("email")
+        if not config.get("MOCK_GOOGLE_AUTH", False):
+            google_response = flask.current_app.google_client.get_user_id(code)
+            email = google_response.get("email")
+        else:
+            # if we're mocking google auth, mock response to include the email
+            # from the provided access token
+            try:
+                email = get_user_from_claims(current_token).username
+            except Exception:
+                email = "test@example.com"
 
         error = ""
         error_description = ""
@@ -243,7 +260,7 @@ class GoogleCallback(Resource):
 
         if not email:
             error = "g_acnt_auth_failure"
-            error_description = google_reponse
+            error_description = google_response
         else:
             error, error_description = get_errors_update_user_google_account_dry_run(
                 user_id, email, proxy_group, _already_authed=True

@@ -1,7 +1,7 @@
 import urlparse
 import urllib
 from fence.resources.storage.cdis_jwt import create_session_token
-from fence.settings import SESSION_COOKIE_NAME
+from fence.config import config
 
 from fence.auth import build_redirect_url
 
@@ -17,7 +17,7 @@ def test_redirect_url():
 def test_logout_if_anonymous(app, client, monkeypatch):
     """Logout when anonymous should display no error and successfully
     redirect user"""
-    monkeypatch.setitem(app.config, "MOCK_AUTH", False)
+    monkeypatch.setitem(config, "MOCK_AUTH", False)
     r = client.get("/logout")
     assert r.status_code == 302
 
@@ -41,10 +41,10 @@ def test_logout_itrust(client, db_session):
 
 def test_logout_fence(app, user_with_fence_provider, monkeypatch):
     other_fence_logout_url = "https://test-url.com"
-    monkeypatch.setitem(app.config, "MOCK_AUTH", False)
-    monkeypatch.setitem(app.config, "SHIBBOLETH_HEADER", None)
+    monkeypatch.setitem(config, "MOCK_AUTH", False)
+    monkeypatch.setitem(config, "SHIBBOLETH_HEADER", None)
     monkeypatch.setitem(
-        app.config,
+        config,
         "OPENID_CONNECT",
         {"fence": {"api_base_url": other_fence_logout_url}},
     )
@@ -53,7 +53,7 @@ def test_logout_fence(app, user_with_fence_provider, monkeypatch):
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={"username": username, "provider": "fence"},
     )
 
@@ -61,7 +61,7 @@ def test_logout_fence(app, user_with_fence_provider, monkeypatch):
     # the username
     with app.test_client() as client:
         # manually set cookie for initial session
-        client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
+        client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
 
         r = client.get("/logout?next=https://some_site.com")
         assert r.status_code == 302

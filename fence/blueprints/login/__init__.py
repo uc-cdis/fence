@@ -13,6 +13,7 @@ from fence.blueprints.login.google import GoogleRedirect, GoogleLogin
 from fence.blueprints.login.shib import ShibbolethLoginStart, ShibbolethLoginFinish
 from fence.errors import InternalError
 from fence.restful import RestfulApi
+from fence.config import config
 
 
 def make_login_blueprint(app):
@@ -28,8 +29,8 @@ def make_login_blueprint(app):
     """
 
     try:
-        default_idp = app.config["ENABLED_IDENTITY_PROVIDERS"]["default"]
-        idps = app.config["ENABLED_IDENTITY_PROVIDERS"]["providers"]
+        default_idp = config["ENABLED_IDENTITY_PROVIDERS"]["default"]
+        idps = config["ENABLED_IDENTITY_PROVIDERS"]["providers"]
     except KeyError as e:
         app.logger.warn(
             "app not configured correctly with ENABLED_IDENTITY_PROVIDERS:"
@@ -38,15 +39,13 @@ def make_login_blueprint(app):
         default_idp = None
         idps = {}
 
-    # Mapping from IDP ID (what goes in ``fence/local_settings.py`` in
-    # ``ENABLED_IDENTITY_PROVIDERS``) to the name in the URL on the blueprint
-    # (see below).
+    # Mapping from IDP ID to the name in the URL on the blueprint (see below).
     IDP_URL_MAP = {"fence": "fence", "google": "google", "shibboleth": "shib"}
 
     # check if google is configured as a client. we will at least need a
     # a callback if it is
     google_client_exists = (
-        "OPENID_CONNECT" in app.config and "google" in app.config["OPENID_CONNECT"]
+        "OPENID_CONNECT" in config and "google" in config["OPENID_CONNECT"]
     )
 
     blueprint = flask.Blueprint("login", __name__)
@@ -59,7 +58,7 @@ def make_login_blueprint(app):
         """
 
         def absolute_login_url(provider_id):
-            base_url = flask.current_app.config["BASE_URL"].rstrip("/")
+            base_url = config["BASE_URL"].rstrip("/")
             return base_url + "/login/{}".format(IDP_URL_MAP[provider_id])
 
         def provider_info(idp_id):

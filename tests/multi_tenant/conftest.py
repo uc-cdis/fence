@@ -10,6 +10,7 @@ import pytest
 from fence import models
 from fence import app_init
 from fence.jwt.keys import Keypair
+from fence.config import config
 import fence.blueprints.login
 
 from tests import test_settings
@@ -71,8 +72,14 @@ def fence_client_app(
     in a multi-tenant configuration.
     """
     root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+
     client_app = flask.Flask("client_app")
-    app_init(client_app, test_settings, root_dir=root_dir)
+    app_init(
+        client_app,
+        test_settings,
+        root_dir=root_dir,
+        config_path=os.path.join(root_dir, "test-fence-config.yaml"),
+    )
 
     keypair = Keypair(
         kid=kid_2, public_key=rsa_public_key_2, private_key=rsa_private_key_2
@@ -102,6 +109,7 @@ def fence_client_app(
     client_app.fence_client = OAuthClient(
         **client_app.config["OPENID_CONNECT"]["fence"]
     )
+
     return client_app
 
 
