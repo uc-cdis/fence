@@ -51,7 +51,9 @@ def login_user(request, username, provider):
             current_session.commit()
         else:
 	    if 'redirect' in flask.session:
+		flask.current_app.logger.error("This fucking shit: {}".format(flask.session.get('redirect')))
     	    	redirect_response = flask.make_response(flask.redirect(flask.session.get('redirect')+"?error=401"))
+		flask.current_app.logger.error("This fucking response: {}".format(redirect_response))
 	    return redirect_response 
     flask.g.user = user
     flask.g.scopes = ["_all"]
