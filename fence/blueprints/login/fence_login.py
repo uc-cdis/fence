@@ -24,9 +24,12 @@ class FenceRedirect(Resource):
         oauth2_redirect_uri = (
             flask.current_app.fence_client.session.redirect_uri
         )
+        on_error_url = flask.request.args.get('on_error')
         redirect_url = flask.request.args.get('redirect')
         if redirect_url:
             flask.session['redirect'] = redirect_url
+        if on_error_url:
+	    flask.session['on_error'] = on_error_url
         authorization_url, state = (
             flask.current_app
             .fence_client

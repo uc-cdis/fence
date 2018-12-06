@@ -50,8 +50,10 @@ def login_user(request, username, provider):
             current_session.add(user)
             current_session.commit()
         else:
-	    if 'redirect' in flask.session:
-    	    	return flask.redirect(flask.session.get('redirect')+"?error=401")
+	    if 'on_error' in flask.session:
+    	    	return flask.redirect(flask.session.get('on_error'))
+            elif 'redirect' in flask.session:
+    	    	return flask.redirect(flask.session.get('redirect'))
             else:
 		raise Unathorized("An error ocurred: no valid redirection page was provided. Please log in")
     flask.g.user = user
