@@ -37,7 +37,6 @@ from fence import app_init
 from fence import models
 from fence.jwt.keys import Keypair
 from fence.config import config
-from fence.jwt.token import generate_signed_access_token
 
 import tests
 from tests import test_settings
@@ -651,6 +650,7 @@ def public_bucket_indexd_client(app, request):
         "fence.blueprints.data.indexd.IndexedFile.index_document", record
     )
     mocker.add_mock(indexd_patcher)
+    request.addfinalizer(indexd_patcher.stop)
 
 
 @pytest.fixture(scope="function")

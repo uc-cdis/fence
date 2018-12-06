@@ -3,7 +3,7 @@ import time
 from urlparse import urlparse
 import uuid
 
-from authutils import current_token
+from authutils.token import current_token
 from cached_property import cached_property
 import cirrus
 from cdispyutils.config import get_value
@@ -88,7 +88,7 @@ class BlankIndex(object):
                 response from indexd (the contents of the record), containing ``guid``
                 and ``url``
         """
-        index_url = self.indexd.rstrip("/") + "/index/blank"
+        index_url = self.indexd.rstrip("/") + "/index/blank/"
         params = {"uploader": self.uploader, "file_name": self.file_name}
         auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
         indexd_response = requests.post(index_url, json=params, auth=auth)

@@ -13,9 +13,9 @@ from fence.blueprints.data.indexd import (
     get_signed_url_for_file,
 )
 from fence.errors import (
+    Forbidden,
     NotFound,
     NotSupported,
-    Unauthorized,
     UnavailableError,
     UserError,
 )
@@ -41,14 +41,13 @@ def delete_data_file(file_id):
         file_id (str): GUID of file to delete
     """
     record = IndexedFile(file_id)
-
     # check auth: either this user must have uploaded the file (so `uploader` field on
     # the record is this user), or they have delete permissions for the project
     uploader = record.index_document.get("uploader")
     if uploader and current_token["context"]["user"]["name"] != uploader:
-        raise Unauthorized("user is not uploader for file {}".format(file_id))
+        raise Forbidden("user is not uploader for file {}".format(file_id))
     elif not record.check_authorization("delete"):
-        raise Unauthorized("no `delete` permission for file {}".format(file_id))
+        raise Forbidden("no `delete` permission for file {}".format(file_id))
 
     record.delete_file_locations()
     IndexedFile(file_id).delete_files()
