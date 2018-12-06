@@ -369,7 +369,7 @@ def test_blank_index_upload(app, client, auth_client, encoded_creds_jwt, user_cl
         data = json.dumps({"file_name": "asdf"})
         response = client.post("/data/upload", headers=headers, data=data)
         indexd_url = app.config.get("INDEXD") or app.config.get("BASE_URL") + "/index"
-        endpoint = indexd_url + "/index/blank"
+        endpoint = indexd_url + "/index/blank/"
         auth = ("gdcapi", "")
         mock_requests.post.assert_called_once_with(endpoint, auth=auth, json=mock.ANY)
         # assert_called_once_with cannot handle multiple items in json
