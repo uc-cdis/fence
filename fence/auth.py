@@ -51,8 +51,9 @@ def login_user(request, username, provider):
             current_session.commit()
         else:
 	    if 'redirect' in flask.session:
-		flask.current_app.logger.error("This fucking shit: {}".format(flask.session.get('redirect')))
     	    	return flask.redirect(flask.session.get('redirect')+"?error=401")
+            else:
+		raise Unathorized("An error ocurred: no valid redirection page was provided. Please log in")
     flask.g.user = user
     flask.g.scopes = ["_all"]
     flask.g.token = None
