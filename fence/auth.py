@@ -51,8 +51,10 @@ def login_user(request, username, provider):
             current_session.commit()
         else:
 	    if 'on_error' in flask.session:
+                flask.current_app.logger.error('On error: {}'.format(flask.session.get('on_error')))
     	    	return flask.redirect(flask.session.get('on_error'))
             elif 'redirect' in flask.session:
+                flask.current_app.logger.error('On failover redirect: {}'.format(flask.session.get('redirect')))
     	    	return flask.redirect(flask.session.get('redirect'))
             else:
 		raise Unathorized("An error ocurred: no valid redirection page was provided. Please log in")
