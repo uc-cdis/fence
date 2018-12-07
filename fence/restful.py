@@ -18,6 +18,8 @@ def handle_error(error):
     if isinstance(error, APIError):
         if hasattr(error, 'json') and error.json:
             return flask.jsonify(**error.json), error.code
+        elif hasattr(error, 'redirect') and error.redirect:
+            return flask.redirect(error.redirect)
         else:
             return flask.jsonify(message=error.message), error.code
     elif isinstance(error, OAuth2Error):

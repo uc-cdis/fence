@@ -2,7 +2,7 @@ from authutils.token.validate import validate_jwt
 import flask
 from flask_restful import Resource
 
-from fence.auth import login_user
+from fence.auth import login_user, validate_local_redirect
 from fence.errors import Unauthorized
 from fence.models import IdentityProvider
 
@@ -24,12 +24,17 @@ class FenceRedirect(Resource):
         oauth2_redirect_uri = (
             flask.current_app.fence_client.session.redirect_uri
         )
+
+        # The access token is provided in a session cookie and there should
+        # be no reason to redirect to a domain that can't access it.
+        # Make sure the URLs look legit before we think about redirecting.
         on_error_url = flask.request.args.get('on_error')
         redirect_url = flask.request.args.get('redirect')
         if redirect_url:
-            flask.session['redirect'] = redirect_url
+            flask.session['redirect'] = validate_local_redirect(redirect_url)
         if on_error_url:
-	    flask.session['on_error'] = on_error_url
+            flask.session['on_error'] = validate_local_redirect(on_error_url)
+
         authorization_url, state = (
             flask.current_app
             .fence_client
