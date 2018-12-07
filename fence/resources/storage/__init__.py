@@ -430,12 +430,21 @@ class StorageManager(object):
         Add a db entry specifying that a given user has storage access
         to the provided Google bucket access group
         """
-        storage_user_access_db_entry = GoogleProxyGroupToGoogleBucketAccessGroup(
-            proxy_group_id=storage_user.google_proxy_group_id,
-            access_group_id=bucket_access_group.id,
+        storage_user_access_db_entry = (
+            session.query(GoogleProxyGroupToGoogleBucketAccessGroup)
+            .filter_by(
+                proxy_group_id=storage_user.google_proxy_group_id,
+                access_group_id=bucket_access_group.id,
+            )
+            .first()
         )
-        session.add(storage_user_access_db_entry)
-        session.commit()
+        if not storage_user_access_db_entry:
+            storage_user_access_db_entry = GoogleProxyGroupToGoogleBucketAccessGroup(
+                proxy_group_id=storage_user.google_proxy_group_id,
+                access_group_id=bucket_access_group.id,
+            )
+            session.add(storage_user_access_db_entry)
+            session.commit()
 
     # FIXME: create a delete() on GoogleProxyGroupToGoogleBucketAccessGroup and use here.
     #        previous attempts to use similar delete() calls on other models resulting in errors
