@@ -4,6 +4,8 @@ import flask
 from flask_restful import Resource
 from flask_sqlalchemy_session import current_session
 
+from cdislogging import get_logger
+
 from cirrus import GoogleCloudManager
 from fence.restful import RestfulApi
 from fence.errors import NotFound
@@ -12,18 +14,18 @@ from fence.errors import UserError
 
 from fence.models import UserGoogleAccount
 from fence.models import UserGoogleAccountToProxyGroup
-from fence.auth import current_token, get_user_from_claims
+from fence.auth import current_token, get_user_from_claims, validate_request
 from fence.auth import require_auth_header
 from fence.config import config
-
 from fence.resources.google.utils import (
     get_or_create_proxy_group_id,
     get_default_google_account_expiration,
     get_users_linked_google_email,
     get_linked_google_account_email,
 )
-
 from fence.utils import clear_cookies, append_query_params
+
+logger = get_logger(__name__)
 
 
 def make_link_blueprint():
@@ -246,8 +248,13 @@ class GoogleCallback(Resource):
             # if we're mocking google auth, mock response to include the email
             # from the provided access token
             try:
-                email = get_user_from_claims(current_token).username
-            except Exception:
+                token = validate_request({"user"})
+                email = get_user_from_claims(token).username
+            except Exception as exc:
+                logger.info(
+                    "Unable to parse Google email from token, using default mock value. "
+                    "Error: {}".format(exc)
+                )
                 email = "test@example.com"
 
         error = ""
