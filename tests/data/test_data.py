@@ -442,10 +442,10 @@ def test_delete_file_locations(app, client, encoded_creds_jwt, user_client, monk
     mock_boto_delete = mock.MagicMock()
     monkeypatch.setattr(app.boto, "delete_data_file", mock_boto_delete)
 
-    mock_put_response = mock.MagicMock()
-    mock_put_response.status_code = 200
-    mock_put = mock.MagicMock(requests.put, return_value=mock_put_response)
-    with mock.patch("fence.blueprints.data.indexd.requests.put", mock_put):
+    mock_delete_response = mock.MagicMock()
+    mock_delete_response.status_code = 200
+    mock_delete = mock.MagicMock(requests.put, return_value=mock_delete_response)
+    with mock.patch("fence.blueprints.data.indexd.requests.delete", mock_delete):
         headers = {"Authorization": "Bearer " + encoded_creds_jwt.jwt}
         response = client.delete("/data/{}".format(did), headers=headers)
         assert response.status_code == 204

@@ -41,17 +41,15 @@ def delete_data_file(file_id):
         file_id (str): GUID of file to delete
     """
     record = IndexedFile(file_id)
-    # check auth: either this user must have uploaded the file (so `uploader` field on
-    # the record is this user), or they have delete permissions for the project
+    # check auth: user must have uploaded the file (so `uploader` field on the record is
+    # this user)
     uploader = record.index_document.get("uploader")
-    if uploader and current_token["context"]["user"]["name"] != uploader:
+    if not uploader:
+        raise Forbidden("deleting submitted records is not supported")
+    if current_token["context"]["user"]["name"] != uploader:
         raise Forbidden("user is not uploader for file {}".format(file_id))
-    elif not record.check_authorization("delete"):
-        raise Forbidden("no `delete` permission for file {}".format(file_id))
-
-    record.delete_file_locations()
-    IndexedFile(file_id).delete_files()
-    return '', 204
+    record.delete_files(delete_all=True)
+    return record.delete()
 
 
 @blueprint.route("/upload", methods=["POST"])

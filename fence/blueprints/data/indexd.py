@@ -284,6 +284,14 @@ class IndexedFile(object):
             bucket = location.bucket_name()
             flask.current_app.boto.delete_data_file(bucket, self.file_id)
 
+    @login_required({"data"})
+    def delete(self):
+        path = "{}/index/{}".format(self.indexd_server, self.file_id)
+        response = requests.delete(path)
+        if response.status_code != 200:
+            return (response.json(), 500)
+        return ('', 204)
+
 
 class IndexedFileLocation(object):
     """
