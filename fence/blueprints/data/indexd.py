@@ -149,15 +149,6 @@ class IndexedFile(object):
         )
         return indexd_server.rstrip("/")
 
-    def delete_file_locations(self):
-        path = "{}/index/{}".format(self.indexd_server, self.file_id)
-        response = requests.put(path, json={"urls": []})
-        if response.status_code != 200:
-            raise InternalError(
-                "could not remove URLs from indexd record for file: {}"
-                .format(self.file_id)
-            )
-
     @cached_property
     def index_document(self):
         indexd_server = config.get("INDEXD") or config["BASE_URL"] + "/index"
