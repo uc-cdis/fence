@@ -53,6 +53,8 @@ def validate_local_redirect(url):
     if not (local_domain and domain.endswith(local_domain)):
         raise UserError('Invalid redirect domain')
 
+    return url
+
 
 def login_user(request, username, provider):
     user = current_session.query(
@@ -74,12 +76,12 @@ def login_user(request, username, provider):
             # create users automatically, login should fail. Check if the
             # client supplied a redirect to a page that will provide the user
             # with more information about the situation.
-            if 'on_error' in flask.session:
+            if flask.session.get('on_error'):
                 redirect_url = flask.session['on_error']
-            elif 'redirect' in flask.session:
+            elif flask.session.get('redirect'):
                 # If the client didn't supply a specific error redirect, we
                 # can add an error flag to the normal redirect.
-                redirect_parts = list(urlparse(flask.session.get('redirect')))
+                redirect_parts = list(urlparse(flask.session['redirect']))
                 redirect_query = parse_qs(redirect_parts[4])
                 redirect_query['error'] = '401'
                 redirect_parts[4] = urlencode(redirect_query, doseq=True)
