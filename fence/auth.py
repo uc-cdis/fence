@@ -86,6 +86,8 @@ def login_user(request, username, provider):
                 redirect_query['error'] = '401'
                 redirect_parts[4] = urlencode(redirect_query, doseq=True)
                 redirect_url = urlunparse(redirect_parts)
+            else:
+                redirect_url = None
 
             raise NoSuchUserError(
                 message="User has not been granted access to this site",
