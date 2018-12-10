@@ -156,6 +156,63 @@ In order to register a Service Account, *all* users in the Google Project must h
 
 ---
 
+#### Google Project and Service Account Validity Checking
+
+In order to register a Service Account, the Service Account and its associated Project must pass a series of validity checks.
+
+Projects are always validated against the following checks:
+* Fence monitor has access to project
+   * Key: `monitor_has_access`
+   * Checks if the Fence monitoring service account can access the Google Project.
+* User has access to project
+   * Key: `user_has_access`
+   * Checks if the current user is an authorized member on the project.
+* Google Project has valid parent organization
+   * Key: `valid_parent_org`
+   * Checks if the Google project either has no parent organization, or if it does, it is included on the whitelist of parent. organizations (defined in Fence config).
+* Google Project only has valid member types
+   * Key: `valid_member_types`
+   * Checks if the Google project ony has members that are User Accounts or Service Accounts.
+* Google Project members exist in fence
+   * Key: `members_exist_in_fence`
+   * Checks if the User members on the Google project exist in the fence DB
+* Google Project has valid service accounts
+   * Key: `service_accounts`
+   * Checks if the Service Account members on the project pass the Service Account validity checks detailed below.
+  
+Service Accounts on the project, as well as the Service Account being registered, are validated against some combination of the following checks (which checks occur ultimately depend on the type of Service Account and whether or not the Service Account is currently being registered or not).
+
+* Service Account is owned by Google Project identified in the request
+   * Key: `owned_by_project`
+   * Checks if the Service Account is owned by the project
+* Service Account is of valid type for registration
+   * Key: `valid_type`
+   * Checks if the Service Account is a User Managed Service Account or a Compute Engine API Service Account
+* Service Account policy is accessible
+   * Key: `policy_accessible`
+   * Checks if  fence's monitoring Service Account can read the Service Account's policy
+* Service Account has no external access
+   * Key: `no_external_access`
+   * Checks if the Service Account has no IAM roles and no access keys
+
+These checks are applied according to the following logic:
+
+* If the service account is User Managed:
+   * check: `owned_by_project`, `valid_type`, `policy_accessible`, `no_external_access`
+* ElIf the service account is Google Managed:
+   * If the service account is registered or currently being registered:
+      * check: `owned_by_project`, `valid_type`, `policy_accessible`
+   * ElIf the service account is not registered/being registered and is a member on the project:
+      * check: `owned_by_project`
+      * Note: `valid_type` is not checked because the Service Account is not being registered. `valid_type` is checked when a Service Account is registered, and the type of a Service Account cannot change. `policy_accessible` is not checked because (1) some Google Managed service accounts do not allow their policies to be read and (2) we assume that the Google Managed accounts that are *not* registered for data access are okay so long as they're in the project security boundary.
+   * Note: `no_external_access` is not checked, as a the Service Account is Google Managed and will therefore have roles for use within the Google Cloud Platform
+
+Service Accounts are validated according to this logic regardless of whether or not it is during Service Account registration or the `google-manage-user-registrations` cronjob. However, during the cronjob validation, registered service accounts are validated before their respective project is validated.
+
+The Service Accounts are validated first in the cronjob so that if multiple SA's are registered and only one is non-conforming, we can remove that single account without invalidating the entire project. If the project as a whole is invalid, we must remove all SAs though.
+
+---
+
 ##### Example:
 
 This diagram shows a single Google Project with 3 users (`UserA`, `UserB`, and `UserC`). All of them have already gone through the linking process with fence to associate their Google Account with their fence identity.
