@@ -2,11 +2,7 @@ import time
 import flask
 from fence.resources.storage.cdis_jwt import create_session_token
 from fence.jwt.token import generate_signed_access_token
-from fence.settings import (
-    SESSION_COOKIE_NAME,
-    ACCESS_TOKEN_COOKIE_NAME,
-    ACCESS_TOKEN_EXPIRES_IN,
-)
+from fence.config import config
 from fence.models import User
 
 from fence.jwt.keys import default_public_key
@@ -31,9 +27,11 @@ def test_session_cookie_creation(app):
             pass
 
         client_cookies = [cookie.name for cookie in client.cookie_jar]
-        assert SESSION_COOKIE_NAME in client_cookies
+        assert config["SESSION_COOKIE_NAME"] in client_cookies
         session_cookie = [
-            cookie for cookie in client.cookie_jar if cookie.name == SESSION_COOKIE_NAME
+            cookie
+            for cookie in client.cookie_jar
+            if cookie.name == config["SESSION_COOKIE_NAME"]
         ]
         assert len(session_cookie) == 1
 
@@ -46,9 +44,11 @@ def test_session_cookie_creation_session_modified(app):
             session["username"] = "Captain Janeway"
 
         client_cookies = [cookie.name for cookie in client.cookie_jar]
-        assert SESSION_COOKIE_NAME in client_cookies
+        assert config["SESSION_COOKIE_NAME"] in client_cookies
         session_cookie = [
-            cookie for cookie in client.cookie_jar if cookie.name == SESSION_COOKIE_NAME
+            cookie
+            for cookie in client.cookie_jar
+            if cookie.name == config["SESSION_COOKIE_NAME"]
         ]
         assert len(session_cookie) == 1
         assert session_cookie[0].value  # Make sure it's not empty
@@ -59,7 +59,7 @@ def test_valid_session(app):
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={"username": username},
     )
 
@@ -67,7 +67,7 @@ def test_valid_session(app):
     # the username
     with app.test_client() as client:
         # manually set cookie for initial session
-        client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
+        client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
         with client.session_transaction() as session:
             assert session["username"] == username
 
@@ -78,7 +78,7 @@ def test_valid_session_modified(app):
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={"username": username},
     )
 
@@ -86,7 +86,7 @@ def test_valid_session_modified(app):
     # the username
     with app.test_client() as client:
         # manually set cookie for initial session
-        client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
+        client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
         with client.session_transaction() as session:
 
             assert session["username"] == username
@@ -98,20 +98,20 @@ def test_valid_session_modified(app):
 
 def test_expired_session_lifetime(app):
     # make the start time be max lifetime ago (so it's expired)
-    lifetime = app.config.get("SESSION_LIFETIME")
+    lifetime = config.get("SESSION_LIFETIME")
     now = int(time.time())
     one_lifetime_ago = now - lifetime
     username = "Captain Janeway"
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context=dict(session_started=one_lifetime_ago, username=username),
     )
 
     with app.test_client() as client:
         # manually set cookie for initial session
-        client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
+        client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
         with client.session_transaction() as session:
             # make sure we don't have the username when opening
             # the session, since it has expired
@@ -121,7 +121,7 @@ def test_expired_session_lifetime(app):
 def test_expired_session_timeout(app):
     # make the start time be one timeout in the past (so the
     # session is expired)
-    max_inactivity = app.config.get("SESSION_TIMEOUT")
+    max_inactivity = config.get("SESSION_TIMEOUT")
     now = int(time.time())
     last_active = now - max_inactivity
     username = "Captain Janeway"
@@ -138,7 +138,7 @@ def test_expired_session_timeout(app):
 
     with app.test_client() as client:
         # manually set cookie for initial session
-        client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
+        client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
         with client.session_transaction() as session:
             # make sure we don't have the username when opening
             # the session, since it has expired
@@ -150,7 +150,7 @@ def test_session_cleared(app):
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context=dict(username=username),
     )
 
@@ -158,13 +158,13 @@ def test_session_cleared(app):
     # the username
     with app.test_client() as client:
         # manually set cookie for initial session
-        client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
+        client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
         with client.session_transaction() as session:
             session["username"] = username
             session.clear()
             assert session.get("username") != username
         client_cookies = [cookie.name for cookie in client.cookie_jar]
-        assert SESSION_COOKIE_NAME not in client_cookies
+        assert config["SESSION_COOKIE_NAME"] not in client_cookies
 
 
 def test_invalid_session_cookie(app):
@@ -174,7 +174,7 @@ def test_invalid_session_cookie(app):
     # the username
     with app.test_client() as client:
         # manually set cookie for initial session
-        client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
+        client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
         with client.session_transaction() as session:
             # main test is that we haven't raised an exception by this point
 
@@ -186,13 +186,13 @@ def test_invalid_session_cookie(app):
 def test_valid_session_valid_access_token(
     app, db_session, test_user_a, test_user_b, monkeypatch
 ):
-    monkeypatch.setitem(app.config, "MOCK_AUTH", False)
+    monkeypatch.setitem(config, "MOCK_AUTH", False)
     user = db_session.query(User).filter_by(id=test_user_a["user_id"]).first()
     keypair = app.keypairs[0]
 
     test_session_jwt = create_session_token(
         keypair,
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={"username": user.username, "provider": "google"},
     )
 
@@ -200,9 +200,9 @@ def test_valid_session_valid_access_token(
         kid=keypair.kid,
         private_key=keypair.private_key,
         user=user,
-        expires_in=app.config.get("ACCESS_TOKEN_EXPIRES_IN"),
+        expires_in=config["ACCESS_TOKEN_EXPIRES_IN"],
         scopes=["openid", "user"],
-        iss=flask.current_app.config.get("BASE_URL"),
+        iss=config.get("BASE_URL"),
         forced_exp_time=None,
         client_id=None,
         linked_google_email=None,
@@ -212,8 +212,10 @@ def test_valid_session_valid_access_token(
     # the username
     with app.test_client() as client:
         # manually set cookie for initial session
-        client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
-        client.set_cookie("localhost", ACCESS_TOKEN_COOKIE_NAME, test_access_jwt)
+        client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
+        client.set_cookie(
+            "localhost", config["ACCESS_TOKEN_COOKIE_NAME"], test_access_jwt
+        )
 
         response = client.get("/user")
         user_id = response.json.get("user_id") or response.json.get("sub")
@@ -230,13 +232,13 @@ def test_valid_session_valid_access_token_diff_user(
     is created for the logged in user and the response doesn't contain info
     for the non-logged in user.
     """
-    monkeypatch.setitem(app.config, "MOCK_AUTH", False)
+    monkeypatch.setitem(config, "MOCK_AUTH", False)
     user = db_session.query(User).filter_by(id=test_user_a["user_id"]).first()
     keypair = app.keypairs[0]
 
     test_session_jwt = create_session_token(
         keypair,
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={"username": user.username, "provider": "google"},
     )
 
@@ -246,15 +248,17 @@ def test_valid_session_valid_access_token_diff_user(
         kid=keypair.kid,
         private_key=keypair.private_key,
         user=other_user,
-        expires_in=app.config.get("ACCESS_TOKEN_EXPIRES_IN"),
+        expires_in=config["ACCESS_TOKEN_EXPIRES_IN"],
         scopes=["openid", "user"],
-        iss=flask.current_app.config.get("BASE_URL"),
+        iss=config.get("BASE_URL"),
     ).token
 
     with app.test_client() as client:
         # manually set cookie for initial session
-        client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
-        client.set_cookie("localhost", ACCESS_TOKEN_COOKIE_NAME, test_access_jwt)
+        client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
+        client.set_cookie(
+            "localhost", config["ACCESS_TOKEN_COOKIE_NAME"], test_access_jwt
+        )
 
         response = client.get("/user")
         cookies = _get_cookies_from_response(response)

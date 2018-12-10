@@ -30,10 +30,11 @@ except ImportError:
 
 from fence.jwt.validate import validate_jwt
 from tests.utils import oauth2
+from fence.config import config
 
 
 @pytest.mark.skip(
-    reason="We are NOT COMPLAINT for this OPTIONAL param (id_token_hint) yet."
+    reason="We are NOT COMPLIANT for this OPTIONAL param (id_token_hint) yet."
 )
 def test_id_token_hint_empty(client, oauth_client):
     """
@@ -56,7 +57,7 @@ def test_id_token_hint_empty(client, oauth_client):
 
 
 @pytest.mark.skip(
-    reason="We are NOT COMPLAINT for this OPTIONAL param (id_token_hint) yet."
+    reason="We are NOT COMPLIANT for this OPTIONAL param (id_token_hint) yet."
 )
 def test_id_token_hint(client, oauth_client):
     """
@@ -77,7 +78,7 @@ def test_id_token_hint(client, oauth_client):
 
 
 @pytest.mark.skip(
-    reason="We are NOT COMPLAINT for this OPTIONAL param (id_token_hint) yet."
+    reason="We are NOT COMPLIANT for this OPTIONAL param (id_token_hint) yet."
 )
 def test_id_token_hint_not_logged_in(app, client, oauth_client, monkeypatch):
     """
@@ -89,7 +90,7 @@ def test_id_token_hint_not_logged_in(app, client, oauth_client, monkeypatch):
     id_token = validate_jwt(token_response["id_token"], {"openid"})
 
     # don't mock auth so there isn't a logged in user any more
-    monkeypatch.setitem(app.config, "MOCK_AUTH", False)
+    monkeypatch.setitem(config, "MOCK_AUTH", False)
 
     # Now use that id_token as a hint to the authorize endpoint
     data = {"id_token_hint": str(id_token)}

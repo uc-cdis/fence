@@ -298,6 +298,47 @@ paths:
                 $ref: '#/components/schemas/SignedURL'
         '400':
           description: 'Invalid input: UUID not found or invalid location'
+  '/data/upload':
+    post:
+      tags:
+        - data
+      summary: >-
+        Create a new blank record in indexd to use for uploading a data file
+      description: >-
+        This is the first step on the API side for the data upload flow.  This
+        endpoint causes fence to make a request to indexd to create a new, blank
+        index record, and returns the GUID for this new record and a presigned
+        URL which a client can then use to upload their data file directly to a
+        storage bucket. No parameters are accepted because fence retrieves the
+        username from the current token to send to indexd for the `uploader`
+        field in the new record.
+      security:
+        - OAuth2:
+          - user
+          - data
+      operationId: uploadBlank
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestUploadBlank'
+
+
+      responses:
+        201:
+          description: successful operation; created new record in indexd
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  guid:
+                    type: string
+                    description: >-
+                      the GUID from the newly created record in indexd
+                  url:
+                    type: string
+                    description: the presigned URL usable for data upload
   '/data/upload/{file_id}':
     get:
       tags:
@@ -1235,6 +1276,20 @@ components:
           scopes:
             user: generic user access
   schemas:
+    RequestUploadBlank:
+      type: object
+      required:
+      properties:
+        file_name:
+          type: string
+          required: true
+          description: the file name to use for this upload
+        expires_in:
+          type: integer
+          description: optional integer specifying the presigned URL lifetime
+      example:
+        file_name: "my_file.bam"
+        expires_in: 1200
     CredentialsSource:
       type: object
       required:

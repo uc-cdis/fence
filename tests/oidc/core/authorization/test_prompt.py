@@ -33,6 +33,8 @@ OIDC specification of authentication request parameter ``prompt``:
 import flask
 import pytest
 
+from fence.config import config
+
 # Python 2 and 3 compatible
 try:
     from unittest.mock import patch
@@ -78,8 +80,8 @@ def check_for_error(response_location, error):
 @pytest.fixture(scope="function")
 def patch_mock_auth_off(app, monkeypatch):
     """Don't mock auth so there isn't a logged in user."""
-    monkeypatch.setitem(app.config, "MOCK_AUTH", False)
-    monkeypatch.setitem(app.config, "DEFAULT_LOGIN_URL", "/login/google")
+    monkeypatch.setitem(config, "MOCK_AUTH", False)
+    monkeypatch.setitem(config, "DEFAULT_LOGIN_URL", "/login/google")
 
 
 @pytest.fixture(scope="function")
