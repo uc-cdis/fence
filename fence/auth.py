@@ -1,4 +1,6 @@
 from functools import wraps
+from urllib import urlencode
+from urlparse import parse_qs, urlparse, urlunparse
 
 from authutils.errors import JWTError, JWTExpiredError
 from authutils.token.validate import require_auth_header
@@ -9,7 +11,7 @@ import flask
 from flask_sqlalchemy_session import current_session
 from sqlalchemy import func
 
-from fence.errors import Unauthorized, InternalError
+from fence.errors import NoSuchUserError, Unauthorized, UserError
 from fence.jwt.validate import validate_jwt
 from fence.models import User, IdentityProvider
 from fence.user import get_current_user
@@ -35,6 +37,25 @@ def build_redirect_url(hostname, path):
     return redirect_base + path
 
 
+def validate_local_redirect(url):
+    """
+    Check that a URL would redirect the user to a site in the same domain
+    as Fence, based on the session cookie domain. Raise if not.
+
+    Args:
+        url (str): The URL to validate.
+
+    Returns:
+        str: The given URL, for convenience.
+    """
+    domain = urlparse(url).netloc
+    local_domain = flask.current_app.config.get('SESSION_COOKIE_DOMAIN')
+    if not (local_domain and domain.endswith(local_domain)):
+        raise UserError('Invalid redirect domain')
+
+    return url
+
+
 def login_user(request, username, provider):
     user = current_session.query(
         User).filter(func.lower(User.username) == username.lower()).first()
@@ -51,7 +72,28 @@ def login_user(request, username, provider):
             current_session.add(user)
             current_session.commit()
         else:
-	    raise Unauthorized("Please login")
+            # If the user does not exist and Fence is not configured to
+            # create users automatically, login should fail. Check if the
+            # client supplied a redirect to a page that will provide the user
+            # with more information about the situation.
+            if flask.session.get('on_error'):
+                redirect_url = flask.session['on_error']
+            elif flask.session.get('redirect'):
+                # If the client didn't supply a specific error redirect, we
+                # can add an error flag to the normal redirect.
+                redirect_parts = list(urlparse(flask.session['redirect']))
+                redirect_query = parse_qs(redirect_parts[4])
+                redirect_query['error'] = '401'
+                redirect_parts[4] = urlencode(redirect_query, doseq=True)
+                redirect_url = urlunparse(redirect_parts)
+            else:
+                redirect_url = None
+
+            raise NoSuchUserError(
+                message="User has not been granted access to this site",
+                redirect=redirect_url
+            )
+
     flask.g.user = user
     flask.g.scopes = ["_all"]
     flask.g.token = None

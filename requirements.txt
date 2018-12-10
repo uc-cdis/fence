@@ -10,6 +10,7 @@ Flask-CORS==3.0.3
 Flask_OAuthlib==0.9.4
 flask-restful==0.3.6
 Flask_SQLAlchemy_Session==1.1
+future>=0.16.0,<0.17.0
 google_api_python_client==1.6.4
 httplib2==0.10.3
 python-jose==2.0.2

@@ -47,3 +47,15 @@ class UnavailableError(APIError):
     def __init__(self, message):
         self.message = str(message)
         self.code = 503
+
+
+class NoSuchUserError(APIError):
+    """
+    Error for when a user is authenticated by an upstream identity provider,
+    but the user has not been provisioned in the Fence database and Fence
+    is not configured to insert on login.
+    """
+    def __init__(self, message, redirect=None):
+        self.message = str(message)
+        self.redirect = redirect
+        self.code = 401
