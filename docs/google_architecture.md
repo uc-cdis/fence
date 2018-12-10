@@ -204,6 +204,8 @@ These checks are applied according to the following logic:
       * check: `owned_by_project`, `valid_type`, `policy_accessible`
    * ElIf the service account is not registered/being registered and is a member on the project:
       * check: `owned_by_project`
+      * Note: `valid_type` is not checked because the Service Account is not being registered. `valid_type` is checked when a Service Account is registered, and the type of a Service Account cannot change. `policy_accessible` is not checked because (1) some Google Managed service accounts do not allow their policies to be read and (2) we assume that the Google Managed accounts that are *not* registered for data access are okay so long as they're in the project security boundary.
+   * Note: no_external_access` is not checked, as a the Service Account is Google Managed and will therefore have roles for use within the Google Cloud Platform
 
 Service Accounts are validated according to this logic regardless of whether or not it is during Service Account registration or the `google-manage-user-registrations` cronjob. However, during the cronjob validation, registered service accounts are validated before their respective project is validated.
 
