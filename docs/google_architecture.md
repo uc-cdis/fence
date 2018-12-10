@@ -163,26 +163,26 @@ In order to register a Service Account, the Service Account and its associated P
 Projects are always validated against the following checks:
 * Fence monitor has access to project
    * Key: `monitor_has_access`
-   * Checks if the Fence monitoring service account can access the project.
+   * Checks if the Fence monitoring service account can access the Google Project.
 * User has access to project
    * Key: `user_has_access`
    * Checks if the current user is an authorized member on the project.
-* Project has valid parent organization
+* Google Project has valid parent organization
    * Key: `valid_parent_org`
-   * Checks if the project either has no parent organization, or if it does, it is included on the whitelist of parent. organizations (defined in Fence config).
-* Project only has valid member types
+   * Checks if the Google project either has no parent organization, or if it does, it is included on the whitelist of parent. organizations (defined in Fence config).
+* Google Project only has valid member types
    * Key: `valid_member_types`
-   * Checks if the project ony has members that are User Accounts or Service Accounts.
-* Project members exist in fence
+   * Checks if the Google project ony has members that are User Accounts or Service Accounts.
+* Google Project members exist in fence
    * Key: `members_exist_in_fence`
-   * Checks if the User members on the project exist in the fence DB
-* Project has valid service accounts
+   * Checks if the User members on the Google project exist in the fence DB
+* Google Project has valid service accounts
    * Key: `service_accounts`
    * Checks if the Service Account members on the project pass the Service Account validity checks detailed below.
   
 Service Accounts on the project, as well as the Service Account being registered, are validated against some combination of the following checks (which ones ultimately depend on the type of Service Account and whether or not the Service Account is currently being registered or not).
 
-* Service Account is owned by Project identified in the request
+* Service Account is owned by Google Project identified in the request
    * Key: `owned_by_project`
    * Checks if the Service Account is owned by the project
 * Service Account is of valid type
