@@ -17,8 +17,9 @@ from cirrus.google_cloud import (
 )
 
 import fence
-from logging import getLogger
+from cdislogging import get_logger
 
+from fence.config import config
 from fence.errors import NotFound, NotSupported
 from fence.models import (
     User,
@@ -36,7 +37,7 @@ from fence.resources.google.utils import (
     is_google_managed_service_account,
 )
 
-logger = getLogger(__name__)
+logger = get_logger(__name__)
 
 ALLOWED_SERVICE_ACCOUNT_TYPES = [
     COMPUTE_ENGINE_API_SERVICE_ACCOUNT,
@@ -378,6 +379,14 @@ def do_all_users_have_access_to_project(users, project_id, db=None):
         ).first()
 
         if not access_privilege:
+            project = (session.query(Project).filter(Project.id == project_id)).first()
+            project_rep = project.auth_id if project else project_id
+            logger.info(
+                "User ({}) does not have access to project ({}). There may be other "
+                "users that do not have access to this project.".format(
+                    user.username.lower(), project_rep
+                )
+            )
             return False
 
     return True
@@ -543,6 +552,31 @@ def force_remove_service_account_from_access(
     _force_remove_service_account_from_access_db(service_account, access_groups, db)
 
 
+def force_remove_service_account_from_db(service_account_email, db=None):
+    """
+    remove service account from user_service_account table
+
+    Args:
+        service_account_email(str): service account to be removed from db
+        db(None, str): Optional db connection string
+    """
+    session = get_db_session(db)
+    service_account = (
+        session.query(UserServiceAccount).filter_by(email=service_account_email).first()
+    )
+
+    if not service_account:
+        logger.info(
+            "Service account ({}) requested for removal from database "
+            "was not found in the database.".format(service_account_email)
+        )
+    else:
+        session.delete(service_account)
+        session.commit()
+
+    return
+
+
 def _revoke_user_service_account_from_google(
     session, to_delete_project_ids, google_project_id, service_account
 ):
@@ -697,7 +731,7 @@ def add_user_service_account_to_db(session, to_add_project_ids, service_account)
         access_groups = _get_google_access_groups(session, project_id)
 
         # use configured time or 7 days
-        expiration_time = int(time.time()) + flask.current_app.config.get(
+        expiration_time = int(time.time()) + config.get(
             "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN", 604800
         )
         for access_group in access_groups:
@@ -780,8 +814,13 @@ def extend_service_account_access(service_account_email, db=None):
         )
 
         # use configured time or 7 days
-        expiration_time = int(time.time()) + flask.current_app.config.get(
+        expiration_time = int(time.time()) + config.get(
             "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN", 604800
+        )
+        logger.debug(
+            "Service Account ({}) access extended to {}.".format(
+                service_account.email, expiration_time
+            )
         )
         for access_group in bucket_access_groups:
             bucket_access = (
@@ -858,9 +897,7 @@ def remove_white_listed_service_account_ids(
         List[str]: Service account emails
     """
     if white_listed_sa_emails is None:
-        white_listed_sa_emails = flask.current_app.config.get(
-            "WHITE_LISTED_SERVICE_ACCOUNT_EMAILS", []
-        )
+        white_listed_sa_emails = config.get("WHITE_LISTED_SERVICE_ACCOUNT_EMAILS", [])
 
     monitoring_service_account = get_monitoring_service_account_email(app_creds_file)
 
@@ -885,9 +922,8 @@ def is_org_whitelisted(parent_org, white_listed_google_parent_orgs=None):
         bool: whether or not the provide Google parent organization is whitelisted
     """
 
-    white_listed_google_parent_orgs = (
-        white_listed_google_parent_orgs
-        or flask.current_app.config.get("WHITE_LISTED_GOOGLE_PARENT_ORGS", {})
+    white_listed_google_parent_orgs = white_listed_google_parent_orgs or config.get(
+        "WHITE_LISTED_GOOGLE_PARENT_ORGS", {}
     )
 
     return parent_org in white_listed_google_parent_orgs

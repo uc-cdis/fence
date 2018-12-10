@@ -17,6 +17,7 @@ from userdatamodel.driver import SQLAlchemyDriver
 from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
 
 from fence.auth import current_token
+from fence.config import config
 from fence.models import (
     GoogleServiceAccount,
     GoogleServiceAccountKey,
@@ -65,7 +66,7 @@ def get_or_create_primary_service_account_key(
     )
 
     if user_service_account_key:
-        fernet_key = Fernet(str(flask.current_app.config["HMAC_ENCRYPTION_KEY"]))
+        fernet_key = Fernet(str(config["ENCRYPTION_KEY"]))
         private_key_bytes = fernet_key.decrypt(
             str(user_service_account_key.private_key)
         )
@@ -133,15 +134,13 @@ def create_primary_service_account_key(user_id, username, proxy_group_id, expire
 
     key_id = sa_private_key.get("private_key_id")
 
-    fernet_key = Fernet(str(flask.current_app.config["HMAC_ENCRYPTION_KEY"]))
+    fernet_key = Fernet(str(config["ENCRYPTION_KEY"]))
     private_key_bytes = json.dumps(sa_private_key).encode("utf-8")
     private_key = fernet_key.encrypt(private_key_bytes)
 
     expires = expires or (
         int(time.time())
-        + flask.current_app.config[
-            "GOOGLE_SERVICE_ACCOUNT_KEY_FOR_URL_SIGNING_EXPIRES_IN"
-        ]
+        + config["GOOGLE_SERVICE_ACCOUNT_KEY_FOR_URL_SIGNING_EXPIRES_IN"]
     )
 
     add_custom_service_account_key_expiration(
@@ -451,7 +450,7 @@ def _create_proxy_group(user_id, username):
 
 def get_default_google_account_expiration():
     now = int(time.time())
-    expiration = now + flask.current_app.config["GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN"]
+    expiration = now + config["GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN"]
     return expiration
 
 
@@ -509,7 +508,7 @@ def get_prefix_for_google_proxy_groups():
     Returns:
         str: prefix for proxy groups
     """
-    prefix = flask.current_app.config.get("GOOGLE_GROUP_PREFIX")
+    prefix = config.get("GOOGLE_GROUP_PREFIX")
     if not prefix:
         raise NotSupported(
             "GOOGLE_GROUP_PREFIX must be set in the configuration. "
@@ -653,9 +652,9 @@ def get_monitoring_service_account_email(app_creds_file=None):
     This function should ONLY return the service account's email by
     parsing the creds file.
     """
-    app_creds_file = app_creds_file or flask.current_app.config.get(
-        "CIRRUS_CFG", {}
-    ).get("GOOGLE_APPLICATION_CREDENTIALS")
+    app_creds_file = app_creds_file or config.get("CIRRUS_CFG", {}).get(
+        "GOOGLE_APPLICATION_CREDENTIALS"
+    )
 
     creds_email = None
     if app_creds_file and os.path.exists(app_creds_file):
@@ -676,7 +675,7 @@ def is_google_managed_service_account(
 
     google_managed_service_account_domains = (
         google_managed_service_account_domains
-        or flask.current_app.config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS", [])
+        or config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS", [])
     )
 
     return service_account_domain in google_managed_service_account_domains

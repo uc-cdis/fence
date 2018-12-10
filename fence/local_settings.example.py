@@ -114,6 +114,8 @@ AWS_CREDENTIALS = {
 
 ASSUMED_ROLES = {"arn:aws:iam::role1": "CRED1"}
 
+DATA_UPLOAD_BUCKET = "bucket1"
+
 S3_BUCKETS = {
     "bucket1": {"cred": "CRED1"},
     "bucket2": {"cred": "CRED2"},

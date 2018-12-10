@@ -8,10 +8,23 @@ A `fence` separates protected resources from the outside world and allows
 only trusted entities to enter.
 
 Fence is a core service of the Gen3 stack that has multiple capabilities:
-1. Act as an auth broker to integrate with an [Identity Provider](#identity-provider) and provide downstream authentication and authorization for Gen3 services.
+1. Act as an [auth broker](#auth-broker) to integrate with one or more [IdPs](#IdP) and provide downstream authentication and authorization for Gen3 services.
 2. [Manage tokens](#token-management).
 3. Act as an [OIDC provider](#oidc--oauth2) to support external applications to use Gen3 services.
 4. [Issue short lived, cloud native credentials to access data in various cloud storage services](#accessing-data)
+
+
+## Contents
+ 
+1. [API Documentation](#API-documentation)
+1. [Terminologies](#Terminologies)
+1. [Identity Providers](#identity-provider) 
+1. [OIDC & OAuth2](#oidc--oauth2) 
+1. [Accessing Data](#accessing-data)
+1. [Setup](#setup)
+1. [Token management](#token-management)
+1. [fence-create](#fence-create-automating-common-tasks-with-a-command-line-interface) 
+1. [Default expiration times](#default-expiration-times-in-fence) 
 
 
 ## API Documentation
@@ -23,30 +36,60 @@ the root directory); see the README in that folder for more details.
 
 ## Terminologies
 
-
 #### AuthN
+
 Authentication - establishes "who you are" with the application through communication with an [Identity Provider](#IdP).
 
 #### AuthZ
+
 Authorization - establishes "what you can do" and "which resources you have access to" within the application.
 
 #### IdP
-Identity Provider - the service that lets a user login and provides the identity of the user to downstream services. Example: Google login, University login, NIH Login.
+
+Identity Provider - the service that lets a user login and provides the identity of the user to downstream services. Examples: Google login, University login, NIH Login.
+
+#### Auth broker
+
+An interface which enables a user to authenticate using any of multiple IdPs.  
 
 #### OAuth2
-A widely used protocol for delegating access to an application to use resources on behalf of a user.
+
+A widely used AuthZ protocol for delegating access to an application to use resources on behalf of a user.
 
 https://tools.ietf.org/html/rfc6749
 
 https://oauth.net/2/
 
+##### Client
+
+OAuth 2.0 Client - An application which makes requests for protected resources (on a resource server) on behalf of a resource owner (end-user) and with the resource owner's authorization. 
+
+##### Auth Server
+
+OAuth 2.0 Authorization Server - A server which issues access tokens to the client after successfully authenticating the resource owner and obtaining authorization. 
+
+##### Access Token
+
+A string, issued by the auth server to the client, representing authorization credentials used to access protected resources (on a resource server). 
+
 #### OIDC
-OpenID Connect - an extention of OAuth2 which provides more detailed specification about the handshake. It introduced a new type of token, the id token, that is specifically designed to be consumed by clients to get the identity information of the user.
+
+OpenID Connect - an extension of OAuth2 which provides an AuthN layer on top of the OAuth 2.0 AuthZ layer. It introduced a new type of token, the id token, that is specifically designed to be consumed by clients to get the identity information of the user.
 
 http://openid.net/specs/openid-connect-core-1_0.html
 
+##### OP
 
-## Identity Provider
+OpenID Provider - an OAuth 2.0 Authentication Server which also implements OpenID Connect.
+
+##### RP
+
+Relying Party - an OAuth 2.0 Client which uses (requests) OpenID Connect.  
+
+
+
+## Identity Providers
+
 Fence can be configured to support different Identity Providers (IdPs) for AuthN.
 At the moment, supported IDPs include:
 - Google
@@ -58,27 +101,27 @@ At the moment, supported IDPs include:
 
 ## OIDC & OAuth2
 
-Fence acts as a central broker that supports multiple Identity Providers (IdPs).
-It exposes AuthN and AuthZ for users by acting as an OIDC ([OpenID Connect](#ODIC) flow) IdP itself.
-In that sense, `fence` is both a `client` and `OpenID Connect Provider (OP)`.
+Fence acts as a central broker that supports multiple IdPs.
+At the same time, it acts as an IdP itself. 
+In that sense, `fence` is both an `RP` and an `OP`.
 
-### Fence as Client
+### Fence as RP
 
 Example:
 
 - Google IAM is the OpenID Provider (OP)
-- Fence is the client
+- Fence is the Relying Party (RP) 
 - Google Calendar API is the resource provider
 
-### Fence as OpenID Provider (OP)
+### Fence as OP
 
-- Fence is the OP
-- A third-party application is the client
+- Fence is the OpenID Provider (OP)
+- A third-party application is the Relying Party (RP) 
 - Gen3 microservices (e.g. [`sheepdog`](https://github.com/uc-cdis/sheepdog)) are resource providers
 
 ### Example Flows
 
-Note that the `3rd Party App` acts as the `client` in these examples.
+Note that the `3rd Party App` acts as the `RP` in these examples. 
 
 [//]: # (See /docs folder for README on how to regenerate these sequence diagrams)
 
@@ -87,6 +130,9 @@ Note that the `3rd Party App` acts as the `client` in these examples.
 ![Client Registration](docs/images/seq_diagrams/client_registration.png)
 
 #### Flow: OpenID Connect
+
+In the following flow, Fence and the IdP together constitute an `OP`. 
+Fence, by itself, acts as an OAuth 2.0 Auth Server; the IdP enables the additional implementation of OIDC (by providing AuthN). From an OIDC viewpoint, therefore, Fence and the IdP can be abstracted into one `OP`.  
 
 ![OIDC Flow](docs/images/seq_diagrams/openid_connect_flow.png)
 
@@ -100,6 +146,8 @@ If a third-party application wants to use Gen3 resources like
 `fence`/`sheepdog`/`peregrine`, they call those services with an `Access Token`
 passed in an `Authorization` header.
 
+In the following flow, `3rd Party App` is the `RP`; `Protected Endpoint` is an endpoint of a Gen3 Resource (the `microservice`), and both of these are part of a `resource server`; and `Fence` is the `OP`. Here, importantly, `Fence` may be interfacing with another IdP _or_ with another `Fence` instance in order to implement the OIDC layer. Either way, note that the `Fence` blob in this diagram actually abstracts Fence in concert with some IdP, which may or may not also be (a different instance of) Fence.  
+
 ![Using Access Token](docs/images/seq_diagrams/token_use_for_access.png)
 
 #### Flow: Refresh Token Use
@@ -112,10 +160,12 @@ passed in an `Authorization` header.
 
 #### Flow: Multi-Tenant Fence
 
-The following diagram illustrates the case in which one fence instance should
-use another fence instance as its identity provider.
+The following diagram illustrates the case in which one fence instance 
+uses another fence instance as its identity provider.
 
-A use case for this is when we setup a fence instance that uses NIH login as the IdP. Here, we go through a detailed approval process in NIH. Therefore we would like to do it once for a single lead Fence instance, allowing other fence instances simply to redirect to use the lead Fence as an IdP for logging in via NIH.
+A use case for this is when we setup a fence instance that uses NIH login as the IdP. Here, we go through a detailed approval process in NIH. Therefore we would like to do it only once for a single lead Fence instance, and then allow other fence instances to simply redirect to use the lead Fence as an IdP for logging in via NIH.
+
+In the following flow, `Fence (Client Instance)` is an OP relative to `OAuth Client`, but an RP relative to `Fence (IDP)`. 
 
 ![Multi-Tenant Flow](docs/images/seq_diagrams/multi-tenant_flow.png)
 
@@ -164,13 +214,37 @@ pip install -r requirements.txt
 python setup.py develop
 ```
 
-#### Create Local Settings
+#### Create Configuration File
+
+Fence requires a configuration file to run. We have a command line
+utility to help you create one based on a default configuration.
+
+The configuration file itself will live outside of this repo (to
+prevent accidentally checking in sensitive information like database passwords).
+
+To create a new configuration file from the default configuration:
 
 ```bash
-# Copy example settings to local settings and then fill them out.
-cp fence/local_settings.example.py fence/local_settings.py
+python cfg_help.py create
 ```
-Remember to fill out `fence/local_settings.py`!
+
+This file will be placed in one of the default search directories for Fence.
+
+To get the exact path where the new configuration file was created, use:
+
+```bash
+python cfg_help.py get
+```
+
+The file should have detailed information about each of the configuration
+variables. **Remember to fill out the new configuration file!**
+
+##### Other Configuration Notes
+
+* Fence will look for configuration files from a list of search directories (
+which are currently defined in `fence/settings.py`.)
+* For more configuration options (such as having multiple different config
+files for development), see the `cfg_help.py` file.
 
 #### Set Up Databases
 
@@ -186,7 +260,7 @@ create a second test database with a different name:
 # `tests/test_settings.py` should have `fence_test_tmp` in the `DB` variable.
 psql -U test postgres -c 'create database fence_test_tmp'
 userdatamodel-init --db fence_test_tmp
-# This one is for manual testing/general local usage; `fence/local_settings.py`
+# This one is for manual testing/general local usage; Your config
 # should have `fence_test` in the `DB` variable.
 psql -U test postgres -c 'create database fence_test'
 userdatamodel-init --db fence_test --username test --password test
@@ -241,6 +315,7 @@ through OAuth.
 
 
 #### Create User Access File
+
 You can setup user access via admin fence script providing a user yaml file
 Example user yaml:
 ```
@@ -296,6 +371,7 @@ We use JSON Web Tokens (JWTs) as the format for all tokens of the following type
 ### JWT Information
 
 #### Example ID Token
+
 ```
 {
   "sub": "7",
@@ -333,6 +409,7 @@ We use JSON Web Tokens (JWTs) as the format for all tokens of the following type
 ```
 
 #### Example Access Token
+
 ```
 {
   "sub": "7",
@@ -370,6 +447,7 @@ We use JSON Web Tokens (JWTs) as the format for all tokens of the following type
 ```
 
 #### Example Refresh Token
+
 ```
 {
   "sub": "7",
