@@ -180,17 +180,17 @@ Projects are always validated against the following checks:
    * Key: `service_accounts`
    * Checks if the Service Account members on the project pass the Service Account validity checks detailed below.
   
-Service Accounts on the project, as well as the Service Account being registered, are validated against some combination of the following checks (which ones ultimately depend on the type of Service Account and whether or not the Service Account is currently being registered or not).
+Service Accounts on the project, as well as the Service Account being registered, are validated against some combination of the following checks (which checks occur ultimately depend on the type of Service Account and whether or not the Service Account is currently being registered or not).
 
 * Service Account is owned by Google Project identified in the request
    * Key: `owned_by_project`
    * Checks if the Service Account is owned by the project
-* Service Account is of valid type
+* Service Account is of valid type for registration
    * Key: `valid_type`
    * Checks if the Service Account is a User Managed Service Account or a Compute Engine API Service Account
 * Service Account policy is accessible
    * Key: `policy_accessible`
-   * Checks if the Service Account's policy is accessible
+   * Checks if  fence's monitoring Service Account can read the Service Account's policy
 * Service Account has no external access
    * Key: `no_external_access`
    * Checks if the Service Account has no IAM roles and no access keys
@@ -205,7 +205,9 @@ These checks are applied according to the following logic:
    * ElIf the service account is not registered/being registered and is a member on the project:
       * check: `owned_by_project`
 
-Service Accounts are validated according to this logic regardless of whether or not it is during Service Account registration or the `google-manage-user-registrations` cronjob. However, during the cronjob validation, service accounts are validated before the project is validated.
+Service Accounts are validated according to this logic regardless of whether or not it is during Service Account registration or the `google-manage-user-registrations` cronjob. However, during the cronjob validation, registered service accounts are validated before their respective project is validated.
+
+The Service Accounts are validated first in the cronjob so that if multiple SA's are registered and only one is non-conforming, we can remove that single account without invalidating the entire project. If the project as a whole is invalid, we must remove all SAs though.
 
 ---
 
