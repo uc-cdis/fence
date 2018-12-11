@@ -43,7 +43,7 @@ class BotoManager(object):
             if len(s3_objects["Contents"]) > 1:
                 raise InternalError("multiple files found with GUID {}".format(guid))
             key = s3_objects["Contents"][0]["Key"]
-            delete_response = self.s3_client.delete_object(Bucket=bucket, Key=key)
+            self.s3_client.delete_object(Bucket=bucket, Key=key)
         except (KeyError, Boto3Error) as e:
             self.logger.exception(e)
             raise InternalError("Failed to delete file: {}".format(e.message))

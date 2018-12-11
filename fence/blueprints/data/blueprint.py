@@ -1,10 +1,8 @@
 import flask
-import requests
 
 from fence.auth import (
     login_required,
     require_auth_header,
-    validate_request,
     current_token,
 )
 from fence.blueprints.data.indexd import (
