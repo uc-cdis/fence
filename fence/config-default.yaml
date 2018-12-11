@@ -43,11 +43,14 @@ ENCRYPTION_KEY: ''
 #   - Modify based on whether you're in a dev environment or in production
 # //////////////////////////////////////////////////////////////////////////////////////
 # flask's debug setting
-# WARNING: DO NOT ENABLE IN PRODUCTION
+# WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
 DEBUG: true
 # if true, will automatically login a user with username "test"
+# WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
 MOCK_AUTH: false
-# if true, will only fake a successful login response from Google in /login/google
+# if true, will fake a successful login response from Google in /login/google
+#     NOTE: this will also modify the behavior of /link/google endpoints
+# WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
 MOCK_GOOGLE_AUTH: false
 # if true, will ignore anything configured in STORAGE_CREDENTIALS
 MOCK_STORAGE: true

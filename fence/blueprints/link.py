@@ -117,7 +117,14 @@ class GoogleLinkRedirect(Resource):
                 flask.redirect_url = (
                     config["BASE_URL"].strip("/") + "/link/google/callback?code=abc"
                 )
-                return flask.redirect(flask.redirect_url)
+                response = flask.redirect(flask.redirect_url)
+                # pass-through the authorization header. The user's username
+                # MUST be a Google email for MOCK_GOOGLE_AUTH to actually link that
+                # email correctly
+                response.headers["Authorization"] = flask.request.headers.get(
+                    "Authorization"
+                )
+                return response
 
             flask.redirect_url = flask.current_app.google_client.get_auth_url()
 
