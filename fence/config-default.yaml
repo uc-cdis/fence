@@ -328,7 +328,7 @@ HTTP_PROXY:
 INDEXD: null
 
 # this is the username which fence uses to make authenticated requests to indexd
-INDEXD_USERNAME: 'gdcapi'
+INDEXD_USERNAME: 'fence'
 # this is the password which fence uses to make authenticated requests to indexd
 INDEXD_PASSWORD: ''
 
