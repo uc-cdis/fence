@@ -278,7 +278,7 @@ class IndexedFile(object):
         path = "{}/index/{}".format(self.indexd_server, self.file_id)
         response = requests.delete(path)
         if response.status_code != 200:
-            return (response.json(), 500)
+            return (flask.jsonify(response.json()), 500)
         return ("", 204)
 
 
