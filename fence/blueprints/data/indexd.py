@@ -286,9 +286,13 @@ class IndexedFile(object):
 
     @login_required({"data"})
     def delete(self):
+        rev = self.index_document["rev"]
         path = "{}/index/{}".format(self.indexd_server, self.file_id)
         auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
-        response = requests.delete(path, auth=auth)
+        params = {"rev": rev}
+        response = requests.delete(path, auth=auth, params=params)
+        # it's possible that for some reason (something else modified the record in the
+        # meantime) that the revision doesn't match, which would lead to error here
         if response.status_code != 200:
             return (flask.jsonify(response.json()), 500)
         return ("", 204)
