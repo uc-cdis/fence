@@ -6,7 +6,7 @@ from fence.blueprints.data.indexd import (
     IndexedFile,
     get_signed_url_for_file,
 )
-from fence.errors import Forbidden, NotFound, NotSupported, UnavailableError, UserError
+from fence.errors import Forbidden, NotSupported, UnavailableError, UserError
 
 
 blueprint = flask.Blueprint("data", __name__)
@@ -36,6 +36,7 @@ def delete_data_file(file_id):
         raise Forbidden("deleting submitted records is not supported")
     if current_token["context"]["user"]["name"] != uploader:
         raise Forbidden("user is not uploader for file {}".format(file_id))
+    flask.current_app.logger.info("deleting record and files for {}".format(file_id))
     record.delete_files(delete_all=True)
     return record.delete()
 

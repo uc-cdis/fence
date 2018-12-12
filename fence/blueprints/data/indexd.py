@@ -240,6 +240,17 @@ class IndexedFile(object):
 
     @login_required({"data"})
     def check_authorization(self, action):
+        # if we have a data file upload without corresponding metadata, the record can
+        # have just the `uploader` field and no ACLs. in this just check that the
+        # current user's username matches the uploader field
+        if self.index_document.get("uploader"):
+            username = None
+            if flask.g.token:
+                username = flask.g.token["context"]["user"]["name"]
+            else:
+                username = flask.g.user.username
+            return self.index_document.get("uploader") == username
+
         if flask.g.token is None:
             given_acls = set(filter_auth_ids(action, flask.g.user.project_access))
         else:
@@ -276,7 +287,8 @@ class IndexedFile(object):
     @login_required({"data"})
     def delete(self):
         path = "{}/index/{}".format(self.indexd_server, self.file_id)
-        response = requests.delete(path)
+        auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
+        response = requests.delete(path, auth=auth)
         if response.status_code != 200:
             return (flask.jsonify(response.json()), 500)
         return ("", 204)
