@@ -3,6 +3,7 @@ import time
 from urlparse import urlparse
 import uuid
 
+from authutils.token import current_token
 from cached_property import cached_property
 import cirrus
 from cdispyutils.config import get_value
@@ -141,6 +142,14 @@ class IndexedFile(object):
         self.file_id = file_id
 
     @cached_property
+    def indexd_server(self):
+        indexd_server = (
+            flask.current_app.config.get("INDEXD")
+            or flask.current_app.config["BASE_URL"] + "/index"
+        )
+        return indexd_server.rstrip("/")
+
+    @cached_property
     def index_document(self):
         indexd_server = config.get("INDEXD") or config["BASE_URL"] + "/index"
         url = indexd_server + "/index/"
@@ -231,6 +240,17 @@ class IndexedFile(object):
 
     @login_required({"data"})
     def check_authorization(self, action):
+        # if we have a data file upload without corresponding metadata, the record can
+        # have just the `uploader` field and no ACLs. in this just check that the
+        # current user's username matches the uploader field
+        if self.index_document.get("uploader"):
+            username = None
+            if flask.g.token:
+                username = flask.g.token["context"]["user"]["name"]
+            else:
+                username = flask.g.user.username
+            return self.index_document.get("uploader") == username
+
         if flask.g.token is None:
             given_acls = set(filter_auth_ids(action, flask.g.user.project_access))
         else:
@@ -238,6 +258,44 @@ class IndexedFile(object):
                 filter_auth_ids(action, flask.g.token["context"]["user"]["projects"])
             )
         return len(self.set_acls & given_acls) > 0
+
+    @login_required({"data"})
+    def delete_files(self, urls=None, delete_all=True):
+        """
+        Delete the data files stored at all the locations for this indexed file.
+
+        If a list of URLs is specified, delete only files at those locations;
+        otherwise, delete files at all locations.
+
+        Args:
+            urls (Optional[List[str]])
+
+        Return:
+            None
+        """
+        locations_to_delete = []
+        if urls is None and delete_all:
+            locations_to_delete = self.indexed_file_locations
+        else:
+            locations_to_delete = [
+                location for location in locations_to_delete if location.url in urls
+            ]
+        for location in locations_to_delete:
+            bucket = location.bucket_name()
+            flask.current_app.boto.delete_data_file(bucket, self.file_id)
+
+    @login_required({"data"})
+    def delete(self):
+        rev = self.index_document["rev"]
+        path = "{}/index/{}".format(self.indexd_server, self.file_id)
+        auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
+        params = {"rev": rev}
+        response = requests.delete(path, auth=auth, params=params)
+        # it's possible that for some reason (something else modified the record in the
+        # meantime) that the revision doesn't match, which would lead to error here
+        if response.status_code != 200:
+            return (flask.jsonify(response.json()), 500)
+        return ("", 204)
 
 
 class IndexedFileLocation(object):
@@ -307,6 +365,21 @@ class S3IndexedFileLocation(IndexedFileLocation):
             ),
         }
 
+    def bucket_name(self):
+        """
+        Return:
+            Optional[str]: bucket name or None if not not in cofig
+        """
+        s3_buckets = get_value(
+            flask.current_app.config,
+            "S3_BUCKETS",
+            InternalError("buckets not configured"),
+        )
+        for bucket in s3_buckets:
+            if re.match("^" + bucket + "$", self.parsed_url.netloc):
+                return bucket
+        return None
+
     def get_credential_to_access_bucket(self, aws_creds, expires_in):
         s3_buckets = get_value(
             config, "S3_BUCKETS", InternalError("buckets not configured")
@@ -316,11 +389,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         if len(aws_creds) == 0 and len(s3_buckets) > 0:
             raise InternalError("credential for buckets is not configured")
 
-        bucket_cred = None
-        for pattern in s3_buckets:
-            if re.match("^" + pattern + "$", self.parsed_url.netloc):
-                bucket_cred = s3_buckets[pattern]
-                break
+        bucket_cred = s3_buckets.get(self.bucket_name())
         if bucket_cred is None:
             raise Unauthorized("permission denied for bucket")
 

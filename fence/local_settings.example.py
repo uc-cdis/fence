@@ -103,7 +103,10 @@ ITRUST_GLOBAL_LOGOUT = (
 
 SESSION_COOKIE_SECURE = False
 ENABLE_CSRF_PROTECTION = True
+
 INDEXD = "/index"
+
+INDEXD_AUTH = ("gdcapi", "")
 
 ARBORIST = "/rbac"
 

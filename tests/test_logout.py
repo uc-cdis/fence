@@ -44,9 +44,7 @@ def test_logout_fence(app, user_with_fence_provider, monkeypatch):
     monkeypatch.setitem(config, "MOCK_AUTH", False)
     monkeypatch.setitem(config, "SHIBBOLETH_HEADER", None)
     monkeypatch.setitem(
-        config,
-        "OPENID_CONNECT",
-        {"fence": {"api_base_url": other_fence_logout_url}},
+        config, "OPENID_CONNECT", {"fence": {"api_base_url": other_fence_logout_url}}
     )
 
     username = "test-fence-provider"
