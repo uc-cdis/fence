@@ -267,9 +267,7 @@ class IndexedFile(object):
             locations_to_delete = self.indexed_file_locations
         else:
             locations_to_delete = [
-                location
-                for location in locations_to_delete
-                if location.url in urls
+                location for location in locations_to_delete if location.url in urls
             ]
         for location in locations_to_delete:
             bucket = location.bucket_name()
@@ -281,7 +279,7 @@ class IndexedFile(object):
         response = requests.delete(path)
         if response.status_code != 200:
             return (response.json(), 500)
-        return ('', 204)
+        return ("", 204)
 
 
 class IndexedFileLocation(object):

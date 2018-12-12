@@ -1,22 +1,12 @@
 import flask
 
-from fence.auth import (
-    login_required,
-    require_auth_header,
-    current_token,
-)
+from fence.auth import login_required, require_auth_header, current_token
 from fence.blueprints.data.indexd import (
     BlankIndex,
     IndexedFile,
     get_signed_url_for_file,
 )
-from fence.errors import (
-    Forbidden,
-    NotFound,
-    NotSupported,
-    UnavailableError,
-    UserError,
-)
+from fence.errors import Forbidden, NotFound, NotSupported, UnavailableError, UserError
 
 
 blueprint = flask.Blueprint("data", __name__)

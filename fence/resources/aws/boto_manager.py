@@ -31,9 +31,7 @@ class BotoManager(object):
         """
         try:
             s3_objects = self.s3_client.list_objects(
-                Bucket=bucket,
-                Prefix=guid,
-                Delimiter="/",
+                Bucket=bucket, Prefix=guid, Delimiter="/"
             )
             if not s3_objects["Contents"]:
                 self.logger.info(

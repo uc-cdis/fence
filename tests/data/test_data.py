@@ -375,8 +375,11 @@ def test_blank_index_upload(app, client, auth_client, encoded_creds_jwt, user_cl
         indexd_url = app.config.get("INDEXD") or app.config.get("BASE_URL") + "/index"
         endpoint = indexd_url + "/index/blank/"
         indexd_auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
-        mock_requests.post.assert_called_once_with(endpoint, auth=indexd_auth,
-            json={"file_name": file_name, "uploader": user_client.username})
+        mock_requests.post.assert_called_once_with(
+            endpoint,
+            auth=indexd_auth,
+            json={"file_name": file_name, "uploader": user_client.username},
+        )
         assert response.status_code == 201, response
         assert "guid" in response.json
         assert "url" in response.json
@@ -403,8 +406,7 @@ def test_delete_file_no_auth(app, client, encoded_creds_jwt):
         "updated_date": "",
     }
     mock_index_document = mock.patch(
-        "fence.blueprints.data.indexd.IndexedFile.index_document",
-        index_document,
+        "fence.blueprints.data.indexd.IndexedFile.index_document", index_document
     )
     mock_index_document.start()
     headers = {"Authorization": "Bearer " + encoded_creds_jwt.jwt}
@@ -414,7 +416,9 @@ def test_delete_file_no_auth(app, client, encoded_creds_jwt):
     mock_index_document.stop()
 
 
-def test_delete_file_locations(app, client, encoded_creds_jwt, user_client, monkeypatch):
+def test_delete_file_locations(
+    app, client, encoded_creds_jwt, user_client, monkeypatch
+):
     did = str(uuid.uuid4())
     index_document = {
         "did": did,
@@ -432,11 +436,13 @@ def test_delete_file_locations(app, client, encoded_creds_jwt, user_client, monk
         "updated_date": "",
     }
     mock_index_document = mock.patch(
-        "fence.blueprints.data.indexd.IndexedFile.index_document",
-        index_document,
+        "fence.blueprints.data.indexd.IndexedFile.index_document", index_document
     )
-    mock_check_auth = mock.patch.object(fence.blueprints.data.indexd.IndexedFile,
-        "check_authorization", return_value=True)
+    mock_check_auth = mock.patch.object(
+        fence.blueprints.data.indexd.IndexedFile,
+        "check_authorization",
+        return_value=True,
+    )
     mock_index_document.start()
     mock_check_auth.start()
     mock_boto_delete = mock.MagicMock()
