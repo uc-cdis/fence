@@ -100,8 +100,7 @@ class BlankIndex(object):
             )
         return indexd_response.json()
 
-    @staticmethod
-    def make_signed_url(file_name, expires_in=None):
+    def make_signed_url(self, file_name, expires_in=None):
         """
         Works for upload only; S3 only (only supported case for data upload flow
         currently).
@@ -117,8 +116,7 @@ class BlankIndex(object):
             bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
         except KeyError:
             raise InternalError("fence not configured with data upload bucket")
-        guid = str(uuid.uuid4())
-        s3_url = "s3://{}/{}/{}".format(bucket, guid, file_name)
+        s3_url = "s3://{}/{}/{}".format(bucket, self.guid, file_name)
         return S3IndexedFileLocation(s3_url).get_signed_url("upload", expires_in)
 
 
