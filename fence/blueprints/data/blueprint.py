@@ -1,18 +1,44 @@
 import flask
 
-from fence.auth import login_required, require_auth_header
-from fence.errors import (
-    NotFound,
-    NotSupported,
-    Unauthorized,
-    UnavailableError,
-    UserError,
+from fence.auth import login_required, require_auth_header, current_token
+from fence.blueprints.data.indexd import (
+    BlankIndex,
+    IndexedFile,
+    get_signed_url_for_file,
 )
-
-from fence.blueprints.data.indexd import BlankIndex, get_signed_url_for_file
+from fence.errors import Forbidden, NotSupported, UnavailableError, UserError
 
 
 blueprint = flask.Blueprint("data", __name__)
+
+
+@blueprint.route("/<path:file_id>", methods=["DELETE"])
+@require_auth_header(aud={"data"})
+@login_required({"data"})
+def delete_data_file(file_id):
+    """
+    Delete all the locations for a data file which was uploaded to bucket storage from
+    indexd.
+
+    If the data file is still at the first stage where it belongs to just the uploader
+    (and isn't linked to a project), then the deleting user should match the uploader
+    field on the record in indexd. Otherwise, the user must have delete permissions in
+    the project.
+
+    Args:
+        file_id (str): GUID of file to delete
+    """
+    record = IndexedFile(file_id)
+    # check auth: user must have uploaded the file (so `uploader` field on the record is
+    # this user)
+    uploader = record.index_document.get("uploader")
+    if not uploader:
+        raise Forbidden("deleting submitted records is not supported")
+    if current_token["context"]["user"]["name"] != uploader:
+        raise Forbidden("user is not uploader for file {}".format(file_id))
+    flask.current_app.logger.info("deleting record and files for {}".format(file_id))
+    record.delete_files(delete_all=True)
+    return record.delete()
 
 
 @blueprint.route("/upload", methods=["POST"])
