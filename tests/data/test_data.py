@@ -5,7 +5,10 @@ import uuid
 
 import jwt
 import pytest
+import requests
 
+import fence.blueprints.data.indexd
+from fence.config import config
 from fence.errors import NotSupported
 
 from tests import utils
@@ -366,16 +369,93 @@ def test_blank_index_upload(app, client, auth_client, encoded_creds_jwt, user_cl
             "Authorization": "Bearer " + encoded_creds_jwt.jwt,
             "Content-Type": "application/json",
         }
-        data = json.dumps({"file_name": "asdf"})
+        file_name = "asdf"
+        data = json.dumps({"file_name": file_name})
         response = client.post("/data/upload", headers=headers, data=data)
         indexd_url = app.config.get("INDEXD") or app.config.get("BASE_URL") + "/index"
         endpoint = indexd_url + "/index/blank/"
-        auth = ("gdcapi", "")
-        mock_requests.post.assert_called_once_with(endpoint, auth=auth, json=mock.ANY)
-        # assert_called_once_with cannot handle multiple items in json
-        _, call_kwargs = mock_requests.post.call_args
-        assert call_kwargs["json"] == {"uploader": "test", "file_name": "asdf"}
-
+        indexd_auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
+        mock_requests.post.assert_called_once_with(
+            endpoint,
+            auth=indexd_auth,
+            json={"file_name": file_name, "uploader": user_client.username},
+        )
         assert response.status_code == 201, response
         assert "guid" in response.json
         assert "url" in response.json
+
+
+def test_delete_file_no_auth(app, client, encoded_creds_jwt):
+    """
+    Test that a request to delete data files using a JWT which is valid but missing
+    delete permission fails with 403.
+    """
+    did = str(uuid.uuid4())
+    index_document = {
+        "did": did,
+        "baseid": "",
+        "rev": "",
+        "size": 10,
+        "file_name": "file1",
+        "urls": ["s3://bucket1/key-{}".format(did[:8])],
+        "acl": ["phs000178"],
+        "hashes": {},
+        "metadata": {},
+        "form": "",
+        "created_date": "",
+        "updated_date": "",
+    }
+    mock_index_document = mock.patch(
+        "fence.blueprints.data.indexd.IndexedFile.index_document", index_document
+    )
+    mock_index_document.start()
+    headers = {"Authorization": "Bearer " + encoded_creds_jwt.jwt}
+    with mock.patch("fence.blueprints.data.indexd.requests.put"):
+        response = client.delete("/data/{}".format(did), headers=headers)
+        assert response.status_code == 403
+    mock_index_document.stop()
+
+
+def test_delete_file_locations(
+    app, client, encoded_creds_jwt, user_client, monkeypatch
+):
+    did = str(uuid.uuid4())
+    index_document = {
+        "did": did,
+        "baseid": "",
+        "rev": "",
+        "uploader": user_client.username,
+        "size": 10,
+        "file_name": "file1",
+        "urls": ["s3://bucket1/key-{}".format(did[:8])],
+        "acl": ["phs000178"],
+        "hashes": {},
+        "metadata": {},
+        "form": "",
+        "created_date": "",
+        "updated_date": "",
+    }
+    mock_index_document = mock.patch(
+        "fence.blueprints.data.indexd.IndexedFile.index_document", index_document
+    )
+    mock_check_auth = mock.patch.object(
+        fence.blueprints.data.indexd.IndexedFile,
+        "check_authorization",
+        return_value=True,
+    )
+    mock_index_document.start()
+    mock_check_auth.start()
+    mock_boto_delete = mock.MagicMock()
+    monkeypatch.setattr(app.boto, "delete_data_file", mock_boto_delete)
+
+    mock_delete_response = mock.MagicMock()
+    mock_delete_response.status_code = 200
+    mock_delete = mock.MagicMock(requests.put, return_value=mock_delete_response)
+    with mock.patch("fence.blueprints.data.indexd.requests.delete", mock_delete):
+        headers = {"Authorization": "Bearer " + encoded_creds_jwt.jwt}
+        response = client.delete("/data/{}".format(did), headers=headers)
+        assert response.status_code == 204
+        assert mock_boto_delete.called_once()
+
+    mock_check_auth.stop()
+    mock_index_document.stop()

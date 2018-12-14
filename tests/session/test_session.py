@@ -58,9 +58,7 @@ def test_valid_session(app):
     username = "Captain Janeway"
 
     test_session_jwt = create_session_token(
-        app.keypairs[0],
-        config.get("SESSION_TIMEOUT"),
-        context={"username": username},
+        app.keypairs[0], config.get("SESSION_TIMEOUT"), context={"username": username}
     )
 
     # Test that once the session is started, we have access to
@@ -77,9 +75,7 @@ def test_valid_session_modified(app):
     modified_username = "Captain Picard"
 
     test_session_jwt = create_session_token(
-        app.keypairs[0],
-        config.get("SESSION_TIMEOUT"),
-        context={"username": username},
+        app.keypairs[0], config.get("SESSION_TIMEOUT"), context={"username": username}
     )
 
     # Test that once the session is started, we have access to
@@ -149,9 +145,7 @@ def test_session_cleared(app):
     username = "Captain Janeway"
 
     test_session_jwt = create_session_token(
-        app.keypairs[0],
-        config.get("SESSION_TIMEOUT"),
-        context=dict(username=username),
+        app.keypairs[0], config.get("SESSION_TIMEOUT"), context=dict(username=username)
     )
 
     # Test that once the session is started, we have access to
