@@ -245,6 +245,27 @@ paths:
       responses:
         '302':
           description: redirect to root or url in parameter if provided
+  /data/{file_id}:
+    delete:
+      tags:
+        - data
+      summary: delete all locations of a stored data file and remove its record from indexd
+      description: >-
+        After a user uploads a data file and it is registered in indexd, but
+        before it is mapped into the graph via metadata submission, this
+        endpoint will delete the file from its storage locations (saved in the
+        record in indexd) and delete the record in indexd.
+      security:
+        - OAuth2:
+          - data
+      responses:
+        204:
+          description: successful operation
+        500:
+          description: >-
+            internal server error; could not delete stored files, or not able to
+            delete indexd record
+          content-type: application/json
   '/data/download/{file_id}':
     get:
       tags:
@@ -858,6 +879,11 @@ paths:
         > **NOTE: This will only provide service account information for
         Google Cloud Projects if the current user is a member of those
         projects**
+        
+        The endpoint lists the `project_access` that was previously granted 
+        (whether or not the SA currently has access). The `project_access_exp` 
+        will be `0` when the SA isn't currently given access 
+        (but can be provided access again with a `PATCH`).
       parameters:
         - name: google_project_ids
           required: true
