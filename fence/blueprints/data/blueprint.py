@@ -7,6 +7,7 @@ from fence.blueprints.data.indexd import (
     get_signed_url_for_file,
 )
 from fence.errors import Forbidden, NotSupported, UnavailableError, UserError
+from fence.rbac import check_arborist_auth
 
 
 blueprint = flask.Blueprint("data", __name__)
@@ -44,6 +45,7 @@ def delete_data_file(file_id):
 @blueprint.route("/upload", methods=["POST"])
 @require_auth_header(aud={"data"})
 @login_required({"data"})
+@check_arborist_auth(resource="/data", method="new-data-upload")
 def upload_data_file():
     """
     Return a presigned URL for use with uploading a data file.

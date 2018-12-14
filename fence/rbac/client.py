@@ -35,6 +35,7 @@ class ArboristClient(object):
     def __init__(self, logger=None, arborist_base_url="http://arborist-service/"):
         self.logger = logger or get_logger("ArboristClient")
         self._base_url = arborist_base_url.strip("/")
+        self._auth_url = self._base_url + "/auth/"
         self._policy_url = self._base_url + "/policy/"
         self._resource_url = self._base_url + "/resource"
         self._role_url = self._base_url + "/role/"
@@ -51,6 +52,10 @@ class ArboristClient(object):
         except requests.RequestException:
             return False
         return response.status_code == 200
+
+    def auth_request(self, data):
+        response = requests.post(self._auth_url + "/request", json=data)
+
 
     def get_resource(self, resource_path):
         """
