@@ -20,6 +20,7 @@ users:
     admin: True
   test_user1@gmail.com:
     admin: True
+    policies: ['test-policy-1', 'test-policy-3']
     projects:
     - auth_id: test
       resource: /programs/test/projects/test

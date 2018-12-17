@@ -212,3 +212,36 @@ def admin_required(f):
 def admin_login_required(function):
     """Compose the login required and admin required decorators."""
     return login_required({"admin"})(admin_required(function))
+
+
+def check_arborist(resource, method, constraints=None):
+    constraints = constraints or {}
+
+    def decorator(f):
+
+        @wraps(f)
+        def wrapper(*f_args, **f_kwargs):
+            jwt = _get_jwt_header()
+            data = {
+                "user": {
+                    "token": jwt,
+                },
+                "request": {
+                    "resource": resource,
+                    "action": {"service": "fence", "method": method},
+                }
+            }
+
+        return wrapper
+
+    return decorator
+
+
+def _get_jwt_header():
+    try:
+        header = flask.request.headers["Authorization"]
+    except KeyError:
+        raise Unauthorized("missing authorization header")
+    if not header.lower().startswith("bearer"):
+        raise Unauthorized("unexpected Authorization header format (expected `Bearer`")
+    return header.split(" ")[1]

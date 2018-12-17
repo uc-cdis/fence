@@ -8,7 +8,7 @@ import json
 from cdislogging import get_logger
 import requests
 
-from fence.errors import APIError
+from fence.errors import APIError, InternalError
 
 
 def _request_get_json(response):
@@ -54,8 +54,17 @@ class ArboristClient(object):
         return response.status_code == 200
 
     def auth_request(self, data):
-        response = requests.post(self._auth_url + "/request", json=data)
-
+        """
+        Return:
+            bool: authorization response
+        """
+        response = requests.post(self._auth_url.rstrip("/") + "/request", json=data)
+        if response.status_code != 200:
+            raise InternalError(
+                "request to arborist failed: {}"
+                .format(response.json())
+            )
+        return bool(response.json()["auth"])
 
     def get_resource(self, resource_path):
         """

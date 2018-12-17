@@ -354,17 +354,23 @@ def test_blank_index_upload(app, client, auth_client, encoded_creds_jwt, user_cl
         def json(self):
             return self.data
 
-    with mock.patch(
+    data_requests_mocker = mock.patch(
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
-    ) as mock_requests:
-        mock_requests.post.return_value = MockResponse(
+    )
+    arborist_requests_mocker = mock.patch(
+        "fence.rbac.client.requests", new_callable=mock.Mock
+    )
+    with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
+        data_requests.post.return_value = MockResponse(
             {
                 "did": str(uuid.uuid4()),
                 "rev": str(uuid.uuid4())[:8],
                 "baseid": str(uuid.uuid4()),
             }
         )
-        mock_requests.post.return_value.status_code = 200
+        data_requests.post.return_value.status_code = 200
+        arborist_requests.post.return_value = MockResponse({"auth": True})
+        arborist_requests.post.return_value.status_code = 200
         headers = {
             "Authorization": "Bearer " + encoded_creds_jwt.jwt,
             "Content-Type": "application/json",
@@ -375,7 +381,7 @@ def test_blank_index_upload(app, client, auth_client, encoded_creds_jwt, user_cl
         indexd_url = app.config.get("INDEXD") or app.config.get("BASE_URL") + "/index"
         endpoint = indexd_url + "/index/blank/"
         indexd_auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
-        mock_requests.post.assert_called_once_with(
+        data_requests.post.assert_called_once_with(
             endpoint,
             auth=indexd_auth,
             json={"file_name": file_name, "uploader": user_client.username},

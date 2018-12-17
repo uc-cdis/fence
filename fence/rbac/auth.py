@@ -1,3 +1,5 @@
+from functools import wraps
+
 import flask
 
 from fence.errors import Unauthorized
@@ -31,7 +33,9 @@ def check_arborist_auth(resource, method, constraints=None):
                     "action": {"service": "fence", "method": method},
                 }
             }
-            response = flask.current_app.arborist.auth_request(json=data)
+            if not flask.current_app.arborist.auth_request(data=data):
+                raise Unauthorized("")
+            return f(*f_args, **f_kwargs)
 
         return wrapper
 

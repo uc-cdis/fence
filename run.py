@@ -1,4 +1,4 @@
-from fence import app, app_config, app_register_blueprints, app_sessions
+from fence import app, app_config, app_register_blueprints, app_sessions, config
 import argparse
 
 parser = argparse.ArgumentParser()

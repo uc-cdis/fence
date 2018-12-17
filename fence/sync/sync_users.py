@@ -342,6 +342,7 @@ class UserSyncer(object):
         """
         user_project = dict()
         user_info = dict()
+        user_policies = dict()
 
         with self._read_file(filepath, encrypted=encrypted) as stream:
             data = yaml.safe_load(stream)
@@ -354,7 +355,6 @@ class UserSyncer(object):
                 raise EnvironmentError("invalid yaml file")
 
             privileges = {}
-
             try:
                 for project in details.get("projects", {}):
                     privileges[project["auth_id"]] = set(project["privilege"])
@@ -371,7 +371,11 @@ class UserSyncer(object):
             }
             user_project[username] = privileges
 
-        return user_project, user_info
+            # list of policies we want to grant to this user, which get sent to arborist
+            # to check if they're allowed to do certain things
+            user_policies[username] = details.get("policies", [])
+
+        return user_project, user_info, user_policies
 
     def _parse_resources_from_yaml(self, filepath, encrypted=True):
         """
@@ -478,20 +482,24 @@ class UserSyncer(object):
                         phsids2[user][phsid1] = set()
                     phsids2[user][phsid1].update(privilege1)
 
-    def sync_to_db_and_storage_backend(self, user_project, user_info, sess):
+    def sync_to_db_and_storage_backend(
+        self, user_project, user_info, user_policies, sess
+    ):
         """
         sync user access control to database and storage backend
 
         Args:
-            user_project(dict): a dictionary of
-            {
-                username: {
-                    'project1': {'read-storage','write-storage'},
-                    'project2': {'read-storage'}
+            user_project (dict): a dictionary of
+
+                {
+                    username: {
+                        'project1': {'read-storage','write-storage'},
+                        'project2': {'read-storage'}
+                    }
                 }
-            }
-            user_info(dict): a dictionary of {username: user_info{}}
-            use_mapping(bool)
+
+            user_info (dict): a dictionary of {username: user_info{}}
+            user_policies (List[str]): list of policies
             sess: a sqlalchemy session
 
         Return:
@@ -547,6 +555,22 @@ class UserSyncer(object):
         self._update_from_db(sess, to_update, user_project_lowercase)
 
         self._validate_and_update_user_admin(sess, user_info_lowercase)
+
+        # Add policies to user models in the database. These will show up in users'
+        # JWTs; services can send the JWTs to arborist.
+        if user_policies:
+            self.logger.info("populating roles from YAML file")
+        for username, policies in user_policies.iteritems():
+            user = query_for_user(session=sess, username=username)
+            for policy_id in policies:
+                policy = self._get_or_create_policy(sess, policy_id)
+                if policy not in user.policies:
+                    user.policies.append(policy)
+                    self.logger.info(
+                        "granted policy `{}` to user `{}` ({})"
+                        .format(policy_id, username, user.id)
+                    )
+        sess.commit()
 
     def _revoke_from_db(self, sess, to_delete):
         """
@@ -794,8 +818,8 @@ class UserSyncer(object):
                 if auth_id not in self._projects:
                     self._projects[auth_id] = project
 
-    @classmethod
-    def _get_or_create(self, sess, model, **kwargs):
+    @staticmethod
+    def _get_or_create(sess, model, **kwargs):
         instance = sess.query(model).filter_by(**kwargs).first()
         if not instance:
             instance = model(**kwargs)
@@ -849,7 +873,7 @@ class UserSyncer(object):
         )
 
         try:
-            user_projects_yaml, user_info_yaml = self._parse_yaml(
+            user_projects_yaml, user_info_yaml, user_policies = self._parse_yaml(
                 self.sync_from_local_yaml_file, encrypted=False
             )
             user_arborist_info, resources = self._parse_resources_from_yaml(
@@ -867,9 +891,13 @@ class UserSyncer(object):
         self.sync_two_phsids_dict(user_projects_yaml, user_projects)
         self.sync_two_user_info_dict(user_info_yaml, user_info)
 
+        self._reset_user_access(sess)
+
         if user_projects:
             self.logger.info("Sync to db and storage backend")
-            self.sync_to_db_and_storage_backend(user_projects, user_info, sess)
+            self.sync_to_db_and_storage_backend(
+                user_projects, user_info, user_policies, sess
+            )
             self.logger.info("Finish syncing to db and storage backend")
         else:
             self.logger.info("No users for syncing")
@@ -925,8 +953,6 @@ class UserSyncer(object):
         created_roles = set()
         created_policies = set()
 
-        self._reset_user_access(session)
-
         for username, user_resources in user_projects.iteritems():
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
@@ -969,11 +995,7 @@ class UserSyncer(object):
                                 "not creating policy in arborist; {}".format(str(e))
                             )
                         created_policies.add(policy_id)
-                    policy = session.query(Policy).filter_by(id=policy_id).first()
-                    if not policy:
-                        policy = Policy(id=policy_id)
-                        session.add(policy)
-                        self.logger.info("created policy `{}`".format(policy_id))
+                    policy = self._get_or_create_policy(session, policy_id)
                     user.policies.append(policy)
                     self.logger.info(
                         "granted policy `{}` to user `{}`".format(
@@ -982,3 +1004,11 @@ class UserSyncer(object):
                     )
 
         return True
+
+    def _get_or_create_policy(self, session, policy_id):
+        policy = session.query(Policy).filter_by(id=policy_id).first()
+        if not policy:
+            policy = Policy(id=policy_id)
+            session.add(policy)
+            self.logger.info("created policy `{}`".format(policy_id))
+        return policy
