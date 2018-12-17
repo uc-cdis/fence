@@ -1150,11 +1150,17 @@ def _create_google_bucket_access_group(
     db_session, google_bucket_name, bucket_db_id, google_project_id, privileges
 ):
     access_group = None
+    prefix = config.get("GOOGLE_GROUP_PREFIX", "")
     # use default creds for creating group and iam policies
     with GoogleCloudManager(google_project_id) as g_mgr:
         # create bucket access group
         result = g_mgr.create_group(
-            name=google_bucket_name + "_" + "_".join(privileges) + "_gbag"
+            name=prefix
+            + "_"
+            + google_bucket_name
+            + "_"
+            + "_".join(privileges)
+            + "_gbag"
         )
         group_email = result["email"]
 
