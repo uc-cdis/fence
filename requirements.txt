@@ -36,4 +36,4 @@ pyyaml
 -e git+https://github.com/uc-cdis/datamodelutils.git@0.4.0#egg=datamodelutils
 -e git+https://github.com/uc-cdis/cdis-python-utils.git@0.2.10#egg=cdispyutils
 -e git+https://github.com/uc-cdis/authutils.git@3.0.1#egg=authutils-3.0.1
--e git+https://github.com/uc-cdis/cirrus.git@8129f48153bc0be1cddaf4873017d4e1012ffb18#egg=cirrus
+-e git+https://github.com/uc-cdis/cirrus.git@0.2.3#egg=cirrus-0.2.3
