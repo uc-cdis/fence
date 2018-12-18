@@ -720,8 +720,12 @@ def test_google_link_when_google_mocked(
     )
 
     redirect_location = str(r_link.location).replace(config["BASE_URL"], "")
-    print(redirect_location)
-    r = client.get(redirect_location)
+    # Pass through the Authorization header in the response...
+    # In our actual commons, the reverse proxy handles dumping this into the request
+    # again. this is ONLY used when MOCK_GOOGLE_AUTH is true (e.g. we're trying to
+    # fake a Google login)
+    auth_header = r_link.headers.get("Authorization")
+    r = client.get(redirect_location, headers={"Authorization": auth_header})
 
     assert r.status_code == 302
     parsed_url = urlparse(r.headers["Location"])
