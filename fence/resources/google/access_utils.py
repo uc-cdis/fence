@@ -645,7 +645,7 @@ def add_user_service_account_to_google(
                     response = g_manager.add_member_to_group(
                         member_email=service_account.email, group_id=access_group.email
                     )
-                    if response.get("id", None):
+                    if response.get("email", None):
                         logger.debug(
                             "Successfully add member {} to google group {}.".format(
                                 service_account.email, access_group.email
