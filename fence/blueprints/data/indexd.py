@@ -61,7 +61,8 @@ class BlankIndex(object):
         https://github.com/uc-cdis/cdis-wiki/tree/master/dev/gen3/data_upload
     """
 
-    def __init__(self, uploader=None, file_name=None):
+    def __init__(self, uploader=None, file_name=None, logger=None):
+        self.logger = logger or flask.current_app.logger
         self.indexd = (
             flask.current_app.config.get("INDEXD")
             or flask.current_app.config["BASE_URL"] + "/index"
@@ -98,7 +99,10 @@ class BlankIndex(object):
                     indexd_response.json()
                 )
             )
-        return indexd_response.json()
+        document = indexd_response.json()
+        guid = document["did"]
+        self.logger.info("created blank index record {} for upload".format(guid))
+        return document
 
     def make_signed_url(self, file_name, expires_in=None):
         """

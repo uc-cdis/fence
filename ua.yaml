@@ -31,5 +31,5 @@ users:
             path: /programs/test/projects/quux
             privilege: ['read', 'update', 'create', 'delete']
         policies:
-          - new-data-upload
+          - data_upload
 

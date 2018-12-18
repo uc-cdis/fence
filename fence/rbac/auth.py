@@ -2,7 +2,7 @@ from functools import wraps
 
 import flask
 
-from fence.errors import Unauthorized
+from fence.errors import Forbidden, Unauthorized
 
 
 def check_arborist_auth(resource, method, constraints=None):
@@ -23,6 +23,12 @@ def check_arborist_auth(resource, method, constraints=None):
 
         @wraps(f)
         def wrapper(*f_args, **f_kwargs):
+            if not hasattr(flask.current_app, "arborist"):
+                raise Forbidden(
+                    "this fence instance is not configured for role-based access"
+                    " control; this endpoint is unavailable"
+                )
+
             jwt = _get_jwt_header()
             data = {
                 "user": {
@@ -34,7 +40,9 @@ def check_arborist_auth(resource, method, constraints=None):
                 }
             }
             if not flask.current_app.arborist.auth_request(data=data):
-                raise Unauthorized("")
+                raise Forbidden(
+                    "user does not have privileges to access this endpoint"
+                )
             return f(*f_args, **f_kwargs)
 
         return wrapper
