@@ -625,7 +625,7 @@ def add_user_service_account_to_google(
     session, to_add_project_ids, google_project_id, service_account
 ):
     """
-    Add service account to google access groups
+    Add service account to Google access groups
 
     Args:
         session(current_session): db session
@@ -647,20 +647,20 @@ def add_user_service_account_to_google(
                     )
                     if response.get("email", None):
                         logger.debug(
-                            "Successfully add member {} to google group {}.".format(
+                            "Successfully add member {} to Google group {}.".format(
                                 service_account.email, access_group.email
                             )
                         )
                     else:
                         raise GoogleAPIError(
-                            "Can not add {} to group {}".format(
+                            "Can not add {} to Google group {}".format(
                                 service_account.email, access_group.email
                             )
                         )
 
             except Exception as exc:
                 raise GoogleAPIError(
-                    "Can not add {} to group {}. Detail {}".format(
+                    "Can not add {} to Google group {}. Detail {}".format(
                         service_account.email, access_group.email, exc
                     )
                 )
