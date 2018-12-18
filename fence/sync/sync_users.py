@@ -115,6 +115,12 @@ class UserSyncer(object):
             self.storage_manager = StorageManager(
                 storage_credentials, logger=self.logger
             )
+        else:
+            self.logger.warn(
+                "user syncer not configured with storage credentials!"
+                " sync will NOT grant users any access to storage backend(s);"
+                " add STORAGE_CREDENTIALS variable in configuration to support this"
+            )
 
     @staticmethod
     def _match_pattern(filepath, encrypted=True):
@@ -531,9 +537,11 @@ class UserSyncer(object):
         # when updating users we want to maintain case sesitivity in the username so
         # pass the original, non-lowered user_info dict
         self._upsert_userinfo(sess, user_info)
-        self._revoke_from_storage(to_delete, sess)
+        if hasattr(self, "storage_manager"):
+            self._revoke_from_storage(to_delete, sess)
         self._revoke_from_db(sess, to_delete)
-        self._grant_from_storage(to_add, user_project_lowercase, sess)
+        if hasattr(self, "storage_manager"):
+            self._grant_from_storage(to_add, user_project_lowercase, sess)
         self._grant_from_db(
             sess,
             to_add,
@@ -543,7 +551,8 @@ class UserSyncer(object):
         )
 
         # re-grant
-        self._grant_from_storage(to_update, user_project_lowercase, sess)
+        if hasattr(self, "storage_manager"):
+            self._grant_from_storage(to_update, user_project_lowercase, sess)
         self._update_from_db(sess, to_update, user_project_lowercase)
 
         self._validate_and_update_user_admin(sess, user_info_lowercase)
