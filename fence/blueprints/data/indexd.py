@@ -94,10 +94,16 @@ class BlankIndex(object):
         auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
         indexd_response = requests.post(index_url, json=params, auth=auth)
         if indexd_response.status_code not in [200, 201]:
+            try:
+                data = indexd_response.json()
+            except ValueError:
+                data = indexd_response.text
+            self.logger.error(
+                "could not create new record in indexd; got response: {}"
+                .format(data)
+            )
             raise InternalError(
-                "received error from indexd trying to create blank record: {}".format(
-                    indexd_response.json()
-                )
+                "received error from indexd trying to create blank record"
             )
         document = indexd_response.json()
         guid = document["did"]

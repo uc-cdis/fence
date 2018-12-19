@@ -9,6 +9,7 @@ from collections import OrderedDict
 from boto3 import client
 import uuid
 import json
+import mock
 import os
 import copy
 
@@ -180,13 +181,67 @@ def kid_2():
 
 
 @pytest.fixture(scope="session")
-def app(kid, rsa_private_key, rsa_public_key):
+def mock_arborist_requests(request):
+
+    def do_patch(urls_to_responses=None):
+        urls_to_responses = urls_to_responses or {}
+        defaults = {
+            "arborist/health": {
+                "GET": ("", 200)
+            }
+        }
+        defaults.update(urls_to_responses)
+        urls_to_responses = defaults
+
+        def make_mock_response(method):
+
+            def response(url):
+                mocked_response = MagicMock(requests.Response)
+                if url in urls_to_responses:
+                    if method in urls_to_responses[url]:
+                        content, code = urls_to_responses[url][method]
+                        mocked_response.status_code = code
+                        if isinstance(content, dict):
+                            mocked_response.json.return_value = content
+                return mocked_response
+
+            return response
+
+        mocked_get = MagicMock(side_effect=make_mock_response("GET"))
+        mocked_post = MagicMock(side_effect=make_mock_response("POST"))
+        mocked_delete = MagicMock(side_effect=make_mock_response("DELETE"))
+
+        patch_get = mock.patch("fence.rbac.client.requests.get", mocked_get)
+        patch_post = mock.patch("fence.rbac.client.requests.post", mocked_post)
+        patch_delete = mock.patch("fence.rbac.client.requests.delete", mocked_delete)
+
+        patch_get.start()
+        patch_post.start()
+        patch_delete.start()
+
+        request.addfinalizer(patch_get.stop)
+        request.addfinalizer(patch_post.stop)
+        request.addfinalizer(patch_delete.stop)
+
+    return do_patch
+
+
+@pytest.fixture(scope="session")
+def app(kid, rsa_private_key, rsa_public_key, mock_arborist_requests):
     """
     Flask application fixture.
     """
     mocker = Mocker()
     mocker.mock_functions()
     root_dir = os.path.dirname(os.path.realpath(__file__))
+
+    # delete the record operation from the data blueprint, because right now it calls a
+    # whole bunch of stuff on the arborist client to do some setup for the uploader role
+    fence.blueprints.data.blueprint.deferred_functions = [
+        f
+        for f in fence.blueprints.data.blueprint.deferred_functions
+        if f.__name__ != "record"
+    ]
     app_init(
         fence.app,
         test_settings,
