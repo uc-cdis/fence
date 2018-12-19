@@ -112,7 +112,7 @@ def test_google_service_account_monitor(
     creds.
     """
     encoded_creds_jwt = encoded_jwt_service_accounts_access["jwt"]
-    creds_file = u'{"client_email": "test123@example.com"}'
+    creds_file = '{"client_email": "test123@example.com"}'
     path_mock = MagicMock()
     path_mock.return_value.path.return_value.exists.return_value = True
 
@@ -734,7 +734,7 @@ def test_valid_service_account_registration(
 
     (
         cloud_manager.return_value.__enter__.return_value.add_member_to_group.return_value
-    ) = {"id": "sa@gmail.com"}
+    ) = {"email": "sa@gmail.com"}
 
     assert len(db_session.query(UserServiceAccount).all()) == 0
     assert len(db_session.query(ServiceAccountAccessPrivilege).all()) == 0
@@ -807,7 +807,7 @@ def test_valid_service_account_registration_multiple_service_accounts(
 
     (
         cloud_manager.return_value.__enter__.return_value.add_member_to_group.return_value
-    ) = {"id": "sa@gmail.com"}
+    ) = {"email": "sa@gmail.com"}
 
     assert len(db_session.query(UserServiceAccount).all()) == 0
     assert len(db_session.query(ServiceAccountAccessPrivilege).all()) == 0
@@ -869,7 +869,7 @@ def test_register_service_account_already_exists(
 
     (
         cloud_manager.return_value.__enter__.return_value.add_member_to_group.return_value
-    ) = {"id": "sa@gmail.com"}
+    ) = {"email": "sa@gmail.com"}
 
     response = client.post(
         "/google/service_accounts",
