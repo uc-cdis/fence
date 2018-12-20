@@ -272,7 +272,7 @@ def check_csrf():
 @app.after_request
 def set_csrf(response):
     """
-    Create a cookie for CSRF protection if one does not yet exist.
+    Create a cookie for CSRF protection if one does not yet exist
     """
     if not flask.request.cookies.get("csrftoken"):
         secure = config.get("SESSION_COOKIE_SECURE", True)
