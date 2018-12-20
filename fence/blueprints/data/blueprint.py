@@ -21,6 +21,17 @@ blueprint = flask.Blueprint("data", __name__)
 
 @blueprint.record_once
 def record(setup_state):
+    """
+    FIXME / TODO / NOTE / DISCLAIMER
+
+    This stuff here is a huge hack due to the current limitations of the deployment
+    system with arborist. This blueprint's endpoint `/data/upload`, for uploading new
+    data files, requires an arborist instance to talk to, and that the arborist instance
+    be set up with some certain things (the stuff below). Currently there's not really a
+    better way to make sure that this stuff always exists in arborist. Once there is
+    (say arborist is loading in some YAML on initialization, which would contain the
+    below information), this function should be thrown out.
+    """
     app = setup_state.app
     if not hasattr(app, "arborist"):
         app.logger.warn(

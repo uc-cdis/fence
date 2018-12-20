@@ -27,8 +27,10 @@ def _request_get_json(response):
 
 def _arborist_retry(*backoff_args, **backoff_kwargs):
     """
-    Decorate an ``ArboristClient`` method to retry requests to arborist.
+    Decorate an ``ArboristClient`` method to retry requests to arborist, if arborist
+    says it's unhealthy.
     """
+    # set some defaults for when to give up: after 5 failures, or 10 seconds
     if "max_tries" not in backoff_kwargs:
         backoff_kwargs["max_tries"] = 5
     if "max_time" not in backoff_kwargs:
@@ -40,6 +42,8 @@ def _arborist_retry(*backoff_args, **backoff_kwargs):
             raise ArboristUnhealthyError()
 
         def wait_gen():
+            # shorten the wait times a little to fit our scale a little better (aim to
+            # give up within 10 s)
             for n in backoff.fibo():
                 yield n / 2.0
 
@@ -47,7 +51,7 @@ def _arborist_retry(*backoff_args, **backoff_kwargs):
         def wrapper(self, *m_args, **m_kwargs):
             do_backoff = backoff.on_predicate(
                 wait_gen,
-                giveup=giveup,
+                on_giveup=giveup,
                 *backoff_args,
                 **backoff_kwargs
             )
