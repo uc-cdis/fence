@@ -465,3 +465,35 @@ def test_delete_file_locations(
 
     mock_check_auth.stop()
     mock_index_document.stop()
+
+
+def test_blank_index_upload_unauthorized(
+    app, client, auth_client, encoded_creds_jwt, user_client
+):
+    class MockResponse(object):
+        def __init__(self, data, status_code=200):
+            self.data = data
+            self.status_code = status_code
+
+        def json(self):
+            return self.data
+
+    data_requests_mocker = mock.patch(
+        "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
+    )
+    arborist_requests_mocker = mock.patch(
+        "fence.rbac.client.requests", new_callable=mock.Mock
+    )
+    with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
+        # pretend arborist says "no"
+        arborist_requests.post.return_value = MockResponse({"auth": False})
+        arborist_requests.post.return_value.status_code = 200
+        headers = {
+            "Authorization": "Bearer " + encoded_creds_jwt.jwt,
+            "Content-Type": "application/json",
+        }
+        file_name = "asdf"
+        data = json.dumps({"file_name": "doesn't matter"})
+        response = client.post("/data/upload", headers=headers, data=data)
+        data_requests.post.assert_not_called()
+        assert response.status_code == 403, response
