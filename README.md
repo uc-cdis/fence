@@ -480,6 +480,17 @@ As a Gen3 commons administrator, if you want to create an oauth client that skip
 fence-create client-create --client CLIENT_NAME --urls OAUTH_REDIRECT_URL --username USERNAME --auto-approve
 ```
 
+#### Register an Implicit Oauth Client
+
+As a Gen3 commons administrator, if you want to create an implicit oauth client for a webapp:
+
+```bash
+fence-create client-create --client fancywebappname --urls 'https://betawebapp.example/fence
+https://webapp.example/fence' --public --username fancyapp --grant-types 'authorization_code
+refresh_token
+implicit'
+```
+
 #### Modify OAuth Client
 
 ```bash
