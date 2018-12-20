@@ -124,7 +124,6 @@ def app_register_blueprints(app):
         Return the public keys which can be used to verify JWTs signed by fence.
 
         The return value should look like this:
-
             {
                 "keys": [
                     {
