@@ -3,6 +3,7 @@ from functools import wraps
 import flask
 
 from fence.errors import Forbidden, Unauthorized
+from fence.jwt.utils import get_jwt_header
 
 
 def check_arborist_auth(resource, method, constraints=None):
@@ -40,7 +41,7 @@ def check_arborist_auth(resource, method, constraints=None):
                     " control; this endpoint is unavailable"
                 )
 
-            jwt = _get_jwt_header()
+            jwt = get_jwt_header()
             data = {
                 "user": {
                     "token": jwt,
@@ -59,20 +60,3 @@ def check_arborist_auth(resource, method, constraints=None):
         return wrapper
 
     return decorator
-
-
-def _get_jwt_header():
-    """
-    Get the user's JWT from the Authorization header, or raise Unauthorized on failure.
-    """
-    try:
-        header = flask.request.headers["Authorization"]
-    except KeyError:
-        raise Unauthorized("missing authorization header")
-    if not header.lower().startswith("bearer"):
-        raise Unauthorized("unexpected Authorization header format (expected `Bearer`")
-    try:
-        jwt = header.split(" ")[1]
-    except IndexError:
-        raise Unauthorized("authorization header missing token")
-    return jwt
