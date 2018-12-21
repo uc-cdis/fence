@@ -7,12 +7,23 @@ from fence.errors import Forbidden, Unauthorized
 
 def check_arborist_auth(resource, method, constraints=None):
     """
-    Return a function decorator to send an auth request to arborist.
+    Check with arborist to verify the RBAC for a request.
+
+    TODO (rudyardrichter, 2018-12-21):
+    update as necessary as changes happen to RBAC & arborist
 
     Args:
         resource (str):
+            Identifier for the thing being accessed. These look like filepaths. This
+            ``resource`` must correspond to some resource entered previously in
+            arborist. Currently the existing resources are going to be the
+            program/projects set up by the user sync.
         method (str):
-        constraints (Dict[str, str]):
+            Identifier for the action the user is trying to do. Like ``resource``, this
+            is something that has to exist in arborist already.
+        constraints (Optional[Dict[str, str]]):
+            Optional set of constraints to send to arborist for context on this request.
+            (These really aren't used at all yet.)
 
     Return:
         Callable: decorator
