@@ -99,8 +99,7 @@ class BlankIndex(object):
             except ValueError:
                 data = indexd_response.text
             self.logger.error(
-                "could not create new record in indexd; got response: {}"
-                .format(data)
+                "could not create new record in indexd; got response: {}".format(data)
             )
             raise InternalError(
                 "received error from indexd trying to create blank record"

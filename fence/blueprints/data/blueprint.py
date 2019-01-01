@@ -42,33 +42,33 @@ def record(setup_state):
     app.arborist.delete_policy("data_upload")
     app.arborist.delete_resource("/data_file")
     app.arborist.delete_role("file_uploader")
-    role = app.arborist.create_role({
-        "id": "file_uploader",
-        "description": "can upload data files",
-        "permissions": [
-            {
-                "id": "file_upload",
-                "action": {"service": "fence", "method": "file_upload"},
-            },
-        ]
-    })
+    role = app.arborist.create_role(
+        {
+            "id": "file_uploader",
+            "description": "can upload data files",
+            "permissions": [
+                {
+                    "id": "file_upload",
+                    "action": {"service": "fence", "method": "file_upload"},
+                }
+            ],
+        }
+    )
     if not role:
         raise InternalError("could not set up uploader role in arborist")
     resource = app.arborist.create_resource(
-        "/",
-        {
-            "name": "data_file",
-            "description": "data files, stored in s3",
-        },
+        "/", {"name": "data_file", "description": "data files, stored in s3"}
     )
     if not resource:
         raise InternalError("could not set up data file resource in arborist")
-    policy = app.arborist.create_policy({
-        "id": "data_upload",
-        "description": "upload raw data files to S3",
-        "role_ids": ["file_uploader"],
-        "resource_paths": ["/data_file"],
-    })
+    policy = app.arborist.create_policy(
+        {
+            "id": "data_upload",
+            "description": "upload raw data files to S3",
+            "role_ids": ["file_uploader"],
+            "resource_paths": ["/data_file"],
+        }
+    )
     if not policy:
         raise InternalError("could not set up data upload policy in arborist")
 

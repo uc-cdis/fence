@@ -37,7 +37,6 @@ def _arborist_retry(*backoff_args, **backoff_kwargs):
         backoff_kwargs["max_time"] = 10
 
     def decorator(method):
-
         def giveup():
             raise ArboristUnhealthyError()
 
@@ -50,10 +49,7 @@ def _arborist_retry(*backoff_args, **backoff_kwargs):
         @wraps(method)
         def wrapper(self, *m_args, **m_kwargs):
             do_backoff = backoff.on_predicate(
-                wait_gen,
-                on_giveup=giveup,
-                *backoff_args,
-                **backoff_kwargs
+                wait_gen, on_giveup=giveup, *backoff_args, **backoff_kwargs
             )
             do_backoff(self.healthy)
             return method(self, *m_args, **m_kwargs)
@@ -310,8 +306,7 @@ class ArboristClient(object):
             return
         elif response.status_code >= 400:
             raise ArboristError(
-                "could not delete role in arborist: {}"
-                .format(response.json()["error"])
+                "could not delete role in arborist: {}".format(response.json()["error"])
             )
 
     @_arborist_retry()

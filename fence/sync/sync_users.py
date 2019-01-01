@@ -567,8 +567,9 @@ class UserSyncer(object):
                 if policy not in user.policies:
                     user.policies.append(policy)
                     self.logger.info(
-                        "granted policy `{}` to user `{}` ({})"
-                        .format(policy_id, username, user.id)
+                        "granted policy `{}` to user `{}` ({})".format(
+                            policy_id, username, user.id
+                        )
                     )
         sess.commit()
 

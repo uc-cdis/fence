@@ -32,7 +32,6 @@ def check_arborist_auth(resource, method, constraints=None):
     constraints = constraints or {}
 
     def decorator(f):
-
         @wraps(f)
         def wrapper(*f_args, **f_kwargs):
             if not hasattr(flask.current_app, "arborist"):
@@ -43,18 +42,14 @@ def check_arborist_auth(resource, method, constraints=None):
 
             jwt = get_jwt_header()
             data = {
-                "user": {
-                    "token": jwt,
-                },
+                "user": {"token": jwt},
                 "request": {
                     "resource": resource,
                     "action": {"service": "fence", "method": method},
-                }
+                },
             }
             if not flask.current_app.arborist.auth_request(data=data):
-                raise Forbidden(
-                    "user does not have privileges to access this endpoint"
-                )
+                raise Forbidden("user does not have privileges to access this endpoint")
             return f(*f_args, **f_kwargs)
 
         return wrapper

@@ -219,6 +219,7 @@ def test_create_user_access_token(
     r = client.get("/user", headers={"Authorization": "Bearer " + jwt_result.token})
     assert r.status_code == 200
 
+
 def test_create_refresh_token_with_found_user(
     app, db_session, oauth_test_client, kid, rsa_private_key
 ):
