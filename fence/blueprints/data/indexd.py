@@ -199,6 +199,10 @@ class IndexedFile(object):
         return list(map(IndexedFileLocation.from_url, urls))
 
     def get_signed_url(self, protocol, action, expires_in):
+        if self.public and action == "upload":
+            raise Unauthorized("Cannot upload on public files")
+        # don't check the authorization if the file is public
+        # (downloading public files with no auth is fine)
         if not self.public and not self.check_authorization(action):
             raise Unauthorized("You don't have access permission on this file")
         if action is not None and action not in SUPPORTED_ACTIONS:
