@@ -434,7 +434,7 @@ class GoogleProjectValidity(ValidityInfo):
 
             if not service_account_validity_info:
                 logger.warning(
-                    "INVALID service account {}, exiting early.".format(
+                    "INVALID service account {}.".format(
                         service_account_id
                     )
                 )
