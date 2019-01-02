@@ -433,11 +433,7 @@ class GoogleProjectValidity(ValidityInfo):
             )
 
             if not service_account_validity_info:
-                logger.warning(
-                    "INVALID service account {}.".format(
-                        service_account_id
-                    )
-                )
+                logger.warning("INVALID service account {}.".format(service_account_id))
                 # if we need to return early for invalid SA, make sure to include
                 # error details and invalidate the overall validity
                 if early_return:

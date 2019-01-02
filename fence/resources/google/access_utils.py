@@ -317,7 +317,8 @@ def is_user_member_of_google_project(
         # first check if user.email is in project, then linked account
         if not (user.email and user.email.lower() in member_emails):
             if not (
-                linked_google_account and linked_google_account.email.lower() in member_emails
+                linked_google_account
+                and linked_google_account.email.lower() in member_emails
             ):
                 # no user email is in project
                 return False

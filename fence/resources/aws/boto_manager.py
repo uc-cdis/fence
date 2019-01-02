@@ -36,8 +36,9 @@ class BotoManager(object):
             if not s3_objects.get("Contents"):
                 # file not found in the bucket
                 self.logger.info(
-                    "tried to delete GUID {} but didn't find in bucket {}"
-                    .format(guid, bucket)
+                    "tried to delete GUID {} but didn't find in bucket {}".format(
+                        guid, bucket
+                    )
                 )
                 return
             if len(s3_objects["Contents"]) > 1:
@@ -45,8 +46,7 @@ class BotoManager(object):
             key = s3_objects["Contents"][0]["Key"]
             self.s3_client.delete_object(Bucket=bucket, Key=key)
             self.logger.info(
-                "deleted file for GUID {} in bucket {}"
-                .format(guid, bucket)
+                "deleted file for GUID {} in bucket {}".format(guid, bucket)
             )
         except (KeyError, Boto3Error) as e:
             self.logger.exception(e)
