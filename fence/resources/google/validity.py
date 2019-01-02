@@ -315,13 +315,14 @@ class GoogleProjectValidity(ValidityInfo):
 
         self.set("valid_parent_org", valid_parent_org)
 
-        if not valid_parent_org and early_return:
+        if not valid_parent_org:
             logger.warning(
                 "INVALID Parent Organization {} "
                 "for project id {}. No parent org is allowed unless it's explicitly "
                 "whitelisted in cfg.".format(parent_org, self.google_project_id)
             )
-            return
+            if early_return:
+                return
 
         logger.debug(
             "Determining if other users and service accounts on "
@@ -336,11 +337,11 @@ class GoogleProjectValidity(ValidityInfo):
             self.set("valid_member_types", True)
         except Exception:
             self.set("valid_member_types", False)
+            logger.warning(
+                "INVALID users and/or service accounts (SAs) on "
+                "project id {}.".format(self.google_project_id)
+            )
             if early_return:
-                logger.warning(
-                    "INVALID users and/or service accounts (SAs) on "
-                    "project id {}.".format(self.google_project_id)
-                )
                 return
 
         logger.debug(
@@ -354,13 +355,13 @@ class GoogleProjectValidity(ValidityInfo):
                 self.set("members_exist_in_fence", True)
             except Exception:
                 self.set("members_exist_in_fence", False)
-                if early_return:
-                    logger.warning(
-                        "INVALID user(s) for given emails {} do not "
-                        "exist in fence and thus, we cannot determine their authZ info.".format(
-                            user_members
-                        )
+                logger.warning(
+                    "INVALID user(s) for given emails {} do not "
+                    "exist in fence and thus, we cannot determine their authZ info.".format(
+                        user_members
                     )
+                )
+                if early_return:
                     return
 
         # use a generic validityinfo object to hold all the service accounts
@@ -431,16 +432,17 @@ class GoogleProjectValidity(ValidityInfo):
                 service_account_id, service_account_validity_info
             )
 
-            if not service_account_validity_info and early_return:
-                # if we need to return early for invalid SA, make sure to include
-                # error details and invalidate the overall validity
-                self.set("new_service_account", new_service_account_validity)
+            if not service_account_validity_info:
                 logger.warning(
                     "INVALID service account {}, exiting early.".format(
                         service_account_id
                     )
                 )
-                return
+                # if we need to return early for invalid SA, make sure to include
+                # error details and invalidate the overall validity
+                if early_return:
+                    self.set("new_service_account", new_service_account_validity)
+                    return
 
         self.set("new_service_account", new_service_account_validity)
 
