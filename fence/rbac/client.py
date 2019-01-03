@@ -3,12 +3,15 @@ Define the ArboristClient class for interfacing with the arborist service for
 RBAC.
 """
 
+from functools import wraps
 import json
 
+import backoff
 from cdislogging import get_logger
 import requests
 
-from fence.errors import APIError
+from fence.errors import Forbidden
+from fence.rbac.errors import ArboristError, ArboristUnhealthyError
 
 
 def _request_get_json(response):
@@ -22,9 +25,38 @@ def _request_get_json(response):
         return {"error": str(e)}
 
 
-class ArboristError(APIError):
+def _arborist_retry(*backoff_args, **backoff_kwargs):
+    """
+    Decorate an ``ArboristClient`` method to retry requests to arborist, if arborist
+    says it's unhealthy.
+    """
+    # set some defaults for when to give up: after 5 failures, or 10 seconds
+    if "max_tries" not in backoff_kwargs:
+        backoff_kwargs["max_tries"] = 5
+    if "max_time" not in backoff_kwargs:
+        backoff_kwargs["max_time"] = 10
 
-    pass
+    def decorator(method):
+        def giveup():
+            raise ArboristUnhealthyError()
+
+        def wait_gen():
+            # shorten the wait times a little to fit our scale a little better (aim to
+            # give up within 10 s)
+            for n in backoff.fibo():
+                yield n / 2.0
+
+        @wraps(method)
+        def wrapper(self, *m_args, **m_kwargs):
+            do_backoff = backoff.on_predicate(
+                wait_gen, on_giveup=giveup, *backoff_args, **backoff_kwargs
+            )
+            do_backoff(self.healthy)
+            return method(self, *m_args, **m_kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 class ArboristClient(object):
@@ -35,6 +67,7 @@ class ArboristClient(object):
     def __init__(self, logger=None, arborist_base_url="http://arborist-service/"):
         self.logger = logger or get_logger("ArboristClient")
         self._base_url = arborist_base_url.strip("/")
+        self._auth_url = self._base_url + "/auth/"
         self._policy_url = self._base_url + "/policy/"
         self._resource_url = self._base_url + "/resource"
         self._role_url = self._base_url + "/role/"
@@ -52,6 +85,33 @@ class ArboristClient(object):
             return False
         return response.status_code == 200
 
+    @_arborist_retry()
+    def auth_request(self, data):
+        """
+        Return:
+            bool: authorization response
+        """
+        authed = False
+        response = requests.post(self._auth_url.rstrip("/") + "/request", json=data)
+        if response.status_code == 200:
+            authed = bool(response.json()["auth"])
+        elif response.status_code == 500:
+            msg = "request to arborist failed: {}".format(response.json())
+            raise ArboristError(message=msg, code=500)
+        else:
+            # arborist could send back a 400 for things like, the user has some policy
+            # that it doesn't recognize, or the request is structured incorrectly; for
+            # these cases we will default to unauthorized
+            msg = "arborist denied auth request"
+            try:
+                detail = response.json()["error"]
+                raise Forbidden("{}: {}".format(msg, detail))
+            except (KeyError, ValueError):
+                raise Forbidden(msg)
+
+        return authed
+
+    @_arborist_retry()
     def get_resource(self, resource_path):
         """
         Return the information for a resource in arborist.
@@ -67,6 +127,7 @@ class ArboristClient(object):
             return None
         return response.json()
 
+    @_arborist_retry()
     def list_policies(self):
         """
         List the existing policies.
@@ -86,6 +147,7 @@ class ArboristClient(object):
         """
         return _request_get_json(requests.get(self._policy_url))
 
+    @_arborist_retry()
     def policies_not_exist(self, policy_ids):
         """
         Return any policy IDs which do not exist in arborist. (So, if the
@@ -99,6 +161,7 @@ class ArboristClient(object):
             policy_id for policy_id in policy_ids if policy_id not in existing_policies
         ]
 
+    @_arborist_retry()
     def create_resource(self, parent_path, resource_json, overwrite=False):
         """
         Create a new resource in arborist (does not affect fence database or
@@ -165,6 +228,7 @@ class ArboristClient(object):
         self.logger.info("created resource {}".format(resource_json["name"]))
         return data
 
+    @_arborist_retry()
     def update_resource(self, path, resource_json):
         response = _request_get_json(requests.put(path, json=resource_json))
         if "error" in response:
@@ -176,9 +240,11 @@ class ArboristClient(object):
         self.logger.info("updated resource {}".format(resource_json["name"]))
         return response
 
+    @_arborist_retry()
     def delete_resource(self, path):
         return _request_get_json(requests.delete(self._resource_url + path))
 
+    @_arborist_retry()
     def create_role(self, role_json):
         """
         Create a new role in arborist (does not affect fence database or
@@ -219,9 +285,9 @@ class ArboristClient(object):
             - ArboristError: if the operation failed (couldn't create role)
         """
         response = requests.post(self._role_url, json=role_json)
-        data = _request_get_json(response)
         if response.status_code == 409:
             return None
+        data = _request_get_json(response)
         if "error" in data:
             self.logger.error(
                 "could not create role `{}` in arborist: {}".format(
@@ -232,6 +298,18 @@ class ArboristClient(object):
         self.logger.info("created role {}".format(role_json["id"]))
         return data
 
+    @_arborist_retry()
+    def delete_role(self, role_id):
+        response = requests.delete(self._role_url + role_id)
+        if response.status_code == 404:
+            # already doesn't exist, this is fine
+            return
+        elif response.status_code >= 400:
+            raise ArboristError(
+                "could not delete role in arborist: {}".format(response.json()["error"])
+            )
+
+    @_arborist_retry()
     def get_policy(self, policy_id):
         """
         Return the JSON representation of a policy with this ID.
@@ -241,9 +319,11 @@ class ArboristClient(object):
             return None
         return response.json()
 
+    @_arborist_retry()
     def delete_policy(self, path):
         return _request_get_json(requests.delete(self._policy_url + path))
 
+    @_arborist_retry()
     def create_policy(self, policy_json, skip_if_exists=True):
         response = requests.post(self._policy_url, json=policy_json)
         data = _request_get_json(response)
