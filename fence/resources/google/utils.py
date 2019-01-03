@@ -4,7 +4,7 @@ import os
 from cryptography.fernet import Fernet
 import flask
 from flask_sqlalchemy_session import current_session
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 
 from cirrus import GoogleCloudManager
 from cirrus.google_cloud.iam import GooglePolicyMember
@@ -633,7 +633,7 @@ def get_user_from_google_member(member, db=None):
 
     linked_google_account = (
         session.query(UserGoogleAccount)
-        .filter(UserGoogleAccount.email == member.email_id.lower().strip())
+        .filter(func.lower(UserGoogleAccount.email) == member.email_id.lower().strip())
         .first()
     )
     if linked_google_account:
