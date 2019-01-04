@@ -162,6 +162,7 @@ def app_config(
     # directly from the fence config singleton in the code though.
     app.config.update(**config._configs)
 
+    _setup_arborist_client(app)
     _setup_data_endpoint_and_boto(app)
     _load_keys(app, root_dir)
     _set_authlib_cfgs(app)
@@ -171,7 +172,6 @@ def app_config(
     )
 
     _setup_oidc_clients(app)
-    _setup_arborist_client(app)
 
 
 def _setup_data_endpoint_and_boto(app):
@@ -239,7 +239,7 @@ def _setup_oidc_clients(app):
 
 
 def _setup_arborist_client(app):
-    if config.get("ARBORIST"):
+    if app.config.get("ARBORIST"):
         app.arborist = ArboristClient(arborist_base_url=config["ARBORIST"])
 
 

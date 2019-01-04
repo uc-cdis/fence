@@ -59,9 +59,7 @@ def test_sync(syncer, db_session, storage_client):
     assert user.phone_number == "123-456-789"
 
     user = models.query_for_user(session=db_session, username="test_user1@gmail.com")
-
     user_access = db_session.query(models.AccessPrivilege).filter_by(user=user).all()
-
     assert set(user_access[0].privilege) == {
         "create",
         "read",
@@ -70,13 +68,21 @@ def test_sync(syncer, db_session, storage_client):
         "upload",
     }
     assert len(user_access) == 1
+    user_policy_ids = {policy.id for policy in user.policies}
+    expect_policies = {
+        "test-policy-1",
+        "test-policy-3",
+        "programs.test.projects.test-read",
+        "programs.test.projects.test-create",
+        "programs.test.projects.test-upload",
+        "programs.test.projects.test-update",
+        "programs.test.projects.test-delete",
+    }
+    assert user_policy_ids == expect_policies
 
     user = models.query_for_user(session=db_session, username="deleted_user@gmail.com")
-
     assert not user.is_admin
-
     user_access = db_session.query(models.AccessPrivilege).filter_by(user=user).all()
-
     assert not user_access
 
 
@@ -95,7 +101,7 @@ def test_sync_from_files(syncer, db_session, storage_client):
         "userB": {"email": "a@b", "tags": {}},
     }
 
-    syncer.sync_to_db_and_storage_backend(phsids, userinfo, sess)
+    syncer.sync_to_db_and_storage_backend(phsids, userinfo, {}, sess)
 
     u = models.query_for_user(session=db_session, username="userB")
     u.project_access["phs000179"].sort()
@@ -118,8 +124,8 @@ def test_sync_revoke(syncer, db_session, storage_client):
 
     phsids2 = {"userA": {"phs000179": {"read-storage", "write-storage"}}}
 
-    syncer.sync_to_db_and_storage_backend(phsids, userinfo, db_session)
-    syncer.sync_to_db_and_storage_backend(phsids2, userinfo, db_session)
+    syncer.sync_to_db_and_storage_backend(phsids, userinfo, {}, db_session)
+    syncer.sync_to_db_and_storage_backend(phsids2, userinfo, {}, db_session)
 
     user_B = models.query_for_user(session=db_session, username="userB")
 
