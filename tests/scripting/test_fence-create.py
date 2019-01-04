@@ -182,7 +182,7 @@ def test_create_user_refresh_token_with_no_found_user(
         jwt_creator.create_refresh_token()
 
 
-def test_create_user_access_token_with_found_user(
+def test_create_user_access_token_bad_header(
     app, db_session, client, kid, rsa_private_key, oauth_client
 ):
     user = User(username="test_user")
@@ -198,8 +198,26 @@ def test_create_user_access_token_with_found_user(
         private_key=rsa_private_key,
     ).create_access_token()
     r = client.get("/user", headers={"Authorization": "bear " + jwt_result.token})
+    assert r.status_code == 401
+
+
+def test_create_user_access_token(
+    app, db_session, client, kid, rsa_private_key, oauth_client
+):
+    user = User(username="test_user")
+    db_session.add(user)
+
+    jwt_result = JWTCreator(
+        config["DB"],
+        config["BASE_URL"],
+        kid=kid,
+        username="test_user",
+        scopes=["openid", "user"],
+        expires_in=3600,
+        private_key=rsa_private_key,
+    ).create_access_token()
+    r = client.get("/user", headers={"Authorization": "Bearer " + jwt_result.token})
     assert r.status_code == 200
-    assert jwt_result.claims
 
 
 def test_create_refresh_token_with_found_user(

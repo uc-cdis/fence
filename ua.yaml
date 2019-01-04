@@ -30,3 +30,6 @@ users:
           - auth_id: quux
             path: /programs/test/projects/quux
             privilege: ['read', 'update', 'create', 'delete']
+        policies:
+          - data_upload
+

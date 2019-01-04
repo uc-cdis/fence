@@ -45,7 +45,7 @@ RUN ln -s /fence/wsgi.py /var/www/fence/wsgi.py \
     && VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >>fence/version_data.py \
     && python setup.py develop \
     && echo '<VirtualHost *:80>\n\
-    WSGIDaemonProcess /fence processes=1 threads=1 python-path=/var/www/fence/:/fence/:/usr/bin/python\n\
+    WSGIDaemonProcess /fence processes=2 threads=4 python-path=/var/www/fence/:/fence/:/usr/bin/python\n\
     WSGIScriptAlias / /var/www/fence/wsgi.py\n\
     WSGIPassAuthorization On\n\
     <Directory "/var/www/fence/">\n\
