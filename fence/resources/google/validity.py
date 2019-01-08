@@ -353,13 +353,11 @@ class GoogleProjectValidity(ValidityInfo):
             try:
                 users_in_project = get_users_from_google_members(user_members, db=db)
                 self.set("members_exist_in_fence", True)
-            except Exception:
+            except Exception as e:
                 self.set("members_exist_in_fence", False)
                 logger.warning(
-                    "INVALID user(s) for given emails {} do not "
-                    "exist in fence and thus, we cannot determine their authZ info.".format(
-                        user_members
-                    )
+                    "INVALID user(s) do not exist in fence and thus, "
+                    "we cannot determine their authZ info: {}.".format(e.message)
                 )
                 if early_return:
                     return
