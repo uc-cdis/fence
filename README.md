@@ -174,6 +174,14 @@ In the following flow, `Fence (Client Instance)` is an OP relative to `OAuth Cli
 See the [OIDC specification](http://openid.net/specs/openid-connect-core-1_0.html) for more details.
 Additionally, see the [OAuth2 specification](https://tools.ietf.org/html/rfc6749).
 
+## Role-Based Access Control
+
+Currently fence works with another Gen3 service named
+[arborist](https://github.com/uc-cdis/arborist) to implement role-based access
+control for commons users. The YAML file of access control information (see
+[#create-user-access-file]()) contains a section `rbac` which are data sent to
+arborist in order to set up the access control model.
+
 ## Accessing Data
 
 Fence has multiple options that provide a mechanism to access data. The access
@@ -184,7 +192,7 @@ File. A `project` is identified by a unique authorization identifier AKA `auth_i
 
 A `project` can be associated with various storage backends that store
 object data for that given `project`. You can assign `read-storage` and `write-storage`
-privilieges to users who should have access to that stored object data. `read` and
+privileges to users who should have access to that stored object data. `read` and
 `write` allow access to the data stored in a graph database.
 
 Depending on the backend, Fence can be configured to provide users access to

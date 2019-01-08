@@ -34,6 +34,10 @@ users:
             privilege: ['read', 'update', 'create', 'delete']
         policies: ['data_upload']
 
+# This chunk is currently how fence gets some setup information to arborist, the
+# service which handles RBAC. All the content here (inside each subsection,
+# policies/resources/roles) is exactly how it would be structured in requests
+# to/from the arborist API.
 rbac:
     policies:
         - id: 'data_upload'
