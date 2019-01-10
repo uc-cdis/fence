@@ -1,6 +1,9 @@
 #!groovy
 
-@Library('cdis-jenkins-lib@master') _
+@Library('cdis-jenkins-lib@refactor/microservices') _
+// import uchicago.cdis.MicroservicePipeline
 
-testPipeline { 
+
+runPipeline {
+  pipeline = 'microservice'
 }
