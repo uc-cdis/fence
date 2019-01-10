@@ -1,12 +1,10 @@
 import os
 import os.path
 import time
-import uuid
 import yaml
 import json
 import pprint
 
-from authlib.common.encoding import to_unicode
 from cirrus import GoogleCloudManager
 from cirrus.google_cloud.errors import GoogleAuthError
 from cirrus.config import config as cirrus_config
@@ -46,9 +44,10 @@ from fence.models import (
     GoogleProxyGroupToGoogleBucketAccessGroup,
     UserRefreshToken,
     ServiceAccountToGoogleBucketAccessGroup,
+    query_for_user,
 )
 from fence.scripting.google_monitor import validation_check
-from fence.settings import GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN
+from fence.config import config
 from fence.sync.sync_users import UserSyncer
 from fence.utils import create_client
 
@@ -115,10 +114,8 @@ def create_client_action(
 
 
 def delete_client_action(DB, client_name):
-    import fence.settings
-
     try:
-        cirrus_config.update(**fence.settings.CIRRUS_CFG)
+        cirrus_config.update(**config["CIRRUS_CFG"])
     except AttributeError:
         # no cirrus config, continue anyway. we don't have client service accounts
         # to delete
@@ -134,11 +131,13 @@ def delete_client_action(DB, client_name):
             ):
                 raise Exception("client {} does not exist".format(client_name))
 
-            clients = current_session.query(Client).filter(Client.name == client_name)
+            clients = (
+                current_session.query(Client).filter(Client.name == client_name).all()
+            )
 
             for client in clients:
                 _remove_client_service_accounts(current_session, client)
-            clients.delete()
+                current_session.delete(client)
             current_session.commit()
 
         print("Client {} deleted".format(client_name))
@@ -147,28 +146,31 @@ def delete_client_action(DB, client_name):
 
 
 def _remove_client_service_accounts(db_session, client):
-    client_service_accounts = db_session.query(GoogleServiceAccount).filter(
-        GoogleServiceAccount.client_id == client.client_id
+    client_service_accounts = (
+        db_session.query(GoogleServiceAccount)
+        .filter(GoogleServiceAccount.client_id == client.client_id)
+        .all()
     )
 
-    with GoogleCloudManager() as g_mgr:
-        for service_account in client_service_accounts:
-            print(
-                "Deleting client {}'s service account: {}".format(
-                    client.name, service_account.email
-                )
-            )
-            response = g_mgr.delete_service_account(service_account.email)
-            if not response.get("error"):
-                db_session.delete(service_account)
-                db_session.commit()
-            else:
-                print("ERROR - from Google: {}".format(response))
+    if client_service_accounts:
+        with GoogleCloudManager() as g_mgr:
+            for service_account in client_service_accounts:
                 print(
-                    "ERROR - Could not delete client service account: {}".format(
-                        service_account.email
+                    "Deleting client {}'s service account: {}".format(
+                        client.name, service_account.email
                     )
                 )
+                response = g_mgr.delete_service_account(service_account.email)
+                if not response.get("error"):
+                    db_session.delete(service_account)
+                    db_session.commit()
+                else:
+                    print("ERROR - from Google: {}".format(response))
+                    print(
+                        "ERROR - Could not delete client service account: {}".format(
+                            service_account.email
+                        )
+                    )
 
 
 def sync_users(
@@ -183,9 +185,9 @@ def sync_users(
 ):
     """
     sync ACL files from dbGap to auth db and storage backends
-    imports from local_settings is done here because dbGap is
+    imports from config is done here because dbGap is
     an optional requirment for fence so it might not be specified
-    in local_settings
+    in config
     Args:
         projects: path to project_mapping yaml file which contains mapping
         from dbgap phsids to projects in fence database
@@ -203,10 +205,8 @@ def sync_users(
               - name: CGCI
                 auth_id: phs000235
     """
-    import fence.settings
-
     try:
-        cirrus_config.update(**fence.settings.CIRRUS_CFG)
+        cirrus_config.update(**config["CIRRUS_CFG"])
     except AttributeError:
         # no cirrus config, continue anyway. Google APIs will probably fail.
         # this is okay if users don't need access to Google buckets
@@ -387,9 +387,8 @@ def create_users_with_group(DB, s, data):
     data_groups = data["groups"]
     for username, data in data["users"].iteritems():
         is_existing_user = True
-        user = (
-            s.query(User).filter(func.lower(User.username) == username.lower()).first()
-        )
+        user = query_for_user(session=s, username=username)
+
         admin = data.get("admin", False)
 
         if not user:
@@ -440,9 +439,7 @@ def google_init(db):
 
 
 def remove_expired_google_service_account_keys(db):
-    import fence.settings
-
-    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    cirrus_config.update(**config["CIRRUS_CFG"])
 
     db = SQLAlchemyDriver(db)
     with db.session as current_session:
@@ -507,9 +504,7 @@ def remove_expired_google_service_account_keys(db):
 
 
 def remove_expired_google_accounts_from_proxy_groups(db):
-    import fence.settings
-
-    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    cirrus_config.update(**config["CIRRUS_CFG"])
 
     db = SQLAlchemyDriver(db)
     with db.session as current_session:
@@ -582,9 +577,7 @@ def delete_expired_service_accounts(DB):
     """
     Delete all expired service accounts.
     """
-    import fence.settings
-
-    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    cirrus_config.update(**config["CIRRUS_CFG"])
 
     driver = SQLAlchemyDriver(DB)
     with driver.session as session:
@@ -629,9 +622,7 @@ def verify_bucket_access_group(DB):
         None
 
     """
-    import fence.settings
-
-    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    cirrus_config.update(**config["CIRRUS_CFG"])
 
     driver = SQLAlchemyDriver(DB)
     with driver.session as session:
@@ -780,11 +771,8 @@ class JWTCreator(object):
         """
         driver = SQLAlchemyDriver(self.db)
         with driver.session as current_session:
-            user = (
-                current_session.query(User)
-                .filter(func.lower(User.username) == self.username.lower())
-                .first()
-            )
+            user = query_for_user(session=current_session, username=self.username)
+
             if not user:
                 raise EnvironmentError(
                     "no user found with given username: " + self.username
@@ -807,11 +795,8 @@ class JWTCreator(object):
         """
         driver = SQLAlchemyDriver(self.db)
         with driver.session as current_session:
-            user = (
-                current_session.query(User)
-                .filter(func.lower(User.username) == self.username.lower())
-                .first()
-            )
+            user = query_for_user(session=current_session, username=self.username)
+
             if not user:
                 raise EnvironmentError(
                     "no user found with given username: " + self.username
@@ -971,9 +956,7 @@ def create_or_update_google_bucket(
             ['read'] for viewing access,
             ['write'] for creation rights but not viewing access
     """
-    import fence.settings
-
-    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    cirrus_config.update(**config["CIRRUS_CFG"])
 
     google_project_id = google_project_id or cirrus_config.GOOGLE_PROJECT_ID
 
@@ -1012,9 +995,7 @@ def create_or_update_google_bucket(
 
 
 def create_google_logging_bucket(name, storage_class=None, google_project_id=None):
-    import fence.settings
-
-    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    cirrus_config.update(**config["CIRRUS_CFG"])
 
     # determine project where buckets are located if not provided, default
     # to configured project if checking creds doesn't work
@@ -1169,11 +1150,17 @@ def _create_google_bucket_access_group(
     db_session, google_bucket_name, bucket_db_id, google_project_id, privileges
 ):
     access_group = None
+    prefix = config.get("GOOGLE_GROUP_PREFIX", "")
     # use default creds for creating group and iam policies
     with GoogleCloudManager(google_project_id) as g_mgr:
         # create bucket access group
         result = g_mgr.create_group(
-            name=google_bucket_name + "_" + "_".join(privileges) + "_gbag"
+            name=prefix
+            + "_"
+            + google_bucket_name
+            + "_"
+            + "_".join(privileges)
+            + "_gbag"
         )
         group_email = result["email"]
 
@@ -1209,9 +1196,7 @@ def link_external_bucket(db, name):
     afterwards.
     """
 
-    import fence.settings
-
-    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    cirrus_config.update(**config["CIRRUS_CFG"])
 
     google_project_id = cirrus_config.GOOGLE_PROJECT_ID
 
@@ -1232,15 +1217,13 @@ def link_external_bucket(db, name):
     return access_group.email
 
 
-def verify_user_registration(DB, config):
+def verify_user_registration(DB):
     """
     Validate user registration
     """
-    import fence.settings
+    cirrus_config.update(**config["CIRRUS_CFG"])
 
-    cirrus_config.update(**fence.settings.CIRRUS_CFG)
-
-    validation_check(DB, config)
+    validation_check(DB)
 
 
 def force_update_google_link(DB, username, google_email):
@@ -1270,13 +1253,12 @@ def force_update_google_link(DB, username, google_email):
     Returns:
         Expiration time of the newly updated google account's access
     """
-    import fence.settings
-
-    cirrus_config.update(**fence.settings.CIRRUS_CFG)
+    cirrus_config.update(**config["CIRRUS_CFG"])
 
     db = SQLAlchemyDriver(DB)
     with db.session as session:
-        user_account = session.query(User).filter(User.username == username).first()
+        user_account = query_for_user(session=session, username=username)
+
         if user_account:
             user_id = user_account.id
             proxy_group_id = user_account.google_proxy_group_id
@@ -1297,7 +1279,7 @@ def force_update_google_link(DB, username, google_email):
             )
 
         now = int(time.time())
-        expiration = now + GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN
+        expiration = now + config["GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN"]
 
         force_update_user_google_account_expiration(
             user_google_account, proxy_group_id, google_email, expiration, session

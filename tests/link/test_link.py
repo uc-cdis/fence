@@ -11,7 +11,7 @@ except ImportError:
     from mock import patch
 
 from fence.resources.storage.cdis_jwt import create_session_token
-from fence.settings import SESSION_COOKIE_NAME
+from fence.config import config
 from fence.models import UserGoogleAccount
 from fence.models import UserGoogleAccountToProxyGroup
 from fence.utils import split_url_and_query_params
@@ -40,13 +40,35 @@ def test_google_link_redirect(client, app, encoded_creds_jwt):
 
 
 def test_google_link_redirect_no_google_idp(
-    client, app, remove_google_idp, encoded_creds_jwt
+    client, app, restore_config, encoded_creds_jwt
 ):
     """
     Test that even if Google is not configured as an IDP, when we hit the link
     endpoint with valid creds, we get a redirect response.
     This should be redirecting to google's oauth
     """
+    # Don't include google in the enabled idps, but leave it configured
+    # in the openid connect clients:
+    override_settings = {
+        "ENABLED_IDENTITY_PROVIDERS": {
+            # ID for which of the providers to default to.
+            "default": "fence",
+            # Information for identity providers.
+            "providers": {
+                "fence": {"name": "Fence Multi-Tenant OAuth"},
+                "shibboleth": {"name": "NIH Login"},
+            },
+        },
+        "OPENID_CONNECT": {
+            "google": {
+                "client_id": "123",
+                "client_secret": "456",
+                "redirect_url": "789",
+            }
+        },
+    }
+    config.update(override_settings)
+
     encoded_credentials_jwt = encoded_creds_jwt["jwt"]
     redirect = "http://localhost"
 
@@ -126,7 +148,7 @@ def test_google_link_auth_return(
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={
             "google_link": True,
             "user_id": user_id,
@@ -136,7 +158,7 @@ def test_google_link_auth_return(
     )
 
     # manually set cookie for initial session
-    client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
+    client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
 
     # simulate successfully authed reponse with user email
     google_auth_get_user_info_mock.return_value = {"email": google_account}
@@ -191,7 +213,7 @@ def test_patch_google_link(
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={
             "google_proxy_group_id": proxy_group_id,
             "linked_google_email": google_account,
@@ -210,7 +232,7 @@ def test_patch_google_link(
     db_session.commit()
 
     # manually set cookie for initial session
-    client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
+    client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
 
     r = client.patch(
         "/link/google", headers={"Authorization": "Bearer " + encoded_credentials_jwt}
@@ -232,7 +254,7 @@ def test_patch_google_link(
     # it gets set)
     assert account_in_proxy_group.expires != original_expiration
     assert account_in_proxy_group.expires <= (
-        int(time.time()) + app.config["GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN"]
+        int(time.time()) + config["GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN"]
     )
 
     assert not add_google_email_to_proxy_group_mock.called
@@ -263,7 +285,7 @@ def test_patch_google_link_account_not_in_token(
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={"google_proxy_group_id": proxy_group_id},
     )
 
@@ -279,7 +301,7 @@ def test_patch_google_link_account_not_in_token(
     db_session.commit()
 
     # manually set cookie for initial session
-    client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
+    client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
 
     r = client.patch(
         "/link/google", headers={"Authorization": "Bearer " + encoded_credentials_jwt}
@@ -301,7 +323,7 @@ def test_patch_google_link_account_not_in_token(
     # it gets set)
     assert account_in_proxy_group.expires != original_expiration
     assert account_in_proxy_group.expires <= (
-        int(time.time()) + app.config["GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN"]
+        int(time.time()) + config["GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN"]
     )
 
     assert not add_google_email_to_proxy_group_mock.called
@@ -324,12 +346,12 @@ def test_patch_google_link_account_doesnt_exist(
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={"google_proxy_group_id": proxy_group_id},
     )
 
     # manually set cookie for initial session
-    client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
+    client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
 
     r = client.patch(
         "/link/google", headers={"Authorization": "Bearer " + encoded_credentials_jwt}
@@ -378,7 +400,7 @@ def test_google_link_g_account_exists(
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={
             "google_link": True,
             "user_id": user_id,
@@ -392,7 +414,7 @@ def test_google_link_g_account_exists(
     db_session.commit()
 
     # manually set cookie for initial session
-    client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
+    client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
 
     # simulate successfully authed reponse with user email
     google_auth_get_user_info_mock.return_value = {"email": google_account}
@@ -444,7 +466,7 @@ def test_google_link_g_account_access_extension(
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={
             "google_link": True,
             "user_id": user_id,
@@ -465,7 +487,7 @@ def test_google_link_g_account_access_extension(
     db_session.commit()
 
     # manually set cookie for initial session
-    client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
+    client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
 
     # simulate successfully authed reponse with user email
     google_auth_get_user_info_mock.return_value = {"email": google_account}
@@ -486,7 +508,7 @@ def test_google_link_g_account_access_extension(
     # it gets set)
     assert account_in_proxy_group.expires != original_expiration
     assert account_in_proxy_group.expires <= (
-        int(time.time()) + app.config["GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN"]
+        int(time.time()) + config["GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN"]
     )
 
     assert not add_new_g_acnt_mock.called
@@ -532,7 +554,7 @@ def test_google_link_g_account_exists_linked_to_different_user(
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={
             "google_link": True,
             "user_id": user_id + 5,  # <- NOT the user whose g acnt exists
@@ -546,7 +568,7 @@ def test_google_link_g_account_exists_linked_to_different_user(
     db_session.commit()
 
     # manually set cookie for initial session
-    client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
+    client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
 
     # simulate successfully authed reponse with user email
     google_auth_get_user_info_mock.return_value = {"email": google_account}
@@ -594,7 +616,7 @@ def test_google_link_no_proxy_group(
 
     test_session_jwt = create_session_token(
         app.keypairs[0],
-        app.config.get("SESSION_TIMEOUT"),
+        config.get("SESSION_TIMEOUT"),
         context={
             "google_link": True,
             "user_id": user_id,
@@ -608,7 +630,7 @@ def test_google_link_no_proxy_group(
     db_session.commit()
 
     # manually set cookie for initial session
-    client.set_cookie("localhost", SESSION_COOKIE_NAME, test_session_jwt)
+    client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
 
     # simulate successfully authed reponse with user email
     google_auth_get_user_info_mock.return_value = {"email": google_account}
@@ -634,3 +656,99 @@ def test_google_link_no_proxy_group(
     assert not flask.session.get("google_proxy_group_id")
 
     assert not add_google_email_to_proxy_group_mock.called
+
+
+def test_google_link_redirect_when_google_mocked(
+    client, app, encoded_creds_jwt, monkeypatch
+):
+    """
+    Test that when we hit the link endpoint and we're mocking Google login, we
+    get redirected to the /link callback.
+    """
+    monkeypatch.setitem(config, "MOCK_GOOGLE_AUTH", True)
+    redirect = "http://localhost"
+
+    r = client.get(
+        "/link/google",
+        query_string={"redirect": redirect},
+        headers={"Authorization": "Bearer " + encoded_creds_jwt.jwt},
+    )
+
+    assert r.status_code == 302
+    url, query_params = split_url_and_query_params(r.location)
+    assert "/link/google/callback" in url
+    assert "code" in query_params
+
+
+def test_google_link_when_google_mocked(
+    app,
+    client,
+    db_session,
+    encoded_creds_jwt,
+    google_auth_get_user_info_mock,
+    add_google_email_to_proxy_group_mock,
+    monkeypatch,
+):
+    """
+    """
+    monkeypatch.setitem(config, "MOCK_GOOGLE_AUTH", True)
+
+    user_id = encoded_creds_jwt["user_id"]
+    proxy_group_id = encoded_creds_jwt["proxy_group_id"]
+
+    redirect = "http://localhost"
+    google_account = encoded_creds_jwt["username"]
+
+    test_session_jwt = create_session_token(
+        app.keypairs[0],
+        config.get("SESSION_TIMEOUT"),
+        context={
+            "google_link": True,
+            "user_id": user_id,
+            "google_proxy_group_id": proxy_group_id,
+            "redirect": redirect,
+        },
+    )
+
+    # manually set cookie for initial session
+    client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
+
+    headers = {"Authorization": "Bearer " + encoded_creds_jwt.jwt}
+
+    r_link = client.get(
+        "/link/google/", headers=headers, query_string={"redirect": redirect}
+    )
+
+    redirect_location = str(r_link.location).replace(config["BASE_URL"], "")
+    # Pass through the Authorization header in the response...
+    # In our actual commons, the reverse proxy handles dumping this into the request
+    # again. this is ONLY used when MOCK_GOOGLE_AUTH is true (e.g. we're trying to
+    # fake a Google login)
+    auth_header = r_link.headers.get("Authorization")
+    r = client.get(redirect_location, headers={"Authorization": auth_header})
+
+    assert r.status_code == 302
+    parsed_url = urlparse(r.headers["Location"])
+    query_params = parse_qs(parsed_url.query)
+    response_redirect = urlunparse(
+        (parsed_url.scheme, parsed_url.netloc, parsed_url.path, "", "", "")
+    )
+    assert "exp" in query_params
+    assert query_params["linked_email"][0] == google_account
+    assert response_redirect == redirect
+
+    user_google_account = (
+        db_session.query(UserGoogleAccount)
+        .filter(
+            UserGoogleAccount.email == google_account,
+            UserGoogleAccount.user_id == user_id,
+        )
+        .first()
+    )
+    assert user_google_account
+
+    assert not flask.session.get("google_link")
+    assert not flask.session.get("user_id")
+    assert not flask.session.get("google_proxy_group_id")
+
+    assert add_google_email_to_proxy_group_mock.called

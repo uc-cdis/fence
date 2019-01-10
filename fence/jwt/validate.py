@@ -4,8 +4,11 @@ import authutils.token.validate
 import flask
 import jwt
 
+from fence.config import config
+from fence.errors import Unauthorized
 from fence.jwt.blacklist import is_blacklisted
 from fence.jwt.errors import JWTError, JWTPurposeError
+from fence.jwt.utils import get_jwt_header
 
 
 def validate_purpose(claims, pur):
@@ -67,18 +70,20 @@ def validate_jwt(
             if auth header is missing, decoding fails, or the JWT fails to
             satisfy any expectation
     """
+
     if encoded_token is None:
         try:
-            encoded_token = flask.request.headers["Authorization"].split(" ")[1]
-        except IndexError:
-            raise JWTError("could not parse authorization header")
-        except KeyError:
-            raise JWTError("no authorization header provided")
+            encoded_token = get_jwt_header()
+        except Unauthorized as e:
+            raise JWTError(e.message)
+
     aud = aud or {"openid"}
     aud = set(aud)
-    iss = flask.current_app.config["BASE_URL"]
+    iss = config["BASE_URL"]
     issuers = [iss]
-    oidc_iss = flask.current_app.config.get("OIDC_ISSUER")
+    oidc_iss = (
+        config.get("OPENID_CONNECT", {}).get("fence", {}).get("api_base_url", None)
+    )
     if oidc_iss:
         issuers.append(oidc_iss)
     try:

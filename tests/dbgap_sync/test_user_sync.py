@@ -35,35 +35,31 @@ def test_sync(syncer, db_session, storage_client):
     proj = db_session.query(models.Project).all()
     assert len(proj) == 9
 
-    user = db_session.query(models.User).filter_by(username="USERC").one()
+    user = models.query_for_user(session=db_session, username="USERC")
     assert user.project_access == {
         "phs000178": ["read-storage"],
         "TCGA-PCAWG": ["read-storage"],
         "phs000179.c1": ["read-storage"],
     }
 
-    user = db_session.query(models.User).filter_by(username="USERF").one()
+    user = models.query_for_user(session=db_session, username="USERF")
     assert user.project_access == {
         "phs000178.c1": ["read-storage"],
         "phs000178.c2": ["read-storage"],
     }
 
-    user = db_session.query(models.User).filter_by(username="TESTUSERB").one()
+    user = models.query_for_user(session=db_session, username="TESTUSERB")
     assert user.project_access == {
         "phs000179.c1": ["read-storage"],
         "phs000178.c1": ["read-storage"],
     }
 
-    user = db_session.query(models.User).filter_by(username="TESTUSERD").one()
+    user = models.query_for_user(session=db_session, username="TESTUSERD")
     assert user.display_name == "USER D"
     assert user.phone_number == "123-456-789"
 
-    user = (
-        db_session.query(models.User).filter_by(username="test_user1@gmail.com").one()
-    )
-
+    user = models.query_for_user(session=db_session, username="test_user1@gmail.com")
     user_access = db_session.query(models.AccessPrivilege).filter_by(user=user).all()
-
     assert set(user_access[0].privilege) == {
         "create",
         "read",
@@ -72,14 +68,21 @@ def test_sync(syncer, db_session, storage_client):
         "upload",
     }
     assert len(user_access) == 1
+    user_policy_ids = {policy.id for policy in user.policies}
+    expect_policies = {
+        "test-policy-1",
+        "test-policy-3",
+        "programs.test.projects.test-read",
+        "programs.test.projects.test-create",
+        "programs.test.projects.test-upload",
+        "programs.test.projects.test-update",
+        "programs.test.projects.test-delete",
+    }
+    assert user_policy_ids == expect_policies
 
-    user = (
-        db_session.query(models.User).filter_by(username="deleted_user@gmail.com").one()
-    )
+    user = models.query_for_user(session=db_session, username="deleted_user@gmail.com")
     assert not user.is_admin
-
     user_access = db_session.query(models.AccessPrivilege).filter_by(user=user).all()
-
     assert not user_access
 
 
@@ -98,9 +101,9 @@ def test_sync_from_files(syncer, db_session, storage_client):
         "userB": {"email": "a@b", "tags": {}},
     }
 
-    syncer.sync_to_db_and_storage_backend(phsids, userinfo, sess)
+    syncer.sync_to_db_and_storage_backend(phsids, userinfo, {}, sess)
 
-    u = sess.query(models.User).filter_by(username="userB").one()
+    u = models.query_for_user(session=db_session, username="userB")
     u.project_access["phs000179"].sort()
     assert u.project_access == {"phs000179": ["read-storage", "write-storage"]}
 
@@ -121,10 +124,10 @@ def test_sync_revoke(syncer, db_session, storage_client):
 
     phsids2 = {"userA": {"phs000179": {"read-storage", "write-storage"}}}
 
-    syncer.sync_to_db_and_storage_backend(phsids, userinfo, db_session)
-    syncer.sync_to_db_and_storage_backend(phsids2, userinfo, db_session)
+    syncer.sync_to_db_and_storage_backend(phsids, userinfo, {}, db_session)
+    syncer.sync_to_db_and_storage_backend(phsids2, userinfo, {}, db_session)
 
-    user_B = db_session.query(models.User).filter_by(username="userB").first()
+    user_B = models.query_for_user(session=db_session, username="userB")
 
     n_access_privilege = (
         db_session.query(models.AccessPrivilege).filter_by(user_id=user_B.id).count()
@@ -324,18 +327,14 @@ def test_update_arborist(syncer, db_session):
     # For every user in the user data, check that the matching policies were
     # created, and also granted to this user, i.e. the entry in the database
     # for this user has policies for everything in the original user data.
-    for user, data in user_data["users"].items():
+    for username, data in user_data["users"].items():
         if "projects" not in data:
             continue
         for project in data["projects"]:
             for privilege in project["privilege"]:
                 policy_id = _format_policy_id(project["resource"], privilege)
                 assert policy_id in policy_ids
-                user_policies = (
-                    db_session.query(models.User)
-                    .filter_by(username=user)
-                    .first()
-                    .policies
-                )
+                user = models.query_for_user(session=db_session, username=username)
+                user_policies = user.policies
                 user_policy_ids = [policy.id for policy in user_policies]
                 assert policy_id in user_policy_ids

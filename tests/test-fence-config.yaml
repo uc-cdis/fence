@@ -1,0 +1,408 @@
+---
+############################### Fence Configuration ####################################
+# This file contains various configurations for the fence microservice.
+#
+# README:
+# - This is initially configured for minimal local development with reasonable defaults.
+# - Descriptions for each of the configurations (if any) will be *above* the variable as
+#   comments.
+# - Some configuration variables will have examples commented out below them.
+# - This is broken up into 2 main sections for REQUIRED and OPTIONAL configurations.
+#     - Optional configs will note what features or endpoints they support
+# - Underneath each main section the variables are logically grouped under named
+#   sections.
+#
+# NOTE: Login is NOT ready out of the box. Fill out REQUIRED configurations first
+
+########################################################################################
+#                               REQUIRED CONFIGURATIONS                                #
+########################################################################################
+
+# //////////////////////////////////////////////////////////////////////////////////////
+# GENERAL
+#   - Fill out all variables!
+# //////////////////////////////////////////////////////////////////////////////////////
+APP_NAME: 'Gen3 Data Commons'
+# Where fence microservice is deployed
+BASE_URL: 'http://localhost/user'
+# postgres db to connect to
+# connection url format:
+#     postgresql://[user[:password]@][netloc][:port][/dbname]
+DB: 'postgresql://postgres:postgres@localhost:5432/fence_test_tmp'
+
+# A URL-safe base64-encoded 32-byte key for encrypting keys in db
+# in python you can use the following script to generate one:
+#     import base64
+#     import os
+#     key = base64.urlsafe_b64encode(os.urandom(32))
+#     print(key)
+ENCRYPTION_KEY: ''
+
+# //////////////////////////////////////////////////////////////////////////////////////
+# DEBUG & SECURITY SETTINGS
+#   - Modify based on whether you're in a dev environment or in production
+# //////////////////////////////////////////////////////////////////////////////////////
+# flask's debug setting
+# WARNING: DO NOT ENABLE IN PRODUCTION
+DEBUG: true
+# if true, will automatically login a user with username "test"
+MOCK_AUTH: true
+# if true, will only fake a successful login response from Google in /login/google
+MOCK_GOOGLE_AUTH: false
+# if true, will ignore anything configured in STORAGE_CREDENTIALS
+MOCK_STORAGE: false
+# allow OIDC traffic on http for development. By default it requires https.
+#
+# WARNING: ONLY set to true when fence will be deployed in such a way that it will
+#          ONLY receive traffic from internal clients and can safely use HTTP.
+AUTHLIB_INSECURE_TRANSPORT: true
+
+# set if you want browsers to only send cookies with requests over HTTPS
+SESSION_COOKIE_SECURE: true
+
+ENABLE_CSRF_PROTECTION: false
+
+# //////////////////////////////////////////////////////////////////////////////////////
+# OPEN ID CONNECT (OIDC) CLIENTS
+#   - Fully configure at least one client so login works
+# //////////////////////////////////////////////////////////////////////////////////////
+OPENID_CONNECT:
+  # These Google values must be obtained from Google's Cloud Console
+  # Follow: https://developers.google.com/identity/protocols/OpenIDConnect
+  #
+  # You'll need to obtain a Client ID and Client Secret. Set the redirect URIs
+  # in Google to be '{{BASE_URL}}/login/google/login', but expand BASE_URL to
+  # whatever you set it to above.
+  google:
+    client_id: ''
+    client_secret: ''
+    # this is be the allowed redirect back to fence, should not need to change
+    redirect_url: '{{BASE_URL}}/login/google/login'
+
+# //////////////////////////////////////////////////////////////////////////////////////
+# LOGIN
+#   - Modify based on which OIDC client(s) you configured above
+#   - NOTE: You can have multiple IDPs for users to login with, but one has to be set
+#           as the default
+# //////////////////////////////////////////////////////////////////////////////////////
+# Login url for identity provider (IDP):
+#   Google? Use: '{{BASE_URL}}/login/google'
+#   Multi-tenant fence (e.g. another fence instance)? Use: '{{BASE_URL}}/login/fence'
+#   Sibboleth? Use: '{{BASE_URL}}/login/shib'
+DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
+
+# Which Identity Provider fence will/can use
+#
+# See ``fence/blueprints/login/__init__.py`` for which identity providers can
+# be loaded.
+#
+ENABLED_IDENTITY_PROVIDERS:
+  # ID for which of the providers to default to
+  default: 'google'
+  # Information for identity providers
+  providers:
+    google:
+      name: 'Google Login'
+    fence:
+      name: 'Fence Multi-Tenant Login'
+# The following can be used for shibboleth login, simply uncomment.
+#
+# NOTE: Don't enable shibboleth if the deployment is not protected by
+# shibboleth module, the shib module takes care of preventing header
+# spoofing.
+#
+    shibboleth:
+      name: 'NIH Login'
+
+# //////////////////////////////////////////////////////////////////////////////////////
+# LIBRARY CONFIGURATION (authlib & flask)
+#   - Already contains reasonable defaults
+# //////////////////////////////////////////////////////////////////////////////////////
+# authlib-specific configs for OIDC flow and JWTs
+# NOTE: the OAUTH2_JWT_KEY cfg gets set automatically by fence if keys are setup
+#       correctly
+OAUTH2_JWT_ALG: 'RS256'
+OAUTH2_JWT_ENABLED: true
+OAUTH2_JWT_ISS: '{{BASE_URL}}'
+OAUTH2_PROVIDER_ERROR_URI: '/api/oauth2/errors'
+
+# used for flask, "path mounted under by the application / web server"
+# since we deploy as microservices, fence is typically under {{base}}/user
+# this is also why our BASE_URL default ends in /user
+APPLICATION_ROOT: '/user'
+
+
+# //////////////////////////////////////////////////////////////////////////////////////
+# Tokens, Lifetimes, & Expirations
+#   - Already contains reasonable defaults
+# //////////////////////////////////////////////////////////////////////////////////////
+# The name of the browser cookie in which the access token will be stored.
+ACCESS_TOKEN_COOKIE_NAME: "access_token"
+
+# The name of the browser cookie in which the session token will be stored.
+# Note that the session token also stores information for the
+# ``flask.session`` in the ``context`` field of the token.
+SESSION_COOKIE_NAME: "fence"
+
+OAUTH2_TOKEN_EXPIRES_IN:
+  "authorization_code": 1200
+  "implicit": 1200
+
+# The number of seconds after an access token is issued until it expires.
+ACCESS_TOKEN_EXPIRES_IN: 1200
+
+# The number of seconds after a refresh token is issued until it expires.
+REFRESH_TOKEN_EXPIRES_IN: 2592000
+
+# The number of seconds after which a browser session is considered stale.
+SESSION_TIMEOUT: 1800
+
+# The maximum session lifetime in seconds.
+SESSION_LIFETIME: 28800
+
+# The number of seconds the user's Google service account key used for
+# url signing will last before being expired/rotated
+# 30 days: 2592000 seconds
+GOOGLE_SERVICE_ACCOUNT_KEY_FOR_URL_SIGNING_EXPIRES_IN: 2592000
+
+# The number of seconds after a User's Google Service account is added to bucket
+# access until it expires.
+# 7 days: 604800 seconds
+GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN: 604800
+
+# The number of seconds after a User's Google account is added to bucket
+# access until it expires.
+GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN: 86400
+
+# The number of seconds after a pre-signed url is issued until it expires.
+MAX_PRESIGNED_URL_TTL: 3600
+
+# The number of seconds after an API KEY is issued until it expires.
+MAX_API_KEY_TTL: 2592000
+
+# The number of seconds after an access token is issued until it expires.
+MAX_ACCESS_TOKEN_TTL: 3600
+
+
+########################################################################################
+#                               OPTIONAL CONFIGURATIONS                                #
+########################################################################################
+
+# //////////////////////////////////////////////////////////////////////////////////////
+# SUPPORT INFO
+# //////////////////////////////////////////////////////////////////////////////////////
+# If you want an email address to show up when an unhandled error occurs, provide one
+# here. Something like: support@example.com
+SUPPORT_EMAIL_FOR_ERRORS: null
+
+# //////////////////////////////////////////////////////////////////////////////////////
+# SHIBBOLETH
+#   - Support using `shibboleth` in ENABLED_IDENTITY_PROVIDERS
+#   - Contains defaults for using NIH's Login.
+# //////////////////////////////////////////////////////////////////////////////////////
+# assumes shibboleth is deployed under {{BASE_URL}}/shibboleth
+SHIBBOLETH_HEADER: 'persistent_id'
+SSO_URL: 'https://auth.nih.gov/affwebservices/public/saml2sso?SPID={{BASE_URL}}/shibboleth&RelayState='
+ITRUST_GLOBAL_LOGOUT: 'https://auth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl='
+
+# //////////////////////////////////////////////////////////////////////////////////////
+# dbGaP USER SYNCING SUPPORT
+#   - Support syncing authorization information from dbGaP
+# //////////////////////////////////////////////////////////////////////////////////////
+# "dbGaP project serves as an access gateway for researchers seeking to gain
+#  access to genotype and phenotype data"
+#
+# User syncing and access can also be done throught a User Access file. See
+# fence's README for more information
+dbGaP:
+  info:
+    host: ''
+    username: ''
+    password: ''
+    port: 22
+    proxy: ''
+    proxy_user: ''
+  protocol: 'sftp'
+  decrypt_key: ''
+  parse_consent_code: true
+
+# //////////////////////////////////////////////////////////////////////////////////////
+# STORAGE BACKENDS AND CREDENTIALS
+#   - Optional: Used for `/admin` & `/credentials` endpoints for user management.
+#               Also used during User Syncing process to automate managing Storage
+#               access for users.
+# //////////////////////////////////////////////////////////////////////////////////////
+# Configuration for various storage systems for the backend
+# NOTE: Remove the [] and supply backends if needed. Example in comments below
+STORAGE_CREDENTIALS:
+# Google Cloud Storage backend
+#
+  'google':
+    backend: 'google'
+    google_project_id: 'some-project-id-239870as9f23flkja8010'
+
+# Cleversafe data storage backend
+#
+  'test-cleversafe':
+    backend: 'cleversafe'
+
+# //////////////////////////////////////////////////////////////////////////////////////
+# AWS BUCKETS AND CREDENTIALS
+#   - Support `/data` endpoints
+# //////////////////////////////////////////////////////////////////////////////////////
+AWS_CREDENTIALS:
+  'CRED1':
+    aws_access_key_id: ''
+    aws_secret_access_key: ''
+  'CRED2':
+    aws_access_key_id: ''
+    aws_secret_access_key: ''
+
+S3_BUCKETS:
+  bucket1:
+    cred: 'CRED1'
+  bucket2:
+    cred: 'CRED2'
+  bucket3:
+    cred: 'CRED1'
+  bucket4:
+    cred: '*'
+  bucket5:
+    cred: 'CRED2'
+    role-arn: 'arn:aws:iam::707767160287:role/bucket_reader_writer_to_cdistest-presigned-url_role'
+
+# //////////////////////////////////////////////////////////////////////////////////////
+# PROXY
+#   - Optional: If the api is behind firewall that needs to set http proxy
+# //////////////////////////////////////////////////////////////////////////////////////
+# NOTE: leave as-is to not use proxy
+# this is only used by the Google Oauth2Client at the moment if provided
+HTTP_PROXY:
+  host: null
+  port: 3128
+
+# //////////////////////////////////////////////////////////////////////////////////////
+# MICROSERVICE PATHS
+#   - Support `/data` endpoints (INDEXD) & `/rbac` endpoints (ARBORIST)
+# //////////////////////////////////////////////////////////////////////////////////////
+# url where indexd microservice is running (for signed urls primarily)
+# NOTE: Leaving as null will force fence to default to {{BASE_URL}}/index
+# example value: 'https://example.com/index'
+INDEXD: null
+
+# this is the username which fence uses to make authenticated requests to indexd
+INDEXD_USERNAME: 'gdcapi'
+# this is the password which fence uses to make authenticated requests to indexd
+INDEXD_PASSWORD: 'fake_password'
+
+# url where role-based access control microservice is running
+ARBORIST: '/arborist'
+
+# //////////////////////////////////////////////////////////////////////////////////////
+# CLOUD API LIBRARY (CIRRUS) CONFIGURATION
+#   - Support Google Data Access Methods
+# //////////////////////////////////////////////////////////////////////////////////////
+# Setting this up allows fence to create buckets, manage Google groups, etc.
+# See directions here for setting up cirrus: https://github.com/uc-cdis/cirrus
+CIRRUS_CFG:
+  GOOGLE_API_KEY: ''
+  GOOGLE_PROJECT_ID: ''
+  GOOGLE_APPLICATION_CREDENTIALS: ''
+  GOOGLE_STORAGE_CREDS: ''
+  GOOGLE_ADMIN_EMAIL: ''
+  GOOGLE_IDENTITY_DOMAIN: ''
+  GOOGLE_CLOUD_IDENTITY_ADMIN_EMAIL: ''
+
+# Prefix to namespace Google Groups on a single Cloud Identity (see cirrus
+# setup for more info on Cloud Identity)
+#
+# NOTE: Make this short! Less than 8 characters if possible. Google has
+# length restrictions on group names.
+GOOGLE_GROUP_PREFIX: 'test'
+
+# //////////////////////////////////////////////////////////////////////////////////////
+# EMAIL
+#   - Support for sending emails from fence. Used for user certificates
+#     and `/google/service_accounts` endpoints
+# //////////////////////////////////////////////////////////////////////////////////////
+# Gun Mail Service (for sending emails from fence)
+#
+# NOTE: Example in comments below
+GUN_MAIL:
+  'datacommons.io':
+    smtp_hostname: 'smtp.mailgun.org'
+    api_key: ''
+    default_login: 'postmaster@mailgun.example.com'
+    api_url: 'https://api.mailgun.net/v3/mailgun.example.com'
+    smtp_password: ''
+
+# For emails regarding users certificates
+EMAIL_SERVER: 'localhost'
+SEND_FROM: 'example@gmail.com'
+SEND_TO: 'example@gmail.com'
+
+# //////////////////////////////////////////////////////////////////////////////////////
+# DATA ACCESS: GOOGLE LINKING & SERVICE ACCOUNT REGISTRATION
+#   - Support `/google/service_accounts` endpoints
+# //////////////////////////////////////////////////////////////////////////////////////
+# A Google Project with controlled data access will be determined INVALID if
+# if it has a parent organization UNLESS that parent organization's ID is in this
+# whitelist.
+#
+# NOTE: Remove the [] and Google Organization IDs if needed. Example in comments below
+WHITE_LISTED_GOOGLE_PARENT_ORGS: []
+#  - '12345678910'
+
+# A Google Project with Google Service Accounts determined INVALID will result in the
+# the entire project being invalid UNLESS that service accounts's email is in this
+# whitelist.
+#
+# NOTE: Remove the [] and service account emails if needed. Example in comments below
+WHITE_LISTED_SERVICE_ACCOUNT_EMAILS:
+  - 'test@0'
+  - 'test@123'
+  - 'test@456'
+
+# when service accounts or google projects are determined invalid, an email is sent
+# to the project owners. These settings are for that email
+REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION:
+  # this domain MUST exist in GUN_MAIL config
+  domain: 'example.com'
+  from: 'do-not-reply@example.com'
+  subject: 'User service account removal notification'
+  # the {} gets replaced dynamically in the Python code to be the Project ID
+  content: >
+    Service accounts were removed from access control data because some users or
+    service accounts of GCP Project {} are not authorized to access the data sets
+    associated to the service accounts, or do not adhere to the security policies.
+  # this admin email will be included as a recipient to *any* email to anyone about
+  # service account removal.
+  #
+  # WARNING: This is NOT a bcc so the email is visible to the end-user
+  admin:
+    - 'admin@example.edu'
+
+# Service account email domains that represent a service account that Google owns.
+# These are usually created when a sepcific GCP service is enabled.
+# This is used for Service Account Validation for Data Access.
+GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS:
+  - 'dataflow-service-producer-prod.iam.gserviceaccount.com'
+  - 'cloudbuild.gserviceaccount.com'
+  - 'cloud-ml.google.com.iam.gserviceaccount.com'
+  - 'container-engine-robot.iam.gserviceaccount.com'
+  - 'dataflow-service-producer-prod.iam.gserviceaccount.com'
+  - 'sourcerepo-service-accounts.iam.gserviceaccount.com'
+  - 'dataproc-accounts.iam.gserviceaccount.com'
+  - 'gae-api-prod.google.com.iam.gserviceaccount.com'
+  - 'genomics-api.google.com.iam.gserviceaccount.com'
+  - 'containerregistry.iam.gserviceaccount.com'
+  - 'container-analysis.iam.gserviceaccount.com'
+  - 'cloudservices.gserviceaccount.com'
+  - 'stackdriver-service.iam.gserviceaccount.com'
+  - 'appspot.gserviceaccount.com'
+  - 'partnercontent.gserviceaccount.com'
+  - 'trifacta-gcloud-prod.iam.gserviceaccount.com'
+  - 'gcf-admin-robot.iam.gserviceaccount.com'
+  - 'compute-system.iam.gserviceaccount.com'
+  - 'gcp-sa-websecurityscanner.iam.gserviceaccount.com'
+  - 'storage-transfer-service.iam.gserviceaccount.com'

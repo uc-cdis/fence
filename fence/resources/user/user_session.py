@@ -45,6 +45,7 @@ from fence.jwt.validate import JWTError
 from fence.resources.storage.cdis_jwt import create_session_token
 from fence.user import get_current_user
 from fence.resources.google.utils import get_linked_google_account_email
+from fence.config import config
 
 
 class UserSession(SessionMixin):
@@ -71,7 +72,7 @@ class UserSession(SessionMixin):
         session_token = generate_signed_session_token(
             kid=keypair.kid,
             private_key=keypair.private_key,
-            expires_in=current_app.config.get("SESSION_TIMEOUT"),
+            expires_in=config.get("SESSION_TIMEOUT"),
         ).token
         self._encoded_token = session_token
         initial_token = validate_jwt(
@@ -94,7 +95,7 @@ class UserSession(SessionMixin):
             # to keep track of the overall lifetime of the session
             token = create_session_token(
                 current_app.keypairs[0],
-                app.config.get("SESSION_TIMEOUT"),
+                config.get("SESSION_TIMEOUT"),
                 self.session_token["context"],
             )
             self._encoded_token = token
@@ -121,9 +122,9 @@ class UserSession(SessionMixin):
         if self._encoded_token:
             now = int(time.time())
             is_expired = self.session_token["exp"] <= now
-            end_of_life = self.session_token["context"][
-                "session_started"
-            ] + app.config.get("SESSION_LIFETIME")
+            end_of_life = self.session_token["context"]["session_started"] + config.get(
+                "SESSION_LIFETIME"
+            )
             lifetime_over = end_of_life <= now
             if is_expired or lifetime_over:
                 self.clear()
@@ -204,7 +205,7 @@ class UserSessionInterface(SessionInterface):
             # okay if user is hitting with just an access_token
             if user_sess_id != "" and not user:
                 response.set_cookie(
-                    app.config["ACCESS_TOKEN_COOKIE_NAME"],
+                    config["ACCESS_TOKEN_COOKIE_NAME"],
                     expires=0,
                     httponly=True,
                     domain=domain,
@@ -213,7 +214,7 @@ class UserSessionInterface(SessionInterface):
             # clear access token if not
             elif user_sess_id != "" and user.id != user_sess_id:
                 response.set_cookie(
-                    app.config["ACCESS_TOKEN_COOKIE_NAME"],
+                    config["ACCESS_TOKEN_COOKIE_NAME"],
                     expires=0,
                     httponly=True,
                     domain=domain,
@@ -238,7 +239,7 @@ class UserSessionInterface(SessionInterface):
                 app.session_cookie_name, expires=0, httponly=True, domain=domain
             )
             response.set_cookie(
-                app.config["ACCESS_TOKEN_COOKIE_NAME"],
+                config["ACCESS_TOKEN_COOKIE_NAME"],
                 expires=0,
                 httponly=True,
                 domain=domain,
@@ -250,7 +251,7 @@ def _get_valid_access_token(app, session, request):
     Return a valid access token. If at any point access token is determined
     invalid, this will return None.
     """
-    access_token = request.cookies.get(app.config["ACCESS_TOKEN_COOKIE_NAME"], None)
+    access_token = request.cookies.get(config["ACCESS_TOKEN_COOKIE_NAME"], None)
 
     if not access_token:
         return None
@@ -284,7 +285,7 @@ def _get_valid_access_token(app, session, request):
 def _clear_session_if_expired(app, session):
     now = int(time.time())
     is_expired = session.session_token["exp"] <= now
-    lifetime = app.config.get("SESSION_LIFETIME")
+    lifetime = config.get("SESSION_LIFETIME")
     end_of_life = session["session_started"] + lifetime
     lifetime_over = end_of_life <= now
     if is_expired or lifetime_over:
@@ -296,7 +297,7 @@ def _create_access_token_cookie(app, session, response, user):
     scopes = SESSION_ALLOWED_SCOPES
 
     now = int(time.time())
-    expiration = now + app.config.get("ACCESS_TOKEN_EXPIRES_IN")
+    expiration = now + config.get("ACCESS_TOKEN_EXPIRES_IN")
 
     # try to get from current session, if it's not there, we have to hit db
     linked_google_email = session.get("linked_google_email")
@@ -307,7 +308,7 @@ def _create_access_token_cookie(app, session, response, user):
         keypair.kid,
         keypair.private_key,
         user,
-        app.config.get("ACCESS_TOKEN_EXPIRES_IN"),
+        config.get("ACCESS_TOKEN_EXPIRES_IN"),
         scopes,
         forced_exp_time=expiration,
         linked_google_email=linked_google_email,
@@ -315,7 +316,7 @@ def _create_access_token_cookie(app, session, response, user):
 
     domain = app.session_interface.get_cookie_domain(app)
     response.set_cookie(
-        app.config["ACCESS_TOKEN_COOKIE_NAME"],
+        config["ACCESS_TOKEN_COOKIE_NAME"],
         access_token,
         expires=expiration,
         httponly=True,

@@ -12,6 +12,7 @@ import pytest
 import cirrus
 from cirrus.google_cloud.errors import GoogleAuthError
 
+from fence.config import config
 from fence.jwt.validate import validate_jwt
 from fence.models import (
     AccessPrivilege,
@@ -66,7 +67,7 @@ def test_client_delete(app, db_session, cloud_manager, test_user_a):
         cloud_manager.return_value.__enter__.return_value.delete_service_account.return_value
     ) = {}
 
-    delete_client_action(app.config["DB"], client_name)
+    delete_client_action(config["DB"], client_name)
 
     client_after = db_session.query(Client).filter_by(name=client_name).all()
     client_service_account_after = (
@@ -101,7 +102,7 @@ def test_client_delete_error(app, db_session, cloud_manager, test_user_a):
         cloud_manager.return_value.__enter__.return_value.delete_service_account.return_value
     ) = {"error": "something bad happened"}
 
-    delete_client_action(app.config["DB"], client_name)
+    delete_client_action(config["DB"], client_name)
 
     client_after = db_session.query(Client).filter_by(name=client_name).all()
     client_service_account_after = (
@@ -122,7 +123,7 @@ def test_delete_users(app, db_session, example_usernames):
         db_session.commit()
     # Delete all but the first user; check that the first one is still there
     # and the rest are gone.
-    delete_users(app.config["DB"], example_usernames[1:])
+    delete_users(config["DB"], example_usernames[1:])
     # Get the list of usernames for users that still exist.
     # (The `list(zip(...))` trick is to turn a list of 1-tuples into a
     # flattened list.)
@@ -140,7 +141,7 @@ def test_delete_user_with_access_privilege(app, db_session):
     db_session.add(project)
     db_session.add(access_privilege)
     db_session.commit()
-    delete_users(app.config["DB"], [user.username])
+    delete_users(config["DB"], [user.username])
     remaining_usernames = db_session.query(User.username).all()
     assert db_session.query(User).count() == 0, remaining_usernames
 
@@ -151,8 +152,8 @@ def test_create_user_access_token_with_no_found_user(
     user = User(username="test_user")
     db_session.add(user)
     jwt_creator = JWTCreator(
-        app.config["DB"],
-        app.config["BASE_URL"],
+        config["DB"],
+        config["BASE_URL"],
         kid=kid,
         username="other user",
         scopes="fence",
@@ -169,8 +170,8 @@ def test_create_user_refresh_token_with_no_found_user(
     user = User(username="test_user")
     db_session.add(user)
     jwt_creator = JWTCreator(
-        app.config["DB"],
-        app.config["BASE_URL"],
+        config["DB"],
+        config["BASE_URL"],
         kid=kid,
         username="other user",
         scopes="fence",
@@ -181,15 +182,15 @@ def test_create_user_refresh_token_with_no_found_user(
         jwt_creator.create_refresh_token()
 
 
-def test_create_user_access_token_with_found_user(
+def test_create_user_access_token_bad_header(
     app, db_session, client, kid, rsa_private_key, oauth_client
 ):
     user = User(username="test_user")
     db_session.add(user)
 
     jwt_result = JWTCreator(
-        app.config["DB"],
-        app.config["BASE_URL"],
+        config["DB"],
+        config["BASE_URL"],
         kid=kid,
         username="test_user",
         scopes=["openid", "user"],
@@ -197,17 +198,35 @@ def test_create_user_access_token_with_found_user(
         private_key=rsa_private_key,
     ).create_access_token()
     r = client.get("/user", headers={"Authorization": "bear " + jwt_result.token})
+    assert r.status_code == 401
+
+
+def test_create_user_access_token(
+    app, db_session, client, kid, rsa_private_key, oauth_client
+):
+    user = User(username="test_user")
+    db_session.add(user)
+
+    jwt_result = JWTCreator(
+        config["DB"],
+        config["BASE_URL"],
+        kid=kid,
+        username="test_user",
+        scopes=["openid", "user"],
+        expires_in=3600,
+        private_key=rsa_private_key,
+    ).create_access_token()
+    r = client.get("/user", headers={"Authorization": "Bearer " + jwt_result.token})
     assert r.status_code == 200
-    assert jwt_result.claims
 
 
 def test_create_refresh_token_with_found_user(
     app, db_session, oauth_test_client, kid, rsa_private_key
 ):
 
-    DB = app.config["DB"]
+    DB = config["DB"]
     username = "test_user"
-    BASE_URL = app.config["BASE_URL"]
+    BASE_URL = config["BASE_URL"]
     scopes = "openid,user"
     expires_in = 3600
 
@@ -337,7 +356,7 @@ def test_delete_expired_service_accounts_with_one_fail_first(
     assert len(records) == 2
 
     # call function to delete expired service account
-    delete_expired_service_accounts(app.config["DB"])
+    delete_expired_service_accounts(config["DB"])
     # check database again. Expect no service account is deleted
     records = db_session.query(ServiceAccountToGoogleBucketAccessGroup).all()
     assert len(records) == 2
@@ -386,7 +405,7 @@ def test_delete_expired_service_accounts_with_one_fail_second(
     assert len(records) == 2
 
     # call function to delete expired service account
-    delete_expired_service_accounts(app.config["DB"])
+    delete_expired_service_accounts(config["DB"])
     # check database to make sure only the first one is deleted, the second one
     # still exists because of the raised exception
     records = db_session.query(ServiceAccountToGoogleBucketAccessGroup).all()
@@ -401,7 +420,9 @@ def test_delete_expired_service_accounts(cloud_manager, app, db_session):
     import fence
 
     fence.settings = MagicMock()
-    cloud_manager.return_value.__enter__.return_value.remove_member_from_group.return_value = {}
+    cloud_manager.return_value.__enter__.return_value.remove_member_from_group.return_value = (
+        {}
+    )
     _setup_service_account_to_google_bucket_access_group(db_session)
     service_accounts = db_session.query(UserServiceAccount).all()
     google_bucket_access_grps = db_session.query(GoogleBucketAccessGroup).all()
@@ -435,7 +456,7 @@ def test_delete_expired_service_accounts(cloud_manager, app, db_session):
     assert len(records) == 3
 
     # call function to delete expired service account
-    delete_expired_service_accounts(app.config["DB"])
+    delete_expired_service_accounts(config["DB"])
     # check database. Expect 2 deleted
     records = db_session.query(ServiceAccountToGoogleBucketAccessGroup).all()
     assert len(records) == 1
@@ -468,7 +489,7 @@ def test_delete_not_expired_service_account(app, db_session):
     assert len(records) == 1
 
     # call function to delete expired service account
-    delete_expired_service_accounts(app.config["DB"])
+    delete_expired_service_accounts(config["DB"])
     # check db again to make sure the record still exists
     records = db_session.query(ServiceAccountToGoogleBucketAccessGroup).all()
     assert len(records) == 1
@@ -498,7 +519,7 @@ def test_verify_bucket_access_group_no_interested_accounts(
 
     fence.scripting.fence_create._verify_google_group_member = MagicMock()
     fence.scripting.fence_create._verify_google_service_account_member = MagicMock()
-    verify_bucket_access_group(app.config["DB"])
+    verify_bucket_access_group(config["DB"])
 
     assert not fence.scripting.fence_create._verify_google_group_member.called
     assert not fence.scripting.fence_create._verify_google_service_account_member.called
@@ -550,7 +571,7 @@ def test_verify_bucket_access_group(app, cloud_manager, db_session, setup_test_d
 
     fence.scripting.fence_create._verify_google_group_member = MagicMock()
     (fence.scripting.fence_create._verify_google_service_account_member) = MagicMock()
-    verify_bucket_access_group(app.config["DB"])
+    verify_bucket_access_group(config["DB"])
 
     assert (fence.scripting.fence_create._verify_google_group_member.call_count) == 2
     assert (
@@ -669,7 +690,7 @@ def test_link_external_bucket(app, cloud_manager, db_session):
     bucket_count_before = db_session.query(Bucket).count()
     gbag_count_before = db_session.query(GoogleBucketAccessGroup).count()
 
-    linked_gbag_email = link_external_bucket(app.config["DB"], "test_bucket")
+    linked_gbag_email = link_external_bucket(config["DB"], "test_bucket")
 
     bucket_count_after = db_session.query(Bucket).count()
     gbag_count_after = db_session.query(GoogleBucketAccessGroup).count()

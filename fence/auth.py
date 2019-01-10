@@ -2,19 +2,21 @@ from functools import wraps
 import urllib
 
 from authutils.errors import JWTError, JWTExpiredError
-from authutils.token.validate import require_auth_header
-from authutils.token.validate import current_token
-from authutils.token.validate import set_current_token
-from authutils.token.validate import validate_request
+from authutils.token.validate import (
+    current_token,
+    require_auth_header,
+    set_current_token,
+    validate_request,
+)
 import flask
 from flask_sqlalchemy_session import current_session
-from sqlalchemy import func
 
 from fence.errors import Unauthorized, InternalError
 from fence.jwt.validate import validate_jwt
-from fence.models import User, IdentityProvider
+from fence.models import User, IdentityProvider, query_for_user
 from fence.user import get_current_user
 from fence.utils import clear_cookies
+from fence.config import config
 
 
 def build_redirect_url(hostname, path):
@@ -37,11 +39,8 @@ def build_redirect_url(hostname, path):
 
 
 def login_user(request, username, provider):
-    user = (
-        current_session.query(User)
-        .filter(func.lower(User.username) == username.lower())
-        .first()
-    )
+    user = query_for_user(session=current_session, username=username)
+
     if not user:
         user = User(username=username)
         idp = (
@@ -79,9 +78,9 @@ def logout(next_url):
     provider = flask.session.get("provider")
     if provider == IdentityProvider.itrust:
         safe_url = urllib.quote_plus(next_url)
-        provider_logout = flask.current_app.config["ITRUST_GLOBAL_LOGOUT"] + safe_url
+        provider_logout = config["ITRUST_GLOBAL_LOGOUT"] + safe_url
     elif provider == IdentityProvider.fence:
-        base = flask.current_app.config["OPENID_CONNECT"]["fence"]["api_base_url"]
+        base = config["OPENID_CONNECT"]["fence"]["api_base_url"]
         safe_url = urllib.quote_plus(next_url)
         provider_logout = base + "/logout?" + urllib.urlencode({"next": safe_url})
 
@@ -124,15 +123,11 @@ def login_required(scope=None):
                 return f(*args, **kwargs)
 
             eppn = None
-            enable_shib = "shibboleth" in flask.current_app.config.get(
-                "ENABLED_IDENTITY_PROVIDERS", []
-            )
-            if enable_shib and "SHIBBOLETH_HEADER" in flask.current_app.config:
-                eppn = flask.request.headers.get(
-                    flask.current_app.config["SHIBBOLETH_HEADER"]
-                )
+            enable_shib = "shibboleth" in config.get("ENABLED_IDENTITY_PROVIDERS", [])
+            if enable_shib and "SHIBBOLETH_HEADER" in config:
+                eppn = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
 
-            if flask.current_app.config.get("MOCK_AUTH") is True:
+            if config.get("MOCK_AUTH") is True:
                 eppn = "test"
             # if there is authorization header for oauth
             if "Authorization" in flask.request.headers:
@@ -158,9 +153,9 @@ def handle_login(scope):
     if flask.session.get("username"):
         login_user(flask.request, flask.session["username"], flask.session["provider"])
 
-    eppn = flask.request.headers.get(flask.current_app.config["SHIBBOLETH_HEADER"])
+    eppn = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
 
-    if flask.current_app.config.get("MOCK_AUTH") is True:
+    if config.get("MOCK_AUTH") is True:
         eppn = "test"
     # if there is authorization header for oauth
     if "Authorization" in flask.request.headers:

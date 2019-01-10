@@ -14,6 +14,7 @@ import yaml
 from cdispyutils.log import get_logger
 import paramiko
 from paramiko.proxy import ProxyCommand
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
 from userdatamodel.driver import SQLAlchemyDriver
 
@@ -25,6 +26,7 @@ from fence.models import (
     Tag,
     User,
     users_to_policies,
+    query_for_user,
 )
 from fence.rbac.client import ArboristClient, ArboristError
 from fence.resources.storage import StorageManager
@@ -340,6 +342,7 @@ class UserSyncer(object):
         """
         user_project = dict()
         user_info = dict()
+        user_policies = dict()
 
         with self._read_file(filepath, encrypted=encrypted) as stream:
             data = yaml.safe_load(stream)
@@ -352,7 +355,6 @@ class UserSyncer(object):
                 raise EnvironmentError("invalid yaml file")
 
             privileges = {}
-
             try:
                 for project in details.get("projects", {}):
                     privileges[project["auth_id"]] = set(project["privilege"])
@@ -369,7 +371,11 @@ class UserSyncer(object):
             }
             user_project[username] = privileges
 
-        return user_project, user_info
+            # list of policies we want to grant to this user, which get sent to arborist
+            # to check if they're allowed to do certain things
+            user_policies[username] = details.get("policies", [])
+
+        return user_project, user_info, user_policies
 
     def _parse_resources_from_yaml(self, filepath, encrypted=True):
         """
@@ -476,20 +482,24 @@ class UserSyncer(object):
                         phsids2[user][phsid1] = set()
                     phsids2[user][phsid1].update(privilege1)
 
-    def sync_to_db_and_storage_backend(self, user_project, user_info, sess):
+    def sync_to_db_and_storage_backend(
+        self, user_project, user_info, user_policies, sess
+    ):
         """
         sync user access control to database and storage backend
 
         Args:
-            user_project(dict): a dictionary of
-            {
-                username: {
-                    'project1': {'read-storage','write-storage'},
-                    'project2': {'read-storage'}
+            user_project (dict): a dictionary of
+
+                {
+                    username: {
+                        'project1': {'read-storage','write-storage'},
+                        'project2': {'read-storage'}
+                    }
                 }
-            }
-            user_info(dict): a dictionary of {username: user_info{}}
-            use_mapping(bool)
+
+            user_info (dict): a dictionary of {username: user_info{}}
+            user_policies (List[str]): list of policies
             sess: a sqlalchemy session
 
         Return:
@@ -503,14 +513,22 @@ class UserSyncer(object):
         ]
 
         cur_db_user_project_list = {
-            (ua.user.username, ua.project.auth_id)
+            (ua.user.username.lower(), ua.project.auth_id)
             for ua in sess.query(AccessPrivilege).all()
         }
 
+        # we need to compare db -> whitelist case-insensitively for username
+        # db stores case-sensitively, but we need to query case-insensitively
+        user_project_lowercase = {}
         syncing_user_project_list = set()
         for username, projects in user_project.iteritems():
+            user_project_lowercase[username.lower()] = projects
             for project, _ in projects.iteritems():
-                syncing_user_project_list.add((username, project))
+                syncing_user_project_list.add((username.lower(), project))
+
+        user_info_lowercase = {
+            username.lower(): info for username, info in user_info.iteritems()
+        }
 
         to_delete = set.difference(cur_db_user_project_list, syncing_user_project_list)
         to_add = set.difference(syncing_user_project_list, cur_db_user_project_list)
@@ -518,17 +536,42 @@ class UserSyncer(object):
             cur_db_user_project_list, syncing_user_project_list
         )
 
+        # when updating users we want to maintain case sesitivity in the username so
+        # pass the original, non-lowered user_info dict
         self._upsert_userinfo(sess, user_info)
         self._revoke_from_storage(to_delete, sess)
         self._revoke_from_db(sess, to_delete)
-        self._grant_from_storage(to_add, user_project, sess)
-        self._grant_from_db(sess, to_add, user_info, user_project, auth_provider_list)
+        self._grant_from_storage(to_add, user_project_lowercase, sess)
+        self._grant_from_db(
+            sess,
+            to_add,
+            user_info_lowercase,
+            user_project_lowercase,
+            auth_provider_list,
+        )
 
         # re-grant
-        self._grant_from_storage(to_update, user_project, sess)
-        self._update_from_db(sess, to_update, user_project)
+        self._grant_from_storage(to_update, user_project_lowercase, sess)
+        self._update_from_db(sess, to_update, user_project_lowercase)
 
-        self._validate_and_update_user_admin(sess, user_info)
+        self._validate_and_update_user_admin(sess, user_info_lowercase)
+
+        # Add policies to user models in the database. These will show up in users'
+        # JWTs; services can send the JWTs to arborist.
+        if user_policies:
+            self.logger.info("populating roles from YAML file")
+        for username, policies in user_policies.iteritems():
+            user = query_for_user(session=sess, username=username)
+            for policy_id in policies:
+                policy = self._get_or_create_policy(sess, policy_id)
+                if policy not in user.policies:
+                    user.policies.append(policy)
+                    self.logger.info(
+                        "granted policy `{}` to user `{}` ({})".format(
+                            policy_id, username, user.id
+                        )
+                    )
+        sess.commit()
 
     def _revoke_from_db(self, sess, to_delete):
         """
@@ -543,8 +586,9 @@ class UserSyncer(object):
         for (username, project_auth_id) in to_delete:
             q = (
                 sess.query(AccessPrivilege)
-                .filter(AccessPrivilege.user.has(username=username))
                 .filter(AccessPrivilege.project.has(auth_id=project_auth_id))
+                .join(AccessPrivilege.user)
+                .filter(func.lower(User.username) == username)
                 .all()
             )
             for access in q:
@@ -552,8 +596,6 @@ class UserSyncer(object):
                     "revoke {} access to {} in db".format(username, project_auth_id)
                 )
                 sess.delete(access)
-
-        sess.commit()
 
     def _validate_and_update_user_admin(self, sess, user_info):
         """
@@ -575,13 +617,14 @@ class UserSyncer(object):
             None
         """
         for admin_user in sess.query(User).filter_by(is_admin=True).all():
-            if admin_user.username not in user_info:
+            if admin_user.username.lower() not in user_info:
                 admin_user.is_admin = False
                 sess.add(admin_user)
                 self.logger.info(
-                    "remove admin access from {} in db".format(admin_user.username)
+                    "remove admin access from {} in db".format(
+                        admin_user.username.lower()
+                    )
                 )
-        sess.commit()
 
     def _update_from_db(self, sess, to_update, user_project):
         """
@@ -599,8 +642,9 @@ class UserSyncer(object):
         for (username, project_auth_id) in to_update:
             q = (
                 sess.query(AccessPrivilege)
-                .filter(AccessPrivilege.user.has(username=username))
                 .filter(AccessPrivilege.project.has(auth_id=project_auth_id))
+                .join(AccessPrivilege.user)
+                .filter(func.lower(User.username) == username)
                 .all()
             )
             for access in q:
@@ -610,8 +654,6 @@ class UserSyncer(object):
                         username, access.privilege, project_auth_id
                     )
                 )
-
-        sess.commit()
 
     def _grant_from_db(self, sess, to_add, user_info, user_project, auth_provider_list):
         """
@@ -625,11 +667,8 @@ class UserSyncer(object):
             None
         """
         for (username, project_auth_id) in to_add:
-            u = (
-                sess.query(User)
-                .filter(func.lower(User.username) == username.lower())
-                .first()
-            )
+            u = query_for_user(session=sess, username=username)
+
             auth_provider = auth_provider_list[0]
             if "dbgap_role" not in user_info[username]["tags"]:
                 auth_provider = auth_provider_list[1]
@@ -647,8 +686,6 @@ class UserSyncer(object):
             )
             sess.add(user_access)
 
-        sess.commit()
-
     def _upsert_userinfo(self, sess, user_info):
         """
         update user info to database.
@@ -663,11 +700,7 @@ class UserSyncer(object):
         """
 
         for username in user_info:
-            u = (
-                sess.query(User)
-                .filter(func.lower(User.username) == username.lower())
-                .first()
-            )
+            u = query_for_user(session=sess, username=username)
 
             if u is None:
                 self.logger.info("create user {}".format(username))
@@ -700,8 +733,6 @@ class UserSyncer(object):
                     tag = Tag(key=k, value=v)
                     u.tags.append(tag)
 
-        sess.commit()
-
     def _revoke_from_storage(self, to_delete, sess):
         """
         If a project have storage backend, revoke user's access to buckets in
@@ -729,7 +760,6 @@ class UserSyncer(object):
                     project=project,
                     session=sess,
                 )
-        sess.commit()
 
     def _grant_from_storage(self, to_add, user_project, sess):
         """
@@ -772,18 +802,25 @@ class UserSyncer(object):
                     project = self._get_or_create(sess, Project, **p)
                     self._projects[p["auth_id"]] = project
         for _, projects in user_project.iteritems():
-            for project_name in projects.keys():
-                project = (
-                    sess.query(Project).filter(Project.auth_id == project_name).first()
-                )
+            for auth_id in projects.keys():
+                project = sess.query(Project).filter(Project.auth_id == auth_id).first()
                 if not project:
-                    data = {"name": project_name, "auth_id": project_name}
-                    project = self._get_or_create(sess, Project, **data)
-                if project_name not in self._projects:
-                    self._projects[project_name] = project
+                    data = {"name": auth_id, "auth_id": auth_id}
+                    try:
+                        project = self._get_or_create(sess, Project, **data)
+                    except IntegrityError as e:
+                        sess.rollback()
+                        self.logger.error(str(e))
+                        raise Exception(
+                            "Project {} already exists. Detail {}. Please contact your system administrator.".format(
+                                auth_id, str(e)
+                            )
+                        )
+                if auth_id not in self._projects:
+                    self._projects[auth_id] = project
 
-    @classmethod
-    def _get_or_create(self, sess, model, **kwargs):
+    @staticmethod
+    def _get_or_create(sess, model, **kwargs):
         instance = sess.query(model).filter_by(**kwargs).first()
         if not instance:
             instance = model(**kwargs)
@@ -837,7 +874,7 @@ class UserSyncer(object):
         )
 
         try:
-            user_projects_yaml, user_info_yaml = self._parse_yaml(
+            user_projects_yaml, user_info_yaml, user_policies = self._parse_yaml(
                 self.sync_from_local_yaml_file, encrypted=False
             )
             user_arborist_info, resources = self._parse_resources_from_yaml(
@@ -855,9 +892,13 @@ class UserSyncer(object):
         self.sync_two_phsids_dict(user_projects_yaml, user_projects)
         self.sync_two_user_info_dict(user_info_yaml, user_info)
 
+        self._reset_user_access(sess)
+
         if user_projects:
             self.logger.info("Sync to db and storage backend")
-            self.sync_to_db_and_storage_backend(user_projects, user_info, sess)
+            self.sync_to_db_and_storage_backend(
+                user_projects, user_info, user_policies, sess
+            )
             self.logger.info("Finish syncing to db and storage backend")
         else:
             self.logger.info("No users for syncing")
@@ -913,15 +954,9 @@ class UserSyncer(object):
         created_roles = set()
         created_policies = set()
 
-        self._reset_user_access(session)
-
         for username, user_resources in user_projects.iteritems():
             self.logger.info("processing user `{}`".format(username))
-            user = (
-                session.query(User)
-                .filter(func.lower(User.username) == username.lower())
-                .first()
-            )
+            user = query_for_user(session=session, username=username)
 
             for path, permissions in user_resources.iteritems():
                 for permission in permissions:
@@ -961,11 +996,7 @@ class UserSyncer(object):
                                 "not creating policy in arborist; {}".format(str(e))
                             )
                         created_policies.add(policy_id)
-                    policy = session.query(Policy).filter_by(id=policy_id).first()
-                    if not policy:
-                        policy = Policy(id=policy_id)
-                        session.add(policy)
-                        self.logger.info("created policy `{}`".format(policy_id))
+                    policy = self._get_or_create_policy(session, policy_id)
                     user.policies.append(policy)
                     self.logger.info(
                         "granted policy `{}` to user `{}`".format(
@@ -973,5 +1004,12 @@ class UserSyncer(object):
                         )
                     )
 
-        session.commit()
         return True
+
+    def _get_or_create_policy(self, session, policy_id):
+        policy = session.query(Policy).filter_by(id=policy_id).first()
+        if not policy:
+            policy = Policy(id=policy_id)
+            session.add(policy)
+            self.logger.info("created policy `{}`".format(policy_id))
+        return policy

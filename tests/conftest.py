@@ -1,12 +1,15 @@
 # pylint: disable=redefined-outer-name
 """
 Define pytest fixtures.
+
+TODO (rudyardrichter, 2018-11-06): clean up/consolidate indexd response mocks
 """
 
 from collections import OrderedDict
 from boto3 import client
 import uuid
 import json
+import mock
 import os
 import copy
 
@@ -19,6 +22,7 @@ from authutils.testing.fixtures import (
     rsa_public_key,
     rsa_public_key_2,
 )
+from cryptography.fernet import Fernet
 import bcrypt
 from cdisutilstest.code.storage_client_mock import get_client
 import jwt
@@ -33,7 +37,7 @@ import fence
 from fence import app_init
 from fence import models
 from fence.jwt.keys import Keypair
-from fence.jwt.token import generate_signed_access_token
+from fence.config import config
 
 import tests
 from tests import test_settings
@@ -48,294 +52,6 @@ def _compile_drop_table(element, compiler, **kwargs):
 
 # Allow authlib to use HTTP for local testing.
 os.environ["AUTHLIB_INSECURE_TRANSPORT"] = "true"
-
-
-def indexd_get_available_s3_bucket(file_id):
-    return {
-        "did": "",
-        "baseid": "",
-        "rev": "",
-        "size": 10,
-        "file_name": "file1",
-        "urls": ["s3://bucket1/key"],
-        "hashes": {},
-        "metadata": {"acls": "phs000178,phs000218"},
-        "form": "",
-        "created_date": "",
-        "updated_date": "",
-    }
-
-
-def indexd_get_available_s3_bucket_acl(file_id):
-    return {
-        "did": "",
-        "baseid": "",
-        "rev": "",
-        "size": 10,
-        "file_name": "file1",
-        "urls": ["s3://bucket1/key"],
-        "hashes": {},
-        "acl": ["phs000178", "phs000218"],
-        "form": "",
-        "created_date": "",
-        "updated_date": "",
-    }
-
-
-def indexd_get_external_s3_bucket_acl(file_id):
-    return {
-        "did": "",
-        "baseid": "",
-        "rev": "",
-        "size": 10,
-        "file_name": "file1",
-        "urls": ["s3://bucket1/key"],
-        "hashes": {},
-        "acl": ["phs000178", "phs000218"],
-        "form": "",
-        "created_date": "",
-        "updated_date": "",
-    }
-
-
-def indexd_get_available_gs_bucket(file_id):
-    return {
-        "did": "",
-        "baseid": "",
-        "rev": "",
-        "size": 10,
-        "file_name": "file1",
-        "urls": ["gs://bucket1/key"],
-        "hashes": {},
-        "metadata": {"acls": "phs000178,phs000218"},
-        "form": "",
-        "created_date": "",
-        "updated_date": "",
-    }
-
-
-def indexd_get_available_gs_bucket_acl(file_id):
-    return {
-        "did": "",
-        "baseid": "",
-        "rev": "",
-        "size": 10,
-        "file_name": "file1",
-        "urls": ["gs://bucket1/key"],
-        "hashes": {},
-        "acl": ["phs000178", "phs000218"],
-        "form": "",
-        "created_date": "",
-        "updated_date": "",
-    }
-
-
-def indexd_get_unavailable_s3_bucket(file_id):
-    return {
-        "did": "",
-        "baseid": "",
-        "rev": "",
-        "size": 10,
-        "file_name": "file1",
-        "urls": ["s3://bucket5/key"],
-        "hashes": {},
-        "metadata": {"acls": "phs000178,phs000218"},
-        "form": "",
-        "created_date": "",
-        "updated_date": "",
-    }
-
-
-def indexd_get_unavailable_s3_bucket_acl(file_id):
-    return {
-        "did": "",
-        "baseid": "",
-        "rev": "",
-        "size": 10,
-        "file_name": "file1",
-        "urls": ["s3://bucket5/key"],
-        "hashes": {},
-        "acl": ["phs000178", "phs000218"],
-        "form": "",
-        "created_date": "",
-        "updated_date": "",
-    }
-
-
-def indexd_get_unavailable_gs_bucket(file_id):
-    return {
-        "did": "",
-        "baseid": "",
-        "rev": "",
-        "size": 10,
-        "file_name": "file1",
-        "urls": ["gs://bucket5/key"],
-        "hashes": {},
-        "metadata": {"acls": "phs000178,phs000218"},
-        "form": "",
-        "created_date": "",
-        "updated_date": "",
-    }
-
-
-def indexd_get_unavailable_gs_bucket_acl(file_id):
-    return {
-        "did": "",
-        "baseid": "",
-        "rev": "",
-        "size": 10,
-        "file_name": "file1",
-        "urls": ["gs://bucket5/key"],
-        "hashes": {},
-        "acl": ["phs000178", "phs000218"],
-        "form": "",
-        "created_date": "",
-        "updated_date": "",
-    }
-
-
-def indexd_get_public_s3_object(file_id):
-    return {
-        "did": "",
-        "baseid": "",
-        "rev": "",
-        "size": 10,
-        "file_name": "file1",
-        "urls": ["s3://bucket1/key"],
-        "hashes": {},
-        "metadata": {"acls": "*"},
-        "form": "",
-        "created_date": "",
-        "updated_date": "",
-    }
-
-
-def indexd_get_public_s3_object_acl(file_id):
-    return {
-        "did": "",
-        "baseid": "",
-        "rev": "",
-        "size": 10,
-        "file_name": "file1",
-        "urls": ["s3://bucket1/key"],
-        "hashes": {},
-        "acl": ["*"],
-        "form": "",
-        "created_date": "",
-        "updated_date": "",
-    }
-
-
-def indexd_get_public_gs_object(file_id):
-    return {
-        "did": "",
-        "baseid": "",
-        "rev": "",
-        "size": 10,
-        "file_name": "file1",
-        "urls": ["gs://bucket1/key"],
-        "hashes": {},
-        "metadata": {"acls": "*"},
-        "form": "",
-        "created_date": "",
-        "updated_date": "",
-    }
-
-
-def indexd_get_public_gs_object_acl(file_id):
-    return {
-        "did": "",
-        "baseid": "",
-        "rev": "",
-        "size": 10,
-        "file_name": "file1",
-        "urls": ["gs://bucket1/key"],
-        "hashes": {},
-        "acl": ["*"],
-        "form": "",
-        "created_date": "",
-        "updated_date": "",
-    }
-
-
-def indexd_get_public_s3_bucket(file_id):
-    return {
-        "did": "",
-        "baseid": "",
-        "rev": "",
-        "size": 10,
-        "file_name": "file1",
-        "urls": ["s3://bucket4/key"],
-        "hashes": {},
-        "metadata": {"acls": "*"},
-        "form": "",
-        "created_date": "",
-        "updated_date": "",
-    }
-
-
-def indexd_get_public_s3_bucket_acl(file_id):
-    return {
-        "did": "",
-        "baseid": "",
-        "rev": "",
-        "size": 10,
-        "file_name": "file1",
-        "urls": ["s3://bucket4/key"],
-        "hashes": {},
-        "acl": ["*"],
-        "form": "",
-        "created_date": "",
-        "updated_date": "",
-    }
-
-
-def indexd_get_public_gs_bucket(file_id):
-    return {
-        "did": "",
-        "baseid": "",
-        "rev": "",
-        "size": 10,
-        "file_name": "file1",
-        "urls": ["gs://bucket4/key"],
-        "hashes": {},
-        "metadata": {"acls": "*"},
-        "form": "",
-        "created_date": "",
-        "updated_date": "",
-    }
-
-
-def indexd_get_public_gs_bucket_acl(file_id):
-    return {
-        "did": "",
-        "baseid": "",
-        "rev": "",
-        "size": 10,
-        "file_name": "file1",
-        "urls": ["gs://bucket4/key"],
-        "hashes": {},
-        "acl": ["*"],
-        "form": "",
-        "created_date": "",
-        "updated_date": "",
-    }
-
-
-def indexd_unsupported_protocol_bucket(file_id):
-    return {
-        "did": "",
-        "baseid": "",
-        "rev": "",
-        "size": 10,
-        "file_name": "file1",
-        "urls": ["s2://bucket1/key"],
-        "hashes": {},
-        "metadata": {"acls": "phs000178,phs000218"},
-        "form": "",
-        "created_date": "",
-        "updated_date": "",
-    }
 
 
 def mock_get_bucket_location(self, bucket, config):
@@ -465,16 +181,68 @@ def kid_2():
 
 
 @pytest.fixture(scope="session")
-def app(kid, rsa_private_key, rsa_public_key):
+def mock_arborist_requests(request):
+    def do_patch(urls_to_responses=None):
+        urls_to_responses = urls_to_responses or {}
+        defaults = {"arborist/health": {"GET": ("", 200)}}
+        defaults.update(urls_to_responses)
+        urls_to_responses = defaults
+
+        def make_mock_response(method):
+            def response(url):
+                mocked_response = MagicMock(requests.Response)
+                if url in urls_to_responses:
+                    if method in urls_to_responses[url]:
+                        content, code = urls_to_responses[url][method]
+                        mocked_response.status_code = code
+                        if isinstance(content, dict):
+                            mocked_response.json.return_value = content
+                return mocked_response
+
+            return response
+
+        mocked_get = MagicMock(side_effect=make_mock_response("GET"))
+        mocked_post = MagicMock(side_effect=make_mock_response("POST"))
+        mocked_delete = MagicMock(side_effect=make_mock_response("DELETE"))
+
+        patch_get = mock.patch("fence.rbac.client.requests.get", mocked_get)
+        patch_post = mock.patch("fence.rbac.client.requests.post", mocked_post)
+        patch_delete = mock.patch("fence.rbac.client.requests.delete", mocked_delete)
+
+        patch_get.start()
+        patch_post.start()
+        patch_delete.start()
+
+        request.addfinalizer(patch_get.stop)
+        request.addfinalizer(patch_post.stop)
+        request.addfinalizer(patch_delete.stop)
+
+    return do_patch
+
+
+@pytest.fixture(scope="session")
+def app(kid, rsa_private_key, rsa_public_key, mock_arborist_requests):
     """
     Flask application fixture.
     """
     mocker = Mocker()
     mocker.mock_functions()
     root_dir = os.path.dirname(os.path.realpath(__file__))
-    app_init(fence.app, test_settings, root_dir=root_dir)
-    fence.app.config["TESTING"] = True
-    fence.app.config["DEBUG"] = True
+
+    # delete the record operation from the data blueprint, because right now it calls a
+    # whole bunch of stuff on the arborist client to do some setup for the uploader role
+    fence.blueprints.data.blueprint.deferred_functions = [
+        f
+        for f in fence.blueprints.data.blueprint.deferred_functions
+        if f.__name__ != "record"
+    ]
+    app_init(
+        fence.app,
+        test_settings,
+        root_dir=root_dir,
+        config_path=os.path.join(root_dir, "test-fence-config.yaml"),
+    )
+
     # We want to set up the keys so that the test application can load keys
     # from the test keys directory, but the default keypair used will be the
     # one using the fixtures. So, stick the keypair at the front of the
@@ -484,23 +252,26 @@ def app(kid, rsa_private_key, rsa_public_key):
         kid=kid, public_key=rsa_public_key, private_key=rsa_private_key
     )
     fence.app.keypairs = [fixture_keypair] + fence.app.keypairs
-    fence.app.jwt_public_keys[fence.app.config["BASE_URL"]][kid] = rsa_public_key
-    fence.app.jwt_public_keys[fence.app.config["BASE_URL"]] = OrderedDict(
-        reversed(list(fence.app.jwt_public_keys[fence.app.config["BASE_URL"]].items()))
+    fence.app.jwt_public_keys[config["BASE_URL"]][kid] = rsa_public_key
+    fence.app.jwt_public_keys[config["BASE_URL"]] = OrderedDict(
+        reversed(list(fence.app.jwt_public_keys[config["BASE_URL"]].items()))
     )
+
+    config.update(BASE_URL=config["BASE_URL"])
+    config.update(ENCRYPTION_KEY=Fernet.generate_key())
 
     return fence.app
 
 
 @pytest.fixture(scope="function")
-def auth_client(app, request):
+def auth_client(request):
     """
     Flask application fixture.
     """
-    app.config["MOCK_AUTH"] = False
+    config["MOCK_AUTH"] = False
 
     def reset_authmock():
-        app.config["MOCK_AUTH"] = True
+        config["MOCK_AUTH"] = True
 
     request.addfinalizer(reset_authmock)
 
@@ -622,19 +393,79 @@ def indexd_client(app, request):
     mocker.mock_functions()
 
     if request.param == "gs":
-        indexd_get_available_bucket_func = indexd_get_available_gs_bucket
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file1",
+            "urls": ["gs://bucket1/key"],
+            "hashes": {},
+            "metadata": {"acls": "phs000178,phs000218"},
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
     elif request.param == "gs_acl":
-        indexd_get_available_bucket_func = indexd_get_available_gs_bucket_acl
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file1",
+            "urls": ["gs://bucket1/key"],
+            "hashes": {},
+            "acl": ["phs000178", "phs000218"],
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
     elif request.param == "s3_acl":
-        indexd_get_available_bucket_func = indexd_get_available_s3_bucket_acl
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file1",
+            "urls": ["s3://bucket1/key"],
+            "hashes": {},
+            "acl": ["phs000178", "phs000218"],
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
     elif request.param == "s3_external":
-        indexd_get_available_bucket_func = indexd_get_external_s3_bucket_acl
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file1",
+            "urls": ["s3://bucket1/key"],
+            "hashes": {},
+            "acl": ["phs000178", "phs000218"],
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
     else:
-        indexd_get_available_bucket_func = indexd_get_available_s3_bucket
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file1",
+            "urls": ["s3://bucket1/key"],
+            "hashes": {},
+            "metadata": {"acls": "phs000178,phs000218"},
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
 
+    # TODO (rudyardrichter, 2018-11-03): consolidate things needing to do this patch
     indexd_patcher = patch(
-        "fence.blueprints.data.IndexedFile._get_index_document",
-        indexd_get_available_bucket_func,
+        "fence.blueprints.data.indexd.IndexedFile.index_document", record
     )
     mocker.add_mock(indexd_patcher)
 
@@ -653,17 +484,64 @@ def unauthorized_indexd_client(app, request):
     mocker.mock_functions()
 
     if request.param == "gs":
-        indexd_get_unavailable_bucket_func = indexd_get_unavailable_gs_bucket
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file1",
+            "urls": ["gs://bucket5/key"],
+            "hashes": {},
+            "metadata": {"acls": "phs000178,phs000218"},
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
     elif request.param == "gs_acl":
-        indexd_get_unavailable_bucket_func = indexd_get_unavailable_gs_bucket_acl
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file1",
+            "urls": ["gs://bucket5/key"],
+            "hashes": {},
+            "acl": ["phs000178", "phs000218"],
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
     elif request.param == "s3_acl":
-        indexd_get_unavailable_bucket_func = indexd_get_unavailable_s3_bucket_acl
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file1",
+            "urls": ["s3://bucket5/key"],
+            "hashes": {},
+            "acl": ["phs000178", "phs000218"],
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
     else:
-        indexd_get_unavailable_bucket_func = indexd_get_unavailable_s3_bucket
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file1",
+            "urls": ["s3://bucket5/key"],
+            "hashes": {},
+            "metadata": {"acls": "phs000178,phs000218"},
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
 
     indexd_patcher = patch(
-        "fence.blueprints.data.IndexedFile._get_index_document",
-        indexd_get_unavailable_bucket_func,
+        "fence.blueprints.data.indexd.IndexedFile.index_document", record
     )
     mocker.add_mock(indexd_patcher)
 
@@ -674,19 +552,71 @@ def public_indexd_client(app, request):
     mocker.mock_functions()
 
     if request.param == "gs":
-        indexd_get_public_object_func = indexd_get_public_gs_object
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file1",
+            "urls": ["gs://bucket1/key"],
+            "hashes": {},
+            "metadata": {"acls": "*"},
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
     elif request.param == "gs_acl":
-        indexd_get_public_object_func = indexd_get_public_gs_object_acl
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file1",
+            "urls": ["gs://bucket1/key"],
+            "hashes": {},
+            "acl": ["*"],
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
     elif request.param == "s3_acl":
-        indexd_get_public_object_func = indexd_get_public_s3_object_acl
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file1",
+            "urls": ["s3://bucket1/key"],
+            "hashes": {},
+            "acl": ["*"],
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
     else:
-        indexd_get_public_object_func = indexd_get_public_s3_object
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file1",
+            "urls": ["s3://bucket1/key"],
+            "hashes": {},
+            "metadata": {"acls": "*"},
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
 
     indexd_patcher = patch(
-        "fence.blueprints.data.IndexedFile._get_index_document",
-        indexd_get_public_object_func,
+        "fence.blueprints.data.indexd.IndexedFile.index_document", record
     )
     mocker.add_mock(indexd_patcher)
+
+
+@pytest.fixture(scope="session")
+def uploader_username():
+    return "test-uploader"
 
 
 @pytest.fixture(scope="function")
@@ -695,21 +625,81 @@ def public_bucket_indexd_client(app, request):
     mocker.mock_functions()
 
     if request.param == "gs":
-        indexd_get_public_bucket_func = indexd_get_public_gs_bucket
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file1",
+            "urls": ["gs://bucket4/key"],
+            "hashes": {},
+            "metadata": {"acls": "*"},
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
     elif request.param == "gs_acl":
-        indexd_get_public_bucket_func = indexd_get_public_gs_bucket_acl
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file1",
+            "urls": ["gs://bucket4/key"],
+            "hashes": {},
+            "acl": ["*"],
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
     elif request.param == "s3_acl":
-        indexd_get_public_bucket_func = indexd_get_public_s3_bucket_acl
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file1",
+            "urls": ["s3://bucket4/key"],
+            "hashes": {},
+            "acl": ["*"],
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
     elif request.param == "s2":
-        indexd_get_public_bucket_func = indexd_unsupported_protocol_bucket
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file1",
+            "urls": ["s2://bucket1/key"],
+            "hashes": {},
+            "metadata": {"acls": "*"},
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
     else:
-        indexd_get_public_bucket_func = indexd_get_public_s3_bucket
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file1",
+            "urls": ["s3://bucket4/key"],
+            "hashes": {},
+            "metadata": {"acls": "*"},
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
 
     indexd_patcher = patch(
-        "fence.blueprints.data.IndexedFile._get_index_document",
-        indexd_get_public_bucket_func,
+        "fence.blueprints.data.indexd.IndexedFile.index_document", record
     )
     mocker.add_mock(indexd_patcher)
+    request.addfinalizer(indexd_patcher.stop)
 
 
 @pytest.fixture(scope="function")
@@ -890,7 +880,7 @@ def cloud_manager():
 def google_signed_url():
     manager = MagicMock()
     patch(
-        "fence.blueprints.data.cirrus.google_cloud.utils.get_signed_url", manager
+        "fence.blueprints.data.indexd.cirrus.google_cloud.utils.get_signed_url", manager
     ).start()
 
     # Note: example outpu/format from google's docs, will not actually work
@@ -972,6 +962,7 @@ def encoded_creds_jwt(
         user_id=user_client["user_id"],
         client_id=oauth_client["client_id"],
         proxy_group_id=google_proxy_group["id"],
+        username=user_client["username"],
     )
 
 
@@ -1048,34 +1039,13 @@ def google_storage_client_mocker(app):
 
 
 @pytest.fixture(scope="function")
-def remove_google_idp(app):
+def restore_config():
     """
-    Don't include google in the enabled idps, but leave it configured
-    in the openid connect clients.
+    Restore original config at teardown.
     """
-    saved_app_config = copy.deepcopy(app.config)
-
-    override_setings = {
-        "ENABLED_IDENTITY_PROVIDERS": {
-            # ID for which of the providers to default to.
-            "default": "fence",
-            # Information for identity providers.
-            "providers": {
-                "fence": {"name": "Fence Multi-Tenant OAuth"},
-                "shibboleth": {"name": "NIH Login"},
-            },
-        },
-        "OPENID_CONNECT": {
-            "google": {
-                "client_id": "123",
-                "client_secret": "456",
-                "redirect_url": "789",
-            }
-        },
-    }
-    app.config.update(override_setings)
+    saved_config = copy.deepcopy(config._configs)
 
     yield
 
-    # restore old config
-    app.config = copy.deepcopy(saved_app_config)
+    # restore old configs
+    config.update(saved_config)

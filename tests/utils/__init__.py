@@ -5,6 +5,8 @@ import uuid
 
 from flask import current_app
 
+from fence.config import config
+
 from fence.models import (
     User,
     Project,
@@ -16,6 +18,7 @@ from fence.models import (
     StorageAccess,
     ProjectToBucket,
     UserToBucket,
+    query_for_user,
 )
 
 import tests
@@ -32,7 +35,7 @@ def read_file(filename):
 def create_user(users, db_session, is_admin=False):
     s = db_session
     for username in users.keys():
-        user = s.query(User).filter(User.username == username).first()
+        user = query_for_user(session=s, username=username)
         if not user:
             user = User(username=username, is_admin=is_admin)
             s.add(user)
@@ -64,7 +67,7 @@ def create_user(users, db_session, is_admin=False):
 def create_awg_user(users, db_session):
     s = db_session
     for username in users.keys():
-        user = s.query(User).filter(User.username == username).first()
+        user = query_for_user(session=s, username=username)
         if not user:
             user = User(username=username)
             s.add(user)
@@ -263,7 +266,7 @@ def unauthorized_context_claims(user_name, user_id):
         dict: dictionary of claims
     """
     aud = ["access", "data", "user", "openid"]
-    iss = current_app.config["BASE_URL"]
+    iss = config["BASE_URL"]
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
@@ -296,7 +299,7 @@ def authorized_download_context_claims(user_name, user_id):
         dict: dictionary of claims
     """
     aud = ["access", "data", "user", "openid"]
-    iss = current_app.config["BASE_URL"]
+    iss = config["BASE_URL"]
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
@@ -330,7 +333,7 @@ def authorized_service_account_management_claims(user_name, user_id, client_id):
     """
     # TODO add new scope for /google/service_accounts endpoints
     aud = ["access", "data", "user", "openid", "google_service_account"]
-    iss = current_app.config["BASE_URL"]
+    iss = config["BASE_URL"]
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
@@ -364,7 +367,7 @@ def authorized_download_credentials_context_claims(
         dict: dictionary of claims
     """
     aud = ["access", "data", "user", "openid", "credentials", "google_credentials"]
-    iss = current_app.config["BASE_URL"]
+    iss = config["BASE_URL"]
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
@@ -397,7 +400,7 @@ def authorized_upload_context_claims(user_name, user_id):
         dict: dictionary of claims
     """
     aud = ["access", "data", "user", "openid"]
-    iss = current_app.config["BASE_URL"]
+    iss = config["BASE_URL"]
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {

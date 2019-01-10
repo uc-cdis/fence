@@ -4,6 +4,8 @@ import flask
 from flask_restful import Resource
 from flask_sqlalchemy_session import current_session
 
+from cdislogging import get_logger
+
 from cirrus import GoogleCloudManager
 from fence.restful import RestfulApi
 from fence.errors import NotFound
@@ -12,17 +14,18 @@ from fence.errors import UserError
 
 from fence.models import UserGoogleAccount
 from fence.models import UserGoogleAccountToProxyGroup
-from fence.auth import current_token
+from fence.auth import current_token, get_user_from_claims, validate_request
 from fence.auth import require_auth_header
-
+from fence.config import config
 from fence.resources.google.utils import (
     get_or_create_proxy_group_id,
     get_default_google_account_expiration,
     get_users_linked_google_email,
     get_linked_google_account_email,
 )
-
 from fence.utils import clear_cookies, append_query_params
+
+logger = get_logger(__name__)
 
 
 def make_link_blueprint():
@@ -108,6 +111,21 @@ class GoogleLinkRedirect(Resource):
         if not google_email:
             # save off provided redirect in session and initiate Google AuthN
             flask.session["redirect"] = provided_redirect
+
+            # if we're mocking Google login, skip to callback
+            if config.get("MOCK_GOOGLE_AUTH", False):
+                flask.redirect_url = (
+                    config["BASE_URL"].strip("/") + "/link/google/callback?code=abc"
+                )
+                response = flask.redirect(flask.redirect_url)
+                # pass-through the authorization header. The user's username
+                # MUST be a Google email for MOCK_GOOGLE_AUTH to actually link that
+                # email correctly
+                response.headers["Authorization"] = flask.request.headers.get(
+                    "Authorization"
+                )
+                return response
+
             flask.redirect_url = flask.current_app.google_client.get_auth_url()
 
             # Tell Google to let user select an account
@@ -230,8 +248,21 @@ class GoogleCallback(Resource):
         provided_redirect = flask.session.get("redirect")
         code = flask.request.args.get("code")
 
-        google_reponse = flask.current_app.google_client.get_user_id(code)
-        email = google_reponse.get("email")
+        if not config.get("MOCK_GOOGLE_AUTH", False):
+            google_response = flask.current_app.google_client.get_user_id(code)
+            email = google_response.get("email")
+        else:
+            # if we're mocking google auth, mock response to include the email
+            # from the provided access token
+            try:
+                token = validate_request({"user"})
+                email = get_user_from_claims(token).username
+            except Exception as exc:
+                logger.info(
+                    "Unable to parse Google email from token, using default mock value. "
+                    "Error: {}".format(exc)
+                )
+                email = "test@example.com"
 
         error = ""
         error_description = ""
@@ -243,7 +274,7 @@ class GoogleCallback(Resource):
 
         if not email:
             error = "g_acnt_auth_failure"
-            error_description = google_reponse
+            error_description = google_response
         else:
             error, error_description = get_errors_update_user_google_account_dry_run(
                 user_id, email, proxy_group, _already_authed=True

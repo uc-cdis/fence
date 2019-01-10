@@ -69,6 +69,8 @@ from fence.models import (
     ServiceAccountToGoogleBucketAccessGroup,
 )
 
+from fence.config import config
+
 # Python 2 and 3 compatible
 try:
     from unittest.mock import MagicMock
@@ -91,7 +93,7 @@ def test_google_service_account_monitor_none(
     encoded_creds_jwt = encoded_jwt_service_accounts_access["jwt"]
     test_file = None
     monkeypatch.setitem(
-        app.config, "CIRRUS_CFG", {"GOOGLE_APPLICATION_CREDENTIALS": test_file}
+        config, "CIRRUS_CFG", {"GOOGLE_APPLICATION_CREDENTIALS": test_file}
     )
 
     response = client.get(
@@ -110,7 +112,7 @@ def test_google_service_account_monitor(
     creds.
     """
     encoded_creds_jwt = encoded_jwt_service_accounts_access["jwt"]
-    creds_file = u'{"client_email": "test123@example.com"}'
+    creds_file = '{"client_email": "test123@example.com"}'
     path_mock = MagicMock()
     path_mock.return_value.path.return_value.exists.return_value = True
 
@@ -118,9 +120,7 @@ def test_google_service_account_monitor(
     # mock_path = patch('os.path.exists', True)
     mocked_open = patch("__builtin__.open", mock_open(read_data=creds_file))
 
-    monkeypatch.setitem(
-        app.config, "CIRRUS_CFG", {"GOOGLE_APPLICATION_CREDENTIALS": "."}
-    )
+    monkeypatch.setitem(config, "CIRRUS_CFG", {"GOOGLE_APPLICATION_CREDENTIALS": "."})
 
     mocked_open.start()
     mock_path.start()
@@ -339,6 +339,7 @@ def test_patch_service_account_remove_all_access(
 
 
 def test_invalid_service_account_dry_run_errors(
+    cloud_manager,
     client,
     app,
     encoded_jwt_service_accounts_access,
@@ -557,21 +558,22 @@ def test_invalid_get_google_project_parent_org(
 
 
 def test_valid_get_google_project_parent_org(
+    cloud_manager,
     client,
     app,
     encoded_jwt_service_accounts_access,
     valid_service_account_patcher,
     valid_google_project_patcher,
     db_session,
-    cloud_manager,
     monkeypatch,
 ):
     """
     Test that a valid service account gives us the expected response when it has
     parent org BUT that org is whitelisted.
     """
+
     monkeypatch.setitem(
-        app.config, "WHITE_LISTED_GOOGLE_PARENT_ORGS", ["whitelisted-parent-org"]
+        config, "WHITE_LISTED_GOOGLE_PARENT_ORGS", ["whitelisted-parent-org"]
     )
 
     (
@@ -732,7 +734,7 @@ def test_valid_service_account_registration(
 
     (
         cloud_manager.return_value.__enter__.return_value.add_member_to_group.return_value
-    ) = {"id": "sa@gmail.com"}
+    ) = {"email": "sa@gmail.com"}
 
     assert len(db_session.query(UserServiceAccount).all()) == 0
     assert len(db_session.query(ServiceAccountAccessPrivilege).all()) == 0
@@ -805,7 +807,7 @@ def test_valid_service_account_registration_multiple_service_accounts(
 
     (
         cloud_manager.return_value.__enter__.return_value.add_member_to_group.return_value
-    ) = {"id": "sa@gmail.com"}
+    ) = {"email": "sa@gmail.com"}
 
     assert len(db_session.query(UserServiceAccount).all()) == 0
     assert len(db_session.query(ServiceAccountAccessPrivilege).all()) == 0
@@ -867,7 +869,7 @@ def test_register_service_account_already_exists(
 
     (
         cloud_manager.return_value.__enter__.return_value.add_member_to_group.return_value
-    ) = {"id": "sa@gmail.com"}
+    ) = {"email": "sa@gmail.com"}
 
     response = client.post(
         "/google/service_accounts",

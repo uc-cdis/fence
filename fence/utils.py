@@ -6,7 +6,6 @@ from random import SystemRandom
 import re
 import string
 import requests
-from sqlalchemy import func
 from urllib import urlencode
 from urlparse import parse_qs, urlsplit, urlunsplit
 
@@ -14,8 +13,10 @@ import flask
 from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.datastructures import ImmutableMultiDict
 
-from fence.models import Client, GrantType, User
+from fence.models import Client, GrantType, User, query_for_user
 from fence.jwt.token import CLIENT_ALLOWED_SCOPES
+from fence.errors import NotFound
+from fence.config import config
 
 
 rng = SystemRandom()
@@ -51,9 +52,8 @@ def create_client(
         hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
     auth_method = "client_secret_basic" if confidential else "none"
     with driver.session as s:
-        user = (
-            s.query(User).filter(func.lower(User.username) == username.lower()).first()
-        )
+        user = query_for_user(session=s, username=username)
+
         if not user:
             user = User(username=username, is_admin=is_admin)
             s.add(user)
@@ -224,7 +224,7 @@ def send_email(from_email, to_emails, subject, text, smtp_domain):
                 "smtp_hostname": "smtp.mailgun.org",
                 "default_login": "postmaster@mailgun.planx-pla.net",
                 "api_url": "https://api.mailgun.net/v3/mailgun.planx-pla.net",
-                "smtp_password": password",
+                "smtp_password": "password",
                 "api_key": "api key"
             }
 
@@ -235,14 +235,19 @@ def send_email(from_email, to_emails, subject, text, smtp_domain):
         KeyError
 
     """
-    from fence.settings import GUN_MAIL
+    if smtp_domain not in config["GUN_MAIL"] or not config["GUN_MAIL"].get(
+        "smtp_password"
+    ):
+        raise NotFound(
+            "SMTP Domain '{}' does not exist in configuration for GUN_MAIL. "
+            "Cannot send email."
+        )
 
-    api_key = GUN_MAIL[smtp_domain]['api_key']
-    email_url = GUN_MAIL[smtp_domain]['api_url'] + '/messages'
+    api_key = config["GUN_MAIL"][smtp_domain].get("api_key", "")
+    email_url = config["GUN_MAIL"][smtp_domain].get("api_url", "") + "/messages"
 
-    return requests.post(email_url, auth=('api', api_key), data={
-        'from': from_email,
-        'to': to_emails,
-        'subject': subject,
-        'text': text
-    })
+    return requests.post(
+        email_url,
+        auth=("api", api_key),
+        data={"from": from_email, "to": to_emails, "subject": subject, "text": text},
+    )

@@ -17,8 +17,9 @@ from cirrus.google_cloud import (
 )
 
 import fence
-from logging import getLogger
+from cdislogging import get_logger
 
+from fence.config import config
 from fence.errors import NotFound, NotSupported
 from fence.models import (
     User,
@@ -36,7 +37,7 @@ from fence.resources.google.utils import (
     is_google_managed_service_account,
 )
 
-logger = getLogger(__name__)
+logger = get_logger(__name__)
 
 ALLOWED_SERVICE_ACCOUNT_TYPES = [
     COMPUTE_ENGINE_API_SERVICE_ACCOUNT,
@@ -61,9 +62,10 @@ def get_google_project_number(google_project_id, google_cloud_manager):
         response = google_cloud_manager.get_project_info()
         return response.get("projectNumber")
     except Exception as exc:
-        logger.error("Could not determine google project number for Project"
-                     "ID: {} due to error. (Details : {})"
-                     .format(google_project_id, exc))
+        logger.error(
+            "Could not determine google project number for Project"
+            "ID: {} due to error. (Details : {})".format(google_project_id, exc)
+        )
         return None
 
 
@@ -98,16 +100,17 @@ def get_google_project_parent_org(google_cloud_manager):
         return google_cloud_manager.get_project_organization()
     except Exception as exc:
         logger.error(
-                "Could not determine if Google project (id: {}) has parent org"
-                "due to error (Details: {})"
-                .format(getattr(google_cloud_manager, "project_id", "unknown")
-                        , exc)
+            "Could not determine if Google project (id: {}) has parent org"
+            "due to error (Details: {})".format(
+                getattr(google_cloud_manager, "project_id", "unknown"), exc
+            )
         )
         return None
 
 
 def get_google_project_valid_users_and_service_accounts(
-        project_id, google_cloud_manager, membership=None):
+    project_id, google_cloud_manager, membership=None
+):
     """
     Gets google project members of type
     USER or SERVICE_ACCOUNT and raises an error if it finds a member
@@ -173,33 +176,38 @@ def is_valid_service_account_type(account_id, google_cloud_manager):
     """
     try:
         sa_type = google_cloud_manager.get_service_account_type(account_id)
-        return (
-            sa_type
-            in ALLOWED_SERVICE_ACCOUNT_TYPES
-        )
+        return sa_type in ALLOWED_SERVICE_ACCOUNT_TYPES
     except Exception as exc:
         logger.error(
             "validity of Google service account {} (google project: {}) type "
-            "determined False due to error. Details: {}"
-            .format(account_id, google_cloud_manager.project_id, exc))
+            "determined False due to error. Details: {}".format(
+                account_id, google_cloud_manager.project_id, exc
+            )
+        )
 
 
-def service_account_has_external_access(service_account, google_cloud_manager):
+def service_account_has_external_access(
+    service_account, google_cloud_manager, policy=None
+):
     """
     Checks if service account has external access or not.
 
     Args:
         service_account(str): service account
         google_project_id(str): google project id
+        policy(dict): response from previous call to get_service_account_policy
 
     Returns:
         bool: whether or not the service account has external access
     """
-    response = google_cloud_manager.get_service_account_policy(service_account)
+    response = policy or google_cloud_manager.get_service_account_policy(
+        service_account
+    )
     if response.status_code != 200:
         logger.error(
-            "Unable to get IAM policy for service account {}\n{}."
-            .format(service_account, response.json())
+            "Unable to get IAM policy for service account {}\n{}.".format(
+                service_account, response.json()
+            )
         )
         # if there is an exception, assume it has external access
         return True
@@ -266,7 +274,7 @@ def is_service_account_from_google_project(
 
 
 def is_user_member_of_google_project(
-        user_id, google_cloud_manager, db=None, membership=None
+    user_id, google_cloud_manager, db=None, membership=None
 ):
     """
         Return whether or not the given user is a member of the provided
@@ -291,40 +299,43 @@ def is_user_member_of_google_project(
     if not user:
         logger.error(
             "Could not determine if user (id: {} is from project:"
-            " {} due to error. User does not exist..."
-                .format(user_id, google_cloud_manager.project_id))
+            " {} due to error. User does not exist...".format(
+                user_id, google_cloud_manager.project_id
+            )
+        )
         return False
 
     linked_google_account = (
         session.query(UserGoogleAccount)
-            .filter(UserGoogleAccount.user_id == user_id)
-            .first()
+        .filter(UserGoogleAccount.user_id == user_id)
+        .first()
     )
 
     try:
         members = membership or google_cloud_manager.get_project_membership()
         member_emails = [member.email_id.lower() for member in members]
         # first check if user.email is in project, then linked account
-        if not (user.email and user.email in member_emails):
+        if not (user.email and user.email.lower() in member_emails):
             if not (
                 linked_google_account
-                and linked_google_account.email in member_emails
+                and linked_google_account.email.lower() in member_emails
             ):
                 # no user email is in project
                 return False
     except Exception as exc:
         logger.error(
             "Could not determine if user (id: {}) is from project:"
-            " {} due to error. Details: {}"
-            .format(user.id,
-                    getattr(google_cloud_manager, "project_id", "unknown"),
-                    exc))
+            " {} due to error. Details: {}".format(
+                user.id, getattr(google_cloud_manager, "project_id", "unknown"), exc
+            )
+        )
         return False
 
     return True
 
+
 def is_user_member_of_all_google_projects(
-        user_id, google_project_ids, db=None, membership=None,
+    user_id, google_project_ids, db=None, membership=None
 ):
     """
     Return whether or not the given user is a member of ALL of the provided
@@ -347,7 +358,9 @@ def is_user_member_of_all_google_projects(
     is_member = False
     for google_project_id in google_project_ids:
         with GoogleCloudManager(google_project_id) as google_cloud_manager:
-            is_member = is_user_member_of_google_project(user_id, google_cloud_manager, db, membership)
+            is_member = is_user_member_of_google_project(
+                user_id, google_cloud_manager, db, membership
+            )
 
             if not is_member:
                 return False
@@ -367,6 +380,14 @@ def do_all_users_have_access_to_project(users, project_id, db=None):
         ).first()
 
         if not access_privilege:
+            project = (session.query(Project).filter(Project.id == project_id)).first()
+            project_rep = project.auth_id if project else project_id
+            logger.info(
+                "User ({}) does not have access to project ({}). There may be other "
+                "users that do not have access to this project.".format(
+                    user.username.lower(), project_rep
+                )
+            )
             return False
 
     return True
@@ -532,6 +553,31 @@ def force_remove_service_account_from_access(
     _force_remove_service_account_from_access_db(service_account, access_groups, db)
 
 
+def force_remove_service_account_from_db(service_account_email, db=None):
+    """
+    remove service account from user_service_account table
+
+    Args:
+        service_account_email(str): service account to be removed from db
+        db(None, str): Optional db connection string
+    """
+    session = get_db_session(db)
+    service_account = (
+        session.query(UserServiceAccount).filter_by(email=service_account_email).first()
+    )
+
+    if not service_account:
+        logger.info(
+            "Service account ({}) requested for removal from database "
+            "was not found in the database.".format(service_account_email)
+        )
+    else:
+        session.delete(service_account)
+        session.commit()
+
+    return
+
+
 def _revoke_user_service_account_from_google(
     session, to_delete_project_ids, google_project_id, service_account
 ):
@@ -580,7 +626,7 @@ def add_user_service_account_to_google(
     session, to_add_project_ids, google_project_id, service_account
 ):
     """
-    Add service account to google access groups
+    Add service account to Google access groups
 
     Args:
         session(current_session): db session
@@ -600,22 +646,22 @@ def add_user_service_account_to_google(
                     response = g_manager.add_member_to_group(
                         member_email=service_account.email, group_id=access_group.email
                     )
-                    if response.get("id", None):
+                    if response.get("email", None):
                         logger.debug(
-                            "Successfully add member {} to google group {}.".format(
+                            "Successfully add member {} to Google group {}.".format(
                                 service_account.email, access_group.email
                             )
                         )
                     else:
                         raise GoogleAPIError(
-                            "Can not add {} to group {}".format(
+                            "Can not add {} to Google group {}".format(
                                 service_account.email, access_group.email
                             )
                         )
 
             except Exception as exc:
                 raise GoogleAPIError(
-                    "Can not add {} to group {}. Detail {}".format(
+                    "Can not add {} to Google group {}. Detail {}".format(
                         service_account.email, access_group.email, exc
                     )
                 )
@@ -686,7 +732,7 @@ def add_user_service_account_to_db(session, to_add_project_ids, service_account)
         access_groups = _get_google_access_groups(session, project_id)
 
         # use configured time or 7 days
-        expiration_time = int(time.time()) + flask.current_app.config.get(
+        expiration_time = int(time.time()) + config.get(
             "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN", 604800
         )
         for access_group in access_groups:
@@ -769,8 +815,13 @@ def extend_service_account_access(service_account_email, db=None):
         )
 
         # use configured time or 7 days
-        expiration_time = int(time.time()) + flask.current_app.config.get(
+        expiration_time = int(time.time()) + config.get(
             "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN", 604800
+        )
+        logger.debug(
+            "Service Account ({}) access extended to {}.".format(
+                service_account.email, expiration_time
+            )
         )
         for access_group in bucket_access_groups:
             bucket_access = (
@@ -847,9 +898,7 @@ def remove_white_listed_service_account_ids(
         List[str]: Service account emails
     """
     if white_listed_sa_emails is None:
-        white_listed_sa_emails = flask.current_app.config.get(
-            "WHITE_LISTED_SERVICE_ACCOUNT_EMAILS", []
-        )
+        white_listed_sa_emails = config.get("WHITE_LISTED_SERVICE_ACCOUNT_EMAILS", [])
 
     monitoring_service_account = get_monitoring_service_account_email(app_creds_file)
 
@@ -874,9 +923,8 @@ def is_org_whitelisted(parent_org, white_listed_google_parent_orgs=None):
         bool: whether or not the provide Google parent organization is whitelisted
     """
 
-    white_listed_google_parent_orgs = (
-        white_listed_google_parent_orgs
-        or flask.current_app.config.get("WHITE_LISTED_GOOGLE_PARENT_ORGS", {})
+    white_listed_google_parent_orgs = white_listed_google_parent_orgs or config.get(
+        "WHITE_LISTED_GOOGLE_PARENT_ORGS", {}
     )
 
     return parent_org in white_listed_google_parent_orgs
@@ -939,3 +987,26 @@ def force_add_service_accounts_to_access(
             add_user_service_account_to_google(
                 session, project_ids, google_project_id, sa
             )
+
+
+def get_service_account_policy(account, google_cloud_manager):
+    """
+    Get the policy for the service account identified by `account`,
+    using the provided cloud_manager
+
+    Args:
+        account(str): service account identifier
+        google_cloud_manager: cloud_manager instance
+    Returns:
+        (Response): returns response from Google API
+
+    """
+    sa_policy = google_cloud_manager.get_service_account_policy(account)
+    if sa_policy.status_code != 200:
+        raise NotFound(
+            "Unable to get Service Account policy (status: {})".format(
+                sa_policy.status_code
+            )
+        )
+    else:
+        return sa_policy

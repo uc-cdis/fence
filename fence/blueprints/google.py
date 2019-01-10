@@ -1,16 +1,18 @@
 import os
 import json
 from urllib import unquote
+from enum import Enum
 
 import flask
 from flask_restful import Resource
 
 from cirrus import GoogleCloudManager
+from cirrus.errors import CirrusNotFound
 from cirrus.google_cloud.errors import GoogleAPIError
 
 from fence.auth import current_token, require_auth_header
 from fence.restful import RestfulApi
-from fence.errors import UserError, NotFound, Unauthorized
+from fence.errors import UserError, NotFound, Unauthorized, Forbidden
 from fence.resources.google.validity import GoogleProjectValidity
 from fence.resources.google.access_utils import (
     is_user_member_of_all_google_projects,
@@ -33,6 +35,18 @@ from fence.resources.google.utils import (
 )
 from fence.models import UserServiceAccount
 from flask_sqlalchemy_session import current_session
+from cdislogging import get_logger
+
+logger = get_logger(__name__)
+
+
+class ValidationErrors(str, Enum):
+    MONITOR_NOT_FOUND = "monitor_not_found"
+    UNAUTHORIZED_USER = "unauthorized_user"
+    POLICY_NOT_ACCESSIBLE = "policy_not_accessible"
+    UNAUTHORIZED = "unauthorized"
+    PROJECT_NOT_FOUND = "project_not_found"
+    GOOGLE_PROJECT_NOT_INCLUDED = "google_project_not_included"
 
 
 def make_google_blueprint():
@@ -358,14 +372,10 @@ class GoogleServiceAccount(Resource):
             id_ (str): Google service account identifier to update
         """
         sa = _get_service_account_for_patch(id_)
-
         error_response = _get_patched_service_account_error_status(id_, sa)
-
         if error_response.get("success") is not True:
             return error_response, 400
-
         resp, status_code = self._update_service_account_permissions(sa)
-
         if status_code != 200:
             return resp, status_code
 
@@ -447,7 +457,7 @@ class GoogleServiceAccount(Resource):
                 sa.google_project_id, sa.email, sa.project_access
             )
 
-        except NotFound as exc:
+        except CirrusNotFound as exc:
             return (
                 "Can not update the service accout {}. Detail {}".format(
                     sa.email, exc.message
@@ -491,7 +501,7 @@ class GoogleServiceAccount(Resource):
                 service_account_email, google_project_id
             )
             force_delete_service_account(service_account_email)
-        except NotFound as exc:
+        except CirrusNotFound as exc:
             return (
                 "Can not remove the service accout {}. Detail {}".format(
                     id_, exc.message
@@ -555,7 +565,7 @@ def _get_service_account_for_patch(id_):
 
     # if they're trying to patch more fields, error out, we only support the above
     if payload:
-        raise UserError("Cannot update provided fields: {}".format(payload))
+        raise Forbidden("Cannot update provided fields: {}".format(payload))
 
     # if the field is not provided at all, use service accounts current access
     # NOTE: the user can provide project_access=[] to remove all datasets so checking
@@ -663,17 +673,42 @@ def _get_service_account_error_status(sa):
     )
     project_validity.check_validity(early_return=False)
 
-    response["errors"][
-        "service_account_email"
-    ] = _get_service_account_email_error_status(project_validity)
-
     response["errors"]["google_project_id"] = _get_google_project_id_error_status(
         project_validity
     )
 
+    response["errors"][
+        "service_account_email"
+    ] = _get_service_account_email_error_status(project_validity)
+
     response["errors"]["project_access"] = _get_project_access_error_status(
         project_validity
     )
+
+    # if we cannot find the monitoring service account, the other checks statuses should
+    # not be 200 and should be populated with relevant information
+    if (
+        response["errors"]["google_project_id"]["error"]
+        == ValidationErrors.MONITOR_NOT_FOUND
+    ):
+        if response["errors"]["service_account_email"].get("status") == 200:
+            response["errors"]["service_account_email"]["status"] = 400
+            response["errors"]["service_account_email"][
+                "error"
+            ] = ValidationErrors.MONITOR_NOT_FOUND
+            response["errors"]["service_account_email"]["error_description"] = (
+                "Fence's monitoring service account was not found on the project so we "
+                "were unable to complete the necessary validation checks."
+            )
+        if response["errors"]["project_access"].get("status") == 200:
+            response["errors"]["project_access"]["status"] = 400
+            response["errors"]["project_access"][
+                "error"
+            ] = ValidationErrors.MONITOR_NOT_FOUND
+            response["errors"]["project_access"]["error_description"] = (
+                "Fence's monitoring service account was not found on the project so we "
+                "were unable to complete the necessary validation checks."
+            )
 
     # all statuses must be 200 to be successful
     if (
@@ -699,11 +734,18 @@ def _get_service_account_email_error_status(validity_info):
     for sa_account_id, sa_validity in service_accounts_validity:
         if sa_account_id == validity_info.new_service_account:
             if not sa_validity:
-                response["status"] = 403
-                response["error"] = "unauthorized"
-                response[
-                    "error_description"
-                ] = "Service account requested for registration is invalid."
+                if sa_validity["policy_accessible"]:
+                    response["status"] = 403
+                    response["error"] = ValidationErrors.UNAUTHORIZED
+                    response[
+                        "error_description"
+                    ] = "Service account requested for registration is invalid."
+                else:
+                    response["status"] = 404
+                    response["error"] = ValidationErrors.POLICY_NOT_ACCESSIBLE
+                    response[
+                        "error_description"
+                    ] = "Either the service account doesn't exist or we were unable to retrieve its Policy"
 
             response["service_account_validity"] = {
                 str(sa_account_id): sa_validity.get_info()
@@ -714,32 +756,7 @@ def _get_service_account_email_error_status(validity_info):
 
 def _get_google_project_id_error_status(validity_info):
     has_access = validity_info.get("monitor_has_access")
-    if not has_access:
-        return {
-            "status": 404,
-            "error": "monitor_not_found",
-            "error_description": (
-                "Fence's monitoring service account "
-                "does not have access to the project and/or the necessary "
-                "Google APIs are not enabled."
-            ),
-            "membership_validity": {},
-            "service_account_validity": {},
-        }
-
     user_has_access = validity_info.get("user_has_access")
-    if not user_has_access:
-        return {
-            "status": 403,
-            "error": "unauthorized_user",
-            "error_description": (
-                "Current user is not an authorized member on the provided "
-                "Google Project."
-            ),
-            "membership_validity": {},
-            "service_account_validity": {},
-        }
-
     valid_parent_org = validity_info.get("valid_parent_org")
     valid_member_types = validity_info.get("valid_member_types")
     members_exist_in_fence = validity_info.get("members_exist_in_fence")
@@ -756,32 +773,62 @@ def _get_google_project_id_error_status(validity_info):
         "service_account_validity": {},
     }
 
+    if not has_access:
+        response["status"] = 404
+        response["error"] = ValidationErrors.MONITOR_NOT_FOUND
+        response["error_description"] = (
+            "Fence's monitoring service account "
+            "does not have access to the project and/or the necessary "
+            "Google APIs are not enabled."
+        )
+        return response
+
+    if not user_has_access:
+        if not validity_info.google_project_id:
+            # if the request doesn't include google_project_id, we want to report that
+            # instead of reporting the user doesn't have access to an unnamed project
+            response["status"] = 400
+            response["error"] = ValidationErrors.GOOGLE_PROJECT_NOT_INCLUDED
+            response[
+                "error_description"
+            ] = "Google Project ID (required) was not included in the request."
+        else:
+            response["status"] = 403
+            response["error"] = ValidationErrors.UNAUTHORIZED_USER
+            response["error_description"] = (
+                "Current user is not an authorized member on the provided "
+                "Google Project."
+            )
+        return response
+
     for sa_account_id, sa_validity in service_accounts_validity:
         if sa_account_id != validity_info.new_service_account:
             response["service_account_validity"][sa_account_id] = sa_validity.get_info()
             if not sa_validity:
                 response["status"] = 403
-                response["error"] = "unauthorized"
+                response["error"] = ValidationErrors.UNAUTHORIZED
                 response[
                     "error_description"
                 ] = "Project has one or more invalid service accounts. "
 
     if not valid_parent_org:
         response["status"] = 403
-        response["error"] = "unauthorized"
+        response["error"] = ValidationErrors.UNAUTHORIZED
         response["error_description"] += "Project has parent organization. "
 
     if not valid_member_types:
         response["status"] = 403
-        response["error"] = "unauthorized"
+        response["error"] = ValidationErrors.UNAUTHORIZED
         response["error_description"] += "Project has invalid member types. "
 
     if not members_exist_in_fence:
         response["status"] = 403
-        response["error"] = "unauthorized"
+        response["error"] = ValidationErrors.UNAUTHORIZED
         response[
             "error_description"
-        ] += "Not all Google project members exist in fence."
+        ] += "Not all Google project members have registered with {}.".format(
+            flask.current_app.config.get("APP_NAME", "Gen3")
+        )
 
     return response
 
@@ -800,13 +847,13 @@ def _get_project_access_error_status(validity_info):
         if validity.get("exists"):
             if not validity.get("all_users_have_access"):
                 response["status"] = 403
-                response["error"] = "unauthorized"
+                response["error"] = ValidationErrors.UNAUTHORIZED
                 message = "Not all users have necessary access to project(s). "
                 if message not in response["error_description"]:
                     response["error_description"] += message
         else:
             response["status"] = 404
-            response["error"] = "project_not_found"
+            response["error"] = ValidationErrors.PROJECT_NOT_FOUND
             response["error_description"] += (
                 "A project requested for access "
                 "could not be found by the given identifier. "
