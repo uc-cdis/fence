@@ -14,7 +14,7 @@ flask-restful==0.3.6
 Flask_SQLAlchemy_Session==1.1
 httplib2==0.10.3
 python-jose==2.0.2
-oauthlib==2.0.6
+oauthlib==2.1.0
 psycopg2==2.7.3.2
 pysftp==0.2.9
 pytest-flask==0.10.0
