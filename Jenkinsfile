@@ -5,6 +5,8 @@
 // import uchicago.cdis.MicroservicePipeline
 
 
-runPipeline {
-  pipeline = 'microservice'
+// runPipeline {
+//   pipeline = 'microservice'
+// }
+testPipeline { 
 }
