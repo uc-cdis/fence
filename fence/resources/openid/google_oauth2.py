@@ -3,6 +3,9 @@ from oauth2client.client import OAuth2WebServerFlow
 import httplib2
 import json
 import requests
+from cdislogging import get_logger
+
+logger = get_logger(__name__)
 
 
 class Oauth2Client(object):
@@ -74,7 +77,32 @@ class Oauth2Client(object):
         using their discovery url. Default to current userinfo url as identified
         09 JAN 2019.
         """
+        default_userinfo = "https://openidconnect.googleapis.com/v1/userinfo"
+
         document = requests.get(self.GOOGLE_DISCOVERY_URL)
-        return document.json().get(
-            "userinfo_endpoint", "https://www.googleapis.com/oauth2/v3/userinfo"
-        )
+
+        if document.status_code == requests.codes.ok:
+            userinfo_endpoint = document.json().get("userinfo_endpoint")
+            if not userinfo_endpoint:
+                logger.warning(
+                    "could not retrieve `userinfo_endpoint` from Google response {}. "
+                    "Defaulting to {}".format(document.json(), default_userinfo)
+                )
+                userinfo_endpoint = default_userinfo
+            elif userinfo_endpoint != default_userinfo:
+                logger.info(
+                    "Google's userinfo endpoint {} differs from our "
+                    "default {}. Using Google's...".format(
+                        userinfo_endpoint, default_userinfo
+                    )
+                )
+        else:
+            logger.error(
+                "{} ERROR from Google API, could not retrieve `userinfo_endpoint` from "
+                "Google response {}. Defaulting to {}".format(
+                    document.status_code, document, default_userinfo
+                )
+            )
+            userinfo_endpoint = default_userinfo
+
+        return userinfo_endpoint
