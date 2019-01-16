@@ -57,12 +57,155 @@ def download_dir(sftp, remote_dir, local_dir):
 
 
 def arborist_role_for_permission(permission):
+    """
+    For the programs/projects in the existing fence access control model, in order to
+    use arborist for checking permissions we generate a policy for each combination of
+    program/project and privilege. The roles involved all contain only one permission,
+    for one privilege from the project access model.
+    """
     return {
         "id": permission,
         "permissions": [
             {"id": permission, "action": {"service": "", "method": permission}}
         ],
     }
+
+
+@contextmanager
+def _read_file(filepath, encrypted=True, key=None, logger=None):
+    """
+    Context manager for reading and optionally decrypting file it only
+    decrypts files encrypted by unix 'crypt' tool which is used by dbGaP.
+
+    Args:
+        filepath (str): path to the file
+        encrypted (bool): whether the file is encrypted
+
+    Returns:
+        Generator[file-like class]: file like object for the file
+    """
+    if encrypted:
+        has_crypt = sp.call(["which", "crypt"])
+        if has_crypt != 0:
+            if logger:
+                logger.error("Need to install crypt to decrypt files from dbgap")
+            # TODO (rudyardrichter, 2019-01-08): raise error and move exit out to script
+            exit(1)
+        p = sp.Popen(
+            ["crypt", key],
+            stdin=open(filepath, "r"),
+            stdout=sp.PIPE,
+            stderr=open(os.devnull, "w"),
+        )
+        yield StringIO(p.communicate()[0])
+    else:
+        f = open(filepath, "r")
+        yield f
+        f.close()
+
+
+class UserYAML(object):
+    """
+    Representation of the information in a YAML file describing user, project, and RBAC
+    information for access control.
+    """
+
+    def __init__(
+        self,
+        projects=None,
+        user_info=None,
+        policies=None,
+        rbac=None,
+        logger=None,
+        user_rbac=None,
+    ):
+        self.projects = projects or {}
+        self.user_info = user_info or {}
+        self.user_rbac = user_rbac or {}
+        self.policies = policies or {}
+        self.rbac = rbac or {}
+        self.logger = logger
+
+    @classmethod
+    def from_file(cls, filepath, encrypted=True, key=None, logger=None):
+        with _read_file(filepath, encrypted=encrypted, key=key, logger=logger) as f:
+            data = yaml.safe_load(f)
+        projects = dict()
+        user_info = dict()
+        policies = dict()
+
+        users = data.get("users", {})
+        for username, details in users.iteritems():
+            # users should occur only once each; skip if already processed
+            if username in projects:
+                if logger:
+                    logger.error("user `{}` occurs multiple times".format(username))
+                raise EnvironmentError("invalid yaml file")
+
+            privileges = {}
+            try:
+                for project in details.get("projects", {}):
+                    privileges[project["auth_id"]] = set(project["privilege"])
+            except KeyError as e:
+                if logger:
+                    logger.error("project missing field: {}".format(e))
+                continue
+
+            user_info[username] = {
+                "email": details.get("email", username),
+                "display_name": details.get("display_name", ""),
+                "phone_number": details.get("phone_number", ""),
+                "tags": details.get("tags", {}),
+                "admin": details.get("admin", False),
+            }
+            projects[username] = privileges
+
+            # list of policies we want to grant to this user, which get sent to arborist
+            # to check if they're allowed to do certain things
+            policies[username] = details.get("policies", [])
+
+        # resources should be the resource tree to construct in arborist
+        user_rbac = dict()
+        for username, details in users.iteritems():
+            # users should occur only once each; skip if already processed
+            if username in user_rbac:
+                msg = "invalid yaml file: user `{}` occurs multiple times".format(
+                    username
+                )
+                if logger:
+                    logger.error(msg)
+                raise EnvironmentError(msg)
+            resource_permissions = dict()
+            for project in details.get("projects", {}):
+                # project may not have `resource` field
+                try:
+                    resource = project["resource"]
+                except KeyError:
+                    continue
+                resource_permissions[resource] = set(project["privilege"])
+            user_rbac[username] = resource_permissions
+
+        rbac = data.get("rbac", dict())
+        if not rbac:
+            # older version: resources in root, no `rbac` section
+            if logger:
+                logger.warning(
+                    "access control YAML file is using old format (missing `rbac`"
+                    " section in the root); assuming that if it exists `resources` will"
+                    " be on the root level, and continuing"
+                )
+            # we're going to throw it into the `rbac` dictionary anyways, so the rest of
+            # the code can pretend it's in the normal place that we expect
+            rbac["resources"] = data.get("resources", [])
+
+        return cls(
+            projects=projects,
+            user_info=user_info,
+            user_rbac=user_rbac,
+            policies=policies,
+            rbac=rbac,
+            logger=logger,
+        )
 
 
 class UserSyncer(object):
@@ -191,37 +334,6 @@ class UserSyncer(object):
         )
         os.system(execstr)
 
-    @contextmanager
-    def _read_file(self, filepath, encrypted=True):
-        """
-        Context manager for reading and optionally decrypting file it only
-        decrypts files encrypted by unix 'crypt' tool which is used by dbGaP.
-
-        Args:
-            filepath (str): path to the file
-            encrypted (bool): whether the file is encrypted
-
-        Returns:
-            Generator[file-like class]: file like object for the file
-        """
-
-        if encrypted:
-            has_crypt = sp.call(["which", "crypt"])
-            if has_crypt != 0:
-                self.logger.error("Need to install crypt to decrypt files from dbgap")
-                exit(1)
-            p = sp.Popen(
-                ["crypt", self.dbgap_key],
-                stdin=open(filepath, "r"),
-                stdout=sp.PIPE,
-                stderr=open(os.devnull, "w"),
-            )
-            yield StringIO(p.communicate()[0])
-        else:
-            f = open(filepath, "r")
-            yield f
-            f.close()
-
     def _parse_csv(self, file_dict, sess, encrypted=True):
         """
         parse csv files to python dict
@@ -266,7 +378,10 @@ class UserSyncer(object):
             if not self._match_pattern(filepath, encrypted=encrypted):
                 continue
 
-            with self._read_file(filepath, encrypted=encrypted) as f:
+            dbgap_key = getattr(self, "dbgap_key", None)
+            with _read_file(
+                filepath, encrypted=encrypted, key=dbgap_key, logger=self.logger
+            ) as f:
                 csv = DictReader(f, quotechar='"', skipinitialspace=True)
                 for row in csv:
                     username = row.get("login", "")
@@ -344,8 +459,11 @@ class UserSyncer(object):
         user_info = dict()
         user_policies = dict()
 
-        with self._read_file(filepath, encrypted=encrypted) as stream:
-            data = yaml.safe_load(stream)
+        dbgap_key = getattr(self, "dbgap_key", None)
+        with _read_file(
+            filepath, encrypted=encrypted, key=dbgap_key, logger=self.logger
+        ) as f:
+            data = yaml.safe_load(f)
 
         users = data.get("users", {})
         for username, details in users.iteritems():
@@ -376,51 +494,6 @@ class UserSyncer(object):
             user_policies[username] = details.get("policies", [])
 
         return user_project, user_info, user_policies
-
-    def _parse_resources_from_yaml(self, filepath, encrypted=True):
-        """
-        Args:
-            filepath (str): path to user yaml file
-
-        Return:
-            Tuple[
-                Mapping[str, Mapping[str, Set[str]]],
-                Mapping[str, Union[str, Mapping[...]]],
-            ]:
-                the type is complicated---there's two parts:
-                    - first the per-resource-path permissions for every user:
-                        username -> (mapping: resource path -> set(permission))
-                    - second the entire resource tree that gets handed to
-                      arborist, which is a recursive type
-        """
-        data = dict()
-        with self._read_file(filepath, encrypted=encrypted) as f:
-            data = yaml.safe_load(f)
-
-        users = data.get("users", {})
-        result = dict()
-        # resources should be the resource tree to construct in arborist
-        resources = data.get("resources")
-
-        for username, user_info in users.iteritems():
-            # users should occur only once each; skip if already processed
-            if username in result:
-                msg = "invalid yaml file: user `{}` occurs multiple times".format(
-                    username
-                )
-                self.logger.error(msg)
-                raise EnvironmentError(msg)
-            resource_permissions = dict()
-            for project in user_info.get("projects", {}):
-                # project may not have `resource` field
-                try:
-                    resource = project["resource"]
-                except KeyError:
-                    continue
-                resource_permissions[resource] = set(project["privilege"])
-            result[username] = resource_permissions
-
-        return result, resources
 
     @staticmethod
     def sync_two_user_info_dict(user_info1, user_info2):
@@ -559,7 +632,7 @@ class UserSyncer(object):
         # Add policies to user models in the database. These will show up in users'
         # JWTs; services can send the JWTs to arborist.
         if user_policies:
-            self.logger.info("populating roles from YAML file")
+            self.logger.info("populating RBAC information from YAML file")
         for username, policies in user_policies.iteritems():
             user = query_for_user(session=sess, username=username)
             for policy_id in policies:
@@ -874,11 +947,8 @@ class UserSyncer(object):
         )
 
         try:
-            user_projects_yaml, user_info_yaml, user_policies = self._parse_yaml(
-                self.sync_from_local_yaml_file, encrypted=False
-            )
-            user_arborist_info, resources = self._parse_resources_from_yaml(
-                self.sync_from_local_yaml_file, encrypted=False
+            user_yaml = UserYAML.from_file(
+                self.sync_from_local_yaml_file, encrypted=False, logger=self.logger
             )
         except EnvironmentError as e:
             self.logger.error(str(e))
@@ -889,23 +959,23 @@ class UserSyncer(object):
         self.sync_two_user_info_dict(user_info_csv, user_info)
 
         # privilleges in yaml files overide ones in csv files
-        self.sync_two_phsids_dict(user_projects_yaml, user_projects)
-        self.sync_two_user_info_dict(user_info_yaml, user_info)
+        self.sync_two_phsids_dict(user_yaml.projects, user_projects)
+        self.sync_two_user_info_dict(user_yaml.user_info, user_info)
 
         self._reset_user_access(sess)
 
         if user_projects:
             self.logger.info("Sync to db and storage backend")
             self.sync_to_db_and_storage_backend(
-                user_projects, user_info, user_policies, sess
+                user_projects, user_info, user_yaml.policies, sess
             )
             self.logger.info("Finish syncing to db and storage backend")
         else:
             self.logger.info("No users for syncing")
 
-        if resources:
+        if user_yaml.rbac:
             self.logger.info("Synchronizing arborist")
-            success = self._update_arborist(sess, resources, user_arborist_info)
+            success = self._update_arborist(sess, user_yaml)
             if success:
                 self.logger.info("Finished synchronizing arborist")
             else:
@@ -918,7 +988,7 @@ class UserSyncer(object):
         session.execute(users_to_policies.delete())
         # TODO (rudyardrichter 2018-09-10): revoke admin access etc
 
-    def _update_arborist(self, session, resources, user_projects):
+    def _update_arborist(self, session, user_yaml):
         """
         Create roles and resources in arborist from the information in
         ``user_projects``.
@@ -928,8 +998,8 @@ class UserSyncer(object):
         for the privileges like ``"read-storage"`` etc.
 
         Args:
-            user_projects (dict)
             session (sqlalchemy.Session)
+            user_yaml (UserYAML)
 
         Return:
             bool: success
@@ -938,22 +1008,42 @@ class UserSyncer(object):
             self.logger.warn("no arborist client set; skipping arborist sync")
             return False
         if not self.arborist_client.healthy():
+            # TODO (rudyardrichter, 2019-01-07): add backoff/retry here
             self.logger.error("arborist service is unavailable; skipping arborist sync")
             return False
 
         # Set up the resource tree in arborist
-        if resources:
-            # see if arborist has identical resource tree already
+        resources = user_yaml.rbac.get("resources", [])
+        for resource in resources:
             try:
-                for resource in resources:
-                    self.arborist_client.create_resource("/", resource, overwrite=True)
+                self.arborist_client.create_resource("/", resource, overwrite=True)
             except ArboristError as e:
                 self.logger.error(e)
-                return False
+                # keep going; maybe just some conflicts from things existing already
 
         created_roles = set()
-        created_policies = set()
+        roles = user_yaml.rbac.get("roles", [])
+        for role in roles:
+            try:
+                response = self.arborist_client.create_role(role)
+                if response:
+                    created_roles.add(role["id"])
+            except ArboristError as e:
+                self.logger.error(e)
+                # keep going; maybe just some conflicts from things existing already
 
+        created_policies = set()
+        policies = user_yaml.rbac.get("policies", [])
+        for policy in policies:
+            try:
+                response = self.arborist_client.create_policy(policy)
+                if response:
+                    created_policies.add(policy["id"])
+            except ArboristError as e:
+                self.logger.error(e)
+                # keep going; maybe just some conflicts from things existing already
+
+        user_projects = user_yaml.user_rbac
         for username, user_resources in user_projects.iteritems():
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)

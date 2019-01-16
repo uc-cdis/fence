@@ -2,16 +2,32 @@ cloud_providers: {}
 
 groups: {}
 
-# Define the resource tree which will be uploaded to arborist.
-resources:
-  - name: programs
-    subresources:
-    - name: test
+# Define information used for role-based access control.
+# The information in the `rbac` section is sent to arborist to populate its
+# access control model.
+rbac:
+  policies:
+    - id: 'data_upload'
+      description: 'upload raw data files to S3'
+      role_ids: ['file_uploader']
+      resource_paths: ['/data_file']
+  resources:
+    - name: 'programs'
       subresources:
-      - name: projects
+      - name: 'test'
         subresources:
-        - name: test
-    - name: test_program
+        - name: 'projects'
+          subresources:
+          - name: 'test'
+      - name: 'test_program'
+  roles:
+    - id: 'file_uploader'
+      description: 'can upload data files'
+      permissions:
+        - id: 'file_upload'
+          action:
+            service: 'fence'
+            method: 'file_upload'
 
 # auth_id field in projects exists for pre-arborist backwards-compatibility
 
