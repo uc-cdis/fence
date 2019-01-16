@@ -368,6 +368,50 @@ def is_user_member_of_all_google_projects(
     return is_member
 
 
+def get_user_by_email(user_email, db=None):
+    """
+    Return user from fence DB
+
+    Args:
+        user_id (str): user's fence email id
+
+    Returns:
+        bool: user in fence DB with user_email
+    """
+
+    session = get_db_session(db)
+    user = (
+       session.query(User)
+        .filter(User.email == user_email)
+    ).first()
+
+    return user
+
+
+def user_has_access_to_project(user, project_id, db=None):
+    """
+    Return True IFF user has access to provided project auth_id
+
+    Args:
+        user (fence.model.User): user to check access
+        project_id (string): project auth_id
+        db (str): database connection string
+
+    Returns:
+        bool: True IFF user has access to provided project auth_id
+
+    """
+
+    session = get_db_session(db)
+    access_privilege = (
+        session.query(AccessPrivilege)
+            .filter(AccessPrivilege.user_id == user.id)
+            .filter(AccessPrivilege.project_id == project_id)
+    ).first()
+
+    return bool(access_privilege)
+
+
 def do_all_users_have_access_to_project(users, project_id, db=None):
     session = get_db_session(db)
     # users will be list of fence.model.User's

@@ -18,17 +18,21 @@ from fence.resources.google.validity import (
 
 from fence.resources.google.utils import (
     get_all_registered_service_accounts,
+    get_linked_google_account_email,
     is_google_managed_service_account,
 )
 
 from fence.resources.google.access_utils import (
     get_google_project_number,
+    get_user_by_email,
     force_remove_service_account_from_access,
     force_remove_service_account_from_db,
+    user_has_access_to_project,
 )
 
 from fence import utils
 from fence.config import config
+from fence.models import User
 from fence.errors import Unauthorized
 
 logger = get_logger(__name__)
@@ -486,3 +490,48 @@ def _send_emails_informing_service_account_removal(
                     content += "\n\t\t\t - {}".format(reason)
 
     return utils.send_email(from_email, to_emails, subject, content, domain)
+
+
+def email_users_without_access(auth_ids, user_emails, check_linking):
+    """
+
+
+    """
+
+    no_access = {}
+
+    for user_email in user_emails:
+
+        user = get_user_by_email(user_email)
+
+        if not user:
+            logger.info("Email ({}) does not exist in fence database.".format(user_email))
+            continue
+
+        if check_linking:
+            link_email = get_linked_google_account_email(user.user_id)
+            if not link_email:
+                logger.info("User ({}) does not have a linked google account.".format(user_email))
+                continue
+
+        no_access_auth_ids = []
+        for auth_id in auth_ids:
+            if not user_has_access_to_project(user, auth_id):
+                logger.info("User ({}) does not have access to project (auth_id: {})".format(user_email, auth_id))
+                # add to list to send email
+                no_access_auth_ids.append(auth_id)
+
+        if no_access_auth_ids:
+            no_access[user_email] = no_access_auth_ids
+
+    if len(no_access) == user_emails:
+        logger.warning("No user has proper access to provided projects. Contact project administrator. No emails will be sent")
+    elif no_access:
+        logger.info("Some user(s) do not have proper access to provided projects. Email(s) will be sent to user(s).")
+        # send email
+
+
+
+
+
+
