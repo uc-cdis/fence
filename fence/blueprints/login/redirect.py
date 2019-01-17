@@ -38,13 +38,16 @@ class RedirectMixin(object):
         allowed_redirects = allowed_login_redirects()
 
         if oauth_client:
-            invalid_redirect = domain(url) not in map(domain, oauth_client.redirect_uris)
+            invalid_redirect = domain(url) not in map(
+                domain, oauth_client.redirect_uris
+            )
         else:
             invalid_redirect = domain(url) not in allowed_redirects
 
         if invalid_redirect:
             flask.current_app.logger.error(
-                "invalid redirect {}. expected one of: {}"
-                .format(url, allowed_redirects)
+                "invalid redirect {}. expected one of: {}".format(
+                    url, allowed_redirects
+                )
             )
             raise UserError("invalid login redirect URL {}".format(url))
