@@ -492,7 +492,7 @@ def _send_emails_informing_service_account_removal(
     return utils.send_email(from_email, to_emails, subject, content, domain)
 
 
-def email_users_without_access(auth_ids, user_emails, check_linking):
+def _get_users_without_access(auth_ids, user_emails, check_linking):
     """
 
 
@@ -524,11 +524,39 @@ def email_users_without_access(auth_ids, user_emails, check_linking):
         if no_access_auth_ids:
             no_access[user_email] = no_access_auth_ids
 
-    if len(no_access) == user_emails:
+    return no_access
+
+
+def email_user_without_access(user_email, projects):
+
+    to_emails = [user_email]
+
+    from_email = config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["from"]
+    subject = config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["subject"]
+
+    domain = config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["domain"]
+    if config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["admin"]:
+        to_emails.extend(config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["admin"])
+
+    text = config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["content"]
+    content = text.format(str(projects))
+
+    return utils.send_email(from_email, to_emails, subject, content, domain)
+
+
+def email_users_without_access(auth_ids, user_emails, check_linking):
+
+    users_without_access = _get_users_without_access(auth_ids, user_emails, check_linking)
+
+    if len(users_without_access) == user_emails:
         logger.warning("No user has proper access to provided projects. Contact project administrator. No emails will be sent")
-    elif no_access:
+        return
+    elif len(users_without_access) > 0:
         logger.info("Some user(s) do not have proper access to provided projects. Email(s) will be sent to user(s).")
-        # send email
+
+        for user, projects in users_without_access.iteritems():
+            email_user_without_access(user, projects)
+
 
 
 
