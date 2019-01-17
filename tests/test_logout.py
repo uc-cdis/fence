@@ -1,9 +1,10 @@
+import mock
 import urlparse
 import urllib
-from fence.resources.storage.cdis_jwt import create_session_token
-from fence.config import config
 
 from fence.auth import build_redirect_url
+from fence.config import config
+from fence.resources.storage.cdis_jwt import create_session_token
 
 
 def test_redirect_url():
@@ -29,17 +30,25 @@ def test_logout(client, db_session):
     assert r.status_code == 302
 
 
-def test_logout_itrust(client, db_session):
+def test_logout_invalid_redirect(client, db_session):
     r = client.get("/user/")
-    r = client.get("/logout?next=https://some_site.com")
-    assert r.status_code == 302
-    parsed_url = urlparse.urlparse(r.location)
-    raw_redirect = urlparse.parse_qs(parsed_url.query).get("AppReturnUrl")[0]
-    redirect = urllib.unquote(raw_redirect)
-    assert redirect == "https://some_site.com"
+    r = client.get("/logout?next=https://bogus.website")
+    assert r.status_code == 400
 
 
-def test_logout_fence(app, user_with_fence_provider, monkeypatch):
+def test_logout_itrust(client, db_session):
+    redirect = "https://some_site.com"
+    with mock.patch("fence.allowed_login_redirects", return_value={redirect}):
+        r = client.get("/user/")
+        r = client.get("/logout?next={}".format(redirect))
+        assert r.status_code == 302
+        parsed_url = urlparse.urlparse(r.location)
+        raw_redirect = urlparse.parse_qs(parsed_url.query).get("AppReturnUrl")[0]
+        result_redirect = urllib.unquote(raw_redirect)
+        assert result_redirect == redirect
+
+
+def test_logout_fence(app, client, user_with_fence_provider, monkeypatch):
     other_fence_logout_url = "https://test-url.com"
     monkeypatch.setitem(config, "MOCK_AUTH", False)
     monkeypatch.setitem(config, "SHIBBOLETH_HEADER", None)
@@ -57,15 +66,18 @@ def test_logout_fence(app, user_with_fence_provider, monkeypatch):
 
     # Test that once the session is started, we have access to
     # the username
-    with app.test_client() as client:
+    redirect = "https://some_site.com"
+    # fence will reject unexpected redirect URLs, so we patch the validator to consider
+    # this redirect valid
+    with mock.patch("fence.allowed_login_redirects", return_value={redirect}):
         # manually set cookie for initial session
         client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
 
-        r = client.get("/logout?next=https://some_site.com")
+        r = client.get("/logout?next={}".format(redirect))
         assert r.status_code == 302
         assert r.location.startswith(other_fence_logout_url)
 
         parsed_url = urlparse.urlparse(r.location)
         raw_redirect = urlparse.parse_qs(parsed_url.query).get("next")[0]
-        redirect = urllib.unquote(raw_redirect)
-        assert redirect == "https://some_site.com"
+        result_redirect = urllib.unquote(raw_redirect)
+        assert result_redirect == redirect

@@ -269,9 +269,6 @@ def get_token(*args, **kwargs):
     """
     Handle exchanging code for and refreshing the access token.
 
-    The operation here is handled entirely by the ``oauth.token_handler``
-    decorator, so this function only needs to pass.
-
     See the OpenAPI documentation for detailed specification, and the OAuth2
     tests for examples of some operation and correct behavior.
     """

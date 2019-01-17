@@ -2,14 +2,19 @@ import flask
 from flask_restful import Resource
 
 from fence.auth import login_user
+from fence.blueprints.login.redirect import RedirectMixin
 from fence.errors import UserError
-from fence.models import IdentityProvider
+from fence.models import Client, IdentityProvider
 from fence.config import config
 
 
-class GoogleRedirect(Resource):
+class GoogleRedirect(RedirectMixin, Resource):
     def get(self):
-        flask.redirect_url = flask.request.args.get("redirect")
+        redirect_url = flask.request.args.get("redirect")
+        client_id = flask.request.args.get("client")
+        client = Client.get_by_client_id(client_id)
+        self.validate_redirect(redirect_url, client)
+        flask.redirect_url = redirect_url
         if flask.redirect_url:
             flask.session["redirect"] = flask.redirect_url
 
@@ -27,13 +32,12 @@ class GoogleLogin(Resource):
                 config.get("BASE_URL", "")
                 + "/link/google/callback?code={}".format(flask.request.args.get("code"))
             )
-        else:
-            code = flask.request.args.get("code")
-            result = flask.current_app.google_client.get_user_id(code)
-            email = result.get("email")
-            if email:
-                return _login(email)
+        code = flask.request.args.get("code")
+        result = flask.current_app.google_client.get_user_id(code)
+        email = result.get("email")
+        if not email:
             raise UserError(result)
+        return _login(email)
 
 
 def _login(email):

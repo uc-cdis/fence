@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import copy
 import os
 
 from addict import Dict
@@ -66,13 +67,13 @@ def fence_client_app(
     kid_2,
     rsa_private_key_2,
     rsa_public_key_2,
+    monkeypatch,
 ):
     """
     A Flask application fixture which acts as a client of the original ``app``
     in a multi-tenant configuration.
     """
     root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-
     client_app = flask.Flask("client_app")
     app_init(
         client_app,
@@ -80,14 +81,12 @@ def fence_client_app(
         root_dir=root_dir,
         config_path=os.path.join(root_dir, "test-fence-config.yaml"),
     )
-
+    client_app.config["APPLICATION_ROOT"] = "/"
     keypair = Keypair(
         kid=kid_2, public_key=rsa_public_key_2, private_key=rsa_private_key_2
     )
     client_app.keypairs = [keypair]
-
     client_app.jwt_public_keys["/"] = OrderedDict([(kid_2, rsa_public_key_2)])
-
     client_app.config["BASE_URL"] = "/"
     client_app.config["MOCK_AUTH"] = False
     client_app.config["DEFAULT_LOGIN_URL"] = "/login/fence"
@@ -109,7 +108,6 @@ def fence_client_app(
     client_app.fence_client = OAuthClient(
         **client_app.config["OPENID_CONNECT"]["fence"]
     )
-
     return client_app
 
 
