@@ -22,7 +22,7 @@ setup(
         "google_api_python_client>=1.6.4,<2.0.0",
         "httplib2>=0.10.3,<1.0.0",
         "python-jose>=2.0.0,<3.0.0",
-        "oauthlib>=2.1.0,<3.0.0",
+        "oauthlib>=3.0.0,<4.0.0",
         "psycopg2>=2.7.3.2,<3.0.0.0",
         "pysftp>=0.2.9,<1.0.0",
         "pytest-flask>=0.10.0,<1.0.0",
