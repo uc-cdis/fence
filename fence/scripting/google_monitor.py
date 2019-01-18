@@ -531,14 +531,14 @@ def email_user_without_access(user_email, projects):
 
     to_emails = [user_email]
 
-    from_email = config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["from"]
-    subject = config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["subject"]
+    from_email = config["PROBLEM_USER_EMAIL_NOTIFICATION"]["from"]
+    subject = config["PROBLEM_USER_EMAIL_NOTIFICATION"]["subject"]
 
-    domain = config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["domain"]
-    if config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["admin"]:
-        to_emails.extend(config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["admin"])
+    domain = config["PROBLEM_USER_EMAIL_NOTIFICATION"]["domain"]
+    if config["PROBLEM_USER_EMAIL_NOTIFICATION"]["admin"]:
+        to_emails.extend(config["PROBLEM_USER_EMAIL_NOTIFICATION"]["admin"])
 
-    text = config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["content"]
+    text = config["PROBLEM_USER_EMAIL_NOTIFICATION"]["content"]
     content = text.format(str(projects))
 
     return utils.send_email(from_email, to_emails, subject, content, domain)

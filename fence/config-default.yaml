@@ -421,6 +421,21 @@ REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION:
   admin:
     - 'admin@example.edu'
 
+PROBLEM_USER_EMAIL_NOTIFICATION:
+  # this domain MUST exist in GUN_MAIL config
+  domain: 'example.com'
+  from: 'do-not-reply@example.com'
+  subject: 'Account access error notification'
+  # the {} gets replaced dynamically in the Python code to be the Project ID
+  content: >
+    Your account does not have access to the following projects: {}
+  # this admin email will be included as a recipient to *any* email to anyone about
+  # service account removal.
+  #
+  # WARNING: This is NOT a bcc so the email is visible to the end-user
+  admin:
+    - 'admin@example.edu'
+
 # Service account email domains that represent a service account that Google owns.
 # These are usually created when a sepcific GCP service is enabled.
 # This is used for Service Account Validation for Data Access.
