@@ -1288,3 +1288,7 @@ def force_update_google_link(DB, username, google_email):
         session.commit()
 
         return expiration
+
+
+def notify_problem_users(emails, auth_ids, check_linking):
+    return
