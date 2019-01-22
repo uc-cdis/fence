@@ -39,6 +39,13 @@ def load_keypairs(keys_dir):
             ISO date format) or time last modified, if the name is not
             formatted in ISO
     """
+    if not os.path.isdir(keys_dir):
+        raise EnvironmentError(
+            "Keypair directory not found. Make sure `{}` directory exists. "
+            "Inside that directory should be another folder containing "
+            "key files `jwt_public_key.pem` and `jwt_private_key.pem`.".format(keys_dir)
+        )
+
     # Get the absolute paths for the keypair directories.
     keypair_directories = [os.path.join(keys_dir, d) for d in os.listdir(keys_dir)]
 
@@ -63,6 +70,13 @@ def load_keypairs(keys_dir):
     keypairs = [
         Keypair.from_directory(d) for d in keypair_directories if os.path.isdir(d)
     ]
+
+    if not keypairs:
+        raise EnvironmentError(
+            "Keypairs not found. Make sure `{}` directory exists. "
+            "Inside that directory should be another folder containing "
+            "key files `jwt_public_key.pem` and `jwt_private_key.pem`.".format(keys_dir)
+        )
 
     return keypairs
 
