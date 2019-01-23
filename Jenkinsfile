@@ -4,4 +4,5 @@
 
 runPipeline {
   pipeline = "microservice"
+  waitForQuay = "True"
 }
