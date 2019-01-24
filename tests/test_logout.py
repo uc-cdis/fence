@@ -38,7 +38,7 @@ def test_logout_invalid_redirect(client, db_session):
 
 def test_logout_itrust(client, db_session):
     redirect = "https://some_site.com"
-    with mock.patch("fence.allowed_login_redirects", return_value={redirect}):
+    with mock.patch("fence.allowed_login_redirects", return_value={"some_site.com"}):
         r = client.get("/user/")
         r = client.get("/logout?next={}".format(redirect))
         assert r.status_code == 302
@@ -69,7 +69,7 @@ def test_logout_fence(app, client, user_with_fence_provider, monkeypatch):
     redirect = "https://some_site.com"
     # fence will reject unexpected redirect URLs, so we patch the validator to consider
     # this redirect valid
-    with mock.patch("fence.allowed_login_redirects", return_value={redirect}):
+    with mock.patch("fence.allowed_login_redirects", return_value={"some_site.com"}):
         # manually set cookie for initial session
         client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
 
