@@ -9,9 +9,6 @@ import urlparse
 # in python3:
 # urllib.parse
 
-import flask
-import pytest
-
 import fence
 from fence.config import config
 
@@ -28,6 +25,7 @@ def test_login(restore_config, fence_client_app, monkeypatch, oauth_client):
     """
     # Disable the keys refreshing since requests will not work with the client app.
     monkeypatch.setattr("authutils.token.keys.refresh_jwt_public_keys", lambda: None)
+
     config.update(
         {
             "OPENID_CONNECT": fence_client_app.config["OPENID_CONNECT"],
@@ -38,6 +36,7 @@ def test_login(restore_config, fence_client_app, monkeypatch, oauth_client):
     )
 
     with fence_client_app.test_client() as fence_client_client:
+        # 1
         data = {
             "client_id": oauth_client.client_id,
             "redirect_uri": oauth_client.url,
@@ -52,6 +51,7 @@ def test_login(restore_config, fence_client_app, monkeypatch, oauth_client):
         assert response_oauth_authorize.status_code == 302
         assert "/login/fence" in response_oauth_authorize.location
 
+        # 2
         redirect_url_quote = urllib.quote("/login/fence/login")
         path = "/login/fence?redirect_uri={}".format(redirect_url_quote)
         response_login_fence = fence_client_client.get(path)
