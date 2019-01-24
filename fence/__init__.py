@@ -9,7 +9,6 @@ from cdislogging import get_stream_handler
 from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.auth import logout, build_redirect_url
-from fence.blueprints.login.utils import allowed_login_redirects, domain
 from fence.errors import UserError
 from fence.jwt import keys
 from fence.models import migrate
@@ -117,8 +116,6 @@ def app_register_blueprints(app):
             next_url = request_next
         else:
             next_url = build_redirect_url(config.get("ROOT_URL", ""), request_next)
-        if domain(next_url) not in allowed_login_redirects():
-            raise UserError("invalid logout redirect URL: {}".format(next_url))
         return logout(next_url=next_url)
 
     @app.route("/jwt/keys")
