@@ -3,11 +3,12 @@ import flask
 from flask_restful import Resource
 
 from fence.auth import login_user
+from fence.blueprints.login.redirect import RedirectMixin
 from fence.errors import Unauthorized
 from fence.models import IdentityProvider
 
 
-class FenceRedirect(Resource):
+class FenceRedirect(RedirectMixin, Resource):
     """
     For ``/login/fence`` endpoint.
 
@@ -24,7 +25,10 @@ class FenceRedirect(Resource):
         oauth2_redirect_uri = flask.current_app.fence_client.client_kwargs.get(
             "redirect_uri"
         )
-        redirect_url = flask.request.args.get("redirect")
+        redirect_url = flask.request.args.get("redirect") or flask.request.args.get(
+            "redirect_uri"
+        )
+        self.validate_redirect(redirect_url)
         if redirect_url:
             flask.session["redirect"] = redirect_url
         authorization_url, state = flask.current_app.fence_client.generate_authorize_redirect(
