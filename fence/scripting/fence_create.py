@@ -681,6 +681,10 @@ def _verify_google_group_member(session, access_group, member):
                 manager.remove_member_from_group(
                     member.get("email"), access_group.email
                 )
+                print(
+                    "Removed {} from {}, not found in fence but found "
+                    "in Google Group.".format(member.get("email"), access_group.email)
+                )
         except Exception as e:
             print(
                 "ERROR: Could not remove google group memeber {} from access group {}. Detail {}".format(
@@ -717,6 +721,10 @@ def _verify_google_service_account_member(session, access_group, member):
             with GoogleCloudManager() as manager:
                 manager.remove_member_from_group(
                     member.get("email"), access_group.email
+                )
+                print(
+                    "Removed {} from {}, not found in fence but found "
+                    "in Google Group.".format(member.get("email"), access_group.email)
                 )
         except Exception as e:
             print(
