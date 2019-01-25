@@ -8,10 +8,10 @@ from fence.models import Client
 
 def allowed_login_redirects():
     """
-    Determine which redirects a login redirect endpoint (``/login/google``, etc)
-    should be allowed to redirect back to after login. By default this includes the
-    base URL from this flask application, and also includes the redirect URLs
-    registered for any OAuth clients.
+    Determine which redirects a login redirect endpoint (``/login/google``, etc) should
+    be allowed to redirect back to after login. By default this includes the base URL
+    from this flask application, and also includes the redirect URLs registered for any
+    OAuth clients.
 
     Return:
         List[str]: allowed redirect URLs
