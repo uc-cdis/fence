@@ -923,7 +923,9 @@ class UserSyncer(object):
                     self._get_from_ftp_with_proxy(tmpdir)
                 dbgap_file_list = glob.glob(os.path.join(tmpdir, "*"))
             except Exception as e:
-                self.logger.info(e)
+                self.logger.error(e)
+                exit(1)
+
         permissions = [{"read-storage"} for _ in dbgap_file_list]
         user_projects, user_info = self._parse_csv(
             dict(zip(dbgap_file_list, permissions)), encrypted=True, sess=sess
