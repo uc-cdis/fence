@@ -1,14 +1,14 @@
 ---
 openapi: 3.0.0
 servers:
-  - url: 'https://example.domain/'
+  - url: 'https://example.domain/user'
 info:
   title: Fence OpenAPI Specification
   version: 0.1.0
   description: >-
-    Access management for CDIS data commons. Code is available on
+    Access management for CTDS Gen3 Data Commons. Code is available on
     [GitHub](https://github.com/uc-cdis/fence).
-  termsOfService: 'http://cdis.uchicago.edu/terms/'
+  termsOfService: 'https://ctds.uchicago.edu/terms/'
   contact:
     email: cdis@uchicago.edu
   license:
@@ -39,8 +39,8 @@ tags:
     description: Google functionality
   - name: keys
     description: Get public keys used to validate JWTs issued by fence
-  - name: rbac
-    description: Manage policies for role-based access control (RBAC)
+  - name: admin
+    description: Administrative tools for users and clients
 paths:
   /oauth2/authorize:
     get:
@@ -250,6 +250,13 @@ paths:
       tags:
         - data
       summary: delete all locations of a stored data file and remove its record from indexd
+      parameters:
+        - name: file_id
+          required: true
+          in: path
+          description: data GUID
+          schema:
+            type: string
       description: >-
         After a user uploads a data file and it is registered in indexd, but
         before it is mapped into the graph via metadata submission, this
@@ -257,7 +264,7 @@ paths:
         record in indexd) and delete the record in indexd.
       security:
         - OAuth2:
-          - data
+            - data
       responses:
         204:
           description: successful operation
@@ -265,7 +272,6 @@ paths:
           description: >-
             internal server error; could not delete stored files, or not able to
             delete indexd record
-          content-type: application/json
   '/data/download/{file_id}':
     get:
       tags:
@@ -280,7 +286,7 @@ paths:
         - name: file_id
           required: true
           in: path
-          description: data UUID
+          description: data GUID
           schema:
             type: string
         - name: protocol
@@ -319,7 +325,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/SignedURL'
         '400':
-          description: 'Invalid input: UUID not found or invalid location'
+          description: 'Invalid input: GUID not found or invalid location'
   '/data/upload':
     post:
       tags:
@@ -336,16 +342,14 @@ paths:
         field in the new record.
       security:
         - OAuth2:
-          - user
-          - data
+            - user
+            - data
       operationId: uploadBlank
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/RequestUploadBlank'
-
-
       responses:
         201:
           description: successful operation; created new record in indexd
@@ -377,7 +381,7 @@ paths:
         - name: file_id
           required: true
           in: path
-          description: data UUID
+          description: data GUID
           schema:
             type: string
         - name: protocol
@@ -407,7 +411,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/SignedURL'
         '400':
-          description: 'Invalid input: UUID not found or invalid location'
+          description: 'Invalid input: GUID not found or invalid location'
   /credentials:
     get:
       tags:
@@ -880,10 +884,10 @@ paths:
         > **NOTE: This will only provide service account information for
         Google Cloud Projects if the current user is a member of those
         projects**
-        
-        The endpoint lists the `project_access` that was previously granted 
-        (whether or not the SA currently has access). The `project_access_exp` 
-        will be `0` when the SA isn't currently given access 
+
+        The endpoint lists the `project_access` that was previously granted
+        (whether or not the SA currently has access). The `project_access_exp`
+        will be `0` when the SA isn't currently given access
         (but can be provided access again with a `PATCH`).
       parameters:
         - name: google_project_ids
@@ -1078,196 +1082,323 @@ paths:
             schema:
               $ref: '#/components/schemas/GoogleServiceAccountProjectAccess'
         description: ServiceAccount fields to update
-  '/rbac/policies/':
+  '/admin/users':
     get:
       tags:
-        - rbac
-      summary: List IDs for existing policies that can be granted to users
+        - admin
+      summary: List all users
+      description: Get all the users.
       responses:
-        200:
-          description: list of policies
+        '200':
+          description: 'success'
           content:
-            application/json:
+            '*/*':
               schema:
-                type: object
-                properties:
-                  'policies':
-                    type: array
-                    items:
-                      type: string
-                example:
-                  policies:
-                    - policy-abc
-                    - policy-xyz
+                $ref: '#/components/schemas/Users'
+        '401':
+          description: 'unauthorized'
     post:
       tags:
-        - rbac
-      summary: Create a new policy
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                'policies':
-                  type: array
-                  items: string
-              required:
-                - id
-              example:
-                policies:
-                  - 'some-policy-1'
-                  - 'some-policy-2'
-                  - 'some-policy-3'
+        - admin
+      summary: Create a new user
       responses:
-        201:
-          description: created policy successfully
-  '/rbac/policies/{policyID}':
-    delete:
-      tags:
-        - rbac
-      parameters:
-        - in: path
-          name: policyID
-          schema:
-            type: string
-          required: true
-          description: unique identifier for a policy in the fence database
-      summary: Delete an existing policy
-      responses:
-        201:
-          description: policy deleted successfully
-        404:
-          description: no policy exists with the given ID
-  '/rbac/user/{userID}/policies/':
+        '200':
+          description: 'success, newly created user'
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: 'unauthorized'
+  '/admin/users/{username}':
     get:
       tags:
-        - rbac
+        - admin
+      summary: Get a specific user
       parameters:
-        - in: path
-          name: userID
+        - name: username
+          required: true
+          in: path
+          description: User's unique username
           schema:
             type: string
-          required: true
-          description: unique identifier for a user in the fence data model
-      summary: List the policies granted to a user
       responses:
-        200:
-          description: list of policies
+        '200':
+          description: 'success'
           content:
-            application/json:
+            '*/*':
               schema:
-                type: object
-                properties:
-                  'policies':
-                    type: array
-                    items:
-                      type: string
-                example:
-                  'policies':
-                    - 'policy-abc'
-                    - 'policy-xyz'
-        404:
-          description: no user exists with ID given in the path
+                $ref: '#/components/schemas/User'
+        '401':
+          description: 'unauthorized'
+        '404':
+          description: 'not found'
+    # patch:
+    #   tags:
+    #     - admin
+    #   summary: Update a specific user
+    #   responses:
+    #     '200':
+    #       description: 'success, newly updated user'
+    #       content:
+    #         '*/*':
+    #           schema:
+    #             $ref: '#/components/schemas/User'
+    #     '400':
+    #       description: 'failure'
+    #     '401':
+    #       description: 'unauthorized'
+    #     '404':
+    #       description: 'not found'
+    #   requestBody:
+    #     content:
+    #       application/json:
+    #         schema:
+    #           $ref: '#/components/schemas/User'
+    delete:
+      tags:
+        - admin
+      summary: Delete a specific user
+      parameters:
+        - name: username
+          required: true
+          in: path
+          description: User's unique username
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 'success, empty response'
+        '400':
+          description: 'failure'
+        '401':
+          description: 'unauthorized'
+        '404':
+          description: 'not found'
+  # '/admin/cloud_providers':
+  #   get:
+  #     tags:
+  #       - admin
+  #     summary: List all cloud_providers
+  #     responses:
+  #       '200':
+  #         description: ''
+  # '/admin/cloud_providers/{providername}':
+  #   get:
+  #     tags:
+  #       - admin
+  #     summary: Get a specific cloud provider
+  #     responses:
+  #       '200':
+  #         description: ''
+  #   post:
+  #     tags:
+  #       - admin
+  #     summary: Create a new cloud provider
+  #     responses:
+  #       '200':
+  #         description: ''
+  #   patch:
+  #     tags:
+  #       - admin
+  #     summary: Update a specific cloud provider
+  #     responses:
+  #       '200':
+  #         description: ''
+  #   delete:
+  #     tags:
+  #       - admin
+  #     summary: Delete a specific cloud provider
+  #     responses:
+  #       '200':
+  #         description: ''
+  # '/admin/clients':
+  #   get:
+  #     tags:
+  #       - admin
+  #     summary: List all clients
+  #     responses:
+  #       '200':
+  #         description: ''
+  #   post:
+  #     tags:
+  #       - admin
+  #     summary: Create a new client
+  #     responses:
+  #       '200':
+  #         description: ''
+  # '/admin/clients/{id}':
+  #   get:
+  #     tags:
+  #       - admin
+  #     summary: Get a specific client
+  #     responses:
+  #       '200':
+  #         description: ''
+  #   patch:
+  #     tags:
+  #       - admin
+  #     summary: Update a specific client
+  #     responses:
+  #       '200':
+  #         description: ''
+  #   delete:
+  #     tags:
+  #       - admin
+  #     summary: Delete a specific client
+  #     responses:
+  #       '200':
+  #         description: ''
+  '/admin/projects':
+    get:
+      tags:
+        - admin
+      summary: List all Projects
+      responses:
+        '200':
+          description: ''
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Projects'
     post:
       tags:
-        - rbac
-      parameters:
-        - in: path
-          name: userID
-          schema:
-            type: string
-          required: true
-          description: unique identifier for a user in the fence data model
-      summary: grant a list of policies to the user
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                'policies':
-                  type: array
-                  items:
-                    type: string
-              example:
-                'policies':
-                  - 'policy-abc'
-                  - 'policy-xyz'
+        - admin
+      summary: Create a new Project
       responses:
-        204:
-          description: successfully granted policies to user
-        404:
-          description: no user exists with ID given in the path
-    put:
+        '200':
+          description: ''
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Project'
+  '/admin/projects/{projectname}':
+    get:
       tags:
-        - rbac
+        - admin
+      summary: Get a specific Project
       parameters:
-        - in: path
-          name: userID
+        - name: projectname
+          required: true
+          in: path
+          description: Project name
           schema:
             type: string
-          required: true
-          description: unique identifier for a user in the fence data model
-      summary: overwrite a user's existing policies with a new list
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                'policies':
-                  type: array
-                  items:
-                    type: string
-              example:
-                'policies':
-                  - 'policy-abc'
-                  - 'policy-xyz'
       responses:
-        204:
-          description: successfully granted policies to user
-        404:
-          description: no user exists with ID given in the path
+        '200':
+          description: ''
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Project'
+    post:
+      tags:
+        - admin
+      summary: Create a new Project
+      parameters:
+        - name: projectname
+          required: true
+          in: path
+          description: Project name
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Project'
+    # patch:
+    #   tags:
+    #     - admin
+    #   summary: Update a specific Project
+    #   responses:
+    #     '200':
+    #       description: ''
     delete:
       tags:
-        - rbac
+        - admin
+      summary: Delete a specific Project
       parameters:
-        - in: path
-          name: userID
+        - name: projectname
+          required: true
+          in: path
+          description: Project name
           schema:
             type: string
-          required: true
-          description: unique identifier for a user in the fence data model
-      summary: revoke all policies from a user
       responses:
-        204:
-          description: successfully revoked policies
-        404:
-          description: no user exists with ID given in the path
-  '/user/{userID}/policies/{policyID}':
-    delete:
-      tags:
-        - rbac
-      parameters:
-        - in: path
-          name: userID
-          schema:
-            type: string
-          required: true
-          description: unique identifier for a user in the fence data model
-        - in: path
-          name: policyID
-          schema:
-            type: string
-          required: true
-          description: unique identifier for a policy in the fence database
-      summary: revoke a specific policy from a user
-      responses:
-        204:
-          description: successfully revoked the policy
-        404:
-          description: no user exists with ID given in the path
+        '200':
+          description: ''
+  # '/admin/buckets':
+  #   get:
+  #     tags:
+  #       - admin
+  #     summary: List all storage buckets
+  #     responses:
+  #       '200':
+  #         description: ''
+  #   post:
+  #     tags:
+  #       - admin
+  #     summary: |
+  #       Create a new storage bucket
+  #     description: |
+  #       Only supports Google right now.
+  #       `fence-create google-bucket-create`
+  #       (will also suport `fence-create google-logging-bucket-create` with a param)
+  #       Could include param with `Project.auth_id` for project to link to.
+  #     responses:
+  #       '200':
+  #         description: ''
+  # '/admin/buckets/{id}':
+  #   get:
+  #     tags:
+  #       - admin
+  #     summary: Get a specific storage bucket
+  #     responses:
+  #       '200':
+  #         description: ''
+  #   patch:
+  #     tags:
+  #       - admin
+  #     summary: Update a specific storage bucket
+  #     responses:
+  #       '200':
+  #         description: ''
+  #   delete:
+  #     tags:
+  #       - admin
+  #     summary: Delete a specific storage bucket
+  #     responses:
+  #       '200':
+  #         description: ''
+  # '/admin/google/buckets/external':
+  #   post:
+  #     tags:
+  #       - admin
+  #     summary: |
+  #       `fence-create link-external-bucket`. We may not need this? Investigate
+  #     responses:
+  #       '200':
+  #         description: ''
+  # '/admin/sync':
+  #   post:
+  #     tags:
+  #       - admin
+  #     summary: 'initiate a user sync from a YAML file'
+  #     responses:
+  #       '200':
+  #         description: ''
+  # '/admin/create':
+  #   post:
+  #     tags:
+  #       - admin
+  #     summary: |
+  #       `fence-create create`
+  #     responses:
+  #       '200':
+  #         description: ''
   /.well-known/jwks:
     get:
       tags:
@@ -1306,10 +1437,10 @@ components:
     RequestUploadBlank:
       type: object
       required:
+        - file_name
       properties:
         file_name:
           type: string
-          required: true
           description: the file name to use for this upload
         expires_in:
           type: integer
@@ -1390,7 +1521,7 @@ components:
           type: array
           description: List of GoogleServiceAccounts
           items:
-              $ref: '#/components/schemas/GoogleServiceAccountInfo'
+            $ref: '#/components/schemas/GoogleServiceAccountInfo'
     GoogleServiceAccountErrors:
       type: object
       required:
@@ -1521,6 +1652,133 @@ components:
               'ProjectB':
                 'all_users_have_access': true
                 'exists': true
+    User:
+      type: object
+      required:
+        - username
+        # TODO
+      properties:
+        display_name:
+          type: string
+          description: user's name that should be displayed
+        username:
+          type: string
+          description: user's unique username
+        email:
+          type: string
+          description: user's email address (NOTE - username also be an email)
+        is_admin:
+          type: boolean
+          description: whether or not the user is an admin
+        phone_number:
+          type: string
+          description: user's phone number
+
+        user_id:
+          type: integer
+          description: user.id  # deprecated use 'sub'
+        sub:
+          type: integer
+          description: user.id
+        name:
+          type: string
+          description: user.username
+        preferred_username:
+          type: string
+          description: user.display_name
+        role:
+          type: string
+          description: role
+        project_access:
+          type: array
+          description: TODO - dict(user.project_access)
+          items:
+            type: string
+        certificates_uploaded:
+          type: array
+          description: List of certificates
+          items:
+            type: string
+        resources_granted:
+          type: array
+          description: List of resources
+          items:
+            type: string
+        groups:
+          type: array
+          description: List of groups
+          items:
+            type: string
+        message:
+          type: string
+          description: ""
+      example:
+        certificates_uploaded: []
+        display_name: ''
+        email: someone@example.com
+        groups: []
+        is_admin: true
+        message: ''
+        name: someone@example.com
+        phone_number: ''
+        preferred_username: ''
+        project_access:
+          DEV:
+            - read-storage
+            - read
+            - create
+            - upload
+            - update
+            - delete
+          test:
+            - read-storage
+            - read
+            - create
+            - upload
+            - update
+            - delete
+        resources_granted: []
+        role: admin
+        sub: 1
+        user_id: 1
+        username: someone@example.com
+
+    Users:
+      type: object
+      properties:
+        users:
+          type: array
+          description: List of users
+          items:
+            type: object
+            $ref: '#/components/schemas/User'
+    Project:
+      type: object
+      properties:
+        'id':
+          type: string
+          description: id
+        'name':
+          type: string
+          description: name
+        'auth_id':
+          type: string
+          description: auth_id
+        'description':
+          type: string
+          description: description
+        'associated buckets':
+          type: string
+          description: associated buckets
+    Projects:
+      type: object
+      properties:
+        projects:
+          type: array
+          description: List of projects
+          items:
+            type: object
+            $ref: '#/components/schemas/Project'
     GoogleServiceAccountProjectAccess:
       type: object
       required:

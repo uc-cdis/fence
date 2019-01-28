@@ -200,6 +200,9 @@ def get_all_projects():
     return jsonify(admin.get_all_projects(current_session))
 
 
+# new POST admin/projects to create
+
+
 @blueprint.route("/projects/<projectname>", methods=["POST"])
 @admin_login_required
 @debug_log
