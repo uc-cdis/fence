@@ -10,8 +10,6 @@ from authlib.specs.rfc6749.grants import RefreshTokenGrant as AuthlibRefreshToke
 from authlib.specs.rfc6749.util import scope_to_list
 import flask
 
-from fence.jwt.blacklist import is_token_blacklisted
-from fence.jwt.errors import JWTError
 from fence.jwt.validate import validate_jwt
 from fence.models import ClientAuthType, User
 
@@ -42,11 +40,6 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         Return:
             dict: the claims from the validated token
         """
-        try:
-            if is_token_blacklisted(refresh_token):
-                return
-        except JWTError:
-            return
         return validate_jwt(refresh_token, purpose="refresh")
 
     def create_access_token(self, token, client, authenticated_token):
