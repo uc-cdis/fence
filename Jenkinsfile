@@ -3,6 +3,6 @@
 @Library('cdis-jenkins-lib@refactor/all') _
 // testing
 
-testPipeline { 	runPipeline {
+runPipeline {
   pipeline = "microservice"
-}	}
+}
