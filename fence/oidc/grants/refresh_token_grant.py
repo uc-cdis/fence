@@ -139,6 +139,10 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         token = self.generate_token(
             client, self.GRANT_TYPE, user=user, expires_in=expires_in, scope=scope
         )
+
+        if self.GRANT_TYPE == "refresh_token":
+            token["refresh_token"] = self.request.data.get("refresh_token", "")
+
         # TODO
         flask.current_app.logger.info("")
 
