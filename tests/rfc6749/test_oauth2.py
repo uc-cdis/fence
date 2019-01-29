@@ -40,20 +40,22 @@ def test_oauth2_token_post_public_client(oauth_test_client_public):
     oauth_test_client_public.token()
 
 
-def test_oauth2_token_refresh(oauth_test_client):
+@pytest.mark.parametrize("refresh_data", [{}, {"scope": "openid"}])
+def test_oauth2_token_refresh(oauth_test_client, refresh_data):
     """Test the refresh endpoint."""
     data = {"confirm": "yes"}
     oauth_test_client.authorize(data=data)
     oauth_test_client.token()
-    oauth_test_client.refresh()
+    oauth_test_client.refresh(data=refresh_data)
 
 
-def test_oauth2_token_refresh_public_client(oauth_test_client_public):
+@pytest.mark.parametrize("refresh_data", [{}, {"scope": "openid"}])
+def test_oauth2_token_refresh_public_client(oauth_test_client_public, refresh_data):
     """Test the refresh endpoint for public client."""
     data = {"confirm": "yes"}
     oauth_test_client_public.authorize(data=data)
     oauth_test_client_public.token()
-    oauth_test_client_public.refresh()
+    oauth_test_client_public.refresh(data=refresh_data)
 
 
 def test_oauth2_token_post_revoke(oauth_test_client):

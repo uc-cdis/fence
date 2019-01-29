@@ -146,3 +146,23 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         self.server.save_token(token, self.request)
         token = self.process_token(token, self.request)
         return 200, token, self.TOKEN_RESPONSE_HEADER
+
+    def _validate_token_scope(self, token):
+        """
+        OVERRIDES method from authlib.
+
+        Why? Becuase our "token" is not a class with `get_scope` method.
+        So we just need to treat it like a dictionary.
+        """
+        scope = self.request.scope
+        if not scope:
+            return
+
+        # token is dict so just get the scope, don't use get_scope()
+        original_scope = token.get("aud")
+        if not original_scope:
+            raise InvalidScopeError()
+
+        original_scope = set(scope_to_list(original_scope))
+        if not original_scope.issuperset(set(scope_to_list(scope))):
+            raise InvalidScopeError()
