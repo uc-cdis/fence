@@ -10,8 +10,6 @@ from authlib.specs.rfc6749.grants import RefreshTokenGrant as AuthlibRefreshToke
 from authlib.specs.rfc6749.util import scope_to_list
 import flask
 
-from fence.jwt.blacklist import is_token_blacklisted
-from fence.jwt.errors import JWTError
 from fence.jwt.validate import validate_jwt
 from fence.models import ClientAuthType, User
 
