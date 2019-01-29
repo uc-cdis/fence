@@ -42,11 +42,6 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         Return:
             dict: the claims from the validated token
         """
-        try:
-            if is_token_blacklisted(refresh_token):
-                return
-        except JWTError:
-            return
         return validate_jwt(refresh_token, purpose="refresh")
 
     def create_access_token(self, token, client, authenticated_token):
