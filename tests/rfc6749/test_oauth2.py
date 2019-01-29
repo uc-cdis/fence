@@ -48,12 +48,28 @@ def test_oauth2_token_refresh(oauth_test_client):
     oauth_test_client.refresh()
 
 
+def test_oauth2_token_refresh_with_scope(oauth_test_client):
+    """Test the refresh endpoint."""
+    data = {"confirm": "yes"}
+    oauth_test_client.authorize(data=data)
+    oauth_test_client.token()
+    oauth_test_client.refresh(data={"scope": "openid"})
+
+
 def test_oauth2_token_refresh_public_client(oauth_test_client_public):
     """Test the refresh endpoint for public client."""
     data = {"confirm": "yes"}
     oauth_test_client_public.authorize(data=data)
     oauth_test_client_public.token()
     oauth_test_client_public.refresh()
+
+
+def test_oauth2_token_refresh_public_client_with_scope(oauth_test_client):
+    """Test the refresh endpoint."""
+    data = {"confirm": "yes"}
+    oauth_test_client.authorize(data=data)
+    oauth_test_client.token()
+    oauth_test_client.refresh(data={"scope": "openid"})
 
 
 def test_oauth2_token_post_revoke(oauth_test_client):
