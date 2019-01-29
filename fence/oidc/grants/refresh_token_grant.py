@@ -140,6 +140,13 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
             client, self.GRANT_TYPE, user=user, expires_in=expires_in, scope=scope
         )
 
+        # replace the newly generated refresh token with the one provided
+        # this prevents refreshing a refresh token in order to meet
+        # the security requirement that users must authenticate every
+        # 30 days
+        #
+        # TODO: this could be handled differently, we could track last authN
+        #       and still allow refreshing refresh tokens
         if self.GRANT_TYPE == "refresh_token":
             token["refresh_token"] = self.request.data.get("refresh_token", "")
 

@@ -46,12 +46,8 @@ def generate_token(client, grant_type, **kwargs):
             claims (to avoid having to encode or decode the refresh token
             here)
     """
-    if grant_type == "authorization_code":
+    if grant_type == "authorization_code" or grant_type == "refresh_token":
         return generate_token_response(client, grant_type, **kwargs)
-    elif grant_type == "refresh_token":
-        tokens = generate_token_response(client, grant_type, **kwargs)
-        tokens["refresh_token"] = ""
-        return tokens
     elif grant_type == "implicit":
         return generate_implicit_response(client, grant_type, **kwargs)
 
@@ -64,7 +60,7 @@ def generate_implicit_response(
     user=None,
     scope=None,
     nonce=None,
-    **kwargs
+    **kwargs,
 ):
     # prevent those bothersome "not bound to session" errors
     if user not in current_session:
@@ -131,7 +127,7 @@ def generate_token_response(
     nonce=None,
     refresh_token=None,
     refresh_token_claims=None,
-    **kwargs
+    **kwargs,
 ):
     # prevent those bothersome "not bound to session" errors
     if user not in current_session:
