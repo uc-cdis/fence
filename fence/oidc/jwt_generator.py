@@ -60,7 +60,7 @@ def generate_implicit_response(
     user=None,
     scope=None,
     nonce=None,
-    **kwargs,
+    **kwargs
 ):
     # prevent those bothersome "not bound to session" errors
     if user not in current_session:
@@ -127,7 +127,7 @@ def generate_token_response(
     nonce=None,
     refresh_token=None,
     refresh_token_claims=None,
-    **kwargs,
+    **kwargs
 ):
     # prevent those bothersome "not bound to session" errors
     if user not in current_session:
