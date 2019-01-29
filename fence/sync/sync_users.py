@@ -957,6 +957,14 @@ class UserSyncer(object):
             self.logger.error("aborting early")
             return
 
+        user_projects_csv = {
+            key.lower(): value for key, value in user_projects_csv.iteritems()
+        }
+        user_projects = {key.lower(): value for key, value in user_projects.iteritems()}
+        user_yaml.projects = {
+            key.lower(): value for key, value in user_yaml.projects.iteritems()
+        }
+
         self.sync_two_phsids_dict(user_projects_csv, user_projects)
         self.sync_two_user_info_dict(user_info_csv, user_info)
 
