@@ -75,4 +75,3 @@ def test_oauth2_token_post_revoke(oauth_test_client):
     oauth_test_client.refresh(refresh_token, do_asserts=False)
     response = oauth_test_client.refresh_response.response
     assert response.status_code == 401
-    assert response.json["error"] == "invalid_request"
