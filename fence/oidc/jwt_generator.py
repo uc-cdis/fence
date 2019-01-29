@@ -46,8 +46,12 @@ def generate_token(client, grant_type, **kwargs):
             claims (to avoid having to encode or decode the refresh token
             here)
     """
-    if grant_type == "authorization_code" or grant_type == "refresh_token":
+    if grant_type == "authorization_code":
         return generate_token_response(client, grant_type, **kwargs)
+    elif grant_type == "refresh_token":
+        tokens = generate_token_response(client, grant_type, **kwargs)
+        tokens["refresh_token"] = ""
+        return tokens
     elif grant_type == "implicit":
         return generate_implicit_response(client, grant_type, **kwargs)
 
