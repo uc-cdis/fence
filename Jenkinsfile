@@ -1,7 +1,7 @@
 #!groovy
 
 @Library('cdis-jenkins-lib@refactor/all') _
-// testing  another gg
+// testing  another
 
 runPipeline {
   pipeline = "microservice"
