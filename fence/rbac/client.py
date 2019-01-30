@@ -68,6 +68,7 @@ class ArboristClient(object):
         self.logger = logger or get_logger("ArboristClient")
         self._base_url = arborist_base_url.strip("/")
         self._auth_url = self._base_url + "/auth/"
+        self._health_url = self._base_url + "/health"
         self._policy_url = self._base_url + "/policy/"
         self._resource_url = self._base_url + "/resource"
         self._role_url = self._base_url + "/role/"
@@ -80,9 +81,19 @@ class ArboristClient(object):
             bool: whether arborist service is available
         """
         try:
-            response = requests.get(self._base_url + "/health")
-        except requests.RequestException:
+            response = requests.get(self._health_url)
+        except requests.RequestException as e:
+            self.logger.error(
+                "arborist not healthy; got requests exception: {}".format(str(e))
+            )
             return False
+        if response.status_code != 200:
+            self.logger.error(
+                "arborist not healthy; {} returned code {}".format(
+                    self._health_url,
+                    response.status_code,
+                )
+            )
         return response.status_code == 200
 
     @_arborist_retry()
