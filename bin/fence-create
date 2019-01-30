@@ -457,7 +457,7 @@ def main():
         )
         print(exp)
     elif args.action == "notify_problem_users":
-        notify_problem_users(args.emails, args.auth_ids, args.check_linking)
+        notify_problem_users(DB, args.emails, args.auth_ids, args.check_linking)
 
 
 if __name__ == "__main__":

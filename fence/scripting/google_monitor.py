@@ -492,7 +492,7 @@ def _send_emails_informing_service_account_removal(
     return utils.send_email(from_email, to_emails, subject, content, domain)
 
 
-def _get_users_without_access(auth_ids, user_emails, check_linking):
+def _get_users_without_access(db, auth_ids, user_emails, check_linking):
     """
 
 
@@ -502,21 +502,21 @@ def _get_users_without_access(auth_ids, user_emails, check_linking):
 
     for user_email in user_emails:
 
-        user = get_user_by_email(user_email)
+        user = get_user_by_email(user_email, db)
 
         if not user:
             logger.info("Email ({}) does not exist in fence database.".format(user_email))
             continue
 
         if check_linking:
-            link_email = get_linked_google_account_email(user.user_id)
+            link_email = get_linked_google_account_email(user.user_id, db)
             if not link_email:
                 logger.info("User ({}) does not have a linked google account.".format(user_email))
                 continue
 
         no_access_auth_ids = []
         for auth_id in auth_ids:
-            if not user_has_access_to_project(user, auth_id):
+            if not user_has_access_to_project(user, auth_id, db):
                 logger.info("User ({}) does not have access to project (auth_id: {})".format(user_email, auth_id))
                 # add to list to send email
                 no_access_auth_ids.append(auth_id)
@@ -544,9 +544,9 @@ def email_user_without_access(user_email, projects):
     return utils.send_email(from_email, to_emails, subject, content, domain)
 
 
-def email_users_without_access(auth_ids, user_emails, check_linking):
+def email_users_without_access(db, auth_ids, user_emails, check_linking):
 
-    users_without_access = _get_users_without_access(auth_ids, user_emails, check_linking)
+    users_without_access = _get_users_without_access(db, auth_ids, user_emails, check_linking)
 
     if len(users_without_access) == user_emails:
         logger.warning("No user has proper access to provided projects. Contact project administrator. No emails will be sent")

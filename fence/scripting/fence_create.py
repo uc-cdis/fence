@@ -1293,5 +1293,5 @@ def force_update_google_link(DB, username, google_email):
         return expiration
 
 
-def notify_problem_users(emails, auth_ids, check_linking):
-    email_users_without_access(emails, auth_ids, check_linking)
+def notify_problem_users(db, emails, auth_ids, check_linking):
+    email_users_without_access(db, emails, auth_ids, check_linking)
