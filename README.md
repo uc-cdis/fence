@@ -499,12 +499,20 @@ refresh_token
 implicit'
 ```
 
+If there are more than one URL to add, use space to delimit them like this:
+
+```bash
+fence-create client-create --urls 'https://url1/' 'https://url2/' --client ...
+```
+
 #### Modify OAuth Client
 
 ```bash
 fence-create client-modify --client CLIENT_NAME --urls http://localhost/api/v0/oauth2/authorize
 ```
-That command should output any modifications to the client.
+
+That command should output any modifications to the client. Similarly, multiple URLs are
+allowed here too.
 
 #### Delete OAuth Client
 

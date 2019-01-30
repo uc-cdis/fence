@@ -90,7 +90,7 @@ def parse_arguments():
 
     client_modify = subparsers.add_parser("client-modify")
     client_modify.add_argument("--client", required=True)
-    client_modify.add_argument("--urls", required=False)
+    client_modify.add_argument("--urls", required=False, nargs="+")
     client_modify.add_argument("--name", required=False)
     client_modify.add_argument("--description", required=False)
     client_modify.add_argument(
