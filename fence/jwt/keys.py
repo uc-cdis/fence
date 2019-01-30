@@ -51,13 +51,20 @@ def load_keypairs(keys_dir):
 
     def is_datetime(name):
         try:
-            dateutil.parser.parse(name)
+            dateutil.parser.parse(os.path.basename(name))
             return True
         except ValueError:
             return False
 
+    def timestamp_key(name):
+        return dateutil.parser.parse(os.path.basename(name))
+
     directories_timestamped = list(
-        reversed(sorted(d for d in keypair_directories if is_datetime(d)))
+        reversed(
+            sorted(
+                (d for d in keypair_directories if is_datetime(d)), key=timestamp_key
+            )
+        )
     )
     directories_other = list(
         sorted(d for d in keypair_directories if not is_datetime(d))
