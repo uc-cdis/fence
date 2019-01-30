@@ -80,10 +80,10 @@ def modify_client_action(
         if not client:
             raise Exception("client {} does not exist".format(client))
         if urls:
-            client._redirect_uris = urls
+            client.redirect_uris = urls
             print("Changing urls to {}".format(urls))
         if delete_urls:
-            client._redirect_uris = None
+            client.redirect_uris = []
             print("Deleting urls")
         if set_auto_approve:
             client.auto_approve = True
