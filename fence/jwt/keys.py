@@ -56,12 +56,12 @@ def load_keypairs(keys_dir):
         except ValueError:
             return False
 
-    directories_timestamped = list(reversed(sorted(
-        d for d in keypair_directories if is_datetime(d)
-    )))
-    directories_other = list(sorted(
-        d for d in keypair_directories if not is_datetime(d)
-    ))
+    directories_timestamped = list(
+        reversed(sorted(d for d in keypair_directories if is_datetime(d)))
+    )
+    directories_other = list(
+        sorted(d for d in keypair_directories if not is_datetime(d))
+    )
 
     # Sort the keypair directories to load from in the order described in
     # ``key``.

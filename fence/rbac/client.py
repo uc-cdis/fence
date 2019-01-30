@@ -90,8 +90,7 @@ class ArboristClient(object):
         if response.status_code != 200:
             self.logger.error(
                 "arborist not healthy; {} returned code {}".format(
-                    self._health_url,
-                    response.status_code,
+                    self._health_url, response.status_code
                 )
             )
         return response.status_code == 200
