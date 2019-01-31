@@ -53,6 +53,7 @@ class UserSession(SessionMixin):
         self._encoded_token = session_token
 
         if session_token:
+            print('session_token y')
             try:
                 jwt_info = validate_jwt(session_token, aud={"fence"})
             except JWTError:
@@ -60,7 +61,9 @@ class UserSession(SessionMixin):
                 # empty one silently
                 jwt_info = self._get_initial_session_token()
         else:
-            jwt_info = self._get_initial_session_token()
+            print('session_token n')
+            jwt_info = None
+            # jwt_info = self._get_initial_session_token()
 
         self.session_token = jwt_info
 
@@ -164,6 +167,9 @@ class UserSessionInterface(SessionInterface):
         super(UserSessionInterface, self).__init__()
 
     def open_session(self, app, request):
+        # print(request)
+
+        print('called open_session')
         jwt = request.cookies.get(app.session_cookie_name)
         session = UserSession(jwt)
 
