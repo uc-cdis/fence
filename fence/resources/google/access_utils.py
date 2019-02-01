@@ -402,8 +402,8 @@ def user_has_access_to_project(user, auth_id, db=None):
 
     """
 
-    project_id = get_project_from_auth_id(auth_id).id
-    
+    project_id = get_project_from_auth_id(auth_id, db).id
+
     session = get_db_session(db)
     access_privilege = (
         session.query(AccessPrivilege)
