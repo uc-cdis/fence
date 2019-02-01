@@ -1,6 +1,8 @@
 #!groovy
 
-@Library('cdis-jenkins-lib@master') _
+@Library('cdis-jenkins-lib@refactor/all') _
+// testing 123
 
-testPipeline { 
+runPipeline {
+  pipeline = "microservice"
 }
