@@ -544,7 +544,7 @@ def email_user_without_access(user_email, projects):
         to_emails.extend(config["PROBLEM_USER_EMAIL_NOTIFICATION"]["admin"])
 
     text = config["PROBLEM_USER_EMAIL_NOTIFICATION"]["content"]
-    content = text.format(str(projects))
+    content = text.format(','.join(projects))
 
     return utils.send_email(from_email, to_emails, subject, content, domain)
 
