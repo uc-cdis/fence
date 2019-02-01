@@ -217,9 +217,7 @@ def _setup_oidc_clients(app):
 
     # Add OIDC client for Google if configured.
     configured_google = (
-        "OPENID_CONNECT" in config
-        and "google" in config["OPENID_CONNECT"]
-        and "google" in enabled_idp_ids
+        "OPENID_CONNECT" in config and "google" in config["OPENID_CONNECT"]
     )
     if configured_google:
         app.google_client = GoogleClient(

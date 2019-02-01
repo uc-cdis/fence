@@ -83,10 +83,10 @@ def modify_client_action(
         if not client:
             raise Exception("client {} does not exist".format(client))
         if urls:
-            client._redirect_uris = urls
+            client.redirect_uris = urls
             print("Changing urls to {}".format(urls))
         if delete_urls:
-            client._redirect_uris = None
+            client.redirect_uris = []
             print("Deleting urls")
         if set_auto_approve:
             client.auto_approve = True
@@ -464,46 +464,48 @@ def remove_expired_google_service_account_keys(db):
                     service_account.google_unique_id
                 )
 
-            # handle service accounts with custom expiration
-            for expired_user_key in expired_sa_keys_for_users:
-                sa = (
-                    current_session.query(GoogleServiceAccount)
-                    .filter(
-                        GoogleServiceAccount.id == expired_user_key.service_account_id
+                # handle service accounts with custom expiration
+                for expired_user_key in expired_sa_keys_for_users:
+                    sa = (
+                        current_session.query(GoogleServiceAccount)
+                        .filter(
+                            GoogleServiceAccount.id
+                            == expired_user_key.service_account_id
+                        )
+                        .first()
                     )
-                    .first()
-                )
-                response = g_mgr.delete_service_account_key(
-                    account=sa.google_unique_id, key_name=expired_user_key.key_id
-                )
-                response_error_code = response.get("error", {}).get("code")
 
-                if not response_error_code:
-                    current_session.delete(expired_user_key)
-                    print(
-                        "INFO: Removed expired service account key {} "
-                        "for service account {} (owned by user with id {}).\n".format(
-                            expired_user_key.key_id, sa.email, sa.user_id
-                        )
+                    response = g_mgr.delete_service_account_key(
+                        account=sa.google_unique_id, key_name=expired_user_key.key_id
                     )
-                elif response_error_code == 404:
-                    print(
-                        "INFO: Service account key {} for service account {} "
-                        "(owned by user with id {}) does not exist in Google. "
-                        "Removing from database...\n".format(
-                            expired_user_key.key_id, sa.email, sa.user_id
+                    response_error_code = response.get("error", {}).get("code")
+
+                    if not response_error_code:
+                        current_session.delete(expired_user_key)
+                        print(
+                            "INFO: Removed expired service account key {} "
+                            "for service account {} (owned by user with id {}).\n".format(
+                                expired_user_key.key_id, sa.email, sa.user_id
+                            )
                         )
-                    )
-                    current_session.delete(expired_user_key)
-                else:
-                    print(
-                        "ERROR: Google returned an error when attempting to "
-                        "remove service account key {} "
-                        "for service account {} (owned by user with id {}). "
-                        "Error:\n{}\n".format(
-                            expired_user_key.key_id, sa.email, sa.user_id, response
+                    elif response_error_code == 404:
+                        print(
+                            "INFO: Service account key {} for service account {} "
+                            "(owned by user with id {}) does not exist in Google. "
+                            "Removing from database...\n".format(
+                                expired_user_key.key_id, sa.email, sa.user_id
+                            )
                         )
-                    )
+                        current_session.delete(expired_user_key)
+                    else:
+                        print(
+                            "ERROR: Google returned an error when attempting to "
+                            "remove service account key {} "
+                            "for service account {} (owned by user with id {}). "
+                            "Error:\n{}\n".format(
+                                expired_user_key.key_id, sa.email, sa.user_id, response
+                            )
+                        )
 
 
 def remove_expired_google_accounts_from_proxy_groups(db):
@@ -682,6 +684,10 @@ def _verify_google_group_member(session, access_group, member):
                 manager.remove_member_from_group(
                     member.get("email"), access_group.email
                 )
+                print(
+                    "Removed {} from {}, not found in fence but found "
+                    "in Google Group.".format(member.get("email"), access_group.email)
+                )
         except Exception as e:
             print(
                 "ERROR: Could not remove google group memeber {} from access group {}. Detail {}".format(
@@ -718,6 +724,10 @@ def _verify_google_service_account_member(session, access_group, member):
             with GoogleCloudManager() as manager:
                 manager.remove_member_from_group(
                     member.get("email"), access_group.email
+                )
+                print(
+                    "Removed {} from {}, not found in fence but found "
+                    "in Google Group.".format(member.get("email"), access_group.email)
                 )
         except Exception as e:
             print(
@@ -840,10 +850,10 @@ def link_bucket_to_project(db, bucket_id, bucket_provider, project_auth_id):
     """
     driver = SQLAlchemyDriver(db)
     with driver.session as current_session:
-        google_cloud_provider = (
+        cloud_provider = (
             current_session.query(CloudProvider).filter_by(name=bucket_provider).first()
         )
-        if not google_cloud_provider:
+        if not cloud_provider:
             raise NameError(
                 'No bucket with provider "{}" exists.'.format(bucket_provider)
             )
@@ -853,7 +863,7 @@ def link_bucket_to_project(db, bucket_id, bucket_provider, project_auth_id):
             bucket_id = int(bucket_id)
             bucket_db_entry = (
                 current_session.query(Bucket).filter_by(
-                    id=bucket_id, provider_id=google_cloud_provider.id
+                    id=bucket_id, provider_id=cloud_provider.id
                 )
             ).first()
         except ValueError:
@@ -863,7 +873,7 @@ def link_bucket_to_project(db, bucket_id, bucket_provider, project_auth_id):
         # nothing found? try searching for single bucket with name bucket_id
         if not bucket_db_entry:
             buckets_by_name = current_session.query(Bucket).filter_by(
-                name=bucket_id, provider_id=google_cloud_provider.id
+                name=bucket_id, provider_id=cloud_provider.id
             )
             # don't get a bucket if the name isn't unique. NOTE: for Google,
             # these have to be globally unique so they'll be unique here.
@@ -895,14 +905,12 @@ def link_bucket_to_project(db, bucket_id, bucket_provider, project_auth_id):
         # Add StorageAccess if it doesn't exist for the project
         storage_access = (
             current_session.query(StorageAccess)
-            .filter_by(
-                project_id=project_db_entry.id, provider_id=google_cloud_provider.id
-            )
+            .filter_by(project_id=project_db_entry.id, provider_id=cloud_provider.id)
             .first()
         )
         if not storage_access:
             storage_access = StorageAccess(
-                project_id=project_db_entry.id, provider_id=google_cloud_provider.id
+                project_id=project_db_entry.id, provider_id=cloud_provider.id
             )
             current_session.add(storage_access)
             current_session.commit()

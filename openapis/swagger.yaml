@@ -293,6 +293,7 @@ paths:
             enum:
               - http
               - s3
+              - gs
         - name: expires_in
           required: false
           in: query

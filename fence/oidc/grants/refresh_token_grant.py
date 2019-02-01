@@ -10,8 +10,6 @@ from authlib.specs.rfc6749.grants import RefreshTokenGrant as AuthlibRefreshToke
 from authlib.specs.rfc6749.util import scope_to_list
 import flask
 
-from fence.jwt.blacklist import is_token_blacklisted
-from fence.jwt.errors import JWTError
 from fence.jwt.validate import validate_jwt
 from fence.models import ClientAuthType, User
 
@@ -42,11 +40,6 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         Return:
             dict: the claims from the validated token
         """
-        try:
-            if is_token_blacklisted(refresh_token):
-                return
-        except JWTError:
-            return
         return validate_jwt(refresh_token, purpose="refresh")
 
     def create_access_token(self, token, client, authenticated_token):
@@ -139,6 +132,17 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         token = self.generate_token(
             client, self.GRANT_TYPE, user=user, expires_in=expires_in, scope=scope
         )
+
+        # replace the newly generated refresh token with the one provided
+        # this prevents refreshing a refresh token in order to meet
+        # the security requirement that users must authenticate every
+        # 30 days
+        #
+        # TODO: this could be handled differently, we could track last authN
+        #       and still allow refreshing refresh tokens
+        if self.GRANT_TYPE == "refresh_token":
+            token["refresh_token"] = self.request.data.get("refresh_token", "")
+
         # TODO
         flask.current_app.logger.info("")
 
@@ -146,3 +150,23 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         self.server.save_token(token, self.request)
         token = self.process_token(token, self.request)
         return 200, token, self.TOKEN_RESPONSE_HEADER
+
+    def _validate_token_scope(self, token):
+        """
+        OVERRIDES method from authlib.
+
+        Why? Becuase our "token" is not a class with `get_scope` method.
+        So we just need to treat it like a dictionary.
+        """
+        scope = self.request.scope
+        if not scope:
+            return
+
+        # token is dict so just get the scope, don't use get_scope()
+        original_scope = token.get("aud")
+        if not original_scope:
+            raise InvalidScopeError()
+
+        original_scope = set(scope_to_list(original_scope))
+        if not original_scope.issuperset(set(scope_to_list(scope))):
+            raise InvalidScopeError()

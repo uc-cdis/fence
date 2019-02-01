@@ -245,7 +245,7 @@ class OAuth2TestClient(object):
             self.token_response.do_asserts()
         return self.token_response
 
-    def refresh(self, refresh_token=None, do_asserts=True):
+    def refresh(self, refresh_token=None, do_asserts=True, data=None):
         """
         Make a request to the token endpoint to refresh and access token.
 
@@ -259,11 +259,14 @@ class OAuth2TestClient(object):
         if not refresh_token and not self.token_response:
             raise ValueError("no refresh token provided")
         refresh_token = refresh_token or self.token_response.refresh_token
-        data = {
+        data = data or {}
+        default_data = {
             "client_id": self.client_id,
             "grant_type": "refresh_token",
             "refresh_token": refresh_token,
         }
+        default_data.update(data)
+        data = default_data
         if self.client_secret:
             data["client_secret"] = self.client_secret
         response = self._client.post(
