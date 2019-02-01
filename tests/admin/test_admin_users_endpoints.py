@@ -9,10 +9,8 @@ from fence.models import User  #, AccessPrivilege, Project, UserToGroup, Group
 import fence.resources.admin as adm
 from tests import utils
 
-import pdb # TODO REMOVE
-# TODO: Most of the 500s mentioned below stem from the same code; see PXP-2374
 # TODO: Black
-
+# TODO: add /users decorator
 
 # Move these fixtures to tests/conftest.py if they become useful elsewhere
 
@@ -33,9 +31,8 @@ def encoded_admin_jwt(kid, rsa_private_key):
     claims["aud"].append("admin")
     claims["sub"] = "5678"
     claims["iss"] = config["BASE_URL"]
-    claims["exp"] += 6000 # TODO 600 but this dies while I pdb :P
+    claims["exp"] += 600
     return jwt.encode(claims, key=rsa_private_key, headers=headers, algorithm="RS256")
-
 
 
 # GET /user/<username> tests
@@ -118,7 +115,6 @@ def test_post_user(client, admin_user, encoded_admin_jwt, db_session):
 
 
 def test_post_user_no_fields_defined(client, admin_user, encoded_admin_jwt, db_session):
-    # TODO: 500 needs fixed and then test needs renamed/rewritten
     """ POST /user: [create_user] but no fields defined """
     r = client.post(
             '/admin/user',
@@ -128,14 +124,26 @@ def test_post_user_no_fields_defined(client, admin_user, encoded_admin_jwt, db_s
             },
             data=json.dumps({})
         )
-    # TODO: Unsure what we want to do here.
-    # TODO: Write asserts once find this ^ out.
-    assert True
+    assert r.status_code == 400
+
+
+def test_post_user_username_not_defined(client, admin_user, encoded_admin_jwt, db_session):
+    """ POST /user: [create_user] username not defined """
+    r = client.post(
+            '/admin/user',
+            headers={
+                "Authorization": "Bearer " + encoded_admin_jwt,
+                "Content-Type": "application/json"
+            },
+            data=json.dumps({
+                "email": "new_test_user@fake.com"
+            })
+        )
+    assert r.status_code == 400
 
 
 def test_post_user_one_field_defined(client, admin_user, encoded_admin_jwt, db_session):
     """ POST /user: [create_user] only username defined """
-    # TODO: IS this the desired behaviour? Or e.g. email required? Confirm..
     r = client.post(
             '/admin/user',
             headers={
@@ -157,23 +165,6 @@ def test_post_user_one_field_defined(client, admin_user, encoded_admin_jwt, db_s
     assert new_test_user.username == 'new_test_user'
     assert new_test_user.is_admin == False
     assert new_test_user.email == None
-
-
-def test_post_user_username_not_defined(client, admin_user, encoded_admin_jwt, db_session):
-    """ POST /user: [create_user] username not defined """
-    # TODO: What is the desired behaviour?
-    # Right now 500 due to no username
-    r = client.post(
-            '/admin/user',
-            headers={
-                "Authorization": "Bearer " + encoded_admin_jwt,
-                "Content-Type": "application/json"
-            },
-            data=json.dumps({
-                "email": "new_test_user@fake.com"
-            })
-        )
-    assert True;
 
 
 def test_post_user_already_exists(client, admin_user, encoded_admin_jwt, test_user_a, db_session):
@@ -262,6 +253,14 @@ def test_put_user_username_already_exists(client, admin_user, encoded_admin_jwt,
 
 def test_put_user_username_try_delete_username(client, admin_user, encoded_admin_jwt, db_session, test_user_a):
     """ PUT /user/<username>: [update_user] try to delete username"""
+    """ 
+    This probably shouldn't be allowed. Conveniently, the code flow ends up
+    the same as though the user had not tried to update 'name' at all, 
+    since they pass in None. Right now, this just returns a 200 without
+    updating anything or sending any message to the user. So the test has
+    been written to ensure this behavior, but maybe it should be noted that 
+    the tail wagged the dog somewhat in this case...
+    """
     r = client.put(
             '/admin/user/test_a',
             headers={
@@ -272,13 +271,23 @@ def test_put_user_username_try_delete_username(client, admin_user, encoded_admin
                 "name": None,
             })
         )
-    assert True
-    # TODO: Don't know what desired behavior is;
-    # actual behavior is currently a 500--see without_update_username
+    assert r.status_code == 200
+    user = db_session.query(User).filter_by(username="test_a").one()
+    assert user.username == "test_a"
 
 
-def test_put_user_username_try_delete_email(client, admin_user, encoded_admin_jwt, db_session, test_user_a):
-    """ PUT /user/<username>: [update_user] try to delete email"""
+def test_put_user_username_try_delete_role(client, admin_user, encoded_admin_jwt, db_session, test_user_a):
+    """ PUT /user/<username>: [update_user] try to set role to None"""
+    """ 
+    This probably shouldn't be allowed. Conveniently, the code flow ends up
+    the same as though the user had not tried to update 'role' at all, 
+    since they pass in None. Right now, this just returns a 200 without
+    updating anything or sending any message to the user. So the test has
+    been written to ensure this behavior, but maybe it should be noted that 
+    the tail wagged the dog somewhat in this case...
+    """
+    user = db_session.query(User).filter_by(username="test_a").one()
+    original_isadmin = user.is_admin == True
     r = client.put(
             '/admin/user/test_a',
             headers={
@@ -286,12 +295,11 @@ def test_put_user_username_try_delete_email(client, admin_user, encoded_admin_jw
                 "Content-Type": "application/json"
             },
             data=json.dumps({
-                "email": None,
+                "role": None
             })
         )
-    assert True
-    # TODO: Don't know what desired behavior is;
-    # actual behavior is currently a 500--see without_update_username
+    assert r.status_code == 200
+    assert user.is_admin == original_isadmin
 
 
 def test_put_user_username_without_update_username(client, admin_user, encoded_admin_jwt, db_session, test_user_a):
@@ -306,15 +314,31 @@ def test_put_user_username_without_update_username(client, admin_user, encoded_a
                 "email": "new_day_new_email@yay.com",
             })
         )
-    assert True
-    # TODO: Don't know what desired behavior is;
-    # actual behavior is currently a 500 which has nothing to do with email
-    # (it seems if username not updated then everything dies?)
-    # TODO: Add this to that other story since culprit fn is same
+    assert r.status_code == 200
+    user = db_session.query(User).filter_by(username="test_a").one()
+    assert user.email == "new_day_new_email@yay.com"
+
+
+def test_put_user_username_try_delete_email(client, admin_user, encoded_admin_jwt, db_session, test_user_a):
+    """ PUT /user/<username>: [update_user] try to delete email"""
+    r = client.put(
+            '/admin/user/test_a',
+            headers={
+                "Authorization": "Bearer " + encoded_admin_jwt,
+                "Content-Type": "application/json"
+            },
+            data=json.dumps({
+                "email": None,
+            })
+        )
+    assert r.status_code == 200
+    user = db_session.query(User).filter_by(username="test_a").one()
+    assert user.email == None
 
 
 def test_put_user_username_remove_admin_self(client, admin_user, encoded_admin_jwt, db_session):
     """ PUT /user/<username>: [update_user] what if admin un-admins self?"""
+    """ It seems this is fine. """
     r = client.put(
             '/admin/user/admin_user',
             headers={
@@ -325,10 +349,10 @@ def test_put_user_username_remove_admin_self(client, admin_user, encoded_admin_j
                 "role": "user",
             })
         )
-    assert True
-    # TODO: Don't know what desired behavior is;
-    # actual behavior is currently a 500--see without_update_username
-
+    assert r.status_code == 200
+    user = db_session.query(User).filter_by(username="admin_user").one()
+    assert user.is_admin == False
+    
 
 def test_put_user_username_noauth(client, db_session):
     """ PUT /user/<username>: [update_user] but without authorization """
