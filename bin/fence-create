@@ -281,7 +281,7 @@ def parse_arguments():
     notify_problem_users.add_argument(
         "--check_linking",
         required=False,
-        default="False",
+        default=False,
         help="True if you want to check that each email has a linked google account"
     )
 
