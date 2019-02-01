@@ -83,11 +83,7 @@ def create_user(current_session, username, role, email):
     Returns a dictionary.
     """
     if not username:
-        raise UserError(
-            (
-                "Error: Please provide a username"
-            )
-        )
+        raise UserError(("Error: Please provide a username"))
     try:
         usr = us.get_user(current_session, username)
         raise UserError(
@@ -120,7 +116,11 @@ def update_user(current_session, username, role, email, new_name):
     user_list = [
         user["name"].upper() for user in get_all_users(current_session)["users"]
     ]
-    if new_name and new_name.upper() in user_list and not username.upper() == new_name.upper():
+    if (
+        new_name
+        and new_name.upper() in user_list
+        and not username.upper() == new_name.upper()
+    ):
         raise UserError(
             (
                 "Error: user with a name with the same combination/order "

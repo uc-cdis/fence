@@ -5,14 +5,13 @@ import jwt
 import pytest
 
 from fence.config import config
-from fence.models import User  #, AccessPrivilege, Project, UserToGroup, Group
+from fence.models import User
 import fence.resources.admin as adm
 from tests import utils
 
-# TODO: Black
-# TODO: add /users decorator
 
 # Move these fixtures to tests/conftest.py if they become useful elsewhere
+
 
 @pytest.fixture
 def admin_user(db_session):
@@ -37,221 +36,235 @@ def encoded_admin_jwt(kid, rsa_private_key):
 
 # GET /user/<username> tests
 
-def test_get_user_username(client, admin_user, encoded_admin_jwt, db_session, test_user_a):
+
+def test_get_user_username(
+    client, admin_user, encoded_admin_jwt, db_session, test_user_a
+):
     """ GET /user/<username>: [get_user]: happy path """
     r = client.get(
-            '/admin/user/test_a',
-            headers={"Authorization": "Bearer " + encoded_admin_jwt}
-        )
+        "/admin/user/test_a", headers={"Authorization": "Bearer " + encoded_admin_jwt}
+    )
     assert r.status_code == 200
-    assert r.json['username'] == 'test_a'
+    assert r.json["username"] == "test_a"
 
 
-def test_get_user_username_nonexistent(client, admin_user, encoded_admin_jwt, db_session):
+def test_get_user_username_nonexistent(
+    client, admin_user, encoded_admin_jwt, db_session
+):
     """ GET /user/<username>: [get_user]: When username does not exist """
     r = client.get(
-            '/admin/user/test_nonexistent',
-            headers={"Authorization": "Bearer " + encoded_admin_jwt}
-        )
+        "/admin/user/test_nonexistent",
+        headers={"Authorization": "Bearer " + encoded_admin_jwt},
+    )
     assert r.status_code == 404
 
 
 def test_get_user_username_noauth(client, db_session):
     """ GET /user/<username>: [get_user] but without authorization """
     # This creates a "test" user, so don't remove db_session fixture
-    r = client.get('/admin/user/test_a')
+    r = client.get("/admin/user/test_a")
     assert r.status_code == 401
 
 
 # GET /user tests
 
-def test_get_user(client, admin_user, encoded_admin_jwt, db_session, test_user_a, test_user_b):
+
+def test_get_user(
+    client, admin_user, encoded_admin_jwt, db_session, test_user_a, test_user_b
+):
     """ GET /user: [get_all_users] """
     r = client.get(
-            '/admin/user',
-            headers={"Authorization": "Bearer " + encoded_admin_jwt}
-        )
+        "/admin/user", headers={"Authorization": "Bearer " + encoded_admin_jwt}
+    )
     assert r.status_code == 200
-    assert len(r.json['users']) == 3
-    usernames = [user['name'] for user in r.json['users']]
-    assert 'test_a' in usernames
-    assert 'test_b' in usernames
-    assert 'admin_user' in usernames
+    assert len(r.json["users"]) == 3
+    usernames = [user["name"] for user in r.json["users"]]
+    assert "test_a" in usernames
+    assert "test_b" in usernames
+    assert "admin_user" in usernames
 
 
 def test_get_user_noauth(client, db_session):
     """ GET /user: [get_all_users] but without authorization (access token) """
-    r = client.get('/admin/user')
+    r = client.get("/admin/user")
     assert r.status_code == 401
 
 
 # POST /user tests
 
+
 def test_post_user(client, admin_user, encoded_admin_jwt, db_session):
     """ POST /user: [create_user] """
     r = client.post(
-            '/admin/user',
-            headers={
-                "Authorization": "Bearer " + encoded_admin_jwt,
-                "Content-Type": "application/json"
-            },
-            data=json.dumps({
-                "name": "new_test_user",
-                "role": "user",
-                "email": "new_test_user@fake.com"
-            })
-        )
+        "/admin/user",
+        headers={
+            "Authorization": "Bearer " + encoded_admin_jwt,
+            "Content-Type": "application/json",
+        },
+        data=json.dumps(
+            {"name": "new_test_user", "role": "user", "email": "new_test_user@fake.com"}
+        ),
+    )
     assert r.status_code == 200
-    assert r.json['username'] == 'new_test_user'
-    assert r.json['is_admin'] == False
-    assert r.json['role'] == 'user'
-    assert r.json['email'] == 'new_test_user@fake.com'
-    assert r.json['project_access'] == {}
-    assert r.json['groups'] == []
+    assert r.json["username"] == "new_test_user"
+    assert r.json["is_admin"] == False
+    assert r.json["role"] == "user"
+    assert r.json["email"] == "new_test_user@fake.com"
+    assert r.json["project_access"] == {}
+    assert r.json["groups"] == []
     new_test_user = db_session.query(User).filter_by(username="new_test_user").one()
-    assert new_test_user.username == 'new_test_user'
+    assert new_test_user.username == "new_test_user"
     assert new_test_user.is_admin == False
-    assert new_test_user.email == 'new_test_user@fake.com'
+    assert new_test_user.email == "new_test_user@fake.com"
 
 
 def test_post_user_no_fields_defined(client, admin_user, encoded_admin_jwt, db_session):
     """ POST /user: [create_user] but no fields defined """
     r = client.post(
-            '/admin/user',
-            headers={
-                "Authorization": "Bearer " + encoded_admin_jwt,
-                "Content-Type": "application/json"
-            },
-            data=json.dumps({})
-        )
+        "/admin/user",
+        headers={
+            "Authorization": "Bearer " + encoded_admin_jwt,
+            "Content-Type": "application/json",
+        },
+        data=json.dumps({}),
+    )
     assert r.status_code == 400
 
 
-def test_post_user_username_not_defined(client, admin_user, encoded_admin_jwt, db_session):
+def test_post_user_username_not_defined(
+    client, admin_user, encoded_admin_jwt, db_session
+):
     """ POST /user: [create_user] username not defined """
     r = client.post(
-            '/admin/user',
-            headers={
-                "Authorization": "Bearer " + encoded_admin_jwt,
-                "Content-Type": "application/json"
-            },
-            data=json.dumps({
-                "email": "new_test_user@fake.com"
-            })
-        )
+        "/admin/user",
+        headers={
+            "Authorization": "Bearer " + encoded_admin_jwt,
+            "Content-Type": "application/json",
+        },
+        data=json.dumps({"email": "new_test_user@fake.com"}),
+    )
     assert r.status_code == 400
 
 
 def test_post_user_one_field_defined(client, admin_user, encoded_admin_jwt, db_session):
     """ POST /user: [create_user] only username defined """
     r = client.post(
-            '/admin/user',
-            headers={
-                "Authorization": "Bearer " + encoded_admin_jwt,
-                "Content-Type": "application/json"
-            },
-            data=json.dumps({
-                "name": "new_test_user",
-            })
-        )
+        "/admin/user",
+        headers={
+            "Authorization": "Bearer " + encoded_admin_jwt,
+            "Content-Type": "application/json",
+        },
+        data=json.dumps({"name": "new_test_user"}),
+    )
     assert r.status_code == 200
-    assert r.json['username'] == 'new_test_user'
-    assert r.json['is_admin'] == False
-    assert r.json['role'] == 'user'
-    assert r.json['email'] == None
-    assert r.json['project_access'] == {}
-    assert r.json['groups'] == []
+    assert r.json["username"] == "new_test_user"
+    assert r.json["is_admin"] == False
+    assert r.json["role"] == "user"
+    assert r.json["email"] == None
+    assert r.json["project_access"] == {}
+    assert r.json["groups"] == []
     new_test_user = db_session.query(User).filter_by(username="new_test_user").one()
-    assert new_test_user.username == 'new_test_user'
+    assert new_test_user.username == "new_test_user"
     assert new_test_user.is_admin == False
     assert new_test_user.email == None
 
 
-def test_post_user_already_exists(client, admin_user, encoded_admin_jwt, test_user_a, db_session):
+def test_post_user_already_exists(
+    client, admin_user, encoded_admin_jwt, test_user_a, db_session
+):
     """ POST /user: [create_user] when user already exists """
     r = client.post(
-            '/admin/user',
-            headers={
-                "Authorization": "Bearer " + encoded_admin_jwt,
-                "Content-Type": "application/json"
-            },
-            data=json.dumps({
-                "name": "test_a",
-            })
-        )
+        "/admin/user",
+        headers={
+            "Authorization": "Bearer " + encoded_admin_jwt,
+            "Content-Type": "application/json",
+        },
+        data=json.dumps({"name": "test_a"}),
+    )
     assert r.status_code == 400
 
 
 def test_post_user_noauth(client, db_session):
     """ POST /user: [create_user] but without authorization """
-    r = client.post('/admin/user')
+    r = client.post("/admin/user")
     assert r.status_code == 401
 
 
 # PUT /user/<username> tests
 
-def test_put_user_username(client, admin_user, encoded_admin_jwt, db_session, test_user_a):
+
+def test_put_user_username(
+    client, admin_user, encoded_admin_jwt, db_session, test_user_a
+):
     """ PUT /user/<username>: [update_user] """
     r = client.put(
-            '/admin/user/test_a',
-            headers={
-                "Authorization": "Bearer " + encoded_admin_jwt,
-                "Content-Type": "application/json"
-            },
-            data=json.dumps({
+        "/admin/user/test_a",
+        headers={
+            "Authorization": "Bearer " + encoded_admin_jwt,
+            "Content-Type": "application/json",
+        },
+        data=json.dumps(
+            {
                 "name": "test_a_updated",
                 "role": "admin",
-                "email": "test_a_updated@fake.com"
-            })
-        )
+                "email": "test_a_updated@fake.com",
+            }
+        ),
+    )
     assert r.status_code == 200
-    assert r.json['username'] == 'test_a_updated'
-    assert r.json['is_admin'] == True
-    assert r.json['role'] == 'admin'
-    assert r.json['email'] == 'test_a_updated@fake.com'
-    assert r.json['project_access'] == {}
-    assert r.json['groups'] == []
+    assert r.json["username"] == "test_a_updated"
+    assert r.json["is_admin"] == True
+    assert r.json["role"] == "admin"
+    assert r.json["email"] == "test_a_updated@fake.com"
+    assert r.json["project_access"] == {}
+    assert r.json["groups"] == []
     updated_user = db_session.query(User).filter_by(username="test_a_updated").one()
-    assert updated_user.username == 'test_a_updated'
+    assert updated_user.username == "test_a_updated"
     assert updated_user.is_admin == True
-    assert updated_user.email == 'test_a_updated@fake.com'
+    assert updated_user.email == "test_a_updated@fake.com"
     assert not db_session.query(User).filter_by(username="test_a").first()
 
 
-def test_put_user_username_nonexistent(client, admin_user, encoded_admin_jwt, db_session):
+def test_put_user_username_nonexistent(
+    client, admin_user, encoded_admin_jwt, db_session
+):
     """ PUT /user/<username>: [update_user] username doesn't exist"""
     r = client.put(
-            '/admin/user/test_nonexistent',
-            headers={
-                "Authorization": "Bearer " + encoded_admin_jwt,
-                "Content-Type": "application/json"
-            },
-            data=json.dumps({
-                "name": "test_nonexistent_updated",
-            })
-        )
+        "/admin/user/test_nonexistent",
+        headers={
+            "Authorization": "Bearer " + encoded_admin_jwt,
+            "Content-Type": "application/json",
+        },
+        data=json.dumps({"name": "test_nonexistent_updated"}),
+    )
     assert r.status_code == 404
-    assert not db_session.query(User).filter_by(username="test_nonexistent_updated").first()
+    assert (
+        not db_session.query(User)
+        .filter_by(username="test_nonexistent_updated")
+        .first()
+    )
 
 
-def test_put_user_username_already_exists(client, admin_user, encoded_admin_jwt, db_session, test_user_a, test_user_b):
+def test_put_user_username_already_exists(
+    client, admin_user, encoded_admin_jwt, db_session, test_user_a, test_user_b
+):
     """ PUT /user/<username>: [update_user] update to username that already exists """
     r = client.put(
-            '/admin/user/test_a',
-            headers={
-                "Authorization": "Bearer " + encoded_admin_jwt,
-                "Content-Type": "application/json"
-            },
-            data=json.dumps({
-                "name": "test_b",
-            })
-        )
+        "/admin/user/test_a",
+        headers={
+            "Authorization": "Bearer " + encoded_admin_jwt,
+            "Content-Type": "application/json",
+        },
+        data=json.dumps({"name": "test_b"}),
+    )
     assert r.status_code == 400
     assert db_session.query(User).filter_by(username="test_a").one()
     assert db_session.query(User).filter_by(username="test_b").one()
 
 
-def test_put_user_username_try_delete_username(client, admin_user, encoded_admin_jwt, db_session, test_user_a):
+def test_put_user_username_try_delete_username(
+    client, admin_user, encoded_admin_jwt, db_session, test_user_a
+):
     """ PUT /user/<username>: [update_user] try to delete username"""
     """ 
     This probably shouldn't be allowed. Conveniently, the code flow ends up
@@ -262,21 +275,21 @@ def test_put_user_username_try_delete_username(client, admin_user, encoded_admin
     the tail wagged the dog somewhat in this case...
     """
     r = client.put(
-            '/admin/user/test_a',
-            headers={
-                "Authorization": "Bearer " + encoded_admin_jwt,
-                "Content-Type": "application/json"
-            },
-            data=json.dumps({
-                "name": None,
-            })
-        )
+        "/admin/user/test_a",
+        headers={
+            "Authorization": "Bearer " + encoded_admin_jwt,
+            "Content-Type": "application/json",
+        },
+        data=json.dumps({"name": None}),
+    )
     assert r.status_code == 200
     user = db_session.query(User).filter_by(username="test_a").one()
     assert user.username == "test_a"
 
 
-def test_put_user_username_try_delete_role(client, admin_user, encoded_admin_jwt, db_session, test_user_a):
+def test_put_user_username_try_delete_role(
+    client, admin_user, encoded_admin_jwt, db_session, test_user_a
+):
     """ PUT /user/<username>: [update_user] try to set role to None"""
     """ 
     This probably shouldn't be allowed. Conveniently, the code flow ends up
@@ -289,72 +302,70 @@ def test_put_user_username_try_delete_role(client, admin_user, encoded_admin_jwt
     user = db_session.query(User).filter_by(username="test_a").one()
     original_isadmin = user.is_admin == True
     r = client.put(
-            '/admin/user/test_a',
-            headers={
-                "Authorization": "Bearer " + encoded_admin_jwt,
-                "Content-Type": "application/json"
-            },
-            data=json.dumps({
-                "role": None
-            })
-        )
+        "/admin/user/test_a",
+        headers={
+            "Authorization": "Bearer " + encoded_admin_jwt,
+            "Content-Type": "application/json",
+        },
+        data=json.dumps({"role": None}),
+    )
     assert r.status_code == 200
     assert user.is_admin == original_isadmin
 
 
-def test_put_user_username_without_update_username(client, admin_user, encoded_admin_jwt, db_session, test_user_a):
+def test_put_user_username_without_update_username(
+    client, admin_user, encoded_admin_jwt, db_session, test_user_a
+):
     """ PUT /user/<username>: [update_user] update other fields but not username"""
     r = client.put(
-            '/admin/user/test_a',
-            headers={
-                "Authorization": "Bearer " + encoded_admin_jwt,
-                "Content-Type": "application/json"
-            },
-            data=json.dumps({
-                "email": "new_day_new_email@yay.com",
-            })
-        )
+        "/admin/user/test_a",
+        headers={
+            "Authorization": "Bearer " + encoded_admin_jwt,
+            "Content-Type": "application/json",
+        },
+        data=json.dumps({"email": "new_day_new_email@yay.com"}),
+    )
     assert r.status_code == 200
     user = db_session.query(User).filter_by(username="test_a").one()
     assert user.email == "new_day_new_email@yay.com"
 
 
-def test_put_user_username_try_delete_email(client, admin_user, encoded_admin_jwt, db_session, test_user_a):
+def test_put_user_username_try_delete_email(
+    client, admin_user, encoded_admin_jwt, db_session, test_user_a
+):
     """ PUT /user/<username>: [update_user] try to delete email"""
     r = client.put(
-            '/admin/user/test_a',
-            headers={
-                "Authorization": "Bearer " + encoded_admin_jwt,
-                "Content-Type": "application/json"
-            },
-            data=json.dumps({
-                "email": None,
-            })
-        )
+        "/admin/user/test_a",
+        headers={
+            "Authorization": "Bearer " + encoded_admin_jwt,
+            "Content-Type": "application/json",
+        },
+        data=json.dumps({"email": None}),
+    )
     assert r.status_code == 200
     user = db_session.query(User).filter_by(username="test_a").one()
     assert user.email == None
 
 
-def test_put_user_username_remove_admin_self(client, admin_user, encoded_admin_jwt, db_session):
+def test_put_user_username_remove_admin_self(
+    client, admin_user, encoded_admin_jwt, db_session
+):
     """ PUT /user/<username>: [update_user] what if admin un-admins self?"""
     """ It seems this is fine. """
     r = client.put(
-            '/admin/user/admin_user',
-            headers={
-                "Authorization": "Bearer " + encoded_admin_jwt,
-                "Content-Type": "application/json"
-            },
-            data=json.dumps({
-                "role": "user",
-            })
-        )
+        "/admin/user/admin_user",
+        headers={
+            "Authorization": "Bearer " + encoded_admin_jwt,
+            "Content-Type": "application/json",
+        },
+        data=json.dumps({"role": "user"}),
+    )
     assert r.status_code == 200
     user = db_session.query(User).filter_by(username="admin_user").one()
     assert user.is_admin == False
-    
+
 
 def test_put_user_username_noauth(client, db_session):
     """ PUT /user/<username>: [update_user] but without authorization """
-    r = client.put('/admin/user/test_a')
+    r = client.put("/admin/user/test_a")
     assert r.status_code == 401
