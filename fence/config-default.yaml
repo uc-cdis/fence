@@ -428,7 +428,7 @@ PROBLEM_USER_EMAIL_NOTIFICATION:
   subject: 'Account access error notification'
   # the {} gets replaced dynamically in the Python code to be the Project ID
   content: >
-    Your account does not have access to the following projects: {}
+    Your account does not have access to these projects ({}).
   # this admin email will be included as a recipient to *any* email to anyone about
   # service account removal.
   #
