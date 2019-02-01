@@ -1302,4 +1302,4 @@ def force_update_google_link(DB, username, google_email):
 
 
 def notify_problem_users(db, emails, auth_ids, check_linking):
-    email_users_without_access(db, emails, auth_ids, check_linking)
+    email_users_without_access(db, auth_ids, emails, check_linking)
