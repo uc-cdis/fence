@@ -509,7 +509,7 @@ def _get_users_without_access(db, auth_ids, user_emails, check_linking):
             continue
 
         if check_linking:
-            link_email = get_linked_google_account_email(user.user_id, db)
+            link_email = get_linked_google_account_email(user.id, db)
             if not link_email:
                 logger.info("User ({}) does not have a linked google account.".format(user_email))
                 continue
