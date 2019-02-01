@@ -24,6 +24,7 @@ from fence.resources.google.utils import (
 
 from fence.resources.google.access_utils import (
     get_google_project_number,
+    get_project_from_auth_id,
     get_user_by_email,
     force_remove_service_account_from_access,
     force_remove_service_account_from_db,
@@ -516,10 +517,14 @@ def _get_users_without_access(db, auth_ids, user_emails, check_linking):
 
         no_access_auth_ids = []
         for auth_id in auth_ids:
-            if not user_has_access_to_project(user, auth_id, db):
-                logger.info("User ({}) does not have access to project (auth_id: {})".format(user_email, auth_id))
-                # add to list to send email
-                no_access_auth_ids.append(auth_id)
+            project = get_project_from_auth_id(auth_id, db)
+            if project:
+                if not user_has_access_to_project(user, project.id, db):
+                    logger.info("User ({}) does not have access to project (auth_id: {})".format(user_email, auth_id))
+                    # add to list to send email
+                    no_access_auth_ids.append(auth_id)
+            else:
+                logger.warning("Project (auth_id: {}) does not exist.".format(auth_id))
 
         if no_access_auth_ids:
             no_access[user_email] = no_access_auth_ids

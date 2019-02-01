@@ -388,7 +388,7 @@ def get_user_by_email(user_email, db=None):
     return user
 
 
-def user_has_access_to_project(user, auth_id, db=None):
+def user_has_access_to_project(user, project_id, db=None):
     """
     Return True IFF user has access to provided project auth_id
 
@@ -401,8 +401,6 @@ def user_has_access_to_project(user, auth_id, db=None):
         bool: True IFF user has access to provided project auth_id
 
     """
-
-    project_id = get_project_from_auth_id(auth_id, db).id
 
     session = get_db_session(db)
     access_privilege = (
