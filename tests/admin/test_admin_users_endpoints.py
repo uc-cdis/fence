@@ -10,41 +10,19 @@ import fence.resources.admin as adm
 from tests import utils
 
 import pdb # TODO REMOVE
-from flask_sqlalchemy_session import current_session #TODO db hack; remove
-
-# DATABASE:
-# The extant db_session fixture yields one db_session, function-scoped,
-# that is different from the current_session used by the admin code
-# (= the current_session from flask_sqlalchemy_session).
-# If I $psql fence_test_tmp and select * from "User";
-# The tables only get populated if the fixtures commit to current_session.
-# Which obv doesn't work for testing purposes.
-# TODO: Figure this out then clean up fixtures
-
 # TODO: Most of the 500s mentioned below stem from the same code; see PXP-2374
+# TODO: Black
 
-"""
-QUESTIONS:
-  - About the database situation.
-  - Are tests on right track in terms of scope, assertion style, etc?
-  - Story scope
-"""
 
 # Move these fixtures to tests/conftest.py if they become useful elsewhere
 
 @pytest.fixture
 def admin_user(db_session):
-    #test_user = db_session.query(User).filter_by(username="admin_user").first()
-    #if not test_user:
-    #    test_user = User(username="admin_user", id="5678", is_admin=True)
-    #    db_session.add(test_user)
-    #    db_session.commit()
-    # TODO Database hack. Remove when fixed
-    test_user = current_session.query(User).filter_by(username="admin_user").first()
+    test_user = db_session.query(User).filter_by(username="admin_user").first()
     if not test_user:
         test_user = User(username="admin_user", id="5678", is_admin=True)
-        current_session.add(test_user)
-        current_session.commit()
+        db_session.add(test_user)
+        db_session.commit()
 
 
 @pytest.fixture(scope="function")
@@ -59,32 +37,10 @@ def encoded_admin_jwt(kid, rsa_private_key):
     return jwt.encode(claims, key=rsa_private_key, headers=headers, algorithm="RS256")
 
 
-# TODO: Remove this once db situation is fixed
-# It currently "overwrites" the same thing in conftest but uses current_session
-@pytest.fixture(scope="function")
-def test_user_a(db_session):
-    test_user = current_session.query(User).filter_by(username="test_a").first()
-    if not test_user:
-        test_user = User(username="test_a", is_admin=False)
-        current_session.add(test_user)
-        current_session.commit()
-    return Dict(username="test_a", user_id=test_user.id)
-
-
-# TODO: Remove this once db situation is fixed
-@pytest.fixture(scope="function")
-def test_user_b(db_session):
-    test_user = current_session.query(User).filter_by(username="test_b").first()
-    if not test_user:
-        test_user = User(username="test_b", is_admin=False)
-        current_session.add(test_user)
-        current_session.commit()
-    return Dict(username="test_b", user_id=test_user.id)
-
 
 # GET /user/<username> tests
 
-def test_get_user_username(client, admin_user, encoded_admin_jwt, test_user_a):
+def test_get_user_username(client, admin_user, encoded_admin_jwt, db_session, test_user_a):
     """ GET /user/<username>: [get_user]: happy path """
     r = client.get(
             '/admin/user/test_a',
@@ -94,7 +50,7 @@ def test_get_user_username(client, admin_user, encoded_admin_jwt, test_user_a):
     assert r.json['username'] == 'test_a'
 
 
-def test_get_user_username_nonexistent(client, admin_user, encoded_admin_jwt):
+def test_get_user_username_nonexistent(client, admin_user, encoded_admin_jwt, db_session):
     """ GET /user/<username>: [get_user]: When username does not exist """
     r = client.get(
             '/admin/user/test_nonexistent',
@@ -103,15 +59,16 @@ def test_get_user_username_nonexistent(client, admin_user, encoded_admin_jwt):
     assert r.status_code == 404
 
 
-def test_get_user_username_noauth(client):
+def test_get_user_username_noauth(client, db_session):
     """ GET /user/<username>: [get_user] but without authorization """
+    # This creates a "test" user, so don't remove db_session fixture
     r = client.get('/admin/user/test_a')
     assert r.status_code == 401
 
 
 # GET /user tests
 
-def test_get_user(client, admin_user, encoded_admin_jwt, test_user_a, test_user_b):
+def test_get_user(client, admin_user, encoded_admin_jwt, db_session, test_user_a, test_user_b):
     """ GET /user: [get_all_users] """
     r = client.get(
             '/admin/user',
@@ -125,7 +82,7 @@ def test_get_user(client, admin_user, encoded_admin_jwt, test_user_a, test_user_
     assert 'admin_user' in usernames
 
 
-def test_get_user_noauth(client):
+def test_get_user_noauth(client, db_session):
     """ GET /user: [get_all_users] but without authorization (access token) """
     r = client.get('/admin/user')
     assert r.status_code == 401
@@ -234,7 +191,7 @@ def test_post_user_already_exists(client, admin_user, encoded_admin_jwt, test_us
     assert r.status_code == 400
 
 
-def test_post_user_noauth(client):
+def test_post_user_noauth(client, db_session):
     """ POST /user: [create_user] but without authorization """
     r = client.post('/admin/user')
     assert r.status_code == 401
@@ -373,7 +330,7 @@ def test_put_user_username_remove_admin_self(client, admin_user, encoded_admin_j
     # actual behavior is currently a 500--see without_update_username
 
 
-def test_put_user_username_noauth(client):
+def test_put_user_username_noauth(client, db_session):
     """ PUT /user/<username>: [update_user] but without authorization """
     r = client.put('/admin/user/test_a')
     assert r.status_code == 401
