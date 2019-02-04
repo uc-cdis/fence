@@ -46,10 +46,7 @@ from fence.models import (
     ServiceAccountToGoogleBucketAccessGroup,
     query_for_user,
 )
-from fence.scripting.google_monitor import (
-    email_users_without_access,
-    validation_check,
-)
+from fence.scripting.google_monitor import email_users_without_access, validation_check
 from fence.config import config
 from fence.sync.sync_users import UserSyncer
 from fence.utils import create_client

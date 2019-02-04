@@ -380,10 +380,7 @@ def get_user_by_email(user_email, db=None):
     """
 
     session = get_db_session(db)
-    user = (
-       session.query(User)
-        .filter(User.email == user_email)
-    ).first()
+    user = (session.query(User).filter(User.email == user_email)).first()
 
     return user
 
@@ -405,8 +402,8 @@ def user_has_access_to_project(user, project_id, db=None):
     session = get_db_session(db)
     access_privilege = (
         session.query(AccessPrivilege)
-            .filter(AccessPrivilege.user_id == user.id)
-            .filter(AccessPrivilege.project_id == project_id)
+        .filter(AccessPrivilege.user_id == user.id)
+        .filter(AccessPrivilege.project_id == project_id)
     ).first()
 
     return bool(access_privilege)

@@ -267,22 +267,19 @@ def parse_arguments():
 
     notify_problem_users = subparsers.add_parser("notify_problem_users")
     notify_problem_users.add_argument(
-        "--emails",
-        required=True,
-        nargs="+",
-        help="List of emails to check/notify"
+        "--emails", required=True, nargs="+", help="List of emails to check/notify"
     )
     notify_problem_users.add_argument(
         "--auth_ids",
         required=True,
         nargs="+",
-        help="List of project auth_ids to check access to"
+        help="List of project auth_ids to check access to",
     )
     notify_problem_users.add_argument(
         "--check_linking",
         required=False,
         default=False,
-        help="True if you want to check that each email has a linked google account"
+        help="True if you want to check that each email has a linked google account",
     )
 
     return parser.parse_args()
