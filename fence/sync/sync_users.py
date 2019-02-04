@@ -923,7 +923,9 @@ class UserSyncer(object):
                     self._get_from_ftp_with_proxy(tmpdir)
                 dbgap_file_list = glob.glob(os.path.join(tmpdir, "*"))
             except Exception as e:
-                self.logger.info(e)
+                self.logger.error(e)
+                exit(1)
+
         permissions = [{"read-storage"} for _ in dbgap_file_list]
         user_projects, user_info = self._parse_csv(
             dict(zip(dbgap_file_list, permissions)), encrypted=True, sess=sess
@@ -954,6 +956,14 @@ class UserSyncer(object):
             self.logger.error(str(e))
             self.logger.error("aborting early")
             return
+
+        user_projects_csv = {
+            key.lower(): value for key, value in user_projects_csv.iteritems()
+        }
+        user_projects = {key.lower(): value for key, value in user_projects.iteritems()}
+        user_yaml.projects = {
+            key.lower(): value for key, value in user_yaml.projects.iteritems()
+        }
 
         self.sync_two_phsids_dict(user_projects_csv, user_projects)
         self.sync_two_user_info_dict(user_info_csv, user_info)

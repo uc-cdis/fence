@@ -236,11 +236,12 @@ def send_email(from_email, to_emails, subject, text, smtp_domain):
 
     """
     if smtp_domain not in config["GUN_MAIL"] or not config["GUN_MAIL"].get(
-        "smtp_password"
-    ):
+        smtp_domain
+    ).get("smtp_password"):
         raise NotFound(
-            "SMTP Domain '{}' does not exist in configuration for GUN_MAIL. "
-            "Cannot send email."
+            "SMTP Domain '{}' does not exist in configuration for GUN_MAIL or "
+            "smtp_password was not provided. "
+            "Cannot send email.".format(smtp_domain)
         )
 
     api_key = config["GUN_MAIL"][smtp_domain].get("api_key", "")

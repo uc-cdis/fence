@@ -49,22 +49,30 @@ def load_keypairs(keys_dir):
     # Get the absolute paths for the keypair directories.
     keypair_directories = [os.path.join(keys_dir, d) for d in os.listdir(keys_dir)]
 
-    def key(keypair_dir):
-        """
-        Try to read the directory name as a date. If that doesn't work, take
-        the time that it was last modified.
-
-        This function is used to sort the list of keypair directories by time,
-        converting the keypairs to `datetime` dates for sorting.
-        """
+    def is_datetime(name):
         try:
-            return dateutil.parser.parse(keypair_dir)
+            dateutil.parser.parse(os.path.basename(name))
+            return True
         except ValueError:
-            return datetime.datetime.fromtimestamp(int(os.stat(keypair_dir).st_mtime))
+            return False
+
+    def timestamp_key(name):
+        return dateutil.parser.parse(os.path.basename(name))
+
+    directories_timestamped = list(
+        reversed(
+            sorted(
+                (d for d in keypair_directories if is_datetime(d)), key=timestamp_key
+            )
+        )
+    )
+    directories_other = list(
+        sorted(d for d in keypair_directories if not is_datetime(d))
+    )
 
     # Sort the keypair directories to load from in the order described in
     # ``key``.
-    keypair_directories = list(sorted(keypair_directories, key=key))
+    keypair_directories = directories_timestamped + directories_other
 
     # Load the keypairs from the directories.
     keypairs = [
