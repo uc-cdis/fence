@@ -35,7 +35,7 @@ from fence.resources.google.utils import (
 from fence.config import config
 
 ACTION_DICT = {
-    "s3": {"upload": "PUT", "download": "GET"},
+    "s3": {"upload": "HEAD", "download": "GET"},
     "gs": {"upload": "PUT", "download": "GET"},
 }
 
