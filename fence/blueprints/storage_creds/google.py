@@ -1,4 +1,6 @@
+from datetime import datetime
 import flask
+import re
 import time
 from flask_restful import Resource
 from flask_sqlalchemy_session import current_session
@@ -36,8 +38,7 @@ class GoogleCredentialsList(Resource):
                Accept: application/json
 
         Info from Google API /serviceAccounts/<account>/keys endpoint
-        TODO: In the future we should probably add in our expiration time, when
-              we start monitoring and deleting after x amount of time
+        but get the expiration time from our DB
 
         .. code-block:: JavaScript
 
@@ -71,6 +72,22 @@ class GoogleCredentialsList(Resource):
             keys = g_cloud_manager.get_service_account_keys_info(
                 service_account.google_unique_id
             )
+
+            # replace Google's expiration date by the one in our DB
+            reg = re.compile(".+\/keys\/(.+)") # get key_id from xx/keys/key_id
+            for k in keys:
+                key_id = reg.findall(k["name"])[0]
+                db_entry = (
+                    current_session.query(GoogleServiceAccountKey)
+                    .filter_by(key_id=key_id)
+                    .first()
+                )
+
+                # convert timestamp to date - use the same format as Google API
+                exp_date = datetime.utcfromtimestamp(db_entry.expires).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+                k["validBeforeTime"] = exp_date
+
             result = {"access_keys": keys}
 
         return flask.jsonify(result)
@@ -135,7 +152,11 @@ class GoogleCredentialsList(Resource):
         """
         # x days * 24 hr/day * 60 min/hr * 60 s/min = y seconds
         max_expire = cirrus_config.SERVICE_KEY_EXPIRATION_IN_DAYS * 24 * 60 * 60
-        expires_in = min(int(flask.request.args.get("expires_in", max_expire)), max_expire)
+        expires_in = min(
+            int(flask.request.args.get("expires_in", max_expire)),
+            max_expire
+        )
+
         expiration_time = int(time.time()) + int(expires_in)
         key_id = key.get("private_key_id")
         add_custom_service_account_key_expiration(
