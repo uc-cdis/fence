@@ -495,7 +495,17 @@ def _send_emails_informing_service_account_removal(
 
 def _get_users_without_access(db, auth_ids, user_emails, check_linking):
     """
+    Build list of users without access to projects identified by auth_ids
 
+    Args:
+        db (str): database instance
+        auth_ids (list(str)): list of project auth_ids to check access against
+        user_emails (list(str)): list of emails to check access for
+        check_linking (bool): flag to check for linked google email
+
+    Returns:
+        dict{str : (list(str))} : dictionary where keys are user emails,
+        and values are list of project_ids they do not have access to
 
     """
 
@@ -544,6 +554,16 @@ def _get_users_without_access(db, auth_ids, user_emails, check_linking):
 
 def email_user_without_access(user_email, projects):
 
+    """
+    Send email to user, indicating no access to given projects
+
+    Args:
+        user_email (str): address to send email to
+        projects (list(str)):  list of projects user does not have access to that they should
+    Returns:
+        HTTP response
+
+    """
     to_emails = [user_email]
 
     from_email = config["PROBLEM_USER_EMAIL_NOTIFICATION"]["from"]
@@ -561,6 +581,17 @@ def email_user_without_access(user_email, projects):
 
 def email_users_without_access(db, auth_ids, user_emails, check_linking):
 
+    """
+    Build list of users without acess and send emails.
+
+    Args:
+        db (str): database instance
+        auth_ids (list(str)): list of project auth_ids to check access against
+        user_emails (list(str)): list of emails to check access for
+        check_linking (bool): flag to check for linked google email
+    Returns:
+        None
+    """
     users_without_access = _get_users_without_access(
         db, auth_ids, user_emails, check_linking
     )
