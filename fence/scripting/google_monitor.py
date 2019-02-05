@@ -565,7 +565,7 @@ def email_users_without_access(db, auth_ids, user_emails, check_linking):
         db, auth_ids, user_emails, check_linking
     )
 
-    if len(users_without_access) == user_emails:
+    if len(users_without_access) == len(user_emails):
         logger.warning(
             "No user has proper access to provided projects. Contact project administrator. No emails will be sent"
         )
