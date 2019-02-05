@@ -134,10 +134,10 @@ def test_post_user_no_fields_defined(client, admin_user, encoded_admin_jwt, db_s
     assert r.status_code == 400
 
 
-def test_post_user_username_not_defined(
+def test_post_user_only_email_defined(
     client, admin_user, encoded_admin_jwt, db_session
 ):
-    """ POST /user: [create_user] username not defined """
+    """ POST /user: [create_user] only email defined (in particular, no username) """
     r = client.post(
         "/admin/user",
         headers={
@@ -149,7 +149,22 @@ def test_post_user_username_not_defined(
     assert r.status_code == 400
 
 
-def test_post_user_one_field_defined(client, admin_user, encoded_admin_jwt, db_session):
+def test_post_user_only_role_defined(client, admin_user, encoded_admin_jwt, db_session):
+    """ POST /user: [create_user] only role defined (in particular, no username) """
+    r = client.post(
+        "/admin/user",
+        headers={
+            "Authorization": "Bearer " + encoded_admin_jwt,
+            "Content-Type": "application/json",
+        },
+        data=json.dumps({"role": "admin"}),
+    )
+    assert r.status_code == 400
+
+
+def test_post_user_only_username_defined(
+    client, admin_user, encoded_admin_jwt, db_session
+):
     """ POST /user: [create_user] only username defined """
     r = client.post(
         "/admin/user",
@@ -231,7 +246,7 @@ def test_put_user_username(
 def test_put_user_username_nonexistent(
     client, admin_user, encoded_admin_jwt, db_session
 ):
-    """ PUT /user/<username>: [update_user] username doesn't exist"""
+    """ PUT /user/<username>: [update_user] username to be updated doesn't exist"""
     r = client.put(
         "/admin/user/test_nonexistent",
         headers={
@@ -251,7 +266,7 @@ def test_put_user_username_nonexistent(
 def test_put_user_username_already_exists(
     client, admin_user, encoded_admin_jwt, db_session, test_user_a, test_user_b
 ):
-    """ PUT /user/<username>: [update_user] update to username that already exists """
+    """ PUT /user/<username>: [update_user] desired new username already exists """
     r = client.put(
         "/admin/user/test_a",
         headers={
@@ -316,7 +331,7 @@ def test_put_user_username_try_delete_role(
     assert user.is_admin == original_isadmin
 
 
-def test_put_user_username_without_update_username(
+def test_put_user_username_without_updating_username(
     client, admin_user, encoded_admin_jwt, db_session, test_user_a
 ):
     """ PUT /user/<username>: [update_user] update other fields but not username"""
