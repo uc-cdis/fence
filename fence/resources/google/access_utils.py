@@ -368,6 +368,35 @@ def is_user_member_of_all_google_projects(
     return is_member
 
 
+def get_user_by_linked_email(linked_email, db=None):
+    """"
+    Return user identified by linked_email address
+
+    Args:
+        linked_email (str): email address linked to user
+
+    Returns:
+        (User): User db object
+    """
+
+    session = get_db_session(db)
+    linked_account = (
+        session.query(UserGoogleAccount)
+        .filter(UserGoogleAccount.email == linked_email)
+        .first()
+    )
+    if linked_account:
+        user = (
+            session.query(User)
+            .filter(User.id == linked_account.user_id)
+            .first()
+        )
+        return user
+    else:
+        return None
+
+
+
 def get_user_by_email(user_email, db=None):
     """
     Return user from fence DB

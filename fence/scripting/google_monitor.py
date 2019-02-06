@@ -26,6 +26,7 @@ from fence.resources.google.access_utils import (
     get_google_project_number,
     get_project_from_auth_id,
     get_user_by_email,
+    get_user_by_linked_email,
     force_remove_service_account_from_access,
     force_remove_service_account_from_db,
     user_has_access_to_project,
@@ -513,7 +514,7 @@ def _get_users_without_access(db, auth_ids, user_emails, check_linking):
 
     for user_email in user_emails:
 
-        user = get_user_by_email(user_email, db)
+        user = get_user_by_email(user_email, db) or get_user_by_linked_email(user_email, db)
 
         if not user:
             logger.info(
