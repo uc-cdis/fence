@@ -74,7 +74,7 @@ class GoogleCredentialsList(Resource):
             )
 
             # replace Google's expiration date by the one in our DB
-            reg = re.compile(".+\/keys\/(.+)") # get key_id from xx/keys/key_id
+            reg = re.compile(".+\/keys\/(.+)")  # get key_id from xx/keys/key_id
             for k in keys:
                 key_id = reg.findall(k["name"])[0]
                 db_entry = (
@@ -84,7 +84,9 @@ class GoogleCredentialsList(Resource):
                 )
 
                 # convert timestamp to date - use the same format as Google API
-                exp_date = datetime.utcfromtimestamp(db_entry.expires).strftime("%Y-%m-%dT%H:%M:%SZ")
+                exp_date = datetime.utcfromtimestamp(db_entry.expires).strftime(
+                    "%Y-%m-%dT%H:%M:%SZ"
+                )
 
                 k["validBeforeTime"] = exp_date
 
@@ -153,8 +155,7 @@ class GoogleCredentialsList(Resource):
         # x days * 24 hr/day * 60 min/hr * 60 s/min = y seconds
         max_expire = cirrus_config.SERVICE_KEY_EXPIRATION_IN_DAYS * 24 * 60 * 60
         expires_in = min(
-            int(flask.request.args.get("expires_in", max_expire)),
-            max_expire
+            int(flask.request.args.get("expires_in", max_expire)), max_expire
         )
 
         expiration_time = int(time.time()) + int(expires_in)
