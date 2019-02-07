@@ -748,7 +748,7 @@ def test_project(db_session):
     db_session.add(project)
     db_session.commit()
 
-    return test_project
+    yield test_project
 
 
 @pytest.fixture(scope="function")
@@ -758,7 +758,7 @@ def test_user(db_session):
     db_session.add(user)
     db_session.commit()
 
-    return user
+    yield user
 
 
 @pytest.fixture(scope="function")
@@ -770,7 +770,7 @@ def test_linked_user(db_session, test_user):
     db_session.add(user_google_account)
     db_session.commit()
 
-    return user_google_account
+    yield user_google_account
 
 
 @pytest.fixture(scope="function")
@@ -782,4 +782,4 @@ def test_linked_user_with_access(db_session, test_linked_user, test_project):
     db_session.add(access_privilege)
     db_session.commit()
 
-    return test_linked_user
+    yield test_linked_user
