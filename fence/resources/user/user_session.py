@@ -60,7 +60,8 @@ class UserSession(SessionMixin):
                 # empty one silently
                 jwt_info = self._get_initial_session_token()
         else:
-            jwt_info = None
+            # do not create a token for anonymous session
+            jwt_info = {"context": {}}
 
         self.session_token = jwt_info
 
