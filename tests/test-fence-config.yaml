@@ -49,6 +49,7 @@ DEBUG: true
 MOCK_AUTH: true
 # if true, will only fake a successful login response from Google in /login/google
 MOCK_GOOGLE_AUTH: false
+MOCK_GOOGLE_AUTH_EMAIL: 'cdis.autotest@gmail.com'
 # if true, will ignore anything configured in STORAGE_CREDENTIALS
 MOCK_STORAGE: false
 # allow OIDC traffic on http for development. By default it requires https.

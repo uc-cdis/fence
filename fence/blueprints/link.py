@@ -262,7 +262,7 @@ class GoogleCallback(Resource):
                     "Unable to parse Google email from token, using default mock value. "
                     "Error: {}".format(exc)
                 )
-                email = "test@example.com"
+                email = config.get("MOCK_GOOGLE_AUTH_EMAIL", "cdis.autotest@gmail.com")
 
         error = ""
         error_description = ""

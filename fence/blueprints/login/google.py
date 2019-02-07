@@ -14,7 +14,8 @@ class GoogleRedirect(Resource):
             flask.session["redirect"] = flask.redirect_url
 
         if config.get("MOCK_GOOGLE_AUTH", False):
-            return _login("test@example.com")
+            email = config.get("MOCK_GOOGLE_AUTH_EMAIL", "cdis.autotest@gmail.com")
+            return _login(email)
 
         return flask.redirect(flask.current_app.google_client.get_auth_url())
 

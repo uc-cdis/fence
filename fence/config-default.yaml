@@ -52,6 +52,7 @@ MOCK_AUTH: false
 #     NOTE: this will also modify the behavior of /link/google endpoints
 # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
 MOCK_GOOGLE_AUTH: false
+MOCK_GOOGLE_AUTH_EMAIL: 'cdis.autotest@gmail.com'
 # if true, will ignore anything configured in STORAGE_CREDENTIALS
 MOCK_STORAGE: true
 # allow OIDC traffic on http for development. By default it requires https.
