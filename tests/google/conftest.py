@@ -748,7 +748,7 @@ def test_project(db_session):
     db_session.add(project)
     db_session.commit()
 
-    yield test_project
+    yield project
 
 
 @pytest.fixture(scope="function")

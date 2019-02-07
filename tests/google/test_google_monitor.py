@@ -191,7 +191,7 @@ def test_get_users_without_access_with_access(test_linked_user_with_access):
 
     no_access = _get_users_without_access(
         db=None,
-        auth_ids=[1],
+        auth_ids=["test_project"],
         user_emails=[test_linked_user_with_access.email],
         check_linking=False,
     )
@@ -205,7 +205,7 @@ def test_get_users_without_access_with_access_by_linked(test_linked_user_with_ac
 
     no_access = _get_users_without_access(
         db=None,
-        auth_ids=[1],
+        auth_ids=["test_project"],
         user_emails=["google_test_linked_user@gmail.com"],
         check_linking=False,
     )
