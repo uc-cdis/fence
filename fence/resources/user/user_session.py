@@ -49,7 +49,7 @@ from fence.config import config
 
 
 class UserSession(SessionMixin):
-    def __init__(self, session_token):
+    def __init__(self, session_token, access_token):
         self._encoded_token = session_token
 
         if session_token:
@@ -59,6 +59,8 @@ class UserSession(SessionMixin):
                 # if session token is invalid, create a new
                 # empty one silently
                 jwt_info = self._get_initial_session_token()
+        elif access_token:
+            jwt_info = self._get_initial_session_token()
         else:
             jwt_info = None
 
@@ -165,7 +167,8 @@ class UserSessionInterface(SessionInterface):
 
     def open_session(self, app, request):
         jwt = request.cookies.get(app.session_cookie_name)
-        session = UserSession(jwt)
+        access_token = request.cookies.get(config["ACCESS_TOKEN_COOKIE_NAME"], None)
+        session = UserSession(jwt, access_token)
 
         # NOTE: If we did the expiration check in save_session
         # then an expired token could be used for a single request
@@ -193,7 +196,7 @@ class UserSessionInterface(SessionInterface):
                 httponly=True,
                 domain=domain,
             )
-            # try to get user, execption means they're not logged in
+            # try to get user, exception means they're not logged in
             try:
                 user = get_current_user()
             except Unauthorized:
