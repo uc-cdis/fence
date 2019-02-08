@@ -1146,7 +1146,7 @@ def _setup_google_bucket_access_group(
         )
 
     print(
-        "Successfully created Google Bucket Access Group {} "
+        "Successfully set up Google Bucket Access Group {} "
         "for Google Bucket {}.".format(access_group.email, google_bucket_name)
     )
 
@@ -1172,11 +1172,18 @@ def _create_google_bucket_access_group(
         group_email = result["email"]
 
         # add bucket group to db
-        access_group = GoogleBucketAccessGroup(
-            bucket_id=bucket_db_id, email=group_email, privileges=privileges
+        access_group = (
+            db_session.query(GoogleBucketAccessGroup)
+            .filter_by(bucket_id=bucket_db_id, email=group_email)
+            .first()
         )
-        db_session.add(access_group)
-        db_session.commit()
+        if not access_group:
+            access_group = GoogleBucketAccessGroup(
+                bucket_id=bucket_db_id, email=group_email, privileges=privileges
+            )
+            db_session.add(access_group)
+            db_session.commit()
+
     return access_group
 
 
