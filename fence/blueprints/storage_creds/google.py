@@ -19,6 +19,10 @@ from fence.resources.google.utils import (
     get_or_create_proxy_group_id,
 )
 
+from cdislogging import get_logger
+
+logger = get_logger(__name__)
+
 
 class GoogleCredentialsList(Resource):
     """
@@ -75,20 +79,35 @@ class GoogleCredentialsList(Resource):
 
             # replace Google's expiration date by the one in our DB
             reg = re.compile(".+\/keys\/(.+)")  # get key_id from xx/keys/key_id
-            for k in keys:
-                key_id = reg.findall(k["name"])[0]
+            for i, key in enumerate(keys):
+                key_id = reg.findall(key["name"])[0]
                 db_entry = (
                     current_session.query(GoogleServiceAccountKey)
+                    .filter_by(service_account_id=service_account.id)
                     .filter_by(key_id=key_id)
                     .first()
                 )
 
-                # convert timestamp to date - use the same format as Google API
-                exp_date = datetime.utcfromtimestamp(db_entry.expires).strftime(
-                    "%Y-%m-%dT%H:%M:%SZ"
-                )
+                if db_entry:
+                    # convert timestamp to date - use the same format as Google API
+                    exp_date = datetime.utcfromtimestamp(db_entry.expires).strftime(
+                        "%Y-%m-%dT%H:%M:%SZ"
+                    )
+                    key["validBeforeTime"] = exp_date
 
-                k["validBeforeTime"] = exp_date
+                # the key exists in Google but not in our DB. This should not
+                # happen! Delete the key from Google
+                else:
+                    keys.pop(i)
+                    logger.warning(
+                        "No GoogleServiceAccountKey entry was found in the fence database for service account name {} for key_id {}, which exists in Google. It will now be deleted from Google.".format(
+                            username, key_id
+                        )
+                    )
+                    with GoogleCloudManager() as g_cloud:
+                        g_cloud.delete_service_account_key(
+                            service_account.google_unique_id, key_id
+                        )
 
             result = {"access_keys": keys}
 
