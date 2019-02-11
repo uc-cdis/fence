@@ -1,4 +1,6 @@
+from datetime import datetime
 import flask
+import re
 import time
 from flask_restful import Resource
 from flask_sqlalchemy_session import current_session
@@ -16,6 +18,10 @@ from fence.resources.google.utils import (
     get_or_create_service_account,
     get_or_create_proxy_group_id,
 )
+
+from cdislogging import get_logger
+
+logger = get_logger(__name__)
 
 
 class GoogleCredentialsList(Resource):
@@ -36,8 +42,7 @@ class GoogleCredentialsList(Resource):
                Accept: application/json
 
         Info from Google API /serviceAccounts/<account>/keys endpoint
-        TODO: In the future we should probably add in our expiration time, when
-              we start monitoring and deleting after x amount of time
+        but get the expiration time from our DB
 
         .. code-block:: JavaScript
 
@@ -71,6 +76,39 @@ class GoogleCredentialsList(Resource):
             keys = g_cloud_manager.get_service_account_keys_info(
                 service_account.google_unique_id
             )
+
+            # replace Google's expiration date by the one in our DB
+            reg = re.compile(".+\/keys\/(.+)")  # get key_id from xx/keys/key_id
+            for i, key in enumerate(keys):
+                key_id = reg.findall(key["name"])[0]
+                db_entry = (
+                    current_session.query(GoogleServiceAccountKey)
+                    .filter_by(service_account_id=service_account.id)
+                    .filter_by(key_id=key_id)
+                    .first()
+                )
+
+                if db_entry:
+                    # convert timestamp to date - use the same format as Google API
+                    exp_date = datetime.utcfromtimestamp(db_entry.expires).strftime(
+                        "%Y-%m-%dT%H:%M:%SZ"
+                    )
+                    key["validBeforeTime"] = exp_date
+
+                # the key exists in Google but not in our DB. This should not
+                # happen! Delete the key from Google
+                else:
+                    keys.pop(i)
+                    logger.warning(
+                        "No GoogleServiceAccountKey entry was found in the fence database for service account name {} for key_id {}, which exists in Google. It will now be deleted from Google.".format(
+                            username, key_id
+                        )
+                    )
+                    with GoogleCloudManager() as g_cloud:
+                        g_cloud.delete_service_account_key(
+                            service_account.google_unique_id, key_id
+                        )
+
             result = {"access_keys": keys}
 
         return flask.jsonify(result)
@@ -134,7 +172,11 @@ class GoogleCredentialsList(Resource):
         different mechanism than the Client SAs was required.
         """
         # x days * 24 hr/day * 60 min/hr * 60 s/min = y seconds
-        expires_in = cirrus_config.SERVICE_KEY_EXPIRATION_IN_DAYS * 24 * 60 * 60
+        max_expire = cirrus_config.SERVICE_KEY_EXPIRATION_IN_DAYS * 24 * 60 * 60
+        expires_in = min(
+            int(flask.request.args.get("expires_in", max_expire)), max_expire
+        )
+
         expiration_time = int(time.time()) + int(expires_in)
         key_id = key.get("private_key_id")
         add_custom_service_account_key_expiration(

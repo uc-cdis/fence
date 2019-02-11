@@ -450,6 +450,16 @@ paths:
         - OAuth2:
             - user
       operationId: getGoogleKeypair
+      parameters:
+        - name: expires_in
+          required: false
+          in: query
+          description: >-
+            the time (in seconds) during which the access key is valid. Must be less
+            than the configured maximum (default is 10 days). If it's greater,
+            the configured maximum will be used.
+          schema:
+            type: integer
       responses:
         '200':
           description: Temporary private Google key in Google Credentials File format
