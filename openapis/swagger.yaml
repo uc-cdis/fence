@@ -833,10 +833,6 @@ paths:
           * `linked_email`
             * Google account email that was linked to the user and provided
               temporary access
-          * `expires_in`
-            * the time (in seconds) during which the Google account has bucket
-            access. Must be less than the configured maximum (default is 24
-            hours). If it's greater, the configured maximum will be used.
 
         ---
 
