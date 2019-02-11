@@ -112,10 +112,16 @@ class GoogleLinkRedirect(Resource):
             # save off provided redirect in session and initiate Google AuthN
             flask.session["redirect"] = provided_redirect
 
+            # time (in seconds) during which the link will be valid
+            max_expire = config["GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN"]
+            expires_in = min(
+                int(flask.request.args.get("expires_in", max_expire)), max_expire
+            )
+
             # if we're mocking Google login, skip to callback
             if config.get("MOCK_GOOGLE_AUTH", False):
                 flask.redirect_url = (
-                    config["BASE_URL"].strip("/") + "/link/google/callback?code=abc"
+                    config["BASE_URL"].strip("/") + "/link/google/callback?code=abc&expires_in=" + str(expires_in)
                 )
                 response = flask.redirect(flask.redirect_url)
                 # pass-through the authorization header. The user's username
@@ -130,7 +136,7 @@ class GoogleLinkRedirect(Resource):
 
             # Tell Google to let user select an account
             flask.redirect_url = append_query_params(
-                flask.redirect_url, prompt="select_account"
+                flask.redirect_url, prompt="select_account", expires_in=expires_in
             )
         else:
             # double check that the token isn't stale by hitting db
@@ -442,7 +448,12 @@ def _force_update_user_google_account(
                 "was attempted and failed."
             )
 
+    # timestamp at which the link will expire
     expiration = get_default_google_account_expiration()
+    if "expires_in" in flask.request.args:
+        now = int(time.time())
+        requested_expiration = now + int(flask.request.args.get("expires_in"))
+        expiration = min(requested_expiration, expiration)
 
     force_update_user_google_account_expiration(
         user_google_account, proxy_group_id, google_email, expiration, current_session
