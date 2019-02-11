@@ -51,7 +51,9 @@ MOCK_AUTH: false
 # if true, will fake a successful login response from Google in /login/google
 #     NOTE: this will also modify the behavior of /link/google endpoints
 # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
+# will login as the username set in cookie DEV_LOGIN_COOKIE_NAME
 MOCK_GOOGLE_AUTH: false
+DEV_LOGIN_COOKIE_NAME: "dev_login"
 # if true, will ignore anything configured in STORAGE_CREDENTIALS
 MOCK_STORAGE: true
 # allow OIDC traffic on http for development. By default it requires https.
