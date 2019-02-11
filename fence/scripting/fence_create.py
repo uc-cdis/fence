@@ -454,55 +454,54 @@ def remove_expired_google_service_account_keys(db):
             GoogleServiceAccountKey
         ).filter(GoogleServiceAccountKey.expires <= current_time)
 
-        # handle service accounts with default max expiration
-        for service_account, client in client_service_accounts:
-            with GoogleCloudManager() as g_mgr:
+        with GoogleCloudManager() as g_mgr:
+            # handle service accounts with default max expiration
+            for service_account, client in client_service_accounts:
                 g_mgr.handle_expired_service_account_keys(
                     service_account.google_unique_id
                 )
 
-                # handle service accounts with custom expiration
-                for expired_user_key in expired_sa_keys_for_users:
-                    sa = (
-                        current_session.query(GoogleServiceAccount)
-                        .filter(
-                            GoogleServiceAccount.id
-                            == expired_user_key.service_account_id
-                        )
-                        .first()
+            # handle service accounts with custom expiration
+            for expired_user_key in expired_sa_keys_for_users:
+                sa = (
+                    current_session.query(GoogleServiceAccount)
+                    .filter(
+                        GoogleServiceAccount.id == expired_user_key.service_account_id
                     )
+                    .first()
+                )
 
-                    response = g_mgr.delete_service_account_key(
-                        account=sa.google_unique_id, key_name=expired_user_key.key_id
+                response = g_mgr.delete_service_account_key(
+                    account=sa.google_unique_id, key_name=expired_user_key.key_id
+                )
+                response_error_code = response.get("error", {}).get("code")
+
+                if not response_error_code:
+                    current_session.delete(expired_user_key)
+                    print(
+                        "INFO: Removed expired service account key {} "
+                        "for service account {} (owned by user with id {}).\n".format(
+                            expired_user_key.key_id, sa.email, sa.user_id
+                        )
                     )
-                    response_error_code = response.get("error", {}).get("code")
-
-                    if not response_error_code:
-                        current_session.delete(expired_user_key)
-                        print(
-                            "INFO: Removed expired service account key {} "
-                            "for service account {} (owned by user with id {}).\n".format(
-                                expired_user_key.key_id, sa.email, sa.user_id
-                            )
+                elif response_error_code == 404:
+                    print(
+                        "INFO: Service account key {} for service account {} "
+                        "(owned by user with id {}) does not exist in Google. "
+                        "Removing from database...\n".format(
+                            expired_user_key.key_id, sa.email, sa.user_id
                         )
-                    elif response_error_code == 404:
-                        print(
-                            "INFO: Service account key {} for service account {} "
-                            "(owned by user with id {}) does not exist in Google. "
-                            "Removing from database...\n".format(
-                                expired_user_key.key_id, sa.email, sa.user_id
-                            )
+                    )
+                    current_session.delete(expired_user_key)
+                else:
+                    print(
+                        "ERROR: Google returned an error when attempting to "
+                        "remove service account key {} "
+                        "for service account {} (owned by user with id {}). "
+                        "Error:\n{}\n".format(
+                            expired_user_key.key_id, sa.email, sa.user_id, response
                         )
-                        current_session.delete(expired_user_key)
-                    else:
-                        print(
-                            "ERROR: Google returned an error when attempting to "
-                            "remove service account key {} "
-                            "for service account {} (owned by user with id {}). "
-                            "Error:\n{}\n".format(
-                                expired_user_key.key_id, sa.email, sa.user_id, response
-                            )
-                        )
+                    )
 
 
 def remove_expired_google_accounts_from_proxy_groups(db):
