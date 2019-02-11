@@ -21,19 +21,13 @@ except ImportError:
 
 def test_session_cookie_creation(app):
     # Test that when we don't modify the session, a
-    # session cookie still gets created
+    # session cookie does not get created
     with app.test_client() as client:
         with client.session_transaction():
             pass
 
         client_cookies = [cookie.name for cookie in client.cookie_jar]
-        assert config["SESSION_COOKIE_NAME"] in client_cookies
-        session_cookie = [
-            cookie
-            for cookie in client.cookie_jar
-            if cookie.name == config["SESSION_COOKIE_NAME"]
-        ]
-        assert len(session_cookie) == 1
+        assert not client_cookies
 
 
 def test_session_cookie_creation_session_modified(app):

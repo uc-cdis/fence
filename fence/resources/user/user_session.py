@@ -60,7 +60,8 @@ class UserSession(SessionMixin):
                 # empty one silently
                 jwt_info = self._get_initial_session_token()
         else:
-            jwt_info = self._get_initial_session_token()
+            # do not create a token for anonymous session
+            jwt_info = {"context": {}}
 
         self.session_token = jwt_info
 
@@ -193,7 +194,7 @@ class UserSessionInterface(SessionInterface):
                 httponly=True,
                 domain=domain,
             )
-            # try to get user, execption means they're not logged in
+            # try to get user, exception means they're not logged in
             try:
                 user = get_current_user()
             except Unauthorized:
@@ -261,7 +262,7 @@ def _get_valid_access_token(app, session, request):
     except Exception as exc:
         return None
 
-    # try to get user, execption means they're not logged in
+    # try to get user, exception means they're not logged in
     try:
         user = get_current_user(flask_session=session)
     except Unauthorized:
