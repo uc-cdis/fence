@@ -265,7 +265,7 @@ def parse_arguments():
         "--google-email", required=True, help="Email to link to"
     )
 
-    notify_problem_users = subparsers.add_parser("notify_problem_users")
+    notify_problem_users = subparsers.add_parser("notify-problem-users")
     notify_problem_users.add_argument(
         "--emails", required=True, nargs="+", help="List of emails to check/notify"
     )
@@ -280,6 +280,11 @@ def parse_arguments():
         required=False,
         default=False,
         help="True if you want to check that each email has a linked google account",
+    )
+    notify_problem_users.add_argument(
+        "--google_project_id",
+        required=True,
+        help="Google Project id that all users belong to",
     )
 
     return parser.parse_args()
@@ -454,7 +459,9 @@ def main():
         )
         print(exp)
     elif args.action == "notify_problem_users":
-        notify_problem_users(DB, args.emails, args.auth_ids, args.check_linking)
+        notify_problem_users(
+            DB, args.emails, args.auth_ids, args.check_linking, args.google_project_id
+        )
 
 
 if __name__ == "__main__":

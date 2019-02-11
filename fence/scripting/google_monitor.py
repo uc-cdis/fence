@@ -514,7 +514,9 @@ def _get_users_without_access(db, auth_ids, user_emails, check_linking):
 
     for user_email in user_emails:
 
-        user = get_user_by_email(user_email, db) or get_user_by_linked_email(user_email, db)
+        user = get_user_by_email(user_email, db) or get_user_by_linked_email(
+            user_email, db
+        )
 
         if not user:
             logger.info(
@@ -553,7 +555,7 @@ def _get_users_without_access(db, auth_ids, user_emails, check_linking):
     return no_access
 
 
-def email_user_without_access(user_email, projects):
+def email_user_without_access(user_email, projects, google_project_id):
 
     """
     Send email to user, indicating no access to given projects
@@ -561,6 +563,7 @@ def email_user_without_access(user_email, projects):
     Args:
         user_email (str): address to send email to
         projects (list(str)):  list of projects user does not have access to that they should
+        google_project_id (str): id of google project user belongs to
     Returns:
         HTTP response
 
@@ -575,12 +578,14 @@ def email_user_without_access(user_email, projects):
         to_emails.extend(config["PROBLEM_USER_EMAIL_NOTIFICATION"]["admin"])
 
     text = config["PROBLEM_USER_EMAIL_NOTIFICATION"]["content"]
-    content = text.format(",".join(projects))
+    content = text.format(google_project_id, ",".join(projects))
 
     return utils.send_email(from_email, to_emails, subject, content, domain)
 
 
-def email_users_without_access(db, auth_ids, user_emails, check_linking):
+def email_users_without_access(
+    db, auth_ids, user_emails, check_linking, google_project_id
+):
 
     """
     Build list of users without acess and send emails.
@@ -608,4 +613,4 @@ def email_users_without_access(db, auth_ids, user_emails, check_linking):
         )
 
         for user, projects in users_without_access.iteritems():
-            email_user_without_access(user, projects)
+            email_user_without_access(user, projects, google_project_id)
