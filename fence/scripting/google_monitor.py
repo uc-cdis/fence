@@ -518,6 +518,10 @@ def _get_users_without_access(db, auth_ids, user_emails, check_linking):
             user_email, db
         )
 
+        logger.info(
+            "Checking access for {}.".format(user.email)
+        )
+
         if not user:
             logger.info(
                 "Email ({}) does not exist in fence database.".format(user_email)
@@ -540,12 +544,18 @@ def _get_users_without_access(db, auth_ids, user_emails, check_linking):
             if project:
                 if not user_has_access_to_project(user, project.id, db):
                     logger.info(
-                        "User ({}) does not have access to project (auth_id: {})".format(
+                        "User ({}) does NOT have access to project (auth_id: {})".format(
                             user_email, auth_id
                         )
                     )
                     # add to list to send email
                     no_access_auth_ids.append(auth_id)
+                else:
+                    logger.info(
+                        "User ({}) has access to project (auth_id: {})".format(
+                            user_email, auth_id
+                        )
+                    )
             else:
                 logger.warning("Project (auth_id: {}) does not exist.".format(auth_id))
 
@@ -638,3 +648,7 @@ def email_users_without_access(
                         user
                     )
                 )
+    else:
+        logger.info(
+            "All users have proper access to provided projects."
+        )
