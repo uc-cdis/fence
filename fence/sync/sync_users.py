@@ -384,6 +384,7 @@ class UserSyncer(object):
             ) as f:
                 csv = DictReader(f, quotechar='"', skipinitialspace=True)
                 for row in csv:
+                    self.logger.info("    {}".format(row))
                     username = row.get("login", "")
                     if username == "":
                         continue
