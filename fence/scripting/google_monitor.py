@@ -518,9 +518,7 @@ def _get_users_without_access(db, auth_ids, user_emails, check_linking):
             user_email, db
         )
 
-        logger.info(
-            "Checking access for {}.".format(user.email)
-        )
+        logger.info("Checking access for {}.".format(user.email))
 
         if not user:
             logger.info(
@@ -645,10 +643,8 @@ def email_users_without_access(
             else:
                 logger.info(
                     "{} is NOT a member of google project: {}. User will NOT be emailed.".format(
-                        user
+                        user, google_project_id
                     )
                 )
     else:
-        logger.info(
-            "All users have proper access to provided projects."
-        )
+        logger.info("All users have proper access to provided projects.")
