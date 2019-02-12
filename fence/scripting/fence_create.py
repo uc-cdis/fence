@@ -46,7 +46,7 @@ from fence.models import (
     ServiceAccountToGoogleBucketAccessGroup,
     query_for_user,
 )
-from fence.scripting.google_monitor import validation_check
+from fence.scripting.google_monitor import email_users_without_access, validation_check
 from fence.config import config
 from fence.sync.sync_users import UserSyncer
 from fence.utils import create_client
@@ -1146,7 +1146,7 @@ def _setup_google_bucket_access_group(
         )
 
     print(
-        "Successfully created Google Bucket Access Group {} "
+        "Successfully set up Google Bucket Access Group {} "
         "for Google Bucket {}.".format(access_group.email, google_bucket_name)
     )
 
@@ -1172,11 +1172,18 @@ def _create_google_bucket_access_group(
         group_email = result["email"]
 
         # add bucket group to db
-        access_group = GoogleBucketAccessGroup(
-            bucket_id=bucket_db_id, email=group_email, privileges=privileges
+        access_group = (
+            db_session.query(GoogleBucketAccessGroup)
+            .filter_by(bucket_id=bucket_db_id, email=group_email)
+            .first()
         )
-        db_session.add(access_group)
-        db_session.commit()
+        if not access_group:
+            access_group = GoogleBucketAccessGroup(
+                bucket_id=bucket_db_id, email=group_email, privileges=privileges
+            )
+            db_session.add(access_group)
+            db_session.commit()
+
     return access_group
 
 
@@ -1295,3 +1302,17 @@ def force_update_google_link(DB, username, google_email):
         session.commit()
 
         return expiration
+
+
+def notify_problem_users(db, emails, auth_ids, check_linking, google_project_id):
+    """
+    Builds a list of users (from provided list of emails) who do not
+    have access to any subset of provided auth_ids. Send email to users
+    informing them to get access to needed projects.
+
+    db (string): database instance
+    emails (list(string)): list of emails to check for access
+    auth_ids (list(string)): list of project auth_ids to check that emails have access
+    check_linking (bool): flag for if emails should be checked for linked google email
+    """
+    email_users_without_access(db, auth_ids, emails, check_linking, google_project_id)
