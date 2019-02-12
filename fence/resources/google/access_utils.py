@@ -218,8 +218,14 @@ def service_account_has_external_access(
     if "bindings" in json_obj:
         policy = GooglePolicy.from_json(json_obj)
         if policy.roles:
+            logger.debug(
+                "Service account has role(s) assigned: {}".format(str(policy.roles))
+            )
             return True
-    if google_cloud_manager.get_service_account_keys_info(service_account):
+
+    key_info = google_cloud_manager.get_service_account_keys_info(service_account)
+    if key_info:
+        logger.debug("Service account has key(s): {}".format(str(key_info)))
         return True
     return False
 
