@@ -612,5 +612,17 @@ def email_users_without_access(
             "Some user(s) do not have proper access to provided projects. Email(s) will be sent to user(s)."
         )
 
+        with GoogleCloudManager(google_project_id) as gcm:
+            members = gcm.get_project_membership(google_project_id)
+            users = []
+            for member in members:
+                if member.member_type == GooglePolicyMember.USER:
+                    users.append(member.email_id)
+
         for user, projects in users_without_access.iteritems():
-            email_user_without_access(user, projects, google_project_id)
+            logger.info("{} does not have access to the following datasets: {}.".format(user, ",".join(projects)))
+            if user in users:
+                logger.info("{} is a member of google project: {}. User will be emailed.".format(user, google_project_id))
+                email_user_without_access(user, projects, google_project_id)
+            else:
+                logger.info("{} is NOT a member of google project: {}. User will NOT be emailed.".format(user))
