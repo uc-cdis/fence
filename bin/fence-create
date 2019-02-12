@@ -458,7 +458,7 @@ def main():
             DB, username=args.username, google_email=args.google_email
         )
         print(exp)
-    elif args.action == "notify_problem_users":
+    elif args.action == "notify-problem-users":
         notify_problem_users(
             DB, args.emails, args.auth_ids, args.check_linking, args.google_project_id
         )
