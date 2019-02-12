@@ -620,9 +620,21 @@ def email_users_without_access(
                     users.append(member.email_id)
 
         for user, projects in users_without_access.iteritems():
-            logger.info("{} does not have access to the following datasets: {}.".format(user, ",".join(projects)))
+            logger.info(
+                "{} does not have access to the following datasets: {}.".format(
+                    user, ",".join(projects)
+                )
+            )
             if user in users:
-                logger.info("{} is a member of google project: {}. User will be emailed.".format(user, google_project_id))
+                logger.info(
+                    "{} is a member of google project: {}. User will be emailed.".format(
+                        user, google_project_id
+                    )
+                )
                 email_user_without_access(user, projects, google_project_id)
             else:
-                logger.info("{} is NOT a member of google project: {}. User will NOT be emailed.".format(user))
+                logger.info(
+                    "{} is NOT a member of google project: {}. User will NOT be emailed.".format(
+                        user
+                    )
+                )
