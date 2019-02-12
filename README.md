@@ -537,6 +537,13 @@ fence-create link-bucket-to-project --bucket_id demo-bucket --bucket_provider go
 
 The link-external-bucket returns an email for a Google group which needs to be added to access to the bucket `demo-bucket`.
 
+#### Notify users who are blocking service account registration
+
+```bash
+fence-create notify-problem-users --emails ex1@gmail.com ex2@gmail.com --auth_ids test --google_project_id test-google
+```
+
+`notify-problem-users` emails users in the provided list (can be fence user email or linked google email) who do not have access to any of the auth_ids provided. Also accepts a `check_linking` flag to check that each user has linked their google account.
 ## Default Expiration Times in Fence
 
 Table contains various artifacts in fence that have temporary lifetimes and their default values.
