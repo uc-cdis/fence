@@ -738,6 +738,15 @@ paths:
           description: Page to redirect to after account linking
           schema:
             type: string
+        - name: expires_in
+          required: false
+          in: query
+          description: >-
+            the time (in seconds) during which the Google account has bucket
+            access. Must be less than the configured maximum (default is 24
+            hours). If it's greater, the configured maximum will be used.
+          schema:
+            type: integer
       description: >
         Link a Google identity to a User (AuthN using Google Oauth2 flow).
         Google identity will be associated with a user and added to a
@@ -760,6 +769,16 @@ paths:
       tags:
         - link
       summary: Extend Google identity's access expiration
+      parameters:
+        - name: expires_in
+          required: false
+          in: query
+          description: >-
+            the time (in seconds) during which the Google account has bucket
+            access. Must be less than the configured maximum (default is 24
+            hours). If it's greater, the configured maximum will be used.
+          schema:
+            type: integer
       description: >-
         Extend previously linked Google identity's access expiration from the
         user's proxy group (thus extending its access to data). This can only be
