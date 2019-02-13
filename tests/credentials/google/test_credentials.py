@@ -1,6 +1,7 @@
 """
 Test the /credentials endpoint.
 """
+import pytest
 from fence.models import (
     Client,
     IdentityProvider,
@@ -418,8 +419,27 @@ def test_google_delete_owned_access_token(
     ).assert_called_with(service_account_id, service_account_key)
 
 
+@pytest.mark.parametrize(
+    "query_arg,valid_arg",
+    [
+        ("", False),
+        ("?all=", False),
+        ("?all=asdf", False),
+        ("?all=false", False),
+        ("?all=False", False),
+        ("?all=true", True),
+        ("?all=True", True),
+    ],
+)
 def test_google_delete_all_owned_access_tokens(
-    app, client, oauth_client, cloud_manager, db_session, encoded_creds_jwt
+    app,
+    client,
+    oauth_client,
+    cloud_manager,
+    db_session,
+    encoded_creds_jwt,
+    query_arg,
+    valid_arg,
 ):
     """
     Test ``DELETE /credentials/google/*``.
@@ -432,7 +452,7 @@ def test_google_delete_all_owned_access_tokens(
     service_account_key1 = "42"
     service_account_key2 = "one_MILLION_dollars"
     service_account_id = "123456789"
-    path = "/credentials/google/*"
+    path = "/credentials/google/" + query_arg
 
     def get_account_keys(*args, **kwargs):
         # Return the keys only if the correct account is given
@@ -465,35 +485,45 @@ def test_google_delete_all_owned_access_tokens(
         path, data={}, headers={"Authorization": "Bearer " + encoded_credentials_jwt}
     )
 
-    # check that the service account id was included in a call to
-    # cloud_manager
-    assert any(
-        [
-            str(mock_call)
-            for mock_call in cloud_manager.mock_calls
-            if service_account_id in str(mock_call)
+    if valid_arg:
+        # check that the service account id was included in a call to
+        # cloud_manager
+        assert any(
+            [
+                str(mock_call)
+                for mock_call in cloud_manager.mock_calls
+                if service_account_id in str(mock_call)
+            ]
+        )
+        assert response.status_code == 204
+
+        expected_calls = [
+            (service_account_id, service_account_key0),
+            (service_account_id, service_account_key1),
+            (service_account_id, service_account_key2),
         ]
-    )
-    assert response.status_code == 204
+        actual_calls = []
+        # check that we actually requested to delete the correct service key
+        for (
+            call
+        ) in (
+            cloud_manager.return_value.__enter__.return_value.delete_service_account_key.call_args_list
+        ):
+            args, kwargs = call
+            actual_calls.append(args)
 
-    expected_calls = [
-        (service_account_id, service_account_key0),
-        (service_account_id, service_account_key1),
-        (service_account_id, service_account_key2),
-    ]
-    actual_calls = []
-    # check that we actually requested to delete the correct service key
-    for (
-        call
-    ) in (
-        cloud_manager.return_value.__enter__.return_value.delete_service_account_key.call_args_list
-    ):
-        args, kwargs = call
-        actual_calls.append(args)
-
-    print(sorted(expected_calls))
-    print(sorted(actual_calls))
-    assert sorted(expected_calls) == sorted(actual_calls)
+        assert sorted(expected_calls) == sorted(actual_calls)
+    else:
+        # check that the service account id was NOT included in a call to
+        # cloud_manager
+        assert not any(
+            [
+                str(mock_call)
+                for mock_call in cloud_manager.mock_calls
+                if service_account_id in str(mock_call)
+            ]
+        )
+        assert response.status_code != 204
 
 
 def test_google_attempt_delete_unowned_access_token(

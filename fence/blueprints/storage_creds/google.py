@@ -2,6 +2,7 @@ from datetime import datetime
 import flask
 import re
 import time
+from distutils.util import strtobool
 from flask_restful import Resource
 from flask_sqlalchemy_session import current_session
 
@@ -157,6 +158,55 @@ class GoogleCredentialsList(Resource):
 
         return flask.jsonify(key)
 
+    @require_auth_header({"google_credentials"})
+    def delete(self):
+        """
+        .. http:get: /google/
+        Delete keypair(s) for user
+        ?all=true must be specified
+
+        True values are y, yes, t, true, on and 1; false values are n, no, f, false, off and 0
+
+        :statuscode 204 Success
+        :statuscode 403 Forbidden to delete access key
+        :statuscode 405 Method Not Allowed if ?all=true is not included
+        """
+        user_id = current_token["sub"]
+
+        try:
+            all_arg = strtobool(flask.request.args.get("all", "false").lower())
+        except ValueError:
+            all_arg = False
+
+        if not all_arg:
+            flask.abort(
+                405,
+                "Please include ?all=true to confirm deletion of ALL Google Service account keys.",
+            )
+
+        with GoogleCloudManager() as g_cloud:
+            client_id = current_token.get("azp") or None
+            service_account = get_service_account(client_id, user_id)
+
+            if service_account:
+                keys_for_account = g_cloud.get_service_account_keys_info(
+                    service_account.google_unique_id
+                )
+
+                # Only delete the key if is owned by current client's SA
+                all_client_keys = [
+                    key["name"].split("/")[-1] for key in keys_for_account
+                ]
+
+                for key in all_client_keys:
+                    _delete_service_account_key(
+                        g_cloud, service_account.google_unique_id, key
+                    )
+            else:
+                flask.abort(404, "Could not find service account for current user.")
+
+        return "", 204
+
     def handle_user_service_account_creds(self, key, service_account):
         """
         Add the service account creds for the user into our db. Actual
@@ -212,12 +262,7 @@ class GoogleCredentials(Resource):
                     key["name"].split("/")[-1] for key in keys_for_account
                 ]
 
-                if access_key == "*":
-                    for key in all_client_keys:
-                        _delete_service_account_key(
-                            g_cloud, service_account.google_unique_id, key
-                        )
-                elif access_key in all_client_keys:
+                if access_key in all_client_keys:
                     _delete_service_account_key(
                         g_cloud, service_account.google_unique_id, access_key
                     )
