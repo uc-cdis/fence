@@ -286,7 +286,7 @@ def _get_valid_access_token(app, session, request):
 
 def _clear_session_if_expired(app, session):
     now = int(time.time())
-    is_expired = self.session_token.get("exp", now) <= now
+    is_expired = session.session_token.get("exp", now) <= now
     lifetime = config.get("SESSION_LIFETIME")
     end_of_life = session["session_started"] + lifetime
     lifetime_over = end_of_life <= now
