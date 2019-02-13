@@ -1,5 +1,9 @@
 from fence.errors import NotFound, UserError
-from fence.models import User
+from fence.models import (
+    GoogleServiceAccount,
+    User,
+    query_for_user
+)
 from fence.resources import group as gp, project as pj, user as us, userdatamodel as udm
 from flask import current_app as capp
 
@@ -153,16 +157,153 @@ def add_user_to_projects(current_session, username, projects=None):
 def delete_user(current_session, username):
     """
     Remove a user from both the userdatamodel
-    and the assciated storage for that project/bucket.
+    and the associated storage for that project/bucket.
     Returns a dictionary.
     """
-    response = us.delete_user(current_session, username)
-    if response["result"] == "success":
-        providers = response.get("providers", [])
-        for provider in providers:
-            capp.storage_manager.delete_user(provider.backend, response["user"])
+    # Much of the strangeness in the following code stems from the
+    # fact that we are not confident the Fence db will always be in
+    # perfect sync with Google, and we err on the side of safety
+    # (we prioritise making sure user is really cleared out of Google
+    # to prevent unauthorized data access issues; we refer to
+    # cirrus/Google instead of the Fence db in cases where both
+    # would be possible).
+    # So, if the Fence-Google sync situation changes,
+    # do edit this code accordingly.
 
-        return {"result": "success"}
+    #TODO: move to top.
+    from cirrus import GoogleCloudManager as gcm
+    from cirrus import _get_proxy_group_name_for_user
+
+    # Delete user's service accounts, SA keys, proxy group from Google.
+    #TODO: May want to factor out into delete_user_from_google() or something
+    #TODO: Don't forget to Black this
+
+    user = query_for_user(session=current_session, username=username)
+    if not user:
+        raise NotFound( "".join(["user name ", username, " not found"]))
+
+    # First: Find this user's proxy group.
+    google_proxy_group_f = current_session.query(GoogleProxyGroup).filter(
+            GoogleProxyGroup.id == user.google_proxy_group_id
+    ).one_or_none()
+
+    if google_proxy_group_f:
+        gpg_email = google_proxy_group_f.email
+    else:
+        # Construct the proxy group name that would have been used
+        # and check if it exists in cirrus, in case Fence db just
+        # didn't know about it.
+        # TODO: Prefix??? I'm guessing config["GOOGLE_GROUP_PREFIX"]
+        # TODO: Not entirely certain that the "name" that this get name thing
+        # returns is the "unique group ID" that get_group() wants
+        pgname = _get_proxy_group_name_for_user(user.id, user.username, prefix="TODO")
+        google_proxy_group_g = gcm.get_group(pgname)
+        gpg_email = google_proxy_group_g.get("email")
+
+
+    if gpg_email:
+        # Found proxy group. Proceed with Google deletions.
+        # Delete all service accounts associated with this gpg.
+        # Choosing to refer to cirrus instead of fence db for the list of SAs.
+        service_account_emails = gcm.get_service_accounts_from_group(gpg_email)
+
+        for sae in service_account_emails:
+            # Upon deletion of a service account, Google will
+            # automatically delete all key IDs associated with that
+            # service account. So we skip doing that here.
+            r = gcm.delete_service_account(sae)
+            if r == {}:
+                # Success on Google side; delete from Fence db
+                sa = current_session.query(GoogleServiceAccount).filter(
+                        GoogleServiceAccount.email == sae
+                ).one_or_none()
+                if sa:
+                    sa_keys = current_session.query(GoogleServiceAccountKey).filter(
+                            GoogleServiceAccountKey.service_account_id = sa.id
+                    ).all()
+                    for sak in sa_keys:
+                        current_session.delete(sak)
+                    current_session.delete(sa)
+                # At this point there may still be SAs and keys left in Fence db
+                # that are associated with this user, e.g. if someone deleted
+                # an SA on google without going through Fence.
+                # We clear them out here, but first double-check and
+                # try to "re-delete" them from Google.
+                orphan_sas = current_session.query(GoogleServiceAccount).filter(
+                        GoogleServiceAccount.user_id == user.id
+                ).all()
+                for osa in orphan_sas:
+                    # Attempt to delete from Google.
+                    # Cirrus returns success response anyway if GCM returns a 404
+                    gcm.delete_service_account(osa.email)
+                    # Delete from Fence
+                    osa_keys = current_session.query(GoogleServiceAccountKey).filter(
+                            GoogleServiceAccountKey.service_account_id == osa.id
+                    ).all()
+                    for key in osa_keys:
+                        current_session.delete(key)
+                    current_session.delete(osa)
+            else:
+                # TODO Green light from Alex to error out like this
+                return {"result": "Error: Google unable to delete service account " + sae}
+
+        # Next, delete the proxy group. Google will automatically remove
+        # this proxy group from all GBAGs the proxy group is a member of.
+        # So we skip doing that here.
+        r = gcm.delete_group(gpg_email)
+        if r = {}:
+            # Success on Google side. Delete from Fence db.
+            if google_proxy_group_f:
+                # Delete rows in google_proxy_group_to_google_bucket_access_group
+                gpg_to_gbag = current_session.query(GoogleProxyGroupToGoogleBucketAccessGroup).filter(
+                        GoogleProxyGroupToGoogleBucketAccessGroup.proxy_group_id == google_proxy_group_f.id
+                ).all()
+                for row in gpg_to_gbag:
+                    current_session.delete(row)
+                # Delete rows in user_google_account_to_proxy_group
+                uga_to_pg = current_session.query(UserGoogleAccountToProxyGroup).filter(
+                        UserGoogleAccountToProxyGroup.proxy_group_id == google_proxy_group_f.id
+                ).all()
+                for row in uga_to_pg:
+                    current_session.delete(row)
+                # Delete rows in user_google_account
+                # I'm not sure anymore because of the whole domain thing
+                uga = current_session.query(UserGoogleAccount).filter(
+                        UserGoogleAccount.user_id == user.id
+                ).all()
+                for row in uga:
+                    current_session.delete(row)
+                # Delete row in google_proxy_group
+                current_session.delete(google_proxy_group_f)
+        else:
+            # TODO Green light from Alex to error out like this
+            return {"result": "Error: Google unable to delete proxy group " + gpg_email}
+
+    # Done with Google deletions, or there was no proxy group and we assume
+    # Google not being used as IdP.
+    # Remove remaining relevant entries from Fence db.
+    # TODO. The rest of Fence deletion.
+    # return {"result": "success"}
+
+    # QUESTION TODO: I really need to start testing this stuff. How?
+    # Do I edit code inside the Fence pod?!?!?!
+    # Or do I edit manifest then push code like a bajillion times?????????
+    # TODO: And then ask about integration test situation.
+
+    # (THE REST OF THE) FENCE DB DELETION STUFF
+    # Almost nothing in the db (almost!) has ON DELETE CASCADE set on its foreign keys.
+    # TODO: Ask if this was a deliberte design choice (doesn't look like it) and
+    # if it wasn't, then confirm that we wouldn't rather set that instead.
+    # After all, this situation is the entire point of ON DELETE CASCADE.
+
+    #response = us.delete_user(current_session, username)
+    #if response["result"] == "success":
+    #    providers = response.get("providers", [])
+    #    for provider in providers:
+    #        capp.storage_manager.delete_user(provider.backend, response["user"])
+    #
+    #    return {"result": "success"}
+    return {"result": "success"} #placeholder
 
 
 def add_user_to_groups(current_session, username, groups=None):
