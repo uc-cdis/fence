@@ -118,7 +118,7 @@ class GoogleLinkRedirect(Resource):
                     expires_in = int(flask.request.args["expires_in"])
                     assert expires_in > 0
                     flask.session["google_link_expires_in"] = expires_in
-                except:
+                except (ValueError, AssertionError):
                     raise UserError({"error": "expires_in must be a positive integer"})
 
             # if we're mocking Google login, skip to callback
@@ -178,7 +178,7 @@ class GoogleLinkRedirect(Resource):
             try:
                 expires_in = int(flask.request.args["expires_in"])
                 assert expires_in > 0
-            except:
+            except (ValueError, AssertionError):
                 raise UserError({"error": "expires_in must be a positive integer"})
 
         access_expiration = _force_update_user_google_account(

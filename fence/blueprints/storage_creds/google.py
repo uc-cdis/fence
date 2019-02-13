@@ -180,7 +180,7 @@ class GoogleCredentialsList(Resource):
                 requested_expires_in = int(flask.request.args["expires_in"])
                 assert requested_expires_in > 0
                 expires_in = min(expires_in, requested_expires_in)
-            except:
+            except (ValueError, AssertionError):
                 raise UserError({"error": "expires_in must be a positive integer"})
 
         expiration_time = int(time.time()) + int(expires_in)
