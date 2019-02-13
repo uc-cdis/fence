@@ -256,5 +256,7 @@ def _delete_service_account_key(g_cloud, service_account_id, access_key):
         current_session.commit()
 
     logger.info(
-        "Removed Google Service Account {} Key with ID: {} from Google and our DB."
-    ).format(service_account_id, access_key)
+        "Removed Google Service Account {} Key with ID: {} from Google and our DB.".format(
+            service_account_id, access_key
+        )
+    )
