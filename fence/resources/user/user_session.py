@@ -122,7 +122,7 @@ class UserSession(SessionMixin):
     def clear_if_expired(self, app):
         if self._encoded_token:
             now = int(time.time())
-            is_expired = self.session_token["exp"] <= now
+            is_expired = self.session_token.get("exp", now) <= now
             end_of_life = self.session_token["context"]["session_started"] + config.get(
                 "SESSION_LIFETIME"
             )
@@ -179,7 +179,8 @@ class UserSessionInterface(SessionInterface):
 
     @staticmethod
     def get_expiration_time(app, session):
-        token_expiration = session.session_token["exp"]
+        now = int(time.time())
+        token_expiration = session.session_token.get("exp", now)
         timeout = datetime.fromtimestamp(token_expiration, pytz.utc)
         return timeout
 
@@ -285,7 +286,7 @@ def _get_valid_access_token(app, session, request):
 
 def _clear_session_if_expired(app, session):
     now = int(time.time())
-    is_expired = session.session_token["exp"] <= now
+    is_expired = self.session_token.get("exp", now) <= now
     lifetime = config.get("SESSION_LIFETIME")
     end_of_life = session["session_started"] + lifetime
     lifetime_over = end_of_life <= now
