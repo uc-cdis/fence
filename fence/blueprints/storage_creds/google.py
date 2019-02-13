@@ -189,7 +189,7 @@ class GoogleCredentials(Resource):
     def delete(self, access_key):
         """
         .. http:get: /google/(string: access_key)
-        Delete a keypair for user
+        Delete keypair(s) for user
 
         :param access_key: existing access key that belongs to this user
 
@@ -239,7 +239,12 @@ def _delete_service_account_key(g_cloud, service_account_id, access_key):
     Internal function for deleting a given key for a service account, also
     removes entry from our db if it exists
     """
-    g_cloud.delete_service_account_key(service_account_id, access_key)
+    response = g_cloud.delete_service_account_key(service_account_id, access_key)
+    logger.debug(
+        "Deleting service account {} key {} from Google. Response: {}".format(
+            service_account_id, access_key, str(response)
+        )
+    )
 
     db_entry = (
         current_session.query(GoogleServiceAccountKey)
@@ -249,3 +254,7 @@ def _delete_service_account_key(g_cloud, service_account_id, access_key):
     if db_entry:
         current_session.delete(db_entry)
         current_session.commit()
+
+    logger.info(
+        "Removed Google Service Account {} Key with ID: {} from Google and our DB."
+    ).format(service_account_id, access_key)
