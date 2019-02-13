@@ -114,9 +114,12 @@ class GoogleLinkRedirect(Resource):
 
             # requested time (in seconds) during which the link will be valid
             if "expires_in" in flask.request.args:
-                flask.session["google_link_expires_in"] = int(
-                    flask.request.args["expires_in"]
-                )
+                try:
+                    expires_in = int(flask.request.args["expires_in"])
+                    assert expires_in > 0
+                    flask.session["google_link_expires_in"] = expires_in
+                except:
+                    raise UserError({"error": "expires_in must be a positive integer"})
 
             # if we're mocking Google login, skip to callback
             if config.get("MOCK_GOOGLE_AUTH", False):
@@ -170,13 +173,20 @@ class GoogleLinkRedirect(Resource):
         proxy_group = get_or_create_proxy_group_id()
 
         # requested time (in seconds) during which the link will be valid
+        expires_in = None
         if "expires_in" in flask.request.args:
-            flask.session["google_link_expires_in"] = int(
-                flask.request.args["expires_in"]
-            )
+            try:
+                expires_in = int(flask.request.args["expires_in"])
+                assert expires_in > 0
+            except:
+                raise UserError({"error": "expires_in must be a positive integer"})
 
         access_expiration = _force_update_user_google_account(
-            user_id, google_email, proxy_group, _allow_new=False
+            user_id,
+            google_email,
+            proxy_group,
+            _allow_new=False,
+            requested_expires_in=expires_in,
         )
 
         return {"exp": access_expiration}, 200
@@ -284,6 +294,7 @@ class GoogleCallback(Resource):
         # get info from session and then clear it
         user_id = flask.session.get("user_id")
         proxy_group = flask.session.get("google_proxy_group_id")
+        expires_in = flask.session.get("google_link_expires_in")
         _clear_google_link_info_from_session()
 
         if not email:
@@ -296,7 +307,11 @@ class GoogleCallback(Resource):
 
             if not error:
                 exp = _force_update_user_google_account(
-                    user_id, email, proxy_group, _allow_new=True
+                    user_id,
+                    email,
+                    proxy_group,
+                    _allow_new=True,
+                    requested_expires_in=expires_in,
                 )
 
                 # TODO: perhaps this is problematic??
@@ -400,7 +415,7 @@ def get_errors_update_user_google_account_dry_run(
 
 
 def _force_update_user_google_account(
-    user_id, google_email, proxy_group_id, _allow_new=False
+    user_id, google_email, proxy_group_id, _allow_new=False, requested_expires_in=None
 ):
     """
     Adds user's google account to proxy group and/or updates expiration for
@@ -420,6 +435,8 @@ def _force_update_user_google_account(
         proxy_group_id (str): User's Proxy Google group id
         _allow_new (bool, optional): Whether or not a new linkage between
             Google email and the given user should be allowed
+        requested_expires_in (int, optional): Requested time (in seconds)
+            during which the link will be valid
 
     Raises:
         NotFound: Linked Google account not found
@@ -458,10 +475,8 @@ def _force_update_user_google_account(
 
     # timestamp at which the link will expire
     expiration = get_default_google_account_expiration()
-    if "google_link_expires_in" in flask.session:
-        requested_expiration = int(time.time()) + flask.session.pop(
-            "google_link_expires_in", None
-        )
+    if requested_expires_in:
+        requested_expiration = int(time.time()) + requested_expires_in
         expiration = min(requested_expiration, expiration)
 
     force_update_user_google_account_expiration(
@@ -545,3 +560,4 @@ def _clear_google_link_info_from_session():
     flask.session.pop("google_link", None)
     flask.session.pop("user_id", None)
     flask.session.pop("google_proxy_group_id", None)
+    flask.session.pop("google_link_expires_in", None)
