@@ -211,19 +211,16 @@ class GoogleCredentials(Resource):
                 all_client_keys = [
                     key["name"].split("/")[-1] for key in keys_for_account
                 ]
-                if access_key in all_client_keys:
-                    g_cloud.delete_service_account_key(
-                        service_account.google_unique_id, access_key
-                    )
 
-                    db_entry = (
-                        current_session.query(GoogleServiceAccountKey)
-                        .filter_by(key_id=access_key)
-                        .first()
+                if access_key == "*":
+                    for key in all_client_keys:
+                        _delete_service_account_key(
+                            g_cloud, service_account.google_unique_id, key
+                        )
+                elif access_key in all_client_keys:
+                    _delete_service_account_key(
+                        g_cloud, service_account.google_unique_id, access_key
                     )
-                    if db_entry:
-                        current_session.delete(db_entry)
-                        current_session.commit()
                 else:
                     flask.abort(
                         404,
@@ -235,3 +232,20 @@ class GoogleCredentials(Resource):
                 flask.abort(404, "Could not find service account for current user.")
 
         return "", 204
+
+
+def _delete_service_account_key(g_cloud, service_account_id, access_key):
+    """
+    Internal function for deleting a given key for a service account, also
+    removes entry from our db if it exists
+    """
+    g_cloud.delete_service_account_key(service_account_id, access_key)
+
+    db_entry = (
+        current_session.query(GoogleServiceAccountKey)
+        .filter_by(key_id=access_key)
+        .first()
+    )
+    if db_entry:
+        current_session.delete(db_entry)
+        current_session.commit()
