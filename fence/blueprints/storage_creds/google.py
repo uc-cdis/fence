@@ -284,9 +284,19 @@ def _delete_service_account_key(g_cloud, service_account_id, access_key):
     Internal function for deleting a given key for a service account, also
     removes entry from our db if it exists
     """
-    response = g_cloud.delete_service_account_key(service_account_id, access_key)
+    try:
+        response = g_cloud.delete_service_account_key(service_account_id, access_key)
+    except Exception:
+        logger.debug(
+            "Deleting service account {} key {} from Google FAILED. Response: {}. "
+            "We did NOT delete it from our DB either.".format(
+                service_account_id, access_key, str(response)
+            )
+        )
+        raise
+
     logger.debug(
-        "Deleting service account {} key {} from Google. Response: {}".format(
+        "Deleting service account {} key {} from Google succeeded. Response: {}".format(
             service_account_id, access_key, str(response)
         )
     )
