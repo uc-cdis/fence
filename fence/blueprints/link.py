@@ -169,6 +169,12 @@ class GoogleLinkRedirect(Resource):
         google_email = get_users_linked_google_email(user_id)
         proxy_group = get_or_create_proxy_group_id()
 
+        # requested time (in seconds) during which the link will be valid
+        if "expires_in" in flask.request.args:
+            flask.session["google_link_expires_in"] = int(
+                flask.request.args["expires_in"]
+            )
+
         access_expiration = _force_update_user_google_account(
             user_id, google_email, proxy_group, _allow_new=False
         )
