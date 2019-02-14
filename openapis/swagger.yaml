@@ -450,6 +450,16 @@ paths:
         - OAuth2:
             - user
       operationId: getGoogleKeypair
+      parameters:
+        - name: expires_in
+          required: false
+          in: query
+          description: >-
+            the time (in seconds) during which the access key is valid. Must be less
+            than the configured maximum (default is 10 days). If it's greater,
+            the configured maximum will be used.
+          schema:
+            type: integer
       responses:
         '200':
           description: Temporary private Google key in Google Credentials File format
@@ -457,6 +467,32 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/GoogleKey'
+    delete:
+      tags:
+        - credentials/google
+      summary: Delete access keys
+      description: Delete all Google access key for the current user/client
+      security:
+        - OAuth2:
+            - user
+      operationId: deleteGoogleKeypair
+      parameters:
+        - name: all
+          required: true
+          in: query
+          description: Must be "true" to delete all keys
+          schema:
+            type: string
+      responses:
+        '204':
+          description: successful deletion
+        '404':
+          description: >-
+            Couldn't find key or service account for current user, unable to
+            delete given key
+        '405':
+          description: >-
+            all param not provided and is required to explicitly delete all keys
   '/credentials/google/{access_key}':
     delete:
       tags:
@@ -728,6 +764,15 @@ paths:
           description: Page to redirect to after account linking
           schema:
             type: string
+        - name: expires_in
+          required: false
+          in: query
+          description: >-
+            the time (in seconds) during which the Google account has bucket
+            access. Must be less than the configured maximum (default is 24
+            hours). If it's greater, the configured maximum will be used.
+          schema:
+            type: integer
       description: >
         Link a Google identity to a User (AuthN using Google Oauth2 flow).
         Google identity will be associated with a user and added to a
@@ -750,6 +795,16 @@ paths:
       tags:
         - link
       summary: Extend Google identity's access expiration
+      parameters:
+        - name: expires_in
+          required: false
+          in: query
+          description: >-
+            the time (in seconds) during which the Google account has bucket
+            access. Must be less than the configured maximum (default is 24
+            hours). If it's greater, the configured maximum will be used.
+          schema:
+            type: integer
       description: >-
         Extend previously linked Google identity's access expiration from the
         user's proxy group (thus extending its access to data). This can only be
@@ -880,10 +935,10 @@ paths:
         > **NOTE: This will only provide service account information for
         Google Cloud Projects if the current user is a member of those
         projects**
-        
-        The endpoint lists the `project_access` that was previously granted 
-        (whether or not the SA currently has access). The `project_access_exp` 
-        will be `0` when the SA isn't currently given access 
+
+        The endpoint lists the `project_access` that was previously granted
+        (whether or not the SA currently has access). The `project_access_exp`
+        will be `0` when the SA isn't currently given access
         (but can be provided access again with a `PATCH`).
       parameters:
         - name: google_project_ids

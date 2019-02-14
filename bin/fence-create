@@ -20,6 +20,7 @@ from fence.scripting.fence_create import (
     link_external_bucket,
     link_bucket_to_project,
     modify_client_action,
+    notify_problem_users,
     remove_expired_google_accounts_from_proxy_groups,
     remove_expired_google_service_account_keys,
     sync_users,
@@ -264,6 +265,28 @@ def parse_arguments():
         "--google-email", required=True, help="Email to link to"
     )
 
+    notify_problem_users = subparsers.add_parser("notify-problem-users")
+    notify_problem_users.add_argument(
+        "--emails", required=True, nargs="+", help="List of emails to check/notify"
+    )
+    notify_problem_users.add_argument(
+        "--auth_ids",
+        required=True,
+        nargs="+",
+        help="List of project auth_ids to check access to",
+    )
+    notify_problem_users.add_argument(
+        "--check_linking",
+        required=False,
+        default=False,
+        help="True if you want to check that each email has a linked google account",
+    )
+    notify_problem_users.add_argument(
+        "--google_project_id",
+        required=True,
+        help="Google Project id that all users belong to",
+    )
+
     return parser.parse_args()
 
 
@@ -435,6 +458,10 @@ def main():
             DB, username=args.username, google_email=args.google_email
         )
         print(exp)
+    elif args.action == "notify-problem-users":
+        notify_problem_users(
+            DB, args.emails, args.auth_ids, args.check_linking, args.google_project_id
+        )
 
 
 if __name__ == "__main__":
