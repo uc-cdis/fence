@@ -39,6 +39,41 @@ def test_google_link_redirect(client, app, encoded_creds_jwt):
     assert google_url == url
 
 
+def test_google_link_expires_in(client, app, encoded_creds_jwt):
+    """
+    Test success when we hit the link endpoint with a valid expires_in and
+    failure with an invalid expires_in
+    """
+    encoded_credentials_jwt = encoded_creds_jwt["jwt"]
+    redirect = "http://localhost"
+
+    # invalid expires_in: should fail
+    requested_exp = "abc" # expires_in must be int >0
+
+    r = client.get(
+        "/link/google",
+        query_string={
+            "redirect": redirect,
+            "expires_in": requested_exp
+        },
+        headers={"Authorization": "Bearer " + encoded_credentials_jwt},
+    )
+    assert r.status_code == 400 # check if failure
+
+    # valid expires_in: should succeed
+    requested_exp = 60
+
+    r = client.get(
+        "/link/google",
+        query_string={
+            "redirect": redirect,
+            "expires_in": requested_exp
+        },
+        headers={"Authorization": "Bearer " + encoded_credentials_jwt},
+    )
+    assert r.status_code == 302 # check if success
+
+
 def test_google_link_redirect_no_google_idp(
     client, app, restore_config, encoded_creds_jwt
 ):
@@ -203,6 +238,7 @@ def test_patch_google_link(
 ):
     """
     Test extending expiration for previously linked G account access via PATCH.
+    Test valid and invalid expires_in parameters.
     """
     encoded_credentials_jwt = encoded_creds_jwt["jwt"]
     user_id = encoded_creds_jwt["user_id"]
@@ -252,12 +288,41 @@ def test_patch_google_link(
     # check that expiration changed and that it's less than the cfg
     # expires in (since this check will happen a few seconds after
     # it gets set)
-    assert account_in_proxy_group.expires != original_expiration
-    assert account_in_proxy_group.expires <= (
+    updated_expiration = account_in_proxy_group.expires
+    assert updated_expiration != original_expiration
+    assert updated_expiration <= (
         int(time.time()) + config["GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN"]
     )
 
     assert not add_google_email_to_proxy_group_mock.called
+
+    # invalid expires_in: should fail
+    requested_exp = "abc" # expires_in must be int >0
+    r = client.patch(
+        "/link/google?expires_in={}".format(requested_exp),
+        headers={"Authorization": "Bearer " + encoded_credentials_jwt}
+    )
+    assert r.status_code == 400
+
+    # valid expires_in: should succeed
+    requested_exp = 60
+    r = client.patch(
+        "/link/google?expires_in={}".format(requested_exp),
+        headers={"Authorization": "Bearer " + encoded_credentials_jwt}
+    )
+    assert r.status_code == 200
+
+    account_in_proxy_group = (
+        db_session.query(UserGoogleAccountToProxyGroup)
+        .filter(
+            UserGoogleAccountToProxyGroup.user_google_account_id == existing_account.id
+        )
+        .first()
+    )
+    # make sure the link is valid for the requested time
+    # (allow up to 5 sec for runtime)
+    diff = account_in_proxy_group.expires - int(time.time())
+    assert requested_exp <= diff <= requested_exp + 5
 
 
 def test_patch_google_link_account_not_in_token(
