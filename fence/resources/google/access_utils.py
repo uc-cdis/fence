@@ -20,7 +20,7 @@ import fence
 from cdislogging import get_logger
 
 from fence.config import config
-from fence.errors import NotFound, NotSupported
+from fence.errors import NotFound, NotSupported, UserError
 from fence.models import (
     User,
     Project,
@@ -35,6 +35,7 @@ from fence.resources.google.utils import (
     get_users_from_google_members,
     get_monitoring_service_account_email,
     is_google_managed_service_account,
+    check_expires_in,
 )
 
 logger = get_logger(__name__)
@@ -392,15 +393,10 @@ def get_user_by_linked_email(linked_email, db=None):
         .first()
     )
     if linked_account:
-        user = (
-            session.query(User)
-            .filter(User.id == linked_account.user_id)
-            .first()
-        )
+        user = session.query(User).filter(User.id == linked_account.user_id).first()
         return user
     else:
         return None
-
 
 
 def get_user_by_email(user_email, db=None):
@@ -518,7 +514,12 @@ def patch_user_service_account(
         session, to_add, google_project_id, service_account
     )
     _revoke_user_service_account_from_db(session, to_delete, service_account)
-    add_user_service_account_to_db(session, to_add, service_account)
+
+    # requested time (in seconds) during which the SA has bucket access
+    requested_expires_in = check_expires_in()
+    add_user_service_account_to_db(
+        session, to_add, service_account, requested_expires_in
+    )
 
 
 def get_project_ids_from_project_auth_ids(session, auth_ids):
@@ -781,7 +782,9 @@ def _revoke_user_service_account_from_db(
     session.commit()
 
 
-def add_user_service_account_to_db(session, to_add_project_ids, service_account):
+def add_user_service_account_to_db(
+    session, to_add_project_ids, service_account, requested_expires_in=None
+):
     """
     Add user service account to service account
     access privilege and service account bucket access group
@@ -790,6 +793,8 @@ def add_user_service_account_to_db(session, to_add_project_ids, service_account)
         sess(current_session): db session
         to_add_project_ids(List(int)): List of project id
         service_account(UserServiceAccount): user service account
+        requested_expires_in(int): requested time (in seconds) during which
+            the SA has bucket access
 
     Returns:
         None
@@ -807,10 +812,16 @@ def add_user_service_account_to_db(session, to_add_project_ids, service_account)
 
         access_groups = _get_google_access_groups(session, project_id)
 
-        # use configured time or 7 days
+        # timestamp at which the SA will lose bucket access
+        # by default: use configured time or 7 days
         expiration_time = int(time.time()) + config.get(
             "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN", 604800
         )
+        if requested_expires_in:
+            # convert it to timestamp
+            requested_expiration = int(time.time()) + requested_expires_in
+            expiration_time = min(expiration_time, requested_expiration)
+
         for access_group in access_groups:
             sa_to_group = ServiceAccountToGoogleBucketAccessGroup(
                 service_account_id=service_account.id,
@@ -890,10 +901,16 @@ def extend_service_account_access(service_account_email, db=None):
             service_account
         )
 
-        # use configured time or 7 days
+        # timestamp at which the SA will lose bucket access
+        # by default: use configured time or 7 days
         expiration_time = int(time.time()) + config.get(
             "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN", 604800
         )
+        requested_expires_in = check_expires_in()
+        if requested_expires_in:
+            requested_expiration = int(time.time()) + requested_expires_in
+            expiration_time = min(expiration_time, requested_expiration)
+
         logger.debug(
             "Service Account ({}) access extended to {}.".format(
                 service_account.email, expiration_time

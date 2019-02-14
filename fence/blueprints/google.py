@@ -2,6 +2,7 @@ import os
 import json
 from urllib import unquote
 from enum import Enum
+import time
 
 import flask
 from flask_restful import Resource
@@ -32,6 +33,7 @@ from fence.resources.google.utils import (
     get_monitoring_service_account_email,
     get_registered_service_accounts,
     get_project_access_from_service_accounts,
+    check_expires_in,
 )
 from fence.models import UserServiceAccount
 from flask_sqlalchemy_session import current_session
@@ -211,6 +213,9 @@ class GoogleServiceAccountRoot(Resource):
         with GoogleCloudManager(sa.google_project_id) as google_project:
             g_service_account = google_project.get_service_account(sa.email)
 
+        # requested time (in seconds) during which the SA has bucket access
+        requested_expires_in = check_expires_in()
+
         db_service_account = UserServiceAccount(
             google_unique_id=g_service_account.get("uniqueId"),
             email=g_service_account.get("email"),
@@ -224,7 +229,9 @@ class GoogleServiceAccountRoot(Resource):
             current_session, sa.project_access
         )
 
-        add_user_service_account_to_db(current_session, project_ids, db_service_account)
+        add_user_service_account_to_db(
+            current_session, project_ids, db_service_account, requested_expires_in
+        )
 
         add_user_service_account_to_google(
             current_session, project_ids, sa.google_project_id, db_service_account
@@ -607,6 +614,10 @@ def _get_patched_service_account_error_status(id_, sa):
             'service account "{}".'.format(sa.user_id, id_)
         )
         raise Unauthorized(msg)
+
+    # requested time (in seconds) during which the SA has bucket access
+    # check if expires_in is a positive integer
+    check_expires_in()
 
     error_response = _get_service_account_error_status(sa)
 
