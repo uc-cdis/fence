@@ -349,6 +349,10 @@ class GoogleServiceAccount(Resource):
             user_id=user_id,
         )
 
+        # requested time (in seconds) during which the SA has bucket access
+        # check if expires_in is a positive integer
+        check_expires_in()
+
         error_response = _get_service_account_error_status(sa)
 
         sa_exists = (
