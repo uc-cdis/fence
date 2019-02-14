@@ -306,6 +306,13 @@ def test_google_bucket_access_existing_proxy_group(
     db_session.add(service_account)
     db_session.commit()
 
+    # make function return the service account we created and don't try to update db
+    # since we already did it in the test
+    mock = MagicMock()
+    mock.return_value = service_account
+    patch("fence.resources.google.utils.get_or_create_service_account", mock).start()
+    patch("fence.resources.google.utils._update_service_account_db_entry", mock).start()
+
     encoded_credentials_jwt = encoded_creds_jwt["jwt"]
 
     path = "/credentials/google/"
@@ -344,6 +351,13 @@ def test_google_create_access_token_post(
     )
     db_session.add(service_account)
     db_session.commit()
+
+    # make function return the service account we created and don't try to update db
+    # since we already did it in the test
+    mock = MagicMock()
+    mock.return_value = service_account
+    patch("fence.resources.google.utils.get_or_create_service_account", mock).start()
+    patch("fence.resources.google.utils._update_service_account_db_entry", mock).start()
 
     response = client.post(
         path, data=data, headers={"Authorization": "Bearer " + encoded_credentials_jwt}
@@ -401,6 +415,13 @@ def test_google_delete_owned_access_token(
     )
     db_session.add(service_account)
     db_session.commit()
+
+    # make function return the service account we created and don't try to update db
+    # since we already did it in the test
+    mock = MagicMock()
+    mock.return_value = service_account
+    patch("fence.resources.google.utils.get_or_create_service_account", mock).start()
+    patch("fence.resources.google.utils._update_service_account_db_entry", mock).start()
 
     response = client.delete(
         path, data={}, headers={"Authorization": "Bearer " + encoded_credentials_jwt}
@@ -490,6 +511,13 @@ def test_google_delete_all_owned_access_tokens(
     db_session.add(service_account)
     db_session.commit()
 
+    # make function return the service account we created and don't try to update db
+    # since we already did it in the test
+    mock = MagicMock()
+    mock.return_value = service_account
+    patch("fence.resources.google.utils.get_or_create_service_account", mock).start()
+    patch("fence.resources.google.utils._update_service_account_db_entry", mock).start()
+
     response = client.delete(
         path, data={}, headers={"Authorization": "Bearer " + encoded_credentials_jwt}
     )
@@ -567,6 +595,13 @@ def test_google_attempt_delete_unowned_access_token(
     db_session.add(service_account)
     db_session.commit()
 
+    # make function return the service account we created and don't try to update db
+    # since we already did it in the test
+    mock = MagicMock()
+    mock.return_value = service_account
+    patch("fence.resources.google.utils.get_or_create_service_account", mock).start()
+    patch("fence.resources.google.utils._update_service_account_db_entry", mock).start()
+
     response = client.delete(
         path, data={}, headers={"Authorization": "Bearer " + encoded_credentials_jwt}
     )
@@ -623,6 +658,13 @@ def test_google_delete_invalid_access_token(
     )
     db_session.add(service_account)
     db_session.commit()
+
+    # make function return the service account we created and don't try to update db
+    # since we already did it in the test
+    mock = MagicMock()
+    mock.return_value = service_account
+    patch("fence.resources.google.utils.get_or_create_service_account", mock).start()
+    patch("fence.resources.google.utils._update_service_account_db_entry", mock).start()
 
     response = client.delete(
         path, data={}, headers={"Authorization": "Bearer " + encoded_credentials_jwt}

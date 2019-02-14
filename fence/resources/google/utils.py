@@ -267,12 +267,10 @@ def add_custom_service_account_key_expiration(
 
 
 def get_or_create_service_account(client_id, user_id, username, proxy_group_id):
-    service_account = get_service_account(client_id, user_id)
-
-    if not service_account:
-        service_account = create_service_account(
-            client_id, user_id, username, proxy_group_id
-        )
+    # underlying cloud api library effectively handles conflicts now without error
+    service_account = create_service_account(
+        client_id, user_id, username, proxy_group_id
+    )
 
     return service_account
 
@@ -302,6 +300,8 @@ def get_service_account(client_id, user_id):
 def create_service_account(client_id, user_id, username, proxy_group_id):
     """
     Create a Google Service account for the current client and user.
+    This effectively handles conflicts in Google and will update our db
+    accordingly based on the newest information from Google.
 
     Args:
         g_cloud_manager (cirrus.GoogleCloudManager): instance of
@@ -325,29 +325,51 @@ def create_service_account(client_id, user_id, username, proxy_group_id):
                 proxy_group_id, account_id=service_account_id
             )
 
-        service_account = GoogleServiceAccount(
+        return _update_service_account_db_entry(
+            client_id, user_id, proxy_group_id, new_service_account
+        )
+    else:
+        flask.abort(
+            404,
+            "Could not find Google proxy group for current user in the given token.",
+        )
+
+
+def _update_service_account_db_entry(
+    client_id, user_id, proxy_group_id, new_service_account
+):
+    """
+    Now that SA exists in Google so lets check our db and update/add as necessary
+    """
+    service_account_db_entry = (
+        current_session.query(GoogleServiceAccount)
+        .filter(GoogleServiceAccount.email == new_service_account["email"])
+        .first()
+    )
+
+    if not service_account_db_entry:
+        service_account_db_entry = GoogleServiceAccount(
             google_unique_id=new_service_account["uniqueId"],
             client_id=client_id,
             user_id=user_id,
             email=new_service_account["email"],
             google_project_id=new_service_account["projectId"],
         )
-
-        current_session.add(service_account)
-        current_session.commit()
-
-        flask.current_app.logger.info(
-            "Created service account {} for proxy group {}.".format(
-                new_service_account["email"], proxy_group_id
-            )
-        )
-
-        return service_account
+        current_session.add(service_account_db_entry)
     else:
-        flask.abort(
-            404,
-            "Could not find Google proxy group for current user in the " "given token.",
+        service_account_db_entry.google_unique_id = new_service_account["uniqueId"]
+        service_account_db_entry.email = new_service_account["email"]
+        service_account_db_entry.google_project_id = (new_service_account["projectId"],)
+
+    current_session.commit()
+
+    flask.current_app.logger.info(
+        "Created service account {} for proxy group {}.".format(
+            new_service_account["email"], proxy_group_id
         )
+    )
+
+    return service_account_db_entry
 
 
 def get_or_create_proxy_group_id():
