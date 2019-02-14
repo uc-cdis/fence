@@ -467,6 +467,32 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/GoogleKey'
+    delete:
+      tags:
+        - credentials/google
+      summary: Delete access keys
+      description: Delete all Google access key for the current user/client
+      security:
+        - OAuth2:
+            - user
+      operationId: deleteGoogleKeypair
+      parameters:
+        - name: all
+          required: true
+          in: query
+          description: Must be "true" to delete all keys
+          schema:
+            type: string
+      responses:
+        '204':
+          description: successful deletion
+        '404':
+          description: >-
+            Couldn't find key or service account for current user, unable to
+            delete given key
+        '405':
+          description: >-
+            all param not provided and is required to explicitly delete all keys
   '/credentials/google/{access_key}':
     delete:
       tags:
@@ -481,7 +507,7 @@ paths:
         - name: access_key
           required: true
           in: path
-          description: Google Key ID. Alternatively, you can provide * to delete ALL keys owned by you.
+          description: Google Key ID
           schema:
             type: string
       responses:
