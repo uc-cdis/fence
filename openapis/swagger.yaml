@@ -467,6 +467,32 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/GoogleKey'
+    delete:
+      tags:
+        - credentials/google
+      summary: Delete access keys
+      description: Delete all Google access key for the current user/client
+      security:
+        - OAuth2:
+            - user
+      operationId: deleteGoogleKeypair
+      parameters:
+        - name: all
+          required: true
+          in: query
+          description: Must be "true" to delete all keys
+          schema:
+            type: string
+      responses:
+        '204':
+          description: successful deletion
+        '404':
+          description: >-
+            Couldn't find key or service account for current user, unable to
+            delete given key
+        '405':
+          description: >-
+            all param not provided and is required to explicitly delete all keys
   '/credentials/google/{access_key}':
     delete:
       tags:
@@ -918,10 +944,10 @@ paths:
         > **NOTE: This will only provide service account information for
         Google Cloud Projects if the current user is a member of those
         projects**
-        
-        The endpoint lists the `project_access` that was previously granted 
-        (whether or not the SA currently has access). The `project_access_exp` 
-        will be `0` when the SA isn't currently given access 
+
+        The endpoint lists the `project_access` that was previously granted
+        (whether or not the SA currently has access). The `project_access_exp`
+        will be `0` when the SA isn't currently given access
         (but can be provided access again with a `PATCH`).
       parameters:
         - name: google_project_ids

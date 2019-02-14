@@ -1,6 +1,7 @@
 """
 Test the /credentials endpoint.
 """
+import pytest
 from fence.models import (
     Client,
     IdentityProvider,
@@ -416,6 +417,113 @@ def test_google_delete_owned_access_token(
     (
         cloud_manager.return_value.__enter__.return_value.delete_service_account_key
     ).assert_called_with(service_account_id, service_account_key)
+
+
+@pytest.mark.parametrize(
+    "query_arg,valid_arg",
+    [
+        ("", False),
+        ("?all=", False),
+        ("?all=asdf", False),
+        ("?all=false", False),
+        ("?all=False", False),
+        ("?all=true", True),
+        ("?all=True", True),
+    ],
+)
+def test_google_delete_all_owned_access_tokens(
+    app,
+    client,
+    oauth_client,
+    cloud_manager,
+    db_session,
+    encoded_creds_jwt,
+    query_arg,
+    valid_arg,
+):
+    """
+    Test ``DELETE /credentials/google/*``.
+    """
+    encoded_credentials_jwt = encoded_creds_jwt["jwt"]
+    user_id = encoded_creds_jwt["user_id"]
+    client_id = encoded_creds_jwt["client_id"]
+
+    service_account_key0 = "over_9000"
+    service_account_key1 = "42"
+    service_account_key2 = "one_MILLION_dollars"
+    service_account_id = "123456789"
+    path = "/credentials/google/" + query_arg
+
+    def get_account_keys(*args, **kwargs):
+        # Return the keys only if the correct account is given
+        if args[0] == service_account_id:
+            # Return multiple keys
+            return [
+                {"name": "project/service_accounts/keys/" + service_account_key0},
+                {"name": "project/service_accounts/keys/" + service_account_key1},
+                {"name": "project/service_accounts/keys/" + service_account_key2},
+            ]
+        else:
+            return []
+
+    (
+        cloud_manager.return_value.__enter__.return_value.get_service_account_keys_info.side_effect
+    ) = get_account_keys
+
+    # create a service account for client for user
+    service_account = GoogleServiceAccount(
+        google_unique_id=service_account_id,
+        client_id=client_id,
+        user_id=user_id,
+        email=(client_id + "-" + str(user_id) + "@test.com"),
+        google_project_id="projectId-0",
+    )
+    db_session.add(service_account)
+    db_session.commit()
+
+    response = client.delete(
+        path, data={}, headers={"Authorization": "Bearer " + encoded_credentials_jwt}
+    )
+
+    if valid_arg:
+        # check that the service account id was included in a call to
+        # cloud_manager
+        assert any(
+            [
+                str(mock_call)
+                for mock_call in cloud_manager.mock_calls
+                if service_account_id in str(mock_call)
+            ]
+        )
+        assert response.status_code == 204
+
+        expected_calls = [
+            (service_account_id, service_account_key0),
+            (service_account_id, service_account_key1),
+            (service_account_id, service_account_key2),
+        ]
+        actual_calls = []
+        # check that we actually requested to delete the correct service key
+        for (
+            call
+        ) in (
+            cloud_manager.return_value.__enter__.return_value.delete_service_account_key.call_args_list
+        ):
+            args, kwargs = call
+            actual_calls.append(args)
+
+        assert sorted(expected_calls) == sorted(actual_calls)
+    else:
+        # check that the service account id was NOT included in a call to
+        # cloud_manager
+        assert not any(
+            [
+                str(mock_call)
+                for mock_call in cloud_manager.mock_calls
+                if service_account_id in str(mock_call)
+            ]
+        )
+        assert response.status_code != 204
 
 
 def test_google_attempt_delete_unowned_access_token(
