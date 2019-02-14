@@ -457,9 +457,7 @@ def remove_expired_google_service_account_keys(db):
         with GoogleCloudManager() as g_mgr:
             # handle service accounts with default max expiration
             for service_account, client in client_service_accounts:
-                g_mgr.handle_expired_service_account_keys(
-                    service_account.google_unique_id
-                )
+                g_mgr.handle_expired_service_account_keys(service_account.email)
 
             # handle service accounts with custom expiration
             for expired_user_key in expired_sa_keys_for_users:
@@ -472,7 +470,7 @@ def remove_expired_google_service_account_keys(db):
                 )
 
                 response = g_mgr.delete_service_account_key(
-                    account=sa.google_unique_id, key_name=expired_user_key.key_id
+                    account=sa.email, key_name=expired_user_key.key_id
                 )
                 response_error_code = response.get("error", {}).get("code")
 

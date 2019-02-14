@@ -75,9 +75,7 @@ class GoogleCredentialsList(Resource):
                 proxy_group_id=proxy_group_id,
             )
 
-            keys = g_cloud_manager.get_service_account_keys_info(
-                service_account.google_unique_id
-            )
+            keys = g_cloud_manager.get_service_account_keys_info(service_account.email)
 
             # replace Google's expiration date by the one in our DB
             reg = re.compile(".+\/keys\/(.+)")  # get key_id from xx/keys/key_id
@@ -108,7 +106,7 @@ class GoogleCredentialsList(Resource):
                     )
                     with GoogleCloudManager() as g_cloud:
                         g_cloud.delete_service_account_key(
-                            service_account.google_unique_id, key_id
+                            service_account.email, key_id
                         )
 
             result = {"access_keys": keys}
@@ -191,7 +189,7 @@ class GoogleCredentialsList(Resource):
 
             if service_account:
                 keys_for_account = g_cloud.get_service_account_keys_info(
-                    service_account.google_unique_id
+                    service_account.email
                 )
 
                 # Only delete the key if is owned by current client's SA
@@ -200,9 +198,7 @@ class GoogleCredentialsList(Resource):
                 ]
 
                 for key in all_client_keys:
-                    _delete_service_account_key(
-                        g_cloud, service_account.google_unique_id, key
-                    )
+                    _delete_service_account_key(g_cloud, service_account.email, key)
             else:
                 flask.abort(404, "Could not find service account for current user.")
 
@@ -260,7 +256,7 @@ class GoogleCredentials(Resource):
 
             if service_account:
                 keys_for_account = g_cloud.get_service_account_keys_info(
-                    service_account.google_unique_id
+                    service_account.email
                 )
 
                 # Only delete the key if is owned by current client's SA
@@ -270,7 +266,7 @@ class GoogleCredentials(Resource):
 
                 if access_key in all_client_keys:
                     _delete_service_account_key(
-                        g_cloud, service_account.google_unique_id, access_key
+                        g_cloud, service_account.email, access_key
                     )
                 else:
                     flask.abort(

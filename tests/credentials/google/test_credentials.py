@@ -330,6 +330,7 @@ def test_google_create_access_token_post(
     client_id = encoded_creds_jwt["client_id"]
 
     service_account_id = "123456789"
+    service_account_email = client_id + "-" + str(user_id) + "@test.com"
     path = "/credentials/google/"
     data = {}
 
@@ -338,7 +339,7 @@ def test_google_create_access_token_post(
         google_unique_id=service_account_id,
         client_id=client_id,
         user_id=user_id,
-        email=(client_id + "-" + str(user_id) + "@test.com"),
+        email=service_account_email,
         google_project_id="projectId-0",
     )
     db_session.add(service_account)
@@ -348,11 +349,13 @@ def test_google_create_access_token_post(
         path, data=data, headers={"Authorization": "Bearer " + encoded_credentials_jwt}
     )
 
-    # check that the service account id was included in a
+    # check that the service account id or email was included in a
     # call to cloud_manager
-    (
+    args, kwargs = (
         cloud_manager.return_value.__enter__.return_value.get_access_key
-    ).assert_called_with(service_account_id)
+    ).call_args
+    combined = [arg for arg in args] + [value for key, value in kwargs.iteritems()]
+    assert service_account_id in combined or service_account_email in combined
 
     assert response.status_code == 200
 
@@ -369,11 +372,12 @@ def test_google_delete_owned_access_token(
 
     service_account_key = "some_key_321"
     service_account_id = "123456789"
+    service_account_email = client_id + "-" + str(user_id) + "@test.com"
     path = "/credentials/google/" + service_account_key
 
     def get_account_keys(*args, **kwargs):
         # Return the keys only if the correct account is given
-        if args[0] == service_account_id:
+        if args[0] == service_account_id or args[0] == service_account_email:
             # Return two keys, first one is NOT the one we're
             # requesting to delete
             return [
@@ -392,7 +396,7 @@ def test_google_delete_owned_access_token(
         google_unique_id=service_account_id,
         client_id=client_id,
         user_id=user_id,
-        email=(client_id + "-" + str(user_id) + "@test.com"),
+        email=service_account_email,
         google_project_id="projectId-0",
     )
     db_session.add(service_account)
@@ -409,14 +413,18 @@ def test_google_delete_owned_access_token(
             str(mock_call)
             for mock_call in cloud_manager.mock_calls
             if service_account_id in str(mock_call)
+            or service_account_email in str(mock_call)
         ]
     )
     assert response.status_code == 204
 
     # check that we actually requested to delete the correct service key
-    (
+    args, kwargs = (
         cloud_manager.return_value.__enter__.return_value.delete_service_account_key
-    ).assert_called_with(service_account_id, service_account_key)
+    ).call_args
+    all_args = [arg for arg in args] + [value for key, value in kwargs.iteritems()]
+    assert service_account_id in all_args or service_account_email in all_args
+    assert service_account_key in all_args
 
 
 @pytest.mark.parametrize(
@@ -452,11 +460,12 @@ def test_google_delete_all_owned_access_tokens(
     service_account_key1 = "42"
     service_account_key2 = "one_MILLION_dollars"
     service_account_id = "123456789"
+    service_account_email = client_id + "-" + str(user_id) + "@test.com"
     path = "/credentials/google/" + query_arg
 
     def get_account_keys(*args, **kwargs):
         # Return the keys only if the correct account is given
-        if args[0] == service_account_id:
+        if args[0] == service_account_id or args[0] == service_account_email:
             # Return multiple keys
             return [
                 {"name": "project/service_accounts/keys/" + service_account_key0},
@@ -475,7 +484,7 @@ def test_google_delete_all_owned_access_tokens(
         google_unique_id=service_account_id,
         client_id=client_id,
         user_id=user_id,
-        email=(client_id + "-" + str(user_id) + "@test.com"),
+        email=service_account_email,
         google_project_id="projectId-0",
     )
     db_session.add(service_account)
@@ -493,14 +502,18 @@ def test_google_delete_all_owned_access_tokens(
                 str(mock_call)
                 for mock_call in cloud_manager.mock_calls
                 if service_account_id in str(mock_call)
+                or service_account_email in str(mock_call)
             ]
         )
         assert response.status_code == 204
 
-        expected_calls = [
+        valid_calls = [
             (service_account_id, service_account_key0),
             (service_account_id, service_account_key1),
             (service_account_id, service_account_key2),
+            (service_account_email, service_account_key0),
+            (service_account_email, service_account_key1),
+            (service_account_email, service_account_key2),
         ]
         actual_calls = []
         # check that we actually requested to delete the correct service key
@@ -512,7 +525,7 @@ def test_google_delete_all_owned_access_tokens(
             args, kwargs = call
             actual_calls.append(args)
 
-        assert sorted(expected_calls) == sorted(actual_calls)
+        assert set(actual_calls).issubset(valid_calls)
     else:
         # check that the service account id was NOT included in a call to
         # cloud_manager
@@ -521,6 +534,7 @@ def test_google_delete_all_owned_access_tokens(
                 str(mock_call)
                 for mock_call in cloud_manager.mock_calls
                 if service_account_id in str(mock_call)
+                or service_account_email in str(mock_call)
             ]
         )
         assert response.status_code != 204
