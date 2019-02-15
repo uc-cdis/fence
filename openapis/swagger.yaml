@@ -950,6 +950,15 @@ paths:
       description: >-
         Attempt to register a service account WITHOUT actually doing so. Will
         provide detailed errors for what went wrong.
+      parameters:
+        - name: expires_in
+          required: false
+          in: query
+          description: >-
+            the time (in seconds) during which the Google service account has
+            bucket access. Must be less than the configured maximum (default is 7 days). If it's greater, the configured maximum will be used.
+          schema:
+            type: integer
       operationId: registerGoogleServiceAccountDryRun
       responses:
         '200':
