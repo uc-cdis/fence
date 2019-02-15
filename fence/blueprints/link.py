@@ -557,7 +557,7 @@ def _add_google_email_to_proxy_group(google_email, proxy_group_id):
 
 def _clear_google_link_info_from_session():
     # remove google linking info from session
-    flask.session.pop("google_link", None)
-    flask.session.pop("user_id", None)
-    flask.session.pop("google_proxy_group_id", None)
-    flask.session.pop("google_link_expires_in", None)
+    flask.session.pop("google_link")
+    flask.session.pop("user_id")
+    flask.session.pop("google_proxy_group_id")
+    flask.session.pop("google_link_expires_in")
