@@ -33,9 +33,9 @@ from fence.resources.google.utils import (
     get_monitoring_service_account_email,
     get_registered_service_accounts,
     get_project_access_from_service_accounts,
-    check_expires_in,
 )
 from fence.models import UserServiceAccount
+from fence.utils import check_expires_in
 from flask_sqlalchemy_session import current_session
 from cdislogging import get_logger
 

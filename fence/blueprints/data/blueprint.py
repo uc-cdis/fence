@@ -13,6 +13,7 @@ from fence.errors import (
     UnavailableError,
     UserError,
 )
+from fence.utils import check_expires_in
 from fence.rbac import check_arborist_auth
 
 
@@ -69,6 +70,7 @@ def upload_data_file():
         raise UserError("missing required argument `file_name`")
     blank_index = BlankIndex(file_name=params["file_name"])
     max_ttl = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
+    check_expires_in()
     expires_in = min(params.get("expires_in", max_ttl), max_ttl)
     response = {
         "guid": blank_index.guid,

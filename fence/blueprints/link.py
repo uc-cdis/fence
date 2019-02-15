@@ -23,7 +23,7 @@ from fence.resources.google.utils import (
     get_users_linked_google_email,
     get_linked_google_account_email,
 )
-from fence.utils import clear_cookies, append_query_params
+from fence.utils import clear_cookies, append_query_params, check_expires_in
 
 logger = get_logger(__name__)
 
@@ -113,13 +113,9 @@ class GoogleLinkRedirect(Resource):
             flask.session["redirect"] = provided_redirect
 
             # requested time (in seconds) during which the link will be valid
-            if "expires_in" in flask.request.args:
-                try:
-                    expires_in = int(flask.request.args["expires_in"])
-                    assert expires_in > 0
-                    flask.session["google_link_expires_in"] = expires_in
-                except (ValueError, AssertionError):
-                    raise UserError({"error": "expires_in must be a positive integer"})
+            requested_expires_in = check_expires_in()
+            if requested_expires_in:
+                flask.session["google_link_expires_in"] = requested_expires_in
 
             # if we're mocking Google login, skip to callback
             if config.get("MOCK_GOOGLE_AUTH", False):
@@ -173,20 +169,14 @@ class GoogleLinkRedirect(Resource):
         proxy_group = get_or_create_proxy_group_id()
 
         # requested time (in seconds) during which the link will be valid
-        expires_in = None
-        if "expires_in" in flask.request.args:
-            try:
-                expires_in = int(flask.request.args["expires_in"])
-                assert expires_in > 0
-            except (ValueError, AssertionError):
-                raise UserError({"error": "expires_in must be a positive integer"})
+        requested_expires_in = check_expires_in()
 
         access_expiration = _force_update_user_google_account(
             user_id,
             google_email,
             proxy_group,
             _allow_new=False,
-            requested_expires_in=expires_in,
+            requested_expires_in=requested_expires_in,
         )
 
         return {"exp": access_expiration}, 200

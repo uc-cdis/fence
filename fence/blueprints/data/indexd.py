@@ -30,6 +30,7 @@ from fence.resources.google.utils import (
     create_primary_service_account_key,
     get_or_create_proxy_group_id,
 )
+from fence.utils import check_expires_in
 
 
 from fence.config import config
@@ -47,6 +48,7 @@ def get_signed_url_for_file(action, file_id):
     requested_protocol = flask.request.args.get("protocol", None)
     indexed_file = IndexedFile(file_id)
     max_ttl = config.get("MAX_PRESIGNED_URL_TTL", 3600)
+    check_expires_in()
     expires_in = min(int(flask.request.args.get("expires_in", max_ttl)), max_ttl)
     signed_url = indexed_file.get_signed_url(requested_protocol, action, expires_in)
     return {"url": signed_url}

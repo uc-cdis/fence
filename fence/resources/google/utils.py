@@ -29,7 +29,7 @@ from fence.models import (
 )
 from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME
 from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
-from fence.errors import NotSupported, NotFound, UserError
+from fence.errors import NotSupported, NotFound
 
 
 def get_or_create_primary_service_account_key(
@@ -686,19 +686,3 @@ def get_db_session(db=None):
         return SQLAlchemyDriver(db).Session()
     else:
         return current_session
-
-
-def check_expires_in():
-    """
-    Return the expires_in param if it is in the request, None otherwise.
-    Throw an error if the requested expires_in is not a positive integer.
-    """
-    if "expires_in" in flask.request.args:
-        try:
-            expires_in = int(flask.request.args["expires_in"])
-            assert expires_in > 0
-            return expires_in
-        except (ValueError, AssertionError):
-            raise UserError({"error": "expires_in must be a positive integer"})
-    else:
-        return None

@@ -35,8 +35,8 @@ from fence.resources.google.utils import (
     get_users_from_google_members,
     get_monitoring_service_account_email,
     is_google_managed_service_account,
-    check_expires_in,
 )
+from fence.utils import check_expires_in
 
 logger = get_logger(__name__)
 
