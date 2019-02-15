@@ -48,30 +48,24 @@ def test_google_link_expires_in(client, app, encoded_creds_jwt):
     redirect = "http://localhost"
 
     # invalid expires_in: should fail
-    requested_exp = "abc" # expires_in must be int >0
+    requested_exp = "abc"  # expires_in must be int >0
 
     r = client.get(
         "/link/google",
-        query_string={
-            "redirect": redirect,
-            "expires_in": requested_exp
-        },
+        query_string={"redirect": redirect, "expires_in": requested_exp},
         headers={"Authorization": "Bearer " + encoded_credentials_jwt},
     )
-    assert r.status_code == 400 # check if failure
+    assert r.status_code == 400  # check if failure
 
     # valid expires_in: should succeed
     requested_exp = 60
 
     r = client.get(
         "/link/google",
-        query_string={
-            "redirect": redirect,
-            "expires_in": requested_exp
-        },
+        query_string={"redirect": redirect, "expires_in": requested_exp},
         headers={"Authorization": "Bearer " + encoded_credentials_jwt},
     )
-    assert r.status_code == 302 # check if success
+    assert r.status_code == 302  # check if success
 
 
 def test_google_link_redirect_no_google_idp(
@@ -297,10 +291,10 @@ def test_patch_google_link(
     assert not add_google_email_to_proxy_group_mock.called
 
     # invalid expires_in: should fail
-    requested_exp = "abc" # expires_in must be int >0
+    requested_exp = "abc"  # expires_in must be int >0
     r = client.patch(
         "/link/google?expires_in={}".format(requested_exp),
-        headers={"Authorization": "Bearer " + encoded_credentials_jwt}
+        headers={"Authorization": "Bearer " + encoded_credentials_jwt},
     )
     assert r.status_code == 400
 
@@ -308,7 +302,7 @@ def test_patch_google_link(
     requested_exp = 60
     r = client.patch(
         "/link/google?expires_in={}".format(requested_exp),
-        headers={"Authorization": "Bearer " + encoded_credentials_jwt}
+        headers={"Authorization": "Bearer " + encoded_credentials_jwt},
     )
     assert r.status_code == 200
 

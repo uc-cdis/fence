@@ -198,22 +198,26 @@ def test_patch_service_account_expires_in(
     service_account = register_user_service_account["service_account"]
 
     # invalid expires_in: should fail
-    requested_exp = "abc" # expires_in must be int >0
+    requested_exp = "abc"  # expires_in must be int >0
     response = client.patch(
-        "/google/service_accounts/{}?expires_in={}".format(quote(service_account.email), requested_exp),
+        "/google/service_accounts/{}?expires_in={}".format(
+            quote(service_account.email), requested_exp
+        ),
         headers={"Authorization": "Bearer " + encoded_creds_jwt},
         content_type="application/json",
     )
-    assert response.status_code == 400 # check if failure
+    assert response.status_code == 400  # check if failure
 
     # valid expires_in: should succeed
     requested_exp = 60
     response = client.patch(
-        "/google/service_accounts/{}?expires_in={}".format(quote(service_account.email), requested_exp),
+        "/google/service_accounts/{}?expires_in={}".format(
+            quote(service_account.email), requested_exp
+        ),
         headers={"Authorization": "Bearer " + encoded_creds_jwt},
         content_type="application/json",
     )
-    assert str(response.status_code).startswith("2") # check if success
+    assert str(response.status_code).startswith("2")  # check if success
 
     # make sure the access was extended of the requested time
     # (allow up to 5 sec for runtime)
@@ -368,15 +372,17 @@ def test_patch_service_account_dry_run_expires_in(
     service_account = register_user_service_account["service_account"]
 
     # invalid expires_in: should fail
-    requested_exp = "abc" # expires_in must be int >0
+    requested_exp = "abc"  # expires_in must be int >0
 
     response = client.patch(
-        "/google/service_accounts/_dry_run/{}?expires_in={}".format(quote(service_account.email), requested_exp),
+        "/google/service_accounts/_dry_run/{}?expires_in={}".format(
+            quote(service_account.email), requested_exp
+        ),
         headers={"Authorization": "Bearer " + encoded_creds_jwt},
         content_type="application/json",
         data={"project_access": ["another-valid-project"]},
     )
-    assert response.status_code == 400 # check if failure
+    assert response.status_code == 400  # check if failure
 
     service_account_accesses = (
         db_session.query(ServiceAccountToGoogleBucketAccessGroup).filter_by(
@@ -393,12 +399,14 @@ def test_patch_service_account_dry_run_expires_in(
     requested_exp = 60
 
     response = client.patch(
-        "/google/service_accounts/_dry_run/{}?expires_in={}".format(quote(service_account.email), requested_exp),
+        "/google/service_accounts/_dry_run/{}?expires_in={}".format(
+            quote(service_account.email), requested_exp
+        ),
         headers={"Authorization": "Bearer " + encoded_creds_jwt},
         content_type="application/json",
         data={"project_access": ["another-valid-project"]},
     )
-    assert response.status_code == 200 # check if success
+    assert response.status_code == 200  # check if success
 
     service_account_accesses = (
         db_session.query(ServiceAccountToGoogleBucketAccessGroup).filter_by(
@@ -539,10 +547,10 @@ def test_invalid_service_account_dry_run_expires_in_error(
         content_type="application/json",
     )
 
-    assert response.status_code == 200 # check if success
+    assert response.status_code == 200  # check if success
 
     # invalid expires_in: should fail
-    requested_exp = "abc" # expires_in must be int >0
+    requested_exp = "abc"  # expires_in must be int >0
 
     response = client.post(
         "/google/service_accounts/_dry_run?expires_in={}".format(requested_exp),
@@ -551,7 +559,7 @@ def test_invalid_service_account_dry_run_expires_in_error(
         content_type="application/json",
     )
 
-    assert response.status_code == 400 # check if failure
+    assert response.status_code == 400  # check if failure
 
 
 def test_invalid_service_account_has_external_access(
@@ -917,7 +925,7 @@ def test_service_account_registration_expires_in(
     assert len(db_session.query(ServiceAccountToGoogleBucketAccessGroup).all()) == 0
 
     # invalid expires_in: should fail
-    requested_exp = "abc" # expires_in must be int >0
+    requested_exp = "abc"  # expires_in must be int >0
 
     response = client.post(
         "/google/service_accounts?expires_in={}".format(requested_exp),
@@ -925,7 +933,7 @@ def test_service_account_registration_expires_in(
         data=json.dumps(valid_service_account),
         content_type="application/json",
     )
-    assert response.status_code == 400 # check if failure
+    assert response.status_code == 400  # check if failure
 
     # valid expires_in: should succeed
     requested_exp = 60
@@ -936,11 +944,13 @@ def test_service_account_registration_expires_in(
         data=json.dumps(valid_service_account),
         content_type="application/json",
     )
-    assert response.status_code == 200 # check if success
+    assert response.status_code == 200  # check if success
 
     assert len(db_session.query(UserServiceAccount).all()) == 1
     assert len(db_session.query(ServiceAccountAccessPrivilege).all()) == 1
-    sa_to_bucket_entries = db_session.query(ServiceAccountToGoogleBucketAccessGroup).all()
+    sa_to_bucket_entries = db_session.query(
+        ServiceAccountToGoogleBucketAccessGroup
+    ).all()
     assert len(sa_to_bucket_entries) == 1
 
     # make sure the access was granted for the requested time
