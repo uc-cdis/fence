@@ -451,7 +451,7 @@ class GoogleProjectValidity(ValidityInfo):
         )
 
         white_listed_service_accounts = (
-            config.get("WHITE_LISTED_SERVICE_ACCOUNT_EMAILS") if config else None
+            config.get("WHITE_LISTED_SERVICE_ACCOUNT_EMAILS") if config else []
         )
         app_creds_file = (
             config.get("GOOGLE_APPLICATION_CREDENTIALS") if config else None
