@@ -1240,7 +1240,7 @@ def verify_user_registration(DB):
     validation_check(DB)
 
 
-def force_update_google_link(DB, username, google_email):
+def force_update_google_link(DB, username, google_email, expires_in=None):
     """
     WARNING: This function circumvents Google Auth flow, and should only be
     used for internal testing!
@@ -1292,8 +1292,20 @@ def force_update_google_link(DB, username, google_email):
                 user_id, google_email, session
             )
 
-        now = int(time.time())
-        expiration = now + config["GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN"]
+        # timestamp at which the SA will lose bucket access
+        # by default: use configured time or 7 days
+        expiration = int(time.time()) + config.get(
+            "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN", 604800
+        )
+        if expires_in:
+            try:
+                expires_in = int(expires_in)
+                assert expires_in > 0
+                # convert it to timestamp
+                requested_expiration = int(time.time()) + expires_in
+                expiration = min(expiration, requested_expiration)
+            except (ValueError, AssertionError):
+                raise Exception("expires_in must be a positive integer")
 
         force_update_user_google_account_expiration(
             user_google_account, proxy_group_id, google_email, expiration, session
