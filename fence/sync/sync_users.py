@@ -196,7 +196,10 @@ class UserYAML(object):
                 )
             # we're going to throw it into the `rbac` dictionary anyways, so the rest of
             # the code can pretend it's in the normal place that we expect
-            rbac["resources"] = data.get("resources", [])
+            resources = data.get("resources", [])
+            # keep rbac empty dict if resources is not specified
+            if resources:
+                rbac["resources"] = data.get("resources", [])
 
         return cls(
             projects=projects,
