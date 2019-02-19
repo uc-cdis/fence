@@ -992,7 +992,8 @@ class UserSyncer(object):
             if success:
                 self.logger.info("Finished synchronizing arborist")
             else:
-                self.logger.info("Could not synchronize successfully")
+                self.logger.error("Could not synchronize successfully")
+                exit(1)
         else:
             self.logger.info("No resources specified; skipping arborist sync")
 
