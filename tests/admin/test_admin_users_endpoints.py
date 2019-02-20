@@ -37,15 +37,15 @@ def encoded_admin_jwt(kid, rsa_private_key):
     return jwt.encode(claims, key=rsa_private_key, headers=headers, algorithm="RS256")
 
 
-# GET /user/<username> tests
+# GET /users/<username> tests
 
 
 def test_get_user_username(
     client, admin_user, encoded_admin_jwt, db_session, test_user_a
 ):
-    """ GET /user/<username>: [get_user]: happy path """
+    """ GET /users/<username>: [get_user]: happy path """
     r = client.get(
-        "/admin/user/test_a", headers={"Authorization": "Bearer " + encoded_admin_jwt}
+        "/admin/users/test_a", headers={"Authorization": "Bearer " + encoded_admin_jwt}
     )
     assert r.status_code == 200
     assert r.json["username"] == "test_a"
@@ -54,18 +54,18 @@ def test_get_user_username(
 def test_get_user_username_nonexistent(
     client, admin_user, encoded_admin_jwt, db_session
 ):
-    """ GET /user/<username>: [get_user]: When username does not exist """
+    """ GET /users/<username>: [get_user]: When username does not exist """
     r = client.get(
-        "/admin/user/test_nonexistent",
+        "/admin/users/test_nonexistent",
         headers={"Authorization": "Bearer " + encoded_admin_jwt},
     )
     assert r.status_code == 404
 
 
 def test_get_user_username_noauth(client, db_session):
-    """ GET /user/<username>: [get_user] but without authorization """
+    """ GET /users/<username>: [get_user] but without authorization """
     # This creates a "test" user, so don't remove db_session fixture
-    r = client.get("/admin/user/test_a")
+    r = client.get("/admin/users/test_a")
     assert r.status_code == 401
 
 
@@ -208,15 +208,15 @@ def test_post_user_noauth(client, db_session):
     assert r.status_code == 401
 
 
-# PUT /user/<username> tests
+# PUT /users/<username> tests
 
 
 def test_put_user_username(
     client, admin_user, encoded_admin_jwt, db_session, test_user_a
 ):
-    """ PUT /user/<username>: [update_user] """
+    """ PUT /users/<username>: [update_user] """
     r = client.put(
-        "/admin/user/test_a",
+        "/admin/users/test_a",
         headers={
             "Authorization": "Bearer " + encoded_admin_jwt,
             "Content-Type": "application/json",
@@ -246,9 +246,9 @@ def test_put_user_username(
 def test_put_user_username_nonexistent(
     client, admin_user, encoded_admin_jwt, db_session
 ):
-    """ PUT /user/<username>: [update_user] username to be updated doesn't exist"""
+    """ PUT /users/<username>: [update_user] username to be updated doesn't exist"""
     r = client.put(
-        "/admin/user/test_nonexistent",
+        "/admin/users/test_nonexistent",
         headers={
             "Authorization": "Bearer " + encoded_admin_jwt,
             "Content-Type": "application/json",
@@ -266,9 +266,9 @@ def test_put_user_username_nonexistent(
 def test_put_user_username_already_exists(
     client, admin_user, encoded_admin_jwt, db_session, test_user_a, test_user_b
 ):
-    """ PUT /user/<username>: [update_user] desired new username already exists """
+    """ PUT /users/<username>: [update_user] desired new username already exists """
     r = client.put(
-        "/admin/user/test_a",
+        "/admin/users/test_a",
         headers={
             "Authorization": "Bearer " + encoded_admin_jwt,
             "Content-Type": "application/json",
@@ -283,7 +283,7 @@ def test_put_user_username_already_exists(
 def test_put_user_username_try_delete_username(
     client, admin_user, encoded_admin_jwt, db_session, test_user_a
 ):
-    """ PUT /user/<username>: [update_user] try to delete username"""
+    """ PUT /users/<username>: [update_user] try to delete username"""
     """ 
     This probably shouldn't be allowed. Conveniently, the code flow ends up
     the same as though the user had not tried to update 'name' at all, 
@@ -293,7 +293,7 @@ def test_put_user_username_try_delete_username(
     the tail wagged the dog somewhat in this case...
     """
     r = client.put(
-        "/admin/user/test_a",
+        "/admin/users/test_a",
         headers={
             "Authorization": "Bearer " + encoded_admin_jwt,
             "Content-Type": "application/json",
@@ -308,7 +308,7 @@ def test_put_user_username_try_delete_username(
 def test_put_user_username_try_delete_role(
     client, admin_user, encoded_admin_jwt, db_session, test_user_a
 ):
-    """ PUT /user/<username>: [update_user] try to set role to None"""
+    """ PUT /users/<username>: [update_user] try to set role to None"""
     """ 
     This probably shouldn't be allowed. Conveniently, the code flow ends up
     the same as though the user had not tried to update 'role' at all, 
@@ -320,7 +320,7 @@ def test_put_user_username_try_delete_role(
     user = db_session.query(User).filter_by(username="test_a").one()
     original_isadmin = user.is_admin == True
     r = client.put(
-        "/admin/user/test_a",
+        "/admin/users/test_a",
         headers={
             "Authorization": "Bearer " + encoded_admin_jwt,
             "Content-Type": "application/json",
@@ -334,9 +334,9 @@ def test_put_user_username_try_delete_role(
 def test_put_user_username_without_updating_username(
     client, admin_user, encoded_admin_jwt, db_session, test_user_a
 ):
-    """ PUT /user/<username>: [update_user] update other fields but not username"""
+    """ PUT /users/<username>: [update_user] update other fields but not username"""
     r = client.put(
-        "/admin/user/test_a",
+        "/admin/users/test_a",
         headers={
             "Authorization": "Bearer " + encoded_admin_jwt,
             "Content-Type": "application/json",
@@ -351,9 +351,9 @@ def test_put_user_username_without_updating_username(
 def test_put_user_username_try_delete_email(
     client, admin_user, encoded_admin_jwt, db_session, test_user_a
 ):
-    """ PUT /user/<username>: [update_user] try to delete email"""
+    """ PUT /users/<username>: [update_user] try to delete email"""
     r = client.put(
-        "/admin/user/test_a",
+        "/admin/users/test_a",
         headers={
             "Authorization": "Bearer " + encoded_admin_jwt,
             "Content-Type": "application/json",
@@ -368,10 +368,10 @@ def test_put_user_username_try_delete_email(
 def test_put_user_username_remove_admin_self(
     client, admin_user, encoded_admin_jwt, db_session
 ):
-    """ PUT /user/<username>: [update_user] what if admin un-admins self?"""
+    """ PUT /users/<username>: [update_user] what if admin un-admins self?"""
     """ It seems this is fine. """
     r = client.put(
-        "/admin/user/admin_user",
+        "/admin/users/admin_user",
         headers={
             "Authorization": "Bearer " + encoded_admin_jwt,
             "Content-Type": "application/json",
@@ -384,6 +384,6 @@ def test_put_user_username_remove_admin_self(
 
 
 def test_put_user_username_noauth(client, db_session):
-    """ PUT /user/<username>: [update_user] but without authorization """
-    r = client.put("/admin/user/test_a")
+    """ PUT /users/<username>: [update_user] but without authorization """
+    r = client.put("/admin/users/test_a")
     assert r.status_code == 401
