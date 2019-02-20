@@ -7,9 +7,10 @@ except ImportError:
     from mock import patch
 
 import fence
-from fence.scripting.google_monitor import validation_check
+from fence.scripting.google_monitor import _get_users_without_access, validation_check
 
 from fence.models import (
+    User,
     UserServiceAccount,
     ServiceAccountAccessPrivilege,
     Bucket,
@@ -164,6 +165,52 @@ def test_validation_check_multiple_diff_projects(
     _assert_access("1@example.com", db_session)
     _assert_access("2@example.com", db_session)
     _assert_access("3@example.com", db_session)
+
+
+def test_get_users_without_access_no_access(test_user, test_project):
+    """
+    Test function _get_users_without_access when user does not have access to project
+    """
+
+    no_access = _get_users_without_access(
+        db=None,
+        auth_ids=[test_project.auth_id],
+        user_emails=[test_user.email],
+        check_linking=False,
+    )
+    assert len(no_access) == 1
+    no_access_projects = no_access[test_user.email]
+    assert len(no_access_projects) == 1
+    assert no_access_projects[0] == test_project.auth_id
+
+
+def test_get_users_without_access_with_access(test_linked_user_with_access):
+    """
+    Test function _get_users_without_access when user does have access to project
+    """
+
+    no_access = _get_users_without_access(
+        db=None,
+        auth_ids=["test_project"],
+        user_emails=[test_linked_user_with_access.email],
+        check_linking=False,
+    )
+    assert len(no_access) == 0
+
+
+def test_get_users_without_access_with_access_by_linked(test_linked_user_with_access):
+    """
+    Test function _get_users_without_access when user does have access to project, by using linked email
+    """
+
+    no_access = _get_users_without_access(
+        db=None,
+        auth_ids=["test_project"],
+        user_emails=["google_test_linked_user@gmail.com"],
+        check_linking=False,
+    )
+
+    assert len(no_access) == 0
 
 
 def _assert_access(service_account_email, db_session, has_access=True):

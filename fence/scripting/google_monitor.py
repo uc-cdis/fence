@@ -18,17 +18,23 @@ from fence.resources.google.validity import (
 
 from fence.resources.google.utils import (
     get_all_registered_service_accounts,
+    get_linked_google_account_email,
     is_google_managed_service_account,
 )
 
 from fence.resources.google.access_utils import (
     get_google_project_number,
+    get_project_from_auth_id,
+    get_user_by_email,
+    get_user_by_linked_email,
     force_remove_service_account_from_access,
     force_remove_service_account_from_db,
+    user_has_access_to_project,
 )
 
 from fence import utils
 from fence.config import config
+from fence.models import User
 from fence.errors import Unauthorized
 
 logger = get_logger(__name__)
@@ -486,3 +492,159 @@ def _send_emails_informing_service_account_removal(
                     content += "\n\t\t\t - {}".format(reason)
 
     return utils.send_email(from_email, to_emails, subject, content, domain)
+
+
+def _get_users_without_access(db, auth_ids, user_emails, check_linking):
+    """
+    Build list of users without access to projects identified by auth_ids
+
+    Args:
+        db (str): database instance
+        auth_ids (list(str)): list of project auth_ids to check access against
+        user_emails (list(str)): list of emails to check access for
+        check_linking (bool): flag to check for linked google email
+
+    Returns:
+        dict{str : (list(str))} : dictionary where keys are user emails,
+        and values are list of project_ids they do not have access to
+
+    """
+
+    no_access = {}
+
+    for user_email in user_emails:
+
+        user = get_user_by_email(user_email, db) or get_user_by_linked_email(
+            user_email, db
+        )
+
+        logger.info("Checking access for {}.".format(user.email))
+
+        if not user:
+            logger.info(
+                "Email ({}) does not exist in fence database.".format(user_email)
+            )
+            continue
+
+        if check_linking:
+            link_email = get_linked_google_account_email(user.id, db)
+            if not link_email:
+                logger.info(
+                    "User ({}) does not have a linked google account.".format(
+                        user_email
+                    )
+                )
+                continue
+
+        no_access_auth_ids = []
+        for auth_id in auth_ids:
+            project = get_project_from_auth_id(auth_id, db)
+            if project:
+                if not user_has_access_to_project(user, project.id, db):
+                    logger.info(
+                        "User ({}) does NOT have access to project (auth_id: {})".format(
+                            user_email, auth_id
+                        )
+                    )
+                    # add to list to send email
+                    no_access_auth_ids.append(auth_id)
+                else:
+                    logger.info(
+                        "User ({}) has access to project (auth_id: {})".format(
+                            user_email, auth_id
+                        )
+                    )
+            else:
+                logger.warning("Project (auth_id: {}) does not exist.".format(auth_id))
+
+        if no_access_auth_ids:
+            no_access[user_email] = no_access_auth_ids
+
+    return no_access
+
+
+def email_user_without_access(user_email, projects, google_project_id):
+
+    """
+    Send email to user, indicating no access to given projects
+
+    Args:
+        user_email (str): address to send email to
+        projects (list(str)):  list of projects user does not have access to that they should
+        google_project_id (str): id of google project user belongs to
+    Returns:
+        HTTP response
+
+    """
+    to_emails = [user_email]
+
+    from_email = config["PROBLEM_USER_EMAIL_NOTIFICATION"]["from"]
+    subject = config["PROBLEM_USER_EMAIL_NOTIFICATION"]["subject"]
+
+    domain = config["PROBLEM_USER_EMAIL_NOTIFICATION"]["domain"]
+    if config["PROBLEM_USER_EMAIL_NOTIFICATION"]["admin"]:
+        to_emails.extend(config["PROBLEM_USER_EMAIL_NOTIFICATION"]["admin"])
+
+    text = config["PROBLEM_USER_EMAIL_NOTIFICATION"]["content"]
+    content = text.format(google_project_id, ",".join(projects))
+
+    return utils.send_email(from_email, to_emails, subject, content, domain)
+
+
+def email_users_without_access(
+    db, auth_ids, user_emails, check_linking, google_project_id
+):
+
+    """
+    Build list of users without acess and send emails.
+
+    Args:
+        db (str): database instance
+        auth_ids (list(str)): list of project auth_ids to check access against
+        user_emails (list(str)): list of emails to check access for
+        check_linking (bool): flag to check for linked google email
+    Returns:
+        None
+    """
+    users_without_access = _get_users_without_access(
+        db, auth_ids, user_emails, check_linking
+    )
+
+    if len(users_without_access) == len(user_emails):
+        logger.warning(
+            "No user has proper access to provided projects. Contact project administrator. No emails will be sent"
+        )
+        return
+    elif len(users_without_access) > 0:
+        logger.info(
+            "Some user(s) do not have proper access to provided projects. Email(s) will be sent to user(s)."
+        )
+
+        with GoogleCloudManager(google_project_id) as gcm:
+            members = gcm.get_project_membership(google_project_id)
+            users = []
+            for member in members:
+                if member.member_type == GooglePolicyMember.USER:
+                    users.append(member.email_id)
+
+        for user, projects in users_without_access.iteritems():
+            logger.info(
+                "{} does not have access to the following datasets: {}.".format(
+                    user, ",".join(projects)
+                )
+            )
+            if user in users:
+                logger.info(
+                    "{} is a member of google project: {}. User will be emailed.".format(
+                        user, google_project_id
+                    )
+                )
+                email_user_without_access(user, projects, google_project_id)
+            else:
+                logger.info(
+                    "{} is NOT a member of google project: {}. User will NOT be emailed.".format(
+                        user, google_project_id
+                    )
+                )
+    else:
+        logger.info("All users have proper access to provided projects.")
