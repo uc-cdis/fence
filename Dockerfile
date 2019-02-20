@@ -36,6 +36,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY . /fence
 WORKDIR /fence
+COPY deployment/fence.conf /etc/apache2/sites-available/fence.conf
+
 #
 # Custom apache24 logging - see http://www.loadbalancer.org/blog/apache-and-x-forwarded-for-headers/
 #
@@ -44,25 +46,6 @@ RUN ln -s /fence/wsgi.py /var/www/fence/wsgi.py \
     && COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" >fence/version_data.py \
     && VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >>fence/version_data.py \
     && python setup.py develop \
-    && echo '<VirtualHost *:80>\n\
-    WSGIDaemonProcess /fence processes=2 threads=4 python-path=/var/www/fence/:/fence/:/usr/bin/python\n\
-    WSGIScriptAlias / /var/www/fence/wsgi.py\n\
-    WSGIPassAuthorization On\n\
-    <Directory "/var/www/fence/">\n\
-        WSGIProcessGroup /fence\n\
-        WSGIApplicationGroup %{GLOBAL}\n\
-        Options +ExecCGI\n\
-        Order deny,allow\n\
-        Allow from all\n\
-    </Directory>\n\
-    ErrorLog ${APACHE_LOG_DIR}/error.log\n\
-    LogLevel info\n\
-    LogFormat "%{X-Forwarded-For}i %l %{X-UserId}i %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-agent}i\"" aws\n\
-    SetEnvIf X-Forwarded-For "^..*" forwarded\n\
-    CustomLog ${APACHE_LOG_DIR}/access.log combined env=!forwarded\n\
-    CustomLog ${APACHE_LOG_DIR}/access.log aws env=forwarded\n\
-</VirtualHost>\n'\
->> /etc/apache2/sites-available/fence.conf \
     && a2dissite 000-default \
     && a2ensite fence \
     && a2enmod reqtimeout \
