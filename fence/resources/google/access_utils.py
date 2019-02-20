@@ -245,25 +245,15 @@ def is_service_account_from_google_project(
         given Google Project
     """
     try:
-        service_account_name, sa_domain = (
-            service_account_email.split("@")[0],
-            service_account_email.split("@")[1],
-        )
+        service_account_name = service_account_email.split("@")[0]
 
         if is_google_managed_service_account(service_account_email):
-            valid = (
+            return (
                 service_account_name == "service-{}".format(project_number)
                 or service_account_name == "project-{}".format(project_number)
                 or service_account_name == project_number
                 or service_account_name == project_id
             )
-            undetermined = sa_domain == "firebase-sa-management.iam.gserviceaccount.com"
-
-            # if we can't decide, don't return True or False
-            if undetermined:
-                return None
-
-            return valid
 
         # if it's a user-created project SA, the id is in the domain, otherwise,
         # attempt to parse it out of the name
