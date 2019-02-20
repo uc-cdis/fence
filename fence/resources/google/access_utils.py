@@ -992,6 +992,12 @@ def remove_white_listed_service_account_ids(
     if white_listed_sa_emails is None:
         white_listed_sa_emails = config.get("WHITE_LISTED_SERVICE_ACCOUNT_EMAILS", [])
 
+    logger.debug(
+        "Removing whitelisted SAs {} from the SAs on the project.".format(
+            white_listed_sa_emails
+        )
+    )
+
     monitoring_service_account = get_monitoring_service_account_email(app_creds_file)
 
     if monitoring_service_account in sa_ids:
@@ -1019,7 +1025,10 @@ def is_org_whitelisted(parent_org, white_listed_google_parent_orgs=None):
         "WHITE_LISTED_GOOGLE_PARENT_ORGS", {}
     )
 
-    return parent_org in white_listed_google_parent_orgs
+    # make sure we're comparing same types
+    return str(parent_org) in [
+        str(parent_org) for parent_org in white_listed_google_parent_orgs
+    ]
 
 
 def force_delete_service_account(service_account_email, db=None):
