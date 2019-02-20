@@ -36,7 +36,7 @@ from fence.resources.google.utils import (
     get_monitoring_service_account_email,
     is_google_managed_service_account,
 )
-from fence.utils import check_expires_in
+from fence.utils import get_valid_expiration_from_request
 
 logger = get_logger(__name__)
 
@@ -815,7 +815,7 @@ def add_user_service_account_to_db(
         expiration_time = int(time.time()) + config.get(
             "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN", 604800
         )
-        requested_expires_in = check_expires_in() # requested time (in seconds)
+        requested_expires_in = get_valid_expiration_from_request() # requested time (in seconds)
         if requested_expires_in:
             # convert it to timestamp
             requested_expiration = int(time.time()) + requested_expires_in
@@ -905,7 +905,7 @@ def extend_service_account_access(service_account_email, db=None):
         expiration_time = int(time.time()) + config.get(
             "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN", 604800
         )
-        requested_expires_in = check_expires_in()
+        requested_expires_in = get_valid_expiration_from_request()
         if requested_expires_in:
             requested_expiration = int(time.time()) + requested_expires_in
             expiration_time = min(expiration_time, requested_expiration)

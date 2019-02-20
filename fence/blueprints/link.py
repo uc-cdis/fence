@@ -23,7 +23,7 @@ from fence.resources.google.utils import (
     get_users_linked_google_email,
     get_linked_google_account_email,
 )
-from fence.utils import clear_cookies, append_query_params, check_expires_in
+from fence.utils import clear_cookies, append_query_params, get_valid_expiration_from_request
 
 logger = get_logger(__name__)
 
@@ -113,7 +113,7 @@ class GoogleLinkRedirect(Resource):
             flask.session["redirect"] = provided_redirect
 
             # requested time (in seconds) during which the link will be valid
-            requested_expires_in = check_expires_in()
+            requested_expires_in = get_valid_expiration_from_request()
             if requested_expires_in:
                 flask.session["google_link_expires_in"] = requested_expires_in
 
@@ -169,7 +169,7 @@ class GoogleLinkRedirect(Resource):
         proxy_group = get_or_create_proxy_group_id()
 
         # requested time (in seconds) during which the link will be valid
-        requested_expires_in = check_expires_in()
+        requested_expires_in = get_valid_expiration_from_request()
 
         access_expiration = _force_update_user_google_account(
             user_id,

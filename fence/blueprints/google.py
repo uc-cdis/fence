@@ -35,7 +35,7 @@ from fence.resources.google.utils import (
     get_project_access_from_service_accounts,
 )
 from fence.models import UserServiceAccount
-from fence.utils import check_expires_in
+from fence.utils import get_valid_expiration_from_request
 from flask_sqlalchemy_session import current_session
 from cdislogging import get_logger
 
@@ -659,7 +659,7 @@ def _get_service_account_error_status(sa):
                 },
                 "expires_in": {
                     "status": 400,
-                    "error": "UserError",
+                    "error": "user_error",
                     "error_description": "expires_in must be a positive integer"
                 }
             }
@@ -680,11 +680,11 @@ def _get_service_account_error_status(sa):
     }
 
     try:
-        check_expires_in()
+        get_valid_expiration_from_request()
     except UserError as e:
         response["errors"]["expires_in"] = {
             "status": e.code,
-            "error": "UserError",
+            "error": "user_error",
             "error_description": e.message
         }
 

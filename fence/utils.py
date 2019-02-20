@@ -254,17 +254,24 @@ def send_email(from_email, to_emails, subject, text, smtp_domain):
     )
 
 
-def check_expires_in():
+def get_valid_expiration_from_request():
     """
     Return the expires_in param if it is in the request, None otherwise.
     Throw an error if the requested expires_in is not a positive integer.
     """
     if "expires_in" in flask.request.args:
-        try:
-            expires_in = int(flask.request.args["expires_in"])
-            assert expires_in > 0
-            return expires_in
-        except (ValueError, AssertionError):
-            raise UserError("expires_in must be a positive integer")
+        is_valid_expiration(flask.request.args["expires_in"])
+        return int(flask.request.args["expires_in"])
     else:
         return None
+
+
+def is_valid_expiration(expires_in):
+    """
+    Throw an error if expires_in is not a positive integer.
+    """
+    try:
+        expires_in = int(flask.request.args["expires_in"])
+        assert expires_in > 0
+    except (ValueError, AssertionError):
+        raise UserError("expires_in must be a positive integer")
