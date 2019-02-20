@@ -28,7 +28,6 @@ from fence.models import (
     ServiceAccountToGoogleBucketAccessGroup,
 )
 from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME
-from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
 from fence.errors import NotSupported, NotFound
 
 
@@ -664,18 +663,15 @@ def get_monitoring_service_account_email(app_creds_file=None):
     return creds_email
 
 
-def is_google_managed_service_account(
-    service_account_email, google_managed_service_account_domains=None
-):
+def is_google_managed_service_account(service_account_email):
     """
     Return whether or not the given service account email represents a Google
     managed account (e.g. not user-created).
     """
     service_account_domain = "{}".format(service_account_email.split("@")[-1])
 
-    google_managed_service_account_domains = (
-        google_managed_service_account_domains
-        or config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS", [])
+    google_managed_service_account_domains = config.get(
+        "GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS", []
     )
 
     return service_account_domain in google_managed_service_account_domains
