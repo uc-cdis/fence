@@ -738,6 +738,7 @@ def _get_service_account_error_status(sa):
         response["errors"]["service_account_email"].get("status") == 200
         and response["errors"]["google_project_id"].get("status") == 200
         and response["errors"]["project_access"].get("status") == 200
+        and response["errors"]["expires_in"].get("status") == 200
     ):
         response["success"] = True
 
