@@ -3,6 +3,7 @@ Objects with validity checking for Google service account registration.
 """
 from collections import Mapping
 
+from fence.config import config as fence_config
 from fence.errors import NotFound
 
 from fence.resources.google.utils import (
@@ -304,7 +305,9 @@ class GoogleProjectValidity(ValidityInfo):
         # if there is an org, let's remove whitelisted orgs and then check validity
         # again
         white_listed_google_parent_orgs = (
-            config.get("WHITE_LISTED_GOOGLE_PARENT_ORGS") if config else None
+            config.get("WHITE_LISTED_GOOGLE_PARENT_ORGS")
+            if config
+            else fence_config.get("WHITE_LISTED_GOOGLE_PARENT_ORGS")
         )
 
         if parent_org:
@@ -384,7 +387,9 @@ class GoogleProjectValidity(ValidityInfo):
             )
 
             google_sa_domains = (
-                config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS") if config else None
+                config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS")
+                if config
+                else fence_config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS")
             )
             logger.debug(
                 "Determining if the service account {} is google-managed.".format(
@@ -451,17 +456,17 @@ class GoogleProjectValidity(ValidityInfo):
         )
 
         white_listed_service_accounts = (
-            config.get("WHITE_LISTED_SERVICE_ACCOUNT_EMAILS") if config else []
+            config.get("WHITE_LISTED_SERVICE_ACCOUNT_EMAILS")
+            if config
+            else fence_config.get("WHITE_LISTED_SERVICE_ACCOUNT_EMAILS")
         )
         app_creds_file = (
-            config.get("GOOGLE_APPLICATION_CREDENTIALS") if config else None
+            config.get("GOOGLE_APPLICATION_CREDENTIALS")
+            if config
+            else fence_config.get("GOOGLE_APPLICATION_CREDENTIALS")
         )
 
-        logger.debug(
-            "Removing whitelisted SAs {} from the SAs on the project {}.".format(
-                white_listed_service_accounts, service_accounts
-            )
-        )
+        logger.debug("SAs on the project {}.".format(service_accounts))
 
         remove_white_listed_service_account_ids(
             service_accounts,
@@ -608,7 +613,9 @@ class GoogleProjectValidity(ValidityInfo):
         )
 
         google_sa_domains = (
-            config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS") if config else None
+            config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS")
+            if config
+            else fence_config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS")
         )
 
         logger.debug(
@@ -726,7 +733,9 @@ class GoogleServiceAccountValidity(ValidityInfo):
 
         # check ownership
         google_managed_sa_domains = (
-            config["GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS"] if config else None
+            config["GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS"]
+            if config
+            else fence_config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS")
         )
 
         logger.debug(
