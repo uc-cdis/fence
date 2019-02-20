@@ -209,7 +209,7 @@ class GoogleProjectValidity(ValidityInfo):
         self._info["service_accounts"] = {}
         self._info["access"] = {}
 
-    def check_validity(self, early_return=True, db=None, config=None):
+    def check_validity(self, early_return=True, db=None):
         """
         Determine whether or not project is valid for registration. If
         early_return is False, this object will store information about the
@@ -392,7 +392,6 @@ class GoogleProjectValidity(ValidityInfo):
                     check_type=True,
                     check_policy_accessible=True,
                     check_external_access=False,
-                    config=config,
                 )
             else:
                 logger.debug(
@@ -406,7 +405,6 @@ class GoogleProjectValidity(ValidityInfo):
                     check_type=True,
                     check_policy_accessible=True,
                     check_external_access=True,
-                    config=config,
                 )
 
             # update project with error info from the service accounts
@@ -454,7 +452,7 @@ class GoogleProjectValidity(ValidityInfo):
         service_accounts_validity = ValidityInfo()
         for service_account in service_accounts:
             service_account_validity_info = self._get_project_sa_validity_info(
-                service_account, google_project_number, early_return, config
+                service_account, google_project_number, early_return
             )
 
             # update project with error info from the service accounts
@@ -558,7 +556,7 @@ class GoogleProjectValidity(ValidityInfo):
         return
 
     def _get_project_sa_validity_info(
-        self, service_account, google_project_number, early_return, config=None
+        self, service_account, google_project_number, early_return
     ):
         service_account_id = str(service_account)
 
@@ -594,7 +592,6 @@ class GoogleProjectValidity(ValidityInfo):
                 check_type=False,
                 check_policy_accessible=False,
                 check_external_access=False,
-                config=config,
             )
         else:
             logger.debug(
@@ -608,7 +605,6 @@ class GoogleProjectValidity(ValidityInfo):
                 check_type=True,
                 check_policy_accessible=True,
                 check_external_access=True,
-                config=config,
             )
 
         return service_account_validity_info
@@ -677,7 +673,6 @@ class GoogleServiceAccountValidity(ValidityInfo):
         check_type=True,
         check_external_access=True,
         check_policy_accessible=True,
-        config=None,
     ):
         logger.debug(
             "Validating Google Service Account {} for Google Project {}.".format(
