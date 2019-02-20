@@ -354,73 +354,6 @@ def test_patch_service_account_dry_run_invalid(
     )
 
 
-def test_patch_service_account_dry_run_expires_in(
-    client,
-    app,
-    db_session,
-    encoded_jwt_service_accounts_access,
-    register_user_service_account,
-    user_can_manage_service_account_mock,
-    valid_user_service_account_mock,
-    revoke_user_service_account_from_google_mock,
-    add_user_service_account_to_google_mock,
-):
-    """
-    Test that patching against dry_run with an invalid expires_in throws en error, and patching with a valid expires_in does not modify access.
-    """
-    encoded_creds_jwt = encoded_jwt_service_accounts_access["jwt"]
-    service_account = register_user_service_account["service_account"]
-
-    # invalid expires_in: should fail
-    requested_exp = "abc"  # expires_in must be int >0
-
-    response = client.patch(
-        "/google/service_accounts/_dry_run/{}?expires_in={}".format(
-            quote(service_account.email), requested_exp
-        ),
-        headers={"Authorization": "Bearer " + encoded_creds_jwt},
-        content_type="application/json",
-        data={"project_access": ["another-valid-project"]},
-    )
-    assert response.status_code == 400  # check if failure
-
-    service_account_accesses = (
-        db_session.query(ServiceAccountToGoogleBucketAccessGroup).filter_by(
-            service_account_id=service_account.id
-        )
-    ).all()
-
-    # ensure access is the same
-    assert len(service_account_accesses) == len(
-        register_user_service_account["bucket_access_groups"]
-    )
-
-    # valid expires_in: should succeed
-    requested_exp = 60
-
-    response = client.patch(
-        "/google/service_accounts/_dry_run/{}?expires_in={}".format(
-            quote(service_account.email), requested_exp
-        ),
-        headers={"Authorization": "Bearer " + encoded_creds_jwt},
-        content_type="application/json",
-        data={"project_access": ["another-valid-project"]},
-    )
-    assert response.status_code == 200  # check if success
-
-    service_account_accesses = (
-        db_session.query(ServiceAccountToGoogleBucketAccessGroup).filter_by(
-            service_account_id=service_account.id
-        )
-    ).all()
-
-    # ensure access is the same as before even though it was valid (since it's
-    # the dry_run endpoint)
-    assert len(service_account_accesses) == len(
-        register_user_service_account["bucket_access_groups"]
-    )
-
-
 def test_patch_service_account_remove_all_access(
     client,
     app,
@@ -496,70 +429,6 @@ def test_invalid_service_account_dry_run_errors(
 
     assert response.status_code != 200
     _assert_expected_error_response_structure(response, project_access)
-
-
-def test_invalid_service_account_dry_run_expires_in_error(
-    cloud_manager,
-    client,
-    app,
-    encoded_jwt_service_accounts_access,
-    valid_service_account_patcher,
-    valid_google_project_patcher,
-    db_session,
-    monkeypatch,
-):
-    """
-    Test that a valid service account with an invalid expires_in throws an
-    error, and a valid expires_in does not.
-    """
-
-    monkeypatch.setitem(
-        config, "WHITE_LISTED_GOOGLE_PARENT_ORGS", ["whitelisted-parent-org"]
-    )
-
-    (
-        valid_google_project_patcher["get_google_project_parent_org"].return_value
-    ) = "whitelisted-parent-org"
-    encoded_creds_jwt = encoded_jwt_service_accounts_access["jwt"]
-
-    db_session.add(Project(auth_id="project_a"))
-    db_session.add(Project(auth_id="project_b"))
-    db_session.commit()
-    project_access = ["project_a", "project_b"]
-
-    (
-        cloud_manager.return_value.__enter__.return_value.get_service_account.return_value
-    ) = {"uniqueId": "0", "email": "test123@test.com"}
-
-    valid_service_account = {
-        "service_account_email": "test123@test.com",
-        "google_project_id": "some-google-project-872340ajsdkj",
-        "project_access": project_access,
-    }
-
-    # valid expires_in: should succeed
-    requested_exp = 60
-
-    response = client.post(
-        "/google/service_accounts/_dry_run?expires_in={}".format(requested_exp),
-        headers={"Authorization": "Bearer " + encoded_creds_jwt},
-        data=json.dumps(valid_service_account),
-        content_type="application/json",
-    )
-
-    assert response.status_code == 200  # check if success
-
-    # invalid expires_in: should fail
-    requested_exp = "abc"  # expires_in must be int >0
-
-    response = client.post(
-        "/google/service_accounts/_dry_run?expires_in={}".format(requested_exp),
-        headers={"Authorization": "Bearer " + encoded_creds_jwt},
-        data=json.dumps(valid_service_account),
-        content_type="application/json",
-    )
-
-    assert response.status_code == 400  # check if failure
 
 
 def test_invalid_service_account_has_external_access(
@@ -924,17 +793,6 @@ def test_service_account_registration_expires_in(
     assert len(db_session.query(ServiceAccountAccessPrivilege).all()) == 0
     assert len(db_session.query(ServiceAccountToGoogleBucketAccessGroup).all()) == 0
 
-    # invalid expires_in: should fail
-    requested_exp = "abc"  # expires_in must be int >0
-
-    response = client.post(
-        "/google/service_accounts?expires_in={}".format(requested_exp),
-        headers={"Authorization": "Bearer " + encoded_creds_jwt},
-        data=json.dumps(valid_service_account),
-        content_type="application/json",
-    )
-    assert response.status_code == 400  # check if failure
-
     # valid expires_in: should succeed
     requested_exp = 60
 
@@ -957,6 +815,17 @@ def test_service_account_registration_expires_in(
     # (allow up to 5 sec for runtime)
     diff = sa_to_bucket_entries[0].expires - int(time.time())
     assert requested_exp <= diff <= requested_exp + 5
+
+    # invalid expires_in: should fail
+    requested_exp = "abc"  # expires_in must be int >0
+
+    response = client.post(
+        "/google/service_accounts?expires_in={}".format(requested_exp),
+        headers={"Authorization": "Bearer " + encoded_creds_jwt},
+        data=json.dumps(valid_service_account),
+        content_type="application/json",
+    )
+    assert response.status_code == 400  # check if failure
 
 
 def test_valid_service_account_registration(

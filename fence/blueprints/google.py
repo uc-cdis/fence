@@ -213,9 +213,6 @@ class GoogleServiceAccountRoot(Resource):
         with GoogleCloudManager(sa.google_project_id) as google_project:
             g_service_account = google_project.get_service_account(sa.email)
 
-        # requested time (in seconds) during which the SA has bucket access
-        requested_expires_in = check_expires_in()
-
         db_service_account = UserServiceAccount(
             google_unique_id=g_service_account.get("uniqueId"),
             email=g_service_account.get("email"),
@@ -230,7 +227,7 @@ class GoogleServiceAccountRoot(Resource):
         )
 
         add_user_service_account_to_db(
-            current_session, project_ids, db_service_account, requested_expires_in
+            current_session, project_ids, db_service_account
         )
 
         add_user_service_account_to_google(
@@ -348,10 +345,6 @@ class GoogleServiceAccount(Resource):
             google_project_id=payload.get("google_project_id"),
             user_id=user_id,
         )
-
-        # requested time (in seconds) during which the SA has bucket access
-        # check if expires_in is a positive integer
-        check_expires_in()
 
         error_response = _get_service_account_error_status(sa)
 
@@ -619,10 +612,6 @@ def _get_patched_service_account_error_status(id_, sa):
         )
         raise Unauthorized(msg)
 
-    # requested time (in seconds) during which the SA has bucket access
-    # check if expires_in is a positive integer
-    check_expires_in()
-
     error_response = _get_service_account_error_status(sa)
 
     return error_response
@@ -667,6 +656,11 @@ def _get_service_account_error_status(sa):
                         "error": "unauthorized",
                         "error_description": "Not all users have access requested"
                     }
+                },
+                "expires_in": {
+                    "status": 400,
+                    "error": "UserError",
+                    "error_description": "expires_in must be a positive integer"
                 }
             }
         }
@@ -677,8 +671,22 @@ def _get_service_account_error_status(sa):
             "service_account_email": None,
             "google_project_id": None,
             "project_access": None,
+            "expires_in": {
+                "status": 200,
+                "error": None,
+                "error_description": None
+            },
         },
     }
+
+    try:
+        check_expires_in()
+    except UserError as e:
+        response["errors"]["expires_in"] = {
+            "status": e.code,
+            "error": "UserError",
+            "error_description": e.message
+        }
 
     project_validity = GoogleProjectValidity(
         google_project_id=sa.google_project_id,

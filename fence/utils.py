@@ -265,6 +265,6 @@ def check_expires_in():
             assert expires_in > 0
             return expires_in
         except (ValueError, AssertionError):
-            raise UserError({"error": "expires_in must be a positive integer"})
+            raise UserError("expires_in must be a positive integer")
     else:
         return None

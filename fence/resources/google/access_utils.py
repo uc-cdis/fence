@@ -515,10 +515,8 @@ def patch_user_service_account(
     )
     _revoke_user_service_account_from_db(session, to_delete, service_account)
 
-    # requested time (in seconds) during which the SA has bucket access
-    requested_expires_in = check_expires_in()
     add_user_service_account_to_db(
-        session, to_add, service_account, requested_expires_in
+        session, to_add, service_account
     )
 
 
@@ -783,7 +781,7 @@ def _revoke_user_service_account_from_db(
 
 
 def add_user_service_account_to_db(
-    session, to_add_project_ids, service_account, requested_expires_in=None
+    session, to_add_project_ids, service_account
 ):
     """
     Add user service account to service account
@@ -817,6 +815,7 @@ def add_user_service_account_to_db(
         expiration_time = int(time.time()) + config.get(
             "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN", 604800
         )
+        requested_expires_in = check_expires_in() # requested time (in seconds)
         if requested_expires_in:
             # convert it to timestamp
             requested_expiration = int(time.time()) + requested_expires_in
