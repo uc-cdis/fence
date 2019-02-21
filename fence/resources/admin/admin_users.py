@@ -182,151 +182,152 @@ def delete_user(current_session, username):
     from cirrus import GoogleCloudManager
     from cirrus.google_cloud.manager import _get_proxy_group_name_for_user
 
-    gcm = GoogleCloudManager()
+    #gcm = GoogleCloudManager()
+    with GoogleCloudManager() as gcm:
 
-    # Delete user's service accounts, SA keys, user proxy group from Google.
-    # Noop if Google not in use.
-    # Note: Fence db deletes are interleaved with Google deletes
-    # (for example, after deleting an SA in Google we delete the record in Fence
-    # before continuing with Google deletes). This is to avoid leaving records
-    # in Fence of deleted Google entities in the case where a Google delete
-    # fails and the delete aborts.
-    # The Google deletes here are not factored out into a different function
-    # in order to not obfuscate the interwoven Fence db deletes.
+        # Delete user's service accounts, SA keys, user proxy group from Google.
+        # Noop if Google not in use.
+        # Note: Fence db deletes are interleaved with Google deletes
+        # (for example, after deleting an SA in Google we delete the record in Fence
+        # before continuing with Google deletes). This is to avoid leaving records
+        # in Fence of deleted Google entities in the case where a Google delete
+        # fails and the delete aborts.
+        # The Google deletes here are not factored out into a different function
+        # in order to not obfuscate the interwoven Fence db deletes.
 
-    user = query_for_user(session=current_session, username=username)
-    if not user:
-        raise NotFound( "".join(["user name ", username, " not found"]))
-
-    # DELETEME: For logging purposes
-    print("\n\n")
-    print("FOUND USER IN FENCE DB:")
-    print(user)
-    print("\n\n")
-
-    # First: Find this user's proxy group.
-    google_proxy_group_f = current_session.query(GoogleProxyGroup).filter(
-            GoogleProxyGroup.id == user.google_proxy_group_id
-    ).first()
-    #one_or_none() would be better, but is only in sqlalchemy 1.0.9
-
-    if google_proxy_group_f:
-        gpg_email = google_proxy_group_f.email
-    else:
-        # Construct the proxy group name that would have been used
-        # and check if it exists in cirrus, in case Fence db just
-        # didn't know about it.
-        # TODO: Not entirely certain that the "name" that this get name thing
-        # returns is the "unique group ID" that get_group() wants
-        pgname = _get_proxy_group_name_for_user(user.id, user.username, prefix=config["GOOGLE_GROUP_PREFIX"])
-        google_proxy_group_g = gcm.get_group(pgname)
-        gpg_email = google_proxy_group_g.get("email")
-
-    # DELETEME: For logging purposes
-    print("\n\n")
-    print("ENDED UP WITH PROXY GROUP EMAIL:")
-    print(gpg_email)
-    print("\n\n")
-
-    if gpg_email:
-        # Found proxy group. Proceed with Google deletions.
-        # Delete all service accounts associated with this gpg.
-        # Choosing to refer to cirrus instead of fence db for the list of SAs.
-        service_account_emails = gcm.get_service_accounts_from_group(gpg_email)
-
-        for sae in service_account_emails:
-            # Upon deletion of a service account, Google will
-            # automatically delete all key IDs associated with that
-            # service account. So we skip doing that here.
-            r = gcm.delete_service_account(sae)
-
-            # DELETEME: For logging purposes
-            print("\n\n")
-            print("ATTEMPTED TO DELETE SERVICE ACCOUNT WITH EMAIL:")
-            print(sae)
-            print("THE KEYS SHOULD HAVE ALSO BEEN DELETED.")
-            print("\n\n")
-
-            if r == {}:
-                # Success on Google side; delete from Fence db
-                sa = current_session.query(GoogleServiceAccount).filter(
-                        GoogleServiceAccount.email == sae
-                ).one_or_none()
-                if sa:
-                    sa_keys = current_session.query(GoogleServiceAccountKey).filter(
-                            GoogleServiceAccountKey.service_account_id == sa.id
-                    ).all()
-                    for sak in sa_keys:
-                        current_session.delete(sak)
-                    current_session.delete(sa)
-                # At this point there may still be SAs and keys left in Fence db
-                # that are associated with this user, e.g. if someone deleted
-                # an SA on google without going through Fence.
-                # We clear them out here, but first double-check and
-                # try to "re-delete" them from Google.
-                orphan_sas = current_session.query(GoogleServiceAccount).filter(
-                        GoogleServiceAccount.user_id == user.id
-                ).all()
-                for osa in orphan_sas:
-                    # Attempt to delete from Google.
-                    # Cirrus returns success response anyway if GCM returns a 404
-                    gcm.delete_service_account(osa.email)
-
-                    # DELETEME: For logging purposes
-                    print("\n\n")
-                    print("ATTEMPTED TO DELETE ORPHAN SERVICE ACCOUNT WITH EMAIL:")
-                    print(sae)
-                    print("THE KEYS SHOULD HAVE ALSO BEEN DELETED.")
-                    print("\n\n")
-
-                    # Delete from Fence
-                    osa_keys = current_session.query(GoogleServiceAccountKey).filter(
-                            GoogleServiceAccountKey.service_account_id == osa.id
-                    ).all()
-                    for key in osa_keys:
-                        current_session.delete(key)
-                    current_session.delete(osa)
-            else:
-                # TODO Green light from Alex to error out like this
-                return {"result": "Error: Google unable to delete service account " + sae}
-
-        # Next, delete the proxy group. Google will automatically remove
-        # this proxy group from all GBAGs the proxy group is a member of.
-        # So we skip doing that here.
-        r = gcm.delete_group(gpg_email)
+        user = query_for_user(session=current_session, username=username)
+        if not user:
+            raise NotFound( "".join(["user name ", username, " not found"]))
 
         # DELETEME: For logging purposes
         print("\n\n")
-        print("ATTEMPTED TO DELETE PROXY GROUP WITH EMAIL:")
+        print("FOUND USER IN FENCE DB:")
+        print(user)
+        print("\n\n")
+
+        # First: Find this user's proxy group.
+        google_proxy_group_f = current_session.query(GoogleProxyGroup).filter(
+                GoogleProxyGroup.id == user.google_proxy_group_id
+        ).first()
+        #one_or_none() would be better, but is only in sqlalchemy 1.0.9
+
+        if google_proxy_group_f:
+            gpg_email = google_proxy_group_f.email
+        else:
+            # Construct the proxy group name that would have been used
+            # and check if it exists in cirrus, in case Fence db just
+            # didn't know about it.
+            # TODO: Not entirely certain that the "name" that this get name thing
+            # returns is the "unique group ID" that get_group() wants
+            pgname = _get_proxy_group_name_for_user(user.id, user.username, prefix=config["GOOGLE_GROUP_PREFIX"])
+            google_proxy_group_g = gcm.get_group(pgname)
+            gpg_email = google_proxy_group_g.get("email")
+
+        # DELETEME: For logging purposes
+        print("\n\n")
+        print("ENDED UP WITH PROXY GROUP EMAIL:")
         print(gpg_email)
         print("\n\n")
 
-        if r == {}:
-            # Success on Google side. Delete from Fence db.
-            if google_proxy_group_f:
-                # Delete rows in google_proxy_group_to_google_bucket_access_group
-                gpg_to_gbag = current_session.query(GoogleProxyGroupToGoogleBucketAccessGroup).filter(
-                        GoogleProxyGroupToGoogleBucketAccessGroup.proxy_group_id == google_proxy_group_f.id
-                ).all()
-                for row in gpg_to_gbag:
-                    current_session.delete(row)
-                # Delete rows in user_google_account_to_proxy_group
-                uga_to_pg = current_session.query(UserGoogleAccountToProxyGroup).filter(
-                        UserGoogleAccountToProxyGroup.proxy_group_id == google_proxy_group_f.id
-                ).all()
-                for row in uga_to_pg:
-                    current_session.delete(row)
-                # Delete rows in user_google_account
-                uga = current_session.query(UserGoogleAccount).filter(
-                        UserGoogleAccount.user_id == user.id
-                ).all()
-                for row in uga:
-                    current_session.delete(row)
-                # Delete row in google_proxy_group
-                current_session.delete(google_proxy_group_f)
-        else:
-            # TODO Green light from Alex to error out like this
-            return {"result": "Error: Google unable to delete proxy group " + gpg_email}
+        if gpg_email:
+            # Found proxy group. Proceed with Google deletions.
+            # Delete all service accounts associated with this gpg.
+            # Choosing to refer to cirrus instead of fence db for the list of SAs.
+            service_account_emails = gcm.get_service_accounts_from_group(gpg_email)
+
+            for sae in service_account_emails:
+                # Upon deletion of a service account, Google will
+                # automatically delete all key IDs associated with that
+                # service account. So we skip doing that here.
+                r = gcm.delete_service_account(sae)
+
+                # DELETEME: For logging purposes
+                print("\n\n")
+                print("ATTEMPTED TO DELETE SERVICE ACCOUNT WITH EMAIL:")
+                print(sae)
+                print("THE KEYS SHOULD HAVE ALSO BEEN DELETED.")
+                print("\n\n")
+
+                if r == {}:
+                    # Success on Google side; delete from Fence db
+                    sa = current_session.query(GoogleServiceAccount).filter(
+                            GoogleServiceAccount.email == sae
+                    ).one_or_none()
+                    if sa:
+                        sa_keys = current_session.query(GoogleServiceAccountKey).filter(
+                                GoogleServiceAccountKey.service_account_id == sa.id
+                        ).all()
+                        for sak in sa_keys:
+                            current_session.delete(sak)
+                        current_session.delete(sa)
+                    # At this point there may still be SAs and keys left in Fence db
+                    # that are associated with this user, e.g. if someone deleted
+                    # an SA on google without going through Fence.
+                    # We clear them out here, but first double-check and
+                    # try to "re-delete" them from Google.
+                    orphan_sas = current_session.query(GoogleServiceAccount).filter(
+                            GoogleServiceAccount.user_id == user.id
+                    ).all()
+                    for osa in orphan_sas:
+                        # Attempt to delete from Google.
+                        # Cirrus returns success response anyway if GCM returns a 404
+                        gcm.delete_service_account(osa.email)
+
+                        # DELETEME: For logging purposes
+                        print("\n\n")
+                        print("ATTEMPTED TO DELETE ORPHAN SERVICE ACCOUNT WITH EMAIL:")
+                        print(sae)
+                        print("THE KEYS SHOULD HAVE ALSO BEEN DELETED.")
+                        print("\n\n")
+
+                        # Delete from Fence
+                        osa_keys = current_session.query(GoogleServiceAccountKey).filter(
+                                GoogleServiceAccountKey.service_account_id == osa.id
+                        ).all()
+                        for key in osa_keys:
+                            current_session.delete(key)
+                        current_session.delete(osa)
+                else:
+                    # TODO Green light from Alex to error out like this
+                    return {"result": "Error: Google unable to delete service account " + sae}
+
+            # Next, delete the proxy group. Google will automatically remove
+            # this proxy group from all GBAGs the proxy group is a member of.
+            # So we skip doing that here.
+            r = gcm.delete_group(gpg_email)
+
+            # DELETEME: For logging purposes
+            print("\n\n")
+            print("ATTEMPTED TO DELETE PROXY GROUP WITH EMAIL:")
+            print(gpg_email)
+            print("\n\n")
+
+            if r == {}:
+                # Success on Google side. Delete from Fence db.
+                if google_proxy_group_f:
+                    # Delete rows in google_proxy_group_to_google_bucket_access_group
+                    gpg_to_gbag = current_session.query(GoogleProxyGroupToGoogleBucketAccessGroup).filter(
+                            GoogleProxyGroupToGoogleBucketAccessGroup.proxy_group_id == google_proxy_group_f.id
+                    ).all()
+                    for row in gpg_to_gbag:
+                        current_session.delete(row)
+                    # Delete rows in user_google_account_to_proxy_group
+                    uga_to_pg = current_session.query(UserGoogleAccountToProxyGroup).filter(
+                            UserGoogleAccountToProxyGroup.proxy_group_id == google_proxy_group_f.id
+                    ).all()
+                    for row in uga_to_pg:
+                        current_session.delete(row)
+                    # Delete rows in user_google_account
+                    uga = current_session.query(UserGoogleAccount).filter(
+                            UserGoogleAccount.user_id == user.id
+                    ).all()
+                    for row in uga:
+                        current_session.delete(row)
+                    # Delete row in google_proxy_group
+                    current_session.delete(google_proxy_group_f)
+            else:
+                # TODO Green light from Alex to error out like this
+                return {"result": "Error: Google unable to delete proxy group " + gpg_email}
 
     # Done with Google deletions, or there was no proxy group and we assume
     # Google not being used as IdP.
