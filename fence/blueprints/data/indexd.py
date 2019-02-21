@@ -132,8 +132,9 @@ class BlankIndex(object):
         s3_url = "s3://{}/{}/{}".format(bucket, self.guid, file_name)
         url = S3IndexedFileLocation(s3_url).get_signed_url("upload", expires_in)
         self.logger.info(
-            "created presigned URL to upload file {} with ID {}"
-            .format(file_name, self.guid)
+            "created presigned URL to upload file {} with ID {}".format(
+                file_name, self.guid
+            )
         )
         return url
 
