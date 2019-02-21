@@ -9,7 +9,6 @@ from fence.models import User
 import fence.resources.admin as adm
 from tests import utils
 
-# TODO: Not yet tested: GET,PUT,DELETE /users/<username>/groups
 # TODO: Not yet tested: PUT,DELETE /users/<username>/projects
 # TODO: Not yet tested: DELETE /users/<username>/
 
