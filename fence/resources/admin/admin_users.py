@@ -235,6 +235,12 @@ def delete_user(current_session, username):
             # Choosing to refer to cirrus instead of fence db for the list of SAs.
             service_account_emails = gcm.get_service_accounts_from_group(gpg_email)
 
+            # DELETEME: For logging purposes
+            print("\n\n")
+            print("LIST OF SERVICE ACCOUNT EMAILS WHOSE SAs TO DELETE:")
+            print(service_account_emails)
+            print("\n\n")
+
             for sae in service_account_emails:
                 # Upon deletion of a service account, Google will
                 # automatically delete all key IDs associated with that
@@ -252,7 +258,8 @@ def delete_user(current_session, username):
                     # Success on Google side; delete from Fence db
                     sa = current_session.query(GoogleServiceAccount).filter(
                             GoogleServiceAccount.email == sae
-                    ).one_or_none()
+                    ).first()
+                    #one_or_none() would be better, but is only in sqlalchemy 1.0.9
                     if sa:
                         sa_keys = current_session.query(GoogleServiceAccountKey).filter(
                                 GoogleServiceAccountKey.service_account_id == sa.id
