@@ -1,5 +1,7 @@
+from fence.config import config
 from fence.errors import NotFound, UserError
 from fence.models import (
+    GoogleProxyGroup,
     GoogleServiceAccount,
     User,
     query_for_user
@@ -160,23 +162,33 @@ def delete_user(current_session, username):
     and the associated storage for that project/bucket.
     Returns a dictionary.
     """
-    # Much of the strangeness in the following code stems from the
-    # fact that we are not confident the Fence db will always be in
-    # perfect sync with Google, and we err on the side of safety
-    # (we prioritise making sure user is really cleared out of Google
-    # to prevent unauthorized data access issues; we refer to
-    # cirrus/Google instead of the Fence db in cases where both
-    # would be possible).
-    # So, if the Fence-Google sync situation changes,
-    # do edit this code accordingly.
+    """
+    Much of the strangeness in the following code stems from the
+    fact that we are not confident the Fence db will always be in
+    perfect sync with Google, and we err on the side of safety
+    (we prioritise making sure user is really cleared out of Google
+    to prevent unauthorized data access issues; we refer to
+    cirrus/Google instead of the Fence db in cases where both
+    would be possible).
+    So, if the Fence-Google sync situation changes,
+    do edit this code accordingly.
+    """
 
-    #TODO: move to top.
-    from cirrus import GoogleCloudManager as gcm
-    from cirrus import _get_proxy_group_name_for_user
+    from cirrus import GoogleCloudManager
+    from cirrus.google_cloud.manager import _get_proxy_group_name_for_user
 
-    # Delete user's service accounts, SA keys, proxy group from Google.
-    #TODO: May want to factor out into delete_user_from_google() or something
-    #TODO: Don't forget to Black this
+    #gcm = GoogleCloudManager()
+    # TODO: This doesn't work locally because need SA JSON etc.
+
+    # Delete user's service accounts, SA keys, user proxy group from Google.
+    # Noop if Google not in use.
+    # Note: Fence db deletes are interleaved with Google deletes
+    # (for example, after deleting an SA in Google we delete the record in Fence
+    # before continuing with Google deletes). This is to avoid leaving records
+    # in Fence of deleted Google entities in the case where a Google delete
+    # fails and the delete aborts.
+    # The Google deletes here are not factored out into a different function
+    # in order to not obfuscate the interwoven Fence db deletes.
 
     user = query_for_user(session=current_session, username=username)
     if not user:
@@ -185,7 +197,8 @@ def delete_user(current_session, username):
     # First: Find this user's proxy group.
     google_proxy_group_f = current_session.query(GoogleProxyGroup).filter(
             GoogleProxyGroup.id == user.google_proxy_group_id
-    ).one_or_none()
+    ).first()
+    #one_or_none() would be better, but is only in sqlalchemy 1.0.9
 
     if google_proxy_group_f:
         gpg_email = google_proxy_group_f.email
@@ -193,10 +206,9 @@ def delete_user(current_session, username):
         # Construct the proxy group name that would have been used
         # and check if it exists in cirrus, in case Fence db just
         # didn't know about it.
-        # TODO: Prefix??? I'm guessing config["GOOGLE_GROUP_PREFIX"]
         # TODO: Not entirely certain that the "name" that this get name thing
         # returns is the "unique group ID" that get_group() wants
-        pgname = _get_proxy_group_name_for_user(user.id, user.username, prefix="TODO")
+        pgname = _get_proxy_group_name_for_user(user.id, user.username, prefix=config["GOOGLE_GROUP_PREFIX"])
         google_proxy_group_g = gcm.get_group(pgname)
         gpg_email = google_proxy_group_g.get("email")
 
@@ -219,7 +231,7 @@ def delete_user(current_session, username):
                 ).one_or_none()
                 if sa:
                     sa_keys = current_session.query(GoogleServiceAccountKey).filter(
-                            GoogleServiceAccountKey.service_account_id = sa.id
+                            GoogleServiceAccountKey.service_account_id == sa.id
                     ).all()
                     for sak in sa_keys:
                         current_session.delete(sak)
@@ -251,7 +263,7 @@ def delete_user(current_session, username):
         # this proxy group from all GBAGs the proxy group is a member of.
         # So we skip doing that here.
         r = gcm.delete_group(gpg_email)
-        if r = {}:
+        if r == {}:
             # Success on Google side. Delete from Fence db.
             if google_proxy_group_f:
                 # Delete rows in google_proxy_group_to_google_bucket_access_group
@@ -267,7 +279,6 @@ def delete_user(current_session, username):
                 for row in uga_to_pg:
                     current_session.delete(row)
                 # Delete rows in user_google_account
-                # I'm not sure anymore because of the whole domain thing
                 uga = current_session.query(UserGoogleAccount).filter(
                         UserGoogleAccount.user_id == user.id
                 ).all()
@@ -281,29 +292,21 @@ def delete_user(current_session, username):
 
     # Done with Google deletions, or there was no proxy group and we assume
     # Google not being used as IdP.
+
     # Remove remaining relevant entries from Fence db.
     # TODO. The rest of Fence deletion.
-    # return {"result": "success"}
+    # Update: Confirmed we will set ON DELETE CASCADE. See Slack conversation.
+    # So, go and edit (to start with) userdatamodel/user.py
+    # see also https://docs.sqlalchemy.org/en/latest/orm/collections.html#passive-deletes
 
-    # QUESTION TODO: I really need to start testing this stuff. How?
-    # Do I edit code inside the Fence pod?!?!?!
-    # Or do I edit manifest then push code like a bajillion times?????????
-    # TODO: And then ask about integration test situation.
+    print("Here's where we would clear Fence db.")
 
-    # (THE REST OF THE) FENCE DB DELETION STUFF
-    # Almost nothing in the db (almost!) has ON DELETE CASCADE set on its foreign keys.
-    # TODO: Ask if this was a deliberte design choice (doesn't look like it) and
-    # if it wasn't, then confirm that we wouldn't rather set that instead.
-    # After all, this situation is the entire point of ON DELETE CASCADE.
+    # TODO: Manual google testing
+    # TODO: ask about integration test situation?
+    # TODO: Also manual fence db testing...
 
-    #response = us.delete_user(current_session, username)
-    #if response["result"] == "success":
-    #    providers = response.get("providers", [])
-    #    for provider in providers:
-    #        capp.storage_manager.delete_user(provider.backend, response["user"])
-    #
-    #    return {"result": "success"}
-    return {"result": "success"} #placeholder
+    return {"result": "success"}
+
 
 
 def add_user_to_groups(current_session, username, groups=None):
