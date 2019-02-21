@@ -2,7 +2,6 @@
 Objects with validity checking for Google service account registration.
 """
 from collections import Mapping
-
 from fence.errors import NotFound
 
 from fence.resources.google.utils import (
@@ -210,7 +209,7 @@ class GoogleProjectValidity(ValidityInfo):
         self._info["service_accounts"] = {}
         self._info["access"] = {}
 
-    def check_validity(self, early_return=True, db=None, config=None):
+    def check_validity(self, early_return=True, db=None):
         """
         Determine whether or not project is valid for registration. If
         early_return is False, this object will store information about the
@@ -301,17 +300,8 @@ class GoogleProjectValidity(ValidityInfo):
         parent_org = get_google_project_parent_org(self.google_cloud_manager)
         valid_parent_org = True
 
-        # if there is an org, let's remove whitelisted orgs and then check validity
-        # again
-        white_listed_google_parent_orgs = (
-            config.get("WHITE_LISTED_GOOGLE_PARENT_ORGS") if config else None
-        )
-
         if parent_org:
-            valid_parent_org = is_org_whitelisted(
-                parent_org,
-                white_listed_google_parent_orgs=white_listed_google_parent_orgs,
-            )
+            valid_parent_org = is_org_whitelisted(parent_org)
 
         self.set("valid_parent_org", valid_parent_org)
 
@@ -383,9 +373,6 @@ class GoogleProjectValidity(ValidityInfo):
                 )
             )
 
-            google_sa_domains = (
-                config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS") if config else None
-            )
             logger.debug(
                 "Determining if the service account {} is google-managed.".format(
                     service_account_id
@@ -393,10 +380,7 @@ class GoogleProjectValidity(ValidityInfo):
             )
             # we do NOT need to check the service account type and external access
             # for google-managed accounts.
-            if is_google_managed_service_account(
-                service_account_id,
-                google_managed_service_account_domains=google_sa_domains,
-            ):
+            if is_google_managed_service_account(service_account_id):
                 logger.debug(
                     "GCP SA Validity -Service account {} IS google-managed. Therefore, "
                     "we do NOT need to check the SA Type or if it has external access.".format(
@@ -408,7 +392,6 @@ class GoogleProjectValidity(ValidityInfo):
                     check_type=True,
                     check_policy_accessible=True,
                     check_external_access=False,
-                    config=config,
                 )
             else:
                 logger.debug(
@@ -422,7 +405,6 @@ class GoogleProjectValidity(ValidityInfo):
                     check_type=True,
                     check_policy_accessible=True,
                     check_external_access=True,
-                    config=config,
                 )
 
             # update project with error info from the service accounts
@@ -450,24 +432,9 @@ class GoogleProjectValidity(ValidityInfo):
             service_account_members
         )
 
-        white_listed_service_accounts = (
-            config.get("WHITE_LISTED_SERVICE_ACCOUNT_EMAILS") if config else []
-        )
-        app_creds_file = (
-            config.get("GOOGLE_APPLICATION_CREDENTIALS") if config else None
-        )
+        logger.debug("SAs on the project {}.".format(service_accounts))
 
-        logger.debug(
-            "Removing whitelisted SAs {} from the SAs on the project {}.".format(
-                white_listed_service_accounts, service_accounts
-            )
-        )
-
-        remove_white_listed_service_account_ids(
-            service_accounts,
-            app_creds_file=app_creds_file,
-            white_listed_sa_emails=white_listed_service_accounts,
-        )
+        remove_white_listed_service_account_ids(service_accounts)
 
         # don't double check service account being registered
         if self.new_service_account:
@@ -485,7 +452,7 @@ class GoogleProjectValidity(ValidityInfo):
         service_accounts_validity = ValidityInfo()
         for service_account in service_accounts:
             service_account_validity_info = self._get_project_sa_validity_info(
-                service_account, google_project_number, early_return, config
+                service_account, google_project_number, early_return
             )
 
             # update project with error info from the service accounts
@@ -589,7 +556,7 @@ class GoogleProjectValidity(ValidityInfo):
         return
 
     def _get_project_sa_validity_info(
-        self, service_account, google_project_number, early_return, config=None
+        self, service_account, google_project_number, early_return
     ):
         service_account_id = str(service_account)
 
@@ -607,10 +574,6 @@ class GoogleProjectValidity(ValidityInfo):
             )
         )
 
-        google_sa_domains = (
-            config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS") if config else None
-        )
-
         logger.debug(
             "Determining if the service account {} is google-managed.".format(
                 service_account_id
@@ -619,9 +582,7 @@ class GoogleProjectValidity(ValidityInfo):
 
         # we do NOT need to check the service account type and external access
         # for google-managed accounts.
-        if is_google_managed_service_account(
-            service_account_id, google_managed_service_account_domains=google_sa_domains
-        ):
+        if is_google_managed_service_account(service_account_id):
             logger.debug(
                 "Service account {} IS google-managed. Therefore, "
                 "we only need to detemine if it belongs.".format(service_account_id)
@@ -631,7 +592,6 @@ class GoogleProjectValidity(ValidityInfo):
                 check_type=False,
                 check_policy_accessible=False,
                 check_external_access=False,
-                config=config,
             )
         else:
             logger.debug(
@@ -645,7 +605,6 @@ class GoogleProjectValidity(ValidityInfo):
                 check_type=True,
                 check_policy_accessible=True,
                 check_external_access=True,
-                config=config,
             )
 
         return service_account_validity_info
@@ -714,7 +673,6 @@ class GoogleServiceAccountValidity(ValidityInfo):
         check_type=True,
         check_external_access=True,
         check_policy_accessible=True,
-        config=None,
     ):
         logger.debug(
             "Validating Google Service Account {} for Google Project {}.".format(
@@ -725,19 +683,12 @@ class GoogleServiceAccountValidity(ValidityInfo):
         self.google_cloud_manager.open()
 
         # check ownership
-        google_managed_sa_domains = (
-            config["GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS"] if config else None
-        )
-
         logger.debug(
             "Determining if {} is owned by the Google Project.".format(self.account_id)
         )
 
         is_owned_by_google_project = is_service_account_from_google_project(
-            self.account_id,
-            self.google_project_id,
-            self.google_project_number,
-            google_managed_sa_domains=google_managed_sa_domains,
+            self.account_id, self.google_project_id, self.google_project_number
         )
         self.set("owned_by_project", is_owned_by_google_project)
         if not is_owned_by_google_project:

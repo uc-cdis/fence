@@ -231,7 +231,7 @@ def service_account_has_external_access(
 
 
 def is_service_account_from_google_project(
-    service_account_email, project_id, project_number, google_managed_sa_domains=None
+    service_account_email, project_id, project_number
 ):
     """
     Checks if service account is among project's service acounts
@@ -247,10 +247,7 @@ def is_service_account_from_google_project(
     try:
         service_account_name = service_account_email.split("@")[0]
 
-        if is_google_managed_service_account(
-            service_account_email,
-            google_managed_service_account_domains=google_managed_sa_domains,
-        ):
+        if is_google_managed_service_account(service_account_email):
             return (
                 service_account_name == "service-{}".format(project_number)
                 or service_account_name == "project-{}".format(project_number)
@@ -392,15 +389,10 @@ def get_user_by_linked_email(linked_email, db=None):
         .first()
     )
     if linked_account:
-        user = (
-            session.query(User)
-            .filter(User.id == linked_account.user_id)
-            .first()
-        )
+        user = session.query(User).filter(User.id == linked_account.user_id).first()
         return user
     else:
         return None
-
 
 
 def get_user_by_email(user_email, db=None):
@@ -960,9 +952,7 @@ def get_project_from_auth_id(project_auth_id, db=None):
     return project
 
 
-def remove_white_listed_service_account_ids(
-    sa_ids, app_creds_file=None, white_listed_sa_emails=None
-):
+def remove_white_listed_service_account_ids(sa_ids):
     """
     Remove any service account emails that should be ignored when
     determining validitity.
@@ -973,10 +963,15 @@ def remove_white_listed_service_account_ids(
     Returns:
         List[str]: Service account emails
     """
-    if white_listed_sa_emails is None:
-        white_listed_sa_emails = config.get("WHITE_LISTED_SERVICE_ACCOUNT_EMAILS", [])
+    white_listed_sa_emails = config.get("WHITE_LISTED_SERVICE_ACCOUNT_EMAILS", [])
 
-    monitoring_service_account = get_monitoring_service_account_email(app_creds_file)
+    logger.debug(
+        "Removing whitelisted SAs {} from the SAs on the project.".format(
+            white_listed_sa_emails
+        )
+    )
+
+    monitoring_service_account = get_monitoring_service_account_email()
 
     if monitoring_service_account in sa_ids:
         sa_ids.remove(monitoring_service_account)
@@ -988,7 +983,7 @@ def remove_white_listed_service_account_ids(
     return sa_ids
 
 
-def is_org_whitelisted(parent_org, white_listed_google_parent_orgs=None):
+def is_org_whitelisted(parent_org):
     """
     Return whether or not the provide Google parent organization is whitelisted
 
@@ -999,11 +994,12 @@ def is_org_whitelisted(parent_org, white_listed_google_parent_orgs=None):
         bool: whether or not the provide Google parent organization is whitelisted
     """
 
-    white_listed_google_parent_orgs = white_listed_google_parent_orgs or config.get(
-        "WHITE_LISTED_GOOGLE_PARENT_ORGS", {}
-    )
+    white_listed_google_parent_orgs = config.get("WHITE_LISTED_GOOGLE_PARENT_ORGS", {})
 
-    return parent_org in white_listed_google_parent_orgs
+    # make sure we're comparing same types
+    return str(parent_org) in [
+        str(parent_org) for parent_org in white_listed_google_parent_orgs
+    ]
 
 
 def force_delete_service_account(service_account_email, db=None):
