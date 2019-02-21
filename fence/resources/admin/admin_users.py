@@ -174,11 +174,15 @@ def delete_user(current_session, username):
     do edit this code accordingly.
     """
 
+    # DELETEME: For logging purposes
+    print("\n\n")
+    print("BEGINNING DELETE USER")
+    print("\n\n")
+
     from cirrus import GoogleCloudManager
     from cirrus.google_cloud.manager import _get_proxy_group_name_for_user
 
-    #gcm = GoogleCloudManager()
-    # TODO: This doesn't work locally because need SA JSON etc.
+    gcm = GoogleCloudManager()
 
     # Delete user's service accounts, SA keys, user proxy group from Google.
     # Noop if Google not in use.
@@ -193,6 +197,12 @@ def delete_user(current_session, username):
     user = query_for_user(session=current_session, username=username)
     if not user:
         raise NotFound( "".join(["user name ", username, " not found"]))
+
+    # DELETEME: For logging purposes
+    print("\n\n")
+    print("FOUND USER IN FENCE DB:")
+    print(user)
+    print("\n\n")
 
     # First: Find this user's proxy group.
     google_proxy_group_f = current_session.query(GoogleProxyGroup).filter(
@@ -212,6 +222,11 @@ def delete_user(current_session, username):
         google_proxy_group_g = gcm.get_group(pgname)
         gpg_email = google_proxy_group_g.get("email")
 
+    # DELETEME: For logging purposes
+    print("\n\n")
+    print("ENDED UP WITH PROXY GROUP EMAIL:")
+    print(gpg_email)
+    print("\n\n")
 
     if gpg_email:
         # Found proxy group. Proceed with Google deletions.
@@ -224,6 +239,14 @@ def delete_user(current_session, username):
             # automatically delete all key IDs associated with that
             # service account. So we skip doing that here.
             r = gcm.delete_service_account(sae)
+
+            # DELETEME: For logging purposes
+            print("\n\n")
+            print("ATTEMPTED TO DELETE SERVICE ACCOUNT WITH EMAIL:")
+            print(sae)
+            print("THE KEYS SHOULD HAVE ALSO BEEN DELETED.")
+            print("\n\n")
+
             if r == {}:
                 # Success on Google side; delete from Fence db
                 sa = current_session.query(GoogleServiceAccount).filter(
@@ -248,6 +271,14 @@ def delete_user(current_session, username):
                     # Attempt to delete from Google.
                     # Cirrus returns success response anyway if GCM returns a 404
                     gcm.delete_service_account(osa.email)
+
+                    # DELETEME: For logging purposes
+                    print("\n\n")
+                    print("ATTEMPTED TO DELETE ORPHAN SERVICE ACCOUNT WITH EMAIL:")
+                    print(sae)
+                    print("THE KEYS SHOULD HAVE ALSO BEEN DELETED.")
+                    print("\n\n")
+
                     # Delete from Fence
                     osa_keys = current_session.query(GoogleServiceAccountKey).filter(
                             GoogleServiceAccountKey.service_account_id == osa.id
@@ -263,6 +294,13 @@ def delete_user(current_session, username):
         # this proxy group from all GBAGs the proxy group is a member of.
         # So we skip doing that here.
         r = gcm.delete_group(gpg_email)
+
+        # DELETEME: For logging purposes
+        print("\n\n")
+        print("ATTEMPTED TO DELETE PROXY GROUP WITH EMAIL:")
+        print(gpg_email)
+        print("\n\n")
+
         if r == {}:
             # Success on Google side. Delete from Fence db.
             if google_proxy_group_f:
@@ -304,6 +342,11 @@ def delete_user(current_session, username):
     # TODO: Manual google testing
     # TODO: ask about integration test situation?
     # TODO: Also manual fence db testing...
+
+    # DELETEME: For logging purposes
+    print("\n\n")
+    print("ABOUT TO RETURN FROM DELETE.")
+    print("\n\n")
 
     return {"result": "success"}
 
