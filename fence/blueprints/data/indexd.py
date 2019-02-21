@@ -106,7 +106,9 @@ class BlankIndex(object):
             )
         document = indexd_response.json()
         guid = document["did"]
-        self.logger.info("created blank index record {} for upload".format(guid))
+        self.logger.info(
+            "created blank index record with GUID {} for upload".format(guid)
+        )
         return document
 
     def make_signed_url(self, file_name, expires_in=None):
@@ -124,9 +126,17 @@ class BlankIndex(object):
         try:
             bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
         except KeyError:
-            raise InternalError("fence not configured with data upload bucket")
+            raise InternalError(
+                "fence not configured with data upload bucket; can't create signed URL"
+            )
         s3_url = "s3://{}/{}/{}".format(bucket, self.guid, file_name)
-        return S3IndexedFileLocation(s3_url).get_signed_url("upload", expires_in)
+        url = S3IndexedFileLocation(s3_url).get_signed_url("upload", expires_in)
+        self.logger.info(
+            "created presigned URL to upload file {} with ID {}".format(
+                file_name, self.guid
+            )
+        )
+        return url
 
 
 class IndexedFile(object):
