@@ -269,6 +269,16 @@ def delete_user(current_session, username):
                         for sak in sa_keys:
                             current_session.delete(sak)
                         current_session.delete(sa)
+
+                    # DELETEME: For logging purposes
+                    print("\n\nFENCE DB: Tried to delete SA keys and SAs. Why it not work?")
+                    print("Service account keys:")
+                    print(session.query(GoogleServiceAccountKey).filter().all())
+                    print("Service accounts:")
+                    print(session.query(GoogleServiceAccount).filter().all())
+                    print("\n\n")
+
+
                     # At this point there may still be SAs and keys left in Fence db
                     # that are associated with this user, e.g. if someone deleted
                     # an SA on google without going through Fence.
