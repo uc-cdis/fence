@@ -232,6 +232,10 @@ def delete_user(current_session, username):
             # Delete all service accounts associated with this gpg.
             # Choosing to refer to cirrus instead of fence db for the list of SAs.
             service_account_emails = gcm.get_service_accounts_from_group(gpg_email)
+            # TODO: At the moment, failing here ^^^ when I don't recreate gpg,
+            # because Fence db deletes not yet
+            # implemented. So gpg_email is not None but gpg does not actually
+            # exist in Google anymore. This is OK google-wise; go fix Fence db deletes.
 
             # DELETEME: For logging purposes
             print("\n\n")
