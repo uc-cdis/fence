@@ -20,7 +20,7 @@ import fence
 from cdislogging import get_logger
 
 from fence.config import config
-from fence.errors import NotFound, NotSupported
+from fence.errors import NotFound, NotSupported, UserError
 from fence.models import (
     User,
     Project,
@@ -36,6 +36,7 @@ from fence.resources.google.utils import (
     get_monitoring_service_account_email,
     is_google_managed_service_account,
 )
+from fence.utils import get_valid_expiration_from_request
 
 logger = get_logger(__name__)
 
@@ -231,7 +232,7 @@ def service_account_has_external_access(
 
 
 def is_service_account_from_google_project(
-    service_account_email, project_id, project_number, google_managed_sa_domains=None
+    service_account_email, project_id, project_number
 ):
     """
     Checks if service account is among project's service acounts
@@ -247,10 +248,7 @@ def is_service_account_from_google_project(
     try:
         service_account_name = service_account_email.split("@")[0]
 
-        if is_google_managed_service_account(
-            service_account_email,
-            google_managed_service_account_domains=google_managed_sa_domains,
-        ):
+        if is_google_managed_service_account(service_account_email):
             return (
                 service_account_name == "service-{}".format(project_number)
                 or service_account_name == "project-{}".format(project_number)
@@ -392,15 +390,10 @@ def get_user_by_linked_email(linked_email, db=None):
         .first()
     )
     if linked_account:
-        user = (
-            session.query(User)
-            .filter(User.id == linked_account.user_id)
-            .first()
-        )
+        user = session.query(User).filter(User.id == linked_account.user_id).first()
         return user
     else:
         return None
-
 
 
 def get_user_by_email(user_email, db=None):
@@ -518,7 +511,10 @@ def patch_user_service_account(
         session, to_add, google_project_id, service_account
     )
     _revoke_user_service_account_from_db(session, to_delete, service_account)
-    add_user_service_account_to_db(session, to_add, service_account)
+
+    add_user_service_account_to_db(
+        session, to_add, service_account
+    )
 
 
 def get_project_ids_from_project_auth_ids(session, auth_ids):
@@ -781,7 +777,9 @@ def _revoke_user_service_account_from_db(
     session.commit()
 
 
-def add_user_service_account_to_db(session, to_add_project_ids, service_account):
+def add_user_service_account_to_db(
+    session, to_add_project_ids, service_account
+):
     """
     Add user service account to service account
     access privilege and service account bucket access group
@@ -790,6 +788,8 @@ def add_user_service_account_to_db(session, to_add_project_ids, service_account)
         sess(current_session): db session
         to_add_project_ids(List(int)): List of project id
         service_account(UserServiceAccount): user service account
+        requested_expires_in(int): requested time (in seconds) during which
+            the SA has bucket access
 
     Returns:
         None
@@ -807,10 +807,17 @@ def add_user_service_account_to_db(session, to_add_project_ids, service_account)
 
         access_groups = _get_google_access_groups(session, project_id)
 
-        # use configured time or 7 days
+        # timestamp at which the SA will lose bucket access
+        # by default: use configured time or 7 days
         expiration_time = int(time.time()) + config.get(
             "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN", 604800
         )
+        requested_expires_in = get_valid_expiration_from_request() # requested time (in seconds)
+        if requested_expires_in:
+            # convert it to timestamp
+            requested_expiration = int(time.time()) + requested_expires_in
+            expiration_time = min(expiration_time, requested_expiration)
+
         for access_group in access_groups:
             sa_to_group = ServiceAccountToGoogleBucketAccessGroup(
                 service_account_id=service_account.id,
@@ -890,10 +897,16 @@ def extend_service_account_access(service_account_email, db=None):
             service_account
         )
 
-        # use configured time or 7 days
+        # timestamp at which the SA will lose bucket access
+        # by default: use configured time or 7 days
         expiration_time = int(time.time()) + config.get(
             "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN", 604800
         )
+        requested_expires_in = get_valid_expiration_from_request()
+        if requested_expires_in:
+            requested_expiration = int(time.time()) + requested_expires_in
+            expiration_time = min(expiration_time, requested_expiration)
+
         logger.debug(
             "Service Account ({}) access extended to {}.".format(
                 service_account.email, expiration_time
@@ -960,9 +973,7 @@ def get_project_from_auth_id(project_auth_id, db=None):
     return project
 
 
-def remove_white_listed_service_account_ids(
-    sa_ids, app_creds_file=None, white_listed_sa_emails=None
-):
+def remove_white_listed_service_account_ids(sa_ids):
     """
     Remove any service account emails that should be ignored when
     determining validitity.
@@ -973,10 +984,15 @@ def remove_white_listed_service_account_ids(
     Returns:
         List[str]: Service account emails
     """
-    if white_listed_sa_emails is None:
-        white_listed_sa_emails = config.get("WHITE_LISTED_SERVICE_ACCOUNT_EMAILS", [])
+    white_listed_sa_emails = config.get("WHITE_LISTED_SERVICE_ACCOUNT_EMAILS", [])
 
-    monitoring_service_account = get_monitoring_service_account_email(app_creds_file)
+    logger.debug(
+        "Removing whitelisted SAs {} from the SAs on the project.".format(
+            white_listed_sa_emails
+        )
+    )
+
+    monitoring_service_account = get_monitoring_service_account_email()
 
     if monitoring_service_account in sa_ids:
         sa_ids.remove(monitoring_service_account)
@@ -988,7 +1004,7 @@ def remove_white_listed_service_account_ids(
     return sa_ids
 
 
-def is_org_whitelisted(parent_org, white_listed_google_parent_orgs=None):
+def is_org_whitelisted(parent_org):
     """
     Return whether or not the provide Google parent organization is whitelisted
 
@@ -999,11 +1015,12 @@ def is_org_whitelisted(parent_org, white_listed_google_parent_orgs=None):
         bool: whether or not the provide Google parent organization is whitelisted
     """
 
-    white_listed_google_parent_orgs = white_listed_google_parent_orgs or config.get(
-        "WHITE_LISTED_GOOGLE_PARENT_ORGS", {}
-    )
+    white_listed_google_parent_orgs = config.get("WHITE_LISTED_GOOGLE_PARENT_ORGS", {})
 
-    return parent_org in white_listed_google_parent_orgs
+    # make sure we're comparing same types
+    return str(parent_org) in [
+        str(parent_org) for parent_org in white_listed_google_parent_orgs
+    ]
 
 
 def force_delete_service_account(service_account_email, db=None):
