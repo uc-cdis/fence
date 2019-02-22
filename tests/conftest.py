@@ -713,6 +713,7 @@ def patch_app_db_session(app, monkeypatch):
         modules_to_patch = [
             "fence.auth",
             "fence.resources.google.utils",
+            "fence.blueprints.admin",
             "fence.blueprints.link",
             "fence.blueprints.google",
             "fence.oidc.jwt_generator",

@@ -264,6 +264,11 @@ def parse_arguments():
     force_link_google.add_argument(
         "--google-email", required=True, help="Email to link to"
     )
+    force_link_google.add_argument(
+        "--expires_in",
+        required=False,
+        help="The time (in seconds) during which the Google account has bucket access (7 days max/default)",
+    )
 
     notify_problem_users = subparsers.add_parser("notify-problem-users")
     notify_problem_users.add_argument(
@@ -455,7 +460,10 @@ def main():
             sys.exit(1)
     elif args.action == "force-link-google":
         exp = force_update_google_link(
-            DB, username=args.username, google_email=args.google_email
+            DB,
+            username=args.username,
+            google_email=args.google_email,
+            expires_in=args.expires_in,
         )
         print(exp)
     elif args.action == "notify-problem-users":

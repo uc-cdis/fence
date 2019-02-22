@@ -20,6 +20,7 @@ from fence.resources.google.utils import (
     get_or_create_service_account,
     get_or_create_proxy_group_id,
 )
+from fence.utils import get_valid_expiration_from_request
 
 from cdislogging import get_logger
 
@@ -221,13 +222,9 @@ class GoogleCredentialsList(Resource):
         # requested time (in seconds) during which the access key will be valid
         # x days * 24 hr/day * 60 min/hr * 60 s/min = y seconds
         expires_in = cirrus_config.SERVICE_KEY_EXPIRATION_IN_DAYS * 24 * 60 * 60
-        if "expires_in" in flask.request.args:
-            try:
-                requested_expires_in = int(flask.request.args["expires_in"])
-                assert requested_expires_in > 0
-                expires_in = min(expires_in, requested_expires_in)
-            except (ValueError, AssertionError):
-                raise UserError({"error": "expires_in must be a positive integer"})
+        requested_expires_in = get_valid_expiration_from_request()
+        if requested_expires_in:
+            expires_in = min(expires_in, requested_expires_in)
 
         expiration_time = int(time.time()) + int(expires_in)
         key_id = key.get("private_key_id")
