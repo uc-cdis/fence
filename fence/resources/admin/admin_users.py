@@ -217,8 +217,6 @@ def delete_user(current_session, username):
             # Construct the proxy group name that would have been used
             # and check if it exists in cirrus, in case Fence db just
             # didn't know about it.
-            # TODO: Not entirely certain that the "name" that this get name thing
-            # returns is the "unique group ID" that get_group() wants
             pgname = _get_proxy_group_name_for_user(user.id, user.username, prefix=config["GOOGLE_GROUP_PREFIX"])
             google_proxy_group_g = gcm.get_group(pgname)
             gpg_email = google_proxy_group_g.get("email")
@@ -334,6 +332,17 @@ def delete_user(current_session, username):
                     current_session.delete(google_proxy_group_f)
             else:
                 # TODO Green light from Alex to error out like this
+                # cirrus delete_group() returns {} even if Google returned 404 group not found.
+                # So, if we are here, then Google found a proxy group but was unable to delete.
+
+                # DELETEME: For logging purposes
+                # Not supposed to end up here if proxy group didn't exist...!
+                print("\n\n")
+                print("Cirrus returned non-{} upon attempting proxy group delete")
+                print("Response:")
+                print(r)
+                print("\n\n")
+
                 return {"result": "Error: Google unable to delete proxy group " + gpg_email}
 
     # Done with Google deletions, or there was no proxy group and we assume
