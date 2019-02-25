@@ -107,13 +107,14 @@ class Client(Base, OAuth2ClientMixin):
     description = Column(String(400))
 
     # required if you need to support client credential
-    user_id = Column(Integer, ForeignKey(User.id))
+    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
     user = relationship(
-        "User", backref=backref(
-                    "clients",
-                    cascade="all, delete-orphan",
-                    passive_deletes=True
-                )
+        "User",
+        backref=backref(
+            "clients",
+            cascade="all, delete-orphan",
+        ),
+        passive_deletes=True
     )
 
     # this is for internal microservices to skip user grant
@@ -241,11 +242,12 @@ class AuthorizationCode(Base, OAuth2AuthorizationCodeMixin):
 
     user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"))
     user = relationship(
-        "User", backref=backref(
-                    "authorization_codes",
-                    cascade="all, delete-orphan",
-                    passive_deletes=True
-                )
+        "User",
+        backref=backref(
+            "authorization_codes",
+            cascade="all, delete-orphan",
+        ),
+        passive_deletes=True
     )
 
     nonce = Column(String, nullable=True)
@@ -291,13 +293,14 @@ class GoogleServiceAccount(Base):
 
     client_id = Column(String(40))
 
-    user_id = Column(Integer, ForeignKey(User.id), nullable=False)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), nullable=False)
     user = relationship(
-        "User", backref=backref(
-                    "google_service_accounts",
-                    cascade="all, delete-orphan",
-                    passive_deletes=True
-                )
+        "User",
+        backref=backref(
+            "google_service_accounts",
+            cascade="all, delete-orphan",
+        ),
+        passive_deletes=True
     )
 
     google_project_id = Column(String, nullable=False)
@@ -318,7 +321,16 @@ class UserGoogleAccount(Base):
 
     email = Column(String, unique=True, nullable=False)
 
-    user_id = Column(Integer, ForeignKey(User.id), nullable=False)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), nullable=False)
+    user = relationship(
+        "User",
+        backref=backref(
+            "user_google_accounts",
+            cascade="all, delete-orphan",
+        ),
+        passive_deletes=True
+    )
+
 
     def delete(self):
         with flask.current_app.db.session as session:
@@ -331,11 +343,21 @@ class UserGoogleAccountToProxyGroup(Base):
     __tablename__ = "user_google_account_to_proxy_group"
 
     user_google_account_id = Column(
-        Integer, ForeignKey(UserGoogleAccount.id), nullable=False, primary_key=True
+        Integer, ForeignKey(UserGoogleAccount.id, ondelete='CASCADE'), nullable=False, primary_key=True
+    )
+    user_google_account = relationship(
+            "UserGoogleAccount",
+            backref=backref("user_google_account_to_proxy_group", cascade="all, delete-orphan"),
+            passive_deletes=True
     )
 
     proxy_group_id = Column(
-        String, ForeignKey(GoogleProxyGroup.id), nullable=False, primary_key=True
+        String, ForeignKey(GoogleProxyGroup.id, ondelete='CASCADE'), nullable=False, primary_key=True
+    )
+    google_proxy_group = relationship(
+            "GoogleProxyGroup",
+            backref=backref("user_google_account_to_proxy_group", cascade="all, delete-orphan"),
+            passive_deletes=True
     )
 
     expires = Column(BigInteger)
@@ -357,6 +379,11 @@ class GoogleServiceAccountKey(Base):
     service_account_id = Column(
         Integer, ForeignKey(GoogleServiceAccount.id, ondelete='CASCADE'), nullable=False
     )
+    google_service_account = relationship(
+            "GoogleServiceAccount",
+            backref=backref("google_service_account_keys", cascade="all, delete-orphan"),
+            passive_deletes=True
+    )
 
     expires = Column(BigInteger)
 
@@ -373,14 +400,14 @@ class GoogleBucketAccessGroup(Base):
     __tablename__ = "google_bucket_access_group"
     id = Column(Integer, primary_key=True)
 
-    bucket_id = Column(Integer, ForeignKey(Bucket.id), nullable=False)
+    bucket_id = Column(Integer, ForeignKey(Bucket.id, ondelete='CASCADE'), nullable=False)
     bucket = relationship(
         "Bucket",
         backref=backref(
                     "google_bucket_access_groups",
                     cascade="all, delete-orphan",
-                    passive_deletes=True
                 ),
+        passive_deletes=True
     )
 
     email = Column(String, nullable=False)
@@ -399,26 +426,26 @@ class GoogleProxyGroupToGoogleBucketAccessGroup(Base):
     __tablename__ = "google_proxy_group_to_google_bucket_access_group"
     id = Column(Integer, primary_key=True)
 
-    proxy_group_id = Column(String, ForeignKey(GoogleProxyGroup.id), nullable=False)
+    proxy_group_id = Column(String, ForeignKey(GoogleProxyGroup.id, ondelete='CASCADE'), nullable=False)
     proxy_group = relationship(
         "GoogleProxyGroup",
         backref=backref(
-                    "bucket_access_groups",
+                    "google_proxy_group_to_google_bucket_access_group",
                     cascade="all, delete-orphan",
-                    passive_deletes=True
                 ),
+        passive_deletes=True
     )
 
     access_group_id = Column(
-        Integer, ForeignKey(GoogleBucketAccessGroup.id), nullable=False
+        Integer, ForeignKey(GoogleBucketAccessGroup.id, ondelete='CASCADE'), nullable=False
     )
     access_group = relationship(
         "GoogleBucketAccessGroup",
         backref=backref(
-                "proxy_groups_with_access",
+                "google_proxy_group_to_google_bucket_access_group",
                 cascade="all, delete-orphan",
-                passive_deletes=True
             ),
+        passive_deletes=True
     )
 
 
@@ -441,27 +468,26 @@ class ServiceAccountAccessPrivilege(Base):
 
     id = Column(Integer, primary_key=True)
 
-    project_id = Column(Integer, ForeignKey(Project.id), nullable=False)
-
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
     project = relationship(
-        "Project", backref=backref(
-                       "sa_access_privileges",
-                       cascade="all, delete-orphan",
-                       passive_deletes=True
-                   )
+        "Project",
+        backref=backref(
+            "sa_access_privileges",
+            cascade="all, delete-orphan",
+        ),
+        passive_deletes=True
     )
 
     service_account_id = Column(
-        Integer, ForeignKey(UserServiceAccount.id), nullable=False
+        Integer, ForeignKey(UserServiceAccount.id, ondelete='CASCADE'), nullable=False
     )
-
     service_account = relationship(
         "UserServiceAccount",
         backref=backref(
-                    "access_privileges",
-                    cascade="all, delete-orphan",
-                    passive_deletes=True
-                ),
+            "access_privileges",
+            cascade="all, delete-orphan",
+        ),
+        passive_deletes=True
     )
 
 
@@ -470,31 +496,30 @@ class ServiceAccountToGoogleBucketAccessGroup(Base):
     id = Column(Integer, primary_key=True)
 
     service_account_id = Column(
-        Integer, ForeignKey(UserServiceAccount.id), nullable=False
+        Integer, ForeignKey(UserServiceAccount.id, ondelete='CASCADE'), nullable=False
     )
-
     service_account = relationship(
         "UserServiceAccount",
         backref=backref(
-                    "to_access_groups",
-                    cascade="all, delete-orphan"
-                    passive_deletes=True
-                ),
+            "to_access_groups",
+            cascade="all, delete-orphan"
+        ),
+        passive_deletes=True
     )
 
     expires = Column(BigInteger)
 
     access_group_id = Column(
-        Integer, ForeignKey(GoogleBucketAccessGroup.id), nullable=False
+        Integer, ForeignKey(GoogleBucketAccessGroup.id, ondelete='CASCADE'), nullable=False
     )
 
     access_group = relationship(
         "GoogleBucketAccessGroup",
         backref=backref(
-                    "to_access_groups",
-                    cascade="all, delete-orphan",
-                    passive_deletes=True
-                ),
+            "to_access_groups",
+            cascade="all, delete-orphan",
+        ),
+        passive_deletes=True
     )
 
 
