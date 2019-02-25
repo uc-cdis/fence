@@ -465,3 +465,5 @@ GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS:
   - 'compute-system.iam.gserviceaccount.com'
   - 'gcp-sa-websecurityscanner.iam.gserviceaccount.com'
   - 'storage-transfer-service.iam.gserviceaccount.com'
+  - 'firebase-sa-management.iam.gserviceaccount.com'
+  - 'firebase-rules.iam.gserviceaccount.com'
