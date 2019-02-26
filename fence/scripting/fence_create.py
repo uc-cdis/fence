@@ -909,13 +909,19 @@ def link_bucket_to_project(db, bucket_id, bucket_provider, project_auth_id):
             current_session.add(storage_access)
             current_session.commit()
 
-        project_linkage = ProjectToBucket(
-            project_id=project_db_entry.id,
-            bucket_id=bucket_db_entry.id,
-            privilege=["owner"],  # TODO What should this be???
+        project_linkage = (
+            current_session.query(ProjectToBucket)
+            .filter_by(project_id=project_db_entry.id, bucket_id=bucket_db_entry.id)
+            .first()
         )
-        current_session.add(project_linkage)
-        current_session.commit()
+        if not project_linkage:
+            project_linkage = ProjectToBucket(
+                project_id=project_db_entry.id,
+                bucket_id=bucket_db_entry.id,
+                privilege=["owner"],  # TODO What should this be???
+            )
+            current_session.add(project_linkage)
+            current_session.commit()
 
 
 def create_or_update_google_bucket(
@@ -1087,13 +1093,21 @@ def _create_or_update_google_bucket_and_db(
                 db_session.query(Project).filter_by(auth_id=project_auth_id).first()
             )
             if project_db_entry:
-                project_linkage = ProjectToBucket(
-                    project_id=project_db_entry.id,
-                    bucket_id=bucket_db_entry.id,
-                    privilege=["owner"],  # TODO What should this be???
+                project_linkage = (
+                    db_session.query(ProjectToBucket)
+                    .filter_by(
+                        project_id=project_db_entry.id, bucket_id=bucket_db_entry.id
+                    )
+                    .first()
                 )
-                db_session.add(project_linkage)
-                db_session.commit()
+                if not project_linkage:
+                    project_linkage = ProjectToBucket(
+                        project_id=project_db_entry.id,
+                        bucket_id=bucket_db_entry.id,
+                        privilege=["owner"],  # TODO What should this be???
+                    )
+                    db_session.add(project_linkage)
+                    db_session.commit()
                 print(
                     "Successfully linked project with auth_id {} "
                     "to the bucket.".format(project_auth_id)
