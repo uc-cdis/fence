@@ -629,6 +629,8 @@ def migrate(driver):
 
     _update_for_authlib(driver, md)
 
+    _set_on_delete_cascades(driver, md)
+
 
 def add_foreign_key_column_if_not_exist(
     table_name,
@@ -696,7 +698,7 @@ def add_foreign_key_constraint_if_not_exist(
             with driver.session as session:
                 session.execute(
                     'ALTER TABLE "{}" ADD CONSTRAINT {} '
-                    "FOREIGN KEY({}) REFERENCES {} ({});".format(
+                    'FOREIGN KEY({}) REFERENCES "{}" ({});'.format(
                         table_name,
                         foreign_key_name,
                         column_name,
@@ -705,6 +707,32 @@ def add_foreign_key_constraint_if_not_exist(
                     )
                 )
                 session.commit()
+
+
+def set_foreign_key_constraint_on_delete_cascade(
+    table_name, column_name, fk_table_name, fk_column_name, driver, metadata
+):
+    table = Table(table_name, metadata, autoload=True, autoload_with=driver.engine)
+    foreign_key_name = "{}_{}_fkey".format(table_name.lower(), column_name)
+
+    if column_name in table.c:
+       import pdb
+       #pdb.set_trace()
+       print("About to start execute...")
+       with driver.session as session:
+           session.execute(
+               'ALTER TABLE ONLY "{}" DROP CONSTRAINT IF EXISTS {}, '
+               'ADD CONSTRAINT {} FOREIGN KEY ({}) REFERENCES "{}" ({}) ON DELETE CASCADE;'.format(
+                   table_name,
+                   foreign_key_name,
+                   foreign_key_name,
+                   column_name,
+                   fk_table_name,
+                   fk_column_name,
+               )
+           )
+           session.commit()
+           print("Committed to session.")
 
 
 def drop_foreign_key_constraint_if_exist(table_name, column_name, driver, metadata):
@@ -920,3 +948,95 @@ def _update_for_authlib(driver, md):
             )
         )
         session.commit()
+
+
+def _set_on_delete_cascades(driver, md):
+    set_foreign_key_constraint_on_delete_cascade(
+        'client', 'user_id', 'User', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'authorization_code', 'user_id', 'User', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'google_service_account', 'user_id', 'User', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'user_google_account', 'user_id', 'User', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'user_google_account_to_proxy_group', 'user_google_account_id', 'user_google_account', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'user_google_account_to_proxy_group', 'proxy_group_id', 'google_proxy_group', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'google_service_account_key', 'service_account_id', 'google_service_account', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'google_bucket_access_group', 'bucket_id', 'bucket', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'google_proxy_group_to_google_bucket_access_group', 'proxy_group_id', 'google_proxy_group', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'google_proxy_group_to_google_bucket_access_group', 'access_group_id', 'google_bucket_access_group', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'service_account_access_privilege', 'project_id', 'project', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'service_account_access_privilege', 'service_account_id', 'user_service_account', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'service_account_to_google_bucket_access_group', 'service_account_id', 'user_service_account', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'service_account_to_google_bucket_access_group', 'access_group_id', 'google_bucket_access_group', 'id', driver, md
+    )
+
+
+
+
+"""
+ Schema |                       Name                       | Type  |   Owner
+--------+--------------------------------------------------+-------+------------
+ public | Group                                            | table | fence_user
+ public | User                                             | table | fence_user
+ public | access_privilege                                 | table | fence_user
+ public | application                                      | table | fence_user
+ public | authorization_code                               | table | fence_user
+ public | authorization_provider                           | table | fence_user
+ public | blacklisted_token                                | table | fence_user
+ public | bucket                                           | table | fence_user
+ public | certificate                                      | table | fence_user
+ public | client                                           | table | fence_user
+ public | cloud_provider                                   | table | fence_user
+ public | compute_access                                   | table | fence_user
+ public | department                                       | table | fence_user
+ public | event_log                                        | table | fence_user
+ public | google_bucket_access_group                       | table | fence_user
+ public | google_proxy_group                               | table | fence_user
+ public | google_proxy_group_to_google_bucket_access_group | table | fence_user
+ public | google_service_account                           | table | fence_user
+ public | google_service_account_key                       | table | fence_user
+ public | hmac_keypair                                     | table | fence_user
+ public | hmac_keypair_archive                             | table | fence_user
+ public | identity_provider                                | table | fence_user
+ public | organization                                     | table | fence_user
+ public | policy                                           | table | fence_user
+ public | project                                          | table | fence_user
+ public | project_to_bucket                                | table | fence_user
+ public | s3credential                                     | table | fence_user
+ public | service_account_access_privilege                 | table | fence_user
+ public | service_account_to_google_bucket_access_group    | table | fence_user
+ public | storage_access                                   | table | fence_user
+ public | tag                                              | table | fence_user
+ public | user_google_account                              | table | fence_user
+ public | user_google_account_to_proxy_group               | table | fence_user
+ public | user_refresh_token                               | table | fence_user
+ public | user_service_account                             | table | fence_user
+ public | user_to_bucket                                   | table | fence_user
+ public | user_to_group                                    | table | fence_user
+ public | users_to_policies                                | table | fence_user
+(38 rows)
+"""
