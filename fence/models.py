@@ -993,50 +993,75 @@ def _set_on_delete_cascades(driver, md):
     set_foreign_key_constraint_on_delete_cascade(
         'service_account_to_google_bucket_access_group', 'access_group_id', 'google_bucket_access_group', 'id', driver, md
     )
-
-
-
-
-"""
- Schema |                       Name                       | Type  |   Owner
---------+--------------------------------------------------+-------+------------
- public | Group                                            | table | fence_user
- public | User                                             | table | fence_user
- public | access_privilege                                 | table | fence_user
- public | application                                      | table | fence_user
- public | authorization_code                               | table | fence_user
- public | authorization_provider                           | table | fence_user
- public | blacklisted_token                                | table | fence_user
- public | bucket                                           | table | fence_user
- public | certificate                                      | table | fence_user
- public | client                                           | table | fence_user
- public | cloud_provider                                   | table | fence_user
- public | compute_access                                   | table | fence_user
- public | department                                       | table | fence_user
- public | event_log                                        | table | fence_user
- public | google_bucket_access_group                       | table | fence_user
- public | google_proxy_group                               | table | fence_user
- public | google_proxy_group_to_google_bucket_access_group | table | fence_user
- public | google_service_account                           | table | fence_user
- public | google_service_account_key                       | table | fence_user
- public | hmac_keypair                                     | table | fence_user
- public | hmac_keypair_archive                             | table | fence_user
- public | identity_provider                                | table | fence_user
- public | organization                                     | table | fence_user
- public | policy                                           | table | fence_user
- public | project                                          | table | fence_user
- public | project_to_bucket                                | table | fence_user
- public | s3credential                                     | table | fence_user
- public | service_account_access_privilege                 | table | fence_user
- public | service_account_to_google_bucket_access_group    | table | fence_user
- public | storage_access                                   | table | fence_user
- public | tag                                              | table | fence_user
- public | user_google_account                              | table | fence_user
- public | user_google_account_to_proxy_group               | table | fence_user
- public | user_refresh_token                               | table | fence_user
- public | user_service_account                             | table | fence_user
- public | user_to_bucket                                   | table | fence_user
- public | user_to_group                                    | table | fence_user
- public | users_to_policies                                | table | fence_user
-(38 rows)
-"""
+    set_foreign_key_constraint_on_delete_cascade(
+        'hmac_keypair', 'user_id', 'User', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'hmac_keypair_archive', 'user_id', 'User', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'user_to_group', 'user_id', 'User', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'user_to_group', 'group_id', 'Group', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'access_privilege', 'user_id', 'User', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'access_privilege', 'group_id', 'Group', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'access_privilege', 'project_id', 'project', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'access_privilege', 'provider_id', 'authorization_provider', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'user_to_bucket', 'user_id', 'User', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'user_to_bucket', 'bucket_id', 'bucket', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'bucket', 'provider_id', 'cloud_provider', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'project_to_bucket', 'project_id', 'project', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'project_to_bucket', 'bucket_id', 'bucket', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'compute_access', 'project_id', 'project', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'compute_access', 'user_id', 'User', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'compute_access', 'group_id', 'Group', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'compute_access', 'provider_id', 'cloud_provider', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'storage_access', 'project_id', 'project', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'storage_access', 'user_id', 'User', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'storage_access', 'group_id', 'Group', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'storage_access', 'provider_id', 'cloud_provider', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'certificate', 'application_id', 'application', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        's3credential', 'user_id', 'User', 'id', driver, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        'tag', 'user_id', 'User', 'id', driver, md
+    )
