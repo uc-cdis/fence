@@ -277,12 +277,7 @@ def delete_user(current_session, username):
                         # delete user not frequent so can commit more probably after each delete
 
                     # DELETEME: For logging purposes
-                    print("\n\nFENCE DB: Tried to delete SA keys and SAs. Why it not work?")
-                    print("Service account keys:")
-                    print(session.query(GoogleServiceAccountKey).filter().all())
-                    print("Service accounts:")
-                    print(session.query(GoogleServiceAccount).filter().all())
-                    print("Upd: Because commit. Should now work.")
+                    print("\n\nFENCE DB: Tried to delete SA keys and SAs.")
                     print("\n\n")
 
 
