@@ -147,6 +147,7 @@ def validation_check(db):
             )
             email_required = True
 
+        email_required &= config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["enable"]
         if email_required:
             logger.debug(
                 "Sending email with service account removal reasons: {} and project "
