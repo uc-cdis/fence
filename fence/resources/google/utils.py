@@ -265,15 +265,6 @@ def add_custom_service_account_key_expiration(
     current_session.commit()
 
 
-def get_or_create_service_account(client_id, user_id, username, proxy_group_id):
-    # underlying cloud api library effectively handles conflicts now without error
-    service_account = create_service_account(
-        client_id, user_id, username, proxy_group_id
-    )
-
-    return service_account
-
-
 def get_service_account(client_id, user_id):
     """
     Return the service account (from Fence db) for given client.
@@ -296,7 +287,7 @@ def get_service_account(client_id, user_id):
     return service_account
 
 
-def create_service_account(client_id, user_id, username, proxy_group_id):
+def get_or_create_service_account(client_id, user_id, username, proxy_group_id):
     """
     Create a Google Service account for the current client and user.
     This effectively handles conflicts in Google and will update our db
