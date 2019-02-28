@@ -2,8 +2,12 @@ from fence.config import config
 from fence.errors import NotFound, UserError
 from fence.models import (
     GoogleProxyGroup,
+    GoogleProxyGroupToGoogleBucketAccessGroup,
     GoogleServiceAccount,
+    GoogleServiceAccountKey,
     User,
+    UserGoogleAccount,
+    UserGoogleAccountToProxyGroup,
     query_for_user
 )
 from fence.resources import group as gp, project as pj, user as us, userdatamodel as udm
