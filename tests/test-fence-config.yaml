@@ -368,6 +368,7 @@ WHITE_LISTED_SERVICE_ACCOUNT_EMAILS:
 # when service accounts or google projects are determined invalid, an email is sent
 # to the project owners. These settings are for that email
 REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION:
+  enable: true
   # this domain MUST exist in GUN_MAIL config
   domain: 'example.com'
   from: 'do-not-reply@example.com'

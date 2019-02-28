@@ -186,6 +186,7 @@ GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS = {
 }
 
 REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION = {
+    "enable": False,
     "domain": "smtp domain",
     "subject": "User service account removal notification",
     "from": "do-not-reply@planx-pla.net",
