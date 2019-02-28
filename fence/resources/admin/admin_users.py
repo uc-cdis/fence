@@ -269,6 +269,8 @@ def delete_user(current_session, username):
                         for sak in sa_keys:
                             current_session.delete(sak)
                         current_session.delete(sa)
+                        current_session.commit() # TODO Ask Alex/Rudy(Phillis) about commit frequency
+                        # delete user not frequent so can commit more probably after each delete
 
                     # DELETEME: For logging purposes
                     print("\n\nFENCE DB: Tried to delete SA keys and SAs. Why it not work?")
@@ -276,6 +278,7 @@ def delete_user(current_session, username):
                     print(session.query(GoogleServiceAccountKey).filter().all())
                     print("Service accounts:")
                     print(session.query(GoogleServiceAccount).filter().all())
+                    print("Upd: Because commit. Should now work.")
                     print("\n\n")
 
 
@@ -306,8 +309,13 @@ def delete_user(current_session, username):
                         for key in osa_keys:
                             current_session.delete(key)
                         current_session.delete(osa)
+                        current_session.commit() # TODO Ask Alex/Rudy(Phillis) about commit frequency
                 else:
                     # TODO Green light from Alex to error out like this
+                    # Response: Want HTTP 400 w/ details about error
+                    # TODO add logs for both succeed and delete ...everywhere
+                    # logger.info upon successful delete
+                    # logger.debug if any extra info  e.g. the attempted to delete stuff
                     return {"result": "Error: Google unable to delete service account " + sae}
 
             # Next, delete the proxy group. Google will automatically remove
@@ -344,6 +352,7 @@ def delete_user(current_session, username):
                         current_session.delete(row)
                     # Delete row in google_proxy_group
                     current_session.delete(google_proxy_group_f)
+                    current_session.commit() # TODO cfm
             else:
                 # TODO Green light from Alex to error out like this
                 # cirrus delete_group() returns {} even if Google returned 404 group not found.
@@ -370,9 +379,14 @@ def delete_user(current_session, username):
 
     print("Here's where we would clear Fence db.")
 
+    # Comment out for now to make sure above deletes work
+    #current_session.delete(user)
+    #current_session.commit()
+
+    # TODO: Is there anywhere this should session.rollback()? cfm after deciding when to commit
     # TODO: Manual google testing
-    # TODO: ask about integration test situation?
     # TODO: Also manual fence db testing...
+    # TODO: Unit testing for Fence side
 
     # DELETEME: For logging purposes
     print("\n\n")
