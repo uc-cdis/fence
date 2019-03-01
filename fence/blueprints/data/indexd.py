@@ -435,6 +435,24 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 aws_creds, bucket_cred, cred_key, expires_in
             )
 
+    def get_bucket_region(self):
+        s3_buckets = get_value(
+            config, "S3_BUCKETS", InternalError("buckets not configured")
+        )
+        if len(s3_buckets) == 0:
+            return None
+        if len(s3_buckets) > 0:
+            raise None
+
+        bucket_cred = s3_buckets.get(self.bucket_name())
+        if bucket_cred is None:
+            raise None
+
+        if "region" not in bucket_cred:
+            return None
+        else:
+            return bucket_cred["region"]
+
     def get_signed_url(self, action, expires_in, public_data=False):
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
@@ -454,9 +472,11 @@ class S3IndexedFileLocation(IndexedFileLocation):
         if aws_access_key_id == "*":
             return http_url
 
-        region = flask.current_app.boto.get_bucket_region(
-            self.parsed_url.netloc, credential
-        )
+        region = self.get_bucket_region()
+        if not region:
+            region = flask.current_app.boto.get_bucket_region(
+                self.parsed_url.netloc, credential
+            )
 
         user_info = {}
         if not public_data:
