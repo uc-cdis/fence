@@ -186,7 +186,6 @@ def delete_user(current_session, username):
     from cirrus import GoogleCloudManager
     from cirrus.google_cloud.manager import _get_proxy_group_name_for_user
 
-    #gcm = GoogleCloudManager()
     with GoogleCloudManager() as gcm:
 
         # Delete user's service accounts, SA keys, user proxy group from Google.
@@ -236,10 +235,6 @@ def delete_user(current_session, username):
             # Delete all service accounts associated with this gpg.
             # Choosing to refer to cirrus instead of fence db for the list of SAs.
             service_account_emails = gcm.get_service_accounts_from_group(gpg_email)
-            # TODO: At the moment, failing here ^^^ when I don't recreate gpg,
-            # because Fence db deletes not yet
-            # implemented. So gpg_email is not None but gpg does not actually
-            # exist in Google anymore. This is OK google-wise; go fix Fence db deletes.
 
             # DELETEME: For logging purposes
             print("\n\n")
@@ -273,8 +268,7 @@ def delete_user(current_session, username):
                         for sak in sa_keys:
                             current_session.delete(sak)
                         current_session.delete(sa)
-                        current_session.commit() # TODO Ask Alex/Rudy(Phillis) about commit frequency
-                        # delete user not frequent so can commit more probably after each delete
+                        current_session.commit()
 
                     # DELETEME: For logging purposes
                     print("\n\nFENCE DB: Tried to delete SA keys and SAs.")
@@ -308,7 +302,7 @@ def delete_user(current_session, username):
                         for key in osa_keys:
                             current_session.delete(key)
                         current_session.delete(osa)
-                        current_session.commit() # TODO Ask Alex/Rudy(Phillis) about commit frequency
+                        current_session.commit()
                 else:
                     # TODO Green light from Alex to error out like this
                     # Response: Want HTTP 400 w/ details about error
@@ -326,14 +320,6 @@ def delete_user(current_session, username):
             print("\n\n")
             print("ATTEMPTED TO DELETE PROXY GROUP WITH EMAIL:")
             print(gpg_email)
-            print("\n\n")
-
-
-            # DELETEME: For logging purposes
-            print("\n\n")
-            print("I think that despite the docstring... this is a string... not a dict...")
-            print("Here is r: \"" + str(r) +"\"")
-            print(str(type(r)))
             print("\n\n")
 
 
@@ -359,35 +345,32 @@ def delete_user(current_session, username):
                     for row in uga:
                         current_session.delete(row)
                     # Delete row in google_proxy_group
+                    # TODO Removeme
+                    goneuser = query_for_user(session=current_session, username=username)
+                    if goneuser:
+                        print("USER STILL IN DATABASE BEFORE PROXY GROUP DELETE")
+                    else:
+                        print("USER NO LONGER IN DATABASE BEFORE PROXY GROUP DELETE")
                     current_session.delete(google_proxy_group_f)
-                    current_session.commit() # TODO cfm
+                    current_session.commit()
+                    goneuser = query_for_user(session=current_session, username=username)
+                    if goneuser:
+                        print("USER STILL IN DATABASE AFTER PROXY GROUP DELETE")
+                    else:
+                        print("USER NO LONGER IN DATABASE AFTER PROXY GROUP DELETE")
             else:
                 # TODO Green light from Alex to error out like this
-                # cirrus delete_group() returns {} even if Google returned 404 group not found.
-                # So, if we are here, then Google found a proxy group but was unable to delete.
-
-                # DELETEME: For logging purposes
-                # Not supposed to end up here if proxy group didn't exist...!
-                print("\n\n")
-                print("Cirrus returned non-{} upon attempting proxy group delete")
-                print("Response:")
-                print(r)
-                print("\n\n")
-
                 return {"result": "Error: Google unable to delete proxy group " + gpg_email}
 
     # Done with Google deletions, or there was no proxy group and we assume
     # Google not being used as IdP.
 
-    # Remove remaining relevant entries from Fence db.
-    # TODO. The rest of Fence deletion.
-    # Update: Confirmed we will set ON DELETE CASCADE. See Slack conversation.
-    # So, go and edit (to start with) userdatamodel/user.py
-    # see also https://docs.sqlalchemy.org/en/latest/orm/collections.html#passive-deletes
+    # DELETEME: For logging purposes
+    print("\n\n")
+    print("DELETING USER AND CHILD TABLE ROWS FROM FENCE DB")
+    print("\n\n")
 
-    print("Here's where we would clear Fence db.")
-
-    # Comment out for now to make sure above deletes work
+    # Clear out the rest of this user's data from Fence db. Cascades.
     #current_session.delete(user)
     #current_session.commit()
 
