@@ -442,11 +442,11 @@ class S3IndexedFileLocation(IndexedFileLocation):
         if len(s3_buckets) == 0:
             return None
         if len(s3_buckets) > 0:
-            raise None
+            return None
 
         bucket_cred = s3_buckets.get(self.bucket_name())
         if bucket_cred is None:
-            raise None
+            return None
 
         if "region" not in bucket_cred:
             return None
