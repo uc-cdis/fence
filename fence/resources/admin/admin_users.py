@@ -328,6 +328,15 @@ def delete_user(current_session, username):
             print(gpg_email)
             print("\n\n")
 
+
+            # DELETEME: For logging purposes
+            print("\n\n")
+            print("I think that despite the docstring... this is a string... not a dict...")
+            print("Here is r: \"" + str(r) +"\"")
+            print(str(type(r)))
+            print("\n\n")
+
+
             if r == {}:
                 # Success on Google side. Delete from Fence db.
                 if google_proxy_group_f:
