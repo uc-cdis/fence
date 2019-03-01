@@ -838,7 +838,17 @@ def primary_google_service_account(app, db_session, user_client, google_proxy_gr
     )
     db_session.add(service_account)
     db_session.commit()
-    return Dict(id=service_account_id, email=email)
+
+    mock = MagicMock()
+    mock.return_value = service_account
+    patcher = patch("fence.resources.google.utils.get_or_create_service_account", mock)
+    patcher.start()
+
+    yield Dict(
+        id=service_account_id, email=email, get_or_create_service_account_mock=mock
+    )
+
+    patcher.stop()
 
 
 @pytest.fixture(scope="function")

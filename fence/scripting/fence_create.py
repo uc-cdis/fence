@@ -457,9 +457,7 @@ def remove_expired_google_service_account_keys(db):
         with GoogleCloudManager() as g_mgr:
             # handle service accounts with default max expiration
             for service_account, client in client_service_accounts:
-                g_mgr.handle_expired_service_account_keys(
-                    service_account.google_unique_id
-                )
+                g_mgr.handle_expired_service_account_keys(service_account.email)
 
             # handle service accounts with custom expiration
             for expired_user_key in expired_sa_keys_for_users:
@@ -472,7 +470,7 @@ def remove_expired_google_service_account_keys(db):
                 )
 
                 response = g_mgr.delete_service_account_key(
-                    account=sa.google_unique_id, key_name=expired_user_key.key_id
+                    account=sa.email, key_name=expired_user_key.key_id
                 )
                 response_error_code = response.get("error", {}).get("code")
 
@@ -911,13 +909,19 @@ def link_bucket_to_project(db, bucket_id, bucket_provider, project_auth_id):
             current_session.add(storage_access)
             current_session.commit()
 
-        project_linkage = ProjectToBucket(
-            project_id=project_db_entry.id,
-            bucket_id=bucket_db_entry.id,
-            privilege=["owner"],  # TODO What should this be???
+        project_linkage = (
+            current_session.query(ProjectToBucket)
+            .filter_by(project_id=project_db_entry.id, bucket_id=bucket_db_entry.id)
+            .first()
         )
-        current_session.add(project_linkage)
-        current_session.commit()
+        if not project_linkage:
+            project_linkage = ProjectToBucket(
+                project_id=project_db_entry.id,
+                bucket_id=bucket_db_entry.id,
+                privilege=["owner"],  # TODO What should this be???
+            )
+            current_session.add(project_linkage)
+            current_session.commit()
 
 
 def create_or_update_google_bucket(
@@ -1089,13 +1093,21 @@ def _create_or_update_google_bucket_and_db(
                 db_session.query(Project).filter_by(auth_id=project_auth_id).first()
             )
             if project_db_entry:
-                project_linkage = ProjectToBucket(
-                    project_id=project_db_entry.id,
-                    bucket_id=bucket_db_entry.id,
-                    privilege=["owner"],  # TODO What should this be???
+                project_linkage = (
+                    db_session.query(ProjectToBucket)
+                    .filter_by(
+                        project_id=project_db_entry.id, bucket_id=bucket_db_entry.id
+                    )
+                    .first()
                 )
-                db_session.add(project_linkage)
-                db_session.commit()
+                if not project_linkage:
+                    project_linkage = ProjectToBucket(
+                        project_id=project_db_entry.id,
+                        bucket_id=bucket_db_entry.id,
+                        privilege=["owner"],  # TODO What should this be???
+                    )
+                    db_session.add(project_linkage)
+                    db_session.commit()
                 print(
                     "Successfully linked project with auth_id {} "
                     "to the bucket.".format(project_auth_id)
