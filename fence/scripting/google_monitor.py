@@ -9,6 +9,8 @@ import traceback
 
 from cirrus.google_cloud.iam import GooglePolicyMember
 from cirrus import GoogleCloudManager
+from cirrus.google_cloud.errors import GoogleAPIError
+
 from cdislogging import get_logger
 
 from fence.resources.google.validity import (
@@ -80,7 +82,7 @@ def validation_check(db):
                 logger.info(
                     "Monitor does not have access to validate "
                     "service account {}. This should be handled "
-                    "in project validation."
+                    "in project validation.".format(sa_email)
                 )
                 continue
 
@@ -155,10 +157,23 @@ def validation_check(db):
                     invalid_registered_service_account_reasons, invalid_project_reasons
                 )
             )
-            _send_emails_informing_service_account_removal(
-                _get_user_email_list_from_google_project_with_owner_role(
+
+            try:
+                user_email_list = _get_user_email_list_from_google_project_with_owner_role(
                     google_project_id
-                ),
+                )
+            except GoogleAPIError:
+                logger.warning(
+                    "DID NOT EMAIL USERS. Unable to get user(s) email(s) about service account "
+                    "removal in Google project {}. If fence's monitoring SA is not present "
+                    "then we cannot make the Google API call to know who to email.".format(
+                        google_project_id
+                    )
+                )
+                return
+
+            _send_emails_informing_service_account_removal(
+                user_email_list,
                 invalid_registered_service_account_reasons,
                 invalid_project_reasons,
                 google_project_id,
@@ -181,7 +196,11 @@ def _is_valid_service_account(sa_email, google_project_id):
         # if our monitor doesn't have access at this point, just don't return any
         # information. When the project check runs, it will catch the monitor missing
         # error and add it to the removal reasons
-        raise Unauthorized
+        raise Unauthorized(
+            "Google Monitoring SA doesn't have access to Google Project: {}".format(
+                google_project_id
+            )
+        )
 
     try:
         sa_validity = GoogleServiceAccountValidity(
