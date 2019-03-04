@@ -82,7 +82,7 @@ def validation_check(db):
                 logger.info(
                     "Monitor does not have access to validate "
                     "service account {}. This should be handled "
-                    "in project validation."
+                    "in project validation.".format(sa_email)
                 )
                 continue
 
