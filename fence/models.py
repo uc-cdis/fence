@@ -604,7 +604,7 @@ def migrate(driver):
         metadata=md,
     )
 
-    # TODO This is supposed to overwrite orm level delete cascade bhvr
+    # Deleting google proxy group shouldn't delete user
     set_foreign_key_constraint_on_delete_setnull(
         table_name=User.__tablename__,
         column_name="google_proxy_group_id",
