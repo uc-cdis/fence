@@ -604,6 +604,16 @@ def migrate(driver):
         metadata=md,
     )
 
+    # TODO This is supposed to overwrite orm level delete cascade bhvr
+    set_foreign_key_constraint_on_delete_setnull(
+        table_name=User.__tablename__,
+        column_name="google_proxy_group_id",
+        fk_table_name=GoogleProxyGroup.__tablename__,
+        fk_column_name="id",
+        driver=driver,
+        metadata=md,
+    )
+
     _add_google_project_id(driver, md)
 
     drop_unique_constraint_if_exist(
@@ -712,27 +722,47 @@ def add_foreign_key_constraint_if_not_exist(
 def set_foreign_key_constraint_on_delete_cascade(
     table_name, column_name, fk_table_name, fk_column_name, driver, metadata
 ):
+    set_foreign_key_constraint_on_delete(
+        table_name, column_name, fk_table_name, fk_column_name, "CASCADE", driver, metadata
+    )
+
+
+def set_foreign_key_constraint_on_delete_setnull(
+    table_name, column_name, fk_table_name, fk_column_name, driver, metadata
+):
+    set_foreign_key_constraint_on_delete(
+        table_name, column_name, fk_table_name, fk_column_name, "SET NULL", driver, metadata
+    )
+
+
+def set_foreign_key_constraint_on_delete(
+    table_name, column_name, fk_table_name, fk_column_name, ondelete, driver, metadata
+):
     table = Table(table_name, metadata, autoload=True, autoload_with=driver.engine)
     foreign_key_name = "{}_{}_fkey".format(table_name.lower(), column_name)
 
     if column_name in table.c:
-       import pdb
-       #pdb.set_trace()
-       print("About to start execute...")
-       with driver.session as session:
-           session.execute(
-               'ALTER TABLE ONLY "{}" DROP CONSTRAINT IF EXISTS {}, '
-               'ADD CONSTRAINT {} FOREIGN KEY ({}) REFERENCES "{}" ({}) ON DELETE CASCADE;'.format(
-                   table_name,
-                   foreign_key_name,
-                   foreign_key_name,
-                   column_name,
-                   fk_table_name,
-                   fk_column_name,
-               )
-           )
-           session.commit()
-           print("Committed to session.")
+        import pdb
+        #pdb.set_trace()
+        print("About to start execute...")
+        foreign_keys = [fk.name for fk in getattr(table.c, column_name).foreign_keys]
+        print("PRINTING FOREIGN KEYS IN SET FUNCTION......")
+        print(foreign_keys)
+        with driver.session as session:
+            session.execute(
+                'ALTER TABLE ONLY "{}" DROP CONSTRAINT IF EXISTS {}, '
+                'ADD CONSTRAINT {} FOREIGN KEY ({}) REFERENCES "{}" ({}) ON DELETE {};'.format(
+                    table_name,
+                    foreign_key_name,
+                    foreign_key_name,
+                    column_name,
+                    fk_table_name,
+                    fk_column_name,
+                    ondelete,
+                )
+            )
+            session.commit()
+            print("Committed to session.")
 
 
 def drop_foreign_key_constraint_if_exist(table_name, column_name, driver, metadata):
