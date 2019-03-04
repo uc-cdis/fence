@@ -255,6 +255,36 @@ def test_invalid_google_project_membership(valid_google_project_patcher):
     assert "members_exist_in_fence" in google_project_validity
     assert not google_project_validity["members_exist_in_fence"]
 
+
+def test_invalid_google_project_no_monitor(valid_google_project_patcher):
+    """
+    Test that when we can't determine the project number, we determine
+    that the project is invalid. This happens when the monitoring service account
+    does not have access on the project
+    """
+    patcher = valid_google_project_patcher
+    patcher["get_google_project_number"].return_value = None
+
+    google_project_validity = GoogleProjectValidity("some-project-id")
+
+    # should evaluate to true by default before checking validity
+    assert google_project_validity
+
+    google_project_validity.check_validity(early_return=False)
+
+    # should evaluate to false since invalid
+    assert not google_project_validity
+
+    # test that it contains the correct error information
+    assert "valid_parent_org" in google_project_validity
+    assert not google_project_validity["valid_parent_org"]
+
+    assert "valid_member_types" in google_project_validity
+    assert not google_project_validity["valid_member_types"]
+
+    assert "members_exist_in_fence" in google_project_validity
+    assert not google_project_validity["members_exist_in_fence"]
+
     assert "new_service_account" in google_project_validity
     assert "service_accounts" in google_project_validity
     assert "access" in google_project_validity
