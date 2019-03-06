@@ -178,10 +178,7 @@ def delete_user(current_session, username):
     do edit this code accordingly.
     """
 
-    # DELETEME: For logging purposes
-    print("\n\n")
-    print("BEGINNING DELETE USER")
-    print("\n\n")
+    flask.capp.logger.debug("Beginning delete user.")
 
     from cirrus import GoogleCloudManager
     from cirrus.google_cloud.manager import _get_proxy_group_name_for_user
@@ -190,11 +187,10 @@ def delete_user(current_session, username):
 
         # Delete user's service accounts, SA keys, user proxy group from Google.
         # Noop if Google not in use.
-        # Note: Fence db deletes are interleaved with Google deletes
-        # (for example, after deleting an SA in Google we delete the record in Fence
-        # before continuing with Google deletes). This is to avoid leaving records
-        # in Fence of deleted Google entities in the case where a Google delete
-        # fails and the delete aborts.
+        # Note: Fence db deletes are interleaved with Google deletes.
+        # This is to avoid leaving records in Fence of deleted Google entities
+        # in the case where a Google delete fails after others have succeeded
+        # and the delete aborts.
         # The Google deletes here are not factored out into a different function
         # in order to not obfuscate the interwoven Fence db deletes.
 
@@ -202,11 +198,7 @@ def delete_user(current_session, username):
         if not user:
             raise NotFound( "".join(["user name ", username, " not found"]))
 
-        # DELETEME: For logging purposes
-        print("\n\n")
-        print("FOUND USER IN FENCE DB:")
-        print(user)
-        print("\n\n")
+        flask.capp.logger.debug("Found user in Fence db: {}".format(user))
 
         # First: Find this user's proxy group.
         google_proxy_group_f = current_session.query(GoogleProxyGroup).filter(
@@ -216,47 +208,36 @@ def delete_user(current_session, username):
 
         if google_proxy_group_f:
             gpg_email = google_proxy_group_f.email
+            flask.capp.logger.debug("Found Google proxy group in Fence db: {}".format(gpg_email))
         else:
             # Construct the proxy group name that would have been used
             # and check if it exists in cirrus, in case Fence db just
             # didn't know about it.
+            flask.capp.logger.debug("Could not find Google proxy group for this user in Fence db. Checking cirrus...".format(gpg_email))
             pgname = _get_proxy_group_name_for_user(user.id, user.username, prefix=config["GOOGLE_GROUP_PREFIX"])
             google_proxy_group_g = gcm.get_group(pgname)
             gpg_email = google_proxy_group_g.get("email")
 
-        # DELETEME: For logging purposes
-        print("\n\n")
-        print("ENDED UP WITH PROXY GROUP EMAIL:")
-        print(gpg_email)
-        print("\n\n")
 
-        if gpg_email:
+        if not gpg_email:
+            flask.capp.logger.info("Could not find Google proxy group for user in Fence db or in cirrus. Assuming Google not in use as IdP. Proceeding with Fence deletes.")
+        else:
             # Found proxy group. Proceed with Google deletions.
             # Delete all service accounts associated with this gpg.
             # Choosing to refer to cirrus instead of fence db for the list of SAs.
+            flask.capp.logger.debug("Found Google proxy group email of user to delete: {}".format(gpg_email))
             service_account_emails = gcm.get_service_accounts_from_group(gpg_email)
-
-            # DELETEME: For logging purposes
-            print("\n\n")
-            print("LIST OF SERVICE ACCOUNT EMAILS WHOSE SAs TO DELETE:")
-            print(service_account_emails)
-            print("\n\n")
 
             for sae in service_account_emails:
                 # Upon deletion of a service account, Google will
                 # automatically delete all key IDs associated with that
                 # service account. So we skip doing that here.
+                flask.capp.logger.debug("Attempting to delete Google service account with email {} along with all associated service account keys...".format(sae))
                 r = gcm.delete_service_account(sae)
 
-                # DELETEME: For logging purposes
-                print("\n\n")
-                print("ATTEMPTED TO DELETE SERVICE ACCOUNT WITH EMAIL:")
-                print(sae)
-                print("THE KEYS SHOULD HAVE ALSO BEEN DELETED.")
-                print("\n\n")
-
                 if r == {}:
-                    # Success on Google side; delete from Fence db
+                    flask.capp.logger.info("Google service account with email {} successfully removed from Google, along with all associated service account keys.".format(sae)) 
+                    flask.capp.logger.debug("Attempting to clear records from Fence database...")
                     sa = current_session.query(GoogleServiceAccount).filter(
                             GoogleServiceAccount.email == sae
                     ).first()
@@ -269,12 +250,12 @@ def delete_user(current_session, username):
                             current_session.delete(sak)
                         current_session.delete(sa)
                         current_session.commit()
+                        flask.capp.logger.info("Records for service account {} successfully cleared from Fence database.".format(sae))
+                    else:
+                        flask.capp.logger.info("Records for service account {} NOT FOUND in Fence database. Continuing anyway.".format(sae))
 
-                    # DELETEME: For logging purposes
-                    print("\n\nFENCE DB: Tried to delete SA keys and SAs.")
-                    print("\n\n")
 
-
+                    # TODO: Confirm and delete block. Otherwise add logging.
                     # At this point there may still be SAs and keys left in Fence db
                     # that are associated with this user, e.g. if someone deleted
                     # an SA on google without going through Fence.
@@ -309,66 +290,48 @@ def delete_user(current_session, username):
                     # TODO add logs for both succeed and delete ...everywhere
                     # logger.info upon successful delete
                     # logger.debug if any extra info  e.g. the attempted to delete stuff
+                    flask.capp.logger.error("Google was unable to delete service account {}. Aborting".format(sae))
                     return {"result": "Error: Google unable to delete service account " + sae}
 
             # Next, delete the proxy group. Google will automatically remove
             # this proxy group from all GBAGs the proxy group is a member of.
             # So we skip doing that here.
+            flask.capp.logger.debug("Attempting to delete Google proxy group with email {}...".format(gpg_email))
             r = gcm.delete_group(gpg_email)
-
-            # DELETEME: For logging purposes
-            print("\n\n")
-            print("ATTEMPTED TO DELETE PROXY GROUP WITH EMAIL:")
-            print(gpg_email)
-            print("\n\n")
 
 
             if r == {}:
-                # Success on Google side. Delete from Fence db.
+                flask.capp.logger.info("Google proxy group with email {} successfully removed from Google.".format(gpg_email)) 
                 if google_proxy_group_f:
-                    # Delete rows in google_proxy_group_to_google_bucket_access_group
+                    flask.capp.logger.debug("Attempting to clear records from Fence database...")
+                    flask.capp.logger.debug("Deleting rows in google_proxy_group_to_google_bucket_access_group...")
                     gpg_to_gbag = current_session.query(GoogleProxyGroupToGoogleBucketAccessGroup).filter(
                             GoogleProxyGroupToGoogleBucketAccessGroup.proxy_group_id == google_proxy_group_f.id
                     ).all()
                     for row in gpg_to_gbag:
                         current_session.delete(row)
-                    # Delete rows in user_google_account_to_proxy_group
+                    flask.capp.logger.debug("Deleting rows in user_google_account_to_proxy_group...")
                     uga_to_pg = current_session.query(UserGoogleAccountToProxyGroup).filter(
                             UserGoogleAccountToProxyGroup.proxy_group_id == google_proxy_group_f.id
                     ).all()
                     for row in uga_to_pg:
                         current_session.delete(row)
-                    # Delete rows in user_google_account
+                    flask.capp.logger.debug("Deleting rows in user_google_account...")
                     uga = current_session.query(UserGoogleAccount).filter(
                             UserGoogleAccount.user_id == user.id
                     ).all()
                     for row in uga:
                         current_session.delete(row)
-                    # Delete row in google_proxy_group
-                    # TODO Removeme
-                    goneuser = query_for_user(session=current_session, username=username)
-                    if goneuser:
-                        print("USER STILL IN DATABASE BEFORE PROXY GROUP DELETE")
-                    else:
-                        print("USER NO LONGER IN DATABASE BEFORE PROXY GROUP DELETE")
+                    flask.capp.logger.debug("Deleting row in google_proxy_group...")
                     current_session.delete(google_proxy_group_f)
                     current_session.commit()
-                    goneuser = query_for_user(session=current_session, username=username)
-                    if goneuser:
-                        print("USER STILL IN DATABASE AFTER PROXY GROUP DELETE")
-                    else:
-                        print("USER NO LONGER IN DATABASE AFTER PROXY GROUP DELETE")
+                    flask.capp.logger.info("Records for Google proxy group {} successfully cleared from Fence database, along with associated user Google accounts.".format(gpg_email))
+                    flask.capp.logger.info("Done with Google deletions.")
             else:
                 # TODO Green light from Alex to error out like this
+                flask.capp.logger.error("Google was unable to delete proxy group {}. Aborting".format(gpg_email))
                 return {"result": "Error: Google unable to delete proxy group " + gpg_email}
 
-    # Done with Google deletions, or there was no proxy group and we assume
-    # Google not being used as IdP.
-
-    # DELETEME: For logging purposes
-    print("\n\n")
-    print("DELETING USER AND CHILD TABLE ROWS FROM FENCE DB")
-    print("\n\n")
 
     # Note: ZLC 2019-03-04 Currently Fence db has users_to_policies table and policy table,
     # where policy table, for some reason, has a user_id field.
@@ -382,18 +345,10 @@ def delete_user(current_session, username):
     # Meanwhile, note that this code does _not_ delete rows in the policy table.
 
     # Clear out the rest of this user's data from Fence db. Cascades.
+    flask.capp.logger.debug("Deleting all user data from Fence database...")
     current_session.delete(user)
     current_session.commit()
-
-    # TODO: Is there anywhere this should session.rollback()? cfm after deciding when to commit
-    # TODO: Manual google testing
-    # TODO: Also manual fence db testing...
-    # TODO: Unit testing for Fence side
-
-    # DELETEME: For logging purposes
-    print("\n\n")
-    print("ABOUT TO RETURN FROM DELETE.")
-    print("\n\n")
+    flask.capp.logger.info("Deleted all user data from Fence database. Returning.")
 
     return {"result": "success"}
 
