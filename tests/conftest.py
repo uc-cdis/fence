@@ -1060,3 +1060,16 @@ def restore_config():
 
     # restore old configs
     config.update(saved_config)
+
+
+@pytest.fixture(scope="function")
+def restore_app_config(app):
+    """
+    Restore original app config at teardown.
+    """
+    saved_app_config = copy.deepcopy(app.config)
+
+    yield
+
+    # restore old configs
+    app.config = saved_app_config
