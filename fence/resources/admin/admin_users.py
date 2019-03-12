@@ -255,35 +255,6 @@ def delete_user(current_session, username):
                         flask.capp.logger.info("Records for service account {} NOT FOUND in Fence database. Continuing anyway.".format(sae))
 
 
-                    # TODO: Confirm and delete block. Otherwise add logging.
-                    # At this point there may still be SAs and keys left in Fence db
-                    # that are associated with this user, e.g. if someone deleted
-                    # an SA on google without going through Fence.
-                    # We clear them out here, but first double-check and
-                    # try to "re-delete" them from Google.
-                    orphan_sas = current_session.query(GoogleServiceAccount).filter(
-                            GoogleServiceAccount.user_id == user.id
-                    ).all()
-                    for osa in orphan_sas:
-                        # Attempt to delete from Google.
-                        # Cirrus returns success response anyway if GCM returns a 404
-                        gcm.delete_service_account(osa.email)
-
-                        # DELETEME: For logging purposes
-                        print("\n\n")
-                        print("ATTEMPTED TO DELETE ORPHAN SERVICE ACCOUNT WITH EMAIL:")
-                        print(sae)
-                        print("THE KEYS SHOULD HAVE ALSO BEEN DELETED.")
-                        print("\n\n")
-
-                        # Delete from Fence
-                        osa_keys = current_session.query(GoogleServiceAccountKey).filter(
-                                GoogleServiceAccountKey.service_account_id == osa.id
-                        ).all()
-                        for key in osa_keys:
-                            current_session.delete(key)
-                        current_session.delete(osa)
-                        current_session.commit()
                 else:
                     # TODO Green light from Alex to error out like this
                     # Response: Want HTTP 400 w/ details about error
