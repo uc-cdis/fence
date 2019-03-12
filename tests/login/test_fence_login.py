@@ -19,7 +19,7 @@ def config_idp_in_client(
     restore_app_config,
 ):
     """
-    Set info about this (client) fence instance's IDP in config and app.config.
+    Set info about this fence's (client fence's) IDP in config and app.config.
     Reset when done.
     """
 
@@ -73,7 +73,7 @@ def config_idp_in_client(
     app.db.Session = saved_db_Session
 
 
-def test_fence_client_redirect_oauth2_authorize(app, client, config_idp_in_client):
+def test_redirect_oauth2_authorize(app, client, config_idp_in_client):
     """
     Test that the ``/oauth2/authorize`` endpoint on the client fence redirects to the
     ``/login/fence`` endpoint, also on the client fence, 
@@ -93,7 +93,7 @@ def test_fence_client_redirect_oauth2_authorize(app, client, config_idp_in_clien
     assert app.config["BASE_URL"] in r.location
 
 
-def test_fence_client_redirect_login_fence(app, client, config_idp_in_client):
+def test_redirect_login_fence(app, client, config_idp_in_client):
     """
     Test that the ``/login/fence`` endpoint on the client fence redirects to the
     ``/oauth2/authorize`` endpoint on the IDP fence, in the multi-tenant setup case.
