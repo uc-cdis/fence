@@ -76,7 +76,8 @@ def config_idp_in_client(
 def test_fence_client_redirect_oauth2_authorize(app, client, config_idp_in_client):
     """
     Test that the ``/oauth2/authorize`` endpoint on the client fence redirects to the
-    ``/login/fence`` endpoint on the IDP fence, in the multi-tenant setup case.
+    ``/login/fence`` endpoint, also on the client fence, 
+    in the multi-tenant setup case.
     """
     data = {
         "client_id": config_idp_in_client.client_id,
@@ -89,8 +90,7 @@ def test_fence_client_redirect_oauth2_authorize(app, client, config_idp_in_clien
     r = client.post("/oauth2/authorize", data=data)
     assert r.status_code == 302
     assert "/login/fence" in r.location
-    # TODO: Are we sure this is supposed to be the IDP fence...?
-    # assert app.config["OPENID_CONNECT"]["fence"]["api_base_url"] in r.location
+    assert app.config["BASE_URL"] in r.location
 
 
 def test_fence_client_redirect_login_fence(app, client, config_idp_in_client):
