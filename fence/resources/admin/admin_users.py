@@ -223,7 +223,7 @@ def delete_user(current_session, username):
                 user.id, user.username, prefix=config["GOOGLE_GROUP_PREFIX"]
             )
             google_proxy_group_g = gcm.get_group(pgname)
-            gpg_email = google_proxy_group_g.get("email")
+            gpg_email = google_proxy_group_g.get("email") if google_proxy_group_g else None
 
         if not gpg_email:
             capp.logger.info(
