@@ -1,7 +1,7 @@
 from cirrus import GoogleCloudManager
 from cirrus.google_cloud.manager import _get_proxy_group_name_for_user
 from fence.config import config
-from fence.errors import NotFound, UserError
+from fence.errors import NotFound, UserError, UnavailableError
 from fence.models import (
     GoogleProxyGroup,
     GoogleProxyGroupToGoogleBucketAccessGroup,
