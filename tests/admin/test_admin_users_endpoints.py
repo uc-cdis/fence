@@ -22,7 +22,6 @@ from fence.models import (
     GoogleServiceAccount,
     GoogleServiceAccountKey,
     Group, 
-    StorageAccess, 
     User, 
     UserGoogleAccount,
     UserGoogleAccountToProxyGroup,
@@ -80,7 +79,6 @@ def test_user_d(db_session):
 def load_non_google_user_data(db_session, test_user_d):
     """ Add general, non-Google user data to Fence db. """
 
-    storage = StorageAccess(id=4220, user_id=4242)
     client = Client(
         client_id="dclientid",
         user_id=4242,
@@ -95,7 +93,7 @@ def load_non_google_user_data(db_session, test_user_d):
     )
     grp = Group(id=4240)
     usr_grp = UserToGroup(user_id=4242, group_id=4240)
-    db_session.add_all([storage, client, grp, usr_grp])
+    db_session.add_all([client, grp, usr_grp])
     db_session.commit()
 
 
@@ -488,8 +486,6 @@ def test_put_user_username_noauth(client, db_session):
 
 
 def assert_non_google_data_remained(db_session):
-    storage = db_session.query(StorageAccess).filter_by(id=4220).all()
-    assert len(storage) == 1
     client = db_session.query(Client).filter_by(client_id="dclientid").all()
     assert len(client) == 1
     group = db_session.query(Group).filter_by(id=4240).all()
@@ -499,8 +495,6 @@ def assert_non_google_data_remained(db_session):
 
 
 def assert_non_google_data_deleted(db_session):
-    storage = db_session.query(StorageAccess).filter_by(id=4220).all()
-    assert len(storage) == 0 # TODO !debug
     client = db_session.query(Client).filter_by(client_id="dclientid").all()
     assert len(client) == 0
     group = db_session.query(Group).filter_by(id=4240).all()
