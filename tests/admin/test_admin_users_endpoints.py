@@ -31,7 +31,6 @@ import fence.resources.admin as adm
 from tests import utils
 
 # TODO: Not yet tested: PUT,DELETE /users/<username>/projects
-# TODO: Not yet tested: DELETE /users/<username>/
 
 # Move these fixtures to tests/conftest.py if they become useful elsewhere
 
@@ -499,26 +498,6 @@ def assert_non_google_data_deleted(db_session):
     assert len(group) == 1  # shouldn't get deleted
     usr_grp = db_session.query(UserToGroup).filter_by(user_id=4242, group_id=4240).all()
     assert len(usr_grp) == 0
-
-
-# NOTE: Currently these assert functions query by hard-coded primary keys.
-# I could instead write utility fns to take any  user_id and count up all the
-# associated SAs/keys/gpgs/etc, and then assert in the tests that these return the
-# expected counts for our test_user_d. And this would usually be better code.
-# But I think that for this particular testing use-case, hard-coding is better:
-
-# (1) This WILL be sensitive to things like whether we accidentally set the
-#     ON DELETE to SET NULL instead of CASCADE (for example)--if we ref by
-#     user_id, this wouldn't work, we'd get a false positive
-# (2) This allows us to (much more easily) do things like check that the
-#     associated GBAG and Group rows (which have no user_id field but are linked
-#     to a user via M-M tables) were NOT deleted;
-# (3) In practice, I don't think we'll lose much by way of code
-#     reusability/extensibility. i.e. I don't foresee a need in future
-#     to count up any-given-user's SAs/keys/other data as far as these tests
-#     are concerned.
-
-# TODO: Ask for opinions on this /\ if anybody ever has time
 
 
 def assert_google_service_account_data_remained(db_session):
