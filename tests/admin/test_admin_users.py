@@ -26,6 +26,7 @@ def test_create_user(db_session, oauth_client):
     assert user.email == "insert_user@fake.com"
 
 
+@pytest.mark.skip("Rewrote delete user function, tested in test_admin_users_endpoints.py")
 def test_delete_user(db_session, awg_users):
     user = db_session.query(User).filter(User.username == "awg_user").first()
     assert user != None
