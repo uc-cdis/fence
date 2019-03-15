@@ -16,9 +16,7 @@ class Oauth2Client(object):
 
     """
 
-    MICROSOFT_DISCOVERY_URL = (
-        "https://login.microsoftonline.com/organizations/v2.0/.well-known/openid-configuration"
-    )
+    MICROSOFT_DISCOVERY_URL = "https://login.microsoftonline.com/organizations/v2.0/.well-known/openid-configuration"
 
     def __init__(self, settings, logger, HTTP_PROXY=None):
         self.logger = logger
@@ -33,32 +31,41 @@ class Oauth2Client(object):
         self.auth_url = self.get_auth_url()
         self.HTTP_PROXY = HTTP_PROXY
 
-    
-    
     def get_auth_url(self):
 
-        authorization_endpoint = self.get_discovered_endpoint("authorization_endpoint", 'https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize')
+        authorization_endpoint = self.get_discovered_endpoint(
+            "authorization_endpoint",
+            "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize",
+        )
 
         uri, state = self.session.authorization_url(authorization_endpoint)
-        
+
         return uri
 
     def get_user_id(self, code):
-        token_endpoint = self.get_discovered_endpoint("token_endpoint", "https://login.microsoftonline.com/organizations/oauth2/v2.0/token")
-        
+        token_endpoint = self.get_discovered_endpoint(
+            "token_endpoint",
+            "https://login.microsoftonline.com/organizations/oauth2/v2.0/token",
+        )
+
         try:
             proxies = None
             if self.HTTP_PROXY and self.HTTP_PROXY.get("host"):
-                proxies = { 
-                    "http"  : 'http://' + self.HTTP_PROXY["host"] + ':' + str(self.HTTP_PROXY["port"]), 
+                proxies = {
+                    "http": "http://"
+                    + self.HTTP_PROXY["host"]
+                    + ":"
+                    + str(self.HTTP_PROXY["port"])
                 }
-            token = self.session.fetch_token(url=token_endpoint, code=code, proxies=proxies)
-            
-            parts = token['id_token'].split('.')
+            token = self.session.fetch_token(
+                url=token_endpoint, code=code, proxies=proxies
+            )
+
+            parts = token["id_token"].split(".")
             claims = json.loads(base64.b64decode(parts[1] + "==="))
-            
-            if claims['email']:
-                return {"email": claims['email']}
+
+            if claims["email"]:
+                return {"email": claims["email"]}
             else:
                 return {"error": "Can't get user's Microsoft email!"}
         except Exception as e:
@@ -80,7 +87,9 @@ class Oauth2Client(object):
             if not return_value:
                 logger.warning(
                     "could not retrieve `{}` from Microsoft response {}. "
-                    "Defaulting to {}".format(endpoint_key, document.json(), default_endpoint)
+                    "Defaulting to {}".format(
+                        endpoint_key, document.json(), default_endpoint
+                    )
                 )
                 return_value = default_endpoint
             elif return_value != default_endpoint:
@@ -94,7 +103,10 @@ class Oauth2Client(object):
             logger.error(
                 "{} ERROR from Microsoft API, could not retrieve `{}` from "
                 "Microsoft response {}. Defaulting to {}".format(
-                    endpoint_key, document.status_code, document.json(), default_endpoint
+                    endpoint_key,
+                    document.status_code,
+                    document.json(),
+                    default_endpoint,
                 )
             )
             return_value = default_endpoint
