@@ -171,6 +171,8 @@ def app_config(
         config["STORAGE_CREDENTIALS"], logger=app.logger
     )
 
+    app.debug = config["DEBUG"]
+
     _setup_oidc_clients(app)
 
 
