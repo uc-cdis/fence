@@ -34,11 +34,11 @@ class Oauth2Client(object):
         self.HTTP_PROXY = HTTP_PROXY
 
     def get_auth_url(self):
-        self.get_endpoint_from_discovery_doc(
+        authorization_endpoint = self.get_discovered_endpoint(
             "authorization_endpoint",
             "https://accounts.google.com/o/oauth2/v2/auth",
         )
-        uri, state = self.session.authorization_url(authorization_endpoint)
+        uri, _ = self.session.authorization_url(authorization_endpoint)
 
         return uri
 
