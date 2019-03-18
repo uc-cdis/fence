@@ -23,7 +23,11 @@ from fence.resources.google.utils import (
     get_users_linked_google_email,
     get_linked_google_account_email,
 )
-from fence.utils import clear_cookies, append_query_params, get_valid_expiration_from_request
+from fence.utils import (
+    clear_cookies,
+    append_query_params,
+    get_valid_expiration_from_request,
+)
 
 logger = get_logger(__name__)
 
