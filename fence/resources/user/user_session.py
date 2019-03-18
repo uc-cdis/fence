@@ -109,7 +109,7 @@ class UserSession(SessionMixin):
         """
         return self.session_token["context"].get(key, *args)
 
-    def pop(self, key, default):
+    def pop(self, key, default=None):
         return self.session_token["context"].pop(key, default)
 
     def clear(self):

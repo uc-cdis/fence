@@ -407,6 +407,7 @@ WHITE_LISTED_SERVICE_ACCOUNT_EMAILS: []
 # when service accounts or google projects are determined invalid, an email is sent
 # to the project owners. These settings are for that email
 REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION:
+  enable: false
   # this domain MUST exist in GUN_MAIL config
   domain: 'example.com'
   from: 'do-not-reply@example.com'
@@ -465,3 +466,5 @@ GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS:
   - 'compute-system.iam.gserviceaccount.com'
   - 'gcp-sa-websecurityscanner.iam.gserviceaccount.com'
   - 'storage-transfer-service.iam.gserviceaccount.com'
+  - 'firebase-sa-management.iam.gserviceaccount.com'
+  - 'firebase-rules.iam.gserviceaccount.com'

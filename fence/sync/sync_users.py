@@ -196,7 +196,10 @@ class UserYAML(object):
                 )
             # we're going to throw it into the `rbac` dictionary anyways, so the rest of
             # the code can pretend it's in the normal place that we expect
-            rbac["resources"] = data.get("resources", [])
+            resources = data.get("resources", [])
+            # keep rbac empty dict if resources is not specified
+            if resources:
+                rbac["resources"] = data.get("resources", [])
 
         return cls(
             projects=projects,
@@ -990,7 +993,8 @@ class UserSyncer(object):
             if success:
                 self.logger.info("Finished synchronizing arborist")
             else:
-                self.logger.info("Could not synchronize successfully")
+                self.logger.error("Could not synchronize successfully")
+                exit(1)
         else:
             self.logger.info("No resources specified; skipping arborist sync")
 

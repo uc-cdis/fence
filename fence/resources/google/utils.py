@@ -28,7 +28,6 @@ from fence.models import (
     ServiceAccountToGoogleBucketAccessGroup,
 )
 from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME
-from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
 from fence.errors import NotSupported, NotFound
 
 
@@ -186,13 +185,13 @@ def create_google_access_key(client_id, user_id, username, proxy_group_id):
     )
 
     with GoogleCloudManager() as g_cloud:
-        key = g_cloud.get_access_key(service_account.google_unique_id)
+        key = g_cloud.get_access_key(service_account.email)
 
     flask.current_app.logger.info(
         "Created key with id {} for service account {} in user {}'s "
         "proxy group {} (user's id: {}).".format(
             key.get("private_key_id"),
-            service_account.google_unique_id,
+            service_account.email,
             username,
             proxy_group_id,
             user_id,
@@ -266,17 +265,6 @@ def add_custom_service_account_key_expiration(
     current_session.commit()
 
 
-def get_or_create_service_account(client_id, user_id, username, proxy_group_id):
-    service_account = get_service_account(client_id, user_id)
-
-    if not service_account:
-        service_account = create_service_account(
-            client_id, user_id, username, proxy_group_id
-        )
-
-    return service_account
-
-
 def get_service_account(client_id, user_id):
     """
     Return the service account (from Fence db) for given client.
@@ -299,9 +287,11 @@ def get_service_account(client_id, user_id):
     return service_account
 
 
-def create_service_account(client_id, user_id, username, proxy_group_id):
+def get_or_create_service_account(client_id, user_id, username, proxy_group_id):
     """
     Create a Google Service account for the current client and user.
+    This effectively handles conflicts in Google and will update our db
+    accordingly based on the newest information from Google.
 
     Args:
         g_cloud_manager (cirrus.GoogleCloudManager): instance of
@@ -325,29 +315,51 @@ def create_service_account(client_id, user_id, username, proxy_group_id):
                 proxy_group_id, account_id=service_account_id
             )
 
-        service_account = GoogleServiceAccount(
+        return _update_service_account_db_entry(
+            client_id, user_id, proxy_group_id, new_service_account
+        )
+    else:
+        flask.abort(
+            404,
+            "Could not find Google proxy group for current user in the given token.",
+        )
+
+
+def _update_service_account_db_entry(
+    client_id, user_id, proxy_group_id, new_service_account
+):
+    """
+    Now that SA exists in Google so lets check our db and update/add as necessary
+    """
+    service_account_db_entry = (
+        current_session.query(GoogleServiceAccount)
+        .filter(GoogleServiceAccount.email == new_service_account["email"])
+        .first()
+    )
+
+    if not service_account_db_entry:
+        service_account_db_entry = GoogleServiceAccount(
             google_unique_id=new_service_account["uniqueId"],
             client_id=client_id,
             user_id=user_id,
             email=new_service_account["email"],
             google_project_id=new_service_account["projectId"],
         )
-
-        current_session.add(service_account)
-        current_session.commit()
-
-        flask.current_app.logger.info(
-            "Created service account {} for proxy group {}.".format(
-                new_service_account["email"], proxy_group_id
-            )
-        )
-
-        return service_account
+        current_session.add(service_account_db_entry)
     else:
-        flask.abort(
-            404,
-            "Could not find Google proxy group for current user in the " "given token.",
+        service_account_db_entry.google_unique_id = new_service_account["uniqueId"]
+        service_account_db_entry.email = new_service_account["email"]
+        service_account_db_entry.google_project_id = (new_service_account["projectId"],)
+
+    current_session.commit()
+
+    flask.current_app.logger.info(
+        "Created service account {} for proxy group {}.".format(
+            new_service_account["email"], proxy_group_id
         )
+    )
+
+    return service_account_db_entry
 
 
 def get_or_create_proxy_group_id():
@@ -664,18 +676,15 @@ def get_monitoring_service_account_email(app_creds_file=None):
     return creds_email
 
 
-def is_google_managed_service_account(
-    service_account_email, google_managed_service_account_domains=None
-):
+def is_google_managed_service_account(service_account_email):
     """
     Return whether or not the given service account email represents a Google
     managed account (e.g. not user-created).
     """
     service_account_domain = "{}".format(service_account_email.split("@")[-1])
 
-    google_managed_service_account_domains = (
-        google_managed_service_account_domains
-        or config.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS", [])
+    google_managed_service_account_domains = config.get(
+        "GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS", []
     )
 
     return service_account_domain in google_managed_service_account_domains

@@ -5,7 +5,7 @@ from yaml.scanner import ScannerError
 import urlparse
 
 import cirrus
-from jinja2 import Template
+from jinja2 import Template, TemplateSyntaxError
 
 
 from fence.settings import CONFIG_SEARCH_FOLDERS
@@ -232,8 +232,11 @@ def nested_render(cfg, fully_rendered_cfgs, replacements):
         # it's not a dict, so lets try to render it. But only if it's
         # truthy (which means there's actually something to replace)
         if cfg:
-            t = Template(str(cfg))
-            rendered_value = t.render(**replacements)
+            try:
+                t = Template(str(cfg))
+                rendered_value = t.render(**replacements)
+            except TemplateSyntaxError:
+                rendered_value = cfg
             try:
                 cfg = yaml_load(rendered_value)
             except ScannerError:

@@ -15,7 +15,7 @@ from werkzeug.datastructures import ImmutableMultiDict
 
 from fence.models import Client, GrantType, User, query_for_user
 from fence.jwt.token import CLIENT_ALLOWED_SCOPES
-from fence.errors import NotFound
+from fence.errors import NotFound, UserError
 from fence.config import config
 
 
@@ -252,3 +252,26 @@ def send_email(from_email, to_emails, subject, text, smtp_domain):
         auth=("api", api_key),
         data={"from": from_email, "to": to_emails, "subject": subject, "text": text},
     )
+
+
+def get_valid_expiration_from_request():
+    """
+    Return the expires_in param if it is in the request, None otherwise.
+    Throw an error if the requested expires_in is not a positive integer.
+    """
+    if "expires_in" in flask.request.args:
+        is_valid_expiration(flask.request.args["expires_in"])
+        return int(flask.request.args["expires_in"])
+    else:
+        return None
+
+
+def is_valid_expiration(expires_in):
+    """
+    Throw an error if expires_in is not a positive integer.
+    """
+    try:
+        expires_in = int(flask.request.args["expires_in"])
+        assert expires_in > 0
+    except (ValueError, AssertionError):
+        raise UserError("expires_in must be a positive integer")
