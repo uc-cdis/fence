@@ -146,6 +146,14 @@ def app_config(
     if root_dir is None:
         root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
+    print("Before loading config....... logging info, warn, debug, error")
+    logger.info("This is an INFO")
+    logger.warn("This is a WARN")
+    logger.debug("This is a DEBUG")
+    logger.error("This is an ERROR")
+    logger.info("Done logging info, warn, debug, error before loading config")
+    print("Before loading config....... app.debug is... " + str(app.debug))
+
     logger.info("Loading settings...")
     # not using app.config.from_object because we don't want all the extra flask cfg
     # vars inside our singleton when we pass these through in the next step
@@ -171,7 +179,19 @@ def app_config(
         config["STORAGE_CREDENTIALS"], logger=app.logger
     )
 
-    app.debug = config["DEBUG"]
+    print("After loading config")
+    print("****************APP.DEBUG IS......... " + str(app.debug))
+    print("****************AND CONFIG DEBUG IS...." + str(config["DEBUG"]))
+    #app.debug = config["DEBUG"] #Actually, I think config.load handles this
+    #print("****************AND NOW APP.DEBUG IS............ " + str(app.debug))
+    print("The set is now done")
+
+    print("About to try to print a debug, info, and warn via logger after the set")
+    logger.debug("THIS IS A DEBUG PRINT AFTER THE SET")
+    logger.info("THIS IS AN INFO PRINT AFTER THE SET")
+    logger.warn("THIS IS A WARN PRINT AFTER THE SET")
+    logger.error("THIS IS AN ERROR PRINT AFTER THE SET")
+    print("Just tried to print a debug, info,  warn, and error via logger after the set")
 
     _setup_oidc_clients(app)
 
