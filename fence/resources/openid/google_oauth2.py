@@ -1,4 +1,4 @@
-from oauth2client.client import OAuth2WebServerFlow
+from authlib.client import OAuth2Session
 
 import httplib2
 import json
@@ -23,7 +23,7 @@ class Oauth2Client(object):
     def __init__(self, settings, logger, HTTP_PROXY=None):
         self.logger = logger
         self.settings = settings
-        self.flow = OAuth2WebServerFlow(
+        self.flow = OAuth2Session(
             client_id=settings["client_id"],
             client_secret=settings["client_secret"],
             scope="openid email",
@@ -33,7 +33,7 @@ class Oauth2Client(object):
         self.HTTP_PROXY = HTTP_PROXY
 
     def get_auth_url(self):
-        return self.flow.step1_get_authorize_url()
+        self.get_endpoint_from_discovery_doc("authorization_endpont", "https://openidconnect.googleapis.com/v1/authorization_endpoint")
 
     def get_user_id(self, code):
         try:
@@ -50,7 +50,7 @@ class Oauth2Client(object):
             creds = self.flow.step2_exchange(code, http=http)
             http = creds.authorize(http)
 
-            userinfo_endpoint = self.get_userinfo_endpoint()
+            userinfo_endpoint = self.get_endpoint_from_discovery_doc(("userinfo_endpoint", "https://openidconnect.googleapis.com/v1/userinfo")
 
             r = http.request(userinfo_endpoint)
             if len(r) > 1:
@@ -71,38 +71,36 @@ class Oauth2Client(object):
             self.logger.exception("Can't get user info")
             return {"error": "Can't get your email: {}".format(e)}
 
-    def get_userinfo_endpoint(self):
+    def get_endpoint_from_discovery_doc(self, key, default_endpoint=None):
         """
-        Return the url for Google's Userinfo endpoint by the recommended method of
-        using their discovery url. Default to current userinfo url as identified
-        09 JAN 2019.
+        Return the url for Google's endpoint by the recommended method of
+        using their discovery url.
         """
-        default_userinfo = "https://openidconnect.googleapis.com/v1/userinfo"
 
         document = requests.get(self.GOOGLE_DISCOVERY_URL)
 
         if document.status_code == requests.codes.ok:
-            userinfo_endpoint = document.json().get("userinfo_endpoint")
-            if not userinfo_endpoint:
+            google_endpoint = document.json().get(key)
+            if not google_endpoint:
                 logger.warning(
-                    "could not retrieve `userinfo_endpoint` from Google response {}. "
-                    "Defaulting to {}".format(document.json(), default_userinfo)
+                    "could not retrieve `{}` from Google response {}. "
+                    "Defaulting to {}".format(key, document.json(), default_endpoint)
                 )
-                userinfo_endpoint = default_userinfo
-            elif userinfo_endpoint != default_userinfo:
+                google_endpoint = default_endpoint
+            elif google_endpoint != default_endpoint:
                 logger.info(
-                    "Google's userinfo endpoint {} differs from our "
+                    "Google's endpoint {} differs from our "
                     "default {}. Using Google's...".format(
-                        userinfo_endpoint, default_userinfo
+                        google_endpoint, default_endpoint
                     )
                 )
         else:
             logger.error(
-                "{} ERROR from Google API, could not retrieve `userinfo_endpoint` from "
+                "{} ERROR from Google API, could not retrieve `google_endpoint` from "
                 "Google response {}. Defaulting to {}".format(
-                    document.status_code, document, default_userinfo
+                    document.status_code, document, default_endpoint
                 )
             )
-            userinfo_endpoint = default_userinfo
+            google_endpoint = default_endpoint
 
-        return userinfo_endpoint
+        return google_endpoint
