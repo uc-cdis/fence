@@ -23,89 +23,92 @@ class Oauth2Client(object):
     def __init__(self, settings, logger, HTTP_PROXY=None):
         self.logger = logger
         self.settings = settings
-        self.flow = OAuth2Session(
+        self.session = OAuth2Session(
             client_id=settings["client_id"],
             client_secret=settings["client_secret"],
             scope="openid email",
             redirect_uri=settings["redirect_url"],
         )
+        self.discovered_data = requests.get(self.GOOGLE_DISCOVERY_URL)
         self.auth_url = self.get_auth_url()
         self.HTTP_PROXY = HTTP_PROXY
 
     def get_auth_url(self):
         self.get_endpoint_from_discovery_doc(
-            "authorization_endpont",
-            "https://openidconnect.googleapis.com/v1/authorization_endpoint",
+            "authorization_endpoint",
+            "https://accounts.google.com/o/oauth2/v2/auth",
         )
+        uri, state = self.session.authorization_url(authorization_endpoint)
+
+        return uri
 
     def get_user_id(self, code):
-        try:
-            if self.HTTP_PROXY and self.HTTP_PROXY.get("host"):
-                proxy = httplib2.ProxyInfo(
-                    proxy_type=httplib2.socks.PROXY_TYPE_HTTP,
-                    proxy_host=self.HTTP_PROXY["host"],
-                    proxy_port=self.HTTP_PROXY["port"],
-                    proxy_rdns=True,
-                )
-                http = httplib2.Http(proxy_info=proxy)
-            else:
-                http = httplib2.Http()
-            creds = self.flow.step2_exchange(code, http=http)
-            http = creds.authorize(http)
+        token_endpoint = self.get_discovered_endpoint(
+            "token_endpoint",
+            "https://oauth2.googleapis.com/token",
+        )
 
-            userinfo_endpoint = self.get_endpoint_from_discovery_doc(
-                "userinfo_endpoint", "https://openidconnect.googleapis.com/v1/userinfo"
+        try:
+            proxies = None
+            if self.HTTP_PROXY and self.HTTP_PROXY.get("host"):
+                proxies = {
+                    "http": "http://"
+                    + self.HTTP_PROXY["host"]
+                    + ":"
+                    + str(self.HTTP_PROXY["port"])
+                }
+            token = self.session.fetch_token(
+                url=token_endpoint, code=code, proxies=proxies
             )
 
-            r = http.request(userinfo_endpoint)
-            if len(r) > 1:
-                user_profile = json.loads(r[1])
-                if user_profile.get("email_verified"):
-                    return {"email": user_profile.get("email")}
-                else:
-                    return {
-                        "error": (
-                            "Your email is not verified: {}".format(
-                                user_profile.get("error", "")
-                            )
-                        )
-                    }
+            parts = token["id_token"].split(".")
+            claims = json.loads(base64.b64decode(parts[1] + "==="))
+
+            if claims["email"]:
+                return {"email": claims["email"]}
             else:
-                return {"error": "Can't get user's email"}
+                return {"error": "Can't get user's Google email!"}
         except Exception as e:
             self.logger.exception("Can't get user info")
-            return {"error": "Can't get your email: {}".format(e)}
+        return {"error": "Can't get your Google email: {}".format(e)}
 
-    def get_endpoint_from_discovery_doc(self, key, default_endpoint=None):
+    def get_discovered_endpoint(self, endpoint_key, default_endpoint):
         """
         Return the url for Google's endpoint by the recommended method of
-        using their discovery url.
+        using their discovery url. Default to current url as identified
+        14 MAR 2019.
         """
 
-        document = requests.get(self.GOOGLE_DISCOVERY_URL)
+        document = self.discovered_data
+        return_value = default_endpoint
 
         if document.status_code == requests.codes.ok:
-            google_endpoint = document.json().get(key)
-            if not google_endpoint:
+            return_value = document.json().get(endpoint_key)
+            if not return_value:
                 logger.warning(
                     "could not retrieve `{}` from Google response {}. "
-                    "Defaulting to {}".format(key, document.json(), default_endpoint)
+                    "Defaulting to {}".format(
+                        endpoint_key, document.json(), default_endpoint
+                    )
                 )
-                google_endpoint = default_endpoint
-            elif google_endpoint != default_endpoint:
+                return_value = default_endpoint
+            elif return_value != default_endpoint:
                 logger.info(
-                    "Google's endpoint {} differs from our "
+                    "ORCID's {}, {} differs from our "
                     "default {}. Using Google's...".format(
-                        google_endpoint, default_endpoint
+                        endpoint_key, return_value, default_endpoint
                     )
                 )
         else:
             logger.error(
-                "{} ERROR from Google API, could not retrieve `google_endpoint` from "
+                "{} ERROR from Google API, could not retrieve `{}` from "
                 "Google response {}. Defaulting to {}".format(
-                    document.status_code, document, default_endpoint
+                    endpoint_key,
+                    document.status_code,
+                    document.json(),
+                    default_endpoint,
                 )
             )
-            google_endpoint = default_endpoint
+            return_value = default_endpoint
 
-        return google_endpoint
+        return return_value
