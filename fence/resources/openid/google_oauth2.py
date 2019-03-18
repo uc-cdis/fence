@@ -33,7 +33,10 @@ class Oauth2Client(object):
         self.HTTP_PROXY = HTTP_PROXY
 
     def get_auth_url(self):
-        self.get_endpoint_from_discovery_doc("authorization_endpont", "https://openidconnect.googleapis.com/v1/authorization_endpoint")
+        self.get_endpoint_from_discovery_doc(
+            "authorization_endpont",
+            "https://openidconnect.googleapis.com/v1/authorization_endpoint",
+        )
 
     def get_user_id(self, code):
         try:
@@ -50,7 +53,9 @@ class Oauth2Client(object):
             creds = self.flow.step2_exchange(code, http=http)
             http = creds.authorize(http)
 
-            userinfo_endpoint = self.get_endpoint_from_discovery_doc(("userinfo_endpoint", "https://openidconnect.googleapis.com/v1/userinfo")
+            userinfo_endpoint = self.get_endpoint_from_discovery_doc(
+                "userinfo_endpoint", "https://openidconnect.googleapis.com/v1/userinfo"
+            )
 
             r = http.request(userinfo_endpoint)
             if len(r) > 1:
