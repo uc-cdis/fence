@@ -37,6 +37,8 @@ import fence.blueprints.google
 
 from cdislogging import get_logger
 
+# import pdb
+# pdb.set_trace()
 logger = get_logger(__name__)
 
 app = flask.Flask(__name__)
@@ -153,6 +155,9 @@ def app_config(
     logger.error("This is an ERROR")
     logger.info("Done logging info, warn, debug, error before loading config")
     print("Before loading config....... app.debug is... " + str(app.debug))
+    print("Before loading config....... logger.level is..." + str(logger.level))
+    print("Effective level: " + str(logger.getEffectiveLevel()))
+    print("Manager disable level: " + str(logger.manager.disable))
 
     logger.info("Loading settings...")
     # not using app.config.from_object because we don't want all the extra flask cfg
@@ -162,6 +167,9 @@ def app_config(
 
     # dump the settings into the config singleton before loading a configuration file
     config.update(dict(settings_cfg))
+
+    # import pdb
+    # pdb.set_trace()
 
     # load the configuration file, this overwrites anything from settings/local_settings
     config.load(config_path, file_name)
@@ -182,9 +190,12 @@ def app_config(
     print("After loading config")
     print("****************APP.DEBUG IS......... " + str(app.debug))
     print("****************AND CONFIG DEBUG IS...." + str(config["DEBUG"]))
-    #app.debug = config["DEBUG"] #Actually, I think config.load handles this
-    #print("****************AND NOW APP.DEBUG IS............ " + str(app.debug))
+    # app.debug = config["DEBUG"] #Actually, I think config.load handles this
+    # print("****************AND NOW APP.DEBUG IS............ " + str(app.debug))
     print("The set is now done")
+    print("After loading config....... logger.level is..." + str(logger.level))
+    print("Effective level: " + str(logger.getEffectiveLevel()))
+    print("Manager disable level: " + str(logger.manager.disable))
 
     print("About to try to print a debug, info, and warn via logger after the set")
     logger.debug("THIS IS A DEBUG PRINT AFTER THE SET")
