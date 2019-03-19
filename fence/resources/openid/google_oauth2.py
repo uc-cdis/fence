@@ -1,4 +1,5 @@
 from authlib.client import OAuth2Session
+from jose import jwt
 import base64
 import httplib2
 import json
@@ -35,8 +36,7 @@ class Oauth2Client(object):
 
     def get_auth_url(self):
         authorization_endpoint = self.get_discovered_endpoint(
-            "authorization_endpoint",
-            "https://accounts.google.com/o/oauth2/v2/auth",
+            "authorization_endpoint", "https://accounts.google.com/o/oauth2/v2/auth"
         )
         uri, _ = self.session.authorization_url(authorization_endpoint)
 
@@ -44,25 +44,31 @@ class Oauth2Client(object):
 
     def get_user_id(self, code):
         token_endpoint = self.get_discovered_endpoint(
-            "token_endpoint",
-            "https://oauth2.googleapis.com/token",
+            "token_endpoint", "https://oauth2.googleapis.com/token"
         )
 
         try:
             proxies = None
             if self.HTTP_PROXY and self.HTTP_PROXY.get("host"):
-                proxies = {
-                    "http": "http://"
-                    + self.HTTP_PROXY["host"]
-                    + ":"
-                    + str(self.HTTP_PROXY["port"])
-                }
+                url = "http://{}:{}".format(
+                    self.HTTP_PROXY["host"], str(self.HTTP_PROXY["port"])
+                )
+                proxies = {"http": url}
+
             token = self.session.fetch_token(
                 url=token_endpoint, code=code, proxies=proxies
             )
 
-            parts = token["id_token"].split(".")
-            claims = json.loads(base64.b64decode(parts[1] + "==="))
+            jwks_uri = self.get_discovered_endpoint(
+                "jwks_uri", "https://www.googleapis.com/oauth2/v3/certs"
+            )
+
+            keys = self.session.request("GET", jwks_uri).json()["keys"]
+            claims = jwt.decode(
+                token["id_token"],
+                keys,
+                options={"verify_aud": False, "verify_at_hash": False},
+            )
 
             if claims["email"]:
                 return {"email": claims["email"]}
