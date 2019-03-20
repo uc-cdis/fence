@@ -46,13 +46,22 @@ SUPPORTED_ACTIONS = ["upload", "download"]
 
 def get_signed_url_for_file(action, file_id):
     requested_protocol = flask.request.args.get("protocol", None)
+
+    # default to signing the url even if it's a public object
+    # this will work so long as we're provided a user token
+    force_signed_url = True
+    if flask.request.args.get("no_force_sign"):
+        force_signed_url = False
+
     indexed_file = IndexedFile(file_id)
     expires_in = config.get("MAX_PRESIGNED_URL_TTL", 3600)
     requested_expires_in = get_valid_expiration_from_request()
     if requested_expires_in:
         expires_in = min(requested_expires_in, expires_in)
 
-    signed_url = indexed_file.get_signed_url(requested_protocol, action, expires_in)
+    signed_url = indexed_file.get_signed_url(
+        requested_protocol, action, expires_in, force_signed_url=force_signed_url
+    )
     return {"url": signed_url}
 
 
@@ -211,7 +220,7 @@ class IndexedFile(object):
         urls = self.index_document.get("urls", [])
         return list(map(IndexedFileLocation.from_url, urls))
 
-    def get_signed_url(self, protocol, action, expires_in):
+    def get_signed_url(self, protocol, action, expires_in, force_signed_url=True):
         if self.public and action == "upload":
             raise Unauthorized("Cannot upload on public files")
         # don't check the authorization if the file is public
@@ -220,9 +229,9 @@ class IndexedFile(object):
             raise Unauthorized("You don't have access permission on this file")
         if action is not None and action not in SUPPORTED_ACTIONS:
             raise NotSupported("action {} is not supported".format(action))
-        return self._get_signed_url(protocol, action, expires_in)
+        return self._get_signed_url(protocol, action, expires_in, force_signed_url)
 
-    def _get_signed_url(self, protocol, action, expires_in):
+    def _get_signed_url(self, protocol, action, expires_in, force_signed_url):
         if not protocol:
             # no protocol specified, return first location as signed url
             try:
@@ -238,7 +247,10 @@ class IndexedFile(object):
                 protocol == "http" and file_location.protocol == "https"
             ):
                 return file_location.get_signed_url(
-                    action, expires_in, public_data=self.public
+                    action,
+                    expires_in,
+                    public_data=self.public,
+                    force_signed_url=force_signed_url,
                 )
 
         raise NotFound(
@@ -349,7 +361,9 @@ class IndexedFileLocation(object):
             return GoogleStorageIndexedFileLocation(url)
         return IndexedFileLocation(url)
 
-    def get_signed_url(self, action, expires_in, public_data=False):
+    def get_signed_url(
+        self, action, expires_in, public_data=False, force_signed_url=True
+    ):
         return self.url
 
 
@@ -451,7 +465,9 @@ class S3IndexedFileLocation(IndexedFileLocation):
         else:
             return bucket_cred["region"]
 
-    def get_signed_url(self, action, expires_in, public_data=False):
+    def get_signed_url(
+        self, action, expires_in, public_data=False, force_signed_url=True
+    ):
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
@@ -508,15 +524,17 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     And indexed file that lives in a Google Storage bucket.
     """
 
-    def get_signed_url(self, action, expires_in, public_data=False):
+    def get_signed_url(
+        self, action, expires_in, public_data=False, force_signed_url=True
+    ):
         resource_path = (
             self.parsed_url.netloc.strip("/") + "/" + self.parsed_url.path.strip("/")
         )
 
-        # if the file is public, just return the public url to access it, no
-        # signing required
-        if public_data:
-            url = "https://storage.googleapis.com/" + resource_path
+        # if requested not to sign and it's public, don'return Google's
+        # public url to the file
+        if not current_token or (current_token and not force_signed_url):
+            url = "https://storage.cloud.google.com/" + resource_path
         else:
             expiration_time = int(time.time()) + int(expires_in)
             url = self._generate_google_storage_signed_url(

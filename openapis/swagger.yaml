@@ -311,6 +311,15 @@ paths:
             Otherwise, json data with the url is returned.
           schema:
             type: boolean
+        - name: no_force_sign
+          required: false
+          in: query
+          description: >-
+            if set and the file requested is actually public, this will
+            request to *not* sign the resulting URL (i.e. just provide the
+            public url)
+          schema:
+            type: boolean
       responses:
         '200':
           description: successful operation
