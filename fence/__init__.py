@@ -176,8 +176,13 @@ def app_config(
     app.debug = True
     logger.level = 10 if config["DEBUG"] == True else 20
 
-    if not app.config["LOGGER_HANDLER_POLICY"]=="always" and not app.config["LOGGER_HANDLER_POLICY"]=="debug":
-        logger.warn("LOGGER_HANDLER_POLICY neither 'always' nor 'debug'; logs will not print'")
+    if (
+        not app.config["LOGGER_HANDLER_POLICY"] == "always"
+        and not app.config["LOGGER_HANDLER_POLICY"] == "debug"
+    ):
+        logger.warn(
+            "LOGGER_HANDLER_POLICY neither 'always' nor 'debug'; logs will not print'"
+        )
 
     _setup_oidc_clients(app)
 
