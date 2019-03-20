@@ -15,16 +15,16 @@ Fence is a core service of the Gen3 stack that has multiple capabilities:
 
 
 ## Contents
- 
+
 1. [API Documentation](#API-documentation)
 1. [Terminologies](#Terminologies)
-1. [Identity Providers](#identity-provider) 
-1. [OIDC & OAuth2](#oidc--oauth2) 
+1. [Identity Providers](#identity-provider)
+1. [OIDC & OAuth2](#oidc--oauth2)
 1. [Accessing Data](#accessing-data)
 1. [Setup](#setup)
 1. [Token management](#token-management)
-1. [fence-create](#fence-create-automating-common-tasks-with-a-command-line-interface) 
-1. [Default expiration times](#default-expiration-times-in-fence) 
+1. [fence-create](#fence-create-automating-common-tasks-with-a-command-line-interface)
+1. [Default expiration times](#default-expiration-times-in-fence)
 
 
 ## API Documentation
@@ -50,7 +50,7 @@ Identity Provider - the service that lets a user login and provides the identity
 
 #### Auth broker
 
-An interface which enables a user to authenticate using any of multiple IdPs.  
+An interface which enables a user to authenticate using any of multiple IdPs.
 
 #### OAuth2
 
@@ -62,15 +62,15 @@ https://oauth.net/2/
 
 ##### Client
 
-OAuth 2.0 Client - An application which makes requests for protected resources (on a resource server) on behalf of a resource owner (end-user) and with the resource owner's authorization. 
+OAuth 2.0 Client - An application which makes requests for protected resources (on a resource server) on behalf of a resource owner (end-user) and with the resource owner's authorization.
 
 ##### Auth Server
 
-OAuth 2.0 Authorization Server - A server which issues access tokens to the client after successfully authenticating the resource owner and obtaining authorization. 
+OAuth 2.0 Authorization Server - A server which issues access tokens to the client after successfully authenticating the resource owner and obtaining authorization.
 
 ##### Access Token
 
-A string, issued by the auth server to the client, representing authorization credentials used to access protected resources (on a resource server). 
+A string, issued by the auth server to the client, representing authorization credentials used to access protected resources (on a resource server).
 
 #### OIDC
 
@@ -84,7 +84,7 @@ OpenID Provider - an OAuth 2.0 Authentication Server which also implements OpenI
 
 ##### RP
 
-Relying Party - an OAuth 2.0 Client which uses (requests) OpenID Connect.  
+Relying Party - an OAuth 2.0 Client which uses (requests) OpenID Connect.
 
 
 
@@ -102,7 +102,7 @@ At the moment, supported IDPs include:
 ## OIDC & OAuth2
 
 Fence acts as a central broker that supports multiple IdPs.
-At the same time, it acts as an IdP itself. 
+At the same time, it acts as an IdP itself.
 In that sense, `fence` is both an `RP` and an `OP`.
 
 ### Fence as RP
@@ -110,18 +110,18 @@ In that sense, `fence` is both an `RP` and an `OP`.
 Example:
 
 - Google IAM is the OpenID Provider (OP)
-- Fence is the Relying Party (RP) 
+- Fence is the Relying Party (RP)
 - Google Calendar API is the resource provider
 
 ### Fence as OP
 
 - Fence is the OpenID Provider (OP)
-- A third-party application is the Relying Party (RP) 
+- A third-party application is the Relying Party (RP)
 - Gen3 microservices (e.g. [`sheepdog`](https://github.com/uc-cdis/sheepdog)) are resource providers
 
 ### Example Flows
 
-Note that the `3rd Party App` acts as the `RP` in these examples. 
+Note that the `3rd Party App` acts as the `RP` in these examples.
 
 [//]: # (See /docs folder for README on how to regenerate these sequence diagrams)
 
@@ -131,8 +131,8 @@ Note that the `3rd Party App` acts as the `RP` in these examples.
 
 #### Flow: OpenID Connect
 
-In the following flow, Fence and the IdP together constitute an `OP`. 
-Fence, by itself, acts as an OAuth 2.0 Auth Server; the IdP enables the additional implementation of OIDC (by providing AuthN). From an OIDC viewpoint, therefore, Fence and the IdP can be abstracted into one `OP`.  
+In the following flow, Fence and the IdP together constitute an `OP`.
+Fence, by itself, acts as an OAuth 2.0 Auth Server; the IdP enables the additional implementation of OIDC (by providing AuthN). From an OIDC viewpoint, therefore, Fence and the IdP can be abstracted into one `OP`.
 
 ![OIDC Flow](docs/images/seq_diagrams/openid_connect_flow.png)
 
@@ -146,7 +146,7 @@ If a third-party application wants to use Gen3 resources like
 `fence`/`sheepdog`/`peregrine`, they call those services with an `Access Token`
 passed in an `Authorization` header.
 
-In the following flow, `3rd Party App` is the `RP`; `Protected Endpoint` is an endpoint of a Gen3 Resource (the `microservice`), and both of these are part of a `resource server`; and `Fence` is the `OP`. Here, importantly, `Fence` may be interfacing with another IdP _or_ with another `Fence` instance in order to implement the OIDC layer. Either way, note that the `Fence` blob in this diagram actually abstracts Fence in concert with some IdP, which may or may not also be (a different instance of) Fence.  
+In the following flow, `3rd Party App` is the `RP`; `Protected Endpoint` is an endpoint of a Gen3 Resource (the `microservice`), and both of these are part of a `resource server`; and `Fence` is the `OP`. Here, importantly, `Fence` may be interfacing with another IdP _or_ with another `Fence` instance in order to implement the OIDC layer. Either way, note that the `Fence` blob in this diagram actually abstracts Fence in concert with some IdP, which may or may not also be (a different instance of) Fence.
 
 ![Using Access Token](docs/images/seq_diagrams/token_use_for_access.png)
 
@@ -160,12 +160,12 @@ In the following flow, `3rd Party App` is the `RP`; `Protected Endpoint` is an e
 
 #### Flow: Multi-Tenant Fence
 
-The following diagram illustrates the case in which one fence instance 
+The following diagram illustrates the case in which one fence instance
 uses another fence instance as its identity provider.
 
 A use case for this is when we setup a fence instance that uses NIH login as the IdP. Here, we go through a detailed approval process in NIH. Therefore we would like to do it only once for a single lead Fence instance, and then allow other fence instances to simply redirect to use the lead Fence as an IdP for logging in via NIH.
 
-In the following flow, `Fence (Client Instance)` is an OP relative to `OAuth Client`, but an RP relative to `Fence (IDP)`. 
+In the following flow, `Fence (Client Instance)` is an OP relative to `OAuth Client`, but an RP relative to `Fence (IDP)`.
 
 ![Multi-Tenant Flow](docs/images/seq_diagrams/multi-tenant_flow.png)
 
@@ -563,3 +563,4 @@ Table contains various artifacts in fence that have temporary lifetimes and thei
 | User Primary SA Key                  | 10 days      | FALSE       | N/A                   | Used for Google URL signing                                                              |
 | User Primary SA Key for URL Signing  | 30 days      | FALSE       | N/A                   |                                                                                          |
 | Sliding Session Window               | 30 minutes   | TRUE        | 8 hours               | access_token cookies get generated automatically when expired if session is still active |
+
