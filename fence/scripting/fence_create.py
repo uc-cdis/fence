@@ -1,7 +1,7 @@
 import os
 import os.path
 import time
-import yaml
+from yaml import safe_load
 import json
 import pprint
 
@@ -226,7 +226,7 @@ def sync_users(
     if projects:
         try:
             with open(projects, "r") as f:
-                project_mapping = yaml.load(f)
+                project_mapping = safe_load(f)
         except IOError:
             pass
 
@@ -245,7 +245,7 @@ def sync_users(
 
 def create_sample_data(DB, yaml_input):
     with open(yaml_input, "r") as f:
-        data = yaml.load(f)
+        data = safe_load(f)
 
     db = SQLAlchemyDriver(DB)
     with db.session as s:
