@@ -1,6 +1,5 @@
 from authlib.client import OAuth2Session
 from jose import jwt
-import base64
 import httplib2
 import json
 import requests
