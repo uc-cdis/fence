@@ -37,8 +37,6 @@ import fence.blueprints.google
 
 from cdislogging import get_logger
 
-# import pdb
-# pdb.set_trace()
 logger = get_logger(__name__)
 
 app = flask.Flask(__name__)
@@ -173,31 +171,13 @@ def app_config(
         config["STORAGE_CREDENTIALS"], logger=app.logger
     )
 
-    # app.debug = config["DEBUG"] #Actually, I think config.load handles this
-
-    print("Test logging...")
-    print("Confirm that app.config['LOGGER_HANDLER_POLICY']=='always': " + str(app.config['LOGGER_HANDLER_POLICY']=='always'))
-    print("Setting app.debug to TRUE")
+    # app.debug should always be True bc we want at least INFO lvl logging in dev+prod
+    # and flask 0.12 will set lvl to ERROR if app.debug is False
     app.debug = True
+    logger.level = 10 if config["DEBUG"] == True else 20
 
-    print("Setting logger.level to DEBUG...")
-    logger.level = 10
-    print("Expect to be printed below: DEBUG, INFO, WARN, ERROR.")
-    logger.debug("THIS IS A DEBUG PRINT AFTER THE SET")
-    logger.info("THIS IS AN INFO PRINT AFTER THE SET")
-    logger.warn("THIS IS A WARN PRINT AFTER THE SET")
-    logger.error("THIS IS AN ERROR PRINT AFTER THE SET")
-    print("Expect to be printed above: DEBUG, INFO, WARN, ERROR.")
-
-    print("Setting logger.level to INFO...")
-    logger.level = 20
-    print("Expect to be printed below: INFO, WARN, ERROR.")
-    logger.debug("THIS IS A DEBUG PRINT AFTER THE SET")
-    logger.info("THIS IS AN INFO PRINT AFTER THE SET")
-    logger.warn("THIS IS A WARN PRINT AFTER THE SET")
-    logger.error("THIS IS AN ERROR PRINT AFTER THE SET")
-    print("Expect to be printed above: INFO, WARN, ERROR.")
-
+    if not app.config["LOGGER_HANDLER_POLICY"]=="always" and not app.config["LOGGER_HANDLER_POLICY"]=="debug":
+        logger.warn("LOGGER_HANDLER_POLICY neither 'always' nor 'debug'; logs will not print'")
 
     _setup_oidc_clients(app)
 
