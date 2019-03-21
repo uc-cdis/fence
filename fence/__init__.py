@@ -44,6 +44,13 @@ app = flask.Flask(__name__)
 CORS(app=app, headers=["content-type", "accept"], expose_headers="*")
 
 
+def warn_about_logger():
+    raise Exception(
+        "Flask 0.12 will remove and replace all of our log handlers if you call "
+        "app.logger anywhere. Use get_logger from cdislogging instead."
+    )
+
+
 def app_init(
     app,
     settings="fence.settings",
@@ -51,6 +58,8 @@ def app_init(
     config_path=None,
     config_file_name=None,
 ):
+    app.__dict__["logger"] = warn_about_logger
+
     app_config(
         app,
         settings=settings,
@@ -168,12 +177,8 @@ def app_config(
     _load_keys(app, root_dir)
     _set_authlib_cfgs(app)
 
-    app.storage_manager = StorageManager(
-        config["STORAGE_CREDENTIALS"], logger=app.logger
-    )
+    app.storage_manager = StorageManager(config["STORAGE_CREDENTIALS"], logger=logger)
 
-    # app.debug should always be True bc we want at least INFO lvl logging in dev+prod
-    # and flask 0.12 will set lvl to ERROR if app.debug is False
     app.debug = config["DEBUG"]
     logger.level = DEBUG if config["DEBUG"] == True else INFO
 
@@ -183,7 +188,7 @@ def app_config(
 def _setup_data_endpoint_and_boto(app):
     if "AWS_CREDENTIALS" in config and len(config["AWS_CREDENTIALS"]) > 0:
         value = config["AWS_CREDENTIALS"].values()[0]
-        app.boto = BotoManager(value, logger=app.logger)
+        app.boto = BotoManager(value, logger=logger)
         app.register_blueprint(fence.blueprints.data.blueprint, url_prefix="/data")
 
 
@@ -229,7 +234,7 @@ def _setup_oidc_clients(app):
         app.google_client = GoogleClient(
             config["OPENID_CONNECT"]["google"],
             HTTP_PROXY=config.get("HTTP_PROXY"),
-            logger=app.logger,
+            logger=logger,
         )
 
     # Add OIDC client for ORCID if configured.
@@ -240,7 +245,7 @@ def _setup_oidc_clients(app):
         app.orcid_client = ORCIDClient(
             config["OPENID_CONNECT"]["orcid"],
             HTTP_PROXY=config.get("HTTP_PROXY"),
-            logger=app.logger,
+            logger=logger,
         )
 
     # Add OIDC client for Microsoft if configured.
@@ -251,7 +256,7 @@ def _setup_oidc_clients(app):
         app.microsoft_client = MicrosoftClient(
             config["OPENID_CONNECT"]["microsoft"],
             HTTP_PROXY=config.get("HTTP_PROXY"),
-            logger=app.logger,
+            logger=logger,
         )
 
     # Add OIDC client for multi-tenant fence if configured.
@@ -290,7 +295,7 @@ def check_csrf():
         csrf_header = flask.request.headers.get("x-csrf-token")
         csrf_cookie = flask.request.cookies.get("csrftoken")
         referer = flask.request.headers.get("referer")
-        flask.current_app.logger.debug("HTTP REFERER " + str(referer))
+        logger.debug("HTTP REFERER " + str(referer))
         if not all([csrf_cookie, csrf_header, csrf_cookie == csrf_header, referer]):
             raise UserError("CSRF verification failed. Request aborted")
 

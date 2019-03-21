@@ -4,6 +4,7 @@ from urlparse import urlparse
 
 from cached_property import cached_property
 import cirrus
+from cdislogging import get_logger
 from cdispyutils.config import get_value
 from cdispyutils.hmac4 import generate_aws_presigned_url
 import flask
@@ -32,6 +33,8 @@ from fence.resources.google.utils import (
 )
 from fence.utils import get_valid_expiration_from_request
 
+
+logger = get_logger(__name__)
 
 ACTION_DICT = {
     "s3": {"upload": "PUT", "download": "GET"},
@@ -74,8 +77,8 @@ class BlankIndex(object):
         https://github.com/uc-cdis/cdis-wiki/tree/master/dev/gen3/data_upload
     """
 
-    def __init__(self, uploader=None, file_name=None, logger=None):
-        self.logger = logger or flask.current_app.logger
+    def __init__(self, uploader=None, file_name=None, logger_=None):
+        self.logger = logger_ or logger
         self.indexd = (
             flask.current_app.config.get("INDEXD")
             or flask.current_app.config["BASE_URL"] + "/index"
@@ -186,7 +189,7 @@ class IndexedFile(object):
         try:
             res = requests.get(url + self.file_id)
         except Exception as e:
-            flask.current_app.logger.error(
+            logger.error(
                 "failed to reach indexd at {0}: {1}".format(url + self.file_id, e)
             )
             raise UnavailableError("Fail to reach id service to find data location")
@@ -194,19 +197,19 @@ class IndexedFile(object):
             try:
                 json_response = res.json()
                 if "urls" not in json_response:
-                    flask.current_app.logger.error(
+                    logger.error(
                         "URLs are not included in response from "
                         "indexd: {}".format(url + self.file_id)
                     )
                     raise InternalError("URLs and metadata not found")
                 return res.json()
             except Exception as e:
-                flask.current_app.logger.error(
+                logger.error(
                     "indexd response missing JSON field {}".format(url + self.file_id)
                 )
                 raise InternalError("internal error from indexd: {}".format(e))
         elif res.status_code == 404:
-            flask.current_app.logger.error(
+            logger.error(
                 "Not Found. indexd could not find {}: {}".format(
                     url + self.file_id, res.text
                 )
