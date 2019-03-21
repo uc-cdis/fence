@@ -25,6 +25,7 @@ from fence.resources.user.user_session import UserSessionInterface
 from fence.error_handler import get_error_response
 from fence.utils import random_str
 from fence.config import config
+from fence.settings import CONFIG_SEARCH_FOLDERS
 import fence.blueprints.admin
 import fence.blueprints.data
 import fence.blueprints.login
@@ -158,7 +159,11 @@ def app_config(
     config.update(dict(settings_cfg))
 
     # load the configuration file, this overwrites anything from settings/local_settings
-    config.load(config_path, file_name)
+    config.load(
+        config_path=config_path,
+        search_folders=CONFIG_SEARCH_FOLDERS,
+        file_name=file_name,
+    )
 
     # load all config back into flask app config for now, we should PREFER getting config
     # directly from the fence config singleton in the code though.
