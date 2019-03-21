@@ -16,10 +16,9 @@ def config_idp_in_client(
     rsa_private_key_2,
     rsa_public_key_2,
     restore_config,
-    restore_app_config,
 ):
     """
-    Set info about this fence's (client fence's) IDP in config and app.config.
+    Set info about this fence's (client fence's) IDP in config.
     Reset when done.
     """
 
@@ -32,12 +31,12 @@ def config_idp_in_client(
     saved_jwtpks = app.jwt_public_keys
     app.jwt_public_keys["/"] = OrderedDict([(kid_2, rsa_public_key_2)])
 
-    app.config["BASE_URL"] = "/"
-    app.config["MOCK_AUTH"] = False
-    app.config["DEFAULT_LOGIN_URL"] = "/login/fence"
+    config["BASE_URL"] = "/"
+    config["MOCK_AUTH"] = False
+    config["DEFAULT_LOGIN_URL"] = "/login/fence"
     saved_db_Session = app.db.Session
     app.db.Session = lambda: db_session
-    app.config["OPENID_CONNECT"] = {
+    config["OPENID_CONNECT"] = {
         "fence": {
             "client_id": "other_fence_client_id",
             "client_secret": "other_fence_client_secret",
@@ -47,25 +46,25 @@ def config_idp_in_client(
             "refresh_token_url": "http://other-fence/oauth2/token",
             "client_kwargs": {
                 "scope": "openid user",
-                "redirect_uri": app.config["BASE_URL"] + "/login/fence/login",
+                "redirect_uri": config["BASE_URL"] + "/login/fence/login",
             },
         }
     }
-    app.fence_client = OAuthClient(**app.config["OPENID_CONNECT"]["fence"])
+    app.fence_client = OAuthClient(**config["OPENID_CONNECT"]["fence"])
 
     config.update(
         {
-            "OPENID_CONNECT": app.config["OPENID_CONNECT"],
-            "BASE_URL": app.config["BASE_URL"],
-            "MOCK_AUTH": app.config["MOCK_AUTH"],
-            "DEFAULT_LOGIN_URL": app.config["DEFAULT_LOGIN_URL"],
+            "OPENID_CONNECT": config["OPENID_CONNECT"],
+            "BASE_URL": config["BASE_URL"],
+            "MOCK_AUTH": config["MOCK_AUTH"],
+            "DEFAULT_LOGIN_URL": config["DEFAULT_LOGIN_URL"],
         }
     )
 
     yield Dict(
-        client_id=app.config["OPENID_CONNECT"]["fence"]["client_id"],
-        client_secret=app.config["OPENID_CONNECT"]["fence"]["client_id"],
-        url=app.config["OPENID_CONNECT"]["fence"]["client_kwargs"]["redirect_uri"],
+        client_id=config["OPENID_CONNECT"]["fence"]["client_id"],
+        client_secret=config["OPENID_CONNECT"]["fence"]["client_id"],
+        url=config["OPENID_CONNECT"]["fence"]["client_kwargs"]["redirect_uri"],
     )
 
     app.keypairs = saved_keypairs
@@ -90,7 +89,7 @@ def test_redirect_oauth2_authorize(app, client, config_idp_in_client):
     r = client.post("/oauth2/authorize", data=data)
     assert r.status_code == 302
     assert "/login/fence" in r.location
-    assert app.config["BASE_URL"] in r.location
+    assert config["BASE_URL"] in r.location
 
 
 def test_redirect_login_fence(app, client, config_idp_in_client):
@@ -102,4 +101,4 @@ def test_redirect_login_fence(app, client, config_idp_in_client):
     r = client.get(path)
     assert r.status_code == 302
     assert "/oauth2/authorize" in r.location
-    assert app.config["OPENID_CONNECT"]["fence"]["api_base_url"] in r.location
+    assert config["OPENID_CONNECT"]["fence"]["api_base_url"] in r.location
