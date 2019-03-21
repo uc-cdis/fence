@@ -36,7 +36,7 @@ import fence.blueprints.well_known
 import fence.blueprints.link
 import fence.blueprints.google
 
-from cdislogging import get_logger, get_stream_handler
+from cdislogging import get_logger
 
 logger = get_logger(__name__)
 
