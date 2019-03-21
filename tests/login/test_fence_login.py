@@ -42,12 +42,6 @@ def config_idp_in_client(
             "client_secret": "other_fence_client_secret",
             "api_base_url": "http://other-fence",
             "authorize_url": "http://other-fence/oauth2/authorize",
-            "access_token_url": "http://other-fence/oauth2/token",
-            "refresh_token_url": "http://other-fence/oauth2/token",
-            "client_kwargs": {
-                "scope": "openid user",
-                "redirect_uri": config["BASE_URL"] + "/login/fence/login",
-            },
         }
     }
     app.fence_client = OAuthClient(**config["OPENID_CONNECT"]["fence"])
@@ -64,7 +58,6 @@ def config_idp_in_client(
     yield Dict(
         client_id=config["OPENID_CONNECT"]["fence"]["client_id"],
         client_secret=config["OPENID_CONNECT"]["fence"]["client_id"],
-        url=config["OPENID_CONNECT"]["fence"]["client_kwargs"]["redirect_uri"],
     )
 
     app.keypairs = saved_keypairs
@@ -78,15 +71,7 @@ def test_redirect_oauth2_authorize(app, client, config_idp_in_client):
     ``/login/fence`` endpoint, also on the client fence, 
     in the multi-tenant setup case.
     """
-    data = {
-        "client_id": config_idp_in_client.client_id,
-        "redirect_uri": config_idp_in_client.url,
-        "response_type": "code",
-        "scope": "openid user",
-        "state": fence.utils.random_str(10),
-        "confirm": "yes",
-    }
-    r = client.post("/oauth2/authorize", data=data)
+    r = client.post("/oauth2/authorize")
     assert r.status_code == 302
     assert "/login/fence" in r.location
     assert config["BASE_URL"] in r.location
