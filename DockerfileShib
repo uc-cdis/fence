@@ -82,4 +82,4 @@ RUN ln -s /fence/wsgi.py /var/www/fence/wsgi.py \
 EXPOSE 80
 WORKDIR /var/www/fence/
 
-CMD bash /fence/dockerrun.bash
+CMD bash /fence/dockerrunshib.bash
