@@ -174,7 +174,7 @@ def app_config(
 
     # app.debug should always be True bc we want at least INFO lvl logging in dev+prod
     # and flask 0.12 will set lvl to ERROR if app.debug is False
-    app.debug = True
+    app.debug = config["DEBUG"]
     logger.level = DEBUG if config["DEBUG"] == True else INFO
 
     _setup_oidc_clients(app)
