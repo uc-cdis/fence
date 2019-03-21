@@ -303,11 +303,11 @@ def get_or_create_service_account(client_id, user_id, username, proxy_group_id):
     if proxy_group_id:
         if client_id:
             service_account_id = get_valid_service_account_id_for_client(
-                client_id, user_id
+                client_id, user_id, prefix=config["GOOGLE_GROUP_PREFIX"]
             )
         else:
             service_account_id = get_valid_service_account_id_for_user(
-                user_id, username
+                user_id, username, prefix=config["GOOGLE_GROUP_PREFIX"]
             )
 
         with GoogleCloudManager() as g_cloud:

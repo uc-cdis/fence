@@ -34,6 +34,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && mkdir -p /var/www/.cache/Python-Eggs/ \
     && chown www-data -R /var/www/.cache/Python-Eggs/
 
+
+COPY requirements.txt /fence/requirements.txt
+RUN pip install -r /fence/requirements.txt
+
 COPY . /fence
 WORKDIR /fence
 COPY deployment/fence.conf /etc/apache2/sites-available/fence.conf
@@ -42,7 +46,6 @@ COPY deployment/fence.conf /etc/apache2/sites-available/fence.conf
 # Custom apache24 logging - see http://www.loadbalancer.org/blog/apache-and-x-forwarded-for-headers/
 #
 RUN ln -s /fence/wsgi.py /var/www/fence/wsgi.py \
-    && pip install -r requirements.txt \
     && COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" >fence/version_data.py \
     && VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >>fence/version_data.py \
     && python setup.py develop \

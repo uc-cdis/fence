@@ -226,9 +226,7 @@ class GoogleServiceAccountRoot(Resource):
             current_session, sa.project_access
         )
 
-        add_user_service_account_to_db(
-            current_session, project_ids, db_service_account
-        )
+        add_user_service_account_to_db(current_session, project_ids, db_service_account)
 
         add_user_service_account_to_google(
             current_session, project_ids, sa.google_project_id, db_service_account
@@ -671,11 +669,7 @@ def _get_service_account_error_status(sa):
             "service_account_email": None,
             "google_project_id": None,
             "project_access": None,
-            "expires_in": {
-                "status": 200,
-                "error": None,
-                "error_description": None
-            },
+            "expires_in": {"status": 200, "error": None, "error_description": None},
         },
     }
 
@@ -685,7 +679,7 @@ def _get_service_account_error_status(sa):
         response["errors"]["expires_in"] = {
             "status": e.code,
             "error": "user_error",
-            "error_description": e.message
+            "error_description": e.message,
         }
 
     project_validity = GoogleProjectValidity(
