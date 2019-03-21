@@ -1,7 +1,6 @@
 from authlib.client import OAuth2Session
-import json
+from jose import jwt
 import requests
-import base64
 from cdislogging import get_logger
 
 logger = get_logger(__name__)
@@ -51,18 +50,24 @@ class Oauth2Client(object):
         try:
             proxies = None
             if self.HTTP_PROXY and self.HTTP_PROXY.get("host"):
-                proxies = {
-                    "http": "http://"
-                    + self.HTTP_PROXY["host"]
-                    + ":"
-                    + str(self.HTTP_PROXY["port"])
-                }
+                url = "http://{}:{}".format(
+                    self.HTTP_PROXY["host"], str(self.HTTP_PROXY["port"])
+                )
+                proxies = {"http": url}
             token = self.session.fetch_token(
                 url=token_endpoint, code=code, proxies=proxies
             )
 
-            parts = token["id_token"].split(".")
-            claims = json.loads(base64.b64decode(parts[1] + "==="))
+            jwks_uri = self.get_discovered_endpoint(
+                "jwks_uri", "https://login.microsoftonline.com/organizations/discovery/v2.0/keys"
+            )
+
+            keys = requests.get(url=jwks_uri, proxies=proxies).json()["keys"]
+            claims = jwt.decode(
+                token["id_token"],
+                keys,
+                options={"verify_aud": False, "verify_at_hash": False},
+            )
 
             if claims["email"]:
                 return {"email": claims["email"]}
@@ -94,7 +99,7 @@ class Oauth2Client(object):
                 return_value = default_endpoint
             elif return_value != default_endpoint:
                 logger.info(
-                    "ORCID's {}, {} differs from our "
+                    "Microsoft's {}, {} differs from our "
                     "default {}. Using Microsoft's...".format(
                         endpoint_key, return_value, default_endpoint
                     )

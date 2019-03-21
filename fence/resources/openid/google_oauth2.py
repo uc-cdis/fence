@@ -62,15 +62,17 @@ class Oauth2Client(object):
                 "jwks_uri", "https://www.googleapis.com/oauth2/v3/certs"
             )
 
-            keys = self.session.request("GET", jwks_uri).json()["keys"]
+            keys = requests.get(url=jwks_uri, proxies=proxies).json()["keys"]
             claims = jwt.decode(
                 token["id_token"],
                 keys,
                 options={"verify_aud": False, "verify_at_hash": False},
             )
 
-            if claims["email"]:
+            if claims["email"] and claims["email_verified"]:
                 return {"email": claims["email"]}
+            elif claims["email"]:
+                return {"error": "Email is not verified"}
             else:
                 return {"error": "Can't get user's Google email!"}
         except Exception as e:
@@ -99,7 +101,7 @@ class Oauth2Client(object):
                 return_value = default_endpoint
             elif return_value != default_endpoint:
                 logger.info(
-                    "ORCID's {}, {} differs from our "
+                    "Google's {}, {} differs from our "
                     "default {}. Using Google's...".format(
                         endpoint_key, return_value, default_endpoint
                     )

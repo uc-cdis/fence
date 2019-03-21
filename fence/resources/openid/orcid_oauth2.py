@@ -1,5 +1,5 @@
 from authlib.client import OAuth2Session
-import json
+from jose import jwt
 import requests
 from cdislogging import get_logger
 
@@ -46,18 +46,28 @@ class Oauth2Client(object):
         try:
             proxies = None
             if self.HTTP_PROXY and self.HTTP_PROXY.get("host"):
-                proxies = {
-                    "http": "http://"
-                    + self.HTTP_PROXY["host"]
-                    + ":"
-                    + str(self.HTTP_PROXY["port"])
-                }
+                url = "http://{}:{}".format(
+                    self.HTTP_PROXY["host"], str(self.HTTP_PROXY["port"])
+                )
+                proxies = {"http": url}
             token = self.session.fetch_token(
                 url=token_endpoint, code=code, proxies=proxies
             )
 
-            if token["orcid"]:
-                return token["orcid"]
+            jwks_uri = self.get_discovered_endpoint(
+                "jwks_uri", "https://orcid.org/oauth/jwks"
+            )
+
+            keys = requests.get(url=jwks_uri, proxies=proxies).json()["keys"]
+
+            claims = jwt.decode(
+                token["id_token"],
+                keys,
+                options={"verify_aud": False, "verify_at_hash": False},
+            )
+
+            if claims["sub"]:
+                return claims["sub"]
             else:
                 return {"error": "Can't get user's orcid"}
         except Exception as e:
