@@ -10,7 +10,7 @@ import flask
 
 from fence.blueprints.login.fence_login import FenceLogin, FenceCallback
 from fence.blueprints.login.google import GoogleLogin, GoogleCallback
-from fence.blueprints.login.shib import ShibbolethLoginStart, ShibbolethLoginFinish
+from fence.blueprints.login.shib import ShibbolethLogin, ShibbolethCallback
 from fence.blueprints.login.microsoft import MicrosoftLogin, MicrosoftCallback
 from fence.blueprints.login.orcid import ORCIDLogin, ORCIDCallback
 from fence.errors import InternalError
@@ -105,7 +105,7 @@ def make_login_blueprint(app):
         )
 
     if "orcid" in idps:
-        blueprint_api.add_resource(ORCIDRedirect, "/orcid", strict_slashes=False)
+        blueprint_api.add_resource(ORCIDLogin, "/orcid", strict_slashes=False)
         blueprint_api.add_resource(ORCIDCallback, "/orcid/login", strict_slashes=False)
 
     if "microsoft" in idps:
@@ -115,8 +115,8 @@ def make_login_blueprint(app):
         )
 
     if "shibboleth" in idps:
-        blueprint_api.add_resource(ShibbolethLoginStart, "/shib", strict_slashes=False)
+        blueprint_api.add_resource(ShibbolethLogin, "/shib", strict_slashes=False)
         blueprint_api.add_resource(
-            ShibbolethLoginFinish, "/shib/login", strict_slashes=False
+            ShibbolethCallback, "/shib/login", strict_slashes=False
         )
     return blueprint
