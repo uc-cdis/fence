@@ -31,29 +31,25 @@ def config_idp_in_client(
     saved_jwtpks = app.jwt_public_keys
     app.jwt_public_keys["/"] = OrderedDict([(kid_2, rsa_public_key_2)])
 
-    config["BASE_URL"] = "/"
-    config["MOCK_AUTH"] = False
-    config["DEFAULT_LOGIN_URL"] = "/login/fence"
     saved_db_Session = app.db.Session
     app.db.Session = lambda: db_session
-    config["OPENID_CONNECT"] = {
-        "fence": {
-            "client_id": "other_fence_client_id",
-            "client_secret": "other_fence_client_secret",
-            "api_base_url": "http://other-fence",
-            "authorize_url": "http://other-fence/oauth2/authorize",
-        }
-    }
-    app.fence_client = OAuthClient(**config["OPENID_CONNECT"]["fence"])
 
     config.update(
         {
-            "OPENID_CONNECT": config["OPENID_CONNECT"],
-            "BASE_URL": config["BASE_URL"],
-            "MOCK_AUTH": config["MOCK_AUTH"],
-            "DEFAULT_LOGIN_URL": config["DEFAULT_LOGIN_URL"],
+            "BASE_URL": "/",
+            "MOCK_AUTH": False,
+            "DEFAULT_LOGIN_URL": "/login/fence",
+            "OPENID_CONNECT": {
+                "fence": {
+                    "client_id": "other_fence_client_id",
+                    "client_secret": "other_fence_client_secret",
+                    "api_base_url": "http://other-fence",
+                    "authorize_url": "http://other-fence/oauth2/authorize",
+                }
+            }
         }
     )
+    app.fence_client = OAuthClient(**config["OPENID_CONNECT"]["fence"])
 
     yield Dict(
         client_id=config["OPENID_CONNECT"]["fence"]["client_id"],
