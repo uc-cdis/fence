@@ -32,7 +32,7 @@ pyyaml==5.1
 userdatamodel==1.2.0
 -e git+https://github.com/uc-cdis/flask-postgres-session.git@68bf5a9723a351729855c429eca8a0f4bbb830c7#egg=flask_postgres_session-0.1.3
 -e git+https://git@github.com/uc-cdis/cdiserrors.git@0.1.0#egg=cdiserrors
--e git+https://git@github.com/uc-cdis/cdislogging.git@master#egg=cdislogging
+-e git+https://git@github.com/uc-cdis/cdislogging.git@dbb03568d8ccb5c9895c3a9a50d134a279ca7fc1#egg=cdislogging
 -e git+https://github.com/uc-cdis/storage-client.git@0.2.2#egg=storageclient-0.2.2
 -e git+https://github.com/uc-cdis/datamodelutils.git@0.4.0#egg=datamodelutils
 -e git+https://github.com/uc-cdis/cdis-python-utils.git@0.2.10#egg=cdispyutils
