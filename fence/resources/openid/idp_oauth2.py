@@ -1,15 +1,11 @@
 from authlib.client import OAuth2Session
 from jose import jwt
 import requests
-from cdislogging import get_logger
-
-logger = get_logger(__name__)
 
 
 class Oauth2ClientBase(object):
     """
-    client for interacting with google oauth 2,
-    as google openid connect is supported under oauth2
+    An generic oauth2 client class for interacting with an Identity Provider
     """
 
     def __init__(self, settings, logger, scope, discovery_url, idp, HTTP_PROXY=None):
@@ -39,14 +35,23 @@ class Oauth2ClientBase(object):
         )
 
     def get_jwt_keys(self, jwks_uri):
+        """
+        Get jwt keys from provider's api
+        Return None if there is an error while retrieving keys from the api
+        """
         resp = requests.get(url=jwks_uri, proxies=self.get_proxies())
         if resp.status_code != requests.codes.ok:
+            logger.error(
+                "{} ERROR: Can not retrieve jwt keys from IdP's API {}".format(
+                    resp.status_code, jwks_uri
+                )
+            )
             return None
         return resp.json()["keys"]
 
-    def get_jwt_claims(self, token_endpoint, jwks_endpoint, code):
+    def get_jwt_claims_identity(self, token_endpoint, jwks_endpoint, code):
         """
-        Get jwt tokens
+        Get jwt identity claims
         """
         token = self.get_token(token_endpoint, code)
         keys = self.get_jwt_keys(jwks_endpoint)
@@ -70,7 +75,7 @@ class Oauth2ClientBase(object):
         if document.status_code == requests.codes.ok:
             return_value = document.json().get(key)
             if not return_value:
-                logger.warning(
+                self.logger.warning(
                     "could not retrieve `{}` from {} response {}. "
                     "Defaulting to {}".format(
                         key, self.idp, document.json(), default_value
@@ -78,16 +83,15 @@ class Oauth2ClientBase(object):
                 )
                 return_value = default_value
             elif return_value != default_value:
-                logger.info(
+                self.logger.info(
                     "{}'s {}, {} differs from our "
                     "default {}. Using {}'s...".format(
                         self.idp, key, return_value, default_value, self.idp
                     )
                 )
         else:
-            logger.error(
-                "{} ERROR from {} API, could not retrieve `{}` from "
-                "Google response {}. Defaulting to {}".format(
+            self.logger.error(
+                "{} ERROR from {} API, could not retrieve `{}` from response {}. Defaulting to {}".format(
                     document.status_code, self.idp, key, document.json(), default_value
                 )
             )

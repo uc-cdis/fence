@@ -1,7 +1,4 @@
 from idp_oauth2 import Oauth2ClientBase
-from cdislogging import get_logger
-
-logger = get_logger(__name__)
 
 
 class MicrosoftOauth2Client(Oauth2ClientBase):
@@ -45,9 +42,10 @@ class MicrosoftOauth2Client(Oauth2ClientBase):
                 "https://login.microsoftonline.com/organizations/oauth2/v2.0/token",
             )
             jwks_endpoint = self.get_value_from_discovery_doc(
-                "https://login.microsoftonline.com/organizations/discovery/v2.0/keys"
+                "jwks_uri",
+                "https://login.microsoftonline.com/organizations/discovery/v2.0/keys",
             )
-            claims = self.get_jwt_claims(token_endpoint, jwks_endpoint, code)
+            claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
 
             if claims["email"]:
                 return {"email": claims["email"]}

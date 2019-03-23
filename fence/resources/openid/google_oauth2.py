@@ -1,7 +1,4 @@
 from idp_oauth2 import Oauth2ClientBase
-from cdislogging import get_logger
-
-logger = get_logger(__name__)
 
 
 class GoogleOauth2Client(Oauth2ClientBase):
@@ -49,7 +46,7 @@ class GoogleOauth2Client(Oauth2ClientBase):
             jwks_endpoint = self.get_value_from_discovery_doc(
                 "jwks_uri", "https://www.googleapis.com/oauth2/v3/certs"
             )
-            claims = self.get_jwt_claims(token_endpoint, jwks_endpoint, code)
+            claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
 
             if claims["email"] and claims["email_verified"]:
                 return {"email": claims["email"]}

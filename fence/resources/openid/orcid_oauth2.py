@@ -1,7 +1,4 @@
 from idp_oauth2 import Oauth2ClientBase
-from cdislogging import get_logger
-
-logger = get_logger(__name__)
 
 
 class OrcidOauth2Client(Oauth2ClientBase):
@@ -44,7 +41,7 @@ class OrcidOauth2Client(Oauth2ClientBase):
             jwks_endpoint = self.get_value_from_discovery_doc(
                 "jwks_uri", "https://orcid.org/oauth/jwks"
             )
-            claims = self.get_jwt_claims(token_endpoint, jwks_endpoint, code)
+            claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
 
             if claims["sub"]:
                 return claims["sub"]
