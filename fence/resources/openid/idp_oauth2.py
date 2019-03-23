@@ -64,7 +64,7 @@ class Oauth2ClientBase(object):
         14 MAR 2019.
         """
 
-        document = self.discovered_data
+        document = requests.get(self.discovery_url)
         return_value = default_value
 
         if document.status_code == requests.codes.ok:

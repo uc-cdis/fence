@@ -17,7 +17,7 @@ class GoogleOauth2Client(Oauth2ClientBase):
     )
 
     def __init__(self, settings, logger, HTTP_PROXY=None):
-        super().__init__(
+        super(GoogleOauth2Client, self).__init__(
             settings,
             logger,
             scope="openid email",

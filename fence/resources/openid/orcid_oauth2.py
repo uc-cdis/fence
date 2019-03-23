@@ -14,7 +14,7 @@ class OrcidOauth2Client(Oauth2ClientBase):
     ORCID_DISCOVERY_URL = "https://orcid.org/.well-known/openid-configuration"
 
     def __init__(self, settings, logger, HTTP_PROXY=None):
-        super().__init__(
+        super(OrcidOauth2Client, self).__init__(
             settings,
             logger,
             scope="openid",
