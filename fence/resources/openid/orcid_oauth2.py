@@ -1,12 +1,10 @@
-from authlib.client import OAuth2Session
-from jose import jwt
-import requests
+from idp_oauth2 import Oauth2ClientBase
 from cdislogging import get_logger
 
 logger = get_logger(__name__)
 
 
-class Oauth2Client(object):
+class OrcidOauth2Client(Oauth2ClientBase):
     """
     client for interacting with orcid oauth 2,
     as openid connect is supported under oauth2
@@ -16,21 +14,21 @@ class Oauth2Client(object):
     ORCID_DISCOVERY_URL = "https://orcid.org/.well-known/openid-configuration"
 
     def __init__(self, settings, logger, HTTP_PROXY=None):
-        self.logger = logger
-        self.settings = settings
-        self.session = OAuth2Session(
-            client_id=settings["client_id"],
-            client_secret=settings["client_secret"],
+        super().__init__(
+            settings,
+            logger,
             scope="openid",
-            redirect_uri=settings["redirect_url"],
+            discovery_url=self.ORCID_DISCOVERY_URL,
+            idp="Orcid",
+            HTTP_PROXY=HTTP_PROXY,
         )
-        self.discovered_data = requests.get(self.ORCID_DISCOVERY_URL)
         self.auth_url = self.get_auth_url()
-        self.HTTP_PROXY = HTTP_PROXY
 
     def get_auth_url(self):
-
-        authorization_endpoint = self.get_discovered_endpoint(
+        """
+        Get authorization uri from discovery doc
+        """
+        authorization_endpoint = self.get_value_from_discovery_doc(
             "authorization_endpoint", "https://orcid.org/oauth/authorize"
         )
 
@@ -39,32 +37,14 @@ class Oauth2Client(object):
         return uri
 
     def get_user_id(self, code):
-        token_endpoint = self.get_discovered_endpoint(
-            "token_endpoint", "https://orcid.org/oauth/token"
-        )
-
         try:
-            proxies = None
-            if self.HTTP_PROXY and self.HTTP_PROXY.get("host"):
-                url = "http://{}:{}".format(
-                    self.HTTP_PROXY["host"], str(self.HTTP_PROXY["port"])
-                )
-                proxies = {"http": url}
-            token = self.session.fetch_token(
-                url=token_endpoint, code=code, proxies=proxies
+            token_endpoint = self.get_value_from_discovery_doc(
+                "token_endpoint", "https://orcid.org/oauth/token"
             )
-
-            jwks_uri = self.get_discovered_endpoint(
+            jwks_endpoint = self.get_value_from_discovery_doc(
                 "jwks_uri", "https://orcid.org/oauth/jwks"
             )
-
-            keys = requests.get(url=jwks_uri, proxies=proxies).json()["keys"]
-
-            claims = jwt.decode(
-                token["id_token"],
-                keys,
-                options={"verify_aud": False, "verify_at_hash": False},
-            )
+            claims = self.get_jwt_claims(token_endpoint, jwks_endpoint, code)
 
             if claims["sub"]:
                 return claims["sub"]
@@ -73,44 +53,3 @@ class Oauth2Client(object):
         except Exception as e:
             self.logger.exception("Can't get user info")
             return {"error": "Can't get your orcid: {}".format(e)}
-
-    def get_discovered_endpoint(self, endpoint_key, default_endpoint):
-        """
-        Return the url for ORCID's endpoint by the recommended method of
-        using their discovery url. Default to current url as identified
-        14 MAR 2019.
-        """
-
-        document = self.discovered_data
-        return_value = default_endpoint
-
-        if document.status_code == requests.codes.ok:
-            return_value = document.json().get(endpoint_key)
-            if not return_value:
-                logger.warning(
-                    "could not retrieve `{}` from ORCID response {}. "
-                    "Defaulting to {}".format(
-                        endpoint_key, document.json(), default_endpoint
-                    )
-                )
-                return_value = default_endpoint
-            elif return_value != default_endpoint:
-                logger.info(
-                    "ORCID's {}, {} differs from our "
-                    "default {}. Using ORCID's...".format(
-                        endpoint_key, return_value, default_endpoint
-                    )
-                )
-        else:
-            logger.error(
-                "{} ERROR from ORCID API, could not retrieve `{}` from "
-                "ORCID response {}. Defaulting to {}".format(
-                    endpoint_key,
-                    document.status_code,
-                    document.json(),
-                    default_endpoint,
-                )
-            )
-            return_value = default_endpoint
-
-        return return_value
