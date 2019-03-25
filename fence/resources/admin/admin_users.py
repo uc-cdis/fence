@@ -223,7 +223,9 @@ def delete_user(current_session, username):
                 user.id, user.username, prefix=config["GOOGLE_GROUP_PREFIX"]
             )
             google_proxy_group_g = gcm.get_group(pgname)
-            gpg_email = google_proxy_group_g.get("email") if google_proxy_group_g else None
+            gpg_email = (
+                google_proxy_group_g.get("email") if google_proxy_group_g else None
+            )
 
         if not gpg_email:
             capp.logger.info(
@@ -245,9 +247,7 @@ def delete_user(current_session, username):
                 # service account. So we skip doing that here.
                 capp.logger.debug(
                     "Attempting to delete Google service account with email {} "
-                    "along with all associated service account keys...".format(
-                        sae
-                    )
+                    "along with all associated service account keys...".format(sae)
                 )
                 r = gcm.delete_service_account(sae)
 
@@ -285,9 +285,7 @@ def delete_user(current_session, username):
                     else:
                         capp.logger.info(
                             "Records for service account {} NOT FOUND in Fence database. "
-                            "Continuing anyway.".format(
-                                sae
-                            )
+                            "Continuing anyway.".format(sae)
                         )
 
                 else:
