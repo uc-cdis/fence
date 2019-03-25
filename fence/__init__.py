@@ -1,5 +1,4 @@
 from collections import OrderedDict
-from logging import INFO, DEBUG
 import os
 
 from authutils.oauth2.client import OAuthClient
@@ -38,7 +37,9 @@ import fence.blueprints.google
 
 from cdislogging import get_logger
 
-logger = get_logger(__name__)
+# Can't read config yet. Just set to debug for now, else no handlers.
+# Later, in app_config(), will actually set level based on config
+logger = get_logger(__name__, log_level='debug')
 
 app = flask.Flask(__name__)
 CORS(app=app, headers=["content-type", "accept"], expose_headers="*")
@@ -180,7 +181,8 @@ def app_config(
     app.storage_manager = StorageManager(config["STORAGE_CREDENTIALS"], logger=logger)
 
     app.debug = config["DEBUG"]
-    logger.level = DEBUG if config["DEBUG"] == True else INFO
+    # Following will update logger level, propagate, and handlers
+    get_logger(__name__, log_level='debug' if config["DEBUG"] == True else 'info')
 
     _setup_oidc_clients(app)
 
