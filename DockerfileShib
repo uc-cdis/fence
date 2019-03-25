@@ -2,8 +2,6 @@
 # To check running container: docker exec -it fence /bin/bash
 
 FROM ubuntu:16.04
-# image for sftp & ssh protocols
-FROM atmoz/sftp:debian-jessie
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -47,6 +45,7 @@ RUN ln -s /fence/wsgi.py /var/www/fence/wsgi.py \
     && VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >>fence/version_data.py \
     && python setup.py develop \
     && echo '<VirtualHost *:80>\n\
+    ServerName SERVERNAME \n\
     WSGIDaemonProcess /fence processes=2 threads=4 python-path=/var/www/fence/:/fence/:/usr/bin/python\n\
     WSGIScriptAlias / /var/www/fence/wsgi.py\n\
     WSGIPassAuthorization On\n\
@@ -76,6 +75,10 @@ RUN ln -s /fence/wsgi.py /var/www/fence/wsgi.py \
     && a2dissite 000-default \
     && a2ensite fence \
     && a2enmod reqtimeout \
+    && ln -sf /dev/stdout /var/log/shibboleth/shibd.log \
+    && ln -sf /dev/stdout /var/log/shibboleth/shibd_warn.log \
+    && ln -sf /dev/stdout /var/log/shibboleth/signature.log \
+    && ln -sf /dev/stdout /var/log/shibboleth/transaction.log \
     && ln -sf /dev/stdout /var/log/apache2/access.log \
     && ln -sf /dev/stderr /var/log/apache2/error.log
 

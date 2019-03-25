@@ -18,8 +18,7 @@ if [ -f /fence/jwt-keys.tar ]; then
     fi
   )
 fi
-curl "http://md.incommon.org/InCommon/InCommon-metadata-idp-only.xml" >/etc/shibboleth/InCommon-metadata-idp-only.xml
-chmod 700 /etc/shibboleth/shibboleth2.xml
 service shibd start
+sed -i "s/ServerName SERVERNAME/ServerName https:\/\/$HOSTNAME/g" /etc/apache2/sites-available/fence.conf
 rm -rf /var/run/apache2/apache2.pid
 /usr/sbin/apache2ctl -D FOREGROUND
