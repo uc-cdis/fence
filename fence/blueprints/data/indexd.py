@@ -16,6 +16,7 @@ from fence.auth import (
     login_required,
     set_current_token,
     validate_request,
+    JWTError,
 )
 from fence.config import config
 from fence.errors import (
@@ -533,7 +534,16 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
 
         # if requested not to sign and it's public, don'return Google's
         # public url to the file
-        if not current_token or (current_token and not force_signed_url):
+
+        try:
+            set_current_token(validate_request(aud={"user"}))
+        except JWTError:
+            # this is fine, current_token just won't be set
+            pass
+
+        if (public_data and not current_token) or (
+            public_data and current_token and not force_signed_url
+        ):
             url = "https://storage.cloud.google.com/" + resource_path
         else:
             expiration_time = int(time.time()) + int(expires_in)
