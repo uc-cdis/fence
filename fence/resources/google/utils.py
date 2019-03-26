@@ -656,6 +656,22 @@ def get_user_from_google_member(member, db=None):
     return None
 
 
+def get_google_app_creds(app_creds_file=None):
+    """
+    Get the google app creds from the cirrus configuration.
+    """
+    app_creds_file = app_creds_file or config.get("CIRRUS_CFG", {}).get(
+        "GOOGLE_APPLICATION_CREDENTIALS"
+    )
+
+    creds = None
+    if app_creds_file and os.path.exists(app_creds_file):
+        with open(app_creds_file) as app_creds_file:
+            creds = json.load(app_creds_file)
+
+    return creds
+
+
 def get_monitoring_service_account_email(app_creds_file=None):
     """
     Get the monitoring email from the cirrus configuration. Use the
@@ -664,14 +680,10 @@ def get_monitoring_service_account_email(app_creds_file=None):
     This function should ONLY return the service account's email by
     parsing the creds file.
     """
-    app_creds_file = app_creds_file or config.get("CIRRUS_CFG", {}).get(
-        "GOOGLE_APPLICATION_CREDENTIALS"
-    )
-
     creds_email = None
-    if app_creds_file and os.path.exists(app_creds_file):
-        with open(app_creds_file) as app_creds_file:
-            creds_email = json.load(app_creds_file).get("client_email")
+    creds = get_google_app_creds(app_creds_file)
+    if creds:
+        creds_email = creds.get("client_email")
 
     return creds_email
 

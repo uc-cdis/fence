@@ -30,11 +30,10 @@ from fence.resources.google.utils import (
     get_or_create_primary_service_account_key,
     create_primary_service_account_key,
     get_or_create_proxy_group_id,
+    get_google_app_creds,
 )
 from fence.utils import get_valid_expiration_from_request
 
-
-from fence.config import config
 
 ACTION_DICT = {
     "s3": {"upload": "PUT", "download": "GET"},
@@ -374,16 +373,13 @@ class S3IndexedFileLocation(IndexedFileLocation):
     """
 
     @classmethod
-    def assume_role(cls, aws_creds, bucket_cred, cred_key, expires_in):
+    def assume_role(cls, bucket_cred, expires_in, aws_creds_config):
         role_arn = get_value(
             bucket_cred, "role-arn", InternalError("role-arn of that bucket is missing")
         )
-        config = get_value(
-            aws_creds,
-            cred_key,
-            InternalError("aws credential of that bucket is not found"),
+        assumed_role = flask.current_app.boto.assume_role(
+            role_arn, expires_in, aws_creds_config
         )
-        assumed_role = flask.current_app.boto.assume_role(role_arn, expires_in, config)
         cred = get_value(
             assumed_role, "Credentials", InternalError("fail to assume role")
         )
@@ -436,8 +432,10 @@ class S3IndexedFileLocation(IndexedFileLocation):
         cred_key = get_value(
             bucket_cred, "cred", InternalError("credential of that bucket is missing")
         )
+
+        # if public, just get the first credentials to sign with
         if cred_key == "*":
-            return {"aws_access_key_id": "*"}
+            return aws_creds.values().pop()
 
         if "role-arn" not in bucket_cred:
             return get_value(
@@ -446,8 +444,13 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 InternalError("aws credential of that bucket is not found"),
             )
         else:
+            aws_creds_config = get_value(
+                aws_creds,
+                cred_key,
+                InternalError("aws credential of that bucket is not found"),
+            )
             return S3IndexedFileLocation.assume_role(
-                aws_creds, bucket_cred, cred_key, expires_in
+                bucket_cred, expires_in, aws_creds_config
             )
 
     def get_bucket_region(self):
@@ -479,23 +482,13 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
         credential = self.get_credential_to_access_bucket(aws_creds, expires_in)
 
-        aws_access_key_id = get_value(
-            credential,
-            "aws_access_key_id",
-            InternalError("aws configuration not found"),
-        )
-        if aws_access_key_id == "*":
-            return http_url
-
         region = self.get_bucket_region()
         if not region:
             region = flask.current_app.boto.get_bucket_region(
                 self.parsed_url.netloc, credential
             )
 
-        user_info = {}
-        if not public_data:
-            user_info = S3IndexedFileLocation.get_user_info()
+        user_info = S3IndexedFileLocation.get_user_info()
 
         url = generate_aws_presigned_url(
             http_url,
@@ -511,13 +504,16 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
     @staticmethod
     def get_user_info():
-        user_info = {}
-        set_current_token(validate_request(aud={"user"}))
-        user_id = current_token["sub"]
-        username = current_token["context"]["user"]["name"]
-        if user_id is not None:
-            user_info = {"user_id": str(user_id), "username": username}
-        return user_info
+        try:
+            set_current_token(validate_request(aud={"user"}))
+            user_id = str(current_token["sub"])
+            username = current_token["context"]["user"]["name"]
+        except JWTError:
+            # this is fine b/c it might be public data, sign with anonymous username/id
+            user_id = "anonymous"
+            username = "anonymous"
+
+        return {"user_id": user_id, "username": username}
 
 
 class GoogleStorageIndexedFileLocation(IndexedFileLocation):
@@ -532,31 +528,47 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             self.parsed_url.netloc.strip("/") + "/" + self.parsed_url.path.strip("/")
         )
 
-        # if requested not to sign and it's public, don'return Google's
-        # public url to the file
-
         try:
             set_current_token(validate_request(aud={"user"}))
         except JWTError:
-            # this is fine b/c it might be public data, current_token just won't be set
+            # this is fine b/c it might be public data, current_token will just be None
             pass
 
-        if (public_data and not current_token) or (
-            public_data and current_token and not force_signed_url
-        ):
+        if public_data and not force_signed_url:
             url = "https://storage.cloud.google.com/" + resource_path
+        elif public_data and not current_token:
+            expiration_time = int(time.time()) + int(expires_in)
+            url = self._generate_anonymous_google_storage_signed_url(
+                ACTION_DICT["gs"][action], resource_path, expiration_time
+            )
         else:
+            # if it's controlled data we've checked their access before this
             expiration_time = int(time.time()) + int(expires_in)
             url = self._generate_google_storage_signed_url(
-                ACTION_DICT["gs"][action], resource_path, expiration_time
+                ACTION_DICT["gs"][action], resource_path, expiration_time, current_token
             )
 
         return url
 
-    def _generate_google_storage_signed_url(
+    def _generate_anonymous_google_storage_signed_url(
         self, http_verb, resource_path, expiration_time
     ):
-        set_current_token(validate_request(aud={"user"}))
+        # we will use the main fence SA service account to sign anonymous requests
+        private_key = get_google_app_creds()
+        final_url = cirrus.google_cloud.utils.get_signed_url(
+            resource_path,
+            http_verb,
+            expiration_time,
+            extension_headers=None,
+            content_type="",
+            md5_value="",
+            service_account_creds=private_key,
+        )
+        return final_url
+
+    def _generate_google_storage_signed_url(
+        self, http_verb, resource_path, expiration_time, current_token
+    ):
         user_id = current_token["sub"]
         proxy_group_id = get_or_create_proxy_group_id()
         username = current_token.get("context", {}).get("user", {}).get("name")
