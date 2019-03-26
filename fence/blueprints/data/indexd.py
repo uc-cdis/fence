@@ -234,7 +234,10 @@ class IndexedFile(object):
             # no protocol specified, return first location as signed url
             try:
                 return self.indexed_file_locations[0].get_signed_url(
-                    action, expires_in, public_data=self.public
+                    action,
+                    expires_in,
+                    public_data=self.public,
+                    force_signed_url=force_signed_url,
                 )
             except IndexError:
                 raise NotFound("Can't find any file locations.")
@@ -479,6 +482,16 @@ class S3IndexedFileLocation(IndexedFileLocation):
         )
 
         credential = self.get_credential_to_access_bucket(aws_creds, expires_in)
+
+        # if it's public and we don't need to force the signed url, just return the raw
+        # s3 url
+        aws_access_key_id = get_value(
+            credential,
+            "aws_access_key_id",
+            InternalError("aws configuration not found"),
+        )
+        if aws_access_key_id == "*" and not force_signed_url:
+            return http_url
 
         region = self.get_bucket_region()
         if not region:
