@@ -1,9 +1,7 @@
 import re
 import time
 from urlparse import urlparse
-import uuid
 
-from authutils.token import current_token
 from cached_property import cached_property
 import cirrus
 from cdispyutils.config import get_value

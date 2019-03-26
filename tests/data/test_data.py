@@ -48,7 +48,6 @@ def test_indexd_download_file(
         )
     }
     response = client.get(path, headers=headers, query_string=query_string)
-    print(response.json)
     assert response.status_code == 200
     assert "url" in response.json.keys()
 
@@ -294,7 +293,6 @@ def test_public_object_download_file(
     """
     path = "/data/download/1"
     response = client.get(path)
-    print(response.json)
     assert response.status_code == 200
     assert "url" in response.json.keys()
 
