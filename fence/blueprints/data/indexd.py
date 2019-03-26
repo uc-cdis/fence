@@ -538,7 +538,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         try:
             set_current_token(validate_request(aud={"user"}))
         except JWTError:
-            # this is fine, current_token just won't be set
+            # this is fine b/c it might be public data, current_token just won't be set
             pass
 
         if (public_data and not current_token) or (
