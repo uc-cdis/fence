@@ -485,12 +485,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
         # if it's public and we don't need to force the signed url, just return the raw
         # s3 url
-        aws_access_key_id = get_value(
-            credential,
-            "aws_access_key_id",
-            InternalError("aws configuration not found"),
-        )
-        if aws_access_key_id == "*" and not force_signed_url:
+        if public_data and not force_signed_url:
             return http_url
 
         region = self.get_bucket_region()
