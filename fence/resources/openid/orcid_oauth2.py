@@ -19,7 +19,6 @@ class OrcidOauth2Client(Oauth2ClientBase):
             idp="Orcid",
             HTTP_PROXY=HTTP_PROXY,
         )
-        self.auth_url = self.get_auth_url()
 
     def get_auth_url(self):
         """
@@ -44,7 +43,7 @@ class OrcidOauth2Client(Oauth2ClientBase):
             claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
 
             if claims["sub"]:
-                return claims["sub"]
+                return {"orcid": claims["sub"]}
             else:
                 return {"error": "Can't get user's orcid"}
         except Exception as e:

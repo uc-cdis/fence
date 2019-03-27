@@ -21,7 +21,6 @@ class MicrosoftOauth2Client(Oauth2ClientBase):
             idp="Microsoft",
             HTTP_PROXY=HTTP_PROXY,
         )
-        self.auth_url = self.get_auth_url()
 
     def get_auth_url(self):
         """

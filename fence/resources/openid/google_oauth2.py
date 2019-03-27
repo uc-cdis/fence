@@ -22,7 +22,6 @@ class GoogleOauth2Client(Oauth2ClientBase):
             idp="Google",
             HTTP_PROXY=HTTP_PROXY,
         )
-        self.auth_url = self.get_auth_url()
 
     def get_auth_url(self):
         """
@@ -57,4 +56,4 @@ class GoogleOauth2Client(Oauth2ClientBase):
 
         except Exception as e:
             self.logger.exception("Can't get user info")
-        return {"error": "Can't get your Google email: {}".format(e)}
+            return {"error": "Can't get your Google email: {}".format(e)}

@@ -26,8 +26,9 @@ class ORCIDLogin(Resource):
     def get(self):
         code = flask.request.args.get("code")
         result = flask.current_app.orcid_client.get_user_id(code)
-        if result:
-            return _login(result)
+        orcid = result.get("orcid")
+        if orcid:
+            return _login(orcid)
         raise UserError(result)
 
 

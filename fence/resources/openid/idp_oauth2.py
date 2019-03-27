@@ -1,4 +1,5 @@
 from authlib.client import OAuth2Session
+from cached_property import cached_property
 from jose import jwt
 import requests
 
@@ -17,9 +18,13 @@ class Oauth2ClientBase(object):
             scope=scope,
             redirect_uri=settings["redirect_url"],
         )
-        self.discovery_url = discovery_url
+        # self.discovered_data = requests.get(discovery_url)
         self.idp = idp
         self.HTTP_PROXY = HTTP_PROXY
+
+    @cached_property
+    def discovery_doc(self):
+        return requests.get(self.discovery_url)
 
     def get_proxies(self):
         if self.HTTP_PROXY and self.HTTP_PROXY.get("host"):
@@ -41,7 +46,7 @@ class Oauth2ClientBase(object):
         """
         resp = requests.get(url=jwks_uri, proxies=self.get_proxies())
         if resp.status_code != requests.codes.ok:
-            logger.error(
+            self.logger.error(
                 "{} ERROR: Can not retrieve jwt keys from IdP's API {}".format(
                     resp.status_code, jwks_uri
                 )
@@ -65,20 +70,18 @@ class Oauth2ClientBase(object):
     def get_value_from_discovery_doc(self, key, default_value):
         """
         Given a key return a value by the recommended method of
-        using their discovery url. Default to current url as identified
-        14 MAR 2019.
+        using their discovery url.
         """
 
-        document = requests.get(self.discovery_url)
         return_value = default_value
 
-        if document.status_code == requests.codes.ok:
-            return_value = document.json().get(key)
+        if self.discovery_doc.status_code == requests.codes.ok:
+            return_value = self.discovery_doc.json().get(key)
             if not return_value:
                 self.logger.warning(
                     "could not retrieve `{}` from {} response {}. "
                     "Defaulting to {}".format(
-                        key, self.idp, document.json(), default_value
+                        key, self.idp, self.discovery_doc.json(), default_value
                     )
                 )
                 return_value = default_value
@@ -90,11 +93,31 @@ class Oauth2ClientBase(object):
                     )
                 )
         else:
+            # invalidate the cache
+            del self.__dict__["discovery_doc"]
+
             self.logger.error(
                 "{} ERROR from {} API, could not retrieve `{}` from response {}. Defaulting to {}".format(
-                    document.status_code, self.idp, key, document.json(), default_value
+                    self.discovery_doc.status_code,
+                    self.idp,
+                    key,
+                    self.discovery_doc.json(),
+                    default_value,
                 )
             )
             return_value = default_value
 
         return return_value
+
+    def get_auth_url(self):
+        """
+        Must implement in inheriting class. Should return OAuth 2 Authorization URL.
+        """
+        raise NotImplementedError()
+
+    def get_user_id(self, code):
+        """
+        Must implement in inheriting class. Should return dictionary with "email" field
+        for successfully logged in user OR "error" field with details of the error.
+        """
+        raise NotImplementedError()
