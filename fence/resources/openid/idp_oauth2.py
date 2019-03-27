@@ -18,7 +18,7 @@ class Oauth2ClientBase(object):
             scope=scope,
             redirect_uri=settings["redirect_url"],
         )
-        # self.discovered_data = requests.get(discovery_url)
+        self.discovery_url = discovery_url
         self.idp = idp
         self.HTTP_PROXY = HTTP_PROXY
 
