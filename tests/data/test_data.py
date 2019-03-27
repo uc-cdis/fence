@@ -51,6 +51,9 @@ def test_indexd_download_file(
     assert response.status_code == 200
     assert "url" in response.json.keys()
 
+    # defaults to signing url, check that it's not just raw url
+    assert urlparse.urlparse(response.json["url"]).query != ""
+
 
 @pytest.mark.parametrize(
     "indexd_client", ["gs", "s3", "gs_acl", "s3_acl", "s3_external"], indirect=True
@@ -289,12 +292,39 @@ def test_public_object_download_file(
     google_signed_url,
 ):
     """
-    Test ``GET /data/upload/1``.
+    Test ``GET /data/download/1``.
     """
     path = "/data/download/1"
     response = client.get(path)
     assert response.status_code == 200
     assert "url" in response.json.keys()
+
+    # defaults to signing url, check that it's not just raw url
+    assert urlparse.urlparse(response.json["url"]).query != ""
+
+
+@pytest.mark.parametrize(
+    "public_indexd_client", ["gs", "s3", "gs_acl", "s3_acl"], indirect=True
+)
+def test_public_object_download_file_no_force_sign(
+    client,
+    auth_client,
+    public_indexd_client,
+    google_proxy_group,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+):
+    """
+    Test ``GET /data/download/1?no_force_sign=True``.
+    """
+    path = "/data/download/1?no_force_sign=True"
+    response = client.get(path)
+    assert response.status_code == 200
+    assert "url" in response.json.keys()
+
+    # make sure we honor no_force_sign, check that response is unsigned raw url
+    assert urlparse.urlparse(response.json["url"]).query == ""
 
 
 @pytest.mark.parametrize(
@@ -316,6 +346,33 @@ def test_public_bucket_download_file(
     response = client.get(path)
     assert response.status_code == 200
     assert response.json.get("url")
+
+    # defaults to signing url, check that it's not just raw url
+    assert urlparse.urlparse(response.json["url"]).query != ""
+
+
+@pytest.mark.parametrize(
+    "public_bucket_indexd_client", ["gs", "s3", "gs_acl", "s3_acl"], indirect=True
+)
+def test_public_bucket_download_file_no_force_sign(
+    client,
+    auth_client,
+    public_bucket_indexd_client,
+    google_proxy_group,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+):
+    """
+    Test ``GET /data/upload/1`` with public bucket with no_force_sign request
+    """
+    path = "/data/download/1?no_force_sign=True"
+    response = client.get(path)
+    assert response.status_code == 200
+    assert response.json.get("url")
+
+    # make sure we honor no_force_sign, check that response is unsigned raw url
+    assert urlparse.urlparse(response.json["url"]).query == ""
 
 
 @pytest.mark.parametrize("public_bucket_indexd_client", ["s2"], indirect=True)
