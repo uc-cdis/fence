@@ -346,7 +346,7 @@ def _update_service_account_db_entry(
             client_id, user_id
         )
         old_sa_email = "@".join(
-            (old_service_account_id, new_service_account["email"].split("@")[0])
+            (old_service_account_id, new_service_account["email"].split("@")[-1])
         )
 
         # clear out old SA and keys if there is one
