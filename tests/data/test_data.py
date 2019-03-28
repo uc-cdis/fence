@@ -347,8 +347,10 @@ def test_public_bucket_download_file(
     assert response.status_code == 200
     assert response.json.get("url")
 
-    # defaults to signing url, check that it's not just raw url
-    assert urlparse.urlparse(response.json["url"]).query != ""
+    # we should NOT sign AWS S3 urls if the bucket itself is public
+    if not public_bucket_indexd_client.startswith("s3"):
+        # defaults to signing url, check that it's not just raw url
+        assert urlparse.urlparse(response.json["url"]).query != ""
 
 
 @pytest.mark.parametrize(

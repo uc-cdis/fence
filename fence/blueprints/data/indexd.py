@@ -40,6 +40,8 @@ ACTION_DICT = {
 
 SUPPORTED_PROTOCOLS = ["s3", "http", "ftp", "https", "gs"]
 SUPPORTED_ACTIONS = ["upload", "download"]
+ANONYMOUS_USER_ID = "anonymous"
+ANONYMOUS_USERNAME = "anonymous"
 
 
 def get_signed_url_for_file(action, file_id):
@@ -434,9 +436,10 @@ class S3IndexedFileLocation(IndexedFileLocation):
             bucket_cred, "cred", InternalError("credential of that bucket is missing")
         )
 
-        # if public, just get the first credentials to sign with
+        # this is a special case to support public buckets where we do *not* want to
+        # try signing at all
         if cred_key == "*":
-            return aws_creds.values().pop()
+            return {"aws_access_key_id": "*"}
 
         if "role-arn" not in bucket_cred:
             return get_value(
@@ -485,7 +488,15 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
         # if it's public and we don't need to force the signed url, just return the raw
         # s3 url
-        if public_data and not force_signed_url:
+        aws_access_key_id = get_value(
+            credential,
+            "aws_access_key_id",
+            InternalError("aws configuration not found"),
+        )
+        # `aws_access_key_id == "*"` is a special case to support public buckets
+        # where we do *not* want to try signing at all. the other case is that the
+        # data is public and user requested to not sign the url
+        if aws_access_key_id == "*" or (public_data and not force_signed_url):
             return http_url
 
         region = self.get_bucket_region()
@@ -494,7 +505,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 self.parsed_url.netloc, credential
             )
 
-        user_info = S3IndexedFileLocation.get_user_info()
+        user_info = _get_user_info()
 
         url = generate_aws_presigned_url(
             http_url,
@@ -507,19 +518,6 @@ class S3IndexedFileLocation(IndexedFileLocation):
         )
 
         return url
-
-    @staticmethod
-    def get_user_info():
-        try:
-            set_current_token(validate_request(aud={"user"}))
-            user_id = str(current_token["sub"])
-            username = current_token["context"]["user"]["name"]
-        except JWTError:
-            # this is fine b/c it might be public data, sign with anonymous username/id
-            user_id = "anonymous"
-            username = "anonymous"
-
-        return {"user_id": user_id, "username": username}
 
 
 class GoogleStorageIndexedFileLocation(IndexedFileLocation):
@@ -534,24 +532,23 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             self.parsed_url.netloc.strip("/") + "/" + self.parsed_url.path.strip("/")
         )
 
-        try:
-            set_current_token(validate_request(aud={"user"}))
-        except JWTError:
-            # this is fine b/c it might be public data, current_token will just be None
-            pass
+        user_info = _get_user_info()
 
         if public_data and not force_signed_url:
             url = "https://storage.cloud.google.com/" + resource_path
-        elif public_data and not current_token:
+        elif public_data and _is_anonymous_user(user_info):
             expiration_time = int(time.time()) + int(expires_in)
             url = self._generate_anonymous_google_storage_signed_url(
                 ACTION_DICT["gs"][action], resource_path, expiration_time
             )
         else:
-            # if it's controlled data we've checked their access before this
             expiration_time = int(time.time()) + int(expires_in)
             url = self._generate_google_storage_signed_url(
-                ACTION_DICT["gs"][action], resource_path, expiration_time, current_token
+                ACTION_DICT["gs"][action],
+                resource_path,
+                expiration_time,
+                user_info.get("user_id"),
+                user_info.get("username"),
             )
 
         return url
@@ -573,11 +570,9 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         return final_url
 
     def _generate_google_storage_signed_url(
-        self, http_verb, resource_path, expiration_time, current_token
+        self, http_verb, resource_path, expiration_time, user_id, username
     ):
-        user_id = current_token["sub"]
         proxy_group_id = get_or_create_proxy_group_id()
-        username = current_token.get("context", {}).get("user", {}).get("name")
 
         private_key, key_db_entry = get_or_create_primary_service_account_key(
             user_id=user_id, username=username, proxy_group_id=proxy_group_id
@@ -608,6 +603,31 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             service_account_creds=private_key,
         )
         return final_url
+
+
+def _get_user_info():
+    """
+    Attempt to parse the request for token to authenticate the user. fallback to
+    populated information about an anonymous user.
+    """
+    try:
+        set_current_token(validate_request(aud={"user"}))
+        user_id = str(current_token["sub"])
+        username = current_token["context"]["user"]["name"]
+    except JWTError:
+        # this is fine b/c it might be public data, sign with anonymous username/id
+        user_id = ANONYMOUS_USER_ID
+        username = ANONYMOUS_USERNAME
+
+    return {"user_id": user_id, "username": username}
+
+
+def _is_anonymous_user(user_info):
+    """
+    Check if there's a current user authenticated or if request is anonymous
+    """
+    user_info = user_info or _get_user_info()
+    return user_info.get("user_id") == ANONYMOUS_USER_ID
 
 
 def filter_auth_ids(action, list_auth_ids):
