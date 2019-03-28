@@ -5,19 +5,19 @@ from authutils.oauth2.client import OAuthClient
 import flask
 from flask_cors import CORS
 from flask_sqlalchemy_session import flask_scoped_session, current_session
-from cdislogging import get_stream_handler
 from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.auth import logout, build_redirect_url
 from fence.errors import UserError
 from fence.jwt import keys
 from fence.models import migrate
-from fence.oidc.jwt_generator import generate_token
 from fence.oidc.client import query_client
 from fence.oidc.server import server
 from fence.rbac.client import ArboristClient
 from fence.resources.aws.boto_manager import BotoManager
-from fence.resources.openid.google_oauth2 import Oauth2Client as GoogleClient
+from fence.resources.openid.google_oauth2 import GoogleOauth2Client as GoogleClient
+from fence.resources.openid.microsoft_oauth2 import MicrosoftOauth2Client as MicrosoftClient
+from fence.resources.openid.orcid_oauth2 import OrcidOauth2Client as ORCIDClient
 from fence.resources.storage import StorageManager
 from fence.resources.user.user_session import UserSessionInterface
 from fence.error_handler import get_error_response
@@ -222,6 +222,28 @@ def _setup_oidc_clients(app):
     if configured_google:
         app.google_client = GoogleClient(
             config["OPENID_CONNECT"]["google"],
+            HTTP_PROXY=config.get("HTTP_PROXY"),
+            logger=app.logger,
+        )
+
+    # Add OIDC client for ORCID if configured.
+    configured_orcid = (
+        "OPENID_CONNECT" in config and "orcid" in config["OPENID_CONNECT"]
+    )
+    if configured_orcid:
+        app.orcid_client = ORCIDClient(
+            config["OPENID_CONNECT"]["orcid"],
+            HTTP_PROXY=config.get("HTTP_PROXY"),
+            logger=app.logger,
+        )
+
+    # Add OIDC client for Microsoft if configured.
+    configured_microsoft = (
+        "OPENID_CONNECT" in config and "microsoft" in config["OPENID_CONNECT"]
+    )
+    if configured_microsoft:
+        app.microsoft_client = MicrosoftClient(
+            config["OPENID_CONNECT"]["microsoft"],
             HTTP_PROXY=config.get("HTTP_PROXY"),
             logger=app.logger,
         )

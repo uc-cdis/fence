@@ -30,6 +30,7 @@ from fence.resources.google.utils import (
     create_primary_service_account_key,
     get_or_create_proxy_group_id,
 )
+from fence.utils import get_valid_expiration_from_request
 
 
 from fence.config import config
@@ -46,8 +47,11 @@ SUPPORTED_ACTIONS = ["upload", "download"]
 def get_signed_url_for_file(action, file_id):
     requested_protocol = flask.request.args.get("protocol", None)
     indexed_file = IndexedFile(file_id)
-    max_ttl = config.get("MAX_PRESIGNED_URL_TTL", 3600)
-    expires_in = min(int(flask.request.args.get("expires_in", max_ttl)), max_ttl)
+    expires_in = config.get("MAX_PRESIGNED_URL_TTL", 3600)
+    requested_expires_in = get_valid_expiration_from_request()
+    if requested_expires_in:
+        expires_in = min(requested_expires_in, expires_in)
+
     signed_url = indexed_file.get_signed_url(requested_protocol, action, expires_in)
     return {"url": signed_url}
 
@@ -106,7 +110,9 @@ class BlankIndex(object):
             )
         document = indexd_response.json()
         guid = document["did"]
-        self.logger.info("created blank index record {} for upload".format(guid))
+        self.logger.info(
+            "created blank index record with GUID {} for upload".format(guid)
+        )
         return document
 
     def make_signed_url(self, file_name, expires_in=None):
@@ -124,9 +130,17 @@ class BlankIndex(object):
         try:
             bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
         except KeyError:
-            raise InternalError("fence not configured with data upload bucket")
+            raise InternalError(
+                "fence not configured with data upload bucket; can't create signed URL"
+            )
         s3_url = "s3://{}/{}/{}".format(bucket, self.guid, file_name)
-        return S3IndexedFileLocation(s3_url).get_signed_url("upload", expires_in)
+        url = S3IndexedFileLocation(s3_url).get_signed_url("upload", expires_in)
+        self.logger.info(
+            "created presigned URL to upload file {} with ID {}".format(
+                file_name, self.guid
+            )
+        )
+        return url
 
 
 class IndexedFile(object):
@@ -421,6 +435,22 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 aws_creds, bucket_cred, cred_key, expires_in
             )
 
+    def get_bucket_region(self):
+        s3_buckets = get_value(
+            config, "S3_BUCKETS", InternalError("buckets not configured")
+        )
+        if len(s3_buckets) == 0:
+            return None
+
+        bucket_cred = s3_buckets.get(self.bucket_name())
+        if bucket_cred is None:
+            return None
+
+        if "region" not in bucket_cred:
+            return None
+        else:
+            return bucket_cred["region"]
+
     def get_signed_url(self, action, expires_in, public_data=False):
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
@@ -440,9 +470,11 @@ class S3IndexedFileLocation(IndexedFileLocation):
         if aws_access_key_id == "*":
             return http_url
 
-        region = flask.current_app.boto.get_bucket_region(
-            self.parsed_url.netloc, credential
-        )
+        region = self.get_bucket_region()
+        if not region:
+            region = flask.current_app.boto.get_bucket_region(
+                self.parsed_url.netloc, credential
+            )
 
         user_info = {}
         if not public_data:

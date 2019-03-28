@@ -362,6 +362,14 @@ CIRRUS_CFG:
 #       length restrictions on group names.
 GOOGLE_GROUP_PREFIX: ''
 
+# Prefix to namespace Google Service Accounts in a single Google Cloud Platform Project.
+# This is primarily to support multiple instances of fence references the same Google
+# project. If that is not something you need to support, then you can leave this blank.
+#
+# NOTE: Make this short! Less than 8 characters if possible. Google has
+#       length restrictions on service account names.
+GOOGLE_SERVICE_ACCOUNT_PREFIX: ''
+
 # //////////////////////////////////////////////////////////////////////////////////////
 # EMAIL
 #   - Support for sending emails from fence. Used for user certificates
@@ -407,6 +415,7 @@ WHITE_LISTED_SERVICE_ACCOUNT_EMAILS: []
 # when service accounts or google projects are determined invalid, an email is sent
 # to the project owners. These settings are for that email
 REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION:
+  enable: false
   # this domain MUST exist in GUN_MAIL config
   domain: 'example.com'
   from: 'do-not-reply@example.com'
@@ -465,3 +474,5 @@ GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS:
   - 'compute-system.iam.gserviceaccount.com'
   - 'gcp-sa-websecurityscanner.iam.gserviceaccount.com'
   - 'storage-transfer-service.iam.gserviceaccount.com'
+  - 'firebase-sa-management.iam.gserviceaccount.com'
+  - 'firebase-rules.iam.gserviceaccount.com'

@@ -905,6 +905,15 @@ paths:
         Register a Google Cloud Project's service account to allow access to
         controlled data. If there are issues, will provide details for what went
         wrong.
+      parameters:
+        - name: expires_in
+          required: false
+          in: query
+          description: >-
+            the time (in seconds) during which the Google service account has
+            bucket access. Must be less than the configured maximum (default is 7 days). If it's greater, the configured maximum will be used.
+          schema:
+            type: integer
       operationId: registerGoogleServiceAccount
       responses:
         '200':
@@ -967,6 +976,15 @@ paths:
       description: >-
         Attempt to register a service account WITHOUT actually doing so. Will
         provide detailed errors for what went wrong.
+      parameters:
+        - name: expires_in
+          required: false
+          in: query
+          description: >-
+            the time (in seconds) during which the Google service account has
+            bucket access. Must be less than the configured maximum (default is 7 days). If it's greater, the configured maximum will be used.
+          schema:
+            type: integer
       operationId: registerGoogleServiceAccountDryRun
       responses:
         '200':
@@ -1034,7 +1052,7 @@ paths:
         > **WARNING**: Provided patch document will *fully replace* previous data.
         It will NOT extend previous data by provided values, it will FULLY
         REPLACE the data with what's provided.
-      operationId: updateGoogleServiceAccount
+      operationId: updateGoogleServiceAccountDryRun
       parameters:
         - in: path
           name: id
@@ -1042,6 +1060,14 @@ paths:
           required: true
           schema:
             type: string
+        - name: expires_in
+          required: false
+          in: query
+          description: >-
+            the time (in seconds) during which the Google service account has
+            bucket access. Must be less than the configured maximum (default is 7 days). If it's greater, the configured maximum will be used.
+          schema:
+            type: integer
       responses:
         '200':
           description: 'success, updating service account access is possible'
@@ -1114,6 +1140,14 @@ paths:
           required: true
           schema:
             type: string
+        - name: expires_in
+          required: false
+          in: query
+          description: >-
+            the time (in seconds) during which the Google service account has
+            bucket access. Must be less than the configured maximum (default is 7 days). If it's greater, the configured maximum will be used.
+          schema:
+            type: integer
       responses:
         '204':
           description: 'success, updated service account access'

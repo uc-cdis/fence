@@ -20,6 +20,7 @@ from fence.resources.google.utils import (
     get_or_create_service_account,
     get_or_create_proxy_group_id,
 )
+from fence.utils import get_valid_expiration_from_request
 
 from cdislogging import get_logger
 
@@ -75,9 +76,7 @@ class GoogleCredentialsList(Resource):
                 proxy_group_id=proxy_group_id,
             )
 
-            keys = g_cloud_manager.get_service_account_keys_info(
-                service_account.google_unique_id
-            )
+            keys = g_cloud_manager.get_service_account_keys_info(service_account.email)
 
             # replace Google's expiration date by the one in our DB
             reg = re.compile(".+\/keys\/(.+)")  # get key_id from xx/keys/key_id
@@ -108,7 +107,7 @@ class GoogleCredentialsList(Resource):
                     )
                     with GoogleCloudManager() as g_cloud:
                         g_cloud.delete_service_account_key(
-                            service_account.google_unique_id, key_id
+                            service_account.email, key_id
                         )
 
             result = {"access_keys": keys}
@@ -191,7 +190,7 @@ class GoogleCredentialsList(Resource):
 
             if service_account:
                 keys_for_account = g_cloud.get_service_account_keys_info(
-                    service_account.google_unique_id
+                    service_account.email
                 )
 
                 # Only delete the key if is owned by current client's SA
@@ -200,9 +199,7 @@ class GoogleCredentialsList(Resource):
                 ]
 
                 for key in all_client_keys:
-                    _delete_service_account_key(
-                        g_cloud, service_account.google_unique_id, key
-                    )
+                    _delete_service_account_key(g_cloud, service_account.email, key)
             else:
                 flask.abort(404, "Could not find service account for current user.")
 
@@ -225,13 +222,9 @@ class GoogleCredentialsList(Resource):
         # requested time (in seconds) during which the access key will be valid
         # x days * 24 hr/day * 60 min/hr * 60 s/min = y seconds
         expires_in = cirrus_config.SERVICE_KEY_EXPIRATION_IN_DAYS * 24 * 60 * 60
-        if "expires_in" in flask.request.args:
-            try:
-                requested_expires_in = int(flask.request.args["expires_in"])
-                assert requested_expires_in > 0
-                expires_in = min(expires_in, requested_expires_in)
-            except (ValueError, AssertionError):
-                raise UserError({"error": "expires_in must be a positive integer"})
+        requested_expires_in = get_valid_expiration_from_request()
+        if requested_expires_in:
+            expires_in = min(expires_in, requested_expires_in)
 
         expiration_time = int(time.time()) + int(expires_in)
         key_id = key.get("private_key_id")
@@ -260,7 +253,7 @@ class GoogleCredentials(Resource):
 
             if service_account:
                 keys_for_account = g_cloud.get_service_account_keys_info(
-                    service_account.google_unique_id
+                    service_account.email
                 )
 
                 # Only delete the key if is owned by current client's SA
@@ -270,7 +263,7 @@ class GoogleCredentials(Resource):
 
                 if access_key in all_client_keys:
                     _delete_service_account_key(
-                        g_cloud, service_account.google_unique_id, access_key
+                        g_cloud, service_account.email, access_key
                     )
                 else:
                     flask.abort(

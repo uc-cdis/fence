@@ -2,6 +2,7 @@ import os
 import json
 from urllib import unquote
 from enum import Enum
+import time
 
 import flask
 from flask_restful import Resource
@@ -34,6 +35,7 @@ from fence.resources.google.utils import (
     get_project_access_from_service_accounts,
 )
 from fence.models import UserServiceAccount
+from fence.utils import get_valid_expiration_from_request
 from flask_sqlalchemy_session import current_session
 from cdislogging import get_logger
 
@@ -652,6 +654,11 @@ def _get_service_account_error_status(sa):
                         "error": "unauthorized",
                         "error_description": "Not all users have access requested"
                     }
+                },
+                "expires_in": {
+                    "status": 400,
+                    "error": "user_error",
+                    "error_description": "expires_in must be a positive integer"
                 }
             }
         }
@@ -662,8 +669,18 @@ def _get_service_account_error_status(sa):
             "service_account_email": None,
             "google_project_id": None,
             "project_access": None,
+            "expires_in": {"status": 200, "error": None, "error_description": None},
         },
     }
+
+    try:
+        get_valid_expiration_from_request()
+    except UserError as e:
+        response["errors"]["expires_in"] = {
+            "status": e.code,
+            "error": "user_error",
+            "error_description": e.message,
+        }
 
     project_validity = GoogleProjectValidity(
         google_project_id=sa.google_project_id,
@@ -715,6 +732,7 @@ def _get_service_account_error_status(sa):
         response["errors"]["service_account_email"].get("status") == 200
         and response["errors"]["google_project_id"].get("status") == 200
         and response["errors"]["project_access"].get("status") == 200
+        and response["errors"]["expires_in"].get("status") == 200
     ):
         response["success"] = True
 

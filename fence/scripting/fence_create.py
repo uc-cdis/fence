@@ -49,7 +49,7 @@ from fence.models import (
 from fence.scripting.google_monitor import email_users_without_access, validation_check
 from fence.config import config
 from fence.sync.sync_users import UserSyncer
-from fence.utils import create_client
+from fence.utils import create_client, is_valid_expiration
 
 logger = get_logger(__name__)
 
@@ -457,9 +457,7 @@ def remove_expired_google_service_account_keys(db):
         with GoogleCloudManager() as g_mgr:
             # handle service accounts with default max expiration
             for service_account, client in client_service_accounts:
-                g_mgr.handle_expired_service_account_keys(
-                    service_account.google_unique_id
-                )
+                g_mgr.handle_expired_service_account_keys(service_account.email)
 
             # handle service accounts with custom expiration
             for expired_user_key in expired_sa_keys_for_users:
@@ -472,7 +470,7 @@ def remove_expired_google_service_account_keys(db):
                 )
 
                 response = g_mgr.delete_service_account_key(
-                    account=sa.google_unique_id, key_name=expired_user_key.key_id
+                    account=sa.email, key_name=expired_user_key.key_id
                 )
                 response_error_code = response.get("error", {}).get("code")
 
@@ -911,13 +909,19 @@ def link_bucket_to_project(db, bucket_id, bucket_provider, project_auth_id):
             current_session.add(storage_access)
             current_session.commit()
 
-        project_linkage = ProjectToBucket(
-            project_id=project_db_entry.id,
-            bucket_id=bucket_db_entry.id,
-            privilege=["owner"],  # TODO What should this be???
+        project_linkage = (
+            current_session.query(ProjectToBucket)
+            .filter_by(project_id=project_db_entry.id, bucket_id=bucket_db_entry.id)
+            .first()
         )
-        current_session.add(project_linkage)
-        current_session.commit()
+        if not project_linkage:
+            project_linkage = ProjectToBucket(
+                project_id=project_db_entry.id,
+                bucket_id=bucket_db_entry.id,
+                privilege=["owner"],  # TODO What should this be???
+            )
+            current_session.add(project_linkage)
+            current_session.commit()
 
 
 def create_or_update_google_bucket(
@@ -1089,13 +1093,21 @@ def _create_or_update_google_bucket_and_db(
                 db_session.query(Project).filter_by(auth_id=project_auth_id).first()
             )
             if project_db_entry:
-                project_linkage = ProjectToBucket(
-                    project_id=project_db_entry.id,
-                    bucket_id=bucket_db_entry.id,
-                    privilege=["owner"],  # TODO What should this be???
+                project_linkage = (
+                    db_session.query(ProjectToBucket)
+                    .filter_by(
+                        project_id=project_db_entry.id, bucket_id=bucket_db_entry.id
+                    )
+                    .first()
                 )
-                db_session.add(project_linkage)
-                db_session.commit()
+                if not project_linkage:
+                    project_linkage = ProjectToBucket(
+                        project_id=project_db_entry.id,
+                        bucket_id=bucket_db_entry.id,
+                        privilege=["owner"],  # TODO What should this be???
+                    )
+                    db_session.add(project_linkage)
+                    db_session.commit()
                 print(
                     "Successfully linked project with auth_id {} "
                     "to the bucket.".format(project_auth_id)
@@ -1240,7 +1252,7 @@ def verify_user_registration(DB):
     validation_check(DB)
 
 
-def force_update_google_link(DB, username, google_email):
+def force_update_google_link(DB, username, google_email, expires_in=None):
     """
     WARNING: This function circumvents Google Auth flow, and should only be
     used for internal testing!
@@ -1292,8 +1304,16 @@ def force_update_google_link(DB, username, google_email):
                 user_id, google_email, session
             )
 
-        now = int(time.time())
-        expiration = now + config["GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN"]
+        # timestamp at which the SA will lose bucket access
+        # by default: use configured time or 7 days
+        expiration = int(time.time()) + config.get(
+            "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN", 604800
+        )
+        if expires_in:
+            is_valid_expiration(expires_in)
+            # convert it to timestamp
+            requested_expiration = int(time.time()) + expires_in
+            expiration = min(expiration, requested_expiration)
 
         force_update_user_google_account_expiration(
             user_google_account, proxy_group_id, google_email, expiration, session
