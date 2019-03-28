@@ -355,11 +355,6 @@ def _update_service_account_db_entry(
             .filter(GoogleServiceAccount.email == old_sa_email)
             .first()
         )
-        old_service_account_keys_db_entries = (
-            current_session.query(GoogleServiceAccountKey)
-            .filter(GoogleServiceAccountKey.email == old_sa_email)
-            .all()
-        )
         if old_service_account_db_entry:
             logger.info(
                 "Found Google Service Account using old naming convention without a prefix: "
@@ -367,6 +362,12 @@ def _update_service_account_db_entry(
                 "cronjob removes them (e.g. fence-create google-manage-keys). NOTE: "
                 "the SA will still exist in Google but fence will use new SA {} for "
                 "new keys.".format(old_sa_email, new_service_account["email"])
+            )
+
+            old_service_account_keys_db_entries = (
+                current_session.query(GoogleServiceAccountKey)
+                .filter(GoogleServiceAccountKey.service_account_id == old_service_account_db_entry.id)
+                .all()
             )
 
             # remove the keys then the sa itself from db
