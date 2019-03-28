@@ -366,7 +366,10 @@ def _update_service_account_db_entry(
 
             old_service_account_keys_db_entries = (
                 current_session.query(GoogleServiceAccountKey)
-                .filter(GoogleServiceAccountKey.service_account_id == old_service_account_db_entry.id)
+                .filter(
+                    GoogleServiceAccountKey.service_account_id
+                    == old_service_account_db_entry.id
+                )
                 .all()
             )
 
