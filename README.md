@@ -563,4 +563,3 @@ Table contains various artifacts in fence that have temporary lifetimes and thei
 | User Primary SA Key                  | 10 days      | FALSE       | N/A                   | Used for Google URL signing                                                              |
 | User Primary SA Key for URL Signing  | 30 days      | FALSE       | N/A                   |                                                                                          |
 | Sliding Session Window               | 30 minutes   | TRUE        | 8 hours               | access_token cookies get generated automatically when expired if session is still active |
-
