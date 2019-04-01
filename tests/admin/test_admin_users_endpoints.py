@@ -37,6 +37,11 @@ def encoded_admin_jwt(kid, rsa_private_key):
     return jwt.encode(claims, key=rsa_private_key, headers=headers, algorithm="RS256")
 
 
+@pytest.fixture(autouse=True)
+def mock_arborist(mock_arborist_requests):
+    mock_arborist_requests()
+
+
 # GET /users/<username> tests
 
 

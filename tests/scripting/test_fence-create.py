@@ -44,6 +44,11 @@ from fence.scripting.fence_create import (
 ROOT_DIR = "./"
 
 
+@pytest.fixture(autouse=True)
+def mock_arborist(mock_arborist_requests):
+    mock_arborist_requests()
+
+
 def test_client_delete(app, db_session, cloud_manager, test_user_a):
     """
     Test that the client delete function correctly cleans up the client's
