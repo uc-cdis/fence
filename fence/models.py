@@ -43,7 +43,6 @@ from userdatamodel.models import (
     HMACKeyPair,
     HMACKeyPairArchive,
     IdentityProvider,
-    Policy,
     Project,
     ProjectToBucket,
     S3Credential,
@@ -52,7 +51,6 @@ from userdatamodel.models import (
     User,
     UserToBucket,
     UserToGroup,
-    users_to_policies,
 )
 
 

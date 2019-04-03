@@ -34,7 +34,6 @@ setup(
         "six>=1.11.0,<2.0.0",
         "SQLAlchemy>=0.9.9,<1.0.0",
         "temps>=0.3.0,<1.0.0",
-        "userdatamodel",
         "Werkzeug>=0.12.2,<1.0.0",
         "storageclient",
         "pyyaml",

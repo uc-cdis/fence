@@ -29,7 +29,8 @@ SQLAlchemy==0.9.9
 temps==0.3.0
 Werkzeug==0.12.2
 pyyaml
-userdatamodel==1.2.0
+#userdatamodel==1.2.0
+-e git+https://git@github.com/uc-cdis/userdatamodel.git@fix/remove-policy#egg=userdatamodel
 -e git+https://github.com/uc-cdis/flask-postgres-session.git@68bf5a9723a351729855c429eca8a0f4bbb830c7#egg=flask_postgres_session-0.1.3
 -e git+https://git@github.com/uc-cdis/cdiserrors.git@0.1.0#egg=cdiserrors
 -e git+https://git@github.com/uc-cdis/cdislogging.git@master#egg=cdislogging
