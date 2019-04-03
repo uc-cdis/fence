@@ -10,6 +10,8 @@ import flask
 import requests
 
 from fence.auth import (
+    get_jwt,
+    has_oauth,
     current_token,
     login_required,
     set_current_token,
@@ -270,6 +272,23 @@ class IndexedFile(object):
         else:
             raise Unauthorized("This file is not accessible")
 
+    def check_rbac(self, action):
+        if "rbac" not in self.index_document:
+            raise ValueError("index record missing `rbac`")
+        request = {
+            "user": {
+                "jwt": get_jwt(),
+            },
+            "request": {
+                "resource": self.index_document["rbac"],
+                "action": {
+                    "service": "fence",
+                    "method": action,
+                },
+            },
+        }
+        return flask.current_app.arborist.auth_request(request)
+
     @cached_property
     def metadata(self):
         return self.index_document.get("metadata", {})
@@ -290,6 +309,15 @@ class IndexedFile(object):
             else:
                 username = flask.g.user.username
             return self.index_document.get("uploader") == username
+
+        try:
+            # action should be upload or download
+            # return bool for authorization
+            return self.check_rbac(action)
+        except ValueError:
+            # this is ok; we'll default to ACL field (previous behavior)
+            # may want to deprecate in future
+            pass
 
         if flask.g.token is None:
             given_acls = set(filter_auth_ids(action, flask.g.user.project_access))
