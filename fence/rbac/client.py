@@ -72,6 +72,7 @@ class ArboristClient(object):
         self._policy_url = self._base_url + "/policy/"
         self._resource_url = self._base_url + "/resource"
         self._role_url = self._base_url + "/role/"
+        self._user_url = self._base_url + "/user"
 
     def healthy(self):
         """
@@ -136,6 +137,14 @@ class ArboristClient(object):
         if response.status_code == 404:
             return None
         return response.json()
+
+    @_arborist_retry()
+    def list_policies_for_user(self, username):
+        """
+        Args:
+            username (str)
+        """
+        response = _request_get_json(requests.get(self._user_url + "/" + username))
 
     @_arborist_retry()
     def list_policies(self):

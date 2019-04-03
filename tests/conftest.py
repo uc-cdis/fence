@@ -180,8 +180,9 @@ def kid_2():
     return "test-keypair-2"
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def mock_arborist_requests(request):
+
     def do_patch(urls_to_responses=None):
         urls_to_responses = urls_to_responses or {}
         defaults = {"arborist/health": {"GET": ("", 200)}}
@@ -221,7 +222,7 @@ def mock_arborist_requests(request):
 
 
 @pytest.fixture(scope="session")
-def app(kid, rsa_private_key, rsa_public_key, mock_arborist_requests):
+def app(kid, rsa_private_key, rsa_public_key):
     """
     Flask application fixture.
     """
