@@ -3,17 +3,17 @@ import flask
 
 from fence.models import IdentityProvider
 from fence.config import config
-from fence.blueprints.login._default import DefaultLogin, DefaultCallback
+from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 
 
-class GoogleLogin(DefaultLogin):
+class GoogleLogin(DefaultOAuth2Login):
     def __init__(self):
         super(GoogleLogin, self).__init__(
             idp_name=IdentityProvider.google, client=flask.current_app.google_client
         )
 
 
-class GoogleCallback(DefaultCallback):
+class GoogleCallback(DefaultOAuth2Callback):
     def __init__(self):
         super(GoogleCallback, self).__init__(
             idp_name=IdentityProvider.google, client=flask.current_app.google_client

@@ -31,7 +31,6 @@ class ShibbolethCallback(Resource):
         """
         Complete the shibboleth login.
         """
-
         if "SHIBBOLETH_HEADER" in config:
             eppn = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
 

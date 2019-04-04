@@ -16,7 +16,9 @@ from fence.oidc.server import server
 from fence.rbac.client import ArboristClient
 from fence.resources.aws.boto_manager import BotoManager
 from fence.resources.openid.google_oauth2 import GoogleOauth2Client as GoogleClient
-from fence.resources.openid.microsoft_oauth2 import MicrosoftOauth2Client as MicrosoftClient
+from fence.resources.openid.microsoft_oauth2 import (
+    MicrosoftOauth2Client as MicrosoftClient
+)
 from fence.resources.openid.orcid_oauth2 import OrcidOauth2Client as ORCIDClient
 from fence.resources.storage import StorageManager
 from fence.resources.user.user_session import UserSessionInterface
