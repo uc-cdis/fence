@@ -12,9 +12,6 @@ DEFAULT_CFG_PATH = os.path.join(
 
 
 class FenceConfig(Config):
-    def __init__(self, *args, **kwargs):
-        super(FenceConfig, self).__init__(*args, **kwargs)
-
     def post_process(self):
         # backwards compatibility if no new YAML cfg provided
         # these cfg use to be in settings.py so we need to make sure they gets defaulted
