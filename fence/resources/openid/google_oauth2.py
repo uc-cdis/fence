@@ -1,14 +1,7 @@
-from oauth2client.client import OAuth2WebServerFlow
-
-import httplib2
-import json
-import requests
-from cdislogging import get_logger
-
-logger = get_logger(__name__)
+from idp_oauth2 import Oauth2ClientBase
 
 
-class Oauth2Client(object):
+class GoogleOauth2Client(Oauth2ClientBase):
     """
     client for interacting with google oauth 2,
     as google openid connect is supported under oauth2
@@ -21,88 +14,46 @@ class Oauth2Client(object):
     )
 
     def __init__(self, settings, logger, HTTP_PROXY=None):
-        self.logger = logger
-        self.settings = settings
-        self.flow = OAuth2WebServerFlow(
-            client_id=settings["client_id"],
-            client_secret=settings["client_secret"],
+        super(GoogleOauth2Client, self).__init__(
+            settings,
+            logger,
             scope="openid email",
-            redirect_uri=settings["redirect_url"],
+            discovery_url=self.GOOGLE_DISCOVERY_URL,
+            idp="Google",
+            HTTP_PROXY=HTTP_PROXY,
         )
-        self.auth_url = self.get_auth_url()
-        self.HTTP_PROXY = HTTP_PROXY
 
     def get_auth_url(self):
-        return self.flow.step1_get_authorize_url()
+        """
+        Get authorization uri from discovery doc
+        """
+        authorization_endpoint = self.get_value_from_discovery_doc(
+            "authorization_endpoint", "https://accounts.google.com/o/oauth2/v2/auth"
+        )
+        uri, _ = self.session.authorization_url(authorization_endpoint)
+
+        return uri
 
     def get_user_id(self, code):
+        """
+        Get user id
+        """
         try:
-            if self.HTTP_PROXY and self.HTTP_PROXY.get("host"):
-                proxy = httplib2.ProxyInfo(
-                    proxy_type=httplib2.socks.PROXY_TYPE_HTTP,
-                    proxy_host=self.HTTP_PROXY["host"],
-                    proxy_port=self.HTTP_PROXY["port"],
-                    proxy_rdns=True,
-                )
-                http = httplib2.Http(proxy_info=proxy)
-            else:
-                http = httplib2.Http()
-            creds = self.flow.step2_exchange(code, http=http)
-            http = creds.authorize(http)
+            token_endpoint = self.get_value_from_discovery_doc(
+                "token_endpoint", "https://oauth2.googleapis.com/token"
+            )
+            jwks_endpoint = self.get_value_from_discovery_doc(
+                "jwks_uri", "https://www.googleapis.com/oauth2/v3/certs"
+            )
+            claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
 
-            userinfo_endpoint = self.get_userinfo_endpoint()
-
-            r = http.request(userinfo_endpoint)
-            if len(r) > 1:
-                user_profile = json.loads(r[1])
-                if user_profile.get("email_verified"):
-                    return {"email": user_profile.get("email")}
-                else:
-                    return {
-                        "error": (
-                            "Your email is not verified: {}".format(
-                                user_profile.get("error", "")
-                            )
-                        )
-                    }
+            if claims["email"] and claims["email_verified"]:
+                return {"email": claims["email"]}
+            elif claims["email"]:
+                return {"error": "Email is not verified"}
             else:
-                return {"error": "Can't get user's email"}
+                return {"error": "Can't get user's Google email!"}
+
         except Exception as e:
             self.logger.exception("Can't get user info")
-            return {"error": "Can't get your email: {}".format(e)}
-
-    def get_userinfo_endpoint(self):
-        """
-        Return the url for Google's Userinfo endpoint by the recommended method of
-        using their discovery url. Default to current userinfo url as identified
-        09 JAN 2019.
-        """
-        default_userinfo = "https://openidconnect.googleapis.com/v1/userinfo"
-
-        document = requests.get(self.GOOGLE_DISCOVERY_URL)
-
-        if document.status_code == requests.codes.ok:
-            userinfo_endpoint = document.json().get("userinfo_endpoint")
-            if not userinfo_endpoint:
-                logger.warning(
-                    "could not retrieve `userinfo_endpoint` from Google response {}. "
-                    "Defaulting to {}".format(document.json(), default_userinfo)
-                )
-                userinfo_endpoint = default_userinfo
-            elif userinfo_endpoint != default_userinfo:
-                logger.info(
-                    "Google's userinfo endpoint {} differs from our "
-                    "default {}. Using Google's...".format(
-                        userinfo_endpoint, default_userinfo
-                    )
-                )
-        else:
-            logger.error(
-                "{} ERROR from Google API, could not retrieve `userinfo_endpoint` from "
-                "Google response {}. Defaulting to {}".format(
-                    document.status_code, document, default_userinfo
-                )
-            )
-            userinfo_endpoint = default_userinfo
-
-        return userinfo_endpoint
+            return {"error": "Can't get your Google email: {}".format(e)}

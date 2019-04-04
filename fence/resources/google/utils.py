@@ -30,6 +30,10 @@ from fence.models import (
 from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME
 from fence.errors import NotSupported, NotFound
 
+from cdislogging import get_logger
+
+logger = get_logger(__name__)
+
 
 def get_or_create_primary_service_account_key(
     user_id, username, proxy_group_id, expires=None
@@ -303,11 +307,11 @@ def get_or_create_service_account(client_id, user_id, username, proxy_group_id):
     if proxy_group_id:
         if client_id:
             service_account_id = get_valid_service_account_id_for_client(
-                client_id, user_id, prefix=config["GOOGLE_GROUP_PREFIX"]
+                client_id, user_id, prefix=config["GOOGLE_SERVICE_ACCOUNT_PREFIX"]
             )
         else:
             service_account_id = get_valid_service_account_id_for_user(
-                user_id, username, prefix=config["GOOGLE_GROUP_PREFIX"]
+                user_id, username, prefix=config["GOOGLE_SERVICE_ACCOUNT_PREFIX"]
             )
 
         with GoogleCloudManager() as g_cloud:
@@ -331,6 +335,51 @@ def _update_service_account_db_entry(
     """
     Now that SA exists in Google so lets check our db and update/add as necessary
     """
+
+    # if we're now using a prefix for SAs, cleanup the db
+    if config["GOOGLE_SERVICE_ACCOUNT_PREFIX"]:
+        # - if using the old naming convention without a prefix,
+        # remove that SA from the db b/c we'll be using the new one from now on
+        # - construct old email using account id provided and
+        # domain from new email to find the db entry
+        old_service_account_id = get_valid_service_account_id_for_client(
+            client_id, user_id
+        )
+        old_sa_email = "@".join(
+            (old_service_account_id, new_service_account["email"].split("@")[-1])
+        )
+
+        # clear out old SA and keys if there is one
+        old_service_account_db_entry = (
+            current_session.query(GoogleServiceAccount)
+            .filter(GoogleServiceAccount.email == old_sa_email)
+            .first()
+        )
+        if old_service_account_db_entry:
+            logger.info(
+                "Found Google Service Account using old naming convention without a prefix: "
+                "{}. Removing from db. Keys should still have access in Google until "
+                "cronjob removes them (e.g. fence-create google-manage-keys). NOTE: "
+                "the SA will still exist in Google but fence will use new SA {} for "
+                "new keys.".format(old_sa_email, new_service_account["email"])
+            )
+
+            old_service_account_keys_db_entries = (
+                current_session.query(GoogleServiceAccountKey)
+                .filter(
+                    GoogleServiceAccountKey.service_account_id
+                    == old_service_account_db_entry.id
+                )
+                .all()
+            )
+
+            # remove the keys then the sa itself from db
+            for old_key in old_service_account_keys_db_entries:
+                current_session.delete(old_key)
+
+            current_session.commit()
+            current_session.delete(old_service_account_db_entry)
+
     service_account_db_entry = (
         current_session.query(GoogleServiceAccount)
         .filter(GoogleServiceAccount.email == new_service_account["email"])
@@ -656,6 +705,22 @@ def get_user_from_google_member(member, db=None):
     return None
 
 
+def get_google_app_creds(app_creds_file=None):
+    """
+    Get the google app creds from the cirrus configuration.
+    """
+    app_creds_file = app_creds_file or config.get("CIRRUS_CFG", {}).get(
+        "GOOGLE_APPLICATION_CREDENTIALS"
+    )
+
+    creds = None
+    if app_creds_file and os.path.exists(app_creds_file):
+        with open(app_creds_file) as app_creds_file:
+            creds = json.load(app_creds_file)
+
+    return creds
+
+
 def get_monitoring_service_account_email(app_creds_file=None):
     """
     Get the monitoring email from the cirrus configuration. Use the
@@ -664,14 +729,10 @@ def get_monitoring_service_account_email(app_creds_file=None):
     This function should ONLY return the service account's email by
     parsing the creds file.
     """
-    app_creds_file = app_creds_file or config.get("CIRRUS_CFG", {}).get(
-        "GOOGLE_APPLICATION_CREDENTIALS"
-    )
-
     creds_email = None
-    if app_creds_file and os.path.exists(app_creds_file):
-        with open(app_creds_file) as app_creds_file:
-            creds_email = json.load(app_creds_file).get("client_email")
+    creds = get_google_app_creds(app_creds_file)
+    if creds:
+        creds_email = creds.get("client_email")
 
     return creds_email
 
