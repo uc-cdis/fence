@@ -302,6 +302,7 @@ S3_BUCKETS:
     cred: 'CRED1'
   bucket2:
     cred: 'CRED2'
+    region: 'us-east-1' #optional but if specified avoids a call to GetBucketLocation which you may lack the AWS ACLs for.
   bucket3:
     cred: '*'
   bucket4:
@@ -361,6 +362,14 @@ CIRRUS_CFG:
 # NOTE: Make this short! Less than 8 characters if possible. Google has
 #       length restrictions on group names.
 GOOGLE_GROUP_PREFIX: ''
+
+# Prefix to namespace Google Service Accounts in a single Google Cloud Platform Project.
+# This is primarily to support multiple instances of fence references the same Google
+# project. If that is not something you need to support, then you can leave this blank.
+#
+# NOTE: Make this short! Less than 8 characters if possible. Google has
+#       length restrictions on service account names.
+GOOGLE_SERVICE_ACCOUNT_PREFIX: ''
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # EMAIL

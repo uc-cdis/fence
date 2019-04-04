@@ -1,9 +1,7 @@
 import re
 import time
 from urlparse import urlparse
-import uuid
 
-from authutils.token import current_token
 from cached_property import cached_property
 import cirrus
 from cdispyutils.config import get_value
@@ -16,6 +14,7 @@ from fence.auth import (
     login_required,
     set_current_token,
     validate_request,
+    JWTError,
 )
 from fence.config import config
 from fence.errors import (
@@ -29,11 +28,10 @@ from fence.resources.google.utils import (
     get_or_create_primary_service_account_key,
     create_primary_service_account_key,
     get_or_create_proxy_group_id,
+    get_google_app_creds,
 )
 from fence.utils import get_valid_expiration_from_request
 
-
-from fence.config import config
 
 ACTION_DICT = {
     "s3": {"upload": "PUT", "download": "GET"},
@@ -42,17 +40,28 @@ ACTION_DICT = {
 
 SUPPORTED_PROTOCOLS = ["s3", "http", "ftp", "https", "gs"]
 SUPPORTED_ACTIONS = ["upload", "download"]
+ANONYMOUS_USER_ID = "anonymous"
+ANONYMOUS_USERNAME = "anonymous"
 
 
 def get_signed_url_for_file(action, file_id):
     requested_protocol = flask.request.args.get("protocol", None)
+
+    # default to signing the url even if it's a public object
+    # this will work so long as we're provided a user token
+    force_signed_url = True
+    if flask.request.args.get("no_force_sign"):
+        force_signed_url = False
+
     indexed_file = IndexedFile(file_id)
     expires_in = config.get("MAX_PRESIGNED_URL_TTL", 3600)
     requested_expires_in = get_valid_expiration_from_request()
     if requested_expires_in:
         expires_in = min(requested_expires_in, expires_in)
 
-    signed_url = indexed_file.get_signed_url(requested_protocol, action, expires_in)
+    signed_url = indexed_file.get_signed_url(
+        requested_protocol, action, expires_in, force_signed_url=force_signed_url
+    )
     return {"url": signed_url}
 
 
@@ -211,7 +220,7 @@ class IndexedFile(object):
         urls = self.index_document.get("urls", [])
         return list(map(IndexedFileLocation.from_url, urls))
 
-    def get_signed_url(self, protocol, action, expires_in):
+    def get_signed_url(self, protocol, action, expires_in, force_signed_url=True):
         if self.public and action == "upload":
             raise Unauthorized("Cannot upload on public files")
         # don't check the authorization if the file is public
@@ -220,14 +229,17 @@ class IndexedFile(object):
             raise Unauthorized("You don't have access permission on this file")
         if action is not None and action not in SUPPORTED_ACTIONS:
             raise NotSupported("action {} is not supported".format(action))
-        return self._get_signed_url(protocol, action, expires_in)
+        return self._get_signed_url(protocol, action, expires_in, force_signed_url)
 
-    def _get_signed_url(self, protocol, action, expires_in):
+    def _get_signed_url(self, protocol, action, expires_in, force_signed_url):
         if not protocol:
             # no protocol specified, return first location as signed url
             try:
                 return self.indexed_file_locations[0].get_signed_url(
-                    action, expires_in, public_data=self.public
+                    action,
+                    expires_in,
+                    public_data=self.public,
+                    force_signed_url=force_signed_url,
                 )
             except IndexError:
                 raise NotFound("Can't find any file locations.")
@@ -238,7 +250,10 @@ class IndexedFile(object):
                 protocol == "http" and file_location.protocol == "https"
             ):
                 return file_location.get_signed_url(
-                    action, expires_in, public_data=self.public
+                    action,
+                    expires_in,
+                    public_data=self.public,
+                    force_signed_url=force_signed_url,
                 )
 
         raise NotFound(
@@ -349,7 +364,9 @@ class IndexedFileLocation(object):
             return GoogleStorageIndexedFileLocation(url)
         return IndexedFileLocation(url)
 
-    def get_signed_url(self, action, expires_in, public_data=False):
+    def get_signed_url(
+        self, action, expires_in, public_data=False, force_signed_url=True
+    ):
         return self.url
 
 
@@ -359,16 +376,13 @@ class S3IndexedFileLocation(IndexedFileLocation):
     """
 
     @classmethod
-    def assume_role(cls, aws_creds, bucket_cred, cred_key, expires_in):
+    def assume_role(cls, bucket_cred, expires_in, aws_creds_config):
         role_arn = get_value(
             bucket_cred, "role-arn", InternalError("role-arn of that bucket is missing")
         )
-        config = get_value(
-            aws_creds,
-            cred_key,
-            InternalError("aws credential of that bucket is not found"),
+        assumed_role = flask.current_app.boto.assume_role(
+            role_arn, expires_in, aws_creds_config
         )
-        assumed_role = flask.current_app.boto.assume_role(role_arn, expires_in, config)
         cred = get_value(
             assumed_role, "Credentials", InternalError("fail to assume role")
         )
@@ -421,6 +435,9 @@ class S3IndexedFileLocation(IndexedFileLocation):
         cred_key = get_value(
             bucket_cred, "cred", InternalError("credential of that bucket is missing")
         )
+
+        # this is a special case to support public buckets where we do *not* want to
+        # try signing at all
         if cred_key == "*":
             return {"aws_access_key_id": "*"}
 
@@ -431,8 +448,13 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 InternalError("aws credential of that bucket is not found"),
             )
         else:
+            aws_creds_config = get_value(
+                aws_creds,
+                cred_key,
+                InternalError("aws credential of that bucket is not found"),
+            )
             return S3IndexedFileLocation.assume_role(
-                aws_creds, bucket_cred, cred_key, expires_in
+                bucket_cred, expires_in, aws_creds_config
             )
 
     def get_bucket_region(self):
@@ -451,7 +473,9 @@ class S3IndexedFileLocation(IndexedFileLocation):
         else:
             return bucket_cred["region"]
 
-    def get_signed_url(self, action, expires_in, public_data=False):
+    def get_signed_url(
+        self, action, expires_in, public_data=False, force_signed_url=True
+    ):
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
@@ -462,12 +486,17 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
         credential = self.get_credential_to_access_bucket(aws_creds, expires_in)
 
+        # if it's public and we don't need to force the signed url, just return the raw
+        # s3 url
         aws_access_key_id = get_value(
             credential,
             "aws_access_key_id",
             InternalError("aws configuration not found"),
         )
-        if aws_access_key_id == "*":
+        # `aws_access_key_id == "*"` is a special case to support public buckets
+        # where we do *not* want to try signing at all. the other case is that the
+        # data is public and user requested to not sign the url
+        if aws_access_key_id == "*" or (public_data and not force_signed_url):
             return http_url
 
         region = self.get_bucket_region()
@@ -476,9 +505,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 self.parsed_url.netloc, credential
             )
 
-        user_info = {}
-        if not public_data:
-            user_info = S3IndexedFileLocation.get_user_info()
+        user_info = _get_user_info()
 
         url = generate_aws_presigned_url(
             http_url,
@@ -492,46 +519,60 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
         return url
 
-    @staticmethod
-    def get_user_info():
-        user_info = {}
-        set_current_token(validate_request(aud={"user"}))
-        user_id = current_token["sub"]
-        username = current_token["context"]["user"]["name"]
-        if user_id is not None:
-            user_info = {"user_id": str(user_id), "username": username}
-        return user_info
-
 
 class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     """
     And indexed file that lives in a Google Storage bucket.
     """
 
-    def get_signed_url(self, action, expires_in, public_data=False):
+    def get_signed_url(
+        self, action, expires_in, public_data=False, force_signed_url=True
+    ):
         resource_path = (
             self.parsed_url.netloc.strip("/") + "/" + self.parsed_url.path.strip("/")
         )
 
-        # if the file is public, just return the public url to access it, no
-        # signing required
-        if public_data:
-            url = "https://storage.googleapis.com/" + resource_path
+        user_info = _get_user_info()
+
+        if public_data and not force_signed_url:
+            url = "https://storage.cloud.google.com/" + resource_path
+        elif public_data and _is_anonymous_user(user_info):
+            expiration_time = int(time.time()) + int(expires_in)
+            url = self._generate_anonymous_google_storage_signed_url(
+                ACTION_DICT["gs"][action], resource_path, expiration_time
+            )
         else:
             expiration_time = int(time.time()) + int(expires_in)
             url = self._generate_google_storage_signed_url(
-                ACTION_DICT["gs"][action], resource_path, expiration_time
+                ACTION_DICT["gs"][action],
+                resource_path,
+                expiration_time,
+                user_info.get("user_id"),
+                user_info.get("username"),
             )
 
         return url
 
-    def _generate_google_storage_signed_url(
+    def _generate_anonymous_google_storage_signed_url(
         self, http_verb, resource_path, expiration_time
     ):
-        set_current_token(validate_request(aud={"user"}))
-        user_id = current_token["sub"]
+        # we will use the main fence SA service account to sign anonymous requests
+        private_key = get_google_app_creds()
+        final_url = cirrus.google_cloud.utils.get_signed_url(
+            resource_path,
+            http_verb,
+            expiration_time,
+            extension_headers=None,
+            content_type="",
+            md5_value="",
+            service_account_creds=private_key,
+        )
+        return final_url
+
+    def _generate_google_storage_signed_url(
+        self, http_verb, resource_path, expiration_time, user_id, username
+    ):
         proxy_group_id = get_or_create_proxy_group_id()
-        username = current_token.get("context", {}).get("user", {}).get("name")
 
         private_key, key_db_entry = get_or_create_primary_service_account_key(
             user_id=user_id, username=username, proxy_group_id=proxy_group_id
@@ -562,6 +603,31 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             service_account_creds=private_key,
         )
         return final_url
+
+
+def _get_user_info():
+    """
+    Attempt to parse the request for token to authenticate the user. fallback to
+    populated information about an anonymous user.
+    """
+    try:
+        set_current_token(validate_request(aud={"user"}))
+        user_id = str(current_token["sub"])
+        username = current_token["context"]["user"]["name"]
+    except JWTError:
+        # this is fine b/c it might be public data, sign with anonymous username/id
+        user_id = ANONYMOUS_USER_ID
+        username = ANONYMOUS_USERNAME
+
+    return {"user_id": user_id, "username": username}
+
+
+def _is_anonymous_user(user_info):
+    """
+    Check if there's a current user authenticated or if request is anonymous
+    """
+    user_info = user_info or _get_user_info()
+    return user_info.get("user_id") == ANONYMOUS_USER_ID
 
 
 def filter_auth_ids(action, list_auth_ids):
