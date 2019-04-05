@@ -561,6 +561,8 @@ def migrate(driver):
 
     _update_for_authlib(driver, md)
 
+    _remove_policy(driver, md)
+
 
 def add_foreign_key_column_if_not_exist(
     table_name,
@@ -851,4 +853,11 @@ def _update_for_authlib(driver, md):
                 tablename
             )
         )
+        session.commit()
+
+
+def _remove_policy(driver, md):
+    with driver.session as session:
+        session.execute("DROP TABLE users_to_policies;")
+        session.execute("DROP TABLE policy;")
         session.commit()

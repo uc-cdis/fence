@@ -357,3 +357,39 @@ class ArboristClient(object):
             raise ArboristError(data["error"])
         self.logger.info("created policy {}".format(policy_json["id"]))
         return data
+
+    @_arborist_retry()
+    def grant_user_policy(self, username, policy_id):
+        """
+        MUST be user name, and not serial user ID
+        """
+        url = self._user_url + "/{}/policy".format(username)
+        request = {"policy": policy_id}
+        response = requests.post(url, json=request)
+        data = _request_get_json(response)
+        if response.status_code != 204:
+            msg = data.get("error", "unhelpful response from arborist")
+            self.logger.error(
+                "could not grant policy `{}` to user `{}`: {}".format(
+                    policy_id, username, msg
+                )
+            )
+            return None
+        self.logger.info("granted policy `{}` to user `{}`".format(policy_id, username))
+        return data
+
+    @_arborist_retry()
+    def revoke_all_policies_for_user(self, username):
+        url = self._url_user + "/{}/policy".format(username)
+        response = requests.delete(url)
+        data = _request_get_json(response)
+        if response.status_code != 204:
+            msg = data.get("error", "unhelpful response from arborist")
+            self.logger.error(
+                "could not revoke policies from user `{}`: {}`".format(
+                    username, msg
+                )
+            )
+            return None
+        self.logger.info("revoked all policies from user `{}`".format(username))
+        return data
