@@ -24,7 +24,6 @@ from fence.models import (
     Project,
     Tag,
     User,
-    users_to_policies,
     query_for_user,
 )
 from fence.rbac.client import ArboristClient, ArboristError
@@ -989,7 +988,6 @@ class UserSyncer(object):
             for username in usernames:
                 self.arborist_client.revoke_all_policies_for_user(username)
 
-        session.execute(users_to_policies.delete())
         # TODO (rudyardrichter 2018-09-10): revoke admin access etc
 
     def _update_arborist(self, session, user_yaml):

@@ -321,20 +321,5 @@ def test_update_arborist(syncer, db_session):
     with open(LOCAL_YAML_DIR, "r") as f:
         user_data = yaml.safe_load(f)
 
-    policies = db_session.query(models.Policy).all()
-    policy_ids = [policy.id for policy in policies]
-
-    # For every user in the user data, check that the matching policies were
-    # created, and also granted to this user, i.e. the entry in the database
-    # for this user has policies for everything in the original user data.
-    for username, data in user_data["users"].items():
-        if "projects" not in data:
-            continue
-        for project in data["projects"]:
-            for privilege in project["privilege"]:
-                policy_id = _format_policy_id(project["resource"], privilege)
-                assert policy_id in policy_ids
-                user = models.query_for_user(session=db_session, username=username)
-                user_policies = user.policies
-                user_policy_ids = [policy.id for policy in user_policies]
-                assert policy_id in user_policy_ids
+    # TODO: update since policies are moved over to arborist now
+    # should be part of user sync changes probably

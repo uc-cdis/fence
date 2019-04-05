@@ -12,7 +12,6 @@ except ImportError:
 
 import pytest
 
-from fence.models import Policy
 from fence.rbac.client import ArboristClient
 
 
