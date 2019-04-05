@@ -69,7 +69,7 @@ class BotoManager(object):
             self.logger.exception(ex)
             raise UnavailableError("Fail to reach AWS: {}".format(ex.message))
 
-    def presigned_url(self, bucket, key, expires, config, method="get_object"):
+    def presigned_url(self, bucket, key, expires, config, method="get_object", server_side_encryption=True):
         """
         Args:
             bucket (str): bucket name
@@ -85,7 +85,7 @@ class BotoManager(object):
         expires = int(expires) or self.URL_EXPIRATION_DEFAULT
         expires = min(expires, self.URL_EXPIRATION_MAX)
         params = {"Bucket": bucket, "Key": key}
-        if method == "put_object":
+        if method == "put_object" and server_side_encryption:
             params["ServerSideEncryption"] = "AES256"
         return self.s3_client.generate_presigned_url(
             ClientMethod=method, Params=params, ExpiresIn=expires
