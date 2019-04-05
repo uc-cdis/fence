@@ -501,6 +501,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 expires=expires_in,
                 config=aws_creds,
                 method={'upload': 'put_object', 'download': 'get_object'}[action],
+                server_side_encryption=False
             )
 
         return url
