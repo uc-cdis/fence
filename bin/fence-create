@@ -20,6 +20,7 @@ from fence.scripting.fence_create import (
     link_external_bucket,
     link_bucket_to_project,
     modify_client_action,
+    notify_problem_users,
     remove_expired_google_accounts_from_proxy_groups,
     remove_expired_google_service_account_keys,
     sync_users,
@@ -90,7 +91,7 @@ def parse_arguments():
 
     client_modify = subparsers.add_parser("client-modify")
     client_modify.add_argument("--client", required=True)
-    client_modify.add_argument("--urls", required=False)
+    client_modify.add_argument("--urls", required=False, nargs="+")
     client_modify.add_argument("--name", required=False)
     client_modify.add_argument("--description", required=False)
     client_modify.add_argument(
@@ -263,6 +264,33 @@ def parse_arguments():
     force_link_google.add_argument(
         "--google-email", required=True, help="Email to link to"
     )
+    force_link_google.add_argument(
+        "--expires_in",
+        required=False,
+        help="The time (in seconds) during which the Google account has bucket access (7 days max/default)",
+    )
+
+    notify_problem_users = subparsers.add_parser("notify-problem-users")
+    notify_problem_users.add_argument(
+        "--emails", required=True, nargs="+", help="List of emails to check/notify"
+    )
+    notify_problem_users.add_argument(
+        "--auth_ids",
+        required=True,
+        nargs="+",
+        help="List of project auth_ids to check access to",
+    )
+    notify_problem_users.add_argument(
+        "--check_linking",
+        required=False,
+        default=False,
+        help="True if you want to check that each email has a linked google account",
+    )
+    notify_problem_users.add_argument(
+        "--google_project_id",
+        required=True,
+        help="Google Project id that all users belong to",
+    )
 
     return parser.parse_args()
 
@@ -432,9 +460,16 @@ def main():
             sys.exit(1)
     elif args.action == "force-link-google":
         exp = force_update_google_link(
-            DB, username=args.username, google_email=args.google_email
+            DB,
+            username=args.username,
+            google_email=args.google_email,
+            expires_in=args.expires_in,
         )
         print(exp)
+    elif args.action == "notify-problem-users":
+        notify_problem_users(
+            DB, args.emails, args.auth_ids, args.check_linking, args.google_project_id
+        )
 
 
 if __name__ == "__main__":

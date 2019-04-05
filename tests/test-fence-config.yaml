@@ -48,7 +48,9 @@ DEBUG: true
 # if true, will automatically login a user with username "test"
 MOCK_AUTH: true
 # if true, will only fake a successful login response from Google in /login/google
+# will login as the username set in cookie DEV_LOGIN_COOKIE_NAME
 MOCK_GOOGLE_AUTH: false
+DEV_LOGIN_COOKIE_NAME: "dev_login"
 # if true, will ignore anything configured in STORAGE_CREDENTIALS
 MOCK_STORAGE: false
 # allow OIDC traffic on http for development. By default it requires https.
@@ -366,6 +368,7 @@ WHITE_LISTED_SERVICE_ACCOUNT_EMAILS:
 # when service accounts or google projects are determined invalid, an email is sent
 # to the project owners. These settings are for that email
 REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION:
+  enable: true
   # this domain MUST exist in GUN_MAIL config
   domain: 'example.com'
   from: 'do-not-reply@example.com'
