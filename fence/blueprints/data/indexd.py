@@ -595,6 +595,12 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 credential['endpoint_url'], self.bucket_name()
             )
 
+        # format url for non-aws s3 endpoint
+        if 'endpoint_url' in credential:
+            http_url = "{}/{}".format(
+                credential['endpoint_url'], self.bucket_name()
+            )
+
         # if it's public and we don't need to force the signed url, just return the raw
         # s3 url
         aws_access_key_id = get_value(
