@@ -22,40 +22,6 @@ SCOPE_DESCRIPTION = {
 }
 
 
-# Allowed scopes for user requested token and oauth2 client requested token
-# TODO: this should be more discoverable and configurable
-#
-# Only allow web session based auth access credentials so that user
-# can't create a long-lived API key using a short lived access_token
-SESSION_ALLOWED_SCOPES = [
-    "openid",
-    "user",
-    "credentials",
-    "data",
-    "admin",
-    "google_credentials",
-    "google_service_account",
-]
-
-USER_ALLOWED_SCOPES = [
-    "fence",
-    "openid",
-    "user",
-    "data",
-    "admin",
-    "google_credentials",
-    "google_service_account",
-]
-
-CLIENT_ALLOWED_SCOPES = [
-    "openid",
-    "user",
-    "data",
-    "google_credentials",
-    "google_service_account",
-]
-
-
 class JWTResult(object):
     """
     Just a container for the results necessary to keep track of from generating
@@ -539,3 +505,4 @@ def generate_id_token(
     token.validate()
 
     return token
+

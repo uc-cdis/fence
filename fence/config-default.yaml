@@ -68,8 +68,10 @@ SESSION_COOKIE_SECURE: true
 ENABLE_CSRF_PROTECTION: true
 
 # //////////////////////////////////////////////////////////////////////////////////////
-# OPEN ID CONNECT (OIDC) CLIENTS
+# OPEN ID CONNECT (OIDC)
 #   - Fully configure at least one client so login works
+#   - WARNING: Be careful changing the *_ALLOWED_SCOPES as you can break basic
+#              and optional functionality
 # //////////////////////////////////////////////////////////////////////////////////////
 OPENID_CONNECT:
   # These Google values must be obtained from Google's Cloud Console
@@ -107,6 +109,37 @@ OPENID_CONNECT:
     # Custom name to display for consent screens. If not provided, will use `fence`.
     # If the other fence is using NIH Login, you should make name: `NIH Login`
     name: ''
+
+# these are the *possible* scopes a client can be given, NOT scopes that are
+# given to all clients. You can be more restrictive during client creation
+CLIENT_ALLOWED_SCOPES:
+  - "openid"
+  - "user"
+  - "data"
+  - "google_credentials"
+  - "google_service_account"
+
+# these are the scopes that CAN be included in a user's own access_token
+USER_ALLOWED_SCOPES:
+  - "fence"
+  - "openid"
+  - "user"
+  - "data"
+  - "admin"
+  - "google_credentials"
+  - "google_service_account"
+
+# these are the scopes that a browser session can create for a user (very
+# similar to USER_ALLOWED_SCOPES, as the session will actually create access_tokens
+# for an actively logged in user)
+SESSION_ALLOWED_SCOPES:
+  - "openid"
+  - "user"
+  - "credentials"
+  - "data"
+  - "admin"
+  - "google_credentials"
+  - "google_service_account"
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # LOGIN

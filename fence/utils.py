@@ -14,7 +14,6 @@ from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.datastructures import ImmutableMultiDict
 
 from fence.models import Client, GrantType, User, query_for_user
-from fence.jwt.token import CLIENT_ALLOWED_SCOPES
 from fence.errors import NotFound, UserError
 from fence.config import config
 
@@ -64,7 +63,7 @@ def create_client(
             client_secret=hashed_secret,
             user=user,
             redirect_uris=urls,
-            _allowed_scopes=" ".join(CLIENT_ALLOWED_SCOPES),
+            _allowed_scopes=" ".join(config["CLIENT_ALLOWED_SCOPES"]),
             description=description,
             name=name,
             auto_approve=auto_approve,

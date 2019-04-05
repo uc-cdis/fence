@@ -65,7 +65,7 @@ SESSION_COOKIE_SECURE: true
 ENABLE_CSRF_PROTECTION: false
 
 # //////////////////////////////////////////////////////////////////////////////////////
-# OPEN ID CONNECT (OIDC) CLIENTS
+# OPEN ID CONNECT (OIDC)
 #   - Fully configure at least one client so login works
 # //////////////////////////////////////////////////////////////////////////////////////
 OPENID_CONNECT:
@@ -80,6 +80,37 @@ OPENID_CONNECT:
     client_secret: ''
     # this is be the allowed redirect back to fence, should not need to change
     redirect_url: '{{BASE_URL}}/login/google/login'
+
+# these are the *possible* scopes a client can be given, NOT scopes that are
+# given to all clients. You can be more restrictive during client creation
+CLIENT_ALLOWED_SCOPES:
+  - "openid"
+  - "user"
+  - "data"
+  - "google_credentials"
+  - "google_service_account"
+
+# these are the scopes that CAN be included in a user's own access_token
+USER_ALLOWED_SCOPES:
+  - "fence"
+  - "openid"
+  - "user"
+  - "data"
+  - "admin"
+  - "google_credentials"
+  - "google_service_account"
+
+# these are the scopes that a browser session can create for a user (very
+# similar to USER_ALLOWED_SCOPES, as the session will actually create access_tokens
+# for an actively logged in user)
+SESSION_ALLOWED_SCOPES:
+  - "openid"
+  - "user"
+  - "credentials"
+  - "data"
+  - "admin"
+  - "google_credentials"
+  - "google_service_account"
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # LOGIN
