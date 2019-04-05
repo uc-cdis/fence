@@ -32,20 +32,3 @@ def mock_arborist_client(app, monkeypatch):
 @pytest.fixture
 def arborist_client():
     return ArboristClient()
-
-
-@pytest.fixture
-def example_policies():
-    """
-    Create some example policies and also add them to the database.
-
-    Return:
-        List[fence.models.Policy]: list of policies added
-    """
-    policies = [
-        Policy(id="apple"),
-        Policy(id="banana"),
-        Policy(id="canteloupe"),
-        Policy(id="durian"),
-    ]
-    return policies

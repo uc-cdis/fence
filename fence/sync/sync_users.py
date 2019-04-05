@@ -21,7 +21,6 @@ from userdatamodel.driver import SQLAlchemyDriver
 from fence.models import (
     AccessPrivilege,
     AuthorizationProvider,
-    Policy,
     Project,
     Tag,
     User,
@@ -632,21 +631,6 @@ class UserSyncer(object):
 
         self._validate_and_update_user_admin(sess, user_info_lowercase)
 
-        # Add policies to user models in the database. These will show up in users'
-        # JWTs; services can send the JWTs to arborist.
-        if user_policies:
-            self.logger.info("populating RBAC information from YAML file")
-        for username, policies in user_policies.iteritems():
-            user = query_for_user(session=sess, username=username)
-            for policy_id in policies:
-                policy = self._get_or_create_policy(sess, policy_id)
-                if policy not in user.policies:
-                    user.policies.append(policy)
-                    self.logger.info(
-                        "granted policy `{}` to user `{}` ({})".format(
-                            policy_id, username, user.id
-                        )
-                    )
         sess.commit()
 
     def _revoke_from_db(self, sess, to_delete):
@@ -997,8 +981,14 @@ class UserSyncer(object):
         else:
             self.logger.info("No resources specified; skipping arborist sync")
 
-    @staticmethod
-    def _reset_user_access(session):
+    def _reset_user_access(self, session):
+        all_users = session.query(User).all()
+
+        if self.arborist_client:
+            usernames = {user.username for user in all_users}
+            for username in usernames:
+                self.arborist_client.revoke_all_policies_for_user(username)
+
         session.execute(users_to_policies.delete())
         # TODO (rudyardrichter 2018-09-10): revoke admin access etc
 
@@ -1100,8 +1090,8 @@ class UserSyncer(object):
                                 "not creating policy in arborist; {}".format(str(e))
                             )
                         created_policies.add(policy_id)
-                    policy = self._get_or_create_policy(session, policy_id)
-                    user.policies.append(policy)
+
+                    self.arborist_client.grant_user_policy(user.username, policy_id)
                     self.logger.info(
                         "granted policy `{}` to user `{}`".format(
                             policy_id, user.username
@@ -1109,11 +1099,3 @@ class UserSyncer(object):
                     )
 
         return True
-
-    def _get_or_create_policy(self, session, policy_id):
-        policy = session.query(Policy).filter_by(id=policy_id).first()
-        if not policy:
-            policy = Policy(id=policy_id)
-            session.add(policy)
-            self.logger.info("created policy `{}`".format(policy_id))
-        return policy
