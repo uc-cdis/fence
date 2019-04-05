@@ -858,6 +858,6 @@ def _update_for_authlib(driver, md):
 
 def _remove_policy(driver, md):
     with driver.session as session:
-        session.execute("DROP TABLE users_to_policies;")
-        session.execute("DROP TABLE policy;")
+        session.execute("DROP TABLE IF EXISTS users_to_policies;")
+        session.execute("DROP TABLE IF EXISTS policy;")
         session.commit()
