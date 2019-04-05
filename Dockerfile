@@ -1,11 +1,4 @@
-# To run: docker run -d -v /path/to/fence-config.yaml:/var/www/fence/fence-config.yaml --name=fence -p 80:80 fence
-# To check running container: docker exec -it fence /bin/bash
-
 FROM ubuntu:16.04
-# image for sftp & ssh protocols
-FROM atmoz/sftp:debian-jessie
-
-ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     apache2 \
@@ -23,6 +16,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     # dependency for cryptography
     libssl-dev \
+    # dependency for ssh and sftp
+    openssh-client \
     python2.7 \
     python-dev \
     python-pip \
