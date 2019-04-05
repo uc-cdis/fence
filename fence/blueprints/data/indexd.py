@@ -461,6 +461,10 @@ class S3IndexedFileLocation(IndexedFileLocation):
         )
 
         credential = self.get_credential_to_access_bucket(aws_creds, expires_in)
+        if 'endpoint_url' in credential:
+            http_url = "{}/{}".format(
+                credential['endpoint_url'], self.bucket_name()
+            )
 
         aws_access_key_id = get_value(
             credential,
@@ -480,15 +484,24 @@ class S3IndexedFileLocation(IndexedFileLocation):
         if not public_data:
             user_info = S3IndexedFileLocation.get_user_info()
 
-        url = generate_aws_presigned_url(
-            http_url,
-            ACTION_DICT["s3"][action],
-            credential,
-            "s3",
-            region,
-            expires_in,
-            user_info,
-        )
+        if not 'endpoint_url' in credential:
+            url = generate_aws_presigned_url(
+                http_url,
+                ACTION_DICT["s3"][action],
+                credential,
+                "s3",
+                region,
+                expires_in,
+                user_info,
+            )
+        else:
+            url = flask.current_app.boto.presigned_url(
+                bucket=self.bucket_name(),
+                key=self.parsed_url.path.strip('/'),
+                expires=expires_in,
+                config=aws_creds,
+                method={'upload': 'put_object', 'download': 'get_object'}[action],
+            )
 
         return url
 
