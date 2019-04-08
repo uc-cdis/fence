@@ -73,6 +73,7 @@ class ArboristClient(object):
         self._resource_url = self._base_url + "/resource"
         self._role_url = self._base_url + "/role/"
         self._user_url = self._base_url + "/user"
+        self._client_url = self._base_url + "/client"
 
     def healthy(self):
         """
@@ -357,3 +358,25 @@ class ArboristClient(object):
             raise ArboristError(data["error"])
         self.logger.info("created policy {}".format(policy_json["id"]))
         return data
+
+    @_arborist_retry()
+    def create_client(self, client_id, policies):
+        response = requests.post(
+            self._client_url, json=dict(name=client_id, policies=policies or [])
+        )
+        data = _request_get_json(response)
+        if "error" in data:
+            self.logger.error(
+                "could not create client `{}` in arborist: {}".format(
+                    client_id, data["error"]
+                )
+            )
+            raise ArboristError(data["error"])
+        self.logger.info("created client {}".format(client_id))
+        return data
+
+    @_arborist_retry()
+    def delete_client(self, client_id):
+        response = requests.delete("/".join((self._client_url, client_id)))
+        self.logger.info("deleted client {}".format(client_id))
+        return response.status_code == 204

@@ -29,6 +29,7 @@ from fence.scripting.fence_create import (
     verify_user_registration,
     force_update_google_link,
 )
+from fence.rbac.client import ArboristClient
 
 
 def str2bool(v):
@@ -50,6 +51,11 @@ def parse_arguments():
         help="whether or not to log to stdout",
         action="store_true",
         default=False,
+    )
+    parser.add_argument(
+        "--arborist",
+        help="the base URL for the arborist service to sync to",
+        default=None,
     )
 
     subparsers = parser.add_subparsers(title="action", dest="action")
@@ -87,6 +93,11 @@ def parse_arguments():
         help="whether OAuth2 client should be public (no client secret)",
         action="store_true",
         default=False,
+    )
+    client_create.add_argument(
+        "--policies",
+        help="which RBAC policies are granted to this client",
+        nargs="*",
     )
 
     client_modify = subparsers.add_parser("client-modify")
@@ -335,6 +346,9 @@ def main():
     STORAGE_CREDENTIALS = os.environ.get("STORAGE_CREDENTIALS") or config.get(
         "STORAGE_CREDENTIALS"
     )
+    arborist = None
+    if args.arborist:
+        arborist = ArboristClient(arborist_base_url=args.arborist)
 
     if args.action == "create":
         yaml_input = args.__dict__["yaml-input"]
@@ -349,6 +363,8 @@ def main():
             auto_approve=args.auto_approve,
             grant_types=args.grant_types,
             confidential=confidential,
+            arborist=arborist,
+            policies=args.policies,
         )
     elif args.action == "client-modify":
         modify_client_action(
@@ -380,7 +396,7 @@ def main():
             is_sync_from_dbgap_server=str2bool(args.sync_from_dbgap),
             sync_from_local_csv_dir=args.csv_dir,
             sync_from_local_yaml_file=args.yaml,
-            arborist=args.arborist,
+            arborist=arborist,
         )
     elif args.action == "google-manage-keys":
         remove_expired_google_service_account_keys(DB)
