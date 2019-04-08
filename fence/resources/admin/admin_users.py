@@ -162,6 +162,154 @@ def add_user_to_projects(current_session, username, projects=None):
     return {"result": responses}
 
 
+def delete_google_service_accounts_and_keys(current_session, gcm, gpg_email):
+    """
+    Delete from both Google and Fence all Google service accounts and
+    service account keys associated with one Google proxy group.
+    """
+    capp.logger.debug("Deleting all associated service accounts...")
+
+    # Referring to cirrus for list of SAs. You _could_ refer to fence db instead.
+    service_account_emails = gcm.get_service_accounts_from_group(gpg_email)
+
+    for sae in service_account_emails:
+        # Upon deletion of a service account, Google will
+        # automatically delete all key IDs associated with that
+        # service account. So we skip doing that here.
+        capp.logger.debug(
+            "Attempting to delete Google service account with email {} "
+            "along with all associated service account keys...".format(sae)
+        )
+        r = gcm.delete_service_account(sae)
+
+        if r == {}:
+            capp.logger.info(
+                "Google service account with email {} successfully removed "
+                "from Google, along with all associated service account keys.".format(
+                    sae
+                )
+            )
+            capp.logger.debug(
+                "Attempting to clear records from Fence database..."
+            )
+            sa = (
+                current_session.query(GoogleServiceAccount)
+                .filter(GoogleServiceAccount.email == sae)
+                .first()
+                # one_or_none() would be better, but is only in sqlalchemy 1.0.9
+            )
+            if sa:
+                sa_keys = (
+                    current_session.query(GoogleServiceAccountKey)
+                    .filter(GoogleServiceAccountKey.service_account_id == sa.id)
+                    .all()
+                )
+                for sak in sa_keys:
+                    current_session.delete(sak)
+                current_session.delete(sa)
+                current_session.commit()
+                capp.logger.info(
+                    "Records for service account {} successfully cleared from Fence database.".format(
+                        sae
+                    )
+                )
+            else:
+                capp.logger.info(
+                    "Records for service account {} NOT FOUND in Fence database. "
+                    "Continuing anyway.".format(sae)
+                )
+
+        else:
+            raise UnavailableError(
+                "Error: Google unable to delete service account {}. Aborting".format(
+                    sae
+                )
+            )
+
+
+def delete_google_proxy_group(current_session, gcm, gpg_email, google_proxy_group_f, user):
+    """
+    Delete a Google proxy group from both Google and Fence.
+
+    google_proxy_group_f is the GPG row in Fence. If there is ever the case where
+    the GPG exists in Google but is not in the Fence db, google_proxy_group_f will be None
+    but there will still be a GPG to delete from Google.
+
+    user is the User row in Fence.
+    """
+    # Next, delete the proxy group. Google will automatically remove
+    # this proxy group from all GBAGs the proxy group is a member of.
+    # So we skip doing that here.
+    capp.logger.debug(
+        "Attempting to delete Google proxy group with email {}...".format(
+            gpg_email
+        )
+    )
+    r = gcm.delete_group(gpg_email)
+
+    if r == {}:
+        capp.logger.info(
+            "Google proxy group with email {} successfully removed from Google.".format(
+                gpg_email
+            )
+        )
+        if google_proxy_group_f:
+            # (else it was google_proxy_group_*g* and there is nothing to delete in Fence db.)
+            capp.logger.debug(
+                "Attempting to clear records from Fence database..."
+            )
+            capp.logger.debug(
+                "Deleting rows in google_proxy_group_to_google_bucket_access_group..."
+            )
+            gpg_to_gbag = (
+                current_session.query(GoogleProxyGroupToGoogleBucketAccessGroup)
+                .filter(
+                    GoogleProxyGroupToGoogleBucketAccessGroup.proxy_group_id
+                    == google_proxy_group_f.id
+                )
+                .all()
+            )
+            for row in gpg_to_gbag:
+                current_session.delete(row)
+            capp.logger.debug(
+                "Deleting rows in user_google_account_to_proxy_group..."
+            )
+            uga_to_pg = (
+                current_session.query(UserGoogleAccountToProxyGroup)
+                .filter(
+                    UserGoogleAccountToProxyGroup.proxy_group_id
+                    == google_proxy_group_f.id
+                )
+                .all()
+            )
+            for row in uga_to_pg:
+                current_session.delete(row)
+            capp.logger.debug("Deleting rows in user_google_account...")
+            uga = (
+                current_session.query(UserGoogleAccount)
+                .filter(UserGoogleAccount.user_id == user.id)
+                .all()
+            )
+            for row in uga:
+                current_session.delete(row)
+            capp.logger.debug("Deleting row in google_proxy_group...")
+            current_session.delete(google_proxy_group_f)
+            current_session.commit()
+            capp.logger.info(
+                "Records for Google proxy group {} successfully cleared from Fence "
+                "database, along with associated user Google accounts.".format(
+                    gpg_email
+                )
+            )
+            capp.logger.info("Done with Google deletions.")
+    else:
+        raise UnavailableError(
+            "Error: Google unable to delete proxy group {}. Aborting".format(
+                gpg_email
+            )
+        )
+
+
 def delete_user(current_session, username):
     """
     Remove a user from both the userdatamodel
@@ -183,15 +331,8 @@ def delete_user(current_session, username):
     capp.logger.debug("Beginning delete user.")
 
     with GoogleCloudManager() as gcm:
-
         # Delete user's service accounts, SA keys, user proxy group from Google.
         # Noop if Google not in use.
-        # Note: Fence db deletes are interleaved with Google deletes.
-        # This is to avoid leaving records in Fence of deleted Google entities
-        # in the case where a Google delete fails after others have succeeded
-        # and the delete aborts.
-        # The Google deletes here are not factored out into a different function
-        # in order to not obfuscate the interwoven Fence db deletes.
 
         user = query_for_user(session=current_session, username=username)
         if not user:
@@ -235,137 +376,15 @@ def delete_user(current_session, username):
         else:
             capp.logger.debug(
                 "Found Google proxy group email of user to delete: {}."
-                "Proceeding with Google deletions. Deleting all associated "
-                "service accounts...".format(gpg_email)
+                "Proceeding with Google deletions.".format(gpg_email)
             )
-            # Choosing to refer to cirrus instead of fence db for the list of SAs.
-            service_account_emails = gcm.get_service_accounts_from_group(gpg_email)
+            # Note: Fence db deletes here are interleaved with Google deletes.
+            # This is so that if (for example) Google succeeds in deleting one SA
+            # and then fails on the next, and the deletion process aborts, there
+            # will not remain a record in Fence of the first, now-nonexistent SA.
 
-            for sae in service_account_emails:
-                # Upon deletion of a service account, Google will
-                # automatically delete all key IDs associated with that
-                # service account. So we skip doing that here.
-                capp.logger.debug(
-                    "Attempting to delete Google service account with email {} "
-                    "along with all associated service account keys...".format(sae)
-                )
-                r = gcm.delete_service_account(sae)
-
-                if r == {}:
-                    capp.logger.info(
-                        "Google service account with email {} successfully removed "
-                        "from Google, along with all associated service account keys.".format(
-                            sae
-                        )
-                    )
-                    capp.logger.debug(
-                        "Attempting to clear records from Fence database..."
-                    )
-                    sa = (
-                        current_session.query(GoogleServiceAccount)
-                        .filter(GoogleServiceAccount.email == sae)
-                        .first()
-                        # one_or_none() would be better, but is only in sqlalchemy 1.0.9
-                    )
-                    if sa:
-                        sa_keys = (
-                            current_session.query(GoogleServiceAccountKey)
-                            .filter(GoogleServiceAccountKey.service_account_id == sa.id)
-                            .all()
-                        )
-                        for sak in sa_keys:
-                            current_session.delete(sak)
-                        current_session.delete(sa)
-                        current_session.commit()
-                        capp.logger.info(
-                            "Records for service account {} successfully cleared from Fence database.".format(
-                                sae
-                            )
-                        )
-                    else:
-                        capp.logger.info(
-                            "Records for service account {} NOT FOUND in Fence database. "
-                            "Continuing anyway.".format(sae)
-                        )
-
-                else:
-                    raise UnavailableError(
-                        "Error: Google unable to delete service account {}. Aborting".format(
-                            sae
-                        )
-                    )
-
-            # Next, delete the proxy group. Google will automatically remove
-            # this proxy group from all GBAGs the proxy group is a member of.
-            # So we skip doing that here.
-            capp.logger.debug(
-                "Attempting to delete Google proxy group with email {}...".format(
-                    gpg_email
-                )
-            )
-            r = gcm.delete_group(gpg_email)
-
-            if r == {}:
-                capp.logger.info(
-                    "Google proxy group with email {} successfully removed from Google.".format(
-                        gpg_email
-                    )
-                )
-                if google_proxy_group_f:
-                    # (else it was google_proxy_group_*g* and there is nothing to delete in Fence db.)
-                    capp.logger.debug(
-                        "Attempting to clear records from Fence database..."
-                    )
-                    capp.logger.debug(
-                        "Deleting rows in google_proxy_group_to_google_bucket_access_group..."
-                    )
-                    gpg_to_gbag = (
-                        current_session.query(GoogleProxyGroupToGoogleBucketAccessGroup)
-                        .filter(
-                            GoogleProxyGroupToGoogleBucketAccessGroup.proxy_group_id
-                            == google_proxy_group_f.id
-                        )
-                        .all()
-                    )
-                    for row in gpg_to_gbag:
-                        current_session.delete(row)
-                    capp.logger.debug(
-                        "Deleting rows in user_google_account_to_proxy_group..."
-                    )
-                    uga_to_pg = (
-                        current_session.query(UserGoogleAccountToProxyGroup)
-                        .filter(
-                            UserGoogleAccountToProxyGroup.proxy_group_id
-                            == google_proxy_group_f.id
-                        )
-                        .all()
-                    )
-                    for row in uga_to_pg:
-                        current_session.delete(row)
-                    capp.logger.debug("Deleting rows in user_google_account...")
-                    uga = (
-                        current_session.query(UserGoogleAccount)
-                        .filter(UserGoogleAccount.user_id == user.id)
-                        .all()
-                    )
-                    for row in uga:
-                        current_session.delete(row)
-                    capp.logger.debug("Deleting row in google_proxy_group...")
-                    current_session.delete(google_proxy_group_f)
-                    current_session.commit()
-                    capp.logger.info(
-                        "Records for Google proxy group {} successfully cleared from Fence "
-                        "database, along with associated user Google accounts.".format(
-                            gpg_email
-                        )
-                    )
-                    capp.logger.info("Done with Google deletions.")
-            else:
-                raise UnavailableError(
-                    "Error: Google unable to delete proxy group {}. Aborting".format(
-                        gpg_email
-                    )
-                )
+            delete_google_service_accounts_and_keys(current_session, gcm, gpg_email)
+            delete_google_proxy_group(current_session, gcm, gpg_email, google_proxy_group_f, user)
 
     # Note: ZLC 2019-03-04 Currently Fence db has users_to_policies table and policy table,
     # where policy table, for some reason, has a user_id field.
