@@ -29,7 +29,7 @@ from fence.models import (
     users_to_policies,
     query_for_user,
 )
-from fence.rbac.client import ArboristClient, ArboristError
+from fence.rbac.client import ArboristError
 from fence.resources.storage import StorageManager
 
 
@@ -235,7 +235,7 @@ class UserSyncer(object):
             sync_from_dir: path to an alternative dir to sync from instead of
                            dbGaP
             arborist:
-                base URL for arborist service if the syncer should also create
+                ArboristClient instance if the syncer should also create
                 resources in arborist
         """
         self.sync_from_local_csv_dir = sync_from_local_csv_dir
@@ -254,11 +254,7 @@ class UserSyncer(object):
             "user_syncer", log_level="debug" if config["DEBUG"] == True else "info"
         )
 
-        self.arborist_client = None
-        if arborist:
-            self.arborist_client = ArboristClient(
-                arborist_base_url=arborist, logger=self.logger
-            )
+        self.arborist_client = arborist
 
         if storage_credentials:
             self.storage_manager = StorageManager(
