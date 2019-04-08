@@ -307,17 +307,12 @@ def delete_user(current_session, username):
     Remove a user from both the userdatamodel
     and the associated storage for that project/bucket.
     Returns a dictionary.
-    """
-    """
-    Much of the strangeness in the following code stems from the
-    fact that we are not confident the Fence db will always be in
-    perfect sync with Google, and we err on the side of safety
-    (we prioritise making sure user is really cleared out of Google
-    to prevent unauthorized data access issues; we refer to
-    cirrus/Google instead of the Fence db in cases where both
-    would be possible).
-    So, if the Fence-Google sync situation changes,
-    do edit this code accordingly.
+
+    The Fence db may not always be in perfect sync with Google.  We err on the
+    side of safety (we prioritise making sure the user is really cleared out of
+    Google to prevent unauthorized data access issues; we prefer cirrus/Google
+    over the Fence db as the source of truth.) So, if the Fence-Google sync
+    situation changes, do edit this code accordingly.
     """
 
     capp.logger.debug("Beginning delete user.")
