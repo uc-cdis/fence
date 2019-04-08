@@ -189,9 +189,7 @@ def delete_google_service_accounts_and_keys(current_session, gcm, gpg_email):
                     sae
                 )
             )
-            capp.logger.debug(
-                "Attempting to clear records from Fence database..."
-            )
+            capp.logger.debug("Attempting to clear records from Fence database...")
             sa = (
                 current_session.query(GoogleServiceAccount)
                 .filter(GoogleServiceAccount.email == sae)
@@ -227,7 +225,9 @@ def delete_google_service_accounts_and_keys(current_session, gcm, gpg_email):
             )
 
 
-def delete_google_proxy_group(current_session, gcm, gpg_email, google_proxy_group_f, user):
+def delete_google_proxy_group(
+    current_session, gcm, gpg_email, google_proxy_group_f, user
+):
     """
     Delete a Google proxy group from both Google and Fence.
 
@@ -241,9 +241,7 @@ def delete_google_proxy_group(current_session, gcm, gpg_email, google_proxy_grou
     # this proxy group from all GBAGs the proxy group is a member of.
     # So we skip doing that here.
     capp.logger.debug(
-        "Attempting to delete Google proxy group with email {}...".format(
-            gpg_email
-        )
+        "Attempting to delete Google proxy group with email {}...".format(gpg_email)
     )
     r = gcm.delete_group(gpg_email)
 
@@ -255,9 +253,7 @@ def delete_google_proxy_group(current_session, gcm, gpg_email, google_proxy_grou
         )
         if google_proxy_group_f:
             # (else it was google_proxy_group_*g* and there is nothing to delete in Fence db.)
-            capp.logger.debug(
-                "Attempting to clear records from Fence database..."
-            )
+            capp.logger.debug("Attempting to clear records from Fence database...")
             capp.logger.debug(
                 "Deleting rows in google_proxy_group_to_google_bucket_access_group..."
             )
@@ -271,9 +267,7 @@ def delete_google_proxy_group(current_session, gcm, gpg_email, google_proxy_grou
             )
             for row in gpg_to_gbag:
                 current_session.delete(row)
-            capp.logger.debug(
-                "Deleting rows in user_google_account_to_proxy_group..."
-            )
+            capp.logger.debug("Deleting rows in user_google_account_to_proxy_group...")
             uga_to_pg = (
                 current_session.query(UserGoogleAccountToProxyGroup)
                 .filter(
@@ -304,9 +298,7 @@ def delete_google_proxy_group(current_session, gcm, gpg_email, google_proxy_grou
             capp.logger.info("Done with Google deletions.")
     else:
         raise UnavailableError(
-            "Error: Google unable to delete proxy group {}. Aborting".format(
-                gpg_email
-            )
+            "Error: Google unable to delete proxy group {}. Aborting".format(gpg_email)
         )
 
 
@@ -384,7 +376,9 @@ def delete_user(current_session, username):
             # will not remain a record in Fence of the first, now-nonexistent SA.
 
             delete_google_service_accounts_and_keys(current_session, gcm, gpg_email)
-            delete_google_proxy_group(current_session, gcm, gpg_email, google_proxy_group_f, user)
+            delete_google_proxy_group(
+                current_session, gcm, gpg_email, google_proxy_group_f, user
+            )
 
     # Note: ZLC 2019-03-04 Currently Fence db has users_to_policies table and policy table,
     # where policy table, for some reason, has a user_id field.
