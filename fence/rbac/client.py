@@ -5,6 +5,7 @@ RBAC.
 
 from functools import wraps
 import json
+import urllib
 
 import backoff
 from cdislogging import get_logger
@@ -232,16 +233,24 @@ class ArboristClient(object):
         path = self._resource_url + parent_path
         response = requests.post(path, json=resource_json)
         if response.status_code == 409:
-            if overwrite:
-                resource_path = path + resource_json["name"]
-                return self.update_resource(resource_path, resource_json)
-            else:
+            if not overwrite:
                 return None
+            # overwrite existing resource
+            resource_path = parent_path + resource_json["name"]
+            self.logger.info("trying to overwrite resource {}".format(resource_path))
+            self.delete_resource(resource_path)
+            self.create_resource(parent_path, resource_json, overwrite=False)
+            return
         data = _request_get_json(response)
-        if "error" in data:
-            msg = data["error"].get("message", str(data["error"]))
+        if isinstance(data, dict) and "error" in data:
+            msg = data["error"]
+            if isinstance(data["error"], dict):
+                msg = data["error"].get("message", msg)
+            resource = resource_json.get("path", "/" + resource_json.get("name"))
             self.logger.error(
-                "could not create resource `{}` in arborist: {}".format(path, msg)
+                "could not create resource `{}` in arborist: {}".format(
+                    resource, msg
+                )
             )
             raise ArboristError(data["error"])
         self.logger.info("created resource {}".format(resource_json["name"]))
@@ -305,6 +314,7 @@ class ArboristClient(object):
         """
         response = requests.post(self._role_url, json=role_json)
         if response.status_code == 409:
+            # already exists; this is ok
             return None
         data = _request_get_json(response)
         if "error" in data:
@@ -347,8 +357,9 @@ class ArboristClient(object):
         response = requests.post(self._policy_url, json=policy_json)
         data = _request_get_json(response)
         if response.status_code == 409:
+            # already exists; this is ok
             return None
-        if "error" in data:
+        if isinstance(data, dict) and "error" in data:
             self.logger.error(
                 "could not create policy `{}` in arborist: {}".format(
                     policy_json["id"], data["error"]
@@ -357,6 +368,24 @@ class ArboristClient(object):
             raise ArboristError(data["error"])
         self.logger.info("created policy {}".format(policy_json["id"]))
         return data
+
+    @_arborist_retry()
+    def create_user(self, user_info):
+        """
+        Args:
+            user_info (dict):
+                user information that goes in the request to arborist; see arborist docs
+                for required field names. notably it's `name` not `username`
+        """
+        if "name" not in user_info:
+            raise ValueError("create_user requires username `name` in user info")
+        response = requests.post(self._user_url, json=user_info)
+        data = _request_get_json(response)
+        if response.status_code == 409:
+            # already exists
+            return
+        elif response.status_code != 204:
+            msg = data.get("error", "unhelpful response from arborist")
 
     @_arborist_retry()
     def grant_user_policy(self, username, policy_id):
@@ -369,6 +398,8 @@ class ArboristClient(object):
         data = _request_get_json(response)
         if response.status_code != 204:
             msg = data.get("error", "unhelpful response from arborist")
+            if isinstance("error", dict):
+                msg = data["error"].get("message", msg)
             self.logger.error(
                 "could not grant policy `{}` to user `{}`: {}".format(
                     policy_id, username, msg
@@ -380,7 +411,7 @@ class ArboristClient(object):
 
     @_arborist_retry()
     def revoke_all_policies_for_user(self, username):
-        url = self._url_user + "/{}/policy".format(username)
+        url = self._user_url + "/{}/policy".format(urllib.quote(username))
         response = requests.delete(url)
         data = _request_get_json(response)
         if response.status_code != 204:
