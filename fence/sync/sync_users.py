@@ -252,7 +252,8 @@ class UserSyncer(object):
         self.arborist_client = None
         if arborist:
             self.arborist_client = ArboristClient(
-                arborist_base_url=arborist, logger=self.logger
+                arborist_base_url=arborist,
+                logger=get_logger("user_syncer.arborist_client"),
             )
 
         if storage_credentials:
@@ -766,6 +767,8 @@ class UserSyncer(object):
                 u = User(username=username)
                 sess.add(u)
 
+            self.arborist_client.create_user({"name": username})
+
             u.email = user_info[username].get("email", "")
             u.display_name = user_info[username].get("display_name", "")
             u.phone_number = user_info[username].get("phone_number", "")
@@ -970,7 +973,7 @@ class UserSyncer(object):
             self.logger.info("No users for syncing")
 
         if user_yaml.rbac:
-            self.logger.info("Synchronizing arborist")
+            self.logger.info("Synchronizing arborist...")
             success = self._update_arborist(sess, user_yaml)
             if success:
                 self.logger.info("Finished synchronizing arborist")
@@ -1011,7 +1014,7 @@ class UserSyncer(object):
             return False
         if not self.arborist_client.healthy():
             # TODO (rudyardrichter, 2019-01-07): add backoff/retry here
-            self.logger.error("arborist service is unavailable; skipping arborist sync")
+            self.logger.error("arborist service is unavailable; skipping main arborist sync")
             return False
 
         # Set up the resource tree in arborist
@@ -1090,10 +1093,5 @@ class UserSyncer(object):
                         created_policies.add(policy_id)
 
                     self.arborist_client.grant_user_policy(user.username, policy_id)
-                    self.logger.info(
-                        "granted policy `{}` to user `{}`".format(
-                            policy_id, user.username
-                        )
-                    )
 
         return True
