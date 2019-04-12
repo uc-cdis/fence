@@ -311,9 +311,14 @@ class IndexedFile(object):
             return self.index_document.get("uploader") == username
 
         try:
+            action_to_method = {
+                "upload": "write-storage",
+                "download": "read-storage",
+            }
+            method = action_to_method[action]
             # action should be upload or download
             # return bool for authorization
-            return self.check_rbac(action)
+            return self.check_rbac(method)
         except ValueError:
             # this is ok; we'll default to ACL field (previous behavior)
             # may want to deprecate in future
