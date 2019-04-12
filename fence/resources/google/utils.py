@@ -36,9 +36,6 @@ from cdislogging import get_logger
 logger = get_logger(__name__)
 
 
-logger = get_logger(__name__)
-
-
 def get_or_create_primary_service_account_key(
     user_id, username, proxy_group_id, expires=None
 ):

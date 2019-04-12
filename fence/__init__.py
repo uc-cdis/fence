@@ -182,7 +182,7 @@ def app_config(
 
     app.debug = config["DEBUG"]
     # Following will update logger level, propagate, and handlers
-    get_logger(__name__, log_level='debug' if config["DEBUG"] == True else 'info')
+    get_logger(__name__, log_level="debug" if config["DEBUG"] == True else "info")
 
     _setup_oidc_clients(app)
 

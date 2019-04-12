@@ -8,7 +8,7 @@ import pprint
 from cirrus import GoogleCloudManager
 from cirrus.google_cloud.errors import GoogleAuthError
 from cirrus.config import config as cirrus_config
-from cdispyutils.log import get_logger
+from cdislogging import get_logger
 from sqlalchemy import func
 from userdatamodel.driver import SQLAlchemyDriver
 from userdatamodel.models import (
