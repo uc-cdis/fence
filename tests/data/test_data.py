@@ -553,7 +553,9 @@ def test_blank_index_upload_unauthorized(
 
 
 @pytest.mark.parametrize(
-    "indexd_client_with_arborist", ["gs", "s3", "gs_acl", "s3_acl", "s3_external"], indirect=True
+    "indexd_client_with_arborist",
+    ["gs", "s3", "gs_acl", "s3_acl", "s3_external"],
+    indirect=True,
 )
 def test_rbac(
     app,
@@ -568,11 +570,9 @@ def test_rbac(
     cloud_manager,
     google_signed_url,
 ):
-    mock_arborist_requests({
-        "arborist/auth/request": {
-            "POST": ('{"auth": "true"}', 200),
-        },
-    })
+    mock_arborist_requests(
+        {"arborist/auth/request": {"POST": ('{"auth": "true"}', 200)}}
+    )
     indexd_client = indexd_client_with_arborist("test_rbac")
     indexed_file_location = indexd_client["indexed_file_location"]
     path = "/data/download/1"
@@ -592,10 +592,8 @@ def test_rbac(
     assert response.status_code == 200
     assert "url" in response.json.keys()
 
-    mock_arborist_requests({
-        "arborist/auth/request": {
-            "POST": ('{"auth": "false"}', 403),
-        },
-    })
+    mock_arborist_requests(
+        {"arborist/auth/request": {"POST": ('{"auth": "false"}', 403)}}
+    )
     response = client.get(path, headers=headers, query_string=query_string)
     assert response.status_code == 403

@@ -276,15 +276,10 @@ class IndexedFile(object):
         if "rbac" not in self.index_document:
             raise ValueError("index record missing `rbac`")
         request = {
-            "user": {
-                "jwt": get_jwt(),
-            },
+            "user": {"jwt": get_jwt()},
             "request": {
                 "resource": self.index_document["rbac"],
-                "action": {
-                    "service": "fence",
-                    "method": action,
-                },
+                "action": {"service": "fence", "method": action},
             },
         }
         return flask.current_app.arborist.auth_request(request)
@@ -311,10 +306,7 @@ class IndexedFile(object):
             return self.index_document.get("uploader") == username
 
         try:
-            action_to_method = {
-                "upload": "write-storage",
-                "download": "read-storage",
-            }
+            action_to_method = {"upload": "write-storage", "download": "read-storage"}
             method = action_to_method[action]
             # action should be upload or download
             # return bool for authorization

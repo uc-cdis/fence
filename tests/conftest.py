@@ -204,7 +204,6 @@ def mock_arborist_requests(request):
         urls_to_responses = defaults
 
         def make_mock_response(method):
-
             def response(url, *args, **kwargs):
                 mocked_response = MagicMock(requests.Response)
                 if url not in urls_to_responses:
@@ -496,7 +495,6 @@ def indexd_client(app, request):
     }
 
     return output
-
 
 
 @pytest.fixture(scope="function")

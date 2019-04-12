@@ -386,9 +386,7 @@ class ArboristClient(object):
         if response.status_code != 204:
             msg = data.get("error", "unhelpful response from arborist")
             self.logger.error(
-                "could not revoke policies from user `{}`: {}`".format(
-                    username, msg
-                )
+                "could not revoke policies from user `{}`: {}`".format(username, msg)
             )
             return None
         self.logger.info("revoked all policies from user `{}`".format(username))
