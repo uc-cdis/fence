@@ -331,7 +331,7 @@ def delete_user(current_session, username):
 
         user = query_for_user(session=current_session, username=username)
         if not user:
-            raise NotFound("".join(["user name ", username, " not found"]))
+            raise NotFound("user name {} not found".format(username))
 
         capp.logger.debug("Found user in Fence db: {}".format(user))
 
