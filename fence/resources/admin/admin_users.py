@@ -1,5 +1,5 @@
 from cirrus import GoogleCloudManager
-from cirrus.google_cloud.manager import _get_proxy_group_name_for_user
+from cirrus.google_cloud.utils import get_proxy_group_name_for_user
 from fence.config import config
 from fence.errors import NotFound, UserError, UnavailableError
 from fence.models import (
@@ -347,7 +347,7 @@ def delete_user(current_session, username):
             capp.logger.debug(
                 "Could not find Google proxy group for this user in Fence db. Checking cirrus..."
             )
-            pgname = _get_proxy_group_name_for_user(
+            pgname = get_proxy_group_name_for_user(
                 user.id, user.username, prefix=config["GOOGLE_GROUP_PREFIX"]
             )
             google_proxy_group_g = gcm.get_group(pgname)
