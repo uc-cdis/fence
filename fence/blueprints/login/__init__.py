@@ -8,6 +8,8 @@ the endpoints for each provider.
 
 import flask
 
+from cdislogging import get_logger
+
 from fence.blueprints.login.fence_login import FenceRedirect, FenceLogin
 from fence.blueprints.login.google import GoogleRedirect, GoogleLogin
 from fence.blueprints.login.shib import ShibbolethLoginStart, ShibbolethLoginFinish
@@ -16,6 +18,9 @@ from fence.blueprints.login.orcid import ORCIDRedirect, ORCIDLogin
 from fence.errors import InternalError
 from fence.restful import RestfulApi
 from fence.config import config
+
+
+logger = get_logger(__name__)
 
 
 def make_login_blueprint(app):
@@ -34,7 +39,7 @@ def make_login_blueprint(app):
         default_idp = config["ENABLED_IDENTITY_PROVIDERS"]["default"]
         idps = config["ENABLED_IDENTITY_PROVIDERS"]["providers"]
     except KeyError as e:
-        app.logger.warn(
+        logger.warn(
             "app not configured correctly with ENABLED_IDENTITY_PROVIDERS:"
             " missing {}".format(str(e))
         )
