@@ -10,6 +10,7 @@ import backoff
 from cdislogging import get_logger
 import requests
 
+from fence.config import config
 from fence.errors import Forbidden
 from fence.rbac.errors import ArboristError, ArboristUnhealthyError
 
@@ -65,7 +66,9 @@ class ArboristClient(object):
     """
 
     def __init__(self, logger=None, arborist_base_url="http://arborist-service/"):
-        self.logger = logger or get_logger("ArboristClient")
+        self.logger = logger or get_logger(
+            "ArboristClient", log_level="debug" if config["DEBUG"] == True else "info"
+        )
         self._base_url = arborist_base_url.strip("/")
         self._auth_url = self._base_url + "/auth/"
         self._health_url = self._base_url + "/health"

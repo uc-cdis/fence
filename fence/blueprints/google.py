@@ -37,9 +37,6 @@ from fence.resources.google.utils import (
 from fence.models import UserServiceAccount
 from fence.utils import get_valid_expiration_from_request
 from flask_sqlalchemy_session import current_session
-from cdislogging import get_logger
-
-logger = get_logger(__name__)
 
 
 class ValidationErrors(str, Enum):

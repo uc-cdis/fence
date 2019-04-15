@@ -4,12 +4,16 @@ import uuid
 
 from authlib.common.encoding import to_unicode
 from authlib.specs.oidc import CodeIDToken as AuthlibCodeIDToken
+from cdislogging import get_logger
 import flask
 import jwt
 
 from fence.jwt import keys
 from fence.jwt.errors import JWTSizeError
 from fence.config import config
+
+logger = get_logger(__name__)
+
 
 SCOPE_DESCRIPTION = {
     "openid": "default scope",
@@ -165,7 +169,7 @@ def generate_signed_session_token(kid, private_key, expires_in, context=None):
         "jti": str(uuid.uuid4()),
         "context": context,
     }
-    flask.current_app.logger.debug(
+    logger.debug(
         "issuing JWT session token\n" + json.dumps(claims, indent=4)
     )
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
@@ -267,10 +271,10 @@ def generate_signed_refresh_token(
     }
 
     if flask.current_app:
-        flask.current_app.logger.info(
+        logger.info(
             "issuing JWT refresh token with id [{}] to [{}]".format(jti, sub)
         )
-        flask.current_app.logger.debug(
+        logger.debug(
             "issuing JWT refresh token\n" + json.dumps(claims, indent=4)
         )
 
@@ -309,14 +313,14 @@ def generate_api_key(kid, private_key, user_id, expires_in, scopes, client_id):
         "jti": jti,
         "azp": client_id or "",
     }
-    flask.current_app.logger.info(
+    logger.info(
         "issuing JWT API key with id [{}] to [{}]".format(jti, sub)
     )
-    flask.current_app.logger.debug(
+    logger.debug(
         "issuing JWT API key\n" + json.dumps(claims, indent=4)
     )
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
-    flask.current_app.logger.debug(str(token))
+    logger.debug(str(token))
     token = to_unicode(token, "UTF-8")
     return JWTResult(token=token, kid=kid, claims=claims)
 
@@ -389,10 +393,10 @@ def generate_signed_access_token(
         ] = linked_google_email
 
     if flask.current_app:
-        flask.current_app.logger.info(
+        logger.info(
             "issuing JWT access token with id [{}] to [{}]".format(jti, sub)
         )
-        flask.current_app.logger.debug(
+        logger.debug(
             "issuing JWT access token\n" + json.dumps(claims, indent=4)
         )
 
@@ -494,7 +498,7 @@ def generate_id_token(
     if nonce:
         claims["nonce"] = nonce
 
-    flask.current_app.logger.info(
+    logger.info(
         "issuing JWT ID token\n" + json.dumps(claims, indent=4)
     )
 
