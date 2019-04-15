@@ -226,13 +226,13 @@ def delete_google_service_accounts_and_keys(current_session, gcm, gpg_email):
 
 
 def delete_google_proxy_group(
-    current_session, gcm, gpg_email, google_proxy_group_f, user
+    current_session, gcm, gpg_email, google_proxy_group_from_fence_db, user
 ):
     """
     Delete a Google proxy group from both Google and Fence.
 
-    google_proxy_group_f is the GPG row in Fence. If there is ever the case where
-    the GPG exists in Google but is not in the Fence db, google_proxy_group_f will be None
+    google_proxy_group_from_fence_db is the GPG row in Fence. If there is ever the case where
+    the GPG exists in Google but is not in the Fence db, google_proxy_group_from_fence_db will be None
     but there will still be a GPG to delete from Google.
 
     user is the User row in Fence.
@@ -251,8 +251,8 @@ def delete_google_proxy_group(
                 gpg_email
             )
         )
-        if google_proxy_group_f:
-            # (else it was google_proxy_group_*g* and there is nothing to delete in Fence db.)
+        if google_proxy_group_from_fence_db:
+            # (else it was google_proxy_group_from_google and there is nothing to delete in Fence db.)
             capp.logger.debug("Attempting to clear records from Fence database...")
             capp.logger.debug(
                 "Deleting rows in google_proxy_group_to_google_bucket_access_group..."
@@ -261,7 +261,7 @@ def delete_google_proxy_group(
                 current_session.query(GoogleProxyGroupToGoogleBucketAccessGroup)
                 .filter(
                     GoogleProxyGroupToGoogleBucketAccessGroup.proxy_group_id
-                    == google_proxy_group_f.id
+                    == google_proxy_group_from_fence_db.id
                 )
                 .all()
             )
@@ -272,7 +272,7 @@ def delete_google_proxy_group(
                 current_session.query(UserGoogleAccountToProxyGroup)
                 .filter(
                     UserGoogleAccountToProxyGroup.proxy_group_id
-                    == google_proxy_group_f.id
+                    == google_proxy_group_from_fence_db.id
                 )
                 .all()
             )
@@ -287,7 +287,7 @@ def delete_google_proxy_group(
             for row in uga:
                 current_session.delete(row)
             capp.logger.debug("Deleting row in google_proxy_group...")
-            current_session.delete(google_proxy_group_f)
+            current_session.delete(google_proxy_group_from_fence_db)
             current_session.commit()
             capp.logger.info(
                 "Records for Google proxy group {} successfully cleared from Fence "
@@ -328,15 +328,15 @@ def delete_user(current_session, username):
         capp.logger.debug("Found user in Fence db: {}".format(user))
 
         # First: Find this user's proxy group.
-        google_proxy_group_f = (
+        google_proxy_group_from_fence_db = (
             current_session.query(GoogleProxyGroup)
             .filter(GoogleProxyGroup.id == user.google_proxy_group_id)
             .first()
             # one_or_none() would be better, but is only in sqlalchemy 1.0.9
         )
 
-        if google_proxy_group_f:
-            gpg_email = google_proxy_group_f.email
+        if google_proxy_group_from_fence_db:
+            gpg_email = google_proxy_group_from_fence_db.email
             capp.logger.debug(
                 "Found Google proxy group in Fence db: {}".format(gpg_email)
             )
@@ -350,9 +350,9 @@ def delete_user(current_session, username):
             pgname = get_proxy_group_name_for_user(
                 user.id, user.username, prefix=config["GOOGLE_GROUP_PREFIX"]
             )
-            google_proxy_group_g = gcm.get_group(pgname)
+            google_proxy_group_from_google = gcm.get_group(pgname)
             gpg_email = (
-                google_proxy_group_g.get("email") if google_proxy_group_g else None
+                google_proxy_group_from_google.get("email") if google_proxy_group_from_google else None
             )
 
         if not gpg_email:
@@ -372,7 +372,7 @@ def delete_user(current_session, username):
 
             delete_google_service_accounts_and_keys(current_session, gcm, gpg_email)
             delete_google_proxy_group(
-                current_session, gcm, gpg_email, google_proxy_group_f, user
+                current_session, gcm, gpg_email, google_proxy_group_from_fence_db, user
             )
 
     # Note: ZLC 2019-03-04 Currently Fence db has users_to_policies table and policy table,
