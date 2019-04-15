@@ -255,7 +255,9 @@ def delete_google_proxy_group(
             # (else it was google_proxy_group_from_google and there is nothing to delete in Fence db.)
             capp.logger.debug("Attempting to clear records from Fence database...")
             capp.logger.debug(
-                "Deleting rows in google_proxy_group_to_google_bucket_access_group..."
+                "Deleting rows in {}...".format(
+                    GoogleProxyGroupToGoogleBucketAccessGroup.__tablename__
+                )
             )
             gpg_to_gbag = (
                 current_session.query(GoogleProxyGroupToGoogleBucketAccessGroup)
@@ -267,7 +269,10 @@ def delete_google_proxy_group(
             )
             for row in gpg_to_gbag:
                 current_session.delete(row)
-            capp.logger.debug("Deleting rows in user_google_account_to_proxy_group...")
+            capp.logger.debug("Deleting rows in {}...".format(
+                    UserGoogleAccountToProxyGroup.__tablename__
+                )
+            )
             uga_to_pg = (
                 current_session.query(UserGoogleAccountToProxyGroup)
                 .filter(
@@ -278,7 +283,10 @@ def delete_google_proxy_group(
             )
             for row in uga_to_pg:
                 current_session.delete(row)
-            capp.logger.debug("Deleting rows in user_google_account...")
+            capp.logger.debug("Deleting rows in {}...".format(
+                    UserGoogleAccount.__tablename__
+                )
+            )
             uga = (
                 current_session.query(UserGoogleAccount)
                 .filter(UserGoogleAccount.user_id == user.id)
@@ -286,7 +294,7 @@ def delete_google_proxy_group(
             )
             for row in uga:
                 current_session.delete(row)
-            capp.logger.debug("Deleting row in google_proxy_group...")
+            capp.logger.debug("Deleting row in {}...".format(GoogleProxyGroup.__tablename__))
             current_session.delete(google_proxy_group_from_fence_db)
             current_session.commit()
             capp.logger.info(
