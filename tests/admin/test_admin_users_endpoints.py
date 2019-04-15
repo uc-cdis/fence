@@ -10,7 +10,7 @@ try:
     from unittest.mock import patch
 except ImportError:
     from mock import Mock
-from mock import patch
+    from mock import patch
 
 from fence.config import config
 from fence.models import (
