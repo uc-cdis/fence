@@ -1,5 +1,7 @@
 import flask
 
+from cdislogging import get_logger
+
 from fence.auth import login_required, require_auth_header, current_token
 from fence.blueprints.data.indexd import (
     BlankIndex,
@@ -15,6 +17,9 @@ from fence.errors import (
 )
 from fence.utils import is_valid_expiration
 from fence.rbac import check_arborist_auth
+
+
+logger = get_logger(__name__)
 
 
 blueprint = flask.Blueprint("data", __name__)
@@ -44,7 +49,7 @@ def delete_data_file(file_id):
         raise Forbidden("deleting submitted records is not supported")
     if current_token["context"]["user"]["name"] != uploader:
         raise Forbidden("user is not uploader for file {}".format(file_id))
-    flask.current_app.logger.info("deleting record and files for {}".format(file_id))
+    logger.info("deleting record and files for {}".format(file_id))
     record.delete_files(delete_all=True)
     return record.delete()
 

@@ -38,7 +38,7 @@ setup(
         "userdatamodel",
         "Werkzeug>=0.12.2,<1.0.0",
         "storageclient",
-        "pyyaml",
+        "pyyaml~=5.1",
     ],
     scripts=["bin/fence-create"],
     packages=find_packages(),
