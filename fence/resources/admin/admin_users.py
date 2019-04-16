@@ -184,7 +184,15 @@ def delete_google_service_accounts_and_keys(current_session, gcm, gpg_email):
             "Attempting to delete Google service account with email {} "
             "along with all associated service account keys...".format(sae)
         )
-        r = gcm.delete_service_account(sae)
+        try:
+            r = gcm.delete_service_account(sae)
+        except Exception as e:
+            logger.exception(e)
+            raise UnavailableError(
+                "Error: Google unable to delete service account {}. Aborting".format(
+                    sae
+                )
+            )
 
         if r == {}:
             logger.info(
@@ -222,6 +230,7 @@ def delete_google_service_accounts_and_keys(current_session, gcm, gpg_email):
                 )
 
         else:
+            logger.exception(r)
             raise UnavailableError(
                 "Error: Google unable to delete service account {}. Aborting".format(
                     sae
@@ -247,7 +256,13 @@ def delete_google_proxy_group(
     logger.debug(
         "Attempting to delete Google proxy group with email {}...".format(gpg_email)
     )
-    r = gcm.delete_group(gpg_email)
+    try:
+        r = gcm.delete_group(gpg_email)
+    except Exception as e:
+        logger.exception(e)
+        raise UnavailableError(
+            "Error: Google unable to delete proxy group {}. Aborting".format(gpg_email)
+        )
 
     if r == {}:
         logger.info(
@@ -309,6 +324,7 @@ def delete_google_proxy_group(
             )
             logger.info("Done with Google deletions.")
     else:
+        logger.exception(r)
         raise UnavailableError(
             "Error: Google unable to delete proxy group {}. Aborting".format(gpg_email)
         )
