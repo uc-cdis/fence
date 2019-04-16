@@ -1,3 +1,4 @@
+from cdislogging import get_logger
 from cirrus import GoogleCloudManager
 from cirrus.google_cloud.utils import get_proxy_group_name_for_user
 from fence.config import config
@@ -31,6 +32,9 @@ __all__ = [
     "disconnect_user_from_group",
     "remove_user_from_project",
 ]
+
+
+logger = get_logger(__name__)
 
 
 def connect_user_to_project(current_session, usr, project=None):
@@ -167,7 +171,7 @@ def delete_google_service_accounts_and_keys(current_session, gcm, gpg_email):
     Delete from both Google and Fence all Google service accounts and
     service account keys associated with one Google proxy group.
     """
-    capp.logger.debug("Deleting all associated service accounts...")
+    logger.debug("Deleting all associated service accounts...")
 
     # Referring to cirrus for list of SAs. You _could_ refer to fence db instead.
     service_account_emails = gcm.get_service_accounts_from_group(gpg_email)
@@ -176,20 +180,20 @@ def delete_google_service_accounts_and_keys(current_session, gcm, gpg_email):
         # Upon deletion of a service account, Google will
         # automatically delete all key IDs associated with that
         # service account. So we skip doing that here.
-        capp.logger.debug(
+        logger.debug(
             "Attempting to delete Google service account with email {} "
             "along with all associated service account keys...".format(sae)
         )
         r = gcm.delete_service_account(sae)
 
         if r == {}:
-            capp.logger.info(
+            logger.info(
                 "Google service account with email {} successfully removed "
                 "from Google, along with all associated service account keys.".format(
                     sae
                 )
             )
-            capp.logger.debug("Attempting to clear records from Fence database...")
+            logger.debug("Attempting to clear records from Fence database...")
             sa = (
                 current_session.query(GoogleServiceAccount)
                 .filter(GoogleServiceAccount.email == sae)
@@ -206,13 +210,13 @@ def delete_google_service_accounts_and_keys(current_session, gcm, gpg_email):
                     current_session.delete(sak)
                 current_session.delete(sa)
                 current_session.commit()
-                capp.logger.info(
+                logger.info(
                     "Records for service account {} successfully cleared from Fence database.".format(
                         sae
                     )
                 )
             else:
-                capp.logger.info(
+                logger.info(
                     "Records for service account {} NOT FOUND in Fence database. "
                     "Continuing anyway.".format(sae)
                 )
@@ -240,21 +244,21 @@ def delete_google_proxy_group(
     # Next, delete the proxy group. Google will automatically remove
     # this proxy group from all GBAGs the proxy group is a member of.
     # So we skip doing that here.
-    capp.logger.debug(
+    logger.debug(
         "Attempting to delete Google proxy group with email {}...".format(gpg_email)
     )
     r = gcm.delete_group(gpg_email)
 
     if r == {}:
-        capp.logger.info(
+        logger.info(
             "Google proxy group with email {} successfully removed from Google.".format(
                 gpg_email
             )
         )
         if google_proxy_group_from_fence_db:
             # (else it was google_proxy_group_from_google and there is nothing to delete in Fence db.)
-            capp.logger.debug("Attempting to clear records from Fence database...")
-            capp.logger.debug(
+            logger.debug("Attempting to clear records from Fence database...")
+            logger.debug(
                 "Deleting rows in {}...".format(
                     GoogleProxyGroupToGoogleBucketAccessGroup.__tablename__
                 )
@@ -269,7 +273,7 @@ def delete_google_proxy_group(
             )
             for row in gpg_to_gbag:
                 current_session.delete(row)
-            capp.logger.debug("Deleting rows in {}...".format(
+            logger.debug("Deleting rows in {}...".format(
                     UserGoogleAccountToProxyGroup.__tablename__
                 )
             )
@@ -283,7 +287,7 @@ def delete_google_proxy_group(
             )
             for row in uga_to_pg:
                 current_session.delete(row)
-            capp.logger.debug("Deleting rows in {}...".format(
+            logger.debug("Deleting rows in {}...".format(
                     UserGoogleAccount.__tablename__
                 )
             )
@@ -294,16 +298,16 @@ def delete_google_proxy_group(
             )
             for row in uga:
                 current_session.delete(row)
-            capp.logger.debug("Deleting row in {}...".format(GoogleProxyGroup.__tablename__))
+            logger.debug("Deleting row in {}...".format(GoogleProxyGroup.__tablename__))
             current_session.delete(google_proxy_group_from_fence_db)
             current_session.commit()
-            capp.logger.info(
+            logger.info(
                 "Records for Google proxy group {} successfully cleared from Fence "
                 "database, along with associated user Google accounts.".format(
                     gpg_email
                 )
             )
-            capp.logger.info("Done with Google deletions.")
+            logger.info("Done with Google deletions.")
     else:
         raise UnavailableError(
             "Error: Google unable to delete proxy group {}. Aborting".format(gpg_email)
@@ -323,7 +327,7 @@ def delete_user(current_session, username):
     situation changes, do edit this code accordingly.
     """
 
-    capp.logger.debug("Beginning delete user.")
+    logger.debug("Beginning delete user.")
 
     with GoogleCloudManager() as gcm:
         # Delete user's service accounts, SA keys, user proxy group from Google.
@@ -333,7 +337,7 @@ def delete_user(current_session, username):
         if not user:
             raise NotFound("user name {} not found".format(username))
 
-        capp.logger.debug("Found user in Fence db: {}".format(user))
+        logger.debug("Found user in Fence db: {}".format(user))
 
         # First: Find this user's proxy group.
         google_proxy_group_from_fence_db = (
@@ -345,14 +349,14 @@ def delete_user(current_session, username):
 
         if google_proxy_group_from_fence_db:
             gpg_email = google_proxy_group_from_fence_db.email
-            capp.logger.debug(
+            logger.debug(
                 "Found Google proxy group in Fence db: {}".format(gpg_email)
             )
         else:
             # Construct the proxy group name that would have been used
             # and check if it exists in cirrus, in case Fence db just
             # didn't know about it.
-            capp.logger.debug(
+            logger.debug(
                 "Could not find Google proxy group for this user in Fence db. Checking cirrus..."
             )
             pgname = get_proxy_group_name_for_user(
@@ -364,12 +368,12 @@ def delete_user(current_session, username):
             )
 
         if not gpg_email:
-            capp.logger.info(
+            logger.info(
                 "Could not find Google proxy group for user in Fence db or in cirrus. "
                 "Assuming Google not in use as IdP. Proceeding with Fence deletes."
             )
         else:
-            capp.logger.debug(
+            logger.debug(
                 "Found Google proxy group email of user to delete: {}."
                 "Proceeding with Google deletions.".format(gpg_email)
             )
@@ -394,10 +398,10 @@ def delete_user(current_session, username):
     # TODO: So when that happens, remove this comment block.
     # Meanwhile, note that this code does _not_ delete rows in the policy table.
 
-    capp.logger.debug("Deleting all user data from Fence database...")
+    logger.debug("Deleting all user data from Fence database...")
     current_session.delete(user)
     current_session.commit()
-    capp.logger.info("Deleted all user data from Fence database. Returning.")
+    logger.info("Deleted all user data from Fence database. Returning.")
 
     return {"result": "success"}
 
