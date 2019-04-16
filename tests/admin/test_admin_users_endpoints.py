@@ -60,6 +60,29 @@ def encoded_admin_jwt(kid, rsa_private_key):
     return jwt.encode(claims, key=rsa_private_key, headers=headers, algorithm="RS256")
 
 
+# Dictionary for all these random magic numbers that the delete user
+# tests/fixtures are using
+userd_dict = {
+    "user_id": 4242,
+    "user_username": "test_user_d",
+    "user_email": "test_user_d_email",
+    "client_id": "dclientid",
+    "group_id": 4240,
+    "gpg_id": "d_gpgid",
+    "gpg_email": "d_gpg_email",
+    "gsa_id": 4202,
+    "gsa_email": "d_sa_email",
+    "gsak_id": 4201,
+    "gsak_key_id": "d_sa_key",
+    "bucket_id": 4203,
+    "gbag_id": 4204,
+    "gbag_email": "d_gbag_email",
+    "gpg_to_gbag_id": 4205,
+    "uga_id": 4206,
+    "uga_email": "d_uga_email",
+}
+
+
 @pytest.fixture(scope="function")
 def test_user_d(db_session):
     """
@@ -67,9 +90,15 @@ def test_user_d(db_session):
     For delete-user tests you probably want to just use
     one of the load_*_user_data fixtures
     """
-    user = db_session.query(User).filter_by(username="test_user_d").first()
+    user = (
+        db_session.query(User).filter_by(username=userd_dict["user_username"]).first()
+    )
     if not user:
-        user = User(id=4242, username="test_user_d", email="test_user_d_email")
+        user = User(
+            id=userd_dict["user_id"],
+            username=userd_dict["user_username"],
+            email=userd_dict["user_email"],
+        )
         db_session.add(user)
         db_session.commit()
 
@@ -79,8 +108,8 @@ def load_non_google_user_data(db_session, test_user_d):
     """ Add general, non-Google user data to Fence db. """
 
     client = Client(
-        client_id="dclientid",
-        user_id=4242,
+        client_id=userd_dict["client_id"],
+        user_id=userd_dict["user_id"],
         issued_at=420,
         expires_at=42020,
         redirect_uri="dclient.com",
@@ -90,8 +119,10 @@ def load_non_google_user_data(db_session, test_user_d):
         name="dclientname",
         _allowed_scopes="dallscopes",
     )
-    grp = Group(id=4240)
-    usr_grp = UserToGroup(user_id=4242, group_id=4240)
+    grp = Group(id=userd_dict["group_id"])
+    usr_grp = UserToGroup(
+        user_id=userd_dict["user_id"], group_id=userd_dict["group_id"]
+    )
     db_session.add_all([client, grp, usr_grp])
     db_session.commit()
 
@@ -100,29 +131,45 @@ def load_non_google_user_data(db_session, test_user_d):
 def load_google_specific_user_data(db_session, test_user_d):
     """ Add Google-specific user data to Fence db."""
 
-    gpg = GoogleProxyGroup(id="d_gpgid", email="d_gpg_email")
+    gpg = GoogleProxyGroup(id=userd_dict["gpg_id"], email=userd_dict["gpg_email"])
 
-    gsak = GoogleServiceAccountKey(id=4201, key_id="d_sa_key", service_account_id=4202)
+    gsak = GoogleServiceAccountKey(
+        id=userd_dict["gsak_id"],
+        key_id=userd_dict["gsak_key_id"],
+        service_account_id=userd_dict["gsa_id"],
+    )
     gsa = GoogleServiceAccount(
-        id=4202,
+        id=userd_dict["gsa_id"],
         google_unique_id="d_gui",
-        user_id=4242,
+        user_id=userd_dict["user_id"],
         google_project_id="d_gpid",
-        email="d_sa_email",
+        email=userd_dict["gsa_email"],
     )
-    bkt = Bucket(id=4203)
-    gbag = GoogleBucketAccessGroup(id=4204, bucket_id=4203, email="d_gbag_email")
+    bkt = Bucket(id=userd_dict["bucket_id"])
+    gbag = GoogleBucketAccessGroup(
+        id=userd_dict["gbag_id"],
+        bucket_id=userd_dict["bucket_id"],
+        email=userd_dict["gbag_email"],
+    )
     gpg_gbag = GoogleProxyGroupToGoogleBucketAccessGroup(
-        id=4205, proxy_group_id="d_gpgid", access_group_id=4204
+        id=userd_dict["gpg_to_gbag_id"],
+        proxy_group_id=userd_dict["gpg_id"],
+        access_group_id=userd_dict["gbag_id"],
     )
-    uga = UserGoogleAccount(id=4206, email="d_uga_email", user_id=4242)
+    uga = UserGoogleAccount(
+        id=userd_dict["uga_id"],
+        email=userd_dict["uga_email"],
+        user_id=userd_dict["user_id"],
+    )
     uga_pg = UserGoogleAccountToProxyGroup(
-        user_google_account_id=4206, proxy_group_id="d_gpgid"
+        user_google_account_id=userd_dict["uga_id"], proxy_group_id=userd_dict["gpg_id"]
     )
     db_session.add_all([gpg, gsak, gsa, bkt, gbag, gpg_gbag, uga, uga_pg])
 
-    user = db_session.query(User).filter_by(username="test_user_d").first()
-    user.google_proxy_group_id = "d_gpgid"
+    user = (
+        db_session.query(User).filter_by(username=userd_dict["user_username"]).first()
+    )
+    user.google_proxy_group_id = userd_dict["gpg_id"]
 
     db_session.commit()
 
@@ -483,37 +530,59 @@ def test_put_user_username_noauth(client, db_session):
 
 
 def assert_non_google_data_remained(db_session):
-    client = db_session.query(Client).filter_by(client_id="dclientid").all()
+    """ Assert that test_user_d's non-Google data (client, group...) remain in Fence db. """
+    client = db_session.query(Client).filter_by(client_id=userd_dict["client_id"]).all()
     assert len(client) == 1
-    group = db_session.query(Group).filter_by(id=4240).all()
+    group = db_session.query(Group).filter_by(id=userd_dict["group_id"]).all()
     assert len(group) == 1
-    usr_grp = db_session.query(UserToGroup).filter_by(user_id=4242, group_id=4240).all()
+    usr_grp = (
+        db_session.query(UserToGroup)
+        .filter_by(user_id=userd_dict["user_id"], group_id=userd_dict["group_id"])
+        .all()
+    )
     assert len(usr_grp) == 1
 
 
 def assert_non_google_data_deleted(db_session):
-    client = db_session.query(Client).filter_by(client_id="dclientid").all()
+    """ Assert that test_user_d's non-Google data (client, group...) were removed from Fence db. """
+    client = db_session.query(Client).filter_by(client_id=userd_dict["client_id"]).all()
     assert len(client) == 0
-    group = db_session.query(Group).filter_by(id=4240).all()
+    group = db_session.query(Group).filter_by(id=userd_dict["group_id"]).all()
     assert len(group) == 1  # shouldn't get deleted
-    usr_grp = db_session.query(UserToGroup).filter_by(user_id=4242, group_id=4240).all()
+    usr_grp = (
+        db_session.query(UserToGroup)
+        .filter_by(user_id=userd_dict["user_id"], group_id=userd_dict["group_id"])
+        .all()
+    )
     assert len(usr_grp) == 0
 
 
 def assert_google_service_account_data_remained(db_session):
     """ Assert that test_user_d's Google SA and its key remain in Fence db."""
-    sa = db_session.query(GoogleServiceAccount).filter_by(id=4202).all()
-    assert len(sa) == 1
-    sak = db_session.query(GoogleServiceAccountKey).filter_by(id=4201).all()
-    assert len(sak) == 1
+    gsa = (
+        db_session.query(GoogleServiceAccount).filter_by(id=userd_dict["gsa_id"]).all()
+    )
+    assert len(gsa) == 1
+    gsak = (
+        db_session.query(GoogleServiceAccountKey)
+        .filter_by(id=userd_dict["gsak_id"])
+        .all()
+    )
+    assert len(gsak) == 1
 
 
 def assert_google_service_account_data_deleted(db_session):
     """ Assert that test_user_d's Google SA and its key are no longer in Fence db."""
-    sa = db_session.query(GoogleServiceAccount).filter_by(id=4202).all()
-    assert len(sa) == 0
-    sak = db_session.query(GoogleServiceAccountKey).filter_by(id=4201).all()
-    assert len(sak) == 0
+    gsa = (
+        db_session.query(GoogleServiceAccount).filter_by(id=userd_dict["gsa_id"]).all()
+    )
+    assert len(gsa) == 0
+    gsak = (
+        db_session.query(GoogleServiceAccountKey)
+        .filter_by(id=userd_dict["gsak_id"])
+        .all()
+    )
+    assert len(gsak) == 0
 
 
 def assert_google_proxy_group_data_remained(db_session):
@@ -521,25 +590,32 @@ def assert_google_proxy_group_data_remained(db_session):
     Assert that test_user_d's Google PG and all associated rows remain in Fence db.
     Also assert that the test bucket and GBAG remain.
     """
-    gpg = db_session.query(GoogleProxyGroup).filter_by(id="d_gpgid").all()
+    gpg = db_session.query(GoogleProxyGroup).filter_by(id=userd_dict["gpg_id"]).all()
     assert len(gpg) == 1
-    gpg_gbag = (
+    gpg_to_gbag = (
         db_session.query(GoogleProxyGroupToGoogleBucketAccessGroup)
-        .filter_by(id=4205)
+        .filter_by(id=userd_dict["gpg_to_gbag_id"])
         .all()
     )
-    assert len(gpg_gbag) == 1
+    assert len(gpg_to_gbag) == 1
     uga_pg = (
         db_session.query(UserGoogleAccountToProxyGroup)
-        .filter_by(user_google_account_id=4206, proxy_group_id="d_gpgid")
+        .filter_by(
+            user_google_account_id=userd_dict["uga_id"],
+            proxy_group_id=userd_dict["gpg_id"],
+        )
         .all()
     )
     assert len(uga_pg) == 1
-    uga = db_session.query(UserGoogleAccount).filter_by(id=4206).all()
+    uga = db_session.query(UserGoogleAccount).filter_by(id=userd_dict["uga_id"]).all()
     assert len(uga) == 1
-    bkt = db_session.query(Bucket).filter_by(id=4203).all()
+    bkt = db_session.query(Bucket).filter_by(id=userd_dict["bucket_id"]).all()
     assert len(bkt) == 1
-    gbag = db_session.query(GoogleBucketAccessGroup).filter_by(id=4204).all()
+    gbag = (
+        db_session.query(GoogleBucketAccessGroup)
+        .filter_by(id=userd_dict["gbag_id"])
+        .all()
+    )
     assert len(gbag) == 1
 
 
@@ -548,25 +624,32 @@ def assert_google_proxy_group_data_deleted(db_session):
     Assert that test_user_d's Google PG and all associated rows removed from Fence db.
     But assert that the test bucket and GBAG remain.
     """
-    gpg = db_session.query(GoogleProxyGroup).filter_by(id="d_gpgid").all()
+    gpg = db_session.query(GoogleProxyGroup).filter_by(id=userd_dict["gpg_id"]).all()
     assert len(gpg) == 0
-    gpg_gbag = (
+    gpg_to_gbag = (
         db_session.query(GoogleProxyGroupToGoogleBucketAccessGroup)
-        .filter_by(id=4205)
+        .filter_by(id=userd_dict["gpg_to_gbag_id"])
         .all()
     )
-    assert len(gpg_gbag) == 0
+    assert len(gpg_to_gbag) == 0
     uga_pg = (
         db_session.query(UserGoogleAccountToProxyGroup)
-        .filter_by(user_google_account_id=4206, proxy_group_id="d_gpgid")
+        .filter_by(
+            user_google_account_id=userd_dict["uga_id"],
+            proxy_group_id=userd_dict["gpg_id"],
+        )
         .all()
     )
     assert len(uga_pg) == 0
-    uga = db_session.query(UserGoogleAccount).filter_by(id=4206).all()
+    uga = db_session.query(UserGoogleAccount).filter_by(id=userd_dict["uga_id"]).all()
     assert len(uga) == 0
-    bkt = db_session.query(Bucket).filter_by(id=4203).all()
+    bkt = db_session.query(Bucket).filter_by(id=userd_dict["bucket_id"]).all()
     assert len(bkt) == 1
-    gbag = db_session.query(GoogleBucketAccessGroup).filter_by(id=4204).all()
+    gbag = (
+        db_session.query(GoogleBucketAccessGroup)
+        .filter_by(id=userd_dict["gbag_id"])
+        .all()
+    )
     assert len(gbag) == 1
 
 
