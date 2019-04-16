@@ -40,8 +40,11 @@ def make_link_blueprint():
     blueprint = flask.Blueprint("link", __name__)
     blueprint_api = RestfulApi(blueprint)
 
-    blueprint_api.add_resource(GoogleLinkRedirect, "/google", strict_slashes=False)
-    blueprint_api.add_resource(GoogleCallback, "/google/callback", strict_slashes=False)
+    if config["ALLOW_GOOGLE_LINKING"]:
+        blueprint_api.add_resource(GoogleLinkRedirect, "/google", strict_slashes=False)
+        blueprint_api.add_resource(
+            GoogleCallback, "/google/callback", strict_slashes=False
+        )
 
     return blueprint
 

@@ -20,44 +20,11 @@ SCOPE_DESCRIPTION = {
     "user": "Know your {idp_names} basic account information and what you are authorized to access.",
     "data": "Retrieve controlled-access datasets to which you have access on your behalf.",
     "credentials": "View and update your credentials.",
-    "google_credentials": "Receive temporary Google credentials to access data on google",
+    "google_link": "Allow providing your personal Google account access to data on Google.",
+    "google_credentials": "Receive temporary Google credentials to access data on Google.",
     "google_service_account": "Allow registration of external Google service accounts to access data.",
     "admin": "View and update user authorizations.",
 }
-
-
-# Allowed scopes for user requested token and oauth2 client requested token
-# TODO: this should be more discoverable and configurable
-#
-# Only allow web session based auth access credentials so that user
-# can't create a long-lived API key using a short lived access_token
-SESSION_ALLOWED_SCOPES = [
-    "openid",
-    "user",
-    "credentials",
-    "data",
-    "admin",
-    "google_credentials",
-    "google_service_account",
-]
-
-USER_ALLOWED_SCOPES = [
-    "fence",
-    "openid",
-    "user",
-    "data",
-    "admin",
-    "google_credentials",
-    "google_service_account",
-]
-
-CLIENT_ALLOWED_SCOPES = [
-    "openid",
-    "user",
-    "data",
-    "google_credentials",
-    "google_service_account",
-]
 
 
 class JWTResult(object):

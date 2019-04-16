@@ -6,7 +6,6 @@ from flask_restful import Resource
 from fence.auth import require_auth_header
 from fence.auth import current_token
 from fence.jwt.blacklist import blacklist_token
-from fence.jwt.token import USER_ALLOWED_SCOPES
 from fence.models import UserRefreshToken
 from fence.config import config
 
@@ -92,7 +91,7 @@ class ApiKeyList(Resource):
             scope = scope.split(",")
         scope.extend(default_scope)
         for s in scope:
-            if s not in USER_ALLOWED_SCOPES:
+            if s not in config["USER_ALLOWED_SCOPES"]:
                 flask.abort(400, "Scope {} is not supported".format(s))
         max_ttl = config.get("MAX_API_KEY_TTL", 2592000)
         expires_in = min(int(flask.request.args.get("expires_in", max_ttl)), max_ttl)
