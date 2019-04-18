@@ -18,5 +18,7 @@ if [ -f /fence/jwt-keys.tar ]; then
     fi
   )
 fi
+service shibd start
+sed -i "s/ServerName SERVERNAME/ServerName https:\/\/$HOSTNAME/g" /etc/apache2/sites-available/fence.conf
 rm -rf /var/run/apache2/apache2.pid
 /usr/sbin/apache2ctl -D FOREGROUND

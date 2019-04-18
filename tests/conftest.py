@@ -701,6 +701,8 @@ def public_bucket_indexd_client(app, request):
     mocker.add_mock(indexd_patcher)
     request.addfinalizer(indexd_patcher.stop)
 
+    return request.param
+
 
 @pytest.fixture(scope="function")
 def patch_app_db_session(app, monkeypatch):

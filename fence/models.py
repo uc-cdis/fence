@@ -28,7 +28,6 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy import func
 from sqlalchemy.schema import ForeignKey
-from fence.jwt.token import CLIENT_ALLOWED_SCOPES
 from userdatamodel import Base
 from userdatamodel.models import (
     AccessPrivilege,
@@ -54,6 +53,8 @@ from userdatamodel.models import (
     UserToGroup,
     users_to_policies,
 )
+
+from fence.config import config
 
 
 def query_for_user(session, username):
@@ -515,7 +516,7 @@ def migrate(driver):
             )
             for client in session.query(Client):
                 if not client._allowed_scopes:
-                    client._allowed_scopes = " ".join(CLIENT_ALLOWED_SCOPES)
+                    client._allowed_scopes = " ".join(config["CLIENT_ALLOWED_SCOPES"])
                     session.add(client)
             session.commit()
             session.execute(

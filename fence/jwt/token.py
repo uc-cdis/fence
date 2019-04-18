@@ -4,6 +4,7 @@ import uuid
 
 from authlib.common.encoding import to_unicode
 from authlib.specs.oidc import CodeIDToken as AuthlibCodeIDToken
+from cdislogging import get_logger
 import flask
 import jwt
 
@@ -11,49 +12,19 @@ from fence.jwt import keys
 from fence.jwt.errors import JWTSizeError
 from fence.config import config
 
+logger = get_logger(__name__)
+
+
 SCOPE_DESCRIPTION = {
     "openid": "default scope",
     "user": "Know your {idp_names} basic account information and what you are authorized to access.",
     "data": "Retrieve controlled-access datasets to which you have access on your behalf.",
     "credentials": "View and update your credentials.",
-    "google_credentials": "Receive temporary Google credentials to access data on google",
+    "google_link": "Allow providing your personal Google account access to data on Google.",
+    "google_credentials": "Receive temporary Google credentials to access data on Google.",
     "google_service_account": "Allow registration of external Google service accounts to access data.",
     "admin": "View and update user authorizations.",
 }
-
-
-# Allowed scopes for user requested token and oauth2 client requested token
-# TODO: this should be more discoverable and configurable
-#
-# Only allow web session based auth access credentials so that user
-# can't create a long-lived API key using a short lived access_token
-SESSION_ALLOWED_SCOPES = [
-    "openid",
-    "user",
-    "credentials",
-    "data",
-    "admin",
-    "google_credentials",
-    "google_service_account",
-]
-
-USER_ALLOWED_SCOPES = [
-    "fence",
-    "openid",
-    "user",
-    "data",
-    "admin",
-    "google_credentials",
-    "google_service_account",
-]
-
-CLIENT_ALLOWED_SCOPES = [
-    "openid",
-    "user",
-    "data",
-    "google_credentials",
-    "google_service_account",
-]
 
 
 class JWTResult(object):
@@ -198,7 +169,7 @@ def generate_signed_session_token(kid, private_key, expires_in, context=None):
         "jti": str(uuid.uuid4()),
         "context": context,
     }
-    flask.current_app.logger.debug(
+    logger.debug(
         "issuing JWT session token\n" + json.dumps(claims, indent=4)
     )
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
@@ -300,10 +271,10 @@ def generate_signed_refresh_token(
     }
 
     if flask.current_app:
-        flask.current_app.logger.info(
+        logger.info(
             "issuing JWT refresh token with id [{}] to [{}]".format(jti, sub)
         )
-        flask.current_app.logger.debug(
+        logger.debug(
             "issuing JWT refresh token\n" + json.dumps(claims, indent=4)
         )
 
@@ -342,14 +313,14 @@ def generate_api_key(kid, private_key, user_id, expires_in, scopes, client_id):
         "jti": jti,
         "azp": client_id or "",
     }
-    flask.current_app.logger.info(
+    logger.info(
         "issuing JWT API key with id [{}] to [{}]".format(jti, sub)
     )
-    flask.current_app.logger.debug(
+    logger.debug(
         "issuing JWT API key\n" + json.dumps(claims, indent=4)
     )
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
-    flask.current_app.logger.debug(str(token))
+    logger.debug(str(token))
     token = to_unicode(token, "UTF-8")
     return JWTResult(token=token, kid=kid, claims=claims)
 
@@ -422,10 +393,10 @@ def generate_signed_access_token(
         ] = linked_google_email
 
     if flask.current_app:
-        flask.current_app.logger.info(
+        logger.info(
             "issuing JWT access token with id [{}] to [{}]".format(jti, sub)
         )
-        flask.current_app.logger.debug(
+        logger.debug(
             "issuing JWT access token\n" + json.dumps(claims, indent=4)
         )
 
@@ -527,7 +498,7 @@ def generate_id_token(
     if nonce:
         claims["nonce"] = nonce
 
-    flask.current_app.logger.info(
+    logger.info(
         "issuing JWT ID token\n" + json.dumps(claims, indent=4)
     )
 
