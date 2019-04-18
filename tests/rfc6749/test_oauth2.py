@@ -4,11 +4,12 @@ Test the endpoints in the ``/oauth2`` blueprint.
 
 import pytest
 
-from fence.jwt.token import SCOPE_DESCRIPTION, CLIENT_ALLOWED_SCOPES
+from fence.jwt.token import SCOPE_DESCRIPTION
+from fence.config import config
 
 
 def test_all_scopes_have_description():
-    for scope in CLIENT_ALLOWED_SCOPES:
+    for scope in config["CLIENT_ALLOWED_SCOPES"]:
         assert scope in SCOPE_DESCRIPTION
 
 
