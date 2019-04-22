@@ -13,7 +13,7 @@ Flask-CORS==3.0.3
 Flask_OAuthlib==0.9.4
 flask-restful==0.3.6
 Flask_SQLAlchemy_Session==1.1
-#gen3cirrus==0.3.5 # TODO
+gen3cirrus==0.3.6
 httplib2==0.10.3
 python-jose==2.0.2
 oauthlib==3.0.0
@@ -37,8 +37,6 @@ retry==0.9.2
 
 # TODO: tag udm and replace egglink
 -e git+https://github.com/uc-cdis/userdatamodel.git@feat/ddl-delete#egg=userdatamodel
-# TODO: Remove
--e git+https://github.com/uc-cdis/cirrus.git@fix/import#egg=cirrus
 
 -e git+https://github.com/uc-cdis/storage-client.git@0.2.2#egg=storageclient-0.2.2
 -e git+https://github.com/uc-cdis/datamodelutils.git@0.4.0#egg=datamodelutils
