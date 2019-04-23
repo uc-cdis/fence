@@ -153,6 +153,11 @@ class BlankIndex(object):
             )
         )
         return url
+    
+    @staticmethod
+    def setup_init_multipart_upload():
+
+
 
 
 class IndexedFile(object):
@@ -422,7 +427,8 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 return bucket
         return None
 
-    def get_credential_to_access_bucket(self, aws_creds, expires_in):
+    @classmethod
+    def get_credential_to_access_bucket(cls, bucket_name, aws_creds, expires_in):
         s3_buckets = get_value(
             config, "S3_BUCKETS", InternalError("buckets not configured")
         )
@@ -431,7 +437,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         if len(aws_creds) == 0 and len(s3_buckets) > 0:
             raise InternalError("credential for buckets is not configured")
 
-        bucket_cred = s3_buckets.get(self.bucket_name())
+        bucket_cred = s3_buckets.get(bucket_name)
         if bucket_cred is None:
             raise Unauthorized("permission denied for bucket")
 
@@ -487,7 +493,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             self.parsed_url.netloc, self.parsed_url.path.strip("/")
         )
 
-        credential = self.get_credential_to_access_bucket(aws_creds, expires_in)
+        credential = S3IndexedFileLocation.get_credential_to_access_bucket(self.bucket_name(), aws_creds, expires_in)
 
         # if it's public and we don't need to force the signed url, just return the raw
         # s3 url

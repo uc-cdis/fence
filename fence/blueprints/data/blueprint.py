@@ -1,4 +1,5 @@
 import flask
+import boto3
 
 from cdislogging import get_logger
 
@@ -59,6 +60,46 @@ def delete_data_file(file_id):
 @login_required({"data"})
 @check_arborist_auth(resource="/data_file", method="file_upload")
 def upload_data_file():
+    """
+    Return a presigned URL for use with uploading a data file.
+
+    See the documentation on the entire flow here for more info:
+
+        https://github.com/uc-cdis/cdis-wiki/tree/master/dev/gen3/data_upload
+
+    """
+    # make new record in indexd, with just the `uploader` field (and a GUID)
+    params = flask.request.get_json()
+    if not params:
+        raise UserError("wrong Content-Type; expected application/json")
+    if "file_name" not in params:
+        raise UserError("missing required argument `file_name`")
+    blank_index = BlankIndex(file_name=params["file_name"])
+    expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
+    if "expires_in" in params:
+        is_valid_expiration(params["expires_in"])
+        expires_in = min(params["expires_in"], expires_in)
+    response = {
+        "guid": blank_index.guid,
+        "url": blank_index.make_signed_url(params["file_name"], expires_in=expires_in),
+    }
+    return flask.jsonify(response), 201
+
+
+@blueprint.route("/init_mutipart_upload", methods=["POST"])
+@require_auth_header(aud={"data"})
+@login_required({"data"})
+@check_arborist_auth(resource="/data_file", method="file_upload")
+def multipart_upload_data_file():
+    """
+    Initialize a multipart upload request
+    """
+
+@blueprint.route("/mutipart_upload", methods=["POST"])
+@require_auth_header(aud={"data"})
+@login_required({"data"})
+@check_arborist_auth(resource="/data_file", method="file_upload")
+def multipart_upload_data_file():
     """
     Return a presigned URL for use with uploading a data file.
 
