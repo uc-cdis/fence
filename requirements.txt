@@ -13,7 +13,7 @@ Flask-CORS==3.0.3
 Flask_OAuthlib==0.9.4
 flask-restful==0.3.6
 Flask_SQLAlchemy_Session==1.1
-gen3config==0.1.5
+gen3config==0.1.6
 gen3cirrus==0.3.4
 httplib2==0.10.3
 python-jose==2.0.2
