@@ -1,0 +1,84 @@
+import boto3
+import botocore
+import requests
+
+from cdispyutils.hmac4 import generate_aws_presigned_url
+from cdislogging import get_logger
+from fence.errors import InternalError
+
+logger = get_logger(__name__)
+
+
+def initilize_multipart_upload(bucket, key, credentials):
+    """
+    Initialize multipart upload
+    """
+    session = boto3.Session(
+        aws_access_key_id=credentials["aws_access_key_id"],
+        aws_secret_access_key=credentials["aws_secret_access_key"],
+    )
+    s3client = session.client("s3")
+
+    try:
+        multipart_upload = s3client.create_multipart_upload(Bucket=bucket, Key=key)
+    except botocore.exceptions.ClientError as error:
+        logger.error(
+            "Error when create multiple part upload for object with uuid{}. Detail {}".format(
+                key, error
+            )
+        )
+        raise InternalError("Can not initilize multipart upload for {}".format(key))
+
+    return multipart_upload.get("UploadId")
+
+
+def complete_multipart_upload(bucket, key, credentials, uploadId, parts):
+    """
+    Complete mutlipart upload. 
+    Raise exception if something wrong happens; otherwise success
+    """
+    session = boto3.Session(
+        aws_access_key_id=credentials["aws_access_key_id"],
+        aws_secret_access_key=credentials["aws_secret_access_key"],
+    )
+    s3client = session.client("s3")
+
+    try:
+        s3client.complete_multipart_upload(
+            Bucket=bucket, Key=key, MultipartUpload={"Parts": parts}, UploadId=uploadId
+        )
+    except botocore.exceptions.ClientError as error:
+        logger.error(
+            "Error when completing multiple part upload for object with uuid{}. Detail {}".format(
+                key, error
+            )
+        )
+        raise InternalError(
+            "Can not complete multipart upload for {}. Detail {}".format(key, error)
+        )
+
+
+def generate_presigned_url_for_uploading_part(
+    bucket, key, credentials, uploadId, partNumber, region, expires
+):
+    """
+    Generate presigned url for uploading object part given uploadId and part number
+
+    Args:
+        bucket(str): bucket
+        key(str): key
+        credentials(dict): dictionary of aws credentials
+        uploadId(str): uploadID of the multipart upload
+        partNumber(int): part number
+        region(str): bucket region
+        expires(int): expiration time
+    
+    Returns:
+        presigned_url(str)
+    """
+
+    url = "https://{}.s3.amazonaws.com/{}".format(bucket, key)
+    additional_signed_qs = {"partNumber": str(partNumber), "uploadId": uploadId}
+    return generate_aws_presigned_url(
+        url, "PUT", credentials, "s3", region, expires, additional_signed_qs
+    )
