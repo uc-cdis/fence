@@ -1,9 +1,12 @@
 import boto3
 import botocore
+from retry.api import retry_call
 
 from cdispyutils.hmac4 import generate_aws_presigned_url
 from cdislogging import get_logger
 from fence.errors import InternalError
+
+MAX_TRIES = 5
 
 logger = get_logger(__name__)
 
@@ -23,12 +26,17 @@ def initilize_multipart_upload(bucket, key, credentials):
     session = boto3.Session(
         aws_access_key_id=credentials["aws_access_key_id"],
         aws_secret_access_key=credentials["aws_secret_access_key"],
-        aws_session_token=credentials.get("aws_session_token")
+        aws_session_token=credentials.get("aws_session_token"),
     )
     s3client = session.client("s3")
 
     try:
-        multipart_upload = s3client.create_multipart_upload(Bucket=bucket, Key=key)
+        multipart_upload = retry_call(
+            s3client.create_multipart_upload,
+            fkwargs={"Bucket": bucket, "Key": key},
+            tries=MAX_TRIES,
+            jitter=10,
+        )
     except botocore.exceptions.ClientError as error:
         logger.error(
             "Error when create multiple part upload for object with uuid{}. Detail {}".format(
@@ -64,8 +72,16 @@ def complete_multipart_upload(bucket, key, credentials, uploadId, parts):
     s3client = session.client("s3")
 
     try:
-        s3client.complete_multipart_upload(
-            Bucket=bucket, Key=key, MultipartUpload={"Parts": parts}, UploadId=uploadId
+        retry_call(
+            s3client.complete_multipart_upload,
+            fkwargs={
+                "Bucket": bucket,
+                "Key": key,
+                "MultipartUpload": {"Parts": parts},
+                "UploadId": uploadId,
+            },
+            tries=MAX_TRIES,
+            jitter=10,
         )
     except botocore.exceptions.ClientError as error:
         logger.error(
@@ -106,6 +122,7 @@ def generate_presigned_url_for_uploading_part(
         )
     except Exception as e:
         raise InternalError(
-            "Can not generate presigned url for part number {} of key {}. Detail {}".format(partNumber, key, e)
+            "Can not generate presigned url for part number {} of key {}. Detail {}".format(
+                partNumber, key, e
+            )
         )
-
