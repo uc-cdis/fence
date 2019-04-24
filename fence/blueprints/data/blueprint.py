@@ -136,6 +136,7 @@ def generate_mutipart_upload_presigned_url():
     }
     return flask.jsonify(response), 200
 
+
 @blueprint.route("/complete_upload", methods=["POST"])
 @require_auth_header(aud={"data"})
 @login_required({"data"})
@@ -163,13 +164,14 @@ def complete_mutipart_upload():
         return flask.jsonify({"message": e.message}, e.status_code)
     return {}, 200
 
+
 @blueprint.route("/mutipart_upload", methods=["POST"])
 @require_auth_header(aud={"data"})
 @login_required({"data"})
 @check_arborist_auth(resource="/data_file", method="file_upload")
 def multipart_upload_data_file():
     """
-    Return a presigned URL for use with uploading a data file.
+    Return a presigned URL for use with uploading a part.
 
     See the documentation on the entire flow here for more info:
 
@@ -191,7 +193,7 @@ def multipart_upload_data_file():
         "guid": blank_index.guid,
         "url": blank_index.make_signed_url(params["file_name"], expires_in=expires_in),
     }
-    return flask.jsonify(response), 201
+    return flask.jsonify(response), 200
 
 
 @blueprint.route("/upload/<path:file_id>", methods=["GET"])

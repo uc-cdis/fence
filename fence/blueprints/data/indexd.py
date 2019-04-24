@@ -611,31 +611,9 @@ class S3IndexedFileLocation(IndexedFileLocation):
         credentials = S3IndexedFileLocation.get_credential_to_access_bucket(
             self.bucket_name(), aws_creds, expires_in
         )
+
         return multipart_upload.initilize_multipart_upload(
             self.parsed_url.netloc, self.parsed_url.path.strip("/"), credentials
-        )
-
-    def complete_multipart_upload(self, uploadId, parts, expires_in):
-        """
-        Complete multipart upload.
-        
-        Args:
-            uploadId(str): upload id of the current upload
-            parts(list(set)): List of part infos
-                    [{"Etag": "1234567", "PartNumber": 1}, {"Etag": "4321234", "PartNumber": 2}]
-        """
-        aws_creds = get_value(
-            config, "AWS_CREDENTIALS", InternalError("credentials not configured")
-        )
-        credentials = S3IndexedFileLocation.get_credential_to_access_bucket(
-            self.bucket_name(), aws_creds, expires_in
-        )
-        multipart_upload.complete_multipart_upload(
-            self.parsed_url.netloc,
-            self.parsed_url.path.strip("/"),
-            credentials,
-            uploadId,
-            parts,
         )
 
     def generate_presigne_url_for_part_upload(self, uploadId, partNumber, expires_in):
@@ -653,17 +631,49 @@ class S3IndexedFileLocation(IndexedFileLocation):
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
+        credential = S3IndexedFileLocation.get_credential_to_access_bucket(
+            self.bucket_name(), aws_creds, expires_in
+        )
+
+        region = self.get_bucket_region()
+        if not region:
+            region = flask.current_app.boto.get_bucket_region(
+                self.parsed_url.netloc, credential
+            )
+
+        return multipart_upload.generate_presigned_url_for_uploading_part(
+            self.parsed_url.netloc,
+            self.parsed_url.path.strip("/"),
+            credential,
+            uploadId,
+            partNumber,
+            region,
+            expires_in,
+        )
+
+    def complete_multipart_upload(self, uploadId, parts, expires_in):
+        """
+        Complete multipart upload.
+        
+        Args:
+            uploadId(str): upload id of the current upload
+            parts(list(set)): List of part infos
+                    [{"Etag": "1234567", "PartNumber": 1}, {"Etag": "4321234", "PartNumber": 2}]
+        """
+        aws_creds = get_value(
+            config, "AWS_CREDENTIALS", InternalError("credentials not configured")
+        )
+
         credentials = S3IndexedFileLocation.get_credential_to_access_bucket(
             self.bucket_name(), aws_creds, expires_in
         )
-        multipart_upload.generate_presigned_url_for_uploading_part(
+
+        multipart_upload.complete_multipart_upload(
             self.parsed_url.netloc,
             self.parsed_url.path.strip("/"),
             credentials,
             uploadId,
-            partNumber,
-            self.get_bucket_region(),
-            expires_in,
+            parts,
         )
 
 
