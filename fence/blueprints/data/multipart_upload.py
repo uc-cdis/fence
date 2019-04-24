@@ -15,6 +15,7 @@ def initilize_multipart_upload(bucket, key, credentials):
     session = boto3.Session(
         aws_access_key_id=credentials["aws_access_key_id"],
         aws_secret_access_key=credentials["aws_secret_access_key"],
+        aws_session_token=credentials.get("aws_session_token")
     )
     s3client = session.client("s3")
 
@@ -39,6 +40,7 @@ def complete_multipart_upload(bucket, key, credentials, uploadId, parts):
     session = boto3.Session(
         aws_access_key_id=credentials["aws_access_key_id"],
         aws_secret_access_key=credentials["aws_secret_access_key"],
+        aws_session_token=credentials.get("aws_session_token"),
     )
     s3client = session.client("s3")
 
