@@ -32,6 +32,7 @@ from fence.resources.google.utils import (
     get_google_app_creds,
 )
 from fence.utils import get_valid_expiration_from_request
+import multipart_upload
 
 
 logger = get_logger(__name__)
@@ -153,11 +154,43 @@ class BlankIndex(object):
             )
         )
         return url
-    
+
     @staticmethod
-    def setup_init_multipart_upload():
+    def init_multipart_upload(key, expires_in=None):
+        try:
+            bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
+        except KeyError:
+            raise InternalError(
+                "fence not configured with data upload bucket; can't create signed URL"
+            )
+        s3_url = "s3://{}/{}".format(bucket, key)
+        return S3IndexedFileLocation(s3_url).init_multipart_upload(expires_in)
 
+    @staticmethod
+    def complete_multipart_upload(key, uploadId, parts, expires_in=None):
+        try:
+            bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
+        except KeyError:
+            raise InternalError(
+                "fence not configured with data upload bucket; can't create signed URL"
+            )
+        s3_url = "s3://{}/{}".format(bucket, key)
+        return S3IndexedFileLocation(s3_url).complete_multipart_upload(
+            uploadId, parts, expires_in
+        )
 
+    @staticmethod
+    def generate_aws_presigned_url_for_part(key, uploadId, partNumber, expires_in):
+        try:
+            bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
+        except KeyError:
+            raise InternalError(
+                "fence not configured with data upload bucket; can't create signed URL"
+            )
+        s3_url = "s3://{}/{}".format(bucket, key)
+        return S3IndexedFileLocation(s3_url).generate_presigne_url_for_part_upload(
+            uploadId, partNumber, expires_in
+        )
 
 
 class IndexedFile(object):
@@ -493,7 +526,9 @@ class S3IndexedFileLocation(IndexedFileLocation):
             self.parsed_url.netloc, self.parsed_url.path.strip("/")
         )
 
-        credential = S3IndexedFileLocation.get_credential_to_access_bucket(self.bucket_name(), aws_creds, expires_in)
+        credential = S3IndexedFileLocation.get_credential_to_access_bucket(
+            self.bucket_name(), aws_creds, expires_in
+        )
 
         # if it's public and we don't need to force the signed url, just return the raw
         # s3 url
@@ -527,6 +562,49 @@ class S3IndexedFileLocation(IndexedFileLocation):
         )
 
         return url
+
+    def init_multipart_upload(self, expires_in):
+        aws_creds = get_value(
+            config, "AWS_CREDENTIALS", InternalError("credentials not configured")
+        )
+        credentials = S3IndexedFileLocation.get_credential_to_access_bucket(
+            self.bucket_name(), aws_creds, expires_in
+        )
+        return multipart_upload.initilize_multipart_upload(
+            self.parsed_url.netloc, self.parsed_url.path.strip("/"), credentials
+        )
+
+    def complete_multipart_upload(self, uploadId, parts, expires_in):
+        aws_creds = get_value(
+            config, "AWS_CREDENTIALS", InternalError("credentials not configured")
+        )
+        credentials = S3IndexedFileLocation.get_credential_to_access_bucket(
+            self.bucket_name(), aws_creds, expires_in
+        )
+        multipart_upload.complete_multipart_upload(
+            self.parsed_url.netloc,
+            self.parsed_url.path.strip("/"),
+            credentials,
+            uploadId,
+            parts,
+        )
+
+    def generate_presigne_url_for_part_upload(self, uploadId, partNumber, expires_in):
+        aws_creds = get_value(
+            config, "AWS_CREDENTIALS", InternalError("credentials not configured")
+        )
+        credentials = S3IndexedFileLocation.get_credential_to_access_bucket(
+            self.bucket_name(), aws_creds, expires_in
+        )
+        multipart_upload.generate_presigned_url_for_uploading_part(
+            self.parsed_url.netloc,
+            self.parsed_url.path.strip("/"),
+            credentials,
+            uploadId,
+            partNumber,
+            self.get_bucket_region(),
+            expires_in,
+        )
 
 
 class GoogleStorageIndexedFileLocation(IndexedFileLocation):

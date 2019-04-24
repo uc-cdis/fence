@@ -1,6 +1,5 @@
 import boto3
 import botocore
-import requests
 
 from cdispyutils.hmac4 import generate_aws_presigned_url
 from cdislogging import get_logger
