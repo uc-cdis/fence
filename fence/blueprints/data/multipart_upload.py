@@ -11,6 +11,14 @@ logger = get_logger(__name__)
 def initilize_multipart_upload(bucket, key, credentials):
     """
     Initialize multipart upload
+
+    Args:
+        bucket(str): bucket name
+        key(str): object key
+        credentials(dict): credential dictionary
+
+    Returns:
+        UploadId(str): uploadId
     """
     session = boto3.Session(
         aws_access_key_id=credentials["aws_access_key_id"],
@@ -34,8 +42,19 @@ def initilize_multipart_upload(bucket, key, credentials):
 
 def complete_multipart_upload(bucket, key, credentials, uploadId, parts):
     """
-    Complete mutlipart upload. 
+    Complete multipart upload.
     Raise exception if something wrong happens; otherwise success
+
+    Args:
+        bucket(str): bucket name
+        key(str): object key or `GUID/filename`
+        credentials(dict): aws credentials
+        uploadId(str): upload id of the current upload
+        parts(list(set)): List of part infos
+                [{"Etag": "1234567", "PartNumber": 1}, {"Etag": "4321234", "PartNumber": 2}]
+
+    Return:
+        None
     """
     session = boto3.Session(
         aws_access_key_id=credentials["aws_access_key_id"],
@@ -80,6 +99,13 @@ def generate_presigned_url_for_uploading_part(
 
     url = "https://{}.s3.amazonaws.com/{}".format(bucket, key)
     additional_signed_qs = {"partNumber": str(partNumber), "uploadId": uploadId}
-    return generate_aws_presigned_url(
-        url, "PUT", credentials, "s3", region, expires, additional_signed_qs
-    )
+
+    try:
+        return generate_aws_presigned_url(
+            url, "PUT", credentials, "s3", region, expires, additional_signed_qs
+        )
+    except Exception as e:
+        raise InternalError(
+            "Can not generate presigned url for part number {} of key {}. Detail {}".format(partNumber, key, e)
+        )
+

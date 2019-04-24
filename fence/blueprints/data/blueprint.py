@@ -110,6 +110,7 @@ def init_mutipart_upload():
     }
     return flask.jsonify(response), 201
 
+
 @blueprint.route("/mutipart_upload", methods=["POST"])
 @require_auth_header(aud={"data"})
 @login_required({"data"})

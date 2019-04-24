@@ -157,6 +157,15 @@ class BlankIndex(object):
 
     @staticmethod
     def init_multipart_upload(key, expires_in=None):
+        """
+        Initilize multipart upload given key
+
+        Args:
+            key(str): object key
+        
+        Returns:
+            uploadId(str)
+        """
         try:
             bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
         except KeyError:
@@ -168,6 +177,18 @@ class BlankIndex(object):
 
     @staticmethod
     def complete_multipart_upload(key, uploadId, parts, expires_in=None):
+        """
+        Complete multipart upload
+
+        Args:
+            key(str): object key or `GUID/filename`
+            uploadId(str): upload id of the current upload
+            parts(list(set)): List of part infos
+                [{"Etag": "1234567", "PartNumber": 1}, {"Etag": "4321234", "PartNumber": 2}]
+
+        Returns:
+            None if success otherwise an exception
+        """
         try:
             bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
         except KeyError:
@@ -181,6 +202,17 @@ class BlankIndex(object):
 
     @staticmethod
     def generate_aws_presigned_url_for_part(key, uploadId, partNumber, expires_in):
+        """
+        Generate presigned url for each part
+
+        Args:
+            key(str): object key of `guid/filename`
+            uploadID(str): uploadId of the current upload.
+            partNumber(int): the part number
+        
+        Returns:
+            presigned_url(str)
+        """
         try:
             bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
         except KeyError:
@@ -564,6 +596,15 @@ class S3IndexedFileLocation(IndexedFileLocation):
         return url
 
     def init_multipart_upload(self, expires_in):
+        """
+        Initialize multipart upload
+
+        Args:
+            expires(int): expiration time
+
+        Returns:
+            UploadId(str)
+        """
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
@@ -575,6 +616,14 @@ class S3IndexedFileLocation(IndexedFileLocation):
         )
 
     def complete_multipart_upload(self, uploadId, parts, expires_in):
+        """
+        Complete multipart upload.
+        
+        Args:
+            uploadId(str): upload id of the current upload
+            parts(list(set)): List of part infos
+                    [{"Etag": "1234567", "PartNumber": 1}, {"Etag": "4321234", "PartNumber": 2}]
+        """
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
@@ -590,6 +639,17 @@ class S3IndexedFileLocation(IndexedFileLocation):
         )
 
     def generate_presigne_url_for_part_upload(self, uploadId, partNumber, expires_in):
+        """
+        Generate presigned url for uploading object part given uploadId and part number
+
+        Args:
+            uploadId(str): uploadID of the multipart upload
+            partNumber(int): part number
+            expires(int): expiration time
+
+        Returns:
+            presigned_url(str)
+        """
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
