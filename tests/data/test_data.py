@@ -596,7 +596,7 @@ def test_initialize_multipart_upload(app, client, auth_client, encoded_creds_jwt
         }
         file_name = "asdf"
         data = json.dumps({"file_name": file_name})
-        response = client.post("/data/init_mutipart_upload", headers=headers, data=data)
+        response = client.post("/data/multipart/init", headers=headers, data=data)
         indexd_url = app.config.get("INDEXD") or app.config.get("BASE_URL") + "/index"
         endpoint = indexd_url + "/index/blank/"
         indexd_auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
@@ -647,7 +647,7 @@ def test_multipart_upload_presigned_url(app, client, auth_client, encoded_creds_
         uploadid = "uploadid"
 
         data = json.dumps({"key": key, "uploadId": uploadid, "partNumber": 1})
-        response = client.post("/data/mutipart_upload", headers=headers, data=data)
+        response = client.post("/data/multipart/upload", headers=headers, data=data)
 
         assert response.status_code == 200, response
         assert "presigned_url" in response.json
