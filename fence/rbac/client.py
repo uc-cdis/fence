@@ -74,6 +74,7 @@ class ArboristClient(object):
         self._resource_url = self._base_url + "/resource"
         self._role_url = self._base_url + "/role/"
         self._user_url = self._base_url + "/user"
+        self._group_url = self._base_url + "/group"
 
     def healthy(self):
         """
@@ -423,4 +424,27 @@ class ArboristClient(object):
             )
             return None
         self.logger.info("revoked all policies from user `{}`".format(username))
+        return data
+
+    @_arborist_retry()
+    def create_group(self, name, description="", users=None, policies=None):
+        users = users or []
+        policies = policies or []
+        data = {
+            "name": name,
+            "users": users,
+            "policies": policies,
+        }
+        if description:
+            data["description"] = description
+        response = requests.post(self._group_url, json=data)
+        data = _request_get_json(response)
+        if response.status_codee != 201:
+            msg = data.get("error", "unhelpful response from arborist")
+            self.logger.error("could not create group {}: {}".format(name, msg))
+            return None
+        self.logger.info("created new group `{}`".format(name))
+        if users:
+            self.logger.info("group {} contains users: {}".format(name, list(users)))
+            self.logger.info("group {} has policies: {}".format(name, list(policies)))
         return data

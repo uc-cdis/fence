@@ -984,9 +984,8 @@ class UserSyncer(object):
             self.logger.info("No resources specified; skipping arborist sync")
 
     def _reset_user_access(self, session):
-        all_users = session.query(User).all()
-
         if self.arborist_client:
+            all_users = session.query(User).all()
             usernames = {user.username for user in all_users}
             for username in usernames:
                 self.arborist_client.revoke_all_policies_for_user(username)
@@ -1093,5 +1092,24 @@ class UserSyncer(object):
                         created_policies.add(policy_id)
 
                     self.arborist_client.grant_user_policy(user.username, policy_id)
+
+        groups = user_yaml.rbac.get("groups", [])
+        for group in groups:
+            missing = {"name", "users", "policies"}.difference(set(group.keys()))
+            if missing:
+                name = group.get("name", "{MISSING NAME}")
+                self.logger.error(
+                    "group {} missing required field(s): {}".format(name, list(missing))
+                )
+                continue
+            try:
+                response = self.arborist_client.create_group(
+                    group["name"],
+                    description=group.get("description", ""),
+                    users=group["users"],
+                    policies=group["policies"],
+                )
+            except ArboristError as e:
+                self.logger.info("couldn't create group: {}".format(str(e)))
 
         return True
