@@ -176,6 +176,13 @@ def delete_google_service_accounts_and_keys(current_session, gcm, gpg_email):
     # Referring to cirrus for list of SAs. You _could_ refer to fence db instead.
     service_account_emails = gcm.get_service_accounts_from_group(gpg_email)
 
+    def raise_unavailable(sae):
+        raise UnavailableError(
+            "Error: Google unable to delete service account {}. Aborting".format(
+                sae
+            )
+        )
+
     for sae in service_account_emails:
         # Upon deletion of a service account, Google will
         # automatically delete all key IDs associated with that
@@ -188,53 +195,44 @@ def delete_google_service_accounts_and_keys(current_session, gcm, gpg_email):
             r = gcm.delete_service_account(sae)
         except Exception as e:
             logger.exception(e)
-            raise UnavailableError(
-                "Error: Google unable to delete service account {}. Aborting".format(
-                    sae
-                )
-            )
+            raise_unavailable(sae)
 
-        if r == {}:
-            logger.info(
-                "Google service account with email {} successfully removed "
-                "from Google, along with all associated service account keys.".format(
-                    sae
-                )
-            )
-            logger.debug("Attempting to clear records from Fence database...")
-            sa = (
-                current_session.query(GoogleServiceAccount)
-                .filter(GoogleServiceAccount.email == sae)
-                .first()
-                # one_or_none() would be better, but is only in sqlalchemy 1.0.9
-            )
-            if sa:
-                sa_keys = (
-                    current_session.query(GoogleServiceAccountKey)
-                    .filter(GoogleServiceAccountKey.service_account_id == sa.id)
-                    .all()
-                )
-                for sak in sa_keys:
-                    current_session.delete(sak)
-                current_session.delete(sa)
-                current_session.commit()
-                logger.info(
-                    "Records for service account {} successfully cleared from Fence database.".format(
-                        sae
-                    )
-                )
-            else:
-                logger.info(
-                    "Records for service account {} NOT FOUND in Fence database. "
-                    "Continuing anyway.".format(sae)
-                )
-
-        else:
+        if r != {}:
             logger.exception(r)
-            raise UnavailableError(
-                "Error: Google unable to delete service account {}. Aborting".format(
+            raise_unavailable(sae)
+
+        logger.info(
+            "Google service account with email {} successfully removed "
+            "from Google, along with all associated service account keys.".format(
+                sae
+            )
+        )
+        logger.debug("Attempting to clear records from Fence database...")
+        sa = (
+            current_session.query(GoogleServiceAccount)
+            .filter(GoogleServiceAccount.email == sae)
+            .first()
+            # one_or_none() would be better, but is only in sqlalchemy 1.0.9
+        )
+        if sa:
+            sa_keys = (
+                current_session.query(GoogleServiceAccountKey)
+                .filter(GoogleServiceAccountKey.service_account_id == sa.id)
+                .all()
+            )
+            for sak in sa_keys:
+                current_session.delete(sak)
+            current_session.delete(sa)
+            current_session.commit()
+            logger.info(
+                "Records for service account {} successfully cleared from Fence database.".format(
                     sae
                 )
+            )
+        else:
+            logger.info(
+                "Records for service account {} NOT FOUND in Fence database. "
+                "Continuing anyway.".format(sae)
             )
 
 
@@ -250,84 +248,86 @@ def delete_google_proxy_group(
 
     user is the User row in Fence.
     """
-    # Next, delete the proxy group. Google will automatically remove
+    # Google will automatically remove
     # this proxy group from all GBAGs the proxy group is a member of.
     # So we skip doing that here.
     logger.debug(
         "Attempting to delete Google proxy group with email {}...".format(gpg_email)
     )
-    try:
-        r = gcm.delete_group(gpg_email)
-    except Exception as e:
-        logger.exception(e)
+
+    def raise_unavailable(gpg_email):
         raise UnavailableError(
             "Error: Google unable to delete proxy group {}. Aborting".format(gpg_email)
         )
 
-    if r == {}:
+    try:
+        r = gcm.delete_group(gpg_email)
+    except Exception as e:
+        logger.exception(e)
+        raise_unavailable(gpg_email)
+
+    if r != {}:
+        logger.exception(r)
+        raise_unavailable(gpg_email)
+
+    logger.info(
+        "Google proxy group with email {} successfully removed from Google.".format(
+            gpg_email
+        )
+    )
+    if google_proxy_group_from_fence_db:
+        # (else it was google_proxy_group_from_google and there is nothing to delete in Fence db.)
+        logger.debug("Attempting to clear records from Fence database...")
+        logger.debug(
+            "Deleting rows in {}...".format(
+                GoogleProxyGroupToGoogleBucketAccessGroup.__tablename__
+            )
+        )
+        gpg_to_gbag = (
+            current_session.query(GoogleProxyGroupToGoogleBucketAccessGroup)
+            .filter(
+                GoogleProxyGroupToGoogleBucketAccessGroup.proxy_group_id
+                == google_proxy_group_from_fence_db.id
+            )
+            .all()
+        )
+        for row in gpg_to_gbag:
+            current_session.delete(row)
+        logger.debug("Deleting rows in {}...".format(
+                UserGoogleAccountToProxyGroup.__tablename__
+            )
+        )
+        uga_to_pg = (
+            current_session.query(UserGoogleAccountToProxyGroup)
+            .filter(
+                UserGoogleAccountToProxyGroup.proxy_group_id
+                == google_proxy_group_from_fence_db.id
+            )
+            .all()
+        )
+        for row in uga_to_pg:
+            current_session.delete(row)
+        logger.debug("Deleting rows in {}...".format(
+                UserGoogleAccount.__tablename__
+            )
+        )
+        uga = (
+            current_session.query(UserGoogleAccount)
+            .filter(UserGoogleAccount.user_id == user.id)
+            .all()
+        )
+        for row in uga:
+            current_session.delete(row)
+        logger.debug("Deleting row in {}...".format(GoogleProxyGroup.__tablename__))
+        current_session.delete(google_proxy_group_from_fence_db)
+        current_session.commit()
         logger.info(
-            "Google proxy group with email {} successfully removed from Google.".format(
+            "Records for Google proxy group {} successfully cleared from Fence "
+            "database, along with associated user Google accounts.".format(
                 gpg_email
             )
         )
-        if google_proxy_group_from_fence_db:
-            # (else it was google_proxy_group_from_google and there is nothing to delete in Fence db.)
-            logger.debug("Attempting to clear records from Fence database...")
-            logger.debug(
-                "Deleting rows in {}...".format(
-                    GoogleProxyGroupToGoogleBucketAccessGroup.__tablename__
-                )
-            )
-            gpg_to_gbag = (
-                current_session.query(GoogleProxyGroupToGoogleBucketAccessGroup)
-                .filter(
-                    GoogleProxyGroupToGoogleBucketAccessGroup.proxy_group_id
-                    == google_proxy_group_from_fence_db.id
-                )
-                .all()
-            )
-            for row in gpg_to_gbag:
-                current_session.delete(row)
-            logger.debug("Deleting rows in {}...".format(
-                    UserGoogleAccountToProxyGroup.__tablename__
-                )
-            )
-            uga_to_pg = (
-                current_session.query(UserGoogleAccountToProxyGroup)
-                .filter(
-                    UserGoogleAccountToProxyGroup.proxy_group_id
-                    == google_proxy_group_from_fence_db.id
-                )
-                .all()
-            )
-            for row in uga_to_pg:
-                current_session.delete(row)
-            logger.debug("Deleting rows in {}...".format(
-                    UserGoogleAccount.__tablename__
-                )
-            )
-            uga = (
-                current_session.query(UserGoogleAccount)
-                .filter(UserGoogleAccount.user_id == user.id)
-                .all()
-            )
-            for row in uga:
-                current_session.delete(row)
-            logger.debug("Deleting row in {}...".format(GoogleProxyGroup.__tablename__))
-            current_session.delete(google_proxy_group_from_fence_db)
-            current_session.commit()
-            logger.info(
-                "Records for Google proxy group {} successfully cleared from Fence "
-                "database, along with associated user Google accounts.".format(
-                    gpg_email
-                )
-            )
-            logger.info("Done with Google deletions.")
-    else:
-        logger.exception(r)
-        raise UnavailableError(
-            "Error: Google unable to delete proxy group {}. Aborting".format(gpg_email)
-        )
+        logger.info("Done with Google deletions.")
 
 
 def delete_user(current_session, username):
