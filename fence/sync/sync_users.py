@@ -767,7 +767,8 @@ class UserSyncer(object):
                 u = User(username=username)
                 sess.add(u)
 
-            self.arborist_client.create_user({"name": username})
+            if self.arborist_client:
+                self.arborist_client.create_user({"name": username})
 
             u.email = user_info[username].get("email", "")
             u.display_name = user_info[username].get("display_name", "")
@@ -973,6 +974,11 @@ class UserSyncer(object):
             self.logger.info("No users for syncing")
 
         if user_yaml.rbac:
+            if not self.arborist_client:
+                raise EnvironmentError(
+                    "yaml file contains rbac section but sync is not configured with"
+                    " arborist client"
+                )
             self.logger.info("Synchronizing arborist...")
             success = self._update_arborist(sess, user_yaml)
             if success:
