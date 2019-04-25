@@ -762,13 +762,6 @@ def set_foreign_key_constraint_on_delete(
     foreign_key_name = "{}_{}_fkey".format(table_name.lower(), column_name)
 
     if column_name in table.c:
-        import pdb
-
-        # pdb.set_trace()
-        print("About to start execute...")
-        foreign_keys = [fk.name for fk in getattr(table.c, column_name).foreign_keys]
-        print("PRINTING FOREIGN KEYS IN SET FUNCTION......")
-        print(foreign_keys)
         with driver.session as session:
             session.execute(
                 'ALTER TABLE ONLY "{}" DROP CONSTRAINT IF EXISTS {}, '
@@ -783,7 +776,6 @@ def set_foreign_key_constraint_on_delete(
                 )
             )
             session.commit()
-            print("Committed to session.")
 
 
 def drop_foreign_key_constraint_if_exist(table_name, column_name, driver, metadata):
