@@ -439,7 +439,7 @@ class ArboristClient(object):
             data["description"] = description
         response = requests.post(self._group_url, json=data)
         data = _request_get_json(response)
-        if response.status_codee != 201:
+        if response.status_code != 201:
             msg = data.get("error", "unhelpful response from arborist")
             self.logger.error("could not create group {}: {}".format(name, msg))
             return None
