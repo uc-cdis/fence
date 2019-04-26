@@ -17,6 +17,7 @@ import flask
 from sqlalchemy import (
     Integer,
     BigInteger,
+    DateTime,
     String,
     Column,
     Boolean,
@@ -26,6 +27,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship, backref
+from sqlalchemy.sql import func
 from sqlalchemy import func
 from sqlalchemy.schema import ForeignKey
 from fence.jwt.token import CLIENT_ALLOWED_SCOPES
@@ -562,6 +564,15 @@ def migrate(driver):
     _update_for_authlib(driver, md)
 
     _remove_policy(driver, md)
+
+    add_column_if_not_exist(
+        table_name=User.__tablename__,
+        column=Column(
+            "_last_auth", DateTime(timezone=False), server_default=func.now()
+        ),
+        driver=driver,
+        metadata=md,
+    )
 
 
 def add_foreign_key_column_if_not_exist(
