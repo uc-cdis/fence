@@ -251,9 +251,10 @@ class ArboristClient(object):
     def update_resource(self, path, resource_json):
         response = _request_get_json(requests.put(path, json=resource_json))
         if "error" in response:
-            msg = response["error"].get("message", str(response["error"]))
             self.logger.error(
-                "could not update resource `{}` in arborist: {}".format(path, msg)
+                "could not update resource `{}` in arborist: {}".format(
+                    path, response["error"]
+                )
             )
             raise ArboristError(response["error"])
         self.logger.info("updated resource {}".format(resource_json["name"]))
@@ -380,7 +381,7 @@ class ArboristClient(object):
 
     @_arborist_retry()
     def revoke_all_policies_for_user(self, username):
-        url = self._url_user + "/{}/policy".format(username)
+        url = self._user_url + "/{}/policy".format(username)
         response = requests.delete(url)
         data = _request_get_json(response)
         if response.status_code != 204:

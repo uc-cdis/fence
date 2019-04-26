@@ -273,10 +273,10 @@ class IndexedFile(object):
             raise Unauthorized("This file is not accessible")
 
     def check_rbac(self, action):
-        if "rbac" not in self.index_document:
+        if not self.index_document.get("rbac"):
             raise ValueError("index record missing `rbac`")
         request = {
-            "user": {"jwt": get_jwt()},
+            "user": {"token": get_jwt()},
             "request": {
                 "resource": self.index_document["rbac"],
                 "action": {"service": "fence", "method": action},
