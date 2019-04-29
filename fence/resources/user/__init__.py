@@ -8,7 +8,7 @@ from fence.resources.google.utils import (
     get_linked_google_account_email,
     get_linked_google_account_exp,
 )
-from fence.resources.userdatamodel import delete_user, get_user_groups
+from fence.resources.userdatamodel import get_user_groups
 import smtplib
 
 from fence.errors import NotFound, UserError, InternalError
