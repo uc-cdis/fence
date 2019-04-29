@@ -37,4 +37,4 @@ retry==0.9.2
 -e git+https://github.com/uc-cdis/storage-client.git@0.2.2#egg=storageclient-0.2.2
 -e git+https://github.com/uc-cdis/datamodelutils.git@0.4.0#egg=datamodelutils
 -e git+https://github.com/uc-cdis/cdis-python-utils.git@0.2.10#egg=cdispyutils
--e git+https://github.com/uc-cdis/userdatamodel.git@54fa9b37999a3c1df5d331d4431b907867eaf9f3#egg=userdatamodel
+-e git+https://github.com/uc-cdis/userdatamodel.git@8c9f8d09a539636db7b0507a5d2c8cb4b6ec753e#egg=userdatamodel
