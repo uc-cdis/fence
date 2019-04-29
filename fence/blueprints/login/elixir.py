@@ -19,13 +19,13 @@ class ElixirRedirect(Resource):
             )
             return _login(email)
 
-        return flask.redirect(flask.current_app.microsoft_client.get_auth_url())
+        return flask.redirect(flask.current_app.elixir_client.get_auth_url())
 
 
 class ElixirLogin(Resource):
     def get(self):
         code = flask.request.args.get("code")
-        result = flask.current_app.microsoft_client.get_user_id(code)
+        result = flask.current_app.elixir_client.get_user_id(code)
         email = result.get("email")
         if email:
             return _login(email)
