@@ -207,7 +207,7 @@ def delete_google_service_accounts_and_keys(current_session, gcm, gpg_email):
                 sae
             )
         )
-        logger.debug("Attempting to clear records from Fence database...")
+        logger.debug("Attempting to clear service account records from Fence database...")
         sa = (
             current_session.query(GoogleServiceAccount)
             .filter(GoogleServiceAccount.email == sae)
@@ -277,7 +277,7 @@ def delete_google_proxy_group(
     )
     if google_proxy_group_from_fence_db:
         # (else it was google_proxy_group_from_google and there is nothing to delete in Fence db.)
-        logger.debug("Attempting to clear records from Fence database...")
+        logger.debug("Attempting to clear proxy group records from Fence database...")
         logger.debug(
             "Deleting rows in {}...".format(
                 GoogleProxyGroupToGoogleBucketAccessGroup.__tablename__
