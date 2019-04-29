@@ -42,7 +42,6 @@ from userdatamodel.models import (
     HMACKeyPair,
     HMACKeyPairArchive,
     IdentityProvider,
-    Policy,
     Project,
     ProjectToBucket,
     S3Credential,
