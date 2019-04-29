@@ -14,6 +14,7 @@ from fence.blueprints.login.fence_login import FenceRedirect, FenceLogin
 from fence.blueprints.login.google import GoogleRedirect, GoogleLogin
 from fence.blueprints.login.shib import ShibbolethLoginStart, ShibbolethLoginFinish
 from fence.blueprints.login.microsoft import MicrosoftRedirect, MicrosoftLogin
+from fence.blueprints.login.elixir import ElixirRedirect, ElixirLogin
 from fence.blueprints.login.orcid import ORCIDRedirect, ORCIDLogin
 from fence.errors import InternalError
 from fence.restful import RestfulApi
@@ -53,6 +54,7 @@ def make_login_blueprint(app):
         "shibboleth": "shib",
         "orcid": "orcid",
         "microsoft": "microsoft",
+        "elixir": "elixir",
     }
 
     # check if google is configured as a client. we will at least need a
@@ -117,6 +119,14 @@ def make_login_blueprint(app):
         )
         blueprint_api.add_resource(
             MicrosoftLogin, "/microsoft/login", strict_slashes=False
+        )
+
+    if "elixir" in idps:
+        blueprint_api.add_resource(
+            ElixirRedirect, "/elixir", strict_slashes=False
+        )
+        blueprint_api.add_resource(
+            ElixirLogin, "/elixir/login", strict_slashes=False
         )
 
     if "shibboleth" in idps:

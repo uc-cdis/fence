@@ -18,6 +18,7 @@ from fence.resources.aws.boto_manager import BotoManager
 from fence.resources.openid.google_oauth2 import GoogleOauth2Client as GoogleClient
 from fence.resources.openid.microsoft_oauth2 import MicrosoftOauth2Client as MicrosoftClient
 from fence.resources.openid.orcid_oauth2 import OrcidOauth2Client as ORCIDClient
+from fence.resources.openid.elixir_oauth2 import ElixirOauth2Client as ElixirClient
 from fence.resources.storage import StorageManager
 from fence.resources.user.user_session import UserSessionInterface
 from fence.error_handler import get_error_response
@@ -257,6 +258,17 @@ def _setup_oidc_clients(app):
     if configured_microsoft:
         app.microsoft_client = MicrosoftClient(
             config["OPENID_CONNECT"]["microsoft"],
+            HTTP_PROXY=config.get("HTTP_PROXY"),
+            logger=logger,
+        )
+
+    # Add OIDC client for Elixir if configured.
+    configured_elixir = (
+        "OPENID_CONNECT" in config and "elixir" in config["OPENID_CONNECT"]
+    )
+    if configured_elixir:
+        app.elixir_client = ElixirClient(
+            config["OPENID_CONNECT"]["elixir"],
             HTTP_PROXY=config.get("HTTP_PROXY"),
             logger=logger,
         )
