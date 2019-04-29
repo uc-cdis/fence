@@ -612,16 +612,6 @@ def migrate(driver):
         metadata=md,
     )
 
-    # Deleting google proxy group shouldn't delete user
-    set_foreign_key_constraint_on_delete_setnull(
-        table_name=User.__tablename__,
-        column_name="google_proxy_group_id",
-        fk_table_name=GoogleProxyGroup.__tablename__,
-        fk_column_name="id",
-        driver=driver,
-        metadata=md,
-    )
-
     _add_google_project_id(driver, md)
 
     drop_unique_constraint_if_exist(
@@ -647,7 +637,46 @@ def migrate(driver):
 
     _update_for_authlib(driver, md)
 
-    _set_on_delete_cascades(driver, md)
+    # Delete-user migration
+
+    # Check if at least one constraint is already migrated and if so skip
+    # the delete cascade migration.
+    user = Table(User.__tablename__, md, autoload=True, autoload_with=driver.engine)
+    found_user_constraint_already_migrated = False
+
+    # TODO: Once sqlalchemy is bumped to above 1.0.0, just use the first version
+    try:
+        for fkey in list(user.foreign_key_constraints):
+            if str(fkey.parent) == "User.google_proxy_group_id" and fkey.ondelete == "SET NULL":
+                found_user_constraint_already_migrated = True
+    except:
+        for fkey in list(user.foreign_keys):
+            if str(fkey.parent) == "User.google_proxy_group_id" and fkey.ondelete == "SET NULL":
+                found_user_constraint_already_migrated = True
+
+    if not found_user_constraint_already_migrated:
+        # do delete user migration in one session
+        delete_user_session = driver.Session()
+        try:
+            # Deleting google proxy group shouldn't delete user
+            set_foreign_key_constraint_on_delete_setnull(
+                table_name=User.__tablename__,
+                column_name="google_proxy_group_id",
+                fk_table_name=GoogleProxyGroup.__tablename__,
+                fk_column_name="id",
+                driver=driver,
+                session=delete_user_session,
+                metadata=md,
+            )
+
+            _set_on_delete_cascades(driver, delete_user_session, md)
+
+            delete_user_session.commit()
+        except:
+            delete_user_session.rollback()
+            raise
+        finally:
+            delete_user_session.close()
 
 
 def add_foreign_key_column_if_not_exist(
@@ -728,7 +757,7 @@ def add_foreign_key_constraint_if_not_exist(
 
 
 def set_foreign_key_constraint_on_delete_cascade(
-    table_name, column_name, fk_table_name, fk_column_name, driver, metadata
+    table_name, column_name, fk_table_name, fk_column_name, driver, session, metadata
 ):
     set_foreign_key_constraint_on_delete(
         table_name,
@@ -737,12 +766,13 @@ def set_foreign_key_constraint_on_delete_cascade(
         fk_column_name,
         "CASCADE",
         driver,
+        session,
         metadata,
     )
 
 
 def set_foreign_key_constraint_on_delete_setnull(
-    table_name, column_name, fk_table_name, fk_column_name, driver, metadata
+    table_name, column_name, fk_table_name, fk_column_name, driver, session, metadata
 ):
     set_foreign_key_constraint_on_delete(
         table_name,
@@ -751,31 +781,30 @@ def set_foreign_key_constraint_on_delete_setnull(
         fk_column_name,
         "SET NULL",
         driver,
+        session,
         metadata,
     )
 
 
 def set_foreign_key_constraint_on_delete(
-    table_name, column_name, fk_table_name, fk_column_name, ondelete, driver, metadata
+    table_name, column_name, fk_table_name, fk_column_name, ondelete, driver, session, metadata
 ):
     table = Table(table_name, metadata, autoload=True, autoload_with=driver.engine)
     foreign_key_name = "{}_{}_fkey".format(table_name.lower(), column_name)
 
     if column_name in table.c:
-        with driver.session as session:
-            session.execute(
-                'ALTER TABLE ONLY "{}" DROP CONSTRAINT IF EXISTS {}, '
-                'ADD CONSTRAINT {} FOREIGN KEY ({}) REFERENCES "{}" ({}) ON DELETE {};'.format(
-                    table_name,
-                    foreign_key_name,
-                    foreign_key_name,
-                    column_name,
-                    fk_table_name,
-                    fk_column_name,
-                    ondelete,
-                )
+        session.execute(
+            'ALTER TABLE ONLY "{}" DROP CONSTRAINT IF EXISTS {}, '
+            'ADD CONSTRAINT {} FOREIGN KEY ({}) REFERENCES "{}" ({}) ON DELETE {};'.format(
+                table_name,
+                foreign_key_name,
+                foreign_key_name,
+                column_name,
+                fk_table_name,
+                fk_column_name,
+                ondelete,
             )
-            session.commit()
+        )
 
 
 def drop_foreign_key_constraint_if_exist(table_name, column_name, driver, metadata):
@@ -993,18 +1022,18 @@ def _update_for_authlib(driver, md):
         session.commit()
 
 
-def _set_on_delete_cascades(driver, md):
+def _set_on_delete_cascades(driver, session, md):
     set_foreign_key_constraint_on_delete_cascade(
-        "client", "user_id", "User", "id", driver, md
+        "client", "user_id", "User", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "authorization_code", "user_id", "User", "id", driver, md
+        "authorization_code", "user_id", "User", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "google_service_account", "user_id", "User", "id", driver, md
+        "google_service_account", "user_id", "User", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "user_google_account", "user_id", "User", "id", driver, md
+        "user_google_account", "user_id", "User", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
         "user_google_account_to_proxy_group",
@@ -1012,6 +1041,7 @@ def _set_on_delete_cascades(driver, md):
         "user_google_account",
         "id",
         driver,
+        session,
         md,
     )
     set_foreign_key_constraint_on_delete_cascade(
@@ -1020,6 +1050,7 @@ def _set_on_delete_cascades(driver, md):
         "google_proxy_group",
         "id",
         driver,
+        session,
         md,
     )
     set_foreign_key_constraint_on_delete_cascade(
@@ -1028,10 +1059,11 @@ def _set_on_delete_cascades(driver, md):
         "google_service_account",
         "id",
         driver,
+        session,
         md,
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "google_bucket_access_group", "bucket_id", "bucket", "id", driver, md
+        "google_bucket_access_group", "bucket_id", "bucket", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
         "google_proxy_group_to_google_bucket_access_group",
@@ -1039,6 +1071,7 @@ def _set_on_delete_cascades(driver, md):
         "google_proxy_group",
         "id",
         driver,
+        session,
         md,
     )
     set_foreign_key_constraint_on_delete_cascade(
@@ -1047,10 +1080,11 @@ def _set_on_delete_cascades(driver, md):
         "google_bucket_access_group",
         "id",
         driver,
+        session,
         md,
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "service_account_access_privilege", "project_id", "project", "id", driver, md
+        "service_account_access_privilege", "project_id", "project", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
         "service_account_access_privilege",
@@ -1058,6 +1092,7 @@ def _set_on_delete_cascades(driver, md):
         "user_service_account",
         "id",
         driver,
+        session,
         md,
     )
     set_foreign_key_constraint_on_delete_cascade(
@@ -1066,6 +1101,7 @@ def _set_on_delete_cascades(driver, md):
         "user_service_account",
         "id",
         driver,
+        session,
         md,
     )
     set_foreign_key_constraint_on_delete_cascade(
@@ -1074,77 +1110,78 @@ def _set_on_delete_cascades(driver, md):
         "google_bucket_access_group",
         "id",
         driver,
+        session,
         md,
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "hmac_keypair", "user_id", "User", "id", driver, md
+        "hmac_keypair", "user_id", "User", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "hmac_keypair_archive", "user_id", "User", "id", driver, md
+        "hmac_keypair_archive", "user_id", "User", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "user_to_group", "user_id", "User", "id", driver, md
+        "user_to_group", "user_id", "User", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "user_to_group", "group_id", "Group", "id", driver, md
+        "user_to_group", "group_id", "Group", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "access_privilege", "user_id", "User", "id", driver, md
+        "access_privilege", "user_id", "User", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "access_privilege", "group_id", "Group", "id", driver, md
+        "access_privilege", "group_id", "Group", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "access_privilege", "project_id", "project", "id", driver, md
+        "access_privilege", "project_id", "project", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "access_privilege", "provider_id", "authorization_provider", "id", driver, md
+        "access_privilege", "provider_id", "authorization_provider", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "user_to_bucket", "user_id", "User", "id", driver, md
+        "user_to_bucket", "user_id", "User", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "user_to_bucket", "bucket_id", "bucket", "id", driver, md
+        "user_to_bucket", "bucket_id", "bucket", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "bucket", "provider_id", "cloud_provider", "id", driver, md
+        "bucket", "provider_id", "cloud_provider", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "project_to_bucket", "project_id", "project", "id", driver, md
+        "project_to_bucket", "project_id", "project", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "project_to_bucket", "bucket_id", "bucket", "id", driver, md
+        "project_to_bucket", "bucket_id", "bucket", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "compute_access", "project_id", "project", "id", driver, md
+        "compute_access", "project_id", "project", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "compute_access", "user_id", "User", "id", driver, md
+        "compute_access", "user_id", "User", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "compute_access", "group_id", "Group", "id", driver, md
+        "compute_access", "group_id", "Group", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "compute_access", "provider_id", "cloud_provider", "id", driver, md
+        "compute_access", "provider_id", "cloud_provider", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "storage_access", "project_id", "project", "id", driver, md
+        "storage_access", "project_id", "project", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "storage_access", "user_id", "User", "id", driver, md
+        "storage_access", "user_id", "User", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "storage_access", "group_id", "Group", "id", driver, md
+        "storage_access", "group_id", "Group", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "storage_access", "provider_id", "cloud_provider", "id", driver, md
+        "storage_access", "provider_id", "cloud_provider", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "certificate", "application_id", "application", "id", driver, md
+        "certificate", "application_id", "application", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "s3credential", "user_id", "User", "id", driver, md
+        "s3credential", "user_id", "User", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "tag", "user_id", "User", "id", driver, md
+        "tag", "user_id", "User", "id", driver, session, md
     )
