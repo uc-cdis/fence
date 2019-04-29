@@ -403,17 +403,6 @@ def delete_user(current_session, username):
                 current_session, gcm, gpg_email, google_proxy_group_from_fence_db, user
             )
 
-    # Note: ZLC 2019-03-04 Currently Fence db has users_to_policies table and policy table,
-    # where policy table, for some reason, has a user_id field.
-    # Moreover, that user_id field is _not_ a foreign key referencing User.id.
-    # Presumably rows in the policy table should get deleted when the user they reference is deleted,
-    # but we cannot rely on a delete cascade for this, since the policy table is
-    # not a child of any other table.
-    # So there should be custom logic here to delete rows in the policy table.
-    # However, apparently we will soon remove this table from Fence anyway.
-    # TODO: So when that happens, remove this comment block.
-    # Meanwhile, note that this code does _not_ delete rows in the policy table.
-
     logger.debug("Deleting all user data from Fence database...")
     current_session.delete(user)
     current_session.commit()
