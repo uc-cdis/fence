@@ -61,6 +61,8 @@ class Oauth2ClientBase(object):
         token = self.get_token(token_endpoint, code)
         keys = self.get_jwt_keys(jwks_endpoint)
 
+        print("Token is {}".format(token))
+
         return jwt.decode(
             token["id_token"],
             keys,
