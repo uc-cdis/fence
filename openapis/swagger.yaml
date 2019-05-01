@@ -424,14 +424,13 @@ paths:
       summary: >-
         Initilize a multipart upload for AWS bucket. It returns an uploadId which
         can be used for uploading object parts (see /multipart/upload) and completing
-        the uploading process (see /multipart/complete)
+        the upload (see /multipart/complete)
       description: >-
         For uploading the big file with the size is larger than 5GB in data upload
         flow, Fence needs to provide a list of endpoints for supporting multipart upload presigned url
-        This is the first step on the API side for the multipart upload presigned url.
-        This endpoint causes fence to make a request to indexd to create a new, blank
-        index record, and returns the GUID for this new record and an uploadId for multipart
-        presigned url upload
+        This is the first step on the API side for the multipart upload presigned url. This endpoint 
+        causes fence to make a request to indexd to create a new, blank index record, and returns
+        the GUID for this new record and an uploadId for multipart upload presigned url
       security:
         - OAuth2:
           - user
@@ -456,7 +455,7 @@ paths:
                       the GUID from the newly created record in indexd
                   uploadId:
                     type: string
-                    description: the uploadId for multipart presigned URL upload usable for data upload
+                    description: the uploadId for multipart upload presigned URL usable for data upload
  
   '/multipart/upload':
     post:
@@ -488,7 +487,7 @@ paths:
                 properties:
                   presigned_url:
                     type: string
-                    description: the presigned URL upload for uploading part
+                    description: the presigned URL for uploading part
 
   '/multipart/complete':
     post:
@@ -497,8 +496,8 @@ paths:
       summary: >-
         Complete aws multipart upload
       description: >-
-        This is the last step for the multipart upload presiged url. All the parts which are submitted 
-        need to be concaternated together. This enpoint takes a list of the part info (partNumber and Etag)
+        This is the last step for the multipart upload presiged url. All the parts which were submitted 
+        need to be combined together. This enpoint takes a list of the part info (partNumber, Etag)
         and uploadId in order to finish the upload
       security:
         - OAuth2:
@@ -513,14 +512,6 @@ paths:
       responses:
         200:
           description: successful operation
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  presigned_url:
-                    type: string
-                    description: the presigned URL upload for uploading part
 
   /credentials:
     get:
