@@ -356,7 +356,7 @@ class ArboristClient(object):
     @_arborist_retry()
     def create_client(self, client_id, policies):
         response = requests.post(
-            self._client_url, json=dict(name=client_id, policies=policies or [])
+            self._client_url, json=dict(clientID=client_id, policies=policies or [])
         )
         data = _request_get_json(response)
         if "error" in data:
@@ -368,6 +368,31 @@ class ArboristClient(object):
             raise ArboristError(data["error"])
         self.logger.info("created client {}".format(client_id))
         return data
+
+    @_arborist_retry()
+    def update_client(self, client_id, policies):
+        url = "/".join((self._client_url, client_id, "policy"))
+        response = requests.delete(url)
+        if response.status_code != 204:
+            data = _request_get_json(response)
+            self.logger.error(
+                "could not revoke policies from client `{}` in arborist: {}".format(
+                    client_id, data.get("error")
+                )
+            )
+            raise ArboristError(data.get("error"))
+
+        for policy in policies:
+            response = requests.post(url, json=dict(policy=policy))
+            if response.status_code != 204:
+                data = _request_get_json(response)
+                self.logger.error(
+                    "could not grant policy `{}` to client `{}` in arborist: {}".format(
+                        policy, client_id, data["error"]
+                    )
+                )
+                raise ArboristError(data["error"])
+        self.logger.info("updated policies for client {}".format(client_id))
 
     @_arborist_retry()
     def delete_client(self, client_id):
