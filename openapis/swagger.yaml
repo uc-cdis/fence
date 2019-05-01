@@ -335,6 +335,7 @@ paths:
         - data
       summary: >-
         Create a new blank record in indexd to use for uploading a data file
+        less than 5GB. For files larger than 5GB, please use multipart upload presigned url
       description: >-
         This is the first step on the API side for the data upload flow.  This
         endpoint causes fence to make a request to indexd to create a new, blank
@@ -435,7 +436,7 @@ paths:
         - OAuth2:
           - user
           - data
-      operationId: multipartUploadBlank
+      operationId: multipartUploadInit
       requestBody:
         content:
           application/json:
@@ -464,14 +465,15 @@ paths:
       summary: >-
         Upload an object part given uploadId
       description: >-
-        This is the second step on the API side for the multipart upload presiged url. The object is chopped into
+        This is the second step on the API side for the multipart upload presigned url. The object is chopped into
         multiple parts with part number start from 1. Each part is submitted to the cloud resource with this
-        endpoint by providing the part number a long with uploadId 
+        endpoint by providing the part number a long with uploadId. It is worth to mention that the minimal supported
+        part size is 5 MB as describe in https://docs.aws.amazon.com/AmazonS3/latest/dev/qfacts.html
       security:
         - OAuth2:
           - user
           - data
-      operationId: multipartUploadBlank
+      operationId: multipartUpload
       requestBody:
         content:
           application/json:
@@ -496,14 +498,14 @@ paths:
       summary: >-
         Complete aws multipart upload
       description: >-
-        This is the last step for the multipart upload presiged url. All the parts which were submitted 
+        This is the last step for the multipart upload presigned url. All the parts which were submitted 
         need to be combined together. This enpoint takes a list of the part info (partNumber, Etag)
         and uploadId in order to finish the upload
       security:
         - OAuth2:
           - user
           - data
-      operationId: multipartUploadBlank
+      operationId: multipartUploadComplete
       requestBody:
         content:
           application/json:
@@ -1544,7 +1546,7 @@ components:
           items:
             type: object
             properties:
-              PartNumber:
+              partNumber:
                 type: integer
                 description: >-
                   The part number
