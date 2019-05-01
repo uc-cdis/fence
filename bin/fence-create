@@ -120,6 +120,12 @@ def parse_arguments():
     client_modify.add_argument(
         "--delete-urls", help="delete all urls", action="store_true", default=False
     )
+    client_modify.add_argument(
+        "--policies",
+        help="which RBAC policies are granted to this client; if given, "
+             "previous policies will be revoked",
+        nargs="*",
+    )
 
     client_list = subparsers.add_parser("client-list")
 
@@ -376,6 +382,8 @@ def main():
             description=args.description,
             set_auto_approve=args.set_auto_approve,
             unset_auto_approve=args.unset_auto_approve,
+            arborist=arborist,
+            policies=args.policies,
         )
     elif args.action == "client-delete":
         delete_client_action(DB, args.client)
