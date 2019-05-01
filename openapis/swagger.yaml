@@ -417,6 +417,111 @@ paths:
                 $ref: '#/components/schemas/SignedURL'
         '400':
           description: 'Invalid input: UUID not found or invalid location'
+  '/multipart/init':
+    post:
+      tags:
+        - data
+      summary: >-
+        Initilize a multipart upload for AWS bucket. It returns an uploadId which
+        can be used for uploading object parts (see /multipart/upload) and completing
+        the uploading process (see /multipart/complete)
+      description: >-
+        For uploading the big file with the size is larger than 5GB in data upload
+        flow, Fence needs to provide a list of endpoints for supporting multipart upload presigned url
+        This is the first step on the API side for the multipart upload presigned url.
+        This endpoint causes fence to make a request to indexd to create a new, blank
+        index record, and returns the GUID for this new record and an uploadId for multipart
+        presigned url upload
+      security:
+        - OAuth2:
+          - user
+          - data
+      operationId: multipartUploadBlank
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestUploadBlank'
+      responses:
+        200:
+          description: successful operation; created new blank record in indexd and uploadId for multipart upload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  guid:
+                    type: string
+                    description: >-
+                      the GUID from the newly created record in indexd
+                  uploadId:
+                    type: string
+                    description: the uploadId for multipart presigned URL upload usable for data upload
+ 
+  '/multipart/upload':
+    post:
+      tags:
+        - data
+      summary: >-
+        Upload an object part given uploadId
+      description: >-
+        This is the second step on the API side for the multipart upload presiged url. The object is chopped into
+        multiple parts with part number start from 1. Each part is submitted to the cloud resource with this
+        endpoint by providing the part number a long with uploadId 
+      security:
+        - OAuth2:
+          - user
+          - data
+      operationId: multipartUploadBlank
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestMultipartUpload'
+      responses:
+        200:
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  presigned_url:
+                    type: string
+                    description: the presigned URL upload for uploading part
+
+  '/multipart/complete':
+    post:
+      tags:
+        - data
+      summary: >-
+        Complete aws multipart upload
+      description: >-
+        This is the last step for the multipart upload presiged url. All the parts which are submitted 
+        need to be concaternated together. This enpoint takes a list of the part info (partNumber and Etag)
+        and uploadId in order to finish the upload
+      security:
+        - OAuth2:
+          - user
+          - data
+      operationId: multipartUploadBlank
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteMultipartUpload'
+      responses:
+        200:
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  presigned_url:
+                    type: string
+                    description: the presigned URL upload for uploading part
+
   /credentials:
     get:
       tags:
@@ -1415,6 +1520,52 @@ components:
       example:
         file_name: "my_file.bam"
         expires_in: 1200
+    RequestMultipartUpload:
+      type: object
+      required:
+      properties:
+         key:
+          type: string
+          description: >-
+            the key of the object in the format of GUID/filename
+        uploadId:
+          type: string
+          description: the uploadId for multipart presigned URL upload usable for data upload      
+        partNumber:
+          type: int
+          description: the part number of the part (start from 1)
+        expires_in:
+          type: integer
+          description: optional integer specifying the presigned URL lifetime
+    CompleteMultipartUpload:
+      type: object
+      required:
+      properties:
+         key:
+          type: string
+          description: >-
+            the key of the object in the format of GUID/filename
+        uploadId:
+          type: string
+          description: the uploadId for multipart presigned URL upload usable for data upload      
+        parts:
+          type: array
+          items:
+            type: object
+            properties:
+              PartNumber:
+                type: int
+                description: >-
+                  The part number
+              ETag:
+                type: string
+                description: the etag that cooresponds to the the object part with the partnumber
+
+          description: >-
+            List of part numbers info needed for multipart completion
+        expires_in:
+          type: integer
+          description: optional integer specifying the presigned URL lifetime
     CredentialsSource:
       type: object
       required:
