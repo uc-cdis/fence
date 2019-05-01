@@ -443,7 +443,7 @@ paths:
             schema:
               $ref: '#/components/schemas/RequestUploadBlank'
       responses:
-        200:
+        201:
           description: successful operation; created new blank record in indexd and uploadId for multipart upload
           content:
             application/json:
@@ -1524,7 +1524,7 @@ components:
       type: object
       required:
       properties:
-         key:
+        key:
           type: string
           description: >-
             the key of the object in the format of GUID/filename
@@ -1532,7 +1532,7 @@ components:
           type: string
           description: the uploadId for multipart presigned URL upload usable for data upload      
         partNumber:
-          type: int
+          type: integer
           description: the part number of the part (start from 1)
         expires_in:
           type: integer
@@ -1541,7 +1541,7 @@ components:
       type: object
       required:
       properties:
-         key:
+        key:
           type: string
           description: >-
             the key of the object in the format of GUID/filename
@@ -1554,7 +1554,7 @@ components:
             type: object
             properties:
               PartNumber:
-                type: int
+                type: integer
                 description: >-
                   The part number
               ETag:
