@@ -44,7 +44,11 @@ class ElixirOauth2Client(Oauth2ClientBase):
                 "jwks_uri",
                 "https://login.elixir-czech.org/oidc/jwk",
             )
-            claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
+            userinfo_endpoint = self.get_value_from_discovery_doc(
+                "userinfo_endpoint",
+                "https://login.elixir-czech.org/oidc/userinfo",
+            )
+            claims = self.get_jwt_userinfo_identity(token_endpoint, jwks_endpoint, userinfo_endpoint, code)
 
             if claims["email"]:
                 return {"email": claims["email"]}

@@ -68,6 +68,33 @@ class Oauth2ClientBase(object):
             keys,
             options={"verify_aud": False, "verify_at_hash": False},
         )
+    
+    def get_jwt_userinfo_identity(self, token_endpoint, jwks_endpoint, userinfo_endpoint, code):
+        """
+        Get jwt identity via userinfo
+        """
+        token = self.get_token(token_endpoint, code)
+        keys = self.get_jwt_keys(jwks_endpoint)
+
+        access_token = token["access_token"]
+
+        success = jwt.decode(
+            access_token,
+            keys,
+            options={"verify_aud": False, "verify_at_hash": False},
+        )
+
+        resp = requests.get(url=userinfo_endpoint, headers={'Authorization': 'Bearer ' + access_token}, proxies=self.get_proxies())
+        if resp.status_code != requests.codes.ok:
+            self.logger.error(
+                "{} ERROR: Can not retrieve userinfo from IdP's API {}".format(
+                    resp.status_code, userinfo_endpoint
+                )
+            )
+            return None
+        return resp.json()
+
+
 
     def get_value_from_discovery_doc(self, key, default_value):
         """
