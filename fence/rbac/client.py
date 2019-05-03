@@ -371,17 +371,41 @@ class ArboristClient(object):
 
     @_arborist_retry()
     def update_client(self, client_id, policies):
-        url = "/".join((self._client_url, client_id, "policy"))
-        response = requests.delete(url)
-        if response.status_code != 204:
-            data = _request_get_json(response)
+        # retrieve existing client, create one if not found
+        response = requests.get("/".join((self._client_url, client_id)))
+        if response.status_code == 404:
+            self.create_client(client_id, policies)
+            return
+
+        # unpack the result
+        data = _request_get_json(response)
+        if "error" in data:
             self.logger.error(
-                "could not revoke policies from client `{}` in arborist: {}".format(
-                    client_id, data.get("error")
+                "could not fetch client `{}` in arborist: {}".format(
+                    client_id, data["error"]
                 )
             )
-            raise ArboristError(data.get("error"))
+            raise ArboristError(data["error"])
+        current_policies = set(data['policies'])
+        policies = set(policies)
 
+        # find newly granted policies, revoke all if needed
+        url = "/".join((self._client_url, client_id, "policy"))
+        if current_policies.difference(policies):
+            # revoke all and re-grant later
+            response = requests.delete(url)
+            if response.status_code != 204:
+                data = _request_get_json(response)
+                self.logger.error(
+                    "could not revoke policies from client `{}` in arborist: {}".format(
+                        client_id, data.get("error")
+                    )
+                )
+                raise ArboristError(data.get("error"))
+        else:
+            policies.difference_update(current_policies)
+
+        # grant missing policies
         for policy in policies:
             response = requests.post(url, json=dict(policy=policy))
             if response.status_code != 204:
