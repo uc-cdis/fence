@@ -73,6 +73,8 @@ def modify_client_action(
     description=None,
     set_auto_approve=False,
     unset_auto_approve=False,
+    arborist=None,
+    policies=None,
 ):
     driver = SQLAlchemyDriver(DB)
     with driver.session as s:
@@ -98,6 +100,8 @@ def modify_client_action(
             client.description = description
             print("Updating description to {}".format(description))
         s.commit()
+    if arborist is not None and policies:
+        arborist.update_client(client.client_id, policies)
 
 
 def create_client_action(

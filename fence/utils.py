@@ -41,10 +41,14 @@ def create_client(
     is_admin=False,
     grant_types=None,
     confidential=True,
+    arborist=None,
+    policies=None,
 ):
+    client_id = random_str(40)
+    if arborist is not None:
+        arborist.create_client(client_id, policies)
     grant_types = grant_types
     driver = SQLAlchemyDriver(DB)
-    client_id = random_str(40)
     client_secret = None
     hashed_secret = None
     if confidential:
@@ -58,6 +62,8 @@ def create_client(
             user = User(username=username, is_admin=is_admin)
             s.add(user)
         if s.query(Client).filter(Client.name == name).first():
+            if arborist is not None:
+                arborist.delete_client(client_id)
             raise Exception("client {} already exists".format(name))
         client = Client(
             client_id=client_id,
