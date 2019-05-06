@@ -392,7 +392,7 @@ class ArboristClient(object):
                 )
             )
             raise ArboristError(data["error"])
-        current_policies = set(data['policies'])
+        current_policies = set(data["policies"])
         policies = set(policies)
 
         # find newly granted policies, revoke all if needed
