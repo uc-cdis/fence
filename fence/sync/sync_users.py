@@ -27,7 +27,7 @@ from fence.models import (
     User,
     query_for_user,
 )
-from fence.rbac.client import ArboristError
+from fence.rbac.client import ArboristClient, ArboristError
 from fence.resources.storage import StorageManager
 
 
@@ -1011,7 +1011,9 @@ class UserSyncer(object):
             return False
         if not self.arborist_client.healthy():
             # TODO (rudyardrichter, 2019-01-07): add backoff/retry here
-            self.logger.error("arborist service is unavailable; skipping main arborist sync")
+            self.logger.error(
+                "arborist service is unavailable; skipping main arborist sync"
+            )
             return False
 
         # Set up the resource tree in arborist
