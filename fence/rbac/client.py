@@ -458,6 +458,7 @@ class ArboristClient(object):
 
     @_arborist_retry()
     def create_user_if_not_exist(self, username):
+        self.logger.info("making sure user exists: `{}`".format(username))
         user_json = {"name": username}
         response = requests.post(self._user_url, json=user_json)
         data = _request_get_json(response)

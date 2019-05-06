@@ -1046,10 +1046,7 @@ class UserSyncer(object):
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
 
-            self.logger.info("making sure user exists: `{}`".format(username))
             self.arborist_client.create_user_if_not_exist(username)
-
-            self.logger.info("revoking all policies for user `{}`".format(username))
             self.arborist_client.revoke_all_policies_for_user(username)
 
             for path, permissions in user_resources.iteritems():
