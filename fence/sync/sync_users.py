@@ -251,13 +251,7 @@ class UserSyncer(object):
         self.logger = get_logger(
             "user_syncer", log_level="debug" if config["DEBUG"] == True else "info"
         )
-
-        self.arborist_client = None
-        if arborist:
-            self.arborist_client = ArboristClient(
-                arborist_base_url=arborist,
-                logger=get_logger("user_syncer.arborist_client"),
-            )
+        self.arborist_client = arborist
 
         if storage_credentials:
             self.storage_manager = StorageManager(
