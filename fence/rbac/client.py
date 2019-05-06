@@ -457,7 +457,8 @@ class ArboristClient(object):
             self.logger.info("group {} contains users: {}".format(name, list(users)))
             self.logger.info("group {} has policies: {}".format(name, list(policies)))
         return data
-
+        
+    @_arborist_retry()
     def create_user_if_not_exist(self, username):
         user_json = {"name": username}
         response = requests.post(self._user_url, json=user_json)
