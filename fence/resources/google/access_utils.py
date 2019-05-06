@@ -11,10 +11,6 @@ from cirrus.google_cloud.iam import GooglePolicyMember
 from cirrus.google_cloud.errors import GoogleAPIError
 from cirrus.google_cloud.iam import GooglePolicy
 from cirrus import GoogleCloudManager
-from cirrus.google_cloud import (
-    COMPUTE_ENGINE_API_SERVICE_ACCOUNT,
-    USER_MANAGED_SERVICE_ACCOUNT,
-)
 
 import fence
 from cdislogging import get_logger
@@ -39,11 +35,6 @@ from fence.resources.google.utils import (
 from fence.utils import get_valid_expiration_from_request
 
 logger = get_logger(__name__)
-
-ALLOWED_SERVICE_ACCOUNT_TYPES = [
-    COMPUTE_ENGINE_API_SERVICE_ACCOUNT,
-    USER_MANAGED_SERVICE_ACCOUNT,
-]
 
 
 def get_google_project_number(google_project_id, google_cloud_manager):
@@ -173,11 +164,11 @@ def is_valid_service_account_type(account_id, google_cloud_manager):
 
     Returns:
         Bool: True if service acocunt type is allowed as defined
-        in ALLOWED_SERVICE_ACCOUNT_TYPES
+        in ALLOWED_USER_SERVICE_ACCOUNT_DOMAINS
     """
     try:
         sa_type = google_cloud_manager.get_service_account_type(account_id)
-        return sa_type in ALLOWED_SERVICE_ACCOUNT_TYPES
+        return sa_type in config["ALLOWED_USER_SERVICE_ACCOUNT_DOMAINS"]
     except Exception as exc:
         logger.error(
             "validity of Google service account {} (google project: {}) type "

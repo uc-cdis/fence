@@ -11,6 +11,7 @@ import backoff
 from cdislogging import get_logger
 import requests
 
+from fence.config import config
 from fence.errors import Forbidden
 from fence.rbac.errors import ArboristError, ArboristUnhealthyError
 
@@ -66,7 +67,9 @@ class ArboristClient(object):
     """
 
     def __init__(self, logger=None, arborist_base_url="http://arborist-service/"):
-        self.logger = logger or get_logger("ArboristClient")
+        self.logger = logger or get_logger(
+            "ArboristClient", log_level="debug" if config["DEBUG"] == True else "info"
+        )
         self._base_url = arborist_base_url.strip("/")
         self._auth_url = self._base_url + "/auth/"
         self._health_url = self._base_url + "/health"
@@ -74,6 +77,7 @@ class ArboristClient(object):
         self._resource_url = self._base_url + "/resource"
         self._role_url = self._base_url + "/role/"
         self._user_url = self._base_url + "/user"
+        self._client_url = self._base_url + "/client"
         self._group_url = self._base_url + "/group"
 
     def healthy(self):
@@ -474,3 +478,75 @@ class ArboristClient(object):
             raise ArboristError(data["error"])
         self.logger.info("created user {}".format(username))
         return data
+        
+    @_arborist_retry()
+    def create_client(self, client_id, policies):
+        response = requests.post(
+            self._client_url, json=dict(clientID=client_id, policies=policies or [])
+        )
+        data = _request_get_json(response)
+        if "error" in data:
+            self.logger.error(
+                "could not create client `{}` in arborist: {}".format(
+                    client_id, data["error"]
+                )
+            )
+            raise ArboristError(data["error"])
+        self.logger.info("created client {}".format(client_id))
+        return data
+
+    @_arborist_retry()
+    def update_client(self, client_id, policies):
+        # retrieve existing client, create one if not found
+        response = requests.get("/".join((self._client_url, client_id)))
+        if response.status_code == 404:
+            self.create_client(client_id, policies)
+            return
+
+        # unpack the result
+        data = _request_get_json(response)
+        if "error" in data:
+            self.logger.error(
+                "could not fetch client `{}` in arborist: {}".format(
+                    client_id, data["error"]
+                )
+            )
+            raise ArboristError(data["error"])
+        current_policies = set(data["policies"])
+        policies = set(policies)
+
+        # find newly granted policies, revoke all if needed
+        url = "/".join((self._client_url, client_id, "policy"))
+        if current_policies.difference(policies):
+            # revoke all and re-grant later
+            response = requests.delete(url)
+            if response.status_code != 204:
+                data = _request_get_json(response)
+                self.logger.error(
+                    "could not revoke policies from client `{}` in arborist: {}".format(
+                        client_id, data.get("error")
+                    )
+                )
+                raise ArboristError(data.get("error"))
+        else:
+            policies.difference_update(current_policies)
+
+        # grant missing policies
+        for policy in policies:
+            response = requests.post(url, json=dict(policy=policy))
+            if response.status_code != 204:
+                data = _request_get_json(response)
+                self.logger.error(
+                    "could not grant policy `{}` to client `{}` in arborist: {}".format(
+                        policy, client_id, data["error"]
+                    )
+                )
+                raise ArboristError(data["error"])
+        self.logger.info("updated policies for client {}".format(client_id))
+
+    @_arborist_retry()
+    def delete_client(self, client_id):
+        response = requests.delete("/".join((self._client_url, client_id)))
+        self.logger.info("deleted client {}".format(client_id))
+        return response.status_code == 204
+

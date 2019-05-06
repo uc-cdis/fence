@@ -11,13 +11,14 @@ import shutil
 from stat import S_ISDIR
 import yaml
 
-from cdispyutils.log import get_logger
+from cdislogging import get_logger
 import paramiko
 from paramiko.proxy import ProxyCommand
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
 from userdatamodel.driver import SQLAlchemyDriver
 
+from fence.config import config
 from fence.models import (
     AccessPrivilege,
     AuthorizationProvider,
@@ -26,7 +27,7 @@ from fence.models import (
     User,
     query_for_user,
 )
-from fence.rbac.client import ArboristClient, ArboristError
+from fence.rbac.client import ArboristError
 from fence.resources.storage import StorageManager
 
 
@@ -232,7 +233,7 @@ class UserSyncer(object):
             sync_from_dir: path to an alternative dir to sync from instead of
                            dbGaP
             arborist:
-                base URL for arborist service if the syncer should also create
+                ArboristClient instance if the syncer should also create
                 resources in arborist
         """
         self.sync_from_local_csv_dir = sync_from_local_csv_dir
@@ -247,7 +248,9 @@ class UserSyncer(object):
         self.driver = SQLAlchemyDriver(DB)
         self.project_mapping = project_mapping or {}
         self._projects = dict()
-        self.logger = get_logger("user_syncer")
+        self.logger = get_logger(
+            "user_syncer", log_level="debug" if config["DEBUG"] == True else "info"
+        )
 
         self.arborist_client = None
         if arborist:

@@ -6,7 +6,6 @@ This blueprint defines the endpoints under ``.well-known/``, which includes:
 
 import flask
 
-from fence.jwt.token import USER_ALLOWED_SCOPES, CLIENT_ALLOWED_SCOPES
 from fence.models import ClientAuthType
 from fence.config import config
 
@@ -66,7 +65,9 @@ def openid_configuration():
     registration_endpoint = None  # not yet supported
 
     # List all the scopes allowed in OAuth2 requests.
-    scopes_supported = list(set(USER_ALLOWED_SCOPES + CLIENT_ALLOWED_SCOPES))
+    scopes_supported = list(
+        set(config["USER_ALLOWED_SCOPES"] + config["CLIENT_ALLOWED_SCOPES"])
+    )
 
     # List of all the claims which fence MAY set in the ID token.
     claims_supported = [
