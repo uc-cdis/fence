@@ -28,7 +28,6 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy import func
 from sqlalchemy.schema import ForeignKey
-from fence.jwt.token import CLIENT_ALLOWED_SCOPES
 from userdatamodel import Base
 from userdatamodel.models import (
     AccessPrivilege,
@@ -54,6 +53,8 @@ from userdatamodel.models import (
     UserToGroup,
     users_to_policies,
 )
+
+from fence.config import config
 
 
 def query_for_user(session, username):
@@ -106,9 +107,10 @@ class Client(Base, OAuth2ClientMixin):
     description = Column(String(400))
 
     # required if you need to support client credential
-    user_id = Column(Integer, ForeignKey(User.id))
+    user_id = Column(Integer, ForeignKey(User.id, ondelete="CASCADE"))
     user = relationship(
-        "User", backref=backref("clients", cascade="all, delete-orphan")
+        "User",
+        backref=backref("clients", cascade="all, delete-orphan", passive_deletes=True),
     )
 
     # this is for internal microservices to skip user grant
@@ -236,7 +238,10 @@ class AuthorizationCode(Base, OAuth2AuthorizationCodeMixin):
 
     user_id = Column(Integer, ForeignKey("User.id", ondelete="CASCADE"))
     user = relationship(
-        "User", backref=backref("authorization_codes", cascade="all, delete-orphan")
+        "User",
+        backref=backref(
+            "authorization_codes", cascade="all, delete-orphan", passive_deletes=True
+        ),
     )
 
     nonce = Column(String, nullable=True)
@@ -282,9 +287,14 @@ class GoogleServiceAccount(Base):
 
     client_id = Column(String(40))
 
-    user_id = Column(Integer, ForeignKey(User.id), nullable=False)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
     user = relationship(
-        "User", backref=backref("google_service_accounts", cascade="all, delete-orphan")
+        "User",
+        backref=backref(
+            "google_service_accounts",
+            cascade="all, delete-orphan",
+            passive_deletes=True,
+        ),
     )
 
     google_project_id = Column(String, nullable=False)
@@ -305,7 +315,13 @@ class UserGoogleAccount(Base):
 
     email = Column(String, unique=True, nullable=False)
 
-    user_id = Column(Integer, ForeignKey(User.id), nullable=False)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
+    user = relationship(
+        "User",
+        backref=backref(
+            "user_google_accounts", cascade="all, delete-orphan", passive_deletes=True
+        ),
+    )
 
     def delete(self):
         with flask.current_app.db.session as session:
@@ -318,11 +334,33 @@ class UserGoogleAccountToProxyGroup(Base):
     __tablename__ = "user_google_account_to_proxy_group"
 
     user_google_account_id = Column(
-        Integer, ForeignKey(UserGoogleAccount.id), nullable=False, primary_key=True
+        Integer,
+        ForeignKey(UserGoogleAccount.id, ondelete="CASCADE"),
+        nullable=False,
+        primary_key=True,
+    )
+    user_google_account = relationship(
+        "UserGoogleAccount",
+        backref=backref(
+            "user_google_account_to_proxy_group",
+            cascade="all, delete-orphan",
+            passive_deletes=True,
+        ),
     )
 
     proxy_group_id = Column(
-        String, ForeignKey(GoogleProxyGroup.id), nullable=False, primary_key=True
+        String,
+        ForeignKey(GoogleProxyGroup.id, ondelete="CASCADE"),
+        nullable=False,
+        primary_key=True,
+    )
+    google_proxy_group = relationship(
+        "GoogleProxyGroup",
+        backref=backref(
+            "user_google_account_to_proxy_group",
+            cascade="all, delete-orphan",
+            passive_deletes=True,
+        ),
     )
 
     expires = Column(BigInteger)
@@ -342,7 +380,15 @@ class GoogleServiceAccountKey(Base):
     key_id = Column(String, nullable=False)
 
     service_account_id = Column(
-        Integer, ForeignKey(GoogleServiceAccount.id), nullable=False
+        Integer, ForeignKey(GoogleServiceAccount.id, ondelete="CASCADE"), nullable=False
+    )
+    google_service_account = relationship(
+        "GoogleServiceAccount",
+        backref=backref(
+            "google_service_account_keys",
+            cascade="all, delete-orphan",
+            passive_deletes=True,
+        ),
     )
 
     expires = Column(BigInteger)
@@ -360,10 +406,16 @@ class GoogleBucketAccessGroup(Base):
     __tablename__ = "google_bucket_access_group"
     id = Column(Integer, primary_key=True)
 
-    bucket_id = Column(Integer, ForeignKey(Bucket.id), nullable=False)
+    bucket_id = Column(
+        Integer, ForeignKey(Bucket.id, ondelete="CASCADE"), nullable=False
+    )
     bucket = relationship(
         "Bucket",
-        backref=backref("google_bucket_access_groups", cascade="all, delete-orphan"),
+        backref=backref(
+            "google_bucket_access_groups",
+            cascade="all, delete-orphan",
+            passive_deletes=True,
+        ),
     )
 
     email = Column(String, nullable=False)
@@ -382,18 +434,30 @@ class GoogleProxyGroupToGoogleBucketAccessGroup(Base):
     __tablename__ = "google_proxy_group_to_google_bucket_access_group"
     id = Column(Integer, primary_key=True)
 
-    proxy_group_id = Column(String, ForeignKey(GoogleProxyGroup.id), nullable=False)
+    proxy_group_id = Column(
+        String, ForeignKey(GoogleProxyGroup.id, ondelete="CASCADE"), nullable=False
+    )
     proxy_group = relationship(
         "GoogleProxyGroup",
-        backref=backref("bucket_access_groups", cascade="all, delete-orphan"),
+        backref=backref(
+            "google_proxy_group_to_google_bucket_access_group",
+            cascade="all, delete-orphan",
+            passive_deletes=True,
+        ),
     )
 
     access_group_id = Column(
-        Integer, ForeignKey(GoogleBucketAccessGroup.id), nullable=False
+        Integer,
+        ForeignKey(GoogleBucketAccessGroup.id, ondelete="CASCADE"),
+        nullable=False,
     )
     access_group = relationship(
         "GoogleBucketAccessGroup",
-        backref=backref("proxy_groups_with_access", cascade="all, delete-orphan"),
+        backref=backref(
+            "google_proxy_group_to_google_bucket_access_group",
+            cascade="all, delete-orphan",
+            passive_deletes=True,
+        ),
     )
 
 
@@ -416,19 +480,24 @@ class ServiceAccountAccessPrivilege(Base):
 
     id = Column(Integer, primary_key=True)
 
-    project_id = Column(Integer, ForeignKey(Project.id), nullable=False)
-
+    project_id = Column(
+        Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False
+    )
     project = relationship(
-        "Project", backref=backref("sa_access_privileges", cascade="all, delete-orphan")
+        "Project",
+        backref=backref(
+            "sa_access_privileges", cascade="all, delete-orphan", passive_deletes=True
+        ),
     )
 
     service_account_id = Column(
-        Integer, ForeignKey(UserServiceAccount.id), nullable=False
+        Integer, ForeignKey(UserServiceAccount.id, ondelete="CASCADE"), nullable=False
     )
-
     service_account = relationship(
         "UserServiceAccount",
-        backref=backref("access_privileges", cascade="all, delete-orphan"),
+        backref=backref(
+            "access_privileges", cascade="all, delete-orphan", passive_deletes=True
+        ),
     )
 
 
@@ -437,23 +506,28 @@ class ServiceAccountToGoogleBucketAccessGroup(Base):
     id = Column(Integer, primary_key=True)
 
     service_account_id = Column(
-        Integer, ForeignKey(UserServiceAccount.id), nullable=False
+        Integer, ForeignKey(UserServiceAccount.id, ondelete="CASCADE"), nullable=False
     )
-
     service_account = relationship(
         "UserServiceAccount",
-        backref=backref("to_access_groups", cascade="all, delete-orphan"),
+        backref=backref(
+            "to_access_groups", cascade="all, delete-orphan", passive_deletes=True
+        ),
     )
 
     expires = Column(BigInteger)
 
     access_group_id = Column(
-        Integer, ForeignKey(GoogleBucketAccessGroup.id), nullable=False
+        Integer,
+        ForeignKey(GoogleBucketAccessGroup.id, ondelete="CASCADE"),
+        nullable=False,
     )
 
     access_group = relationship(
         "GoogleBucketAccessGroup",
-        backref=backref("to_access_groups", cascade="all, delete-orphan"),
+        backref=backref(
+            "to_access_groups", cascade="all, delete-orphan", passive_deletes=True
+        ),
     )
 
 
@@ -515,7 +589,7 @@ def migrate(driver):
             )
             for client in session.query(Client):
                 if not client._allowed_scopes:
-                    client._allowed_scopes = " ".join(CLIENT_ALLOWED_SCOPES)
+                    client._allowed_scopes = " ".join(config["CLIENT_ALLOWED_SCOPES"])
                     session.add(client)
             session.commit()
             session.execute(
@@ -562,6 +636,47 @@ def migrate(driver):
     )
 
     _update_for_authlib(driver, md)
+
+    # Delete-user migration
+
+    # Check if at least one constraint is already migrated and if so skip
+    # the delete cascade migration.
+    user = Table(User.__tablename__, md, autoload=True, autoload_with=driver.engine)
+    found_user_constraint_already_migrated = False
+
+    # TODO: Once sqlalchemy is bumped to above 1.0.0, just use the first version
+    try:
+        for fkey in list(user.foreign_key_constraints):
+            if str(fkey.parent) == "User.google_proxy_group_id" and fkey.ondelete == "SET NULL":
+                found_user_constraint_already_migrated = True
+    except:
+        for fkey in list(user.foreign_keys):
+            if str(fkey.parent) == "User.google_proxy_group_id" and fkey.ondelete == "SET NULL":
+                found_user_constraint_already_migrated = True
+
+    if not found_user_constraint_already_migrated:
+        # do delete user migration in one session
+        delete_user_session = driver.Session()
+        try:
+            # Deleting google proxy group shouldn't delete user
+            set_foreign_key_constraint_on_delete_setnull(
+                table_name=User.__tablename__,
+                column_name="google_proxy_group_id",
+                fk_table_name=GoogleProxyGroup.__tablename__,
+                fk_column_name="id",
+                driver=driver,
+                session=delete_user_session,
+                metadata=md,
+            )
+
+            _set_on_delete_cascades(driver, delete_user_session, md)
+
+            delete_user_session.commit()
+        except:
+            delete_user_session.rollback()
+            raise
+        finally:
+            delete_user_session.close()
 
 
 def add_foreign_key_column_if_not_exist(
@@ -630,7 +745,7 @@ def add_foreign_key_constraint_if_not_exist(
             with driver.session as session:
                 session.execute(
                     'ALTER TABLE "{}" ADD CONSTRAINT {} '
-                    "FOREIGN KEY({}) REFERENCES {} ({});".format(
+                    'FOREIGN KEY({}) REFERENCES "{}" ({});'.format(
                         table_name,
                         foreign_key_name,
                         column_name,
@@ -639,6 +754,57 @@ def add_foreign_key_constraint_if_not_exist(
                     )
                 )
                 session.commit()
+
+
+def set_foreign_key_constraint_on_delete_cascade(
+    table_name, column_name, fk_table_name, fk_column_name, driver, session, metadata
+):
+    set_foreign_key_constraint_on_delete(
+        table_name,
+        column_name,
+        fk_table_name,
+        fk_column_name,
+        "CASCADE",
+        driver,
+        session,
+        metadata,
+    )
+
+
+def set_foreign_key_constraint_on_delete_setnull(
+    table_name, column_name, fk_table_name, fk_column_name, driver, session, metadata
+):
+    set_foreign_key_constraint_on_delete(
+        table_name,
+        column_name,
+        fk_table_name,
+        fk_column_name,
+        "SET NULL",
+        driver,
+        session,
+        metadata,
+    )
+
+
+def set_foreign_key_constraint_on_delete(
+    table_name, column_name, fk_table_name, fk_column_name, ondelete, driver, session, metadata
+):
+    table = Table(table_name, metadata, autoload=True, autoload_with=driver.engine)
+    foreign_key_name = "{}_{}_fkey".format(table_name.lower(), column_name)
+
+    if column_name in table.c:
+        session.execute(
+            'ALTER TABLE ONLY "{}" DROP CONSTRAINT IF EXISTS {}, '
+            'ADD CONSTRAINT {} FOREIGN KEY ({}) REFERENCES "{}" ({}) ON DELETE {};'.format(
+                table_name,
+                foreign_key_name,
+                foreign_key_name,
+                column_name,
+                fk_table_name,
+                fk_column_name,
+                ondelete,
+            )
+        )
 
 
 def drop_foreign_key_constraint_if_exist(table_name, column_name, driver, metadata):
@@ -854,3 +1020,168 @@ def _update_for_authlib(driver, md):
             )
         )
         session.commit()
+
+
+def _set_on_delete_cascades(driver, session, md):
+    set_foreign_key_constraint_on_delete_cascade(
+        "client", "user_id", "User", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "authorization_code", "user_id", "User", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "google_service_account", "user_id", "User", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "user_google_account", "user_id", "User", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "user_google_account_to_proxy_group",
+        "user_google_account_id",
+        "user_google_account",
+        "id",
+        driver,
+        session,
+        md,
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "user_google_account_to_proxy_group",
+        "proxy_group_id",
+        "google_proxy_group",
+        "id",
+        driver,
+        session,
+        md,
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "google_service_account_key",
+        "service_account_id",
+        "google_service_account",
+        "id",
+        driver,
+        session,
+        md,
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "google_bucket_access_group", "bucket_id", "bucket", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "google_proxy_group_to_google_bucket_access_group",
+        "proxy_group_id",
+        "google_proxy_group",
+        "id",
+        driver,
+        session,
+        md,
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "google_proxy_group_to_google_bucket_access_group",
+        "access_group_id",
+        "google_bucket_access_group",
+        "id",
+        driver,
+        session,
+        md,
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "service_account_access_privilege", "project_id", "project", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "service_account_access_privilege",
+        "service_account_id",
+        "user_service_account",
+        "id",
+        driver,
+        session,
+        md,
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "service_account_to_google_bucket_access_group",
+        "service_account_id",
+        "user_service_account",
+        "id",
+        driver,
+        session,
+        md,
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "service_account_to_google_bucket_access_group",
+        "access_group_id",
+        "google_bucket_access_group",
+        "id",
+        driver,
+        session,
+        md,
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "hmac_keypair", "user_id", "User", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "hmac_keypair_archive", "user_id", "User", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "user_to_group", "user_id", "User", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "user_to_group", "group_id", "Group", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "access_privilege", "user_id", "User", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "access_privilege", "group_id", "Group", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "access_privilege", "project_id", "project", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "access_privilege", "provider_id", "authorization_provider", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "user_to_bucket", "user_id", "User", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "user_to_bucket", "bucket_id", "bucket", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "bucket", "provider_id", "cloud_provider", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "project_to_bucket", "project_id", "project", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "project_to_bucket", "bucket_id", "bucket", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "compute_access", "project_id", "project", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "compute_access", "user_id", "User", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "compute_access", "group_id", "Group", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "compute_access", "provider_id", "cloud_provider", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "storage_access", "project_id", "project", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "storage_access", "user_id", "User", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "storage_access", "group_id", "Group", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "storage_access", "provider_id", "cloud_provider", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "certificate", "application_id", "application", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "s3credential", "user_id", "User", "id", driver, session, md
+    )
+    set_foreign_key_constraint_on_delete_cascade(
+        "tag", "user_id", "User", "id", driver, session, md
+    )

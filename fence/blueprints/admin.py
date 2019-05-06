@@ -10,8 +10,13 @@ import flask
 from flask import request, jsonify, Blueprint, current_app
 from flask_sqlalchemy_session import current_session
 
+from cdislogging import get_logger
+
 from fence.auth import admin_login_required
 from fence.resources import admin
+
+
+logger = get_logger(__name__)
 
 
 blueprint = Blueprint("admin", __name__)
@@ -28,7 +33,7 @@ def debug_log(function):
             for arg, value in zip(argument_names, args) + kwargs.items()
         )
         msg = function.func_name + "\n\t" + "\n\t".join(argument_values)
-        flask.current_app.logger.debug(msg)
+        logger.debug(msg)
         return function(*args, **kwargs)
 
     return write_log

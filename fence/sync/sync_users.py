@@ -11,13 +11,14 @@ import shutil
 from stat import S_ISDIR
 import yaml
 
-from cdispyutils.log import get_logger
+from cdislogging import get_logger
 import paramiko
 from paramiko.proxy import ProxyCommand
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
 from userdatamodel.driver import SQLAlchemyDriver
 
+from fence.config import config
 from fence.models import (
     AccessPrivilege,
     AuthorizationProvider,
@@ -249,7 +250,9 @@ class UserSyncer(object):
         self.driver = SQLAlchemyDriver(DB)
         self.project_mapping = project_mapping or {}
         self._projects = dict()
-        self.logger = get_logger("user_syncer")
+        self.logger = get_logger(
+            "user_syncer", log_level="debug" if config["DEBUG"] == True else "info"
+        )
 
         self.arborist_client = arborist
 
