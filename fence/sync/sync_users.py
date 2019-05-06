@@ -1083,7 +1083,8 @@ class UserSyncer(object):
                                     "description": "policy created by fence sync",
                                     "role_ids": [permission],
                                     "resource_paths": [path],
-                                }
+                                },
+                                overwrite=True,
                             )
                         except ArboristError as e:
                             self.logger.info(
