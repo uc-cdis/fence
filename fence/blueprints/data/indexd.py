@@ -196,7 +196,7 @@ class BlankIndex(object):
                 "fence not configured with data upload bucket; can't create signed URL"
             )
         s3_url = "s3://{}/{}".format(bucket, key)
-        return S3IndexedFileLocation(s3_url).complete_multipart_upload(
+        S3IndexedFileLocation(s3_url).complete_multipart_upload(
             uploadId, parts, expires_in
         )
 
