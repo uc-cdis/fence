@@ -38,3 +38,4 @@ pyyaml
 -e git+https://github.com/uc-cdis/datamodelutils.git@0.4.0#egg=datamodelutils
 -e git+https://github.com/uc-cdis/cdis-python-utils.git@0.2.10#egg=cdispyutils
 -e git+https://github.com/uc-cdis/authutils.git@3.0.1#egg=authutils-3.0.1
+-e git+https://git@github.com/uc-cdis/userdatamodel.git@fix/remove-policy#egg=userdatamodel
