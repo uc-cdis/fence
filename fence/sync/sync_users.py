@@ -962,8 +962,6 @@ class UserSyncer(object):
         self.sync_two_phsids_dict(user_yaml.projects, user_projects)
         self.sync_two_user_info_dict(user_yaml.user_info, user_info)
 
-        self._reset_user_access(sess)
-
         if user_projects:
             self.logger.info("Sync to db and storage backend")
             self.sync_to_db_and_storage_backend(
@@ -988,15 +986,6 @@ class UserSyncer(object):
                 exit(1)
         else:
             self.logger.info("No resources specified; skipping arborist sync")
-
-    def _reset_user_access(self, session):
-        if self.arborist_client:
-            all_users = session.query(User).all()
-            usernames = {user.username for user in all_users}
-            for username in usernames:
-                self.arborist_client.revoke_all_policies_for_user(username)
-
-        # TODO (rudyardrichter 2018-09-10): revoke admin access etc
 
     def _update_arborist(self, session, user_yaml):
         """
@@ -1057,6 +1046,12 @@ class UserSyncer(object):
         for username, user_resources in user_projects.iteritems():
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
+
+            self.logger.info("making sure user exists: `{}`".format(username))
+            self.arborist_client.create_user_if_not_exist(username)
+
+            self.logger.info("revoking all policies for user `{}`".format(username))
+            self.arborist_client.revoke_all_policies_for_user(username)
 
             for path, permissions in user_resources.iteritems():
                 for permission in permissions:

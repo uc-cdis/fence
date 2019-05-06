@@ -358,7 +358,12 @@ class ArboristClient(object):
         response = requests.post(self._policy_url, json=policy_json)
         data = _request_get_json(response)
         if response.status_code == 409:
-            # already exists; this is ok
+            # already exists; this is ok, but leave warning
+            self.logger.warn(
+                "could not create policy `{}` in arborist, got 409: {}".format(
+                    policy_json["id"], data["error"]
+                )
+            )
             return None
         if isinstance(data, dict) and "error" in data:
             self.logger.error(
@@ -447,4 +452,25 @@ class ArboristClient(object):
         if users:
             self.logger.info("group {} contains users: {}".format(name, list(users)))
             self.logger.info("group {} has policies: {}".format(name, list(policies)))
+        return data
+
+    def create_user_if_not_exist(self, username):
+        user_json = {"name": username}
+        response = requests.post(self._user_url, json=user_json)
+        data = _request_get_json(response)
+        if response.status_code == 409:
+            self.logger.warn(
+                "could not create user `{}` in arborist, got 409: {}".format(
+                    username, data["error"]
+                )
+            )
+            return None
+        if "error" in data:
+            self.logger.error(
+                "could not create user `{}` in arborist: {}".format(
+                    username, data["error"]
+                )
+            )
+            raise ArboristError(data["error"])
+        self.logger.info("created user {}".format(username))
         return data
