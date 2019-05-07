@@ -1049,6 +1049,9 @@ class UserSyncer(object):
             self.arborist_client.create_user_if_not_exist(username)
             self.arborist_client.revoke_all_policies_for_user(username)
 
+            for policy in user_yaml.policies.get(user.username, []):
+                self.arborist_client.grant_user_policy(user.username, policy)
+
             for path, permissions in user_resources.iteritems():
                 for permission in permissions:
                     # "permission" in the dbgap sense, not the arborist sense
