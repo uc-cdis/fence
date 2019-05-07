@@ -65,7 +65,7 @@ def arborist_role_for_permission(permission):
     return {
         "id": permission,
         "permissions": [
-            {"id": permission, "action": {"service": "", "method": permission}}
+            {"id": permission, "action": {"service": "*", "method": permission}}
         ],
     }
 
