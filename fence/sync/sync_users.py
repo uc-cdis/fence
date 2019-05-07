@@ -11,13 +11,14 @@ import shutil
 from stat import S_ISDIR
 import yaml
 
-from cdispyutils.log import get_logger
+from cdislogging import get_logger
 import paramiko
 from paramiko.proxy import ProxyCommand
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
 from userdatamodel.driver import SQLAlchemyDriver
 
+from fence.config import config
 from fence.models import (
     AccessPrivilege,
     AuthorizationProvider,
@@ -232,7 +233,7 @@ class UserSyncer(object):
             sync_from_dir: path to an alternative dir to sync from instead of
                            dbGaP
             arborist:
-                base URL for arborist service if the syncer should also create
+                ArboristClient instance if the syncer should also create
                 resources in arborist
         """
         self.sync_from_local_csv_dir = sync_from_local_csv_dir
@@ -247,13 +248,10 @@ class UserSyncer(object):
         self.driver = SQLAlchemyDriver(DB)
         self.project_mapping = project_mapping or {}
         self._projects = dict()
-        self.logger = get_logger("user_syncer")
-
-        self.arborist_client = None
-        if arborist:
-            self.arborist_client = ArboristClient(
-                arborist_base_url=arborist, logger=self.logger
-            )
+        self.logger = get_logger(
+            "user_syncer", log_level="debug" if config["DEBUG"] == True else "info"
+        )
+        self.arborist_client = arborist
 
         if storage_credentials:
             self.storage_manager = StorageManager(
@@ -766,6 +764,9 @@ class UserSyncer(object):
                 u = User(username=username)
                 sess.add(u)
 
+            if self.arborist_client:
+                self.arborist_client.create_user({"name": username})
+
             u.email = user_info[username].get("email", "")
             u.display_name = user_info[username].get("display_name", "")
             u.phone_number = user_info[username].get("phone_number", "")
@@ -958,8 +959,6 @@ class UserSyncer(object):
         self.sync_two_phsids_dict(user_yaml.projects, user_projects)
         self.sync_two_user_info_dict(user_yaml.user_info, user_info)
 
-        self._reset_user_access(sess)
-
         if user_projects:
             self.logger.info("Sync to db and storage backend")
             self.sync_to_db_and_storage_backend(
@@ -970,7 +969,12 @@ class UserSyncer(object):
             self.logger.info("No users for syncing")
 
         if user_yaml.rbac:
-            self.logger.info("Synchronizing arborist")
+            if not self.arborist_client:
+                raise EnvironmentError(
+                    "yaml file contains rbac section but sync is not configured with"
+                    " arborist client"
+                )
+            self.logger.info("Synchronizing arborist...")
             success = self._update_arborist(sess, user_yaml)
             if success:
                 self.logger.info("Finished synchronizing arborist")
@@ -979,16 +983,6 @@ class UserSyncer(object):
                 exit(1)
         else:
             self.logger.info("No resources specified; skipping arborist sync")
-
-    def _reset_user_access(self, session):
-        all_users = session.query(User).all()
-
-        if self.arborist_client:
-            usernames = {user.username for user in all_users}
-            for username in usernames:
-                self.arborist_client.revoke_all_policies_for_user(username)
-
-        # TODO (rudyardrichter 2018-09-10): revoke admin access etc
 
     def _update_arborist(self, session, user_yaml):
         """
@@ -1011,7 +1005,9 @@ class UserSyncer(object):
             return False
         if not self.arborist_client.healthy():
             # TODO (rudyardrichter, 2019-01-07): add backoff/retry here
-            self.logger.error("arborist service is unavailable; skipping arborist sync")
+            self.logger.error(
+                "arborist service is unavailable; skipping main arborist sync"
+            )
             return False
 
         # Set up the resource tree in arborist
@@ -1050,6 +1046,9 @@ class UserSyncer(object):
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
 
+            self.arborist_client.create_user_if_not_exist(username)
+            self.arborist_client.revoke_all_policies_for_user(username)
+
             for path, permissions in user_resources.iteritems():
                 for permission in permissions:
                     # "permission" in the dbgap sense, not the arborist sense
@@ -1081,7 +1080,8 @@ class UserSyncer(object):
                                     "description": "policy created by fence sync",
                                     "role_ids": [permission],
                                     "resource_paths": [path],
-                                }
+                                },
+                                overwrite=True,
                             )
                         except ArboristError as e:
                             self.logger.info(
@@ -1090,10 +1090,24 @@ class UserSyncer(object):
                         created_policies.add(policy_id)
 
                     self.arborist_client.grant_user_policy(user.username, policy_id)
-                    self.logger.info(
-                        "granted policy `{}` to user `{}`".format(
-                            policy_id, user.username
-                        )
-                    )
+
+        groups = user_yaml.rbac.get("groups", [])
+        for group in groups:
+            missing = {"name", "users", "policies"}.difference(set(group.keys()))
+            if missing:
+                name = group.get("name", "{MISSING NAME}")
+                self.logger.error(
+                    "group {} missing required field(s): {}".format(name, list(missing))
+                )
+                continue
+            try:
+                response = self.arborist_client.create_group(
+                    group["name"],
+                    description=group.get("description", ""),
+                    users=group["users"],
+                    policies=group["policies"],
+                )
+            except ArboristError as e:
+                self.logger.info("couldn't create group: {}".format(str(e)))
 
         return True

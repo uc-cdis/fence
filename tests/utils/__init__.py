@@ -331,8 +331,7 @@ def authorized_service_account_management_claims(user_name, user_id, client_id):
     Return:
         dict: dictionary of claims
     """
-    # TODO add new scope for /google/service_accounts endpoints
-    aud = ["access", "data", "user", "openid", "google_service_account"]
+    aud = ["access", "data", "user", "openid", "google_link", "google_service_account"]
     iss = config["BASE_URL"]
     jti = new_jti()
     iat, exp = iat_and_exp()
@@ -366,7 +365,15 @@ def authorized_download_credentials_context_claims(
     Return:
         dict: dictionary of claims
     """
-    aud = ["access", "data", "user", "openid", "credentials", "google_credentials"]
+    aud = [
+        "access",
+        "data",
+        "user",
+        "openid",
+        "credentials",
+        "google_link",
+        "google_credentials",
+    ]
     iss = config["BASE_URL"]
     jti = new_jti()
     iat, exp = iat_and_exp()

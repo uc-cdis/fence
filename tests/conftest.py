@@ -991,6 +991,7 @@ def cloud_manager():
     patch("fence.resources.google.utils.GoogleCloudManager", manager).start()
     patch("fence.scripting.fence_create.GoogleCloudManager", manager).start()
     patch("fence.scripting.google_monitor.GoogleCloudManager", manager).start()
+    patch("fence.resources.admin.admin_users.GoogleCloudManager", manager).start()
     patch("fence.resources.google.access_utils.GoogleCloudManager", manager).start()
     patch("fence.resources.google.validity.GoogleCloudManager", manager).start()
     patch("fence.blueprints.google.GoogleCloudManager", manager).start()
