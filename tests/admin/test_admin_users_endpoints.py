@@ -30,6 +30,12 @@ from fence.models import (
 import fence.resources.admin as adm
 from tests import utils
 
+
+@pytest.fixture(autouse=True)
+def mock_arborist(mock_arborist_requests):
+    mock_arborist_requests()
+
+
 # TODO: Not yet tested: PUT,DELETE /users/<username>/projects
 
 # Move these fixtures to tests/conftest.py if they become useful elsewhere

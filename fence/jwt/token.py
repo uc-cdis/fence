@@ -364,7 +364,6 @@ def generate_signed_access_token(
                 "must provide value for `iss` (issuer) field if"
                 " running outside of flask application"
             )
-    policies = [policy.id for policy in user.policies]
 
     claims = {
         "pur": "access",
@@ -379,7 +378,6 @@ def generate_signed_access_token(
                 "name": user.username,
                 "is_admin": user.is_admin,
                 "projects": dict(user.project_access),
-                "policies": policies,
                 "google": {"proxy_group": user.google_proxy_group_id},
             }
         },
@@ -452,7 +450,6 @@ def generate_id_token(
 
     # If not provided, assume auth time is time this ID token is issued
     auth_time = auth_time or iat
-    policies = [policy.id for policy in user.policies]
 
     # NOTE: if the claims here are modified, be sure to update the
     # `claims_supported` field returned from the OIDC configuration endpoint
@@ -473,7 +470,6 @@ def generate_id_token(
                 "name": user.username,
                 "is_admin": user.is_admin,
                 "projects": dict(user.project_access),
-                "policies": policies,
                 "email": user.email,
                 "display_name": user.display_name,
                 "phone_number": user.phone_number,

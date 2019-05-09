@@ -5,6 +5,8 @@ import os
 import sys
 import logging
 
+from cdislogging import get_logger
+
 from fence.jwt import keys
 from fence.config import config
 from fence.scripting.fence_create import (
@@ -95,9 +97,7 @@ def parse_arguments():
         default=False,
     )
     client_create.add_argument(
-        "--policies",
-        help="which RBAC policies are granted to this client",
-        nargs="*",
+        "--policies", help="which RBAC policies are granted to this client", nargs="*"
     )
 
     client_modify = subparsers.add_parser("client-modify")
@@ -123,7 +123,7 @@ def parse_arguments():
     client_modify.add_argument(
         "--policies",
         help="which RBAC policies are granted to this client; if given, "
-             "previous policies will be revoked",
+        "previous policies will be revoked",
         nargs="*",
     )
 
@@ -354,7 +354,10 @@ def main():
     )
     arborist = None
     if args.arborist:
-        arborist = ArboristClient(arborist_base_url=args.arborist)
+        arborist = ArboristClient(
+            arborist_base_url=args.arborist,
+            logger=get_logger("user_syncer.arborist_client"),
+        )
 
     if args.action == "create":
         yaml_input = args.__dict__["yaml-input"]

@@ -16,7 +16,9 @@ from fence.oidc.server import server
 from fence.rbac.client import ArboristClient
 from fence.resources.aws.boto_manager import BotoManager
 from fence.resources.openid.google_oauth2 import GoogleOauth2Client as GoogleClient
-from fence.resources.openid.microsoft_oauth2 import MicrosoftOauth2Client as MicrosoftClient
+from fence.resources.openid.microsoft_oauth2 import (
+    MicrosoftOauth2Client as MicrosoftClient
+)
 from fence.resources.openid.orcid_oauth2 import OrcidOauth2Client as ORCIDClient
 from fence.resources.storage import StorageManager
 from fence.resources.user.user_session import UserSessionInterface
@@ -27,7 +29,6 @@ import fence.blueprints.admin
 import fence.blueprints.data
 import fence.blueprints.login
 import fence.blueprints.oauth2
-import fence.blueprints.rbac
 import fence.blueprints.misc
 import fence.blueprints.storage_creds
 import fence.blueprints.user
@@ -101,9 +102,6 @@ def app_register_blueprints(app):
 
     google_blueprint = fence.blueprints.google.make_google_blueprint()
     app.register_blueprint(google_blueprint, url_prefix="/google")
-
-    if config.get("ARBORIST"):
-        app.register_blueprint(fence.blueprints.rbac.blueprint, url_prefix="/rbac")
 
     fence.blueprints.misc.register_misc(app)
 
