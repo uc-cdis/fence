@@ -501,7 +501,7 @@ def indexd_client(app, request):
 def indexd_client_with_arborist(app, request):
     record = {}
 
-    def do_patch(rbac):
+    def do_patch(authz):
         if request.param == "gs":
             record = {
                 "did": "",
@@ -510,7 +510,7 @@ def indexd_client_with_arborist(app, request):
                 "size": 10,
                 "file_name": "file1",
                 "urls": ["gs://bucket1/key"],
-                "rbac": rbac,
+                "authz": authz,
                 "hashes": {},
                 "metadata": {"acls": "phs000178,phs000218"},
                 "form": "",
@@ -527,7 +527,7 @@ def indexd_client_with_arborist(app, request):
                 "urls": ["gs://bucket1/key"],
                 "hashes": {},
                 "acl": ["phs000178", "phs000218"],
-                "rbac": rbac,
+                "authz": authz,
                 "form": "",
                 "created_date": "",
                 "updated_date": "",
@@ -542,7 +542,7 @@ def indexd_client_with_arborist(app, request):
                 "urls": ["s3://bucket1/key"],
                 "hashes": {},
                 "acl": ["phs000178", "phs000218"],
-                "rbac": rbac,
+                "authz": authz,
                 "form": "",
                 "created_date": "",
                 "updated_date": "",
@@ -557,7 +557,7 @@ def indexd_client_with_arborist(app, request):
                 "urls": ["s3://bucket1/key"],
                 "hashes": {},
                 "acl": ["phs000178", "phs000218"],
-                "rbac": rbac,
+                "authz": authz,
                 "form": "",
                 "created_date": "",
                 "updated_date": "",
@@ -572,7 +572,7 @@ def indexd_client_with_arborist(app, request):
                 "urls": ["s3://bucket1/key"],
                 "hashes": {},
                 "metadata": {"acls": "phs000178,phs000218"},
-                "rbac": rbac,
+                "authz": authz,
                 "form": "",
                 "created_date": "",
                 "updated_date": "",
