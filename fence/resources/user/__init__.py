@@ -84,8 +84,8 @@ def get_user_info(current_session, username):
     }
 
     if hasattr(flask.current_app, "arborist"):
-        policies = flask.current_app.arborist.list_policies_for_user(user.username)
-        info["policies"] = policies
+        resources = flask.current_app.arborist.list_resources_for_user(user.username)
+        info["resources"] = resources
 
     if user.tags is not None and len(user.tags) > 0:
         info["tags"] = {tag.key: tag.value for tag in user.tags}
