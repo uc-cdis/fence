@@ -182,6 +182,21 @@ def kid_2():
 
 @pytest.fixture(scope="function")
 def mock_arborist_requests(request):
+    """
+    This fixture returns a function which you call to mock out arborist endopints.
+
+    Give it an argument in this format:
+
+        {
+            "arborist/health": {
+                "GET": ("", 200)
+            },
+            "arborist/auth/request": {
+                "POST": ('{"auth": "false"}', 403)
+            }
+        }
+    """
+
     def do_patch(urls_to_responses=None):
         urls_to_responses = urls_to_responses or {}
         defaults = {"arborist/health": {"GET": ("", 200)}}
@@ -189,14 +204,18 @@ def mock_arborist_requests(request):
         urls_to_responses = defaults
 
         def make_mock_response(method):
-            def response(url):
+            def response(url, *args, **kwargs):
                 mocked_response = MagicMock(requests.Response)
-                if url in urls_to_responses:
-                    if method in urls_to_responses[url]:
-                        content, code = urls_to_responses[url][method]
-                        mocked_response.status_code = code
-                        if isinstance(content, dict):
-                            mocked_response.json.return_value = content
+                if url not in urls_to_responses:
+                    mocked_response.status_code = 404
+                    return mocked_response
+                if method not in urls_to_responses[url]:
+                    mocked_response.status_code = 405
+                    return mocked_response
+                content, code = urls_to_responses[url][method]
+                mocked_response.status_code = code
+                if isinstance(content, dict):
+                    mocked_response.json.return_value = content
                 return mocked_response
 
             return response
@@ -476,6 +495,107 @@ def indexd_client(app, request):
     }
 
     return output
+
+
+@pytest.fixture(scope="function")
+def indexd_client_with_arborist(app, request):
+    record = {}
+
+    def do_patch(authz):
+        if request.param == "gs":
+            record = {
+                "did": "",
+                "baseid": "",
+                "rev": "",
+                "size": 10,
+                "file_name": "file1",
+                "urls": ["gs://bucket1/key"],
+                "authz": authz,
+                "hashes": {},
+                "metadata": {"acls": "phs000178,phs000218"},
+                "form": "",
+                "created_date": "",
+                "updated_date": "",
+            }
+        elif request.param == "gs_acl":
+            record = {
+                "did": "",
+                "baseid": "",
+                "rev": "",
+                "size": 10,
+                "file_name": "file1",
+                "urls": ["gs://bucket1/key"],
+                "hashes": {},
+                "acl": ["phs000178", "phs000218"],
+                "authz": authz,
+                "form": "",
+                "created_date": "",
+                "updated_date": "",
+            }
+        elif request.param == "s3_acl":
+            record = {
+                "did": "",
+                "baseid": "",
+                "rev": "",
+                "size": 10,
+                "file_name": "file1",
+                "urls": ["s3://bucket1/key"],
+                "hashes": {},
+                "acl": ["phs000178", "phs000218"],
+                "authz": authz,
+                "form": "",
+                "created_date": "",
+                "updated_date": "",
+            }
+        elif request.param == "s3_external":
+            record = {
+                "did": "",
+                "baseid": "",
+                "rev": "",
+                "size": 10,
+                "file_name": "file1",
+                "urls": ["s3://bucket1/key"],
+                "hashes": {},
+                "acl": ["phs000178", "phs000218"],
+                "authz": authz,
+                "form": "",
+                "created_date": "",
+                "updated_date": "",
+            }
+        else:
+            record = {
+                "did": "",
+                "baseid": "",
+                "rev": "",
+                "size": 10,
+                "file_name": "file1",
+                "urls": ["s3://bucket1/key"],
+                "hashes": {},
+                "metadata": {"acls": "phs000178,phs000218"},
+                "authz": authz,
+                "form": "",
+                "created_date": "",
+                "updated_date": "",
+            }
+
+        mocker = Mocker()
+        mocker.mock_functions()
+
+        # TODO (rudyardrichter, 2018-11-03): consolidate things needing to do this patch
+        indexd_patcher = patch(
+            "fence.blueprints.data.indexd.IndexedFile.index_document", record
+        )
+        mocker.add_mock(indexd_patcher)
+
+        output = {
+            "mocker": mocker,
+            # only gs or s3 for location, ignore specifiers after the _
+            "indexed_file_location": request.param.split("_")[0],
+        }
+
+        return output
+
+    return do_patch
 
 
 @pytest.fixture(scope="function")

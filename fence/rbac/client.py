@@ -142,12 +142,20 @@ class ArboristClient(object):
         return response.json()
 
     @_arborist_retry()
-    def list_policies_for_user(self, username):
+    def list_resources_for_user(self, username):
         """
         Args:
             username (str)
+
+        Return:
+            List[str]: list of resource paths which the user has any access to
         """
-        response = _request_get_json(requests.get(self._user_url + "/" + username))
+        url = "{}/{}/resources".format(self._user_url, username)
+        response = requests.get(url)
+        data = _request_get_json(response)
+        if response.status_code != 200:
+            raise ArboristError(data.get("error", "unhelpful response from arborist"))
+        return data["resources"]
 
     @_arborist_retry()
     def list_policies(self):
@@ -260,9 +268,10 @@ class ArboristClient(object):
     def update_resource(self, path, resource_json):
         response = _request_get_json(requests.put(path, json=resource_json))
         if "error" in response:
-            msg = response["error"].get("message", str(response["error"]))
             self.logger.error(
-                "could not update resource `{}` in arborist: {}".format(path, msg)
+                "could not update resource `{}` in arborist: {}".format(
+                    path, response["error"]
+                )
             )
             raise ArboristError(response["error"])
         self.logger.info("updated resource {}".format(resource_json["name"]))
