@@ -258,9 +258,7 @@ class ArboristClient(object):
                 msg = data["error"].get("message", msg)
             resource = resource_json.get("path", "/" + resource_json.get("name"))
             self.logger.error(
-                "could not create resource `{}` in arborist: {}".format(
-                    resource, msg
-                )
+                "could not create resource `{}` in arborist: {}".format(resource, msg)
             )
             raise ArboristError(data["error"])
         self.logger.info("created resource {}".format(resource_json["name"]))
@@ -444,15 +442,14 @@ class ArboristClient(object):
     def create_group(self, name, description="", users=None, policies=None):
         users = users or []
         policies = policies or []
-        data = {
-            "name": name,
-            "users": users,
-            "policies": policies,
-        }
+        data = {"name": name, "users": users, "policies": policies}
         if description:
             data["description"] = description
         response = requests.post(self._group_url, json=data)
         data = _request_get_json(response)
+        if response.status_code == 409:
+            # already exists; this is ok, but leave warning
+            self.logger.warn("group `{}` already exists in arborist".format(name))
         if response.status_code != 201:
             msg = data.get("error", "unhelpful response from arborist")
             self.logger.error("could not create group {}: {}".format(name, msg))

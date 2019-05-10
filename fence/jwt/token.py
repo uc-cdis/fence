@@ -169,9 +169,7 @@ def generate_signed_session_token(kid, private_key, expires_in, context=None):
         "jti": str(uuid.uuid4()),
         "context": context,
     }
-    logger.debug(
-        "issuing JWT session token\n" + json.dumps(claims, indent=4)
-    )
+    logger.debug("issuing JWT session token\n" + json.dumps(claims, indent=4))
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
     token = to_unicode(token, "UTF-8")
 
@@ -271,12 +269,8 @@ def generate_signed_refresh_token(
     }
 
     if flask.current_app:
-        logger.info(
-            "issuing JWT refresh token with id [{}] to [{}]".format(jti, sub)
-        )
-        logger.debug(
-            "issuing JWT refresh token\n" + json.dumps(claims, indent=4)
-        )
+        logger.info("issuing JWT refresh token with id [{}] to [{}]".format(jti, sub))
+        logger.debug("issuing JWT refresh token\n" + json.dumps(claims, indent=4))
 
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
     token = to_unicode(token, "UTF-8")
@@ -313,12 +307,8 @@ def generate_api_key(kid, private_key, user_id, expires_in, scopes, client_id):
         "jti": jti,
         "azp": client_id or "",
     }
-    logger.info(
-        "issuing JWT API key with id [{}] to [{}]".format(jti, sub)
-    )
-    logger.debug(
-        "issuing JWT API key\n" + json.dumps(claims, indent=4)
-    )
+    logger.info("issuing JWT API key with id [{}] to [{}]".format(jti, sub))
+    logger.debug("issuing JWT API key\n" + json.dumps(claims, indent=4))
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
     logger.debug(str(token))
     token = to_unicode(token, "UTF-8")
@@ -391,12 +381,8 @@ def generate_signed_access_token(
         ] = linked_google_email
 
     if flask.current_app:
-        logger.info(
-            "issuing JWT access token with id [{}] to [{}]".format(jti, sub)
-        )
-        logger.debug(
-            "issuing JWT access token\n" + json.dumps(claims, indent=4)
-        )
+        logger.info("issuing JWT access token with id [{}] to [{}]".format(jti, sub))
+        logger.debug("issuing JWT access token\n" + json.dumps(claims, indent=4))
 
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
     token = to_unicode(token, "UTF-8")
@@ -494,9 +480,7 @@ def generate_id_token(
     if nonce:
         claims["nonce"] = nonce
 
-    logger.info(
-        "issuing JWT ID token\n" + json.dumps(claims, indent=4)
-    )
+    logger.info("issuing JWT ID token\n" + json.dumps(claims, indent=4))
 
     token_options = {
         "iss": {"essential": True, "value": config.get("BASE_URL")},
