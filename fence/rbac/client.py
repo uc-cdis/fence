@@ -401,6 +401,7 @@ class ArboristClient(object):
             return
         elif response.status_code != 204:
             msg = data.get("error", "unhelpful response from arborist")
+            self.logger.error(msg)
 
     @_arborist_retry()
     def grant_user_policy(self, username, policy_id):
@@ -439,13 +440,18 @@ class ArboristClient(object):
         return data
 
     @_arborist_retry()
-    def create_group(self, name, description="", users=None, policies=None):
+    def create_group(
+        self, name, description="", users=None, policies=None, overwrite=False
+    ):
         users = users or []
         policies = policies or []
         data = {"name": name, "users": users, "policies": policies}
         if description:
             data["description"] = description
-        response = requests.post(self._group_url, json=data)
+        if overwrite:
+            response = requests.put(self._group_url, json=data)
+        else:
+            response = requests.post(self._group_url, json=data)
         data = _request_get_json(response)
         if response.status_code == 409:
             # already exists; this is ok, but leave warning

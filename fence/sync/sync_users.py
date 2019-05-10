@@ -1109,6 +1109,7 @@ class UserSyncer(object):
                     description=group.get("description", ""),
                     users=group["users"],
                     policies=group["policies"],
+                    overwrite=True,
                 )
             except ArboristError as e:
                 self.logger.info("couldn't create group: {}".format(str(e)))
