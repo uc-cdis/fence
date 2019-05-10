@@ -561,7 +561,9 @@ def test_blank_index_upload_unauthorized(
         assert response.status_code == 403, response
 
 
-def test_initialize_multipart_upload(app, client, auth_client, encoded_creds_jwt, user_client):
+def test_initialize_multipart_upload(
+    app, client, auth_client, encoded_creds_jwt, user_client
+):
     class MockResponse(object):
         def __init__(self, data, status_code=200):
             self.data = data
@@ -589,7 +591,9 @@ def test_initialize_multipart_upload(app, client, auth_client, encoded_creds_jwt
         data_requests.post.return_value.status_code = 200
         arborist_requests.post.return_value = MockResponse({"auth": True})
         arborist_requests.post.return_value.status_code = 200
-        fence.blueprints.data.indexd.BlankIndex.init_multipart_upload.return_value = "test_uploadId"
+        fence.blueprints.data.indexd.BlankIndex.init_multipart_upload.return_value = (
+            "test_uploadId"
+        )
         headers = {
             "Authorization": "Bearer " + encoded_creds_jwt.jwt,
             "Content-Type": "application/json",
@@ -610,7 +614,9 @@ def test_initialize_multipart_upload(app, client, auth_client, encoded_creds_jwt
         assert "uploadId" in response.json
 
 
-def test_multipart_upload_presigned_url(app, client, auth_client, encoded_creds_jwt, user_client):
+def test_multipart_upload_presigned_url(
+    app, client, auth_client, encoded_creds_jwt, user_client
+):
     class MockResponse(object):
         def __init__(self, data, status_code=200):
             self.data = data
@@ -626,7 +632,9 @@ def test_multipart_upload_presigned_url(app, client, auth_client, encoded_creds_
         "fence.rbac.client.requests", new_callable=mock.Mock
     )
 
-    fence.blueprints.data.indexd.BlankIndex.generate_aws_presigned_url_for_part = MagicMock()
+    fence.blueprints.data.indexd.BlankIndex.generate_aws_presigned_url_for_part = (
+        MagicMock()
+    )
     with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
         data_requests.post.return_value = MockResponse(
             {
@@ -638,7 +646,9 @@ def test_multipart_upload_presigned_url(app, client, auth_client, encoded_creds_
         data_requests.post.return_value.status_code = 200
         arborist_requests.post.return_value = MockResponse({"auth": True})
         arborist_requests.post.return_value.status_code = 200
-        fence.blueprints.data.indexd.BlankIndex.generate_aws_presigned_url_for_part.return_value = "test_presigned"
+        fence.blueprints.data.indexd.BlankIndex.generate_aws_presigned_url_for_part.return_value = (
+            "test_presigned"
+        )
         headers = {
             "Authorization": "Bearer " + encoded_creds_jwt.jwt,
             "Content-Type": "application/json",

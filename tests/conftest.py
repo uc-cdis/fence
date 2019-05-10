@@ -182,7 +182,6 @@ def kid_2():
 
 @pytest.fixture(scope="function")
 def mock_arborist_requests(request):
-
     def do_patch(urls_to_responses=None):
         urls_to_responses = urls_to_responses or {}
         defaults = {"arborist/health": {"GET": ("", 200)}}

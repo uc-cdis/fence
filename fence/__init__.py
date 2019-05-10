@@ -16,7 +16,9 @@ from fence.oidc.server import server
 from fence.rbac.client import ArboristClient
 from fence.resources.aws.boto_manager import BotoManager
 from fence.resources.openid.google_oauth2 import GoogleOauth2Client as GoogleClient
-from fence.resources.openid.microsoft_oauth2 import MicrosoftOauth2Client as MicrosoftClient
+from fence.resources.openid.microsoft_oauth2 import (
+    MicrosoftOauth2Client as MicrosoftClient
+)
 from fence.resources.openid.orcid_oauth2 import OrcidOauth2Client as ORCIDClient
 from fence.resources.storage import StorageManager
 from fence.resources.user.user_session import UserSessionInterface
@@ -38,7 +40,7 @@ from cdislogging import get_logger
 
 # Can't read config yet. Just set to debug for now, else no handlers.
 # Later, in app_config(), will actually set level based on config
-logger = get_logger(__name__, log_level='debug')
+logger = get_logger(__name__, log_level="debug")
 
 app = flask.Flask(__name__)
 CORS(app=app, headers=["content-type", "accept"], expose_headers="*")

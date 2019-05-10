@@ -178,9 +178,7 @@ def delete_google_service_accounts_and_keys(current_session, gcm, gpg_email):
 
     def raise_unavailable(sae):
         raise UnavailableError(
-            "Error: Google unable to delete service account {}. Aborting".format(
-                sae
-            )
+            "Error: Google unable to delete service account {}. Aborting".format(sae)
         )
 
     for sae in service_account_emails:
@@ -203,11 +201,11 @@ def delete_google_service_accounts_and_keys(current_session, gcm, gpg_email):
 
         logger.info(
             "Google service account with email {} successfully removed "
-            "from Google, along with all associated service account keys.".format(
-                sae
-            )
+            "from Google, along with all associated service account keys.".format(sae)
         )
-        logger.debug("Attempting to clear service account records from Fence database...")
+        logger.debug(
+            "Attempting to clear service account records from Fence database..."
+        )
         sa = (
             current_session.query(GoogleServiceAccount)
             .filter(GoogleServiceAccount.email == sae)
@@ -293,9 +291,8 @@ def delete_google_proxy_group(
         )
         for row in gpg_to_gbag:
             current_session.delete(row)
-        logger.debug("Deleting rows in {}...".format(
-                UserGoogleAccountToProxyGroup.__tablename__
-            )
+        logger.debug(
+            "Deleting rows in {}...".format(UserGoogleAccountToProxyGroup.__tablename__)
         )
         uga_to_pg = (
             current_session.query(UserGoogleAccountToProxyGroup)
@@ -307,10 +304,7 @@ def delete_google_proxy_group(
         )
         for row in uga_to_pg:
             current_session.delete(row)
-        logger.debug("Deleting rows in {}...".format(
-                UserGoogleAccount.__tablename__
-            )
-        )
+        logger.debug("Deleting rows in {}...".format(UserGoogleAccount.__tablename__))
         uga = (
             current_session.query(UserGoogleAccount)
             .filter(UserGoogleAccount.user_id == user.id)
@@ -323,9 +317,7 @@ def delete_google_proxy_group(
         current_session.commit()
         logger.info(
             "Records for Google proxy group {} successfully cleared from Fence "
-            "database, along with associated user Google accounts.".format(
-                gpg_email
-            )
+            "database, along with associated user Google accounts.".format(gpg_email)
         )
         logger.info("Done with Google deletions.")
 
@@ -365,9 +357,7 @@ def delete_user(current_session, username):
 
         if google_proxy_group_from_fence_db:
             gpg_email = google_proxy_group_from_fence_db.email
-            logger.debug(
-                "Found Google proxy group in Fence db: {}".format(gpg_email)
-            )
+            logger.debug("Found Google proxy group in Fence db: {}".format(gpg_email))
         else:
             # Construct the proxy group name that would have been used
             # and check if it exists in cirrus, in case Fence db just
@@ -380,7 +370,9 @@ def delete_user(current_session, username):
             )
             google_proxy_group_from_google = gcm.get_group(pgname)
             gpg_email = (
-                google_proxy_group_from_google.get("email") if google_proxy_group_from_google else None
+                google_proxy_group_from_google.get("email")
+                if google_proxy_group_from_google
+                else None
             )
 
         if not gpg_email:

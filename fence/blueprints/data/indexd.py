@@ -349,15 +349,10 @@ class IndexedFile(object):
         if "rbac" not in self.index_document:
             raise ValueError("index record missing `rbac`")
         request = {
-            "user": {
-                "jwt": get_jwt(),
-            },
+            "user": {"jwt": get_jwt()},
             "request": {
                 "resource": self.index_document["rbac"],
-                "action": {
-                    "service": "fence",
-                    "method": action,
-                },
+                "action": {"service": "fence", "method": action},
             },
         }
         return flask.current_app.arborist.auth_request(request)
