@@ -467,6 +467,25 @@ class ArboristClient(object):
         return data
 
     @_arborist_retry()
+    def grant_group_policy(self, group_name, policy_id):
+        url = self._group_url + "/{}/policy".format(group_name)
+        request = {"policy": policy_id}
+        response = requests.post(url, json=request)
+        data = _request_get_json(response)
+        if response.status_code != 204:
+            msg = data.get("error", "unhelpful response from arborist")
+            if isinstance("error", dict):
+                msg = data["error"].get("message", msg)
+            self.logger.error(
+                "could not grant policy `{}` to group `{}`: {}".format(
+                    policy_id, group_name, msg
+                )
+            )
+            return None
+        self.logger.info("granted policy `{}` to group `{}`".format(policy_id, group_name))
+        return data
+
+    @_arborist_retry()
     def create_user_if_not_exist(self, username):
         self.logger.info("making sure user exists: `{}`".format(username))
         user_json = {"name": username}
