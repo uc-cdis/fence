@@ -399,7 +399,7 @@ class ArboristClient(object):
         if response.status_code == 409:
             # already exists
             return
-        elif response.status_code != 204:
+        elif response.status_code != 201:
             msg = data.get("error", "unhelpful response from arborist")
             self.logger.error(msg)
 
