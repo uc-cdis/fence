@@ -11,13 +11,7 @@ except ImportError:
 from sqlalchemy import or_
 
 from cirrus.errors import CirrusError
-from cirrus.google_cloud import (
-    GoogleCloudManager,
-    COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT,
-    COMPUTE_ENGINE_API_SERVICE_ACCOUNT,
-    GOOGLE_API_SERVICE_ACCOUNT,
-    USER_MANAGED_SERVICE_ACCOUNT,
-)
+from cirrus.google_cloud import GoogleCloudManager
 from cirrus.google_cloud.iam import GooglePolicyMember
 
 import fence
@@ -57,7 +51,7 @@ def test_is_valid_service_account_type_compute_engine_default(cloud_manager):
     """
     (
         cloud_manager.get_service_account_type.return_value
-    ) = COMPUTE_ENGINE_API_SERVICE_ACCOUNT
+    ) = "developer.gserviceaccount.com"
     assert is_valid_service_account_type(1, cloud_manager)
 
 
@@ -66,7 +60,9 @@ def test_not_valid_service_account_type_google_api(cloud_manager):
     Test that GOOGLE_API is not a valid service account type
     for service account registration
     """
-    (cloud_manager.get_service_account_type.return_value) = GOOGLE_API_SERVICE_ACCOUNT
+    (
+        cloud_manager.get_service_account_type.return_value
+    ) = "cloudservices.gserviceaccount.com"
     assert not is_valid_service_account_type(1, cloud_manager)
 
 
@@ -77,7 +73,7 @@ def test_not_valid_service_account_type_compute_engine_api(cloud_manager):
     """
     (
         cloud_manager.get_service_account_type.return_value
-    ) = COMPUTE_ENGINE_DEFAULT_SERVICE_ACCOUNT
+    ) = "compute-system.iam.gserviceaccount.com"
     assert not is_valid_service_account_type(1, cloud_manager)
 
 
@@ -86,7 +82,7 @@ def test_is_valid_service_account_type_user_managed(cloud_manager):
     Test that USER_MANAGED is a valid service account type
     for service account registration
     """
-    (cloud_manager.get_service_account_type.return_value) = USER_MANAGED_SERVICE_ACCOUNT
+    (cloud_manager.get_service_account_type.return_value) = "iam.gserviceaccount.com"
     assert is_valid_service_account_type(1, cloud_manager)
 
 

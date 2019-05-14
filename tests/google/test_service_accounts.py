@@ -220,7 +220,7 @@ def test_patch_service_account_expires_in(
     assert str(response.status_code).startswith("2")  # check if success
 
     # make sure the access was extended of the requested time
-    # (allow up to 5 sec for runtime)
+    # (allow up to 10 sec for runtime)
     service_account_accesses = (
         db_session.query(ServiceAccountToGoogleBucketAccessGroup).filter_by(
             service_account_id=service_account.id
@@ -228,7 +228,7 @@ def test_patch_service_account_expires_in(
     ).all()
     for access in service_account_accesses:
         diff = access.expires - int(time.time())
-        assert requested_exp <= diff <= requested_exp + 5
+        assert requested_exp <= diff <= requested_exp + 10
 
 
 def test_patch_service_account_dry_run_valid_empty_arg(
@@ -812,9 +812,9 @@ def test_service_account_registration_expires_in(
     assert len(sa_to_bucket_entries) == 1
 
     # make sure the access was granted for the requested time
-    # (allow up to 5 sec for runtime)
+    # (allow up to 10 sec for runtime)
     diff = sa_to_bucket_entries[0].expires - int(time.time())
-    assert requested_exp <= diff <= requested_exp + 5
+    assert requested_exp <= diff <= requested_exp + 10
 
     # invalid expires_in: should fail
     requested_exp = "abc"  # expires_in must be int >0
