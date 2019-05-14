@@ -474,7 +474,7 @@ class ArboristClient(object):
         data = _request_get_json(response)
         if response.status_code != 204:
             msg = data.get("error", "unhelpful response from arborist")
-            if isinstance(data, dict):
+            if isinstance(data, dict) and "error" in data:
                 msg = data["error"].get("message", msg)
             self.logger.error(
                 "could not grant policy `{}` to group `{}`: {}".format(
