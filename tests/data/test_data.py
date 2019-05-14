@@ -607,8 +607,9 @@ def test_rbac(
     assert response.status_code == 403
 
 
-def test_initialize_multipart_upload(app, client, auth_client, encoded_creds_jwt, user_client):
-
+def test_initialize_multipart_upload(
+    app, client, auth_client, encoded_creds_jwt, user_client
+):
     class MockResponse(object):
         def __init__(self, data, status_code=200):
             self.data = data
