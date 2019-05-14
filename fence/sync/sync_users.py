@@ -1114,4 +1114,12 @@ class UserSyncer(object):
             except ArboristError as e:
                 self.logger.info("couldn't create group: {}".format(str(e)))
 
+        # add policies for `anonymous` and `logged-in` groups
+
+        for policy in user_yaml.rbac.get("anonymous_policies", []):
+            self.arborist_client.grant_group_policy("anonymous", policy)
+
+        for policy in user_yaml.rbac.get("all_users_policies", []):
+            self.arborist_client.grant_group_policy("logged-in", policy)
+
         return True
