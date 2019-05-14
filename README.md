@@ -180,7 +180,13 @@ Currently fence works with another Gen3 service named
 [arborist](https://github.com/uc-cdis/arborist) to implement role-based access
 control for commons users. The YAML file of access control information (see
 [#create-user-access-file]()) contains a section `rbac` which are data sent to
-arborist in order to set up the access control model.
+arborist in order to set up the access control model. The information from this
+YAML file is loaded into the arborist database so that Gen3 services can make
+queries to arborist to determine whether a user is authorized for a particular
+request or to list resources which a user has access to. See the
+`example_user.yaml` file in the `docs` folder for an example for the structure
+for this file. The README for [arborist](https://github.com/uc-cdis/arborist)
+has more details about the RBAC system and logic.
 
 ## Accessing Data
 

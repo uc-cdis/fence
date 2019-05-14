@@ -1,0 +1,141 @@
+rbac:
+  # policies automatically given to anyone, even if they haven't authenticated
+  anonymous_policies: ['open_data_reader']
+
+  # policies automatically given to authenticated users (in addition to their
+  # other policies)
+  all_users_policies: ['open_data_reader']
+
+  groups:
+    - name: 'data_uploaders'
+      policies: ['data_upload']
+      users:
+        - newton@planx-pla.net
+        - davinci@planx-pla.net
+
+  policies:
+    - id: 'workspace'
+      description: 'be able to use workspace'
+      resource_paths: ['/workspace']
+      role_ids: ['workspace_user']
+    - id: 'data_upload'
+      description: 'upload raw data files to S3'
+      role_ids: ['file_uploader']
+      resource_paths: ['/data_file']
+    - id: 'programs.DEV-admin'
+      description: ''
+      role_ids:
+        - 'creator'
+        - 'reader'
+        - 'updater'
+        - 'deleter'
+        - 'storage_reader'
+      resource_paths:
+        - '/programs/DEV'
+        - '/gen3/programs/DEV'
+    - id: 'programs.DEV-viewer'
+      description: ''
+      role_ids:
+        - 'reader'
+        - 'storage_reader'
+      resource_paths:
+        - '/programs/DEV'
+        - '/gen3/programs/DEV'
+    - id: 'open_data_reader'
+      description: ''
+      role_ids:
+        - 'reader'
+        - 'storage_reader'
+      resource_paths: ['/open']
+    - id: 'open_data_admin'
+      description: ''
+      role_ids:
+        - 'creator'
+        - 'reader'
+        - 'updater'
+        - 'deleter'
+        - 'storage_writer'
+        - 'storage_reader'
+      resource_paths: ['/open']
+
+  resources:
+    # General Access
+    - name: 'data_file'
+      description: 'data files, stored in S3'
+    - name: 'prometheus'
+    - name: 'workspace'
+
+    - name: 'gen3'
+      subresources:
+        - name: 'programs'
+          subresources:
+            - name: 'DEV'
+              subresources:
+                - name: 'projects'
+                  subresources:
+                    - name: 'test'
+    - name: 'open'
+
+  roles:
+    - id: 'file_uploader'
+      description: 'can upload data files'
+      permissions:
+        - id: 'file_upload'
+          action:
+            service: 'fence'
+            method: 'file_upload'
+    - id: 'workspace_user'
+      permissions:
+        - id: 'workspace_access'
+          action:
+            service: 'jupyterhub'
+            method: 'access'
+    - id: 'admin'
+      description: ''
+      permissions:
+        - id: 'admin'
+          action:
+            service: '*'
+            method: '*'
+    - id: 'creator'
+      description: ''
+      permissions:
+        - id: 'creator'
+          action:
+            service: '*'
+            method: 'create'
+    - id: 'reader'
+      description: ''
+      permissions:
+        - id: 'reader'
+          action:
+            service: '*'
+            method: 'read'
+    - id: 'updater'
+      description: ''
+      permissions:
+        - id: 'updater'
+          action:
+            service: '*'
+            method: 'update'
+    - id: 'deleter'
+      description: ''
+      permissions:
+        - id: 'deleter'
+          action:
+            service: '*'
+            method: 'delete'
+    - id: 'storage_writer'
+      description: ''
+      permissions:
+        - id: 'storage_creator'
+          action:
+            service: '*'
+            method: 'write_storage'
+    - id: 'storage_reader'
+      description: ''
+      permissions:
+        - id: 'storage_reader'
+          action:
+            service: '*'
+            method: 'read_storage'
