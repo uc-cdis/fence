@@ -163,8 +163,8 @@ def complete_mutipart_upload():
             params["key"], params["uploadId"], params["parts"], expires_in=expires_in
         ),
     except InternalError as e:
-        return flask.jsonify({"message": e.message}, e.status_code)
-    return {}, 200
+        return flask.jsonify({"message": e.message}), e.status_code
+    return flask.jsonify({"message": "OK"}), 200
 
 
 @blueprint.route("/upload/<path:file_id>", methods=["GET"])
