@@ -482,7 +482,9 @@ class ArboristClient(object):
                 )
             )
             return None
-        self.logger.info("granted policy `{}` to group `{}`".format(policy_id, group_name))
+        self.logger.info(
+            "granted policy `{}` to group `{}`".format(policy_id, group_name)
+        )
         return data
 
     @_arborist_retry()

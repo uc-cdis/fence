@@ -92,7 +92,9 @@ def get_user_info(current_session, username):
 
     if hasattr(flask.current_app, "arborist"):
         try:
-            resources = flask.current_app.arborist.list_resources_for_user(user.username)
+            resources = flask.current_app.arborist.list_resources_for_user(
+                user.username
+            )
         except ArboristError:
             logger.error(
                 "request to arborist for user's resources failed; going to list empty"
