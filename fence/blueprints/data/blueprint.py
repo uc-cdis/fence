@@ -87,7 +87,7 @@ def upload_data_file():
 @require_auth_header(aud={"data"})
 @login_required({"data"})
 @check_arborist_auth(resource="/data_file", method="file_upload")
-def init_mutipart_upload():
+def init_multipart_upload():
     """
     Initialize a multipart upload request
     """
@@ -114,7 +114,7 @@ def init_mutipart_upload():
 @require_auth_header(aud={"data"})
 @login_required({"data"})
 @check_arborist_auth(resource="/data_file", method="file_upload")
-def generate_mutipart_upload_presigned_url():
+def generate_multipart_upload_presigned_url():
     """
     Generate multipart upload presigned url
     """
@@ -145,7 +145,7 @@ def generate_mutipart_upload_presigned_url():
 @require_auth_header(aud={"data"})
 @login_required({"data"})
 @check_arborist_auth(resource="/data_file", method="file_upload")
-def complete_mutipart_upload():
+def complete_multipart_upload():
     """
     Complete multipart upload
     """
@@ -167,7 +167,7 @@ def complete_mutipart_upload():
             params["key"], params["uploadId"], params["parts"], expires_in=expires_in
         ),
     except InternalError as e:
-        return flask.jsonify({"message": e.message}), e.status_code
+        return flask.jsonify({"message": e.message}), e.code
     return flask.jsonify({"message": "OK"}), 200
 
 
