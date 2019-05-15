@@ -39,7 +39,7 @@ def initilize_multipart_upload(bucket, key, credentials):
         )
     except botocore.exceptions.ClientError as error:
         logger.error(
-            "Error when create multiple part upload for object with uuid{}. Detail {}".format(
+            "Error when create multiple part upload for object with uuid {}. Detail {}".format(
                 key, error
             )
         )
@@ -85,7 +85,7 @@ def complete_multipart_upload(bucket, key, credentials, uploadId, parts):
         )
     except botocore.exceptions.ClientError as error:
         logger.error(
-            "Error when completing multiple part upload for object with uuid{}. Detail {}".format(
+            "Error when completing multiple part upload for object with uuid {}. Detail {}".format(
                 key, error
             )
         )
