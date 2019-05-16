@@ -1,6 +1,6 @@
-from authlib.specs.oidc.grants import OpenIDImplicitGrant
-from authlib.specs.oidc.grants.base import create_response_mode_response
-from authlib.specs.rfc6749 import AccessDeniedError, InvalidRequestError
+from authlib.oidc.core.grants import OpenIDImplicitGrant
+from authlib.oidc.core.grants.util import create_response_mode_response
+from authlib.oauth2.rfc6749 import AccessDeniedError, InvalidRequestError
 import flask
 
 from fence.models import AuthorizationCode

@@ -1,14 +1,14 @@
 import bcrypt
 import flask
 
-from authlib.specs.rfc6749.errors import (
+from authlib.oauth2.rfc6749.errors import (
     InvalidClientError,
     InvalidRequestError,
     InvalidScopeError,
     UnauthorizedClientError,
 )
-from authlib.specs.rfc6749.grants import RefreshTokenGrant as AuthlibRefreshTokenGrant
-from authlib.specs.rfc6749.util import scope_to_list
+from authlib.oauth2.rfc6749.grants import RefreshTokenGrant as AuthlibRefreshTokenGrant
+from authlib.oauth2.rfc6749.util import scope_to_list
 from cdislogging import get_logger
 
 from fence.jwt.validate import validate_jwt

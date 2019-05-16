@@ -1,11 +1,11 @@
 from authlib.common.security import generate_token
-from authlib.specs.oidc import grants
-from authlib.specs.oidc.errors import (
+from authlib.oidc.core import grants
+from authlib.oidc.core.errors import (
     AccountSelectionRequiredError,
     ConsentRequiredError,
     LoginRequiredError,
 )
-from authlib.specs.rfc6749 import InvalidRequestError
+from authlib.oauth2.rfc6749 import InvalidRequestError
 import flask
 
 from fence.models import AuthorizationCode, ClientAuthType, User

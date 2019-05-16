@@ -17,7 +17,7 @@ stateless.
 import flask
 
 from authlib.common.urls import add_params_to_uri
-from authlib.specs.rfc6749.errors import (
+from authlib.oauth2.rfc6749 import (
     AccessDeniedError,
     InvalidRequestError,
     OAuth2Error,
@@ -254,7 +254,7 @@ def _get_authorize_error_response(error, redirect_uri):
     Get error response as defined by OIDC spec.
 
     Args:
-        error (authlib.specs.rfc6749.error.OAuth2Error): Specific Oauth2 error
+        error (authlib.oauth2.rfc6749.error.OAuth2Error): Specific Oauth2 error
         redirect_uri (str): Redirection url
     """
     params = error.get_body()
