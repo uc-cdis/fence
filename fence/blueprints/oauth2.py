@@ -114,10 +114,10 @@ def _handle_consent_confirmation(user, is_confirmed):
     """
     if is_confirmed == "yes":
         # user has already given consent, continue flow
-        response = server.create_authorization_response(user)
+        response = server.create_authorization_response(grant_user=user)
     else:
         # user did not give consent
-        response = server.create_authorization_response(None)
+        response = server.create_authorization_response(grant_user=None)
     return response
 
 
