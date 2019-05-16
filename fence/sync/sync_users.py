@@ -1034,7 +1034,7 @@ class UserSyncer(object):
         policies = user_yaml.rbac.get("policies", [])
         for policy in policies:
             try:
-                response = self.arborist_client.create_policy(policy)
+                response = self.arborist_client.create_policy(policy, overwrite=True)
                 if response:
                     created_policies.add(policy["id"])
             except ArboristError as e:
