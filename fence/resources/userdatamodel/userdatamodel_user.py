@@ -18,7 +18,6 @@ from fence.models import (
 __all__ = [
     "get_user",
     "get_user_accesses",
-    "delete_user",
     "create_user_by_username_project",
     "get_all_users",
     "get_user_groups",
@@ -33,48 +32,6 @@ def get_user_accesses(current_session):
     return (
         current_session.query(User).join(User.groups).filter(User.id == flask.g.user.id)
     )
-
-
-def delete_user(current_session, username):
-    """
-    Delete the user with the given username
-    """
-    user = query_for_user(session=current_session, username=username)
-
-    if not user:
-        msg = "".join(["user name ", username, " not found"])
-        raise NotFound(msg)
-
-    accesses = current_session.query(AccessPrivilege).filter(
-        AccessPrivilege.user_id == user.id
-    )
-    groups = (
-        current_session.query(UserToGroup).filter(UserToGroup.user_id == user.id).all()
-    )
-    for row in groups:
-        current_session.delete(row)
-
-    # cloud_providers = []
-    for row in accesses:
-        # commenting until we figure out why this is in ComputeQuota
-        """
-        proj = (
-            current_session.query(StorageAccess)
-            .filter(StorageAccess.project_id == row.project_id)
-            .first()
-        )
-        cloud_providers.append(
-            current_session.query(
-                CloudProvider).filter(
-                    CloudProvider.id == proj.provider_id).first())
-        """
-        current_session.delete(row)
-    current_session.delete(user)
-    return {
-        "result": "success",
-        # "providers": cloud_providers,
-        "user": user,
-    }
 
 
 def create_user_by_username_project(current_session, new_user, proj):

@@ -11,8 +11,6 @@ from fence.blueprints.data.indexd import (
 from fence.errors import (
     Forbidden,
     InternalError,
-    NotSupported,
-    UnavailableError,
     UserError,
 )
 from fence.utils import is_valid_expiration
@@ -83,6 +81,94 @@ def upload_data_file():
         "url": blank_index.make_signed_url(params["file_name"], expires_in=expires_in),
     }
     return flask.jsonify(response), 201
+
+
+@blueprint.route("/multipart/init", methods=["POST"])
+@require_auth_header(aud={"data"})
+@login_required({"data"})
+@check_arborist_auth(resource="/data_file", method="file_upload")
+def init_multipart_upload():
+    """
+    Initialize a multipart upload request
+    """
+    params = flask.request.get_json()
+    if not params:
+        raise UserError("wrong Content-Type; expected application/json")
+    if "file_name" not in params:
+        raise UserError("missing required argument `file_name`")
+    blank_index = BlankIndex(file_name=params["file_name"])
+    expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
+    if "expires_in" in params:
+        is_valid_expiration(params["expires_in"])
+        expires_in = min(params["expires_in"], expires_in)
+    response = {
+        "guid": blank_index.guid,
+        "uploadId": BlankIndex.init_multipart_upload(
+            blank_index.guid + "/" + params["file_name"], expires_in=expires_in
+        ),
+    }
+    return flask.jsonify(response), 201
+
+
+@blueprint.route("/multipart/upload", methods=["POST"])
+@require_auth_header(aud={"data"})
+@login_required({"data"})
+@check_arborist_auth(resource="/data_file", method="file_upload")
+def generate_multipart_upload_presigned_url():
+    """
+    Generate multipart upload presigned url
+    """
+    params = flask.request.get_json()
+    if not params:
+        raise UserError("wrong Content-Type; expected application/json")
+
+    missing = {"key", "uploadId", "partNumber"}.difference(set(params))
+    if missing:
+        raise UserError("missing required arguments: {}".format(list(missing)))
+
+    expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
+    if "expires_in" in params:
+        is_valid_expiration(params["expires_in"])
+        expires_in = min(params["expires_in"], expires_in)
+    response = {
+        "presigned_url": BlankIndex.generate_aws_presigned_url_for_part(
+            params["key"],
+            params["uploadId"],
+            params["partNumber"],
+            expires_in=expires_in,
+        )
+    }
+    return flask.jsonify(response), 200
+
+
+@blueprint.route("/multipart/complete", methods=["POST"])
+@require_auth_header(aud={"data"})
+@login_required({"data"})
+@check_arborist_auth(resource="/data_file", method="file_upload")
+def complete_multipart_upload():
+    """
+    Complete multipart upload
+    """
+    params = flask.request.get_json()
+    if not params:
+        raise UserError("wrong Content-Type; expected application/json")
+
+    missing = {"key", "uploadId", "parts"}.difference(set(params))
+    if missing:
+        raise UserError("missing required arguments: {}".format(list(missing)))
+
+    expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
+    if "expires_in" in params:
+        is_valid_expiration(params["expires_in"])
+        expires_in = min(params["expires_in"], expires_in)
+
+    try:
+        BlankIndex.complete_multipart_upload(
+            params["key"], params["uploadId"], params["parts"], expires_in=expires_in
+        ),
+    except InternalError as e:
+        return flask.jsonify({"message": e.message}), e.code
+    return flask.jsonify({"message": "OK"}), 200
 
 
 @blueprint.route("/upload/<path:file_id>", methods=["GET"])
