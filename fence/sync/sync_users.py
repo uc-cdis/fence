@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 from csv import DictReader
 import errno
+from gen3users.validation import validate_user_yaml
 import glob
 import os
 import re
@@ -128,7 +129,9 @@ class UserYAML(object):
     @classmethod
     def from_file(cls, filepath, encrypted=True, key=None, logger=None):
         with _read_file(filepath, encrypted=encrypted, key=key, logger=logger) as f:
-            data = yaml.safe_load(f)
+            file_contents = f.read()
+            validate_user_yaml(file_contents)  # run user.yaml validation tests
+            data = yaml.safe_load(file_contents)
         projects = dict()
         user_info = dict()
         policies = dict()
