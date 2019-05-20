@@ -29,7 +29,7 @@ setuptools==36.6.0
 six==1.11.0
 SQLAlchemy==0.9.9
 temps==0.3.0
-userdatamodel==1.4.3
+userdatamodel==1.5.0
 Werkzeug==0.12.2
 pyyaml==5.1
 retry==0.9.2

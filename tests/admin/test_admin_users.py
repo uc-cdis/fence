@@ -1,7 +1,13 @@
+import pytest
+
 import fence.resources.admin as adm
 from fence.models import User, AccessPrivilege, Project, UserToGroup, Group
-import pytest
 from fence.errors import NotFound, UserError
+
+
+@pytest.fixture(autouse=True)
+def mock_arborist(mock_arborist_requests):
+    mock_arborist_requests()
 
 
 def test_get_user(db_session, awg_users):

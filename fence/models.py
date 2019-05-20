@@ -17,6 +17,7 @@ import flask
 from sqlalchemy import (
     Integer,
     BigInteger,
+    DateTime,
     String,
     Column,
     Boolean,
@@ -26,6 +27,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship, backref
+from sqlalchemy.sql import func
 from sqlalchemy import func
 from sqlalchemy.schema import ForeignKey
 from userdatamodel import Base
@@ -42,7 +44,6 @@ from userdatamodel.models import (
     HMACKeyPair,
     HMACKeyPairArchive,
     IdentityProvider,
-    Policy,
     Project,
     ProjectToBucket,
     S3Credential,
@@ -51,7 +52,6 @@ from userdatamodel.models import (
     User,
     UserToBucket,
     UserToGroup,
-    users_to_policies,
 )
 
 from fence.config import config
@@ -647,11 +647,17 @@ def migrate(driver):
     # TODO: Once sqlalchemy is bumped to above 1.0.0, just use the first version
     try:
         for fkey in list(user.foreign_key_constraints):
-            if str(fkey.parent) == "User.google_proxy_group_id" and fkey.ondelete == "SET NULL":
+            if (
+                str(fkey.parent) == "User.google_proxy_group_id"
+                and fkey.ondelete == "SET NULL"
+            ):
                 found_user_constraint_already_migrated = True
     except:
         for fkey in list(user.foreign_keys):
-            if str(fkey.parent) == "User.google_proxy_group_id" and fkey.ondelete == "SET NULL":
+            if (
+                str(fkey.parent) == "User.google_proxy_group_id"
+                and fkey.ondelete == "SET NULL"
+            ):
                 found_user_constraint_already_migrated = True
 
     if not found_user_constraint_already_migrated:
@@ -677,6 +683,17 @@ def migrate(driver):
             raise
         finally:
             delete_user_session.close()
+
+    _remove_policy(driver, md)
+
+    add_column_if_not_exist(
+        table_name=User.__tablename__,
+        column=Column(
+            "_last_auth", DateTime(timezone=False), server_default=func.now()
+        ),
+        driver=driver,
+        metadata=md,
+    )
 
 
 def add_foreign_key_column_if_not_exist(
@@ -787,7 +804,14 @@ def set_foreign_key_constraint_on_delete_setnull(
 
 
 def set_foreign_key_constraint_on_delete(
-    table_name, column_name, fk_table_name, fk_column_name, ondelete, driver, session, metadata
+    table_name,
+    column_name,
+    fk_table_name,
+    fk_column_name,
+    ondelete,
+    driver,
+    session,
+    metadata,
 ):
     table = Table(table_name, metadata, autoload=True, autoload_with=driver.engine)
     foreign_key_name = "{}_{}_fkey".format(table_name.lower(), column_name)
@@ -888,6 +912,13 @@ def add_not_null_constraint(table_name, column_name, driver, metadata):
                 )
             )
             session.commit()
+
+
+def _remove_policy(driver, md):
+    with driver.session as session:
+        session.execute("DROP TABLE IF EXISTS users_to_policies;")
+        session.execute("DROP TABLE IF EXISTS policy;")
+        session.commit()
 
 
 def _add_google_project_id(driver, md):
@@ -1084,7 +1115,13 @@ def _set_on_delete_cascades(driver, session, md):
         md,
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "service_account_access_privilege", "project_id", "project", "id", driver, session, md
+        "service_account_access_privilege",
+        "project_id",
+        "project",
+        "id",
+        driver,
+        session,
+        md,
     )
     set_foreign_key_constraint_on_delete_cascade(
         "service_account_access_privilege",
@@ -1135,7 +1172,13 @@ def _set_on_delete_cascades(driver, session, md):
         "access_privilege", "project_id", "project", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "access_privilege", "provider_id", "authorization_provider", "id", driver, session, md
+        "access_privilege",
+        "provider_id",
+        "authorization_provider",
+        "id",
+        driver,
+        session,
+        md,
     )
     set_foreign_key_constraint_on_delete_cascade(
         "user_to_bucket", "user_id", "User", "id", driver, session, md

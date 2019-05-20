@@ -22,11 +22,9 @@ from fence.config import config
 from fence.models import (
     AccessPrivilege,
     AuthorizationProvider,
-    Policy,
     Project,
     Tag,
     User,
-    users_to_policies,
     query_for_user,
 )
 from fence.rbac.client import ArboristClient, ArboristError
@@ -67,7 +65,7 @@ def arborist_role_for_permission(permission):
     return {
         "id": permission,
         "permissions": [
-            {"id": permission, "action": {"service": "", "method": permission}}
+            {"id": permission, "action": {"service": "*", "method": permission}}
         ],
     }
 
@@ -235,7 +233,7 @@ class UserSyncer(object):
             sync_from_dir: path to an alternative dir to sync from instead of
                            dbGaP
             arborist:
-                base URL for arborist service if the syncer should also create
+                ArboristClient instance if the syncer should also create
                 resources in arborist
         """
         self.sync_from_local_csv_dir = sync_from_local_csv_dir
@@ -253,12 +251,7 @@ class UserSyncer(object):
         self.logger = get_logger(
             "user_syncer", log_level="debug" if config["DEBUG"] == True else "info"
         )
-
-        self.arborist_client = None
-        if arborist:
-            self.arborist_client = ArboristClient(
-                arborist_base_url=arborist, logger=self.logger
-            )
+        self.arborist_client = arborist
 
         if storage_credentials:
             self.storage_manager = StorageManager(
@@ -635,21 +628,6 @@ class UserSyncer(object):
 
         self._validate_and_update_user_admin(sess, user_info_lowercase)
 
-        # Add policies to user models in the database. These will show up in users'
-        # JWTs; services can send the JWTs to arborist.
-        if user_policies:
-            self.logger.info("populating RBAC information from YAML file")
-        for username, policies in user_policies.iteritems():
-            user = query_for_user(session=sess, username=username)
-            for policy_id in policies:
-                policy = self._get_or_create_policy(sess, policy_id)
-                if policy not in user.policies:
-                    user.policies.append(policy)
-                    self.logger.info(
-                        "granted policy `{}` to user `{}` ({})".format(
-                            policy_id, username, user.id
-                        )
-                    )
         sess.commit()
 
     def _revoke_from_db(self, sess, to_delete):
@@ -785,6 +763,9 @@ class UserSyncer(object):
                 self.logger.info("create user {}".format(username))
                 u = User(username=username)
                 sess.add(u)
+
+            if self.arborist_client:
+                self.arborist_client.create_user({"name": username})
 
             u.email = user_info[username].get("email", "")
             u.display_name = user_info[username].get("display_name", "")
@@ -978,8 +959,6 @@ class UserSyncer(object):
         self.sync_two_phsids_dict(user_yaml.projects, user_projects)
         self.sync_two_user_info_dict(user_yaml.user_info, user_info)
 
-        self._reset_user_access(sess)
-
         if user_projects:
             self.logger.info("Sync to db and storage backend")
             self.sync_to_db_and_storage_backend(
@@ -990,7 +969,12 @@ class UserSyncer(object):
             self.logger.info("No users for syncing")
 
         if user_yaml.rbac:
-            self.logger.info("Synchronizing arborist")
+            if not self.arborist_client:
+                raise EnvironmentError(
+                    "yaml file contains rbac section but sync is not configured with"
+                    " arborist client"
+                )
+            self.logger.info("Synchronizing arborist...")
             success = self._update_arborist(sess, user_yaml)
             if success:
                 self.logger.info("Finished synchronizing arborist")
@@ -999,11 +983,6 @@ class UserSyncer(object):
                 exit(1)
         else:
             self.logger.info("No resources specified; skipping arborist sync")
-
-    @staticmethod
-    def _reset_user_access(session):
-        session.execute(users_to_policies.delete())
-        # TODO (rudyardrichter 2018-09-10): revoke admin access etc
 
     def _update_arborist(self, session, user_yaml):
         """
@@ -1026,7 +1005,9 @@ class UserSyncer(object):
             return False
         if not self.arborist_client.healthy():
             # TODO (rudyardrichter, 2019-01-07): add backoff/retry here
-            self.logger.error("arborist service is unavailable; skipping arborist sync")
+            self.logger.error(
+                "arborist service is unavailable; skipping main arborist sync"
+            )
             return False
 
         # Set up the resource tree in arborist
@@ -1053,7 +1034,7 @@ class UserSyncer(object):
         policies = user_yaml.rbac.get("policies", [])
         for policy in policies:
             try:
-                response = self.arborist_client.create_policy(policy)
+                response = self.arborist_client.create_policy(policy, overwrite=True)
                 if response:
                     created_policies.add(policy["id"])
             except ArboristError as e:
@@ -1064,6 +1045,12 @@ class UserSyncer(object):
         for username, user_resources in user_projects.iteritems():
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
+
+            self.arborist_client.create_user_if_not_exist(username)
+            self.arborist_client.revoke_all_policies_for_user(username)
+
+            for policy in user_yaml.policies.get(user.username, []):
+                self.arborist_client.grant_user_policy(user.username, policy)
 
             for path, permissions in user_resources.iteritems():
                 for permission in permissions:
@@ -1096,27 +1083,43 @@ class UserSyncer(object):
                                     "description": "policy created by fence sync",
                                     "role_ids": [permission],
                                     "resource_paths": [path],
-                                }
+                                },
+                                overwrite=True,
                             )
                         except ArboristError as e:
                             self.logger.info(
                                 "not creating policy in arborist; {}".format(str(e))
                             )
                         created_policies.add(policy_id)
-                    policy = self._get_or_create_policy(session, policy_id)
-                    user.policies.append(policy)
-                    self.logger.info(
-                        "granted policy `{}` to user `{}`".format(
-                            policy_id, user.username
-                        )
-                    )
+
+                    self.arborist_client.grant_user_policy(user.username, policy_id)
+
+        groups = user_yaml.rbac.get("groups", [])
+        for group in groups:
+            missing = {"name", "users", "policies"}.difference(set(group.keys()))
+            if missing:
+                name = group.get("name", "{MISSING NAME}")
+                self.logger.error(
+                    "group {} missing required field(s): {}".format(name, list(missing))
+                )
+                continue
+            try:
+                response = self.arborist_client.create_group(
+                    group["name"],
+                    description=group.get("description", ""),
+                    users=group["users"],
+                    policies=group["policies"],
+                    overwrite=True,
+                )
+            except ArboristError as e:
+                self.logger.info("couldn't create group: {}".format(str(e)))
+
+        # add policies for `anonymous` and `logged-in` groups
+
+        for policy in user_yaml.rbac.get("anonymous_policies", []):
+            self.arborist_client.grant_group_policy("anonymous", policy)
+
+        for policy in user_yaml.rbac.get("all_users_policies", []):
+            self.arborist_client.grant_group_policy("logged-in", policy)
 
         return True
-
-    def _get_or_create_policy(self, session, policy_id):
-        policy = session.query(Policy).filter_by(id=policy_id).first()
-        if not policy:
-            policy = Policy(id=policy_id)
-            session.add(policy)
-            self.logger.info("created policy `{}`".format(policy_id))
-        return policy

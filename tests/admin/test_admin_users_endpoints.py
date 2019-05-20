@@ -30,6 +30,12 @@ from fence.models import (
 import fence.resources.admin as adm
 from tests import utils
 
+
+@pytest.fixture(autouse=True)
+def mock_arborist(mock_arborist_requests):
+    mock_arborist_requests()
+
+
 # TODO: Not yet tested: PUT,DELETE /users/<username>/projects
 
 # Move these fixtures to tests/conftest.py if they become useful elsewhere
@@ -421,12 +427,12 @@ def test_put_user_username_try_delete_username(
     client, admin_user, encoded_admin_jwt, db_session, test_user_a
 ):
     """ PUT /users/<username>: [update_user] try to delete username"""
-    """ 
+    """
     This probably shouldn't be allowed. Conveniently, the code flow ends up
-    the same as though the user had not tried to update 'name' at all, 
+    the same as though the user had not tried to update 'name' at all,
     since they pass in None. Right now, this just returns a 200 without
     updating anything or sending any message to the user. So the test has
-    been written to ensure this behavior, but maybe it should be noted that 
+    been written to ensure this behavior, but maybe it should be noted that
     the tail wagged the dog somewhat in this case...
     """
     r = client.put(
@@ -446,12 +452,12 @@ def test_put_user_username_try_delete_role(
     client, admin_user, encoded_admin_jwt, db_session, test_user_a
 ):
     """ PUT /users/<username>: [update_user] try to set role to None"""
-    """ 
+    """
     This probably shouldn't be allowed. Conveniently, the code flow ends up
-    the same as though the user had not tried to update 'role' at all, 
+    the same as though the user had not tried to update 'role' at all,
     since they pass in None. Right now, this just returns a 200 without
     updating anything or sending any message to the user. So the test has
-    been written to ensure this behavior, but maybe it should be noted that 
+    been written to ensure this behavior, but maybe it should be noted that
     the tail wagged the dog somewhat in this case...
     """
     user = db_session.query(User).filter_by(username="test_a").one()
@@ -586,7 +592,7 @@ def assert_google_service_account_data_deleted(db_session):
 
 
 def assert_google_proxy_group_data_remained(db_session):
-    """ 
+    """
     Assert that test_user_d's Google PG and all associated rows remain in Fence db.
     Also assert that the test bucket and GBAG remain.
     """
@@ -620,7 +626,7 @@ def assert_google_proxy_group_data_remained(db_session):
 
 
 def assert_google_proxy_group_data_deleted(db_session):
-    """ 
+    """
     Assert that test_user_d's Google PG and all associated rows removed from Fence db.
     But assert that the test bucket and GBAG remain.
     """

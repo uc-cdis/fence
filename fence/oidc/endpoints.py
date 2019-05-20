@@ -59,9 +59,7 @@ class RevocationEndpoint(authlib.specs.rfc7009.RevocationEndpoint):
             bcrypt.hashpw(client_secret.encode("utf-8"), hashed.encode("utf-8"))
             != hashed
         ):
-            logger.debug(
-                "client secret hash does not match stored secret hash"
-            )
+            logger.debug("client secret hash does not match stored secret hash")
             raise InvalidClientError(uri=self.uri)
 
         self._client = client

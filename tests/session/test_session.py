@@ -18,6 +18,13 @@ except ImportError:
     from mock import patch
     from mock import call
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def mock_arborist(mock_arborist_requests):
+    mock_arborist_requests()
+
 
 def test_session_cookie_creation(app):
     # Test that when we don't modify the session, a

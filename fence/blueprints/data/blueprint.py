@@ -8,11 +8,7 @@ from fence.blueprints.data.indexd import (
     IndexedFile,
     get_signed_url_for_file,
 )
-from fence.errors import (
-    Forbidden,
-    InternalError,
-    UserError,
-)
+from fence.errors import Forbidden, InternalError, UserError
 from fence.utils import is_valid_expiration
 from fence.rbac import check_arborist_auth
 
