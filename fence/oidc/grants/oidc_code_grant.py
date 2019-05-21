@@ -67,7 +67,7 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
 
         self.request.user = user
         self.server.save_token(token, self.request)
-        token = self.process_token(token, self.request)
+        self.execute_hook('process_token', token=token)
         self.delete_authorization_code(authorization_code)
         return 200, token, self.TOKEN_RESPONSE_HEADER
 

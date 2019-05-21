@@ -151,7 +151,7 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
 
         self.request.user = user
         self.server.save_token(token, self.request)
-        token = self.process_token(token, self.request)
+        self.execute_hook('process_token', token=token)
         return 200, token, self.TOKEN_RESPONSE_HEADER
 
     def _validate_token_scope(self, token):
