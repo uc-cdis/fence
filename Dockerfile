@@ -25,6 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python-dev \
     python-pip \
     python-setuptools \
+    python-six \
     vim \
     && pip install pip==9.0.3 \
     && pip install --upgrade setuptools \
