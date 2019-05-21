@@ -942,7 +942,7 @@ class UserSyncer(object):
             user_yaml = UserYAML.from_file(
                 self.sync_from_local_yaml_file, encrypted=False, logger=self.logger
             )
-        except EnvironmentError as e:
+        except (EnvironmentError, AssertionError) as e:
             self.logger.error(str(e))
             self.logger.error("aborting early")
             return
