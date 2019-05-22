@@ -115,24 +115,16 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
         with flask.current_app.db.session as session:
             return session.query(User).filter_by(id=authorization_code.user_id).first()
 
-    def validate_nonce(self, required=False):
-        """
-        Override method in authlib to skip adding ``exists_nonce`` hook on server. I
-        don't think this needs to exist according to OIDC spec but this stays consistent
-        with authlib so here we are
-        """
-        if required:
-            if not self.request.nonce:
-                raise InvalidRequestError("Missing `nonce`")
-            with flask.current_app.db.session as session:
-                code = (
-                    session.query(AuthorizationCode)
-                    .filter_by(nonce=self.request.nonce)
-                    .first()
-                )
-                if not code:
-                    raise InvalidRequestError("Replay attack")
-        return True
+    def exists_nonce(self, nonce, request):
+        with flask.current_app.db.session as session:
+            code = (
+                session.query(AuthorizationCode)
+                .filter_by(nonce=nonce)
+                .first()
+            )
+            if code:
+                return True
+            return False
 
     def validate_prompt(self, end_user):
         """

@@ -7,13 +7,16 @@ from fence.models import AuthorizationCode
 
 
 class ImplicitGrant(OpenIDImplicitGrant):
-    def validate_nonce(self, required=False):
-        """
-        Override method in authlib to skip adding ``exists_nonce`` hook on server. I
-        don't think this needs to exist according to OIDC spec but this stays consistent
-        with authlib so here we are
-        """
-        return True
+    def exists_nonce(self, nonce, request):
+        with flask.current_app.db.session as session:
+            code = (
+                session.query(AuthorizationCode)
+                .filter_by(nonce=nonce)
+                .first()
+            )
+            if code:
+                return True
+            return False
 
     def create_authorization_response(self, grant_user):
         """
