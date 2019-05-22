@@ -5,7 +5,7 @@ from authlib.specs.rfc6749.authenticate_client import (
 )
 
 from authlib.specs.rfc6749.errors import InvalidClientError as AuthlibClientError
-import flask
+from flask import request as flask_req
 
 from fence.oidc.errors import InvalidClientError
 from fence.oidc.jwt_generator import generate_token
@@ -44,6 +44,20 @@ class OIDCServer(AuthorizationServer):
     Specific OAuth grants (authorization code, refresh token) are added on to
     a server instance using ``OIDCServer.register_grant_endpoint(grant)``. For
     usage, see ``fence/oidc/server.py``.
+
+    NOTE: As of Authlib==0.9 there is a bug with percent encoding spaces
+          See https://github.com/lepture/authlib/issues/93
+
+          As a temporary workaround until it is patched in authlib, we are overriding
+          some methods and modifying the `.url` of the request to make sure that
+          spaces are percent encoded.
+
+          Once we upgrade authlib:
+            REMOVE validate_consent_request below
+            REMOVE create_token_response below
+            REMOVE create_authorization_response below
+            REMOVE create_endpoint_response below
+            REMOVE _ensure_spaces_percent_encoded below
     """
 
     def init_app(self, app, query_client=None, save_token=None):
@@ -56,3 +70,39 @@ class OIDCServer(AuthorizationServer):
         self.init_jwt_config(app)
         if getattr(self, "query_client"):
             self.authenticate_client = ClientAuthentication(query_client)
+
+    def validate_consent_request(self, *args, **kwargs):
+        request = kwargs.pop("request", None)
+        kwargs["request"] = _ensure_spaces_percent_encoded(request)
+        return super(OIDCServer, self).validate_consent_request(*args, **kwargs)
+
+    def create_token_response(self, *args, **kwargs):
+        request = kwargs.pop("request", None)
+        kwargs["request"] = _ensure_spaces_percent_encoded(request)
+        return super(OIDCServer, self).create_token_response(*args, **kwargs)
+
+    def create_authorization_response(self, request=None, grant_user=None):
+        # authlib does this weird switching where if only one arg is passed in, it
+        # changes it to grant_user instead of the first request arg... so we need
+        # to do that here since we only want to modify the arguement if it's really
+        # a `request`
+        if request and not grant_user:
+            grant_user = request
+            request = None
+
+        if request:
+            request = _ensure_spaces_percent_encoded(request)
+        return super(OIDCServer, self).create_authorization_response(
+            request=request, grant_user=grant_user
+        )
+
+    def create_endpoint_response(self, *args, **kwargs):
+        request = kwargs.pop("request", None)
+        kwargs["request"] = _ensure_spaces_percent_encoded(request)
+        return super(OIDCServer, self).create_endpoint_response(*args, **kwargs)
+
+
+def _ensure_spaces_percent_encoded(request):
+    q = request or flask_req
+    q.url = q.url.replace(" ", "%20")
+    return q
