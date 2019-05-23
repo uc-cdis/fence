@@ -78,7 +78,6 @@ def authorize(*args, **kwargs):
 
     try:
         grant = server.validate_consent_request(end_user=user)
-        grant.validate_prompt(user)
     except OAuth2Error as e:
         raise Unauthorized("{} failed to authorize".format(str(e)))
 

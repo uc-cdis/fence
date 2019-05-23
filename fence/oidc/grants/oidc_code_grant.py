@@ -15,6 +15,12 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
 
     TOKEN_ENDPOINT_AUTH_METHODS = [auth_type.value for auth_type in ClientAuthType]
 
+    def __init__(self, *args, **kwargs):
+        super(OpenIDCodeGrant, self).__init__(*args, **kwargs)
+        # Override authlib validate_request_prompt with our own, to fix login prompt behavior
+        self._hooks['after_validate_consent_request'].discard(grants.util.validate_request_prompt)
+        self.register_hook('after_validate_consent_request', self.validate_request_prompt)
+
     @staticmethod
     def create_authorization_code(client, grant_user, request):
         """
@@ -126,11 +132,11 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
                 return True
             return False
 
-    def validate_prompt(self, end_user):
+    def validate_request_prompt(self, end_user):
         """
         Override method in authlib to fix behavior with login prompt.
         """
-        prompt = getattr(self.request, "prompt", None)
+        prompt = self.request.data.get("prompt")
         if not prompt:
             if not end_user:
                 self.prompt = "login"
