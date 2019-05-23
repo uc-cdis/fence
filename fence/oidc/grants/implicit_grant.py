@@ -50,7 +50,7 @@ class ImplicitGrant(OpenIDImplicitGrant):
         return create_response_mode_response(
             redirect_uri=self.redirect_uri,
             params=params,
-            response_mode=self.request.response_mode,
+            response_mode=self.request.data.get('response_mode', self.DEFAULT_RESPONSE_MODE)
         )
 
     def generate_token(self, *args, **kwargs):
