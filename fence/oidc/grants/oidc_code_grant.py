@@ -18,8 +18,12 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
     def __init__(self, *args, **kwargs):
         super(OpenIDCodeGrant, self).__init__(*args, **kwargs)
         # Override authlib validate_request_prompt with our own, to fix login prompt behavior
-        self._hooks['after_validate_consent_request'].discard(grants.util.validate_request_prompt)
-        self.register_hook('after_validate_consent_request', self.validate_request_prompt)
+        self._hooks["after_validate_consent_request"].discard(
+            grants.util.validate_request_prompt
+        )
+        self.register_hook(
+            "after_validate_consent_request", self.validate_request_prompt
+        )
 
     @staticmethod
     def create_authorization_code(client, grant_user, request):
@@ -73,7 +77,7 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
 
         self.request.user = user
         self.server.save_token(token, self.request)
-        self.execute_hook('process_token', token=token)
+        self.execute_hook("process_token", token=token)
         self.delete_authorization_code(authorization_code)
         return 200, token, self.TOKEN_RESPONSE_HEADER
 
@@ -123,11 +127,7 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
 
     def exists_nonce(self, nonce, request):
         with flask.current_app.db.session as session:
-            code = (
-                session.query(AuthorizationCode)
-                .filter_by(nonce=nonce)
-                .first()
-            )
+            code = session.query(AuthorizationCode).filter_by(nonce=nonce).first()
             if code:
                 return True
             return False

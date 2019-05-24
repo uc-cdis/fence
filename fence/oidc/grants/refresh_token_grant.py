@@ -2,7 +2,6 @@ import bcrypt
 import flask
 
 from authlib.oauth2.rfc6749.errors import (
-    InvalidClientError,
     InvalidRequestError,
     InvalidScopeError,
     UnauthorizedClientError,
@@ -151,7 +150,7 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
 
         self.request.user = user
         self.server.save_token(token, self.request)
-        self.execute_hook('process_token', token=token)
+        self.execute_hook("process_token", token=token)
         return 200, token, self.TOKEN_RESPONSE_HEADER
 
     def _validate_token_scope(self, token):

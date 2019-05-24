@@ -17,11 +17,7 @@ stateless.
 import flask
 
 from authlib.common.urls import add_params_to_uri
-from authlib.oauth2.rfc6749 import (
-    AccessDeniedError,
-    InvalidRequestError,
-    OAuth2Error,
-)
+from authlib.oauth2.rfc6749 import AccessDeniedError, InvalidRequestError, OAuth2Error
 
 from fence.errors import Unauthorized
 from fence.jwt.token import SCOPE_DESCRIPTION

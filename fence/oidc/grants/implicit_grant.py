@@ -1,6 +1,6 @@
 from authlib.oidc.core.grants import OpenIDImplicitGrant
 from authlib.oidc.core.grants.util import create_response_mode_response
-from authlib.oauth2.rfc6749 import AccessDeniedError, InvalidRequestError
+from authlib.oauth2.rfc6749 import AccessDeniedError
 import flask
 
 from fence.models import AuthorizationCode
@@ -9,11 +9,7 @@ from fence.models import AuthorizationCode
 class ImplicitGrant(OpenIDImplicitGrant):
     def exists_nonce(self, nonce, request):
         with flask.current_app.db.session as session:
-            code = (
-                session.query(AuthorizationCode)
-                .filter_by(nonce=nonce)
-                .first()
-            )
+            code = session.query(AuthorizationCode).filter_by(nonce=nonce).first()
             if code:
                 return True
             return False
@@ -50,7 +46,9 @@ class ImplicitGrant(OpenIDImplicitGrant):
         return create_response_mode_response(
             redirect_uri=self.redirect_uri,
             params=params,
-            response_mode=self.request.data.get('response_mode', self.DEFAULT_RESPONSE_MODE)
+            response_mode=self.request.data.get(
+                "response_mode", self.DEFAULT_RESPONSE_MODE
+            ),
         )
 
     def generate_token(self, *args, **kwargs):
