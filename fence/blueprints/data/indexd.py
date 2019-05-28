@@ -381,7 +381,7 @@ class IndexedFile(object):
             return self.index_document.get("uploader") == username
 
         try:
-            action_to_method = {"upload": "write_storage", "download": "read_storage"}
+            action_to_method = {"upload": "write-storage", "download": "read-storage"}
             method = action_to_method[action]
             # action should be upload or download
             # return bool for authorization
