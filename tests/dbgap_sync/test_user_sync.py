@@ -1,3 +1,4 @@
+import os
 import pytest
 import yaml
 
@@ -14,6 +15,23 @@ def test_sync_missing_file(syncer, monkeypatch, db_session):
     anything with the arborist client
     """
     monkeypatch.setattr(syncer, "sync_from_local_yaml_file", "this-file-is-not-real")
+    # should fail gracefully
+    syncer.sync()
+    assert syncer.arborist_client.create_resource.not_called()
+    assert syncer.arborist_client.create_role.not_called()
+    assert syncer.arborist_client.create_policy.not_called()
+
+
+@pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
+def test_sync_incorrect_user_yaml_file(syncer, monkeypatch, db_session):
+    """
+    Test that if the YAML file doesn't exist then the syncer doesn't do
+    anything with the arborist client
+    """
+    path = os.path.join(
+        os.path.dirname(os.path.realpath(__file__)), "data/yaml/incorrect_user.yaml"
+    )
+    monkeypatch.setattr(syncer, "sync_from_local_yaml_file", path)
     # should fail gracefully
     syncer.sync()
     assert syncer.arborist_client.create_resource.not_called()
