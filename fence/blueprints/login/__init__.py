@@ -31,6 +31,7 @@ IDP_URL_MAP = {
     "microsoft": "microsoft",
 }
 
+
 def make_login_blueprint(app):
     """
     Args:
@@ -53,8 +54,6 @@ def make_login_blueprint(app):
         )
         default_idp = None
         idps = {}
-
-
 
     # check if google is configured as a client. we will at least need a
     # a callback if it is
