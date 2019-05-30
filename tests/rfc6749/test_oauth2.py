@@ -4,11 +4,12 @@ Test the endpoints in the ``/oauth2`` blueprint.
 
 import pytest
 
-from fence.jwt.token import SCOPE_DESCRIPTION, CLIENT_ALLOWED_SCOPES
+from fence.jwt.token import SCOPE_DESCRIPTION
+from fence.config import config
 
 
 def test_all_scopes_have_description():
-    for scope in CLIENT_ALLOWED_SCOPES:
+    for scope in config["CLIENT_ALLOWED_SCOPES"]:
         assert scope in SCOPE_DESCRIPTION
 
 
@@ -17,6 +18,16 @@ def test_oauth2_authorize(oauth_test_client, method):
     """Test ``/oauth2/authorize``."""
     data = {"confirm": "yes"}
     oauth_test_client.authorize(method=method, data=data)
+
+
+@pytest.mark.parametrize("method", ["GET", "POST"])
+def test_oauth2_authorize_incorrect_scope(oauth_test_client, method):
+    """Test ``/oauth2/authorize``."""
+    data = {"confirm": "yes", "scope": "openid wrong_code"}
+    auth_response = oauth_test_client.authorize(
+        method=method, data=data, do_asserts=False
+    )
+    assert auth_response.response.status_code == 401
 
 
 @pytest.mark.parametrize("method", ["GET", "POST"])

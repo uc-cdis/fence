@@ -29,7 +29,6 @@ import fence.blueprints.admin
 import fence.blueprints.data
 import fence.blueprints.login
 import fence.blueprints.oauth2
-import fence.blueprints.rbac
 import fence.blueprints.misc
 import fence.blueprints.storage_creds
 import fence.blueprints.user
@@ -39,10 +38,19 @@ import fence.blueprints.google
 
 from cdislogging import get_logger
 
-logger = get_logger(__name__)
+# Can't read config yet. Just set to debug for now, else no handlers.
+# Later, in app_config(), will actually set level based on config
+logger = get_logger(__name__, log_level="debug")
 
 app = flask.Flask(__name__)
 CORS(app=app, headers=["content-type", "accept"], expose_headers="*")
+
+
+def warn_about_logger():
+    raise Exception(
+        "Flask 0.12 will remove and replace all of our log handlers if you call "
+        "app.logger anywhere. Use get_logger from cdislogging instead."
+    )
 
 
 def app_init(
@@ -52,6 +60,8 @@ def app_init(
     config_path=None,
     config_file_name=None,
 ):
+    app.__dict__["logger"] = warn_about_logger
+
     app_config(
         app,
         settings=settings,
@@ -92,9 +102,6 @@ def app_register_blueprints(app):
 
     google_blueprint = fence.blueprints.google.make_google_blueprint()
     app.register_blueprint(google_blueprint, url_prefix="/google")
-
-    if config.get("ARBORIST"):
-        app.register_blueprint(fence.blueprints.rbac.blueprint, url_prefix="/rbac")
 
     fence.blueprints.misc.register_misc(app)
 
@@ -169,9 +176,11 @@ def app_config(
     _load_keys(app, root_dir)
     _set_authlib_cfgs(app)
 
-    app.storage_manager = StorageManager(
-        config["STORAGE_CREDENTIALS"], logger=app.logger
-    )
+    app.storage_manager = StorageManager(config["STORAGE_CREDENTIALS"], logger=logger)
+
+    app.debug = config["DEBUG"]
+    # Following will update logger level, propagate, and handlers
+    get_logger(__name__, log_level="debug" if config["DEBUG"] == True else "info")
 
     _setup_oidc_clients(app)
 
@@ -179,7 +188,7 @@ def app_config(
 def _setup_data_endpoint_and_boto(app):
     if "AWS_CREDENTIALS" in config and len(config["AWS_CREDENTIALS"]) > 0:
         value = config["AWS_CREDENTIALS"].values()[0]
-        app.boto = BotoManager(value, logger=app.logger)
+        app.boto = BotoManager(value, logger=logger)
         app.register_blueprint(fence.blueprints.data.blueprint, url_prefix="/data")
 
 
@@ -225,7 +234,7 @@ def _setup_oidc_clients(app):
         app.google_client = GoogleClient(
             config["OPENID_CONNECT"]["google"],
             HTTP_PROXY=config.get("HTTP_PROXY"),
-            logger=app.logger,
+            logger=logger,
         )
 
     # Add OIDC client for ORCID if configured.
@@ -236,7 +245,7 @@ def _setup_oidc_clients(app):
         app.orcid_client = ORCIDClient(
             config["OPENID_CONNECT"]["orcid"],
             HTTP_PROXY=config.get("HTTP_PROXY"),
-            logger=app.logger,
+            logger=logger,
         )
 
     # Add OIDC client for Microsoft if configured.
@@ -247,7 +256,7 @@ def _setup_oidc_clients(app):
         app.microsoft_client = MicrosoftClient(
             config["OPENID_CONNECT"]["microsoft"],
             HTTP_PROXY=config.get("HTTP_PROXY"),
-            logger=app.logger,
+            logger=logger,
         )
 
     # Add OIDC client for multi-tenant fence if configured.
@@ -286,7 +295,7 @@ def check_csrf():
         csrf_header = flask.request.headers.get("x-csrf-token")
         csrf_cookie = flask.request.cookies.get("csrftoken")
         referer = flask.request.headers.get("referer")
-        flask.current_app.logger.debug("HTTP REFERER " + str(referer))
+        logger.debug("HTTP REFERER " + str(referer))
         if not all([csrf_cookie, csrf_header, csrf_cookie == csrf_header, referer]):
             raise UserError("CSRF verification failed. Request aborted")
 

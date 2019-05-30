@@ -13,6 +13,14 @@ from fence.errors import NotSupported
 
 from tests import utils
 
+# Python 2 and 3 compatible
+try:
+    from unittest.mock import MagicMock
+    from unittest.mock import patch
+except ImportError:
+    from mock import MagicMock
+    from mock import patch
+
 
 @pytest.mark.parametrize(
     "indexd_client", ["gs", "s3", "gs_acl", "s3_acl", "s3_external"], indirect=True
@@ -33,7 +41,6 @@ def test_indexd_download_file(
     Test ``GET /data/download/1``.
     """
     indexed_file_location = indexd_client["indexed_file_location"]
-
     path = "/data/download/1"
     query_string = {"protocol": indexed_file_location}
     headers = {
@@ -551,3 +558,152 @@ def test_blank_index_upload_unauthorized(
         response = client.post("/data/upload", headers=headers, data=data)
         data_requests.post.assert_not_called()
         assert response.status_code == 403, response
+
+
+@pytest.mark.parametrize(
+    "indexd_client_with_arborist",
+    ["gs", "s3", "gs_acl", "s3_acl", "s3_external"],
+    indirect=True,
+)
+def test_rbac(
+    app,
+    client,
+    mock_arborist_requests,
+    indexd_client_with_arborist,
+    user_client,
+    rsa_private_key,
+    kid,
+    google_proxy_group,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+):
+    mock_arborist_requests(
+        {"arborist/auth/request": {"POST": ('{"auth": "true"}', 200)}}
+    )
+    indexd_client = indexd_client_with_arborist("test_rbac")
+    indexed_file_location = indexd_client["indexed_file_location"]
+    path = "/data/download/1"
+    query_string = {"protocol": indexed_file_location}
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        )
+    }
+    response = client.get(path, headers=headers, query_string=query_string)
+    assert response.status_code == 200
+    assert "url" in response.json.keys()
+
+    mock_arborist_requests(
+        {"arborist/auth/request": {"POST": ('{"auth": "false"}', 403)}}
+    )
+    response = client.get(path, headers=headers, query_string=query_string)
+    assert response.status_code == 403
+
+
+def test_initialize_multipart_upload(
+    app, client, auth_client, encoded_creds_jwt, user_client
+):
+    class MockResponse(object):
+        def __init__(self, data, status_code=200):
+            self.data = data
+            self.status_code = status_code
+
+        def json(self):
+            return self.data
+
+    data_requests_mocker = mock.patch(
+        "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
+    )
+    arborist_requests_mocker = mock.patch(
+        "fence.rbac.client.requests", new_callable=mock.Mock
+    )
+
+    fence.blueprints.data.indexd.BlankIndex.init_multipart_upload = MagicMock()
+    with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
+        data_requests.post.return_value = MockResponse(
+            {
+                "did": str(uuid.uuid4()),
+                "rev": str(uuid.uuid4())[:8],
+                "baseid": str(uuid.uuid4()),
+            }
+        )
+        data_requests.post.return_value.status_code = 200
+        arborist_requests.post.return_value = MockResponse({"auth": True})
+        arborist_requests.post.return_value.status_code = 200
+        fence.blueprints.data.indexd.BlankIndex.init_multipart_upload.return_value = (
+            "test_uploadId"
+        )
+        headers = {
+            "Authorization": "Bearer " + encoded_creds_jwt.jwt,
+            "Content-Type": "application/json",
+        }
+        file_name = "asdf"
+        data = json.dumps({"file_name": file_name})
+        response = client.post("/data/multipart/init", headers=headers, data=data)
+        indexd_url = app.config.get("INDEXD") or app.config.get("BASE_URL") + "/index"
+        endpoint = indexd_url + "/index/blank/"
+        indexd_auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
+        data_requests.post.assert_called_once_with(
+            endpoint,
+            auth=indexd_auth,
+            json={"file_name": file_name, "uploader": user_client.username},
+        )
+        assert response.status_code == 201, response
+        assert "guid" in response.json
+        assert "uploadId" in response.json
+
+
+def test_multipart_upload_presigned_url(
+    app, client, auth_client, encoded_creds_jwt, user_client
+):
+    class MockResponse(object):
+        def __init__(self, data, status_code=200):
+            self.data = data
+            self.status_code = status_code
+
+        def json(self):
+            return self.data
+
+    data_requests_mocker = mock.patch(
+        "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
+    )
+    arborist_requests_mocker = mock.patch(
+        "fence.rbac.client.requests", new_callable=mock.Mock
+    )
+
+    fence.blueprints.data.indexd.BlankIndex.generate_aws_presigned_url_for_part = (
+        MagicMock()
+    )
+    with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
+        data_requests.post.return_value = MockResponse(
+            {
+                "did": str(uuid.uuid4()),
+                "rev": str(uuid.uuid4())[:8],
+                "baseid": str(uuid.uuid4()),
+            }
+        )
+        data_requests.post.return_value.status_code = 200
+        arborist_requests.post.return_value = MockResponse({"auth": True})
+        arborist_requests.post.return_value.status_code = 200
+        fence.blueprints.data.indexd.BlankIndex.generate_aws_presigned_url_for_part.return_value = (
+            "test_presigned"
+        )
+        headers = {
+            "Authorization": "Bearer " + encoded_creds_jwt.jwt,
+            "Content-Type": "application/json",
+        }
+        key = "guid/asdf"
+        uploadid = "uploadid"
+
+        data = json.dumps({"key": key, "uploadId": uploadid, "partNumber": 1})
+        response = client.post("/data/multipart/upload", headers=headers, data=data)
+
+        assert response.status_code == 200, response
+        assert "presigned_url" in response.json

@@ -6,6 +6,7 @@ import flask
 from flask_sqlalchemy_session import current_session
 from sqlalchemy import desc, func
 
+from cdislogging import get_logger
 from cirrus import GoogleCloudManager
 from cirrus.google_cloud.iam import GooglePolicyMember
 from cirrus.google_cloud.utils import (
@@ -191,7 +192,7 @@ def create_google_access_key(client_id, user_id, username, proxy_group_id):
     with GoogleCloudManager() as g_cloud:
         key = g_cloud.get_access_key(service_account.email)
 
-    flask.current_app.logger.info(
+    logger.info(
         "Created key with id {} for service account {} in user {}'s "
         "proxy group {} (user's id: {}).".format(
             key.get("private_key_id"),
@@ -402,7 +403,7 @@ def _update_service_account_db_entry(
 
     current_session.commit()
 
-    flask.current_app.logger.info(
+    logger.info(
         "Created service account {} for proxy group {}.".format(
             new_service_account["email"], proxy_group_id
         )
@@ -500,7 +501,7 @@ def _create_proxy_group(user_id, username):
     current_session.add(proxy_group)
     current_session.commit()
 
-    flask.current_app.logger.info(
+    logger.info(
         "Created proxy group {} for user {} with id {}.".format(
             new_proxy_group["email"], username, user_id
         )

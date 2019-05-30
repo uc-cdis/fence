@@ -40,8 +40,11 @@ def make_link_blueprint():
     blueprint = flask.Blueprint("link", __name__)
     blueprint_api = RestfulApi(blueprint)
 
-    blueprint_api.add_resource(GoogleLinkRedirect, "/google", strict_slashes=False)
-    blueprint_api.add_resource(GoogleCallback, "/google/callback", strict_slashes=False)
+    if config["ALLOW_GOOGLE_LINKING"]:
+        blueprint_api.add_resource(GoogleLinkRedirect, "/google", strict_slashes=False)
+        blueprint_api.add_resource(
+            GoogleCallback, "/google/callback", strict_slashes=False
+        )
 
     return blueprint
 
@@ -451,7 +454,7 @@ def _force_update_user_google_account(
                 user_google_account = add_new_user_google_account(
                     user_id, google_email, current_session
                 )
-                flask.current_app.logger.info(
+                logger.info(
                     "Linking Google account {} to user with id {}.".format(
                         google_email, user_id
                     )
@@ -477,7 +480,7 @@ def _force_update_user_google_account(
         user_google_account, proxy_group_id, google_email, expiration, current_session
     )
 
-    flask.current_app.logger.info(
+    logger.info(
         "Adding user's (id: {}) Google account to their proxy group (id: {})."
         " Expiration: {}".format(
             user_google_account.user_id, proxy_group_id, expiration

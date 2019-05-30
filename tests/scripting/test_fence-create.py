@@ -44,6 +44,11 @@ from fence.scripting.fence_create import (
 ROOT_DIR = "./"
 
 
+@pytest.fixture(autouse=True)
+def mock_arborist(mock_arborist_requests):
+    mock_arborist_requests()
+
+
 def test_client_delete(app, db_session, cloud_manager, test_user_a):
     """
     Test that the client delete function correctly cleans up the client's
@@ -300,14 +305,14 @@ def _setup_service_account_to_google_bucket_access_group(db_session):
         GoogleBucketAccessGroup(
             bucket_id=bucket1.id,
             email="testgroup1@gmail.com",
-            privileges=["read_storage", "write_storage"],
+            privileges=["read-storage", "write-storage"],
         )
     )
     db_session.add(
         GoogleBucketAccessGroup(
             bucket_id=bucket1.id,
             email="testgroup2@gmail.com",
-            privileges=["read_storage"],
+            privileges=["read-storage"],
         )
     )
     db_session.commit()

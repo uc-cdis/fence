@@ -68,8 +68,10 @@ SESSION_COOKIE_SECURE: true
 ENABLE_CSRF_PROTECTION: true
 
 # //////////////////////////////////////////////////////////////////////////////////////
-# OPEN ID CONNECT (OIDC) CLIENTS
+# OPEN ID CONNECT (OIDC)
 #   - Fully configure at least one client so login works
+#   - WARNING: Be careful changing the *_ALLOWED_SCOPES as you can break basic
+#              and optional functionality
 # //////////////////////////////////////////////////////////////////////////////////////
 OPENID_CONNECT:
   # These Google values must be obtained from Google's Cloud Console
@@ -131,6 +133,40 @@ OPENID_CONNECT:
     # your app in Azure. DO NOT include {{BASE_URL}} in Azure, you need to actually put the
     # full url
     redirect_url: '{{BASE_URL}}/login/microsoft/login/'
+
+# these are the *possible* scopes a client can be given, NOT scopes that are
+# given to all clients. You can be more restrictive during client creation
+CLIENT_ALLOWED_SCOPES:
+  - "openid"
+  - "user"
+  - "data"
+  - "google_credentials"
+  - "google_service_account"
+  - "google_link"
+
+# these are the scopes that CAN be included in a user's own access_token
+USER_ALLOWED_SCOPES:
+  - "fence"
+  - "openid"
+  - "user"
+  - "data"
+  - "admin"
+  - "google_credentials"
+  - "google_service_account"
+  - "google_link"
+
+# these are the scopes that a browser session can create for a user (very
+# similar to USER_ALLOWED_SCOPES, as the session will actually create access_tokens
+# for an actively logged in user)
+SESSION_ALLOWED_SCOPES:
+  - "openid"
+  - "user"
+  - "credentials"
+  - "data"
+  - "admin"
+  - "google_credentials"
+  - "google_service_account"
+  - "google_link"
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # LOGIN
@@ -430,6 +466,9 @@ SEND_TO: 'example@gmail.com'
 # DATA ACCESS: GOOGLE LINKING & SERVICE ACCOUNT REGISTRATION
 #   - Support `/google/service_accounts` endpoints
 # //////////////////////////////////////////////////////////////////////////////////////
+# whether or not to allow access to the /link/google endpoints
+ALLOW_GOOGLE_LINKING: true
+
 # A Google Project with controlled data access will be determined INVALID if
 # if it has a parent organization UNLESS that parent organization's ID is in this
 # whitelist.
@@ -511,3 +550,13 @@ GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS:
   - 'storage-transfer-service.iam.gserviceaccount.com'
   - 'firebase-sa-management.iam.gserviceaccount.com'
   - 'firebase-rules.iam.gserviceaccount.com'
+
+# The types of service accounts that are allowed to be registered at
+# /google/service_accounts endpoints
+ALLOWED_USER_SERVICE_ACCOUNT_DOMAINS:
+  # compute engine default service account
+  - 'developer.gserviceaccount.com'
+  # app engine default service account
+  - 'appspot.gserviceaccount.com'
+  # user-managed service account
+  - 'iam.gserviceaccount.com'

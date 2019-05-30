@@ -4,14 +4,39 @@ import json
 import jwt
 import pytest
 
+# Python 2 and 3 compatible
+try:
+    from unittest.mock import Mock
+    from unittest.mock import patch
+except ImportError:
+    from mock import Mock
+    from mock import patch
+
 from fence.config import config
-from fence.models import User
+from fence.models import (
+    Bucket,
+    Client,
+    GoogleBucketAccessGroup,
+    GoogleProxyGroup,
+    GoogleProxyGroupToGoogleBucketAccessGroup,
+    GoogleServiceAccount,
+    GoogleServiceAccountKey,
+    Group,
+    User,
+    UserGoogleAccount,
+    UserGoogleAccountToProxyGroup,
+    UserToGroup,
+)
 import fence.resources.admin as adm
 from tests import utils
 
-# TODO: Not yet tested: GET,PUT,DELETE /users/<username>/groups
+
+@pytest.fixture(autouse=True)
+def mock_arborist(mock_arborist_requests):
+    mock_arborist_requests()
+
+
 # TODO: Not yet tested: PUT,DELETE /users/<username>/projects
-# TODO: Not yet tested: DELETE /users/<username>/
 
 # Move these fixtures to tests/conftest.py if they become useful elsewhere
 
@@ -27,6 +52,10 @@ def admin_user(db_session):
 
 @pytest.fixture(scope="function")
 def encoded_admin_jwt(kid, rsa_private_key):
+    """
+    To use this fixture you need to also include admin_user as a fixture
+    in your test (admin_user must be in the db).
+    """
     headers = {"kid": kid}
     claims = utils.default_claims()
     claims["context"]["user"]["name"] = "admin_user@fake.com"
@@ -35,6 +64,120 @@ def encoded_admin_jwt(kid, rsa_private_key):
     claims["iss"] = config["BASE_URL"]
     claims["exp"] += 600
     return jwt.encode(claims, key=rsa_private_key, headers=headers, algorithm="RS256")
+
+
+# Dictionary for all these random magic numbers that the delete user
+# tests/fixtures are using
+userd_dict = {
+    "user_id": 4242,
+    "user_username": "test_user_d",
+    "user_email": "test_user_d_email",
+    "client_id": "dclientid",
+    "group_id": 4240,
+    "gpg_id": "d_gpgid",
+    "gpg_email": "d_gpg_email",
+    "gsa_id": 4202,
+    "gsa_email": "d_sa_email",
+    "gsak_id": 4201,
+    "gsak_key_id": "d_sa_key",
+    "bucket_id": 4203,
+    "gbag_id": 4204,
+    "gbag_email": "d_gbag_email",
+    "gpg_to_gbag_id": 4205,
+    "uga_id": 4206,
+    "uga_email": "d_uga_email",
+}
+
+
+@pytest.fixture(scope="function")
+def test_user_d(db_session):
+    """
+    Test user for delete /user/<username>
+    For delete-user tests you probably want to just use
+    one of the load_*_user_data fixtures
+    """
+    user = (
+        db_session.query(User).filter_by(username=userd_dict["user_username"]).first()
+    )
+    if not user:
+        user = User(
+            id=userd_dict["user_id"],
+            username=userd_dict["user_username"],
+            email=userd_dict["user_email"],
+        )
+        db_session.add(user)
+        db_session.commit()
+
+
+@pytest.fixture(scope="function")
+def load_non_google_user_data(db_session, test_user_d):
+    """ Add general, non-Google user data to Fence db. """
+
+    client = Client(
+        client_id=userd_dict["client_id"],
+        user_id=userd_dict["user_id"],
+        issued_at=420,
+        expires_at=42020,
+        redirect_uri="dclient.com",
+        grant_type="dgrant",
+        response_type="dresponse",
+        scope="dscope",
+        name="dclientname",
+        _allowed_scopes="dallscopes",
+    )
+    grp = Group(id=userd_dict["group_id"])
+    usr_grp = UserToGroup(
+        user_id=userd_dict["user_id"], group_id=userd_dict["group_id"]
+    )
+    db_session.add_all([client, grp, usr_grp])
+    db_session.commit()
+
+
+@pytest.fixture(scope="function")
+def load_google_specific_user_data(db_session, test_user_d):
+    """ Add Google-specific user data to Fence db."""
+
+    gpg = GoogleProxyGroup(id=userd_dict["gpg_id"], email=userd_dict["gpg_email"])
+
+    gsak = GoogleServiceAccountKey(
+        id=userd_dict["gsak_id"],
+        key_id=userd_dict["gsak_key_id"],
+        service_account_id=userd_dict["gsa_id"],
+    )
+    gsa = GoogleServiceAccount(
+        id=userd_dict["gsa_id"],
+        google_unique_id="d_gui",
+        user_id=userd_dict["user_id"],
+        google_project_id="d_gpid",
+        email=userd_dict["gsa_email"],
+    )
+    bkt = Bucket(id=userd_dict["bucket_id"])
+    gbag = GoogleBucketAccessGroup(
+        id=userd_dict["gbag_id"],
+        bucket_id=userd_dict["bucket_id"],
+        email=userd_dict["gbag_email"],
+    )
+    gpg_gbag = GoogleProxyGroupToGoogleBucketAccessGroup(
+        id=userd_dict["gpg_to_gbag_id"],
+        proxy_group_id=userd_dict["gpg_id"],
+        access_group_id=userd_dict["gbag_id"],
+    )
+    uga = UserGoogleAccount(
+        id=userd_dict["uga_id"],
+        email=userd_dict["uga_email"],
+        user_id=userd_dict["user_id"],
+    )
+    uga_pg = UserGoogleAccountToProxyGroup(
+        user_google_account_id=userd_dict["uga_id"], proxy_group_id=userd_dict["gpg_id"]
+    )
+    db_session.add_all([gpg, gsak, gsa, bkt, gbag, gpg_gbag, uga, uga_pg])
+
+    user = (
+        db_session.query(User).filter_by(username=userd_dict["user_username"]).first()
+    )
+    user.google_proxy_group_id = userd_dict["gpg_id"]
+
+    db_session.commit()
 
 
 # GET /users/<username> tests
@@ -284,12 +427,12 @@ def test_put_user_username_try_delete_username(
     client, admin_user, encoded_admin_jwt, db_session, test_user_a
 ):
     """ PUT /users/<username>: [update_user] try to delete username"""
-    """ 
+    """
     This probably shouldn't be allowed. Conveniently, the code flow ends up
-    the same as though the user had not tried to update 'name' at all, 
+    the same as though the user had not tried to update 'name' at all,
     since they pass in None. Right now, this just returns a 200 without
     updating anything or sending any message to the user. So the test has
-    been written to ensure this behavior, but maybe it should be noted that 
+    been written to ensure this behavior, but maybe it should be noted that
     the tail wagged the dog somewhat in this case...
     """
     r = client.put(
@@ -309,12 +452,12 @@ def test_put_user_username_try_delete_role(
     client, admin_user, encoded_admin_jwt, db_session, test_user_a
 ):
     """ PUT /users/<username>: [update_user] try to set role to None"""
-    """ 
+    """
     This probably shouldn't be allowed. Conveniently, the code flow ends up
-    the same as though the user had not tried to update 'role' at all, 
+    the same as though the user had not tried to update 'role' at all,
     since they pass in None. Right now, this just returns a 200 without
     updating anything or sending any message to the user. So the test has
-    been written to ensure this behavior, but maybe it should be noted that 
+    been written to ensure this behavior, but maybe it should be noted that
     the tail wagged the dog somewhat in this case...
     """
     user = db_session.query(User).filter_by(username="test_a").one()
@@ -387,3 +530,293 @@ def test_put_user_username_noauth(client, db_session):
     """ PUT /users/<username>: [update_user] but without authorization """
     r = client.put("/admin/users/test_a")
     assert r.status_code == 401
+
+
+# DELETE /users/<username> tests
+
+
+def assert_non_google_data_remained(db_session):
+    """ Assert that test_user_d's non-Google data (client, group...) remain in Fence db. """
+    client = db_session.query(Client).filter_by(client_id=userd_dict["client_id"]).all()
+    assert len(client) == 1
+    group = db_session.query(Group).filter_by(id=userd_dict["group_id"]).all()
+    assert len(group) == 1
+    usr_grp = (
+        db_session.query(UserToGroup)
+        .filter_by(user_id=userd_dict["user_id"], group_id=userd_dict["group_id"])
+        .all()
+    )
+    assert len(usr_grp) == 1
+
+
+def assert_non_google_data_deleted(db_session):
+    """ Assert that test_user_d's non-Google data (client, group...) were removed from Fence db. """
+    client = db_session.query(Client).filter_by(client_id=userd_dict["client_id"]).all()
+    assert len(client) == 0
+    group = db_session.query(Group).filter_by(id=userd_dict["group_id"]).all()
+    assert len(group) == 1  # shouldn't get deleted
+    usr_grp = (
+        db_session.query(UserToGroup)
+        .filter_by(user_id=userd_dict["user_id"], group_id=userd_dict["group_id"])
+        .all()
+    )
+    assert len(usr_grp) == 0
+
+
+def assert_google_service_account_data_remained(db_session):
+    """ Assert that test_user_d's Google SA and its key remain in Fence db."""
+    gsa = (
+        db_session.query(GoogleServiceAccount).filter_by(id=userd_dict["gsa_id"]).all()
+    )
+    assert len(gsa) == 1
+    gsak = (
+        db_session.query(GoogleServiceAccountKey)
+        .filter_by(id=userd_dict["gsak_id"])
+        .all()
+    )
+    assert len(gsak) == 1
+
+
+def assert_google_service_account_data_deleted(db_session):
+    """ Assert that test_user_d's Google SA and its key are no longer in Fence db."""
+    gsa = (
+        db_session.query(GoogleServiceAccount).filter_by(id=userd_dict["gsa_id"]).all()
+    )
+    assert len(gsa) == 0
+    gsak = (
+        db_session.query(GoogleServiceAccountKey)
+        .filter_by(id=userd_dict["gsak_id"])
+        .all()
+    )
+    assert len(gsak) == 0
+
+
+def assert_google_proxy_group_data_remained(db_session):
+    """
+    Assert that test_user_d's Google PG and all associated rows remain in Fence db.
+    Also assert that the test bucket and GBAG remain.
+    """
+    gpg = db_session.query(GoogleProxyGroup).filter_by(id=userd_dict["gpg_id"]).all()
+    assert len(gpg) == 1
+    gpg_to_gbag = (
+        db_session.query(GoogleProxyGroupToGoogleBucketAccessGroup)
+        .filter_by(id=userd_dict["gpg_to_gbag_id"])
+        .all()
+    )
+    assert len(gpg_to_gbag) == 1
+    uga_pg = (
+        db_session.query(UserGoogleAccountToProxyGroup)
+        .filter_by(
+            user_google_account_id=userd_dict["uga_id"],
+            proxy_group_id=userd_dict["gpg_id"],
+        )
+        .all()
+    )
+    assert len(uga_pg) == 1
+    uga = db_session.query(UserGoogleAccount).filter_by(id=userd_dict["uga_id"]).all()
+    assert len(uga) == 1
+    bkt = db_session.query(Bucket).filter_by(id=userd_dict["bucket_id"]).all()
+    assert len(bkt) == 1
+    gbag = (
+        db_session.query(GoogleBucketAccessGroup)
+        .filter_by(id=userd_dict["gbag_id"])
+        .all()
+    )
+    assert len(gbag) == 1
+
+
+def assert_google_proxy_group_data_deleted(db_session):
+    """
+    Assert that test_user_d's Google PG and all associated rows removed from Fence db.
+    But assert that the test bucket and GBAG remain.
+    """
+    gpg = db_session.query(GoogleProxyGroup).filter_by(id=userd_dict["gpg_id"]).all()
+    assert len(gpg) == 0
+    gpg_to_gbag = (
+        db_session.query(GoogleProxyGroupToGoogleBucketAccessGroup)
+        .filter_by(id=userd_dict["gpg_to_gbag_id"])
+        .all()
+    )
+    assert len(gpg_to_gbag) == 0
+    uga_pg = (
+        db_session.query(UserGoogleAccountToProxyGroup)
+        .filter_by(
+            user_google_account_id=userd_dict["uga_id"],
+            proxy_group_id=userd_dict["gpg_id"],
+        )
+        .all()
+    )
+    assert len(uga_pg) == 0
+    uga = db_session.query(UserGoogleAccount).filter_by(id=userd_dict["uga_id"]).all()
+    assert len(uga) == 0
+    bkt = db_session.query(Bucket).filter_by(id=userd_dict["bucket_id"]).all()
+    assert len(bkt) == 1
+    gbag = (
+        db_session.query(GoogleBucketAccessGroup)
+        .filter_by(id=userd_dict["gbag_id"])
+        .all()
+    )
+    assert len(gbag) == 1
+
+
+def test_delete_user_username(
+    client,
+    admin_user,
+    encoded_admin_jwt,
+    db_session,
+    load_non_google_user_data,
+    load_google_specific_user_data,
+    cloud_manager,
+):
+    """
+    Case where Google is IDP and all as expected: Google data is in Fence and on Google,
+    and all of the Google API calls via cirrus worked.
+    Assert that all user data (Google and non-Google) cleared from Fence.
+    """
+    cloud_manager.return_value.__enter__.return_value.get_service_accounts_from_group.return_value = [
+        "d_sa_email"
+    ]
+    cloud_manager.return_value.__enter__.return_value.delete_service_account.return_value = (
+        {}
+    )
+    cloud_manager.return_value.__enter__.return_value.delete_group.return_value = {}
+
+    r = client.delete(
+        "/admin/users/test_user_d",
+        headers={"Authorization": "Bearer " + encoded_admin_jwt},
+    )
+
+    assert r.status_code == 200
+    assert_non_google_data_deleted(db_session)
+    assert_google_service_account_data_deleted(db_session)
+    assert_google_proxy_group_data_deleted(db_session)
+
+
+def test_delete_user_username_no_google(
+    client,
+    admin_user,
+    encoded_admin_jwt,
+    db_session,
+    load_non_google_user_data,
+    cloud_manager,
+):
+    """
+    Google is not being used as IDP, so GPG not found in Fence db;
+    assert that non-Google Fence data is still deleted from Fence db.
+    - No Google data in Fence db
+    """
+    # cirrus doesn't find GPG; no Google deletes attempted.
+    cloud_manager.return_value.__enter__.return_value.get_group.return_value = None
+
+    r = client.delete(
+        "/admin/users/test_user_d",
+        headers={"Authorization": "Bearer " + encoded_admin_jwt},
+    )
+    assert r.status_code == 200
+    assert_non_google_data_deleted(db_session)
+
+
+def test_delete_user_username_gpg_only_in_google(
+    client,
+    admin_user,
+    encoded_admin_jwt,
+    db_session,
+    load_non_google_user_data,
+    cloud_manager,
+):
+    """
+    Google is IDP; GPG not found in Fence db for whatever reason,
+    but found by cirrus in Google.
+    Assert that non-Google Fence data is still deleted from Fence db.
+    (And that Google data is deleted from Google,
+    except that part isn't possible in a unit test.)
+    - No Google data in Fence db
+    """
+    # cirrus finds GPG even though it wasn't in Fence. Actual GPG email doesn't matter
+    # since we mock get_service_accounts_from_group anyway
+    cloud_manager.return_value.__enter__.return_value.get_group.return_value = {
+        "email": "d_gpg_email"
+    }
+    cloud_manager.return_value.__enter__.return_value.get_service_accounts_from_group.return_value = [
+        "d_sa_email"
+    ]
+    cloud_manager.return_value.__enter__.return_value.delete_service_account.return_value = (
+        {}
+    )
+    cloud_manager.return_value.__enter__.return_value.delete_group.return_value = {}
+
+    r = client.delete(
+        "/admin/users/test_user_d",
+        headers={"Authorization": "Bearer " + encoded_admin_jwt},
+    )
+    assert r.status_code == 200
+    assert_non_google_data_deleted(db_session)
+
+
+def test_delete_user_username_with_sa_deletion_fail(
+    client,
+    admin_user,
+    encoded_admin_jwt,
+    db_session,
+    load_non_google_user_data,
+    load_google_specific_user_data,
+    cloud_manager,
+):
+    """
+    Case where service account deletion fails in Google.
+    Assert that SA and SA key data, all other Google data,
+    and all other non-Google data remained in Fence.
+    """
+    cloud_manager.return_value.__enter__.return_value.get_service_accounts_from_group.return_value = [
+        "d_sa_email"
+    ]
+    cloud_manager.return_value.__enter__.return_value.delete_service_account.return_value = (
+        "i am not an empty dict"
+    )
+    cloud_manager.return_value.__enter__.return_value.delete_group.return_value = {}
+
+    r = client.delete(
+        "/admin/users/test_user_d",
+        headers={"Authorization": "Bearer " + encoded_admin_jwt},
+    )
+
+    assert r.status_code == 503
+    assert_google_service_account_data_remained(db_session)
+    assert_google_proxy_group_data_remained(db_session)
+    assert_non_google_data_remained(db_session)
+
+
+def test_delete_user_username_with_pg_deletion_fail(
+    client,
+    admin_user,
+    encoded_admin_jwt,
+    db_session,
+    load_non_google_user_data,
+    load_google_specific_user_data,
+    cloud_manager,
+):
+    """
+    Case where proxy group deletion fails in Google.
+    Assert that SA and SA key data were deleted,
+    but all other Google data present
+    and all other non-Google data present too.
+    """
+    cloud_manager.return_value.__enter__.return_value.get_service_accounts_from_group.return_value = [
+        "d_sa_email"
+    ]
+    cloud_manager.return_value.__enter__.return_value.delete_service_account.return_value = (
+        {}
+    )
+    cloud_manager.return_value.__enter__.return_value.delete_group.return_value = (
+        "i am not an empty dict"
+    )
+
+    r = client.delete(
+        "/admin/users/test_user_d",
+        headers={"Authorization": "Bearer " + encoded_admin_jwt},
+    )
+
+    assert r.status_code == 503
+    assert_google_service_account_data_deleted(db_session)
+    assert_google_proxy_group_data_remained(db_session)
+    assert_non_google_data_remained(db_session)

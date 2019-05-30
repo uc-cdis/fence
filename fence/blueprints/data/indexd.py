@@ -4,12 +4,15 @@ from urlparse import urlparse
 
 from cached_property import cached_property
 import cirrus
+from cdislogging import get_logger
 from cdispyutils.config import get_value
 from cdispyutils.hmac4 import generate_aws_presigned_url
 import flask
 import requests
 
 from fence.auth import (
+    get_jwt,
+    has_oauth,
     current_token,
     login_required,
     set_current_token,
@@ -31,7 +34,10 @@ from fence.resources.google.utils import (
     get_google_app_creds,
 )
 from fence.utils import get_valid_expiration_from_request
+import multipart_upload
 
+
+logger = get_logger(__name__)
 
 ACTION_DICT = {
     "s3": {"upload": "PUT", "download": "GET"},
@@ -74,8 +80,8 @@ class BlankIndex(object):
         https://github.com/uc-cdis/cdis-wiki/tree/master/dev/gen3/data_upload
     """
 
-    def __init__(self, uploader=None, file_name=None, logger=None):
-        self.logger = logger or flask.current_app.logger
+    def __init__(self, uploader=None, file_name=None, logger_=None):
+        self.logger = logger_ or logger
         self.indexd = (
             flask.current_app.config.get("INDEXD")
             or flask.current_app.config["BASE_URL"] + "/index"
@@ -151,6 +157,75 @@ class BlankIndex(object):
         )
         return url
 
+    @staticmethod
+    def init_multipart_upload(key, expires_in=None):
+        """
+        Initilize multipart upload given key
+
+        Args:
+            key(str): object key
+
+        Returns:
+            uploadId(str)
+        """
+        try:
+            bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
+        except KeyError:
+            raise InternalError(
+                "fence not configured with data upload bucket; can't create signed URL"
+            )
+        s3_url = "s3://{}/{}".format(bucket, key)
+        return S3IndexedFileLocation(s3_url).init_multipart_upload(expires_in)
+
+    @staticmethod
+    def complete_multipart_upload(key, uploadId, parts, expires_in=None):
+        """
+        Complete multipart upload
+
+        Args:
+            key(str): object key or `GUID/filename`
+            uploadId(str): upload id of the current upload
+            parts(list(set)): List of part infos
+                [{"Etag": "1234567", "PartNumber": 1}, {"Etag": "4321234", "PartNumber": 2}]
+
+        Returns:
+            None if success otherwise an exception
+        """
+        try:
+            bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
+        except KeyError:
+            raise InternalError(
+                "fence not configured with data upload bucket; can't create signed URL"
+            )
+        s3_url = "s3://{}/{}".format(bucket, key)
+        S3IndexedFileLocation(s3_url).complete_multipart_upload(
+            uploadId, parts, expires_in
+        )
+
+    @staticmethod
+    def generate_aws_presigned_url_for_part(key, uploadId, partNumber, expires_in):
+        """
+        Generate presigned url for each part
+
+        Args:
+            key(str): object key of `guid/filename`
+            uploadID(str): uploadId of the current upload.
+            partNumber(int): the part number
+
+        Returns:
+            presigned_url(str)
+        """
+        try:
+            bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
+        except KeyError:
+            raise InternalError(
+                "fence not configured with data upload bucket; can't create signed URL"
+            )
+        s3_url = "s3://{}/{}".format(bucket, key)
+        return S3IndexedFileLocation(s3_url).generate_presigne_url_for_part_upload(
+            uploadId, partNumber, expires_in
+        )
+
 
 class IndexedFile(object):
     """
@@ -186,7 +261,7 @@ class IndexedFile(object):
         try:
             res = requests.get(url + self.file_id)
         except Exception as e:
-            flask.current_app.logger.error(
+            logger.error(
                 "failed to reach indexd at {0}: {1}".format(url + self.file_id, e)
             )
             raise UnavailableError("Fail to reach id service to find data location")
@@ -194,19 +269,19 @@ class IndexedFile(object):
             try:
                 json_response = res.json()
                 if "urls" not in json_response:
-                    flask.current_app.logger.error(
+                    logger.error(
                         "URLs are not included in response from "
                         "indexd: {}".format(url + self.file_id)
                     )
                     raise InternalError("URLs and metadata not found")
                 return res.json()
             except Exception as e:
-                flask.current_app.logger.error(
+                logger.error(
                     "indexd response missing JSON field {}".format(url + self.file_id)
                 )
                 raise InternalError("internal error from indexd: {}".format(e))
         elif res.status_code == 404:
-            flask.current_app.logger.error(
+            logger.error(
                 "Not Found. indexd could not find {}: {}".format(
                     url + self.file_id, res.text
                 )
@@ -226,7 +301,9 @@ class IndexedFile(object):
         # don't check the authorization if the file is public
         # (downloading public files with no auth is fine)
         if not self.public and not self.check_authorization(action):
-            raise Unauthorized("You don't have access permission on this file")
+            raise Unauthorized(
+                "You don't have access permission on this file: {}".format(self.file_id)
+            )
         if action is not None and action not in SUPPORTED_ACTIONS:
             raise NotSupported("action {} is not supported".format(action))
         return self._get_signed_url(protocol, action, expires_in, force_signed_url)
@@ -270,6 +347,18 @@ class IndexedFile(object):
         else:
             raise Unauthorized("This file is not accessible")
 
+    def check_authz(self, action):
+        if not self.index_document.get("authz"):
+            raise ValueError("index record missing `authz`")
+
+        request = {"user": {"token": get_jwt()}, "requests": []}
+        for resource in self.index_document["authz"]:
+            request["requests"].append(
+                {"resource": resource, "action": {"service": "fence", "method": action}}
+            )
+
+        return flask.current_app.arborist.auth_request(request)
+
     @cached_property
     def metadata(self):
         return self.index_document.get("metadata", {})
@@ -290,6 +379,19 @@ class IndexedFile(object):
             else:
                 username = flask.g.user.username
             return self.index_document.get("uploader") == username
+
+        try:
+            action_to_method = {"upload": "write-storage", "download": "read-storage"}
+            method = action_to_method[action]
+            # action should be upload or download
+            # return bool for authorization
+            return self.check_authz(method)
+        except ValueError:
+            # this is ok; we'll default to ACL field (previous behavior)
+            # may want to deprecate in future
+            logger.info(
+                "Couldn't find `authz` field on indexd record, falling back to `acl`."
+            )
 
         if flask.g.token is None:
             given_acls = set(filter_auth_ids(action, flask.g.user.project_access))
@@ -419,7 +521,8 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 return bucket
         return None
 
-    def get_credential_to_access_bucket(self, aws_creds, expires_in):
+    @classmethod
+    def get_credential_to_access_bucket(cls, bucket_name, aws_creds, expires_in):
         s3_buckets = get_value(
             config, "S3_BUCKETS", InternalError("buckets not configured")
         )
@@ -428,7 +531,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         if len(aws_creds) == 0 and len(s3_buckets) > 0:
             raise InternalError("credential for buckets is not configured")
 
-        bucket_cred = s3_buckets.get(self.bucket_name())
+        bucket_cred = s3_buckets.get(bucket_name)
         if bucket_cred is None:
             raise Unauthorized("permission denied for bucket")
 
@@ -484,7 +587,9 @@ class S3IndexedFileLocation(IndexedFileLocation):
             self.parsed_url.netloc, self.parsed_url.path.strip("/")
         )
 
-        credential = self.get_credential_to_access_bucket(aws_creds, expires_in)
+        credential = S3IndexedFileLocation.get_credential_to_access_bucket(
+            self.bucket_name(), aws_creds, expires_in
+        )
 
         # if it's public and we don't need to force the signed url, just return the raw
         # s3 url
@@ -518,6 +623,87 @@ class S3IndexedFileLocation(IndexedFileLocation):
         )
 
         return url
+
+    def init_multipart_upload(self, expires_in):
+        """
+        Initialize multipart upload
+
+        Args:
+            expires(int): expiration time
+
+        Returns:
+            UploadId(str)
+        """
+        aws_creds = get_value(
+            config, "AWS_CREDENTIALS", InternalError("credentials not configured")
+        )
+        credentials = S3IndexedFileLocation.get_credential_to_access_bucket(
+            self.bucket_name(), aws_creds, expires_in
+        )
+
+        return multipart_upload.initilize_multipart_upload(
+            self.parsed_url.netloc, self.parsed_url.path.strip("/"), credentials
+        )
+
+    def generate_presigne_url_for_part_upload(self, uploadId, partNumber, expires_in):
+        """
+        Generate presigned url for uploading object part given uploadId and part number
+
+        Args:
+            uploadId(str): uploadID of the multipart upload
+            partNumber(int): part number
+            expires(int): expiration time
+
+        Returns:
+            presigned_url(str)
+        """
+        aws_creds = get_value(
+            config, "AWS_CREDENTIALS", InternalError("credentials not configured")
+        )
+        credential = S3IndexedFileLocation.get_credential_to_access_bucket(
+            self.bucket_name(), aws_creds, expires_in
+        )
+
+        region = self.get_bucket_region()
+        if not region:
+            region = flask.current_app.boto.get_bucket_region(
+                self.parsed_url.netloc, credential
+            )
+
+        return multipart_upload.generate_presigned_url_for_uploading_part(
+            self.parsed_url.netloc,
+            self.parsed_url.path.strip("/"),
+            credential,
+            uploadId,
+            partNumber,
+            region,
+            expires_in,
+        )
+
+    def complete_multipart_upload(self, uploadId, parts, expires_in):
+        """
+        Complete multipart upload.
+
+        Args:
+            uploadId(str): upload id of the current upload
+            parts(list(set)): List of part infos
+                    [{"Etag": "1234567", "PartNumber": 1}, {"Etag": "4321234", "PartNumber": 2}]
+        """
+        aws_creds = get_value(
+            config, "AWS_CREDENTIALS", InternalError("credentials not configured")
+        )
+
+        credentials = S3IndexedFileLocation.get_credential_to_access_bucket(
+            self.bucket_name(), aws_creds, expires_in
+        )
+
+        multipart_upload.complete_multipart_upload(
+            self.parsed_url.netloc,
+            self.parsed_url.path.strip("/"),
+            credentials,
+            uploadId,
+            parts,
+        )
 
 
 class GoogleStorageIndexedFileLocation(IndexedFileLocation):

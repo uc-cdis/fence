@@ -1,3 +1,5 @@
+import flask
+from flask_sqlalchemy_session import current_session
 from functools import wraps
 import urllib
 
@@ -8,8 +10,7 @@ from authutils.token.validate import (
     set_current_token,
     validate_request,
 )
-import flask
-from flask_sqlalchemy_session import current_session
+from cdislogging import get_logger
 
 from fence.errors import Unauthorized, InternalError
 from fence.jwt.validate import validate_jwt
@@ -17,6 +18,27 @@ from fence.models import User, IdentityProvider, query_for_user
 from fence.user import get_current_user
 from fence.utils import clear_cookies
 from fence.config import config
+
+logger = get_logger(__name__)
+
+
+def get_jwt():
+    """
+    Return the user's JWT from authorization header. Requires flask application context.
+
+    Raises:
+        - Unauthorized, if header is missing or not in the correct format
+    """
+    header = flask.request.headers.get("Authorization")
+    if not header:
+        raise Unauthorized("missing authorization header")
+    try:
+        bearer, token = header.split(" ")
+    except ValueError:
+        raise Unauthorized("authorization header not in expected format")
+    if bearer.lower() != "bearer":
+        raise Unauthorized("expected bearer token in auth header")
+    return token
 
 
 def build_redirect_url(hostname, path):
@@ -71,7 +93,7 @@ def logout(next_url):
     Args:
         next_url (str): Final redirect desired after logout
     """
-    flask.current_app.logger.debug("IN AUTH LOGOUT, next_url = {0}".format(next_url))
+    logger.debug("IN AUTH LOGOUT, next_url = {0}".format(next_url))
 
     # propogate logout to IDP
     provider_logout = None
