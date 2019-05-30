@@ -22,7 +22,7 @@
 	"user_one":
 	{
 	    "email": "notreal@pepe.com",
-	    "is_admin": "false"
+	    "is_admin": false
 	}
     },
 "projects":

@@ -34,7 +34,7 @@ setup(
         "PyJWT>=1.5.3,<2.0.0",
         "requests>=2.18.0,<3.0.0",
         "six>=1.11.0,<2.0.0",
-        "SQLAlchemy>=0.9.9,<1.0.0",
+        "SQLAlchemy>=1.3.3,<1.4.0",
         "temps>=0.3.0,<1.0.0",
         "userdatamodel~=1.5",
         "Werkzeug>=0.12.2,<1.0.0",
