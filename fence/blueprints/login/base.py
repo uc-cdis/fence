@@ -27,13 +27,19 @@ class DefaultOAuth2Login(Resource):
         mock_login = (
             config["OPENID_CONNECT"].get(self.idp_name.lower(), {}).get("mock", False)
         )
+
+        # to support older cfgs, new cfgs should use the `mock` field in OPENID_CONNECT
+        legacy_mock_login = config.get(
+            "MOCK_{}_AUTH".format(self.idp_name.upper()), False
+        )
+
         mock_default_user = (
             config["OPENID_CONNECT"]
             .get(self.idp_name.lower(), {})
             .get("mock_default_user", "test@example.com")
         )
 
-        if mock_login:
+        if mock_login or legacy_mock_login:
             # prefer dev cookie for mocked username, fallback on configuration
             username = flask.request.cookies.get(
                 config.get("DEV_LOGIN_COOKIE_NAME"), mock_default_user
