@@ -550,7 +550,10 @@ GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS:
   - 'storage-transfer-service.iam.gserviceaccount.com'
   - 'firebase-sa-management.iam.gserviceaccount.com'
   - 'firebase-rules.iam.gserviceaccount.com'
-
+  - 'gcp-sa-cloudbuild.iam.gserviceaccount.com'
+  - 'gcp-sa-automl.iam.gserviceaccount.com'
+  - 'gcp-sa-datalabeling.iam.gserviceaccount.com'
+  
 # The types of service accounts that are allowed to be registered at
 # /google/service_accounts endpoints
 ALLOWED_USER_SERVICE_ACCOUNT_DOMAINS:
