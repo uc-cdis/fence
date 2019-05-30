@@ -11,6 +11,8 @@ setup(
         "botocore>=1.7,<1.9.0",
         "boto3>=1.5,<1.6",
         "cached_property>=1.5.1,<2.0.0",
+        "gen3config>=0.1.6,<1.0.0",
+        "gen3cirrus>=0.3.4,<1.0.0",
         "cryptography>=2.1.2",
         "enum34>=1.1.6",
         "flask-restful>=0.3.6,<1.0.0",
