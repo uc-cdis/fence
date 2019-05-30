@@ -8,9 +8,7 @@ from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callbac
 class ORCIDLogin(DefaultOAuth2Login):
     def __init__(self):
         super(ORCIDLogin, self).__init__(
-            idp_name=IdentityProvider.orcid,
-            client=flask.current_app.orcid_client,
-            mock_username="0000-0002-2601-8132",
+            idp_name=IdentityProvider.orcid, client=flask.current_app.orcid_client
         )
 
 

@@ -7,7 +7,7 @@ from fence.errors import UserError
 
 
 class DefaultOAuth2Login(Resource):
-    def __init__(self, idp_name, client, mock_username="test@example.com"):
+    def __init__(self, idp_name, client):
         """
         Construct a resource for a login endpoint
 
@@ -15,23 +15,28 @@ class DefaultOAuth2Login(Resource):
             idp_name (str): name for the identity provider
             client (fence.resources.openid.idp_oauth2.Oauth2ClientBase):
                 Some instaniation of this base client class or a child class
-            mock_username (str, optional): default fake username to use when
-                configured to mock login and dev login cookie is not found
         """
         self.idp_name = idp_name
         self.client = client
-        self.mock_username = mock_username
 
     def get(self):
         flask.redirect_url = flask.request.args.get("redirect")
         if flask.redirect_url:
             flask.session["redirect"] = flask.redirect_url
 
-        config_name = "MOCK_{}_AUTH".format(self.idp_name.upper())
+        mock_login = (
+            config["OPENID_CONNECT"].get(self.idp_name.lower(), {}).get("mock", False)
+        )
+        mock_default_user = (
+            config["OPENID_CONNECT"]
+            .get(self.idp_name.lower(), {})
+            .get("mock_default_user", "test@example.com")
+        )
 
-        if config.get(config_name, False):
+        if mock_login:
+            # prefer dev cookie for mocked username, fallback on configuration
             username = flask.request.cookies.get(
-                config.get("DEV_LOGIN_COOKIE_NAME"), self.mock_username
+                config.get("DEV_LOGIN_COOKIE_NAME"), mock_default_user
             )
             return _login(username, self.idp_name)
 
