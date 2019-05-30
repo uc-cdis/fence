@@ -11,6 +11,8 @@ import flask
 import requests
 
 from fence.auth import (
+    get_jwt,
+    has_oauth,
     current_token,
     login_required,
     set_current_token,
@@ -162,7 +164,7 @@ class BlankIndex(object):
 
         Args:
             key(str): object key
-        
+
         Returns:
             uploadId(str)
         """
@@ -209,7 +211,7 @@ class BlankIndex(object):
             key(str): object key of `guid/filename`
             uploadID(str): uploadId of the current upload.
             partNumber(int): the part number
-        
+
         Returns:
             presigned_url(str)
         """
@@ -299,7 +301,9 @@ class IndexedFile(object):
         # don't check the authorization if the file is public
         # (downloading public files with no auth is fine)
         if not self.public and not self.check_authorization(action):
-            raise Unauthorized("You don't have access permission on this file")
+            raise Unauthorized(
+                "You don't have access permission on this file: {}".format(self.file_id)
+            )
         if action is not None and action not in SUPPORTED_ACTIONS:
             raise NotSupported("action {} is not supported".format(action))
         return self._get_signed_url(protocol, action, expires_in, force_signed_url)
@@ -343,6 +347,18 @@ class IndexedFile(object):
         else:
             raise Unauthorized("This file is not accessible")
 
+    def check_authz(self, action):
+        if not self.index_document.get("authz"):
+            raise ValueError("index record missing `authz`")
+
+        request = {"user": {"token": get_jwt()}, "requests": []}
+        for resource in self.index_document["authz"]:
+            request["requests"].append(
+                {"resource": resource, "action": {"service": "fence", "method": action}}
+            )
+
+        return flask.current_app.arborist.auth_request(request)
+
     @cached_property
     def metadata(self):
         return self.index_document.get("metadata", {})
@@ -363,6 +379,19 @@ class IndexedFile(object):
             else:
                 username = flask.g.user.username
             return self.index_document.get("uploader") == username
+
+        try:
+            action_to_method = {"upload": "write-storage", "download": "read-storage"}
+            method = action_to_method[action]
+            # action should be upload or download
+            # return bool for authorization
+            return self.check_authz(method)
+        except ValueError:
+            # this is ok; we'll default to ACL field (previous behavior)
+            # may want to deprecate in future
+            logger.info(
+                "Couldn't find `authz` field on indexd record, falling back to `acl`."
+            )
 
         if flask.g.token is None:
             given_acls = set(filter_auth_ids(action, flask.g.user.project_access))
@@ -654,7 +683,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
     def complete_multipart_upload(self, uploadId, parts, expires_in):
         """
         Complete multipart upload.
-        
+
         Args:
             uploadId(str): upload id of the current upload
             parts(list(set)): List of part infos

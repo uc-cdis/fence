@@ -41,7 +41,6 @@ def test_indexd_download_file(
     Test ``GET /data/download/1``.
     """
     indexed_file_location = indexd_client["indexed_file_location"]
-
     path = "/data/download/1"
     query_string = {"protocol": indexed_file_location}
     headers = {
@@ -561,7 +560,56 @@ def test_blank_index_upload_unauthorized(
         assert response.status_code == 403, response
 
 
-def test_initialize_multipart_upload(app, client, auth_client, encoded_creds_jwt, user_client):
+@pytest.mark.parametrize(
+    "indexd_client_with_arborist",
+    ["gs", "s3", "gs_acl", "s3_acl", "s3_external"],
+    indirect=True,
+)
+def test_rbac(
+    app,
+    client,
+    mock_arborist_requests,
+    indexd_client_with_arborist,
+    user_client,
+    rsa_private_key,
+    kid,
+    google_proxy_group,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+):
+    mock_arborist_requests(
+        {"arborist/auth/request": {"POST": ('{"auth": "true"}', 200)}}
+    )
+    indexd_client = indexd_client_with_arborist("test_rbac")
+    indexed_file_location = indexd_client["indexed_file_location"]
+    path = "/data/download/1"
+    query_string = {"protocol": indexed_file_location}
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        )
+    }
+    response = client.get(path, headers=headers, query_string=query_string)
+    assert response.status_code == 200
+    assert "url" in response.json.keys()
+
+    mock_arborist_requests(
+        {"arborist/auth/request": {"POST": ('{"auth": "false"}', 403)}}
+    )
+    response = client.get(path, headers=headers, query_string=query_string)
+    assert response.status_code == 403
+
+
+def test_initialize_multipart_upload(
+    app, client, auth_client, encoded_creds_jwt, user_client
+):
     class MockResponse(object):
         def __init__(self, data, status_code=200):
             self.data = data
@@ -589,7 +637,9 @@ def test_initialize_multipart_upload(app, client, auth_client, encoded_creds_jwt
         data_requests.post.return_value.status_code = 200
         arborist_requests.post.return_value = MockResponse({"auth": True})
         arborist_requests.post.return_value.status_code = 200
-        fence.blueprints.data.indexd.BlankIndex.init_multipart_upload.return_value = "test_uploadId"
+        fence.blueprints.data.indexd.BlankIndex.init_multipart_upload.return_value = (
+            "test_uploadId"
+        )
         headers = {
             "Authorization": "Bearer " + encoded_creds_jwt.jwt,
             "Content-Type": "application/json",
@@ -610,7 +660,9 @@ def test_initialize_multipart_upload(app, client, auth_client, encoded_creds_jwt
         assert "uploadId" in response.json
 
 
-def test_multipart_upload_presigned_url(app, client, auth_client, encoded_creds_jwt, user_client):
+def test_multipart_upload_presigned_url(
+    app, client, auth_client, encoded_creds_jwt, user_client
+):
     class MockResponse(object):
         def __init__(self, data, status_code=200):
             self.data = data
@@ -626,7 +678,9 @@ def test_multipart_upload_presigned_url(app, client, auth_client, encoded_creds_
         "fence.rbac.client.requests", new_callable=mock.Mock
     )
 
-    fence.blueprints.data.indexd.BlankIndex.generate_aws_presigned_url_for_part = MagicMock()
+    fence.blueprints.data.indexd.BlankIndex.generate_aws_presigned_url_for_part = (
+        MagicMock()
+    )
     with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
         data_requests.post.return_value = MockResponse(
             {
@@ -638,7 +692,9 @@ def test_multipart_upload_presigned_url(app, client, auth_client, encoded_creds_
         data_requests.post.return_value.status_code = 200
         arborist_requests.post.return_value = MockResponse({"auth": True})
         arborist_requests.post.return_value.status_code = 200
-        fence.blueprints.data.indexd.BlankIndex.generate_aws_presigned_url_for_part.return_value = "test_presigned"
+        fence.blueprints.data.indexd.BlankIndex.generate_aws_presigned_url_for_part.return_value = (
+            "test_presigned"
+        )
         headers = {
             "Authorization": "Bearer " + encoded_creds_jwt.jwt,
             "Content-Type": "application/json",

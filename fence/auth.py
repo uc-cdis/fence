@@ -22,6 +22,25 @@ from fence.config import config
 logger = get_logger(__name__)
 
 
+def get_jwt():
+    """
+    Return the user's JWT from authorization header. Requires flask application context.
+
+    Raises:
+        - Unauthorized, if header is missing or not in the correct format
+    """
+    header = flask.request.headers.get("Authorization")
+    if not header:
+        raise Unauthorized("missing authorization header")
+    try:
+        bearer, token = header.split(" ")
+    except ValueError:
+        raise Unauthorized("authorization header not in expected format")
+    if bearer.lower() != "bearer":
+        raise Unauthorized("expected bearer token in auth header")
+    return token
+
+
 def build_redirect_url(hostname, path):
     """
     Compute a redirect given a hostname and next path where
