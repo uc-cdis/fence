@@ -1,14 +1,13 @@
 import bcrypt
 import flask
 
-from authlib.specs.rfc6749.errors import (
-    InvalidClientError,
+from authlib.oauth2.rfc6749.errors import (
     InvalidRequestError,
     InvalidScopeError,
     UnauthorizedClientError,
 )
-from authlib.specs.rfc6749.grants import RefreshTokenGrant as AuthlibRefreshTokenGrant
-from authlib.specs.rfc6749.util import scope_to_list
+from authlib.oauth2.rfc6749.grants import RefreshTokenGrant as AuthlibRefreshTokenGrant
+from authlib.oauth2.rfc6749.util import scope_to_list
 from cdislogging import get_logger
 
 from fence.jwt.validate import validate_jwt
@@ -151,7 +150,7 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
 
         self.request.user = user
         self.server.save_token(token, self.request)
-        token = self.process_token(token, self.request)
+        self.execute_hook("process_token", token=token)
         return 200, token, self.TOKEN_RESPONSE_HEADER
 
     def _validate_token_scope(self, token):

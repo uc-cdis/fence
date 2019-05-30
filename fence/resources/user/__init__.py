@@ -2,7 +2,10 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import COMMASPACE, formatdate
+
+from cdislogging import get_logger
 import flask
+
 from fence.resources import userdatamodel as udm
 from fence.resources.google.utils import (
     get_linked_google_account_email,
@@ -14,6 +17,10 @@ import smtplib
 from fence.errors import NotFound, UserError, InternalError
 from fence.models import query_for_user
 from fence.config import config
+from fence.rbac.errors import ArboristError
+
+
+logger = get_logger(__name__)
 
 
 def update_user_resource(username, resource):
@@ -82,6 +89,18 @@ def get_user_info(current_session, username):
         "groups": groups,
         "message": "",
     }
+
+    if hasattr(flask.current_app, "arborist"):
+        try:
+            resources = flask.current_app.arborist.list_resources_for_user(
+                user.username
+            )
+        except ArboristError:
+            logger.error(
+                "request to arborist for user's resources failed; going to list empty"
+            )
+            resources = []
+        info["resources"] = resources
 
     if user.tags is not None and len(user.tags) > 0:
         info["tags"] = {tag.key: tag.value for tag in user.tags}

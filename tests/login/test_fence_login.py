@@ -10,12 +10,7 @@ from fence.jwt.keys import Keypair
 
 @pytest.fixture(scope="function")
 def config_idp_in_client(
-    app,
-    db_session,
-    kid_2,
-    rsa_private_key_2,
-    rsa_public_key_2,
-    restore_config,
+    app, db_session, kid_2, rsa_private_key_2, rsa_public_key_2, restore_config
 ):
     """
     Set info about this fence's (client fence's) IDP in config.
@@ -46,7 +41,7 @@ def config_idp_in_client(
                     "api_base_url": "http://other-fence",
                     "authorize_url": "http://other-fence/oauth2/authorize",
                 }
-            }
+            },
         }
     )
     app.fence_client = OAuthClient(**config["OPENID_CONNECT"]["fence"])

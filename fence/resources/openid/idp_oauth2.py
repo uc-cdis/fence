@@ -72,7 +72,6 @@ class Oauth2ClientBase(object):
         Given a key return a value by the recommended method of
         using their discovery url.
         """
-
         return_value = default_value
 
         if self.discovery_doc.status_code == requests.codes.ok:

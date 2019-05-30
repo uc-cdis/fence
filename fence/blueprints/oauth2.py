@@ -17,11 +17,7 @@ stateless.
 import flask
 
 from authlib.common.urls import add_params_to_uri
-from authlib.specs.rfc6749.errors import (
-    AccessDeniedError,
-    InvalidRequestError,
-    OAuth2Error,
-)
+from authlib.oauth2.rfc6749 import AccessDeniedError, InvalidRequestError, OAuth2Error
 
 from fence.errors import Unauthorized
 from fence.jwt.token import SCOPE_DESCRIPTION
@@ -78,7 +74,6 @@ def authorize(*args, **kwargs):
 
     try:
         grant = server.validate_consent_request(end_user=user)
-        grant.validate_prompt(user)
     except OAuth2Error as e:
         raise Unauthorized("{} failed to authorize".format(str(e)))
 
@@ -114,10 +109,10 @@ def _handle_consent_confirmation(user, is_confirmed):
     """
     if is_confirmed == "yes":
         # user has already given consent, continue flow
-        response = server.create_authorization_response(user)
+        response = server.create_authorization_response(grant_user=user)
     else:
         # user did not give consent
-        response = server.create_authorization_response(None)
+        response = server.create_authorization_response(grant_user=None)
     return response
 
 
@@ -254,7 +249,7 @@ def _get_authorize_error_response(error, redirect_uri):
     Get error response as defined by OIDC spec.
 
     Args:
-        error (authlib.specs.rfc6749.error.OAuth2Error): Specific Oauth2 error
+        error (authlib.oauth2.rfc6749.error.OAuth2Error): Specific Oauth2 error
         redirect_uri (str): Redirection url
     """
     params = error.get_body()
