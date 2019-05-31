@@ -73,6 +73,12 @@ paths:
           description: Page to redirect to after access has been granted
           schema:
             type: string
+        - name: idp
+          required: false
+          in: query
+          description: Upstream identity provider to use, fallback to the default one if not provided
+          schema:
+            type: string
         - name: scope
           required: false
           in: query
