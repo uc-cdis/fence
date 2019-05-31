@@ -18,6 +18,18 @@ from fence.restful import RestfulApi
 from fence.config import config
 
 
+logger = get_logger(__name__)
+
+# Mapping from IDP ID to the name in the URL on the blueprint (see below).
+IDP_URL_MAP = {
+    "fence": "fence",
+    "google": "google",
+    "shibboleth": "shib",
+    "orcid": "orcid",
+    "microsoft": "microsoft",
+}
+
+
 def make_login_blueprint(app):
     """
     Args:
@@ -40,15 +52,6 @@ def make_login_blueprint(app):
         )
         default_idp = None
         idps = {}
-
-    # Mapping from IDP ID to the name in the URL on the blueprint (see below).
-    IDP_URL_MAP = {
-        "fence": "fence",
-        "google": "google",
-        "shibboleth": "shib",
-        "orcid": "orcid",
-        "microsoft": "microsoft",
-    }
 
     # check if google is configured as a client. we will at least need a
     # a callback if it is
