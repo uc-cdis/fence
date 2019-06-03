@@ -17,7 +17,6 @@ RUN COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" >fence/version_da
 RUN VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >>fence/version_data.py
 RUN python setup.py develop
 
-
 EXPOSE 80
 
 WORKDIR /var/www/fence
