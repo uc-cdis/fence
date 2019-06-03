@@ -14,6 +14,7 @@ COPY ./deployment/uwsgi/uwsgi.ini /etc/uwsgi/uwsgi.ini
 WORKDIR /fence
 
 RUN python -m pip install -r requirements.txt
+RUN ln -s /fence/wsgi.py /var/www/fence/wsgi.py
 RUN COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" >fence/version_data.py
 RUN VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >>fence/version_data.py
 
