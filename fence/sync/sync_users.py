@@ -128,10 +128,15 @@ class UserYAML(object):
 
     @classmethod
     def from_file(cls, filepath, encrypted=True, key=None, logger=None):
-        with _read_file(filepath, encrypted=encrypted, key=key, logger=logger) as f:
-            file_contents = f.read()
-            validate_user_yaml(file_contents)  # run user.yaml validation tests
-            data = yaml.safe_load(file_contents)
+        data = {}
+        if filepath:
+            with _read_file(filepath, encrypted=encrypted, key=key, logger=logger) as f:
+                file_contents = f.read()
+                validate_user_yaml(file_contents)  # run user.yaml validation tests
+                data = yaml.safe_load(file_contents)
+        else:
+            self.logger.info("Did not sync a user.yaml, no file path provided.")
+
         projects = dict()
         user_info = dict()
         policies = dict()
@@ -291,25 +296,31 @@ class UserSyncer(object):
         """
         proxy = None
         if self.server.get("proxy", "") != "":
-            proxy = ProxyCommand(
-                "ssh -i ~/.ssh/id_rsa {user}@{proxy} nc {host} {port}".format(
-                    user=self.server.get("proxy_user", ""),
-                    proxy=self.server.get("proxy", ""),
-                    host=self.server.get("host", ""),
-                    port=self.server.get("port", 22),
-                )
+            command = "ssh -i ~/.ssh/id_rsa {user}@{proxy} nc {host} {port}".format(
+                user=self.server.get("proxy_user", ""),
+                proxy=self.server.get("proxy", ""),
+                host=self.server.get("host", ""),
+                port=self.server.get("port", 22),
             )
 
+            self.logger.debug("SSH proxy command: {}".format(command))
+
+            proxy = ProxyCommand(command)
+
         with paramiko.SSHClient() as client:
+            client.set_log_channel(self.logger.name)
+
             client.set_missing_host_key_policy(paramiko.WarningPolicy())
             parameters = {
-                "hostname": self.server.get("host", ""),
-                "username": self.server.get("username", ""),
-                "password": self.server.get("password", ""),
-                "port": self.server.get("port", 22),
+                "hostname": str(self.server.get("host", "")),
+                "username": str(self.server.get("username", "")),
+                "password": str(self.server.get("password", "")),
+                "port": int(self.server.get("port", 22)),
             }
             if proxy:
                 parameters["sock"] = proxy
+
+            self.logger.debug("SSH connection parameters: {}".format(parameters))
             client.connect(**parameters)
             with client.open_sftp() as sftp:
                 download_dir(sftp, "./", path)
