@@ -18,5 +18,3 @@ if [ -f /fence/jwt-keys.tar ]; then
     fi
   )
 fi
-# rm -rf /var/run/apache2/apache2.pid
-# /usr/sbin/apache2ctl -D FOREGROUND

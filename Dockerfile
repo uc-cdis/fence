@@ -3,8 +3,6 @@
 
 FROM quay.io/cdis/py27base:pybase2-1.0.1
 
-ENV DEBIAN_FRONTEND=noninteractive
-
 RUN mkdir /var/www/fence \
 	&& chown www-data /var/www/fence
 
@@ -23,6 +21,4 @@ EXPOSE 80
 
 WORKDIR /var/www/fence
 
-CMD bash /fence/dockerrun.bash \
-    && /dockerrun.sh
-
+CMD ["sh","-c","bash /fence/dockerrun.bash && /dockerrun.sh"]
