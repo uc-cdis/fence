@@ -192,7 +192,7 @@ class ArboristClient(object):
         ]
 
     @_arborist_retry()
-    def create_resource(self, parent_path, resource_json, overwrite=False):
+    def create_resource(self, parent_path, resource_json, create_parents=False):
         """
         Create a new resource in arborist (does not affect fence database or
         otherwise have any interaction with userdatamodel).
@@ -241,16 +241,10 @@ class ArboristClient(object):
         #     /resource/parent/new_resource
         #
         path = self._resource_url + parent_path
+        if create_parents:
+            path = path + "?p"
+
         response = requests.post(path, json=resource_json)
-        if response.status_code == 409:
-            if not overwrite:
-                return None
-            # overwrite existing resource
-            resource_path = parent_path + resource_json["name"]
-            self.logger.info("trying to overwrite resource {}".format(resource_path))
-            self.delete_resource(resource_path)
-            self.create_resource(parent_path, resource_json, overwrite=False)
-            return
         data = _request_get_json(response)
         if isinstance(data, dict) and "error" in data:
             msg = data["error"]
@@ -265,7 +259,9 @@ class ArboristClient(object):
         return data
 
     @_arborist_retry()
-    def update_resource(self, path, resource_json):
+    def update_resource(self, path, resource_json, create_parents=False):
+        if create_parents:
+            path = path + "?p"
         response = _request_get_json(requests.put(path, json=resource_json))
         if "error" in response:
             self.logger.error(

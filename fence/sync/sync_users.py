@@ -969,7 +969,7 @@ class UserSyncer(object):
         resources = user_yaml.rbac.get("resources", [])
         for resource in resources:
             try:
-                self.arborist_client.create_resource("/", resource, overwrite=True)
+                self.arborist_client.update_resource("/", resource)
             except ArboristError as e:
                 self.logger.error(e)
                 # keep going; maybe just some conflicts from things existing already
@@ -1085,10 +1085,10 @@ class UserSyncer(object):
             return False
 
         try:
-            self.arborist_client.create_resource(
+            self.arborist_client.update_resource(
                 DBGAP_ARBORIST_RESOURCE_PREFIX,
                 {"name": dbgap_project, "description": "synced from dbGaP"},
-                overwrite=True,
+                create_parents=True,
             )
         except ArboristError as e:
             self.logger.error(e)
