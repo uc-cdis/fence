@@ -3,7 +3,7 @@
 
 FROM quay.io/cdis/py27base:pybase2-1.0.1
 
-MAINTAINER CDIS <cdissupport@opensciencedatacloud.org>
+ENV DEBIAN_FRONTEND=noninteractive
 
 RUN mkdir /var/www/fence \
 	&& chown www-data /var/www/fence
@@ -14,8 +14,8 @@ COPY ./deployment/uwsgi/uwsgi.ini /etc/uwsgi/uwsgi.ini
 WORKDIR /fence
 
 RUN python -m pip install -r requirements.txt
-RUN COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" >fence/fence/version_data.py
-RUN VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >>fence/fence/version_data.py
+RUN COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" >fence/version_data.py
+RUN VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >>fence/version_data.py
 
 
 EXPOSE 80
