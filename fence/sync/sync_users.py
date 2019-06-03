@@ -259,6 +259,8 @@ class UserSyncer(object):
         self.driver = SQLAlchemyDriver(DB)
         self.project_mapping = project_mapping or {}
         self._projects = dict()
+        self._created_roles = set()
+        self._created_policies = set()
         self.logger = get_logger(
             "user_syncer", log_level="debug" if config["DEBUG"] is True else "info"
         )
@@ -943,10 +945,23 @@ class UserSyncer(object):
         else:
             self.logger.info("No resources specified; skipping arborist sync")
 
-    def _update_arborist(self, session, user_yaml, user_projects=None):
+        if self.arborist_client:
+            self.logger.info("Synchronizing arborist with authorization info...")
+            success = self._update_authz_in_arborist(sess, user_projects, user_yaml)
+            if success:
+                self.logger.info(
+                    "Finished synchronizing authorization info to arborist"
+                )
+            else:
+                self.logger.error(
+                    "Could not synchronize authorization info successfully to arborist"
+                )
+                exit(1)
+
+    def _update_arborist(self, session, user_yaml):
         """
-        Create roles and resources in arborist from the information in
-        ``user_projects``.
+        Create roles, resources, policies, groups in arborist from the information in
+        ``user_yaml``.
 
         The projects are sent to arborist as resources with paths like
         ``/projects/{project}``. Roles are created with just the original names
@@ -963,8 +978,6 @@ class UserSyncer(object):
         if not healthy:
             return False
 
-        user_projects = user_projects or {}
-
         # Set up the resource tree in arborist
         resources = user_yaml.rbac.get("resources", [])
         for resource in resources:
@@ -974,80 +987,25 @@ class UserSyncer(object):
                 self.logger.error(e)
                 # keep going; maybe just some conflicts from things existing already
 
-        created_roles = set()
         roles = user_yaml.rbac.get("roles", [])
         for role in roles:
             try:
                 response = self.arborist_client.create_role(role)
                 if response:
-                    created_roles.add(role["id"])
+                    self._created_roles.add(role["id"])
             except ArboristError as e:
                 self.logger.error(e)
                 # keep going; maybe just some conflicts from things existing already
 
-        created_policies = set()
         policies = user_yaml.rbac.get("policies", [])
         for policy in policies:
             try:
                 response = self.arborist_client.create_policy(policy, overwrite=True)
                 if response:
-                    created_policies.add(policy["id"])
+                    self._created_policies.add(policy["id"])
             except ArboristError as e:
                 self.logger.error(e)
                 # keep going; maybe just some conflicts from things existing already
-
-        user_projects = user_yaml.user_rbac
-        for username, user_resources in user_projects.iteritems():
-            self.logger.info("processing user `{}`".format(username))
-            user = query_for_user(session=session, username=username)
-
-            self.arborist_client.create_user_if_not_exist(username)
-            self.arborist_client.revoke_all_policies_for_user(username)
-
-            for policy in user_yaml.policies.get(user.username, []):
-                self.arborist_client.grant_user_policy(user.username, policy)
-
-            for path, permissions in user_resources.iteritems():
-                for permission in permissions:
-                    # "permission" in the dbgap sense, not the arborist sense
-                    if permission not in created_roles:
-                        try:
-                            self.arborist_client.create_role(
-                                arborist_role_for_permission(permission)
-                            )
-                        except ArboristError as e:
-                            self.logger.info(
-                                "not creating role for permission `{}`; {}".format(
-                                    permission, str(e)
-                                )
-                            )
-                        created_roles.add(permission)
-
-                    # If everything was created fine, grant a policy to
-                    # this user which contains exactly just this resource,
-                    # with this permission as a role.
-
-                    # format project '/x/y/z' -> 'x.y.z'
-                    # so the policy id will be something like 'x.y.z-create'
-                    policy_id = _format_policy_id(path, permission)
-                    if policy_id not in created_policies:
-                        try:
-                            self.arborist_client.create_policy(
-                                {
-                                    "id": policy_id,
-                                    "description": "policy created by fence sync",
-                                    "role_ids": [permission],
-                                    "resource_paths": [path],
-                                },
-                                overwrite=True,
-                            )
-                        except ArboristError as e:
-                            self.logger.info(
-                                "not creating policy in arborist; {}".format(str(e))
-                            )
-                        created_policies.add(policy_id)
-
-                    self.arborist_client.grant_user_policy(user.username, policy_id)
 
         groups = user_yaml.rbac.get("groups", [])
         for group in groups:
@@ -1079,16 +1037,96 @@ class UserSyncer(object):
 
         return True
 
+    def _update_authz_in_arborist(self, session, user_projects, user_yaml=None):
+        """
+        Assign users policies in arborist from the information in
+        ``user_projects`` and optionally a ``user_yaml``.
+
+        The projects are sent to arborist as resources with paths like
+        ``/projects/{project}``. Roles are created with just the original names
+        for the privileges like ``"read-storage"`` etc.
+
+        Args:
+            user_projects (dict)
+            user_yaml (UserYAML) optional, if there are policies for users in a user.yaml
+
+        Return:
+            bool: success
+        """
+        healthy = self._is_arborist_healthy()
+        if not healthy:
+            return False
+
+        for username, user_resources in user_projects.iteritems():
+            self.logger.info("processing user `{}`".format(username))
+            user = query_for_user(session=session, username=username)
+
+            self.arborist_client.create_user_if_not_exist(username)
+            self.arborist_client.revoke_all_policies_for_user(username)
+
+            if user_yaml:
+                for policy in user_yaml.policies.get(user.username, []):
+                    self.arborist_client.grant_user_policy(user.username, policy)
+
+            for path, permissions in user_resources.iteritems():
+                for permission in permissions:
+                    # "permission" in the dbgap sense, not the arborist sense
+                    if permission not in self._created_roles:
+                        try:
+                            self.arborist_client.create_role(
+                                arborist_role_for_permission(permission)
+                            )
+                        except ArboristError as e:
+                            self.logger.info(
+                                "not creating role for permission `{}`; {}".format(
+                                    permission, str(e)
+                                )
+                            )
+                        self._created_roles.add(permission)
+
+                    # If everything was created fine, grant a policy to
+                    # this user which contains exactly just this resource,
+                    # with this permission as a role.
+
+                    # format project '/x/y/z' -> 'x.y.z'
+                    # so the policy id will be something like 'x.y.z-create'
+                    policy_id = _format_policy_id(path, permission)
+                    if policy_id not in self._created_policies:
+                        try:
+                            self.arborist_client.create_policy(
+                                {
+                                    "id": policy_id,
+                                    "description": "policy created by fence sync",
+                                    "role_ids": [permission],
+                                    "resource_paths": [path],
+                                },
+                                overwrite=True,
+                            )
+                        except ArboristError as e:
+                            self.logger.info(
+                                "not creating policy in arborist; {}".format(str(e))
+                            )
+                        self._created_policies.add(policy_id)
+
+                    self.arborist_client.grant_user_policy(user.username, policy_id)
+        return True
+
     def _add_dbgap_project_to_arborist(self, dbgap_project):
         healthy = self._is_arborist_healthy()
         if not healthy:
             return False
 
         try:
-            self.arborist_client.update_resource(
+            response = self.arborist_client.update_resource(
                 DBGAP_ARBORIST_RESOURCE_PREFIX,
                 {"name": dbgap_project, "description": "synced from dbGaP"},
                 create_parents=True,
+            )
+            self.logger.info(
+                "added dbgap project {} as an arborist resource under parent path: {}. "
+                "Arborist response: {}".format(
+                    dbgap_project, DBGAP_ARBORIST_RESOURCE_PREFIX, response
+                )
             )
         except ArboristError as e:
             self.logger.error(e)
