@@ -31,6 +31,7 @@ from fence.models import (
 from fence.rbac.client import ArboristClient, ArboristError
 from fence.resources.storage import StorageManager
 
+# should end in /
 DBGAP_ARBORIST_RESOURCE_PREFIX = "/dbgap/programs/"
 
 
@@ -261,6 +262,7 @@ class UserSyncer(object):
         self._projects = dict()
         self._created_roles = set()
         self._created_policies = set()
+        self._dbgap_resources = dict()
         self.logger = get_logger(
             "user_syncer", log_level="debug" if config["DEBUG"] is True else "info"
         )
@@ -374,7 +376,7 @@ class UserSyncer(object):
                     username: {
                         'project1': {'read-storage','write-storage'},
                         'project2': {'read-storage'},
-                        }
+                    }
                 },
                 {
                     username: {
@@ -1057,7 +1059,7 @@ class UserSyncer(object):
         if not healthy:
             return False
 
-        for username, user_resources in user_projects.iteritems():
+        for username, user_project_info in user_projects.iteritems():
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
 
@@ -1068,7 +1070,15 @@ class UserSyncer(object):
                 for policy in user_yaml.policies.get(user.username, []):
                     self.arborist_client.grant_user_policy(user.username, policy)
 
-            for path, permissions in user_resources.iteritems():
+            for project, permissions in user_project_info.iteritems():
+
+                # check if this is a dbgap project, if it is, we need to get the right
+                # resource path
+                if project in self._dbgap_resources:
+                    path = self._dbgap_resources[project]
+                else:
+                    path = project
+
                 for permission in permissions:
                     # "permission" in the dbgap sense, not the arborist sense
                     if permission not in self._created_roles:
@@ -1111,7 +1121,17 @@ class UserSyncer(object):
                     self.arborist_client.grant_user_policy(user.username, policy_id)
         return True
 
-    def _add_dbgap_project_to_arborist(self, dbgap_project):
+    def _add_dbgap_project_to_arborist(self, dbgap_study):
+        """
+        Return the arborist resource path after adding the specified dbgap study
+        to arborist.
+
+        Args:
+            dbgap_study (str): study phs identifier
+
+        Returns:
+            str: arborist resource path for study
+        """
         healthy = self._is_arborist_healthy()
         if not healthy:
             return False
@@ -1119,15 +1139,21 @@ class UserSyncer(object):
         try:
             response = self.arborist_client.update_resource(
                 DBGAP_ARBORIST_RESOURCE_PREFIX,
-                {"name": dbgap_project, "description": "synced from dbGaP"},
+                {"name": dbgap_study, "description": "synced from dbGaP"},
                 create_parents=True,
             )
             self.logger.info(
                 "added dbgap project {} as an arborist resource under parent path: {}. "
                 "Arborist response: {}".format(
-                    dbgap_project, DBGAP_ARBORIST_RESOURCE_PREFIX, response
+                    dbgap_study, DBGAP_ARBORIST_RESOURCE_PREFIX, response
                 )
             )
+            if dbgap_study not in self._dbgap_resources:
+                self._dbgap_resources[dbgap_study] = (
+                    DBGAP_ARBORIST_RESOURCE_PREFIX + dbgap_study
+                )
+
+            return DBGAP_ARBORIST_RESOURCE_PREFIX + dbgap_study
         except ArboristError as e:
             self.logger.error(e)
             # keep going; maybe just some conflicts from things existing already
