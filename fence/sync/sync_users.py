@@ -137,7 +137,8 @@ class UserYAML(object):
                 validate_user_yaml(file_contents)  # run user.yaml validation tests
                 data = yaml.safe_load(file_contents)
         else:
-            self.logger.info("Did not sync a user.yaml, no file path provided.")
+            if logger:
+                logger.info("Did not sync a user.yaml, no file path provided.")
 
         projects = dict()
         user_info = dict()
