@@ -1085,7 +1085,9 @@ class UserSyncer(object):
 
         try:
             self.arborist_client.create_resource(
-                DBGAP_ARBORIST_RESOURCE_PREFIX, dbgap_project, overwrite=True
+                DBGAP_ARBORIST_RESOURCE_PREFIX,
+                {"name": dbgap_project, "description": "synced from dbGaP"},
+                overwrite=True,
             )
         except ArboristError as e:
             self.logger.error(e)
