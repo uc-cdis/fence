@@ -260,6 +260,7 @@ class ArboristClient(object):
 
     @_arborist_retry()
     def update_resource(self, path, resource_json, create_parents=False):
+        path = self._resource_url + path
         if create_parents:
             path = path + "?p"
         response = _request_get_json(requests.put(path, json=resource_json))
