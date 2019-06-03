@@ -23,5 +23,6 @@ EXPOSE 80
 
 WORKDIR /var/www/fence
 
-CMD /dockerrun.sh
+CMD bash /fence/dockerrun.bash \
+    && /dockerrun.sh
 
