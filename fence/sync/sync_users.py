@@ -31,6 +31,8 @@ from fence.models import (
 from fence.rbac.client import ArboristClient, ArboristError
 from fence.resources.storage import StorageManager
 
+DBGAP_ARBORIST_RESOURCE_PREFIX = "/dbgap/programs/"
+
 
 def _format_policy_id(path, privilege):
     resource = ".".join(name for name in path.split("/") if name)
@@ -257,7 +259,7 @@ class UserSyncer(object):
         self.project_mapping = project_mapping or {}
         self._projects = dict()
         self.logger = get_logger(
-            "user_syncer", log_level="debug" if config["DEBUG"] == True else "info"
+            "user_syncer", log_level="debug" if config["DEBUG"] is True else "info"
         )
         self.arborist_client = arborist
 
@@ -422,6 +424,11 @@ class UserSyncer(object):
                             project = self._get_or_create(
                                 sess, Project, auth_id=dbgap_project
                             )
+
+                            # need to add dbgap project to arborist
+                            if self.arborist_client:
+                                self._add_dbgap_project_to_arborist(dbgap_project)
+
                             if project.name is None:
                                 project.name = dbgap_project
                             self._projects[dbgap_project] = project
@@ -436,77 +443,19 @@ class UserSyncer(object):
                             phsid_privileges = {
                                 element_dict["auth_id"]: set(privileges)
                             }
+
+                            # need to add dbgap project to arborist
+                            if self.arborist_client:
+                                self._add_dbgap_project_to_arborist(
+                                    element_dict["auth_id"]
+                                )
+
                             if username not in user_projects:
                                 user_projects[username] = {}
                             user_projects[username].update(phsid_privileges)
                         except ValueError as e:
                             self.logger.info(e)
         return user_projects, user_info
-
-    def _parse_yaml(self, filepath, encrypted=True):
-        """
-        parse yaml files to python nested dictionary
-        Args:
-            filepath: yaml file
-            encrypted: whether those files are encrypted
-        Returns:
-            user_project: a nested dict of
-            {
-                username: {
-                    'project1': {'read-storage','write-storage'},
-                    'project2': {'read-storage'},
-                    }
-            }
-            user_info: a dict of
-            {
-                username: {
-                    'email': email,
-                    'display_name': display_name,
-                    'phone_number': phonenum,
-                    'tags': {'k1':'v1', 'k2': 'v2'}
-                    'admin': is_admin
-                }
-            }
-        """
-        user_project = dict()
-        user_info = dict()
-        user_policies = dict()
-
-        dbgap_key = getattr(self, "dbgap_key", None)
-        with _read_file(
-            filepath, encrypted=encrypted, key=dbgap_key, logger=self.logger
-        ) as f:
-            data = yaml.safe_load(f)
-
-        users = data.get("users", {})
-        for username, details in users.iteritems():
-            # users should occur only once each; skip if already processed
-            if username in user_project:
-                self.logger.error("user `{}` occurs multiple times".format(username))
-                raise EnvironmentError("invalid yaml file")
-
-            privileges = {}
-            try:
-                for project in details.get("projects", {}):
-                    privileges[project["auth_id"]] = set(project["privilege"])
-            except KeyError as e:
-                self.logger.error("project missing field: {}".format(e))
-                continue
-
-            user_info[username] = {
-                "email": details.get("email", username),
-                "display_name": details.get("display_name", ""),
-                "phone_number": details.get("phone_number", ""),
-                "tags": details.get("tags", {}),
-                "admin": details.get("admin", False),
-            }
-            user_project[username] = privileges
-
-            # list of policies we want to grant to this user, which get sent to arborist
-            # to check if they're allowed to do certain things
-            user_policies[username] = details.get("policies", [])
-
-        return user_project, user_info, user_policies
 
     @staticmethod
     def sync_two_user_info_dict(user_info1, user_info2):
@@ -568,9 +517,7 @@ class UserSyncer(object):
                         phsids2[user][phsid1] = set()
                     phsids2[user][phsid1].update(privilege1)
 
-    def sync_to_db_and_storage_backend(
-        self, user_project, user_info, user_policies, sess
-    ):
+    def sync_to_db_and_storage_backend(self, user_project, user_info, sess):
         """
         sync user access control to database and storage backend
 
@@ -585,7 +532,6 @@ class UserSyncer(object):
                 }
 
             user_info (dict): a dictionary of {username: user_info{}}
-            user_policies (List[str]): list of policies
             sess: a sqlalchemy session
 
         Return:
@@ -975,9 +921,7 @@ class UserSyncer(object):
 
         if user_projects:
             self.logger.info("Sync to db and storage backend")
-            self.sync_to_db_and_storage_backend(
-                user_projects, user_info, user_yaml.policies, sess
-            )
+            self.sync_to_db_and_storage_backend(user_projects, user_info, sess)
             self.logger.info("Finish syncing to db and storage backend")
         else:
             self.logger.info("No users for syncing")
@@ -998,7 +942,7 @@ class UserSyncer(object):
         else:
             self.logger.info("No resources specified; skipping arborist sync")
 
-    def _update_arborist(self, session, user_yaml):
+    def _update_arborist(self, session, user_yaml, user_projects=None):
         """
         Create roles and resources in arborist from the information in
         ``user_projects``.
@@ -1014,15 +958,11 @@ class UserSyncer(object):
         Return:
             bool: success
         """
-        if not self.arborist_client:
-            self.logger.warn("no arborist client set; skipping arborist sync")
+        healthy = self._is_arborist_healthy()
+        if not healthy:
             return False
-        if not self.arborist_client.healthy():
-            # TODO (rudyardrichter, 2019-01-07): add backoff/retry here
-            self.logger.error(
-                "arborist service is unavailable; skipping main arborist sync"
-            )
-            return False
+
+        user_projects = user_projects or {}
 
         # Set up the resource tree in arborist
         resources = user_yaml.rbac.get("resources", [])
@@ -1136,4 +1076,29 @@ class UserSyncer(object):
         for policy in user_yaml.rbac.get("all_users_policies", []):
             self.arborist_client.grant_group_policy("logged-in", policy)
 
+        return True
+
+    def _add_dbgap_project_to_arborist(self, dbgap_project):
+        healthy = self._is_arborist_healthy()
+        if not healthy:
+            return False
+
+        try:
+            self.arborist_client.create_resource(
+                DBGAP_ARBORIST_RESOURCE_PREFIX, dbgap_project, overwrite=True
+            )
+        except ArboristError as e:
+            self.logger.error(e)
+            # keep going; maybe just some conflicts from things existing already
+
+    def _is_arborist_healthy(self):
+        if not self.arborist_client:
+            self.logger.warn("no arborist client set; skipping arborist dbgap sync")
+            return False
+        if not self.arborist_client.healthy():
+            # TODO (rudyardrichter, 2019-01-07): add backoff/retry here
+            self.logger.error(
+                "arborist service is unavailable; skipping main arborist dbgap sync"
+            )
+            return False
         return True
