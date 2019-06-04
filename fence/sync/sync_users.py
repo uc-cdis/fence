@@ -1067,6 +1067,9 @@ class UserSyncer(object):
             self.arborist_client.revoke_all_policies_for_user(username)
 
             if user_yaml:
+                # update the project info with `projects` specified in user.yaml
+                user_project_info.update(user_yaml.user_rbac)
+
                 for policy in user_yaml.policies.get(user.username, []):
                     self.arborist_client.grant_user_policy(user.username, policy)
 
