@@ -1059,6 +1059,10 @@ class UserSyncer(object):
         if not healthy:
             return False
 
+        if user_yaml:
+            # update the project info with `projects` specified in user.yaml
+            user_projects.update(user_yaml.user_rbac)
+
         for username, user_project_info in user_projects.iteritems():
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
@@ -1067,9 +1071,6 @@ class UserSyncer(object):
             self.arborist_client.revoke_all_policies_for_user(username)
 
             if user_yaml:
-                # update the project info with `projects` specified in user.yaml
-                user_project_info.update(user_yaml.user_rbac)
-
                 for policy in user_yaml.policies.get(user.username, []):
                     self.arborist_client.grant_user_policy(user.username, policy)
 
