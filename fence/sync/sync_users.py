@@ -1067,22 +1067,20 @@ class UserSyncer(object):
             client = session.query(Client).filter_by(name=client_name).first()
             # update existing clients, do not create new ones
             if not client:
-                self.logger.error(
-                    "client to update (`{}`) does not exist in arborist: skipping".format(
+                self.logger.WARNING(
+                    "client to update (`{}`) does not exist in fence: skipping".format(
                         client_name
                     )
                 )
-            else:
-                try:
-                    self.arborist_client.update_client(
-                        client.client_id, client_policies
+                continue
+            try:
+                self.arborist_client.update_client(client.client_id, client_policies)
+            except ArboristError as e:
+                self.logger.info(
+                    "not granting policies {} to client `{}`; {}".format(
+                        client_policies, client_name, str(e)
                     )
-                except ArboristError as e:
-                    self.logger.info(
-                        "not granting policies {} to client `{}`; {}".format(
-                            client_policies, client_name, str(e)
-                        )
-                    )
+                )
 
         user_projects = user_yaml.user_rbac
         for username, user_resources in user_projects.iteritems():
