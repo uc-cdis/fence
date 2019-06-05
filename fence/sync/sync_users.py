@@ -1067,7 +1067,7 @@ class UserSyncer(object):
             client = session.query(Client).filter_by(name=client_name).first()
             # update existing clients, do not create new ones
             if not client:
-                self.logger.WARNING(
+                self.logger.warning(
                     "client to update (`{}`) does not exist in fence: skipping".format(
                         client_name
                     )
