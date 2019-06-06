@@ -1064,7 +1064,7 @@ class UserSyncer(object):
 
         if user_yaml:
             # update the project info with `projects` specified in user.yaml
-            sync_two_phsids_dict(user_yaml.user_rbac, user_projects)
+            self.sync_two_phsids_dict(user_yaml.user_rbac, user_projects)
 
         self.logger.info("****************************")
         self.logger.info(str(user_projects))
