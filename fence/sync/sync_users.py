@@ -1064,9 +1064,9 @@ class UserSyncer(object):
 
         if user_yaml:
             # update the project info with `projects` specified in user.yaml
-            user_projects.update(user_yaml.user_rbac)
+            sync_two_phsids_dict(user_yaml.user_rbac, user_projects)
 
-        self.logger.info("*****************************8")
+        self.logger.info("****************************")
         self.logger.info(str(user_projects))
 
         for username, user_project_info in user_projects.iteritems():
