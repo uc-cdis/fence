@@ -926,6 +926,7 @@ class UserSyncer(object):
 
         if user_projects:
             self.logger.info("Sync to db and storage backend")
+            self.logger.info(str(user_projects))
             self.sync_to_db_and_storage_backend(user_projects, user_info, sess)
             self.logger.info("Finish syncing to db and storage backend")
         else:
@@ -1059,9 +1060,14 @@ class UserSyncer(object):
         if not healthy:
             return False
 
+        self.logger.info(str(user_projects))
+
         if user_yaml:
             # update the project info with `projects` specified in user.yaml
             user_projects.update(user_yaml.user_rbac)
+
+        self.logger.info("*****************************8")
+        self.logger.info(str(user_projects))
 
         for username, user_project_info in user_projects.iteritems():
             self.logger.info("processing user `{}`".format(username))
@@ -1077,11 +1083,8 @@ class UserSyncer(object):
             for project, permissions in user_project_info.iteritems():
 
                 # check if this is a dbgap project, if it is, we need to get the right
-                # resource path
-                if project in self._dbgap_resources:
-                    path = self._dbgap_resources[project]
-                else:
-                    path = project
+                # resource path, otherwise just use given project as path
+                path = self._dbgap_resources.get(project, project)
 
                 for permission in permissions:
                     # "permission" in the dbgap sense, not the arborist sense
