@@ -1,7 +1,7 @@
 # To run: docker run -d -v /path/to/fence-config.yaml:/var/www/fence/fence-config.yaml --name=fence -p 80:80 fence
 # To check running container: docker exec -it fence /bin/bash
 
-FROM quay.io/cdis/py27base:pybase2-1.0.1
+FROM quay.io/cdis/py27base:pybase2-1.0.2
 
 RUN mkdir /var/www/fence \
 	&& chown www-data /var/www/fence
