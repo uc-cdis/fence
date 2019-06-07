@@ -211,7 +211,9 @@ class UserYAML(object):
                     # prefer resource field but look for top-level mapping too
                     resource = project["resource"] or project_to_resource[project]
                 except KeyError:
-                    continue
+                    # if no resource or mapping, assume auth_id is resource
+                    resource = project["auth_id"]
+
                 resource_permissions[resource] = set(project["privilege"])
             user_rbac[username] = resource_permissions
 
