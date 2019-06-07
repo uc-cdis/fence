@@ -334,8 +334,8 @@ class UserSyncer(object):
                 host=self.server.get("host", ""),
                 port=self.server.get("port", 22),
             )
-
-            self.logger.debug("SSH proxy command: {}".format(command))
+            self.logger.info("SSH proxy command: {}".format(command))
+            print((self.logger.__dict__))
 
             proxy = ProxyCommand(command)
 
@@ -352,7 +352,7 @@ class UserSyncer(object):
             if proxy:
                 parameters["sock"] = proxy
 
-            self.logger.debug("SSH connection parameters: {}".format(parameters))
+            self.logger.info("SSH connection parameters: {}".format(parameters))
             client.connect(**parameters)
             with client.open_sftp() as sftp:
                 download_dir(sftp, "./", path)
@@ -891,7 +891,7 @@ class UserSyncer(object):
         """
         dbgap_file_list = []
         tmpdir = tempfile.mkdtemp()
-        self.logger.info("Temp dir: {}".format(str(tmpdir)))
+        self.logger.info("Temp dir for dbgap: {}".format(str(tmpdir)))
         if self.is_sync_from_dbgap_server:
             self.logger.info("Download from server")
             try:
