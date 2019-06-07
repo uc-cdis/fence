@@ -178,6 +178,11 @@ class UserYAML(object):
             # to check if they're allowed to do certain things
             policies[username] = details.get("policies", [])
 
+        # get user project mapping to arborist resources if it exists
+        project_to_resource = data.get("rbac", dict()).get(
+            "user_project_to_resource", dict()
+        )
+
         # resources should be the resource tree to construct in arborist
         user_rbac = dict()
         for username, details in users.iteritems():
@@ -193,7 +198,8 @@ class UserYAML(object):
             for project in details.get("projects", {}):
                 # project may not have `resource` field
                 try:
-                    resource = project["resource"]
+                    # prefer resource field but look for top-level mapping too
+                    resource = project["resource"] or project_to_resource[project]
                 except KeyError:
                     continue
                 resource_permissions[resource] = set(project["privilege"])
@@ -1132,7 +1138,7 @@ class UserSyncer(object):
                         self._created_policies.add(policy_id)
 
                     self.arborist_client.grant_user_policy(user.username, policy_id)
-        
+
         for client_name, client_details in user_yaml.clients.iteritems():
             client_policies = client_details.get("policies", [])
             client = session.query(Client).filter_by(name=client_name).first()
@@ -1152,7 +1158,7 @@ class UserSyncer(object):
                         client_policies, client_name, str(e)
                     )
                 )
-                
+
         return True
 
     def _add_dbgap_project_to_arborist(self, dbgap_study):
