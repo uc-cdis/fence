@@ -183,11 +183,12 @@ class UserYAML(object):
             "user_project_to_resource", dict()
         )
 
-        self.logger.info(
-            "Got user project to arborist resource mapping:\n{}".format(
-                str(project_to_resource)
+        if logger:
+            logger.info(
+                "Got user project to arborist resource mapping:\n{}".format(
+                    str(project_to_resource)
+                )
             )
-        )
 
         # resources should be the resource tree to construct in arborist
         user_rbac = dict()
