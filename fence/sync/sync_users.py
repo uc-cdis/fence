@@ -208,8 +208,8 @@ class UserYAML(object):
             for project in details.get("projects", {}):
                 # project may not have `resource` field
                 try:
-                    # prefer resource field but look for top-level mapping too
-                    resource = project["resource"] or project_to_resource[project]
+                    # prefer resource field
+                    resource = project["resource"]
                 except KeyError:
                     # if no resource or mapping, assume auth_id is resource
                     resource = project["auth_id"]
@@ -1084,15 +1084,9 @@ class UserSyncer(object):
         if not healthy:
             return False
 
-        self.logger.info(user_projects)
-        self.logger.info("*****************************88")
-        self.logger.info(user_yaml.user_rbac)
-
         if user_yaml:
             # update the project info with `projects` specified in user.yaml
             self.sync_two_phsids_dict(user_yaml.user_rbac, user_projects)
-
-        self.logger.info(user_projects)
 
         for username, user_project_info in user_projects.iteritems():
             self.logger.info("processing user `{}`".format(username))
