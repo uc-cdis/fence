@@ -121,6 +121,7 @@ class UserYAML(object):
         policies=None,
         clients=None,
         rbac=None,
+        project_to_resource=None,
         logger=None,
         user_rbac=None,
     ):
@@ -130,6 +131,7 @@ class UserYAML(object):
         self.policies = policies or {}
         self.clients = clients or {}
         self.rbac = rbac or {}
+        self.project_to_resource = project_to_resource or {}
         self.logger = logger
 
     @classmethod
@@ -147,6 +149,7 @@ class UserYAML(object):
         projects = dict()
         user_info = dict()
         policies = dict()
+        project_to_resource = dict()
 
         users = data.get("users", {})
         for username, details in users.iteritems():
@@ -237,6 +240,7 @@ class UserYAML(object):
             policies=policies,
             clients=clients,
             rbac=rbac,
+            project_to_resource=project_to_resource,
             logger=logger,
         )
 
@@ -945,7 +949,6 @@ class UserSyncer(object):
 
         if user_projects:
             self.logger.info("Sync to db and storage backend")
-            self.logger.info(str(user_projects))
             self.sync_to_db_and_storage_backend(user_projects, user_info, sess)
             self.logger.info("Finish syncing to db and storage backend")
         else:
@@ -1079,9 +1082,15 @@ class UserSyncer(object):
         if not healthy:
             return False
 
+        self.logger.info(user_projects)
+        self.logger.info("*****************************88")
+        self.logger.info(user_yaml.user_rbac)
+
         if user_yaml:
             # update the project info with `projects` specified in user.yaml
             self.sync_two_phsids_dict(user_yaml.user_rbac, user_projects)
+
+        self.logger.info(user_projects)
 
         for username, user_project_info in user_projects.iteritems():
             self.logger.info("processing user `{}`".format(username))
@@ -1099,6 +1108,13 @@ class UserSyncer(object):
                 # check if this is a dbgap project, if it is, we need to get the right
                 # resource path, otherwise just use given project as path
                 path = self._dbgap_resources.get(project, project)
+
+                if user_yaml:
+                    try:
+                        # check if project is in mapping and convert accordingly
+                        path = user_yaml.project_to_resource[project]
+                    except KeyError:
+                        continue
 
                 for permission in permissions:
                     # "permission" in the dbgap sense, not the arborist sense
