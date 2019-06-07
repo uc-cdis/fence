@@ -16,6 +16,7 @@ RUN ln -s /fence/wsgi.py /var/www/fence/wsgi.py
 RUN COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" >fence/version_data.py
 RUN VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >>fence/version_data.py
 RUN python setup.py develop
+RUN apk update && apk add openssh
 
 EXPOSE 80
 
