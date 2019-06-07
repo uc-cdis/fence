@@ -27,6 +27,7 @@ from fence.models import (
     Tag,
     User,
     query_for_user,
+    Client,
 )
 from fence.rbac.client import ArboristClient, ArboristError
 from fence.resources.storage import StorageManager
@@ -118,6 +119,7 @@ class UserYAML(object):
         projects=None,
         user_info=None,
         policies=None,
+        clients=None,
         rbac=None,
         logger=None,
         user_rbac=None,
@@ -126,6 +128,7 @@ class UserYAML(object):
         self.user_info = user_info or {}
         self.user_rbac = user_rbac or {}
         self.policies = policies or {}
+        self.clients = clients or {}
         self.rbac = rbac or {}
         self.logger = logger
 
@@ -212,11 +215,14 @@ class UserYAML(object):
             if resources:
                 rbac["resources"] = data.get("resources", [])
 
+        clients = data.get("clients", {})
+
         return cls(
             projects=projects,
             user_info=user_info,
             user_rbac=user_rbac,
             policies=policies,
+            clients=clients,
             rbac=rbac,
             logger=logger,
         )
@@ -1126,6 +1132,27 @@ class UserSyncer(object):
                         self._created_policies.add(policy_id)
 
                     self.arborist_client.grant_user_policy(user.username, policy_id)
+        
+        for client_name, client_details in user_yaml.clients.iteritems():
+            client_policies = client_details.get("policies", [])
+            client = session.query(Client).filter_by(name=client_name).first()
+            # update existing clients, do not create new ones
+            if not client:
+                self.logger.warning(
+                    "client to update (`{}`) does not exist in fence: skipping".format(
+                        client_name
+                    )
+                )
+                continue
+            try:
+                self.arborist_client.update_client(client.client_id, client_policies)
+            except ArboristError as e:
+                self.logger.info(
+                    "not granting policies {} to client `{}`; {}".format(
+                        client_policies, client_name, str(e)
+                    )
+                )
+                
         return True
 
     def _add_dbgap_project_to_arborist(self, dbgap_study):

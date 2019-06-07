@@ -1,59 +1,24 @@
 # To run: docker run -d -v /path/to/fence-config.yaml:/var/www/fence/fence-config.yaml --name=fence -p 80:80 fence
 # To check running container: docker exec -it fence /bin/bash
 
-FROM ubuntu:16.04
+FROM quay.io/cdis/py27base:pybase2-1.0.2
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    apache2 \
-    build-essential \
-    curl \
-    git \
-    # for ftp
-    lftp \
-    # for decryption dbgap files
-    mcrypt \
-    libapache2-mod-wsgi \
-    # dependency for cryptography
-    libffi-dev \
-    # dependency for pyscopg2 - which is dependency for sqlalchemy postgres engine
-    libpq-dev \
-    # dependency for cryptography
-    libssl-dev \
-    # dependency for ssh and sftp
-    openssh-client \
-    python2.7 \
-    python-dev \
-    python-pip \
-    python-setuptools \
-    vim \
-    && pip install pip==9.0.3 \
-    && pip install --upgrade setuptools \
-    && mkdir /var/www/fence \
-    && mkdir -p /var/www/.cache/Python-Eggs/ \
-    && chown www-data -R /var/www/.cache/Python-Eggs/
-
-
-COPY requirements.txt /fence/requirements.txt
-RUN pip install -r /fence/requirements.txt
+RUN mkdir /var/www/fence \
+	&& chown www-data /var/www/fence
 
 COPY . /fence
-WORKDIR /fence
-COPY deployment/fence.conf /etc/apache2/sites-available/fence.conf
+COPY ./deployment/uwsgi/uwsgi.ini /etc/uwsgi/uwsgi.ini
 
-#
-# Custom apache24 logging - see http://www.loadbalancer.org/blog/apache-and-x-forwarded-for-headers/
-#
-RUN ln -s /fence/wsgi.py /var/www/fence/wsgi.py \
-    && COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" >fence/version_data.py \
-    && VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >>fence/version_data.py \
-    && python setup.py develop \
-    && a2dissite 000-default \
-    && a2ensite fence \
-    && a2enmod reqtimeout \
-    && ln -sf /dev/stdout /var/log/apache2/access.log \
-    && ln -sf /dev/stderr /var/log/apache2/error.log
+WORKDIR /fence
+
+RUN python -m pip install -r requirements.txt
+RUN ln -s /fence/wsgi.py /var/www/fence/wsgi.py
+RUN COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" >fence/version_data.py
+RUN VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >>fence/version_data.py
+RUN python setup.py develop
 
 EXPOSE 80
-WORKDIR /var/www/fence/
 
-CMD bash /fence/dockerrun.bash
+WORKDIR /var/www/fence
+
+CMD ["sh","-c","bash /fence/dockerrun.bash && /dockerrun.sh"]
