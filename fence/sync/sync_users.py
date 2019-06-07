@@ -891,6 +891,7 @@ class UserSyncer(object):
         """
         dbgap_file_list = []
         tmpdir = tempfile.mkdtemp()
+        self.logger.info("Temp dir: {}".format(str(tmpdir)))
         if self.is_sync_from_dbgap_server:
             self.logger.info("Download from server")
             try:
@@ -903,6 +904,7 @@ class UserSyncer(object):
                 self.logger.error(e)
                 exit(1)
 
+        self.logger.info("dbgap files: {}".format(dbgap_file_list))
         permissions = [{"read-storage"} for _ in dbgap_file_list]
         user_projects, user_info = self._parse_csv(
             dict(zip(dbgap_file_list, permissions)), encrypted=True, sess=sess
