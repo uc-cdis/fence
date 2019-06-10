@@ -1,6 +1,3 @@
-# To run: docker run -d -v /path/to/fence-config.yaml:/var/www/fence/fence-config.yaml --name=fence -p 80:80 fence
-# To check running container: docker exec -it fence /bin/bash
-
 FROM ubuntu:16.04
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
