@@ -364,7 +364,11 @@ class ArboristClient(object):
             response = requests.put(self._policy_url, json=policy_json)
         else:
             response = requests.post(self._policy_url, json=policy_json)
+
         data = _request_get_json(response)
+
+        self.logger.info("arborist data: {}".format(data))
+
         if response.status_code == 409:
             # already exists; this is ok, but leave warning
             self.logger.warn(

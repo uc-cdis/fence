@@ -1125,16 +1125,17 @@ class UserSyncer(object):
                 # resource path, otherwise just use given project as path
                 path = self._dbgap_resources.get(project, project)
 
-                self.logger.info(
-                    "resource path for project {}: {}".format(project, path)
-                )
-
                 if user_yaml:
                     try:
                         # check if project is in mapping and convert accordingly
                         path = user_yaml.project_to_resource[project]
                     except KeyError:
                         continue
+
+                self.logger.info(
+                    "resource path for project {}: {}".format(project, path)
+                )
+                self.logger.info("permissions: {}".format(permissions))
 
                 for permission in permissions:
                     # "permission" in the dbgap sense, not the arborist sense
@@ -1158,6 +1159,7 @@ class UserSyncer(object):
                     # format project '/x/y/z' -> 'x.y.z'
                     # so the policy id will be something like 'x.y.z-create'
                     policy_id = _format_policy_id(path, permission)
+                    self.logger.info("new policy: {}".format(policy_id))
                     if policy_id not in self._created_policies:
                         try:
                             self.arborist_client.create_policy(
