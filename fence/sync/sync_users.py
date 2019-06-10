@@ -89,14 +89,26 @@ def _read_file(filepath, encrypted=True, key=None, logger=None):
         Generator[file-like class]: file like object for the file
     """
     if encrypted:
-        has_crypt = sp.call(["which", "crypt"])
+        has_crypt = sp.call(["which", "mcrypt"])
         if has_crypt != 0:
             if logger:
                 logger.error("Need to install crypt to decrypt files from dbgap")
             # TODO (rudyardrichter, 2019-01-08): raise error and move exit out to script
             exit(1)
         p = sp.Popen(
-            ["crypt", key],
+            [
+                "mcrypt",
+                "-a",
+                "enigma",
+                "-o",
+                "scrypt",
+                "-m",
+                "stream",
+                "--bare",
+                "--key",
+                key,
+                "--force",
+            ],
             stdin=open(filepath, "r"),
             stdout=sp.PIPE,
             stderr=open(os.devnull, "w"),
