@@ -1130,7 +1130,7 @@ class UserSyncer(object):
                         # check if project is in mapping and convert accordingly
                         path = user_yaml.project_to_resource[project]
                     except KeyError:
-                        continue
+                        pass
 
                 self.logger.info(
                     "resource path for project {}: {}".format(project, path)
