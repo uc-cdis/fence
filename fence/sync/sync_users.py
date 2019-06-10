@@ -1098,9 +1098,14 @@ class UserSyncer(object):
         if not healthy:
             return False
 
+        self.logger.info(user_yaml.user_rbac)
+        self.logger.info(user_projects)
+
         if user_yaml:
             # update the project info with `projects` specified in user.yaml
             self.sync_two_phsids_dict(user_yaml.user_rbac, user_projects)
+
+        self.logger.info(user_projects)
 
         for username, user_project_info in user_projects.iteritems():
             self.logger.info("processing user `{}`".format(username))
