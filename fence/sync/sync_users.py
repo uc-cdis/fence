@@ -1227,11 +1227,11 @@ class UserSyncer(object):
                 )
             )
             if dbgap_study not in self._dbgap_resources:
-                self._dbgap_resources[dbgap_study] = _get_dbgap_project_arborist_path(
+                self._dbgap_resources[
                     dbgap_study
-                )
+                ] = self._get_dbgap_project_arborist_path(dbgap_study)
 
-            return _get_dbgap_project_arborist_path(dbgap_study)
+            return self._get_dbgap_project_arborist_path(dbgap_study)
         except ArboristError as e:
             self.logger.error(e)
             # keep going; maybe just some conflicts from things existing already
