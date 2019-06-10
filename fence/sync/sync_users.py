@@ -1106,6 +1106,7 @@ class UserSyncer(object):
             self.sync_two_phsids_dict(user_yaml.user_rbac, user_projects)
 
         self.logger.info(user_projects)
+        self.logger.info(self._dbgap_resources)
 
         for username, user_project_info in user_projects.iteritems():
             self.logger.info("processing user `{}`".format(username))
@@ -1123,6 +1124,10 @@ class UserSyncer(object):
                 # check if this is a dbgap project, if it is, we need to get the right
                 # resource path, otherwise just use given project as path
                 path = self._dbgap_resources.get(project, project)
+
+                self.logger.info(
+                    "resource path for project {}: {}".format(project, path)
+                )
 
                 if user_yaml:
                     try:
@@ -1222,14 +1227,20 @@ class UserSyncer(object):
                 )
             )
             if dbgap_study not in self._dbgap_resources:
-                self._dbgap_resources[dbgap_study] = (
-                    DBGAP_ARBORIST_RESOURCE_PREFIX + dbgap_study
+                self._dbgap_resources[dbgap_study] = _get_dbgap_project_arborist_path(
+                    dbgap_study
                 )
 
-            return DBGAP_ARBORIST_RESOURCE_PREFIX + dbgap_study
+            return _get_dbgap_project_arborist_path(dbgap_study)
         except ArboristError as e:
             self.logger.error(e)
             # keep going; maybe just some conflicts from things existing already
+
+    def _get_dbgap_project_arborist_path(self, dbgap_study):
+        """
+        Return the arborist resource path given a dbgap study
+        """
+        return DBGAP_ARBORIST_RESOURCE_PREFIX + dbgap_study
 
     def _is_arborist_healthy(self):
         if not self.arborist_client:
