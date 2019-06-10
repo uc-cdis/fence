@@ -1227,20 +1227,14 @@ class UserSyncer(object):
                 )
             )
             if dbgap_study not in self._dbgap_resources:
-                self._dbgap_resources[
-                    dbgap_study
-                ] = self._get_dbgap_project_arborist_path(dbgap_study)
+                self._dbgap_resources[dbgap_study] = (
+                    DBGAP_ARBORIST_RESOURCE_PREFIX + dbgap_study
+                )
 
-            return self._get_dbgap_project_arborist_path(dbgap_study)
+            return DBGAP_ARBORIST_RESOURCE_PREFIX + dbgap_study
         except ArboristError as e:
             self.logger.error(e)
             # keep going; maybe just some conflicts from things existing already
-
-    def _get_dbgap_project_arborist_path(self, dbgap_study):
-        """
-        Return the arborist resource path given a dbgap study
-        """
-        return DBGAP_ARBORIST_RESOURCE_PREFIX + dbgap_study
 
     def _is_arborist_healthy(self):
         if not self.arborist_client:
