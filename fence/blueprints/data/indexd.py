@@ -1,6 +1,6 @@
 import re
 import time
-from urlparse import urlparse
+from urllib.parse import urlparse
 
 from cached_property import cached_property
 import cirrus
@@ -34,7 +34,7 @@ from fence.resources.google.utils import (
     get_google_app_creds,
 )
 from fence.utils import get_valid_expiration_from_request
-import multipart_upload
+from . import multipart_upload
 
 
 logger = get_logger(__name__)
@@ -823,7 +823,7 @@ def filter_auth_ids(action, list_auth_ids):
     elif action == "upload":
         checked_permission = "write-storage"
     authorized_dbgaps = []
-    for key, values in list_auth_ids.items():
+    for key, values in list(list_auth_ids.items()):
         if checked_permission in values:
             authorized_dbgaps.append(key)
     return authorized_dbgaps

@@ -192,7 +192,7 @@ def app_config(
 
 def _setup_data_endpoint_and_boto(app):
     if "AWS_CREDENTIALS" in config and len(config["AWS_CREDENTIALS"]) > 0:
-        value = config["AWS_CREDENTIALS"].values()[0]
+        value = list(config["AWS_CREDENTIALS"].values())[0]
         app.boto = BotoManager(value, logger=logger)
         app.register_blueprint(fence.blueprints.data.blueprint, url_prefix="/data")
 
@@ -229,7 +229,7 @@ def _set_authlib_cfgs(app):
 
 
 def _setup_oidc_clients(app):
-    enabled_idp_ids = config["ENABLED_IDENTITY_PROVIDERS"]["providers"].keys()
+    enabled_idp_ids = list(config["ENABLED_IDENTITY_PROVIDERS"]["providers"].keys())
 
     # Add OIDC client for Google if configured.
     configured_google = (

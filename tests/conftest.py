@@ -25,7 +25,7 @@ from authutils.testing.fixtures import (
 from cryptography.fernet import Fernet
 import bcrypt
 from cdisutilstest.code.storage_client_mock import get_client
-import jwt
+from . import jwt
 from mock import patch, MagicMock
 from moto import mock_s3, mock_sts
 import pytest

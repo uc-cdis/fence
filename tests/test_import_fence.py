@@ -22,7 +22,7 @@ def reload_modules(module_name):
     # actually exist, even if it does. To do this, patch-delete the attribute
     # and reload all the fence modules.
     fence_submodules = [
-        module for module in sys.modules.keys() if module.startswith(module_name)
+        module for module in list(sys.modules.keys()) if module.startswith(module_name)
     ]
     for module in fence_submodules:
         if sys.modules[module]:
@@ -30,7 +30,7 @@ def reload_modules(module_name):
             # that.
             try:
                 # NOTE: in python3 this should become ``importlib.reload``
-                reload(sys.modules[module])
+                importlib.reload(sys.modules[module])
             except InvalidRequestError:
                 pass
 

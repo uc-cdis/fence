@@ -58,7 +58,7 @@ import pytest
 import time
 from datetime import datetime
 from io import StringIO
-from urllib import quote
+from urllib.parse import quote
 
 from fence.models import (
     Bucket,
@@ -1055,4 +1055,4 @@ def _assert_expected_error_response_structure(response, project_access):
 
 
 def _assert_expected_error_info_structure(data):
-    assert EXPECTED_ERROR_RESPONSE_KEYS.issubset(data.keys())
+    assert EXPECTED_ERROR_RESPONSE_KEYS.issubset(list(data.keys()))

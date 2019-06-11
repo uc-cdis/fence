@@ -1,4 +1,4 @@
-from idp_oauth2 import Oauth2ClientBase
+from .idp_oauth2 import Oauth2ClientBase
 
 
 class GoogleOauth2Client(Oauth2ClientBase):

@@ -1,6 +1,6 @@
 import flask
 import time
-from urlparse import urlparse, parse_qs, urlunparse
+from urllib.parse import urlparse, parse_qs, urlunparse
 
 # Python 2 and 3 compatible
 try:

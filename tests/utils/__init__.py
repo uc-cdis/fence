@@ -1,6 +1,6 @@
 import os
 import time
-import urlparse
+import urllib.parse
 import uuid
 
 from flask import current_app
@@ -34,7 +34,7 @@ def read_file(filename):
 
 def create_user(users, db_session, is_admin=False):
     s = db_session
-    for username in users.keys():
+    for username in list(users.keys()):
         user = query_for_user(session=s, username=username)
         if not user:
             user = User(username=username, is_admin=is_admin)
@@ -66,7 +66,7 @@ def create_user(users, db_session, is_admin=False):
 
 def create_awg_user(users, db_session):
     s = db_session
-    for username in users.keys():
+    for username in list(users.keys()):
         user = query_for_user(session=s, username=username)
         if not user:
             user = User(username=username)
@@ -137,7 +137,7 @@ def create_providers(data, db_session):
         s.add(prov)
         s.flush
 
-    for name, user in data["users"].items():
+    for name, user in list(data["users"].items()):
         new_user = User()
         new_user.username = name
         new_user.email = user["email"]
@@ -447,4 +447,4 @@ def remove_qs(url):
     """
     Remove the query string from a url.
     """
-    return urlparse.urljoin(url, urlparse.urlparse(url).path)
+    return urllib.parse.urljoin(url, urllib.parse.urlparse(url).path)

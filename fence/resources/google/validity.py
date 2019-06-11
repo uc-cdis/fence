@@ -73,7 +73,7 @@ class ValidityInfo(Mapping):
         return key in self._info
 
     def __iter__(self):
-        for key, value in self._info.iteritems():
+        for key, value in self._info.items():
             yield key, value
 
     def __getitem__(self, key):
@@ -88,7 +88,7 @@ class ValidityInfo(Mapping):
     def __bool__(self):
         return self._valid
 
-    def __nonzero__(self):
+    def __bool__(self):
         return self._valid
 
     def __repr__(self):

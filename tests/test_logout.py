@@ -1,5 +1,5 @@
-import urlparse
-import urllib
+import urllib.parse
+import urllib.request, urllib.parse, urllib.error
 from fence.resources.storage.cdis_jwt import create_session_token
 from fence.config import config
 
@@ -33,9 +33,9 @@ def test_logout_itrust(client, db_session):
     r = client.get("/user/")
     r = client.get("/logout?next=https://some_site.com")
     assert r.status_code == 302
-    parsed_url = urlparse.urlparse(r.location)
-    raw_redirect = urlparse.parse_qs(parsed_url.query).get("AppReturnUrl")[0]
-    redirect = urllib.unquote(raw_redirect)
+    parsed_url = urllib.parse.urlparse(r.location)
+    raw_redirect = urllib.parse.parse_qs(parsed_url.query).get("AppReturnUrl")[0]
+    redirect = urllib.parse.unquote(raw_redirect)
     assert redirect == "https://some_site.com"
 
 
@@ -65,7 +65,7 @@ def test_logout_fence(app, user_with_fence_provider, monkeypatch):
         assert r.status_code == 302
         assert r.location.startswith(other_fence_logout_url)
 
-        parsed_url = urlparse.urlparse(r.location)
-        raw_redirect = urlparse.parse_qs(parsed_url.query).get("next")[0]
-        redirect = urllib.unquote(raw_redirect)
+        parsed_url = urllib.parse.urlparse(r.location)
+        raw_redirect = urllib.parse.parse_qs(parsed_url.query).get("next")[0]
+        redirect = urllib.parse.unquote(raw_redirect)
         assert redirect == "https://some_site.com"

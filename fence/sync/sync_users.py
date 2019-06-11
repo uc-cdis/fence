@@ -5,7 +5,7 @@ from gen3users.validation import validate_user_yaml
 import glob
 import os
 import re
-from StringIO import StringIO
+from io import StringIO
 import subprocess as sp
 import tempfile
 import shutil
@@ -146,7 +146,7 @@ class UserYAML(object):
         policies = dict()
 
         users = data.get("users", {})
-        for username, details in users.iteritems():
+        for username, details in users.items():
             # users should occur only once each; skip if already processed
             if username in projects:
                 if logger:
@@ -177,7 +177,7 @@ class UserYAML(object):
 
         # resources should be the resource tree to construct in arborist
         user_rbac = dict()
-        for username, details in users.iteritems():
+        for username, details in users.items():
             # users should occur only once each; skip if already processed
             if username in user_rbac:
                 msg = "invalid yaml file: user `{}` occurs multiple times".format(
@@ -391,7 +391,7 @@ class UserSyncer(object):
         """
         user_projects = dict()
         user_info = dict()
-        for filepath, privileges in file_dict.iteritems():
+        for filepath, privileges in file_dict.items():
             self.logger.info("Reading file {}".format(filepath))
             if os.stat(filepath).st_size == 0:
                 continue
@@ -486,7 +486,7 @@ class UserSyncer(object):
             data = yaml.safe_load(f)
 
         users = data.get("users", {})
-        for username, details in users.iteritems():
+        for username, details in users.items():
             # users should occur only once each; skip if already processed
             if username in user_project:
                 self.logger.error("user `{}` occurs multiple times".format(username))
@@ -566,11 +566,11 @@ class UserSyncer(object):
 
             For the other cases, just simple addition
         """
-        for user, projects1 in phsids1.iteritems():
+        for user, projects1 in phsids1.items():
             if not phsids2.get(user):
                 phsids2[user] = projects1
             else:
-                for phsid1, privilege1 in projects1.iteritems():
+                for phsid1, privilege1 in projects1.items():
                     if phsid1 not in phsids2[user]:
                         phsids2[user][phsid1] = set()
                     phsids2[user][phsid1].update(privilege1)
@@ -614,13 +614,13 @@ class UserSyncer(object):
         # db stores case-sensitively, but we need to query case-insensitively
         user_project_lowercase = {}
         syncing_user_project_list = set()
-        for username, projects in user_project.iteritems():
+        for username, projects in user_project.items():
             user_project_lowercase[username.lower()] = projects
-            for project, _ in projects.iteritems():
+            for project, _ in projects.items():
                 syncing_user_project_list.add((username.lower(), project))
 
         user_info_lowercase = {
-            username.lower(): info for username, info in user_info.iteritems()
+            username.lower(): info for username, info in user_info.items()
         }
 
         to_delete = set.difference(cur_db_user_project_list, syncing_user_project_list)
@@ -803,7 +803,7 @@ class UserSyncer(object):
                     u.tags.remove(tag)
 
             # sync
-            for k, v in user_info[username]["tags"].iteritems():
+            for k, v in user_info[username]["tags"].items():
                 found = False
                 for tag in u.tags:
                     if tag.key == k:
@@ -878,12 +878,12 @@ class UserSyncer(object):
         initialize projects
         """
         if self.project_mapping:
-            for projects in self.project_mapping.values():
+            for projects in list(self.project_mapping.values()):
                 for p in projects:
                     project = self._get_or_create(sess, Project, **p)
                     self._projects[p["auth_id"]] = project
-        for _, projects in user_project.iteritems():
-            for auth_id in projects.keys():
+        for _, projects in user_project.items():
+            for auth_id in list(projects.keys()):
                 project = sess.query(Project).filter(Project.auth_id == auth_id).first()
                 if not project:
                     data = {"name": auth_id, "auth_id": auth_id}
@@ -936,7 +936,7 @@ class UserSyncer(object):
 
         permissions = [{"read-storage"} for _ in dbgap_file_list]
         user_projects, user_info = self._parse_csv(
-            dict(zip(dbgap_file_list, permissions)), encrypted=True, sess=sess
+            dict(list(zip(dbgap_file_list, permissions))), encrypted=True, sess=sess
         )
         try:
             shutil.rmtree(tmpdir)
@@ -953,7 +953,7 @@ class UserSyncer(object):
 
         permissions = [{"read-storage"} for _ in local_csv_file_list]
         user_projects_csv, user_info_csv = self._parse_csv(
-            dict(zip(local_csv_file_list, permissions)), encrypted=False, sess=sess
+            dict(list(zip(local_csv_file_list, permissions))), encrypted=False, sess=sess
         )
 
         try:
@@ -966,11 +966,11 @@ class UserSyncer(object):
             return
 
         user_projects_csv = {
-            key.lower(): value for key, value in user_projects_csv.iteritems()
+            key.lower(): value for key, value in user_projects_csv.items()
         }
-        user_projects = {key.lower(): value for key, value in user_projects.iteritems()}
+        user_projects = {key.lower(): value for key, value in user_projects.items()}
         user_yaml.projects = {
-            key.lower(): value for key, value in user_yaml.projects.iteritems()
+            key.lower(): value for key, value in user_yaml.projects.items()
         }
 
         self.sync_two_phsids_dict(user_projects_csv, user_projects)
@@ -1062,7 +1062,7 @@ class UserSyncer(object):
                 self.logger.error(e)
                 # keep going; maybe just some conflicts from things existing already
 
-        for client_name, client_details in user_yaml.clients.iteritems():
+        for client_name, client_details in user_yaml.clients.items():
             client_policies = client_details.get("policies", [])
             client = session.query(Client).filter_by(name=client_name).first()
             # update existing clients, do not create new ones
@@ -1083,7 +1083,7 @@ class UserSyncer(object):
                 )
 
         user_projects = user_yaml.user_rbac
-        for username, user_resources in user_projects.iteritems():
+        for username, user_resources in user_projects.items():
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
 
@@ -1093,7 +1093,7 @@ class UserSyncer(object):
             for policy in user_yaml.policies.get(user.username, []):
                 self.arborist_client.grant_user_policy(user.username, policy)
 
-            for path, permissions in user_resources.iteritems():
+            for path, permissions in user_resources.items():
                 for permission in permissions:
                     # "permission" in the dbgap sense, not the arborist sense
                     if permission not in created_roles:

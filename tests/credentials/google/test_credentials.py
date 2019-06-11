@@ -368,7 +368,7 @@ def test_google_create_access_token_post(
     args, kwargs = (
         cloud_manager.return_value.__enter__.return_value.get_access_key
     ).call_args
-    combined = [arg for arg in args] + [value for key, value in kwargs.iteritems()]
+    combined = [arg for arg in args] + [value for key, value in kwargs.items()]
     assert service_account_id in combined or service_account_email in combined
 
     assert response.status_code == 200
@@ -443,7 +443,7 @@ def test_google_delete_owned_access_token(
     args, kwargs = (
         cloud_manager.return_value.__enter__.return_value.delete_service_account_key
     ).call_args
-    all_args = [arg for arg in args] + [value for key, value in kwargs.iteritems()]
+    all_args = [arg for arg in args] + [value for key, value in kwargs.items()]
     assert service_account_id in all_args or service_account_email in all_args
     assert service_account_key in all_args
 

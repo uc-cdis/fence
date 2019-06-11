@@ -5,7 +5,7 @@ RBAC.
 
 from functools import wraps
 import json
-import urllib
+import urllib.request, urllib.parse, urllib.error
 
 import backoff
 from cdislogging import get_logger
@@ -427,7 +427,7 @@ class ArboristClient(object):
 
     @_arborist_retry()
     def revoke_all_policies_for_user(self, username):
-        url = self._user_url + "/{}/policy".format(urllib.quote(username))
+        url = self._user_url + "/{}/policy".format(urllib.parse.quote(username))
         response = requests.delete(url)
         data = _request_get_json(response)
         if response.status_code != 204:

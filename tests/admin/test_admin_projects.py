@@ -20,16 +20,16 @@ def test_get_all_projects(db_session, awg_users):
     }
     expected = {
         "test_project_1": {
-            "auth_id": u"phs_project_1",
+            "auth_id": "phs_project_1",
             "associated buckets": [],
             "description": None,
-            "name": u"test_project_1",
+            "name": "test_project_1",
         },
         "test_project_2": {
-            "auth_id": u"phs_project_2",
+            "auth_id": "phs_project_2",
             "associated buckets": [],
             "description": None,
-            "name": u"test_project_2",
+            "name": "test_project_2",
         },
     }
     assert info == expected

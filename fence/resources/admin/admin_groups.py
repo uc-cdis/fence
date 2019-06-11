@@ -76,7 +76,7 @@ def update_group_users_projects(current_session, group, project, users):
     proj = pj.get_project(current_session, project)
     for user in users:
         try:
-            user_projects = user.project_access.keys()
+            user_projects = list(user.project_access.keys())
             if project not in user_projects:
                 project_info = {"auth_id": proj.auth_id, "privilege": ["read"]}
                 au.connect_user_to_project(
