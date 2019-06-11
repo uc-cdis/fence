@@ -382,18 +382,13 @@ def generate_signed_access_token(
     logger.info("issuing JWT access token with id [{}] to [{}]".format(jti, sub))
     logger.debug("issuing JWT access token\n" + json.dumps(claims, indent=4))
 
-    # provide comma separated list of roles and user_name
-    # as simplified, shortened (non-nested) properties
-    simplify = lambda p : p.replace('programs.','') \
-                           .replace('read-storage','rs') \
-                           .replace('create','c') \
-                           .replace('read','r') \
-                           .replace('update','u') \
-                           .replace('delete','d')
-    roles = [simplify(p) for p in claims['context']['user']['policies']]
+    # Provides comma separated list of roles and user_name
+    # as simplified, shortened (non-nested) properties on root level of token
+    # Leaves existing context/user/policies and projects/ nested structures as-is, with
+    # the hope that they will be deprecated
+    roles = [p for p in claims['context']['user']['policies']]
     if claims['context']['user'].get('is_admin', False):
         roles.append('admin')
-    roles = ','.join(roles)
     user_name = claims['context']['user']['name']
     claims['roles'] = roles
     claims['user_name'] = user_name
