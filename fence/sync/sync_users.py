@@ -903,7 +903,6 @@ class UserSyncer(object):
         """
         dbgap_file_list = []
         tmpdir = tempfile.mkdtemp()
-        self.logger.info("Temp dir for dbgap: {}".format(str(tmpdir)))
         if self.is_sync_from_dbgap_server:
             self.logger.info("Download from server")
             try:
@@ -1098,15 +1097,9 @@ class UserSyncer(object):
         if not healthy:
             return False
 
-        self.logger.info(user_yaml.user_rbac)
-        self.logger.info(user_projects)
-
         if user_yaml:
             # update the project info with `projects` specified in user.yaml
             self.sync_two_phsids_dict(user_yaml.user_rbac, user_projects)
-
-        self.logger.info(user_projects)
-        self.logger.info(self._dbgap_resources)
 
         for username, user_project_info in user_projects.iteritems():
             self.logger.info("processing user `{}`".format(username))
@@ -1132,10 +1125,10 @@ class UserSyncer(object):
                     except KeyError:
                         pass
 
-                self.logger.info(
+                self.logger.debug(
                     "resource path for project {}: {}".format(project, path)
                 )
-                self.logger.info("permissions: {}".format(permissions))
+                self.logger.debug("permissions: {}".format(permissions))
 
                 for permission in permissions:
                     # "permission" in the dbgap sense, not the arborist sense
@@ -1159,7 +1152,6 @@ class UserSyncer(object):
                     # format project '/x/y/z' -> 'x.y.z'
                     # so the policy id will be something like 'x.y.z-create'
                     policy_id = _format_policy_id(path, permission)
-                    self.logger.info("new policy: {}".format(policy_id))
                     if policy_id not in self._created_policies:
                         try:
                             self.arborist_client.create_policy(
