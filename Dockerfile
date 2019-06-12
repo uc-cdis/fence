@@ -17,15 +17,22 @@ RUN ln -s /fence/wsgi.py /var/www/fence/wsgi.py
 RUN COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" >fence/version_data.py
 RUN VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >>fence/version_data.py
 RUN python setup.py develop
-RUN apk update && apk add openssh
 
 RUN apk update && apk add openssh && apk add libmcrypt-dev
+
+#
+# libmhash is required by mcrypt - below - no apk package available
+#
 RUN (cd /tmp \
   && wget -O mhash.tar.gz https://sourceforge.net/projects/mhash/files/mhash/0.9.9.9/mhash-0.9.9.9.tar.gz/download \
   && tar xvfz mhash.tar.gz \
   && cd mhash-0.9.9.9 \
   && ./configure && make && make install \
   && /bin/rm -rf /tmp/*)
+
+#
+# mcrypt is required to decrypt dbgap user files - see fence/sync/sync_users.py
+#
 RUN (cd /tmp \
   && wget -O mcrypt.tar.gz https://sourceforge.net/projects/mcrypt/files/MCrypt/Production/mcrypt-2.6.4.tar.gz/download \
   && tar xvfz mcrypt.tar.gz \
