@@ -401,6 +401,7 @@ AWS_CREDENTIALS:
   'CRED1':
     aws_access_key_id: ''
     aws_secret_access_key: ''
+    # endpoint_url: ''  # optional The complete URL to use for the constructed client.  Used to point to non-aws s3 endpoints (CEPH, MINIO, etc.)
   'CRED2':
     aws_access_key_id: ''
     aws_secret_access_key: ''
