@@ -109,9 +109,9 @@ class Keypair(object):
         # Raise an error if either key does not match our expectations that the
         # private key should be private and the public key should not be
         # private.
-        if "PRIVATE KEY" not in private_key:
+        if "PRIVATE KEY" not in str(private_key):
             raise ValueError("received private key that was not an RSA private key")
-        if "PRIVATE KEY" in public_key:
+        if "PRIVATE KEY" in str(public_key):
             raise ValueError("received public key that was actually an RSA private key")
 
         self.kid = kid

@@ -52,7 +52,7 @@ def create_client(
     hashed_secret = None
     if confidential:
         client_secret = random_str(55)
-        hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
+        hashed_secret = bcrypt.hashpw(client_secret.encode('utf-8'), bcrypt.gensalt())
     auth_method = "client_secret_basic" if confidential else "none"
     with driver.session as s:
         user = query_for_user(session=s, username=username)
@@ -66,7 +66,7 @@ def create_client(
             raise Exception("client {} already exists".format(name))
         client = Client(
             client_id=client_id,
-            client_secret=hashed_secret,
+            client_secret=hashed_secret.decode('utf-8'),
             user=user,
             redirect_uris=urls,
             _allowed_scopes=" ".join(config["CLIENT_ALLOWED_SCOPES"]),

@@ -25,7 +25,7 @@ from authutils.testing.fixtures import (
 from cryptography.fernet import Fernet
 import bcrypt
 from cdisutilstest.code.storage_client_mock import get_client
-from . import jwt
+import jwt
 from mock import patch, MagicMock
 from moto import mock_s3, mock_sts
 import pytest
@@ -856,12 +856,12 @@ def oauth_client(app, db_session, oauth_user):
     url = "https://oauth-test-client.net"
     client_id = "test-client"
     client_secret = fence.utils.random_str(50)
-    hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
+    hashed_secret = bcrypt.hashpw(client_secret.encode('utf-8'), bcrypt.gensalt())
     test_user = db_session.query(models.User).filter_by(id=oauth_user.user_id).first()
     db_session.add(
         models.Client(
             client_id=client_id,
-            client_secret=hashed_secret,
+            client_secret=hashed_secret.decode('utf-8'),
             user=test_user,
             allowed_scopes=["openid", "user", "fence"],
             redirect_uris=[url],
@@ -884,7 +884,7 @@ def oauth_client_B(app, request, db_session):
     url = "https://oauth-test-client-B.net"
     client_id = "test-client-B"
     client_secret = fence.utils.random_str(50)
-    hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
+    hashed_secret = bcrypt.hashpw(client_secret.encode('utf-8'), bcrypt.gensalt())
 
     test_user = db_session.query(models.User).filter_by(username="test").first()
     if not test_user:
@@ -893,7 +893,7 @@ def oauth_client_B(app, request, db_session):
     db_session.add(
         models.Client(
             client_id=client_id,
-            client_secret=hashed_secret,
+            client_secret=hashed_secret.decode('utf-8'),
             user=test_user,
             allowed_scopes=["openid", "user", "fence"],
             redirect_uris=[url],
@@ -1092,7 +1092,7 @@ def encoded_creds_jwt(
             key=rsa_private_key,
             headers=headers,
             algorithm="RS256",
-        ),
+        ).decode("utf-8"),
         user_id=user_client["user_id"],
         client_id=oauth_client["client_id"],
         proxy_group_id=google_proxy_group["id"],
@@ -1124,7 +1124,7 @@ def encoded_jwt_no_proxy_group(kid, rsa_private_key, user_client, oauth_client):
             key=rsa_private_key,
             headers=headers,
             algorithm="RS256",
-        ),
+        ).decode("utf-8"),
         user_id=user_client["user_id"],
         client_id=oauth_client["client_id"],
     )
