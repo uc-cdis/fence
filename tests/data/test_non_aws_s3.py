@@ -62,5 +62,4 @@ def test_indexd_download_file(
 
     # defaults to signing url, check that it's not just raw url
     assert urlparse.urlparse(response.json["url"]).query != ""
-    print(response.json)
-    assert False
+    assert 's3.amazonaws.com' not in response.json['url'], "Shouldn't have an aws url"
