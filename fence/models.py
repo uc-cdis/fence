@@ -28,6 +28,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import func
+from sqlalchemy import exc as sa_exc
 from sqlalchemy import func
 from sqlalchemy.schema import ForeignKey
 from userdatamodel import Base
@@ -53,6 +54,7 @@ from userdatamodel.models import (
     UserToBucket,
     UserToGroup,
 )
+import warnings
 
 from fence.config import config
 
@@ -567,7 +569,7 @@ def migrate(driver):
     # oidc migration
 
     table = Table(Client.__tablename__, md, autoload=True, autoload_with=driver.engine)
-    if not any([index.name == "ix_name" for index in table.indexes]):
+    if not ("ix_name" in [constraint.name for constraint in table.constraints]):
         with driver.session as session:
             session.execute(
                 "ALTER TABLE {} ADD constraint ix_name unique (name);".format(
@@ -813,7 +815,13 @@ def set_foreign_key_constraint_on_delete(
     session,
     metadata,
 ):
-    table = Table(table_name, metadata, autoload=True, autoload_with=driver.engine)
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="Predicate of partial index \S+ ignored during reflection",
+            category=sa_exc.SAWarning,
+        )
+        table = Table(table_name, metadata, autoload=True, autoload_with=driver.engine)
     foreign_key_name = "{}_{}_fkey".format(table_name.lower(), column_name)
 
     if column_name in table.c:

@@ -32,6 +32,7 @@ from fence.scripting.fence_create import (
     force_update_google_link,
 )
 from fence.rbac.client import ArboristClient
+from fence.settings import CONFIG_SEARCH_FOLDERS
 
 
 def str2bool(v):
@@ -332,7 +333,7 @@ def main():
 
     # END - TODO (DEPRECATE LOCAL_SETTINGS): REMOVE
 
-    config.load()
+    config.load(search_folders=CONFIG_SEARCH_FOLDERS)
 
     DB = os.environ.get("FENCE_DB") or config.get("DB")
 
