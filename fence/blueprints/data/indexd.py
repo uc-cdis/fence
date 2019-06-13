@@ -591,6 +591,12 @@ class S3IndexedFileLocation(IndexedFileLocation):
             self.bucket_name(), aws_creds, expires_in
         )
 
+        # format url for non-aws s3 endpoint
+        if 'endpoint_url' in credential:
+            http_url = "{}/{}".format(
+                credential['endpoint_url'], self.bucket_name()
+            )
+
         # if it's public and we don't need to force the signed url, just return the raw
         # s3 url
         aws_access_key_id = get_value(
@@ -612,15 +618,26 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
         user_info = _get_user_info()
 
-        url = generate_aws_presigned_url(
-            http_url,
-            ACTION_DICT["s3"][action],
-            credential,
-            "s3",
-            region,
-            expires_in,
-            user_info,
-        )
+        if not 'endpoint_url' in credential:
+            url = generate_aws_presigned_url(
+                http_url,
+                ACTION_DICT["s3"][action],
+                credential,
+                "s3",
+                region,
+                expires_in,
+                user_info,
+            )
+        else:
+            url = flask.current_app.boto.presigned_url(
+                bucket=self.bucket_name(),
+                key=self.parsed_url.path.strip('/'),
+                expires=expires_in,
+                config=aws_creds,
+                method={'upload': 'put_object', 'download': 'get_object'}[action],
+                server_side_encryption=False
+            )
+<<<<<<< HEAD
 
         return url
 
@@ -679,6 +696,8 @@ class S3IndexedFileLocation(IndexedFileLocation):
             region,
             expires_in,
         )
+=======
+>>>>>>> 52619d5ea8e029f84fe9437114027a1cb7e3a6e9
 
     def complete_multipart_upload(self, uploadId, parts, expires_in):
         """
