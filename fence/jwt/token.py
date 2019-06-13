@@ -379,6 +379,18 @@ def generate_signed_access_token(
             "linked_google_account"
         ] = linked_google_email
 
+    # Provides comma separated list of roles and user_name
+    # as simplified, shortened (non-nested) properties on root level of token
+    # Leaves existing context/user/policies and projects/ nested structures as-is,
+    # while enabling jwt aware apps that cannot navigate nested structures
+    projects = claims['context']['user']['projects']
+    roles = sum([ [pr[0] + '/' + r for r in pr[1]]  for pr in [(p, projects[p]) for p in projects]], [])
+    if claims['context']['user'].get('is_admin', False):
+        roles.append('admin')
+    user_name = claims['context']['user']['name']
+    claims['roles'] = roles
+    claims['user_name'] = user_name
+
     logger.info("issuing JWT access token with id [{}] to [{}]".format(jti, sub))
     logger.debug("issuing JWT access token\n" + json.dumps(claims, indent=4))
 

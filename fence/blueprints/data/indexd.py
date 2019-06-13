@@ -637,7 +637,6 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 method={'upload': 'put_object', 'download': 'get_object'}[action],
                 server_side_encryption=False
             )
-<<<<<<< HEAD
 
         return url
 
@@ -696,8 +695,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             region,
             expires_in,
         )
-=======
->>>>>>> 52619d5ea8e029f84fe9437114027a1cb7e3a6e9
+
 
     def complete_multipart_upload(self, uploadId, parts, expires_in):
         """

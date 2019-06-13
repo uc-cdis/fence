@@ -293,6 +293,10 @@ AWS_CREDENTIALS:
   'CRED2':
     aws_access_key_id: ''
     aws_secret_access_key: ''
+  'CRED3':
+    aws_access_key_id: ''
+    aws_secret_access_key: ''
+    endpoint_url: 'https://s3.example.com/' # see https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html?highlight=endpoint_url
 
 S3_BUCKETS:
   bucket1:
@@ -306,6 +310,8 @@ S3_BUCKETS:
   bucket5:
     cred: 'CRED2'
     role-arn: 'arn:aws:iam::707767160287:role/bucket_reader_writer_to_cdistest-presigned-url_role'
+  bucket6:
+    cred: 'CRED3'
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # PROXY
