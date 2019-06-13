@@ -69,7 +69,7 @@ class BotoManager(object):
             self.logger.exception(ex)
             raise UnavailableError("Fail to reach AWS: {}".format(ex.message))
 
-    def presigned_url(self, bucket, key, expires, config, method="get_object", server_side_encryption=True):
+    def presigned_url(self, bucket, key, expires, config, server_side_encryption=True, method="get_object"):
         """
         Args:
             bucket (str): bucket name
