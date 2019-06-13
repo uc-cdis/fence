@@ -332,8 +332,8 @@ def test_update_user_service_account_success(cloud_manager, db_session, setup_da
     project = db_session.query(Project).filter_by(auth_id="test_auth_1").first()
 
     project_ids = [
-        project.id
-        for project in (
+        item.project_id
+        for item in (
             db_session.query(ServiceAccountAccessPrivilege)
             .filter_by(service_account_id=service_account.id)
             .all()
