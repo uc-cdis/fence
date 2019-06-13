@@ -262,6 +262,10 @@ ACCESS_TOKEN_COOKIE_NAME: "access_token"
 # ``flask.session`` in the ``context`` field of the token.
 SESSION_COOKIE_NAME: "fence"
 
+# The domain of the browser cookie in which the session token will be stored.
+# Leave unset (not empty string!) for normal single-site deployment.
+SESSION_COOKIE_DOMAIN:
+
 OAUTH2_TOKEN_EXPIRES_IN:
   "authorization_code": 1200
   "implicit": 1200
