@@ -633,7 +633,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 bucket=self.bucket_name(),
                 key=self.parsed_url.path.strip('/'),
                 expires=expires_in,
-                config=aws_creds,
+                config=credential,
                 method={'upload': 'put_object', 'download': 'get_object'}[action],
                 server_side_encryption=False
             )
