@@ -64,7 +64,7 @@ def encoded_jwt_service_accounts_access(
             key=rsa_private_key,
             headers=headers,
             algorithm="RS256",
-        ),
+        ).decode("utf-8"),
         user_id=user_client["user_id"],
         client_id=oauth_client["client_id"],
     )

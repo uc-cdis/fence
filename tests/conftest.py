@@ -92,7 +92,7 @@ def encoded_jwt(kid, rsa_private_key):
     headers = {"kid": kid}
     return jwt.encode(
         utils.default_claims(), key=rsa_private_key, headers=headers, algorithm="RS256"
-    )
+    ).decode("utf-8")
 
 
 @pytest.fixture(scope="session")
@@ -113,7 +113,7 @@ def encoded_jwt_expired(kid, rsa_private_key):
     claims_expired["iat"] -= 10000
     return jwt.encode(
         claims_expired, key=rsa_private_key, headers=headers, algorithm="RS256"
-    )
+    ).decode("utf-8")
 
 
 @pytest.fixture(scope="session")
@@ -132,7 +132,7 @@ def encoded_jwt_refresh_token(claims_refresh, kid, rsa_private_key):
     headers = {"kid": kid}
     return jwt.encode(
         claims_refresh, key=rsa_private_key, headers=headers, algorithm="RS256"
-    )
+    ).decode("utf-8")
 
 
 class Mocker(object):
@@ -277,7 +277,7 @@ def app(kid, rsa_private_key, rsa_public_key):
     )
 
     config.update(BASE_URL=config["BASE_URL"])
-    config.update(ENCRYPTION_KEY=Fernet.generate_key())
+    config.update(ENCRYPTION_KEY=Fernet.generate_key().decode('utf-8'))
 
     return fence.app
 

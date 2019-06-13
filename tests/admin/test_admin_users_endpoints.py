@@ -63,7 +63,7 @@ def encoded_admin_jwt(kid, rsa_private_key):
     claims["sub"] = "5678"
     claims["iss"] = config["BASE_URL"]
     claims["exp"] += 600
-    return jwt.encode(claims, key=rsa_private_key, headers=headers, algorithm="RS256")
+    return jwt.encode(claims, key=rsa_private_key, headers=headers, algorithm="RS256").decode("utf-8")
 
 
 # Dictionary for all these random magic numbers that the delete user

@@ -69,7 +69,7 @@ def get_error_details_and_status(error):
             error_code = error.code
         elif hasattr(error, "status_code"):
             error_code = error.status_code
-        error_response = {"message": error.message}, error_code
+        error_response = {"message": error.message if hasattr(error, "message") else str(error)}, error_code
 
     return error_response
 
