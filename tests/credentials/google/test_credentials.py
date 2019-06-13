@@ -21,13 +21,7 @@ from cdisutilstest.code.storage_client_mock import get_client
 
 from fence.config import config
 
-# Python 2 and 3 compatible
-try:
-    from unittest.mock import MagicMock
-    from unittest.mock import patch
-except ImportError:
-    from mock import MagicMock
-    from mock import patch
+from unittest.mock import MagicMock, patch
 
 
 def _populate_test_identity(session, **kwargs):

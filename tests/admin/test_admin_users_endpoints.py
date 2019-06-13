@@ -4,13 +4,7 @@ import json
 import jwt
 import pytest
 
-# Python 2 and 3 compatible
-try:
-    from unittest.mock import Mock
-    from unittest.mock import patch
-except ImportError:
-    from mock import Mock
-    from mock import patch
+from unittest.mock import Mock, patch
 
 from fence.config import config
 from fence.models import (

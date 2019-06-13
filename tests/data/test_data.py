@@ -13,13 +13,7 @@ from fence.errors import NotSupported
 
 from tests import utils
 
-# Python 2 and 3 compatible
-try:
-    from unittest.mock import MagicMock
-    from unittest.mock import patch
-except ImportError:
-    from mock import MagicMock
-    from mock import patch
+from unittest.mock import MagicMock, patch
 
 
 @pytest.mark.parametrize(

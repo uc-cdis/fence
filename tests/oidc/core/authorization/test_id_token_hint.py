@@ -21,12 +21,7 @@ OIDC specification of authentication request parameter ``id_token_hint``:
 """
 import pytest
 
-try:
-    # Python 3
-    from urllib.parse import urlparse, parse_qs
-except ImportError:
-    # Python 2
-    from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs
 
 from fence.jwt.validate import validate_jwt
 from tests.utils import oauth2

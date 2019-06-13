@@ -8,15 +8,7 @@ from fence.models import User
 from fence.jwt.keys import default_public_key
 from fence.jwt.validate import validate_jwt
 
-# Python 2 and 3 compatible
-try:
-    from unittest.mock import MagicMock
-    from unittest.mock import patch
-    from unittest.mock import call
-except ImportError:
-    from mock import MagicMock
-    from mock import patch
-    from mock import call
+from unittest.mock import MagicMock, patch, call
 
 import pytest
 

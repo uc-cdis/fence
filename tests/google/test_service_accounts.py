@@ -72,13 +72,7 @@ from fence.models import (
 
 from fence.config import config
 
-# Python 2 and 3 compatible
-try:
-    from unittest.mock import MagicMock
-    from unittest.mock import patch
-except ImportError:
-    from mock import MagicMock
-    from mock import patch, mock_open
+from unittest.mock import MagicMock, patch, mock_open
 
 
 EXPECTED_ERROR_RESPONSE_KEYS = set(["status", "error", "error_description"])
@@ -119,7 +113,7 @@ def test_google_service_account_monitor(
 
     mock_path = patch("fence.blueprints.google.os", path_mock)
     # mock_path = patch('os.path.exists', True)
-    mocked_open = patch("__builtin__.open", mock_open(read_data=creds_file))
+    mocked_open = patch("builtins.open", mock_open(read_data=creds_file))
 
     monkeypatch.setitem(config, "CIRRUS_CFG", {"GOOGLE_APPLICATION_CREDENTIALS": "."})
 
