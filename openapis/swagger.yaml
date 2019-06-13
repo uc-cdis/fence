@@ -39,8 +39,6 @@ tags:
     description: Google functionality
   - name: keys
     description: Get public keys used to validate JWTs issued by fence
-  - name: rbac
-    description: Manage policies for role-based access control (RBAC)
 paths:
   /oauth2/authorize:
     get:
@@ -73,6 +71,12 @@ paths:
           required: true
           in: query
           description: Page to redirect to after access has been granted
+          schema:
+            type: string
+        - name: idp
+          required: false
+          in: query
+          description: Upstream identity provider to use, fallback to the default one if not provided
           schema:
             type: string
         - name: scope
@@ -311,6 +315,15 @@ paths:
             Otherwise, json data with the url is returned.
           schema:
             type: boolean
+        - name: no_force_sign
+          required: false
+          in: query
+          description: >-
+            if `no_force_sign=True` and the file requested is actually public, this will
+            request to *not* sign the resulting URL (i.e. just provide the
+            public url without using anonymous signing creds).
+          schema:
+            type: boolean
       responses:
         '200':
           description: successful operation
@@ -326,6 +339,7 @@ paths:
         - data
       summary: >-
         Create a new blank record in indexd to use for uploading a data file
+        less than 5GB. For files larger than 5GB, please use multipart upload presigned url
       description: >-
         This is the first step on the API side for the data upload flow.  This
         endpoint causes fence to make a request to indexd to create a new, blank
@@ -408,6 +422,103 @@ paths:
                 $ref: '#/components/schemas/SignedURL'
         '400':
           description: 'Invalid input: UUID not found or invalid location'
+  '/multipart/init':
+    post:
+      tags:
+        - data
+      summary: >-
+        Initilize a multipart upload for AWS bucket. It returns an uploadId which
+        can be used for uploading object parts (see /multipart/upload) and completing
+        the upload (see /multipart/complete)
+      description: >-
+        For uploading the big file with the size is larger than 5GB in data upload
+        flow, Fence needs to provide a list of endpoints for supporting multipart upload presigned url
+        This is the first step on the API side for the multipart upload presigned url. This endpoint 
+        causes fence to make a request to indexd to create a new, blank index record, and returns
+        the GUID for this new record and an uploadId for multipart upload presigned url
+      security:
+        - OAuth2:
+          - user
+          - data
+      operationId: multipartUploadInit
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestUploadBlank'
+      responses:
+        201:
+          description: successful operation; created new blank record in indexd and uploadId for multipart upload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  guid:
+                    type: string
+                    description: >-
+                      the GUID from the newly created record in indexd
+                  uploadId:
+                    type: string
+                    description: the uploadId for multipart upload presigned URL usable for data upload
+ 
+  '/multipart/upload':
+    post:
+      tags:
+        - data
+      summary: >-
+        Upload an object part given uploadId
+      description: >-
+        This is the second step on the API side for the multipart upload presigned url. The object is chopped into
+        multiple parts with part number start from 1. Each part is submitted to the cloud resource with this
+        endpoint by providing the part number a long with uploadId. It is worth to mention that the minimal supported
+        part size is 5 MB as describe in https://docs.aws.amazon.com/AmazonS3/latest/dev/qfacts.html
+      security:
+        - OAuth2:
+          - user
+          - data
+      operationId: multipartUpload
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestMultipartUpload'
+      responses:
+        200:
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  presigned_url:
+                    type: string
+                    description: the presigned URL for uploading part
+
+  '/multipart/complete':
+    post:
+      tags:
+        - data
+      summary: >-
+        Complete aws multipart upload
+      description: >-
+        This is the last step for the multipart upload presigned url. All the parts which were submitted 
+        need to be combined together. This enpoint takes a list of the part info (partNumber, Etag)
+        and uploadId in order to finish the upload
+      security:
+        - OAuth2:
+          - user
+          - data
+      operationId: multipartUploadComplete
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteMultipartUpload'
+      responses:
+        200:
+          description: successful operation
+
   /credentials:
     get:
       tags:
@@ -450,6 +561,16 @@ paths:
         - OAuth2:
             - user
       operationId: getGoogleKeypair
+      parameters:
+        - name: expires_in
+          required: false
+          in: query
+          description: >-
+            the time (in seconds) during which the access key is valid. Must be less
+            than the configured maximum (default is 10 days). If it's greater,
+            the configured maximum will be used.
+          schema:
+            type: integer
       responses:
         '200':
           description: Temporary private Google key in Google Credentials File format
@@ -457,6 +578,32 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/GoogleKey'
+    delete:
+      tags:
+        - credentials/google
+      summary: Delete access keys
+      description: Delete all Google access key for the current user/client
+      security:
+        - OAuth2:
+            - user
+      operationId: deleteGoogleKeypair
+      parameters:
+        - name: all
+          required: true
+          in: query
+          description: Must be "true" to delete all keys
+          schema:
+            type: string
+      responses:
+        '204':
+          description: successful deletion
+        '404':
+          description: >-
+            Couldn't find key or service account for current user, unable to
+            delete given key
+        '405':
+          description: >-
+            all param not provided and is required to explicitly delete all keys
   '/credentials/google/{access_key}':
     delete:
       tags:
@@ -728,6 +875,15 @@ paths:
           description: Page to redirect to after account linking
           schema:
             type: string
+        - name: expires_in
+          required: false
+          in: query
+          description: >-
+            the time (in seconds) during which the Google account has bucket
+            access. Must be less than the configured maximum (default is 24
+            hours). If it's greater, the configured maximum will be used.
+          schema:
+            type: integer
       description: >
         Link a Google identity to a User (AuthN using Google Oauth2 flow).
         Google identity will be associated with a user and added to a
@@ -750,6 +906,16 @@ paths:
       tags:
         - link
       summary: Extend Google identity's access expiration
+      parameters:
+        - name: expires_in
+          required: false
+          in: query
+          description: >-
+            the time (in seconds) during which the Google account has bucket
+            access. Must be less than the configured maximum (default is 24
+            hours). If it's greater, the configured maximum will be used.
+          schema:
+            type: integer
       description: >-
         Extend previously linked Google identity's access expiration from the
         user's proxy group (thus extending its access to data). This can only be
@@ -850,6 +1016,15 @@ paths:
         Register a Google Cloud Project's service account to allow access to
         controlled data. If there are issues, will provide details for what went
         wrong.
+      parameters:
+        - name: expires_in
+          required: false
+          in: query
+          description: >-
+            the time (in seconds) during which the Google service account has
+            bucket access. Must be less than the configured maximum (default is 7 days). If it's greater, the configured maximum will be used.
+          schema:
+            type: integer
       operationId: registerGoogleServiceAccount
       responses:
         '200':
@@ -880,10 +1055,10 @@ paths:
         > **NOTE: This will only provide service account information for
         Google Cloud Projects if the current user is a member of those
         projects**
-        
-        The endpoint lists the `project_access` that was previously granted 
-        (whether or not the SA currently has access). The `project_access_exp` 
-        will be `0` when the SA isn't currently given access 
+
+        The endpoint lists the `project_access` that was previously granted
+        (whether or not the SA currently has access). The `project_access_exp`
+        will be `0` when the SA isn't currently given access
         (but can be provided access again with a `PATCH`).
       parameters:
         - name: google_project_ids
@@ -912,6 +1087,15 @@ paths:
       description: >-
         Attempt to register a service account WITHOUT actually doing so. Will
         provide detailed errors for what went wrong.
+      parameters:
+        - name: expires_in
+          required: false
+          in: query
+          description: >-
+            the time (in seconds) during which the Google service account has
+            bucket access. Must be less than the configured maximum (default is 7 days). If it's greater, the configured maximum will be used.
+          schema:
+            type: integer
       operationId: registerGoogleServiceAccountDryRun
       responses:
         '200':
@@ -979,7 +1163,7 @@ paths:
         > **WARNING**: Provided patch document will *fully replace* previous data.
         It will NOT extend previous data by provided values, it will FULLY
         REPLACE the data with what's provided.
-      operationId: updateGoogleServiceAccount
+      operationId: updateGoogleServiceAccountDryRun
       parameters:
         - in: path
           name: id
@@ -987,6 +1171,14 @@ paths:
           required: true
           schema:
             type: string
+        - name: expires_in
+          required: false
+          in: query
+          description: >-
+            the time (in seconds) during which the Google service account has
+            bucket access. Must be less than the configured maximum (default is 7 days). If it's greater, the configured maximum will be used.
+          schema:
+            type: integer
       responses:
         '200':
           description: 'success, updating service account access is possible'
@@ -1059,6 +1251,14 @@ paths:
           required: true
           schema:
             type: string
+        - name: expires_in
+          required: false
+          in: query
+          description: >-
+            the time (in seconds) during which the Google service account has
+            bucket access. Must be less than the configured maximum (default is 7 days). If it's greater, the configured maximum will be used.
+          schema:
+            type: integer
       responses:
         '204':
           description: 'success, updated service account access'
@@ -1078,196 +1278,6 @@ paths:
             schema:
               $ref: '#/components/schemas/GoogleServiceAccountProjectAccess'
         description: ServiceAccount fields to update
-  '/rbac/policies/':
-    get:
-      tags:
-        - rbac
-      summary: List IDs for existing policies that can be granted to users
-      responses:
-        200:
-          description: list of policies
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  'policies':
-                    type: array
-                    items:
-                      type: string
-                example:
-                  policies:
-                    - policy-abc
-                    - policy-xyz
-    post:
-      tags:
-        - rbac
-      summary: Create a new policy
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                'policies':
-                  type: array
-                  items: string
-              required:
-                - id
-              example:
-                policies:
-                  - 'some-policy-1'
-                  - 'some-policy-2'
-                  - 'some-policy-3'
-      responses:
-        201:
-          description: created policy successfully
-  '/rbac/policies/{policyID}':
-    delete:
-      tags:
-        - rbac
-      parameters:
-        - in: path
-          name: policyID
-          schema:
-            type: string
-          required: true
-          description: unique identifier for a policy in the fence database
-      summary: Delete an existing policy
-      responses:
-        201:
-          description: policy deleted successfully
-        404:
-          description: no policy exists with the given ID
-  '/rbac/user/{userID}/policies/':
-    get:
-      tags:
-        - rbac
-      parameters:
-        - in: path
-          name: userID
-          schema:
-            type: string
-          required: true
-          description: unique identifier for a user in the fence data model
-      summary: List the policies granted to a user
-      responses:
-        200:
-          description: list of policies
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  'policies':
-                    type: array
-                    items:
-                      type: string
-                example:
-                  'policies':
-                    - 'policy-abc'
-                    - 'policy-xyz'
-        404:
-          description: no user exists with ID given in the path
-    post:
-      tags:
-        - rbac
-      parameters:
-        - in: path
-          name: userID
-          schema:
-            type: string
-          required: true
-          description: unique identifier for a user in the fence data model
-      summary: grant a list of policies to the user
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                'policies':
-                  type: array
-                  items:
-                    type: string
-              example:
-                'policies':
-                  - 'policy-abc'
-                  - 'policy-xyz'
-      responses:
-        204:
-          description: successfully granted policies to user
-        404:
-          description: no user exists with ID given in the path
-    put:
-      tags:
-        - rbac
-      parameters:
-        - in: path
-          name: userID
-          schema:
-            type: string
-          required: true
-          description: unique identifier for a user in the fence data model
-      summary: overwrite a user's existing policies with a new list
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                'policies':
-                  type: array
-                  items:
-                    type: string
-              example:
-                'policies':
-                  - 'policy-abc'
-                  - 'policy-xyz'
-      responses:
-        204:
-          description: successfully granted policies to user
-        404:
-          description: no user exists with ID given in the path
-    delete:
-      tags:
-        - rbac
-      parameters:
-        - in: path
-          name: userID
-          schema:
-            type: string
-          required: true
-          description: unique identifier for a user in the fence data model
-      summary: revoke all policies from a user
-      responses:
-        204:
-          description: successfully revoked policies
-        404:
-          description: no user exists with ID given in the path
-  '/user/{userID}/policies/{policyID}':
-    delete:
-      tags:
-        - rbac
-      parameters:
-        - in: path
-          name: userID
-          schema:
-            type: string
-          required: true
-          description: unique identifier for a user in the fence data model
-        - in: path
-          name: policyID
-          schema:
-            type: string
-          required: true
-          description: unique identifier for a policy in the fence database
-      summary: revoke a specific policy from a user
-      responses:
-        204:
-          description: successfully revoked the policy
-        404:
-          description: no user exists with ID given in the path
   /.well-known/jwks:
     get:
       tags:
@@ -1317,6 +1327,52 @@ components:
       example:
         file_name: "my_file.bam"
         expires_in: 1200
+    RequestMultipartUpload:
+      type: object
+      required:
+      properties:
+        key:
+          type: string
+          description: >-
+            the key of the object in the format of GUID/filename
+        uploadId:
+          type: string
+          description: the uploadId for multipart presigned URL upload usable for data upload      
+        partNumber:
+          type: integer
+          description: the part number of the part (start from 1)
+        expires_in:
+          type: integer
+          description: optional integer specifying the presigned URL lifetime
+    CompleteMultipartUpload:
+      type: object
+      required:
+      properties:
+        key:
+          type: string
+          description: >-
+            the key of the object in the format of GUID/filename
+        uploadId:
+          type: string
+          description: the uploadId for multipart presigned URL upload usable for data upload      
+        parts:
+          type: array
+          items:
+            type: object
+            properties:
+              partNumber:
+                type: integer
+                description: >-
+                  The part number
+              ETag:
+                type: string
+                description: the etag that cooresponds to the the object part with the partnumber
+
+          description: >-
+            List of part numbers info needed for multipart completion
+        expires_in:
+          type: integer
+          description: optional integer specifying the presigned URL lifetime
     CredentialsSource:
       type: object
       required:

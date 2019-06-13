@@ -1,14 +1,14 @@
 import os
 import os.path
 import time
-import yaml
+from yaml import safe_load
 import json
 import pprint
 
 from cirrus import GoogleCloudManager
 from cirrus.google_cloud.errors import GoogleAuthError
 from cirrus.config import config as cirrus_config
-from cdispyutils.log import get_logger
+from cdislogging import get_logger
 from sqlalchemy import func
 from userdatamodel.driver import SQLAlchemyDriver
 from userdatamodel.models import (
@@ -46,10 +46,10 @@ from fence.models import (
     ServiceAccountToGoogleBucketAccessGroup,
     query_for_user,
 )
-from fence.scripting.google_monitor import validation_check
+from fence.scripting.google_monitor import email_users_without_access, validation_check
 from fence.config import config
 from fence.sync.sync_users import UserSyncer
-from fence.utils import create_client
+from fence.utils import create_client, is_valid_expiration
 
 logger = get_logger(__name__)
 
@@ -73,6 +73,8 @@ def modify_client_action(
     description=None,
     set_auto_approve=False,
     unset_auto_approve=False,
+    arborist=None,
+    policies=None,
 ):
     driver = SQLAlchemyDriver(DB)
     with driver.session as s:
@@ -80,10 +82,10 @@ def modify_client_action(
         if not client:
             raise Exception("client {} does not exist".format(client))
         if urls:
-            client._redirect_uris = urls
+            client.redirect_uris = urls
             print("Changing urls to {}".format(urls))
         if delete_urls:
-            client._redirect_uris = None
+            client.redirect_uris = []
             print("Deleting urls")
         if set_auto_approve:
             client.auto_approve = True
@@ -98,6 +100,8 @@ def modify_client_action(
             client.description = description
             print("Updating description to {}".format(description))
         s.commit()
+    if arborist is not None and policies:
+        arborist.update_client(client.client_id, policies)
 
 
 def create_client_action(
@@ -226,7 +230,7 @@ def sync_users(
     if projects:
         try:
             with open(projects, "r") as f:
-                project_mapping = yaml.load(f)
+                project_mapping = safe_load(f)
         except IOError:
             pass
 
@@ -245,7 +249,7 @@ def sync_users(
 
 def create_sample_data(DB, yaml_input):
     with open(yaml_input, "r") as f:
-        data = yaml.load(f)
+        data = safe_load(f)
 
     db = SQLAlchemyDriver(DB)
     with db.session as s:
@@ -454,12 +458,10 @@ def remove_expired_google_service_account_keys(db):
             GoogleServiceAccountKey
         ).filter(GoogleServiceAccountKey.expires <= current_time)
 
-        # handle service accounts with default max expiration
-        for service_account, client in client_service_accounts:
-            with GoogleCloudManager() as g_mgr:
-                g_mgr.handle_expired_service_account_keys(
-                    service_account.google_unique_id
-                )
+        with GoogleCloudManager() as g_mgr:
+            # handle service accounts with default max expiration
+            for service_account, client in client_service_accounts:
+                g_mgr.handle_expired_service_account_keys(service_account.email)
 
             # handle service accounts with custom expiration
             for expired_user_key in expired_sa_keys_for_users:
@@ -470,8 +472,9 @@ def remove_expired_google_service_account_keys(db):
                     )
                     .first()
                 )
+
                 response = g_mgr.delete_service_account_key(
-                    account=sa.google_unique_id, key_name=expired_user_key.key_id
+                    account=sa.email, key_name=expired_user_key.key_id
                 )
                 response_error_code = response.get("error", {}).get("code")
 
@@ -679,6 +682,10 @@ def _verify_google_group_member(session, access_group, member):
                 manager.remove_member_from_group(
                     member.get("email"), access_group.email
                 )
+                print(
+                    "Removed {} from {}, not found in fence but found "
+                    "in Google Group.".format(member.get("email"), access_group.email)
+                )
         except Exception as e:
             print(
                 "ERROR: Could not remove google group memeber {} from access group {}. Detail {}".format(
@@ -715,6 +722,10 @@ def _verify_google_service_account_member(session, access_group, member):
             with GoogleCloudManager() as manager:
                 manager.remove_member_from_group(
                     member.get("email"), access_group.email
+                )
+                print(
+                    "Removed {} from {}, not found in fence but found "
+                    "in Google Group.".format(member.get("email"), access_group.email)
                 )
         except Exception as e:
             print(
@@ -837,10 +848,10 @@ def link_bucket_to_project(db, bucket_id, bucket_provider, project_auth_id):
     """
     driver = SQLAlchemyDriver(db)
     with driver.session as current_session:
-        google_cloud_provider = (
+        cloud_provider = (
             current_session.query(CloudProvider).filter_by(name=bucket_provider).first()
         )
-        if not google_cloud_provider:
+        if not cloud_provider:
             raise NameError(
                 'No bucket with provider "{}" exists.'.format(bucket_provider)
             )
@@ -850,7 +861,7 @@ def link_bucket_to_project(db, bucket_id, bucket_provider, project_auth_id):
             bucket_id = int(bucket_id)
             bucket_db_entry = (
                 current_session.query(Bucket).filter_by(
-                    id=bucket_id, provider_id=google_cloud_provider.id
+                    id=bucket_id, provider_id=cloud_provider.id
                 )
             ).first()
         except ValueError:
@@ -860,7 +871,7 @@ def link_bucket_to_project(db, bucket_id, bucket_provider, project_auth_id):
         # nothing found? try searching for single bucket with name bucket_id
         if not bucket_db_entry:
             buckets_by_name = current_session.query(Bucket).filter_by(
-                name=bucket_id, provider_id=google_cloud_provider.id
+                name=bucket_id, provider_id=cloud_provider.id
             )
             # don't get a bucket if the name isn't unique. NOTE: for Google,
             # these have to be globally unique so they'll be unique here.
@@ -892,25 +903,29 @@ def link_bucket_to_project(db, bucket_id, bucket_provider, project_auth_id):
         # Add StorageAccess if it doesn't exist for the project
         storage_access = (
             current_session.query(StorageAccess)
-            .filter_by(
-                project_id=project_db_entry.id, provider_id=google_cloud_provider.id
-            )
+            .filter_by(project_id=project_db_entry.id, provider_id=cloud_provider.id)
             .first()
         )
         if not storage_access:
             storage_access = StorageAccess(
-                project_id=project_db_entry.id, provider_id=google_cloud_provider.id
+                project_id=project_db_entry.id, provider_id=cloud_provider.id
             )
             current_session.add(storage_access)
             current_session.commit()
 
-        project_linkage = ProjectToBucket(
-            project_id=project_db_entry.id,
-            bucket_id=bucket_db_entry.id,
-            privilege=["owner"],  # TODO What should this be???
+        project_linkage = (
+            current_session.query(ProjectToBucket)
+            .filter_by(project_id=project_db_entry.id, bucket_id=bucket_db_entry.id)
+            .first()
         )
-        current_session.add(project_linkage)
-        current_session.commit()
+        if not project_linkage:
+            project_linkage = ProjectToBucket(
+                project_id=project_db_entry.id,
+                bucket_id=bucket_db_entry.id,
+                privilege=["owner"],  # TODO What should this be???
+            )
+            current_session.add(project_linkage)
+            current_session.commit()
 
 
 def create_or_update_google_bucket(
@@ -1082,13 +1097,21 @@ def _create_or_update_google_bucket_and_db(
                 db_session.query(Project).filter_by(auth_id=project_auth_id).first()
             )
             if project_db_entry:
-                project_linkage = ProjectToBucket(
-                    project_id=project_db_entry.id,
-                    bucket_id=bucket_db_entry.id,
-                    privilege=["owner"],  # TODO What should this be???
+                project_linkage = (
+                    db_session.query(ProjectToBucket)
+                    .filter_by(
+                        project_id=project_db_entry.id, bucket_id=bucket_db_entry.id
+                    )
+                    .first()
                 )
-                db_session.add(project_linkage)
-                db_session.commit()
+                if not project_linkage:
+                    project_linkage = ProjectToBucket(
+                        project_id=project_db_entry.id,
+                        bucket_id=bucket_db_entry.id,
+                        privilege=["owner"],  # TODO What should this be???
+                    )
+                    db_session.add(project_linkage)
+                    db_session.commit()
                 print(
                     "Successfully linked project with auth_id {} "
                     "to the bucket.".format(project_auth_id)
@@ -1139,7 +1162,7 @@ def _setup_google_bucket_access_group(
         )
 
     print(
-        "Successfully created Google Bucket Access Group {} "
+        "Successfully set up Google Bucket Access Group {} "
         "for Google Bucket {}.".format(access_group.email, google_bucket_name)
     )
 
@@ -1165,11 +1188,18 @@ def _create_google_bucket_access_group(
         group_email = result["email"]
 
         # add bucket group to db
-        access_group = GoogleBucketAccessGroup(
-            bucket_id=bucket_db_id, email=group_email, privileges=privileges
+        access_group = (
+            db_session.query(GoogleBucketAccessGroup)
+            .filter_by(bucket_id=bucket_db_id, email=group_email)
+            .first()
         )
-        db_session.add(access_group)
-        db_session.commit()
+        if not access_group:
+            access_group = GoogleBucketAccessGroup(
+                bucket_id=bucket_db_id, email=group_email, privileges=privileges
+            )
+            db_session.add(access_group)
+            db_session.commit()
+
     return access_group
 
 
@@ -1226,7 +1256,7 @@ def verify_user_registration(DB):
     validation_check(DB)
 
 
-def force_update_google_link(DB, username, google_email):
+def force_update_google_link(DB, username, google_email, expires_in=None):
     """
     WARNING: This function circumvents Google Auth flow, and should only be
     used for internal testing!
@@ -1278,8 +1308,16 @@ def force_update_google_link(DB, username, google_email):
                 user_id, google_email, session
             )
 
-        now = int(time.time())
-        expiration = now + config["GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN"]
+        # timestamp at which the SA will lose bucket access
+        # by default: use configured time or 7 days
+        expiration = int(time.time()) + config.get(
+            "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN", 604800
+        )
+        if expires_in:
+            is_valid_expiration(expires_in)
+            # convert it to timestamp
+            requested_expiration = int(time.time()) + expires_in
+            expiration = min(expiration, requested_expiration)
 
         force_update_user_google_account_expiration(
             user_google_account, proxy_group_id, google_email, expiration, session
@@ -1288,3 +1326,17 @@ def force_update_google_link(DB, username, google_email):
         session.commit()
 
         return expiration
+
+
+def notify_problem_users(db, emails, auth_ids, check_linking, google_project_id):
+    """
+    Builds a list of users (from provided list of emails) who do not
+    have access to any subset of provided auth_ids. Send email to users
+    informing them to get access to needed projects.
+
+    db (string): database instance
+    emails (list(string)): list of emails to check for access
+    auth_ids (list(string)): list of project auth_ids to check that emails have access
+    check_linking (bool): flag for if emails should be checked for linked google email
+    """
+    email_users_without_access(db, auth_ids, emails, check_linking, google_project_id)

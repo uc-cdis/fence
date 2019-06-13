@@ -1,11 +1,11 @@
 from authlib.common.security import generate_token
-from authlib.specs.oidc import grants
-from authlib.specs.oidc.errors import (
+from authlib.oidc.core import grants
+from authlib.oidc.core.errors import (
     AccountSelectionRequiredError,
     ConsentRequiredError,
     LoginRequiredError,
 )
-from authlib.specs.rfc6749 import InvalidRequestError
+from authlib.oauth2.rfc6749 import InvalidRequestError
 import flask
 
 from fence.models import AuthorizationCode, ClientAuthType, User
@@ -14,6 +14,16 @@ from fence.models import AuthorizationCode, ClientAuthType, User
 class OpenIDCodeGrant(grants.OpenIDCodeGrant):
 
     TOKEN_ENDPOINT_AUTH_METHODS = [auth_type.value for auth_type in ClientAuthType]
+
+    def __init__(self, *args, **kwargs):
+        super(OpenIDCodeGrant, self).__init__(*args, **kwargs)
+        # Override authlib validate_request_prompt with our own, to fix login prompt behavior
+        self._hooks["after_validate_consent_request"].discard(
+            grants.util.validate_request_prompt
+        )
+        self.register_hook(
+            "after_validate_consent_request", self.validate_request_prompt
+        )
 
     @staticmethod
     def create_authorization_code(client, grant_user, request):
@@ -67,7 +77,7 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
 
         self.request.user = user
         self.server.save_token(token, self.request)
-        token = self.process_token(token, self.request)
+        self.execute_hook("process_token", token=token)
         self.delete_authorization_code(authorization_code)
         return 200, token, self.TOKEN_RESPONSE_HEADER
 
@@ -115,30 +125,18 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
         with flask.current_app.db.session as session:
             return session.query(User).filter_by(id=authorization_code.user_id).first()
 
-    def validate_nonce(self, required=False):
-        """
-        Override method in authlib to skip adding ``exists_nonce`` hook on server. I
-        don't think this needs to exist according to OIDC spec but this stays consistent
-        with authlib so here we are
-        """
-        if required:
-            if not self.request.nonce:
-                raise InvalidRequestError("Missing `nonce`")
-            with flask.current_app.db.session as session:
-                code = (
-                    session.query(AuthorizationCode)
-                    .filter_by(nonce=self.request.nonce)
-                    .first()
-                )
-                if not code:
-                    raise InvalidRequestError("Replay attack")
-        return True
+    def exists_nonce(self, nonce, request):
+        with flask.current_app.db.session as session:
+            code = session.query(AuthorizationCode).filter_by(nonce=nonce).first()
+            if code:
+                return True
+            return False
 
-    def validate_prompt(self, end_user):
+    def validate_request_prompt(self, end_user):
         """
         Override method in authlib to fix behavior with login prompt.
         """
-        prompt = getattr(self.request, "prompt", None)
+        prompt = self.request.data.get("prompt")
         if not prompt:
             if not end_user:
                 self.prompt = "login"

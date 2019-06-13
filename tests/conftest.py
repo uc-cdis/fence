@@ -180,8 +180,23 @@ def kid_2():
     return "test-keypair-2"
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def mock_arborist_requests(request):
+    """
+    This fixture returns a function which you call to mock out arborist endopints.
+
+    Give it an argument in this format:
+
+        {
+            "arborist/health": {
+                "GET": ("", 200)
+            },
+            "arborist/auth/request": {
+                "POST": ('{"auth": "false"}', 403)
+            }
+        }
+    """
+
     def do_patch(urls_to_responses=None):
         urls_to_responses = urls_to_responses or {}
         defaults = {"arborist/health": {"GET": ("", 200)}}
@@ -189,14 +204,18 @@ def mock_arborist_requests(request):
         urls_to_responses = defaults
 
         def make_mock_response(method):
-            def response(url):
+            def response(url, *args, **kwargs):
                 mocked_response = MagicMock(requests.Response)
-                if url in urls_to_responses:
-                    if method in urls_to_responses[url]:
-                        content, code = urls_to_responses[url][method]
-                        mocked_response.status_code = code
-                        if isinstance(content, dict):
-                            mocked_response.json.return_value = content
+                if url not in urls_to_responses:
+                    mocked_response.status_code = 404
+                    return mocked_response
+                if method not in urls_to_responses[url]:
+                    mocked_response.status_code = 405
+                    return mocked_response
+                content, code = urls_to_responses[url][method]
+                mocked_response.status_code = code
+                if isinstance(content, dict):
+                    mocked_response.json.return_value = content
                 return mocked_response
 
             return response
@@ -221,7 +240,7 @@ def mock_arborist_requests(request):
 
 
 @pytest.fixture(scope="session")
-def app(kid, rsa_private_key, rsa_public_key, mock_arborist_requests):
+def app(kid, rsa_private_key, rsa_public_key):
     """
     Flask application fixture.
     """
@@ -479,6 +498,107 @@ def indexd_client(app, request):
 
 
 @pytest.fixture(scope="function")
+def indexd_client_with_arborist(app, request):
+    record = {}
+
+    def do_patch(authz):
+        if request.param == "gs":
+            record = {
+                "did": "",
+                "baseid": "",
+                "rev": "",
+                "size": 10,
+                "file_name": "file1",
+                "urls": ["gs://bucket1/key"],
+                "authz": authz,
+                "hashes": {},
+                "metadata": {"acls": "phs000178,phs000218"},
+                "form": "",
+                "created_date": "",
+                "updated_date": "",
+            }
+        elif request.param == "gs_acl":
+            record = {
+                "did": "",
+                "baseid": "",
+                "rev": "",
+                "size": 10,
+                "file_name": "file1",
+                "urls": ["gs://bucket1/key"],
+                "hashes": {},
+                "acl": ["phs000178", "phs000218"],
+                "authz": authz,
+                "form": "",
+                "created_date": "",
+                "updated_date": "",
+            }
+        elif request.param == "s3_acl":
+            record = {
+                "did": "",
+                "baseid": "",
+                "rev": "",
+                "size": 10,
+                "file_name": "file1",
+                "urls": ["s3://bucket1/key"],
+                "hashes": {},
+                "acl": ["phs000178", "phs000218"],
+                "authz": authz,
+                "form": "",
+                "created_date": "",
+                "updated_date": "",
+            }
+        elif request.param == "s3_external":
+            record = {
+                "did": "",
+                "baseid": "",
+                "rev": "",
+                "size": 10,
+                "file_name": "file1",
+                "urls": ["s3://bucket1/key"],
+                "hashes": {},
+                "acl": ["phs000178", "phs000218"],
+                "authz": authz,
+                "form": "",
+                "created_date": "",
+                "updated_date": "",
+            }
+        else:
+            record = {
+                "did": "",
+                "baseid": "",
+                "rev": "",
+                "size": 10,
+                "file_name": "file1",
+                "urls": ["s3://bucket1/key"],
+                "hashes": {},
+                "metadata": {"acls": "phs000178,phs000218"},
+                "authz": authz,
+                "form": "",
+                "created_date": "",
+                "updated_date": "",
+            }
+
+        mocker = Mocker()
+        mocker.mock_functions()
+
+        # TODO (rudyardrichter, 2018-11-03): consolidate things needing to do this patch
+        indexd_patcher = patch(
+            "fence.blueprints.data.indexd.IndexedFile.index_document", record
+        )
+        mocker.add_mock(indexd_patcher)
+
+        output = {
+            "mocker": mocker,
+            # only gs or s3 for location, ignore specifiers after the _
+            "indexed_file_location": request.param.split("_")[0],
+        }
+
+        return output
+
+    return do_patch
+
+
+@pytest.fixture(scope="function")
 def unauthorized_indexd_client(app, request):
     mocker = Mocker()
     mocker.mock_functions()
@@ -701,6 +821,8 @@ def public_bucket_indexd_client(app, request):
     mocker.add_mock(indexd_patcher)
     request.addfinalizer(indexd_patcher.stop)
 
+    return request.param
+
 
 @pytest.fixture(scope="function")
 def patch_app_db_session(app, monkeypatch):
@@ -713,6 +835,7 @@ def patch_app_db_session(app, monkeypatch):
         modules_to_patch = [
             "fence.auth",
             "fence.resources.google.utils",
+            "fence.blueprints.admin",
             "fence.blueprints.link",
             "fence.blueprints.google",
             "fence.oidc.jwt_generator",
@@ -837,7 +960,17 @@ def primary_google_service_account(app, db_session, user_client, google_proxy_gr
     )
     db_session.add(service_account)
     db_session.commit()
-    return Dict(id=service_account_id, email=email)
+
+    mock = MagicMock()
+    mock.return_value = service_account
+    patcher = patch("fence.resources.google.utils.get_or_create_service_account", mock)
+    patcher.start()
+
+    yield Dict(
+        id=service_account_id, email=email, get_or_create_service_account_mock=mock
+    )
+
+    patcher.stop()
 
 
 @pytest.fixture(scope="function")
@@ -858,6 +991,7 @@ def cloud_manager():
     patch("fence.resources.google.utils.GoogleCloudManager", manager).start()
     patch("fence.scripting.fence_create.GoogleCloudManager", manager).start()
     patch("fence.scripting.google_monitor.GoogleCloudManager", manager).start()
+    patch("fence.resources.admin.admin_users.GoogleCloudManager", manager).start()
     patch("fence.resources.google.access_utils.GoogleCloudManager", manager).start()
     patch("fence.resources.google.validity.GoogleCloudManager", manager).start()
     patch("fence.blueprints.google.GoogleCloudManager", manager).start()

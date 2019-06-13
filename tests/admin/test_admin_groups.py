@@ -97,8 +97,9 @@ def test_add_project_to_group_updates_users(db_session, awg_users, awg_groups):
 
 
 def test_delete_group_updates_user_projects(
-    db_session, awg_users, awg_groups, oauth_client
+    db_session, awg_users, awg_groups, oauth_client, mock_arborist_requests
 ):
+    mock_arborist_requests()
     user = db_session.query(User).filter_by(username="awg_user").first()
     user_projects = {
         db_session.query(Project).filter_by(id=item.project_id).first().name
@@ -150,8 +151,9 @@ def test_remove_project_from_group(db_session, awg_groups):
 
 
 def test_remove_project_from_group_updates_user(
-    db_session, awg_users, awg_groups, oauth_client
+    db_session, awg_users, awg_groups, oauth_client, mock_arborist_requests
 ):
+    mock_arborist_requests()
     user = db_session.query(User).filter_by(username="awg_user").first()
     user_projects = {
         db_session.query(Project).filter_by(id=item.project_id).first().name

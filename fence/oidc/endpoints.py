@@ -1,15 +1,20 @@
-from authlib.specs.rfc6749.errors import InvalidClientError, OAuth2Error
-import authlib.specs.rfc7009
+from authlib.oauth2.rfc6749.errors import InvalidClientError, OAuth2Error
+import authlib.oauth2.rfc7009
 import bcrypt
 import flask
+
+from cdislogging import get_logger
 
 from fence.errors import BlacklistingError
 import fence.jwt.blacklist
 
 
-class RevocationEndpoint(authlib.specs.rfc7009.RevocationEndpoint):
+logger = get_logger(__name__)
+
+
+class RevocationEndpoint(authlib.oauth2.rfc7009.RevocationEndpoint):
     """
-    Inherit from ``authlib.specs.rfc7009.RevocationEndpoint`` to define how the
+    Inherit from ``authlib.oauth2.rfc7009.RevocationEndpoint`` to define how the
     server should handle requests for token revocation.
     """
 
@@ -33,7 +38,7 @@ class RevocationEndpoint(authlib.specs.rfc7009.RevocationEndpoint):
         """
         client_params = self.parse_basic_auth_header()
         if not client_params:
-            flask.current_app.logger.debug(
+            logger.debug(
                 "validating client in revoke request:" " missing client auth header"
             )
             raise InvalidClientError(uri=self.uri)
@@ -41,7 +46,7 @@ class RevocationEndpoint(authlib.specs.rfc7009.RevocationEndpoint):
         client_id, client_secret = client_params
         client = self.client_model.get_by_client_id(client_id)
         if not client:
-            flask.current_app.logger.debug(
+            logger.debug(
                 "validating client in revoke request:"
                 " no client with matching client id:" + " " + client_id
             )
@@ -54,9 +59,7 @@ class RevocationEndpoint(authlib.specs.rfc7009.RevocationEndpoint):
             bcrypt.hashpw(client_secret.encode("utf-8"), hashed.encode("utf-8"))
             != hashed
         ):
-            flask.current_app.logger.debug(
-                "client secret hash does not match stored secret hash"
-            )
+            logger.debug("client secret hash does not match stored secret hash")
             raise InvalidClientError(uri=self.uri)
 
         self._client = client

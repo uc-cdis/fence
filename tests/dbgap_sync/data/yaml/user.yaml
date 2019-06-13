@@ -11,7 +11,14 @@ rbac:
       description: 'upload raw data files to S3'
       role_ids: ['file_uploader']
       resource_paths: ['/data_file']
+    - id: 'test-policy-1'
+      role_ids: ['reader']
+      resource_paths: ['/programs/test']
+    - id: 'test-policy-3'
+      role_ids: ['reader']
+      resource_paths: ['/programs/test/projects/test']
   resources:
+    - name: data_file
     - name: 'programs'
       subresources:
       - name: 'test'
@@ -28,6 +35,13 @@ rbac:
           action:
             service: 'fence'
             method: 'file_upload'
+    - id: 'reader'
+      description: ''
+      permissions:
+        - id: 'reader'
+          action:
+            service: '*'
+            method: 'read'
 
 # auth_id field in projects exists for pre-arborist backwards-compatibility
 

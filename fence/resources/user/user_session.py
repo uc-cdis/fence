@@ -35,11 +35,7 @@ from flask.sessions import SessionMixin
 
 from fence.errors import Unauthorized
 from fence.jwt.keys import default_public_key
-from fence.jwt.token import (
-    SESSION_ALLOWED_SCOPES,
-    generate_signed_access_token,
-    generate_signed_session_token,
-)
+from fence.jwt.token import generate_signed_access_token, generate_signed_session_token
 from fence.jwt.validate import validate_jwt
 from fence.jwt.validate import JWTError
 from fence.resources.storage.cdis_jwt import create_session_token
@@ -60,7 +56,8 @@ class UserSession(SessionMixin):
                 # empty one silently
                 jwt_info = self._get_initial_session_token()
         else:
-            jwt_info = self._get_initial_session_token()
+            # do not create a token for anonymous session
+            jwt_info = {"context": {}}
 
         self.session_token = jwt_info
 
@@ -108,7 +105,7 @@ class UserSession(SessionMixin):
         """
         return self.session_token["context"].get(key, *args)
 
-    def pop(self, key, default):
+    def pop(self, key, default=None):
         return self.session_token["context"].pop(key, default)
 
     def clear(self):
@@ -193,7 +190,7 @@ class UserSessionInterface(SessionInterface):
                 httponly=True,
                 domain=domain,
             )
-            # try to get user, execption means they're not logged in
+            # try to get user, exception means they're not logged in
             try:
                 user = get_current_user()
             except Unauthorized:
@@ -261,7 +258,7 @@ def _get_valid_access_token(app, session, request):
     except Exception as exc:
         return None
 
-    # try to get user, execption means they're not logged in
+    # try to get user, exception means they're not logged in
     try:
         user = get_current_user(flask_session=session)
     except Unauthorized:
@@ -294,7 +291,7 @@ def _clear_session_if_expired(app, session):
 
 def _create_access_token_cookie(app, session, response, user):
     keypair = app.keypairs[0]
-    scopes = SESSION_ALLOWED_SCOPES
+    scopes = config["SESSION_ALLOWED_SCOPES"]
 
     now = int(time.time())
     expiration = now + config.get("ACCESS_TOKEN_EXPIRES_IN")

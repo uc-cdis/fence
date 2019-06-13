@@ -1,6 +1,14 @@
 """ test /user endpoint and UserInfo Requests/Response"""
 import json
+
+import pytest
+
 from fence.models import UserGoogleAccount
+
+
+@pytest.fixture(autouse=True)
+def mock_arborist(mock_arborist_requests):
+    mock_arborist_requests()
 
 
 def test_userinfo_standard_claims_get(client, encoded_creds_jwt):

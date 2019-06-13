@@ -8,12 +8,28 @@ the endpoints for each provider.
 
 import flask
 
+from cdislogging import get_logger
+
 from fence.blueprints.login.fence_login import FenceRedirect, FenceLogin
 from fence.blueprints.login.google import GoogleRedirect, GoogleLogin
 from fence.blueprints.login.shib import ShibbolethLoginStart, ShibbolethLoginFinish
+from fence.blueprints.login.microsoft import MicrosoftRedirect, MicrosoftLogin
+from fence.blueprints.login.orcid import ORCIDRedirect, ORCIDLogin
 from fence.errors import InternalError
 from fence.restful import RestfulApi
 from fence.config import config
+
+
+logger = get_logger(__name__)
+
+# Mapping from IDP ID to the name in the URL on the blueprint (see below).
+IDP_URL_MAP = {
+    "fence": "fence",
+    "google": "google",
+    "shibboleth": "shib",
+    "orcid": "orcid",
+    "microsoft": "microsoft",
+}
 
 
 def make_login_blueprint(app):
@@ -32,15 +48,12 @@ def make_login_blueprint(app):
         default_idp = config["ENABLED_IDENTITY_PROVIDERS"]["default"]
         idps = config["ENABLED_IDENTITY_PROVIDERS"]["providers"]
     except KeyError as e:
-        app.logger.warn(
+        logger.warn(
             "app not configured correctly with ENABLED_IDENTITY_PROVIDERS:"
             " missing {}".format(str(e))
         )
         default_idp = None
         idps = {}
-
-    # Mapping from IDP ID to the name in the URL on the blueprint (see below).
-    IDP_URL_MAP = {"fence": "fence", "google": "google", "shibboleth": "shib"}
 
     # check if google is configured as a client. we will at least need a
     # a callback if it is
@@ -93,6 +106,18 @@ def make_login_blueprint(app):
     # if Google is configured as a client but not in the idps
     if "google" in idps or google_client_exists:
         blueprint_api.add_resource(GoogleLogin, "/google/login", strict_slashes=False)
+
+    if "orcid" in idps:
+        blueprint_api.add_resource(ORCIDRedirect, "/orcid", strict_slashes=False)
+        blueprint_api.add_resource(ORCIDLogin, "/orcid/login", strict_slashes=False)
+
+    if "microsoft" in idps:
+        blueprint_api.add_resource(
+            MicrosoftRedirect, "/microsoft", strict_slashes=False
+        )
+        blueprint_api.add_resource(
+            MicrosoftLogin, "/microsoft/login", strict_slashes=False
+        )
 
     if "shibboleth" in idps:
         blueprint_api.add_resource(ShibbolethLoginStart, "/shib", strict_slashes=False)

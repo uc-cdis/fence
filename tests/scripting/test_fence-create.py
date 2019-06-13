@@ -26,6 +26,7 @@ from fence.models import (
     CloudProvider,
     Bucket,
     ServiceAccountToGoogleBucketAccessGroup,
+    GoogleServiceAccountKey,
 )
 from fence.scripting.fence_create import (
     delete_users,
@@ -33,6 +34,7 @@ from fence.scripting.fence_create import (
     delete_client_action,
     delete_expired_service_accounts,
     link_external_bucket,
+    remove_expired_google_service_account_keys,
     verify_bucket_access_group,
     _verify_google_group_member,
     _verify_google_service_account_member,
@@ -40,6 +42,11 @@ from fence.scripting.fence_create import (
 
 
 ROOT_DIR = "./"
+
+
+@pytest.fixture(autouse=True)
+def mock_arborist(mock_arborist_requests):
+    mock_arborist_requests()
 
 
 def test_client_delete(app, db_session, cloud_manager, test_user_a):
@@ -298,14 +305,14 @@ def _setup_service_account_to_google_bucket_access_group(db_session):
         GoogleBucketAccessGroup(
             bucket_id=bucket1.id,
             email="testgroup1@gmail.com",
-            privileges=["read_storage", "write_storage"],
+            privileges=["read-storage", "write-storage"],
         )
     )
     db_session.add(
         GoogleBucketAccessGroup(
             bucket_id=bucket1.id,
             email="testgroup2@gmail.com",
-            privileges=["read_storage"],
+            privileges=["read-storage"],
         )
     )
     db_session.commit()
@@ -699,3 +706,173 @@ def test_link_external_bucket(app, cloud_manager, db_session):
 
     assert bucket_count_after == bucket_count_before + 1
     assert gbag_count_after == gbag_count_before + 1
+
+
+def test_delete_expired_service_account_keys_for_user(
+    cloud_manager, app, db_session, test_user_a
+):
+    """
+    Test deleting all expired service account keys
+    """
+    import fence
+
+    fence.settings = MagicMock()
+    cloud_manager.return_value.__enter__.return_value.delete_service_account_key.return_value = (
+        {}
+    )
+
+    current_time = int(time.time())
+
+    service_account = GoogleServiceAccount(
+        google_unique_id="1",
+        user_id=test_user_a["user_id"],
+        google_project_id="test",
+        email="test@example.com",
+    )
+    db_session.add(service_account)
+    db_session.commit()
+
+    # Add 2 expired and 1 not expired accounts
+    service_account_key1 = GoogleServiceAccountKey(
+        key_id=1, service_account_id=service_account.id, expires=current_time - 3600
+    )
+    service_account_key2 = GoogleServiceAccountKey(
+        key_id=2, service_account_id=service_account.id, expires=current_time - 3600
+    )
+    service_account_key3 = GoogleServiceAccountKey(
+        key_id=3, service_account_id=service_account.id, expires=current_time + 3600
+    )
+
+    db_session.add(service_account_key1)
+    db_session.add(service_account_key2)
+    db_session.add(service_account_key3)
+    db_session.commit()
+
+    records = db_session.query(GoogleServiceAccountKey).all()
+    assert len(records) == 3
+
+    # call function to delete expired service account
+    remove_expired_google_service_account_keys(config["DB"])
+    # check database. Expect 2 deleted
+    records = db_session.query(GoogleServiceAccountKey).all()
+    assert len(records) == 1
+    assert records[0].id == service_account_key3.id
+
+
+def test_delete_expired_service_account_keys_for_client(
+    cloud_manager, app, db_session, test_user_a, oauth_client
+):
+    """
+    Test deleting all expired service account keys
+    """
+    import fence
+
+    fence.settings = MagicMock()
+    cloud_manager.return_value.__enter__.return_value.delete_service_account_key.return_value = (
+        {}
+    )
+
+    current_time = int(time.time())
+
+    client_service_account = GoogleServiceAccount(
+        google_unique_id="1",
+        user_id=test_user_a["user_id"],
+        client_id=oauth_client["client_id"],
+        google_project_id="test",
+        email="test@example.com",
+    )
+    db_session.add(client_service_account)
+    db_session.commit()
+
+    # Add 2 expired and 1 not expired accounts
+    service_account_key1 = GoogleServiceAccountKey(
+        key_id=1,
+        service_account_id=client_service_account.id,
+        expires=current_time - 3600,
+    )
+    service_account_key2 = GoogleServiceAccountKey(
+        key_id=2,
+        service_account_id=client_service_account.id,
+        expires=current_time - 3600,
+    )
+    service_account_key3 = GoogleServiceAccountKey(
+        key_id=3,
+        service_account_id=client_service_account.id,
+        expires=current_time + 3600,
+    )
+
+    db_session.add(service_account_key1)
+    db_session.add(service_account_key2)
+    db_session.add(service_account_key3)
+    db_session.commit()
+
+    records = db_session.query(GoogleServiceAccountKey).all()
+    assert len(records) == 3
+
+    # call function to delete expired service account
+    remove_expired_google_service_account_keys(config["DB"])
+    # check database. Expect 2 deleted
+    records = db_session.query(GoogleServiceAccountKey).all()
+    assert len(records) == 1
+    assert records[0].id == service_account_key3.id
+
+
+def test_delete_expired_service_account_keys_both_user_and_client(
+    cloud_manager, app, db_session, test_user_a, oauth_client
+):
+    """
+    Test deleting all expired service account keys
+    """
+    import fence
+
+    fence.settings = MagicMock()
+    cloud_manager.return_value.__enter__.return_value.delete_service_account_key.return_value = (
+        {}
+    )
+
+    current_time = int(time.time())
+
+    service_account = GoogleServiceAccount(
+        google_unique_id="1",
+        user_id=test_user_a["user_id"],
+        google_project_id="test",
+        email="test@example.com",
+    )
+    client_service_account = GoogleServiceAccount(
+        google_unique_id="1",
+        user_id=test_user_a["user_id"],
+        client_id=oauth_client["client_id"],
+        google_project_id="test",
+        email="test-client@example.com",
+    )
+    db_session.add(service_account)
+    db_session.add(client_service_account)
+    db_session.commit()
+
+    # Add 2 expired and 1 not expired accounts
+    service_account_key1 = GoogleServiceAccountKey(
+        key_id=1, service_account_id=service_account.id, expires=current_time - 3600
+    )
+    service_account_key2 = GoogleServiceAccountKey(
+        key_id=2,
+        service_account_id=client_service_account.id,
+        expires=current_time - 3600,
+    )
+    service_account_key3 = GoogleServiceAccountKey(
+        key_id=3, service_account_id=service_account.id, expires=current_time + 3600
+    )
+
+    db_session.add(service_account_key1)
+    db_session.add(service_account_key2)
+    db_session.add(service_account_key3)
+    db_session.commit()
+
+    records = db_session.query(GoogleServiceAccountKey).all()
+    assert len(records) == 3
+
+    # call function to delete expired service account
+    remove_expired_google_service_account_keys(config["DB"])
+    # check database. Expect 2 deleted
+    records = db_session.query(GoogleServiceAccountKey).all()
+    assert len(records) == 1
+    assert records[0].id == service_account_key3.id

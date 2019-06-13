@@ -6,6 +6,9 @@ import random
 import string
 
 from fence.models import (
+    AccessPrivilege,
+    User,
+    UserGoogleAccount,
     Project,
     ProjectToBucket,
     Bucket,
@@ -150,6 +153,20 @@ def valid_service_account_patcher():
 def valid_google_project_patcher():
     patches = []
 
+    get_project_number_mock = MagicMock()
+    patches.append(
+        patch(
+            "fence.resources.google.access_utils.get_google_project_number",
+            get_project_number_mock,
+        )
+    )
+    patches.append(
+        patch(
+            "fence.resources.google.validity.get_google_project_number",
+            get_project_number_mock,
+        )
+    )
+
     parent_org_mock = MagicMock()
     patches.append(
         patch(
@@ -270,6 +287,7 @@ def valid_google_project_patcher():
         )
     )
 
+    get_project_number_mock.return_value = 1
     parent_org_mock.return_value = None
     valid_membership_mock.return_value = [], []
     get_users_from_members_mock.return_value = []
@@ -281,6 +299,7 @@ def valid_google_project_patcher():
         patched_function.start()
 
     yield {
+        "get_google_project_number": (get_project_number_mock),
         "get_google_project_parent_org": (parent_org_mock),
         "get_google_project_valid_users_and_service_accounts": (valid_membership_mock),
         "get_users_from_google_members": (get_users_from_members_mock),
@@ -736,3 +755,47 @@ def add_user_service_account_to_google_mock():
     patcher.start()
     yield mock
     patcher.stop()
+
+
+@pytest.fixture(scope="function")
+def test_project(db_session):
+
+    project = Project(id=1, name="test_project", auth_id="test_project")
+    db_session.add(project)
+    db_session.commit()
+
+    yield project
+
+
+@pytest.fixture(scope="function")
+def test_user(db_session):
+
+    user = User(id=1, email="google_test_user@gmail.com")
+    db_session.add(user)
+    db_session.commit()
+
+    yield user
+
+
+@pytest.fixture(scope="function")
+def test_linked_user(db_session, test_user):
+
+    user_google_account = UserGoogleAccount(
+        id=1, email="google_test_linked_user@gmail.com", user_id=1
+    )
+    db_session.add(user_google_account)
+    db_session.commit()
+
+    yield user_google_account
+
+
+@pytest.fixture(scope="function")
+def test_linked_user_with_access(db_session, test_linked_user, test_project):
+
+    access_privilege = AccessPrivilege(
+        user_id=test_linked_user.user_id, project_id=test_project.id
+    )
+    db_session.add(access_privilege)
+    db_session.commit()
+
+    yield test_linked_user

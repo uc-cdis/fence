@@ -14,8 +14,7 @@ from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.datastructures import ImmutableMultiDict
 
 from fence.models import Client, GrantType, User, query_for_user
-from fence.jwt.token import CLIENT_ALLOWED_SCOPES
-from fence.errors import NotFound
+from fence.errors import NotFound, UserError
 from fence.config import config
 
 
@@ -41,10 +40,14 @@ def create_client(
     is_admin=False,
     grant_types=None,
     confidential=True,
+    arborist=None,
+    policies=None,
 ):
+    client_id = random_str(40)
+    if arborist is not None:
+        arborist.create_client(client_id, policies)
     grant_types = grant_types
     driver = SQLAlchemyDriver(DB)
-    client_id = random_str(40)
     client_secret = None
     hashed_secret = None
     if confidential:
@@ -58,13 +61,15 @@ def create_client(
             user = User(username=username, is_admin=is_admin)
             s.add(user)
         if s.query(Client).filter(Client.name == name).first():
+            if arborist is not None:
+                arborist.delete_client(client_id)
             raise Exception("client {} already exists".format(name))
         client = Client(
             client_id=client_id,
             client_secret=hashed_secret,
             user=user,
             redirect_uris=urls,
-            _allowed_scopes=" ".join(CLIENT_ALLOWED_SCOPES),
+            _allowed_scopes=" ".join(config["CLIENT_ALLOWED_SCOPES"]),
             description=description,
             name=name,
             auto_approve=auto_approve,
@@ -236,11 +241,12 @@ def send_email(from_email, to_emails, subject, text, smtp_domain):
 
     """
     if smtp_domain not in config["GUN_MAIL"] or not config["GUN_MAIL"].get(
-        "smtp_password"
-    ):
+        smtp_domain
+    ).get("smtp_password"):
         raise NotFound(
-            "SMTP Domain '{}' does not exist in configuration for GUN_MAIL. "
-            "Cannot send email."
+            "SMTP Domain '{}' does not exist in configuration for GUN_MAIL or "
+            "smtp_password was not provided. "
+            "Cannot send email.".format(smtp_domain)
         )
 
     api_key = config["GUN_MAIL"][smtp_domain].get("api_key", "")
@@ -251,3 +257,26 @@ def send_email(from_email, to_emails, subject, text, smtp_domain):
         auth=("api", api_key),
         data={"from": from_email, "to": to_emails, "subject": subject, "text": text},
     )
+
+
+def get_valid_expiration_from_request():
+    """
+    Return the expires_in param if it is in the request, None otherwise.
+    Throw an error if the requested expires_in is not a positive integer.
+    """
+    if "expires_in" in flask.request.args:
+        is_valid_expiration(flask.request.args["expires_in"])
+        return int(flask.request.args["expires_in"])
+    else:
+        return None
+
+
+def is_valid_expiration(expires_in):
+    """
+    Throw an error if expires_in is not a positive integer.
+    """
+    try:
+        expires_in = int(flask.request.args["expires_in"])
+        assert expires_in > 0
+    except (ValueError, AssertionError):
+        raise UserError("expires_in must be a positive integer")
