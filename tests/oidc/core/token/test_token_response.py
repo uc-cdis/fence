@@ -72,7 +72,9 @@ def test_access_token_correct_fields(token_response):
         "exp",
         "iat",
         "jti",
+        "roles",
         "context",
         "azp",
+        "user_name"
     }
     assert access_token_fields == expected_fields
