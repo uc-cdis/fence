@@ -22,8 +22,19 @@ class ShibbolethLoginStart(Resource):
         redirect_url = flask.request.args.get("redirect")
         if redirect_url:
             flask.session["redirect"] = redirect_url
-        actual_redirect = config["BASE_URL"] + "/login/shib/login"
-        return flask.redirect(config["SSO_URL"] + actual_redirect)
+
+        # figure out which IDP to target with shibboleth
+        # check out shibboleth docs here for more info:
+        # https://wiki.shibboleth.net/confluence/display/SP3/SSO
+        entityID = flask.request.args.get("shib_idp")
+        if not entityID:
+            # default to SSO_URL from the config which should be NIH login
+            actual_redirect = config["BASE_URL"] + "/login/shib/login"
+            return flask.redirect(config["SSO_URL"] + actual_redirect)
+        return flask.redirect(
+            config["BASE_URL"]
+            + "/Shibboleth.sso/Login?entityID={}".format(entityID)
+        )
 
 
 class ShibbolethLoginFinish(Resource):
@@ -31,17 +42,13 @@ class ShibbolethLoginFinish(Resource):
         """
         Complete the shibboleth login.
         """
-
-        if "SHIBBOLETH_HEADER" in config:
-            eppn = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
-
-        else:
+        if "SHIBBOLETH_HEADER" not in config:
             raise InternalError("Missing shibboleth header configuration")
+        eppn = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
         username = eppn.split("!")[-1] if eppn else None
-        if username:
-            login_user(flask.request, username, IdentityProvider.itrust)
-            if flask.session.get("redirect"):
-                return flask.redirect(flask.session.get("redirect"))
-            return "logged in"
-        else:
+        if not username:
             raise Unauthorized("Please login")
+        login_user(flask.request, username, IdentityProvider.itrust)
+        if flask.session.get("redirect"):
+            return flask.redirect(flask.session.get("redirect"))
+        return "logged in"
