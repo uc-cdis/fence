@@ -1,6 +1,7 @@
 Authlib==0.11
 addict==2.1.1
-authutils>=3.0.5<4.0.0
+# authutils>=3.0.5<4.0.0
+-e git+https://git@github.com/uc-cdis/authutils.git@chore/python3#egg=authutils
 boto>=2.36.0<3.0.0
 botocore>=1.7<1.10.39
 boto3>=1.5<1.6

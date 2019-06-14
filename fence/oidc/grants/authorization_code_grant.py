@@ -135,7 +135,7 @@ class AuthorizationCodeGrant(AuthlibAuthorizationCodeGrant):
             # Client secrets are stored as hash.
             hashed = client.client_secret
             if (
-                bcrypt.hashpw(client_secret.encode("utf-8"), hashed.encode("utf-8"))
+                bcrypt.hashpw(client_secret.encode("utf-8"), hashed.encode("utf-8")).decode("utf-8")
                 != hashed
             ):
                 raise InvalidClientError(uri=self.uri)

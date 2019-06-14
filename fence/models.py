@@ -201,7 +201,7 @@ class Client(Base, OAuth2ClientMixin):
     def check_client_secret(self, client_secret):
         check_hash = bcrypt.hashpw(
             client_secret.encode("utf-8"), self.client_secret.encode("utf-8")
-        )
+        ).decode("utf-8")
         return check_hash == self.client_secret
 
     def check_requested_scopes(self, scopes):

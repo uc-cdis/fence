@@ -56,7 +56,7 @@ class RevocationEndpoint(authlib.oauth2.rfc7009.RevocationEndpoint):
         # authorization header to check against stored hash.
         hashed = client.client_secret
         if (
-            bcrypt.hashpw(client_secret.encode("utf-8"), hashed.encode("utf-8"))
+            bcrypt.hashpw(client_secret.encode("utf-8"), hashed.encode("utf-8")).decode("utf-8")
             != hashed
         ):
             logger.debug("client secret hash does not match stored secret hash")

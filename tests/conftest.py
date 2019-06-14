@@ -856,12 +856,12 @@ def oauth_client(app, db_session, oauth_user):
     url = "https://oauth-test-client.net"
     client_id = "test-client"
     client_secret = fence.utils.random_str(50)
-    hashed_secret = bcrypt.hashpw(client_secret.encode('utf-8'), bcrypt.gensalt())
+    hashed_secret = bcrypt.hashpw(client_secret.encode('utf-8'), bcrypt.gensalt()).decode("utf-8")
     test_user = db_session.query(models.User).filter_by(id=oauth_user.user_id).first()
     db_session.add(
         models.Client(
             client_id=client_id,
-            client_secret=hashed_secret.decode('utf-8'),
+            client_secret=hashed_secret,
             user=test_user,
             allowed_scopes=["openid", "user", "fence"],
             redirect_uris=[url],
@@ -884,7 +884,7 @@ def oauth_client_B(app, request, db_session):
     url = "https://oauth-test-client-B.net"
     client_id = "test-client-B"
     client_secret = fence.utils.random_str(50)
-    hashed_secret = bcrypt.hashpw(client_secret.encode('utf-8'), bcrypt.gensalt())
+    hashed_secret = bcrypt.hashpw(client_secret.encode('utf-8'), bcrypt.gensalt()).decode("utf-8")
 
     test_user = db_session.query(models.User).filter_by(username="test").first()
     if not test_user:
@@ -893,7 +893,7 @@ def oauth_client_B(app, request, db_session):
     db_session.add(
         models.Client(
             client_id=client_id,
-            client_secret=hashed_secret.decode('utf-8'),
+            client_secret=hashed_secret,
             user=test_user,
             allowed_scopes=["openid", "user", "fence"],
             redirect_uris=[url],

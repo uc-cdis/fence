@@ -18,7 +18,7 @@ def test_userinfo_standard_claims_get(client, encoded_creds_jwt):
     resp = client.get(
         "/user", headers={"Authorization": "Bearer " + encoded_credentials_jwt}
     )
-    print((resp.json))
+    print(resp.json)
     assert resp.json["sub"]
     assert resp.json["name"]
     assert resp.status_code == 200
