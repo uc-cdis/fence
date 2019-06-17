@@ -32,9 +32,6 @@ from fence.models import (
 from fence.rbac.client import ArboristClient, ArboristError
 from fence.resources.storage import StorageManager
 
-# should end in /
-DBGAP_ARBORIST_RESOURCE_PREFIX = "/dbgap/programs/"
-
 
 def _format_policy_id(path, privilege):
     resource = ".".join(name for name in path.split("/") if name)
@@ -1209,11 +1206,15 @@ class UserSyncer(object):
         if not healthy:
             return False
 
-        default_namespaces = config["dbGaP"]["study_to_resource_namespaces"].get(
-            "_default", ["/"]
+        default_namespaces = (
+            config["dbGaP"]
+            .get("study_to_resource_namespaces", {})
+            .get("_default", ["/"])
         )
-        namespaces = config["dbGaP"]["study_to_resource_namespaces"].get(
-            dbgap_study, default_namespaces
+        namespaces = (
+            config["dbGaP"]
+            .get("study_to_resource_namespaces", {})
+            .get(dbgap_study, default_namespaces)
         )
 
         arborist_resource_namespaces = [
