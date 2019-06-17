@@ -8,7 +8,7 @@ from fence.models import IdentityProvider
 from fence.config import config
 
 
-class ShibbolethLoginStart(RedirectMixin, Resource):
+class ShibbolethLogin(RedirectMixin, Resource):
     def get(self):
         """
         The login flow is:
@@ -28,12 +28,11 @@ class ShibbolethLoginStart(RedirectMixin, Resource):
         return flask.redirect(config["SSO_URL"] + actual_redirect)
 
 
-class ShibbolethLoginFinish(Resource):
+class ShibbolethCallback(Resource):
     def get(self):
         """
         Complete the shibboleth login.
         """
-
         if "SHIBBOLETH_HEADER" in config:
             eppn = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
 
