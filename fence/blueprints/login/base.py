@@ -2,12 +2,12 @@ import flask
 from flask_restful import Resource
 
 from fence.auth import login_user
-from fence.blueprints.login.redirect import RedirectMixin
+from fence.blueprints.login.redirect import validate_redirect
 from fence.config import config
 from fence.errors import UserError
 
 
-class DefaultOAuth2Login(RedirectMixin, Resource):
+class DefaultOAuth2Login(Resource):
     def __init__(self, idp_name, client):
         """
         Construct a resource for a login endpoint
@@ -22,7 +22,7 @@ class DefaultOAuth2Login(RedirectMixin, Resource):
 
     def get(self):
         redirect_url = flask.request.args.get("redirect")
-        self.validate_redirect(redirect_url)
+        validate_redirect(redirect_url)
         flask.redirect_url = redirect_url
         if flask.redirect_url:
             flask.session["redirect"] = flask.redirect_url

@@ -1,14 +1,13 @@
 import flask
 
 from fence.auth import login_user
-from fence.blueprints.login.redirect import RedirectMixin
 from fence.errors import UserError
 from fence.models import IdentityProvider
 from fence.config import config
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 
 
-class GoogleLogin(DefaultOAuth2Login, RedirectMixin):
+class GoogleLogin(DefaultOAuth2Login):
     def __init__(self):
         super(GoogleLogin, self).__init__(
             idp_name=IdentityProvider.google, client=flask.current_app.google_client
