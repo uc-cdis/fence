@@ -1116,17 +1116,17 @@ class UserSyncer(object):
 
                 # check if this is a dbgap project, if it is, we need to get the right
                 # resource path, otherwise just use given project as path
-                path = self._dbgap_resources.get(project, project)
+                paths = self._dbgap_resources.get(project, [project])
 
                 if user_yaml:
                     try:
                         # check if project is in mapping and convert accordingly
-                        path = user_yaml.project_to_resource[project]
+                        paths = [user_yaml.project_to_resource[project]]
                     except KeyError:
                         pass
 
                 self.logger.debug(
-                    "resource path for project {}: {}".format(project, path)
+                    "resource paths for project {}: {}".format(project, paths)
                 )
                 self.logger.debug("permissions: {}".format(permissions))
 
@@ -1145,31 +1145,32 @@ class UserSyncer(object):
                             )
                         self._created_roles.add(permission)
 
-                    # If everything was created fine, grant a policy to
-                    # this user which contains exactly just this resource,
-                    # with this permission as a role.
+                    for path in paths:
+                        # If everything was created fine, grant a policy to
+                        # this user which contains exactly just this resource,
+                        # with this permission as a role.
 
-                    # format project '/x/y/z' -> 'x.y.z'
-                    # so the policy id will be something like 'x.y.z-create'
-                    policy_id = _format_policy_id(path, permission)
-                    if policy_id not in self._created_policies:
-                        try:
-                            self.arborist_client.create_policy(
-                                {
-                                    "id": policy_id,
-                                    "description": "policy created by fence sync",
-                                    "role_ids": [permission],
-                                    "resource_paths": [path],
-                                },
-                                overwrite=True,
-                            )
-                        except ArboristError as e:
-                            self.logger.info(
-                                "not creating policy in arborist; {}".format(str(e))
-                            )
-                        self._created_policies.add(policy_id)
+                        # format project '/x/y/z' -> 'x.y.z'
+                        # so the policy id will be something like 'x.y.z-create'
+                        policy_id = _format_policy_id(path, permission)
+                        if policy_id not in self._created_policies:
+                            try:
+                                self.arborist_client.create_policy(
+                                    {
+                                        "id": policy_id,
+                                        "description": "policy created by fence sync",
+                                        "role_ids": [permission],
+                                        "resource_paths": [path],
+                                    },
+                                    overwrite=True,
+                                )
+                            except ArboristError as e:
+                                self.logger.info(
+                                    "not creating policy in arborist; {}".format(str(e))
+                                )
+                            self._created_policies.add(policy_id)
 
-                    self.arborist_client.grant_user_policy(user.username, policy_id)
+                        self.arborist_client.grant_user_policy(user.username, policy_id)
 
         for client_name, client_details in user_yaml.clients.iteritems():
             client_policies = client_details.get("policies", [])
@@ -1208,24 +1209,40 @@ class UserSyncer(object):
         if not healthy:
             return False
 
-        try:
-            response = self.arborist_client.update_resource(
-                DBGAP_ARBORIST_RESOURCE_PREFIX,
-                {"name": dbgap_study, "description": "synced from dbGaP"},
-                create_parents=True,
-            )
-            self.logger.info(
-                "added dbgap project {} as an arborist resource under parent path: {}. "
-                "Arborist response: {}".format(
-                    dbgap_study, DBGAP_ARBORIST_RESOURCE_PREFIX, response
-                )
-            )
-            if dbgap_study not in self._dbgap_resources:
-                self._dbgap_resources[dbgap_study] = (
-                    DBGAP_ARBORIST_RESOURCE_PREFIX + dbgap_study
-                )
+        default_namespaces = config["dbGaP"]["study_to_resource_namespaces"].get(
+            "_default", ["/"]
+        )
+        namespaces = config["dbGaP"]["study_to_resource_namespaces"].get(
+            dbgap_study, default_namespaces
+        )
 
-            return DBGAP_ARBORIST_RESOURCE_PREFIX + dbgap_study
+        arborist_resource_namespaces = [
+            namespace.rstrip("/") + "/programs/" for namespace in namespaces
+        ]
+
+        try:
+            for resource_namespace in arborist_resource_namespaces:
+                response = self.arborist_client.update_resource(
+                    resource_namespace,
+                    {"name": dbgap_study, "description": "synced from dbGaP"},
+                    create_parents=True,
+                )
+                self.logger.info(
+                    "added arborist resource under parent path: {} for dbgap project {}."
+                    "Arborist response: {}".format(
+                        dbgap_study, resource_namespace, response
+                    )
+                )
+                if dbgap_study not in self._dbgap_resources:
+                    self._dbgap_resources[dbgap_study] = [
+                        resource_namespace + dbgap_study
+                    ]
+                else:
+                    self._dbgap_resources[dbgap_study].append(
+                        resource_namespace + dbgap_study
+                    )
+
+            return arborist_resource_namespaces
         except ArboristError as e:
             self.logger.error(e)
             # keep going; maybe just some conflicts from things existing already

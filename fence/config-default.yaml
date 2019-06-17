@@ -294,6 +294,14 @@ dbGaP:
   protocol: 'sftp'
   decrypt_key: ''
   parse_consent_code: true
+  # A mapping from the dbgap study to which authorization namespaces the actual data
+  # lives in. For example, `studyX` data may exist in multiple organizations, so
+  # we need to know to map authorization to all orgs resources
+  study_to_resource_namespaces:
+    '_default': ['/orgA/']
+    'studyX': ['/orgA/', '/orgB/']
+    'studyY': ['/orgB/', '/orgC/']
+    'studyZ': ['/orgD/']
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # STORAGE BACKENDS AND CREDENTIALS
