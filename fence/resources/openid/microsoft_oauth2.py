@@ -30,7 +30,7 @@ class MicrosoftOauth2Client(Oauth2ClientBase):
             "authorization_endpoint",
             "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize",
         )
-        uri, _ = self.session.authorization_url(authorization_endpoint)
+        uri, _ = self.session.create_authorization_url(authorization_endpoint)
 
         return uri
 
