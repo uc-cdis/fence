@@ -7,7 +7,7 @@ from fence.jwt.validate import validate_jwt
 from fence.models import IdentityProvider
 
 
-class FenceRedirect(Resource):
+class FenceLogin(Resource):
     """
     For ``/login/fence`` endpoint.
 
@@ -34,7 +34,7 @@ class FenceRedirect(Resource):
         return flask.redirect(authorization_url)
 
 
-class FenceLogin(Resource):
+class FenceCallback(Resource):
     """
     For ``/login/fence/login`` endpoint.
 
