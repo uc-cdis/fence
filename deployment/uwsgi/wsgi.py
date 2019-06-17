@@ -1,5 +1,4 @@
-from fence import app_init
-from fence import app
+from fence import app_init, app
 
 app_init(app)
 application = app

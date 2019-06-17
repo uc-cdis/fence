@@ -21,7 +21,7 @@ WORKDIR /$appname
 
 RUN python -m pip install --upgrade pip \
     && python -m pip install --upgrade setuptools \
-    && pip install -r requirements.txt --src /usr/local/lib/python3.6/site-packages/
+    && pip install -r requirements.txt
 
 RUN mkdir -p /var/www/$appname \
     && mkdir -p /var/www/.cache/Python-Eggs/ \
@@ -35,8 +35,8 @@ EXPOSE 80
 
 RUN COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" >$appname/version_data.py \
     && VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >>$appname/version_data.py \
-    && python setup.py install
+    && python setup.py develop
 
 WORKDIR /var/www/$appname
 
-CMD /dockerrun.sh
+CMD ["sh","-c","bash /fence/dockerrun.bash && /dockerrun.sh"]
