@@ -344,7 +344,7 @@ class GoogleProjectValidity(ValidityInfo):
                 self.set("members_exist_in_fence", False)
                 logger.warning(
                     "INVALID user(s) do not exist in fence and thus, "
-                    "we cannot determine their authZ info: {}.".format(e.message)
+                    "we cannot determine their authZ info: {}.".format(e)
                 )
                 if early_return:
                     return

@@ -50,7 +50,7 @@ class BotoManager(object):
             )
         except (KeyError, Boto3Error) as e:
             self.logger.exception(e)
-            raise InternalError("Failed to delete file: {}".format(e.message))
+            raise InternalError("Failed to delete file: {}".format(str(e)))
 
     def assume_role(self, role_arn, duration_seconds, config=None):
         try:
@@ -64,10 +64,10 @@ class BotoManager(object):
             )
         except Boto3Error as ex:
             self.logger.exception(ex)
-            raise InternalError("Fail to assume role: {}".format(ex.message))
+            raise InternalError("Fail to assume role: {}".format(ex))
         except Exception as ex:
             self.logger.exception(ex)
-            raise UnavailableError("Fail to reach AWS: {}".format(ex.message))
+            raise UnavailableError("Fail to reach AWS: {}".format(ex))
 
     def presigned_url(self, bucket, key, expires, config, method="get_object"):
         """
@@ -99,10 +99,10 @@ class BotoManager(object):
             region = response.get("LocationConstraint")
         except Boto3Error as ex:
             self.logger.exception(ex)
-            raise InternalError("Fail to get bucket region: {}".format(ex.message))
+            raise InternalError("Fail to get bucket region: {}".format(ex))
         except Exception as ex:
             self.logger.exception(ex)
-            raise UnavailableError("Fail to reach AWS: {}".format(ex.message))
+            raise UnavailableError("Fail to reach AWS: {}".format(ex))
         if region is None:
             return "us-east-1"
         return region
@@ -122,7 +122,7 @@ class BotoManager(object):
                         groups[group_name] = self.create_user_group(group_name)
         except Exception as ex:
             self.logger.exception(ex)
-            raise UserError("Fail to create list of groups: {}".format(ex.message))
+            raise UserError("Fail to create list of groups: {}".format(ex))
         return groups
 
     def add_user_to_group(self, groups, username):
@@ -139,7 +139,7 @@ class BotoManager(object):
                 )
         except Exception as ex:
             self.logger.exception(ex)
-            raise UserError("Fail to add user to group: {}".format(ex.message))
+            raise UserError("Fail to add user to group: {}".format(ex))
 
     def get_user_group(self, group_names):
         try:
@@ -151,7 +151,7 @@ class BotoManager(object):
         except Exception as ex:
             self.logger.exception(ex)
             raise UserError(
-                "Fail to get list of groups {}: {}".format(group_names, ex.message)
+                "Fail to get list of groups {}: {}".format(group_names, ex)
             )
         return res
 
@@ -164,7 +164,7 @@ class BotoManager(object):
         except Exception as ex:
             self.logger.exception(ex)
             raise UserError(
-                "Fail to create group {}: {}".format(group_name, ex.message)
+                "Fail to create group {}: {}".format(group_name, ex)
             )
         return group
 
@@ -201,5 +201,5 @@ class BotoManager(object):
             )
         except Exception as ex:
             self.logger.exception(ex)
-            raise UserError("Fail to create policy: {}".format(ex.message))
+            raise UserError("Fail to create policy: {}".format(ex))
         return policy

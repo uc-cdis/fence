@@ -325,7 +325,7 @@ def test_delete_expired_service_accounts_with_one_fail_first(
     fence.settings = MagicMock()
     cirrus.config.update = MagicMock()
     cloud_manager.return_value.__enter__.return_value.remove_member_from_group.side_effect = [
-        HttpError(mock.Mock(status=403), "Permission denied"),
+        HttpError(mock.Mock(status=403), bytes("Permission denied", "utf-8")),
         {},
     ]
     _setup_service_account_to_google_bucket_access_group(db_session)
@@ -376,7 +376,7 @@ def test_delete_expired_service_accounts_with_one_fail_second(
     fence.settings = MagicMock()
     cloud_manager.return_value.__enter__.return_value.remove_member_from_group.side_effect = [
         {},
-        HttpError(mock.Mock(status=403), "Permission denied"),
+        HttpError(mock.Mock(status=403), bytes("Permission denied", "utf-8")),
     ]
     _setup_service_account_to_google_bucket_access_group(db_session)
     service_accounts = db_session.query(UserServiceAccount).all()

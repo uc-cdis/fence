@@ -459,14 +459,14 @@ class GoogleServiceAccount(Resource):
         except CirrusNotFound as exc:
             return (
                 "Can not update the service accout {}. Detail {}".format(
-                    sa.email, exc.message
+                    sa.email, exc
                 ),
                 404,
             )
         except GoogleAPIError as exc:
             return (
                 "Can not update the service accout {}. Detail {}".format(
-                    sa.email, exc.message
+                    sa.email, exc
                 ),
                 400,
             )
@@ -503,14 +503,14 @@ class GoogleServiceAccount(Resource):
         except CirrusNotFound as exc:
             return (
                 "Can not remove the service accout {}. Detail {}".format(
-                    id_, exc.message
+                    id_, exc
                 ),
                 404,
             )
         except GoogleAPIError as exc:
             return (
                 "Can not remove the service accout {}. Detail {}".format(
-                    id_, exc.message
+                    id_, exc
                 ),
                 400,
             )
