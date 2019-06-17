@@ -1,7 +1,7 @@
 import pytest
 import time
 
-from authlib.specs.rfc7519 import InvalidClaimError
+from authlib.jose.errors import InvalidClaimError
 
 from fence.jwt.token import generate_signed_id_token, UnsignedIDToken
 from fence.jwt.validate import validate_jwt

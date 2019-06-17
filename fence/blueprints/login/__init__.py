@@ -8,19 +8,27 @@ the endpoints for each provider.
 
 import flask
 
-from cdislogging import get_logger
-
-from fence.blueprints.login.fence_login import FenceRedirect, FenceLogin
-from fence.blueprints.login.google import GoogleRedirect, GoogleLogin
-from fence.blueprints.login.shib import ShibbolethLoginStart, ShibbolethLoginFinish
-from fence.blueprints.login.microsoft import MicrosoftRedirect, MicrosoftLogin
-from fence.blueprints.login.orcid import ORCIDRedirect, ORCIDLogin
+from fence.blueprints.login.fence_login import FenceLogin, FenceCallback
+from fence.blueprints.login.google import GoogleLogin, GoogleCallback
+from fence.blueprints.login.shib import ShibbolethLogin, ShibbolethCallback
+from fence.blueprints.login.microsoft import MicrosoftLogin, MicrosoftCallback
+from fence.blueprints.login.orcid import ORCIDLogin, ORCIDCallback
 from fence.errors import InternalError
 from fence.restful import RestfulApi
 from fence.config import config
 
+from cdislogging import get_logger
 
 logger = get_logger(__name__)
+
+# Mapping from IDP ID to the name in the URL on the blueprint (see below).
+IDP_URL_MAP = {
+    "fence": "fence",
+    "google": "google",
+    "shibboleth": "shib",
+    "orcid": "orcid",
+    "microsoft": "microsoft",
+}
 
 
 def make_login_blueprint(app):
@@ -45,15 +53,6 @@ def make_login_blueprint(app):
         )
         default_idp = None
         idps = {}
-
-    # Mapping from IDP ID to the name in the URL on the blueprint (see below).
-    IDP_URL_MAP = {
-        "fence": "fence",
-        "google": "google",
-        "shibboleth": "shib",
-        "orcid": "orcid",
-        "microsoft": "microsoft",
-    }
 
     # check if google is configured as a client. we will at least need a
     # a callback if it is
@@ -96,32 +95,32 @@ def make_login_blueprint(app):
     # Add identity provider login routes for IDPs enabled in the config.
 
     if "fence" in idps:
-        blueprint_api.add_resource(FenceRedirect, "/fence", strict_slashes=False)
-        blueprint_api.add_resource(FenceLogin, "/fence/login", strict_slashes=False)
+        blueprint_api.add_resource(FenceLogin, "/fence", strict_slashes=False)
+        blueprint_api.add_resource(FenceCallback, "/fence/login", strict_slashes=False)
 
     if "google" in idps:
-        blueprint_api.add_resource(GoogleRedirect, "/google", strict_slashes=False)
+        blueprint_api.add_resource(GoogleLogin, "/google", strict_slashes=False)
 
     # we can use Google Client and callback here without the login endpoint
     # if Google is configured as a client but not in the idps
     if "google" in idps or google_client_exists:
-        blueprint_api.add_resource(GoogleLogin, "/google/login", strict_slashes=False)
+        blueprint_api.add_resource(
+            GoogleCallback, "/google/login", strict_slashes=False
+        )
 
     if "orcid" in idps:
-        blueprint_api.add_resource(ORCIDRedirect, "/orcid", strict_slashes=False)
-        blueprint_api.add_resource(ORCIDLogin, "/orcid/login", strict_slashes=False)
+        blueprint_api.add_resource(ORCIDLogin, "/orcid", strict_slashes=False)
+        blueprint_api.add_resource(ORCIDCallback, "/orcid/login", strict_slashes=False)
 
     if "microsoft" in idps:
+        blueprint_api.add_resource(MicrosoftLogin, "/microsoft", strict_slashes=False)
         blueprint_api.add_resource(
-            MicrosoftRedirect, "/microsoft", strict_slashes=False
-        )
-        blueprint_api.add_resource(
-            MicrosoftLogin, "/microsoft/login", strict_slashes=False
+            MicrosoftCallback, "/microsoft/login", strict_slashes=False
         )
 
     if "shibboleth" in idps:
-        blueprint_api.add_resource(ShibbolethLoginStart, "/shib", strict_slashes=False)
+        blueprint_api.add_resource(ShibbolethLogin, "/shib", strict_slashes=False)
         blueprint_api.add_resource(
-            ShibbolethLoginFinish, "/shib/login", strict_slashes=False
+            ShibbolethCallback, "/shib/login", strict_slashes=False
         )
     return blueprint

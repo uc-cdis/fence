@@ -4,7 +4,7 @@ import flask
 from flask import render_template
 from werkzeug.exceptions import HTTPException
 
-from authlib.specs.rfc6749.errors import OAuth2Error
+from authlib.oauth2.rfc6749.errors import OAuth2Error
 from cdislogging import get_logger
 
 from fence.errors import APIError

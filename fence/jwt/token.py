@@ -3,7 +3,7 @@ import time
 import uuid
 
 from authlib.common.encoding import to_unicode
-from authlib.specs.oidc import CodeIDToken as AuthlibCodeIDToken
+from authlib.oidc.core import CodeIDToken as AuthlibCodeIDToken
 from cdislogging import get_logger
 import flask
 import jwt
@@ -268,9 +268,8 @@ def generate_signed_refresh_token(
         "azp": client_id or "",
     }
 
-    if flask.current_app:
-        logger.info("issuing JWT refresh token with id [{}] to [{}]".format(jti, sub))
-        logger.debug("issuing JWT refresh token\n" + json.dumps(claims, indent=4))
+    logger.info("issuing JWT refresh token with id [{}] to [{}]".format(jti, sub))
+    logger.debug("issuing JWT refresh token\n" + json.dumps(claims, indent=4))
 
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
     token = to_unicode(token, "UTF-8")
@@ -380,9 +379,8 @@ def generate_signed_access_token(
             "linked_google_account"
         ] = linked_google_email
 
-    if flask.current_app:
-        logger.info("issuing JWT access token with id [{}] to [{}]".format(jti, sub))
-        logger.debug("issuing JWT access token\n" + json.dumps(claims, indent=4))
+    logger.info("issuing JWT access token with id [{}] to [{}]".format(jti, sub))
+    logger.debug("issuing JWT access token\n" + json.dumps(claims, indent=4))
 
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
     token = to_unicode(token, "UTF-8")

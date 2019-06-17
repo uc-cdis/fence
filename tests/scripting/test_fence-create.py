@@ -305,14 +305,14 @@ def _setup_service_account_to_google_bucket_access_group(db_session):
         GoogleBucketAccessGroup(
             bucket_id=bucket1.id,
             email="testgroup1@gmail.com",
-            privileges=["read_storage", "write_storage"],
+            privileges=["read-storage", "write-storage"],
         )
     )
     db_session.add(
         GoogleBucketAccessGroup(
             bucket_id=bucket1.id,
             email="testgroup2@gmail.com",
-            privileges=["read_storage"],
+            privileges=["read-storage"],
         )
     )
     db_session.commit()

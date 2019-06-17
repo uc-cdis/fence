@@ -1,11 +1,11 @@
 import bcrypt
 
 from authlib.common.security import generate_token
-from authlib.specs.rfc6749.errors import InvalidClientError, UnauthorizedClientError
-from authlib.specs.rfc6749.grants import (
-    AuthorizationCodeGrant as AuthlibAuthorizationCodeGrant
+from authlib.oauth2.rfc6749.errors import InvalidClientError, UnauthorizedClientError
+from authlib.oauth2.rfc6749.grants import (
+    AuthorizationCodeGrant as AuthlibAuthorizationCodeGrant,
 )
-from authlib.specs.rfc6749.util import get_obj_value
+from authlib.oauth2.rfc6749.util import get_obj_value
 import flask
 
 from fence.models import AuthorizationCode

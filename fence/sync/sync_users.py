@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 from csv import DictReader
 import errno
+from gen3users.validation import validate_user_yaml
 import glob
 import os
 import re
@@ -26,6 +27,7 @@ from fence.models import (
     Tag,
     User,
     query_for_user,
+    Client,
 )
 from fence.rbac.client import ArboristClient, ArboristError
 from fence.resources.storage import StorageManager
@@ -84,14 +86,14 @@ def _read_file(filepath, encrypted=True, key=None, logger=None):
         Generator[file-like class]: file like object for the file
     """
     if encrypted:
-        has_crypt = sp.call(["which", "crypt"])
+        has_crypt = sp.call(["which", "mcrypt"])
         if has_crypt != 0:
             if logger:
                 logger.error("Need to install crypt to decrypt files from dbgap")
             # TODO (rudyardrichter, 2019-01-08): raise error and move exit out to script
             exit(1)
         p = sp.Popen(
-            ["crypt", key],
+            ["mcrypt", "-a", "enigma", "-o", "scrypt", "-m", "stream", "--bare", "--key", key, "--force"],
             stdin=open(filepath, "r"),
             stdout=sp.PIPE,
             stderr=open(os.devnull, "w"),
@@ -114,6 +116,7 @@ class UserYAML(object):
         projects=None,
         user_info=None,
         policies=None,
+        clients=None,
         rbac=None,
         logger=None,
         user_rbac=None,
@@ -122,13 +125,22 @@ class UserYAML(object):
         self.user_info = user_info or {}
         self.user_rbac = user_rbac or {}
         self.policies = policies or {}
+        self.clients = clients or {}
         self.rbac = rbac or {}
         self.logger = logger
 
     @classmethod
     def from_file(cls, filepath, encrypted=True, key=None, logger=None):
-        with _read_file(filepath, encrypted=encrypted, key=key, logger=logger) as f:
-            data = yaml.safe_load(f)
+        data = {}
+        if filepath:
+            with _read_file(filepath, encrypted=encrypted, key=key, logger=logger) as f:
+                file_contents = f.read()
+                validate_user_yaml(file_contents)  # run user.yaml validation tests
+                data = yaml.safe_load(file_contents)
+        else:
+            if logger:
+                logger.info("Did not sync a user.yaml, no file path provided.")
+
         projects = dict()
         user_info = dict()
         policies = dict()
@@ -200,11 +212,14 @@ class UserYAML(object):
             if resources:
                 rbac["resources"] = data.get("resources", [])
 
+        clients = data.get("clients", {})
+
         return cls(
             projects=projects,
             user_info=user_info,
             user_rbac=user_rbac,
             policies=policies,
+            clients=clients,
             rbac=rbac,
             logger=logger,
         )
@@ -288,25 +303,31 @@ class UserSyncer(object):
         """
         proxy = None
         if self.server.get("proxy", "") != "":
-            proxy = ProxyCommand(
-                "ssh -i ~/.ssh/id_rsa {user}@{proxy} nc {host} {port}".format(
-                    user=self.server.get("proxy_user", ""),
-                    proxy=self.server.get("proxy", ""),
-                    host=self.server.get("host", ""),
-                    port=self.server.get("port", 22),
-                )
+            command = "ssh -i ~/.ssh/id_rsa {user}@{proxy} nc {host} {port}".format(
+                user=self.server.get("proxy_user", ""),
+                proxy=self.server.get("proxy", ""),
+                host=self.server.get("host", ""),
+                port=self.server.get("port", 22),
             )
 
+            self.logger.debug("SSH proxy command: {}".format(command))
+
+            proxy = ProxyCommand(command)
+
         with paramiko.SSHClient() as client:
+            client.set_log_channel(self.logger.name)
+
             client.set_missing_host_key_policy(paramiko.WarningPolicy())
             parameters = {
-                "hostname": self.server.get("host", ""),
-                "username": self.server.get("username", ""),
-                "password": self.server.get("password", ""),
-                "port": self.server.get("port", 22),
+                "hostname": str(self.server.get("host", "")),
+                "username": str(self.server.get("username", "")),
+                "password": str(self.server.get("password", "")),
+                "port": int(self.server.get("port", 22)),
             }
             if proxy:
                 parameters["sock"] = proxy
+
+            self.logger.debug("SSH connection parameters: {}".format(parameters))
             client.connect(**parameters)
             with client.open_sftp() as sftp:
                 download_dir(sftp, "./", path)
@@ -939,7 +960,7 @@ class UserSyncer(object):
             user_yaml = UserYAML.from_file(
                 self.sync_from_local_yaml_file, encrypted=False, logger=self.logger
             )
-        except EnvironmentError as e:
+        except (EnvironmentError, AssertionError) as e:
             self.logger.error(str(e))
             self.logger.error("aborting early")
             return
@@ -1040,6 +1061,26 @@ class UserSyncer(object):
             except ArboristError as e:
                 self.logger.error(e)
                 # keep going; maybe just some conflicts from things existing already
+
+        for client_name, client_details in user_yaml.clients.iteritems():
+            client_policies = client_details.get("policies", [])
+            client = session.query(Client).filter_by(name=client_name).first()
+            # update existing clients, do not create new ones
+            if not client:
+                self.logger.warning(
+                    "client to update (`{}`) does not exist in fence: skipping".format(
+                        client_name
+                    )
+                )
+                continue
+            try:
+                self.arborist_client.update_client(client.client_id, client_policies)
+            except ArboristError as e:
+                self.logger.info(
+                    "not granting policies {} to client `{}`; {}".format(
+                        client_policies, client_name, str(e)
+                    )
+                )
 
         user_projects = user_yaml.user_rbac
         for username, user_resources in user_projects.iteritems():

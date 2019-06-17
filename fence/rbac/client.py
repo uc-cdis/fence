@@ -544,7 +544,7 @@ class ArboristClient(object):
         # find newly granted policies, revoke all if needed
         url = "/".join((self._client_url, client_id, "policy"))
         if current_policies.difference(policies):
-            # revoke all and re-grant later
+            # if some policies must be removed, revoke all and re-grant later
             response = requests.delete(url)
             if response.status_code != 204:
                 data = _request_get_json(response)
@@ -555,6 +555,7 @@ class ArboristClient(object):
                 )
                 raise ArboristError(data.get("error"))
         else:
+            # do not add policies that already exist
             policies.difference_update(current_policies)
 
         # grant missing policies
