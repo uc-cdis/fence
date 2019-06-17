@@ -56,7 +56,7 @@ class TokenResponse(object):
             self.access_token = response.json.get("access_token")
             self.refresh_token = response.json.get("refresh_token")
             self.id_token = response.json.get("id_token")
-        except ValueError:
+        except (ValueError, AttributeError):
             self.access_token = None
             self.refresh_token = None
             self.id_token = None

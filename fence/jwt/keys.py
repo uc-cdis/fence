@@ -181,8 +181,13 @@ class Keypair(object):
         Return:
             dict: JWK representation of the public key
         """
-        n, e = _rsa_public_numbers(self.public_key)
+        # n, e = _rsa_public_numbers(self.public_key)
         jwk_dict = jwk.construct(self.public_key, algorithm="RS256").to_dict()
+        for k in jwk_dict:  # bytes to string
+            try:
+                jwk_dict[k] = jwk_dict[k].decode("utf-8")
+            except AttributeError:
+                pass
         jwk_dict.update({"use": "sig", "key_ops": "verify", "kid": self.kid})
         return jwk_dict
 
@@ -200,7 +205,9 @@ def _rsa_public_numbers(public_key_data):
     Return:
         Tuple[int, int]: the public key modulus ``n`` and exponent ``e``
     """
-    key = serialization.load_pem_public_key(public_key_data, default_backend())
+    key = serialization.load_pem_public_key(
+        bytes(public_key_data, "utf-8"), default_backend()
+    )
     numbers = key.public_numbers()
     return (numbers.n, numbers.e)
 

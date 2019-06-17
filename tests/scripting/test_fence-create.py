@@ -129,7 +129,7 @@ def test_delete_users(app, db_session, example_usernames):
     # Get the list of usernames for users that still exist.
     # (The `list(zip(...))` trick is to turn a list of 1-tuples into a
     # flattened list.)
-    remaining_usernames = list(zip(*db_session.query(User.username).all())[0])
+    remaining_usernames = list(next(zip(*db_session.query(User.username).all())))
     assert example_usernames[0] in remaining_usernames
     for username in example_usernames[1:]:
         assert username not in remaining_usernames
