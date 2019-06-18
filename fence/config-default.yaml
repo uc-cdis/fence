@@ -199,6 +199,13 @@ SESSION_ALLOWED_SCOPES:
 #   Sibboleth? Use: '{{BASE_URL}}/login/shib'
 DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
 
+# `LOGIN_REDIRECT_WHITELIST` is a list of extra whitelisted URLs which can be redirected
+# to by the `/login/*` endpoints. Fence automatically populates this with the redirect
+# URLs for any registered OAuth clients, and its own URL. When validating the redirects,
+# fence chesk whether the domain for the redirect matches a domain in the whitelist (so
+# only the domains for the additional desired redirects are necessary here).
+LOGIN_REDIRECT_WHITELIST: []
+
 # Which Identity Provider fence will/can use
 #
 # See ``fence/blueprints/login/__init__.py`` for which identity providers can
