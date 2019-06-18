@@ -1,7 +1,5 @@
 import flask
 
-from fence.auth import login_user
-from fence.errors import UserError
 from fence.models import IdentityProvider
 from fence.config import config
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
