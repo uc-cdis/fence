@@ -1,6 +1,5 @@
 import flask
 
-
 from fence.models import IdentityProvider
 from fence.config import config
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
@@ -26,5 +25,4 @@ class GoogleCallback(DefaultOAuth2Callback):
                 config.get("BASE_URL", "")
                 + "/link/google/callback?code={}".format(flask.request.args.get("code"))
             )
-        else:
-            return super(GoogleCallback, self).get()
+        return super(GoogleCallback, self).get()
