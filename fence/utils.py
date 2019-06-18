@@ -52,7 +52,9 @@ def create_client(
     hashed_secret = None
     if confidential:
         client_secret = random_str(55)
-        hashed_secret = bcrypt.hashpw(client_secret.encode('utf-8'), bcrypt.gensalt()).decode("utf-8")
+        hashed_secret = bcrypt.hashpw(
+            client_secret.encode("utf-8"), bcrypt.gensalt()
+        ).decode("utf-8")
     auth_method = "client_secret_basic" if confidential else "none"
     with driver.session as s:
         user = query_for_user(session=s, username=username)

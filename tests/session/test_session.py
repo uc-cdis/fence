@@ -267,9 +267,7 @@ def test_valid_session_valid_access_token_diff_user(
 
 def _get_cookies_from_response(response):
     raw_cookies = [
-        header[1]
-        for header in response.headers.items()
-        if header[0] == "Set-Cookie"
+        header[1] for header in response.headers.items() if header[0] == "Set-Cookie"
     ]
     cookies = {}
     for cookie in raw_cookies:

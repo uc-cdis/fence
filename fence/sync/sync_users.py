@@ -93,7 +93,19 @@ def _read_file(filepath, encrypted=True, key=None, logger=None):
             # TODO (rudyardrichter, 2019-01-08): raise error and move exit out to script
             exit(1)
         p = sp.Popen(
-            ["mcrypt", "-a", "enigma", "-o", "scrypt", "-m", "stream", "--bare", "--key", key, "--force"],
+            [
+                "mcrypt",
+                "-a",
+                "enigma",
+                "-o",
+                "scrypt",
+                "-m",
+                "stream",
+                "--bare",
+                "--key",
+                key,
+                "--force",
+            ],
             stdin=open(filepath, "r"),
             stdout=sp.PIPE,
             stderr=open(os.devnull, "w"),
@@ -953,7 +965,9 @@ class UserSyncer(object):
 
         permissions = [{"read-storage"} for _ in local_csv_file_list]
         user_projects_csv, user_info_csv = self._parse_csv(
-            dict(list(zip(local_csv_file_list, permissions))), encrypted=False, sess=sess
+            dict(list(zip(local_csv_file_list, permissions))),
+            encrypted=False,
+            sess=sess,
         )
 
         try:

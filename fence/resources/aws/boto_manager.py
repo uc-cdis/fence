@@ -150,9 +150,7 @@ class BotoManager(object):
                     res[group["GroupName"]] = group
         except Exception as ex:
             self.logger.exception(ex)
-            raise UserError(
-                "Fail to get list of groups {}: {}".format(group_names, ex)
-            )
+            raise UserError("Fail to get list of groups {}: {}".format(group_names, ex))
         return res
 
     def create_user_group(self, group_name, path=None):
@@ -163,9 +161,7 @@ class BotoManager(object):
             )
         except Exception as ex:
             self.logger.exception(ex)
-            raise UserError(
-                "Fail to create group {}: {}".format(group_name, ex)
-            )
+            raise UserError("Fail to create group {}: {}".format(group_name, ex))
         return group
 
     def __get_policy_document_by_group_name__(self, group_name):

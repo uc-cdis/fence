@@ -458,16 +458,12 @@ class GoogleServiceAccount(Resource):
 
         except CirrusNotFound as exc:
             return (
-                "Can not update the service accout {}. Detail {}".format(
-                    sa.email, exc
-                ),
+                "Can not update the service accout {}. Detail {}".format(sa.email, exc),
                 404,
             )
         except GoogleAPIError as exc:
             return (
-                "Can not update the service accout {}. Detail {}".format(
-                    sa.email, exc
-                ),
+                "Can not update the service accout {}. Detail {}".format(sa.email, exc),
                 400,
             )
         except Exception:
@@ -502,16 +498,12 @@ class GoogleServiceAccount(Resource):
             force_delete_service_account(service_account_email)
         except CirrusNotFound as exc:
             return (
-                "Can not remove the service accout {}. Detail {}".format(
-                    id_, exc
-                ),
+                "Can not remove the service accout {}. Detail {}".format(id_, exc),
                 404,
             )
         except GoogleAPIError as exc:
             return (
-                "Can not remove the service accout {}. Detail {}".format(
-                    id_, exc
-                ),
+                "Can not remove the service accout {}. Detail {}".format(id_, exc),
                 400,
             )
         except Exception:
