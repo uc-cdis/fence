@@ -33,5 +33,5 @@ def domain(url):
     if not url:
         return ""
     if url.startswith("/"):
-        return config["BASE_URL"]
+        return urlparse(config["BASE_URL"]).netloc
     return urlparse(url).netloc
