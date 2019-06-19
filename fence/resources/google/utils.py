@@ -72,7 +72,7 @@ def get_or_create_primary_service_account_key(
     if user_service_account_key:
         fernet_key = Fernet(str(config["ENCRYPTION_KEY"]))
         private_key_bytes = fernet_key.decrypt(
-            str(user_service_account_key.private_key)
+            bytes(user_service_account_key.private_key, "utf-8")
         )
         sa_private_key = json.loads(private_key_bytes.decode("utf-8"))
     else:
@@ -140,7 +140,7 @@ def create_primary_service_account_key(user_id, username, proxy_group_id, expire
 
     fernet_key = Fernet(str(config["ENCRYPTION_KEY"]))
     private_key_bytes = json.dumps(sa_private_key).encode("utf-8")
-    private_key = fernet_key.encrypt(private_key_bytes)
+    private_key = fernet_key.encrypt(private_key_bytes).decode("utf-8")
 
     expires = expires or (
         int(time.time())
