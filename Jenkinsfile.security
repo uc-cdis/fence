@@ -1,0 +1,6 @@
+#!groovy
+
+@Library('cdis-jenkins-lib@feat/security-pipeline') _
+
+securityPipeline {
+}
