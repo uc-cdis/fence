@@ -27,6 +27,7 @@ class ShibbolethLoginStart(Resource):
         # check out shibboleth docs here for more info:
         # https://wiki.shibboleth.net/confluence/display/SP3/SSO
         entityID = flask.request.args.get("shib_idp")
+        flask.session["entityID"] = entityID
         if not entityID:
             # default to SSO_URL from the config which should be NIH login
             actual_redirect = config["BASE_URL"] + "/login/shib/login"
@@ -48,7 +49,10 @@ class ShibbolethLoginFinish(Resource):
         username = eppn.split("!")[-1] if eppn else None
         if not username:
             raise Unauthorized("Please login")
-        login_user(flask.request, username, IdentityProvider.itrust)
+        idp = IdentityProvider.itrust
+        if flask.session.get("entityID"):
+            idp = flask.session.get("entityID")
+        login_user(flask.request, username, idp)
         if flask.session.get("redirect"):
             return flask.redirect(flask.session.get("redirect"))
         return "logged in"
