@@ -29,6 +29,7 @@ from fence.models import (
     query_for_user,
     Client,
 )
+from fence.sync import utils
 from fence.rbac.client import ArboristClient, ArboristError
 from fence.resources.storage import StorageManager
 
@@ -296,7 +297,7 @@ class UserSyncer(object):
         self._projects = dict()
         self._created_roles = set()
         self._created_policies = set()
-        self._dbgap_resources = dict()
+        self._dbgap_study_to_resources = dict()
         self.logger = get_logger(
             "user_syncer", log_level="debug" if config["DEBUG"] is True else "info"
         )
@@ -466,7 +467,7 @@ class UserSyncer(object):
 
                             # need to add dbgap project to arborist
                             if self.arborist_client:
-                                self._add_dbgap_project_to_arborist(dbgap_project)
+                                self._add_dbgap_study_to_arborist(dbgap_project)
 
                             if project.name is None:
                                 project.name = dbgap_project
@@ -485,7 +486,7 @@ class UserSyncer(object):
 
                             # need to add dbgap project to arborist
                             if self.arborist_client:
-                                self._add_dbgap_project_to_arborist(
+                                self._add_dbgap_study_to_arborist(
                                     element_dict["auth_id"]
                                 )
 
@@ -1015,10 +1016,28 @@ class UserSyncer(object):
         if not healthy:
             return False
 
-        # Set up the resource tree in arborist
+        # Set up the resource tree in arborist by combining provided resources with any
+        # dbgap resources that were created before this.
+        #
+        # Why add dbgap resources if they've already been created?
+        #   B/C Arborist's PUT update will override existing subresources. So if a dbgap
+        #   resources was created under `/programs/phs000178` anything provided in
+        #   user.yaml under `/programs` would completely wipe it out.
         resources = user_yaml.rbac.get("resources", [])
-        for resource in resources:
+
+        dbgap_resource_paths = []
+        for path_list in self._dbgap_study_to_resources.values():
+            dbgap_resource_paths.extend(path_list)
+
+        combined_resources = utils.combine_provided_and_dbgap_resources(
+            resources, dbgap_resource_paths
+        )
+
+        for resource in combined_resources:
             try:
+                self.logger.debug(
+                    "attempting to update arborist resource: {}".format(resource)
+                )
                 self.arborist_client.update_resource("/", resource)
             except ArboristError as e:
                 self.logger.error(e)
@@ -1113,7 +1132,7 @@ class UserSyncer(object):
 
                 # check if this is a dbgap project, if it is, we need to get the right
                 # resource path, otherwise just use given project as path
-                paths = self._dbgap_resources.get(project, [project])
+                paths = self._dbgap_study_to_resources.get(project, [project])
 
                 if user_yaml:
                     try:
@@ -1191,7 +1210,7 @@ class UserSyncer(object):
 
         return True
 
-    def _add_dbgap_project_to_arborist(self, dbgap_study):
+    def _add_dbgap_study_to_arborist(self, dbgap_study):
         """
         Return the arborist resource path after adding the specified dbgap study
         to arborist.
@@ -1231,15 +1250,15 @@ class UserSyncer(object):
                 self.logger.info(
                     "added arborist resource under parent path: {} for dbgap project {}."
                     "Arborist response: {}".format(
-                        dbgap_study, resource_namespace, response
+                        resource_namespace, dbgap_study, response
                     )
                 )
-                if dbgap_study not in self._dbgap_resources:
-                    self._dbgap_resources[dbgap_study] = [
+                if dbgap_study not in self._dbgap_study_to_resources:
+                    self._dbgap_study_to_resources[dbgap_study] = [
                         resource_namespace + dbgap_study
                     ]
                 else:
-                    self._dbgap_resources[dbgap_study].append(
+                    self._dbgap_study_to_resources[dbgap_study].append(
                         resource_namespace + dbgap_study
                     )
 

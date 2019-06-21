@@ -266,7 +266,7 @@ dbGaP:
   # we need to know to map authorization to all orgs resources
   study_to_resource_namespaces:
     '_default': ['/orgA/']
-    'phs000178': ['/orgA/', '/orgB/']
+    'phs000178': ['/orgA/', '/orgB/', '/']
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # STORAGE BACKENDS AND CREDENTIALS

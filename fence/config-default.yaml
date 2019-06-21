@@ -351,7 +351,7 @@ dbGaP:
   # lives in. For example, `studyX` data may exist in multiple organizations, so
   # we need to know to map authorization to all orgs resources
   study_to_resource_namespaces:
-    '_default': ['/orgA/']
+    '_default': ['/']
     'studyX': ['/orgA/', '/orgB/']
     'studyY': ['/orgB/', '/orgC/']
     'studyZ': ['/orgD/']

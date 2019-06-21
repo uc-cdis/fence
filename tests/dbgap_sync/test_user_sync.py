@@ -300,7 +300,7 @@ def test_update_arborist(syncer, db_session):
     # duplicate in the tests here.
 
     # one project is configured to point to two different arborist resource
-    # parent paths (/orgA/ and /orgB/)
+    # parent paths (/orgA/ and /orgB/ and /)
     project_with_mult_namespaces = "phs000178"
     expect_resources = [
         "phs000179.c1",
@@ -326,6 +326,7 @@ def test_update_arborist(syncer, db_session):
             assert resource_to_parent_paths[resource] == [
                 "/orgA/programs/",
                 "/orgB/programs/",
+                "/programs/",
             ]
         else:
             # configured default org path is OrgA
