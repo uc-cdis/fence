@@ -2,47 +2,6 @@ import yaml
 from fence.sync import utils
 
 
-def test_get_arborist_resources_from_paths():
-    """
-    Test that the helper functions for converting arborist resource paths into
-    dictionaries for arborist endpoint are working.
-    """
-    test_paths = [
-        "/programs/phs000172",
-        "/orgA/programs/phs000175",
-        "/orgC/programs/phs000175",
-        "/programs/phs000178",
-        "/orgA/programs/phs000179",
-        "/orgB/programs/phs000179",
-    ]
-
-    result = utils._get_arborist_resources_from_paths(test_paths)
-    result = utils._knead(result)
-    result = utils._undictify_subresources(result)
-
-    expected_roots = ["orgA", "orgB", "orgC", "programs"]
-    for item in result:
-        # ensure one of each of the items in expected roots
-        assert item.get("name") in expected_roots
-        expected_roots.remove(item.get("name"))
-
-        # ensure result has correct subresources
-        if item.get("name") == "OrgA":
-            subresources = _get_subresources(item, "programs")
-            assert "phs000179" in subresources
-            assert "phs000175" in subresources
-        elif item.get("name") == "OrgB":
-            subresources = _get_subresources(item, "programs")
-            assert "phs000179" in subresources
-        elif item.get("name") == "OrgC":
-            subresources = _get_subresources(item, "programs")
-            assert "phs000175" in subresources
-        elif item.get("name") == "programs":
-            subresources = [subr.get("name") for subr in item.get("subresources")]
-            assert "phs000172" in subresources
-            assert "phs000178" in subresources
-
-
 def test_combine_arborist_resources():
     """
     Test that util function successfully combines arborist resources from a user.yaml
