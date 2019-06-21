@@ -1134,6 +1134,8 @@ class UserSyncer(object):
                 # resource path, otherwise just use given project as path
                 paths = self._dbgap_study_to_resources.get(project, [project])
 
+                self.logger.info(self._dbgap_study_to_resources)
+
                 if user_yaml:
                     try:
                         # check if project is in mapping and convert accordingly
@@ -1141,7 +1143,7 @@ class UserSyncer(object):
                     except KeyError:
                         pass
 
-                self.logger.debug(
+                self.logger.info(
                     "resource paths for project {}: {}".format(project, paths)
                 )
                 self.logger.debug("permissions: {}".format(permissions))
@@ -1248,11 +1250,11 @@ class UserSyncer(object):
                     create_parents=True,
                 )
                 self.logger.info(
-                    "added arborist resource under parent path: {} for dbgap project {}."
-                    "Arborist response: {}".format(
-                        resource_namespace, dbgap_study, response
+                    "added arborist resource under parent path: {} for dbgap project {}.".format(
+                        resource_namespace, dbgap_study
                     )
                 )
+                self.logger.debug("Arborist response: {}".format(response))
                 if dbgap_study not in self._dbgap_study_to_resources:
                     self._dbgap_study_to_resources[dbgap_study] = [
                         resource_namespace + dbgap_study
