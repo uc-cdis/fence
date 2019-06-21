@@ -1134,8 +1134,6 @@ class UserSyncer(object):
                 # resource path, otherwise just use given project as path
                 paths = self._dbgap_study_to_resources.get(project, [project])
 
-                self.logger.info(self._dbgap_study_to_resources)
-
                 if user_yaml:
                     try:
                         # check if project is in mapping and convert accordingly
