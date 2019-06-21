@@ -50,12 +50,6 @@ def parse_arguments():
         "--path", default="/var/www/fence/", help="path to find configuration"
     )
     parser.add_argument(
-        "--verbose",
-        help="whether or not to log to stdout",
-        action="store_true",
-        default=False,
-    )
-    parser.add_argument(
         "--arborist",
         help="the base URL for the arborist service to sync to",
         default=None,
@@ -319,9 +313,6 @@ def main():
     # get database information
     sys.path.append(args.path)
 
-    if not args.verbose:
-        logging.disable(logging.DEBUG)
-
     # replicate cfg loading done in flask app to maintain backwards compatibility
     # TODO (DEPRECATE LOCAL_SETTINGS): REMOVE this when putting cfg in
     # settings/local_settings is deprecated
@@ -353,6 +344,11 @@ def main():
     STORAGE_CREDENTIALS = os.environ.get("STORAGE_CREDENTIALS") or config.get(
         "STORAGE_CREDENTIALS"
     )
+    
+    # we should log debug messages if the DEBUG configuration is set
+    if config.get("DEBUG"):
+        logging.setLevel(logging.DEBUG)
+
     arborist = None
     if args.arborist:
         arborist = ArboristClient(
