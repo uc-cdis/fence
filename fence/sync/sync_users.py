@@ -345,7 +345,6 @@ class UserSyncer(object):
                 port=self.server.get("port", 22),
             )
             self.logger.info("SSH proxy command: {}".format(command))
-            print((self.logger.__dict__))
 
             proxy = ProxyCommand(command)
 
