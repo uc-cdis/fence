@@ -90,6 +90,11 @@ def test_combine_arborist_resources():
 
         elif item.get("name") == "gen3":
             assert "programs" in subresources
+        else:
+            assert False
+
+    # ensure all roots were found (they get popped off as they're matched)
+    assert len(expected_roots) == 0
 
 
 def _get_subresources(item):

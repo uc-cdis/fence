@@ -1123,10 +1123,6 @@ class UserSyncer(object):
             self.arborist_client.create_user_if_not_exist(username)
             self.arborist_client.revoke_all_policies_for_user(username)
 
-            if user_yaml:
-                for policy in user_yaml.policies.get(user.username, []):
-                    self.arborist_client.grant_user_policy(user.username, policy)
-
             for project, permissions in user_project_info.iteritems():
 
                 # check if this is a dbgap project, if it is, we need to get the right
@@ -1186,6 +1182,10 @@ class UserSyncer(object):
                             self._created_policies.add(policy_id)
 
                         self.arborist_client.grant_user_policy(user.username, policy_id)
+
+            if user_yaml:
+                for policy in user_yaml.policies.get(user.username, []):
+                    self.arborist_client.grant_user_policy(user.username, policy)
 
         for client_name, client_details in user_yaml.clients.iteritems():
             client_policies = client_details.get("policies", [])
@@ -1253,13 +1253,11 @@ class UserSyncer(object):
                 )
                 self.logger.debug("Arborist response: {}".format(response))
                 if dbgap_study not in self._dbgap_study_to_resources:
-                    self._dbgap_study_to_resources[dbgap_study] = [
-                        resource_namespace + dbgap_study
-                    ]
-                else:
-                    self._dbgap_study_to_resources[dbgap_study].append(
-                        resource_namespace + dbgap_study
-                    )
+                    self._dbgap_study_to_resources[dbgap_study] = []
+
+                self._dbgap_study_to_resources[dbgap_study].append(
+                    resource_namespace + dbgap_study
+                )
 
             return arborist_resource_namespaces
         except ArboristError as e:
