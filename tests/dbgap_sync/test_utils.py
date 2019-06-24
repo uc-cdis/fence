@@ -57,14 +57,14 @@ def test_combine_arborist_resources():
         subresources = _get_subresources(item)
 
         # ensure result has correct subresources
-        if item.get("name") == "OrgA":
+        if item.get("name") == "orgA":
             program_subresources = _get_subresources(subresources["programs"])
             assert "phs000179" in program_subresources
             assert "phs000175" in program_subresources
-        elif item.get("name") == "OrgB":
+        elif item.get("name") == "orgB":
             program_subresources = _get_subresources(subresources["programs"])
             assert "phs000179" in program_subresources
-        elif item.get("name") == "OrgC":
+        elif item.get("name") == "orgC":
             program_subresources = _get_subresources(subresources["programs"])
             assert "phs000175" in program_subresources
         elif item.get("name") == "programs":
@@ -87,7 +87,6 @@ def test_combine_arborist_resources():
             assert "test" in _get_subresources(
                 _get_subresources(subresources["DEV"])["projects"]
             )
-
         elif item.get("name") == "gen3":
             assert "programs" in subresources
         else:
