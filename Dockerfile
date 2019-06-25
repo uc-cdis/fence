@@ -4,7 +4,7 @@
 FROM quay.io/cdis/py27base:pybase2-1.0.2
 
 RUN mkdir /var/www/fence \
-	&& chown www-data /var/www/fence
+    && chown www-data /var/www/fence
 
 COPY . /fence
 COPY ./deployment/uwsgi/uwsgi.ini /etc/uwsgi/uwsgi.ini
@@ -29,6 +29,7 @@ RUN (cd /tmp \
   && cd mhash-0.9.9.9 \
   && ./configure && make && make install \
   && /bin/rm -rf /tmp/*)
+
 #
 # mcrypt is required to decrypt dbgap user files - see fence/sync/sync_users.py
 #
