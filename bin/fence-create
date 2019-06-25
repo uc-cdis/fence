@@ -345,10 +345,6 @@ def main():
         "STORAGE_CREDENTIALS"
     )
     
-    # we should log debug messages if the DEBUG configuration is set
-    if config.get("DEBUG"):
-        logging.setLevel(logging.DEBUG)
-
     arborist = None
     if args.arborist:
         arborist = ArboristClient(
