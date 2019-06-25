@@ -32,8 +32,6 @@ def validate_redirect(url):
     allowed_redirects = allowed_login_redirects()
     if domain(url) not in allowed_redirects:
         flask.current_app.logger.error(
-            "invalid redirect {}. expected one of: {}".format(
-                url, allowed_redirects
-            )
+            "invalid redirect {}. expected one of: {}".format(url, allowed_redirects)
         )
         raise UserError("invalid login redirect URL {}".format(url))
