@@ -23,6 +23,7 @@ setup(
         "gen3cirrus>=0.4.0,<1.0",
         "google_api_python_client>=1.6.4,<2.0.0",
         "httplib2>=0.10.3,<1.0.0",
+        "markdown>=3.1.1,<4.0.0",
         "python-jose>=2.0.0,<3.0.0",
         "oauthlib>=3.0.0,<4.0.0",
         "psycopg2>=2.7.3.2,<3.0.0.0",
@@ -42,5 +43,8 @@ setup(
         "pyyaml~=5.1",
     ],
     scripts=["bin/fence-create"],
+    package_data={
+        "fence": ["static/privacy_policy.md"],
+    },
     packages=find_packages(),
 )
