@@ -127,6 +127,11 @@ SESSION_ALLOWED_SCOPES:
 #   Sibboleth? Use: '{{BASE_URL}}/login/shib'
 DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
 
+# `LOGIN_REDIRECT_WHITELIST` is a list of extra whitelisted URLs which can be redirected
+# to by the `/login/*` endpoints. Fence automatically populates this with the redirect
+# URLs for any registered OAuth clients, and its own URL.
+LOGIN_REDIRECT_WHITELIST: []
+
 # Which Identity Provider fence will/can use
 #
 # See ``fence/blueprints/login/__init__.py`` for which identity providers can
@@ -261,6 +266,12 @@ dbGaP:
   protocol: 'sftp'
   decrypt_key: ''
   parse_consent_code: true
+  # A mapping from the dbgap study to which authorization namespaces the actual data
+  # lives in. For example, `studyX` data may exist in multiple organizations, so
+  # we need to know to map authorization to all orgs resources
+  study_to_resource_namespaces:
+    '_default': ['/orgA/']
+    'phs000178': ['/orgA/', '/orgB/', '/']
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # STORAGE BACKENDS AND CREDENTIALS

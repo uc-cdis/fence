@@ -30,7 +30,9 @@ class GoogleOauth2Client(Oauth2ClientBase):
         authorization_endpoint = self.get_value_from_discovery_doc(
             "authorization_endpoint", "https://accounts.google.com/o/oauth2/v2/auth"
         )
-        uri, _ = self.session.authorization_url(authorization_endpoint)
+        uri, _ = self.session.create_authorization_url(
+            authorization_endpoint, prompt="login"
+        )
 
         return uri
 

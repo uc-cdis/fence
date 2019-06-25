@@ -2,12 +2,13 @@ import flask
 from flask_restful import Resource
 
 from fence.auth import login_user
+from fence.blueprints.login.redirect import validate_redirect
 from fence.errors import InternalError, Unauthorized
 from fence.models import IdentityProvider
 from fence.config import config
 
 
-class ShibbolethLoginStart(Resource):
+class ShibbolethLogin(Resource):
     def get(self):
         """
         The login flow is:
@@ -20,6 +21,7 @@ class ShibbolethLoginStart(Resource):
         -> redirect to portal
         """
         redirect_url = flask.request.args.get("redirect")
+        validate_redirect(redirect_url)
         if redirect_url:
             flask.session["redirect"] = redirect_url
 
@@ -38,7 +40,7 @@ class ShibbolethLoginStart(Resource):
         )
 
 
-class ShibbolethLoginFinish(Resource):
+class ShibbolethCallback(Resource):
     def get(self):
         """
         Complete the shibboleth login.

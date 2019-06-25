@@ -8,6 +8,7 @@ from flask_sqlalchemy_session import flask_scoped_session, current_session
 from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.auth import logout, build_redirect_url
+from fence.blueprints.login.utils import allowed_login_redirects, domain
 from fence.errors import UserError
 from fence.jwt import keys
 from fence.models import migrate
@@ -17,7 +18,7 @@ from fence.rbac.client import ArboristClient
 from fence.resources.aws.boto_manager import BotoManager
 from fence.resources.openid.google_oauth2 import GoogleOauth2Client as GoogleClient
 from fence.resources.openid.microsoft_oauth2 import (
-    MicrosoftOauth2Client as MicrosoftClient
+    MicrosoftOauth2Client as MicrosoftClient,
 )
 from fence.resources.openid.orcid_oauth2 import OrcidOauth2Client as ORCIDClient
 from fence.resources.storage import StorageManager
@@ -126,6 +127,8 @@ def app_register_blueprints(app):
             next_url = request_next
         else:
             next_url = build_redirect_url(config.get("ROOT_URL", ""), request_next)
+        if domain(next_url) not in allowed_login_redirects():
+            raise UserError("invalid logout redirect URL: {}".format(next_url))
         return logout(next_url=next_url)
 
     @app.route("/jwt/keys")

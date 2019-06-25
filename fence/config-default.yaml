@@ -85,6 +85,13 @@ OPENID_CONNECT:
     client_secret: ''
     # this is be the allowed redirect back to fence, should not need to change
     redirect_url: '{{BASE_URL}}/login/google/login/'
+    # if mock is true, will fake a successful login response from Google in /login/google
+    #     NOTE: this will also modify the behavior of /link/google endpoints
+    # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
+    # will login as the username set in cookie DEV_LOGIN_COOKIE_NAME or default provided
+    # here
+    mock: '{{MOCK_GOOGLE_AUTH}}'  # for backwards compatibility with older cfg files
+    mock_default_user: 'test@example.com'
   # Support for multi-tenant fence (another fence is this fence's IDP)
   # If this fence instance is a client of another fence, fill this cfg out.
   # REMOVE if not needed
@@ -109,6 +116,42 @@ OPENID_CONNECT:
     # Custom name to display for consent screens. If not provided, will use `fence`.
     # If the other fence is using NIH Login, you should make name: `NIH Login`
     name: ''
+    # if mock is true, will fake a successful login response for login
+    # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
+    mock: false
+    mock_default_user: 'test@example.com'
+  # you can setup up an orcid client here: https://orcid.org/developer-tools
+  orcid:
+    client_id: ''
+    client_secret: ''
+    # make sure you put the FULL url for this deployment in the allowed redirects in
+    # ORCID.org. DO NOT include {{BASE_URL}} at ORCID.org, you need to actually put the
+    # full url
+    redirect_url: '{{BASE_URL}}/login/orcid/login/'
+    # if mock is true, will fake a successful login response for login
+    # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
+    mock: false
+    mock_default_user: '0000-0002-2601-8132'
+  # Create a client in Azure here:
+  #   https://portal.azure.com/#blade/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/RegisteredAppsPreview
+  # Currently supports organizational account only, so when registering a new App in
+  # Azure, make sure to select the `Accounts in any organizational directory` for
+  # supported account types.
+  microsoft:
+    # after registering a new appl, client_id can be found as
+    # "APPLICATION (CLIENT) ID" in Microsoft Azure
+    client_id: ''
+    # You have a generate a secret in Azure for this app, there should be a
+    # "Certificates & secrets" section where you can create a "New client secret"
+    client_secret: ''
+    # make sure you put the FULL url for this deployment in the allowed redirects in
+    # your app in Azure. DO NOT include {{BASE_URL}} in Azure, you need to actually put the
+    # full url
+    redirect_url: '{{BASE_URL}}/login/microsoft/login/'
+    # if mock is true, will fake a successful login response for login
+    # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
+    mock: false
+    mock_default_user: 'test@example.com'
 
 # these are the *possible* scopes a client can be given, NOT scopes that are
 # given to all clients. You can be more restrictive during client creation
@@ -156,6 +199,13 @@ SESSION_ALLOWED_SCOPES:
 #   Sibboleth? Use: '{{BASE_URL}}/login/shib'
 DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
 
+# `LOGIN_REDIRECT_WHITELIST` is a list of extra whitelisted URLs which can be redirected
+# to by the `/login/*` endpoints. Fence automatically populates this with the redirect
+# URLs for any registered OAuth clients, and its own URL. When validating the redirects,
+# fence chesk whether the domain for the redirect matches a domain in the whitelist (so
+# only the domains for the additional desired redirects are necessary here).
+LOGIN_REDIRECT_WHITELIST: []
+
 # Which Identity Provider fence will/can use
 #
 # See ``fence/blueprints/login/__init__.py`` for which identity providers can
@@ -166,10 +216,19 @@ ENABLED_IDENTITY_PROVIDERS:
   default: 'google'
   # Information for identity providers
   providers:
+# Additional Identity Provider options, simply uncomment:
+#
+#    orcid:
+#      name: 'Login from ORCID'
+#
+#    microsoft:
+#      name: 'Login from Microsoft'
+#
+#    fence:
+#      name: 'Fence Multi-Tenant Login'
+#
     google:
-      name: 'Google Login'
-    fence:
-      name: 'Fence Multi-Tenant Login'
+      name: 'Login from Google'
 # The following can be used for shibboleth login, simply uncomment.
 #
 # NOTE: Don't enable shibboleth if the deployment is not protected by
@@ -178,6 +237,7 @@ ENABLED_IDENTITY_PROVIDERS:
 #
 #    shibboleth:
 #      name: 'NIH Login'
+#
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # LIBRARY CONFIGURATION (authlib & flask)
@@ -294,6 +354,14 @@ dbGaP:
   protocol: 'sftp'
   decrypt_key: ''
   parse_consent_code: true
+  # A mapping from the dbgap study to which authorization namespaces the actual data
+  # lives in. For example, `studyX` data may exist in multiple organizations, so
+  # we need to know to map authorization to all orgs resources
+  study_to_resource_namespaces:
+    '_default': ['/']
+    'studyX': ['/orgA/', '/orgB/']
+    'studyY': ['/orgB/', '/orgC/']
+    'studyZ': ['/orgD/']
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # STORAGE BACKENDS AND CREDENTIALS
@@ -523,7 +591,7 @@ GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS:
   - 'gcp-sa-cloudbuild.iam.gserviceaccount.com'
   - 'gcp-sa-automl.iam.gserviceaccount.com'
   - 'gcp-sa-datalabeling.iam.gserviceaccount.com'
-  
+
 # The types of service accounts that are allowed to be registered at
 # /google/service_accounts endpoints
 ALLOWED_USER_SERVICE_ACCOUNT_DOMAINS:
