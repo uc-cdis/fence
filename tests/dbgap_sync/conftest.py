@@ -146,6 +146,19 @@ def syncer(db_session, request):
         sync_from_local_yaml_file=LOCAL_YAML_DIR,
     )
     syncer_obj.arborist_client = MagicMock(ArboristClient)
+
+    def mocked_update(parent_path, resource, **kwargs):
+        resource["tag"] = "123456"
+        resource["subresources"] = [
+            subresource.get("name", subresource.get("path", "").lstrip("/"))
+            for subresource in resource.get("subresources", [])
+            if subresource.get("name", subresource.get("path", "").lstrip("/"))
+        ]
+        response = {"updated": resource}
+        return response
+
+    syncer_obj.arborist_client.update_resource = MagicMock(side_effect=mocked_update)
+
     syncer_obj.arborist_client.get_policy.side_effect = lambda _: None
 
     for element in provider:
