@@ -4,6 +4,7 @@ from addict import Dict
 from authutils.oauth2.client import OAuthClient
 import mock
 import pytest
+import requests
 
 import fence
 from fence.config import config
@@ -80,3 +81,77 @@ def test_redirect_login_fence(app, client, config_idp_in_client):
     assert r.status_code == 302
     assert "/oauth2/authorize" in r.location
     assert config["OPENID_CONNECT"]["fence"]["api_base_url"] in r.location
+
+
+def test_downstream_idps_no_idp(app, client):
+    """
+    If we don't include the config here, then the client doesn't have any fence IDP, so
+    this endpoint should return 404.
+    """
+    response = client.get("/login/downstream-idps")
+    assert response.status_code == 404
+
+
+def test_downstream_idps_no_shibboleth(app, client, config_idp_in_client):
+    """
+    If we include the config pointing to a fence IDP but the IDP fence doesn't have
+    shibboleth, that request will 404, and this request should also return 404.
+    """
+
+    def mock_get_404(*args, **kwargs):
+        mocked_response = mock.MagicMock(requests.Response)
+        mocked_response.status_code = 404
+        return mocked_response
+
+    with mock.patch("fence.blueprints.login.fence_login.requests.get", mock_get_404):
+        response = client.get("/login/downstream-idps")
+        assert response.status_code == 404
+
+
+def test_downstream_idps(app, client, config_idp_in_client):
+    """
+    Test that if we mock the request to `/Shibboleth.sso/DiscoFeed` on the IDP fence,
+    this client fence will correctly return the same response from
+    `/login-downstream-idps`.
+    """
+    entityID = "urn:mace:incommon:uchicago.edu"
+
+    def mock_get(*args, **kwargs):
+        mocked_response = mock.MagicMock(requests.Response)
+        mocked_response.status_code = 200
+        mocked_response.json.return_value = [{
+            "entityID": entityID,
+            "DisplayNames": [
+                {
+                    "value": "University of Chicago",
+                    "lang": "en"
+                    }
+                ],
+            "Descriptions": [
+                {
+                    "value": "The University of Chicago Web Single Sign-On servce",
+                    "lang": "en"
+                    }
+                ],
+            "PrivacyStatementURLs": [
+                {
+                    "value": "https://its.uchicago.edu/acceptable-use-policy/",
+                    "lang": "en"
+                    }
+                ],
+            "Logos": [
+                {
+                    "value": "https://shibboleth2.uchicago.edu/idp/shib_img/idplogo.png",
+                    "height": "83",
+                    "width": "350",
+                    "lang": "en"
+                }
+            ]
+        }]
+        return mocked_response
+
+    with mock.patch("fence.blueprints.login.fence_login.requests.get", mock_get):
+        response = client.get("/login/downstream-idps")
+        assert len(response.json) == 1
+        assert [entity for entity in response.json if entity["entityID"] == entityID]
+        assert response.status_code == 200

@@ -91,10 +91,12 @@ class FenceDownstreamIDPs(Resource):
         try:
             content = get_disco_feed()
         except EnvironmentError:
-            response = flask.jsonify(
-                {"error": "couldn't reach endpoint on shibboleth provider"}
+            return flask.Response(
+                response=flask.jsonify(
+                    {"error": "couldn't reach endpoint on shibboleth provider"}
+                ),
+                status=500,
             )
-            return response, 500
         if not content:
             raise NotFound("this endpoint is unavailable")
         return flask.jsonify(content)
@@ -123,7 +125,10 @@ def get_disco_feed():
     if not fence_idp_url:
         return None
     disco_feed_url = fence_idp_url.rstrip("/") + "/Shibboleth.sso/DiscoFeed"
-    response = requests.get(disco_feed_url, timeout=3)
+    try:
+        response = requests.get(disco_feed_url, timeout=3)
+    except requests.RequestException:
+        raise EnvironmentError("couldn't reach fence IDP")
     if response.status_code != 200:
         # if it's 404 that's fine---just no shibboleth. otherwise there could be an
         # actual problem
