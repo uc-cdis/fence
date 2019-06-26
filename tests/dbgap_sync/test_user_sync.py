@@ -319,7 +319,7 @@ def test_update_arborist(syncer, db_session):
         resource_to_parent_paths.setdefault(resource, []).append(parent_path)
 
     for resource in expect_resources:
-        assert resource in resource_to_parent_paths.keys()
+        assert resource in list(resource_to_parent_paths.keys())
         if resource == "data_file":
             assert resource_to_parent_paths[resource] == ["/"]
         elif resource == project_with_mult_namespaces:

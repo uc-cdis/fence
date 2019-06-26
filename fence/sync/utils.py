@@ -1,3 +1,6 @@
+from functools import reduce
+
+
 def combine_provided_and_dbgap_resources(useryaml_resources, arborist_paths):
     """
     Combine provided user.yaml resources loaded into python list of dictionaries
@@ -138,7 +141,7 @@ def combine_provided_and_dbgap_resources(useryaml_resources, arborist_paths):
 
                 # In [3]: list(map(lambda x: x["name"] == "b", xs)).index(True)
                 # Out[3]: 1
-                i = list(map(lambda c: c["name"] == segment, current)).index(True)
+                i = list([c["name"] == segment for c in current]).index(True)
             return current[i]["subresources"]
 
         reduce(insert_segment, segments, start)

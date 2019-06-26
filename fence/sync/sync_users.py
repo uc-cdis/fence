@@ -1118,14 +1118,14 @@ class UserSyncer(object):
             # update the project info with `projects` specified in user.yaml
             self.sync_two_phsids_dict(user_yaml.user_rbac, user_projects)
 
-        for username, user_project_info in user_projects.iteritems():
+        for username, user_project_info in user_projects.items():
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
 
             self.arborist_client.create_user_if_not_exist(username)
             self.arborist_client.revoke_all_policies_for_user(username)
 
-            for project, permissions in user_project_info.iteritems():
+            for project, permissions in user_project_info.items():
 
                 # check if this is a dbgap project, if it is, we need to get the right
                 # resource path, otherwise just use given project as path
@@ -1189,7 +1189,7 @@ class UserSyncer(object):
                 for policy in user_yaml.policies.get(user.username, []):
                     self.arborist_client.grant_user_policy(user.username, policy)
 
-        for client_name, client_details in user_yaml.clients.iteritems():
+        for client_name, client_details in user_yaml.clients.items():
             client_policies = client_details.get("policies", [])
             client = session.query(Client).filter_by(name=client_name).first()
             # update existing clients, do not create new ones
