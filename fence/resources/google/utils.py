@@ -598,6 +598,21 @@ def get_all_registered_service_accounts(db=None):
     return list(registered_service_accounts)
 
 
+def get_registered_service_accounts_with_access(google_project_id, db=None):
+    session = get_db_session(db)
+
+    return (
+        session.query(UserServiceAccount)
+        .join(ServiceAccountToGoogleBucketAccessGroup)
+        .filter(
+            UserServiceAccount.id
+            == ServiceAccountToGoogleBucketAccessGroup.service_account_id
+        )
+        .filter(UserServiceAccount.google_project_id == google_project_id)
+        .all()
+    )
+
+
 def get_registered_service_accounts(google_project_id, db=None):
     session = get_db_session(db)
 

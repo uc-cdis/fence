@@ -5,7 +5,7 @@ from collections import Mapping
 from fence.errors import NotFound
 
 from fence.resources.google.utils import (
-    get_registered_service_accounts,
+    get_registered_service_accounts_with_access,
     get_project_access_from_service_accounts,
     get_users_from_google_members,
     get_service_account_ids_from_google_members,
@@ -476,7 +476,7 @@ class GoogleProjectValidity(ValidityInfo):
 
         # get the service accounts for the project to determine all the data
         # the project can access through the service accounts
-        service_accounts = get_registered_service_accounts(
+        service_accounts = get_registered_service_accounts_with_access(
             self.google_project_id, db=db
         )
 
