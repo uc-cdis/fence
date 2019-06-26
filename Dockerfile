@@ -42,6 +42,7 @@ RUN (cd /tmp \
   && cd mhash-0.9.9.9 \
   && ./configure && make && make install \
   && /bin/rm -rf /tmp/*)
+
 #
 # mcrypt is required to decrypt dbgap user files - see fence/sync/sync_users.py
 #

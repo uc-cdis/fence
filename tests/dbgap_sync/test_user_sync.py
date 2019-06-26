@@ -110,7 +110,7 @@ def test_sync_from_files(syncer, db_session, storage_client):
         "userB": {"email": "a@b", "tags": {}},
     }
 
-    syncer.sync_to_db_and_storage_backend(phsids, userinfo, {}, sess)
+    syncer.sync_to_db_and_storage_backend(phsids, userinfo, sess)
 
     u = models.query_for_user(session=db_session, username="userB")
     u.project_access["phs000179"].sort()
@@ -133,8 +133,8 @@ def test_sync_revoke(syncer, db_session, storage_client):
 
     phsids2 = {"userA": {"phs000179": {"read-storage", "write-storage"}}}
 
-    syncer.sync_to_db_and_storage_backend(phsids, userinfo, {}, db_session)
-    syncer.sync_to_db_and_storage_backend(phsids2, userinfo, {}, db_session)
+    syncer.sync_to_db_and_storage_backend(phsids, userinfo, db_session)
+    syncer.sync_to_db_and_storage_backend(phsids2, userinfo, db_session)
 
     user_B = models.query_for_user(session=db_session, username="userB")
 
@@ -299,19 +299,38 @@ def test_update_arborist(syncer, db_session):
     # future should refactor to make project mapping its own fixture and not
     # duplicate in the tests here.
 
-    # Check
+    # one project is configured to point to two different arborist resource
+    # parent paths (/orgA/ and /orgB/ and /)
+    project_with_mult_namespaces = "phs000178"
     expect_resources = [
         "phs000179.c1",
         "phs000178.c1",
-        "test",
         "phs000178.c2",
         "TCGA-PCAWG",
-        "phs000178",
+        "data_file",  # comes from user.yaml file
+        project_with_mult_namespaces,
     ]
+
+    resource_to_parent_paths = {}
+    for call in syncer.arborist_client.update_resource.call_args_list:
+        args, kwargs = call
+        parent_path = args[0]
+        resource = args[1].get("name")
+        resource_to_parent_paths.setdefault(resource, []).append(parent_path)
+
     for resource in expect_resources:
-        assert syncer.arborist_client.create_resource.called_with(
-            "/project", {"name": resource}
-        )
+        assert resource in resource_to_parent_paths.keys()
+        if resource == "data_file":
+            assert resource_to_parent_paths[resource] == ["/"]
+        elif resource == project_with_mult_namespaces:
+            assert resource_to_parent_paths[resource] == [
+                "/orgA/programs/",
+                "/orgB/programs/",
+                "/programs/",
+            ]
+        else:
+            # configured default org path is OrgA
+            assert resource_to_parent_paths[resource] == ["/orgA/programs/"]
 
     # Same with roles
     permissions = ["delete", "update", "upload", "create", "read", "read-storage"]
@@ -326,9 +345,3 @@ def test_update_arborist(syncer, db_session):
     ]
     for role in expect_roles:
         assert syncer.arborist_client.create_role.called_with(role)
-
-    with open(LOCAL_YAML_DIR, "r") as f:
-        user_data = yaml.safe_load(f)
-
-    # TODO: update since policies are moved over to arborist now
-    # should be part of user sync changes probably
