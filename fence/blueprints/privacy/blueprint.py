@@ -12,7 +12,7 @@ PRIVACY_POLICY_HTML = Markdown().convert(PRIVACY_POLICY_MD)
 
 @blueprint.route("/", methods=["GET"])
 def privacy_policy():
-    if str(flask.request.accept_mimetypes) == "text/markdown":
+    if "text/markdown" in str(flask.request.accept_mimetypes).lower():
         return flask.Response(PRIVACY_POLICY_MD, mimetype="text/markdown")
     else:
         return flask.Response(PRIVACY_POLICY_HTML, mimetype="text/html")
