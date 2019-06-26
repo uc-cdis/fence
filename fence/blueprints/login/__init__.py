@@ -11,7 +11,10 @@ import flask
 import requests
 
 from fence.blueprints.login.fence_login import (
-    FenceLogin, FenceCallback, FenceDownstreamIDPs, get_disco_feed
+    FenceLogin,
+    FenceCallback,
+    FenceDownstreamIDPs,
+    get_disco_feed,
 )
 from fence.blueprints.login.google import GoogleLogin, GoogleCallback
 from fence.blueprints.login.shib import ShibbolethLogin, ShibbolethCallback

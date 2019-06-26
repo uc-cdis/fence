@@ -121,15 +121,17 @@ def get_disco_feed():
         # actual problem
         if response.status_code != 404:
             logger.error(
-                "got weird response ({}) from the IDP fence shibboleth disco feed ({})"
-                .format(response.status_code, disco_feed_url)
+                "got weird response ({}) from the IDP fence shibboleth disco feed ({})".format(
+                    response.status_code, disco_feed_url
+                )
             )
         return None
     try:
         return response.json()
     except ValueError:
         logger.error(
-            "didn't get JSON in response from IDP fence shibboleth disco feed ({})"
-            .format(disco_feed_url)
+            "didn't get JSON in response from IDP fence shibboleth disco feed ({})".format(
+                disco_feed_url
+            )
         )
         return None
