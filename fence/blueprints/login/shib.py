@@ -33,8 +33,7 @@ class ShibbolethLoginStart(Resource):
             actual_redirect = config["BASE_URL"] + "/login/shib/login"
             return flask.redirect(config["SSO_URL"] + actual_redirect)
         return flask.redirect(
-            config["BASE_URL"]
-            + "/Shibboleth.sso/Login?entityID={}".format(entityID)
+            config["BASE_URL"] + "/Shibboleth.sso/Login?entityID={}".format(entityID)
         )
 
 
