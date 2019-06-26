@@ -6,7 +6,7 @@ import requests
 from fence.auth import login_user
 from fence.blueprints.login.redirect import validate_redirect
 from fence.config import config
-from fence.errors import Unauthorized
+from fence.errors import Unauthorized, NotFound
 from fence.jwt.validate import validate_jwt
 from fence.models import IdentityProvider
 
@@ -88,14 +88,16 @@ class FenceDownstreamIDPs(Resource):
 
     def get(self):
         """Handle ``GET /login/downstream-idps``."""
-        content = get_disco_feed()
-        if not content:
+        try:
+            content = get_disco_feed()
+        except EnvironmentError:
             response = flask.jsonify(
                 {"error": "couldn't reach endpoint on shibboleth provider"}
             )
             return response, 500
+        if not content:
+            raise NotFound("this endpoint is unavailable")
         return flask.jsonify(content)
-
 
 def get_disco_feed():
     """
@@ -109,8 +111,14 @@ def get_disco_feed():
     where `urn:mace:incommon:uchicago.edu` is the `entityID` according to shibboleth.
 
     Return:
-        dict: json response from the /Shibboleth.sso/DiscoFeed endpoint on the IDP fence
+        Optional[dict]:
+            json response from the /Shibboleth.sso/DiscoFeed endpoint on the IDP fence;
+            or None if there is no fence IDP or if it returns 404 for DiscoFeed
+
+    Raises:
+        EnvironmentError: if the response is bad
     """
+    # must be configured for fence IDP
     fence_idp_url = config["OPENID_CONNECT"].get("fence", {}).get("api_base_url")
     if not fence_idp_url:
         return None
@@ -121,17 +129,16 @@ def get_disco_feed():
         # actual problem
         if response.status_code != 404:
             logger.error(
-                "got weird response ({}) from the IDP fence shibboleth disco feed ({})".format(
-                    response.status_code, disco_feed_url
-                )
+                "got weird response ({}) from the IDP fence shibboleth disco feed ({})"
+                .format(response.status_code, disco_feed_url)
             )
+            raise EnvironmentError("unexpected response from fence IDP")
         return None
     try:
         return response.json()
     except ValueError:
         logger.error(
-            "didn't get JSON in response from IDP fence shibboleth disco feed ({})".format(
-                disco_feed_url
-            )
+            "didn't get JSON in response from IDP fence shibboleth disco feed ({})"
+            .format(disco_feed_url)
         )
         return None

@@ -11,10 +11,7 @@ import flask
 import requests
 
 from fence.blueprints.login.fence_login import (
-    FenceLogin,
-    FenceCallback,
-    FenceDownstreamIDPs,
-    get_disco_feed,
+    FenceLogin, FenceCallback, FenceDownstreamIDPs, get_disco_feed
 )
 from fence.blueprints.login.google import GoogleLogin, GoogleCallback
 from fence.blueprints.login.shib import ShibbolethLogin, ShibbolethCallback
@@ -102,15 +99,11 @@ def make_login_blueprint(app):
     if "fence" in idps:
         blueprint_api.add_resource(FenceLogin, "/fence", strict_slashes=False)
         blueprint_api.add_resource(FenceCallback, "/fence/login", strict_slashes=False)
-        fence_idp_url = config["OPENID_CONNECT"].get("fence", {}).get("api_base_url")
-        # Check if the fence IDP is a shibboleth provider, in which case we want to add
-        # an endpoint on this fence which forwards to the Shibboleth discovery feed
-        # endpoint ("DiscoFeed") on the IDP fence.
-        if fence_idp_url:
-            if get_disco_feed():
-                blueprint_api.add_resource(
-                    FenceDownstreamIDPs, "/downstream-idps", strict_slashes=False
-                )
+        # `/downstream-idps` will forward to the `/Shibboleth.sso/DiscoFeed` endpoint on
+        # the fence IDP if it's available. otherwise it will just 404
+        blueprint_api.add_resource(
+            FenceDownstreamIDPs, "/downstream-idps", strict_slashes=False
+        )
 
     if "google" in idps:
         blueprint_api.add_resource(GoogleLogin, "/google", strict_slashes=False)
