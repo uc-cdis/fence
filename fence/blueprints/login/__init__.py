@@ -6,7 +6,9 @@ fence instance. See the other files in this directory for the definitions of
 the endpoints for each provider.
 """
 
+from cdislogging import get_logger
 import flask
+import requests
 
 from fence.blueprints.login.fence_login import FenceRedirect, FenceLogin
 from fence.blueprints.login.google import GoogleRedirect, GoogleLogin
@@ -122,4 +124,5 @@ def make_login_blueprint(app):
         blueprint_api.add_resource(
             ShibbolethLoginFinish, "/shib/login", strict_slashes=False
         )
+
     return blueprint

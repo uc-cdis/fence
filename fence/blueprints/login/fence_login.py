@@ -1,6 +1,7 @@
 from authutils.token.validate import validate_jwt
 import flask
 from flask_restful import Resource
+import requests
 
 from fence.auth import login_user
 from fence.errors import Unauthorized
