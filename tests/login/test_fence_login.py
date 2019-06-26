@@ -1,6 +1,8 @@
+from collections import OrderedDict
+
 from addict import Dict
 from authutils.oauth2.client import OAuthClient
-from collections import OrderedDict
+import mock
 import pytest
 
 import fence
@@ -48,7 +50,7 @@ def config_idp_in_client(
 
     yield Dict(
         client_id=config["OPENID_CONNECT"]["fence"]["client_id"],
-        client_secret=config["OPENID_CONNECT"]["fence"]["client_id"],
+        client_secret=config["OPENID_CONNECT"]["fence"]["client_secret"],
     )
 
     app.keypairs = saved_keypairs
