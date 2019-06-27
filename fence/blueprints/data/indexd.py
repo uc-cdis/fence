@@ -44,7 +44,6 @@ ACTION_DICT = {
     "gs": {"upload": "PUT", "download": "GET"},
 }
 
-ACTION_TO_ARBORIST_METHOD = {"upload": "write-storage", "download": "read-storage"}
 
 SUPPORTED_PROTOCOLS = ["s3", "http", "ftp", "https", "gs"]
 SUPPORTED_ACTIONS = ["upload", "download"]
@@ -388,7 +387,8 @@ class IndexedFile(object):
             return self.index_document.get("uploader") == username
 
         try:
-            method = ACTION_TO_ARBORIST_METHOD[action]
+            action_to_method = {"upload": "write-storage", "download": "read-storage"}
+            method = action_to_method[action]
             # action should be upload or download
             # return bool for authorization
             return self.check_authz(method)
@@ -796,14 +796,6 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         )
         return final_url
 
-    def check_public(self, authz):
-        if "*" in authz or "/open" in authz:
-            return True
-        else:
-            # check if an anonymous user can access the file, if so, it's public
-            method = ACTION_TO_ARBORIST_METHOD["download"]
-            return self.check_authz(method, token="")
-
 
 def _get_user_info():
     """
@@ -841,3 +833,8 @@ def filter_auth_ids(action, list_auth_ids):
         if checked_permission in values:
             authorized_dbgaps.append(key)
     return authorized_dbgaps
+
+
+def check_public(self, authz):
+    if "*" in authz or "/open" in authz:
+        return True
