@@ -44,7 +44,6 @@ ACTION_DICT = {
     "gs": {"upload": "PUT", "download": "GET"},
 }
 
-
 SUPPORTED_PROTOCOLS = ["s3", "http", "ftp", "https", "gs"]
 SUPPORTED_ACTIONS = ["upload", "download"]
 ANONYMOUS_USER_ID = "anonymous"
@@ -350,14 +349,11 @@ class IndexedFile(object):
         else:
             raise Unauthorized("This file is not accessible")
 
-    def check_authz(self, action, token=None):
-        if token is None:
-            token = get_jwt()
-
+    def check_authz(self, action):
         if not self.index_document.get("authz"):
             raise ValueError("index record missing `authz`")
 
-        request = {"user": {"token": token}, "requests": []}
+        request = {"user": {"token": get_jwt()}, "requests": []}
         for resource in self.index_document["authz"]:
             request["requests"].append(
                 {"resource": resource, "action": {"service": "fence", "method": action}}
@@ -371,7 +367,7 @@ class IndexedFile(object):
 
     @cached_property
     def public(self):
-        return self.check_public(self.authz)
+        return check_public(self.authz)
 
     @login_required({"data"})
     def check_authorization(self, action):
@@ -835,6 +831,6 @@ def filter_auth_ids(action, list_auth_ids):
     return authorized_dbgaps
 
 
-def check_public(self, authz):
+def check_public(authz):
     if "*" in authz or "/open" in authz:
         return True
