@@ -44,6 +44,8 @@ ACTION_DICT = {
     "gs": {"upload": "PUT", "download": "GET"},
 }
 
+ACTION_TO_ARBORIST_METHOD = {"upload": "write-storage", "download": "read-storage"}
+
 SUPPORTED_PROTOCOLS = ["s3", "http", "ftp", "https", "gs"]
 SUPPORTED_ACTIONS = ["upload", "download"]
 ANONYMOUS_USER_ID = "anonymous"
@@ -339,19 +341,24 @@ class IndexedFile(object):
         )
 
     @cached_property
-    def set_acls(self):
-        if "acl" in self.index_document:
+    def authz(self):
+        if "authz" in self.index_document:
+            return set(self.index_document["authz"])
+        elif "acl" in self.index_document:
             return set(self.index_document["acl"])
         elif "acls" in self.metadata:
             return set(self.metadata["acls"].split(","))
         else:
             raise Unauthorized("This file is not accessible")
 
-    def check_authz(self, action):
+    def check_authz(self, action, token=None):
+        if token is None:
+            token = get_jwt()
+
         if not self.index_document.get("authz"):
             raise ValueError("index record missing `authz`")
 
-        request = {"user": {"token": get_jwt()}, "requests": []}
+        request = {"user": {"token": token}, "requests": []}
         for resource in self.index_document["authz"]:
             request["requests"].append(
                 {"resource": resource, "action": {"service": "fence", "method": action}}
@@ -365,7 +372,7 @@ class IndexedFile(object):
 
     @cached_property
     def public(self):
-        return check_public(self.set_acls)
+        return check_public(self.authz)
 
     @login_required({"data"})
     def check_authorization(self, action):
@@ -381,8 +388,7 @@ class IndexedFile(object):
             return self.index_document.get("uploader") == username
 
         try:
-            action_to_method = {"upload": "write-storage", "download": "read-storage"}
-            method = action_to_method[action]
+            method = ACTION_TO_ARBORIST_METHOD[action]
             # action should be upload or download
             # return bool for authorization
             return self.check_authz(method)
@@ -399,7 +405,7 @@ class IndexedFile(object):
             given_acls = set(
                 filter_auth_ids(action, flask.g.token["context"]["user"]["projects"])
             )
-        return len(self.set_acls & given_acls) > 0
+        return len(self.authz & given_acls) > 0
 
     @login_required({"data"})
     def delete_files(self, urls=None, delete_all=True):
@@ -829,6 +835,10 @@ def filter_auth_ids(action, list_auth_ids):
     return authorized_dbgaps
 
 
-def check_public(set_acls):
-    if "*" in set_acls:
+def check_public(authz):
+    if "*" in authz or "/open" in authz:
         return True
+    else:
+        # check if an anonymous user can access the file, if so, it's public
+        method = ACTION_TO_ARBORIST_METHOD["download"]
+        return check_authz(method, token="")
