@@ -20,11 +20,12 @@ SCOPE_DESCRIPTION = {
     "user": "Know your {idp_names} basic account information and what you are authorized to access.",
     "data": "Retrieve controlled-access datasets to which you have access on your behalf.",
     "credentials": "View and update your credentials.",
-    "google_link": "Link your Google identity and get basic account information.",
-    "google_credentials": "Receive temporary Google credentials to access data on google",
+    "google_link": "Allow providing your personal Google account access to data on Google.",
+    "google_credentials": "Receive temporary Google credentials to access data on Google.",
     "google_service_account": "Allow registration of external Google service accounts to access data.",
     "admin": "View and update user authorizations.",
 }
+
 
 class JWTResult(object):
     """
