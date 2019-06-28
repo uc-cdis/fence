@@ -15,9 +15,6 @@ cache: pip
 addons:
   postgresql: "9.4"
 
-env:
-  - REPOSITORY="uc-cdis/fence" PR_NUMBER="$TRAVIS_PULL_REQUEST"
-
 install:
   - pip uninstall -y six || true # travis installs wrong version
   - pip uninstall -y userdatamodel || true
@@ -27,7 +24,6 @@ install:
   - python setup.py install
   - psql -U postgres -c "create database fence_test_tmp"
   - if [[ $TRAVIS_PYTHON_VERSION != 3.6 ]]; then userdatamodel-init --db fence_test_tmp; fi
-  - if [[ $TRAVIS_PYTHON_VERSION == 3.6 ]]; then pip install -e git+https://git@github.com/uc-cdis/wool.git#egg=wool; fi
 
 before_script:
   - sudo rm -f /etc/boto.cfg
@@ -41,4 +37,3 @@ script:
 after_script:
   - python-codacy-coverage -r coverage.xml
   - COVERALLS_REPO_TOKEN=$COVERALLS_TOKEN coveralls
-  - if [[ $TRAVIS_PYTHON_VERSION == 3.6 && $PR_NUMBER != false ]]; then wool; fi
