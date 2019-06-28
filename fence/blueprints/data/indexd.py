@@ -365,7 +365,7 @@ class IndexedFile(object):
 
     @cached_property
     def public(self):
-        authz_resources = self.index_document.get("authz", []).extend(self.set_acls)
+        authz_resources = self.set_acls.extend(self.index_document.get("authz", []))
         return "*" in authz_resources or "/open" in authz_resources
 
     @login_required({"data"})
