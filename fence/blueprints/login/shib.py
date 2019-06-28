@@ -28,12 +28,13 @@ class ShibbolethLoginStart(Resource):
         # https://wiki.shibboleth.net/confluence/display/SP3/SSO
         entityID = flask.request.args.get("shib_idp")
         flask.session["entityID"] = entityID
+        actual_redirect = config["BASE_URL"] + "/login/shib/login"
         if not entityID:
             # default to SSO_URL from the config which should be NIH login
-            actual_redirect = config["BASE_URL"] + "/login/shib/login"
             return flask.redirect(config["SSO_URL"] + actual_redirect)
         return flask.redirect(
-            config["BASE_URL"] + "/Shibboleth.sso/Login?entityID={}".format(entityID)
+            config["BASE_URL"] + "/Shibboleth.sso/Login?entityID={}&target={}"
+            .format(entityID, actual_redirect)
         )
 
 
