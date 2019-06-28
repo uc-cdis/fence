@@ -339,10 +339,8 @@ class IndexedFile(object):
         )
 
     @cached_property
-    def authz(self):
-        if "authz" in self.index_document:
-            return set(self.index_document["authz"])
-        elif "acl" in self.index_document:
+    def set_acls(self):
+        if "acl" in self.index_document:
             return set(self.index_document["acl"])
         elif "acls" in self.metadata:
             return set(self.metadata["acls"].split(","))
@@ -367,7 +365,8 @@ class IndexedFile(object):
 
     @cached_property
     def public(self):
-        return "*" in self.authz or "/open" in self.authz
+        authz_resources = self.index_document.get("authz", []).extend(self.set_acls)
+        return "*" in authz_resources or "/open" in authz_resources
 
     @login_required({"data"})
     def check_authorization(self, action):
@@ -401,7 +400,7 @@ class IndexedFile(object):
             given_acls = set(
                 filter_auth_ids(action, flask.g.token["context"]["user"]["projects"])
             )
-        return len(self.authz & given_acls) > 0
+        return len(self.set_acls & given_acls) > 0
 
     @login_required({"data"})
     def delete_files(self, urls=None, delete_all=True):
