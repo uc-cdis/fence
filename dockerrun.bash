@@ -6,12 +6,6 @@
 #
 update-ca-certificates
 #
-# Enable debug flag based on GEN3_DEBUG environment
-#
-if [[ -f ./wsgi.py && "$GEN3_DEBUG" == "True" ]]; then
-  echo -e "\napplication.debug=True\n" >> ./wsgi.py
-fi  
-#
 # Kubernetes may mount jwt-keys as a tar ball
 #
 if [ -f /fence/jwt-keys.tar ]; then
@@ -24,5 +18,3 @@ if [ -f /fence/jwt-keys.tar ]; then
     fi
   )
 fi
-rm -rf /var/run/apache2/apache2.pid
-/usr/sbin/apache2ctl -D FOREGROUND

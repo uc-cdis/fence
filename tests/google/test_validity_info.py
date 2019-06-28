@@ -7,6 +7,7 @@ from fence.resources.google.validity import (
     GoogleServiceAccountValidity,
 )
 from fence.models import Project
+from fence.errors import NotFound
 
 # Python 2 and 3 compatible
 try:
@@ -254,6 +255,36 @@ def test_invalid_google_project_membership(valid_google_project_patcher):
     assert "members_exist_in_fence" in google_project_validity
     assert not google_project_validity["members_exist_in_fence"]
 
+
+def test_invalid_google_project_no_monitor(valid_google_project_patcher):
+    """
+    Test that when we can't determine the project number, we determine
+    that the project is invalid. This happens when the monitoring service account
+    does not have access on the project
+    """
+    patcher = valid_google_project_patcher
+    patcher["get_google_project_number"].return_value = None
+
+    google_project_validity = GoogleProjectValidity("some-project-id")
+
+    # should evaluate to true by default before checking validity
+    assert google_project_validity
+
+    google_project_validity.check_validity(early_return=False)
+
+    # should evaluate to false since invalid
+    assert not google_project_validity
+
+    # test that it contains the correct error information
+    assert "valid_parent_org" in google_project_validity
+    assert not google_project_validity["valid_parent_org"]
+
+    assert "valid_member_types" in google_project_validity
+    assert not google_project_validity["valid_member_types"]
+
+    assert "members_exist_in_fence" in google_project_validity
+    assert not google_project_validity["members_exist_in_fence"]
+
     assert "new_service_account" in google_project_validity
     assert "service_accounts" in google_project_validity
     assert "access" in google_project_validity
@@ -397,18 +428,62 @@ def test_invalid_google_service_account_ownership(valid_service_account_patcher)
     # should evaluate to true since all checks should result in valid project
     assert not google_service_account_validity
 
-    # test that it contains the default error information
-    # valid_type and no_external_access should be NULL
-    # cannot determine validity of those fields because
-    # account not owned by project
-    assert "valid_type" in google_service_account_validity
-    assert not google_service_account_validity["valid_type"]
-
-    assert "no_external_access" in google_service_account_validity
-    assert not google_service_account_validity["no_external_access"]
-
     assert "owned_by_project" in google_service_account_validity
     assert not google_service_account_validity["owned_by_project"]
+
+
+def test_invalid_service_account_does_not_exist(valid_service_account_patcher):
+    """
+    Test that when a Service Account that does not exist is requested
+    for registration, the GoogleServiceAccountValidity is False-y and
+    contains the expected infromation
+    """
+
+    patcher = valid_service_account_patcher
+    patcher["get_service_account_policy"].side_effect = NotFound(
+        "Test SA Policy Not Found"
+    )
+
+    google_service_account_validity = GoogleServiceAccountValidity(
+        "some-account-id", "some-google-project-id"
+    )
+
+    # true by default
+    assert google_service_account_validity
+
+    google_service_account_validity.check_validity(early_return=False)
+
+    # should be invalid due to being unable to get service account policy
+    assert not google_service_account_validity
+    assert "policy_accessible" in google_service_account_validity
+    assert not google_service_account_validity["policy_accessible"]
+
+
+def test_invalid_service_account_does_not_exist_external_access(
+    valid_service_account_patcher
+):
+    """
+    Test that when a Service Account that does not exist is requested
+    for registration, the GoogleServiceAccountValidity is False-y and
+    no_external_access is NOT SET
+    """
+
+    patcher = valid_service_account_patcher
+    patcher["get_service_account_policy"].side_effect = NotFound(
+        "Test SA Policy Not Found"
+    )
+
+    google_service_account_validity = GoogleServiceAccountValidity(
+        "some-account-id", "some-google-project-id"
+    )
+
+    # true by default
+    assert google_service_account_validity
+
+    google_service_account_validity.check_validity(early_return=False)
+
+    # should be invalid due to being unable to get service account policy
+    assert google_service_account_validity["no_external_access"] is None
 
 
 def test_dict_like_validity_object_nested():

@@ -10,8 +10,13 @@ import flask
 from flask import request, jsonify, Blueprint, current_app
 from flask_sqlalchemy_session import current_session
 
+from cdislogging import get_logger
+
 from fence.auth import admin_login_required
 from fence.resources import admin
+
+
+logger = get_logger(__name__)
 
 
 blueprint = Blueprint("admin", __name__)
@@ -28,7 +33,7 @@ def debug_log(function):
             for arg, value in zip(argument_names, args) + kwargs.items()
         )
         msg = function.func_name + "\n\t" + "\n\t".join(argument_values)
-        flask.current_app.logger.debug(msg)
+        logger.debug(msg)
         return function(*args, **kwargs)
 
     return write_log
@@ -37,6 +42,7 @@ def debug_log(function):
 #### USERS ####
 
 
+@blueprint.route("/users/<username>", methods=["GET"])
 @blueprint.route("/user/<username>", methods=["GET"])
 @admin_login_required
 @debug_log
@@ -49,6 +55,7 @@ def get_user(username):
     return jsonify(admin.get_user_info(current_session, username))
 
 
+@blueprint.route("/users", methods=["GET"])
 @blueprint.route("/user", methods=["GET"])
 @admin_login_required
 @debug_log
@@ -60,6 +67,7 @@ def get_all_users():
     return jsonify(admin.get_all_users(current_session))
 
 
+@blueprint.route("/users", methods=["POST"])
 @blueprint.route("/user", methods=["POST"])
 @admin_login_required
 @debug_log
@@ -75,6 +83,7 @@ def create_user():
     return jsonify(admin.create_user(current_session, username, role, email))
 
 
+@blueprint.route("/users/<username>", methods=["PUT"])
 @blueprint.route("/user/<username>", methods=["PUT"])
 @admin_login_required
 @debug_log
@@ -90,6 +99,7 @@ def update_user(username):
     return jsonify(admin.update_user(current_session, username, role, email, name))
 
 
+@blueprint.route("/users/<username>", methods=["DELETE"])
 @blueprint.route("/user/<username>", methods=["DELETE"])
 @admin_login_required
 @debug_log
@@ -104,6 +114,7 @@ def delete_user(username):
     return response
 
 
+@blueprint.route("/users/<username>/groups", methods=["GET"])
 @blueprint.route("/user/<username>/groups", methods=["GET"])
 @admin_login_required
 @debug_log
@@ -116,6 +127,7 @@ def get_user_groups(username):
     return jsonify(admin.get_user_groups(current_session, username))
 
 
+@blueprint.route("/users/<username>/groups", methods=["PUT"])
 @blueprint.route("/user/<username>/groups", methods=["PUT"])
 @admin_login_required
 @debug_log
@@ -129,6 +141,7 @@ def add_user_to_groups(username):
     return jsonify(admin.add_user_to_groups(current_session, username, groups=groups))
 
 
+@blueprint.route("/users/<username>/groups", methods=["DELETE"])
 @blueprint.route("/user/<username>/groups", methods=["DELETE"])
 @admin_login_required
 @debug_log
@@ -144,6 +157,7 @@ def remove_user_from_groups(username):
     )
 
 
+@blueprint.route("/users/<username>/projects", methods=["DELETE"])
 @blueprint.route("/user/<username>/projects", methods=["DELETE"])
 @admin_login_required
 @debug_log
@@ -157,6 +171,7 @@ def remove_user_from_projects(username):
     return jsonify(admin.remove_user_from_projects(current_session, username, projects))
 
 
+@blueprint.route("/users/<username>/projects", methods=["PUT"])
 @blueprint.route("/user/<username>/projects", methods=["PUT"])
 @admin_login_required
 @debug_log
@@ -410,6 +425,7 @@ def get_group_projects(groupname):
 #### CLOUD PROVIDER ####
 
 
+@blueprint.route("/cloud_providers/<providername>", methods=["GET"])
 @blueprint.route("/cloud_provider/<providername>", methods=["GET"])
 @admin_login_required
 def get_cloud_provider(providername):
@@ -420,6 +436,7 @@ def get_cloud_provider(providername):
     return jsonify(admin.get_provider(current_session, providername))
 
 
+@blueprint.route("/cloud_providers/<providername>", methods=["POST"])
 @blueprint.route("/cloud_provider/<providername>", methods=["POST"])
 @admin_login_required
 def create_cloud_provider(providername):
@@ -437,6 +454,7 @@ def create_cloud_provider(providername):
     return response
 
 
+@blueprint.route("/cloud_providers/<providername>", methods=["DELETE"])
 @blueprint.route("/cloud_provider/<providername>", methods=["DELETE"])
 @admin_login_required
 def delete_cloud_provider(providername):

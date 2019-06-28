@@ -3,11 +3,16 @@ import time
 import uuid
 
 from authlib.common.encoding import to_unicode
-from authlib.specs.oidc import CodeIDToken as AuthlibCodeIDToken
+from authlib.oidc.core import CodeIDToken as AuthlibCodeIDToken
+from cdislogging import get_logger
 import flask
 import jwt
 
 from fence.jwt import keys
+from fence.jwt.errors import JWTSizeError
+from fence.config import config
+
+logger = get_logger(__name__)
 
 
 SCOPE_DESCRIPTION = {
@@ -20,44 +25,6 @@ SCOPE_DESCRIPTION = {
     "google_service_account": "Allow registration of external Google service accounts to access data.",
     "admin": "View and update user authorizations.",
 }
-
-
-# Allowed scopes for user requested token and oauth2 client requested token
-# TODO: this should be more discoverable and configurable
-#
-# Only allow web session based auth access credentials so that user
-# can't create a long-lived API key using a short lived access_token
-SESSION_ALLOWED_SCOPES = [
-    "openid",
-    "user",
-    "credentials",
-    "data",
-    "admin",
-    "google_link",
-    "google_credentials",
-    "google_service_account",
-]
-
-USER_ALLOWED_SCOPES = [
-    "fence",
-    "openid",
-    "user",
-    "data",
-    "admin",
-    "google_link",
-    "google_credentials",
-    "google_service_account",
-]
-
-CLIENT_ALLOWED_SCOPES = [
-    "openid",
-    "user",
-    "data",
-    "google_link",
-    "google_credentials",
-    "google_service_account",
-]
-
 
 class JWTResult(object):
     """
@@ -130,7 +97,7 @@ class UnsignedIDToken(AuthlibCodeIDToken):
                              from decoding the provided encoded token
         """
         # Use application defaults if not provided
-        issuer = issuer or flask.current_app.config.get("BASE_URL")
+        issuer = issuer or config.get("BASE_URL")
         public_key = public_key or keys.default_public_key()
 
         payload = jwt.decode(
@@ -183,7 +150,7 @@ def generate_signed_session_token(kid, private_key, expires_in, context=None):
     headers = {"kid": kid}
     iat, exp = issued_and_expiration_times(expires_in)
 
-    issuer = flask.current_app.config.get("BASE_URL")
+    issuer = config.get("BASE_URL")
 
     # Create context based on provided information
     if not context:
@@ -201,11 +168,14 @@ def generate_signed_session_token(kid, private_key, expires_in, context=None):
         "jti": str(uuid.uuid4()),
         "context": context,
     }
-    flask.current_app.logger.debug(
-        "issuing JWT session token\n" + json.dumps(claims, indent=4)
-    )
+    logger.debug("issuing JWT session token\n" + json.dumps(claims, indent=4))
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
     token = to_unicode(token, "UTF-8")
+
+    # Browser may clip cookies larger than 4096 bytes
+    if len(token) > 4096:
+        raise JWTSizeError("JWT exceeded 4096 bytes")
+
     return JWTResult(token=token, kid=kid, claims=claims)
 
 
@@ -280,7 +250,7 @@ def generate_signed_refresh_token(
     sub = str(user.id)
     if not iss:
         try:
-            iss = flask.current_app.config.get("BASE_URL")
+            iss = config.get("BASE_URL")
         except RuntimeError:
             raise ValueError(
                 "must provide value for `iss` (issuer) field if"
@@ -297,13 +267,8 @@ def generate_signed_refresh_token(
         "azp": client_id or "",
     }
 
-    if flask.current_app:
-        flask.current_app.logger.info(
-            "issuing JWT refresh token with id [{}] to [{}]".format(jti, sub)
-        )
-        flask.current_app.logger.debug(
-            "issuing JWT refresh token\n" + json.dumps(claims, indent=4)
-        )
+    logger.info("issuing JWT refresh token with id [{}] to [{}]".format(jti, sub))
+    logger.debug("issuing JWT refresh token\n" + json.dumps(claims, indent=4))
 
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
     token = to_unicode(token, "UTF-8")
@@ -334,20 +299,16 @@ def generate_api_key(kid, private_key, user_id, expires_in, scopes, client_id):
         "pur": "api_key",
         "aud": scopes,
         "sub": sub,
-        "iss": flask.current_app.config.get("BASE_URL"),
+        "iss": config.get("BASE_URL"),
         "iat": iat,
         "exp": exp,
         "jti": jti,
         "azp": client_id or "",
     }
-    flask.current_app.logger.info(
-        "issuing JWT API key with id [{}] to [{}]".format(jti, sub)
-    )
-    flask.current_app.logger.debug(
-        "issuing JWT API key\n" + json.dumps(claims, indent=4)
-    )
+    logger.info("issuing JWT API key with id [{}] to [{}]".format(jti, sub))
+    logger.debug("issuing JWT API key\n" + json.dumps(claims, indent=4))
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
-    flask.current_app.logger.debug(str(token))
+    logger.debug(str(token))
     token = to_unicode(token, "UTF-8")
     return JWTResult(token=token, kid=kid, claims=claims)
 
@@ -385,13 +346,12 @@ def generate_signed_access_token(
     jti = str(uuid.uuid4())
     if not iss:
         try:
-            iss = flask.current_app.config.get("BASE_URL")
+            iss = config.get("BASE_URL")
         except RuntimeError:
             raise ValueError(
                 "must provide value for `iss` (issuer) field if"
                 " running outside of flask application"
             )
-    policies = [policy.id for policy in user.policies]
 
     claims = {
         "pur": "access",
@@ -406,7 +366,6 @@ def generate_signed_access_token(
                 "name": user.username,
                 "is_admin": user.is_admin,
                 "projects": dict(user.project_access),
-                "policies": policies,
                 "google": {"proxy_group": user.google_proxy_group_id},
             }
         },
@@ -419,16 +378,16 @@ def generate_signed_access_token(
             "linked_google_account"
         ] = linked_google_email
 
-    if flask.current_app:
-        flask.current_app.logger.info(
-            "issuing JWT access token with id [{}] to [{}]".format(jti, sub)
-        )
-        flask.current_app.logger.debug(
-            "issuing JWT access token\n" + json.dumps(claims, indent=4)
-        )
+    logger.info("issuing JWT access token with id [{}] to [{}]".format(jti, sub))
+    logger.debug("issuing JWT access token\n" + json.dumps(claims, indent=4))
 
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
     token = to_unicode(token, "UTF-8")
+
+    # Browser may clip cookies larger than 4096 bytes
+    if len(token) > 4096:
+        raise JWTSizeError("JWT exceeded 4096 bytes")
+
     return JWTResult(token=token, kid=kid, claims=claims)
 
 
@@ -463,7 +422,7 @@ def generate_id_token(
         UnsignedIDToken: Unsigned ID token
     """
     iat, exp = issued_and_expiration_times(expires_in)
-    issuer = flask.current_app.config.get("BASE_URL")
+    issuer = config.get("BASE_URL")
 
     # include client_id if not already in audiences
     if audiences:
@@ -474,7 +433,6 @@ def generate_id_token(
 
     # If not provided, assume auth time is time this ID token is issued
     auth_time = auth_time or iat
-    policies = [policy.id for policy in user.policies]
 
     # NOTE: if the claims here are modified, be sure to update the
     # `claims_supported` field returned from the OIDC configuration endpoint
@@ -495,7 +453,6 @@ def generate_id_token(
                 "name": user.username,
                 "is_admin": user.is_admin,
                 "projects": dict(user.project_access),
-                "policies": policies,
                 "email": user.email,
                 "display_name": user.display_name,
                 "phone_number": user.phone_number,
@@ -520,12 +477,10 @@ def generate_id_token(
     if nonce:
         claims["nonce"] = nonce
 
-    flask.current_app.logger.info(
-        "issuing JWT ID token\n" + json.dumps(claims, indent=4)
-    )
+    logger.info("issuing JWT ID token\n" + json.dumps(claims, indent=4))
 
     token_options = {
-        "iss": {"essential": True, "value": flask.current_app.config.get("BASE_URL")},
+        "iss": {"essential": True, "value": config.get("BASE_URL")},
         "nonce": {"value": nonce},
     }
     token = UnsignedIDToken(claims, options=token_options)

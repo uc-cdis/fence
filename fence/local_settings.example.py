@@ -103,7 +103,10 @@ ITRUST_GLOBAL_LOGOUT = (
 
 SESSION_COOKIE_SECURE = False
 ENABLE_CSRF_PROTECTION = True
+
 INDEXD = "/index"
+
+INDEXD_AUTH = ("gdcapi", "")
 
 ARBORIST = "/rbac"
 
@@ -113,6 +116,8 @@ AWS_CREDENTIALS = {
 }
 
 ASSUMED_ROLES = {"arn:aws:iam::role1": "CRED1"}
+
+DATA_UPLOAD_BUCKET = "bucket1"
 
 S3_BUCKETS = {
     "bucket1": {"cred": "CRED1"},
@@ -181,6 +186,7 @@ GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS = {
 }
 
 REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION = {
+    "enable": False,
     "domain": "smtp domain",
     "subject": "User service account removal notification",
     "from": "do-not-reply@planx-pla.net",
@@ -191,7 +197,7 @@ REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION = {
 users or service accounts of GCP project {} are not authorized to access \
 the data sets associated to the service accounts, or do not \
 adhere to the security policies.
-    """
+    """,
 }
 
 SUPPORT_EMAIL_FOR_ERRORS = None

@@ -40,4 +40,5 @@ script:
 
 after_script:
   - python-codacy-coverage -r coverage.xml
+  - COVERALLS_REPO_TOKEN=$COVERALLS_TOKEN coveralls
   - if [[ $TRAVIS_PYTHON_VERSION == 3.6 && $PR_NUMBER != false ]]; then wool; fi

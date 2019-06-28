@@ -5,6 +5,7 @@ from fence.auth import login_required, current_token
 from fence.errors import Unauthorized, UserError, NotFound
 from fence.models import Application, Certificate
 from fence.resources.user import send_mail, get_current_user_info
+from fence.config import config
 
 
 REQUIRED_CERTIFICATES = {
@@ -105,16 +106,16 @@ def upload_certificate(certificate):
         title = "User application for {}".format(flask.g.user.username)
         if getattr(flask.g, "client"):
             title += " from {}".format(flask.g.client)
-        if "EMAIL_SERVER" in flask.current_app.config:
+        if "EMAIL_SERVER" in config:
             content = "Application for user: {}\n" "email: {}".format(
                 flask.g.user.username, flask.g.user.email
             )
             send_mail(
-                flask.current_app.config["SEND_FROM"],
-                flask.current_app.config["SEND_TO"],
+                config["SEND_FROM"],
+                config["SEND_TO"],
                 title,
                 text=content,
-                server=flask.current_app.config["EMAIL_SERVER"],
+                server=config["EMAIL_SERVER"],
                 certificates=certificates,
             )
     return "", 201

@@ -1,3 +1,4 @@
+import os
 import pytest
 import yaml
 
@@ -22,6 +23,23 @@ def test_sync_missing_file(syncer, monkeypatch, db_session):
 
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
+def test_sync_incorrect_user_yaml_file(syncer, monkeypatch, db_session):
+    """
+    Test that if the YAML file doesn't exist then the syncer doesn't do
+    anything with the arborist client
+    """
+    path = os.path.join(
+        os.path.dirname(os.path.realpath(__file__)), "data/yaml/incorrect_user.yaml"
+    )
+    monkeypatch.setattr(syncer, "sync_from_local_yaml_file", path)
+    # should fail gracefully
+    syncer.sync()
+    assert syncer.arborist_client.create_resource.not_called()
+    assert syncer.arborist_client.create_role.not_called()
+    assert syncer.arborist_client.create_policy.not_called()
+
+
+@pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
 def test_sync(syncer, db_session, storage_client):
 
     syncer.sync()
@@ -35,35 +53,31 @@ def test_sync(syncer, db_session, storage_client):
     proj = db_session.query(models.Project).all()
     assert len(proj) == 9
 
-    user = db_session.query(models.User).filter_by(username="USERC").one()
+    user = models.query_for_user(session=db_session, username="USERC")
     assert user.project_access == {
         "phs000178": ["read-storage"],
         "TCGA-PCAWG": ["read-storage"],
         "phs000179.c1": ["read-storage"],
     }
 
-    user = db_session.query(models.User).filter_by(username="USERF").one()
+    user = models.query_for_user(session=db_session, username="USERF")
     assert user.project_access == {
         "phs000178.c1": ["read-storage"],
         "phs000178.c2": ["read-storage"],
     }
 
-    user = db_session.query(models.User).filter_by(username="TESTUSERB").one()
+    user = models.query_for_user(session=db_session, username="TESTUSERB")
     assert user.project_access == {
         "phs000179.c1": ["read-storage"],
         "phs000178.c1": ["read-storage"],
     }
 
-    user = db_session.query(models.User).filter_by(username="TESTUSERD").one()
+    user = models.query_for_user(session=db_session, username="TESTUSERD")
     assert user.display_name == "USER D"
     assert user.phone_number == "123-456-789"
 
-    user = (
-        db_session.query(models.User).filter_by(username="test_user1@gmail.com").one()
-    )
-
+    user = models.query_for_user(session=db_session, username="test_user1@gmail.com")
     user_access = db_session.query(models.AccessPrivilege).filter_by(user=user).all()
-
     assert set(user_access[0].privilege) == {
         "create",
         "read",
@@ -73,13 +87,11 @@ def test_sync(syncer, db_session, storage_client):
     }
     assert len(user_access) == 1
 
-    user = (
-        db_session.query(models.User).filter_by(username="deleted_user@gmail.com").one()
-    )
+    # TODO: check user policy access (add in user sync changes)
+
+    user = models.query_for_user(session=db_session, username="deleted_user@gmail.com")
     assert not user.is_admin
-
     user_access = db_session.query(models.AccessPrivilege).filter_by(user=user).all()
-
     assert not user_access
 
 
@@ -100,7 +112,7 @@ def test_sync_from_files(syncer, db_session, storage_client):
 
     syncer.sync_to_db_and_storage_backend(phsids, userinfo, sess)
 
-    u = sess.query(models.User).filter_by(username="userB").one()
+    u = models.query_for_user(session=db_session, username="userB")
     u.project_access["phs000179"].sort()
     assert u.project_access == {"phs000179": ["read-storage", "write-storage"]}
 
@@ -124,7 +136,7 @@ def test_sync_revoke(syncer, db_session, storage_client):
     syncer.sync_to_db_and_storage_backend(phsids, userinfo, db_session)
     syncer.sync_to_db_and_storage_backend(phsids2, userinfo, db_session)
 
-    user_B = db_session.query(models.User).filter_by(username="userB").first()
+    user_B = models.query_for_user(session=db_session, username="userB")
 
     n_access_privilege = (
         db_session.query(models.AccessPrivilege).filter_by(user_id=user_B.id).count()
@@ -287,19 +299,38 @@ def test_update_arborist(syncer, db_session):
     # future should refactor to make project mapping its own fixture and not
     # duplicate in the tests here.
 
-    # Check
+    # one project is configured to point to two different arborist resource
+    # parent paths (/orgA/ and /orgB/ and /)
+    project_with_mult_namespaces = "phs000178"
     expect_resources = [
         "phs000179.c1",
         "phs000178.c1",
-        "test",
         "phs000178.c2",
         "TCGA-PCAWG",
-        "phs000178",
+        "data_file",  # comes from user.yaml file
+        project_with_mult_namespaces,
     ]
+
+    resource_to_parent_paths = {}
+    for call in syncer.arborist_client.update_resource.call_args_list:
+        args, kwargs = call
+        parent_path = args[0]
+        resource = args[1].get("name")
+        resource_to_parent_paths.setdefault(resource, []).append(parent_path)
+
     for resource in expect_resources:
-        assert syncer.arborist_client.create_resource.called_with(
-            "/project", {"name": resource}
-        )
+        assert resource in resource_to_parent_paths.keys()
+        if resource == "data_file":
+            assert resource_to_parent_paths[resource] == ["/"]
+        elif resource == project_with_mult_namespaces:
+            assert resource_to_parent_paths[resource] == [
+                "/orgA/programs/",
+                "/orgB/programs/",
+                "/programs/",
+            ]
+        else:
+            # configured default org path is OrgA
+            assert resource_to_parent_paths[resource] == ["/orgA/programs/"]
 
     # Same with roles
     permissions = ["delete", "update", "upload", "create", "read", "read-storage"]
@@ -314,28 +345,3 @@ def test_update_arborist(syncer, db_session):
     ]
     for role in expect_roles:
         assert syncer.arborist_client.create_role.called_with(role)
-
-    with open(LOCAL_YAML_DIR, "r") as f:
-        user_data = yaml.safe_load(f)
-
-    policies = db_session.query(models.Policy).all()
-    policy_ids = [policy.id for policy in policies]
-
-    # For every user in the user data, check that the matching policies were
-    # created, and also granted to this user, i.e. the entry in the database
-    # for this user has policies for everything in the original user data.
-    for user, data in user_data["users"].items():
-        if "projects" not in data:
-            continue
-        for project in data["projects"]:
-            for privilege in project["privilege"]:
-                policy_id = _format_policy_id(project["resource"], privilege)
-                assert policy_id in policy_ids
-                user_policies = (
-                    db_session.query(models.User)
-                    .filter_by(username=user)
-                    .first()
-                    .policies
-                )
-                user_policy_ids = [policy.id for policy in user_policies]
-                assert policy_id in user_policy_ids

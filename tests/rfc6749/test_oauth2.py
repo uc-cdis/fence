@@ -4,11 +4,12 @@ Test the endpoints in the ``/oauth2`` blueprint.
 
 import pytest
 
-from fence.jwt.token import SCOPE_DESCRIPTION, CLIENT_ALLOWED_SCOPES
+from fence.jwt.token import SCOPE_DESCRIPTION
+from fence.config import config
 
 
 def test_all_scopes_have_description():
-    for scope in CLIENT_ALLOWED_SCOPES:
+    for scope in config["CLIENT_ALLOWED_SCOPES"]:
         assert scope in SCOPE_DESCRIPTION
 
 
@@ -17,6 +18,16 @@ def test_oauth2_authorize(oauth_test_client, method):
     """Test ``/oauth2/authorize``."""
     data = {"confirm": "yes"}
     oauth_test_client.authorize(method=method, data=data)
+
+
+@pytest.mark.parametrize("method", ["GET", "POST"])
+def test_oauth2_authorize_incorrect_scope(oauth_test_client, method):
+    """Test ``/oauth2/authorize``."""
+    data = {"confirm": "yes", "scope": "openid wrong_code"}
+    auth_response = oauth_test_client.authorize(
+        method=method, data=data, do_asserts=False
+    )
+    assert auth_response.response.status_code == 401
 
 
 @pytest.mark.parametrize("method", ["GET", "POST"])
@@ -40,20 +51,22 @@ def test_oauth2_token_post_public_client(oauth_test_client_public):
     oauth_test_client_public.token()
 
 
-def test_oauth2_token_refresh(oauth_test_client):
+@pytest.mark.parametrize("refresh_data", [{}, {"scope": "openid"}])
+def test_oauth2_token_refresh(oauth_test_client, refresh_data):
     """Test the refresh endpoint."""
     data = {"confirm": "yes"}
     oauth_test_client.authorize(data=data)
     oauth_test_client.token()
-    oauth_test_client.refresh()
+    oauth_test_client.refresh(data=refresh_data)
 
 
-def test_oauth2_token_refresh_public_client(oauth_test_client_public):
+@pytest.mark.parametrize("refresh_data", [{}, {"scope": "openid"}])
+def test_oauth2_token_refresh_public_client(oauth_test_client_public, refresh_data):
     """Test the refresh endpoint for public client."""
     data = {"confirm": "yes"}
     oauth_test_client_public.authorize(data=data)
     oauth_test_client_public.token()
-    oauth_test_client_public.refresh()
+    oauth_test_client_public.refresh(data=refresh_data)
 
 
 def test_oauth2_token_post_revoke(oauth_test_client):
@@ -72,5 +85,4 @@ def test_oauth2_token_post_revoke(oauth_test_client):
     refresh_token = oauth_test_client.token_response.refresh_token
     oauth_test_client.refresh(refresh_token, do_asserts=False)
     response = oauth_test_client.refresh_response.response
-    assert response.status_code == 400
-    assert response.json["error"] == "invalid_request"
+    assert response.status_code == 401

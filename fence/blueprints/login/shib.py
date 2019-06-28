@@ -2,11 +2,13 @@ import flask
 from flask_restful import Resource
 
 from fence.auth import login_user
+from fence.blueprints.login.redirect import validate_redirect
 from fence.errors import InternalError, Unauthorized
 from fence.models import IdentityProvider
+from fence.config import config
 
 
-class ShibbolethLoginStart(Resource):
+class ShibbolethLogin(Resource):
     def get(self):
         """
         The login flow is:
@@ -19,22 +21,20 @@ class ShibbolethLoginStart(Resource):
         -> redirect to portal
         """
         redirect_url = flask.request.args.get("redirect")
+        validate_redirect(redirect_url)
         if redirect_url:
             flask.session["redirect"] = redirect_url
-        actual_redirect = flask.current_app.config["BASE_URL"] + "/login/shib/login"
-        return flask.redirect(flask.current_app.config["SSO_URL"] + actual_redirect)
+        actual_redirect = config["BASE_URL"] + "/login/shib/login"
+        return flask.redirect(config["SSO_URL"] + actual_redirect)
 
 
-class ShibbolethLoginFinish(Resource):
+class ShibbolethCallback(Resource):
     def get(self):
         """
         Complete the shibboleth login.
         """
-
-        if "SHIBBOLETH_HEADER" in flask.current_app.config:
-            eppn = flask.request.headers.get(
-                flask.current_app.config["SHIBBOLETH_HEADER"]
-            )
+        if "SHIBBOLETH_HEADER" in config:
+            eppn = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
 
         else:
             raise InternalError("Missing shibboleth header configuration")

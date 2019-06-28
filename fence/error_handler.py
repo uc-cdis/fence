@@ -1,23 +1,28 @@
 import uuid
 from httplib import responses as http_responses
-
 import flask
 from flask import render_template
-from authlib.specs.rfc6749.errors import OAuth2Error
 from werkzeug.exceptions import HTTPException
 
+from authlib.oauth2.rfc6749.errors import OAuth2Error
+from cdislogging import get_logger
+
 from fence.errors import APIError
+from fence.config import config
+
+
+logger = get_logger(__name__)
 
 
 def get_error_response(error):
     details, status_code = get_error_details_and_status(error)
-    support_email = flask.current_app.config.get("SUPPORT_EMAIL_FOR_ERRORS")
-    app_name = flask.current_app.config.get("APP_NAME", "Gen3 Data Commons")
+    support_email = config.get("SUPPORT_EMAIL_FOR_ERRORS")
+    app_name = config.get("APP_NAME", "Gen3 Data Commons")
 
     message = details.get("message")
 
     error_id = _get_error_identifier()
-    flask.current_app.logger.error(
+    logger.error(
         "{} HTTP error occured. ID: {}\nDetails: {}".format(
             status_code, error_id, str(details)
         )
@@ -58,7 +63,7 @@ def get_error_details_and_status(error):
             error.get_response().status_code,
         )
     else:
-        flask.current_app.logger.exception("Catch exception")
+        logger.exception("Catch exception")
         error_code = 500
         if hasattr(error, "code"):
             error_code = error.code

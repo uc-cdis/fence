@@ -3,8 +3,12 @@
 import argparse
 import os
 import sys
+import logging
+
+from cdislogging import get_logger
 
 from fence.jwt import keys
+from fence.config import config
 from fence.scripting.fence_create import (
     JWTCreator,
     create_client_action,
@@ -18,6 +22,7 @@ from fence.scripting.fence_create import (
     link_external_bucket,
     link_bucket_to_project,
     modify_client_action,
+    notify_problem_users,
     remove_expired_google_accounts_from_proxy_groups,
     remove_expired_google_service_account_keys,
     sync_users,
@@ -26,6 +31,8 @@ from fence.scripting.fence_create import (
     verify_user_registration,
     force_update_google_link,
 )
+from fence.rbac.client import ArboristClient
+from fence.settings import CONFIG_SEARCH_FOLDERS
 
 
 def str2bool(v):
@@ -40,7 +47,12 @@ def str2bool(v):
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--path", default="/var/www/fence/", help="path to find local_settings.py"
+        "--path", default="/var/www/fence/", help="path to find configuration"
+    )
+    parser.add_argument(
+        "--arborist",
+        help="the base URL for the arborist service to sync to",
+        default=None,
     )
 
     subparsers = parser.add_subparsers(title="action", dest="action")
@@ -79,10 +91,13 @@ def parse_arguments():
         action="store_true",
         default=False,
     )
+    client_create.add_argument(
+        "--policies", help="which RBAC policies are granted to this client", nargs="*"
+    )
 
     client_modify = subparsers.add_parser("client-modify")
     client_modify.add_argument("--client", required=True)
-    client_modify.add_argument("--urls", required=False)
+    client_modify.add_argument("--urls", required=False, nargs="+")
     client_modify.add_argument("--name", required=False)
     client_modify.add_argument("--description", required=False)
     client_modify.add_argument(
@@ -99,6 +114,12 @@ def parse_arguments():
     )
     client_modify.add_argument(
         "--delete-urls", help="delete all urls", action="store_true", default=False
+    )
+    client_modify.add_argument(
+        "--policies",
+        help="which RBAC policies are granted to this client; if given, "
+        "previous policies will be revoked",
+        nargs="*",
     )
 
     client_list = subparsers.add_parser("client-list")
@@ -255,6 +276,33 @@ def parse_arguments():
     force_link_google.add_argument(
         "--google-email", required=True, help="Email to link to"
     )
+    force_link_google.add_argument(
+        "--expires_in",
+        required=False,
+        help="The time (in seconds) during which the Google account has bucket access (7 days max/default)",
+    )
+
+    notify_problem_users = subparsers.add_parser("notify-problem-users")
+    notify_problem_users.add_argument(
+        "--emails", required=True, nargs="+", help="List of emails to check/notify"
+    )
+    notify_problem_users.add_argument(
+        "--auth_ids",
+        required=True,
+        nargs="+",
+        help="List of project auth_ids to check access to",
+    )
+    notify_problem_users.add_argument(
+        "--check_linking",
+        required=False,
+        default=False,
+        help="True if you want to check that each email has a linked google account",
+    )
+    notify_problem_users.add_argument(
+        "--google_project_id",
+        required=True,
+        help="Google Project id that all users belong to",
+    )
 
     return parser.parse_args()
 
@@ -265,30 +313,44 @@ def main():
     # get database information
     sys.path.append(args.path)
 
-    if os.environ.get("FENCE_DB"):
-        DB = os.environ["FENCE_DB"]
-    else:
-        from fence.settings import DB
+    # replicate cfg loading done in flask app to maintain backwards compatibility
+    # TODO (DEPRECATE LOCAL_SETTINGS): REMOVE this when putting cfg in
+    # settings/local_settings is deprecated
+    import flask
 
-    if os.environ.get("BASE_URL"):
-        BASE_URL = os.environ["BASE_URL"]
-    else:
-        from fence.settings import BASE_URL
+    settings_cfg = flask.Config(".")
+    settings_cfg.from_object("fence.settings")
+    config.update(dict(settings_cfg))
 
-    if os.environ.get("ROOT_DIR"):
-        ROOT_DIR = os.environ["ROOT_DIR"]
-    else:
-        ROOT_DIR = "/fence"
+    # END - TODO (DEPRECATE LOCAL_SETTINGS): REMOVE
 
-    if os.environ.get("dbGaP"):
-        dbGaP = os.environ["dbGaP"]
-    else:
-        from fence.settings import dbGaP
+    config.load(search_folders=CONFIG_SEARCH_FOLDERS)
 
-    if os.environ.get("STORAGE_CREDENTIALS"):
-        STORAGE_CREDENTIALS = os.environ["STORAGE_CREDENTIALS"]
-    else:
-        from fence.settings import STORAGE_CREDENTIALS
+    DB = os.environ.get("FENCE_DB") or config.get("DB")
+
+    # attempt to get from settings, this is backwards-compatibility for integration
+    # tests
+    if DB is None:
+        try:
+            from fence.settings import DB
+        except ImportError:
+            pass
+
+    BASE_URL = os.environ.get("BASE_URL") or config.get("BASE_URL")
+    ROOT_DIR = os.environ.get("ROOT_DIR") or os.path.dirname(
+        os.path.dirname(os.path.realpath(__file__))
+    )
+    dbGaP = os.environ.get("dbGaP") or config.get("dbGaP")
+    STORAGE_CREDENTIALS = os.environ.get("STORAGE_CREDENTIALS") or config.get(
+        "STORAGE_CREDENTIALS"
+    )
+    
+    arborist = None
+    if args.arborist:
+        arborist = ArboristClient(
+            arborist_base_url=args.arborist,
+            logger=get_logger("user_syncer.arborist_client"),
+        )
 
     if args.action == "create":
         yaml_input = args.__dict__["yaml-input"]
@@ -303,6 +365,8 @@ def main():
             auto_approve=args.auto_approve,
             grant_types=args.grant_types,
             confidential=confidential,
+            arborist=arborist,
+            policies=args.policies,
         )
     elif args.action == "client-modify":
         modify_client_action(
@@ -314,6 +378,8 @@ def main():
             description=args.description,
             set_auto_approve=args.set_auto_approve,
             unset_auto_approve=args.unset_auto_approve,
+            arborist=arborist,
+            policies=args.policies,
         )
     elif args.action == "client-delete":
         delete_client_action(DB, args.client)
@@ -334,32 +400,14 @@ def main():
             is_sync_from_dbgap_server=str2bool(args.sync_from_dbgap),
             sync_from_local_csv_dir=args.csv_dir,
             sync_from_local_yaml_file=args.yaml,
-            arborist=args.arborist,
+            arborist=arborist,
         )
     elif args.action == "google-manage-keys":
         remove_expired_google_service_account_keys(DB)
     elif args.action == "google-init":
         google_init(DB)
     elif args.action == "google-manage-user-registrations":
-        import local_settings
-
-        config = {}
-        config[
-            "GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS"
-        ] = local_settings.GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS
-        config[
-            "WHITE_LISTED_SERVICE_ACCOUNT_EMAILS"
-        ] = local_settings.WHITE_LISTED_SERVICE_ACCOUNT_EMAILS
-        config[
-            "WHITE_LISTED_GOOGLE_PARENT_ORGS"
-        ] = local_settings.WHITE_LISTED_GOOGLE_PARENT_ORGS
-        config[
-            "WHITE_LISTED_SERVICE_ACCOUNT_EMAILS"
-        ] = local_settings.WHITE_LISTED_SERVICE_ACCOUNT_EMAILS
-        config["GOOGLE_APPLICATION_CREDENTIALS"] = local_settings.CIRRUS_CFG.get(
-            "GOOGLE_APPLICATION_CREDENTIALS"
-        )
-        verify_user_registration(DB, config)
+        verify_user_registration(DB)
     elif args.action == "google-manage-account-access":
         remove_expired_google_accounts_from_proxy_groups(DB)
     elif args.action == "google-bucket-create":
@@ -418,22 +466,30 @@ def main():
             scopes=args.scopes,
             expires_in=args.exp,
         )
-        if args.type == "access_token":
+        token_type = str(args.type).strip().lower()
+        if token_type == "access_token" or token_type == "access":
             print(jwt_creator.create_access_token().token)
-        elif args.type == "refresh_token":
+        elif token_type == "refresh_token" or token_type == "refresh":
             print(jwt_creator.create_refresh_token().token)
         else:
             print(
                 'invalid token type "{}"; expected "access" or "refresh"'.format(
-                    args.type
+                    token_type
                 )
             )
             sys.exit(1)
     elif args.action == "force-link-google":
         exp = force_update_google_link(
-            DB, username=args.username, google_email=args.google_email
+            DB,
+            username=args.username,
+            google_email=args.google_email,
+            expires_in=args.expires_in,
         )
         print(exp)
+    elif args.action == "notify-problem-users":
+        notify_problem_users(
+            DB, args.emails, args.auth_ids, args.check_linking, args.google_project_id
+        )
 
 
 if __name__ == "__main__":

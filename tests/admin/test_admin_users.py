@@ -1,7 +1,13 @@
+import pytest
+
 import fence.resources.admin as adm
 from fence.models import User, AccessPrivilege, Project, UserToGroup, Group
-import pytest
 from fence.errors import NotFound, UserError
+
+
+@pytest.fixture(autouse=True)
+def mock_arborist(mock_arborist_requests):
+    mock_arborist_requests()
 
 
 def test_get_user(db_session, awg_users):
@@ -26,7 +32,10 @@ def test_create_user(db_session, oauth_client):
     assert user.email == "insert_user@fake.com"
 
 
-def test_delete_user(db_session, awg_users):
+def test_delete_user(db_session, awg_users, cloud_manager):
+    # cirrus doesn't find GPG; no Google deletes attempted.
+    cloud_manager.return_value.__enter__.return_value.get_group.return_value = None
+
     user = db_session.query(User).filter(User.username == "awg_user").first()
     assert user != None
     user_id = user.id

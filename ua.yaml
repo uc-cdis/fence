@@ -20,13 +20,46 @@ groups:
             - auth_id: Test_Group
               privilege: ['read', 'read-storage']
 
+resources
+
 users:
     test:
         admin: True
         projects:
           - auth_id: bar
-            path: /programs/test/projects/bar
+            resource: /programs/test/projects/bar
             privilege: ['read', 'update', 'create', 'delete']
           - auth_id: quux
-            path: /programs/test/projects/quux
+            resource: /programs/test/projects/quux
             privilege: ['read', 'update', 'create', 'delete']
+        policies: ['data_upload']
+
+# This chunk is currently how fence gets some setup information to arborist, the
+# service which handles RBAC. All the content here (inside each subsection,
+# policies/resources/roles) is exactly how it would be structured in requests
+# to/from the arborist API.
+rbac:
+    policies:
+        - id: 'data_upload'
+          description: 'upload raw data files to S3'
+          role_ids: ['file_uploader']
+          resource_paths: ['/data_file']
+    resources:
+        - name: 'data_file'
+          description: 'data files, stored in S3'
+        - name: 'programs'
+          subresources:
+              - name: 'test'
+                subresources:
+                    - name: 'projects'
+                      subresources:
+                          - name: 'bar'
+                          - name: quux
+    roles:
+        - id: 'file_uploader'
+          description: 'can upload data files'
+          permissions:
+              - id: 'file_upload'
+                action:
+                    service: 'fence'
+                    method: 'file_upload'

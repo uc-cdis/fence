@@ -13,7 +13,7 @@ from fence.resources.google.utils import (
     get_linked_google_account_exp,
 )
 
-from fence.settings import ACCESS_TOKEN_EXPIRES_IN, REFRESH_TOKEN_EXPIRES_IN
+from fence.config import config
 
 
 def generate_token(client, grant_type, **kwargs):
@@ -84,7 +84,7 @@ def generate_implicit_response(
         kid=keypair.kid,
         private_key=keypair.private_key,
         user=user,
-        expires_in=ACCESS_TOKEN_EXPIRES_IN,
+        expires_in=config["ACCESS_TOKEN_EXPIRES_IN"],
         client_id=client.client_id,
         audiences=scope,
         nonce=nonce,
@@ -93,7 +93,7 @@ def generate_implicit_response(
     ).token
 
     # ``expires_in`` is just the token expiration time.
-    expires_in = ACCESS_TOKEN_EXPIRES_IN
+    expires_in = config["ACCESS_TOKEN_EXPIRES_IN"]
 
     response = {
         "token_type": "Bearer",
@@ -107,7 +107,7 @@ def generate_implicit_response(
             kid=keypair.kid,
             private_key=keypair.private_key,
             user=user,
-            expires_in=ACCESS_TOKEN_EXPIRES_IN,
+            expires_in=config["ACCESS_TOKEN_EXPIRES_IN"],
             scopes=scope,
             client_id=client.client_id,
             linked_google_email=linked_google_email,
@@ -169,7 +169,7 @@ def generate_token_response(
         kid=keypair.kid,
         private_key=keypair.private_key,
         user=user,
-        expires_in=ACCESS_TOKEN_EXPIRES_IN,
+        expires_in=config["ACCESS_TOKEN_EXPIRES_IN"],
         client_id=client.client_id,
         audiences=scope,
         nonce=nonce,
@@ -180,7 +180,7 @@ def generate_token_response(
         kid=keypair.kid,
         private_key=keypair.private_key,
         user=user,
-        expires_in=ACCESS_TOKEN_EXPIRES_IN,
+        expires_in=config["ACCESS_TOKEN_EXPIRES_IN"],
         scopes=scope,
         client_id=client.client_id,
         linked_google_email=linked_google_email,
@@ -192,12 +192,12 @@ def generate_token_response(
             kid=keypair.kid,
             private_key=keypair.private_key,
             user=user,
-            expires_in=REFRESH_TOKEN_EXPIRES_IN,
+            expires_in=config["REFRESH_TOKEN_EXPIRES_IN"],
             scopes=scope,
             client_id=client.client_id,
         ).token
     # ``expires_in`` is just the access token expiration time.
-    expires_in = ACCESS_TOKEN_EXPIRES_IN
+    expires_in = config["ACCESS_TOKEN_EXPIRES_IN"]
     return {
         "token_type": "Bearer",
         "id_token": id_token,

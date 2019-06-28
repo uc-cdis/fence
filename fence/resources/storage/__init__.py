@@ -10,6 +10,7 @@ from fence.models import (
     GoogleBucketAccessGroup,
     User,
     GoogleProxyGroupToGoogleBucketAccessGroup,
+    query_for_user,
 )
 from fence.errors import NotSupported, InternalError, Unauthorized, NotFound
 from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME as GOOGLE_PROVIDER
@@ -311,7 +312,7 @@ class StorageManager(object):
             fence.models.User: User with username
         """
         if provider == GOOGLE_PROVIDER:
-            return session.query(User).filter_by(username=username).first()
+            return query_for_user(session=session, username=username)
 
         return self.clients[provider].get_user(username)
 
@@ -332,7 +333,8 @@ class StorageManager(object):
             fence.models.User: User with username
         """
         if provider == GOOGLE_PROVIDER:
-            user = session.query(User).filter_by(username=username).first()
+            user = query_for_user(session=session, username=username.lower())
+
             if not user:
                 raise NotFound(
                     "User not found with username {}. For Google Storage "
@@ -394,7 +396,7 @@ class StorageManager(object):
                 self.clients[provider].delete_bucket_acl(bucket_name, storage_username)
 
                 self.logger.info(
-                    "User {}'s Google proxy group ({}) removed from Google Bucket Access Group {}.".format(
+                    "User {}'s Google proxy group ({}) removed or never existed in Google Bucket Access Group {}.".format(
                         storage_user.email, storage_username, bucket_name
                     )
                 )
@@ -413,7 +415,7 @@ class StorageManager(object):
                 self.clients[provider].delete_bucket_acl(bucket_name, storage_username)
 
                 self.logger.info(
-                    "User {}'s Google proxy group ({}) removed from Google Bucket Access Group {}.".format(
+                    "User {}'s Google proxy group ({}) removed or never existed in from Google Bucket Access Group {}.".format(
                         storage_user.email, storage_username, bucket_name
                     )
                 )
@@ -428,12 +430,21 @@ class StorageManager(object):
         Add a db entry specifying that a given user has storage access
         to the provided Google bucket access group
         """
-        storage_user_access_db_entry = GoogleProxyGroupToGoogleBucketAccessGroup(
-            proxy_group_id=storage_user.google_proxy_group_id,
-            access_group_id=bucket_access_group.id,
+        storage_user_access_db_entry = (
+            session.query(GoogleProxyGroupToGoogleBucketAccessGroup)
+            .filter_by(
+                proxy_group_id=storage_user.google_proxy_group_id,
+                access_group_id=bucket_access_group.id,
+            )
+            .first()
         )
-        session.add(storage_user_access_db_entry)
-        session.commit()
+        if not storage_user_access_db_entry:
+            storage_user_access_db_entry = GoogleProxyGroupToGoogleBucketAccessGroup(
+                proxy_group_id=storage_user.google_proxy_group_id,
+                access_group_id=bucket_access_group.id,
+            )
+            session.add(storage_user_access_db_entry)
+            session.commit()
 
     # FIXME: create a delete() on GoogleProxyGroupToGoogleBucketAccessGroup and use here.
     #        previous attempts to use similar delete() calls on other models resulting in errors

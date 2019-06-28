@@ -17,19 +17,17 @@ stateless.
 import flask
 
 from authlib.common.urls import add_params_to_uri
-from authlib.specs.rfc6749.errors import (
-    AccessDeniedError,
-    InvalidRequestError,
-    OAuth2Error,
-)
+from authlib.oauth2.rfc6749 import AccessDeniedError, InvalidRequestError, OAuth2Error
 
-from fence.errors import Unauthorized
+from fence.blueprints.login import IDP_URL_MAP
+from fence.errors import Unauthorized, UserError
 from fence.jwt.token import SCOPE_DESCRIPTION
 from fence.models import Client
 from fence.oidc.endpoints import RevocationEndpoint
 from fence.oidc.server import server
 from fence.utils import clear_cookies
 from fence.user import get_current_user
+from fence.config import config
 
 
 blueprint = flask.Blueprint("oauth2", __name__)
@@ -70,18 +68,20 @@ def authorize(*args, **kwargs):
         need_authentication = True
 
     if need_authentication or not user:
-        redirect_url = (
-            flask.current_app.config.get("BASE_URL") + flask.request.full_path
-        )
+        redirect_url = config.get("BASE_URL") + flask.request.full_path
         params = {"redirect": redirect_url}
-        login_url = add_params_to_uri(
-            flask.current_app.config.get("DEFAULT_LOGIN_URL"), params
-        )
+        login_url = config.get("DEFAULT_LOGIN_URL")
+        idp = flask.request.args.get("idp")
+        if idp:
+            if idp not in IDP_URL_MAP or idp not in config["OPENID_CONNECT"]:
+                raise UserError("idp {} is not supported".format(idp))
+            idp_url = IDP_URL_MAP[idp]
+            login_url = "{}/login/{}".format(config.get("BASE_URL"), idp_url)
+        login_url = add_params_to_uri(login_url, params)
         return flask.redirect(login_url)
 
     try:
         grant = server.validate_consent_request(end_user=user)
-        grant.validate_prompt(user)
     except OAuth2Error as e:
         raise Unauthorized("{} failed to authorize".format(str(e)))
 
@@ -117,10 +117,10 @@ def _handle_consent_confirmation(user, is_confirmed):
     """
     if is_confirmed == "yes":
         # user has already given consent, continue flow
-        response = server.create_authorization_response(user)
+        response = server.create_authorization_response(grant_user=user)
     else:
         # user did not give consent
-        response = server.create_authorization_response(None)
+        response = server.create_authorization_response(grant_user=None)
     return response
 
 
@@ -254,7 +254,7 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
             grant=grant,
             user=user,
             client=client,
-            app_name=flask.current_app.config.get("APP_NAME"),
+            app_name=config.get("APP_NAME"),
             resource_description=resource_description,
         )
 
@@ -266,7 +266,7 @@ def _get_authorize_error_response(error, redirect_uri):
     Get error response as defined by OIDC spec.
 
     Args:
-        error (authlib.specs.rfc6749.error.OAuth2Error): Specific Oauth2 error
+        error (authlib.oauth2.rfc6749.error.OAuth2Error): Specific Oauth2 error
         redirect_uri (str): Redirection url
     """
     params = error.get_body()
@@ -280,9 +280,6 @@ def _get_authorize_error_response(error, redirect_uri):
 def get_token(*args, **kwargs):
     """
     Handle exchanging code for and refreshing the access token.
-
-    The operation here is handled entirely by the ``oauth.token_handler``
-    decorator, so this function only needs to pass.
 
     See the OpenAPI documentation for detailed specification, and the OAuth2
     tests for examples of some operation and correct behavior.

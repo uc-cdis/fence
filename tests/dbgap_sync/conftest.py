@@ -7,6 +7,7 @@ try:
 except ImportError:
     from mock import MagicMock
     from mock import patch
+from yaml import safe_load as yaml_load
 
 from cirrus import GoogleCloudManager
 from cdisutilstest.code.storage_client_mock import get_client, StorageClientMocker
@@ -18,8 +19,6 @@ from userdatamodel.driver import SQLAlchemyDriver
 from fence.rbac.client import ArboristClient
 from fence.sync.sync_users import UserSyncer
 from fence.resources import userdatamodel as udm
-
-from ..test_settings import DB
 
 from fence.models import AccessPrivilege, AuthorizationProvider, User
 
@@ -127,10 +126,18 @@ def syncer(db_session, request):
     }
 
     dbGap = {}
+    test_db = yaml_load(
+        open(
+            os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                "test-fence-config.yaml",
+            )
+        )
+    ).get("DB")
 
     syncer_obj = UserSyncer(
         dbGaP=dbGap,
-        DB=DB,
+        DB=test_db,
         db_session=db_session,
         project_mapping=project_mapping,
         storage_credentials=storage_credentials,
@@ -139,6 +146,19 @@ def syncer(db_session, request):
         sync_from_local_yaml_file=LOCAL_YAML_DIR,
     )
     syncer_obj.arborist_client = MagicMock(ArboristClient)
+
+    def mocked_update(parent_path, resource, **kwargs):
+        resource["tag"] = "123456"
+        resource["subresources"] = [
+            subresource.get("name", subresource.get("path", "").lstrip("/"))
+            for subresource in resource.get("subresources", [])
+            if subresource.get("name", subresource.get("path", "").lstrip("/"))
+        ]
+        response = {"updated": resource}
+        return response
+
+    syncer_obj.arborist_client.update_resource = MagicMock(side_effect=mocked_update)
+
     syncer_obj.arborist_client.get_policy.side_effect = lambda _: None
 
     for element in provider:

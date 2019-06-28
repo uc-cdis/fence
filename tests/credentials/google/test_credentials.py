@@ -1,6 +1,7 @@
 """
 Test the /credentials endpoint.
 """
+import pytest
 from fence.models import (
     Client,
     IdentityProvider,
@@ -17,6 +18,8 @@ from userdatamodel.user import (
     StorageAccess,
 )
 from cdisutilstest.code.storage_client_mock import get_client
+
+from fence.config import config
 
 # Python 2 and 3 compatible
 try:
@@ -142,7 +145,7 @@ def test_google_bucket_access_new_proxy_group(
     encoded_jwt_no_proxy_group,
     monkeypatch,
 ):
-    monkeypatch.setitem(app.config, "MOCK_AUTH", False)
+    monkeypatch.setitem(config, "MOCK_AUTH", False)
 
     user_id = encoded_jwt_no_proxy_group["user_id"]
     proj = Project(id=129, name="test_proj")
@@ -203,7 +206,7 @@ def test_google_bucket_access_denied_new_proxy_group(
     encoded_jwt_no_proxy_group,
     monkeypatch,
 ):
-    monkeypatch.setitem(app.config, "MOCK_AUTH", False)
+    monkeypatch.setitem(config, "MOCK_AUTH", False)
 
     user_id = encoded_jwt_no_proxy_group["user_id"]
     proj = Project(id=129, name="test_proj")
@@ -264,7 +267,7 @@ def test_google_bucket_access_existing_proxy_group(
     encoded_creds_jwt,
     monkeypatch,
 ):
-    monkeypatch.setitem(app.config, "MOCK_AUTH", False)
+    monkeypatch.setitem(config, "MOCK_AUTH", False)
 
     user_id = encoded_creds_jwt["user_id"]
     client_id = encoded_creds_jwt["client_id"]
@@ -303,6 +306,13 @@ def test_google_bucket_access_existing_proxy_group(
     db_session.add(service_account)
     db_session.commit()
 
+    # make function return the service account we created and don't try to update db
+    # since we already did it in the test
+    mock = MagicMock()
+    mock.return_value = service_account
+    patch("fence.resources.google.utils.get_or_create_service_account", mock).start()
+    patch("fence.resources.google.utils._update_service_account_db_entry", mock).start()
+
     encoded_credentials_jwt = encoded_creds_jwt["jwt"]
 
     path = "/credentials/google/"
@@ -327,6 +337,7 @@ def test_google_create_access_token_post(
     client_id = encoded_creds_jwt["client_id"]
 
     service_account_id = "123456789"
+    service_account_email = client_id + "-" + str(user_id) + "@test.com"
     path = "/credentials/google/"
     data = {}
 
@@ -335,21 +346,30 @@ def test_google_create_access_token_post(
         google_unique_id=service_account_id,
         client_id=client_id,
         user_id=user_id,
-        email=(client_id + "-" + str(user_id) + "@test.com"),
+        email=service_account_email,
         google_project_id="projectId-0",
     )
     db_session.add(service_account)
     db_session.commit()
 
+    # make function return the service account we created and don't try to update db
+    # since we already did it in the test
+    mock = MagicMock()
+    mock.return_value = service_account
+    patch("fence.resources.google.utils.get_or_create_service_account", mock).start()
+    patch("fence.resources.google.utils._update_service_account_db_entry", mock).start()
+
     response = client.post(
         path, data=data, headers={"Authorization": "Bearer " + encoded_credentials_jwt}
     )
 
-    # check that the service account id was included in a
+    # check that the service account id or email was included in a
     # call to cloud_manager
-    (
+    args, kwargs = (
         cloud_manager.return_value.__enter__.return_value.get_access_key
-    ).assert_called_with(service_account_id)
+    ).call_args
+    combined = [arg for arg in args] + [value for key, value in kwargs.iteritems()]
+    assert service_account_id in combined or service_account_email in combined
 
     assert response.status_code == 200
 
@@ -366,11 +386,12 @@ def test_google_delete_owned_access_token(
 
     service_account_key = "some_key_321"
     service_account_id = "123456789"
+    service_account_email = client_id + "-" + str(user_id) + "@test.com"
     path = "/credentials/google/" + service_account_key
 
     def get_account_keys(*args, **kwargs):
         # Return the keys only if the correct account is given
-        if args[0] == service_account_id:
+        if args[0] == service_account_id or args[0] == service_account_email:
             # Return two keys, first one is NOT the one we're
             # requesting to delete
             return [
@@ -389,11 +410,18 @@ def test_google_delete_owned_access_token(
         google_unique_id=service_account_id,
         client_id=client_id,
         user_id=user_id,
-        email=(client_id + "-" + str(user_id) + "@test.com"),
+        email=service_account_email,
         google_project_id="projectId-0",
     )
     db_session.add(service_account)
     db_session.commit()
+
+    # make function return the service account we created and don't try to update db
+    # since we already did it in the test
+    mock = MagicMock()
+    mock.return_value = service_account
+    patch("fence.resources.google.utils.get_or_create_service_account", mock).start()
+    patch("fence.resources.google.utils._update_service_account_db_entry", mock).start()
 
     response = client.delete(
         path, data={}, headers={"Authorization": "Bearer " + encoded_credentials_jwt}
@@ -406,14 +434,138 @@ def test_google_delete_owned_access_token(
             str(mock_call)
             for mock_call in cloud_manager.mock_calls
             if service_account_id in str(mock_call)
+            or service_account_email in str(mock_call)
         ]
     )
     assert response.status_code == 204
 
     # check that we actually requested to delete the correct service key
-    (
+    args, kwargs = (
         cloud_manager.return_value.__enter__.return_value.delete_service_account_key
-    ).assert_called_with(service_account_id, service_account_key)
+    ).call_args
+    all_args = [arg for arg in args] + [value for key, value in kwargs.iteritems()]
+    assert service_account_id in all_args or service_account_email in all_args
+    assert service_account_key in all_args
+
+
+@pytest.mark.parametrize(
+    "query_arg,valid_arg",
+    [
+        ("", False),
+        ("?all=", False),
+        ("?all=asdf", False),
+        ("?all=false", False),
+        ("?all=False", False),
+        ("?all=true", True),
+        ("?all=True", True),
+    ],
+)
+def test_google_delete_all_owned_access_tokens(
+    app,
+    client,
+    oauth_client,
+    cloud_manager,
+    db_session,
+    encoded_creds_jwt,
+    query_arg,
+    valid_arg,
+):
+    """
+    Test ``DELETE /credentials/google/*``.
+    """
+    encoded_credentials_jwt = encoded_creds_jwt["jwt"]
+    user_id = encoded_creds_jwt["user_id"]
+    client_id = encoded_creds_jwt["client_id"]
+
+    service_account_key0 = "over_9000"
+    service_account_key1 = "42"
+    service_account_key2 = "one_MILLION_dollars"
+    service_account_id = "123456789"
+    service_account_email = client_id + "-" + str(user_id) + "@test.com"
+    path = "/credentials/google/" + query_arg
+
+    def get_account_keys(*args, **kwargs):
+        # Return the keys only if the correct account is given
+        if args[0] == service_account_id or args[0] == service_account_email:
+            # Return multiple keys
+            return [
+                {"name": "project/service_accounts/keys/" + service_account_key0},
+                {"name": "project/service_accounts/keys/" + service_account_key1},
+                {"name": "project/service_accounts/keys/" + service_account_key2},
+            ]
+        else:
+            return []
+
+    (
+        cloud_manager.return_value.__enter__.return_value.get_service_account_keys_info.side_effect
+    ) = get_account_keys
+
+    # create a service account for client for user
+    service_account = GoogleServiceAccount(
+        google_unique_id=service_account_id,
+        client_id=client_id,
+        user_id=user_id,
+        email=service_account_email,
+        google_project_id="projectId-0",
+    )
+    db_session.add(service_account)
+    db_session.commit()
+
+    # make function return the service account we created and don't try to update db
+    # since we already did it in the test
+    mock = MagicMock()
+    mock.return_value = service_account
+    patch("fence.resources.google.utils.get_or_create_service_account", mock).start()
+    patch("fence.resources.google.utils._update_service_account_db_entry", mock).start()
+
+    response = client.delete(
+        path, data={}, headers={"Authorization": "Bearer " + encoded_credentials_jwt}
+    )
+
+    if valid_arg:
+        # check that the service account id was included in a call to
+        # cloud_manager
+        assert any(
+            [
+                str(mock_call)
+                for mock_call in cloud_manager.mock_calls
+                if service_account_id in str(mock_call)
+                or service_account_email in str(mock_call)
+            ]
+        )
+        assert response.status_code == 204
+
+        valid_calls = [
+            (service_account_id, service_account_key0),
+            (service_account_id, service_account_key1),
+            (service_account_id, service_account_key2),
+            (service_account_email, service_account_key0),
+            (service_account_email, service_account_key1),
+            (service_account_email, service_account_key2),
+        ]
+        actual_calls = []
+        # check that we actually requested to delete the correct service key
+        for (
+            call
+        ) in (
+            cloud_manager.return_value.__enter__.return_value.delete_service_account_key.call_args_list
+        ):
+            args, kwargs = call
+            actual_calls.append(args)
+
+        assert set(actual_calls).issubset(valid_calls)
+    else:
+        # check that the service account id was NOT included in a call to
+        # cloud_manager
+        assert not any(
+            [
+                str(mock_call)
+                for mock_call in cloud_manager.mock_calls
+                if service_account_id in str(mock_call)
+                or service_account_email in str(mock_call)
+            ]
+        )
+        assert response.status_code != 204
 
 
 def test_google_attempt_delete_unowned_access_token(
@@ -442,6 +594,13 @@ def test_google_attempt_delete_unowned_access_token(
     db_session.add(client_entry)
     db_session.add(service_account)
     db_session.commit()
+
+    # make function return the service account we created and don't try to update db
+    # since we already did it in the test
+    mock = MagicMock()
+    mock.return_value = service_account
+    patch("fence.resources.google.utils.get_or_create_service_account", mock).start()
+    patch("fence.resources.google.utils._update_service_account_db_entry", mock).start()
 
     response = client.delete(
         path, data={}, headers={"Authorization": "Bearer " + encoded_credentials_jwt}
@@ -499,6 +658,13 @@ def test_google_delete_invalid_access_token(
     )
     db_session.add(service_account)
     db_session.commit()
+
+    # make function return the service account we created and don't try to update db
+    # since we already did it in the test
+    mock = MagicMock()
+    mock.return_value = service_account
+    patch("fence.resources.google.utils.get_or_create_service_account", mock).start()
+    patch("fence.resources.google.utils._update_service_account_db_entry", mock).start()
 
     response = client.delete(
         path, data={}, headers={"Authorization": "Bearer " + encoded_credentials_jwt}

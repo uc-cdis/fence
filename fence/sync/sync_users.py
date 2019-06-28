@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 from csv import DictReader
 import errno
+from gen3users.validation import validate_user_yaml
 import glob
 import os
 import re
@@ -11,21 +12,24 @@ import shutil
 from stat import S_ISDIR
 import yaml
 
-from cdispyutils.log import get_logger
+from cdislogging import get_logger
 import paramiko
 from paramiko.proxy import ProxyCommand
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
 from userdatamodel.driver import SQLAlchemyDriver
 
+from fence.config import config
 from fence.models import (
     AccessPrivilege,
     AuthorizationProvider,
-    Policy,
     Project,
     Tag,
     User,
-    users_to_policies,
+    query_for_user,
+    Client,
 )
+from fence.sync import utils
 from fence.rbac.client import ArboristClient, ArboristError
 from fence.resources.storage import StorageManager
 
@@ -55,12 +59,202 @@ def download_dir(sftp, remote_dir, local_dir):
 
 
 def arborist_role_for_permission(permission):
+    """
+    For the programs/projects in the existing fence access control model, in order to
+    use arborist for checking permissions we generate a policy for each combination of
+    program/project and privilege. The roles involved all contain only one permission,
+    for one privilege from the project access model.
+    """
     return {
         "id": permission,
         "permissions": [
-            {"id": permission, "action": {"service": "", "method": permission}}
+            {"id": permission, "action": {"service": "*", "method": permission}}
         ],
     }
+
+
+@contextmanager
+def _read_file(filepath, encrypted=True, key=None, logger=None):
+    """
+    Context manager for reading and optionally decrypting file it only
+    decrypts files encrypted by unix 'crypt' tool which is used by dbGaP.
+
+    Args:
+        filepath (str): path to the file
+        encrypted (bool): whether the file is encrypted
+
+    Returns:
+        Generator[file-like class]: file like object for the file
+    """
+    if encrypted:
+        has_crypt = sp.call(["which", "mcrypt"])
+        if has_crypt != 0:
+            if logger:
+                logger.error("Need to install crypt to decrypt files from dbgap")
+            # TODO (rudyardrichter, 2019-01-08): raise error and move exit out to script
+            exit(1)
+        p = sp.Popen(
+            [
+                "mcrypt",
+                "-a",
+                "enigma",
+                "-o",
+                "scrypt",
+                "-m",
+                "stream",
+                "--bare",
+                "--key",
+                key,
+                "--force",
+            ],
+            stdin=open(filepath, "r"),
+            stdout=sp.PIPE,
+            stderr=open(os.devnull, "w"),
+        )
+        yield StringIO(p.communicate()[0])
+    else:
+        f = open(filepath, "r")
+        yield f
+        f.close()
+
+
+class UserYAML(object):
+    """
+    Representation of the information in a YAML file describing user, project, and RBAC
+    information for access control.
+    """
+
+    def __init__(
+        self,
+        projects=None,
+        user_info=None,
+        policies=None,
+        clients=None,
+        rbac=None,
+        project_to_resource=None,
+        logger=None,
+        user_rbac=None,
+    ):
+        self.projects = projects or {}
+        self.user_info = user_info or {}
+        self.user_rbac = user_rbac or {}
+        self.policies = policies or {}
+        self.clients = clients or {}
+        self.rbac = rbac or {}
+        self.project_to_resource = project_to_resource or {}
+        self.logger = logger
+
+    @classmethod
+    def from_file(cls, filepath, encrypted=True, key=None, logger=None):
+        data = {}
+        if filepath:
+            with _read_file(filepath, encrypted=encrypted, key=key, logger=logger) as f:
+                file_contents = f.read()
+                validate_user_yaml(file_contents)  # run user.yaml validation tests
+                data = yaml.safe_load(file_contents)
+        else:
+            if logger:
+                logger.info("Did not sync a user.yaml, no file path provided.")
+
+        projects = dict()
+        user_info = dict()
+        policies = dict()
+        project_to_resource = dict()
+
+        users = data.get("users", {})
+        for username, details in users.iteritems():
+            # users should occur only once each; skip if already processed
+            if username in projects:
+                if logger:
+                    logger.error("user `{}` occurs multiple times".format(username))
+                raise EnvironmentError("invalid yaml file")
+
+            privileges = {}
+            try:
+                for project in details.get("projects", {}):
+                    privileges[project["auth_id"]] = set(project["privilege"])
+            except KeyError as e:
+                if logger:
+                    logger.error("project missing field: {}".format(e))
+                continue
+
+            user_info[username] = {
+                "email": details.get("email", username),
+                "display_name": details.get("display_name", ""),
+                "phone_number": details.get("phone_number", ""),
+                "tags": details.get("tags", {}),
+                "admin": details.get("admin", False),
+            }
+            projects[username] = privileges
+
+            # list of policies we want to grant to this user, which get sent to arborist
+            # to check if they're allowed to do certain things
+            policies[username] = details.get("policies", [])
+
+        # get user project mapping to arborist resources if it exists
+        project_to_resource = data.get("rbac", dict()).get(
+            "user_project_to_resource", dict()
+        )
+
+        if logger:
+            logger.info(
+                "Got user project to arborist resource mapping:\n{}".format(
+                    str(project_to_resource)
+                )
+            )
+
+        # resources should be the resource tree to construct in arborist
+        user_rbac = dict()
+        for username, details in users.iteritems():
+            # users should occur only once each; skip if already processed
+            if username in user_rbac:
+                msg = "invalid yaml file: user `{}` occurs multiple times".format(
+                    username
+                )
+                if logger:
+                    logger.error(msg)
+                raise EnvironmentError(msg)
+            resource_permissions = dict()
+            for project in details.get("projects", {}):
+                # project may not have `resource` field
+                try:
+                    # prefer resource field
+                    resource = project["resource"]
+                except KeyError:
+                    # if no resource or mapping, assume auth_id is resource
+                    resource = project["auth_id"]
+
+                resource_permissions[resource] = set(project["privilege"])
+            user_rbac[username] = resource_permissions
+
+        rbac = data.get("rbac", dict())
+        if not rbac:
+            # older version: resources in root, no `rbac` section
+            if logger:
+                logger.warning(
+                    "access control YAML file is using old format (missing `rbac`"
+                    " section in the root); assuming that if it exists `resources` will"
+                    " be on the root level, and continuing"
+                )
+            # we're going to throw it into the `rbac` dictionary anyways, so the rest of
+            # the code can pretend it's in the normal place that we expect
+            resources = data.get("resources", [])
+            # keep rbac empty dict if resources is not specified
+            if resources:
+                rbac["resources"] = data.get("resources", [])
+
+        clients = data.get("clients", {})
+
+        return cls(
+            projects=projects,
+            user_info=user_info,
+            user_rbac=user_rbac,
+            policies=policies,
+            clients=clients,
+            rbac=rbac,
+            project_to_resource=project_to_resource,
+            logger=logger,
+        )
 
 
 class UserSyncer(object):
@@ -86,7 +280,7 @@ class UserSyncer(object):
             sync_from_dir: path to an alternative dir to sync from instead of
                            dbGaP
             arborist:
-                base URL for arborist service if the syncer should also create
+                ArboristClient instance if the syncer should also create
                 resources in arborist
         """
         self.sync_from_local_csv_dir = sync_from_local_csv_dir
@@ -101,13 +295,13 @@ class UserSyncer(object):
         self.driver = SQLAlchemyDriver(DB)
         self.project_mapping = project_mapping or {}
         self._projects = dict()
-        self.logger = get_logger("user_syncer")
-
-        self.arborist_client = None
-        if arborist:
-            self.arborist_client = ArboristClient(
-                arborist_base_url=arborist, logger=self.logger
-            )
+        self._created_roles = set()
+        self._created_policies = set()
+        self._dbgap_study_to_resources = dict()
+        self.logger = get_logger(
+            "user_syncer", log_level="debug" if config["DEBUG"] is True else "info"
+        )
+        self.arborist_client = arborist
 
         if storage_credentials:
             self.storage_manager = StorageManager(
@@ -144,25 +338,30 @@ class UserSyncer(object):
         """
         proxy = None
         if self.server.get("proxy", "") != "":
-            proxy = ProxyCommand(
-                "ssh -i ~/.ssh/id_rsa {user}@{proxy} nc {host} {port}".format(
-                    user=self.server.get("proxy_user", ""),
-                    proxy=self.server.get("proxy", ""),
-                    host=self.server.get("host", ""),
-                    port=self.server.get("port", 22),
-                )
+            command = "ssh -i ~/.ssh/id_rsa {user}@{proxy} nc {host} {port}".format(
+                user=self.server.get("proxy_user", ""),
+                proxy=self.server.get("proxy", ""),
+                host=self.server.get("host", ""),
+                port=self.server.get("port", 22),
             )
+            self.logger.info("SSH proxy command: {}".format(command))
+
+            proxy = ProxyCommand(command)
 
         with paramiko.SSHClient() as client:
+            client.set_log_channel(self.logger.name)
+
             client.set_missing_host_key_policy(paramiko.WarningPolicy())
             parameters = {
-                "hostname": self.server.get("host", ""),
-                "username": self.server.get("username", ""),
-                "password": self.server.get("password", ""),
-                "port": self.server.get("port", 22),
+                "hostname": str(self.server.get("host", "")),
+                "username": str(self.server.get("username", "")),
+                "password": str(self.server.get("password", "")),
+                "port": int(self.server.get("port", 22)),
             }
             if proxy:
                 parameters["sock"] = proxy
+
+            self.logger.info("SSH connection parameters: {}".format(parameters))
             client.connect(**parameters)
             with client.open_sftp() as sftp:
                 download_dir(sftp, "./", path)
@@ -189,37 +388,6 @@ class UserSyncer(object):
         )
         os.system(execstr)
 
-    @contextmanager
-    def _read_file(self, filepath, encrypted=True):
-        """
-        Context manager for reading and optionally decrypting file it only
-        decrypts files encrypted by unix 'crypt' tool which is used by dbGaP.
-
-        Args:
-            filepath (str): path to the file
-            encrypted (bool): whether the file is encrypted
-
-        Returns:
-            Generator[file-like class]: file like object for the file
-        """
-
-        if encrypted:
-            has_crypt = sp.call(["which", "crypt"])
-            if has_crypt != 0:
-                self.logger.error("Need to install crypt to decrypt files from dbgap")
-                exit(1)
-            p = sp.Popen(
-                ["crypt", self.dbgap_key],
-                stdin=open(filepath, "r"),
-                stdout=sp.PIPE,
-                stderr=open(os.devnull, "w"),
-            )
-            yield StringIO(p.communicate()[0])
-        else:
-            f = open(filepath, "r")
-            yield f
-            f.close()
-
     def _parse_csv(self, file_dict, sess, encrypted=True):
         """
         parse csv files to python dict
@@ -242,7 +410,7 @@ class UserSyncer(object):
                     username: {
                         'project1': {'read-storage','write-storage'},
                         'project2': {'read-storage'},
-                        }
+                    }
                 },
                 {
                     username: {
@@ -264,7 +432,10 @@ class UserSyncer(object):
             if not self._match_pattern(filepath, encrypted=encrypted):
                 continue
 
-            with self._read_file(filepath, encrypted=encrypted) as f:
+            dbgap_key = getattr(self, "dbgap_key", None)
+            with _read_file(
+                filepath, encrypted=encrypted, key=dbgap_key, logger=self.logger
+            ) as f:
                 csv = DictReader(f, quotechar='"', skipinitialspace=True)
                 for row in csv:
                     username = row.get("login", "")
@@ -292,6 +463,11 @@ class UserSyncer(object):
                             project = self._get_or_create(
                                 sess, Project, auth_id=dbgap_project
                             )
+
+                            # need to add dbgap project to arborist
+                            if self.arborist_client:
+                                self._add_dbgap_study_to_arborist(dbgap_project)
+
                             if project.name is None:
                                 project.name = dbgap_project
                             self._projects[dbgap_project] = project
@@ -306,115 +482,19 @@ class UserSyncer(object):
                             phsid_privileges = {
                                 element_dict["auth_id"]: set(privileges)
                             }
+
+                            # need to add dbgap project to arborist
+                            if self.arborist_client:
+                                self._add_dbgap_study_to_arborist(
+                                    element_dict["auth_id"]
+                                )
+
                             if username not in user_projects:
                                 user_projects[username] = {}
                             user_projects[username].update(phsid_privileges)
                         except ValueError as e:
                             self.logger.info(e)
         return user_projects, user_info
-
-    def _parse_yaml(self, filepath, encrypted=True):
-        """
-        parse yaml files to python nested dictionary
-        Args:
-            filepath: yaml file
-            encrypted: whether those files are encrypted
-        Returns:
-            user_project: a nested dict of
-            {
-                username: {
-                    'project1': {'read-storage','write-storage'},
-                    'project2': {'read-storage'},
-                    }
-            }
-            user_info: a dict of
-            {
-                username: {
-                    'email': email,
-                    'display_name': display_name,
-                    'phone_number': phonenum,
-                    'tags': {'k1':'v1', 'k2': 'v2'}
-                    'admin': is_admin
-                }
-            }
-        """
-        user_project = dict()
-        user_info = dict()
-
-        with self._read_file(filepath, encrypted=encrypted) as stream:
-            data = yaml.safe_load(stream)
-
-        users = data.get("users", {})
-        for username, details in users.iteritems():
-            # users should occur only once each; skip if already processed
-            if username in user_project:
-                self.logger.error("user `{}` occurs multiple times".format(username))
-                raise EnvironmentError("invalid yaml file")
-
-            privileges = {}
-
-            try:
-                for project in details.get("projects", {}):
-                    privileges[project["auth_id"]] = set(project["privilege"])
-            except KeyError as e:
-                self.logger.error("project missing field: {}".format(e))
-                continue
-
-            user_info[username] = {
-                "email": details.get("email", username),
-                "display_name": details.get("display_name", ""),
-                "phone_number": details.get("phone_number", ""),
-                "tags": details.get("tags", {}),
-                "admin": details.get("admin", False),
-            }
-            user_project[username] = privileges
-
-        return user_project, user_info
-
-    def _parse_resources_from_yaml(self, filepath, encrypted=True):
-        """
-        Args:
-            filepath (str): path to user yaml file
-
-        Return:
-            Tuple[
-                Mapping[str, Mapping[str, Set[str]]],
-                Mapping[str, Union[str, Mapping[...]]],
-            ]:
-                the type is complicated---there's two parts:
-                    - first the per-resource-path permissions for every user:
-                        username -> (mapping: resource path -> set(permission))
-                    - second the entire resource tree that gets handed to
-                      arborist, which is a recursive type
-        """
-        data = dict()
-        with self._read_file(filepath, encrypted=encrypted) as f:
-            data = yaml.safe_load(f)
-
-        users = data.get("users", {})
-        result = dict()
-        # resources should be the resource tree to construct in arborist
-        resources = data.get("resources")
-
-        for username, user_info in users.iteritems():
-            # users should occur only once each; skip if already processed
-            if username in result:
-                msg = "invalid yaml file: user `{}` occurs multiple times".format(
-                    username
-                )
-                self.logger.error(msg)
-                raise EnvironmentError(msg)
-            resource_permissions = dict()
-            for project in user_info.get("projects", {}):
-                # project may not have `resource` field
-                try:
-                    resource = project["resource"]
-                except KeyError:
-                    continue
-                resource_permissions[resource] = set(project["privilege"])
-            result[username] = resource_permissions
-
-        return result, resources
 
     @staticmethod
     def sync_two_user_info_dict(user_info1, user_info2):
@@ -481,15 +561,16 @@ class UserSyncer(object):
         sync user access control to database and storage backend
 
         Args:
-            user_project(dict): a dictionary of
-            {
-                username: {
-                    'project1': {'read-storage','write-storage'},
-                    'project2': {'read-storage'}
+            user_project (dict): a dictionary of
+
+                {
+                    username: {
+                        'project1': {'read-storage','write-storage'},
+                        'project2': {'read-storage'}
+                    }
                 }
-            }
-            user_info(dict): a dictionary of {username: user_info{}}
-            use_mapping(bool)
+
+            user_info (dict): a dictionary of {username: user_info{}}
             sess: a sqlalchemy session
 
         Return:
@@ -503,14 +584,22 @@ class UserSyncer(object):
         ]
 
         cur_db_user_project_list = {
-            (ua.user.username, ua.project.auth_id)
+            (ua.user.username.lower(), ua.project.auth_id)
             for ua in sess.query(AccessPrivilege).all()
         }
 
+        # we need to compare db -> whitelist case-insensitively for username
+        # db stores case-sensitively, but we need to query case-insensitively
+        user_project_lowercase = {}
         syncing_user_project_list = set()
         for username, projects in user_project.iteritems():
+            user_project_lowercase[username.lower()] = projects
             for project, _ in projects.iteritems():
-                syncing_user_project_list.add((username, project))
+                syncing_user_project_list.add((username.lower(), project))
+
+        user_info_lowercase = {
+            username.lower(): info for username, info in user_info.iteritems()
+        }
 
         to_delete = set.difference(cur_db_user_project_list, syncing_user_project_list)
         to_add = set.difference(syncing_user_project_list, cur_db_user_project_list)
@@ -518,17 +607,27 @@ class UserSyncer(object):
             cur_db_user_project_list, syncing_user_project_list
         )
 
+        # when updating users we want to maintain case sesitivity in the username so
+        # pass the original, non-lowered user_info dict
         self._upsert_userinfo(sess, user_info)
         self._revoke_from_storage(to_delete, sess)
         self._revoke_from_db(sess, to_delete)
-        self._grant_from_storage(to_add, user_project, sess)
-        self._grant_from_db(sess, to_add, user_info, user_project, auth_provider_list)
+        self._grant_from_storage(to_add, user_project_lowercase, sess)
+        self._grant_from_db(
+            sess,
+            to_add,
+            user_info_lowercase,
+            user_project_lowercase,
+            auth_provider_list,
+        )
 
         # re-grant
-        self._grant_from_storage(to_update, user_project, sess)
-        self._update_from_db(sess, to_update, user_project)
+        self._grant_from_storage(to_update, user_project_lowercase, sess)
+        self._update_from_db(sess, to_update, user_project_lowercase)
 
-        self._validate_and_update_user_admin(sess, user_info)
+        self._validate_and_update_user_admin(sess, user_info_lowercase)
+
+        sess.commit()
 
     def _revoke_from_db(self, sess, to_delete):
         """
@@ -543,8 +642,9 @@ class UserSyncer(object):
         for (username, project_auth_id) in to_delete:
             q = (
                 sess.query(AccessPrivilege)
-                .filter(AccessPrivilege.user.has(username=username))
                 .filter(AccessPrivilege.project.has(auth_id=project_auth_id))
+                .join(AccessPrivilege.user)
+                .filter(func.lower(User.username) == username)
                 .all()
             )
             for access in q:
@@ -552,8 +652,6 @@ class UserSyncer(object):
                     "revoke {} access to {} in db".format(username, project_auth_id)
                 )
                 sess.delete(access)
-
-        sess.commit()
 
     def _validate_and_update_user_admin(self, sess, user_info):
         """
@@ -575,13 +673,14 @@ class UserSyncer(object):
             None
         """
         for admin_user in sess.query(User).filter_by(is_admin=True).all():
-            if admin_user.username not in user_info:
+            if admin_user.username.lower() not in user_info:
                 admin_user.is_admin = False
                 sess.add(admin_user)
                 self.logger.info(
-                    "remove admin access from {} in db".format(admin_user.username)
+                    "remove admin access from {} in db".format(
+                        admin_user.username.lower()
+                    )
                 )
-        sess.commit()
 
     def _update_from_db(self, sess, to_update, user_project):
         """
@@ -599,8 +698,9 @@ class UserSyncer(object):
         for (username, project_auth_id) in to_update:
             q = (
                 sess.query(AccessPrivilege)
-                .filter(AccessPrivilege.user.has(username=username))
                 .filter(AccessPrivilege.project.has(auth_id=project_auth_id))
+                .join(AccessPrivilege.user)
+                .filter(func.lower(User.username) == username)
                 .all()
             )
             for access in q:
@@ -610,8 +710,6 @@ class UserSyncer(object):
                         username, access.privilege, project_auth_id
                     )
                 )
-
-        sess.commit()
 
     def _grant_from_db(self, sess, to_add, user_info, user_project, auth_provider_list):
         """
@@ -625,11 +723,8 @@ class UserSyncer(object):
             None
         """
         for (username, project_auth_id) in to_add:
-            u = (
-                sess.query(User)
-                .filter(func.lower(User.username) == username.lower())
-                .first()
-            )
+            u = query_for_user(session=sess, username=username)
+
             auth_provider = auth_provider_list[0]
             if "dbgap_role" not in user_info[username]["tags"]:
                 auth_provider = auth_provider_list[1]
@@ -647,8 +742,6 @@ class UserSyncer(object):
             )
             sess.add(user_access)
 
-        sess.commit()
-
     def _upsert_userinfo(self, sess, user_info):
         """
         update user info to database.
@@ -663,16 +756,15 @@ class UserSyncer(object):
         """
 
         for username in user_info:
-            u = (
-                sess.query(User)
-                .filter(func.lower(User.username) == username.lower())
-                .first()
-            )
+            u = query_for_user(session=sess, username=username)
 
             if u is None:
                 self.logger.info("create user {}".format(username))
                 u = User(username=username)
                 sess.add(u)
+
+            if self.arborist_client:
+                self.arborist_client.create_user({"name": username})
 
             u.email = user_info[username].get("email", "")
             u.display_name = user_info[username].get("display_name", "")
@@ -699,8 +791,6 @@ class UserSyncer(object):
                 if not found:
                     tag = Tag(key=k, value=v)
                     u.tags.append(tag)
-
-        sess.commit()
 
     def _revoke_from_storage(self, to_delete, sess):
         """
@@ -729,7 +819,6 @@ class UserSyncer(object):
                     project=project,
                     session=sess,
                 )
-        sess.commit()
 
     def _grant_from_storage(self, to_add, user_project, sess):
         """
@@ -772,18 +861,25 @@ class UserSyncer(object):
                     project = self._get_or_create(sess, Project, **p)
                     self._projects[p["auth_id"]] = project
         for _, projects in user_project.iteritems():
-            for project_name in projects.keys():
-                project = (
-                    sess.query(Project).filter(Project.auth_id == project_name).first()
-                )
+            for auth_id in projects.keys():
+                project = sess.query(Project).filter(Project.auth_id == auth_id).first()
                 if not project:
-                    data = {"name": project_name, "auth_id": project_name}
-                    project = self._get_or_create(sess, Project, **data)
-                if project_name not in self._projects:
-                    self._projects[project_name] = project
+                    data = {"name": auth_id, "auth_id": auth_id}
+                    try:
+                        project = self._get_or_create(sess, Project, **data)
+                    except IntegrityError as e:
+                        sess.rollback()
+                        self.logger.error(str(e))
+                        raise Exception(
+                            "Project {} already exists. Detail {}. Please contact your system administrator.".format(
+                                auth_id, str(e)
+                            )
+                        )
+                if auth_id not in self._projects:
+                    self._projects[auth_id] = project
 
-    @classmethod
-    def _get_or_create(self, sess, model, **kwargs):
+    @staticmethod
+    def _get_or_create(sess, model, **kwargs):
         instance = sess.query(model).filter_by(**kwargs).first()
         if not instance:
             instance = model(**kwargs)
@@ -813,7 +909,10 @@ class UserSyncer(object):
                     self._get_from_ftp_with_proxy(tmpdir)
                 dbgap_file_list = glob.glob(os.path.join(tmpdir, "*"))
             except Exception as e:
-                self.logger.info(e)
+                self.logger.error(e)
+                exit(1)
+
+        self.logger.info("dbgap files: {}".format(dbgap_file_list))
         permissions = [{"read-storage"} for _ in dbgap_file_list]
         user_projects, user_info = self._parse_csv(
             dict(zip(dbgap_file_list, permissions)), encrypted=True, sess=sess
@@ -837,23 +936,28 @@ class UserSyncer(object):
         )
 
         try:
-            user_projects_yaml, user_info_yaml = self._parse_yaml(
-                self.sync_from_local_yaml_file, encrypted=False
+            user_yaml = UserYAML.from_file(
+                self.sync_from_local_yaml_file, encrypted=False, logger=self.logger
             )
-            user_arborist_info, resources = self._parse_resources_from_yaml(
-                self.sync_from_local_yaml_file, encrypted=False
-            )
-        except EnvironmentError as e:
+        except (EnvironmentError, AssertionError) as e:
             self.logger.error(str(e))
             self.logger.error("aborting early")
             return
+
+        user_projects_csv = {
+            key.lower(): value for key, value in user_projects_csv.iteritems()
+        }
+        user_projects = {key.lower(): value for key, value in user_projects.iteritems()}
+        user_yaml.projects = {
+            key.lower(): value for key, value in user_yaml.projects.iteritems()
+        }
 
         self.sync_two_phsids_dict(user_projects_csv, user_projects)
         self.sync_two_user_info_dict(user_info_csv, user_info)
 
         # privilleges in yaml files overide ones in csv files
-        self.sync_two_phsids_dict(user_projects_yaml, user_projects)
-        self.sync_two_user_info_dict(user_info_yaml, user_info)
+        self.sync_two_phsids_dict(user_yaml.projects, user_projects)
+        self.sync_two_user_info_dict(user_yaml.user_info, user_info)
 
         if user_projects:
             self.logger.info("Sync to db and storage backend")
@@ -862,25 +966,136 @@ class UserSyncer(object):
         else:
             self.logger.info("No users for syncing")
 
-        if resources:
-            self.logger.info("Synchronizing arborist")
-            success = self._update_arborist(sess, resources, user_arborist_info)
+        if user_yaml.rbac:
+            if not self.arborist_client:
+                raise EnvironmentError(
+                    "yaml file contains rbac section but sync is not configured with"
+                    " arborist client"
+                )
+            self.logger.info("Synchronizing arborist...")
+            success = self._update_arborist(sess, user_yaml)
             if success:
                 self.logger.info("Finished synchronizing arborist")
             else:
-                self.logger.info("Could not synchronize successfully")
+                self.logger.error("Could not synchronize successfully")
+                exit(1)
         else:
             self.logger.info("No resources specified; skipping arborist sync")
 
-    @staticmethod
-    def _reset_user_access(session):
-        session.execute(users_to_policies.delete())
-        # TODO (rudyardrichter 2018-09-10): revoke admin access etc
+        if self.arborist_client:
+            self.logger.info("Synchronizing arborist with authorization info...")
+            success = self._update_authz_in_arborist(sess, user_projects, user_yaml)
+            if success:
+                self.logger.info(
+                    "Finished synchronizing authorization info to arborist"
+                )
+            else:
+                self.logger.error(
+                    "Could not synchronize authorization info successfully to arborist"
+                )
+                exit(1)
 
-    def _update_arborist(self, session, resources, user_projects):
+    def _update_arborist(self, session, user_yaml):
         """
-        Create roles and resources in arborist from the information in
-        ``user_projects``.
+        Create roles, resources, policies, groups in arborist from the information in
+        ``user_yaml``.
+
+        The projects are sent to arborist as resources with paths like
+        ``/projects/{project}``. Roles are created with just the original names
+        for the privileges like ``"read-storage"`` etc.
+
+        Args:
+            session (sqlalchemy.Session)
+            user_yaml (UserYAML)
+
+        Return:
+            bool: success
+        """
+        healthy = self._is_arborist_healthy()
+        if not healthy:
+            return False
+
+        # Set up the resource tree in arborist by combining provided resources with any
+        # dbgap resources that were created before this.
+        #
+        # Why add dbgap resources if they've already been created?
+        #   B/C Arborist's PUT update will override existing subresources. So if a dbgap
+        #   resources was created under `/programs/phs000178` anything provided in
+        #   user.yaml under `/programs` would completely wipe it out.
+        resources = user_yaml.rbac.get("resources", [])
+
+        dbgap_resource_paths = []
+        for path_list in self._dbgap_study_to_resources.values():
+            dbgap_resource_paths.extend(path_list)
+
+        combined_resources = utils.combine_provided_and_dbgap_resources(
+            resources, dbgap_resource_paths
+        )
+
+        for resource in combined_resources:
+            try:
+                self.logger.debug(
+                    "attempting to update arborist resource: {}".format(resource)
+                )
+                self.arborist_client.update_resource("/", resource)
+            except ArboristError as e:
+                self.logger.error(e)
+                # keep going; maybe just some conflicts from things existing already
+
+        roles = user_yaml.rbac.get("roles", [])
+        for role in roles:
+            try:
+                response = self.arborist_client.create_role(role)
+                if response:
+                    self._created_roles.add(role["id"])
+            except ArboristError as e:
+                self.logger.error(e)
+                # keep going; maybe just some conflicts from things existing already
+
+        policies = user_yaml.rbac.get("policies", [])
+        for policy in policies:
+            try:
+                response = self.arborist_client.create_policy(policy, overwrite=True)
+                if response:
+                    self._created_policies.add(policy["id"])
+            except ArboristError as e:
+                self.logger.error(e)
+                # keep going; maybe just some conflicts from things existing already
+
+        groups = user_yaml.rbac.get("groups", [])
+        for group in groups:
+            missing = {"name", "users", "policies"}.difference(set(group.keys()))
+            if missing:
+                name = group.get("name", "{MISSING NAME}")
+                self.logger.error(
+                    "group {} missing required field(s): {}".format(name, list(missing))
+                )
+                continue
+            try:
+                response = self.arborist_client.create_group(
+                    group["name"],
+                    description=group.get("description", ""),
+                    users=group["users"],
+                    policies=group["policies"],
+                    overwrite=True,
+                )
+            except ArboristError as e:
+                self.logger.info("couldn't create group: {}".format(str(e)))
+
+        # add policies for `anonymous` and `logged-in` groups
+
+        for policy in user_yaml.rbac.get("anonymous_policies", []):
+            self.arborist_client.grant_group_policy("anonymous", policy)
+
+        for policy in user_yaml.rbac.get("all_users_policies", []):
+            self.arborist_client.grant_group_policy("logged-in", policy)
+
+        return True
+
+    def _update_authz_in_arborist(self, session, user_projects, user_yaml=None):
+        """
+        Assign users policies in arborist from the information in
+        ``user_projects`` and optionally a ``user_yaml``.
 
         The projects are sent to arborist as resources with paths like
         ``/projects/{project}``. Roles are created with just the original names
@@ -888,45 +1103,47 @@ class UserSyncer(object):
 
         Args:
             user_projects (dict)
-            session (sqlalchemy.Session)
+            user_yaml (UserYAML) optional, if there are policies for users in a user.yaml
 
         Return:
             bool: success
         """
-        if not self.arborist_client:
-            self.logger.warn("no arborist client set; skipping arborist sync")
-            return False
-        if not self.arborist_client.healthy():
-            self.logger.error("arborist service is unavailable; skipping arborist sync")
+        healthy = self._is_arborist_healthy()
+        if not healthy:
             return False
 
-        # Set up the resource tree in arborist
-        if resources:
-            # see if arborist has identical resource tree already
-            try:
-                for resource in resources:
-                    self.arborist_client.create_resource("/", resource, overwrite=True)
-            except ArboristError as e:
-                self.logger.error(e)
-                return False
+        if user_yaml:
+            # update the project info with `projects` specified in user.yaml
+            self.sync_two_phsids_dict(user_yaml.user_rbac, user_projects)
 
-        created_roles = set()
-        created_policies = set()
-
-        self._reset_user_access(session)
-
-        for username, user_resources in user_projects.iteritems():
+        for username, user_project_info in user_projects.iteritems():
             self.logger.info("processing user `{}`".format(username))
-            user = (
-                session.query(User)
-                .filter(func.lower(User.username) == username.lower())
-                .first()
-            )
+            user = query_for_user(session=session, username=username)
 
-            for path, permissions in user_resources.iteritems():
+            self.arborist_client.create_user_if_not_exist(username)
+            self.arborist_client.revoke_all_policies_for_user(username)
+
+            for project, permissions in user_project_info.iteritems():
+
+                # check if this is a dbgap project, if it is, we need to get the right
+                # resource path, otherwise just use given project as path
+                paths = self._dbgap_study_to_resources.get(project, [project])
+
+                if user_yaml:
+                    try:
+                        # check if project is in mapping and convert accordingly
+                        paths = [user_yaml.project_to_resource[project]]
+                    except KeyError:
+                        pass
+
+                self.logger.info(
+                    "resource paths for project {}: {}".format(project, paths)
+                )
+                self.logger.debug("permissions: {}".format(permissions))
+
                 for permission in permissions:
                     # "permission" in the dbgap sense, not the arborist sense
-                    if permission not in created_roles:
+                    if permission not in self._created_roles:
                         try:
                             self.arborist_client.create_role(
                                 arborist_role_for_permission(permission)
@@ -937,41 +1154,124 @@ class UserSyncer(object):
                                     permission, str(e)
                                 )
                             )
-                        created_roles.add(permission)
+                        self._created_roles.add(permission)
 
-                    # If everything was created fine, grant a policy to
-                    # this user which contains exactly just this resource,
-                    # with this permission as a role.
+                    for path in paths:
+                        # If everything was created fine, grant a policy to
+                        # this user which contains exactly just this resource,
+                        # with this permission as a role.
 
-                    # format project '/x/y/z' -> 'x.y.z'
-                    # so the policy id will be something like 'x.y.z-create'
-                    policy_id = _format_policy_id(path, permission)
-                    if policy_id not in created_policies:
-                        try:
-                            self.arborist_client.create_policy(
-                                {
-                                    "id": policy_id,
-                                    "description": "policy created by fence sync",
-                                    "role_ids": [permission],
-                                    "resource_paths": [path],
-                                }
-                            )
-                        except ArboristError as e:
-                            self.logger.info(
-                                "not creating policy in arborist; {}".format(str(e))
-                            )
-                        created_policies.add(policy_id)
-                    policy = session.query(Policy).filter_by(id=policy_id).first()
-                    if not policy:
-                        policy = Policy(id=policy_id)
-                        session.add(policy)
-                        self.logger.info("created policy `{}`".format(policy_id))
-                    user.policies.append(policy)
-                    self.logger.info(
-                        "granted policy `{}` to user `{}`".format(
-                            policy_id, user.username
-                        )
+                        # format project '/x/y/z' -> 'x.y.z'
+                        # so the policy id will be something like 'x.y.z-create'
+                        policy_id = _format_policy_id(path, permission)
+                        if policy_id not in self._created_policies:
+                            try:
+                                self.arborist_client.create_policy(
+                                    {
+                                        "id": policy_id,
+                                        "description": "policy created by fence sync",
+                                        "role_ids": [permission],
+                                        "resource_paths": [path],
+                                    },
+                                    overwrite=True,
+                                )
+                            except ArboristError as e:
+                                self.logger.info(
+                                    "not creating policy in arborist; {}".format(str(e))
+                                )
+                            self._created_policies.add(policy_id)
+
+                        self.arborist_client.grant_user_policy(user.username, policy_id)
+
+            if user_yaml:
+                for policy in user_yaml.policies.get(user.username, []):
+                    self.arborist_client.grant_user_policy(user.username, policy)
+
+        for client_name, client_details in user_yaml.clients.iteritems():
+            client_policies = client_details.get("policies", [])
+            client = session.query(Client).filter_by(name=client_name).first()
+            # update existing clients, do not create new ones
+            if not client:
+                self.logger.warning(
+                    "client to update (`{}`) does not exist in fence: skipping".format(
+                        client_name
                     )
+                )
+                continue
+            try:
+                self.arborist_client.update_client(client.client_id, client_policies)
+            except ArboristError as e:
+                self.logger.info(
+                    "not granting policies {} to client `{}`; {}".format(
+                        client_policies, client_name, str(e)
+                    )
+                )
 
-        session.commit()
+        return True
+
+    def _add_dbgap_study_to_arborist(self, dbgap_study):
+        """
+        Return the arborist resource path after adding the specified dbgap study
+        to arborist.
+
+        Args:
+            dbgap_study (str): study phs identifier
+
+        Returns:
+            str: arborist resource path for study
+        """
+        healthy = self._is_arborist_healthy()
+        if not healthy:
+            return False
+
+        default_namespaces = (
+            config["dbGaP"]
+            .get("study_to_resource_namespaces", {})
+            .get("_default", ["/"])
+        )
+        namespaces = (
+            config["dbGaP"]
+            .get("study_to_resource_namespaces", {})
+            .get(dbgap_study, default_namespaces)
+        )
+
+        arborist_resource_namespaces = [
+            namespace.rstrip("/") + "/programs/" for namespace in namespaces
+        ]
+
+        try:
+            for resource_namespace in arborist_resource_namespaces:
+                response = self.arborist_client.update_resource(
+                    resource_namespace,
+                    {"name": dbgap_study, "description": "synced from dbGaP"},
+                    create_parents=True,
+                )
+                self.logger.info(
+                    "added arborist resource under parent path: {} for dbgap project {}.".format(
+                        resource_namespace, dbgap_study
+                    )
+                )
+                self.logger.debug("Arborist response: {}".format(response))
+                if dbgap_study not in self._dbgap_study_to_resources:
+                    self._dbgap_study_to_resources[dbgap_study] = []
+
+                self._dbgap_study_to_resources[dbgap_study].append(
+                    resource_namespace + dbgap_study
+                )
+
+            return arborist_resource_namespaces
+        except ArboristError as e:
+            self.logger.error(e)
+            # keep going; maybe just some conflicts from things existing already
+
+    def _is_arborist_healthy(self):
+        if not self.arborist_client:
+            self.logger.warn("no arborist client set; skipping arborist dbgap sync")
+            return False
+        if not self.arborist_client.healthy():
+            # TODO (rudyardrichter, 2019-01-07): add backoff/retry here
+            self.logger.error(
+                "arborist service is unavailable; skipping main arborist dbgap sync"
+            )
+            return False
         return True

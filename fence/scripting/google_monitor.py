@@ -6,24 +6,43 @@ their respective Google projects. The functions in this file will also
 handle invalid service accounts and projects.
 """
 import traceback
+
 from cirrus.google_cloud.iam import GooglePolicyMember
 from cirrus import GoogleCloudManager
+from cirrus.google_cloud.errors import GoogleAPIError
+
+from cdislogging import get_logger
 
 from fence.resources.google.validity import (
     GoogleProjectValidity,
     GoogleServiceAccountValidity,
 )
 
-from fence.resources.google.utils import get_all_registered_service_accounts
+from fence.resources.google.utils import (
+    get_all_registered_service_accounts,
+    get_linked_google_account_email,
+    is_google_managed_service_account,
+)
+
 from fence.resources.google.access_utils import (
     get_google_project_number,
+    get_project_from_auth_id,
+    get_user_by_email,
+    get_user_by_linked_email,
     force_remove_service_account_from_access,
+    force_remove_service_account_from_db,
+    user_has_access_to_project,
 )
 
 from fence import utils
+from fence.config import config
+from fence.models import User
+from fence.errors import Unauthorized
+
+logger = get_logger(__name__)
 
 
-def validation_check(db, config=None):
+def validation_check(db):
     """
     Google validation check for all user-registered service accounts
     and projects.
@@ -37,42 +56,67 @@ def validation_check(db, config=None):
           TODO: Test this function with various amounts of service accounts
                 and delays from the google API
     """
-    email_required = False
     registered_service_accounts = get_all_registered_service_accounts(db=db)
     project_service_account_mapping = _get_project_service_account_mapping(
         registered_service_accounts
     )
-    invalid_registered_service_account_reasons = {}
-    invalid_project_reasons = {}
 
     for google_project_id, sa_emails in project_service_account_mapping.iteritems():
+        email_required = False
+        invalid_registered_service_account_reasons = {}
+        invalid_project_reasons = {}
+        sa_emails_removed = []
         for sa_email in sa_emails:
-            print("Validating Google Service Account: {}".format(sa_email))
+            logger.debug("Validating Google Service Account: {}".format(sa_email))
             # Do some basic service account checks, this won't validate
             # the data access, that's done when the project's validated
-            validity_info = _is_valid_service_account(
-                sa_email, google_project_id, config=config
-            )
+            try:
+                validity_info = _is_valid_service_account(sa_email, google_project_id)
+            except Unauthorized:
+                """
+                is_validity_service_account can raise an exception if the monitor does
+                not have access, which will be caught and handled during the Project check below
+                The logic in the endpoints is reversed (Project is checked first,
+                not SAs) which is why there's is a sort of weird handling of it here.
+                """
+                logger.info(
+                    "Monitor does not have access to validate "
+                    "service account {}. This should be handled "
+                    "in project validation.".format(sa_email)
+                )
+                continue
+
             if not validity_info:
-                print(
-                    "INVALID SERVICE ACCOUNT {} DETECTED. REMOVING...".format(sa_email)
+                logger.info(
+                    "INVALID SERVICE ACCOUNT {} DETECTED. REMOVING. Validity Information: {}".format(
+                        sa_email, str(getattr(validity_info, "_info", None))
+                    )
                 )
                 force_remove_service_account_from_access(
                     sa_email, google_project_id, db=db
                 )
+                if validity_info["policy_accessible"] is False:
+                    logger.info(
+                        "SERVICE ACCOUNT POLICY NOT ACCESSIBLE OR DOES NOT "
+                        "EXIST. SERVICE ACCOUNT WILL BE REMOVED FROM FENCE DB"
+                    )
+                    force_remove_service_account_from_db(sa_email, db=db)
+
                 # remove from list so we don't try to remove again
                 # if project is invalid too
-                sa_emails.remove(sa_email)
+                sa_emails_removed.append(sa_email)
 
                 invalid_registered_service_account_reasons[
                     sa_email
                 ] = _get_service_account_removal_reasons(validity_info)
                 email_required = True
 
-        print("Validating Google Project: {}".format(google_project_id))
-        google_project_validity = _is_valid_google_project(
-            google_project_id, db=db, config=config
-        )
+        for sa_email in sa_emails_removed:
+            sa_emails.remove(sa_email)
+
+        logger.debug("Validating Google Project: {}".format(google_project_id))
+        google_project_validity = _is_valid_google_project(google_project_id, db=db)
+
         if not google_project_validity:
             # for now, if we detect in invalid project, remove ALL service
             # accounts from access for that project.
@@ -80,9 +124,12 @@ def validation_check(db, config=None):
             # TODO: If the issue is ONLY a specific service account,
             # it may be possible to isolate it and only remove that
             # from access.
-            print(
-                "INVALID GOOGLE PROJECT {} DETECTED. "
-                "REMOVING ALL SERVICE ACCOUNTS...".format(google_project_id)
+            logger.info(
+                "INVALID GOOGLE PROJECT {} DETECTED. REMOVING ALL SERVICE ACCOUNTS. "
+                "Validity Information: {}".format(
+                    google_project_id,
+                    str(getattr(google_project_validity, "_info", None)),
+                )
             )
             for sa_email in sa_emails:
                 force_remove_service_account_from_access(
@@ -97,20 +144,43 @@ def validation_check(db, config=None):
             invalid_project_reasons[
                 "non_registered_service_accounts"
             ] = _get_invalid_sa_project_removal_reasons(google_project_validity)
+            invalid_project_reasons["access"] = _get_access_removal_reasons(
+                google_project_validity
+            )
             email_required = True
 
+        email_required &= config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["enable"]
         if email_required:
-            _send_emails_informing_service_account_removal(
-                _get_user_email_list_from_google_project_with_owner_role(
+            logger.debug(
+                "Sending email with service account removal reasons: {} and project "
+                "removal reasons: {}.".format(
+                    invalid_registered_service_account_reasons, invalid_project_reasons
+                )
+            )
+
+            try:
+                user_email_list = _get_user_email_list_from_google_project_with_owner_role(
                     google_project_id
-                ),
+                )
+            except GoogleAPIError:
+                logger.warning(
+                    "DID NOT EMAIL USERS. Unable to get user(s) email(s) about service account "
+                    "removal in Google project {}. If fence's monitoring SA is not present "
+                    "then we cannot make the Google API call to know who to email.".format(
+                        google_project_id
+                    )
+                )
+                return
+
+            _send_emails_informing_service_account_removal(
+                user_email_list,
                 invalid_registered_service_account_reasons,
                 invalid_project_reasons,
                 google_project_id,
             )
 
 
-def _is_valid_service_account(sa_email, google_project_id, config=None):
+def _is_valid_service_account(sa_email, google_project_id):
     """
     Validate the given registered service account and remove if invalid.
 
@@ -118,42 +188,68 @@ def _is_valid_service_account(sa_email, google_project_id, config=None):
         sa_email(str): service account email
         google_project_id(str): google project id
     """
-    google_project_number = get_google_project_number(google_project_id)
+    with GoogleCloudManager(google_project_id) as gcm:
+        google_project_number = get_google_project_number(google_project_id, gcm)
+
     has_access = bool(google_project_number)
     if not has_access:
         # if our monitor doesn't have access at this point, just don't return any
         # information. When the project check runs, it will catch the monitor missing
         # error and add it to the removal reasons
-        return None
+        raise Unauthorized(
+            "Google Monitoring SA doesn't have access to Google Project: {}".format(
+                google_project_id
+            )
+        )
 
     try:
         sa_validity = GoogleServiceAccountValidity(
             sa_email, google_project_id, google_project_number=google_project_number
         )
-        sa_validity.check_validity(early_return=True, config=config)
-    except Exception:
+
+        if is_google_managed_service_account(sa_email):
+            sa_validity.check_validity(
+                early_return=True,
+                check_type=True,
+                check_policy_accessible=True,
+                check_external_access=False,
+            )
+        else:
+            sa_validity.check_validity(
+                early_return=True,
+                check_type=True,
+                check_policy_accessible=True,
+                check_external_access=True,
+            )
+
+    except Exception as exc:
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
-        print("Service Account determined invalid due to unhandled exception:")
+        logger.warning(
+            "Service Account {} determined invalid due to unhandled exception: {}. "
+            "Assuming service account is invalid.".format(sa_email, str(exc))
+        )
         traceback.print_exc()
         sa_validity = None
 
     return sa_validity
 
 
-def _is_valid_google_project(google_project_id, db=None, config=None):
+def _is_valid_google_project(google_project_id, db=None):
     """
     Validate the given google project id and remove all registered service
     accounts under that project if invalid.
     """
     try:
         project_validity = GoogleProjectValidity(google_project_id)
-        project_validity.check_validity(early_return=True, db=db, config=config)
-
-    except Exception:
+        project_validity.check_validity(early_return=True, db=db)
+    except Exception as exc:
         # any issues, assume invalid
         # TODO not sure if this is the right way to handle this...
-        print("Project determined invalid due to unhandled exception:")
+        logger.warning(
+            "Project {} determined invalid due to unhandled exception: {}. "
+            "Assuming project is invalid.".format(google_project_id, str(exc))
+        )
         traceback.print_exc()
         project_validity = None
 
@@ -185,6 +281,12 @@ def _get_service_account_removal_reasons(service_account_validity):
         )
     if service_account_validity["owned_by_project"] is False:
         removal_reasons.append("It is not owned by the project.")
+    if service_account_validity["policy_accessible"] is False:
+        removal_reasons.append(
+            "Either it doesn't exist in Google or "
+            "we could not access its policy, "
+            "which is need for further checks."
+        )
 
     return removal_reasons
 
@@ -247,6 +349,30 @@ def _get_invalid_sa_project_removal_reasons(google_project_validity):
         if not sa_validity:
             removal_reasons[sa_email] = _get_service_account_removal_reasons(
                 sa_validity
+            )
+
+    return removal_reasons
+
+
+def _get_access_removal_reasons(google_project_validity):
+
+    removal_reasons = {}
+
+    if google_project_validity is None:
+        return removal_reasons
+
+    for project, access_validity in google_project_validity.get("access", {}):
+        removal_reasons[project] = []
+        if access_validity["exists"] is False:
+            removal_reasons[project].append(
+                "Data access project {} no longer exists.".format(project)
+            )
+
+        if access_validity["all_users_have_access"] is False:
+            removal_reasons[project].append(
+                "Not all users on the Google Project have access to data project {}.".format(
+                    project
+                )
             )
 
     return removal_reasons
@@ -340,16 +466,14 @@ def _send_emails_informing_service_account_removal(
     if not to_emails:
         return None
 
-    from fence.settings import REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION
+    from_email = config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["from"]
+    subject = config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["subject"]
 
-    from_email = REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["from"]
-    subject = REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["subject"]
+    domain = config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["domain"]
+    if config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["admin"]:
+        to_emails.extend(config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["admin"])
 
-    domain = REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["domain"]
-    if REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["admin"]:
-        to_emails.extend(REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["admin"])
-
-    text = REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION["content"]
+    text = config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["content"]
     content = text.format(project_id)
 
     for email, removal_reasons in invalid_service_account_reasons.iteritems():
@@ -360,11 +484,12 @@ def _send_emails_informing_service_account_removal(
             for reason in removal_reasons:
                 content += "\n\t\t - {}".format(reason)
 
-    general_project_errors = invalid_project_reasons.get("general")
+    general_project_errors = invalid_project_reasons.get("general", {})
     non_reg_sa_errors = invalid_project_reasons.get(
         "non_registered_service_accounts", {}
     )
-    if general_project_errors or non_reg_sa_errors:
+    access_errors = invalid_project_reasons.get("access")
+    if general_project_errors or non_reg_sa_errors or access_errors:
         content += (
             "\n\t - Google Project {} determined invalid. All service "
             "accounts with data access will be removed from access.".format(project_id)
@@ -372,6 +497,11 @@ def _send_emails_informing_service_account_removal(
         for removal_reason in general_project_errors:
             if removal_reason:
                 content += "\n\t\t - {}".format(removal_reason)
+
+        if access_errors:
+            for project, removal_reasons in access_errors.iteritems():
+                for reason in removal_reasons:
+                    content += "\n\t\t - {}".format(reason)
 
         if non_reg_sa_errors:
             for sa_email, removal_reasons in non_reg_sa_errors.iteritems():
@@ -382,3 +512,159 @@ def _send_emails_informing_service_account_removal(
                     content += "\n\t\t\t - {}".format(reason)
 
     return utils.send_email(from_email, to_emails, subject, content, domain)
+
+
+def _get_users_without_access(db, auth_ids, user_emails, check_linking):
+    """
+    Build list of users without access to projects identified by auth_ids
+
+    Args:
+        db (str): database instance
+        auth_ids (list(str)): list of project auth_ids to check access against
+        user_emails (list(str)): list of emails to check access for
+        check_linking (bool): flag to check for linked google email
+
+    Returns:
+        dict{str : (list(str))} : dictionary where keys are user emails,
+        and values are list of project_ids they do not have access to
+
+    """
+
+    no_access = {}
+
+    for user_email in user_emails:
+
+        user = get_user_by_email(user_email, db) or get_user_by_linked_email(
+            user_email, db
+        )
+
+        logger.info("Checking access for {}.".format(user.email))
+
+        if not user:
+            logger.info(
+                "Email ({}) does not exist in fence database.".format(user_email)
+            )
+            continue
+
+        if check_linking:
+            link_email = get_linked_google_account_email(user.id, db)
+            if not link_email:
+                logger.info(
+                    "User ({}) does not have a linked google account.".format(
+                        user_email
+                    )
+                )
+                continue
+
+        no_access_auth_ids = []
+        for auth_id in auth_ids:
+            project = get_project_from_auth_id(auth_id, db)
+            if project:
+                if not user_has_access_to_project(user, project.id, db):
+                    logger.info(
+                        "User ({}) does NOT have access to project (auth_id: {})".format(
+                            user_email, auth_id
+                        )
+                    )
+                    # add to list to send email
+                    no_access_auth_ids.append(auth_id)
+                else:
+                    logger.info(
+                        "User ({}) has access to project (auth_id: {})".format(
+                            user_email, auth_id
+                        )
+                    )
+            else:
+                logger.warning("Project (auth_id: {}) does not exist.".format(auth_id))
+
+        if no_access_auth_ids:
+            no_access[user_email] = no_access_auth_ids
+
+    return no_access
+
+
+def email_user_without_access(user_email, projects, google_project_id):
+
+    """
+    Send email to user, indicating no access to given projects
+
+    Args:
+        user_email (str): address to send email to
+        projects (list(str)):  list of projects user does not have access to that they should
+        google_project_id (str): id of google project user belongs to
+    Returns:
+        HTTP response
+
+    """
+    to_emails = [user_email]
+
+    from_email = config["PROBLEM_USER_EMAIL_NOTIFICATION"]["from"]
+    subject = config["PROBLEM_USER_EMAIL_NOTIFICATION"]["subject"]
+
+    domain = config["PROBLEM_USER_EMAIL_NOTIFICATION"]["domain"]
+    if config["PROBLEM_USER_EMAIL_NOTIFICATION"]["admin"]:
+        to_emails.extend(config["PROBLEM_USER_EMAIL_NOTIFICATION"]["admin"])
+
+    text = config["PROBLEM_USER_EMAIL_NOTIFICATION"]["content"]
+    content = text.format(google_project_id, ",".join(projects))
+
+    return utils.send_email(from_email, to_emails, subject, content, domain)
+
+
+def email_users_without_access(
+    db, auth_ids, user_emails, check_linking, google_project_id
+):
+
+    """
+    Build list of users without acess and send emails.
+
+    Args:
+        db (str): database instance
+        auth_ids (list(str)): list of project auth_ids to check access against
+        user_emails (list(str)): list of emails to check access for
+        check_linking (bool): flag to check for linked google email
+    Returns:
+        None
+    """
+    users_without_access = _get_users_without_access(
+        db, auth_ids, user_emails, check_linking
+    )
+
+    if len(users_without_access) == len(user_emails):
+        logger.warning(
+            "No user has proper access to provided projects. Contact project administrator. No emails will be sent"
+        )
+        return
+    elif len(users_without_access) > 0:
+        logger.info(
+            "Some user(s) do not have proper access to provided projects. Email(s) will be sent to user(s)."
+        )
+
+        with GoogleCloudManager(google_project_id) as gcm:
+            members = gcm.get_project_membership(google_project_id)
+            users = []
+            for member in members:
+                if member.member_type == GooglePolicyMember.USER:
+                    users.append(member.email_id)
+
+        for user, projects in users_without_access.iteritems():
+            logger.info(
+                "{} does not have access to the following datasets: {}.".format(
+                    user, ",".join(projects)
+                )
+            )
+            if user in users:
+                logger.info(
+                    "{} is a member of google project: {}. User will be emailed.".format(
+                        user, google_project_id
+                    )
+                )
+                email_user_without_access(user, projects, google_project_id)
+            else:
+                logger.info(
+                    "{} is NOT a member of google project: {}. User will NOT be emailed.".format(
+                        user, google_project_id
+                    )
+                )
+    else:
+        logger.info("All users have proper access to provided projects.")

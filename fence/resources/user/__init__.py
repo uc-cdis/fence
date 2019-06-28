@@ -2,18 +2,25 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import COMMASPACE, formatdate
+
+from cdislogging import get_logger
 import flask
+
 from fence.resources import userdatamodel as udm
 from fence.resources.google.utils import (
     get_linked_google_account_email,
     get_linked_google_account_exp,
 )
-from fence.resources.userdatamodel import delete_user, get_user_groups
+from fence.resources.userdatamodel import get_user_groups
 import smtplib
-from sqlalchemy import func
 
 from fence.errors import NotFound, UserError, InternalError
-from fence.models import User
+from fence.models import query_for_user
+from fence.config import config
+from fence.rbac.errors import ArboristError
+
+
+logger = get_logger(__name__)
 
 
 def update_user_resource(username, resource):
@@ -24,26 +31,22 @@ def update_user_resource(username, resource):
         resources = set(user.application.resources_granted or [])
         resources.add(resource)
         user.application.resources_granted = list(resources)
-        if "EMAIL_SERVER" in flask.current_app.config:
+        if "EMAIL_SERVER" in config:
             content = "You have been granted {} resources in Bionimbus Cloud.".format(
                 ", ".join(resources)
             )
             send_mail(
-                flask.current_app.config["SEND_FROM"],
+                config["SEND_FROM"],
                 [user.email],
                 "Account update from Bionimbus Cloud",
                 text=content,
-                server=flask.current_app.config["EMAIL_SERVER"],
+                server=config["EMAIL_SERVER"],
             )
         return get_user_info(user, session)
 
 
 def find_user(username, session):
-    user = (
-        session.query(User)
-        .filter(func.lower(User.username) == username.lower())
-        .first()
-    )
+    user = query_for_user(session=session, username=username)
     if not user:
         raise NotFound("user {} not found".format(username))
     return user
@@ -86,6 +89,18 @@ def get_user_info(current_session, username):
         "groups": groups,
         "message": "",
     }
+
+    if hasattr(flask.current_app, "arborist"):
+        try:
+            resources = flask.current_app.arborist.list_resources_for_user(
+                user.username
+            )
+        except ArboristError:
+            logger.error(
+                "request to arborist for user's resources failed; going to list empty"
+            )
+            resources = []
+        info["resources"] = resources
 
     if user.tags is not None and len(user.tags) > 0:
         info["tags"] = {tag.key: tag.value for tag in user.tags}

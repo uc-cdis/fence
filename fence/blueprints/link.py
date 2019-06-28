@@ -4,6 +4,8 @@ import flask
 from flask_restful import Resource
 from flask_sqlalchemy_session import current_session
 
+from cdislogging import get_logger
+
 from cirrus import GoogleCloudManager
 from fence.restful import RestfulApi
 from fence.errors import NotFound
@@ -12,17 +14,22 @@ from fence.errors import UserError
 
 from fence.models import UserGoogleAccount
 from fence.models import UserGoogleAccountToProxyGroup
-from fence.auth import current_token
+from fence.auth import current_token, get_user_from_claims, validate_request
 from fence.auth import require_auth_header
-
+from fence.config import config
 from fence.resources.google.utils import (
     get_or_create_proxy_group_id,
     get_default_google_account_expiration,
     get_users_linked_google_email,
     get_linked_google_account_email,
 )
+from fence.utils import (
+    clear_cookies,
+    append_query_params,
+    get_valid_expiration_from_request,
+)
 
-from fence.utils import clear_cookies, append_query_params
+logger = get_logger(__name__)
 
 
 def make_link_blueprint():
@@ -33,8 +40,11 @@ def make_link_blueprint():
     blueprint = flask.Blueprint("link", __name__)
     blueprint_api = RestfulApi(blueprint)
 
-    blueprint_api.add_resource(GoogleLinkRedirect, "/google", strict_slashes=False)
-    blueprint_api.add_resource(GoogleCallback, "/google/callback", strict_slashes=False)
+    if config["ALLOW_GOOGLE_LINKING"]:
+        blueprint_api.add_resource(GoogleLinkRedirect, "/google", strict_slashes=False)
+        blueprint_api.add_resource(
+            GoogleCallback, "/google/callback", strict_slashes=False
+        )
 
     return blueprint
 
@@ -108,6 +118,26 @@ class GoogleLinkRedirect(Resource):
         if not google_email:
             # save off provided redirect in session and initiate Google AuthN
             flask.session["redirect"] = provided_redirect
+
+            # requested time (in seconds) during which the link will be valid
+            requested_expires_in = get_valid_expiration_from_request()
+            if requested_expires_in:
+                flask.session["google_link_expires_in"] = requested_expires_in
+
+            # if we're mocking Google login, skip to callback
+            if config.get("MOCK_GOOGLE_AUTH", False):
+                flask.redirect_url = (
+                    config["BASE_URL"].strip("/") + "/link/google/callback?code=abc"
+                )
+                response = flask.redirect(flask.redirect_url)
+                # pass-through the authorization header. The user's username
+                # MUST be a Google email for MOCK_GOOGLE_AUTH to actually link that
+                # email correctly
+                response.headers["Authorization"] = flask.request.headers.get(
+                    "Authorization"
+                )
+                return response
+
             flask.redirect_url = flask.current_app.google_client.get_auth_url()
 
             # Tell Google to let user select an account
@@ -145,8 +175,15 @@ class GoogleLinkRedirect(Resource):
         google_email = get_users_linked_google_email(user_id)
         proxy_group = get_or_create_proxy_group_id()
 
+        # requested time (in seconds) during which the link will be valid
+        requested_expires_in = get_valid_expiration_from_request()
+
         access_expiration = _force_update_user_google_account(
-            user_id, google_email, proxy_group, _allow_new=False
+            user_id,
+            google_email,
+            proxy_group,
+            _allow_new=False,
+            requested_expires_in=requested_expires_in,
         )
 
         return {"exp": access_expiration}, 200
@@ -230,8 +267,23 @@ class GoogleCallback(Resource):
         provided_redirect = flask.session.get("redirect")
         code = flask.request.args.get("code")
 
-        google_reponse = flask.current_app.google_client.get_user_id(code)
-        email = google_reponse.get("email")
+        if not config.get("MOCK_GOOGLE_AUTH", False):
+            google_response = flask.current_app.google_client.get_user_id(code)
+            email = google_response.get("email")
+        else:
+            # if we're mocking google auth, mock response to include the email
+            # from the provided access token
+            try:
+                token = validate_request({"user"})
+                email = get_user_from_claims(token).username
+            except Exception as exc:
+                logger.info(
+                    "Unable to parse Google email from token, using default mock value. "
+                    "Error: {}".format(exc)
+                )
+                email = flask.request.cookies.get(
+                    config.get("DEV_LOGIN_COOKIE_NAME"), "test@example.com"
+                )
 
         error = ""
         error_description = ""
@@ -239,11 +291,12 @@ class GoogleCallback(Resource):
         # get info from session and then clear it
         user_id = flask.session.get("user_id")
         proxy_group = flask.session.get("google_proxy_group_id")
+        expires_in = flask.session.get("google_link_expires_in")
         _clear_google_link_info_from_session()
 
         if not email:
             error = "g_acnt_auth_failure"
-            error_description = google_reponse
+            error_description = google_response
         else:
             error, error_description = get_errors_update_user_google_account_dry_run(
                 user_id, email, proxy_group, _already_authed=True
@@ -251,7 +304,11 @@ class GoogleCallback(Resource):
 
             if not error:
                 exp = _force_update_user_google_account(
-                    user_id, email, proxy_group, _allow_new=True
+                    user_id,
+                    email,
+                    proxy_group,
+                    _allow_new=True,
+                    requested_expires_in=expires_in,
                 )
 
                 # TODO: perhaps this is problematic??
@@ -355,7 +412,7 @@ def get_errors_update_user_google_account_dry_run(
 
 
 def _force_update_user_google_account(
-    user_id, google_email, proxy_group_id, _allow_new=False
+    user_id, google_email, proxy_group_id, _allow_new=False, requested_expires_in=None
 ):
     """
     Adds user's google account to proxy group and/or updates expiration for
@@ -375,6 +432,8 @@ def _force_update_user_google_account(
         proxy_group_id (str): User's Proxy Google group id
         _allow_new (bool, optional): Whether or not a new linkage between
             Google email and the given user should be allowed
+        requested_expires_in (int, optional): Requested time (in seconds)
+            during which the link will be valid
 
     Raises:
         NotFound: Linked Google account not found
@@ -395,7 +454,7 @@ def _force_update_user_google_account(
                 user_google_account = add_new_user_google_account(
                     user_id, google_email, current_session
                 )
-                flask.current_app.logger.info(
+                logger.info(
                     "Linking Google account {} to user with id {}.".format(
                         google_email, user_id
                     )
@@ -411,13 +470,17 @@ def _force_update_user_google_account(
                 "was attempted and failed."
             )
 
+    # timestamp at which the link will expire
     expiration = get_default_google_account_expiration()
+    if requested_expires_in:
+        requested_expiration = int(time.time()) + requested_expires_in
+        expiration = min(requested_expiration, expiration)
 
     force_update_user_google_account_expiration(
         user_google_account, proxy_group_id, google_email, expiration, current_session
     )
 
-    flask.current_app.logger.info(
+    logger.info(
         "Adding user's (id: {}) Google account to their proxy group (id: {})."
         " Expiration: {}".format(
             user_google_account.user_id, proxy_group_id, expiration
@@ -491,6 +554,7 @@ def _add_google_email_to_proxy_group(google_email, proxy_group_id):
 
 def _clear_google_link_info_from_session():
     # remove google linking info from session
-    flask.session.pop("google_link", None)
-    flask.session.pop("user_id", None)
-    flask.session.pop("google_proxy_group_id", None)
+    flask.session.pop("google_link")
+    flask.session.pop("user_id")
+    flask.session.pop("google_proxy_group_id")
+    flask.session.pop("google_link_expires_in")

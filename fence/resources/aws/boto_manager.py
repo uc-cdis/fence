@@ -1,16 +1,56 @@
+import uuid
+
 from boto3 import client
 from boto3.exceptions import Boto3Error
-from fence.errors import UserError, InternalError, UnavailableError
-import uuid
+
+from fence.errors import UserError, InternalError, UnavailableError, NotFound
 
 
 class BotoManager(object):
+    """
+    AWS manager singleton.
+    """
+
+    URL_EXPIRATION_DEFAULT = 1800  # 30 minutes
+    URL_EXPIRATION_MAX = 86400  # 1 day
+
     def __init__(self, config, logger):
         self.sts_client = client("sts", **config)
         self.s3_client = client("s3", **config)
         self.logger = logger
         self.ec2 = None
         self.iam = None
+
+    def delete_data_file(self, bucket, guid):
+        """
+        We use buckets with versioning disabled.
+
+        See AWS docs here:
+
+            https://docs.aws.amazon.com/AmazonS3/latest/dev/DeletingObjectsfromVersioningSuspendedBuckets.html
+        """
+        try:
+            s3_objects = self.s3_client.list_objects_v2(
+                Bucket=bucket, Prefix=guid, Delimiter="/"
+            )
+            if not s3_objects.get("Contents"):
+                # file not found in the bucket
+                self.logger.info(
+                    "tried to delete GUID {} but didn't find in bucket {}".format(
+                        guid, bucket
+                    )
+                )
+                return
+            if len(s3_objects["Contents"]) > 1:
+                raise InternalError("multiple files found with GUID {}".format(guid))
+            key = s3_objects["Contents"][0]["Key"]
+            self.s3_client.delete_object(Bucket=bucket, Key=key)
+            self.logger.info(
+                "deleted file for GUID {} in bucket {}".format(guid, bucket)
+            )
+        except (KeyError, Boto3Error) as e:
+            self.logger.exception(e)
+            raise InternalError("Failed to delete file: {}".format(e.message))
 
     def assume_role(self, role_arn, duration_seconds, config=None):
         try:
@@ -30,23 +70,26 @@ class BotoManager(object):
             raise UnavailableError("Fail to reach AWS: {}".format(ex.message))
 
     def presigned_url(self, bucket, key, expires, config, method="get_object"):
-        if config.has_key("aws_access_key_id"):
-            self.s3_client = client("s3", **config)
+        """
+        Args:
+            bucket (str): bucket name
+            key (str): key in bucket
+            expires (int): presigned URL expiration time, in seconds
+            config (dict): additional parameters if necessary (e.g. updating access key)
+            method (str): "get_object" or "put_object" (ClientMethod argument to boto)
+        """
         if method not in ["get_object", "put_object"]:
             raise UserError("method {} not allowed".format(method))
-        if expires is None:
-            expires = 1800
-        elif expires > 3600 * 24:
-            expires = 3600 * 24
-
-        url = self.s3_client.generate_presigned_url(
-            ClientMethod=method,
-            Params={"Bucket": bucket, "Key": key}
-            if method == "get_object"
-            else {"Bucket": bucket, "Key": key, "ServerSideEncryption": "AES256"},
-            ExpiresIn=expires,
+        if config.has_key("aws_access_key_id"):
+            self.s3_client = client("s3", **config)
+        expires = int(expires) or self.URL_EXPIRATION_DEFAULT
+        expires = min(expires, self.URL_EXPIRATION_MAX)
+        params = {"Bucket": bucket, "Key": key}
+        if method == "put_object":
+            params["ServerSideEncryption"] = "AES256"
+        return self.s3_client.generate_presigned_url(
+            ClientMethod=method, Params=params, ExpiresIn=expires
         )
-        return url
 
     def get_bucket_region(self, bucket, config):
         try:

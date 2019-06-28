@@ -6,7 +6,6 @@ from random import SystemRandom
 import re
 import string
 import requests
-from sqlalchemy import func
 from urllib import urlencode
 from urlparse import parse_qs, urlsplit, urlunsplit
 
@@ -14,8 +13,9 @@ import flask
 from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.datastructures import ImmutableMultiDict
 
-from fence.models import Client, GrantType, User
-from fence.jwt.token import CLIENT_ALLOWED_SCOPES
+from fence.models import Client, GrantType, User, query_for_user
+from fence.errors import NotFound, UserError
+from fence.config import config
 
 
 rng = SystemRandom()
@@ -40,10 +40,14 @@ def create_client(
     is_admin=False,
     grant_types=None,
     confidential=True,
+    arborist=None,
+    policies=None,
 ):
+    client_id = random_str(40)
+    if arborist is not None:
+        arborist.create_client(client_id, policies)
     grant_types = grant_types
     driver = SQLAlchemyDriver(DB)
-    client_id = random_str(40)
     client_secret = None
     hashed_secret = None
     if confidential:
@@ -51,20 +55,21 @@ def create_client(
         hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
     auth_method = "client_secret_basic" if confidential else "none"
     with driver.session as s:
-        user = (
-            s.query(User).filter(func.lower(User.username) == username.lower()).first()
-        )
+        user = query_for_user(session=s, username=username)
+
         if not user:
             user = User(username=username, is_admin=is_admin)
             s.add(user)
         if s.query(Client).filter(Client.name == name).first():
+            if arborist is not None:
+                arborist.delete_client(client_id)
             raise Exception("client {} already exists".format(name))
         client = Client(
             client_id=client_id,
             client_secret=hashed_secret,
             user=user,
             redirect_uris=urls,
-            _allowed_scopes=" ".join(CLIENT_ALLOWED_SCOPES),
+            _allowed_scopes=" ".join(config["CLIENT_ALLOWED_SCOPES"]),
             description=description,
             name=name,
             auto_approve=auto_approve,
@@ -224,7 +229,7 @@ def send_email(from_email, to_emails, subject, text, smtp_domain):
                 "smtp_hostname": "smtp.mailgun.org",
                 "default_login": "postmaster@mailgun.planx-pla.net",
                 "api_url": "https://api.mailgun.net/v3/mailgun.planx-pla.net",
-                "smtp_password": password",
+                "smtp_password": "password",
                 "api_key": "api key"
             }
 
@@ -235,14 +240,43 @@ def send_email(from_email, to_emails, subject, text, smtp_domain):
         KeyError
 
     """
-    from fence.settings import GUN_MAIL
+    if smtp_domain not in config["GUN_MAIL"] or not config["GUN_MAIL"].get(
+        smtp_domain
+    ).get("smtp_password"):
+        raise NotFound(
+            "SMTP Domain '{}' does not exist in configuration for GUN_MAIL or "
+            "smtp_password was not provided. "
+            "Cannot send email.".format(smtp_domain)
+        )
 
-    api_key = GUN_MAIL[smtp_domain]['api_key']
-    email_url = GUN_MAIL[smtp_domain]['api_url'] + '/messages'
+    api_key = config["GUN_MAIL"][smtp_domain].get("api_key", "")
+    email_url = config["GUN_MAIL"][smtp_domain].get("api_url", "") + "/messages"
 
-    return requests.post(email_url, auth=('api', api_key), data={
-        'from': from_email,
-        'to': to_emails,
-        'subject': subject,
-        'text': text
-    })
+    return requests.post(
+        email_url,
+        auth=("api", api_key),
+        data={"from": from_email, "to": to_emails, "subject": subject, "text": text},
+    )
+
+
+def get_valid_expiration_from_request():
+    """
+    Return the expires_in param if it is in the request, None otherwise.
+    Throw an error if the requested expires_in is not a positive integer.
+    """
+    if "expires_in" in flask.request.args:
+        is_valid_expiration(flask.request.args["expires_in"])
+        return int(flask.request.args["expires_in"])
+    else:
+        return None
+
+
+def is_valid_expiration(expires_in):
+    """
+    Throw an error if expires_in is not a positive integer.
+    """
+    try:
+        expires_in = int(flask.request.args["expires_in"])
+        assert expires_in > 0
+    except (ValueError, AssertionError):
+        raise UserError("expires_in must be a positive integer")

@@ -56,6 +56,7 @@ NOTE: You can use the following helper assert functions when developing more
 import json
 import pytest
 import time
+from datetime import datetime
 from io import StringIO
 from urllib import quote
 
@@ -68,6 +69,8 @@ from fence.models import (
     ServiceAccountAccessPrivilege,
     ServiceAccountToGoogleBucketAccessGroup,
 )
+
+from fence.config import config
 
 # Python 2 and 3 compatible
 try:
@@ -91,7 +94,7 @@ def test_google_service_account_monitor_none(
     encoded_creds_jwt = encoded_jwt_service_accounts_access["jwt"]
     test_file = None
     monkeypatch.setitem(
-        app.config, "CIRRUS_CFG", {"GOOGLE_APPLICATION_CREDENTIALS": test_file}
+        config, "CIRRUS_CFG", {"GOOGLE_APPLICATION_CREDENTIALS": test_file}
     )
 
     response = client.get(
@@ -110,7 +113,7 @@ def test_google_service_account_monitor(
     creds.
     """
     encoded_creds_jwt = encoded_jwt_service_accounts_access["jwt"]
-    creds_file = u'{"client_email": "test123@example.com"}'
+    creds_file = '{"client_email": "test123@example.com"}'
     path_mock = MagicMock()
     path_mock.return_value.path.return_value.exists.return_value = True
 
@@ -118,9 +121,7 @@ def test_google_service_account_monitor(
     # mock_path = patch('os.path.exists', True)
     mocked_open = patch("__builtin__.open", mock_open(read_data=creds_file))
 
-    monkeypatch.setitem(
-        app.config, "CIRRUS_CFG", {"GOOGLE_APPLICATION_CREDENTIALS": "."}
-    )
+    monkeypatch.setitem(config, "CIRRUS_CFG", {"GOOGLE_APPLICATION_CREDENTIALS": "."})
 
     mocked_open.start()
     mock_path.start()
@@ -176,6 +177,58 @@ def test_patch_service_account_no_project_change(
     # make sure we actually extended access past the current time
     for access in service_account_accesses:
         assert access.expires > int(time.time())
+
+
+def test_patch_service_account_expires_in(
+    client,
+    app,
+    db_session,
+    encoded_jwt_service_accounts_access,
+    register_user_service_account,
+    user_can_manage_service_account_mock,
+    valid_user_service_account_mock,
+    revoke_user_service_account_from_google_mock,
+    add_user_service_account_to_google_mock,
+):
+    """
+    Test that patching with a valid expires_in successfully extends
+    access, and patching with an invalid expires_in does not.
+    """
+    encoded_creds_jwt = encoded_jwt_service_accounts_access["jwt"]
+    service_account = register_user_service_account["service_account"]
+
+    # invalid expires_in: should fail
+    requested_exp = "abc"  # expires_in must be int >0
+    response = client.patch(
+        "/google/service_accounts/{}?expires_in={}".format(
+            quote(service_account.email), requested_exp
+        ),
+        headers={"Authorization": "Bearer " + encoded_creds_jwt},
+        content_type="application/json",
+    )
+    assert response.status_code == 400  # check if failure
+
+    # valid expires_in: should succeed
+    requested_exp = 60
+    response = client.patch(
+        "/google/service_accounts/{}?expires_in={}".format(
+            quote(service_account.email), requested_exp
+        ),
+        headers={"Authorization": "Bearer " + encoded_creds_jwt},
+        content_type="application/json",
+    )
+    assert str(response.status_code).startswith("2")  # check if success
+
+    # make sure the access was extended of the requested time
+    # (allow up to 10 sec for runtime)
+    service_account_accesses = (
+        db_session.query(ServiceAccountToGoogleBucketAccessGroup).filter_by(
+            service_account_id=service_account.id
+        )
+    ).all()
+    for access in service_account_accesses:
+        diff = access.expires - int(time.time())
+        assert requested_exp <= diff <= requested_exp + 10
 
 
 def test_patch_service_account_dry_run_valid_empty_arg(
@@ -339,6 +392,7 @@ def test_patch_service_account_remove_all_access(
 
 
 def test_invalid_service_account_dry_run_errors(
+    cloud_manager,
     client,
     app,
     encoded_jwt_service_accounts_access,
@@ -557,21 +611,22 @@ def test_invalid_get_google_project_parent_org(
 
 
 def test_valid_get_google_project_parent_org(
+    cloud_manager,
     client,
     app,
     encoded_jwt_service_accounts_access,
     valid_service_account_patcher,
     valid_google_project_patcher,
     db_session,
-    cloud_manager,
     monkeypatch,
 ):
     """
     Test that a valid service account gives us the expected response when it has
     parent org BUT that org is whitelisted.
     """
+
     monkeypatch.setitem(
-        app.config, "WHITE_LISTED_GOOGLE_PARENT_ORGS", ["whitelisted-parent-org"]
+        config, "WHITE_LISTED_GOOGLE_PARENT_ORGS", ["whitelisted-parent-org"]
     )
 
     (
@@ -687,6 +742,92 @@ def test_invalid_google_project_no_access(
     assert response.json["errors"]["project_access"]["status"] != 200
 
 
+def test_service_account_registration_expires_in(
+    app,
+    db_session,
+    client,
+    encoded_jwt_service_accounts_access,
+    cloud_manager,
+    valid_google_project_patcher,
+    valid_service_account_patcher,
+):
+    """
+    Test that a service account registration with a valid expires_in is
+    successful, and that a registration with an invalid expires_in is not.
+    """
+    project = Project(id=1, auth_id="some_auth_id")
+
+    bucket = Bucket(id=1)
+
+    db_session.add(project)
+    db_session.add(bucket)
+    db_session.commit()
+
+    project_to_bucket = ProjectToBucket(project_id=1, bucket_id=1)
+
+    db_session.add(project_to_bucket)
+    db_session.commit()
+
+    gbag = GoogleBucketAccessGroup(id=1, bucket_id=1, email="gbag@gmail.com")
+
+    db_session.add(gbag)
+    db_session.commit()
+
+    encoded_creds_jwt = encoded_jwt_service_accounts_access["jwt"]
+    project_access = ["some_auth_id"]
+    valid_service_account = {
+        "service_account_email": "sa@gmail.com",
+        "google_project_id": "project-id",
+        "project_access": project_access,
+    }
+
+    (
+        cloud_manager.return_value.__enter__.return_value.get_service_account.return_value
+    ) = {"uniqueId": "sa_unique_id", "email": "sa@gmail.com"}
+
+    (
+        cloud_manager.return_value.__enter__.return_value.add_member_to_group.return_value
+    ) = {"email": "sa@gmail.com"}
+
+    assert len(db_session.query(UserServiceAccount).all()) == 0
+    assert len(db_session.query(ServiceAccountAccessPrivilege).all()) == 0
+    assert len(db_session.query(ServiceAccountToGoogleBucketAccessGroup).all()) == 0
+
+    # valid expires_in: should succeed
+    requested_exp = 60
+
+    response = client.post(
+        "/google/service_accounts?expires_in={}".format(requested_exp),
+        headers={"Authorization": "Bearer " + encoded_creds_jwt},
+        data=json.dumps(valid_service_account),
+        content_type="application/json",
+    )
+    assert response.status_code == 200  # check if success
+
+    assert len(db_session.query(UserServiceAccount).all()) == 1
+    assert len(db_session.query(ServiceAccountAccessPrivilege).all()) == 1
+    sa_to_bucket_entries = db_session.query(
+        ServiceAccountToGoogleBucketAccessGroup
+    ).all()
+    assert len(sa_to_bucket_entries) == 1
+
+    # make sure the access was granted for the requested time
+    # (allow up to 10 sec for runtime)
+    diff = sa_to_bucket_entries[0].expires - int(time.time())
+    assert requested_exp <= diff <= requested_exp + 10
+
+    # invalid expires_in: should fail
+    requested_exp = "abc"  # expires_in must be int >0
+
+    response = client.post(
+        "/google/service_accounts?expires_in={}".format(requested_exp),
+        headers={"Authorization": "Bearer " + encoded_creds_jwt},
+        data=json.dumps(valid_service_account),
+        content_type="application/json",
+    )
+    assert response.status_code == 400  # check if failure
+
+
 def test_valid_service_account_registration(
     app,
     db_session,
@@ -732,7 +873,7 @@ def test_valid_service_account_registration(
 
     (
         cloud_manager.return_value.__enter__.return_value.add_member_to_group.return_value
-    ) = {"id": "sa@gmail.com"}
+    ) = {"email": "sa@gmail.com"}
 
     assert len(db_session.query(UserServiceAccount).all()) == 0
     assert len(db_session.query(ServiceAccountAccessPrivilege).all()) == 0
@@ -805,7 +946,7 @@ def test_valid_service_account_registration_multiple_service_accounts(
 
     (
         cloud_manager.return_value.__enter__.return_value.add_member_to_group.return_value
-    ) = {"id": "sa@gmail.com"}
+    ) = {"email": "sa@gmail.com"}
 
     assert len(db_session.query(UserServiceAccount).all()) == 0
     assert len(db_session.query(ServiceAccountAccessPrivilege).all()) == 0
@@ -867,7 +1008,7 @@ def test_register_service_account_already_exists(
 
     (
         cloud_manager.return_value.__enter__.return_value.add_member_to_group.return_value
-    ) = {"id": "sa@gmail.com"}
+    ) = {"email": "sa@gmail.com"}
 
     response = client.post(
         "/google/service_accounts",
