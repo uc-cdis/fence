@@ -365,7 +365,9 @@ class IndexedFile(object):
 
     @cached_property
     def public(self):
-        return check_public(self.set_acls)
+        authz_resources = list(self.set_acls)
+        authz_resources.extend(self.index_document.get("authz", []))
+        return "*" in authz_resources or "/open" in authz_resources
 
     @login_required({"data"})
     def check_authorization(self, action):
@@ -827,8 +829,3 @@ def filter_auth_ids(action, list_auth_ids):
         if checked_permission in values:
             authorized_dbgaps.append(key)
     return authorized_dbgaps
-
-
-def check_public(set_acls):
-    if "*" in set_acls:
-        return True
