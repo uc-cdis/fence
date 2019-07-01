@@ -1,3 +1,4 @@
+from cdislogging import get_logger
 import flask
 from flask_restful import Resource
 
@@ -5,6 +6,9 @@ from fence.auth import login_user
 from fence.errors import InternalError, Unauthorized
 from fence.models import IdentityProvider
 from fence.config import config
+
+
+logger = get_logger(__name__)
 
 
 class ShibbolethLoginStart(Resource):
@@ -45,7 +49,9 @@ class ShibbolethLoginFinish(Resource):
         """
         if "SHIBBOLETH_HEADER" not in config:
             raise InternalError("Missing shibboleth header configuration")
+        print(flask.request.headers)
         eppn = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
+        print(eppn)
         username = eppn.split("!")[-1] if eppn else None
         if not username:
             raise Unauthorized("Please login")
