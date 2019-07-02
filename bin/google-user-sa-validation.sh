@@ -11,7 +11,6 @@ echo '<virtualhost *:80>
       require all granted
     </directory>
 </virtualhost>' >/etc/nginx/sites-available/fence.conf
-rm -rf /var/run/nginx
 rm -rf /var/run/nginx.pid
 /usr/sbin/nginx
 while [ $? -eq 0 ]; do
