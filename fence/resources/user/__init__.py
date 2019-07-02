@@ -124,7 +124,7 @@ def get_user_info(current_session, username):
 
 def _get_optional_userinfo(user, claims):
     info = {}
-    for claim, claim_request in claims.items():
+    for claim in claims:
         if claim == "linked_google_account":
             google_email = get_linked_google_account_email(user.id)
             info["linked_google_account"] = google_email

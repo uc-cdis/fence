@@ -4,7 +4,6 @@
 FROM quay.io/cdis/python-nginx:pybase3-1.0.0
 
 ENV appname=fence
-MAINTAINER CDIS <cdissupport@opensciencedatacloud.org>
 
 # number of uwsgi worker processes
 ENV UWSGI_CHEAPER 2
