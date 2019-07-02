@@ -11,13 +11,11 @@ echo '<virtualhost *:80>
       require all granted
     </directory>
 </virtualhost>' >/etc/nginx/sites-available/fence.conf
-echo uwsgi.conf:
-cat /etc/nginx/conf.d/uwsgi.conf
 
 rm -rf /var/run/nginx.pid
-/usr/sbin/nginx
+/fence/dockerrun.bash
 
-echo uwsgi.conf after starting:
+echo uwsgi.conf:
 cat /etc/nginx/conf.d/uwsgi.conf
 
 while [ $? -eq 0 ]; do
