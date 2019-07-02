@@ -15,9 +15,6 @@ echo '<virtualhost *:80>
 rm -rf /var/run/nginx.pid
 /fence/dockerrun.bash
 
-echo uwsgi.conf:
-cat /etc/nginx/conf.d/uwsgi.conf
-
 while [ $? -eq 0 ]; do
     echo start validation $(date)
     fence-create google-manage-user-registrations
