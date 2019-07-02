@@ -231,11 +231,11 @@ def valid_google_project_patcher():
         )
     )
 
-    get_registered_service_accounts_mock = MagicMock()
+    get_registered_service_accounts_with_access_mock = MagicMock()
     patches.append(
         patch(
-            "fence.resources.google.validity.get_registered_service_accounts",
-            get_registered_service_accounts_mock,
+            "fence.resources.google.validity.get_registered_service_accounts_with_access",
+            get_registered_service_accounts_with_access_mock,
         )
     )
 
@@ -299,7 +299,9 @@ def valid_google_project_patcher():
         "get_users_from_google_members": (get_users_from_members_mock),
         "remove_white_listed_service_account_ids": (remove_white_listed_accounts_mock),
         "do_all_users_have_access_to_project": (users_have_access_mock),
-        "get_registered_service_accounts": (get_registered_service_accounts_mock),
+        "get_registered_service_accounts_with_access": (
+            get_registered_service_accounts_with_access_mock
+        ),
         "get_project_access_from_service_accounts": (project_access_mock),
         "get_service_account_ids_from_google_members": (project_service_accounts_mock),
     }
