@@ -5,7 +5,7 @@ from collections import Mapping
 from fence.errors import NotFound
 
 from fence.resources.google.utils import (
-    get_registered_service_accounts,
+    get_registered_service_accounts_with_access,
     get_project_access_from_service_accounts,
     get_users_from_google_members,
     get_service_account_ids_from_google_members,
@@ -476,16 +476,34 @@ class GoogleProjectValidity(ValidityInfo):
 
         # get the service accounts for the project to determine all the data
         # the project can access through the service accounts
-        service_accounts = get_registered_service_accounts(
+        service_accounts = get_registered_service_accounts_with_access(
             self.google_project_id, db=db
         )
+
+        # don't double check service account being updated if it was previously registered
+        # in other words, this may be an update of existing access (from A&B to just A)
+        # so we need to ONLY validate the new access (which happens below when the project
+        # access list is extended with new access requested)
+        if self.new_service_account:
+            logger.debug(
+                "Removing new/updated SA {} from list of existing SAs in order "
+                "to only validate the newly requested access.".format(
+                    self.new_service_account
+                )
+            )
+            service_accounts = [
+                sa
+                for sa in service_accounts
+                if sa.email.lower() != str(self.new_service_account).lower()
+            ]
+
         service_account_project_access = get_project_access_from_service_accounts(
             service_accounts, db=db
         )
 
         logger.debug(
             "Registered SAs {} current have project access: {}".format(
-                service_accounts, service_account_project_access
+                [sa.email for sa in service_accounts], service_account_project_access
             )
         )
 
