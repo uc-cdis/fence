@@ -460,6 +460,13 @@ class UserSyncer(object):
 
                     if dbgap_project not in self.project_mapping:
                         if dbgap_project not in self._projects:
+
+                            self.logger.debug(
+                                "creating Project in fence from dbGaP study: {}".format(
+                                    dbgap_project
+                                )
+                            )
+
                             project = self._get_or_create(
                                 sess, Project, auth_id=dbgap_project
                             )
@@ -858,6 +865,9 @@ class UserSyncer(object):
         if self.project_mapping:
             for projects in self.project_mapping.values():
                 for p in projects:
+                    self.logger.debug(
+                        "creating Project with info from project_mapping: {}".format(p)
+                    )
                     project = self._get_or_create(sess, Project, **p)
                     self._projects[p["auth_id"]] = project
         for _, projects in user_project.iteritems():
@@ -1027,6 +1037,9 @@ class UserSyncer(object):
         dbgap_resource_paths = []
         for path_list in self._dbgap_study_to_resources.values():
             dbgap_resource_paths.extend(path_list)
+
+        self.logger.debug("user_yaml resources: {}".format(resources))
+        self.logger.debug("dbgap resource paths: {}".format(dbgap_resource_paths))
 
         combined_resources = utils.combine_provided_and_dbgap_resources(
             resources, dbgap_resource_paths
