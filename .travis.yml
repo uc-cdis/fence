@@ -28,6 +28,7 @@ install:
   - psql -U postgres -c "create database fence_test_tmp"
   - if [[ $TRAVIS_PYTHON_VERSION != 3.6 ]]; then userdatamodel-init --db fence_test_tmp; fi
   - if [[ $TRAVIS_PYTHON_VERSION == 3.6 ]]; then pip install -e git+https://git@github.com/uc-cdis/wool.git#egg=wool; fi
+  - pip list
 
 before_script:
   - sudo rm -f /etc/boto.cfg
