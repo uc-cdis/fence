@@ -140,7 +140,7 @@ def combine_provided_and_dbgap_resources(useryaml_resources, arborist_paths):
                 # Out[3]: 1
                 i = list(map(lambda c: c["name"] == segment, current)).index(True)
 
-            if "subresources" not in current[i]
+            if "subresources" not in current[i]:
                 current[i]["subresources"] = []
 
             return current[i]["subresources"]
