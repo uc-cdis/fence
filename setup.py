@@ -5,7 +5,6 @@ setup(
     version="0.2.0",
     install_requires=[
         "Authlib",
-        "authutils>=3.0.5<4.0.0",
         "oauth2client<4.0dev,>=2.0.0",
         "addict>=2.1.1, <3.0.0",
         "boto>=2.36.0,<3.0.0",
