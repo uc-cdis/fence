@@ -1112,10 +1112,10 @@ class UserSyncer(object):
         if not healthy:
             return False
 
-        self.logger.info("user_projects: {}".format(user_projects))
+        self.logger.debug("user_projects: {}".format(user_projects))
 
         if user_yaml:
-            self.logger.info("useryaml rbac: {}".format(user_yaml.user_rbac))
+            self.logger.debug("useryaml rbac: {}".format(user_yaml.user_rbac))
 
             # update the project info with `projects` specified in user.yaml
             self.sync_two_phsids_dict(user_yaml.user_rbac, user_projects)
@@ -1124,8 +1124,8 @@ class UserSyncer(object):
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
 
-            self.arborist_client.create_user_if_not_exist(username)
-            self.arborist_client.revoke_all_policies_for_user(username)
+            self.arborist_client.create_user_if_not_exist(user.username)
+            self.arborist_client.revoke_all_policies_for_user(user.username)
 
             for project, permissions in user_project_info.iteritems():
 
