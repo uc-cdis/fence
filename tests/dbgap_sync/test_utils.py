@@ -11,6 +11,7 @@ def test_combine_arborist_resources():
     yaml_string = """
     rbac:
       resources:
+        - name: 'root_no_subresources'
         - name: 'gen3'
           subresources:
             - name: 'programs'
@@ -36,6 +37,7 @@ def test_combine_arborist_resources():
     useryaml_resources = useryaml.get("rbac", {}).get("resources")
 
     test_paths = [
+        "/root_no_subresources",
         "/programs/phs000172",
         "/orgA/programs/phs000175",
         "/orgC/programs/phs000175",
@@ -48,7 +50,14 @@ def test_combine_arborist_resources():
         useryaml_resources, test_paths
     )
 
-    expected_roots = ["orgA", "orgB", "orgC", "programs", "gen3"]
+    expected_roots = [
+        "root_no_subresources",
+        "orgA",
+        "orgB",
+        "orgC",
+        "programs",
+        "gen3",
+    ]
     for item in combined:
         # ensure one of each of the items in expected roots
         assert item.get("name") in expected_roots
@@ -57,7 +66,9 @@ def test_combine_arborist_resources():
         subresources = _get_subresources(item)
 
         # ensure result has correct subresources
-        if item.get("name") == "orgA":
+        if item.get("name") == "root_no_subresources":
+            assert not subresources
+        elif item.get("name") == "orgA":
             program_subresources = _get_subresources(subresources["programs"])
             assert "phs000179" in program_subresources
             assert "phs000175" in program_subresources
@@ -97,4 +108,4 @@ def test_combine_arborist_resources():
 
 
 def _get_subresources(item):
-    return {subr.get("name"): subr for subr in item.get("subresources")}
+    return {subr.get("name"): subr for subr in item.get("subresources", [])}
