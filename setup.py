@@ -5,6 +5,7 @@ setup(
     version="0.2.0",
     install_requires=[
         "Authlib",
+        "authutils>=3.0.5<4.0.0",
         "oauth2client<4.0dev,>=2.0.0",
         "addict>=2.1.1, <3.0.0",
         "boto>=2.36.0,<3.0.0",
@@ -13,7 +14,7 @@ setup(
         "cached_property>=1.5.1,<2.0.0",
         "gen3config>=0.1.6,<1.0.0",
         "gen3cirrus>=0.3.4,<1.0.0",
-        "cryptography>=2.1.2<2.7",
+        "cryptography>=2.1.2<3.0",
         "enum34>=1.1.6",
         "flask-restful>=0.3.6,<1.0.0",
         "Flask>=0.10.1,<1.0.0",
