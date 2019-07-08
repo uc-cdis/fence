@@ -181,7 +181,6 @@ class Keypair(object):
         Return:
             dict: JWK representation of the public key
         """
-        # n, e = _rsa_public_numbers(self.public_key)
         jwk_dict = jwk.construct(self.public_key, algorithm="RS256").to_dict()
         for k in jwk_dict:  # bytes to string
             try:

@@ -1,7 +1,5 @@
 import mock
 import urllib.request, urllib.parse, urllib.error
-from fence.resources.storage.cdis_jwt import create_session_token
-from fence.config import config
 
 from fence.auth import build_redirect_url
 from fence.config import config

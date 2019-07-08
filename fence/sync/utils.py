@@ -136,10 +136,10 @@ def combine_provided_and_dbgap_resources(useryaml_resources, arborist_paths):
                 # for future reference on what this is doing, an example:
                 # In [1]: xs = [{"name": "a"}, {"name": "b"}, {"name": "c"}]
 
-                # In [2]: list(map(lambda x: x["name"] == "b", xs))
+                # In [2]: list([c["name"] == "b" for c in xs])
                 # Out[2]: [False, True, False]
 
-                # In [3]: list(map(lambda x: x["name"] == "b", xs)).index(True)
+                # In [3]: list([c["name"] == "b" for c in xs]).index(True)
                 # Out[3]: 1
                 i = list([c["name"] == segment for c in current]).index(True)
             return current[i]["subresources"]
