@@ -11,7 +11,7 @@ setup(
         "botocore>=1.7,<1.9.0",
         "boto3>=1.5,<1.6",
         "cached_property>=1.5.1,<2.0.0",
-        "cryptography>=2.1.2",
+        "cryptography>=2.1.2<3.0",
         "flask-restful>=0.3.6,<1.0.0",
         "Flask>=0.10.1,<1.0.0",
         "Flask-CORS>=3.0.3,<4.0.0",

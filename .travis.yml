@@ -24,6 +24,7 @@ install:
   - python setup.py install
   - psql -U postgres -c "create database fence_test_tmp"
   - if [[ $TRAVIS_PYTHON_VERSION != 3.6 ]]; then userdatamodel-init --db fence_test_tmp; fi
+  - pip list
 
 before_script:
   - sudo rm -f /etc/boto.cfg

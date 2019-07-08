@@ -142,6 +142,10 @@ def combine_provided_and_dbgap_resources(useryaml_resources, arborist_paths):
                 # In [3]: list([c["name"] == "b" for c in xs]).index(True)
                 # Out[3]: 1
                 i = list([c["name"] == segment for c in current]).index(True)
+
+            if "subresources" not in current[i]:
+                current[i]["subresources"] = []
+
             return current[i]["subresources"]
 
         reduce(insert_segment, segments, start)
