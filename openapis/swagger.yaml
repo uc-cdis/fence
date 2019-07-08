@@ -1294,6 +1294,27 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/JWKS'
+  /privacy-policy:
+    get:
+      tags:
+        - privacy-policy
+      summary: Return the full text of the privacy policy for Gen3
+      description: >-
+        The privacy policy should contain details about what information our
+        technology collects from users and how it is used. According to the
+        `Accept` header in the request it returns either markdown or raw HTML.
+      responses:
+        200:
+          description: success
+          content:
+            text/markdown:
+              schema:
+                type: string
+                example: "# Gen3 Privacy Policy ..."
+            text/html:
+              schema:
+                type: string
+                example: "<h1>Gen3 Privacy Policy</h1> ..."
 components:
   requestBodies:
     APIKey:
