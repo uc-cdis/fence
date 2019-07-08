@@ -22,10 +22,14 @@ from markdown import Markdown
 from fence import config
 from fence.errors import NotFound
 
+
 blueprint = flask.Blueprint("privacy-policy", __name__)
 
 
-PRIVACY_POLICY_URL = os.environ.get("PRIVACY_POLICY_URL")
+PRIVACY_POLICY_URL = (
+    config.get("PRIVACY_POLICY_URL")
+    or os.environ.get("PRIVACY_POLICY_URL")
+)
 PRIVACY_POLICY_MD = pkgutil.get_data("fence", "static/privacy_policy.md")
 PRIVACY_POLICY_HTML = None
 if PRIVACY_POLICY_MD:
@@ -42,4 +46,6 @@ def privacy_policy():
             raise NotFound("this endpoint is not configured")
         return flask.Response(PRIVACY_POLICY_MD, mimetype="text/markdown")
     else:
+        if not PRIVACY_POLICY_HTML:
+            raise NotFound("this endpoint is not configured")
         return flask.Response(PRIVACY_POLICY_HTML, mimetype="text/html")
