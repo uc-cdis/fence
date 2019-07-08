@@ -26,9 +26,8 @@ from fence.errors import NotFound
 blueprint = flask.Blueprint("privacy-policy", __name__)
 
 
-PRIVACY_POLICY_URL = (
-    config.get("PRIVACY_POLICY_URL")
-    or os.environ.get("PRIVACY_POLICY_URL")
+PRIVACY_POLICY_URL = config.get("PRIVACY_POLICY_URL") or os.environ.get(
+    "PRIVACY_POLICY_URL"
 )
 PRIVACY_POLICY_MD = pkgutil.get_data("fence", "static/privacy_policy.md")
 PRIVACY_POLICY_HTML = None

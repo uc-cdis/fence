@@ -43,8 +43,6 @@ setup(
         "pyyaml~=5.1",
     ],
     scripts=["bin/fence-create"],
-    package_data={
-        "fence": ["static/privacy_policy.md"],
-    },
+    package_data={"fence": ["static/privacy_policy.md"]},
     packages=find_packages(),
 )

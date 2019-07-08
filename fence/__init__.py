@@ -107,8 +107,7 @@ def app_register_blueprints(app):
     app.register_blueprint(google_blueprint, url_prefix="/google")
 
     app.register_blueprint(
-        fence.blueprints.privacy.blueprint,
-        url_prefix="/privacy-policy",
+        fence.blueprints.privacy.blueprint, url_prefix="/privacy-policy"
     )
 
     fence.blueprints.misc.register_misc(app)
