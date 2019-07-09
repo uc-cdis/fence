@@ -182,10 +182,11 @@ class Keypair(object):
             dict: JWK representation of the public key
         """
         jwk_dict = jwk.construct(self.public_key, algorithm="RS256").to_dict()
-        for k in jwk_dict:  # bytes to string
+        for k in jwk_dict:  # convert byte values to string
             try:
                 jwk_dict[k] = jwk_dict[k].decode("utf-8")
             except AttributeError:
+                # there is no need to decode values that are already strings
                 pass
         jwk_dict.update({"use": "sig", "key_ops": "verify", "kid": self.kid})
         return jwk_dict
