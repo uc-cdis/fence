@@ -896,9 +896,14 @@ def link_bucket_to_project(db, bucket_id, bucket_provider, project_auth_id):
             current_session.query(Project).filter_by(auth_id=project_auth_id).first()
         )
         if not project_db_entry:
-            raise NameError(
-                'No project with auth_id "{}" exists.'.format(project_auth_id)
+            print(
+                'WARNING: No project with auth_id "{}" exists. Creating...'.format(
+                    project_auth_id
+                )
             )
+            project = Project(name=project_auth_id, auth_id=project_auth_id)
+            current_session.add(project)
+            current_session.commit()
 
         # Add StorageAccess if it doesn't exist for the project
         storage_access = (
