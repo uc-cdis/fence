@@ -374,8 +374,8 @@ dbGaP:
 #               access for users.
 # //////////////////////////////////////////////////////////////////////////////////////
 # Configuration for various storage systems for the backend
-# NOTE: Remove the [] and supply backends if needed. Example in comments below
-STORAGE_CREDENTIALS: []
+# NOTE: Remove the {} and supply backends if needed. Example in comments below
+STORAGE_CREDENTIALS: {}
 # Google Cloud Storage backend
 #
 #  'google':
