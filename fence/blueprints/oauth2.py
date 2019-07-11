@@ -240,6 +240,8 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
             for s in shown_scopes
         ]
 
+        privacy_policy = config.get("BASE_URL").rstrip("/") + "/privacy-policy"
+
         response = flask.render_template(
             "oauthorize.html",
             grant=grant,
@@ -247,6 +249,7 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
             client=client,
             app_name=config.get("APP_NAME"),
             resource_description=resource_description,
+            privacy_policy=privacy_policy,
         )
 
     return response

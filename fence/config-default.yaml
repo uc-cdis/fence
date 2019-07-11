@@ -317,6 +317,10 @@ MAX_ACCESS_TOKEN_TTL: 3600
 #                               OPTIONAL CONFIGURATIONS                                #
 ########################################################################################
 
+# For displaying a privacy policy to users, we can either link to the URL specified by
+# PRIVACY_POLICY_URL, or default to the `static/privacy_policy.md` file in fence.
+PRIVACY_POLICY_URL: null
+
 # //////////////////////////////////////////////////////////////////////////////////////
 # SUPPORT INFO
 # //////////////////////////////////////////////////////////////////////////////////////
