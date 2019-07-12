@@ -73,7 +73,7 @@ class ValidityInfo(Mapping):
         return key in self._info
 
     def __iter__(self):
-        for key, value in self._info.iteritems():
+        for key, value in self._info.items():
             yield key, value
 
     def __getitem__(self, key):
@@ -86,9 +86,6 @@ class ValidityInfo(Mapping):
         return len(self._info)
 
     def __bool__(self):
-        return self._valid
-
-    def __nonzero__(self):
         return self._valid
 
     def __repr__(self):
@@ -347,7 +344,7 @@ class GoogleProjectValidity(ValidityInfo):
                 self.set("members_exist_in_fence", False)
                 logger.warning(
                     "INVALID user(s) do not exist in fence and thus, "
-                    "we cannot determine their authZ info: {}.".format(e.message)
+                    "we cannot determine their authZ info: {}.".format(e)
                 )
                 if early_return:
                     return

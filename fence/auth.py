@@ -1,7 +1,7 @@
 import flask
 from flask_sqlalchemy_session import current_session
 from functools import wraps
-import urllib
+import urllib.request, urllib.parse, urllib.error
 
 from authutils.errors import JWTError, JWTExpiredError
 from authutils.token.validate import (
@@ -99,16 +99,16 @@ def logout(next_url):
     provider_logout = None
     provider = flask.session.get("provider")
     if provider == IdentityProvider.itrust:
-        safe_url = urllib.quote_plus(next_url)
+        safe_url = urllib.parse.quote_plus(next_url)
         provider_logout = config["ITRUST_GLOBAL_LOGOUT"] + safe_url
     elif provider == IdentityProvider.fence:
         base = config["OPENID_CONNECT"]["fence"]["api_base_url"]
-        safe_url = urllib.quote_plus(next_url)
-        provider_logout = base + "/logout?" + urllib.urlencode({"next": safe_url})
+        safe_url = urllib.parse.quote_plus(next_url)
+        provider_logout = base + "/logout?" + urllib.parse.urlencode({"next": safe_url})
 
     flask.session.clear()
     redirect_response = flask.make_response(
-        flask.redirect(provider_logout or urllib.unquote(next_url))
+        flask.redirect(provider_logout or urllib.parse.unquote(next_url))
     )
     clear_cookies(redirect_response)
     return redirect_response

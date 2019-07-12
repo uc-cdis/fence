@@ -61,7 +61,7 @@ def validation_check(db):
         registered_service_accounts
     )
 
-    for google_project_id, sa_emails in project_service_account_mapping.iteritems():
+    for google_project_id, sa_emails in project_service_account_mapping.items():
         email_required = False
         invalid_registered_service_account_reasons = {}
         invalid_project_reasons = {}
@@ -476,7 +476,7 @@ def _send_emails_informing_service_account_removal(
     text = config["REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION"]["content"]
     content = text.format(project_id)
 
-    for email, removal_reasons in invalid_service_account_reasons.iteritems():
+    for email, removal_reasons in invalid_service_account_reasons.items():
         if removal_reasons:
             content += "\n\t - Service account {} was removed from Google Project {}.".format(
                 email, project_id
@@ -499,12 +499,12 @@ def _send_emails_informing_service_account_removal(
                 content += "\n\t\t - {}".format(removal_reason)
 
         if access_errors:
-            for project, removal_reasons in access_errors.iteritems():
+            for project, removal_reasons in access_errors.items():
                 for reason in removal_reasons:
                     content += "\n\t\t - {}".format(reason)
 
         if non_reg_sa_errors:
-            for sa_email, removal_reasons in non_reg_sa_errors.iteritems():
+            for sa_email, removal_reasons in non_reg_sa_errors.items():
                 content += "\n\t\t - Google Project Service Account {} determined invalid.".format(
                     sa_email
                 )
@@ -647,7 +647,7 @@ def email_users_without_access(
                 if member.member_type == GooglePolicyMember.USER:
                     users.append(member.email_id)
 
-        for user, projects in users_without_access.iteritems():
+        for user, projects in users_without_access.items():
             logger.info(
                 "{} does not have access to the following datasets: {}.".format(
                     user, ",".join(projects)

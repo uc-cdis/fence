@@ -1,5 +1,5 @@
-import urllib
-from urlparse import parse_qs, urlparse
+import urllib.request, urllib.parse, urllib.error
+from urllib.parse import parse_qs, urlparse
 
 import fence.utils
 
@@ -56,7 +56,7 @@ class TokenResponse(object):
             self.access_token = response.json.get("access_token")
             self.refresh_token = response.json.get("refresh_token")
             self.id_token = response.json.get("id_token")
-        except ValueError:
+        except (ValueError, AttributeError):
             self.access_token = None
             self.refresh_token = None
             self.id_token = None
@@ -155,7 +155,7 @@ class OAuth2TestClient(object):
         """
         path = self.PATH_AUTHORIZE
         if params:
-            path += "?" + urllib.urlencode(query=params)
+            path += "?" + urllib.parse.urlencode(query=params)
         return path
 
     def authorize(self, method="POST", data=None, do_asserts=True, include_auth=True):

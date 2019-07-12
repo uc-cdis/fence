@@ -3,11 +3,7 @@ Run some basic tests that the methods on ``ArboristClient`` actually try to hit
 the correct URLs on the arborist API.
 """
 
-# Python 2 and 3 compatible
-try:
-    from unittest import mock
-except ImportError:
-    import mock
+from unittest import mock
 
 
 from fence.rbac.client import ArboristClient

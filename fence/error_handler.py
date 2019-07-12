@@ -1,5 +1,5 @@
 import uuid
-from httplib import responses as http_responses
+from http.client import responses as http_responses
 import flask
 from flask import render_template
 from werkzeug.exceptions import HTTPException
@@ -49,12 +49,13 @@ def get_error_response(error):
 
 
 def get_error_details_and_status(error):
+    message = error.message if hasattr(error, "message") else str(error)
     if isinstance(error, APIError):
         if hasattr(error, "json") and error.json:
-            error.json["message"] = error.message
+            error.json["message"] = message
             error_response = error.json, error.code
         else:
-            error_response = {"message": error.message}, error.code
+            error_response = {"message": message}, error.code
     elif isinstance(error, OAuth2Error):
         error_response = {"message": error.description}, error.status_code
     elif isinstance(error, HTTPException):
@@ -69,7 +70,7 @@ def get_error_details_and_status(error):
             error_code = error.code
         elif hasattr(error, "status_code"):
             error_code = error.status_code
-        error_response = {"message": error.message}, error_code
+        error_response = {"message": message}, error_code
 
     return error_response
 

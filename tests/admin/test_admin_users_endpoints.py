@@ -4,13 +4,7 @@ import json
 import jwt
 import pytest
 
-# Python 2 and 3 compatible
-try:
-    from unittest.mock import Mock
-    from unittest.mock import patch
-except ImportError:
-    from mock import Mock
-    from mock import patch
+from unittest.mock import Mock, patch
 
 from fence.config import config
 from fence.models import (
@@ -63,7 +57,9 @@ def encoded_admin_jwt(kid, rsa_private_key):
     claims["sub"] = "5678"
     claims["iss"] = config["BASE_URL"]
     claims["exp"] += 600
-    return jwt.encode(claims, key=rsa_private_key, headers=headers, algorithm="RS256")
+    return jwt.encode(
+        claims, key=rsa_private_key, headers=headers, algorithm="RS256"
+    ).decode("utf-8")
 
 
 # Dictionary for all these random magic numbers that the delete user

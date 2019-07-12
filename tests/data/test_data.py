@@ -1,6 +1,6 @@
 import json
 import mock
-import urlparse
+import urllib.parse
 import uuid
 
 import jwt
@@ -13,13 +13,7 @@ from fence.errors import NotSupported
 
 from tests import utils
 
-# Python 2 and 3 compatible
-try:
-    from unittest.mock import MagicMock
-    from unittest.mock import patch
-except ImportError:
-    from mock import MagicMock
-    from mock import patch
+from unittest.mock import MagicMock, patch
 
 
 @pytest.mark.parametrize(
@@ -52,14 +46,14 @@ def test_indexd_download_file(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        )
+        ).decode("utf-8")
     }
     response = client.get(path, headers=headers, query_string=query_string)
     assert response.status_code == 200
-    assert "url" in response.json.keys()
+    assert "url" in list(response.json.keys())
 
     # defaults to signing url, check that it's not just raw url
-    assert urlparse.urlparse(response.json["url"]).query != ""
+    assert urllib.parse.urlparse(response.json["url"]).query != ""
 
 
 @pytest.mark.parametrize(
@@ -91,11 +85,11 @@ def test_indexd_upload_file(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        )
+        ).decode("utf-8")
     }
     response = client.get(path, headers=headers)
     assert response.status_code == 200
-    assert "url" in response.json.keys()
+    assert "url" in list(response.json.keys())
 
 
 @pytest.mark.parametrize(
@@ -127,11 +121,11 @@ def test_indexd_download_file_no_protocol(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        )
+        ).decode("utf-8")
     }
     response = client.get(path, headers=headers)
     assert response.status_code == 200
-    assert "url" in response.json.keys()
+    assert "url" in list(response.json.keys())
 
 
 def test_indexd_download_file_no_jwt(client, auth_client):
@@ -198,7 +192,7 @@ def test_unauthorized_indexd_download_file(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        )
+        ).decode("utf-8")
     }
     response = client.get(path, headers=headers)
     assert response.status_code == 401
@@ -237,7 +231,7 @@ def test_unauthorized_indexd_upload_file(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        )
+        ).decode("utf-8")
     }
     response = client.get(path, headers=headers)
     assert response.status_code == 401
@@ -276,7 +270,7 @@ def test_unavailable_indexd_upload_file(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        )
+        ).decode("utf-8")
     }
     response = client.get(path, headers=headers)
     assert response.status_code == 401
@@ -304,10 +298,10 @@ def test_public_object_download_file(
     path = "/data/download/1"
     response = client.get(path)
     assert response.status_code == 200
-    assert "url" in response.json.keys()
+    assert "url" in list(response.json.keys())
 
     # defaults to signing url, check that it's not just raw url
-    assert urlparse.urlparse(response.json["url"]).query != ""
+    assert urllib.parse.urlparse(response.json["url"]).query != ""
 
 
 @pytest.mark.parametrize(
@@ -328,10 +322,10 @@ def test_public_object_download_file_no_force_sign(
     path = "/data/download/1?no_force_sign=True"
     response = client.get(path)
     assert response.status_code == 200
-    assert "url" in response.json.keys()
+    assert "url" in list(response.json.keys())
 
     # make sure we honor no_force_sign, check that response is unsigned raw url
-    assert urlparse.urlparse(response.json["url"]).query == ""
+    assert urllib.parse.urlparse(response.json["url"]).query == ""
 
 
 @pytest.mark.parametrize(
@@ -357,7 +351,7 @@ def test_public_bucket_download_file(
     # we should NOT sign AWS S3 urls if the bucket itself is public
     if not public_bucket_indexd_client.startswith("s3"):
         # defaults to signing url, check that it's not just raw url
-        assert urlparse.urlparse(response.json["url"]).query != ""
+        assert urllib.parse.urlparse(response.json["url"]).query != ""
 
 
 @pytest.mark.parametrize(
@@ -381,7 +375,7 @@ def test_public_bucket_download_file_no_force_sign(
     assert response.json.get("url")
 
     # make sure we honor no_force_sign, check that response is unsigned raw url
-    assert urlparse.urlparse(response.json["url"]).query == ""
+    assert urllib.parse.urlparse(response.json["url"]).query == ""
 
 
 @pytest.mark.parametrize("public_bucket_indexd_client", ["s2"], indirect=True)
@@ -594,11 +588,11 @@ def test_rbac(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        )
+        ).decode("utf-8")
     }
     response = client.get(path, headers=headers, query_string=query_string)
     assert response.status_code == 200
-    assert "url" in response.json.keys()
+    assert "url" in list(response.json.keys())
 
     mock_arborist_requests(
         {"arborist/auth/request": {"POST": ('{"auth": "false"}', 403)}}

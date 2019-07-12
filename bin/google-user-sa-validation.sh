@@ -21,4 +21,3 @@ while [ $? -eq 0 ]; do
     echo finish validation $(date)
     echo {\"last_run\": \"$(date)\"} >/google_job/status.json
 done
-

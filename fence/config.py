@@ -1,6 +1,6 @@
 import os
 from yaml import safe_load as yaml_load
-import urlparse
+import urllib.parse
 
 import cirrus
 from gen3config import Config
@@ -45,7 +45,7 @@ class FenceConfig(Config):
             self.force_default_if_none(default, default_cfg=default_config)
 
         if "ROOT_URL" not in self._configs and "BASE_URL" in self._configs:
-            url = urlparse.urlparse(self._configs["BASE_URL"])
+            url = urllib.parse.urlparse(self._configs["BASE_URL"])
             self._configs["ROOT_URL"] = "{}://{}".format(url.scheme, url.netloc)
 
         # allow authlib traffic on http for development if enabled. By default

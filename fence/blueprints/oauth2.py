@@ -230,7 +230,7 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
 
         enabled_idps = config.get("OPENID_CONNECT", {})
         idp_names = []
-        for idp, info in enabled_idps.iteritems():
+        for idp, info in enabled_idps.items():
             # prefer name if its there, then just use the key for the provider
             idp_name = info.get("name") or idp.title()
             idp_names.append(idp_name)

@@ -4,7 +4,7 @@ registration.
 """
 import time
 import flask
-from urllib import unquote
+from urllib.parse import unquote
 
 from cirrus.google_cloud.iam import GooglePolicyMember
 

@@ -3,11 +3,7 @@ Pytest fixtures for the RBAC tests, for doing things like adding policies to
 the database to check the return from the RBAC endpoints.
 """
 
-# Python 2 and 3 compatible
-try:
-    from unittest.mock import MagicMock
-except ImportError:
-    from mock import MagicMock
+from unittest.mock import MagicMock
 
 
 import pytest

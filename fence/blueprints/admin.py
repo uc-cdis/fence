@@ -24,15 +24,15 @@ blueprint = Blueprint("admin", __name__)
 
 def debug_log(function):
     """Output debug information to the logger for a function call."""
-    argument_names = list(function.func_code.co_varnames)
+    argument_names = list(function.__code__.co_varnames)
 
     @functools.wraps(function)
     def write_log(*args, **kwargs):
         argument_values = (
             "{} = {}".format(arg, value)
-            for arg, value in zip(argument_names, args) + kwargs.items()
+            for arg, value in list(zip(argument_names, args)) + list(kwargs.items())
         )
-        msg = function.func_name + "\n\t" + "\n\t".join(argument_values)
+        msg = function.__name__ + "\n\t" + "\n\t".join(argument_values)
         logger.debug(msg)
         return function(*args, **kwargs)
 

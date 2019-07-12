@@ -1,12 +1,7 @@
 import time
 import mock
 
-# Python 2 and 3 compatible
-try:
-    from unittest.mock import patch
-except ImportError:
-    from mock import patch
-from mock import MagicMock
+from unittest.mock import MagicMock, patch
 import pytest
 
 import cirrus
@@ -134,7 +129,7 @@ def test_delete_users(app, db_session, example_usernames):
     # Get the list of usernames for users that still exist.
     # (The `list(zip(...))` trick is to turn a list of 1-tuples into a
     # flattened list.)
-    remaining_usernames = list(zip(*db_session.query(User.username).all())[0])
+    remaining_usernames = list(next(zip(*db_session.query(User.username).all())))
     assert example_usernames[0] in remaining_usernames
     for username in example_usernames[1:]:
         assert username not in remaining_usernames
@@ -330,7 +325,7 @@ def test_delete_expired_service_accounts_with_one_fail_first(
     fence.settings = MagicMock()
     cirrus.config.update = MagicMock()
     cloud_manager.return_value.__enter__.return_value.remove_member_from_group.side_effect = [
-        HttpError(mock.Mock(status=403), "Permission denied"),
+        HttpError(mock.Mock(status=403), bytes("Permission denied", "utf-8")),
         {},
     ]
     _setup_service_account_to_google_bucket_access_group(db_session)
@@ -381,7 +376,7 @@ def test_delete_expired_service_accounts_with_one_fail_second(
     fence.settings = MagicMock()
     cloud_manager.return_value.__enter__.return_value.remove_member_from_group.side_effect = [
         {},
-        HttpError(mock.Mock(status=403), "Permission denied"),
+        HttpError(mock.Mock(status=403), bytes("Permission denied", "utf-8")),
     ]
     _setup_service_account_to_google_bucket_access_group(db_session)
     service_accounts = db_session.query(UserServiceAccount).all()
