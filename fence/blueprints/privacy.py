@@ -18,6 +18,7 @@ import os
 
 import flask
 from markdown import Markdown
+from werkzeug.contrib.cache import SimpleCache
 
 from fence import config
 from fence.errors import NotFound
@@ -25,26 +26,37 @@ from fence.errors import NotFound
 
 blueprint = flask.Blueprint("privacy-policy", __name__)
 
-
-PRIVACY_POLICY_URL = config.get("PRIVACY_POLICY_URL") or os.environ.get(
-    "PRIVACY_POLICY_URL"
-)
-PRIVACY_POLICY_MD = pkgutil.get_data("fence", "static/privacy_policy.md")
-PRIVACY_POLICY_HTML = None
-if PRIVACY_POLICY_MD:
-    PRIVACY_POLICY_HTML = Markdown().convert(PRIVACY_POLICY_MD)
+cache = SimpleCache()
 
 
 @blueprint.route("/", methods=["GET"])
 def privacy_policy():
+    global cache
+    response = cache.get("privacy-policy")
+    if response:
+        return response
     # Check if we want to redirect out for the privacy policy.
+    PRIVACY_POLICY_URL = (
+        config.get("PRIVACY_POLICY_URL")
+        or os.environ.get("PRIVACY_POLICY_URL")
+    )
     if PRIVACY_POLICY_URL:
-        return flask.redirect(PRIVACY_POLICY_URL)
+        response = flask.redirect(PRIVACY_POLICY_URL)
+        cache.add("privacy-policy", response, timeout=0)
+        return response
+    PRIVACY_POLICY_MD = pkgutil.get_data("fence", "static/privacy_policy.md").decode("utf-8")
     if "text/markdown" in str(flask.request.accept_mimetypes).lower():
         if not PRIVACY_POLICY_MD:
             raise NotFound("this endpoint is not configured")
-        return flask.Response(PRIVACY_POLICY_MD, mimetype="text/markdown")
+        response = flask.Response(PRIVACY_POLICY_MD, mimetype="text/markdown")
+        cache.add("privacy-policy", response, timeout=0)
+        return response
     else:
+        PRIVACY_POLICY_HTML = None
+        if PRIVACY_POLICY_MD:
+            PRIVACY_POLICY_HTML = Markdown().convert(str(PRIVACY_POLICY_MD))
         if not PRIVACY_POLICY_HTML:
             raise NotFound("this endpoint is not configured")
-        return flask.Response(PRIVACY_POLICY_HTML, mimetype="text/html")
+        response = flask.Response(PRIVACY_POLICY_HTML, mimetype="text/html")
+        cache.add("privacy-policy", response, timeout=0)
+        return response
