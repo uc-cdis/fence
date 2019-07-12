@@ -37,6 +37,7 @@ import fence.blueprints.user
 import fence.blueprints.well_known
 import fence.blueprints.link
 import fence.blueprints.google
+import fence.blueprints.privacy
 
 from cdislogging import get_logger
 
@@ -104,6 +105,10 @@ def app_register_blueprints(app):
 
     google_blueprint = fence.blueprints.google.make_google_blueprint()
     app.register_blueprint(google_blueprint, url_prefix="/google")
+
+    app.register_blueprint(
+        fence.blueprints.privacy.blueprint, url_prefix="/privacy-policy"
+    )
 
     fence.blueprints.misc.register_misc(app)
 
