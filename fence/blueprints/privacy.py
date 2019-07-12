@@ -54,7 +54,7 @@ def privacy_policy():
     else:
         PRIVACY_POLICY_HTML = None
         if PRIVACY_POLICY_MD:
-            PRIVACY_POLICY_HTML = Markdown().convert(str(PRIVACY_POLICY_MD))
+            PRIVACY_POLICY_HTML = Markdown().convert(PRIVACY_POLICY_MD)
         if not PRIVACY_POLICY_HTML:
             raise NotFound("this endpoint is not configured")
         response = flask.Response(PRIVACY_POLICY_HTML, mimetype="text/html")
