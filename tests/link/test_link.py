@@ -1,14 +1,8 @@
 import flask
 import time
-from urlparse import urlparse, parse_qs, urlunparse
+from urllib.parse import urlparse, parse_qs, urlunparse
 
-# Python 2 and 3 compatible
-try:
-    from unittest.mock import MagicMock
-    from unittest.mock import patch
-except ImportError:
-    from mock import MagicMock
-    from mock import patch
+from unittest.mock import MagicMock, patch
 
 from fence.resources.storage.cdis_jwt import create_session_token
 from fence.config import config

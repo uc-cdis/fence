@@ -201,7 +201,7 @@ class Client(Base, OAuth2ClientMixin):
     def check_client_secret(self, client_secret):
         check_hash = bcrypt.hashpw(
             client_secret.encode("utf-8"), self.client_secret.encode("utf-8")
-        )
+        ).decode("utf-8")
         return check_hash == self.client_secret
 
     def check_requested_scopes(self, scopes):
@@ -1006,7 +1006,7 @@ def _update_for_authlib(driver, md):
     add_client_col = lambda col: add_column_if_not_exist(
         Client.__tablename__, column=col, driver=driver, metadata=md
     )
-    map(add_client_col, CLIENT_COLUMNS_TO_ADD)
+    list(map(add_client_col, CLIENT_COLUMNS_TO_ADD))
     CODE_COLUMNS_TO_ADD = [Column("response_type", Text, default="")]
 
     with driver.session as session:
@@ -1023,7 +1023,7 @@ def _update_for_authlib(driver, md):
     add_code_col = lambda col: add_column_if_not_exist(
         AuthorizationCode.__tablename__, column=col, driver=driver, metadata=md
     )
-    map(add_code_col, CODE_COLUMNS_TO_ADD)
+    list(map(add_code_col, CODE_COLUMNS_TO_ADD))
     with driver.session as session:
         session.execute("ALTER TABLE client ALTER COLUMN client_secret DROP NOT NULL")
         session.commit()

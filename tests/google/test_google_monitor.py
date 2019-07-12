@@ -1,10 +1,4 @@
-# Python 2 and 3 compatible
-try:
-    from unittest.mock import MagicMock
-    from unittest.mock import patch
-except ImportError:
-    from mock import MagicMock
-    from mock import patch
+from unittest.mock import MagicMock, patch
 
 import fence
 from fence.scripting.google_monitor import _get_users_without_access, validation_check

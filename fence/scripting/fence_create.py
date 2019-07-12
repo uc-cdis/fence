@@ -61,7 +61,7 @@ def list_client_action(db):
             for row in s.query(Client).all():
                 pprint.pprint(row.__dict__)
     except Exception as e:
-        print(e.message)
+        print(str(e))
 
 
 def modify_client_action(
@@ -114,7 +114,7 @@ def create_client_action(
             )
         )
     except Exception as e:
-        print(e.message)
+        print(str(e))
 
 
 def delete_client_action(DB, client_name):
@@ -146,7 +146,7 @@ def delete_client_action(DB, client_name):
 
         print("Client {} deleted".format(client_name))
     except Exception as e:
-        print(e.message)
+        print(str(e))
 
 
 def _remove_client_service_accounts(db_session, client):
@@ -260,7 +260,7 @@ def create_sample_data(DB, yaml_input):
 
 
 def create_group(s, data):
-    for group_name, fields in data["groups"].iteritems():
+    for group_name, fields in data["groups"].items():
         projects = fields.get("projects", [])
         group = s.query(Group).filter(Group.name == group_name).first()
         if not group:
@@ -373,7 +373,7 @@ def grant_project_to_group_or_user(s, project_data, group=None, user=None):
 
 def create_cloud_providers(s, data):
     cloud_data = data.get("cloud_providers", [])
-    for name, fields in cloud_data.iteritems():
+    for name, fields in cloud_data.items():
         cloud_provider = (
             s.query(CloudProvider).filter(CloudProvider.name == name).first()
         )
@@ -389,7 +389,7 @@ def create_cloud_providers(s, data):
 def create_users_with_group(DB, s, data):
     providers = {}
     data_groups = data["groups"]
-    for username, data in data["users"].iteritems():
+    for username, data in data["users"].items():
         is_existing_user = True
         user = query_for_user(session=s, username=username)
 
@@ -606,7 +606,7 @@ def delete_expired_service_accounts(DB):
                     except Exception as e:
                         print(
                             "ERROR: Could not delete service account {}. Details: {}".format(
-                                record.service_account.email, e.message
+                                record.service_account.email, e
                             )
                         )
 
@@ -635,7 +635,7 @@ def verify_bucket_access_group(DB):
                 try:
                     members = manager.get_group_members(access_group.email)
                 except GoogleAuthError as e:
-                    print("ERROR: Authentication error!!!. Detail {}".format(e.message))
+                    print("ERROR: Authentication error!!!. Detail {}".format(e))
                     return
                 except Exception as e:
                     print(

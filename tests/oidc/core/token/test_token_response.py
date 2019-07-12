@@ -51,8 +51,8 @@ def test_id_token_required_fields(token_response):
     assert type(id_token["exp"]) is int
     assert type(id_token["iat"]) is int
 
-    assert type(id_token["sub"]) is unicode
-    assert type(id_token["iss"]) is unicode
+    assert type(id_token["sub"]) is str
+    assert type(id_token["iss"]) is str
     assert type(id_token["aud"]) is list
 
 
