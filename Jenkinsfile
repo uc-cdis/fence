@@ -1,6 +1,6 @@
 #!groovy
 
-@Library('cdis-jenkins-lib@chore/python3') _
+@Library('cdis-jenkins-lib@master') _
 
 testPipeline { 
 }
