@@ -18,5 +18,8 @@ def privacy_policy_html():
 
 @pytest.fixture(scope="function", autouse=True)
 def mock_get_data(monkeypatch, privacy_policy_md):
-    monkeypatch.setattr(fence.blueprints.privacy.pkgutil, "get_data", lambda *args,
-        **kwargs: bytes(privacy_policy_md, "utf-8"))
+    monkeypatch.setattr(
+        fence.blueprints.privacy.pkgutil,
+        "get_data",
+        lambda *args, **kwargs: bytes(privacy_policy_md, "utf-8"),
+    )

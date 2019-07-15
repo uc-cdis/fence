@@ -32,16 +32,17 @@ cache = SimpleCache()
 @blueprint.route("/", methods=["GET"])
 def privacy_policy():
     # Check if we want to redirect out for the privacy policy.
-    privacy_policy_url = (
-        config.get("PRIVACY_POLICY_URL")
-        or os.environ.get("PRIVACY_POLICY_URL")
+    privacy_policy_url = config.get("PRIVACY_POLICY_URL") or os.environ.get(
+        "PRIVACY_POLICY_URL"
     )
     if privacy_policy_url:
         return flask.redirect(privacy_policy_url)
 
     global cache
     if not cache.has("privacy-policy-md"):
-        file_contents = pkgutil.get_data("fence", "static/privacy_policy.md").decode("utf-8")
+        file_contents = pkgutil.get_data("fence", "static/privacy_policy.md").decode(
+            "utf-8"
+        )
         if not file_contents:
             raise NotFound("this endpoint is not configured")
         cache.add("privacy-policy-md", file_contents)
