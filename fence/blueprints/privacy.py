@@ -18,6 +18,7 @@ import os
 
 import flask
 from markdown import Markdown
+from werkzeug.contrib.cache import SimpleCache
 
 from fence import config
 from fence.errors import NotFound
@@ -25,26 +26,33 @@ from fence.errors import NotFound
 
 blueprint = flask.Blueprint("privacy-policy", __name__)
 
-
-PRIVACY_POLICY_URL = config.get("PRIVACY_POLICY_URL") or os.environ.get(
-    "PRIVACY_POLICY_URL"
-)
-PRIVACY_POLICY_MD = pkgutil.get_data("fence", "static/privacy_policy.md")
-PRIVACY_POLICY_HTML = None
-if PRIVACY_POLICY_MD:
-    PRIVACY_POLICY_HTML = Markdown().convert(PRIVACY_POLICY_MD)
+cache = SimpleCache()
 
 
 @blueprint.route("/", methods=["GET"])
 def privacy_policy():
     # Check if we want to redirect out for the privacy policy.
-    if PRIVACY_POLICY_URL:
-        return flask.redirect(PRIVACY_POLICY_URL)
+    privacy_policy_url = config.get("PRIVACY_POLICY_URL") or os.environ.get(
+        "PRIVACY_POLICY_URL"
+    )
+    if privacy_policy_url:
+        return flask.redirect(privacy_policy_url)
+
+    global cache
+    if not cache.has("privacy-policy-md"):
+        file_contents = pkgutil.get_data("fence", "static/privacy_policy.md").decode(
+            "utf-8"
+        )
+        if not file_contents:
+            raise NotFound("this endpoint is not configured")
+        cache.add("privacy-policy-md", file_contents)
+
     if "text/markdown" in str(flask.request.accept_mimetypes).lower():
-        if not PRIVACY_POLICY_MD:
-            raise NotFound("this endpoint is not configured")
-        return flask.Response(PRIVACY_POLICY_MD, mimetype="text/markdown")
+        return flask.Response(cache.get("privacy-policy-md"), mimetype="text/markdown")
     else:
-        if not PRIVACY_POLICY_HTML:
-            raise NotFound("this endpoint is not configured")
-        return flask.Response(PRIVACY_POLICY_HTML, mimetype="text/html")
+        if not cache.has("privacy-policy-html"):
+            html = Markdown().convert(cache.get("privacy-policy-md"))
+            if not html:
+                raise NotFound("this endpoint is not configured")
+            cache.add("privacy-policy-html", html)
+        return flask.Response(cache.get("privacy-policy-html"), mimetype="text/html")
