@@ -901,8 +901,8 @@ def link_bucket_to_project(db, bucket_id, bucket_provider, project_auth_id):
                     project_auth_id
                 )
             )
-            project = Project(name=project_auth_id, auth_id=project_auth_id)
-            current_session.add(project)
+            project_db_entry = Project(name=project_auth_id, auth_id=project_auth_id)
+            current_session.add(project_db_entry)
             current_session.commit()
 
         # Add StorageAccess if it doesn't exist for the project
