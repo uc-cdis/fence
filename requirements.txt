@@ -10,7 +10,7 @@ cdiserrors==0.1.2
 cdispyutils==1.0.1
 cryptography>=2.1.2<3.0
 datamodelutils==0.4.5
-Flask==0.12.4
+Flask==1.0.0
 Flask-CORS==3.0.3
 Flask_OAuthlib==0.9.4
 flask-restful==0.3.6
