@@ -19,6 +19,7 @@ from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
 
 from fence.auth import current_token
 from fence.config import config
+from fence.errors import NotSupported
 from fence.models import (
     GoogleServiceAccount,
     GoogleServiceAccountKey,
@@ -220,13 +221,33 @@ def give_service_account_billing_access_if_necessary(
 
     if r_pays_project:
         sa_account_id = get_sa_email_from_private_key(sa_private_key)
-        # if a project is provided, attempt to create custom role that gives
-        # the SA access to bill the project provided
-        # TODO this may fail if our fence SA doesn't have the right permissions
-        #      to add this role and update the project policy
-        with GoogleCloudManager(project_id=r_pays_project) as g_cloud_manager:
-            g_cloud_manager.give_service_account_billing_access(
-                sa_account_id, project_id=r_pays_project
+
+        try:
+            # if a project is provided, attempt to create custom role that gives
+            # the SA access to bill the project provided
+            # TODO this may fail if our fence SA doesn't have the right permissions
+            #      to add this role and update the project policy
+            with GoogleCloudManager(project_id=r_pays_project) as g_cloud_manager:
+                g_cloud_manager.give_service_account_billing_access(
+                    sa_account_id, project_id=r_pays_project
+                )
+        except Exception as exc:
+            logger.error(
+                "Unable to create a custom role in Google Project {} to "
+                "give Google service account {} rights to bill the project. Error: {}".format(
+                    r_pays_project, sa_account_id, exc
+                )
+            )
+            raise NotSupported(
+                "You provided {} as a `userProject` for requester pays billing, "
+                "but we could not create a custom role in the project to provide "
+                "the necessary service account ({}) billing permission. It could be that "
+                "our main service account {} does not have valid permissions in the "
+                "project you supplied.".format(
+                    r_pays_project,
+                    sa_account_id,
+                    config["CIRRUS_CFG"].get("GOOGLE_ADMIN_EMAIL"),
+                )
             )
 
 
