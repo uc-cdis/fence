@@ -19,6 +19,7 @@ from fence.resources.google.utils import (
     get_service_account,
     get_or_create_service_account,
     get_or_create_proxy_group_id,
+    give_service_account_billing_access_if_necessary,
 )
 from fence.utils import get_valid_expiration_from_request
 
@@ -149,9 +150,13 @@ class GoogleCredentialsList(Resource):
         proxy_group_id = get_or_create_proxy_group_id()
         username = current_token.get("context", {}).get("user", {}).get("name")
 
+        r_pays_project = flask.request.args.get("userProject", None)
+
         key, service_account = create_google_access_key(
             client_id, user_id, username, proxy_group_id
         )
+
+        give_service_account_billing_access_if_necessary(key, r_pays_project)
 
         if client_id is None:
             self.handle_user_service_account_creds(key, service_account)

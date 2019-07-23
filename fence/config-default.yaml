@@ -454,7 +454,7 @@ INDEXD_PASSWORD: ''
 ARBORIST: null
 
 # //////////////////////////////////////////////////////////////////////////////////////
-# CLOUD API LIBRARY (CIRRUS) CONFIGURATION
+# CLOUD API LIBRARY (CIRRUS) AND GOOGLE CONFIGURATION
 #   - Support Google Data Access Methods
 # //////////////////////////////////////////////////////////////////////////////////////
 # Setting this up allows fence to create buckets, manage Google groups, etc.
@@ -482,6 +482,22 @@ GOOGLE_GROUP_PREFIX: ''
 # NOTE: Make this short! Less than 8 characters if possible. Google has
 #       length restrictions on service account names.
 GOOGLE_SERVICE_ACCOUNT_PREFIX: ''
+
+# A Google Project identitifier representing the default project to bill to for
+# accessing Google Requester Pays buckets. If this is provided and the API call for
+# Google access does not include a `userProject`, this will be used instead. Fence
+# will automatically attempt to create a Custom Role in the project and give the
+# necessary Google Service Account that role (which will allow it to bill to the project)
+#
+# NOTE: The Fence SA will need the necessary permissions in the specified project to
+#       both create a custom role and update the project's IAM Policy to include the
+#       necessary SA. For more details on required permissions, check:
+#       https://github.com/uc-cdis/cirrus#credentials
+#
+#       NOTE2: It may be possible to further restrict the permissions in the future to
+#              be more fine-grained.
+#
+GOOGLE_REQUESTER_PAYS_BILLING_PROJECT:
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # EMAIL
