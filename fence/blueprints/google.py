@@ -13,6 +13,7 @@ from cirrus.google_cloud.errors import GoogleAPIError
 
 from fence.auth import current_token, require_auth_header
 from fence.restful import RestfulApi
+from fence.config import config
 from fence.errors import UserError, NotFound, Unauthorized, Forbidden
 from fence.resources.google.validity import GoogleProjectValidity
 from fence.resources.google.access_utils import (
