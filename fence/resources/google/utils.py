@@ -266,6 +266,13 @@ def give_service_account_billing_access_if_necessary(
                     )
                 )
 
+        logger.info(
+            "Created a custom role in Google Project {} to "
+            "give Google service account {} rights to bill the project.".format(
+                r_pays_project, sa_account_id
+            )
+        )
+
 
 def create_google_access_key(client_id, user_id, username, proxy_group_id):
     """
