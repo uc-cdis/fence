@@ -289,7 +289,7 @@ class UserSyncer(object):
         if is_sync_from_dbgap_server:
             self.server = dbGaP["info"]
             self.protocol = dbGaP["protocol"]
-            self.dbgap_key = dbGaP["decrypt_key"]
+            self.dbgap_key = str(dbGaP["decrypt_key"])
         self.parse_consent_code = dbGaP.get("parse_consent_code", True)
         self.session = db_session
         self.driver = SQLAlchemyDriver(DB)
