@@ -490,9 +490,10 @@ GOOGLE_SERVICE_ACCOUNT_PREFIX: ''
 # necessary Google Service Account that role (which will allow it to bill to the project)
 #
 # NOTE: The Fence SA will need the necessary permissions in the specified project to
-#       both create a custom role and update the project's IAM Policy to include the
-#       necessary SA. For more details on required permissions, check:
-#       https://github.com/uc-cdis/cirrus#credentials
+#       both create a custom role and update the Project's IAM Policy to include the
+#       necessary SA. At the time of writing, there are pre-defined roles in Google's
+#       IAM that provide the necessary permissions. Those are "Project IAM Admin" and
+#       "Role Administrator"
 #
 #       NOTE2: It may be possible to further restrict the permissions in the future to
 #              be more fine-grained.
