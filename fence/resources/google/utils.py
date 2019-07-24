@@ -19,7 +19,7 @@ from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
 
 from fence.auth import current_token
 from fence.config import config
-from fence.errors import NotSupported
+from fence.errors import NotSupported, InternalError
 from fence.models import (
     GoogleServiceAccount,
     GoogleServiceAccountKey,
@@ -215,9 +215,12 @@ def give_service_account_billing_access_if_necessary(
                 }
         r_pays_project (str, optional): The Google Project identifier to bill to
     """
+    is_default_billing = False
+
     # use configured project if it exists and no user project was given
     if config["GOOGLE_REQUESTER_PAYS_BILLING_PROJECT"] and not r_pays_project:
         r_pays_project = config["GOOGLE_REQUESTER_PAYS_BILLING_PROJECT"]
+        is_default_billing = True
 
     if r_pays_project:
         sa_account_id = get_sa_email_from_private_key(sa_private_key)
@@ -238,17 +241,30 @@ def give_service_account_billing_access_if_necessary(
                     r_pays_project, sa_account_id, exc
                 )
             )
-            raise NotSupported(
-                "You provided {} as a `userProject` for requester pays billing, "
-                "but we could not create a custom role in that project to provide "
-                "the necessary service account ({}) billing permission. It could be that "
-                "our main service account ({}) does not have valid permissions in the "
-                "project you supplied.".format(
-                    r_pays_project,
-                    sa_account_id,
-                    config["CIRRUS_CFG"].get("GOOGLE_ADMIN_EMAIL"),
+            if is_default_billing:
+                raise InternalError(
+                    "Fence has a configured Google Project for requester pays billing ({}), "
+                    "but could not create a custom role in that project to provide "
+                    "the necessary service account ({}) billing permission. It could be that "
+                    "the Fence admin service account ({}) does not have valid permissions in the "
+                    "project.".format(
+                        r_pays_project,
+                        sa_account_id,
+                        config["CIRRUS_CFG"].get("GOOGLE_ADMIN_EMAIL"),
+                    )
                 )
-            )
+            else:
+                raise NotSupported(
+                    "You provided {} as a `userProject` for requester pays billing, "
+                    "but we could not create a custom role in that project to provide "
+                    "the necessary service account ({}) billing permission. It could be that "
+                    "our main service account ({}) does not have valid permissions in the "
+                    "project you supplied to create a custom role and change the project IAM policy.".format(
+                        r_pays_project,
+                        sa_account_id,
+                        config["CIRRUS_CFG"].get("GOOGLE_ADMIN_EMAIL"),
+                    )
+                )
 
 
 def create_google_access_key(client_id, user_id, username, proxy_group_id):
