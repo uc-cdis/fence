@@ -62,7 +62,7 @@ def make_google_blueprint():
     )
 
     blueprint_api.add_resource(
-        GoogleBillingAccount, "/billing_account", strict_slashes=False
+        GoogleBillingAccount, "/billing_project", strict_slashes=False
     )
 
     blueprint_api.add_resource(
