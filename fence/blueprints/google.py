@@ -61,6 +61,10 @@ def make_google_blueprint():
     )
 
     blueprint_api.add_resource(
+        GoogleBillingAccount, "/billing_account", strict_slashes=False
+    )
+
+    blueprint_api.add_resource(
         GoogleServiceAccountDryRun,
         "/service_accounts/_dry_run/<id_>",
         strict_slashes=False,
@@ -98,6 +102,20 @@ class GoogleServiceAccountRegistration(object):
         self.project_access = project_access
         self.google_project_id = google_project_id
         self.user_id = user_id
+
+
+class GoogleBillingAccount(Resource):
+    def get(self):
+        """
+        Get the configured default Google billing project if it exists.
+        """
+        if not config["GOOGLE_REQUESTER_PAYS_BILLING_PROJECT"]:
+            return (
+                "No configured default Google billing project for accessing requester pays data",
+                404,
+            )
+
+        return {"project_id": config["GOOGLE_REQUESTER_PAYS_BILLING_PROJECT"]}
 
 
 class GoogleServiceAccountRoot(Resource):
@@ -455,7 +473,6 @@ class GoogleServiceAccount(Resource):
             patch_user_service_account(
                 sa.google_project_id, sa.email, sa.project_access
             )
-
         except CirrusNotFound as exc:
             return (
                 "Can not update the service accout {}. Detail {}".format(sa.email, exc),
@@ -467,7 +484,7 @@ class GoogleServiceAccount(Resource):
                 400,
             )
         except Exception:
-            return (" Can not delete the service account {}".format(sa.email), 500)
+            return ("Can not update the service account {}".format(sa.email), 500)
 
         return ("Successfully update service account  {}".format(sa.email), 200)
 

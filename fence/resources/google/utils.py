@@ -215,7 +215,7 @@ def give_service_account_billing_access_if_necessary(
                 }
         r_pays_project (str, optional): The Google Project identifier to bill to
     """
-    # TODO use configured project if it exists and no user project was given
+    # use configured project if it exists and no user project was given
     if config["GOOGLE_REQUESTER_PAYS_BILLING_PROJECT"] and not r_pays_project:
         r_pays_project = config["GOOGLE_REQUESTER_PAYS_BILLING_PROJECT"]
 
@@ -225,8 +225,8 @@ def give_service_account_billing_access_if_necessary(
         try:
             # if a project is provided, attempt to create custom role that gives
             # the SA access to bill the project provided
-            # TODO this may fail if our fence SA doesn't have the right permissions
-            #      to add this role and update the project policy
+            # NOTE: this may fail if our fence SA doesn't have the right permissions
+            #       to add this role and update the project policy
             with GoogleCloudManager(project_id=r_pays_project) as g_cloud_manager:
                 g_cloud_manager.give_service_account_billing_access(
                     sa_account_id, project_id=r_pays_project
@@ -240,9 +240,9 @@ def give_service_account_billing_access_if_necessary(
             )
             raise NotSupported(
                 "You provided {} as a `userProject` for requester pays billing, "
-                "but we could not create a custom role in the project to provide "
+                "but we could not create a custom role in that project to provide "
                 "the necessary service account ({}) billing permission. It could be that "
-                "our main service account {} does not have valid permissions in the "
+                "our main service account ({}) does not have valid permissions in the "
                 "project you supplied.".format(
                     r_pays_project,
                     sa_account_id,

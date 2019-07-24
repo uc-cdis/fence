@@ -68,6 +68,71 @@ The scopes that allow access to these methods are also available for individual 
 
 > NOTE: When these docs talk about `clients` accessing data, it's reasonable to assume that this means both `clients` and `users` themselves. Much of the algorithms behave similarly if the user themselves were to request access without going through an outside application.
 
+### Handling Requester Pays Storage Buckets in Google (Optional)
+
+Google supports a bucket-level configuration called ["Requester Pays"](https://cloud.google.com/storage/docs/requester-pays) which effectively pushes the cost of data access in a Google Storage bucket to the entity accessing the data.
+
+> By default, the Google project the Google Bucket is in gets billed.
+
+The Data Access methods [Signed URLs](#signed-urls) and [Temporary Service Account Credentials](#temporary-service-account-credentials) support accessing requester pays buckets with some additional configuration and considerations (noteably: how it affects end-users).
+
+In order to fully understand the options for requester pays support, it's important to first understand the technical steps to get any of these Google Data Access methods to work, as detailed in the library Fence uses for Google API interactions, [cirrus](https://github.com/uc-cdis/cirrus). It would also be useful to read through the access method details for [Signed URLs](#signed-urls) and [Temporary Service Account Credentials](#temporary-service-account-credentials) first.
+
+#### Options for Billing Project(s)
+
+The easiest option for supporting requester pays is to simply bill a Google Project you already own for all access to the bucket instead of requiring end-users to supply a project to bill. This essentially makes the requester pays bucket a non-requester pays bucket, since you'll be paying for all the access. But this may be a necessary solution in cases where:
+
+1) you want to serve data from a bucket you don't fully control
+2) you don't want end-users to have to do manual configuration in Google Cloud Platform to enable billing their project
+3) you/end-users don't want to have to give your application IAM permissions in a project the end-user owns
+
+> NOTE: It is theoretically possible to eliminate `3` by having Fence assume that `2` has happened. However, the current implementation does **not** do that. It programatically attempts to create a custom role in the billing project and provide the necessary access to reduce the manual configuration required. This is, of course, at the expense of requiring that end-users trust your application enough to give it IAM permissions in their project.
+
+#### Billing Your Own Project
+
+To bill a project you own, Fence offers an optional configuration for a "default billing project" which you can set to be a project that you manage and can provide the necessary permissions to the Fence admin service account.
+
+> NOTE: At the time of writing, the configuration variable for the "default billing project" is `GOOGLE_REQUESTER_PAYS_BILLING_PROJECT`. The configuration for the Fence admin service account is `CIRRUS_CFG/GOOGLE_ADMIN_EMAIL`.
+
+For the [Temporary Service Account Credentials](#temporary-service-account-credentials) access methods, clients need to know what the "default billing project" is (to include in their direct requests to Google). The configured "default billing project" is exposed through an API endpoint [detailed here](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/uc-cdis/fence/master/openapis/swagger.yaml#/google).
+
+#### End-users Specifying a Billing Project
+
+API requests to create a signed url and get temporary service account credentials also support the end-user providing a project to bill, in the form of a query param `userProject`. See the [API Documentation](#API-documentation) for more details.
+
+If you do **not** want to bill a project you own and actually require end-users to pay for access to requester pays buckets, it will require manual configuration by the end-users. The configuration necessary for billing a project is the same whether you or an end-user has to enable it, as detailed below.
+
+#### Required Google Cloud Platform (GCP) Configuration for Billing Project
+
+Whether you bill your own project, or require end-users to specify a billing project, the required configuration in GCP is the same.
+
+The Fence admin service account needs a couple pre-defined Google roles (through their Cloud IAM) on whatever project is provided for billing (be that in a request to Fence or whatever is set as the "default billing project"):
+
+* `Project IAM Admin`: to update the project's policy to give the necessary service account(s) billing permission
+* `Role Administrator`: for creating a custom role that only provides billing permission to the project
+
+> NOTE: The custom role that Fence creates contains a single permission in Google `serviceusage.services.use`. "All actions that include a billing project in the request require serviceusage.services.use permission for the project that's specified" [according to Google's docs](https://cloud.google.com/storage/docs/access-control/iam-console).
+
+So once you configure a "default billing project" and give the Fence admin service account the roles mentioned above, access to any requester pays buckets will be billed to that project. This is accomplished in different ways depending on the access method:
+
+1) For [Signed URLs](#signed-urls): a `userProject=<google-project-to-bill>` query parameter will be appended to the signed url
+    * will only be appended if a valid `userProject` is provided in the request **or** Fence is configured with a "default billing project"
+2) For [Temporary Service Account Credentials](#temporary-service-account-credentials): the service account key provided will have the necessary permissions on the `userProject` provided so that subsequent requests to Google using these service account credentials will allow specifying that `userProject` to bill
+    * depending on how the creds are used, this may involve adding additional query params or args to Google SDKs/services to provide the `userProject`
+
+Example for Google's Cloud Storage SDK `gsutil`:
+
+```bash
+# activate the temporary service account credentials recieved from Fence
+# this assumes the creds are saved in a file named `creds.json`
+gcloud auth activate-service-account --key-file ./creds.json
+
+# copy a file from the requester pays bucket locally
+gsutil -u google-project-to-bill cp gs://some-requester-pays-bucket/file.txt .
+```
+
+In the above script, `google-project-to-bill` is either the `userProject` provided in the request to Fence, or Fence's "default billing project". `some-requester-pays-bucket` is a Google Storage Bucket with requester pays enabled.
+
 ## Data Access Methods
 
 ### Signed URLs
@@ -179,7 +244,7 @@ Projects are always validated against the following checks:
 * Google Project has valid service accounts
    * Key: `service_accounts`
    * Checks if the Service Account members on the project pass the Service Account validity checks detailed below.
-  
+
 Service Accounts on the project, as well as the Service Account being registered, are validated against some combination of the following checks (which checks occur ultimately depend on the type of Service Account and whether or not the Service Account is currently being registered or not).
 
 * Service Account is owned by Google Project identified in the request
