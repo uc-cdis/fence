@@ -110,6 +110,7 @@ def _read_file(filepath, encrypted=True, key=None, logger=None):
             stdin=open(filepath, "r"),
             stdout=sp.PIPE,
             stderr=open(os.devnull, "w"),
+            universal_newlines=True,
         )
         yield StringIO(p.communicate()[0])
     else:
