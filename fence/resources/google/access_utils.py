@@ -696,8 +696,16 @@ def add_user_service_account_to_google(
         service_account (UserServiceAccount): user service account
 
     """
+    logger.debug(
+        "attempting to add {} to groups for projects: {}".format(
+            service_account, to_add_project_ids
+        )
+    )
     for project_id in to_add_project_ids:
         access_groups = _get_google_access_groups(session, project_id)
+        logger.debug(
+            "google group(s) for project {}: {}".format(project_id, access_groups)
+        )
         for access_group in access_groups:
             try:
                 # TODO: Need to remove try/catch after major refactor
