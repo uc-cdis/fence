@@ -190,7 +190,7 @@ def generate_signed_id_token(
     auth_time=None,
     max_age=None,
     nonce=None,
-    **kwargs
+    **kwargs,
 ):
     """
     Generate a JWT ID token, and output a UTF-8 string of the encoded JWT
@@ -222,7 +222,7 @@ def generate_signed_id_token(
         auth_time=auth_time,
         max_age=max_age,
         nonce=nonce,
-        **kwargs
+        **kwargs,
     )
     signed_token = token.get_signed_and_encoded_token(kid, private_key)
     return JWTResult(token=signed_token, kid=kid, claims=token)
@@ -366,12 +366,20 @@ def generate_signed_access_token(
             "user": {
                 "name": user.username,
                 "is_admin": user.is_admin,
-                "projects": dict(user.project_access),
                 "google": {"proxy_group": user.google_proxy_group_id},
             }
         },
         "azp": client_id or "",
     }
+
+    # NOTE: THIS IS A TERRIBLE STOP-GAP SOLUTION SO THAT USERS WITH
+    #       MINIMAL ACCESS CAN STILL USE LATEST VERSION OF FENCE
+    #       WITH VERSIONS OF PEREGRINE/SHEEPDOG THAT DO NOT CURENTLY
+    #       SUPPORT AUTHORIZATION CHECKS AGAINST ARBORIST (AND INSTEAD
+    #       RELY ON THE PROJECTS IN THE TOKEN). If the token is too large
+    #       everything breaks. I'm sorry
+    if len(dict(user.project_access)) < 10:
+        claims["context"]["user"]["projects"] = dict(user.project_access)
 
     # only add google linkage information if provided
     if linked_google_email:
@@ -400,7 +408,7 @@ def generate_id_token(
     auth_time=None,
     max_age=None,
     nonce=None,
-    **kwargs
+    **kwargs,
 ):
     """
     Generate an unsigned ID token object. Use `.get_signed_and_encoded_token`
