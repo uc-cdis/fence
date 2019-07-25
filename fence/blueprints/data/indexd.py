@@ -817,6 +817,10 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
 
         give_service_account_billing_access_if_necessary(private_key, r_pays_project)
 
+        # use configured project if it exists and no user project was given
+        if config["GOOGLE_REQUESTER_PAYS_BILLING_PROJECT"] and not r_pays_project:
+            r_pays_project = config["GOOGLE_REQUESTER_PAYS_BILLING_PROJECT"]
+
         final_url = cirrus.google_cloud.utils.get_signed_url(
             resource_path,
             http_verb,
