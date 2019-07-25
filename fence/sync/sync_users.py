@@ -197,13 +197,6 @@ class UserYAML(object):
             "user_project_to_resource", dict()
         )
 
-        if logger:
-            logger.info(
-                "Got user project to arborist resource mapping:\n{}".format(
-                    str(project_to_resource)
-                )
-            )
-
         # resources should be the resource tree to construct in arborist
         user_rbac = dict()
         for username, details in users.items():
@@ -225,8 +218,17 @@ class UserYAML(object):
                     # if no resource or mapping, assume auth_id is resource
                     resource = project["auth_id"]
 
+                project_to_resource[project["auth_id"]] = resource
+
                 resource_permissions[resource] = set(project["privilege"])
             user_rbac[username] = resource_permissions
+
+        if logger:
+            logger.info(
+                "Got user project to arborist resource mapping:\n{}".format(
+                    str(project_to_resource)
+                )
+            )
 
         rbac = data.get("rbac", dict())
         if not rbac:
