@@ -190,7 +190,7 @@ def generate_signed_id_token(
     auth_time=None,
     max_age=None,
     nonce=None,
-    **kwargs,
+    **kwargs
 ):
     """
     Generate a JWT ID token, and output a UTF-8 string of the encoded JWT
@@ -222,7 +222,7 @@ def generate_signed_id_token(
         auth_time=auth_time,
         max_age=max_age,
         nonce=nonce,
-        **kwargs,
+        **kwargs
     )
     signed_token = token.get_signed_and_encoded_token(kid, private_key)
     return JWTResult(token=signed_token, kid=kid, claims=token)
@@ -408,7 +408,7 @@ def generate_id_token(
     auth_time=None,
     max_age=None,
     nonce=None,
-    **kwargs,
+    **kwargs
 ):
     """
     Generate an unsigned ID token object. Use `.get_signed_and_encoded_token`
