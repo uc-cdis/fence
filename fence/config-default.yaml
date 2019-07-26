@@ -208,6 +208,7 @@ ACCESS_TOKEN_COOKIE_NAME: "access_token"
 # Note that the session token also stores information for the
 # ``flask.session`` in the ``context`` field of the token.
 SESSION_COOKIE_NAME: "fence"
+SESSION_COOKIE_DOMAIN: 
 
 OAUTH2_TOKEN_EXPIRES_IN:
   "authorization_code": 1200
