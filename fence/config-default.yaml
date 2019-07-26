@@ -484,10 +484,20 @@ GOOGLE_GROUP_PREFIX: ''
 GOOGLE_SERVICE_ACCOUNT_PREFIX: ''
 
 # A Google Project identitifier representing the default project to bill to for
-# accessing Google Requester Pays buckets. If this is provided and the API call for
-# Google access does not include a `userProject`, this will be used instead. Fence
-# will automatically attempt to create a Custom Role in the project and give the
-# necessary Google Service Account that role (which will allow it to bill to the project)
+# accessing Google Requester Pays buckets (for signed urls and/or temporary service account
+# credentials). If this is provided and the API call for
+# Google access does not include a `userProject`, this will be used instead.
+#
+# WARNING: Setting this WITHOUT setting "ENABLE_AUTOMATIC_BILLING_*" to `true` below,
+#          means that clients and end-users will be responsible for making sure that
+#          the service account used in either of these methods actually has billing
+#          permission in the specified project.
+BILLING_PROJECT_FOR_SIGNED_URLS:
+BILLING_PROJECT_FOR_SA_CREDS:
+
+# Setting this to `true` will make Fence automatically attempt to create a Custom Role
+# in the billing project and give the necessary Google Service Account that role
+# (which will allow it to bill to the project).
 #
 # NOTE: The Fence SA will need the necessary permissions in the specified project to
 #       both create a custom role and update the Project's IAM Policy to include the
@@ -498,7 +508,8 @@ GOOGLE_SERVICE_ACCOUNT_PREFIX: ''
 #       NOTE2: It may be possible to further restrict the permissions in the future to
 #              be more fine-grained.
 #
-GOOGLE_REQUESTER_PAYS_BILLING_PROJECT:
+ENABLE_AUTOMATIC_BILLING_PERMISSION_SIGNED_URLS: false
+ENABLE_AUTOMATIC_BILLING_PERMISSION_SA_CREDS: false
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # EMAIL

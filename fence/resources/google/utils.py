@@ -19,7 +19,7 @@ from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
 
 from fence.auth import current_token
 from fence.config import config
-from fence.errors import NotSupported, InternalError
+from fence.errors import NotSupported, InternalError, UserError
 from fence.models import (
     GoogleServiceAccount,
     GoogleServiceAccountKey,
@@ -187,7 +187,7 @@ def get_sa_email_from_private_key(sa_private_key):
 
 
 def give_service_account_billing_access_if_necessary(
-    sa_private_key, r_pays_project=None
+    sa_private_key, r_pays_project=None, default_billing_project=None
 ):
     """
     Give the Service Account (whose key is provided) the privilege to bill to the
@@ -215,11 +215,21 @@ def give_service_account_billing_access_if_necessary(
                 }
         r_pays_project (str, optional): The Google Project identifier to bill to
     """
-    is_default_billing = False
+    if not r_pays_project and not default_billing_project:
+        raise UserError(
+            "You did NOT provide a `userProject` for requester pays billing, "
+            "so we could not create a custom role in that project to provide "
+            "the necessary service account ({}) billing permission. "
+            "Our main service account ({}) will need valid permissions in the "
+            "project you supplied to create a custom role and change the project IAM policy.".format(
+                sa_account_id, config["CIRRUS_CFG"].get("GOOGLE_ADMIN_EMAIL")
+            )
+        )
 
     # use configured project if it exists and no user project was given
-    if config["GOOGLE_REQUESTER_PAYS_BILLING_PROJECT"] and not r_pays_project:
-        r_pays_project = config["GOOGLE_REQUESTER_PAYS_BILLING_PROJECT"]
+    is_default_billing = False
+    if default_billing_project and not r_pays_project:
+        r_pays_project = default_billing_project
         is_default_billing = True
 
     if r_pays_project:

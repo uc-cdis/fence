@@ -62,7 +62,7 @@ def make_google_blueprint():
     )
 
     blueprint_api.add_resource(
-        GoogleBillingAccount, "/billing_project", strict_slashes=False
+        GoogleBillingAccount, "/billing_projects", strict_slashes=False
     )
 
     blueprint_api.add_resource(
@@ -108,15 +108,14 @@ class GoogleServiceAccountRegistration(object):
 class GoogleBillingAccount(Resource):
     def get(self):
         """
-        Get the configured default Google billing project if it exists.
+        Get the configured default Google billing projects if it exists.
         """
-        if not config["GOOGLE_REQUESTER_PAYS_BILLING_PROJECT"]:
-            return (
-                "No configured default Google billing project for accessing requester pays data",
-                404,
-            )
-
-        return {"project_id": config["GOOGLE_REQUESTER_PAYS_BILLING_PROJECT"]}
+        return {
+            "signed_urls": {"project_id": config["BILLING_PROJECT_FOR_SIGNED_URLS"]},
+            "temporary_service_account_credentials": {
+                "project_id": config["BILLING_PROJECT_FOR_SA_CREDS"]
+            },
+        }
 
 
 class GoogleServiceAccountRoot(Resource):

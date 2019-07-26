@@ -156,7 +156,12 @@ class GoogleCredentialsList(Resource):
             client_id, user_id, username, proxy_group_id
         )
 
-        give_service_account_billing_access_if_necessary(key, r_pays_project)
+        if config["ENABLE_AUTOMATIC_BILLING_PERMISSION_SA_CREDS"]:
+            give_service_account_billing_access_if_necessary(
+                key,
+                r_pays_project,
+                default_billing_project=config["BILLING_PROJECT_FOR_SA_CREDS"],
+            )
 
         if client_id is None:
             self.handle_user_service_account_creds(key, service_account)
