@@ -492,7 +492,13 @@ def patch_user_service_account(
         session, project_access
     )
 
-    to_add = set.difference(granting_project_ids, accessed_project_ids)
+    # The cronjob doesn't clean out the entries in ServiceAccountAccessPrivilege,
+    # so the Google SA will get removed from the GBAG but this set diff will end up
+    # being empty. And so patching will not re-add the SA to the GBAG.
+    # This is a quick fix for PATCH, but I'm guessing we use set diff bc Google calls are slow.
+    # So probably we want the cronjob to correctly delete the relevant db entries.
+    #to_add = set.difference(granting_project_ids, accessed_project_ids)
+    to_add = granting_project_ids
     to_delete = set.difference(accessed_project_ids, granting_project_ids)
 
     _revoke_user_service_account_from_google(
