@@ -37,8 +37,10 @@ class ShibbolethLoginStart(Resource):
             # default to SSO_URL from the config which should be NIH login
             return flask.redirect(config["SSO_URL"] + actual_redirect)
         return flask.redirect(
-            config["BASE_URL"] + "/Shibboleth.sso/Login?entityID={}&target={}"
-            .format(entityID, actual_redirect)
+            config["BASE_URL"]
+            + "/Shibboleth.sso/Login?entityID={}&target={}".format(
+                entityID, actual_redirect
+            )
         )
 
 
