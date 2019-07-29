@@ -80,20 +80,20 @@ class FenceConfig(Config):
         #       to share the credentials directly with end-users and 2) will not mis-use
         #       billing rights (in other words, only use it when interacting with buckets
         #       Fence is aware of)
-        if self._configs.get("BILLING_PROJECT_FOR_SA_CREDS"):
+        if self._configs.get("BILLING_PROJECT_FOR_SA_CREDS") or self._configs.get(
+            "BILLING_PROJECT_FOR_SIGNED_URLS"
+        ):
             if (
                 "USER_ALLOWED_SCOPES" in self._configs
                 and "google_credentials" in self._configs["USER_ALLOWED_SCOPES"]
             ):
                 logger.warning(
                     "Configuration does not restrict end-user access to billing. Correcting. "
-                    "BILLING_PROJECT_FOR_SA_CREDS is set to a non-None value, {}. "
+                    "BILLING_PROJECT_FOR_SA_CREDS or BILLING_PROJECT_FOR_SIGNED_URLS is set to a non-None value. "
                     "USER_ALLOWED_SCOPES includes `google_credentials`. Removing "
-                    "`google_credentials` from USER_ALLOWED_SCOPES as this would allow "
+                    "`google_credentials` from USER_ALLOWED_SCOPES as this could allow "
                     "end-users to indescriminently bill our default project. Clients are inheritently "
-                    "trusted, so we do not restrict this scope for clients.".format(
-                        self._configs.get("BILLING_PROJECT_FOR_SA_CREDS")
-                    )
+                    "trusted, so we do not restrict this scope for clients."
                 )
                 self._configs["USER_ALLOWED_SCOPES"].remove("google_credentials")
 
@@ -103,13 +103,11 @@ class FenceConfig(Config):
             ):
                 logger.warning(
                     "Configuration does not restrict end-user access to billing. Correcting. "
-                    "BILLING_PROJECT_FOR_SA_CREDS is set to a non-None value, {}. "
-                    "SESSION_ALLOWED_SCOPES includes `google_credentials`. Removing "
-                    "`google_credentials` from SESSION_ALLOWED_SCOPES as this would allow "
+                    "BILLING_PROJECT_FOR_SA_CREDS or BILLING_PROJECT_FOR_SIGNED_URLS is set to a non-None value. "
+                    "USER_ALLOWED_SCOPES includes `google_credentials`. Removing "
+                    "`google_credentials` from USER_ALLOWED_SCOPES as this could allow "
                     "end-users to indescriminently bill our default project. Clients are inheritently "
-                    "trusted, so we do not restrict this scope for clients.".format(
-                        self._configs.get("BILLING_PROJECT_FOR_SA_CREDS")
-                    )
+                    "trusted, so we do not restrict this scope for clients."
                 )
                 self._configs["SESSION_ALLOWED_SCOPES"].remove("google_credentials")
 
