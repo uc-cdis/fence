@@ -169,7 +169,7 @@ Projects are always validated against the following checks:
    * Checks if the current user is an authorized member on the project.
 * Google Project has valid parent organization
    * Key: `valid_parent_org`
-   * Checks if the Google project either has no parent organization, or if it does, it is included on the whitelist of parent. organizations (defined in Fence config).
+   * Checks if the Google project either has no parent organization, or if it does, it is included on the whitelist of parent organizations (defined in Fence config). (The reason for this logic is that user permissions can be inherited from a parent organization, but the Fence SA is only given permission on the project level and thus can only read project-specific IAM policies. Any inherited policies will not be available during validation. Therefore, if there is no parent org then there is nothing to worry about, but if there is, then we must trust the parent org to have properly set its permissions.)
 * Google Project only has valid member types
    * Key: `valid_member_types`
    * Checks if the Google project ony has members that are User Accounts or Service Accounts.
