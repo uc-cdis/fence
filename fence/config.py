@@ -43,6 +43,7 @@ class FenceConfig(Config):
             "ACCESS_TOKEN_EXPIRES_IN",
             "dbGaP",
             "CIRRUS_CFG",
+            "WHITE_LISTED_GOOGLE_PARENT_ORGS",
         ]
         for default in defaults:
             self.force_default_if_none(default, default_cfg=default_config)
