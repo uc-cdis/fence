@@ -218,7 +218,8 @@ class UserYAML(object):
                     # if no resource or mapping, assume auth_id is resource
                     resource = project["auth_id"]
 
-                project_to_resource[project["auth_id"]] = resource
+                if project["auth_id"] not in project_to_resource:
+                    project_to_resource[project["auth_id"]] = resource
 
                 resource_permissions[resource] = set(project["privilege"])
             user_rbac[username] = resource_permissions
