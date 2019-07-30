@@ -9,6 +9,7 @@ from flask_sqlalchemy_session import current_session
 from cirrus import GoogleCloudManager
 from cirrus.config import config as cirrus_config
 
+from fence.config import config
 from fence.auth import require_auth_header
 from fence.auth import current_token
 from fence.errors import UserError
