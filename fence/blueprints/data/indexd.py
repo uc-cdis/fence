@@ -56,12 +56,6 @@ def get_signed_url_for_file(action, file_id):
     requested_protocol = flask.request.args.get("protocol", None)
     r_pays_project = flask.request.args.get("userProject", None)
 
-    # TODO maybe we want an arg to ask NOT to setup the user project billing in case
-    # it is provided out of the knowledge of this fence instance? e.g. someone
-    # manually will provide the SA access to the given project
-    setup_billing = flask.request.args.get("setupUserProjectBilling", None)
-    # TODO ^^^^ do we need this??
-
     # default to signing the url even if it's a public object
     # this will work so long as we're provided a user token
     force_signed_url = True
