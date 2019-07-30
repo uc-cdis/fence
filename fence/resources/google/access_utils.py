@@ -492,23 +492,26 @@ def patch_user_service_account(
         session, project_access
     )
 
-    # The cronjob doesn't clean out the entries in ServiceAccountAccessPrivilege,
-    # so the Google SA will get removed from the GBAG but this set diff will end up
-    # being empty. And so patching will not re-add the SA to the GBAG.
-    # This is a quick fix for PATCH, but I'm guessing we use set diff bc Google calls are slow.
-    # So probably we want the cronjob to correctly delete the relevant db entries.
-    #to_add = set.difference(granting_project_ids, accessed_project_ids)
-    to_add = granting_project_ids
+    to_add = set.difference(granting_project_ids, accessed_project_ids)
     to_delete = set.difference(accessed_project_ids, granting_project_ids)
 
     _revoke_user_service_account_from_google(
         session, to_delete, google_project_id, service_account
     )
+
+    # Use granting_project_ids here, not to_add, bc the google-delete-expired-service-account
+    # job doesn't clean out the entries in the ServiceAccountAccessPrivilege table.
+    # So the set diff (=to_add) won't include the proj if the SA was previously registered for that proj,
+    # even if the SA later expired and was removed from the relevant GBAG.
     add_user_service_account_to_google(
-        session, to_add, google_project_id, service_account
+        session, granting_project_ids, google_project_id, service_account
     )
+
     _revoke_user_service_account_from_db(session, to_delete, service_account)
 
+    # On the other hand, use to_add here and not granting_project_ids,
+    # otherwise this will add duplicates to ServiceAccountAccessPrivilege.
+    # Because at time of writing, aforementioned tbl has no compound unique constraint.
     add_user_service_account_to_db(session, to_add, service_account)
 
 
