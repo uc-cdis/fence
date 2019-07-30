@@ -100,7 +100,7 @@ For the [Temporary Service Account Credentials](#temporary-service-account-crede
 
 #### End-users Specifying a Billing Project
 
-API requests to create a signed url and get temporary service account credentials also support the end-user providing a project to bill, in the form of a query param `userProject`. See the [API Documentation](#API-documentation) for more details.
+API requests to create a signed url and get temporary service account credentials also support the end-user providing a project to bill, in the form of a query param `userProject`. See the [API Documentation](https://github.com/uc-cdis/fence/tree/master#API-documentation) for more details.
 
 If you do **not** want to bill a project you own and actually require end-users to pay for access to requester pays buckets, it will require manual configuration by the end-users. The configuration necessary for billing a project is the same whether you or an end-user has to enable it, as detailed below.
 
