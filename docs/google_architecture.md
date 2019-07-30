@@ -96,7 +96,7 @@ To bill a project you own, Fence offers an optional configuration for a "default
 
 > NOTE: At the time of writing, the configuration variable for the "default billing project" for signed urls is `BILLING_PROJECT_FOR_SIGNED_URLS`. The "default billing project" for temporary service account credentials is `BILLING_PROJECT_FOR_SA_CREDS`. The configuration for the Fence admin service account is `CIRRUS_CFG/GOOGLE_ADMIN_EMAIL` and is available through the API.
 
-For the [Temporary Service Account Credentials](#temporary-service-account-credentials) access methods, clients need to know what the "default billing project" is (to include in their direct requests to Google). The configured "default billing project" is exposed through an API endpoint [detailed here](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/uc-cdis/fence/master/openapis/swagger.yaml#/google).
+For the [Temporary Service Account Credentials](#temporary-service-account-credentials) access methods, clients need to know what the "default billing project" is (to include in their direct requests to Google). The configured "default billing project" is exposed through an API endpoint [detailed here](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/uc-cdis/fence/master/openapis/swagger.yaml#/google/getGoogleBillingProjects).
 
 #### End-users Specifying a Billing Project
 
