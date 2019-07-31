@@ -209,7 +209,7 @@ def give_service_account_billing_access_if_necessary(
         sa_account_id = sa_private_key.get("client_email")
 
         try:
-            # if a project is provided, attempt to create custom role that gives
+            # attempt to create custom role that gives
             # the SA access to bill the project provided
             # NOTE: this may fail if our fence SA doesn't have the right permissions
             #       to add this role and update the project policy
