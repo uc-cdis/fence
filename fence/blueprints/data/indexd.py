@@ -4,6 +4,7 @@ from urllib.parse import urlparse
 
 from cached_property import cached_property
 import cirrus
+from cirrus import GoogleCloudManager
 from cdislogging import get_logger
 from cdispyutils.config import get_value
 from cdispyutils.hmac4 import generate_aws_presigned_url
@@ -32,6 +33,7 @@ from fence.resources.google.utils import (
     create_primary_service_account_key,
     get_or_create_proxy_group_id,
     get_google_app_creds,
+    give_service_account_billing_access_if_necessary,
 )
 from fence.utils import get_valid_expiration_from_request
 from . import multipart_upload
@@ -52,6 +54,7 @@ ANONYMOUS_USERNAME = "anonymous"
 
 def get_signed_url_for_file(action, file_id):
     requested_protocol = flask.request.args.get("protocol", None)
+    r_pays_project = flask.request.args.get("userProject", None)
 
     # default to signing the url even if it's a public object
     # this will work so long as we're provided a user token
@@ -66,7 +69,11 @@ def get_signed_url_for_file(action, file_id):
         expires_in = min(requested_expires_in, expires_in)
 
     signed_url = indexed_file.get_signed_url(
-        requested_protocol, action, expires_in, force_signed_url=force_signed_url
+        requested_protocol,
+        action,
+        expires_in,
+        force_signed_url=force_signed_url,
+        r_pays_project=r_pays_project,
     )
     return {"url": signed_url}
 
@@ -295,7 +302,9 @@ class IndexedFile(object):
         urls = self.index_document.get("urls", [])
         return list(map(IndexedFileLocation.from_url, urls))
 
-    def get_signed_url(self, protocol, action, expires_in, force_signed_url=True):
+    def get_signed_url(
+        self, protocol, action, expires_in, force_signed_url=True, r_pays_project=None
+    ):
         if self.public and action == "upload":
             raise Unauthorized("Cannot upload on public files")
         # don't check the authorization if the file is public
@@ -306,9 +315,13 @@ class IndexedFile(object):
             )
         if action is not None and action not in SUPPORTED_ACTIONS:
             raise NotSupported("action {} is not supported".format(action))
-        return self._get_signed_url(protocol, action, expires_in, force_signed_url)
+        return self._get_signed_url(
+            protocol, action, expires_in, force_signed_url, r_pays_project
+        )
 
-    def _get_signed_url(self, protocol, action, expires_in, force_signed_url):
+    def _get_signed_url(
+        self, protocol, action, expires_in, force_signed_url, r_pays_project
+    ):
         if not protocol:
             # no protocol specified, return first location as signed url
             try:
@@ -317,6 +330,7 @@ class IndexedFile(object):
                     expires_in,
                     public_data=self.public,
                     force_signed_url=force_signed_url,
+                    r_pays_project=r_pays_project,
                 )
             except IndexError:
                 raise NotFound("Can't find any file locations.")
@@ -331,6 +345,7 @@ class IndexedFile(object):
                     expires_in,
                     public_data=self.public,
                     force_signed_url=force_signed_url,
+                    r_pays_project=r_pays_project,
                 )
 
         raise NotFound(
@@ -469,7 +484,7 @@ class IndexedFileLocation(object):
         return IndexedFileLocation(url)
 
     def get_signed_url(
-        self, action, expires_in, public_data=False, force_signed_url=True
+        self, action, expires_in, public_data=False, force_signed_url=True, **kwargs
     ):
         return self.url
 
@@ -579,7 +594,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             return bucket_cred["region"]
 
     def get_signed_url(
-        self, action, expires_in, public_data=False, force_signed_url=True
+        self, action, expires_in, public_data=False, force_signed_url=True, **kwargs
     ):
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
@@ -714,7 +729,12 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     """
 
     def get_signed_url(
-        self, action, expires_in, public_data=False, force_signed_url=True
+        self,
+        action,
+        expires_in,
+        public_data=False,
+        force_signed_url=True,
+        r_pays_project=None,
     ):
         resource_path = (
             self.parsed_url.netloc.strip("/") + "/" + self.parsed_url.path.strip("/")
@@ -737,12 +757,13 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                 expiration_time,
                 user_info.get("user_id"),
                 user_info.get("username"),
+                r_pays_project=r_pays_project,
             )
 
         return url
 
     def _generate_anonymous_google_storage_signed_url(
-        self, http_verb, resource_path, expiration_time
+        self, http_verb, resource_path, expiration_time, r_pays_project=None
     ):
         # we will use the main fence SA service account to sign anonymous requests
         private_key = get_google_app_creds()
@@ -754,11 +775,18 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             content_type="",
             md5_value="",
             service_account_creds=private_key,
+            requester_pays_user_project=r_pays_project,
         )
         return final_url
 
     def _generate_google_storage_signed_url(
-        self, http_verb, resource_path, expiration_time, user_id, username
+        self,
+        http_verb,
+        resource_path,
+        expiration_time,
+        user_id,
+        username,
+        r_pays_project=None,
     ):
         proxy_group_id = get_or_create_proxy_group_id()
 
@@ -781,6 +809,17 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                 user_id=user_id, username=username, proxy_group_id=proxy_group_id
             )
 
+        if config["ENABLE_AUTOMATIC_BILLING_PERMISSION_SIGNED_URLS"]:
+            give_service_account_billing_access_if_necessary(
+                private_key,
+                r_pays_project,
+                default_billing_project=config["BILLING_PROJECT_FOR_SIGNED_URLS"],
+            )
+
+        # use configured project if it exists and no user project was given
+        if config["BILLING_PROJECT_FOR_SIGNED_URLS"] and not r_pays_project:
+            r_pays_project = config["BILLING_PROJECT_FOR_SIGNED_URLS"]
+
         final_url = cirrus.google_cloud.utils.get_signed_url(
             resource_path,
             http_verb,
@@ -789,6 +828,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             content_type="",
             md5_value="",
             service_account_creds=private_key,
+            requester_pays_user_project=r_pays_project,
         )
         return final_url
 

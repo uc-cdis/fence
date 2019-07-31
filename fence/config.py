@@ -5,6 +5,9 @@ import urllib.parse
 import cirrus
 from gen3config import Config
 
+from cdislogging import get_logger
+
+logger = get_logger(__name__)
 
 DEFAULT_CFG_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "config-default.yaml"
@@ -66,6 +69,47 @@ class FenceConfig(Config):
             self._configs["STORAGE_CREDENTIALS"] = {}
 
         cirrus.config.config.update(**self._configs.get("CIRRUS_CFG", {}))
+
+        # if we have a default google project for billing requester pays, we should
+        # NOT allow end-users to have permission to create Temporary Google Service
+        # Account credentials, as they could use the default project to bill non-Fence
+        # aware Google Buckets
+        #
+        # NOTE: This does NOT restrict clients from generating temporary service account
+        #       credentials under the assumption that the clients are trusted 1) not
+        #       to share the credentials directly with end-users and 2) will not mis-use
+        #       billing rights (in other words, only use it when interacting with buckets
+        #       Fence is aware of)
+        if self._configs.get("BILLING_PROJECT_FOR_SA_CREDS") or self._configs.get(
+            "BILLING_PROJECT_FOR_SIGNED_URLS"
+        ):
+            if (
+                "USER_ALLOWED_SCOPES" in self._configs
+                and "google_credentials" in self._configs["USER_ALLOWED_SCOPES"]
+            ):
+                logger.warning(
+                    "Configuration does not restrict end-user access to billing. Correcting. "
+                    "BILLING_PROJECT_FOR_SA_CREDS or BILLING_PROJECT_FOR_SIGNED_URLS is set to a non-None value. "
+                    "USER_ALLOWED_SCOPES includes `google_credentials`. Removing "
+                    "`google_credentials` from USER_ALLOWED_SCOPES as this could allow "
+                    "end-users to indescriminently bill our default project. Clients are inheritently "
+                    "trusted, so we do not restrict this scope for clients."
+                )
+                self._configs["USER_ALLOWED_SCOPES"].remove("google_credentials")
+
+            if (
+                "SESSION_ALLOWED_SCOPES" in self._configs
+                and "google_credentials" in self._configs["SESSION_ALLOWED_SCOPES"]
+            ):
+                logger.warning(
+                    "Configuration does not restrict end-user access to billing. Correcting. "
+                    "BILLING_PROJECT_FOR_SA_CREDS or BILLING_PROJECT_FOR_SIGNED_URLS is set to a non-None value. "
+                    "SESSION_ALLOWED_SCOPES includes `google_credentials`. Removing "
+                    "`google_credentials` from USER_ALLOWED_SCOPES as this could allow "
+                    "end-users to indescriminently bill our default project. Clients are inheritently "
+                    "trusted, so we do not restrict this scope for clients."
+                )
+                self._configs["SESSION_ALLOWED_SCOPES"].remove("google_credentials")
 
 
 config = FenceConfig(DEFAULT_CFG_PATH)

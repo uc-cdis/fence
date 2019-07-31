@@ -16,7 +16,7 @@ Flask_OAuthlib==0.9.4
 flask-restful==0.3.6
 Flask_SQLAlchemy_Session==1.1
 gen3config==0.1.7
-gen3cirrus==1.0.0
+gen3cirrus==1.1.0
 gen3users
 httplib2==0.10.3
 markdown==3.1.1
