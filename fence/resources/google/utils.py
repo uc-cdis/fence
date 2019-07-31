@@ -155,37 +155,6 @@ def create_primary_service_account_key(user_id, username, proxy_group_id, expire
     return sa_private_key
 
 
-def get_sa_email_from_private_key(sa_private_key):
-    """
-    Return the service account email given the a private service account key.
-
-    Args:
-        sa_private_key (dict):
-
-            JSON key in Google Credentials File format:
-
-            .. code-block:: JavaScript
-
-                {
-                    "type": "service_account",
-                    "project_id": "project-id",
-                    "private_key_id": "some_number",
-                    "private_key": "-----BEGIN PRIVATE KEY-----\n....
-                    =\n-----END PRIVATE KEY-----\n",
-                    "client_email": "<api-name>api@project-id.iam.gserviceaccount.com",
-                    "client_id": "...",
-                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                    "token_uri": "https://accounts.google.com/o/oauth2/token",
-                    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-                    "client_x509_cert_url": "https://www.googleapis.com/...<api-name>api%40project-id.iam.gserviceaccount.com"
-                }
-
-    Returns:
-        str: Service account email
-    """
-    return sa_private_key.get("client_email")
-
-
 def give_service_account_billing_access_if_necessary(
     sa_private_key, r_pays_project=None, default_billing_project=None
 ):
@@ -195,8 +164,7 @@ def give_service_account_billing_access_if_necessary(
     to bill to, we will use that.
 
     Args:
-        sa_private_key (dict):
-            JSON key in Google Credentials File format:
+        sa_private_key (dict): JSON key in Google Credentials File format:
 
             .. code-block:: JavaScript
 
@@ -214,14 +182,19 @@ def give_service_account_billing_access_if_necessary(
                     "client_x509_cert_url": "https://www.googleapis.com/...<api-name>api%40project-id.iam.gserviceaccount.com"
                 }
         r_pays_project (str, optional): The Google Project identifier to bill to
+        default_billing_project (str, optional): the default The Google Project
+            identifier to bill to if r_pays_project is None
     """
     if not r_pays_project and not default_billing_project:
+        sa_account_id = sa_private_key.get("client_email")
         raise UserError(
             "You did NOT provide a `userProject` for requester pays billing, "
             "so we could not create a custom role in that project to provide "
             "the necessary service account ({}) billing permission. "
             "Our main service account ({}) will need valid permissions in the "
-            "project you supplied to create a custom role and change the project IAM policy.".format(
+            "project you supplied to create a custom role and change the project "
+            "IAM policy. There is no configured default billing project so you must "
+            "provide a `userProject` query parameter.".format(
                 sa_account_id, config["CIRRUS_CFG"].get("GOOGLE_ADMIN_EMAIL")
             )
         )
@@ -233,7 +206,7 @@ def give_service_account_billing_access_if_necessary(
         is_default_billing = True
 
     if r_pays_project:
-        sa_account_id = get_sa_email_from_private_key(sa_private_key)
+        sa_account_id = sa_private_key.get("client_email")
 
         try:
             # if a project is provided, attempt to create custom role that gives
