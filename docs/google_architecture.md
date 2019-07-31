@@ -127,7 +127,7 @@ If you want Fence to automatically attempt to provide the necessary permissions 
 1) For [Signed URLs](#signed-urls): a `userProject=<google-project-to-bill>` query parameter will be appended to the signed url
     * will only be appended if a valid `userProject` is provided in the request **or** Fence is configured with a "default billing project" for signed URLs
     * if Fence is configured to automatically enable billing permission, it will do that for the service account used to sign the URL
-2) For [Temporary Service Account Credentials](#temporary-service-account-credentials): iff Fence was configured to automatically enable billing permission, the service account key provided will have the necessary permissions on the `userProject` provided (in request or configured "default billing project") so that subsequent requests to Google using these service account credentials will allow specifying that `userProject` to bill
+2) For [Temporary Service Account Credentials](#temporary-service-account-credentials): if Fence was configured to automatically enable billing permission, the service account key provided will have the necessary permissions on the `userProject` provided (in request or configured "default billing project") so that subsequent requests to Google using these service account credentials will allow specifying that `userProject` to bill
     * depending on how the creds are used, this may involve adding additional query params or args to Google SDKs/services to provide the `userProject`
 
 Example for Google's Cloud Storage SDK `gsutil`:
