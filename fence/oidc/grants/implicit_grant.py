@@ -28,12 +28,14 @@ class ImplicitGrant(OpenIDImplicitGrant):
             self.request.user = grant_user
             client = self.request.client
             include_access_token = self.request.response_type == "id_token token"
+            nonce = dict(self.request.query_params)["nonce"]
             token_response = self.generate_token(
                 client,
                 self.GRANT_TYPE,
                 include_access_token=include_access_token,
                 user=grant_user,
                 scope=self.request.scope,
+                nonce=nonce,
             )
             params = [(k, token_response[k]) for k in token_response]
             if state:
