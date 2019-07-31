@@ -104,7 +104,7 @@ class FenceConfig(Config):
                 logger.warning(
                     "Configuration does not restrict end-user access to billing. Correcting. "
                     "BILLING_PROJECT_FOR_SA_CREDS or BILLING_PROJECT_FOR_SIGNED_URLS is set to a non-None value. "
-                    "USER_ALLOWED_SCOPES includes `google_credentials`. Removing "
+                    "SESSION_ALLOWED_SCOPES includes `google_credentials`. Removing "
                     "`google_credentials` from USER_ALLOWED_SCOPES as this could allow "
                     "end-users to indescriminently bill our default project. Clients are inheritently "
                     "trusted, so we do not restrict this scope for clients."
