@@ -498,11 +498,20 @@ def patch_user_service_account(
     _revoke_user_service_account_from_google(
         session, to_delete, google_project_id, service_account
     )
+
+    # Use granting_project_ids here, not to_add, bc the google-delete-expired-service-account
+    # job doesn't clean out the entries in the ServiceAccountAccessPrivilege table.
+    # So the set diff (=to_add) won't include the proj if the SA was previously registered for that proj,
+    # even if the SA later expired and was removed from the relevant GBAG.
     add_user_service_account_to_google(
-        session, to_add, google_project_id, service_account
+        session, granting_project_ids, google_project_id, service_account
     )
+
     _revoke_user_service_account_from_db(session, to_delete, service_account)
 
+    # On the other hand, use to_add here and not granting_project_ids,
+    # otherwise this will add duplicates to ServiceAccountAccessPrivilege.
+    # Because at time of writing, aforementioned tbl has no compound unique constraint.
     add_user_service_account_to_db(session, to_add, service_account)
 
 
