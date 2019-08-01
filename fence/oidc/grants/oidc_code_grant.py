@@ -64,7 +64,14 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
         scope = authorization_code.get_scope()
 
         query_args = dict(self.request.query_params)
-        nonce = self.request.body.get("nonce") or query_args.get("nonce")
+        code = self.request.body.get("code") or query_args.get("code")
+        with flask.current_app.db.session as session:
+            authorization_code = (
+                session.query(AuthorizationCode)
+                .filter_by(code=code, client_id=client.client_id)
+                .first()
+            )
+            nonce = authorization_code.nonce
 
         token = self.generate_token(
             client,
