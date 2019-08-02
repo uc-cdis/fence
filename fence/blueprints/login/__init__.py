@@ -22,7 +22,8 @@ from fence.config import config
 
 logger = get_logger(__name__)
 
-# Mapping from IDP ID to the name in the URL on the blueprint (see below).
+# Mapping from IDP ID to the name in the URL (prefixed with `/login/`) on the blueprint
+# (see below).
 IDP_URL_MAP = {
     "fence": "fence",
     "google": "google",
