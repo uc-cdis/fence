@@ -499,7 +499,7 @@ def patch_user_service_account(
         session, to_delete, google_project_id, service_account
     )
     add_user_service_account_to_google(
-        session, to_add, google_project_id, service_account
+        session, granting_project_ids, google_project_id, service_account
     )
     _revoke_user_service_account_from_db(session, to_delete, service_account)
 

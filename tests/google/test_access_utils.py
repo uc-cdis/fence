@@ -304,7 +304,7 @@ def test_update_user_service_account_success(cloud_manager, db_session, setup_da
     """
     (
         cloud_manager.return_value.__enter__.return_value.add_member_to_group.return_value
-    ) = {}
+    ) = {"email": "test@gmail.com"}
     (
         cloud_manager.return_value.__enter__.return_value.remove_member_from_group.return_value
     ) = {}
@@ -418,10 +418,6 @@ def test_update_user_service_account_success3(cloud_manager, db_session, setup_d
         db_session.query(UserServiceAccount).filter_by(email="test@gmail.com").first()
     )
     patch_user_service_account("test", "test@gmail.com", ["test_auth_1", "test_auth_2"])
-
-    assert not (
-        cloud_manager.return_value.__enter__.return_value.add_member_to_group.called
-    )
 
     assert not (
         cloud_manager.return_value.__enter__.return_value.remove_member_from_group.called
