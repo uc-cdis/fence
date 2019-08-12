@@ -646,21 +646,13 @@ def migrate(driver):
     user = Table(User.__tablename__, md, autoload=True, autoload_with=driver.engine)
     found_user_constraint_already_migrated = False
 
-    # TODO: Once sqlalchemy is bumped to above 1.0.0, just use the first version
-    try:
-        for fkey in list(user.foreign_key_constraints):
-            if (
-                str(fkey.parent) == "User.google_proxy_group_id"
-                and fkey.ondelete == "SET NULL"
-            ):
-                found_user_constraint_already_migrated = True
-    except:
-        for fkey in list(user.foreign_keys):
-            if (
-                str(fkey.parent) == "User.google_proxy_group_id"
-                and fkey.ondelete == "SET NULL"
-            ):
-                found_user_constraint_already_migrated = True
+    for fkey in list(user.foreign_key_constraints):
+        if (
+            len(fkey.column_keys) == 1
+            and "google_proxy_group_id" in fkey.column_keys
+            and fkey.ondelete == "SET NULL"
+        ):
+            found_user_constraint_already_migrated = True
 
     if not found_user_constraint_already_migrated:
         # do delete user migration in one session
