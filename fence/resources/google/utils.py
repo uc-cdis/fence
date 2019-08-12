@@ -642,12 +642,15 @@ def get_users_linked_google_email_from_token():
     Returns:
         str: email address of account or None
     """
-    return (
-        current_token.get("context", {})
-        .get("user", {})
-        .get("google", {})
-        .get("linked_google_account", None)
-    )
+    if current_token:
+        return (
+            current_token.get("context", {})
+            .get("user", {})
+            .get("google", {})
+            .get("linked_google_account", None)
+        )
+
+    return None
 
 
 def get_users_proxy_group_from_token():
@@ -658,12 +661,15 @@ def get_users_proxy_group_from_token():
     Returns:
         str: proxy group ID or None
     """
-    return (
-        current_token.get("context", {})
-        .get("user", {})
-        .get("google", {})
-        .get("proxy_group", None)
-    )
+    if current_token:
+        return (
+            current_token.get("context", {})
+            .get("user", {})
+            .get("google", {})
+            .get("proxy_group", None)
+        )
+
+    return None
 
 
 def get_prefix_for_google_proxy_groups():
