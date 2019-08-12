@@ -7,7 +7,7 @@ boto3>=1.5<1.6
 cached_property==1.5.1
 cdislogging>=1.0.0<2.0.0
 cdiserrors==0.1.2
-cdispyutils==1.0.1
+cdispyutils==1.0.2
 cryptography>=2.1.2<3.0
 datamodelutils==0.4.5
 Flask==0.12.4
@@ -16,7 +16,7 @@ Flask_OAuthlib==0.9.4
 flask-restful==0.3.6
 Flask_SQLAlchemy_Session==1.1
 gen3config==0.1.7
-gen3cirrus==1.1.0
+gen3cirrus==1.1.1
 gen3users
 httplib2==0.10.3
 markdown==3.1.1

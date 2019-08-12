@@ -725,7 +725,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
 class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     """
-    And indexed file that lives in a Google Storage bucket.
+    An indexed file that lives in a Google Storage bucket.
     """
 
     def get_signed_url(
