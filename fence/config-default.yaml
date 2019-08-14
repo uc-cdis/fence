@@ -312,6 +312,11 @@ MAX_API_KEY_TTL: 2592000
 # The number of seconds after an access token is issued until it expires.
 MAX_ACCESS_TOKEN_TTL: 3600
 
+# TEMPORARY: The maximum number of projects allowed in token claims.
+# This config var should be removed after sheepdog and peregrine support
+# auth checks against Arborist, and no longer check the token.
+TOKEN_PROJECTS_CUTOFF: 15
+
 
 ########################################################################################
 #                               OPTIONAL CONFIGURATIONS                                #
