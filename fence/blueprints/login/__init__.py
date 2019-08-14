@@ -6,7 +6,9 @@ fence instance. See the other files in this directory for the definitions of
 the endpoints for each provider.
 """
 
+from cdislogging import get_logger
 import flask
+import requests
 
 from fence.blueprints.login.fence_login import FenceRedirect, FenceLogin
 from fence.blueprints.login.google import GoogleRedirect, GoogleLogin
@@ -16,6 +18,19 @@ from fence.blueprints.login.orcid import ORCIDRedirect, ORCIDLogin
 from fence.errors import InternalError
 from fence.restful import RestfulApi
 from fence.config import config
+
+
+logger = get_logger(__name__)
+
+# Mapping from IDP ID to the name in the URL (prefixed with `/login/`) on the blueprint
+# (see below).
+IDP_URL_MAP = {
+    "fence": "fence",
+    "google": "google",
+    "shibboleth": "shib",
+    "orcid": "orcid",
+    "microsoft": "microsoft",
+}
 
 
 def make_login_blueprint(app):
@@ -40,15 +55,6 @@ def make_login_blueprint(app):
         )
         default_idp = None
         idps = {}
-
-    # Mapping from IDP ID to the name in the URL on the blueprint (see below).
-    IDP_URL_MAP = {
-        "fence": "fence",
-        "google": "google",
-        "shibboleth": "shib",
-        "orcid": "orcid",
-        "microsoft": "microsoft",
-    }
 
     # check if google is configured as a client. we will at least need a
     # a callback if it is
@@ -119,4 +125,5 @@ def make_login_blueprint(app):
         blueprint_api.add_resource(
             ShibbolethLoginFinish, "/shib/login", strict_slashes=False
         )
+
     return blueprint

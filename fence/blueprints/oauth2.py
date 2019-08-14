@@ -23,7 +23,8 @@ from authlib.specs.rfc6749.errors import (
     OAuth2Error,
 )
 
-from fence.errors import Unauthorized
+from fence.blueprints.login import IDP_URL_MAP
+from fence.errors import Unauthorized, UserError
 from fence.jwt.token import SCOPE_DESCRIPTION
 from fence.models import Client
 from fence.oidc.endpoints import RevocationEndpoint
@@ -73,7 +74,16 @@ def authorize(*args, **kwargs):
     if need_authentication or not user:
         redirect_url = config.get("BASE_URL") + flask.request.full_path
         params = {"redirect": redirect_url}
-        login_url = add_params_to_uri(config.get("DEFAULT_LOGIN_URL"), params)
+        login_url = config.get("DEFAULT_LOGIN_URL")
+        idp = flask.request.args.get("idp")
+        if idp:
+            if idp not in IDP_URL_MAP or idp not in config["OPENID_CONNECT"]:
+                raise UserError("idp {} is not supported".format(idp))
+            idp_url = IDP_URL_MAP[idp]
+            login_url = "{}/login/{}".format(config.get("BASE_URL"), idp_url)
+            if idp == "shibboleth":
+                params["shib_idp"] = flask.request.args.get("shib_idp")
+        login_url = add_params_to_uri(login_url, params)
         return flask.redirect(login_url)
 
     try:
