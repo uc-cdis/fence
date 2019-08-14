@@ -382,7 +382,7 @@ def generate_signed_access_token(
     if len(dict(user.project_access)) < config["TOKEN_PROJECTS_CUTOFF"]:
         claims["context"]["user"]["projects"] = dict(user.project_access)
     else:
-        logger.warn(
+        logger.warning(
             "NOT including project_access = {} in claims for user {} because there are too many projects for the token\n".format(
                 user.project_access, user.username
             )
