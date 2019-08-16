@@ -366,7 +366,6 @@ def generate_signed_access_token(
             "user": {
                 "name": user.username,
                 "is_admin": user.is_admin,
-                "projects": dict(user.project_access),
                 "google": {"proxy_group": user.google_proxy_group_id},
             }
         },
