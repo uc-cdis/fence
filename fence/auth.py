@@ -33,7 +33,7 @@ def get_jwt():
     if not header:
         raise Unauthorized("missing authorization header")
     try:
-        bearer, token = header.split(" ")
+        bearer, token= header.split(" ")
     except ValueError:
         raise Unauthorized("authorization header not in expected format")
     if bearer.lower() != "bearer":
