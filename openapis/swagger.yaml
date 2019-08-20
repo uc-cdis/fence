@@ -201,6 +201,27 @@ paths:
                   type: string
               required:
                 - token
+  /login/shib:
+    get:
+      tags:
+        - login
+      summary: Initiate login via shibboleth provider
+      parameters:
+        - name: shib_idp
+          required: false
+          in: query
+          description: >-
+            NOTE! that this endpoint only exists if shibboleth is enabled as an
+            identity provider in the fence config. Currently this only happens
+            for `login.bionimbus.org`.
+             Identifier for the shibboleth IDP. These identifiers are what is
+            listed in the `/Shibboleth.sso/DiscoFeed`.
+          schema:
+            type: string
+          example: 'urn:mace:incommon:uchicago.edu'
+      responses:
+        302:
+          description: redirect to external identity provider
   /jwt/keys:
     get:
       tags:

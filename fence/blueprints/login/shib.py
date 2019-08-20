@@ -1,3 +1,4 @@
+from cdislogging import get_logger
 import flask
 from flask_restful import Resource
 
@@ -6,6 +7,8 @@ from fence.blueprints.login.redirect import validate_redirect
 from fence.errors import InternalError, Unauthorized
 from fence.models import IdentityProvider
 from fence.config import config
+
+logger = get_logger(__name__)
 
 
 class ShibbolethLogin(Resource):
@@ -24,8 +27,22 @@ class ShibbolethLogin(Resource):
         validate_redirect(redirect_url)
         if redirect_url:
             flask.session["redirect"] = redirect_url
+
+        # figure out which IDP to target with shibboleth
+        # check out shibboleth docs here for more info:
+        # https://wiki.shibboleth.net/confluence/display/SP3/SSO
+        entityID = flask.request.args.get("shib_idp")
+        flask.session["entityID"] = entityID
         actual_redirect = config["BASE_URL"] + "/login/shib/login"
-        return flask.redirect(config["SSO_URL"] + actual_redirect)
+        if not entityID or entityID == "urn:mace:incommon:nih.gov":
+            # default to SSO_URL from the config which should be NIH login
+            return flask.redirect(config["SSO_URL"] + actual_redirect)
+        return flask.redirect(
+            config["BASE_URL"]
+            + "/Shibboleth.sso/Login?entityID={}&target={}".format(
+                entityID, actual_redirect
+            )
+        )
 
 
 class ShibbolethCallback(Resource):
@@ -33,16 +50,21 @@ class ShibbolethCallback(Resource):
         """
         Complete the shibboleth login.
         """
-        if "SHIBBOLETH_HEADER" in config:
-            eppn = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
-
-        else:
+        if "SHIBBOLETH_HEADER" not in config:
             raise InternalError("Missing shibboleth header configuration")
-        username = eppn.split("!")[-1] if eppn else None
-        if username:
-            login_user(flask.request, username, IdentityProvider.itrust)
-            if flask.session.get("redirect"):
-                return flask.redirect(flask.session.get("redirect"))
-            return "logged in"
-        else:
-            raise Unauthorized("Please login")
+
+        username = flask.request.headers.get("eppn")
+        if not username:
+            persistent_id = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
+            username = persistent_id.split("!")[-1] if persistent_id else None
+            if not username:
+                raise Unauthorized("Please login")
+
+        idp = IdentityProvider.itrust
+        if flask.session.get("entityID"):
+            idp = flask.session.get("entityID")
+        login_user(flask.request, username, idp)
+        if flask.session.get("redirect"):
+            return flask.redirect(flask.session.get("redirect"))
+
+        return "logged in"
