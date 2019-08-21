@@ -335,6 +335,14 @@ class IndexedFile(object):
             except IndexError:
                 raise NotFound("Can't find any file locations.")
 
+        if action == "upload" and not self.index_document.get("urls"):
+            if protocol == "s3":
+                location = S3IndexedFileLocation(self.file_id)
+                return location.get_signed_url(
+                    action, expires_in, public_data=self.public,
+                    force_signed_url=force_signed_url,
+                )
+
         for file_location in self.indexed_file_locations:
             # allow file location to be https, even if they specific http
             if (file_location.protocol == protocol) or (
