@@ -80,6 +80,9 @@ def generate_implicit_response(
     if not "user" in scope:
         scope.append("user")
 
+    # don't provide user projects access in id_tokens for implicit flow
+    # due to issues with "Location" header size during redirect (and b/c
+    # of general deprecation of user access information in tokens)
     id_token = generate_signed_id_token(
         kid=keypair.kid,
         private_key=keypair.private_key,
@@ -175,6 +178,7 @@ def generate_token_response(
         nonce=nonce,
         linked_google_email=linked_google_email,
         linked_google_account_exp=linked_google_account_exp,
+        projects=user.project_access,
     ).token
     access_token = generate_signed_access_token(
         kid=keypair.kid,

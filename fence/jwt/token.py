@@ -190,6 +190,7 @@ def generate_signed_id_token(
     auth_time=None,
     max_age=None,
     nonce=None,
+    projects=None,
     **kwargs
 ):
     """
@@ -218,6 +219,7 @@ def generate_signed_id_token(
         user,
         expires_in,
         client_id,
+        projects=projects,
         audiences=audiences,
         auth_time=auth_time,
         max_age=max_age,
@@ -414,6 +416,7 @@ def generate_id_token(
     auth_time=None,
     max_age=None,
     nonce=None,
+    projects=None,
     **kwargs
 ):
     """
@@ -467,7 +470,6 @@ def generate_id_token(
             "user": {
                 "name": user.username,
                 "is_admin": user.is_admin,
-                "projects": dict(user.project_access),
                 "email": user.email,
                 "display_name": user.display_name,
                 "phone_number": user.phone_number,
@@ -491,6 +493,9 @@ def generate_id_token(
     # in ID token
     if nonce:
         claims["nonce"] = nonce
+
+    if projects:
+        claims["context"]["user"]["projects"] = dict(projects)
 
     logger.info("issuing JWT ID token\n" + json.dumps(claims, indent=4))
 
