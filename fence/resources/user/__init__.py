@@ -83,7 +83,8 @@ def get_user_info(current_session, username):
         "email": user.email,
         "is_admin": user.is_admin,
         "role": role,
-        "project_access": dict(user.project_access),
+        "project_access": dict(user.project_access),  # TODO deprecated
+        "projects": dict(user.project_access),
         "certificates_uploaded": [],
         "resources_granted": [],
         "groups": groups,
