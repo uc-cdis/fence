@@ -12,9 +12,9 @@ from cdislogging import get_logger
 import requests
 
 from fence.errors import Forbidden
-from fence.rbac.errors import ArboristError, ArboristUnhealthyError
 
 from rbac.client.arborist.client import ArboristClient
+from rbac.client.arborist.errors import ArboristError, ArboristUnhealthyError
 
 
 def _request_get_json(response):
