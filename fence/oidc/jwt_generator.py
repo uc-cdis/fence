@@ -93,6 +93,7 @@ def generate_implicit_response(
         nonce=nonce,
         linked_google_email=linked_google_email,
         linked_google_account_exp=linked_google_account_exp,
+        include_project_access=False,
     ).token
 
     # ``expires_in`` is just the token expiration time.
@@ -105,6 +106,9 @@ def generate_implicit_response(
         # "state" handled in authlib
     }
 
+    # don't provide user projects access in access_tokens for implicit flow
+    # due to issues with "Location" header size during redirect (and b/c
+    # of general deprecation of user access information in tokens)
     if include_access_token:
         access_token = generate_signed_access_token(
             kid=keypair.kid,
@@ -114,6 +118,7 @@ def generate_implicit_response(
             scopes=scope,
             client_id=client.client_id,
             linked_google_email=linked_google_email,
+            include_project_access=False,
         ).token
         response["access_token"] = access_token
 
@@ -178,7 +183,6 @@ def generate_token_response(
         nonce=nonce,
         linked_google_email=linked_google_email,
         linked_google_account_exp=linked_google_account_exp,
-        projects=user.project_access,
     ).token
     access_token = generate_signed_access_token(
         kid=keypair.kid,
