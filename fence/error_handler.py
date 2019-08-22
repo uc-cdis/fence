@@ -29,9 +29,19 @@ def get_error_response(error):
     )
 
     # don't include internal details in the public error message
-    if status_code == 500:
+    # to do this, only include error messages for known http status codes
+    # that are less that 500
+    valid_http_status_codes = [
+        int(code) for code in list(http_responses.keys()) if int(code) < 500
+    ]
+    try:
+        status_code = int(status_code)
+        if status_code not in valid_http_status_codes:
+            message = None
+    except ValueError:
+        # this handles case where status_code is NOT a valid integer (e.g. HTTP status code)
         message = None
-
+        
     status_code_message = http_responses.get(status_code, "Unknown error code.")
 
     return (
