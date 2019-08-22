@@ -41,6 +41,7 @@ def get_error_response(error):
     except ValueError:
         # this handles case where status_code is NOT a valid integer (e.g. HTTP status code)
         message = None
+        status_code = 500
         
     status_code_message = http_responses.get(status_code, "Unknown error code.")
 
