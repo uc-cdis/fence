@@ -94,19 +94,3 @@ class ArboristClient(ArboristClient):
                 raise Forbidden(msg)
 
         return authed
-
-    @_arborist_retry()
-    def list_resources_for_user(self, username):
-        """
-        Args:
-            username (str)
-
-        Return:
-            List[str]: list of resource paths which the user has any access to
-        """
-        url = "{}/{}/resources".format(self._user_url, username)
-        response = requests.get(url)
-        data = _request_get_json(response)
-        if response.status_code != 200:
-            raise ArboristError(data.get("error", "unhelpful response from arborist"))
-        return data["resources"]
