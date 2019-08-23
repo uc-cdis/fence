@@ -335,12 +335,23 @@ class IndexedFile(object):
             except IndexError:
                 raise NotFound("Can't find any file locations.")
 
-        if action == "upload" and not self.index_document.get("urls"):
+        # can request to make a new URL using `create`
+        if (
+            action == "upload"
+            and not self.index_document.get("urls")
+            and "create" in flask.request.args
+        ):
             if protocol == "s3":
                 location = S3IndexedFileLocation(self.file_id)
                 return location.get_signed_url(
-                    action, expires_in, public_data=self.public,
+                    action,
+                    expires_in,
+                    public_data=self.public,
                     force_signed_url=force_signed_url,
+                )
+            else:
+                raise NotSupported(
+                    "protocol {} is not supported for these settings".format(protocol)
                 )
 
         for file_location in self.indexed_file_locations:
