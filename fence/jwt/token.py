@@ -190,7 +190,7 @@ def generate_signed_id_token(
     auth_time=None,
     max_age=None,
     nonce=None,
-    projects=None,
+    include_project_access=True,
     **kwargs
 ):
     """
