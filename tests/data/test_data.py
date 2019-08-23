@@ -57,6 +57,42 @@ def test_indexd_download_file(
 
 
 @pytest.mark.parametrize(
+    "indexd_client", ["upl"], indirect=True
+)
+def test_indexd_download_fail_auth(
+    client,
+    oauth_client,
+    user_client,
+    indexd_client,
+    kid,
+    rsa_private_key,
+    google_proxy_group,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+):
+    """
+    Test ``GET /data/download/1``.
+    """
+    indexed_file_location = indexd_client["indexed_file_location"]
+    path = "/data/download/1"
+    query_string = {"protocol": indexed_file_location}
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+    response = client.get(path, headers=headers, query_string=query_string)
+    assert response.status_code == 401
+
+
+@pytest.mark.parametrize(
     "indexd_client", ["gs", "s3", "gs_acl", "s3_acl", "s3_external"], indirect=True
 )
 def test_indexd_upload_file(
@@ -701,3 +737,52 @@ def test_multipart_upload_presigned_url(
 
         assert response.status_code == 200, response
         assert "presigned_url" in response.json
+
+
+def test_multipart_complete_upload(
+    app, client, auth_client, encoded_creds_jwt, user_client
+):
+    class MockResponse(object):
+        def __init__(self, data, status_code=200):
+            self.data = data
+            self.status_code = status_code
+
+        def json(self):
+            return self.data
+
+    data_requests_mocker = mock.patch(
+        "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
+    )
+    arborist_requests_mocker = mock.patch(
+        "fence.rbac.client.requests", new_callable=mock.Mock
+    )
+
+    fence.blueprints.data.indexd.BlankIndex.complete_multipart_upload = (
+        MagicMock()
+    )
+    with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
+        data_requests.post.return_value = MockResponse(
+            {
+                "did": str(uuid.uuid4()),
+                "rev": str(uuid.uuid4())[:8],
+                "baseid": str(uuid.uuid4()),
+            }
+        )
+        data_requests.post.return_value.status_code = 200
+        arborist_requests.post.return_value = MockResponse({"auth": True})
+        arborist_requests.post.return_value.status_code = 200
+        fence.blueprints.data.indexd.BlankIndex.generate_aws_presigned_url_for_part.return_value = (
+            "test_presigned"
+        )
+        headers = {
+            "Authorization": "Bearer " + encoded_creds_jwt.jwt,
+            "Content-Type": "application/json",
+        }
+        key = "guid/asdf"
+        uploadid = "uploadid"
+
+        data = json.dumps({"key": key, "uploadId": uploadid, "parts": [{"partNumber": 1, "Etag": "test_tag"}]})
+        response = client.post("/data/multipart/complete", headers=headers, data=data)
+
+        assert response.status_code == 200, response
+

@@ -467,6 +467,35 @@ def indexd_client(app, request):
             "created_date": "",
             "updated_date": "",
         }
+    elif request.param == "s3_external":
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file1",
+            "urls": ["s3://bucket1/key"],
+            "hashes": {},
+            "acl": ["phs000178", "phs000218"],
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
+    elif request.param == "upl":
+        record = {
+            "did": "",
+            "baseid": "",
+            "uploader": "test_uploader",
+            "rev": "",
+            "size": 10,
+            "file_name": "file1",
+            "urls": ["s3://bucket1/key"],
+            "hashes": {},
+            "acl": ["phs000178", "phs000218"],
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
     else:
         record = {
             "did": "",
