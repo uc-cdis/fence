@@ -219,7 +219,7 @@ def generate_signed_id_token(
         user,
         expires_in,
         client_id,
-        projects=projects,
+        include_project_access=include_project_access,
         audiences=audiences,
         auth_time=auth_time,
         max_age=max_age,
