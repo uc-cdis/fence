@@ -467,21 +467,7 @@ def indexd_client(app, request):
             "created_date": "",
             "updated_date": "",
         }
-    elif request.param == "s3_external":
-        record = {
-            "did": "",
-            "baseid": "",
-            "rev": "",
-            "size": 10,
-            "file_name": "file1",
-            "urls": ["s3://bucket1/key"],
-            "hashes": {},
-            "acl": ["phs000178", "phs000218"],
-            "form": "",
-            "created_date": "",
-            "updated_date": "",
-        }
-    elif request.param == "upl":
+    elif request.param == "s3_with_uploader":
         record = {
             "did": "",
             "baseid": "",
@@ -512,6 +498,41 @@ def indexd_client(app, request):
         }
 
     # TODO (rudyardrichter, 2018-11-03): consolidate things needing to do this patch
+    indexd_patcher = patch(
+        "fence.blueprints.data.indexd.IndexedFile.index_document", record
+    )
+    mocker.add_mock(indexd_patcher)
+
+    output = {
+        "mocker": mocker,
+        # only gs or s3 for location, ignore specifiers after the _
+        "indexed_file_location": request.param.split("_")[0],
+    }
+
+    return output
+
+
+@pytest.fixture(scope="function")
+def authorized_indexd_client(app, request, user_client):
+    mocker = Mocker()
+    mocker.mock_functions()
+
+    if request.param == "gs_with_uploader":
+        record = {
+            "did": "",
+            "baseid": "",
+            "uploader": user_client.username,
+            "rev": "",
+            "size": 10,
+            "file_name": "file1",
+            "urls": ["gs://bucket1/key"],
+            "hashes": {},
+            "metadata": {"acls": "phs000178,phs000218"},
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
+
     indexd_patcher = patch(
         "fence.blueprints.data.indexd.IndexedFile.index_document", record
     )

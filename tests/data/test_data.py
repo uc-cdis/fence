@@ -56,9 +56,7 @@ def test_indexd_download_file(
     assert urllib.parse.urlparse(response.json["url"]).query != ""
 
 
-@pytest.mark.parametrize(
-    "indexd_client", ["upl"], indirect=True
-)
+@pytest.mark.parametrize("indexd_client", ["s3_with_uploader"], indirect=True)
 def test_indexd_download_fail_auth(
     client,
     oauth_client,
@@ -90,6 +88,42 @@ def test_indexd_download_fail_auth(
     }
     response = client.get(path, headers=headers, query_string=query_string)
     assert response.status_code == 401
+
+
+@pytest.mark.parametrize(
+    "authorized_indexd_client", ["gs_with_uploader"], indirect=True
+)
+def test_indexd_download_with_auth(
+    client,
+    oauth_client,
+    user_client,
+    authorized_indexd_client,
+    kid,
+    rsa_private_key,
+    google_proxy_group,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+):
+    """
+    Test ``GET /data/download/1``.
+    """
+    indexed_file_location = authorized_indexd_client["indexed_file_location"]
+    path = "/data/download/1"
+    query_string = {"protocol": indexed_file_location}
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+    response = client.get(path, headers=headers, query_string=query_string)
+    assert response.status_code == 200
 
 
 @pytest.mark.parametrize(
@@ -757,9 +791,7 @@ def test_multipart_complete_upload(
         "fence.rbac.client.requests", new_callable=mock.Mock
     )
 
-    fence.blueprints.data.indexd.BlankIndex.complete_multipart_upload = (
-        MagicMock()
-    )
+    fence.blueprints.data.indexd.BlankIndex.complete_multipart_upload = MagicMock()
     with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
         data_requests.post.return_value = MockResponse(
             {
@@ -781,8 +813,13 @@ def test_multipart_complete_upload(
         key = "guid/asdf"
         uploadid = "uploadid"
 
-        data = json.dumps({"key": key, "uploadId": uploadid, "parts": [{"partNumber": 1, "Etag": "test_tag"}]})
+        data = json.dumps(
+            {
+                "key": key,
+                "uploadId": uploadid,
+                "parts": [{"partNumber": 1, "Etag": "test_tag"}],
+            }
+        )
         response = client.post("/data/multipart/complete", headers=headers, data=data)
 
         assert response.status_code == 200, response
-

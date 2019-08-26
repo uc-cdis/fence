@@ -7,7 +7,7 @@ class ArboristError(APIError):
     pass
 
 
-class ArboristUnhealthyError(ArboristError):   #pragma: no cover
+class ArboristUnhealthyError(ArboristError):  # pragma: no cover
     """Exception raised to signify the arborist service is unresponsive."""
 
     def __init__(self):
