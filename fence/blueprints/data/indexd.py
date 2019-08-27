@@ -352,8 +352,8 @@ class IndexedFile(object):
                 config, "S3_BUCKETS", InternalError("buckets not configured")
             )
             try:
-                bucket = s3_buckets[0]
-            except IndexError:
+                bucket = next(iter(s3_buckets.keys()))
+            except StopIteration:
                 raise InternalError("buckets not configured")
             file_name = flask.request.args.get("file_name")
             url = "s3://{}/{}/{}".format(bucket, self.file_id, file_name)
