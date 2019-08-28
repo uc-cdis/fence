@@ -17,7 +17,7 @@ import smtplib
 from fence.errors import NotFound, UserError, InternalError
 from fence.models import query_for_user
 from fence.config import config
-from rbac.client.arborist.errors import ArboristError
+from gen3authz.client.arborist.errors import ArboristError
 
 
 logger = get_logger(__name__)

@@ -1,6 +1,6 @@
 """
-Pytest fixtures for the RBAC tests, for doing things like adding policies to
-the database to check the return from the RBAC endpoints.
+Pytest fixtures for the authz tests, for doing things like adding policies to
+the database to check the return from the authz endpoints.
 """
 
 from unittest.mock import MagicMock
@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from fence.rbac.client import ArboristClient
+from gen3authz.client.arborist.client import ArboristClient
 
 
 @pytest.fixture

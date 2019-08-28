@@ -30,8 +30,9 @@ from fence.models import (
     Client,
 )
 from fence.sync import utils
-from fence.rbac.client import ArboristClient, ArboristError
 from fence.resources.storage import StorageManager
+
+from gen3authz.client.arborist.client import ArboristError
 
 
 def _format_policy_id(path, privilege):

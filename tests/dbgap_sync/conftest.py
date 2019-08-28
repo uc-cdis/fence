@@ -10,11 +10,12 @@ from userdatamodel import Base
 from userdatamodel.models import *
 from userdatamodel.driver import SQLAlchemyDriver
 
-from fence.rbac.client import ArboristClient
 from fence.sync.sync_users import UserSyncer
 from fence.resources import userdatamodel as udm
 
 from fence.models import AccessPrivilege, AuthorizationProvider, User
+
+from gen3authz.client.arborist.client import ArboristClient
 
 LOCAL_CSV_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data/csv")
 

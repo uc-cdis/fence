@@ -215,12 +215,14 @@ def mock_arborist_requests(request):
         mocked_post = MagicMock(side_effect=make_mock_response("POST"))
         mocked_delete = MagicMock(side_effect=make_mock_response("DELETE"))
 
-        patch_get = mock.patch("rbac.client.arborist.client.requests.get", mocked_get)
+        patch_get = mock.patch(
+            "gen3authz.client.arborist.client.requests.get", mocked_get
+        )
         patch_post = mock.patch(
-            "rbac.client.arborist.client.requests.post", mocked_post
+            "gen3authz.client.arborist.client.requests.post", mocked_post
         )
         patch_delete = mock.patch(
-            "rbac.client.arborist.client.requests.delete", mocked_delete
+            "gen3authz.client.arborist.client.requests.delete", mocked_delete
         )
 
         patch_get.start()
