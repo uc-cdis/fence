@@ -80,7 +80,14 @@ OPENID_CONNECT:
     client_secret: ''
     # this is be the allowed redirect back to fence, should not need to change
     redirect_url: '{{BASE_URL}}/login/google/login'
-
+  orcid:
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/orcid/login'
+  microsoft:
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/microsoft/login/'
 # these are the *possible* scopes a client can be given, NOT scopes that are
 # given to all clients. You can be more restrictive during client creation
 CLIENT_ALLOWED_SCOPES:
@@ -146,6 +153,10 @@ ENABLED_IDENTITY_PROVIDERS:
       name: 'Google Login'
     fence:
       name: 'Fence Multi-Tenant Login'
+    orcid:
+      name: 'Orcid Login'
+    microsoft:
+      name: 'Microsoft Login'
 # The following can be used for shibboleth login, simply uncomment.
 #
 # NOTE: Don't enable shibboleth if the deployment is not protected by
