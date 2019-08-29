@@ -369,7 +369,7 @@ class IndexedFile(object):
         return flask.current_app.arborist.auth_request(
             jwt=get_jwt(),
             service="fence",
-            method=action,
+            methods=action,
             resources=self.index_document["authz"],
         )
 

@@ -40,7 +40,10 @@ def check_arborist_auth(resource, method, constraints=None):
                     " control; this endpoint is unavailable"
                 )
             if not flask.current_app.arborist.auth_request(
-                jwt=get_jwt_header(), service="fence", method=method, resources=resource
+                jwt=get_jwt_header(),
+                service="fence",
+                methods=method,
+                resources=resource,
             ):
                 raise Forbidden("user does not have privileges to access this endpoint")
             return f(*f_args, **f_kwargs)
