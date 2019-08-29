@@ -19,7 +19,8 @@ def test_valid_redirect_base(app, client, idp):
     response = client.get("/login/{}?redirect={}".format(idp, redirect))
     assert response.status_code == 302
 
-@pytest.mark.parametrize("idp", ["google", "microsoft", "orcid"])
+
+@pytest.mark.parametrize("idp", ["google", "shib", "microsoft", "orcid"])
 def test_valid_redirect_oauth(client, oauth_client, idp):
     """
     Check that a valid redirect is allowed. Here we use the URL from the test OAuth
@@ -29,7 +30,7 @@ def test_valid_redirect_oauth(client, oauth_client, idp):
     assert response.status_code == 302
 
 
-@pytest.mark.parametrize("idp", ["google", "microsoft", "orcid"])
+@pytest.mark.parametrize("idp", ["google", "shib", "microsoft", "orcid"])
 def test_invalid_redirect_fails(client, idp):
     """
     Check that giving a bogus redirect to the login endpoint returns an error.

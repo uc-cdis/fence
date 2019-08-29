@@ -328,7 +328,7 @@ def grant_project_to_group_or_user(s, project_data, group=None, user=None):
         ap = (
             s.query(AccessPrivilege)
             .join(AccessPrivilege.project)
-            .join(AccessPrivilege.research_group)
+            .join(AccessPrivilege.group)
             .filter(Project.name == project.name, Group.name == group.name)
             .first()
         )
@@ -350,7 +350,7 @@ def grant_project_to_group_or_user(s, project_data, group=None, user=None):
     if not ap:
         if group:
             ap = AccessPrivilege(
-                project=project, research_group=group, privilege=privilege
+                project=project, group=group, privilege=privilege
             )
         elif user:
             ap = AccessPrivilege(project=project, user=user, privilege=privilege)

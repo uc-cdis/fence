@@ -6,6 +6,7 @@ import pytest
 
 import cirrus
 from cirrus.google_cloud.errors import GoogleAuthError
+from userdatamodel.models import Group
 
 from fence.config import config
 from fence.jwt.validate import validate_jwt
@@ -36,6 +37,7 @@ from fence.scripting.fence_create import (
     _verify_google_service_account_member,
     list_client_action,
     modify_client_action,
+    create_group,
 )
 
 
@@ -895,15 +897,30 @@ def test_modify_client_action(db_session):
     db_session.add(client)
     db_session.commit()
     modify_client_action(
-        db_session, client.name, set_auto_approve=True, name="test321", description="test client", urls=["test"]
+        db_session,
+        client.name,
+        set_auto_approve=True,
+        name="test321",
+        description="test client",
+        urls=["test"],
     )
     list_client_action(db_session)
     assert client.auto_approve == True
     assert client.name == "test321"
     assert client.description == "test client"
-    # modify_client_action(
-    #     db_session, client.name, unset_auto_approve=True
-    # )
-    # list_client_action(db_session)
-    # print(client.auto_approve)
-    # assert not client.auto_approve        # seems like this may be a bug, test doesn't pass
+
+    """ 
+    TODO: Write test for unset_auto_approve modification of client action. As it stands it, seems as though
+    this does not function properly in the case in which client is to be modified from auto_approve = True
+    to auto_approve = False
+    """
+
+
+def test_create_group(db_session):
+    group_name = "test_group_123"
+    data = {"groups": {group_name: {"projects": [{"auth_id": "test_project_123", "privilege": "read"}]}}}
+    create_group(db_session, data)
+    assert (
+        group_name
+        == db_session.query(Group).filter(Group.name == group_name).first().name
+    )
