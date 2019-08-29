@@ -526,7 +526,7 @@ def test_indexd_download_with_uploader_authorized(
     query_string = {"protocol": indexed_file_location}
     headers = {
         "Authorization": "Bearer "
-                         + jwt.encode(
+        + jwt.encode(
             utils.authorized_download_context_claims(
                 user_client.username, user_client.user_id
             ),
@@ -578,7 +578,7 @@ def test_indexd_download_with_uploader_unauthorized(
     query_string = {"protocol": indexed_file_location}
     headers = {
         "Authorization": "Bearer "
-                         + jwt.encode(
+        + jwt.encode(
             utils.authorized_download_context_claims(
                 user_client.username, user_client.user_id
             ),

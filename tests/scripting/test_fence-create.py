@@ -918,7 +918,13 @@ def test_modify_client_action(db_session):
 
 def test_create_group(db_session):
     group_name = "test_group_123"
-    data = {"groups": {group_name: {"projects": [{"auth_id": "test_project_123", "privilege": "read"}]}}}
+    data = {
+        "groups": {
+            group_name: {
+                "projects": [{"auth_id": "test_project_123", "privilege": "read"}]
+            }
+        }
+    }
     create_group(db_session, data)
     assert (
         group_name

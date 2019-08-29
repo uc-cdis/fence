@@ -349,9 +349,7 @@ def grant_project_to_group_or_user(s, project_data, group=None, user=None):
         raise Exception("need to provide either a user or group")
     if not ap:
         if group:
-            ap = AccessPrivilege(
-                project=project, group=group, privilege=privilege
-            )
+            ap = AccessPrivilege(project=project, group=group, privilege=privilege)
         elif user:
             ap = AccessPrivilege(project=project, user=user, privilege=privilege)
         else:
