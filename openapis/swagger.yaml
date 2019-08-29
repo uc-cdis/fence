@@ -140,7 +140,7 @@ paths:
                   description: whether to confirm the OAuth2 grant (should be 'yes')
                   type: string
                 scope:
-                  description: Requested authorization scope
+                  description: Requested authorization scope. Must include `openid`. `user` allows getting a user's access information.
                   type: string
               required:
                 - client_id
