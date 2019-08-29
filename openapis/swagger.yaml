@@ -45,7 +45,12 @@ paths:
       tags:
         - oauth2
       summary: Perform OAuth2 authorization
-      description: >-
+      description: |
+        **IMPORTANT NOTE**: These docs are provided as a courtesy but do NOT include the entirety of the OIDC Standard 
+        simply because of its length and complexity.
+        
+        Please refer to the standard for complete details: https://openid.net/specs/openid-connect-core-1_0.html
+        
         Obtain an authorization grant through the OAuth2 protocol. To handle
         this request, render a page for the user to confirm the OAuth2 grant
         (through e.g. Google). Redirect user to `redirect_uri` with an added
@@ -94,7 +99,12 @@ paths:
       tags:
         - oauth2
       summary: Perform OAuth2 authorization
-      description: >-
+      description: |
+        **IMPORTANT NOTE**: These docs are provided as a courtesy but do NOT include the entirety of the OIDC Standard 
+        simply because of its length and complexity.
+        
+        Please refer to the standard for complete details: https://openid.net/specs/openid-connect-core-1_0.html
+        
         Obtain an authorization grant through the OAuth2 protocol. To handle
         this request, render a page for the user to confirm the OAuth2 grant
         (through e.g. Google). Redirect user to `redirect_uri` with an added
@@ -141,7 +151,12 @@ paths:
       tags:
         - oauth2
       summary: Exchange code for or refresh the access token.
-      description: >-
+      description: |
+        IMPORTANT NOTE: These docs are provided as a courtesy but do NOT include the entirety of the OIDC Standard 
+        simply because of its length and complexity.
+        
+        Please refer to the standard for complete details: https://openid.net/specs/openid-connect-core-1_0.html
+        
         Exchange the `code` obtained from OAuth2 for an access token, or refresh
         the access token using a refresh token.
       operationId: token
