@@ -41,4 +41,4 @@ retry==0.9.2
 git+https://github.com/uc-cdis/storage-client.git@1.0.0#egg=storageclient
 
 # todo
-git+https://github.com/uc-cdis/gen3authz.git@refactor/fence#egg=gen3authz&subdirectory=python
+git+https://github.com/uc-cdis/gen3authz.git@master#egg=gen3authz&subdirectory=python
