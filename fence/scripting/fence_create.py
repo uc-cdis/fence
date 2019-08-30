@@ -295,8 +295,9 @@ def create_project(s, project_data):
                 .filter(CloudProvider.name == provider)
                 .first()
             )
+            c_provider = s.query(CloudProvider).filter_by(name=provider).first()
+            assert c_provider, "CloudProvider {} does not exist".format(provider)
             if not sa:
-                c_provider = s.query(CloudProvider).filter_by(name=provider).first()
                 sa = StorageAccess(provider=c_provider, project=project)
                 s.add(sa)
                 print(
