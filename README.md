@@ -546,13 +546,6 @@ fence-create notify-problem-users --emails ex1@gmail.com ex2@gmail.com --auth_id
 
 `notify-problem-users` emails users in the provided list (can be fence user email or linked google email) who do not have access to any of the auth_ids provided. Also accepts a `check_linking` flag to check that each user has linked their google account.
 
-### Create Group with Projects
-
-```bash
-fence-create group-create --group GROUP_NAME --project_auth_id test-project --project_privileges test-privilege
-```
-
-`project_priveleges` determines the actions available to the group concerning the project associated with `project_auth_id`. 
 ## Default Expiration Times in Fence
 
 Table contains various artifacts in fence that have temporary lifetimes and their default values.

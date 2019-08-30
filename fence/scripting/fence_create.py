@@ -247,8 +247,8 @@ def sync_users(
     syncer.sync()
 
 
-def create_sample_data(DB, yaml_input):
-    with open(yaml_input, "r") as f:
+def create_sample_data(DB, yaml_file_path):
+    with open(yaml_file_path, "r") as f:
         data = safe_load(f)
 
     db = SQLAlchemyDriver(DB)
@@ -260,7 +260,8 @@ def create_sample_data(DB, yaml_input):
 
 
 def create_group(s, data):
-    for group_name, fields in data["groups"].items():
+    groups = data.get("groups", {})
+    for group_name, fields in groups.items():
         projects = fields.get("projects", [])
         group = s.query(Group).filter(Group.name == group_name).first()
         if not group:
@@ -284,7 +285,7 @@ def create_project(s, project_data):
         project = Project(name=name, auth_id=auth_id)
         s.add(project)
     if "storage_accesses" in project_data:
-        sa_list = project_data["storage_accesses"]
+        sa_list = project_data.get("storage_accesses", [])
         for storage_access in sa_list:
             provider = storage_access["name"]
             buckets = storage_access.get("buckets", [])
@@ -324,7 +325,7 @@ def create_project(s, project_data):
 
 
 def grant_project_to_group_or_user(s, project_data, group=None, user=None):
-    privilege = project_data["privilege"]
+    privilege = project_data.get("privilege", [])
     project = create_project(s, project_data)
     if group:
         ap = (
@@ -372,7 +373,7 @@ def grant_project_to_group_or_user(s, project_data, group=None, user=None):
 
 
 def create_cloud_providers(s, data):
-    cloud_data = data.get("cloud_providers", [])
+    cloud_data = data.get("cloud_providers", {})
     for name, fields in cloud_data.items():
         cloud_provider = (
             s.query(CloudProvider).filter(CloudProvider.name == name).first()
@@ -388,8 +389,9 @@ def create_cloud_providers(s, data):
 
 def create_users_with_group(DB, s, data):
     providers = {}
-    data_groups = data["groups"]
-    for username, data in data["users"].items():
+    data_groups = data.get("groups", {})
+    users = data.get("users", {})
+    for username, data in users.items():
         is_existing_user = True
         user = query_for_user(session=s, username=username)
 
