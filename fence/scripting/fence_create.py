@@ -265,6 +265,7 @@ def create_group(s, data):
         group = s.query(Group).filter(Group.name == group_name).first()
         if not group:
             group = Group(name=group_name)
+            s.add(group)
         for project_data in projects:
             grant_project_to_group_or_user(s, project_data, group)
 

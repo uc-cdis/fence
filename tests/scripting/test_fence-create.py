@@ -917,16 +917,22 @@ def test_modify_client_action(db_session):
 
 
 def test_create_group(db_session):
-    group_name = "test_group_123"
-    data = {
-        "groups": {
-            group_name: {
-                "projects": [{"auth_id": "test_project_123", "privilege": "read"}]
-            }
-        }
+    # test "fence-create create" group creation without projects
+    group_name = "test_group_1"
+    data = {"groups": {group_name: {}}}
+    create_group(db_session, data)
+    groups_in_db = db_session.query(Group).filter(Group.name == group_name).all()
+    assert groups_in_db, "no group was created"
+    assert len(groups_in_db) == 1
+    assert group_name == groups_in_db[0].name
+
+    # test group creation with projects
+    group_name = "test_group_2"
+    data["groups"][group_name] = {
+        "projects": [{"auth_id": "test_project_1", "privilege": "read"}]
     }
     create_group(db_session, data)
-    assert (
-        group_name
-        == db_session.query(Group).filter(Group.name == group_name).first().name
-    )
+    groups_in_db = db_session.query(Group).filter(Group.name == group_name).all()
+    assert groups_in_db, "no group was created"
+    assert len(groups_in_db) == 1
+    assert group_name == groups_in_db[0].name
