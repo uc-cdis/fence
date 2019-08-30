@@ -1,7 +1,6 @@
 # pylint: disable=redefined-outer-name
 """
 Define pytest fixtures.
-
 TODO (rudyardrichter, 2018-11-06): clean up/consolidate indexd response mocks
 """
 
@@ -82,10 +81,8 @@ def encoded_jwt(kid, rsa_private_key):
     """
     Return an example JWT containing the claims and encoded with the private
     key.
-
     Args:
         rsa_private_key (str): fixture
-
     Return:
         str: JWT containing claims encoded with private key
     """
@@ -99,10 +96,8 @@ def encoded_jwt(kid, rsa_private_key):
 def encoded_jwt_expired(kid, rsa_private_key):
     """
     Return an example JWT that has already expired.
-
     Args:
         rsa_private_key (str): fixture
-
     Return:
         str: JWT containing claims encoded with private key
     """
@@ -121,11 +116,9 @@ def encoded_jwt_refresh_token(claims_refresh, kid, rsa_private_key):
     """
     Return an example JWT refresh token containing the claims and encoded with
     the private key.
-
     Args:
         claims_refresh (dict): fixture
         rsa_private_key (str): fixture
-
     Return:
         str: JWT refresh token containing claims encoded with private key
     """
@@ -184,9 +177,7 @@ def kid_2():
 def mock_arborist_requests(request):
     """
     This fixture returns a function which you call to mock out arborist endopints.
-
     Give it an argument in this format:
-
         {
             "arborist/health": {
                 "GET": ("", 200)
@@ -319,7 +310,6 @@ def test_user_b(db_session):
 def db(app, request):
     """
     Define pytest fixture for database engine (session-scoped).
-
     When the tests are over, drop everything from the test database.
     """
 
@@ -376,7 +366,6 @@ def awg_groups(db_session):
 def db_session(db, patch_app_db_session):
     """
     Define fixture for database session (function-scoped).
-
     At the end of the function, roll back the session to its initial state.
     """
     connection = db.engine.connect()
@@ -1037,10 +1026,8 @@ def mock_get(monkeypatch, example_keys_response):
     """
     Provide a function to patch the value of the JSON returned by
     ``requests.get``.
-
     Args:
         monkeypatch (pytest.monkeypatch.MonkeyPatch): fixture
-
     Return:
         Calllable[dict, None]:
             function which sets the reponse JSON of ``requests.get``
@@ -1050,10 +1037,8 @@ def mock_get(monkeypatch, example_keys_response):
         """
         Args:
             keys_response_json (dict): value to set /jwt/keys return value to
-
         Return:
             None
-
         Side Effects:
             Patch ``requests.get``
         """
@@ -1076,11 +1061,9 @@ def encoded_creds_jwt(
     """
     Return a JWT and user_id for a new user containing the claims and
     encoded with the private key.
-
     Args:
         claims (dict): fixture
         rsa_private_key (str): fixture
-
     Return:
         str: JWT containing claims encoded with private key
     """
@@ -1109,11 +1092,9 @@ def encoded_jwt_no_proxy_group(kid, rsa_private_key, user_client, oauth_client):
     """
     Return a JWT and user_id for a new user containing the claims and
     encoded with the private key.
-
     Args:
         claims (dict): fixture
         rsa_private_key (str): fixture
-
     Return:
         str: JWT containing claims encoded with private key
     """
