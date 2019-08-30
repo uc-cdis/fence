@@ -58,7 +58,7 @@ def parse_arguments():
     subparsers = parser.add_subparsers(title="action", dest="action")
 
     create = subparsers.add_parser("create")
-    create.add_argument("yaml-input")
+    create.add_argument("yaml-file-path", help="Path to a YAML file")
 
     client_create = subparsers.add_parser("client-create")
     client_create.add_argument("--client", required=True)
@@ -353,7 +353,7 @@ def main():
         )
 
     if args.action == "create":
-        yaml_input = args.__dict__["yaml-input"]
+        yaml_input = args.__dict__["yaml-file-path"]
         create_sample_data(DB, yaml_input)
     elif args.action == "client-create":
         confidential = not args.public
