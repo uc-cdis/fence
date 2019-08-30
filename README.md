@@ -498,9 +498,7 @@ As a Gen3 commons administrator, if you want to create an implicit oauth client 
 
 ```bash
 fence-create client-create --client fancywebappname --urls 'https://betawebapp.example/fence
-https://webapp.example/fence' --public --username fancyapp --grant-types 'authorization_code
-refresh_token
-implicit'
+https://webapp.example/fence' --public --username fancyapp --grant-types authorization_code refresh_token implicit
 ```
 
 If there are more than one URL to add, use space to delimit them like this:
