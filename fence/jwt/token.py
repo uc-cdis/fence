@@ -367,7 +367,6 @@ def generate_signed_access_token(
                 "name": user.username,
                 "is_admin": user.is_admin,
                 "google": {"proxy_group": user.google_proxy_group_id},
-                "projects": {},
             }
         },
         "azp": client_id or "",
@@ -383,13 +382,17 @@ def generate_signed_access_token(
         claims["context"]["user"]["projects"] = dict(user.project_access)
     else:
         # truncate to configured number of projects in token
-        claims["context"]["user"]["projects"] = {
-            k: dict(user.project_access)[k]
-            for k in list(dict(user.project_access))[: config["TOKEN_PROJECTS_CUTOFF"]]
-        }
+        projects = dict(user.project_access)
+        for key in list(projects.keys())[1:]:
+            del projects[key]
+        claims["context"]["user"]["projects"] = projects
         logger.warning(
             "NOT including project_access = {} in claims for user {} because there are too many projects for the token\n".format(
-                user.project_access, user.username
+                {
+                    k: dict(user.project_access)[k]
+                    for k in set(dict(user.project_access)) - set(projects)
+                },
+                user.username,
             )
         )
 
