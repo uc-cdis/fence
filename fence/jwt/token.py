@@ -383,7 +383,7 @@ def generate_signed_access_token(
     else:
         # truncate to configured number of projects in token
         projects = dict(user.project_access)
-        for key in list(projects.keys())[1:]:
+        for key in list(projects)[config["TOKEN_PROJECTS_CUTOFF"]:]:
             del projects[key]
         claims["context"]["user"]["projects"] = projects
         logger.warning(
