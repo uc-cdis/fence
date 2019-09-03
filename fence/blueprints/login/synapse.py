@@ -1,6 +1,9 @@
+from datetime import datetime, timezone, timedelta
+
 import flask
 from flask_sqlalchemy_session import current_session
 
+from fence.config import config
 from fence.models import IdentityProvider
 
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
@@ -16,17 +19,20 @@ class SynapseLogin(DefaultOAuth2Login):
 class SynapseCallback(DefaultOAuth2Callback):
     def __init__(self):
         super(SynapseCallback, self).__init__(
-            idp_name=IdentityProvider.synapse,
-            client=flask.current_app.synapse_client,
+            idp_name=IdentityProvider.synapse, client=flask.current_app.synapse_client
         )
 
     def post_login(self, user, token_result):
         user.id_from_idp = token_result["sub"]
         user.display_name = "{given_name} {family_name}".format(**token_result)
+        # TODO: token_result['company']
         current_session.add(user)
         current_session.commit()
 
-        # TODO
-        # company
-        # team
-        # exp
+        if config["DREAM_CHALLENGE_TEAM"] in token_result.get("team", []):
+            flask.current_app.arborist.add_user_to_group(
+                user.username,
+                config["DREAM_CHALLENGE_GROUP"],
+                datetime.now(timezone.utc)
+                + timedelta(seconds=config["SYNAPSE_AUTHZ_TTL"]),
+            )
