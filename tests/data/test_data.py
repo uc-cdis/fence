@@ -932,7 +932,7 @@ def test_multipart_complete_upload(
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
     arborist_requests_mocker = mock.patch(
-        "fence.rbac.client.requests", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
     )
 
     fence.blueprints.data.indexd.BlankIndex.complete_multipart_upload = MagicMock()
