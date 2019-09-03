@@ -183,6 +183,27 @@ def test_unauthorized_indexd_download_file(
     Test ``GET /data/download/1``.
     """
     path = "/data/download/1"
+
+    did = str(uuid.uuid4())
+    index_document = {
+        "did": did,
+        "baseid": "",
+        "rev": "",
+        "size": 10,
+        "file_name": "file1",
+        "urls": ["s3://bucket1/key-{}".format(did[:8])],
+        "acl": ["phs000789"],
+        "hashes": {},
+        "metadata": {},
+        "form": "",
+        "created_date": "",
+        "updated_date": "",
+    }
+    mock_index_document = mock.patch(
+        "fence.blueprints.data.indexd.IndexedFile.index_document", index_document
+    )
+    mock_index_document.start()
+
     headers = {
         "Authorization": "Bearer "
         + jwt.encode(
@@ -200,6 +221,8 @@ def test_unauthorized_indexd_download_file(
     # response should not be JSON, should be HTML error page
     with pytest.raises(ValueError):
         response.json
+
+    mock_index_document.stop()
 
 
 @pytest.mark.parametrize(
@@ -222,6 +245,27 @@ def test_unauthorized_indexd_upload_file(
     Test ``GET /data/upload/1``.
     """
     path = "/data/upload/1"
+
+    did = str(uuid.uuid4())
+    index_document = {
+        "did": did,
+        "baseid": "",
+        "rev": "",
+        "size": 10,
+        "file_name": "file1",
+        "urls": ["s3://bucket1/key-{}".format(did[:8])],
+        "acl": ["phs000789"],
+        "hashes": {},
+        "metadata": {},
+        "form": "",
+        "created_date": "",
+        "updated_date": "",
+    }
+    mock_index_document = mock.patch(
+        "fence.blueprints.data.indexd.IndexedFile.index_document", index_document
+    )
+    mock_index_document.start()
+
     headers = {
         "Authorization": "Bearer "
         + jwt.encode(
@@ -239,6 +283,8 @@ def test_unauthorized_indexd_upload_file(
     # response should not be JSON, should be HTML error page
     with pytest.raises(ValueError):
         response.json
+
+    mock_index_document.stop()
 
 
 @pytest.mark.parametrize(
@@ -261,6 +307,27 @@ def test_unavailable_indexd_upload_file(
     Test ``GET /data/upload/1``.
     """
     path = "/data/upload/1"
+
+    did = str(uuid.uuid4())
+    index_document = {
+        "did": did,
+        "baseid": "",
+        "rev": "",
+        "size": 10,
+        "file_name": "file1",
+        "urls": ["s3://bucket1/key-{}".format(did[:8])],
+        "acl": ["phs000789"],
+        "hashes": {},
+        "metadata": {},
+        "form": "",
+        "created_date": "",
+        "updated_date": "",
+    }
+    mock_index_document = mock.patch(
+        "fence.blueprints.data.indexd.IndexedFile.index_document", index_document
+    )
+    mock_index_document.start()
+
     headers = {
         "Authorization": "Bearer "
         + jwt.encode(
@@ -278,6 +345,8 @@ def test_unavailable_indexd_upload_file(
     # response should not be JSON, should be HTML error page
     with pytest.raises(ValueError):
         response.json
+
+    mock_index_document.stop()
 
 
 @pytest.mark.parametrize(
