@@ -410,12 +410,8 @@ class IndexedFile(object):
                 "Couldn't find `authz` field on indexd record, falling back to `acl`."
             )
 
-        if flask.g.token is None:
-            given_acls = set(filter_auth_ids(action, flask.g.user.project_access))
-        else:
-            given_acls = set(
-                filter_auth_ids(action, flask.g.token["context"]["user"]["projects"])
-            )
+        given_acls = set(filter_auth_ids(action, flask.g.user.project_access))
+
         return len(self.set_acls & given_acls) > 0
 
     @login_required({"data"})

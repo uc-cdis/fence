@@ -376,20 +376,28 @@ def generate_signed_access_token(
     }
 
     if include_project_access:
-        # NOTE: "THIS IS A TERRIBLE STOP-GAP SOLUTION SO THAT USERS WITH
-        #       MINIMAL ACCESS CAN STILL USE LATEST VERSION OF FENCE
-        #       WITH VERSIONS OF PEREGRINE/SHEEPDOG THAT DO NOT CURENTLY
-        #       SUPPORT AUTHORIZATION CHECKS AGAINST ARBORIST (AND INSTEAD
-        #       RELY ON THE PROJECTS IN THE TOKEN). If the token is too large
-        #       everything breaks. I'm sorry" --See PXP-3717
-        if len(dict(user.project_access)) < config["TOKEN_PROJECTS_CUTOFF"]:
-            claims["context"]["user"]["projects"] = dict(user.project_access)
-        else:
-            logger.warning(
-                "NOT including project_access = {} in claims for user {} because there are too many projects for the token\n".format(
-                    user.project_access, user.username
-                )
-            )
+      # NOTE: "THIS IS A TERRIBLE STOP-GAP SOLUTION SO THAT USERS WITH
+      #       MINIMAL ACCESS CAN STILL USE LATEST VERSION OF FENCE
+      #       WITH VERSIONS OF PEREGRINE/SHEEPDOG THAT DO NOT CURENTLY
+      #       SUPPORT AUTHORIZATION CHECKS AGAINST ARBORIST (AND INSTEAD
+      #       RELY ON THE PROJECTS IN THE TOKEN). If the token is too large
+      #       everything breaks. I'm sorry" --See PXP-3717
+      if len(dict(user.project_access)) < config["TOKEN_PROJECTS_CUTOFF"]:
+          claims["context"]["user"]["projects"] = dict(user.project_access)
+      else:
+          # truncate to configured number of projects in token
+          projects = dict(user.project_access)
+          for key in list(projects)[config["TOKEN_PROJECTS_CUTOFF"]:]:
+              del projects[key]
+          claims["context"]["user"]["projects"] = projects
+          logger.warning(
+              "NOT including project_access = {} in claims for user {} because there are too many projects for the token\n".format(
+                  {
+                      k: dict(user.project_access)[k]
+                      for k in set(dict(user.project_access)) - set(projects)
+                  },
+                  user.username,
+              )
 
     # only add google linkage information if provided
     if linked_google_email:
