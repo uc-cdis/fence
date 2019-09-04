@@ -27,7 +27,7 @@ class ImplicitGrant(OpenIDImplicitGrant):
         if grant_user:
             self.request.user = grant_user
             client = self.request.client
-            include_access_token = self.request.response_type == "id_token token"
+            include_access_token = self.request.response_type != "id_token"
             nonce = self.request.data.get("nonce")
             token_response = self.generate_token(
                 client,
