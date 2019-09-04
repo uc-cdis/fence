@@ -398,6 +398,7 @@ def generate_signed_access_token(
                   },
                   user.username,
               )
+          )
 
     # only add google linkage information if provided
     if linked_google_email:
