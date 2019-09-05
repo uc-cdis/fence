@@ -1,19 +1,20 @@
-from contextlib import contextmanager
-from csv import DictReader
 import errno
-from gen3users.validation import validate_user_yaml
 import glob
 import os
 import re
-from io import StringIO
+import shutil
 import subprocess as sp
 import tempfile
-import shutil
-from stat import S_ISDIR
 import yaml
+from contextlib import contextmanager
+from csv import DictReader
+from io import StringIO
+from stat import S_ISDIR
 
-from cdislogging import get_logger
 import paramiko
+from cdislogging import get_logger
+from gen3authz.client.arborist.client import ArboristError
+from gen3users.validation import validate_user_yaml
 from paramiko.proxy import ProxyCommand
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
@@ -29,10 +30,8 @@ from fence.models import (
     query_for_user,
     Client,
 )
-from fence.sync import utils
 from fence.resources.storage import StorageManager
-
-from gen3authz.client.arborist.client import ArboristError
+from fence.sync import utils
 
 
 def _format_policy_id(path, privilege):
