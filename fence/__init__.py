@@ -14,7 +14,6 @@ from fence.jwt import keys
 from fence.models import migrate
 from fence.oidc.client import query_client
 from fence.oidc.server import server
-from fence.rbac.client import ArboristClient
 from fence.resources.aws.boto_manager import BotoManager
 from fence.resources.openid.google_oauth2 import GoogleOauth2Client as GoogleClient
 from fence.resources.openid.microsoft_oauth2 import (
@@ -40,6 +39,8 @@ import fence.blueprints.google
 import fence.blueprints.privacy
 
 from cdislogging import get_logger
+
+from gen3authz.client.arborist.client import ArboristClient
 
 # Can't read config yet. Just set to debug for now, else no handlers.
 # Later, in app_config(), will actually set level based on config

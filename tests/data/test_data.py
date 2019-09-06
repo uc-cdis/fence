@@ -482,7 +482,7 @@ def test_blank_index_upload(app, client, auth_client, encoded_creds_jwt, user_cl
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
     arborist_requests_mocker = mock.patch(
-        "fence.rbac.client.requests", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
     )
     with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
         data_requests.post.return_value = MockResponse(
@@ -751,7 +751,7 @@ def test_blank_index_upload_unauthorized(
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
     arborist_requests_mocker = mock.patch(
-        "fence.rbac.client.requests", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
     )
     with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
         # pretend arborist says "no"
@@ -830,7 +830,7 @@ def test_initialize_multipart_upload(
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
     arborist_requests_mocker = mock.patch(
-        "fence.rbac.client.requests", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
     )
 
     fence.blueprints.data.indexd.BlankIndex.init_multipart_upload = MagicMock()
@@ -883,7 +883,7 @@ def test_multipart_upload_presigned_url(
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
     arborist_requests_mocker = mock.patch(
-        "fence.rbac.client.requests", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
     )
 
     fence.blueprints.data.indexd.BlankIndex.generate_aws_presigned_url_for_part = (
@@ -932,7 +932,7 @@ def test_multipart_complete_upload(
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
     arborist_requests_mocker = mock.patch(
-        "fence.rbac.client.requests", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
     )
 
     fence.blueprints.data.indexd.BlankIndex.complete_multipart_upload = MagicMock()
