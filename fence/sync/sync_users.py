@@ -1,19 +1,20 @@
-from contextlib import contextmanager
-from csv import DictReader
 import errno
-from gen3users.validation import validate_user_yaml
 import glob
 import os
 import re
-from io import StringIO
+import shutil
 import subprocess as sp
 import tempfile
-import shutil
-from stat import S_ISDIR
 import yaml
+from contextlib import contextmanager
+from csv import DictReader
+from io import StringIO
+from stat import S_ISDIR
 
-from cdislogging import get_logger
 import paramiko
+from cdislogging import get_logger
+from gen3authz.client.arborist.client import ArboristError
+from gen3users.validation import validate_user_yaml
 from paramiko.proxy import ProxyCommand
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
@@ -29,9 +30,8 @@ from fence.models import (
     query_for_user,
     Client,
 )
-from fence.sync import utils
-from fence.rbac.client import ArboristClient, ArboristError
 from fence.resources.storage import StorageManager
+from fence.sync import utils
 
 
 def _format_policy_id(path, privilege):
@@ -1074,7 +1074,7 @@ class UserSyncer(object):
         policies = user_yaml.rbac.get("policies", [])
         for policy in policies:
             try:
-                response = self.arborist_client.create_policy(policy, overwrite=True)
+                response = self.arborist_client.put_policy(policy)
                 if response:
                     self._created_policies.add(policy["id"])
             except ArboristError as e:
@@ -1091,15 +1091,14 @@ class UserSyncer(object):
                 )
                 continue
             try:
-                response = self.arborist_client.create_group(
+                response = self.arborist_client.put_group(
                     group["name"],
                     description=group.get("description", ""),
                     users=group["users"],
                     policies=group["policies"],
-                    overwrite=True,
                 )
             except ArboristError as e:
-                self.logger.info("couldn't create group: {}".format(str(e)))
+                self.logger.info("couldn't put group: {}".format(str(e)))
 
         # add policies for `anonymous` and `logged-in` groups
 
@@ -1189,14 +1188,13 @@ class UserSyncer(object):
                         policy_id = _format_policy_id(path, permission)
                         if policy_id not in self._created_policies:
                             try:
-                                self.arborist_client.create_policy(
+                                self.arborist_client.put_policy(
                                     {
                                         "id": policy_id,
                                         "description": "policy created by fence sync",
                                         "role_ids": [permission],
                                         "resource_paths": [path],
-                                    },
-                                    overwrite=True,
+                                    }
                                 )
                             except ArboristError as e:
                                 self.logger.info(

@@ -31,8 +31,9 @@ from fence.scripting.fence_create import (
     verify_user_registration,
     force_update_google_link,
 )
-from fence.rbac.client import ArboristClient
 from fence.settings import CONFIG_SEARCH_FOLDERS
+
+from gen3authz.client.arborist.client import ArboristClient
 
 
 def str2bool(v):
