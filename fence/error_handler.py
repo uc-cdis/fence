@@ -38,7 +38,7 @@ def get_error_response(error):
         status_code = int(status_code)
         if status_code not in valid_http_status_codes:
             message = None
-    except ValueError:
+    except (ValueError, TypeError):
         # this handles case where status_code is NOT a valid integer (e.g. HTTP status code)
         message = None
         status_code = 500
