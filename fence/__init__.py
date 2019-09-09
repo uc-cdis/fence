@@ -81,7 +81,12 @@ def app_init(
 def app_sessions(app):
     app.url_map.strict_slashes = False
     app.db = SQLAlchemyDriver(config["DB"])
-    migrate(app.db)
+
+    # TODO: we will make a more robust migration system external from the application
+    #       initialization soon
+    if config["ENABLE_DB_MIGRATION"]:
+        migrate(app.db)
+
     session = flask_scoped_session(app.db.Session, app)  # noqa
     app.session_interface = UserSessionInterface()
 
