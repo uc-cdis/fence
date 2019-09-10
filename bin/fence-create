@@ -30,6 +30,7 @@ from fence.scripting.fence_create import (
     verify_bucket_access_group,
     verify_user_registration,
     force_update_google_link,
+    migrate_database,
 )
 from fence.settings import CONFIG_SEARCH_FOLDERS
 
@@ -305,6 +306,8 @@ def parse_arguments():
         help="Google Project id that all users belong to",
     )
 
+    subparsers.add_parser("migrate", help="Migrate the fence database")
+
     return parser.parse_args()
 
 
@@ -491,6 +494,8 @@ def main():
         notify_problem_users(
             DB, args.emails, args.auth_ids, args.check_linking, args.google_project_id
         )
+    elif args.action == "migrate":
+        migrate_database(DB)
 
 
 if __name__ == "__main__":
