@@ -177,12 +177,12 @@ In the following flow, `Fence (Client Instance)` is an OP relative to `OAuth Cli
 See the [OIDC specification](http://openid.net/specs/openid-connect-core-1_0.html) for more details.
 Additionally, see the [OAuth2 specification](https://tools.ietf.org/html/rfc6749).
 
-## Role-Based Access Control
+## Access Control / Authz
 
 Currently fence works with another Gen3 service named
-[arborist](https://github.com/uc-cdis/arborist) to implement role-based access
+[arborist](https://github.com/uc-cdis/arborist) to implement attribute-based access
 control for commons users. The YAML file of access control information (see
-[#create-user-access-file]()) contains a section `rbac` which are data sent to
+[#create-user-access-file]()) contains a section `authz` which are data sent to
 arborist in order to set up the access control model.
 
 ## Accessing Data

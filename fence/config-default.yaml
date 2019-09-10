@@ -451,7 +451,7 @@ HTTP_PROXY:
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # MICROSERVICE PATHS
-#   - Support `/data` endpoints & `/rbac` endpoints
+#   - Support `/data` endpoints & authz functionality
 # //////////////////////////////////////////////////////////////////////////////////////
 # url where indexd microservice is running (for signed urls primarily)
 # NOTE: Leaving as null will force fence to default to {{BASE_URL}}/index

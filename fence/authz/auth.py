@@ -8,10 +8,10 @@ from fence.jwt.utils import get_jwt_header
 
 def check_arborist_auth(resource, method, constraints=None):
     """
-    Check with arborist to verify the RBAC for a request.
+    Check with arborist to verify the authz for a request.
 
     TODO (rudyardrichter, 2018-12-21):
-    update as necessary as changes happen to RBAC & arborist
+    update as necessary as changes happen to ABAC & arborist
 
     Args:
         resource (str):

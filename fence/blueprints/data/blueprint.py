@@ -10,7 +10,7 @@ from fence.blueprints.data.indexd import (
 )
 from fence.errors import Forbidden, InternalError, UserError
 from fence.utils import is_valid_expiration
-from fence.rbac import check_arborist_auth
+from fence.authz.auth import check_arborist_auth
 
 
 logger = get_logger(__name__)
