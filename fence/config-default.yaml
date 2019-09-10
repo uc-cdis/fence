@@ -67,6 +67,14 @@ SESSION_COOKIE_SECURE: true
 
 ENABLE_CSRF_PROTECTION: true
 
+# fence (at the moment) attempts a migration on startup. setting this to false will disable that
+# WARNING: ONLY set to false if you do NOT want to automatically migrate your database.
+#          You should be careful about incompatible versions of your db schema with what
+#          fence expects. In other words, things could be broken if you update to a later
+#          fence that expects a schema your database isn't migrated to.
+# NOTE: We are working to improve the migration process in the near future
+ENABLE_DB_MIGRATION: true
+
 # //////////////////////////////////////////////////////////////////////////////////////
 # OPEN ID CONNECT (OIDC)
 #   - Fully configure at least one client so login works
