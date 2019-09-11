@@ -354,6 +354,7 @@ def main():
         arborist = ArboristClient(
             arborist_base_url=args.arborist,
             logger=get_logger("user_syncer.arborist_client"),
+            authz_provider="user-sync"
         )
 
     if args.action == "create":

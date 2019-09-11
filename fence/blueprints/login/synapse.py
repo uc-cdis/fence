@@ -29,10 +29,15 @@ class SynapseCallback(DefaultOAuth2Callback):
         current_session.add(user)
         current_session.commit()
 
-        if config["DREAM_CHALLENGE_TEAM"] in token_result.get("team", []):
-            flask.current_app.arborist.add_user_to_group(
-                user.username,
-                config["DREAM_CHALLENGE_GROUP"],
-                datetime.now(timezone.utc)
-                + timedelta(seconds=config["SYNAPSE_AUTHZ_TTL"]),
-            )
+        with flask.current_app.arborist.context(auth_provider="synapse"):
+            if config["DREAM_CHALLENGE_TEAM"] in token_result.get("team", []):
+                flask.current_app.arborist.add_user_to_group(
+                    user.username,
+                    config["DREAM_CHALLENGE_GROUP"],
+                    datetime.now(timezone.utc)
+                    + timedelta(seconds=config["SYNAPSE_AUTHZ_TTL"]),
+                )
+            else:
+                flask.current_app.arborist.remove_user_from_group(
+                    user.username, config["DREAM_CHALLENGE_GROUP"]
+                )
