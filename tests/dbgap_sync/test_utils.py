@@ -9,7 +9,7 @@ def test_combine_arborist_resources():
     be used on the PUT resource endpoint of arborist.
     """
     yaml_string = """
-    rbac:
+    authz:
       resources:
         - name: 'root_no_subresources'
         - name: 'gen3'
@@ -34,7 +34,7 @@ def test_combine_arborist_resources():
                     - name: 'test'
     """
     useryaml = yaml.safe_load(yaml_string)
-    useryaml_resources = useryaml.get("rbac", {}).get("resources")
+    useryaml_resources = useryaml.get("authz", {}).get("resources")
 
     test_paths = [
         "/root_no_subresources",

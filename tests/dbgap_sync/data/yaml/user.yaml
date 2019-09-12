@@ -3,9 +3,9 @@ cloud_providers: {}
 groups: {}
 
 # Define information used for role-based access control.
-# The information in the `rbac` section is sent to arborist to populate its
+# The information in the `authz` section is sent to arborist to populate its
 # access control model.
-rbac:
+authz:
   policies:
     - id: 'data_upload'
       description: 'upload raw data files to S3'
