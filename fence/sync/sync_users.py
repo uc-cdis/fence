@@ -1077,15 +1077,19 @@ class UserSyncer(object):
 
         policies = user_yaml.authz.get("policies", [])
         for policy in policies:
+            policy_id = policy.pop("id")
+            if not policy_id:
+                continue
             try:
                 response = self.arborist_client.update_policy(
-                    policy["id"], policy, create_if_not_exist=True
+                    policy_id, policy, create_if_not_exist=True
                 )
-                if response:
-                    self._created_policies.add(policy["id"])
             except ArboristError as e:
                 self.logger.error(e)
                 # keep going; maybe just some conflicts from things existing already
+            else:
+                if response:
+                    self._created_policies.add(policy_id)
 
         groups = user_yaml.authz.get("groups", [])
         for group in groups:
@@ -1197,7 +1201,6 @@ class UserSyncer(object):
                                 self.arborist_client.update_policy(
                                     policy_id,
                                     {
-                                        "id": policy_id,
                                         "description": "policy created by fence sync",
                                         "role_ids": [permission],
                                         "resource_paths": [path],
