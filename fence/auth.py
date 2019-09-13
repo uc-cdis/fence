@@ -75,7 +75,7 @@ def login_user(request, username, provider):
         user.identity_provider = idp
         current_session.add(user)
         current_session.commit()
-    flask.session["username"] = username
+    flask.session['username'] = username
     flask.session["provider"] = provider
     flask.session["user_id"] = str(user.id)
     flask.g.user = user

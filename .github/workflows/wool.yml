@@ -1,0 +1,15 @@
+on: pull_request
+
+name: Run python formatter
+
+jobs:
+  runWool:
+    name: Run wool
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+
+    - name: Run wool
+      uses: uc-cdis/wool@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
