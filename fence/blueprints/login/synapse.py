@@ -25,7 +25,9 @@ class SynapseCallback(DefaultOAuth2Callback):
     def post_login(self, user, token_result):
         user.id_from_idp = token_result["sub"]
         user.display_name = "{given_name} {family_name}".format(**token_result)
-        # TODO: token_result['company']
+        if user.additional_info is None:
+            user.additional_info = {}
+        user.additional_info.update(token_result)
         current_session.add(user)
         current_session.commit()
 

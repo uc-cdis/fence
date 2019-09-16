@@ -24,8 +24,8 @@ from sqlalchemy import (
     Text,
     MetaData,
     Table,
-)
-from sqlalchemy.dialects.postgresql import ARRAY
+    text)
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import func
 from sqlalchemy import exc as sa_exc
@@ -684,6 +684,15 @@ def migrate(driver):
         table_name=User.__tablename__,
         column=Column(
             "_last_auth", DateTime(timezone=False), server_default=func.now()
+        ),
+        driver=driver,
+        metadata=md,
+    )
+
+    add_column_if_not_exist(
+        table_name=User.__tablename__,
+        column=Column(
+            "additional_info", JSONB(), server_default=text("'{}'")
         ),
         driver=driver,
         metadata=md,
