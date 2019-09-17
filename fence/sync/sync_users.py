@@ -1074,7 +1074,9 @@ class UserSyncer(object):
         policies = user_yaml.rbac.get("policies", [])
         for policy in policies:
             try:
-                response = self.arborist_client.put_policy(policy)
+                response = self.arborist_client.create_policy(
+                    policy, skip_if_exists=True
+                )
                 if response:
                     self._created_policies.add(policy["id"])
             except ArboristError as e:
@@ -1188,13 +1190,14 @@ class UserSyncer(object):
                         policy_id = _format_policy_id(path, permission)
                         if policy_id not in self._created_policies:
                             try:
-                                self.arborist_client.put_policy(
+                                self.arborist_client.create_policy(
                                     {
                                         "id": policy_id,
                                         "description": "policy created by fence sync",
                                         "role_ids": [permission],
                                         "resource_paths": [path],
-                                    }
+                                    },
+                                    skip_if_exists=True,
                                 )
                             except ArboristError as e:
                                 self.logger.info(
