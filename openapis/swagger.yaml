@@ -45,7 +45,12 @@ paths:
       tags:
         - oauth2
       summary: Perform OAuth2 authorization
-      description: >-
+      description: |
+        **IMPORTANT NOTE**: These docs are provided as a courtesy but do _NOT_ include the entirety of the OIDC Standard 
+        simply because of its length and complexity.
+        
+        Please [refer to the standard](https://openid.net/specs/openid-connect-core-1_0.html) for complete details.
+        
         Obtain an authorization grant through the OAuth2 protocol. To handle
         this request, render a page for the user to confirm the OAuth2 grant
         (through e.g. Google). Redirect user to `redirect_uri` with an added
@@ -83,7 +88,7 @@ paths:
           required: false
           in: query
           description: |
-              Requested authorization scope
+              Requested authorization scope. Must include `openid`. `user` allows getting a user's access information.
               > NOTE: This is required for [OIDC](http://openid.net/specs/openid-connect-core-1_0.html#AuthRequest)
           schema:
             type: string
@@ -94,7 +99,12 @@ paths:
       tags:
         - oauth2
       summary: Perform OAuth2 authorization
-      description: >-
+      description: |
+        **IMPORTANT NOTE**: These docs are provided as a courtesy but do _NOT_ include the entirety of the OIDC Standard 
+        simply because of its length and complexity.
+        
+        Please [refer to the standard](https://openid.net/specs/openid-connect-core-1_0.html) for complete details.
+        
         Obtain an authorization grant through the OAuth2 protocol. To handle
         this request, render a page for the user to confirm the OAuth2 grant
         (through e.g. Google). Redirect user to `redirect_uri` with an added
@@ -130,7 +140,7 @@ paths:
                   description: whether to confirm the OAuth2 grant (should be 'yes')
                   type: string
                 scope:
-                  description: Requested authorization scope
+                  description: Requested authorization scope. Must include `openid`. `user` allows getting a user's access information.
                   type: string
               required:
                 - client_id
@@ -141,7 +151,12 @@ paths:
       tags:
         - oauth2
       summary: Exchange code for or refresh the access token.
-      description: >-
+      description: |
+        **IMPORTANT NOTE**: These docs are provided as a courtesy but do _NOT_ include the entirety of the OIDC Standard 
+        simply because of its length and complexity.
+        
+        Please [refer to the standard](https://openid.net/specs/openid-connect-core-1_0.html) for complete details.
+        
         Exchange the `code` obtained from OAuth2 for an access token, or refresh
         the access token using a refresh token.
       operationId: token

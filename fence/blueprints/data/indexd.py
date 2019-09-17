@@ -366,13 +366,12 @@ class IndexedFile(object):
         if not self.index_document.get("authz"):
             raise ValueError("index record missing `authz`")
 
-        request = {"user": {"token": get_jwt()}, "requests": []}
-        for resource in self.index_document["authz"]:
-            request["requests"].append(
-                {"resource": resource, "action": {"service": "fence", "method": action}}
-            )
-
-        return flask.current_app.arborist.auth_request(request)
+        return flask.current_app.arborist.auth_request(
+            jwt=get_jwt(),
+            service="fence",
+            methods=action,
+            resources=self.index_document["authz"],
+        )
 
     @cached_property
     def metadata(self):
@@ -410,12 +409,8 @@ class IndexedFile(object):
                 "Couldn't find `authz` field on indexd record, falling back to `acl`."
             )
 
-        if flask.g.token is None:
-            given_acls = set(filter_auth_ids(action, flask.g.user.project_access))
-        else:
-            given_acls = set(
-                filter_auth_ids(action, flask.g.token["context"]["user"]["projects"])
-            )
+        given_acls = set(filter_auth_ids(action, flask.g.user.project_access))
+
         return len(self.set_acls & given_acls) > 0
 
     @login_required({"data"})
