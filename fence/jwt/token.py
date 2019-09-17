@@ -190,6 +190,7 @@ def generate_signed_id_token(
     auth_time=None,
     max_age=None,
     nonce=None,
+    include_project_access=True,
     **kwargs
 ):
     """
@@ -218,6 +219,7 @@ def generate_signed_id_token(
         user,
         expires_in,
         client_id,
+        include_project_access=include_project_access,
         audiences=audiences,
         auth_time=auth_time,
         max_age=max_age,
@@ -324,6 +326,7 @@ def generate_signed_access_token(
     forced_exp_time=None,
     client_id=None,
     linked_google_email=None,
+    include_project_access=True,
 ):
     """
     Generate a JWT access token and output a UTF-8
@@ -366,12 +369,36 @@ def generate_signed_access_token(
             "user": {
                 "name": user.username,
                 "is_admin": user.is_admin,
-                "projects": dict(user.project_access),
                 "google": {"proxy_group": user.google_proxy_group_id},
             }
         },
         "azp": client_id or "",
     }
+
+    if include_project_access:
+      # NOTE: "THIS IS A TERRIBLE STOP-GAP SOLUTION SO THAT USERS WITH
+      #       MINIMAL ACCESS CAN STILL USE LATEST VERSION OF FENCE
+      #       WITH VERSIONS OF PEREGRINE/SHEEPDOG THAT DO NOT CURENTLY
+      #       SUPPORT AUTHORIZATION CHECKS AGAINST ARBORIST (AND INSTEAD
+      #       RELY ON THE PROJECTS IN THE TOKEN). If the token is too large
+      #       everything breaks. I'm sorry" --See PXP-3717
+      if len(dict(user.project_access)) < config["TOKEN_PROJECTS_CUTOFF"]:
+          claims["context"]["user"]["projects"] = dict(user.project_access)
+      else:
+          # truncate to configured number of projects in token
+          projects = dict(user.project_access)
+          for key in list(projects)[config["TOKEN_PROJECTS_CUTOFF"]:]:
+              del projects[key]
+          claims["context"]["user"]["projects"] = projects
+          logger.warning(
+              "NOT including project_access = {} in claims for user {} because there are too many projects for the token\n".format(
+                  {
+                      k: dict(user.project_access)[k]
+                      for k in set(dict(user.project_access)) - set(projects)
+                  },
+                  user.username,
+              )
+          )
 
     # only add google linkage information if provided
     if linked_google_email:
@@ -400,6 +427,7 @@ def generate_id_token(
     auth_time=None,
     max_age=None,
     nonce=None,
+    include_project_access=True,
     **kwargs
 ):
     """
@@ -453,7 +481,6 @@ def generate_id_token(
             "user": {
                 "name": user.username,
                 "is_admin": user.is_admin,
-                "projects": dict(user.project_access),
                 "email": user.email,
                 "display_name": user.display_name,
                 "phone_number": user.phone_number,
@@ -477,6 +504,9 @@ def generate_id_token(
     # in ID token
     if nonce:
         claims["nonce"] = nonce
+
+    if include_project_access:
+        claims["context"]["user"]["projects"] = dict(user.project_access)
 
     logger.info("issuing JWT ID token\n" + json.dumps(claims, indent=4))
 

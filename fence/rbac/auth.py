@@ -39,16 +39,12 @@ def check_arborist_auth(resource, method, constraints=None):
                     "this fence instance is not configured for role-based access"
                     " control; this endpoint is unavailable"
                 )
-
-            jwt = get_jwt_header()
-            data = {
-                "user": {"token": jwt},
-                "request": {
-                    "resource": resource,
-                    "action": {"service": "fence", "method": method},
-                },
-            }
-            if not flask.current_app.arborist.auth_request(data=data):
+            if not flask.current_app.arborist.auth_request(
+                jwt=get_jwt_header(),
+                service="fence",
+                methods=method,
+                resources=resource,
+            ):
                 raise Forbidden("user does not have privileges to access this endpoint")
             return f(*f_args, **f_kwargs)
 

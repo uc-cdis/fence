@@ -45,7 +45,12 @@ paths:
       tags:
         - oauth2
       summary: Perform OAuth2 authorization
-      description: >-
+      description: |
+        **IMPORTANT NOTE**: These docs are provided as a courtesy but do _NOT_ include the entirety of the OIDC Standard 
+        simply because of its length and complexity.
+        
+        Please [refer to the standard](https://openid.net/specs/openid-connect-core-1_0.html) for complete details.
+        
         Obtain an authorization grant through the OAuth2 protocol. To handle
         this request, render a page for the user to confirm the OAuth2 grant
         (through e.g. Google). Redirect user to `redirect_uri` with an added
@@ -83,7 +88,7 @@ paths:
           required: false
           in: query
           description: |
-              Requested authorization scope
+              Requested authorization scope. Must include `openid`. `user` allows getting a user's access information.
               > NOTE: This is required for [OIDC](http://openid.net/specs/openid-connect-core-1_0.html#AuthRequest)
           schema:
             type: string
@@ -94,7 +99,12 @@ paths:
       tags:
         - oauth2
       summary: Perform OAuth2 authorization
-      description: >-
+      description: |
+        **IMPORTANT NOTE**: These docs are provided as a courtesy but do _NOT_ include the entirety of the OIDC Standard 
+        simply because of its length and complexity.
+        
+        Please [refer to the standard](https://openid.net/specs/openid-connect-core-1_0.html) for complete details.
+        
         Obtain an authorization grant through the OAuth2 protocol. To handle
         this request, render a page for the user to confirm the OAuth2 grant
         (through e.g. Google). Redirect user to `redirect_uri` with an added
@@ -130,7 +140,7 @@ paths:
                   description: whether to confirm the OAuth2 grant (should be 'yes')
                   type: string
                 scope:
-                  description: Requested authorization scope
+                  description: Requested authorization scope. Must include `openid`. `user` allows getting a user's access information.
                   type: string
               required:
                 - client_id
@@ -141,7 +151,12 @@ paths:
       tags:
         - oauth2
       summary: Exchange code for or refresh the access token.
-      description: >-
+      description: |
+        **IMPORTANT NOTE**: These docs are provided as a courtesy but do _NOT_ include the entirety of the OIDC Standard 
+        simply because of its length and complexity.
+        
+        Please [refer to the standard](https://openid.net/specs/openid-connect-core-1_0.html) for complete details.
+        
         Exchange the `code` obtained from OAuth2 for an access token, or refresh
         the access token using a refresh token.
       operationId: token
@@ -324,6 +339,18 @@ paths:
             public url without using anonymous signing creds).
           schema:
             type: boolean
+        - name: userProject
+          required: false
+          in: query
+          description: >-
+            a Google Project to bill for accessing data in requester pays buckets in Google Storage.
+            Will override any configured default billing projects. If Fence is configured
+            to automatically attempt to provide the necessary service account(s) billing permission,
+            the provided Google Project will need to have given the Fence admin service account
+            necessary permissions to create custom roles and set Project IAM policies. Please see
+            README for more information.
+          schema:
+            type: string
       responses:
         '200':
           description: successful operation
@@ -433,7 +460,7 @@ paths:
       description: >-
         For uploading the big file with the size is larger than 5GB in data upload
         flow, Fence needs to provide a list of endpoints for supporting multipart upload presigned url
-        This is the first step on the API side for the multipart upload presigned url. This endpoint 
+        This is the first step on the API side for the multipart upload presigned url. This endpoint
         causes fence to make a request to indexd to create a new, blank index record, and returns
         the GUID for this new record and an uploadId for multipart upload presigned url
       security:
@@ -461,7 +488,7 @@ paths:
                   uploadId:
                     type: string
                     description: the uploadId for multipart upload presigned URL usable for data upload
- 
+
   '/multipart/upload':
     post:
       tags:
@@ -502,7 +529,7 @@ paths:
       summary: >-
         Complete aws multipart upload
       description: >-
-        This is the last step for the multipart upload presigned url. All the parts which were submitted 
+        This is the last step for the multipart upload presigned url. All the parts which were submitted
         need to be combined together. This enpoint takes a list of the part info (partNumber, Etag)
         and uploadId in order to finish the upload
       security:
@@ -571,6 +598,18 @@ paths:
             the configured maximum will be used.
           schema:
             type: integer
+        - name: userProject
+          required: false
+          in: query
+          description: >-
+            a Google Project to bill for accessing data in requester pays buckets in Google Storage.
+            Will override any configured default billing projects. If Fence is configured
+            to automatically attempt to provide the necessary service account(s) billing permission,
+            the provided Google Project will need to have given the Fence admin service account
+            necessary permissions to create custom roles and set Project IAM policies. Please see
+            README for more information.
+          schema:
+            type: string
       responses:
         '200':
           description: Temporary private Google key in Google Credentials File format
@@ -586,7 +625,7 @@ paths:
       security:
         - OAuth2:
             - user
-      operationId: deleteGoogleKeypair
+      operationId: deleteAllGoogleKeypair
       parameters:
         - name: all
           required: true
@@ -1007,6 +1046,28 @@ paths:
       responses:
         '302':
           description: redirect to session-stored redirect value
+  /google/billing_projects/:
+    get:
+      tags:
+        - google
+      summary: Get the configured default Google project for billing
+      description: >-
+        Get the configured default Google project identifiers that will be used for
+        billing access to requester pays Google buckets. This effectively bills all
+        access to the specified Project and *not* the end-user (may be a different project
+        for different data access methods). If there is no configured default
+        billing project, requests to Data Access Method endpoints will rely on
+        a query parameter `userProject` for the end-user to specify a valid Google
+        project that Fence has the necessary roles in to provide relevant service
+        accounts the necessary access. Please see the README for more details.
+      operationId: getGoogleBillingProjects
+      responses:
+        '200':
+          description: 'billing projects in response.'
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/GoogleBillingProjects'
   /google/service_accounts/:
     post:
       tags:
@@ -1358,7 +1419,7 @@ components:
             the key of the object in the format of GUID/filename
         uploadId:
           type: string
-          description: the uploadId for multipart presigned URL upload usable for data upload      
+          description: the uploadId for multipart presigned URL upload usable for data upload
         partNumber:
           type: integer
           description: the part number of the part (start from 1)
@@ -1375,7 +1436,7 @@ components:
             the key of the object in the format of GUID/filename
         uploadId:
           type: string
-          description: the uploadId for multipart presigned URL upload usable for data upload      
+          description: the uploadId for multipart presigned URL upload usable for data upload
         parts:
           type: array
           items:
@@ -1460,6 +1521,32 @@ components:
         service_account_email:
           type: string
           description: Service account's email
+    GoogleBillingProjects:
+      type: object
+      required:
+        - signed_urls
+        - temporary_service_account_credentials
+      properties:
+        signed_urls:
+          type: object
+          required:
+            - project_id
+          properties:
+            project_id:
+              type: string
+              description: >-
+                Google Project identifier that serves as the default billing project
+                for all requester pays access
+        temporary_service_account_credentials:
+          type: object
+          required:
+            - project_id
+          properties:
+            project_id:
+              type: string
+              description: >-
+                Google Project identifier that serves as the default billing project
+                for all requester pays access
     GoogleServiceAccounts:
       type: object
       properties:

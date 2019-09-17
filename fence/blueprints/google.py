@@ -13,6 +13,7 @@ from cirrus.google_cloud.errors import GoogleAPIError
 
 from fence.auth import current_token, require_auth_header
 from fence.restful import RestfulApi
+from fence.config import config
 from fence.errors import UserError, NotFound, Unauthorized, Forbidden
 from fence.resources.google.validity import GoogleProjectValidity
 from fence.resources.google.access_utils import (
@@ -61,6 +62,10 @@ def make_google_blueprint():
     )
 
     blueprint_api.add_resource(
+        GoogleBillingAccount, "/billing_projects", strict_slashes=False
+    )
+
+    blueprint_api.add_resource(
         GoogleServiceAccountDryRun,
         "/service_accounts/_dry_run/<id_>",
         strict_slashes=False,
@@ -98,6 +103,19 @@ class GoogleServiceAccountRegistration(object):
         self.project_access = project_access
         self.google_project_id = google_project_id
         self.user_id = user_id
+
+
+class GoogleBillingAccount(Resource):
+    def get(self):
+        """
+        Get the configured default Google billing projects if it exists.
+        """
+        return {
+            "signed_urls": {"project_id": config["BILLING_PROJECT_FOR_SIGNED_URLS"]},
+            "temporary_service_account_credentials": {
+                "project_id": config["BILLING_PROJECT_FOR_SA_CREDS"]
+            },
+        }
 
 
 class GoogleServiceAccountRoot(Resource):
@@ -455,7 +473,6 @@ class GoogleServiceAccount(Resource):
             patch_user_service_account(
                 sa.google_project_id, sa.email, sa.project_access
             )
-
         except CirrusNotFound as exc:
             return (
                 "Can not update the service accout {}. Detail {}".format(sa.email, exc),
@@ -467,7 +484,7 @@ class GoogleServiceAccount(Resource):
                 400,
             )
         except Exception:
-            return (" Can not delete the service account {}".format(sa.email), 500)
+            return ("Can not update the service account {}".format(sa.email), 500)
 
         return ("Successfully update service account  {}".format(sa.email), 200)
 

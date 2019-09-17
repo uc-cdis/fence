@@ -298,7 +298,7 @@ def test_update_user_service_account_success(cloud_manager, db_session, setup_da
     """
     (
         cloud_manager.return_value.__enter__.return_value.add_member_to_group.return_value
-    ) = {}
+    ) = {"email": "test@gmail.com"}
     (
         cloud_manager.return_value.__enter__.return_value.remove_member_from_group.return_value
     ) = {}
@@ -405,17 +405,16 @@ def test_update_user_service_account_success2(cloud_manager, db_session, setup_d
 def test_update_user_service_account_success3(cloud_manager, db_session, setup_data):
     """
     test@gmail.com has access to test_auth_1 and test_auth_2 already
-    Test that there is no add and delete operations when client try to update
+    Test that there are no delete operations when client try to update
     with projects already granted access
+    (This test used to also check that no Google-side add operations occurred
+    given the same situation, but this is no longer expected as we are now
+    adding SA to every project/GBAG every time--see #670)
     """
     service_account = (
         db_session.query(UserServiceAccount).filter_by(email="test@gmail.com").first()
     )
     patch_user_service_account("test", "test@gmail.com", ["test_auth_1", "test_auth_2"])
-
-    assert not (
-        cloud_manager.return_value.__enter__.return_value.add_member_to_group.called
-    )
 
     assert not (
         cloud_manager.return_value.__enter__.return_value.remove_member_from_group.called
