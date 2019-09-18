@@ -10,7 +10,8 @@ class SynapseOauth2Client(Oauth2ClientBase):
 
     """
 
-    ISSUER = "https://www.synapse.org/auth/v1"
+    ISSUER = "https://repo-prod.prod.sagebase.org/auth/v1/"
+    ISSUER = "https://repo-staging.prod.sagebase.org/auth/v1/"
     REQUIRED_CLAIMS = {"give_name", "family_name", "email"}
     OPTIONAL_CLAIMS = {"company"}
     SYSTEM_CLAIMS = {"sub", "exp"}
