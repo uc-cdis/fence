@@ -194,44 +194,31 @@ def mock_arborist_requests(request):
         defaults.update(urls_to_responses)
         urls_to_responses = defaults
 
-        def make_mock_response(method):
-            def response(url, *args, **kwargs):
-                mocked_response = MagicMock(requests.Response)
-                if url not in urls_to_responses:
-                    mocked_response.status_code = 404
-                    return mocked_response
-                if method not in urls_to_responses[url]:
-                    mocked_response.status_code = 405
-                    return mocked_response
+        def response_for(method, url, *args, **kwargs):
+            method = method.upper()
+            mocked_response = MagicMock(requests.Response)
+            if url not in urls_to_responses:
+                mocked_response.status_code = 404
+                mocked_response.text = "NOT FOUND"
+            elif method not in urls_to_responses[url]:
+                mocked_response.status_code = 405
+                mocked_response.text = "METHOD NOT ALLOWED"
+            else:
                 content, code = urls_to_responses[url][method]
                 mocked_response.status_code = code
                 if isinstance(content, dict):
                     mocked_response.json.return_value = content
-                return mocked_response
+                else:
+                    mocked_response.text = content
+            return mocked_response
 
-            return response
-
-        mocked_get = MagicMock(side_effect=make_mock_response("GET"))
-        mocked_post = MagicMock(side_effect=make_mock_response("POST"))
-        mocked_delete = MagicMock(side_effect=make_mock_response("DELETE"))
-
-        patch_get = mock.patch(
-            "gen3authz.client.arborist.client.requests.get", mocked_get
-        )
-        patch_post = mock.patch(
-            "gen3authz.client.arborist.client.requests.post", mocked_post
-        )
-        patch_delete = mock.patch(
-            "gen3authz.client.arborist.client.requests.delete", mocked_delete
+        mocked_method = MagicMock(side_effect=response_for)
+        patch_method = mock.patch(
+            "gen3authz.client.arborist.client.requests.request", mocked_method
         )
 
-        patch_get.start()
-        patch_post.start()
-        patch_delete.start()
-
-        request.addfinalizer(patch_get.stop)
-        request.addfinalizer(patch_post.stop)
-        request.addfinalizer(patch_delete.stop)
+        patch_method.start()
+        request.addfinalizer(patch_method.stop)
 
     return do_patch
 
