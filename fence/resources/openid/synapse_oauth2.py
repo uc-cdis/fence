@@ -1,6 +1,11 @@
 import json
 
+import jwt
+from jwt.algorithms import RSAAlgorithm
+from jwt.utils import to_base64url_uint
+
 from .idp_oauth2 import Oauth2ClientBase
+from ...config import config
 
 
 class SynapseOauth2Client(Oauth2ClientBase):
@@ -10,10 +15,21 @@ class SynapseOauth2Client(Oauth2ClientBase):
 
     """
 
-    ISSUER = "https://repo-prod.prod.sagebase.org/auth/v1/"
-    ISSUER = "https://repo-staging.prod.sagebase.org/auth/v1/"
-    REQUIRED_CLAIMS = {"give_name", "family_name", "email"}
-    OPTIONAL_CLAIMS = {"company"}
+    REQUIRED_CLAIMS = {"given_name", "family_name", "email", "email_verified"}
+    OPTIONAL_CLAIMS = {
+        "company",
+        "userid",
+        "orcid",
+        "is_certified",
+        "is_validated",
+        "validated_given_name",
+        "validated_family_name",
+        "validated_location",
+        "validated_email",
+        "validated_company",
+        "validated_orcid",
+        "validated_at",
+    }
     SYSTEM_CLAIMS = {"sub", "exp"}
     CUSTOM_CLAIMS = {"team"}
 
@@ -22,7 +38,10 @@ class SynapseOauth2Client(Oauth2ClientBase):
             settings,
             logger,
             scope="openid",
-            discovery_url=self.ISSUER + "/.well-known/openid-configuration",
+            # The default discovery URL on Synapse staging is not serving the correct
+            # info. Providing a workaround here for overwriting.
+            discovery_url=config["SYNAPSE_DISCOVERY_URL"]
+            or (config["SYNAPSE_URI"] + "/.well-known/openid-configuration"),
             idp="Synapse",
             HTTP_PROXY=HTTP_PROXY,
         )
@@ -32,12 +51,12 @@ class SynapseOauth2Client(Oauth2ClientBase):
         Get authorization uri from discovery doc
         """
         authorization_endpoint = self.get_value_from_discovery_doc(
-            "authorization_endpoint", self.ISSUER + "/oauth2/authorize"
+            "authorization_endpoint", config["SYNAPSE_URI"] + "/oauth2/authorize"
         )
 
         claims = dict(
             id_token=dict(
-                team=dict(values=["1"]),
+                team=dict(values=[config["DREAM_CHALLENGE_TEAM"]]),
                 **{
                     claim: dict(essential=claim in self.REQUIRED_CLAIMS)
                     for claim in self.REQUIRED_CLAIMS | self.OPTIONAL_CLAIMS
@@ -52,15 +71,42 @@ class SynapseOauth2Client(Oauth2ClientBase):
 
         return uri
 
+    def load_key(self, jwks_endpoint):
+        """A custom method to load a Synapse "RS256" key.
+
+        Synapse is not providing standard JWK keys:
+        * kty is RS256 not RSA
+        * e and n are not base64-encoded
+        """
+        for key in self.get_jwt_keys(jwks_endpoint):
+            if key["kty"] == "RS256":
+                key["kty"] = "RSA"
+                for field in ["e", "n"]:
+                    if key[field].isdigit():
+                        key[field] = to_base64url_uint(int(key[field])).decode()
+                return "RS256", RSAAlgorithm.from_jwk(json.dumps(key))
+
+        return None, None
+
     def get_user_id(self, code):
         try:
             token_endpoint = self.get_value_from_discovery_doc(
-                "token_endpoint", self.ISSUER + "/oauth2/token"
+                "token_endpoint", config["SYNAPSE_URI"] + "/oauth2/token"
             )
             jwks_endpoint = self.get_value_from_discovery_doc(
-                "jwks_uri", self.ISSUER + "/oauth2/jwks"
+                "jwks_uri", config["SYNAPSE_URI"] + "/oauth2/jwks"
             )
-            claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
+            token = self.get_token(token_endpoint, code)
+            algorithm, key = self.load_key(jwks_endpoint)
+            if not key:
+                return dict(error="Cannot load JWK keys")
+
+            claims = jwt.decode(
+                token["id_token"],
+                key,
+                options={"verify_aud": False, "verify_at_hash": False},
+                algorithms=[algorithm],
+            )
 
             if not claims["email_verified"]:
                 return dict(error="Email is not verified")
@@ -74,7 +120,8 @@ class SynapseOauth2Client(Oauth2ClientBase):
             ):
                 if claim not in self.OPTIONAL_CLAIMS and claim not in claims:
                     return dict(error="Required claim {} not found".format(claim))
-                rv[claim] = claims[claim]
+                if claim in claims:
+                    rv[claim] = claims[claim]
             return rv
         except Exception as e:
             self.logger.exception("Can't get user info")
