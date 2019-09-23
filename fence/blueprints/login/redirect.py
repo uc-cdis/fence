@@ -3,10 +3,14 @@ Define the redirect URL validation for the login resources (which also live in t
 folder).
 """
 
+from cdislogging import get_logger
 import flask
 
 from fence.blueprints.login.utils import allowed_login_redirects, domain
 from fence.errors import UserError
+
+
+logger = get_logger(__name__)
 
 
 def validate_redirect(url):
@@ -31,7 +35,7 @@ def validate_redirect(url):
     """
     allowed_redirects = allowed_login_redirects()
     if domain(url) not in allowed_redirects:
-        flask.current_app.logger.error(
+        logger.error(
             "invalid redirect {}. expected one of: {}".format(url, allowed_redirects)
         )
         raise UserError("invalid login redirect URL {}".format(url))
