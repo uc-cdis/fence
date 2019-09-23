@@ -137,8 +137,8 @@ def test_indexd_download_file_no_jwt(client, auth_client):
     assert response.status_code == 401
 
     # response should not be JSON, should be HTML error page
-    with pytest.raises(ValueError):
-        response.json
+    assert response.mimetype == "text/html"
+    assert not response.json
 
 
 @pytest.mark.parametrize(
@@ -160,8 +160,8 @@ def test_indexd_unauthorized_download_file(
     assert response.status_code == 401
 
     # response should not be JSON, should be HTML error page
-    with pytest.raises(ValueError):
-        response.json
+    assert response.mimetype == "text/html"
+    assert not response.json
 
 
 @pytest.mark.parametrize(
@@ -219,8 +219,8 @@ def test_unauthorized_indexd_download_file(
     assert response.status_code == 401
 
     # response should not be JSON, should be HTML error page
-    with pytest.raises(ValueError):
-        response.json
+    assert response.mimetype == "text/html"
+    assert not response.json
 
     mock_index_document.stop()
 
@@ -281,8 +281,8 @@ def test_unauthorized_indexd_upload_file(
     assert response.status_code == 401
 
     # response should not be JSON, should be HTML error page
-    with pytest.raises(ValueError):
-        response.json
+    assert response.mimetype == "text/html"
+    assert not response.json
 
     mock_index_document.stop()
 
@@ -343,8 +343,8 @@ def test_unavailable_indexd_upload_file(
     assert response.status_code == 401
 
     # response should not be JSON, should be HTML error page
-    with pytest.raises(ValueError):
-        response.json
+    assert response.mimetype == "text/html"
+    assert not response.json
 
     mock_index_document.stop()
 
@@ -465,8 +465,8 @@ def test_public_bucket_unsupported_protocol_file(
     assert response.status_code == 400
 
     # response should not be JSON, should be HTML error page
-    with pytest.raises(ValueError):
-        response.json
+    assert response.mimetype == "text/html"
+    assert not response.json
 
 
 def test_blank_index_upload(app, client, auth_client, encoded_creds_jwt, user_client):
