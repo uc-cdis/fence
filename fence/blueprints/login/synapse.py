@@ -31,7 +31,7 @@ class SynapseCallback(DefaultOAuth2Callback):
         current_session.add(user)
         current_session.commit()
 
-        with flask.current_app.arborist.context(auth_provider="synapse"):
+        with flask.current_app.arborist.context(authz_provider="synapse"):
             if config["DREAM_CHALLENGE_TEAM"] in token_result.get("team", []):
                 flask.current_app.arborist.add_user_to_group(
                     user.username,
