@@ -77,11 +77,19 @@ def make_login_blueprint(app):
 
         def provider_info(idp_id):
             if not idp_id:
-                return {"id": None, "name": None, "url": None}
+                return {
+                    "id": None,
+                    "name": None,
+                    "url": None,
+                    "desc": None,
+                    "secondary": False,
+                }
             return {
                 "id": idp_id,
                 "name": idps[idp_id]["name"],
                 "url": absolute_login_url(idp_id),
+                "desc": idps[idp_id].get("desc", None),
+                "secondary": idps[idp_id].get("secondary", False),
             }
 
         try:
