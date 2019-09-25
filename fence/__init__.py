@@ -274,11 +274,9 @@ def _setup_oidc_clients(app):
         )
 
     # Add OIDC client for Synapse if configured.
-    if 'synapse' in oidc:
+    if "synapse" in oidc:
         app.synapse_client = SynapseClient(
-            oidc["synapse"],
-            HTTP_PROXY=config.get("HTTP_PROXY"),
-            logger=logger,
+            oidc["synapse"], HTTP_PROXY=config.get("HTTP_PROXY"), logger=logger
         )
 
     # Add OIDC client for Microsoft if configured.

@@ -24,7 +24,8 @@ from sqlalchemy import (
     Text,
     MetaData,
     Table,
-    text)
+    text,
+)
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import func
@@ -691,15 +692,14 @@ def migrate(driver):
 
     add_column_if_not_exist(
         table_name=User.__tablename__,
-        column=Column(
-            "additional_info", JSONB(), server_default=text("'{}'")
-        ),
+        column=Column("additional_info", JSONB(), server_default=text("'{}'")),
         driver=driver,
         metadata=md,
     )
 
     with driver.session as session:
-        session.execute("""\
+        session.execute(
+            """\
 CREATE OR REPLACE FUNCTION process_user_audit() RETURNS TRIGGER AS $user_audit$
     BEGIN
         IF (TG_OP = 'DELETE') THEN
@@ -717,14 +717,19 @@ CREATE OR REPLACE FUNCTION process_user_audit() RETURNS TRIGGER AS $user_audit$
         END IF;
         RETURN NULL;
     END;
-$user_audit$ LANGUAGE plpgsql;""")
+$user_audit$ LANGUAGE plpgsql;"""
+        )
 
         exist = session.scalar(
-                "SELECT exists (SELECT * FROM pg_trigger WHERE tgname = 'user_audit')")
-        session.execute(("DROP TRIGGER user_audit ON \"User\"; " if exist else "") + """\
+            "SELECT exists (SELECT * FROM pg_trigger WHERE tgname = 'user_audit')"
+        )
+        session.execute(
+            ('DROP TRIGGER user_audit ON "User"; ' if exist else "")
+            + """\
 CREATE TRIGGER user_audit
 AFTER INSERT OR UPDATE OR DELETE ON "User"
-    FOR EACH ROW EXECUTE PROCEDURE process_user_audit();""")
+    FOR EACH ROW EXECUTE PROCEDURE process_user_audit();"""
+        )
 
 
 def add_foreign_key_column_if_not_exist(
