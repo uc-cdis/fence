@@ -1078,8 +1078,6 @@ class UserSyncer(object):
         policies = user_yaml.authz.get("policies", [])
         for policy in policies:
             policy_id = policy.pop("id")
-            if not policy_id:
-                continue
             try:
                 response = self.arborist_client.update_policy(
                     policy_id, policy, create_if_not_exist=True

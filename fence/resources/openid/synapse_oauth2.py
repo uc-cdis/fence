@@ -112,16 +112,19 @@ class SynapseOauth2Client(Oauth2ClientBase):
                 return dict(error="Email is not verified")
 
             rv = {}
+            none = object()
             for claim in (
                 self.REQUIRED_CLAIMS
                 | self.OPTIONAL_CLAIMS
                 | self.SYSTEM_CLAIMS
                 | self.CUSTOM_CLAIMS
             ):
-                if claim not in self.OPTIONAL_CLAIMS and claim not in claims:
-                    return dict(error="Required claim {} not found".format(claim))
-                if claim in claims:
-                    rv[claim] = claims[claim]
+                value = claims.get(claim, none)
+                if value is none:
+                    if claim not in self.OPTIONAL_CLAIMS:
+                        return dict(error="Required claim {} not found".format(claim))
+                else:
+                    rv[claim] = value
             return rv
         except Exception as e:
             self.logger.exception("Can't get user info")
