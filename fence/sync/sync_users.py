@@ -192,15 +192,14 @@ class UserYAML(object):
             # to check if they're allowed to do certain things
             policies[username] = details.get("policies", [])
 
+        # Fall back on rbac block if no authz. Remove when rbac in useryaml fully deprecated.
+        if not data.get("authz") and data.get("rbac"):
+            data["authz"] = data["rbac"]
+
         # get user project mapping to arborist resources if it exists
         project_to_resource = data.get("authz", dict()).get(
             "user_project_to_resource", dict()
         )
-        # Fall back on rbac if no authz. Remove when rbac in useryaml fully deprecated.
-        if not project_to_resource:
-            project_to_resource = data.get("rbac", dict()).get(
-                "user_project_to_resource", dict()
-            )
 
         # resources should be the resource tree to construct in arborist
         user_abac = dict()
@@ -237,12 +236,8 @@ class UserYAML(object):
             )
 
         authz = data.get("authz", dict())
-        # Fall back on rbac if no authz. Remove when rbac in useryaml fully deprecated.
         if not authz:
-            authz = data.get("rbac", dict())
-
-        if not authz:
-            # even older version: resources in root, no `authz` section or `rbac` section
+            # older version: resources in root, no `authz` section or `rbac` section
             if logger:
                 logger.warning(
                     "access control YAML file is using old format (missing `authz`/`rbac`"
