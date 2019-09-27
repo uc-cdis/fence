@@ -121,7 +121,7 @@ def _read_file(filepath, encrypted=True, key=None, logger=None):
 
 class UserYAML(object):
     """
-    Representation of the information in a YAML file describing user, project, and RBAC
+    Representation of the information in a YAML file describing user, project, and ABAC
     information for access control.
     """
 
@@ -131,17 +131,17 @@ class UserYAML(object):
         user_info=None,
         policies=None,
         clients=None,
-        rbac=None,
+        authz=None,
         project_to_resource=None,
         logger=None,
-        user_rbac=None,
+        user_abac=None,
     ):
         self.projects = projects or {}
         self.user_info = user_info or {}
-        self.user_rbac = user_rbac or {}
+        self.user_abac = user_abac or {}
         self.policies = policies or {}
         self.clients = clients or {}
-        self.rbac = rbac or {}
+        self.authz = authz or {}
         self.project_to_resource = project_to_resource or {}
         self.logger = logger
 
@@ -192,16 +192,20 @@ class UserYAML(object):
             # to check if they're allowed to do certain things
             policies[username] = details.get("policies", [])
 
+        # Fall back on rbac block if no authz. Remove when rbac in useryaml fully deprecated.
+        if not data.get("authz") and data.get("rbac"):
+            data["authz"] = data["rbac"]
+
         # get user project mapping to arborist resources if it exists
-        project_to_resource = data.get("rbac", dict()).get(
+        project_to_resource = data.get("authz", dict()).get(
             "user_project_to_resource", dict()
         )
 
         # resources should be the resource tree to construct in arborist
-        user_rbac = dict()
+        user_abac = dict()
         for username, details in users.items():
             # users should occur only once each; skip if already processed
-            if username in user_rbac:
+            if username in user_abac:
                 msg = "invalid yaml file: user `{}` occurs multiple times".format(
                     username
                 )
@@ -222,7 +226,7 @@ class UserYAML(object):
                     project_to_resource[project["auth_id"]] = resource
 
                 resource_permissions[resource] = set(project["privilege"])
-            user_rbac[username] = resource_permissions
+            user_abac[username] = resource_permissions
 
         if logger:
             logger.info(
@@ -231,31 +235,31 @@ class UserYAML(object):
                 )
             )
 
-        rbac = data.get("rbac", dict())
-        if not rbac:
-            # older version: resources in root, no `rbac` section
+        authz = data.get("authz", dict())
+        if not authz:
+            # older version: resources in root, no `authz` section or `rbac` section
             if logger:
                 logger.warning(
-                    "access control YAML file is using old format (missing `rbac`"
+                    "access control YAML file is using old format (missing `authz`/`rbac`"
                     " section in the root); assuming that if it exists `resources` will"
                     " be on the root level, and continuing"
                 )
-            # we're going to throw it into the `rbac` dictionary anyways, so the rest of
+            # we're going to throw it into the `authz` dictionary anyways, so the rest of
             # the code can pretend it's in the normal place that we expect
             resources = data.get("resources", [])
-            # keep rbac empty dict if resources is not specified
+            # keep authz empty dict if resources is not specified
             if resources:
-                rbac["resources"] = data.get("resources", [])
+                authz["resources"] = data.get("resources", [])
 
         clients = data.get("clients", {})
 
         return cls(
             projects=projects,
             user_info=user_info,
-            user_rbac=user_rbac,
+            user_abac=user_abac,
             policies=policies,
             clients=clients,
-            rbac=rbac,
+            authz=authz,
             project_to_resource=project_to_resource,
             logger=logger,
         )
@@ -982,10 +986,10 @@ class UserSyncer(object):
         else:
             self.logger.info("No users for syncing")
 
-        if user_yaml.rbac:
+        if user_yaml.authz:
             if not self.arborist_client:
                 raise EnvironmentError(
-                    "yaml file contains rbac section but sync is not configured with"
+                    "yaml file contains authz section but sync is not configured with"
                     " arborist client"
                 )
             self.logger.info("Synchronizing arborist...")
@@ -1038,7 +1042,7 @@ class UserSyncer(object):
         #   B/C Arborist's PUT update will override existing subresources. So if a dbgap
         #   resources was created under `/programs/phs000178` anything provided in
         #   user.yaml under `/programs` would completely wipe it out.
-        resources = user_yaml.rbac.get("resources", [])
+        resources = user_yaml.authz.get("resources", [])
 
         dbgap_resource_paths = []
         for path_list in self._dbgap_study_to_resources.values():
@@ -1061,7 +1065,7 @@ class UserSyncer(object):
                 self.logger.error(e)
                 # keep going; maybe just some conflicts from things existing already
 
-        roles = user_yaml.rbac.get("roles", [])
+        roles = user_yaml.authz.get("roles", [])
         for role in roles:
             try:
                 response = self.arborist_client.create_role(role)
@@ -1071,7 +1075,7 @@ class UserSyncer(object):
                 self.logger.error(e)
                 # keep going; maybe just some conflicts from things existing already
 
-        policies = user_yaml.rbac.get("policies", [])
+        policies = user_yaml.authz.get("policies", [])
         for policy in policies:
             try:
                 response = self.arborist_client.update_policy(
@@ -1083,7 +1087,7 @@ class UserSyncer(object):
                 self.logger.error(e)
                 # keep going; maybe just some conflicts from things existing already
 
-        groups = user_yaml.rbac.get("groups", [])
+        groups = user_yaml.authz.get("groups", [])
         for group in groups:
             missing = {"name", "users", "policies"}.difference(set(group.keys()))
             if missing:
@@ -1104,10 +1108,10 @@ class UserSyncer(object):
 
         # add policies for `anonymous` and `logged-in` groups
 
-        for policy in user_yaml.rbac.get("anonymous_policies", []):
+        for policy in user_yaml.authz.get("anonymous_policies", []):
             self.arborist_client.grant_group_policy("anonymous", policy)
 
-        for policy in user_yaml.rbac.get("all_users_policies", []):
+        for policy in user_yaml.authz.get("all_users_policies", []):
             self.arborist_client.grant_group_policy("logged-in", policy)
 
         return True
@@ -1135,10 +1139,10 @@ class UserSyncer(object):
         self.logger.debug("user_projects: {}".format(user_projects))
 
         if user_yaml:
-            self.logger.debug("useryaml rbac: {}".format(user_yaml.user_rbac))
+            self.logger.debug("useryaml abac: {}".format(user_yaml.user_abac))
 
             # update the project info with `projects` specified in user.yaml
-            self.sync_two_phsids_dict(user_yaml.user_rbac, user_projects)
+            self.sync_two_phsids_dict(user_yaml.user_abac, user_projects)
 
         for username, user_project_info in user_projects.items():
             self.logger.info("processing user `{}`".format(username))

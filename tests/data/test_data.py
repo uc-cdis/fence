@@ -773,7 +773,7 @@ def test_blank_index_upload_unauthorized(
     ["gs", "s3", "gs_acl", "s3_acl", "s3_external"],
     indirect=True,
 )
-def test_rbac(
+def test_abac(
     app,
     client,
     mock_arborist_requests,
@@ -789,7 +789,7 @@ def test_rbac(
     mock_arborist_requests(
         {"arborist/auth/request": {"POST": ('{"auth": "true"}', 200)}}
     )
-    indexd_client = indexd_client_with_arborist("test_rbac")
+    indexd_client = indexd_client_with_arborist("test_abac")
     indexed_file_location = indexd_client["indexed_file_location"]
     path = "/data/download/1"
     query_string = {"protocol": indexed_file_location}

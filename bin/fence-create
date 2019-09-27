@@ -94,7 +94,7 @@ def parse_arguments():
         default=False,
     )
     client_create.add_argument(
-        "--policies", help="which RBAC policies are granted to this client", nargs="*"
+        "--policies", help="which ABAC policies are granted to this client", nargs="*"
     )
 
     client_modify = subparsers.add_parser("client-modify")
@@ -119,7 +119,7 @@ def parse_arguments():
     )
     client_modify.add_argument(
         "--policies",
-        help="which RBAC policies are granted to this client; if given, "
+        help="which ABAC policies are granted to this client; if given, "
         "previous policies will be revoked",
         nargs="*",
     )
