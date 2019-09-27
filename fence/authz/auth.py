@@ -36,8 +36,8 @@ def check_arborist_auth(resource, method, constraints=None):
         def wrapper(*f_args, **f_kwargs):
             if not hasattr(flask.current_app, "arborist"):
                 raise Forbidden(
-                    "this fence instance is not configured for role-based access"
-                    " control; this endpoint is unavailable"
+                    "this fence instance is not configured with arborist;"
+                    " this endpoint is unavailable"
                 )
             if not flask.current_app.arborist.auth_request(
                 jwt=get_jwt_header(),

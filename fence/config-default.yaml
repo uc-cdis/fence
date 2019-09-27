@@ -463,7 +463,7 @@ INDEXD_USERNAME: 'fence'
 # this is the password which fence uses to make authenticated requests to indexd
 INDEXD_PASSWORD: ''
 
-# url where role-based access control microservice is running
+# url where authz microservice is running
 ARBORIST: null
 
 # //////////////////////////////////////////////////////////////////////////////////////

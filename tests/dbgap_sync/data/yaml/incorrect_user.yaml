@@ -2,7 +2,7 @@ cloud_providers: {}
 
 groups: {}
 
-# Define information used for role-based access control.
+# Define information used for authz.
 # The information in the `authz` section is sent to arborist to populate its
 # access control model.
 authz:
