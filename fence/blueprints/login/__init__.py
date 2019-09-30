@@ -83,6 +83,7 @@ def make_login_blueprint(app):
                     "url": None,
                     "desc": None,
                     "secondary": False,
+                    "hidden": False,
                 }
             return {
                 "id": idp_id,
@@ -90,6 +91,7 @@ def make_login_blueprint(app):
                 "url": absolute_login_url(idp_id),
                 "desc": idps[idp_id].get("desc", None),
                 "secondary": idps[idp_id].get("secondary", False),
+                "hidden": idps[idp_id].get("hidden", False),
             }
 
         try:
