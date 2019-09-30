@@ -646,3 +646,12 @@ ALLOWED_USER_SERVICE_ACCOUNT_DOMAINS:
   - 'appspot.gserviceaccount.com'
   # user-managed service account
   - 'iam.gserviceaccount.com'
+
+# Synapse integration and DREAM challenge mapping. Team is from Synapse, and group is
+# providing the actual permission in Arborist. User will be added to the group for TTL
+# seconds if the team matches.
+DREAM_CHALLENGE_TEAM: 'DREAM'
+DREAM_CHALLENGE_GROUP: 'DREAM'
+SYNAPSE_URI: 'https://repo-prod.prod.sagebase.org/auth/v1/'
+SYNAPSE_DISCOVERY_URL:
+SYNAPSE_AUTHZ_TTL: 86400

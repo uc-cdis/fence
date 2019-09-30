@@ -13,6 +13,7 @@ from fence.blueprints.login.google import GoogleLogin, GoogleCallback
 from fence.blueprints.login.shib import ShibbolethLogin, ShibbolethCallback
 from fence.blueprints.login.microsoft import MicrosoftLogin, MicrosoftCallback
 from fence.blueprints.login.orcid import ORCIDLogin, ORCIDCallback
+from fence.blueprints.login.synapse import SynapseLogin, SynapseCallback
 from fence.errors import InternalError
 from fence.restful import RestfulApi
 from fence.config import config
@@ -27,6 +28,7 @@ IDP_URL_MAP = {
     "google": "google",
     "shibboleth": "shib",
     "orcid": "orcid",
+    "synapse": "synapse",
     "microsoft": "microsoft",
 }
 
@@ -75,11 +77,19 @@ def make_login_blueprint(app):
 
         def provider_info(idp_id):
             if not idp_id:
-                return {"id": None, "name": None, "url": None}
+                return {
+                    "id": None,
+                    "name": None,
+                    "url": None,
+                    "desc": None,
+                    "secondary": False,
+                }
             return {
                 "id": idp_id,
                 "name": idps[idp_id]["name"],
                 "url": absolute_login_url(idp_id),
+                "desc": idps[idp_id].get("desc", None),
+                "secondary": idps[idp_id].get("secondary", False),
             }
 
         try:
@@ -111,6 +121,12 @@ def make_login_blueprint(app):
     if "orcid" in idps:
         blueprint_api.add_resource(ORCIDLogin, "/orcid", strict_slashes=False)
         blueprint_api.add_resource(ORCIDCallback, "/orcid/login", strict_slashes=False)
+
+    if "synapse" in idps:
+        blueprint_api.add_resource(SynapseLogin, "/synapse", strict_slashes=False)
+        blueprint_api.add_resource(
+            SynapseCallback, "/synapse/login", strict_slashes=False
+        )
 
     if "microsoft" in idps:
         blueprint_api.add_resource(MicrosoftLogin, "/microsoft", strict_slashes=False)

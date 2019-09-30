@@ -73,8 +73,13 @@ class DefaultOAuth2Callback(Resource):
         result = self.client.get_user_id(code)
         username = result.get(self.username_field)
         if username:
-            return _login(username, self.idp_name)
+            resp = _login(username, self.idp_name)
+            self.post_login(flask.g.user, result)
+            return resp
         raise UserError(result)
+
+    def post_login(self, user, token_result):
+        pass
 
 
 def _login(username, idp_name):
