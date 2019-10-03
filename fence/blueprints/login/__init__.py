@@ -47,14 +47,29 @@ def make_login_blueprint(app):
 
     try:
         default_idp = config["ENABLED_IDENTITY_PROVIDERS"]["default"]
-        idps = config["ENABLED_IDENTITY_PROVIDERS"]["providers"]
+        if "login_options" in config["ENABLED_IDENTITY_PROVIDERS"]:
+            login_options = config["ENABLED_IDENTITY_PROVIDERS"]["login_options"]
+        else:
+            # fall back on "providers"
+            enabled_providers = config["ENABLED_IDENTITY_PROVIDERS"]["providers"]
+            login_options = [
+                {
+                    "name": details["name"],
+                    "idp": idp,
+                    "desc": details.get("desc"),
+                    "secondary": details.get("secondary"),
+                }
+                for idp, details in enabled_providers.items()
+            ]
     except KeyError as e:
         logger.warn(
             "app not configured correctly with ENABLED_IDENTITY_PROVIDERS:"
             " missing {}".format(str(e))
         )
         default_idp = None
-        idps = {}
+        login_options = []
+
+    idps = [login_details["idp"] for login_details in login_options]
 
     # check if google is configured as a client. we will at least need a
     # a callback if it is
@@ -72,31 +87,48 @@ def make_login_blueprint(app):
         """
 
         def absolute_login_url(provider_id):
-            base_url = config["BASE_URL"].rstrip("/")
-            return base_url + "/login/{}".format(IDP_URL_MAP[provider_id])
+            # TODO: append idp and shib_idp parameters
+            try:
+                base_url = config["BASE_URL"].rstrip("/")
+                return base_url + "/login/{}".format(IDP_URL_MAP[provider_id])
+            except KeyError as e:
+                raise InternalError(
+                    "identity providers misconfigured: {}".format(str(e))
+                )
 
-        def provider_info(idp_id):
-            if not idp_id:
-                return {
-                    "id": None,
-                    "name": None,
-                    "url": None,
-                    "desc": None,
-                    "secondary": False,
-                }
-            return {
-                "id": idp_id,
-                "name": idps[idp_id]["name"],
-                "url": absolute_login_url(idp_id),
-                "desc": idps[idp_id].get("desc", None),
-                "secondary": idps[idp_id].get("secondary", False),
+        def provider_info(login_details):
+            info = {
+                "id": login_details["idp"],  # deprecated, replaced by "idp"
+                "idp": login_details["idp"],
+                "name": login_details["name"],
+                "url": absolute_login_url(login_details["idp"]),
+                "desc": login_details.get("desc", None),
+                "secondary": login_details.get("secondary", False),
             }
+            if login_details["idp"] == "fence" and "shib_idps" in login_details:
+                shib_idps = login_details["shib_idps"]
+                if shib_idps == "*":
+                    # TODO: get all idps
+                    shib_idps = []
+                elif not isinstance(shib_idps, list):
+                    raise InternalError(
+                        'fence provider misconfigured: "shib_idps" must be a list or "*", got {}'.format(
+                            shib_idps
+                        )
+                    )
+                info["shib_idps"] = shib_idps
+            return info
 
-        try:
-            all_provider_info = [provider_info(idp_id) for idp_id in list(idps.keys())]
-            default_provider_info = provider_info(default_idp)
-        except KeyError as e:
-            raise InternalError("identity providers misconfigured: {}".format(str(e)))
+        all_provider_info = [
+            provider_info(login_details) for login_details in login_options
+        ]
+        # if several login_options are defined for this default IDP, will
+        # default to the first one:
+        default_provider_info = next(
+            (info for info in all_provider_info if info["idp"] == default_idp), None
+        )
+        if not default_provider_info:
+            raise InternalError("default provider misconfigured")
 
         return flask.jsonify(
             {"default_provider": default_provider_info, "providers": all_provider_info}

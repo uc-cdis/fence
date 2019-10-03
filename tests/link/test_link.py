@@ -77,10 +77,10 @@ def test_google_link_redirect_no_google_idp(
             # ID for which of the providers to default to.
             "default": "fence",
             # Information for identity providers.
-            "providers": {
-                "fence": {"name": "Fence Multi-Tenant OAuth"},
-                "shibboleth": {"name": "NIH Login"},
-            },
+            "login_options": [
+                {"idp": "fence", "name": "Fence Multi-Tenant OAuth"},
+                {"idp": "shibboleth", "name": "NIH Login"},
+            ],
         },
         "OPENID_CONNECT": {
             "google": {
