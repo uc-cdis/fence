@@ -159,6 +159,7 @@ ENABLED_IDENTITY_PROVIDERS:
     - name: 'InCommon Login'
       idp: fence
       shib_idps:
+        - urn:mace:incommon:nih.gov
         - urn:mace:incommon:uchicago.edu
     - name: 'Orcid Login'
       idp: orcid
