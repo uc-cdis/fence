@@ -276,12 +276,24 @@ dbGaP:
     proxy_user: ''
   protocol: 'sftp'
   decrypt_key: ''
+  # parse out the consent from the dbgap accession number such that something
+  # like "phs000123.v1.p1.c2" becomes "phs000123.c2"
+  #
+  # NOTE: when this is "false" the above would become "phs000123"
   parse_consent_code: true
+  # A consent of "c999" indicates access to that study's "exchange area data"
+  # and when a user has access to one study's exchange area data, they
+  # have access to "common exchange area data" that is not study specific.
+  # The below configurations are for the Fence project name a user gets access
+  # to and the Arborist resource they get access to.
+  parse_exchange_area_code: false
+  common_exchange_area_project: 'common_exchange'
   # A mapping from the dbgap study to which authorization namespaces the actual data
   # lives in. For example, `studyX` data may exist in multiple organizations, so
   # we need to know to map authorization to all orgs resources
   study_to_resource_namespaces:
     '_default': ['/orgA/']
+    'common_exchange': ['/dbgap/']
     'phs000178': ['/orgA/', '/orgB/', '/']
 
 # //////////////////////////////////////////////////////////////////////////////////////

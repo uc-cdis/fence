@@ -299,6 +299,10 @@ class UserSyncer(object):
             self.protocol = dbGaP["protocol"]
             self.dbgap_key = dbGaP["decrypt_key"]
         self.parse_consent_code = dbGaP.get("parse_consent_code", True)
+        self.parse_exchange_area_code = dbGaP.get("parse_exchange_area_code", False)
+        self.common_exchange_area_project = dbGaP.get(
+            "common_exchange_area_project", "common_exchange"
+        )
         self.session = db_session
         self.driver = SQLAlchemyDriver(DB)
         self.project_mapping = project_mapping or {}
@@ -455,7 +459,32 @@ class UserSyncer(object):
                     dbgap_project = phsid[0]
                     if len(phsid) > 1 and self.parse_consent_code:
                         consent_code = phsid[-1]
-                        if consent_code != "c999":
+
+                        # c999 indicates access to a study-specific exchange area
+                        # access to at least one study-specific exchange implies access
+                        # to the common exchange area
+                        self.logger.debug(
+                            f"got consent code {consent_code} from dbGaP project "
+                            "{dbgap_project}"
+                        )
+                        if consent_code == "c999" and self.parse_exchange_area_code:
+                            self.logger.info(
+                                "found study with consent c999 and Fence "
+                                "is configured to parse exchange area data. Giving user "
+                                f"{username} {privileges} privileges in project: "
+                                f"{self.common_exchange_area_project}."
+                            )
+                            self._add_dbgap_project_for_user(
+                                self.common_exchange_area_project,
+                                privileges,
+                                username,
+                                sess,
+                                user_projects,
+                            )
+
+                        # we want to add the dbgap project if it's a normal consent code
+                        # or if we're parsing the exchange area code
+                        if consent_code != "c999" or self.parse_exchange_area_code:
                             dbgap_project += "." + consent_code
 
                     display_name = row.get("user name", "")
@@ -467,31 +496,9 @@ class UserSyncer(object):
                     }
 
                     if dbgap_project not in self.project_mapping:
-                        if dbgap_project not in self._projects:
-
-                            self.logger.debug(
-                                "creating Project in fence from dbGaP study: {}".format(
-                                    dbgap_project
-                                )
-                            )
-
-                            project = self._get_or_create(
-                                sess, Project, auth_id=dbgap_project
-                            )
-
-                            # need to add dbgap project to arborist
-                            if self.arborist_client:
-                                self._add_dbgap_study_to_arborist(dbgap_project)
-
-                            if project.name is None:
-                                project.name = dbgap_project
-                            self._projects[dbgap_project] = project
-                        phsid_privileges = {dbgap_project: set(privileges)}
-                        if username in user_projects:
-                            user_projects[username].update(phsid_privileges)
-                        else:
-                            user_projects[username] = phsid_privileges
-
+                        self._add_dbgap_project_for_user(
+                            dbgap_project, privileges, username, sess, user_projects
+                        )
                     for element_dict in self.project_mapping.get(dbgap_project, []):
                         try:
                             phsid_privileges = {
@@ -510,6 +517,33 @@ class UserSyncer(object):
                         except ValueError as e:
                             self.logger.info(e)
         return user_projects, user_info
+
+    def _add_dbgap_project_for_user(
+        self, dbgap_project, privileges, username, sess, user_projects
+    ):
+        """
+        Helper function for csv parsing that adds a given dbgap project to Fence/Arborist
+        and then updates the dictionary containing all user's project access
+        """
+        if dbgap_project not in self._projects:
+            self.logger.debug(
+                "creating Project in fence for dbGaP study: {}".format(dbgap_project)
+            )
+
+            project = self._get_or_create(sess, Project, auth_id=dbgap_project)
+
+            # need to add dbgap project to arborist
+            if self.arborist_client:
+                self._add_dbgap_study_to_arborist(dbgap_project)
+
+            if project.name is None:
+                project.name = dbgap_project
+            self._projects[dbgap_project] = project
+        phsid_privileges = {dbgap_project: set(privileges)}
+        if username in user_projects:
+            user_projects[username].update(phsid_privileges)
+        else:
+            user_projects[username] = phsid_privileges
 
     @staticmethod
     def sync_two_user_info_dict(user_info1, user_info2):
@@ -976,6 +1010,7 @@ class UserSyncer(object):
         self.sync_two_user_info_dict(user_info_csv, user_info)
 
         # privilleges in yaml files overide ones in csv files
+        self.logger.error(user_yaml.projects)
         self.sync_two_phsids_dict(user_yaml.projects, user_projects)
         self.sync_two_user_info_dict(user_yaml.user_info, user_info)
 
@@ -1259,11 +1294,14 @@ class UserSyncer(object):
             .get("study_to_resource_namespaces", {})
             .get("_default", ["/"])
         )
+        self.logger.debug(config["dbGaP"]["study_to_resource_namespaces"])
         namespaces = (
             config["dbGaP"]
             .get("study_to_resource_namespaces", {})
             .get(dbgap_study, default_namespaces)
         )
+
+        self.logger.debug(f"dbgap study namespaces: {namespaces}")
 
         arborist_resource_namespaces = [
             namespace.rstrip("/") + "/programs/" for namespace in namespaces

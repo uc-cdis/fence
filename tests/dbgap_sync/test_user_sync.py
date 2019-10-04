@@ -4,7 +4,7 @@ import yaml
 
 from fence import models
 from fence.sync.sync_users import _format_policy_id
-
+from fence.config import config
 from tests.dbgap_sync.conftest import LOCAL_YAML_DIR
 
 
@@ -93,6 +93,129 @@ def test_sync(syncer, db_session, storage_client):
     assert not user.is_admin
     user_access = db_session.query(models.AccessPrivilege).filter_by(user=user).all()
     assert not user_access
+
+
+@pytest.mark.parametrize("syncer", ["google"], indirect=True)
+@pytest.mark.parametrize("parse_exchange_area_config", [False, True])
+@pytest.mark.parametrize("parse_consent_code_config", [False, True])
+def test_dbgap_consent_codes(
+    syncer,
+    db_session,
+    storage_client,
+    parse_exchange_area_config,
+    parse_consent_code_config,
+    monkeypatch,
+):
+    # patch the sync to use the parameterized value for whether or not to parse exchange
+    # area data
+    monkeypatch.setattr(syncer, "parse_exchange_area_code", parse_exchange_area_config)
+    monkeypatch.setattr(syncer, "parse_consent_code", parse_consent_code_config)
+    monkeypatch.setattr(syncer, "project_mapping", {})
+
+    syncer.sync()
+
+    user = models.query_for_user(session=db_session, username="USERC")
+    if parse_consent_code_config:
+        if parse_exchange_area_config:
+            assert user.project_access == {
+                "phs000179.c1": ["read-storage"],
+                "phs000178.c999": ["read-storage"],
+                # should additionally include the study-specific exchange area access and
+                # access to the common exchange area
+                config["dbGaP"].get("common_exchange_area_project", ""): [
+                    "read-storage"
+                ],
+            }
+        else:
+            assert user.project_access == {
+                "phs000179.c1": ["read-storage"],
+                # behavior for c999 when exchange area parsing is NOT enabled is to
+                # simply provide access to the study itself without a consent group
+                "phs000178": ["read-storage"],
+            }
+    else:
+        assert user.project_access == {
+            "phs000178": ["read-storage"],
+            "phs000179": ["read-storage"],
+        }
+
+    user = models.query_for_user(session=db_session, username="USERF")
+    if parse_consent_code_config:
+        assert user.project_access == {
+            "phs000178.c1": ["read-storage"],
+            "phs000178.c2": ["read-storage"],
+        }
+    else:
+        assert user.project_access == {"phs000178": ["read-storage"]}
+
+    user = models.query_for_user(session=db_session, username="TESTUSERB")
+    if parse_consent_code_config:
+        assert user.project_access == {
+            "phs000178.c1": ["read-storage"],
+            "phs000179.c1": ["read-storage"],
+        }
+    else:
+        assert user.project_access == {
+            "phs000178": ["read-storage"],
+            "phs000179": ["read-storage"],
+        }
+
+    user = models.query_for_user(session=db_session, username="TESTUSERD")
+    if parse_consent_code_config:
+        assert user.project_access == {"phs000179.c1": ["read-storage"]}
+    else:
+        assert user.project_access == {"phs000179": ["read-storage"]}
+
+    resource_to_parent_paths = {}
+    for call in syncer.arborist_client.update_resource.call_args_list:
+        args, kwargs = call
+        parent_path = args[0]
+        resource = args[1].get("name")
+        resource_to_parent_paths.setdefault(resource, []).append(parent_path)
+
+    if parse_consent_code_config:
+        if parse_exchange_area_config:
+            assert "phs000178.c999" in resource_to_parent_paths
+            assert resource_to_parent_paths["phs000178.c999"] == ["/orgA/programs/"]
+
+            assert (
+                config["dbGaP"].get("common_exchange_area_project", "")
+                in resource_to_parent_paths
+            )
+            assert resource_to_parent_paths[
+                config["dbGaP"].get("common_exchange_area_project", "")
+            ] == ["/dbgap/programs/"]
+        else:
+            # behavior for c999 when exchange area parsing is NOT enabled is to
+            # simply provide access to the study itself without a consent group
+            assert "phs000178" in resource_to_parent_paths
+            # NOTE: this study is configured to have multiple names in the dbgap config
+            assert resource_to_parent_paths["phs000178"] == [
+                "/orgA/programs/",
+                "/orgB/programs/",
+                "/programs/",
+            ]
+
+    if parse_consent_code_config:
+        assert "phs000178.c1" in resource_to_parent_paths
+        assert resource_to_parent_paths["phs000178.c1"] == ["/orgA/programs/"]
+
+        assert "phs000178.c2" in resource_to_parent_paths
+        assert resource_to_parent_paths["phs000178.c2"] == ["/orgA/programs/"]
+
+        assert "phs000179.c1" in resource_to_parent_paths
+        assert resource_to_parent_paths["phs000179.c1"] == ["/orgA/programs/"]
+    else:
+        assert "phs000178" in resource_to_parent_paths
+        # NOTE: this study is configured to have multiple names in the dbgap config
+        assert resource_to_parent_paths["phs000178"] == [
+            "/orgA/programs/",
+            "/orgB/programs/",
+            "/programs/",
+        ]
+
+        assert "phs000179" in resource_to_parent_paths
+        assert resource_to_parent_paths["phs000179"] == ["/orgA/programs/"]
 
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
