@@ -48,7 +48,7 @@ def test_sync(syncer, db_session, storage_client):
     assert len(users) == 11
 
     tags = db_session.query(models.Tag).all()
-    assert len(tags) == 7
+    assert len(tags) == 11
 
     proj = db_session.query(models.Project).all()
     assert len(proj) == 9
