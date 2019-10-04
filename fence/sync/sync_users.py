@@ -1020,7 +1020,6 @@ class UserSyncer(object):
         self.sync_two_user_info_dict(user_info_csv, user_info)
 
         # privilleges in yaml files overide ones in csv files
-        self.logger.error(user_yaml.projects)
         self.sync_two_phsids_dict(user_yaml.projects, user_projects)
         self.sync_two_user_info_dict(user_yaml.user_info, user_info)
 
