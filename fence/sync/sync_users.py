@@ -488,11 +488,21 @@ class UserSyncer(object):
                             dbgap_project += "." + consent_code
 
                     display_name = row.get("user name", "")
+                    tags = {"dbgap_role": row.get("role", "")}
+
+                    # some dbgap telemetry files have information about a researchers PI
+                    if "downloader for" in row:
+                        tags["pi"] = row["downloader for"]
+
+                    # prefer name over previous "downloader for" if it exists
+                    if "downloader for names" in row:
+                        tags["pi"] = row["downloader for names"]
+
                     user_info[username] = {
                         "email": row.get("email", ""),
                         "display_name": display_name,
                         "phone_number": row.get("phone", ""),
-                        "tags": {"dbgap_role": row.get("role", "")},
+                        "tags": tags,
                     }
 
                     if dbgap_project not in self.project_mapping:
