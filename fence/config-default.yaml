@@ -371,7 +371,7 @@ dbGaP:
   protocol: 'sftp'
   decrypt_key: ''
   # parse out the consent from the dbgap accession number such that something
-  # like "phs000123.v1.p1.c2" becomes "phs000123.c2"
+  # like "phs000123.v1.p1.c2" becomes "phs000123.c2".
   #
   # NOTE: when this is "false" the above would become "phs000123"
   parse_consent_code: true
