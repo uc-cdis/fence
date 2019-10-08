@@ -1,0 +1,13 @@
+# Dependabot configuration for Live updates for dependencies
+# https://dependabot.com/docs/config-file/
+version: 1
+update_configs:
+  - package_manager: "python"
+    directory: "/"
+    update_schedule: "live"
+    default_reviewers:
+      - "fantix"
+      - "m0nhawk"
+      - "Avantol13"
+    default_labels:
+      - "dependencies"
