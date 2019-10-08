@@ -1303,7 +1303,6 @@ class UserSyncer(object):
             .get("study_to_resource_namespaces", {})
             .get("_default", ["/"])
         )
-        self.logger.debug(config["dbGaP"]["study_to_resource_namespaces"])
         namespaces = (
             config["dbGaP"]
             .get("study_to_resource_namespaces", {})
