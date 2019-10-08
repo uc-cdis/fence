@@ -1365,7 +1365,6 @@ def google_list_authz_groups(db):
     db (string): database instance
     """
     driver = SQLAlchemyDriver(db)
-    from sqlalchemy.sql import select
 
     with driver.session as db_session:
         google_authz = (
