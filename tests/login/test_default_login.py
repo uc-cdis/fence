@@ -20,7 +20,7 @@ def test_default_login(app, client):
     assert response_default["name"] in names_for_this_idp
 
 
-def test_enabled_login(app, client):
+def test_enabled_logins(app, client):
     response_json = client.get("/login").json
     assert "providers" in response_json
     response_providers = response_json["providers"]

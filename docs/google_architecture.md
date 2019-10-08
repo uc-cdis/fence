@@ -74,7 +74,7 @@ Google supports a bucket-level configuration called ["Requester Pays"](https://c
 
 > Without requester pays enabled, the Google project the Google Bucket is in gets billed.
 
-The Data Access methods [Signed URLs](#signed-urls) and [Temporary Service Account Credentials](#temporary-service-account-credentials) support accessing requester pays buckets with some additional configuration and considerations (noteably: how it affects end-users).
+The Data Access methods [Signed URLs](#signed-urls) and [Temporary Service Account Credentials](#temporary-service-account-credentials) support accessing requester pays buckets with some additional configuration and considerations (notably: how it affects end-users).
 
 In order to fully understand the options for requester pays support, it's important to first understand the technical steps to get any of these Google Data Access methods to work, as detailed in the library Fence uses for Google API interactions, [cirrus](https://github.com/uc-cdis/cirrus). It would also be useful to read through the access method details for [Signed URLs](#signed-urls) and [Temporary Service Account Credentials](#temporary-service-account-credentials).
 
@@ -133,7 +133,7 @@ If you want Fence to automatically attempt to provide the necessary permissions 
 Example for Google's Cloud Storage SDK `gsutil`:
 
 ```bash
-# activate the temporary service account credentials recieved from Fence
+# activate the temporary service account credentials received from Fence
 # this assumes the creds are saved in a file named `creds.json`
 gcloud auth activate-service-account --key-file ./creds.json
 
@@ -179,7 +179,7 @@ Each Client Service Account is a member in the User's Proxy Group, meaning it ha
 
 > WARNING: By default, Google Service Account Keys have an expiration of 10 years. To create a more manageable and secure expiration you must manually "expire" the keys by deleting them with a cronjob (once they are alive longer than a configured expiration). Fence's command line tool `fence-create` has a function for expiring keys that you should run on a schedule. Check out `fence-create google-manage-keys --help`
 
-Note that internally, we handle users themselves generating these temporary credentials differently. A user is given a **Primary Service Account** which is essentially the same thing as a Client Service Account, but is meant for use solely by the user themself (e.g. not going through a client or outside applcation but hitting the API directly).
+Note that internally, we handle users themselves generating these temporary credentials differently. A user is given a **Primary Service Account** which is essentially the same thing as a Client Service Account, but is meant for use solely by the user themself (e.g. not going through a client or outside application but hitting the API directly).
 
 At the moment, we track keys generated for the Primary Service Account in our db. Client Service Accounts are expired by checking their creation time through Google's API.
 
@@ -207,7 +207,7 @@ A user logs into fence with their eRA Commons ID. To get access to data through 
 
 ---
 
-Google Account Linking is achieved by sending the user through the beginning of the OIDC flow with Google. The user is redirected to a Google Login page and whichever account they succesfully log in to becomes linked to their fence identity.
+Google Account Linking is achieved by sending the user through the beginning of the OIDC flow with Google. The user is redirected to a Google Login page and whichever account they successfully log in to becomes linked to their fence identity.
 
 ![Google Account Linking](images/g_accnt_link.png)
 
@@ -227,7 +227,7 @@ This allows a user to create their own personal Google Cloud Project and registe
 
 This method also requires Fence to have access to that user's Google project. Fence is then able to monitor the project for any anomalies that may unintentionally provide data access to entities who should not have access.
 
-In order to register a Service Account, *all* users in the Google Project must have already gone through Google Account Linking (as desribed above). After that, any user on the project can attempt to register a service account with fence.
+In order to register a Service Account, *all* users in the Google Project must have already gone through Google Account Linking (as described above). After that, any user on the project can attempt to register a service account with fence.
 
 ---
 
@@ -247,7 +247,7 @@ Projects are always validated against the following checks:
    * Checks if the Google project either has no parent organization, or if it does, it is included on the whitelist of parent organizations (defined in Fence config). (The reason for this logic is that user permissions can be inherited from a parent organization, but the Fence SA is only given permission on the project level and thus can only read project-specific IAM policies. Any inherited policies will not be available during validation. Therefore, if there is no parent org then there is nothing to worry about, but if there is, then we must trust the parent org to have properly set its permissions.)
 * Google Project only has valid member types
    * Key: `valid_member_types`
-   * Checks if the Google project ony has members that are User Accounts or Service Accounts.
+   * Checks if the Google project only has members that are User Accounts or Service Accounts.
 * Google Project members exist in fence
    * Key: `members_exist_in_fence`
    * Checks if the User members on the Google project exist in the fence DB

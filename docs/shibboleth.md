@@ -1,6 +1,16 @@
-# Shibboleth
+# Shibboleth / InCommon login
 
-The Shibboleth login flow is:
+Shibboleth is set up at login.bionimbus.org and lets us log in through InCommon by specifying the `shib_idp` parameter (as of fence release 4.7.0 and fence-shib release 2.7.2). If no `shib_idp` is specified (or if using an earlier fence version), users will be redirected to the NIH login page by default.
+
+## Login flow
+
+The `/login/fence` endpoint (multi-tenant fence login endpoint) accepts the query parameters `ipd` and `shib_idp`. If `idp` is set to `shibboleth`, fence adds the `ipd` and `shib_idp` parameters to the authorization URL (typically `https://login.bionimbus.org/oauth2/authorize`) before redirecting the user.
+
+The `/authorize` endpoint accepts the query parameters `ipd` and `shib_idp`. If `idp` is set to `shibboleth`, fence adds the `shib_idp` parameter to the login URL before redirecting the user.
+
+The `/login/shib` endpoint accepts the query parameter `shib_idp`. Fence checks this parameter to know which Shibboleth identity provider to use (by default, if no `shib_idp` is specified, NIH is used by default). All all valid identifiers for `shib_idp` are listed at https://login.bionimbus.org/Shibboleth.sso/DiscoFeed (`entityID`).
+
+The Shibboleth login flow when no `shib_idp` is specified is:
 ```
 user
 -> {fence}/login/shib?redirect={portal}
@@ -10,62 +20,70 @@ user
 -> redirect to portal
 ```
 
-Fence checks the request parameter `ipd` and if it's equal to `shibboleth`, it then checks the request parameter `shib_idp` to know which identity provider to use (by default, if no `idp` and/or no `shib_idp` is specified, NIH is used). All valid identifiers for `shib_idp` are listed at https://login.bionimbus.org/Shibboleth.sso/DiscoFeed. Example IDPs:
-- NIH iTrust (`shib_idp=urn:mace:incommon:nih.gov`. Default)
-- InCommon (`shib_idp=urn:mace:incommon:uchicago.edu`)
-- eduGAIN
-
-**Warning:** Shibboleth login does not work if there are more than one replica, or if logging in through a canary.
-
 ## Configuration
 
-### In login.bionimbus
+### In login.bionimbus.org
 
 The [Shibboleth dockerfile](../DockerfileShib) image is at https://quay.io/repository/cdis/fence-shib and is NOT compatible yet with python 3/the latest fence (for now, use fence 2.7.x).
 
-`login.bionimbus.org` is under the Genomel AWS acccount. The deployment includes `revproxy` and `fenceshib`. Example deployment:
+`login.bionimbus.org` is under the Genomel AWS acccount. The deployment only includes `revproxy` and `fenceshib`. The fence configuration enables the `shibboleth` provider:
+
 ```
-"versions": {
-  "fenceshib": "quay.io/cdis/fence-shib:2.7.1",
-  "revproxy": "quay.io/cdis/nginx:1.15.5-ctds"
-}
+OPENID_CONNECT:
+  shibboleth:
+    [...]
+ENABLED_IDENTITY_PROVIDERS:
+  providers:
+    shibboleth:
+      name: Shibboleth Login
 ```
 
-### In the Commons which is set up with Shibboleth login
+Note that because fenceshib is not compatible with the latest fence yet, we must use the deprecated `providers` field instead of the newer `login_options` field.
 
-Register an OIDC client using [this `fence-create` command](https://github.com/uc-cdis/fence#register-internal-oauth-client), the redirect url should be `https://$COMMONS_DOMAIN/user/login/fence/login`.
+The Shibboleth configuration can be checked inside the fenceshib pod under `/etc/shibboleth/`.
 
-Fence configuration:
+**Warning:** Shibboleth login does not work if there are more than one replica, or if logging in through a canary.
+
+### In the Commons which is set up with InCommon login
+
+Register an OIDC client using [this `fence-create` command](https://github.com/uc-cdis/fence#register-internal-oauth-client), the redirect url should be `<COMMONS_URL>/user/login/fence/login`.
+
+The fence configuration enables the `fence` provider (multi-tenant fence setup):
 ```
 OPENID_CONNECT:
   fence:
-    api_base_url: 'https://example.com'
-    client_id: ''
-    client_secret: ''
-    client_kwargs:
-      # openid is required to use OIDC flow
-      scope: 'openid'
-      # callback after logging in through the other fence
-      redirect_uri: '{{BASE_URL}}/login/fence/login'
-    # The next 3 should not need to be changed if the provider is following
-    # Oauth2 endpoint naming conventions
-    authorize_url: 'https://login.bionimbus.org/oauth2/authorize'
-    access_token_url: 'https://login.bionimbus.org/oauth2/token'
-    name: 'Shib Login'
-ENABLED_IDENTITY_PROVIDERS:
-  providers:
-    fence:
-      name: 'Fence Multi-Tenant Login'
+    [...]
 ```
+
+Setup example:
+```
+ENABLED_IDENTITY_PROVIDERS:
+  default: fence
+  login_options:
+    - name: 'NIH Login by default'
+      idp: fence
+    - name: 'NIH Login'
+      idp: fence
+      shib_idps:
+       - urn:mace:incommon:nih.gov
+    - name: 'UChicago Login'
+      idp: fence
+      shib_idps:
+       - urn:mace:incommon:uchicago.edu
+    - name: 'InCommon Login list'
+      idp: fence
+      shib_idps:
+        - urn:mace:incommon:nih.gov
+        - urn:mace:incommon:uchicago.edu
+    - name: 'InCommon Login all'
+      idp: fence
+      shib_idps: '*'
+```
+
+Several login options can use the same provider (`idp`). Each option that uses the `fence` provider can specify one or more InCommon IDPs `shib_idps` in a list, _or_ the wildcard string `'*'` to enable all available InCommon IDPs (be careful not to omit the quotes when using the wildcard). If no `shib_idps` are specified, fence will default to NIH login.
 
 ## Staging
 
 `qa-biologin` is under the Genomel AWS acccount.
 
 To use it, get the QA login.bionimbus IP and edit your local `/etc/hosts` to map this IP to `login.bionimbus.org`. Also edit `/etc/hosts` in the fence pod of the Commons that will be logging in through the QA login.bionimbus (this can be automated in `fence-deploy.yaml`).
-
-## InCommon login
-
-login.bionimbus should have provider `shibboleth` in section `OPENID_CONNECT` of the fence config.
-
-In the Commons which is set up with InCommon login, the `authorize_url` should be `https://login.bionimbus.org/oauth2/authorize?idp=shibboleth&shib_idp={chosen_shib_idp}`.

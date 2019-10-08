@@ -20,7 +20,7 @@ Fence is a core service of the Gen3 stack that has multiple capabilities:
 
 1. [API Documentation](#API-documentation)
 1. [Terminologies](#Terminologies)
-1. [Identity Providers](#identity-provider)
+1. [Identity Providers](#identity-providers)
 1. [OIDC & OAuth2](#oidc--oauth2)
 1. [Accessing Data](#accessing-data)
 1. [Setup](#setup)
@@ -95,12 +95,10 @@ Relying Party - an OAuth 2.0 Client which uses (requests) OpenID Connect.
 Fence can be configured to support different Identity Providers (IdPs) for AuthN.
 At the moment, supported IDPs include:
 - Google
-- Shibboleth
+- [Shibboleth](docs/shibboleth.md)
   - NIH iTrust
   - InCommon
   - eduGAIN
-
-Note: the Shibboleth dockerfile image is at https://quay.io/repository/cdis/fence-shib and is NOT compatible with python 3/the latest fence.
 
 ## OIDC & OAuth2
 
