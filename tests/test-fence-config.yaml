@@ -92,6 +92,7 @@ OPENID_CONNECT:
     client_id: ''
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/fence/login'
+    shibboleth_discovery_url: 'https://login.bionimbus.org/Shibboleth.sso/DiscoFeed'
   shibboleth:
     client_id: ''
     client_secret: ''
