@@ -436,8 +436,10 @@ class UserSyncer(object):
         for filepath, privileges in file_dict.items():
             self.logger.info("Reading file {}".format(filepath))
             if os.stat(filepath).st_size == 0:
+                self.logger.warning("Empty file {}".format(filepath))
                 continue
             if not self._match_pattern(filepath, encrypted=encrypted):
+                self.logger.warning("Invalid file path {}".format(filepath))
                 continue
 
             dbgap_key = getattr(self, "dbgap_key", None)
