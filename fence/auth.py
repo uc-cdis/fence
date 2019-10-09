@@ -145,16 +145,15 @@ def login_required(scope=None):
                 return f(*args, **kwargs)
 
             eppn = None
-            if "login_options" in config["ENABLED_IDENTITY_PROVIDERS"]:
+            if "LOGIN_OPTIONS" in config:
                 enable_shib = "shibboleth" in [
-                    option["idp"]
-                    for option in config["ENABLED_IDENTITY_PROVIDERS"]["login_options"]
+                    option["idp"] for option in config["LOGIN_OPTIONS"]
                 ]
             else:
                 # fall back on "providers"
-                enable_shib = "shibboleth" in config["ENABLED_IDENTITY_PROVIDERS"].get(
-                    "providers", {}
-                )
+                enable_shib = "shibboleth" in config.get(
+                    "ENABLED_IDENTITY_PROVIDERS", {}
+                ).get("providers", {})
 
             if enable_shib and "SHIBBOLETH_HEADER" in config:
                 eppn = flask.request.headers.get(config["SHIBBOLETH_HEADER"])

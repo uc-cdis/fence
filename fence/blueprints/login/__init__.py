@@ -47,38 +47,6 @@ def make_login_blueprint(app):
         ValueError: if app is not amenably configured
     """
 
-    try:
-        default_idp = config["ENABLED_IDENTITY_PROVIDERS"]["default"]
-        if "login_options" in config["ENABLED_IDENTITY_PROVIDERS"]:
-            login_options = config["ENABLED_IDENTITY_PROVIDERS"]["login_options"]
-        else:
-            # fall back on "providers" and convert to "login_options" format
-            enabled_providers = config["ENABLED_IDENTITY_PROVIDERS"]["providers"]
-            login_options = [
-                {
-                    "name": details["name"],
-                    "idp": idp,
-                    "desc": details.get("desc"),
-                    "secondary": details.get("secondary"),
-                }
-                for idp, details in enabled_providers.items()
-            ]
-    except KeyError as e:
-        logger.warn(
-            "app not configured correctly with ENABLED_IDENTITY_PROVIDERS:"
-            " missing {}".format(str(e))
-        )
-        default_idp = None
-        login_options = []
-
-    enabled_idps = [login_details["idp"] for login_details in login_options]
-
-    # check if google is configured as a client. we will at least need a
-    # a callback if it is
-    google_client_exists = (
-        "OPENID_CONNECT" in config and "google" in config["OPENID_CONNECT"]
-    )
-
     blueprint = flask.Blueprint("login", __name__)
     blueprint_api = RestfulApi(blueprint)
 
@@ -87,6 +55,34 @@ def make_login_blueprint(app):
         """
         The default root login route.
         """
+        # default login option
+        if "DEFAULT_LOGIN_IDP" in config:
+            default_idp = config["DEFAULT_LOGIN_IDP"]
+        elif "default" in config.get("ENABLED_IDENTITY_PROVIDERS", {}):
+            # fall back on ENABLED_IDENTITY_PROVIDERS.default
+            default_idp = config["ENABLED_IDENTITY_PROVIDERS"]["default"]
+        else:
+            logger.warn("DEFAULT_LOGIN_IDP not configured")
+            default_idp = None
+
+        # other login options
+        if "LOGIN_OPTIONS" in config:
+            login_options = config["LOGIN_OPTIONS"]
+        elif "providers" in config.get("ENABLED_IDENTITY_PROVIDERS", {}):
+            # fall back on "providers" and convert to "login_options" format
+            enabled_providers = config["ENABLED_IDENTITY_PROVIDERS"]["providers"]
+            login_options = [
+                {
+                    "name": details.get("name"),
+                    "idp": idp,
+                    "desc": details.get("desc"),
+                    "secondary": details.get("secondary"),
+                }
+                for idp, details in enabled_providers.items()
+            ]
+        else:
+            logger.warn("LOGIN_OPTIONS not configured")
+            login_options = []
 
         def absolute_login_url(provider_id, shib_idp=None):
             try:
@@ -172,9 +168,12 @@ def make_login_blueprint(app):
 
             return info
 
-        all_provider_info = [
-            provider_info(login_details) for login_details in login_options
-        ]
+        try:
+            all_provider_info = [
+                provider_info(login_details) for login_details in login_options
+            ]
+        except KeyError as e:
+            raise InternalError("login options misconfigured: {}".format(e))
 
         # if several login_options are defined for this default IDP, will
         # default to the first one:
@@ -189,38 +188,35 @@ def make_login_blueprint(app):
         )
 
     # Add identity provider login routes for IDPs enabled in the config.
+    configured_idps = config["OPENID_CONNECT"].keys()
 
-    if "fence" in enabled_idps:
+    if "fence" in configured_idps:
         blueprint_api.add_resource(FenceLogin, "/fence", strict_slashes=False)
         blueprint_api.add_resource(FenceCallback, "/fence/login", strict_slashes=False)
 
-    if "google" in enabled_idps:
+    if "google" in configured_idps:
         blueprint_api.add_resource(GoogleLogin, "/google", strict_slashes=False)
-
-    # we can use Google Client and callback here without the login endpoint
-    # if Google is configured as a client but not in the idps
-    if "google" in enabled_idps or google_client_exists:
         blueprint_api.add_resource(
             GoogleCallback, "/google/login", strict_slashes=False
         )
 
-    if "orcid" in enabled_idps:
+    if "orcid" in configured_idps:
         blueprint_api.add_resource(ORCIDLogin, "/orcid", strict_slashes=False)
         blueprint_api.add_resource(ORCIDCallback, "/orcid/login", strict_slashes=False)
 
-    if "synapse" in enabled_idps:
+    if "synapse" in configured_idps:
         blueprint_api.add_resource(SynapseLogin, "/synapse", strict_slashes=False)
         blueprint_api.add_resource(
             SynapseCallback, "/synapse/login", strict_slashes=False
         )
 
-    if "microsoft" in enabled_idps:
+    if "microsoft" in configured_idps:
         blueprint_api.add_resource(MicrosoftLogin, "/microsoft", strict_slashes=False)
         blueprint_api.add_resource(
             MicrosoftCallback, "/microsoft/login", strict_slashes=False
         )
 
-    if "shibboleth" in enabled_idps:
+    if "shibboleth" in configured_idps:
         blueprint_api.add_resource(ShibbolethLogin, "/shib", strict_slashes=False)
         blueprint_api.add_resource(
             ShibbolethCallback, "/shib/login", strict_slashes=False
@@ -236,7 +232,12 @@ def get_all_shib_idps():
     Returns:
         list: list of {"idp": "", "name": ""} dictionaries
     """
-    res = requests.get("https://login.bionimbus.org/Shibboleth.sso/DiscoFeed")
+    url = config["OPENID_CONNECT"].get("fence", {}).get("shibboleth_discovery_url")
+    if not url:
+        raise InternalError(
+            "Unable to get list of Shibboleth IDPs: OPENID_CONNECT.fence.shibboleth_discovery_url not configured"
+        )
+    res = requests.get(url)
     assert (
         res.status_code == 200
     ), "Unable to get list of Shibboleth IDPs from {}".format(url)

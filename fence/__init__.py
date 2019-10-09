@@ -248,15 +248,12 @@ def _set_authlib_cfgs(app):
 
 
 def _setup_oidc_clients(app):
-    if "login_options" in config["ENABLED_IDENTITY_PROVIDERS"]:
-        enabled_idp_ids = [
-            option["idp"]
-            for option in config["ENABLED_IDENTITY_PROVIDERS"]["login_options"]
-        ]
+    if "LOGIN_OPTIONS" in config:
+        enabled_idp_ids = [option["idp"] for option in config["LOGIN_OPTIONS"]]
     else:
         # fall back on "providers"
         enabled_idp_ids = list(
-            config["ENABLED_IDENTITY_PROVIDERS"].get("providers", {}).keys()
+            config.get("ENABLED_IDENTITY_PROVIDERS", {}).get("providers", {}).keys()
         )
     oidc = config.get("OPENID_CONNECT", {})
 

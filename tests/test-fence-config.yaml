@@ -88,6 +88,14 @@ OPENID_CONNECT:
     client_id: ''
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/microsoft/login/'
+  fence:
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/fence/login'
+  shibboleth:
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/shib/login'
 # these are the *possible* scopes a client can be given, NOT scopes that are
 # given to all clients. You can be more restrictive during client creation
 CLIENT_ALLOWED_SCOPES:
@@ -132,6 +140,7 @@ SESSION_ALLOWED_SCOPES:
 #   Google? Use: '{{BASE_URL}}/login/google'
 #   Multi-tenant fence (e.g. another fence instance)? Use: '{{BASE_URL}}/login/fence'
 #   Sibboleth? Use: '{{BASE_URL}}/login/shib'
+DEFAULT_LOGIN_IDP: google
 DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
 
 # `LOGIN_REDIRECT_WHITELIST` is a list of extra whitelisted URLs which can be redirected
@@ -144,29 +153,24 @@ LOGIN_REDIRECT_WHITELIST: []
 # See ``fence/blueprints/login/__init__.py`` for which identity providers can
 # be loaded.
 #
-ENABLED_IDENTITY_PROVIDERS:
-  # which of the IDP to default to. if several login_options are defined
-  # for this IDP, will default to the first one.
-  default: 'google'
-
-  login_options:
-    - name: 'Google Login'
-      idp: google
-      desc: 'description' # optional parameter
-      secondary: True # optional parameter
-    - name: 'Fence Multi-Tenant Login'
-      idp: fence
-    - name: 'InCommon Login'
-      idp: fence
-      shib_idps:
-        - urn:mace:incommon:nih.gov
-        - urn:mace:incommon:uchicago.edu
-    - name: 'Orcid Login'
-      idp: orcid
-    - name: 'Microsoft Login'
-      idp: microsoft
-    - name: 'NIH Login'
-      idp: shibboleth
+LOGIN_OPTIONS:
+  - name: 'Google Login'
+    idp: google
+    desc: 'description' # optional parameter
+    secondary: True # optional parameter
+  - name: 'Fence Multi-Tenant Login'
+    idp: fence
+  - name: 'InCommon Login'
+    idp: fence
+    shib_idps:
+      - urn:mace:incommon:nih.gov
+      - urn:mace:incommon:uchicago.edu
+  - name: 'Orcid Login'
+    idp: orcid
+  - name: 'Microsoft Login'
+    idp: microsoft
+  - name: 'NIH Login'
+    idp: shibboleth
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # LIBRARY CONFIGURATION (authlib & flask)
@@ -251,7 +255,7 @@ SUPPORT_EMAIL_FOR_ERRORS: null
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # SHIBBOLETH
-#   - Support using `shibboleth` in ENABLED_IDENTITY_PROVIDERS
+#   - Support using `shibboleth` in LOGIN_OPTIONS
 #   - Contains defaults for using NIH's Login.
 # //////////////////////////////////////////////////////////////////////////////////////
 # assumes shibboleth is deployed under {{BASE_URL}}/shibboleth

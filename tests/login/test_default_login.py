@@ -7,8 +7,8 @@ def test_default_login(app, client):
     response_json = client.get("/login").json
     assert "default_provider" in response_json
     response_default = response_json["default_provider"]
-    configured_logins = config["ENABLED_IDENTITY_PROVIDERS"]["login_options"]
-    default_idp = config["ENABLED_IDENTITY_PROVIDERS"]["default"]
+    configured_logins = config["LOGIN_OPTIONS"]
+    default_idp = config["DEFAULT_LOGIN_IDP"]
 
     # Check default IDP is correct.
     assert response_default["idp"] == default_idp
@@ -24,7 +24,7 @@ def test_enabled_logins(app, client):
     response_json = client.get("/login").json
     assert "providers" in response_json
     response_providers = response_json["providers"]
-    configured_logins = config["ENABLED_IDENTITY_PROVIDERS"]["login_options"]
+    configured_logins = config["LOGIN_OPTIONS"]
 
     # Check all providers in the response have the expected idp, name, URLs,
     # desc and secondary information
