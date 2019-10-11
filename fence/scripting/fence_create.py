@@ -1353,3 +1353,36 @@ def notify_problem_users(db, emails, auth_ids, check_linking, google_project_id)
 def migrate_database(db):
     driver = SQLAlchemyDriver(db)
     migrate(driver)
+    print("Done.")
+
+
+def google_list_authz_groups(db):
+    """
+    Builds a list of Google authorization information which includes
+    the Google Bucket Access Group emails, Bucket(s) they're associated with, and
+    underlying Fence Project auth_id that provides access to that Bucket/Group
+
+    db (string): database instance
+    """
+    driver = SQLAlchemyDriver(db)
+
+    with driver.session as db_session:
+        google_authz = (
+            db_session.query(
+                GoogleBucketAccessGroup.email,
+                Bucket.name,
+                Project.auth_id,
+                ProjectToBucket,
+            )
+            .join(Project, ProjectToBucket.project_id == Project.id)
+            .join(Bucket, ProjectToBucket.bucket_id == Bucket.id)
+            .join(
+                GoogleBucketAccessGroup, GoogleBucketAccessGroup.bucket_id == Bucket.id
+            )
+        ).all()
+
+        print("GoogleBucketAccessGroup.email, Bucket.name, Project.auth_id")
+        for item in google_authz:
+            print(", ".join(item[:-1]))
+
+        return google_authz
