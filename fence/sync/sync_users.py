@@ -1152,7 +1152,9 @@ class UserSyncer(object):
         # from authorization sources get policies revoked
         arborist_users = {}
         try:
-            arborist_users = self.arborist_client.get(url="/user").json
+            arborist_users = self.arborist_client.get(
+                url=self.arborist_client._user_url
+            ).json
         except ArboristError as error:
             self.logger.warning(
                 "Could not get list of users in Arborist, continuing anyway. "
