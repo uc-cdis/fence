@@ -1148,6 +1148,27 @@ class UserSyncer(object):
             # update the project info with `projects` specified in user.yaml
             self.sync_two_phsids_dict(user_yaml.user_abac, user_projects)
 
+        # get list of users from arborist to make sure users that are completely removed
+        # from authorization sources get policies revoked
+        arborist_users = {}
+        try:
+            arborist_users = self.arborist_client.get(url="/user").json
+        except ArboristError as error:
+            self.logger.warning(
+                "Could not get list of users in Arborist, continuing anyway. "
+                "WARNING: this sync will NOT remove access for users no longer in "
+                f"authorization sources. Arborist error: {error}"
+            )
+            # TODO usersync should exit with non-zero exit code at the end, but sync
+            #      itself should continue
+
+        arborist_user_projects = {
+            user.get("name", "unknown"): {} for user in arborist_users.items()
+        }
+
+        # update the project info with users from arborist
+        self.sync_two_phsids_dict(arborist_user_projects, user_projects)
+
         for username, user_project_info in user_projects.items():
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
