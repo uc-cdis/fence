@@ -1148,6 +1148,33 @@ class UserSyncer(object):
             # update the project info with `projects` specified in user.yaml
             self.sync_two_phsids_dict(user_yaml.user_abac, user_projects)
 
+        # get list of users from arborist to make sure users that are completely removed
+        # from authorization sources get policies revoked
+        arborist_user_projects = {}
+        try:
+            arborist_users = self.arborist_client.get(
+                url=self.arborist_client._user_url
+            ).json["users"]
+
+            # construct user information, NOTE the lowering of the username. when adding/
+            # removing access, the case in the Fence db is used. For combining access, it is
+            # case-insensitive, so we lower
+            arborist_user_projects = {
+                user["name"].lower(): {} for user in arborist_users
+            }
+        except (ArboristError, KeyError) as error:
+            # TODO usersync should probably exit with non-zero exit code at the end,
+            #      but sync should continue from this point so there are no partial
+            #      updates
+            self.logger.warning(
+                "Could not get list of users in Arborist, continuing anyway. "
+                "WARNING: this sync will NOT remove access for users no longer in "
+                f"authorization sources. Error: {error}"
+            )
+
+        # update the project info with users from arborist
+        self.sync_two_phsids_dict(arborist_user_projects, user_projects)
+
         for username, user_project_info in user_projects.items():
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
