@@ -1160,7 +1160,7 @@ class UserSyncer(object):
             # removing access, the case in the Fence db is used. For combining access, it is
             # case-insensitive, so we lower
             arborist_user_projects = {
-                user["name"].lower(): {} for user in arborist_users.items()
+                user["name"].lower(): {} for user in arborist_users
             }
         except (ArboristError, KeyError) as error:
             # TODO usersync should probably exit with non-zero exit code at the end,
