@@ -17,18 +17,18 @@ class SynapseOauth2Client(Oauth2ClientBase):
 
     REQUIRED_CLAIMS = {"given_name", "family_name", "email", "email_verified"}
     OPTIONAL_CLAIMS = {
-        "company",
-        "userid",
-        "orcid",
-        "is_certified",
-        "is_validated",
+        # "company",
+        # "userid",
+        # "orcid",
+        # "is_certified",
+        # "is_validated",
         "validated_given_name",
         "validated_family_name",
-        "validated_location",
+        # "validated_location",
         "validated_email",
-        "validated_company",
-        "validated_orcid",
-        "validated_at",
+        # "validated_company",
+        # "validated_orcid",
+        # "validated_at",
     }
     SYSTEM_CLAIMS = {"sub", "exp"}
     CUSTOM_CLAIMS = {"team"}
@@ -125,6 +125,7 @@ class SynapseOauth2Client(Oauth2ClientBase):
                         return dict(error="Required claim {} not found".format(claim))
                 else:
                     rv[claim] = value
+            rv["fence_username"] = rv["email"] + " (via Synapse)"
             return rv
         except Exception as e:
             self.logger.exception("Can't get user info")
