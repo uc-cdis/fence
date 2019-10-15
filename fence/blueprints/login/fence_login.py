@@ -1,11 +1,17 @@
+from cdislogging import get_logger
 import flask
 from flask_restful import Resource
+import requests
 
 from fence.auth import login_user
 from fence.blueprints.login.redirect import validate_redirect
-from fence.errors import Unauthorized
+from fence.config import config
+from fence.errors import Unauthorized, NotFound
 from fence.jwt.validate import validate_jwt
 from fence.models import IdentityProvider
+
+
+logger = get_logger(__name__)
 
 
 class FenceLogin(Resource):
@@ -71,3 +77,73 @@ class FenceCallback(Resource):
         if "redirect" in flask.session:
             return flask.redirect(flask.session.get("redirect"))
         return flask.jsonify({"username": username})
+
+
+class FenceDownstreamIDPs(Resource):
+    """
+    For ``/login/downstream-idps`` endpoint.
+
+    Should only be enabled if the fence IDP is using shibboleth.
+    """
+
+    def get(self):
+        """Handle ``GET /login/downstream-idps``."""
+        try:
+            content = get_disco_feed()
+        except EnvironmentError:
+            return flask.Response(
+                response=flask.jsonify(
+                    {"error": "couldn't reach endpoint on shibboleth provider"}
+                ),
+                status=500,
+            )
+        if not content:
+            raise NotFound("this endpoint is unavailable")
+        return flask.jsonify(content)
+
+def get_disco_feed():
+    """
+    For fence instances which point to a fence instance deployed with shibboleth IDP(s),
+    we want to list the available downstream IDPs that could be used for shibboleth
+    login. The `entityID` from the DiscoFeed can be provided to the /login/shib
+    endpoint, e.g. (without urlencoding):
+
+        /login/shib?shib_idp=urn:mace:incommon:uchicago.edu
+
+    where `urn:mace:incommon:uchicago.edu` is the `entityID` according to shibboleth.
+
+    Return:
+        Optional[dict]:
+            json response from the /Shibboleth.sso/DiscoFeed endpoint on the IDP fence;
+            or None if there is no fence IDP or if it returns 404 for DiscoFeed
+
+    Raises:
+        EnvironmentError: if the response is bad
+    """
+    # must be configured for fence IDP
+    fence_idp_url = config["OPENID_CONNECT"].get("fence", {}).get("api_base_url")
+    if not fence_idp_url:
+        return None
+    disco_feed_url = fence_idp_url.rstrip("/") + "/Shibboleth.sso/DiscoFeed"
+    try:
+        response = requests.get(disco_feed_url, timeout=3)
+    except requests.RequestException:
+        raise EnvironmentError("couldn't reach fence IDP")
+    if response.status_code != 200:
+        # if it's 404 that's fine---just no shibboleth. otherwise there could be an
+        # actual problem
+        if response.status_code != 404:
+            logger.error(
+                "got weird response ({}) from the IDP fence shibboleth disco feed ({})"
+                .format(response.status_code, disco_feed_url)
+            )
+            raise EnvironmentError("unexpected response from fence IDP")
+        return None
+    try:
+        return response.json()
+    except ValueError:
+        logger.error(
+            "didn't get JSON in response from IDP fence shibboleth disco feed ({})"
+            .format(disco_feed_url)
+        )
+        return None

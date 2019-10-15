@@ -6,9 +6,13 @@ fence instance. See the other files in this directory for the definitions of
 the endpoints for each provider.
 """
 
+from cdislogging import get_logger
 import flask
+import requests
 
-from fence.blueprints.login.fence_login import FenceLogin, FenceCallback
+from fence.blueprints.login.fence_login import (
+    FenceLogin, FenceCallback, FenceDownstreamIDPs, get_disco_feed
+)
 from fence.blueprints.login.google import GoogleLogin, GoogleCallback
 from fence.blueprints.login.shib import ShibbolethLogin, ShibbolethCallback
 from fence.blueprints.login.microsoft import MicrosoftLogin, MicrosoftCallback
@@ -17,8 +21,6 @@ from fence.blueprints.login.synapse import SynapseLogin, SynapseCallback
 from fence.errors import InternalError
 from fence.restful import RestfulApi
 from fence.config import config
-
-from cdislogging import get_logger
 
 logger = get_logger(__name__)
 
@@ -107,6 +109,11 @@ def make_login_blueprint(app):
     if "fence" in idps:
         blueprint_api.add_resource(FenceLogin, "/fence", strict_slashes=False)
         blueprint_api.add_resource(FenceCallback, "/fence/login", strict_slashes=False)
+        # `/downstream-idps` will forward to the `/Shibboleth.sso/DiscoFeed` endpoint on
+        # the fence IDP if it's available. otherwise it will just 404
+        blueprint_api.add_resource(
+            FenceDownstreamIDPs, "/downstream-idps", strict_slashes=False
+        )
 
     if "google" in idps:
         blueprint_api.add_resource(GoogleLogin, "/google", strict_slashes=False)
@@ -139,4 +146,5 @@ def make_login_blueprint(app):
         blueprint_api.add_resource(
             ShibbolethCallback, "/shib/login", strict_slashes=False
         )
+
     return blueprint

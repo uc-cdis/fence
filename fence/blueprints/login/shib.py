@@ -24,8 +24,20 @@ class ShibbolethLogin(Resource):
         validate_redirect(redirect_url)
         if redirect_url:
             flask.session["redirect"] = redirect_url
+
+        # figure out which IDP to target with shibboleth
+        # check out shibboleth docs here for more info:
+        # https://wiki.shibboleth.net/confluence/display/SP3/SSO
+        entityID = flask.request.args.get("shib_idp")
+        flask.session["entityID"] = entityID
         actual_redirect = config["BASE_URL"] + "/login/shib/login"
-        return flask.redirect(config["SSO_URL"] + actual_redirect)
+        if not entityID or entityID == "urn:mace:incommon:nih.gov":
+            # default to SSO_URL from the config which should be NIH login
+            return flask.redirect(config["SSO_URL"] + actual_redirect)
+        return flask.redirect(
+            config["BASE_URL"] + "/Shibboleth.sso/Login?entityID={}&target={}"
+            .format(entityID, actual_redirect)
+        )
 
 
 class ShibbolethCallback(Resource):
@@ -33,16 +45,16 @@ class ShibbolethCallback(Resource):
         """
         Complete the shibboleth login.
         """
-        if "SHIBBOLETH_HEADER" in config:
-            eppn = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
-
-        else:
+        if "SHIBBOLETH_HEADER" not in config:
             raise InternalError("Missing shibboleth header configuration")
+        eppn = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
         username = eppn.split("!")[-1] if eppn else None
-        if username:
-            login_user(flask.request, username, IdentityProvider.itrust)
-            if flask.session.get("redirect"):
-                return flask.redirect(flask.session.get("redirect"))
-            return "logged in"
-        else:
+        if not username:
             raise Unauthorized("Please login")
+        idp = IdentityProvider.itrust
+        if flask.session.get("entityID"):
+            idp = flask.session.get("entityID")
+        login_user(flask.request, username, idp)
+        if flask.session.get("redirect"):
+            return flask.redirect(flask.session.get("redirect"))
+        return "logged in"
