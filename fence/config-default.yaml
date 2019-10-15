@@ -421,6 +421,10 @@ AWS_CREDENTIALS:
   'CRED2':
     aws_access_key_id: ''
     aws_secret_access_key: ''
+  'CRED3':
+    aws_access_key_id: ''
+    aws_secret_access_key: ''
+    endpoint_url: 'https://s3.example.com/'  # non aws s3 endpoint e.g. ceph, swift, minio
 
 S3_BUCKETS:
   bucket1:
@@ -433,6 +437,12 @@ S3_BUCKETS:
   bucket4:
     cred: 'CRED1'
     role-arn: 'arn:aws:iam::role1'
+  bucket5:
+    cred: 'CRED3'
+    region: default
+    signature_version: s3    # v4: ['s3v4' , 'v4' , None, ''] v2: ['s3']
+    server_side_encryption: false   # signed url includes encryption, default True
+
 
 # `DATA_UPLOAD_BUCKET` specifies an S3 bucket to which data files are uploaded,
 # using the `/data/upload` endpoint. This must be one of the first keys under

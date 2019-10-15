@@ -158,8 +158,8 @@ class BlankIndex(object):
         s3_url = "s3://{}/{}/{}".format(bucket, self.guid, file_name)
         url = S3IndexedFileLocation(s3_url).get_signed_url("upload", expires_in)
         self.logger.info(
-            "created presigned URL to upload file {} with ID {}".format(
-                file_name, self.guid
+            "created presigned URL to upload file {} with ID {} url {}".format(
+                file_name, self.guid, url
             )
         )
         return url
@@ -588,6 +588,40 @@ class S3IndexedFileLocation(IndexedFileLocation):
         else:
             return bucket_cred["region"]
 
+    def get_bucket_signature_version(self):
+        """Returns signature_version, None if not set."""
+        s3_buckets = get_value(
+            config, "S3_BUCKETS", InternalError("buckets not configured")
+        )
+        if len(s3_buckets) == 0:
+            return None
+
+        bucket_cred = s3_buckets.get(self.bucket_name())
+        if bucket_cred is None:
+            return None
+
+        if "signature_version" not in bucket_cred:
+            return None
+        else:
+            return bucket_cred["signature_version"]
+
+    def get_bucket_server_side_encryption(self):
+        """Returns server_side_encryption, True if not set."""
+        s3_buckets = get_value(
+            config, "S3_BUCKETS", InternalError("buckets not configured")
+        )
+        if len(s3_buckets) == 0:
+            return True
+
+        bucket_cred = s3_buckets.get(self.bucket_name())
+        if bucket_cred is None:
+            return True
+
+        if "server_side_encryption" not in bucket_cred:
+            return True
+        else:
+            return bucket_cred["server_side_encryption"]
+
     def get_signed_url(
         self, action, expires_in, public_data=False, force_signed_url=True, **kwargs
     ):
@@ -602,6 +636,12 @@ class S3IndexedFileLocation(IndexedFileLocation):
         credential = S3IndexedFileLocation.get_credential_to_access_bucket(
             self.bucket_name(), aws_creds, expires_in
         )
+
+        # format url for non-aws s3 endpoint
+        if 'endpoint_url' in credential:
+            http_url = "{}/{}".format(
+                credential['endpoint_url'], self.bucket_name()
+            )
 
         # if it's public and we don't need to force the signed url, just return the raw
         # s3 url
@@ -624,15 +664,29 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
         user_info = _get_user_info()
 
-        url = generate_aws_presigned_url(
-            http_url,
-            ACTION_DICT["s3"][action],
-            credential,
-            "s3",
-            region,
-            expires_in,
-            user_info,
-        )
+        signature_version = self.get_bucket_signature_version()
+        server_side_encryption = self.get_bucket_server_side_encryption()
+        logger.info( "processing signature_version {} server_side_encryption {}".format(signature_version, server_side_encryption))
+        if signature_version == 's3':
+            url = flask.current_app.boto.presigned_url(
+                bucket=self.bucket_name(),
+                key=self.parsed_url.path.strip('/'),
+                expires=expires_in,
+                config=credential,
+                method={'upload': 'put_object', 'download': 'get_object'}[action],
+                server_side_encryption=server_side_encryption
+            )
+        else:
+            # default to v4
+            url = generate_aws_presigned_url(
+                http_url,
+                ACTION_DICT["s3"][action],
+                credential,
+                "s3",
+                region,
+                expires_in,
+                user_info,
+            )
 
         return url
 
