@@ -81,9 +81,23 @@ paths:
         - name: idp
           required: false
           in: query
-          description: Upstream identity provider to use, fallback to the default one if not provided
+          description: >-
+            Upstream identity provider to use. Specifying `idp=shibboleth` lets
+            us specify a `shib_idp`. If no `idp` is specified, defaults to NIH
+            login.
           schema:
             type: string
+          example: 'shibboleth'
+        - name: shib_idp
+          required: false
+          in: query
+          description: >-
+            Identifier for the shibboleth IDP. Available identifiers are what
+            is listed by the `login.bionimbus.org/Shibboleth.sso/DiscoFeed`
+            endpoint. If no `shib_idp` is specified, defaults to NIH login.
+          schema:
+            type: string
+          example: 'urn:mace:incommon:uchicago.edu'
         - name: scope
           required: false
           in: query
@@ -216,6 +230,61 @@ paths:
                   type: string
               required:
                 - token
+  /login/shib:
+    get:
+      tags:
+        - login
+      summary: Initiate login via shibboleth provider
+      description: |
+        NOTE that this endpoint only exists if shibboleth is enabled as an
+        identity provider in the fence config. Currently this only happens for
+        `login.bionimbus.org`.
+      parameters:
+        - name: shib_idp
+          required: false
+          in: query
+          description: >-
+            Identifier for the shibboleth IDP. Available identifiers are what
+            is listed by the `login.bionimbus.org/Shibboleth.sso/DiscoFeed`
+            endpoint. If no `shib_idp` is specified, defaults to NIH login.
+          schema:
+            type: string
+          example: 'urn:mace:incommon:uchicago.edu'
+      responses:
+        302:
+          description: redirect to external identity provider
+  /login/fence:
+    get:
+      tags:
+        - login
+      summary: Initiate login via Fence provider (multi-tenant Fence)
+      description: |
+        NOTE that this endpoint only exists if fence is enabled as an
+        identity provider in the fence config.
+      parameters:
+        - name: idp
+          required: false
+          in: query
+          description: >-
+            Identifier for the IDP. Specifying `idp=shibboleth` lets us
+            specify a `shib_idp`. If no `idp` is specified, defaults to
+            NIH login.
+          schema:
+            type: string
+          example: 'shibboleth'
+        - name: shib_idp
+          required: false
+          in: query
+          description: >-
+            Identifier for the shibboleth IDP. Available identifiers are what
+            is listed by the `login.bionimbus.org/Shibboleth.sso/DiscoFeed`
+            endpoint. If no `shib_idp` is specified, defaults to NIH login.
+          schema:
+            type: string
+          example: 'urn:mace:incommon:uchicago.edu'
+      responses:
+        302:
+          description: redirect to external identity provider
   /jwt/keys:
     get:
       tags:
