@@ -23,7 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     # dependency for cryptography
     libssl-dev \
-    python2.7 \
+    python3 \
     python-dev \
     python-pip \
     python-setuptools \
