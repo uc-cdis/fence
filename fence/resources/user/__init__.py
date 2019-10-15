@@ -95,12 +95,15 @@ def get_user_info(current_session, username):
             resources = flask.current_app.arborist.list_resources_for_user(
                 user.username
             )
+            auth_mapping = flask.current_app.arborist.auth_mapping(user.username)
         except ArboristError:
             logger.error(
                 "request to arborist for user's resources failed; going to list empty"
             )
             resources = []
+            auth_mapping = {}
         info["resources"] = resources
+        info["authz"] = auth_mapping
 
     if user.tags is not None and len(user.tags) > 0:
         info["tags"] = {tag.key: tag.value for tag in user.tags}
