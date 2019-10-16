@@ -300,9 +300,7 @@ class UserSyncer(object):
             self.dbgap_key = dbGaP["decrypt_key"]
         self.parse_consent_code = dbGaP.get("parse_consent_code", True)
         self.parse_exchange_area_code = dbGaP.get("parse_exchange_area_code", False)
-        self.common_exchange_area_project = dbGaP.get(
-            "common_exchange_area_project", "common_exchange"
-        )
+        self.study_common_exchange_areas = dbGaP.get("study_common_exchange_areas", {})
         self.session = db_session
         self.driver = SQLAlchemyDriver(DB)
         self.project_mapping = project_mapping or {}
@@ -467,15 +465,19 @@ class UserSyncer(object):
                             f"got consent code {consent_code} from dbGaP project "
                             "{dbgap_project}"
                         )
-                        if consent_code == "c999" and self.parse_exchange_area_code:
+                        if (
+                            consent_code == "c999"
+                            and self.parse_exchange_area_code
+                            and dbgap_project in self.study_common_exchange_areas
+                        ):
                             self.logger.info(
                                 "found study with consent c999 and Fence "
                                 "is configured to parse exchange area data. Giving user "
                                 f"{username} {privileges} privileges in project: "
-                                f"{self.common_exchange_area_project}."
+                                f"{self.study_common_exchange_areas[dbgap_project]}."
                             )
                             self._add_dbgap_project_for_user(
-                                self.common_exchange_area_project,
+                                self.study_common_exchange_areas[dbgap_project],
                                 privileges,
                                 username,
                                 sess,
