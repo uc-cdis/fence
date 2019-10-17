@@ -48,7 +48,7 @@ def config_idp_in_client(
 
     yield Dict(
         client_id=config["OPENID_CONNECT"]["fence"]["client_id"],
-        client_secret=config["OPENID_CONNECT"]["fence"]["client_id"],
+        client_secret=config["OPENID_CONNECT"]["fence"]["client_secret"],
     )
 
     app.keypairs = saved_keypairs
@@ -59,7 +59,7 @@ def config_idp_in_client(
 def test_redirect_oauth2_authorize(app, client, config_idp_in_client):
     """
     Test that the ``/oauth2/authorize`` endpoint on the client fence redirects to the
-    ``/login/fence`` endpoint, also on the client fence, 
+    ``/login/fence`` endpoint, also on the client fence,
     in the multi-tenant setup case.
     """
     r = client.post("/oauth2/authorize")

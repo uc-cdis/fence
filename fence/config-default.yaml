@@ -80,6 +80,9 @@ ENABLE_DB_MIGRATION: true
 #   - Fully configure at least one client so login works
 #   - WARNING: Be careful changing the *_ALLOWED_SCOPES as you can break basic
 #              and optional functionality
+#
+# See ``fence/blueprints/login/__init__.py`` IDP_URL_MAP for which identity
+# providers can be configured.
 # //////////////////////////////////////////////////////////////////////////////////////
 OPENID_CONNECT:
   # These Google values must be obtained from Google's Cloud Console
@@ -128,6 +131,8 @@ OPENID_CONNECT:
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
     mock_default_user: 'test@example.com'
+    # this is needed to enable InCommon login, if some LOGIN_OPTIONS are configured with idp=fence and a list of shib_idps:
+    shibboleth_discovery_url: 'https://login.bionimbus.org/Shibboleth.sso/DiscoFeed'
   # you can setup up an orcid client here: https://orcid.org/developer-tools
   orcid:
     client_id: ''
@@ -197,14 +202,51 @@ SESSION_ALLOWED_SCOPES:
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # LOGIN
-#   - Modify based on which OIDC client(s) you configured above
+#   - Modify based on which OIDC provider(s) you configured above
 #   - NOTE: You can have multiple IDPs for users to login with, but one has to be set
 #           as the default
 # //////////////////////////////////////////////////////////////////////////////////////
-# Login url for identity provider (IDP):
-#   Google? Use: '{{BASE_URL}}/login/google'
-#   Multi-tenant fence (e.g. another fence instance)? Use: '{{BASE_URL}}/login/fence'
-#   Sibboleth? Use: '{{BASE_URL}}/login/shib'
+
+# List of enabled login options (used by data-portal to display login buttons).
+# Each option must be configured with a "name" and an "idp".
+# "idp" must be a configured provider in OPENID_CONNECT section.
+# Multiple options can be configured with the same idp.
+# "desc" and "secondary" are optional.
+# If the idp is fence, a list of "shib_idps" can be configured for
+# InCommon login.
+LOGIN_OPTIONS:
+  - name: 'Login from Google'
+    idp: google
+    # desc: 'description'
+    # secondary: True
+  # - name: 'NIH Login'
+  #   idp: fence
+  # - name: 'Orcid Login'
+  #   idp: orcid
+  # - name: 'Microsoft Login'
+  #   idp: microsoft
+  # - name: 'InCommon Login'
+  #   idp: fence
+  #   # "shib_idps" can be '*' or a list of one or more entity IDs
+  #   shib_idps:
+  #     - urn:mace:incommon:nih.gov
+  #     - urn:mace:incommon:uchicago.edu
+# The following can be used for shibboleth login, simply uncomment.
+# NOTE: Don't enable shibboleth if the deployment is not protected by
+# shibboleth module, the shib module takes care of preventing header
+# spoofing.
+  # - name: 'Shibboleth Login'
+  #   idp: shibboleth
+
+# Default login provider:
+# - must be configured in LOGIN_OPTIONS and OPENID_CONNECT
+# - if several options in LOGIN_OPTIONS are defined for this IDP, will default
+# to the first one.
+# Default login URL:
+# - Google? Use: '{{BASE_URL}}/login/google'
+# - Multi-tenant fence (e.g. another fence instance)? Use: '{{BASE_URL}}/login/fence'
+# - Sibboleth? Use: '{{BASE_URL}}/login/shib'
+DEFAULT_LOGIN_IDP: google
 DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
 
 # `LOGIN_REDIRECT_WHITELIST` is a list of extra whitelisted URLs which can be redirected
@@ -214,38 +256,9 @@ DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
 # only the domains for the additional desired redirects are necessary here).
 LOGIN_REDIRECT_WHITELIST: []
 
-# Which Identity Provider fence will/can use
-#
-# See ``fence/blueprints/login/__init__.py`` for which identity providers can
-# be loaded.
-#
+### DEPRECATED and replaced by OPENID_CONNECT + LOGIN_OPTIONS configs
 ENABLED_IDENTITY_PROVIDERS:
-  # ID for which of the providers to default to
-  default: 'google'
-  # Information for identity providers
-  providers:
-# Additional Identity Provider options, simply uncomment:
-#
-#    orcid:
-#      name: 'Login from ORCID'
-#
-#    microsoft:
-#      name: 'Login from Microsoft'
-#
-#    fence:
-#      name: 'Fence Multi-Tenant Login'
-#
-    google:
-      name: 'Login from Google'
-# The following can be used for shibboleth login, simply uncomment.
-#
-# NOTE: Don't enable shibboleth if the deployment is not protected by
-# shibboleth module, the shib module takes care of preventing header
-# spoofing.
-#
-#    shibboleth:
-#      name: 'NIH Login'
-#
+
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # LIBRARY CONFIGURATION (authlib & flask)
@@ -343,7 +356,7 @@ SUPPORT_EMAIL_FOR_ERRORS: null
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # SHIBBOLETH
-#   - Support using `shibboleth` in ENABLED_IDENTITY_PROVIDERS
+#   - Support using `shibboleth` in LOGIN_OPTIONS
 #   - Contains defaults for using NIH's Login.
 # //////////////////////////////////////////////////////////////////////////////////////
 # assumes shibboleth is deployed under {{BASE_URL}}/shibboleth
