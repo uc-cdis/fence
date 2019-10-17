@@ -463,7 +463,7 @@ class UserSyncer(object):
                         # to the common exchange area
                         self.logger.debug(
                             f"got consent code {consent_code} from dbGaP project "
-                            "{dbgap_project}"
+                            f"{dbgap_project}"
                         )
                         if (
                             consent_code == "c999"
