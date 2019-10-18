@@ -8,11 +8,11 @@ from fence.auth import current_token
 from fence.jwt.blacklist import blacklist_token
 from fence.jwt.token import USER_ALLOWED_SCOPES
 from fence.models import UserRefreshToken
-
 from fence.resources.storage.cdis_jwt import (
     create_user_access_token,
     create_api_key,
 )
+from fence.utils import to_str
 
 
 class ApiKeyList(Resource):
@@ -92,7 +92,7 @@ class ApiKeyList(Resource):
         else:
             try:
                 scope = (
-                    json.loads(flask.request.data)
+                    json.loads(to_str(flask.request.data))
                     .get('scope')
                 ) or []
             except ValueError:
@@ -171,7 +171,7 @@ class AccessKey(Resource):
             api_key = flask.request.form.get('api_key')
         else:
             try:
-                api_key = json.loads(flask.request.data).get('api_key')
+                api_key = json.loads(to_str(flask.request.data)).get('api_key')
             except ValueError:
                 api_key = None
         if not api_key:

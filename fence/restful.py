@@ -15,7 +15,7 @@ def handle_error(error):
     """
     Register an error handler for general exceptions.
     """
-    message = error.message if hasattr(error, 'message') else ''
+    message = error.message if hasattr(error, 'message') else str(error)
     if isinstance(error, APIError):
         if hasattr(error, 'json') and error.json:
             return flask.jsonify(**error.json), error.code

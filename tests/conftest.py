@@ -27,6 +27,7 @@ import requests
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.schema import DropTable
 
+import userdatamodel
 from userdatamodel.init_defaults import init_defaults
 
 import fence
@@ -463,6 +464,7 @@ def db(app, request):
 
     def drop_all():
         models.Base.metadata.drop_all(app.db.engine)
+        userdatamodel.Base.metadata.drop_all(app.db.engine)
 
     request.addfinalizer(drop_all)
     init_defaults(app.db)

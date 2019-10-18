@@ -114,6 +114,7 @@ def test_remove_user_from_wrong_group(db_session, awg_users, awg_groups):
     with pytest.raises(NotFound):
         adm.remove_user_from_groups(db_session, "awg_user", ['test_group_4'])
 
+
 def test_get_user_groups(db_session, awg_users):
     groups = adm.get_user_groups(db_session, 'awg_user')
     expected_groups = [
@@ -129,6 +130,6 @@ def test_get_user_groups(db_session, awg_users):
         }
         
     ]
-    expected_groups.sort()
-    groups['groups'].sort()
-    assert groups['groups'] == expected_groups
+    expected_groups.sort(key=lambda x: x["name"])
+    groups["groups"].sort(key=lambda x: x["name"])
+    assert groups["groups"] == expected_groups

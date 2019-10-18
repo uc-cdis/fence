@@ -29,6 +29,7 @@ import fence.blueprints.user
 import fence.blueprints.well_known
 import fence.blueprints.link
 import fence.client
+from fence.utils import to_str
 
 
 app = flask.Flask(__name__)

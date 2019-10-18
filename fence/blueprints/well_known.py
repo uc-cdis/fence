@@ -10,6 +10,7 @@ from fence.jwt.token import (
     USER_ALLOWED_SCOPES,
     CLIENT_ALLOWED_SCOPES,
 )
+from fence.utils import to_str
 
 
 blueprint = flask.Blueprint('.well-known', __name__)
@@ -23,7 +24,7 @@ def jwks():
     The return value from this endpoint is defined by RFC 7517.
     """
     keys = [
-        keypair.public_key_to_jwk()
+        {k: to_str(v) for k, v in keypair.public_key_to_jwk().items()}
         for keypair in flask.current_app.keypairs
     ]
     return flask.jsonify({'keys': keys})

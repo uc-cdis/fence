@@ -62,16 +62,15 @@ def _rsa_public_numbers(public_key_data):
     """
     Take the data for a public key (string of the key in PEM format) and return
     the public key modulus ``n`` and exponent ``e`` for that key.
-
     The values of n and e are needed for the return of the JWKS endpoint.
-
     Args:
         public_key_data (str): the public key
-
     Return:
         Tuple[int, int]: the public key modulus ``n`` and exponent ``e``
     """
-    key = serialization.load_pem_public_key(public_key_data, default_backend())
+    key = serialization.load_pem_public_key(
+        bytes(public_key_data, "utf-8"), default_backend()
+    )
     numbers = key.public_numbers()
     return (numbers.n, numbers.e)
 
