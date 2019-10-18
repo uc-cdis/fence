@@ -1034,7 +1034,7 @@ class UserSyncer(object):
         self.sync_two_phsids_dict(user_yaml.projects, user_projects)
         self.sync_two_user_info_dict(user_yaml.user_info, user_info)
 
-        if self.parse_consent_code and self.parse_exchange_area_code:
+        if self.parse_consent_code:
             self._grant_all_consents_to_c999_users(
                 user_projects, user_yaml.project_to_resource
             )

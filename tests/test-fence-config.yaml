@@ -311,6 +311,16 @@ dbGaP:
     # study when parsing consent codes
     'phs000178.c2': ['/orgA/', '/orgB/', '/']
 
+# Regex to match an assession number that has consent information in forms like:
+#   phs00301123.c999
+#   phs000123.v3.p1.c3
+#   phs000123.c3
+#   phs00301123.v3.p4.c999
+# Will NOT MATCH forms like: phs000123
+#
+# WARNING: Do not change this without consulting the code that uses it
+DBGAP_ACCESSION_WITH_CONSENT_REGEX: '(?P<phsid>phs[0-9]+)(.(?P<version>v[0-9]+)){0,1}(.(?P<participant_set>p[0-9]+)){0,1}.(?P<consent>c[0-9]+)'
+
 # //////////////////////////////////////////////////////////////////////////////////////
 # STORAGE BACKENDS AND CREDENTIALS
 #   - Optional: Used for `/admin` & `/credentials` endpoints for user management.

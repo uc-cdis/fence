@@ -460,7 +460,6 @@ def test_update_arborist(syncer, db_session):
         "phs000178.c999",
         "data_file",  # comes from user.yaml file
     ]
-    expect_resources.extend(projects_with_mult_namespaces)
 
     resource_to_parent_paths = {}
     for call in syncer.arborist_client.update_resource.call_args_list:
