@@ -163,6 +163,8 @@ def syncer(db_session, request):
 
     syncer_obj.arborist_client.get_policy.side_effect = lambda _: None
 
+    syncer_obj.arborist_client._user_url = "/user"
+
     for element in provider:
         udm.create_provider(db_session, element["name"], backend=element["backend"])
 

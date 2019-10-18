@@ -1,3 +1,4 @@
+from authlib.common.urls import add_params_to_uri
 import flask
 from flask_restful import Resource
 
@@ -32,6 +33,17 @@ class FenceLogin(Resource):
         authorization_url, state = flask.current_app.fence_client.generate_authorize_redirect(
             oauth2_redirect_uri, prompt="login"
         )
+
+        # if requesting to login through Shibboleth, add idp and
+        # shib_idp parameters to the authorization URL
+        idp = flask.request.args.get("idp")
+        if idp == "shibboleth":
+            shib_idp = flask.request.args.get("shib_idp")
+            if shib_idp:
+                authorization_url = add_params_to_uri(
+                    authorization_url, {"idp": idp, "shib_idp": shib_idp}
+                )
+
         flask.session["state"] = state
         return flask.redirect(authorization_url)
 
