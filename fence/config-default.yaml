@@ -383,52 +383,35 @@ dbGaP:
   parse_exchange_area_code: false
   # The below configuration is a mapping from studies to their "common exchange area data"
   # Fence project name a user gets access to when parsing c999 exchange area codes (and
-  # subsequently gives access to an arborist resource representing this common area
+  # subsequently gives access to an Arborist resource representing this common area
   # as well)
   study_common_exchange_areas:
-    'phs000920': 'topmed_common_exchange_area'
-    'phs000921': 'topmed_common_exchange_area'
-    'phs000946': 'topmed_common_exchange_area'
-    'phs000951': 'topmed_common_exchange_area'
-    'phs000954': 'topmed_common_exchange_area'
-    'phs000956': 'topmed_common_exchange_area'
-    'phs000964': 'topmed_common_exchange_area'
-    'phs000972': 'topmed_common_exchange_area'
-    'phs000974': 'topmed_common_exchange_area'
-    'phs000988': 'topmed_common_exchange_area'
-    'phs000993': 'topmed_common_exchange_area'
-    'phs000997': 'topmed_common_exchange_area'
-    'phs001024': 'topmed_common_exchange_area'
-    'phs001032': 'topmed_common_exchange_area'
-    'phs001040': 'topmed_common_exchange_area'
-    'phs001062': 'topmed_common_exchange_area'
-    'phs001143': 'topmed_common_exchange_area'
-    'phs001189': 'topmed_common_exchange_area'
-    'phs001207': 'topmed_common_exchange_area'
-    'phs001211': 'topmed_common_exchange_area'
-    'phs001215': 'topmed_common_exchange_area'
-    'phs001217': 'topmed_common_exchange_area'
-    'phs001218': 'topmed_common_exchange_area'
-    'phs001237': 'topmed_common_exchange_area'
-    'phs001293': 'topmed_common_exchange_area'
-    'phs001345': 'topmed_common_exchange_area'
-    'phs001359': 'topmed_common_exchange_area'
-    'phs001368': 'topmed_common_exchange_area'
-    'phs001387': 'topmed_common_exchange_area'
-    'phs001402': 'topmed_common_exchange_area'
-    'phs001412': 'topmed_common_exchange_area'
-    'phs001416': 'topmed_common_exchange_area'
+    'example': 'test_common_exchange_area'
+    # 'studyX': 'test_common_exchange_area'
+    # 'studyY': 'test_common_exchange_area'
+    # 'studyZ': 'test_common_exchange_area'
   # A mapping from the dbgap study / Fence project to which authorization namespaces the
   # actual data lives in. For example, `studyX` data may exist in multiple organizations, so
   # we need to know to map authorization to all orgs resources
   study_to_resource_namespaces:
     '_default': ['/']
-    'topmed_common_exchange_area': ['/dbgap/']
+    'test_common_exchange_area': ['/dbgap/']
     # above are for default support and exchange area support
-    # below are further examples you can safely remove
-    'studyX': ['/orgA/', '/orgB/']
-    'studyY': ['/orgB/', '/orgC/']
-    'studyZ': ['/orgD/']
+    # below are further examples
+    #
+    # 'studyX': ['/orgA/', '/orgB/']
+    # 'studyX.c2': ['/orgB/', '/orgC/']
+    # 'studyZ': ['/orgD/']
+
+# Regex to match an assession number that has consent information in forms like:
+#   phs00301123.c999
+#   phs000123.v3.p1.c3
+#   phs000123.c3
+#   phs00301123.v3.p4.c999
+# Will NOT MATCH forms like: phs000123
+#
+# WARNING: Do not change this without consulting the code that uses it
+DBGAP_ACCESSION_WITH_CONSENT_REGEX: '(?P<phsid>phs[0-9]+)(.(?P<version>v[0-9]+)){0,1}(.(?P<participant_set>p[0-9]+)){0,1}.(?P<consent>c[0-9]+)'
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # STORAGE BACKENDS AND CREDENTIALS

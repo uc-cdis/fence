@@ -120,7 +120,14 @@ def syncer(db_session, request):
         "phstest": [{"name": "Test", "auth_id": "Test"}],
     }
 
-    dbGap = {}
+    dbGap = yaml_load(
+        open(
+            os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                "test-fence-config.yaml",
+            )
+        )
+    ).get("dbGaP")
     test_db = yaml_load(
         open(
             os.path.join(
