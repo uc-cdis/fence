@@ -1,17 +1,4 @@
-class APIError(Exception):
-    def __init__(self, message=None, code=None, json=None):
-        super(APIError, self).__init__()
-        self.message = message
-        self.code = code
-        self.json = json
-
-    def __str__(self):
-        error_msg = ''
-        if self.code:
-            error_msg = '[{}]'.format(self.code)
-        if self.message:
-            error_msg = '{} - {}'.format(error_msg, self.message)
-        return error_msg
+from cdiserrors import APIError
 
 
 class AuthError(APIError):
