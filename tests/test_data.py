@@ -1,6 +1,6 @@
 from . import utils
 import jwt
-import urlparse
+from six.moves.urllib import parse as urlparse
 import pytest
 
 

@@ -1,5 +1,4 @@
-import urllib
-from urlparse import parse_qs, urlparse
+from six.moves.urllib.parse import parse_qs, urlencode, urlparse
 
 import fence.utils
 
@@ -154,7 +153,7 @@ class OAuth2TestClient(object):
         """
         path = self.PATH_AUTHORIZE
         if params:
-            path += '?' + urllib.urlencode(query=params)
+            path += '?' + urlencode(query=params)
         return path
 
     def authorize(self, method='POST', data=None, do_asserts=True):

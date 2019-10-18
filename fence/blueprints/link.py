@@ -1,7 +1,7 @@
 import time
 
 import flask
-import urllib
+from six.moves.urllib.parse import urlencode
 
 from flask_restful import Resource
 from flask_sqlalchemy_session import current_session
@@ -469,7 +469,7 @@ def _get_error_params(error, description):
     params = ''
     if error:
         args = {'error': error, 'error_description': description}
-        params = '?' + urllib.urlencode(args)
+        params = '?' + urlencode(args)
     return params
 
 

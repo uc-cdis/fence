@@ -3,7 +3,7 @@ import re
 import flask
 import requests
 import time
-from urlparse import urlparse
+from six.moves.urllib.parse import urlparse
 
 import cirrus
 from fence.auth import login_required

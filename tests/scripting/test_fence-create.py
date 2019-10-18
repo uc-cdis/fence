@@ -106,7 +106,7 @@ def test_create_user_access_token_with_found_user(
         r = client.get(
             '/user', headers={'Authorization': 'bear ' + access_token})
         assert r.status_code == 200
-        print r.data
+        print(r.data)
         assert jti is not None
 
 

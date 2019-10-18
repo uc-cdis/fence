@@ -4,8 +4,8 @@ at an administration level of the projects, cloud providers and buckets on the
 database.
 """
 
-from userdatamodel_project import *
-from userdatamodel_user import *
-from userdatamodel_group import *
-from userdatamodel_provider import *
+from fence.resources.userdatamodel.userdatamodel_project import *
+from fence.resources.userdatamodel.userdatamodel_user import *
+from fence.resources.userdatamodel.userdatamodel_group import *
+from fence.resources.userdatamodel.userdatamodel_provider import *
 

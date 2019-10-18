@@ -1,6 +1,6 @@
 import os
 import time
-import urlparse
+from six.moves.urllib import parse as urlparse
 import uuid
 
 from flask import current_app

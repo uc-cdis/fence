@@ -3,10 +3,7 @@ It is very recommended to look at the multi-tenant flow diagram before looking
 at this code; otherwise it is likely for none of this to make any sense.
 """
 
-import urllib
-import urlparse
-# in python3:
-# urllib.parse
+from six.moves.urllib import parse as urlparse
 
 import fence
 
@@ -52,7 +49,7 @@ def test_login(
     )
     with fence_client_app.test_client() as fence_client_client:
         # Part 1.
-        redirect_url_quote = urllib.quote('/login/fence/login')
+        redirect_url_quote = urlparse.quote('/login/fence/login')
         path = '/login/fence?redirect_uri={}'.format(redirect_url_quote)
         response_login_fence = fence_client_client.get(path)
         # This should be pointing at ``/oauth2/authorize`` of the IDP fence.
@@ -67,7 +64,7 @@ def test_login(
         authorize_params = urlparse.parse_qs(
             urlparse.urlparse(response_login_fence.location).query
         )
-        authorize_params = {k: v[0] for k, v in authorize_params.iteritems()}
+        authorize_params = {k: v[0] for k, v in authorize_params.items()}
         authorize_params['confirm'] = 'yes'
         headers = oauth2.create_basic_header_for_client(fence_oauth_client)
         # Normally this would just redirect back to the configured client URL

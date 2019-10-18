@@ -43,7 +43,7 @@ class StorageManager(object):
     def __init__(self, credentials, logger):
         self.logger = logger
         self.clients = {}
-        for provider, config in credentials.iteritems():
+        for provider, config in credentials.items():
             if 'backend' not in config:
                 self.logger.error(
                     "Storage provider {} is not configured with backend"

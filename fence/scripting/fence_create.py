@@ -129,7 +129,7 @@ def create_sample_data(DB, yaml_input):
 
 
 def create_group(s, data):
-    for group_name, fields in data['groups'].iteritems():
+    for group_name, fields in data['groups'].items():
         projects = fields.get('projects', [])
         group = s.query(Group).filter(Group.name == group_name).first()
         if not group:
@@ -245,7 +245,7 @@ def grant_project_to_group_or_user(s, project_data, group=None, user=None):
 
 def create_cloud_providers(s, data):
     cloud_data = data.get('cloud_providers', [])
-    for name, fields, in cloud_data.iteritems():
+    for name, fields, in cloud_data.items():
         cloud_provider = s.query(CloudProvider).filter(
             CloudProvider.name == name
         ).first()
@@ -260,7 +260,7 @@ def create_cloud_providers(s, data):
 def create_users_with_group(DB, s, data):
     providers = {}
     data_groups = data['groups']
-    for username, data in data['users'].iteritems():
+    for username, data in data['users'].items():
         is_existing_user = True
         user = s.query(User).filter(func.lower(User.username) == username.lower()).first()
         admin = data.get('admin', False)
@@ -491,9 +491,9 @@ def get_jwt_keypair(kid, root_dir):
     private_filepath = None
     if kid is None:
         private_filepath = os.path.join(
-            root_dir, JWT_KEYPAIR_FILES.values()[0][1])
+            root_dir, list(JWT_KEYPAIR_FILES.values())[0][1])
     else:
-        for _kid, (_, private) in JWT_KEYPAIR_FILES.iteritems():
+        for _kid, (_, private) in JWT_KEYPAIR_FILES.items():
             if(kid != _kid):
                 continue
             private_filepath = os.path.join(root_dir, private)
@@ -510,7 +510,7 @@ def get_jwt_keypair(kid, root_dir):
     if kid:
         return kid, private_key
     else:
-        return JWT_KEYPAIR_FILES.keys()[0], private_key
+        return list(JWT_KEYPAIR_FILES.keys())[0], private_key
 
 
 def create_user_token(DB, BASE_URL, ROOT_DIR, kid, token_type, username, scopes, expires_in=3600):

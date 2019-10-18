@@ -1,5 +1,5 @@
 import os
-from StringIO import StringIO
+from io import StringIO
 from collections import defaultdict
 from contextlib import contextmanager
 from csv import DictReader
@@ -209,7 +209,7 @@ class UserSyncer(object):
         """
         user_projects = dict()
         user_info = dict()
-        for filepath, privileges in file_dict.iteritems():
+        for filepath, privileges in file_dict.items():
             if os.stat(filepath).st_size == 0:
                 continue
             if self._match_pattern(filepath, encrypted=encrypted):
@@ -288,7 +288,7 @@ class UserSyncer(object):
             with self._read_file(filepath, encrypted=encrypted) as stream:
                 data = yaml.safe_load(stream)
                 users = data.get('users', {})
-                for username, details in users.iteritems():
+                for username, details in users.items():
                     privileges = defaultdict(set)
 
                     try:
@@ -325,7 +325,7 @@ class UserSyncer(object):
         Returns:
             None
         """
-        for user, info1 in user_info1.iteritems():
+        for user, info1 in user_info1.items():
             info2 = user_info2.get(user)
             if not info2:
                 user_info2.update({user: info1})
@@ -354,12 +354,12 @@ class UserSyncer(object):
             For the other cases, just simple addition
         """
         #phsids = copy.deepcopy(phsids2)
-        for user, projects1 in phsids1.iteritems():
+        for user, projects1 in phsids1.items():
             projects2 = phsids2.get(user)
             if not projects2:
                 phsids2.update({user: projects1})
                 continue
-            for phsid1, privilege1 in projects1.iteritems():
+            for phsid1, privilege1 in projects1.items():
                 if phsid1 in phsids2[user]:
                     phsids2[user][phsid1].update(privilege1)
                 else:
@@ -394,8 +394,8 @@ class UserSyncer(object):
             ua in sess.query(AccessPrivilege).all()}
 
         syncing_user_project_list = set()
-        for username, projects in user_project.iteritems():
-            for project, _ in projects.iteritems():
+        for username, projects in user_project.items():
+            for project, _ in projects.items():
                 syncing_user_project_list.add((username, project))
 
         to_delete = set.difference(
@@ -522,7 +522,7 @@ class UserSyncer(object):
                     u.tags.remove(tag)
 
             # sync
-            for k, v in user_info[username]['tags'].iteritems():
+            for k, v in user_info[username]['tags'].items():
                 found = False
                 for tag in u.tags:
                     if tag.key == k:
@@ -596,7 +596,7 @@ class UserSyncer(object):
                 for p in projects:
                     project = self._get_or_create(sess, Project, **p)
                     self._projects[p['auth_id']] = project
-        for _, projects in user_project.iteritems():
+        for _, projects in user_project.items():
             for project_name in projects.keys():
                 project = sess.query(Project).filter(
                     Project.auth_id == project_name).first()

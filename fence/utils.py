@@ -19,7 +19,7 @@ alphanumeric = string.ascii_uppercase + string.ascii_lowercase + string.digits
 
 
 def random_str(length):
-    return ''.join(rng.choice(alphanumeric) for _ in xrange(length))
+    return ''.join(rng.choice(alphanumeric) for _ in range(length))
 
 
 def json_res(data):
@@ -106,7 +106,7 @@ def convert_key(d, converter):
         return d
 
     new = {}
-    for k, v in d.iteritems():
+    for k, v in d.items():
         new_v = v
         if isinstance(v, dict):
             new_v = convert_key(v, converter)
@@ -124,7 +124,7 @@ def convert_value(d, converter):
         return converter(d)
 
     new = {}
-    for k, v in d.iteritems():
+    for k, v in d.items():
         new_v = v
         if isinstance(v, dict):
             new_v = convert_value(v, converter)

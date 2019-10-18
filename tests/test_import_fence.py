@@ -30,8 +30,7 @@ def reload_modules(module_name):
             # SQLAlchemy gets upset when a table is loaded twice, so ignore
             # that.
             try:
-                # NOTE: in python3 this should become ``importlib.reload``
-                reload(sys.modules[module])
+                importlib.reload(sys.modules[module])
             except InvalidRequestError:
                 pass
 

@@ -1,6 +1,10 @@
 from functools import wraps
-from urllib import urlencode
-from urlparse import parse_qs, urlparse, urlunparse
+from six.moves.urllib.parse import (
+    parse_qs,
+    urlencode,
+    urlparse,
+    urlunparse,
+)
 
 from authutils.errors import JWTError, JWTExpiredError
 from authutils.token.validate import require_auth_header

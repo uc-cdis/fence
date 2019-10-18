@@ -10,9 +10,9 @@ def test_blacklisted_token(client, oauth_client, encoded_jwt_refresh_token):
     headers = create_basic_header_for_client(oauth_client)
     data = {'token': encoded_jwt_refresh_token}
     response = client.post('/oauth2/revoke', headers=headers, data=data)
-    print encoded_jwt_refresh_token
+    print(encoded_jwt_refresh_token)
     import jwt
-    print jwt.decode(encoded_jwt_refresh_token, verify=False)
+    print(jwt.decode(encoded_jwt_refresh_token, verify=False))
     assert response.status_code == 204, response.data
     assert is_token_blacklisted(encoded_jwt_refresh_token)
 

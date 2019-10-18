@@ -5,7 +5,7 @@ from authutils.oauth2.client import OAuthClient
 import flask
 from flask_cors import CORS
 from flask_sqlalchemy_session import flask_scoped_session, current_session
-import urlparse
+from six.moves.urllib import parse as urlparse
 from userdatamodel.driver import SQLAlchemyDriver
 
 import cirrus
@@ -54,12 +54,12 @@ def app_config(app, settings='fence.settings', root_dir=None):
         root_dir = os.path.dirname(
                 os.path.dirname(os.path.realpath(__file__)))
     if 'AWS_CREDENTIALS' in app.config and len(app.config['AWS_CREDENTIALS']) > 0:
-        value = app.config['AWS_CREDENTIALS'].values()[0]
+        value = list(app.config['AWS_CREDENTIALS'].values())[0]
         app.boto = BotoManager(value, logger=app.logger)
         app.register_blueprint(
             fence.blueprints.data.blueprint, url_prefix='/data'
         )
-    for kid, (public, private) in app.config['JWT_KEYPAIR_FILES'].iteritems():
+    for kid, (public, private) in app.config['JWT_KEYPAIR_FILES'].items():
         public_filepath = os.path.join(root_dir, public)
         private_filepath = os.path.join(root_dir, private)
         with open(public_filepath, 'r') as f:

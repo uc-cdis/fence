@@ -32,7 +32,7 @@ def admin_login_required(function):
 
 def debug_log(function):
     """Output debug information to the logger for a function call."""
-    argument_names = list(function.func_code.co_varnames)
+    argument_names = list(function.__code__.co_varnames)
 
     @functools.wraps(function)
     def write_log(*args, **kwargs):
