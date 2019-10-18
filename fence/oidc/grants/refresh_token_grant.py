@@ -81,7 +81,7 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         stored_hash = client.client_secret
         check_hash = bcrypt.hashpw(
             client_secret.encode('utf-8'), stored_hash.encode('utf-8')
-        )
+        ).decode('utf-8')
         if check_hash != stored_hash:
             raise InvalidClientError(uri=self.uri)
         return client

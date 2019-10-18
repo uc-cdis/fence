@@ -13,6 +13,7 @@ from cirrus.google_cloud.utils import (
 from fence.models import GoogleServiceAccountKey
 from fence.models import UserGoogleAccount
 from fence.models import GoogleServiceAccount
+from fence.utils import to_bytes
 
 
 def get_or_create_primary_service_account_key(
@@ -48,10 +49,11 @@ def get_or_create_primary_service_account_key(
 
     if user_service_account_key:
         fernet_key = Fernet(
-            str(flask.current_app.config['HMAC_ENCRYPTION_KEY'])
+            to_bytes(flask.current_app.config['HMAC_ENCRYPTION_KEY'])
         )
         private_key_bytes = fernet_key.decrypt(
-            str(user_service_account_key.private_key))
+            to_bytes(user_service_account_key.private_key)
+        )
         sa_private_key = json.loads(private_key_bytes.decode('utf-8'))
     else:
         sa_private_key = create_primary_service_account_key(
@@ -117,9 +119,7 @@ def create_primary_service_account_key(
 
     key_id = sa_private_key.get('private_key_id')
 
-    fernet_key = Fernet(
-        str(flask.current_app.config['HMAC_ENCRYPTION_KEY'])
-    )
+    fernet_key = Fernet(flask.current_app.config['HMAC_ENCRYPTION_KEY'])
     private_key_bytes = json.dumps(sa_private_key).encode('utf-8')
     private_key = fernet_key.encrypt(private_key_bytes)
 

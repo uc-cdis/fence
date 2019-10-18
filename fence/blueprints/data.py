@@ -298,8 +298,14 @@ class S3IndexedFileLocation(IndexedFileLocation):
             user_info = S3IndexedFileLocation.get_user_info()
 
         url = generate_aws_presigned_url(
-            http_url, ACTION_DICT['s3'][action], aws_access_key_id,
-            aws_secret_key, 's3', region, expires_in, user_info)
+            http_url,
+            ACTION_DICT['s3'][action],
+            {'aws_access_key_id': aws_access_key_id, 'aws_secret_access_key': aws_secret_key},
+            's3',
+            region,
+            expires_in,
+            user_info
+        )
 
         return url
 

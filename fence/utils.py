@@ -18,6 +18,22 @@ rng = SystemRandom()
 alphanumeric = string.ascii_uppercase + string.ascii_lowercase + string.digits
 
 
+def to_str(bytes_or_str):
+    if isinstance(bytes_or_str, bytes):
+        value = bytes_or_str.decode('utf-8')
+    else:
+        value = bytes_or_str
+    return value
+
+
+def to_bytes(bytes_or_str):
+    if isinstance(bytes_or_str, str):
+        value = bytes_or_str.encode('utf-8')
+    else:
+        value = bytes_or_str
+    return value
+
+
 def random_str(length):
     return ''.join(rng.choice(alphanumeric) for _ in range(length))
 
@@ -32,7 +48,9 @@ def create_client(
     driver = SQLAlchemyDriver(DB)
     client_id = random_str(40)
     client_secret = random_str(55)
-    hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
+    hashed_secret = bcrypt\
+        .hashpw(client_secret.encode('utf-8'), bcrypt.gensalt())\
+        .decode('utf-8')
     with driver.session as s:
         user = s.query(User).filter(func.lower(User.username) == username.lower()).first()
         if not user:
@@ -74,10 +92,11 @@ def hash_secret(f):
                     .first()
                 )
                 if client:
-                    form['client_secret'] = bcrypt.hashpw(
-                        form['client_secret'].encode('utf-8'),
-                        client.client_secret.encode('utf-8')
-                    )
+                    form['client_secret'] = bcrypt\
+                        .hashpw(
+                            form['client_secret'].encode('utf-8'),
+                            client.client_secret.encode('utf-8')
+                        ).decode('utf-8')
                 flask.request.form = ImmutableMultiDict(form)
 
         return f(*args, **kwargs)

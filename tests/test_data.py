@@ -23,7 +23,7 @@ def test_indexd_download_file(
         key=rsa_private_key,
         headers={'kid': kid},
         algorithm='RS256',
-    )}
+    ).decode('utf-8')}
     response = client.get(path, headers=headers, query_string=query_string)
     print(response.json)
     assert response.status_code == 200
@@ -47,7 +47,7 @@ def test_indexd_upload_file(
         key=rsa_private_key,
         headers={'kid': kid},
         algorithm='RS256',
-    )}
+    ).decode('utf-8')}
     response = client.get(path, headers=headers)
     assert response.status_code == 200
     assert 'url' in response.json.keys()
@@ -69,7 +69,7 @@ def test_indexd_download_file_no_protocol(
         key=rsa_private_key,
         headers={'kid': kid},
         algorithm='RS256',
-    )}
+    ).decode('utf-8')}
     response = client.get(path, headers=headers)
     assert response.status_code == 200
     assert 'url' in response.json.keys()
@@ -116,7 +116,7 @@ def test_unauthorized_indexd_download_file(
         key=rsa_private_key,
         headers={'kid': kid},
         algorithm='RS256',
-    )}
+    ).decode('utf-8')}
     response = client.get(path, headers=headers)
     assert response.status_code == 401
     assert 'url' not in response.json.keys()
@@ -139,7 +139,7 @@ def test_unauthorized_indexd_upload_file(
         key=rsa_private_key,
         headers={'kid': kid},
         algorithm='RS256',
-    )}
+    ).decode('utf-8')}
     response = client.get(path, headers=headers)
     assert response.status_code == 401
     assert 'url' not in response.json.keys()
@@ -163,7 +163,7 @@ def test_unavailable_indexd_upload_file(
         key=rsa_private_key,
         headers={'kid': kid},
         algorithm='RS256',
-    )}
+    ).decode('utf-8')}
     response = client.get(path, headers=headers)
     assert response.status_code == 401
     assert 'url' not in response.json.keys()

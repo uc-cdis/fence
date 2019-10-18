@@ -28,7 +28,9 @@ def fence_oauth_client(app, db_session, oauth_user, fence_oauth_client_url):
     """
     client_id = 'fence_instance'
     client_secret = fence.utils.random_str(50)
-    hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
+    hashed_secret = bcrypt\
+        .hashpw(client_secret.encode('utf-8'), bcrypt.gensalt())\
+        .decode('utf-8')
     test_user = (
         db_session
         .query(models.User)

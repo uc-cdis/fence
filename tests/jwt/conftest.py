@@ -21,7 +21,7 @@ def encoded_jwt(kid, rsa_private_key):
         key=rsa_private_key,
         headers=headers,
         algorithm='RS256',
-    )
+    ).decode('utf-8')
 
 
 @pytest.fixture(scope='session')
@@ -43,7 +43,7 @@ def encoded_jwt_expired(claims, kid, rsa_private_key):
     claims_expired['iat'] -= 10000
     return jwt.encode(
         claims_expired, key=rsa_private_key, headers=headers, algorithm='RS256'
-    )
+    ).decode('utf-8')
 
 
 @pytest.fixture(scope='session')
@@ -62,4 +62,4 @@ def encoded_jwt_refresh_token(claims_refresh, kid, rsa_private_key):
     headers = {'kid': kid}
     return jwt.encode(
         claims_refresh, key=rsa_private_key, headers=headers, algorithm='RS256'
-    )
+    ).decode('utf-8')
