@@ -7,9 +7,9 @@ The [Database for Genotypes and Phenotypes (dbGaP)](https://www.ncbi.nlm.nih.gov
 The largest unit of data that can be submitted to dbGaP is a *Study*. Studies can have sub-studies. Each study is identified by a unique study number (AKA phsid AKA study accession) and additional information (like version), which may look something like `phs001826.v1.p1.c1`. The `.` delimites various pieces of information.
 
 * `phs001826`: unique study identifier
-* `v1`: version number
-* `p1`: participant set number
-* `c1`: consent group
+* `v1`: data version
+* `p1`: participant set version
+* `c1`: consent group version
 
 The combination of these fields is known as a *dbGaP Accession Number*.
 
