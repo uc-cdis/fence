@@ -129,7 +129,9 @@ def test_dbgap_consent_codes(
 ):
     # patch the sync to use the parameterized value for whether or not to parse exchange
     # area data
-    monkeypatch.setattr(syncer, "parse_exchange_area_code", parse_exchange_area_config)
+    monkeypatch.setattr(
+        syncer, "enable_common_exchange_area_access", parse_exchange_area_config
+    )
     monkeypatch.setattr(syncer, "parse_consent_code", parse_consent_code_config)
     monkeypatch.setattr(syncer, "project_mapping", {})
 

@@ -23,7 +23,11 @@ A single *Telemetry File* represents the access allowed for a given dbGaP study 
 
 ## Consent Groups
 
-Fence contains a configuration for whether or not to parse consent codes. When parsing consent codes, the authorization resources a user is given access to will be in the form `study_id.consent_group` (ex: `phs001826.c2`).
+Fence contains a configuration for whether or not to parse consent codes (at the time of writing, it is `parse_consent_code` in the `dbGaP` block).
+
+> NOTE: Reference the `config-default.yaml` for current configuration options and further details.
+
+When parsing consent codes, the authorization resources a user is given access to will be in the form `study_id.consent_group` (ex: `phs001826.c2`).
 
 ### Consent Group `c999` Handling
 
@@ -37,10 +41,29 @@ with `c999` access to all those consents (including `.c999` explicitly, to repre
 that study's exchange area).
 
 Fence allows configuring whether or not you want to handle the "common exchange area" logic
-mentioned above. When turned on, you can provide a list of study identifiers (ex: `phs000123`, `phs000456`) and the resource you want to represent their parent study's common exchange area (ex: `123_and_456_common_exchange_area`) in Fence's configuration file.
+mentioned above (at the time of writing, it is `enable_common_exchange_area_access` in the `dbGaP` block).
 
-> See the `config-default.yaml` for more information about available configurations.
+When turned on, you can provide a list of study identifiers (ex: `phs000123`, `phs000456`) and the resource you want to represent their parent study's common exchange area (ex: `123_and_456_common_exchange_area`) in Fence's configuration file (at the time of writing, it is `study_common_exchange_areas` in the `dbGaP` block).
+
+> NOTE: Again, please see the `config-default.yaml` for more information about available configurations.
+
+For example, `c999` would be handled slightly differently based on configuration. Below, assume a user has access to `c999` consent group:
+
+|| **Consent Cfg == True**  | **Consent Codes Cfg == False** |
+|---| ------------- | ------------- |
+| **Common Exchange Cfg == True** | access to: common exchange area (if phsid in cfg mapping) + study-specifc exchange area + all consent codes  | c999 ignored, access to phsid w/o consent |
+| **Common Exchange Cfg == False** | access to: study-specifc exchange area + all consent codes | c999 ignored, access to phsid w/o consent |
+
+So the user access granted in a situation with `phs000123.c999` (assuming there exists a
+`phs000123.c1` and `phs000123.c2`):
+
+|| **Consent Cfg == True**  | **Consent Codes Cfg == False** |
+|---| ------------- | ------------- |
+| **Common Exchange Cfg == True** | `test_common_exchange_area` + `phs000123.c999` + `phs000123.c1`, `phs000123.c2` | `phs000123`
+| **Common Exchange Cfg == False** | `phs000123.c999` + `phs000123.c1`, `phs000123.c2` | `phs000123` |
+
+> NOTE: On the resource level, `phs000123.c999` should refer to resources that exist in that study's specific exchange area. Resources in the parent's common exchange area should be controlled via `test_common_exchange_area`.
 
 ## Version Updates
 
-A study can be updated and at that time the patients and consent groups may change and the version number `v1` would get bumped up. At the moment, Fence does not handle these versions, so authorization if effectively either study level, or study+consent level.
+A study can be updated and at that time the patients and consent groups may change and the version number `v1` would get bumped up. At the moment, Fence does not handle these versions, so authorization is effectively either study level, or study+consent level.

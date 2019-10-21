@@ -300,7 +300,9 @@ class UserSyncer(object):
             self.protocol = dbGaP["protocol"]
             self.dbgap_key = dbGaP["decrypt_key"]
         self.parse_consent_code = dbGaP.get("parse_consent_code", True)
-        self.parse_exchange_area_code = dbGaP.get("parse_exchange_area_code", False)
+        self.enable_common_exchange_area_access = dbGaP.get(
+            "enable_common_exchange_area_access", False
+        )
         self.study_common_exchange_areas = dbGaP.get("study_common_exchange_areas", {})
         self.session = db_session
         self.driver = SQLAlchemyDriver(DB)
@@ -475,7 +477,7 @@ class UserSyncer(object):
                         )
                         if (
                             consent_code == "c999"
-                            and self.parse_exchange_area_code
+                            and self.enable_common_exchange_area_access
                             and dbgap_project in self.study_common_exchange_areas
                         ):
                             self.logger.info(
@@ -983,7 +985,7 @@ class UserSyncer(object):
 
         self.logger.info("dbgap files: {}".format(dbgap_file_list))
         permissions = [{"read-storage"} for _ in dbgap_file_list]
-        if self.parse_consent_code and self.parse_exchange_area_code:
+        if self.parse_consent_code and self.enable_common_exchange_area_access:
             self.logger.info(
                 f"using study to common exchange area mapping: {self.study_common_exchange_areas}"
             )

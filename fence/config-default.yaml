@@ -392,8 +392,11 @@ dbGaP:
   # and when a user has access to one study's exchange area data, they
   # have access to the parent study's "common exchange area data" that is not study
   # specific. The following config is whether or not to parse/handle "c999" codes
-  # for exchange area data
-  parse_exchange_area_code: false
+  # for access to the common exchange area data
+  #
+  # NOTE: When enabled you MUST also provide a mapping to the
+  # `study_common_exchange_areas` from study -> parent common exchange area resource
+  enable_common_exchange_area_access: false
   # The below configuration is a mapping from studies to their "common exchange area data"
   # Fence project name a user gets access to when parsing c999 exchange area codes (and
   # subsequently gives access to an Arborist resource representing this common area
