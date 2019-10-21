@@ -117,20 +117,20 @@ def test_sync(
 
 
 @pytest.mark.parametrize("syncer", ["google"], indirect=True)
-@pytest.mark.parametrize("parse_exchange_area_config", [False, True])
+@pytest.mark.parametrize("enable_common_exchange_area", [False, True])
 @pytest.mark.parametrize("parse_consent_code_config", [False, True])
 def test_dbgap_consent_codes(
     syncer,
     db_session,
     storage_client,
-    parse_exchange_area_config,
+    enable_common_exchange_area,
     parse_consent_code_config,
     monkeypatch,
 ):
     # patch the sync to use the parameterized value for whether or not to parse exchange
     # area data
     monkeypatch.setattr(
-        syncer, "enable_common_exchange_area_access", parse_exchange_area_config
+        syncer, "enable_common_exchange_area_access", enable_common_exchange_area
     )
     monkeypatch.setattr(syncer, "parse_consent_code", parse_consent_code_config)
     monkeypatch.setattr(syncer, "project_mapping", {})
@@ -139,7 +139,9 @@ def test_dbgap_consent_codes(
 
     user = models.query_for_user(session=db_session, username="USERC")
     if parse_consent_code_config:
-        if parse_exchange_area_config:
+        if enable_common_exchange_area:
+            # b/c user has c999, ensure they have access to all consents, study-specific
+            # exchange area (via .c999) and the common exchange area configured
             assert user.project_access == {
                 "phs000179.c1": ["read-storage"],
                 "phs000178.c1": ["read-storage"],
@@ -150,6 +152,8 @@ def test_dbgap_consent_codes(
                 "test_common_exchange_area": ["read-storage"],
             }
         else:
+            # b/c user has c999 but common exchange area is disabled, ensure they have
+            # access to all consents, study-specific exchange area (via .c999)
             assert user.project_access == {
                 "phs000179.c1": ["read-storage"],
                 # c999 gives access to all consents
@@ -158,6 +162,7 @@ def test_dbgap_consent_codes(
                 "phs000178.c999": ["read-storage"],
             }
     else:
+        # with consent code parsing off, ensure users have access to just phsids
         assert user.project_access == {
             "phs000178": ["read-storage"],
             "phs000179": ["read-storage"],
@@ -198,7 +203,9 @@ def test_dbgap_consent_codes(
         resource_to_parent_paths.setdefault(resource, []).append(parent_path)
 
     if parse_consent_code_config:
-        if parse_exchange_area_config:
+        if enable_common_exchange_area:
+            # b/c user has c999, ensure they have access to all consents, study-specific
+            # exchange area (via .c999) and the common exchange area configured
             assert "phs000178.c999" in resource_to_parent_paths
             assert resource_to_parent_paths["phs000178.c999"] == ["/orgA/programs/"]
 
@@ -206,19 +213,7 @@ def test_dbgap_consent_codes(
             assert resource_to_parent_paths["test_common_exchange_area"] == [
                 "/dbgap/programs/"
             ]
-        else:
-            # c999 gives access to all consents
-            assert "phs000178.c1" in resource_to_parent_paths
-            assert "phs000178.c2" in resource_to_parent_paths
-            assert "phs000178.c999" in resource_to_parent_paths
-            # NOTE: this study+consent is configured to have multiple names in the dbgap config
-            assert resource_to_parent_paths["phs000178.c2"] == [
-                "/orgA/programs/",
-                "/orgB/programs/",
-                "/programs/",
-            ]
 
-    if parse_consent_code_config:
         assert "phs000178.c1" in resource_to_parent_paths
         assert resource_to_parent_paths["phs000178.c1"] == ["/orgA/programs/"]
 

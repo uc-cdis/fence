@@ -1099,7 +1099,7 @@ class UserSyncer(object):
                 accession_number = phs_match.groupdict()
 
                 # TODO: This is not handling the .v1.p1 at all
-                consent_mapping.setdefault(accession_number["phsid"], []).append(
+                consent_mapping.setdefault(accession_number["phsid"], set()).add(
                     ".".join([accession_number["phsid"], accession_number["consent"]])
                 )
 
@@ -1108,7 +1108,7 @@ class UserSyncer(object):
         # go through existing access and find any c999's and make sure to give access to
         # all accessions with consent for that phsid
         for username, user_project_info in copy.deepcopy(user_projects).items():
-            for project, permissions in copy.deepcopy(user_project_info).items():
+            for project, _ in user_project_info.items():
                 phs_match = access_number_matcher.match(project)
                 if phs_match and phs_match.groupdict()["consent"] == "c999":
                     # give access to all consents
