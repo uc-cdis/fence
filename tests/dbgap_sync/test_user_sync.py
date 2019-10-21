@@ -1,12 +1,9 @@
-import time
-
 from fence import models
 
 
 def test_sync(syncer, db_session):
 
     syncer.sync()
-    time.sleep(2)
 
     users = db_session.query(models.User).all()
     assert len(users) == 10

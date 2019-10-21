@@ -28,13 +28,21 @@ LOCAL_YAML_DIR = os.path.join(
 )
 
 
+def session_add(session, obj):
+    try:
+        session.add(obj)
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        raise e
+
+
 @pytest.fixture
 def syncer(db_session):
     provider = [{
         'name': 'test-cleversafe',
         'backend': 'cleversafe'
-    },
-    ]
+    },]
 
     users = [
         {'username': 'TESTUSERB', 'is_admin': True, 'email': 'userA@gmail.com'},
@@ -67,29 +75,30 @@ def syncer(db_session):
         'phs000179': [
             {'name': 'BLAH', 'auth_id': 'phs000179'}
         ],
-        'phstest': [
-            {'name': 'Test', 'auth_id': 'Test'}
-        ]
+        'phstest': [{'name': 'Test', 'auth_id': 'Test'}]
     }
 
     dbGap = {}
 
     # patch storage client
-    patcher = patch(
-        'fence.resources.storage.get_client',
-        get_client)
+    patcher = patch('fence.resources.storage.get_client', get_client)
     patcher.start()
 
     syncer_obj = UserSyncer(
-        dbGaP=dbGap, DB=DB, db_session=db_session, project_mapping=project_mapping,
+        dbGaP=dbGap,
+        DB=DB,
+        db_session=db_session,
+        project_mapping=project_mapping,
         storage_credentials={'test-cleversafe': {'backend': 'cleversafe'}},
         is_sync_from_dbgap_server=False,
         sync_from_local_csv_dir=LOCAL_CSV_DIR,
-        sync_from_local_yaml_file=LOCAL_YAML_DIR)
+        sync_from_local_yaml_file=LOCAL_YAML_DIR
+    )
 
     for element in provider:
         udm.create_provider(
-            db_session, element['name'],
+            db_session,
+            element['name'],
             backend=element['backend']
         )
 
@@ -99,41 +108,43 @@ def syncer(db_session):
         test_projects.append(p)
         for sa in project['storage_accesses']:
             for bucket in sa['buckets']:
-                syncer_obj.storage_manager.create_bucket(
-                    sa['name'], db_session, bucket, p)
+                syncer_obj.storage_manager.create_bucket(sa['name'], db_session, bucket, p)
+
     test_users = []
     for u in users:
         user = User(**u)
+        session_add(db_session, user)
         test_users.append(user)
-        db_session.add(user)
+
+    assert len(users) == db_session.query(User).count()
 
     auth_providers = [AuthorizationProvider(name='dbGaP'), AuthorizationProvider(name='fence')]
-
-    access = AccessPrivilege(user=test_users[0], project=test_projects[0],
-                             auth_provider=auth_providers[1],
-                             privilege=['read-storage', 'write-storage'])
-    db_session.add(access)
-
-    access = AccessPrivilege(user=test_users[1], project=test_projects[0],
-                             auth_provider=auth_providers[1],
-                             privilege=['read-storage', 'write-storage'])
-    db_session.add(access)
-
-    access = AccessPrivilege(user=test_users[2], project=test_projects[0],
-                             auth_provider=auth_providers[1],
-                             privilege=['read', 'read-storage', 'write-storage'])
-    db_session.add(access)
-
-    access = AccessPrivilege(user=test_users[2], project=test_projects[1],
-                             auth_provider=auth_providers[1],
-                             privilege=['read', 'write', 'upload', 'read-storage', 'write-storage'])
+    for provider in auth_providers:
+        session_add(db_session, provider)
     
-    access = AccessPrivilege(user=test_users[4], project=test_projects[2],
-                             auth_provider=auth_providers[0],
-                             privilege=['read-storage'])
+    assert len(auth_providers) == db_session.query(AuthorizationProvider).count()
 
-    db_session.add(access)
+    acls = [
+        AccessPrivilege(
+            user=test_users[0], project=test_projects[0], auth_provider=auth_providers[1],
+            privilege=['read-storage', 'write-storage']),
+        AccessPrivilege(
+            user=test_users[1], project=test_projects[0], auth_provider=auth_providers[1],
+            privilege=['read-storage', 'write-storage']),
+        AccessPrivilege(
+            user=test_users[2], project=test_projects[0], auth_provider=auth_providers[1],
+            privilege=['read', 'read-storage', 'write-storage']),
+        AccessPrivilege(
+            user=test_users[2], project=test_projects[1], auth_provider=auth_providers[1],
+            privilege=['read', 'write', 'upload', 'read-storage', 'write-storage']),
+        AccessPrivilege(
+            user=test_users[4], project=test_projects[2], auth_provider=auth_providers[0],
+            privilege=['read-storage']),
+    ]
 
-    db_session.commit()
+    for acl in acls:
+        session_add(db_session, acl)
+
+    assert len(acls) == db_session.query(AccessPrivilege).count()
 
     return syncer_obj
