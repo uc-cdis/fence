@@ -465,8 +465,8 @@ class UserSyncer(object):
 
                         # c999 indicates full access to all consents and access
                         # to a study-specific exchange area
-                        # access to at least one study-specific exchange implies access
-                        # to the common exchange area
+                        # access to at least one study-specific exchange area implies access
+                        # to the parent study's common exchange area
                         #
                         # NOTE: Handling giving access to all consents is done at
                         #       a later time, when we have full information about possible
@@ -1083,10 +1083,8 @@ class UserSyncer(object):
         access_number_matcher = re.compile(config["DBGAP_ACCESSION_WITH_CONSENT_REGEX"])
         # combine dbgap/user.yaml projects into one big list (in case not all consents
         # are in either)
-        all_projects = []
-        all_projects.extend([project for project, _ in self._projects.items()])
-        all_projects.extend(
-            [project for project, _ in user_yaml_project_to_resources.items()]
+        all_projects = set(
+            list(self._projects.keys()) + list(user_yaml_project_to_resources.keys())
         )
 
         self.logger.debug(f"all projects: {all_projects}")

@@ -408,7 +408,7 @@ dbGaP:
     # 'studyZ': 'test_common_exchange_area'
   # A mapping from the dbgap study / Fence project to which authorization namespaces the
   # actual data lives in. For example, `studyX` data may exist in multiple organizations, so
-  # we need to know to map authorization to all orgs resources
+  # we need to know how to map authorization to all orgs resources
   study_to_resource_namespaces:
     '_default': ['/']
     'test_common_exchange_area': ['/dbgap/']
