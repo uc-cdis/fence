@@ -841,7 +841,10 @@ paths:
       summary: Receive API key
       description: >-
         Get a new API key for the current user. API keys can be used to retrieve
-        access tokens which will allow for authed communication to our API.
+        access tokens which will allow for authed communication to our API. Can 
+        pass a list of requested OIDC scopes in the body. Automatically gives "openid" scope.
+        Any additional scopes (like "user" for seeing user information or "data" for hitting
+        signed url endpoint must be explicitly requested and user must already have access).
       security:
         - OAuth2:
             - user
@@ -853,6 +856,8 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/NewAPIKey'
+      requestBody:
+        $ref: '#/components/requestBodies/APIKeyScopes'
   '/credentials/api/{key_id}':
     delete:
       tags:
@@ -1454,6 +1459,13 @@ components:
             $ref: '#/components/schemas/APIKey'
       description: API key
       required: true
+    APIKeyScopes:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIKeyScopes'
+      description: API key scopes
+      required: false
   securitySchemes:
     OAuth2:
       type: oauth2
@@ -1878,6 +1890,18 @@ components:
         key_id: e9d58890-99b0-44f0-88bd-3ebc370b1329
         api_key: >-
           eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.XbPfbIHMI6arZ3Y922BhjWgQzWXcXNrz0ogtVhfEd2o
+    APIKeyScopes:
+      type: object
+      properties:
+        scope:
+          type: array
+          description: list of OIDC scopes for the API Key
+          items:
+            type: string
+      example:
+        scope:
+          - user
+          - data
     AccessToken:
       type: object
       properties:
