@@ -415,6 +415,7 @@ class UserSyncer(object):
         # re-grant
         self._grant_from_storage(to_update, user_project)
         self._update_from_db(sess, to_update, user_project)
+        sess.commit()
 
     def _revoke_from_db(self, sess, to_delete):
         """
@@ -605,6 +606,7 @@ class UserSyncer(object):
                     project = self._get_or_create(sess, Project, **data)
                 if project_name not in self._projects:
                     self._projects[project_name] = project
+        sess.commit()
 
     @classmethod
     def _get_or_create(self, sess, model, **kwargs):
@@ -612,6 +614,7 @@ class UserSyncer(object):
         if not instance:
             instance = model(**kwargs)
             sess.add(instance)
+            sess.commit()
         return instance
 
     def sync(self):

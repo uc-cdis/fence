@@ -140,7 +140,7 @@ def create_providers(data, db_session):
         new_user = User()
         new_user.username = name
         new_user.email = user['email']
-        new_user.is_admin = user['is_admin']
+        new_user.is_admin = user['is_admin'] == 'true'
         s.add(new_user)
         user['id'] = new_user.id
 

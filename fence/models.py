@@ -317,7 +317,7 @@ def migrate(driver):
     # oidc migration
 
     table = Table(Client.__tablename__, md, autoload=True, autoload_with=driver.engine)
-    if not any([index.name == 'ix_name' for index in table.indexes]):
+    if not ("ix_name" in [constraint.name for constraint in table.constraints]):
         with driver.session as session:
             session.execute(
                 "ALTER TABLE {} ADD constraint ix_name unique (name);"
@@ -566,14 +566,6 @@ def _add_google_project_id(driver, md):
             row.google_project_id = count
             count += 1
     session.commit()
-
-    # add unique constraint
-    add_unique_constraint_if_not_exist(
-        table_name=GoogleServiceAccount.__tablename__,
-        column_name='google_project_id',
-        driver=driver,
-        metadata=md
-    )
 
     # add not null constraint
     add_not_null_constraint(
