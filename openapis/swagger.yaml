@@ -844,7 +844,7 @@ paths:
         access tokens which will allow for authed communication to our API. Can 
         pass a list of requested OIDC scopes in the body. Automatically gives "openid" scope.
         Any additional scopes (like "user" for seeing user information or "data" for hitting
-        signed url endpoint must be explicitly requested and user must already have access).
+        signed url endpoint) must be explicitly requested and user must already have access.
       security:
         - OAuth2:
             - user
