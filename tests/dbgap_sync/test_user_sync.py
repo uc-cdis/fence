@@ -4,7 +4,7 @@ import yaml
 
 from fence import models
 from fence.sync.sync_users import _format_policy_id
-
+from fence.config import config
 from tests.dbgap_sync.conftest import LOCAL_YAML_DIR
 
 
@@ -40,37 +40,58 @@ def test_sync_incorrect_user_yaml_file(syncer, monkeypatch, db_session):
 
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
-def test_sync(syncer, db_session, storage_client):
+@pytest.mark.parametrize("parse_consent_code_config", [False, True])
+def test_sync(
+    syncer, db_session, storage_client, parse_consent_code_config, monkeypatch
+):
+    # patch the sync to use the parameterized config value
+    monkeypatch.setattr(syncer, "parse_consent_code", parse_consent_code_config)
 
     syncer.sync()
 
     users = db_session.query(models.User).all()
     assert len(users) == 11
 
-    tags = db_session.query(models.Tag).all()
-    assert len(tags) == 7
+    if parse_consent_code_config:
+        user = models.query_for_user(session=db_session, username="USERC")
+        assert user.project_access == {
+            "phs000178.c1": ["read-storage"],
+            "phs000178.c2": ["read-storage"],
+            "phs000178.c999": ["read-storage"],
+            "phs000179.c1": ["read-storage"],
+        }
 
-    proj = db_session.query(models.Project).all()
-    assert len(proj) == 9
+        user = models.query_for_user(session=db_session, username="USERF")
+        assert user.project_access == {
+            "phs000178.c1": ["read-storage"],
+            "phs000178.c2": ["read-storage"],
+        }
 
-    user = models.query_for_user(session=db_session, username="USERC")
-    assert user.project_access == {
-        "phs000178": ["read-storage"],
-        "TCGA-PCAWG": ["read-storage"],
-        "phs000179.c1": ["read-storage"],
-    }
+        user = models.query_for_user(session=db_session, username="TESTUSERB")
+        assert user.project_access == {
+            "phs000179.c1": ["read-storage"],
+            "phs000178.c1": ["read-storage"],
+        }
+    else:
+        user = models.query_for_user(session=db_session, username="USERC")
+        assert user.project_access == {
+            "phs000178": ["read-storage"],
+            "TCGA-PCAWG": ["read-storage"],
+            "phs000179": ["read-storage"],
+        }
 
-    user = models.query_for_user(session=db_session, username="USERF")
-    assert user.project_access == {
-        "phs000178.c1": ["read-storage"],
-        "phs000178.c2": ["read-storage"],
-    }
+        user = models.query_for_user(session=db_session, username="USERF")
+        assert user.project_access == {
+            "phs000178": ["read-storage"],
+            "TCGA-PCAWG": ["read-storage"],
+        }
 
-    user = models.query_for_user(session=db_session, username="TESTUSERB")
-    assert user.project_access == {
-        "phs000179.c1": ["read-storage"],
-        "phs000178.c1": ["read-storage"],
-    }
+        user = models.query_for_user(session=db_session, username="TESTUSERB")
+        assert user.project_access == {
+            "phs000178": ["read-storage"],
+            "TCGA-PCAWG": ["read-storage"],
+            "phs000179": ["read-storage"],
+        }
 
     user = models.query_for_user(session=db_session, username="TESTUSERD")
     assert user.display_name == "USER D"
@@ -93,6 +114,133 @@ def test_sync(syncer, db_session, storage_client):
     assert not user.is_admin
     user_access = db_session.query(models.AccessPrivilege).filter_by(user=user).all()
     assert not user_access
+
+
+@pytest.mark.parametrize("syncer", ["google"], indirect=True)
+@pytest.mark.parametrize("enable_common_exchange_area", [False, True])
+@pytest.mark.parametrize("parse_consent_code_config", [False, True])
+def test_dbgap_consent_codes(
+    syncer,
+    db_session,
+    storage_client,
+    enable_common_exchange_area,
+    parse_consent_code_config,
+    monkeypatch,
+):
+    # patch the sync to use the parameterized value for whether or not to parse exchange
+    # area data
+    monkeypatch.setattr(
+        syncer, "enable_common_exchange_area_access", enable_common_exchange_area
+    )
+    monkeypatch.setattr(syncer, "parse_consent_code", parse_consent_code_config)
+    monkeypatch.setattr(syncer, "project_mapping", {})
+
+    syncer.sync()
+
+    user = models.query_for_user(session=db_session, username="USERC")
+    if parse_consent_code_config:
+        if enable_common_exchange_area:
+            # b/c user has c999, ensure they have access to all consents, study-specific
+            # exchange area (via .c999) and the common exchange area configured
+            assert user.project_access == {
+                "phs000179.c1": ["read-storage"],
+                "phs000178.c1": ["read-storage"],
+                "phs000178.c2": ["read-storage"],
+                "phs000178.c999": ["read-storage"],
+                # should additionally include the study-specific exchange area access and
+                # access to the common exchange area
+                "test_common_exchange_area": ["read-storage"],
+            }
+        else:
+            # b/c user has c999 but common exchange area is disabled, ensure they have
+            # access to all consents, study-specific exchange area (via .c999)
+            assert user.project_access == {
+                "phs000179.c1": ["read-storage"],
+                # c999 gives access to all consents
+                "phs000178.c1": ["read-storage"],
+                "phs000178.c2": ["read-storage"],
+                "phs000178.c999": ["read-storage"],
+            }
+    else:
+        # with consent code parsing off, ensure users have access to just phsids
+        assert user.project_access == {
+            "phs000178": ["read-storage"],
+            "phs000179": ["read-storage"],
+        }
+
+    user = models.query_for_user(session=db_session, username="USERF")
+    if parse_consent_code_config:
+        assert user.project_access == {
+            "phs000178.c1": ["read-storage"],
+            "phs000178.c2": ["read-storage"],
+        }
+    else:
+        assert user.project_access == {"phs000178": ["read-storage"]}
+
+    user = models.query_for_user(session=db_session, username="TESTUSERB")
+    if parse_consent_code_config:
+        assert user.project_access == {
+            "phs000178.c1": ["read-storage"],
+            "phs000179.c1": ["read-storage"],
+        }
+    else:
+        assert user.project_access == {
+            "phs000178": ["read-storage"],
+            "phs000179": ["read-storage"],
+        }
+
+    user = models.query_for_user(session=db_session, username="TESTUSERD")
+    if parse_consent_code_config:
+        assert user.project_access == {"phs000179.c1": ["read-storage"]}
+    else:
+        assert user.project_access == {"phs000179": ["read-storage"]}
+
+    resource_to_parent_paths = {}
+    for call in syncer.arborist_client.update_resource.call_args_list:
+        args, kwargs = call
+        parent_path = args[0]
+        resource = args[1].get("name")
+        resource_to_parent_paths.setdefault(resource, []).append(parent_path)
+
+    if parse_consent_code_config:
+        if enable_common_exchange_area:
+            # b/c user has c999, ensure they have access to all consents, study-specific
+            # exchange area (via .c999) and the common exchange area configured
+            assert "phs000178.c999" in resource_to_parent_paths
+            assert resource_to_parent_paths["phs000178.c999"] == ["/orgA/programs/"]
+
+            assert "test_common_exchange_area" in resource_to_parent_paths
+            assert resource_to_parent_paths["test_common_exchange_area"] == [
+                "/dbgap/programs/"
+            ]
+
+        assert "phs000178.c1" in resource_to_parent_paths
+        assert resource_to_parent_paths["phs000178.c1"] == ["/orgA/programs/"]
+
+        # NOTE: this study+consent is configured to have multiple names in the dbgap config
+        assert "phs000178.c2" in resource_to_parent_paths
+        assert resource_to_parent_paths["phs000178.c2"] == [
+            "/orgA/programs/",
+            "/orgB/programs/",
+            "/programs/",
+        ]
+
+        assert "phs000178.c999" in resource_to_parent_paths
+        assert resource_to_parent_paths["phs000178.c999"] == ["/orgA/programs/"]
+
+        assert "phs000179.c1" in resource_to_parent_paths
+        assert resource_to_parent_paths["phs000179.c1"] == ["/orgA/programs/"]
+    else:
+        assert "phs000178" in resource_to_parent_paths
+        # NOTE: this study is configured to have multiple names in the dbgap config
+        assert resource_to_parent_paths["phs000178"] == [
+            "/orgA/programs/",
+            "/orgB/programs/",
+            "/programs/",
+        ]
+
+        assert "phs000179" in resource_to_parent_paths
+        assert resource_to_parent_paths["phs000179"] == ["/orgA/programs/"]
 
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
@@ -301,14 +449,13 @@ def test_update_arborist(syncer, db_session):
 
     # one project is configured to point to two different arborist resource
     # parent paths (/orgA/ and /orgB/ and /)
-    project_with_mult_namespaces = "phs000178"
+    projects_with_mult_namespaces = ["phs000178.c2"]
     expect_resources = [
         "phs000179.c1",
         "phs000178.c1",
         "phs000178.c2",
-        "TCGA-PCAWG",
+        "phs000178.c999",
         "data_file",  # comes from user.yaml file
-        project_with_mult_namespaces,
     ]
 
     resource_to_parent_paths = {}
@@ -322,7 +469,7 @@ def test_update_arborist(syncer, db_session):
         assert resource in list(resource_to_parent_paths.keys())
         if resource == "data_file":
             assert resource_to_parent_paths[resource] == ["/"]
-        elif resource == project_with_mult_namespaces:
+        elif resource in projects_with_mult_namespaces:
             assert resource_to_parent_paths[resource] == [
                 "/orgA/programs/",
                 "/orgB/programs/",
