@@ -18,9 +18,13 @@ stateless.
 from authlib.common.urls import add_params_to_uri
 from authlib.oauth2.rfc6749 import AccessDeniedError, InvalidRequestError, OAuth2Error
 import flask
+import json
+
+from authutils.errors import JWTExpiredError
 
 from fence.blueprints.login import IDP_URL_MAP
 from fence.errors import Unauthorized, UserError
+from fence.jwt.errors import JWTError
 from fence.jwt.token import SCOPE_DESCRIPTION
 from fence.models import Client
 from fence.oidc.endpoints import RevocationEndpoint
@@ -285,10 +289,18 @@ def get_token(*args, **kwargs):
     try:
         response = server.create_token_response()
     except OAuth2Error as e:
-        status = error.status_code
         body = dict(error.get_body())  # returns list of tuples
-        headers = error.get_headers()
-        response = (status, body, headers)
+        response = flask.Response(
+            json.dumps(body), mimetype="application/json", status=error.status_code
+        )
+        response.headers = error.get_headers()
+    except (JWTError, JWTExpiredError) as e:
+        # fence.jwt.errors.JWTError: blacklisted refresh token.
+        # JWTExpiredError (cdiserrors.AuthNError subclass): expired token.
+        body = {"error": "invalid_request", "error_description": e.message}
+        response = flask.Response(
+            json.dumps(body), mimetype="application/json", status=e.code
+        )
     return response
 
 
