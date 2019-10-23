@@ -214,11 +214,11 @@ SESSION_ALLOWED_SCOPES:
 # "desc" and "secondary" are optional.
 # If the idp is fence, a list of "shib_idps" can be configured for
 # InCommon login.
-LOGIN_OPTIONS:
-  - name: 'Login from Google'
-    idp: google
-    # desc: 'description'
-    # secondary: True
+LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
+  # - name: 'Login from Google'
+  #   idp: google
+  #   desc: 'description'
+  #   secondary: True
   # - name: 'NIH Login'
   #   idp: fence
   # - name: 'Orcid Login'
