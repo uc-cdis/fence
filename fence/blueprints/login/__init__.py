@@ -66,7 +66,7 @@ def make_login_blueprint(app):
             default_idp = None
 
         # other login options
-        if "LOGIN_OPTIONS" in config:
+        if config["LOGIN_OPTIONS"]:
             login_options = config["LOGIN_OPTIONS"]
         elif "providers" in config.get("ENABLED_IDENTITY_PROVIDERS", {}):
             # fall back on "providers" and convert to "login_options" format
@@ -81,7 +81,7 @@ def make_login_blueprint(app):
                 for idp, details in enabled_providers.items()
             ]
         else:
-            logger.warn("LOGIN_OPTIONS not configured")
+            logger.warn("LOGIN_OPTIONS not configured or empty")
             login_options = []
 
         def absolute_login_url(provider_id, shib_idp=None):
