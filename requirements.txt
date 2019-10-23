@@ -7,7 +7,7 @@ boto3>=1.5<1.6
 cached_property==1.5.1
 cdislogging>=1.0.0<2.0.0
 cdiserrors==0.1.2
-cdispyutils==1.0.2
+git+https://github.com/uc-cdis/cdis-python-utils.git@9947b5b1b6a164a30a3f4e78b05c18bda8609e2f#egg=cdispyutils
 cryptography>=2.1.2<3.0
 datamodelutils==0.4.5
 Flask==1.1.1
