@@ -64,7 +64,24 @@ def get_all_users():
     Retrieve the information regarding the buckets created within a project.
     Returns a json object.
     """
-    return jsonify(admin.get_all_users(current_session))
+    keyword = request.args.get('keyword')
+    return jsonify(admin.get_all_users(current_session, keyword))
+
+
+@blueprint.route("/paginated_users", methods=["GET"])
+@admin_login_required
+@debug_log
+def get_paginated_users():
+    """
+    Retrieve the information regarding the buckets created within a project.
+    Returns a json object.
+    """
+    keyword = request.args.get('keyword')
+    page = request.args.get('page')
+    page_size = request.args.get('page_size')
+    return jsonify(
+        admin.get_paginated_user(current_session, page, page_size, keyword)
+    )
 
 
 @blueprint.route("/users", methods=["POST"])
