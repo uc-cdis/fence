@@ -288,18 +288,15 @@ def get_token(*args, **kwargs):
     """
     try:
         response = server.create_token_response()
-    except OAuth2Error as e:
-        body = dict(error.get_body())  # returns list of tuples
-        response = flask.Response(
-            json.dumps(body), mimetype="application/json", status=error.status_code
-        )
-        response.headers = error.get_headers()
     except (JWTError, JWTExpiredError) as e:
-        # fence.jwt.errors.JWTError: blacklisted refresh token.
-        # JWTExpiredError (cdiserrors.AuthNError subclass): expired token.
-        body = {"error": "invalid_request", "error_description": e.message}
+        # - in Authlib 0.11, create_token_response does not raise OAuth2Error
+        # - fence.jwt.errors.JWTError: blacklisted refresh token
+        # - JWTExpiredError (cdiserrors.AuthNError subclass): expired
+        #   refresh token
+        # Returns code 400 per OAuth2 spec
+        body = {"error": "invalid_grant", "error_description": e.message}
         response = flask.Response(
-            json.dumps(body), mimetype="application/json", status=e.code
+            json.dumps(body), mimetype="application/json", status=400
         )
     return response
 
