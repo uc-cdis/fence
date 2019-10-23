@@ -21,7 +21,7 @@ def get_error_response(error):
 
     message = details.get("message")
 
-    error_id = _get_error_identifier()
+    error_id = get_error_identifier()
     logger.error(
         "{} HTTP error occured. ID: {}\nDetails: {}".format(
             status_code, error_id, str(details)
@@ -86,5 +86,5 @@ def get_error_details_and_status(error):
     return error_response
 
 
-def _get_error_identifier():
+def get_error_identifier():
     return uuid.uuid4()
