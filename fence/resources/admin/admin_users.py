@@ -21,6 +21,7 @@ __all__ = [
     "connect_user_to_project",
     "get_user_info",
     "get_all_users",
+    "get_paginated_user",
     "get_user_groups",
     "create_user",
     "update_user",
@@ -70,18 +71,50 @@ def get_user_info(current_session, username):
     return us.get_user_info(current_session, username)
 
 
-def get_all_users(current_session):
-    users = udm.get_all_users(current_session)
+def get_all_users(current_session, keyword=None):
+    users = udm.get_all_users(current_session, keyword)
     users_names = []
     for user in users:
+        # TODO Add created at, return all attrs in a dump function
         new_user = {}
         new_user["name"] = user.username
         if user.is_admin:
             new_user["role"] = "admin"
         else:
             new_user["role"] = "user"
+        new_user["display_name"] = user.display_name
+        new_user["phone_number"] = user.phone_number
+        new_user["active"] = user.active if user.active is not None else True
+        new_user["email"] = user.email
         users_names.append(new_user)
     return {"users": users_names}
+
+
+def get_paginated_user(current_session, page, page_size, keyword=None):
+    pagination = udm.get_paginated_users(current_session, page, page_size, keyword)
+    users_names = []
+    for user in pagination.items:
+        # TODO Add created at, return all attrs in a dump function
+        new_user = {}
+        new_user["name"] = user.username
+        if user.is_admin:
+            new_user["role"] = "admin"
+        else:
+            new_user["role"] = "user"
+        new_user["display_name"] = user.display_name
+        new_user["phone_number"] = user.phone_number
+        new_user["active"] = user.active if user.active is not None else True
+        new_user["email"] = user.email
+        users_names.append(new_user)
+    return {
+        "users": users_names,
+        "pagination": {
+            "page": pagination.page,
+            "page_size": pagination.per_page,
+            "next_page": pagination.next_num,
+            "total_count": pagination.total,
+        }
+    }
 
 
 def get_user_groups(current_session, username):
