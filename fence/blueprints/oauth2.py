@@ -18,12 +18,8 @@ stateless.
 from authlib.common.urls import add_params_to_uri
 from authlib.oauth2.rfc6749 import AccessDeniedError, InvalidRequestError, OAuth2Error
 import flask
-import json
-
-from cdislogging import get_logger
 
 from fence.blueprints.login import IDP_URL_MAP
-from fence.error_handler import get_error_details_and_status, get_error_identifier
 from fence.errors import Unauthorized, UserError
 from fence.jwt.token import SCOPE_DESCRIPTION
 from fence.models import Client
@@ -32,9 +28,6 @@ from fence.oidc.server import server
 from fence.utils import clear_cookies
 from fence.user import get_current_user
 from fence.config import config
-
-
-logger = get_logger(__name__)
 
 
 blueprint = flask.Blueprint("oauth2", __name__)
@@ -291,17 +284,11 @@ def get_token(*args, **kwargs):
     """
     try:
         response = server.create_token_response()
-    except Exception as e:
-        details, status_code = get_error_details_and_status(e)
-        error_id = get_error_identifier()
-        logger.error(
-            "/oauth2/token: {} HTTP error occured. ID: {}\nDetails: {}".format(
-                status_code, error_id, str(details)
-            )
-        )
-        response = flask.Response(
-            json.dumps(details), mimetype="application/json", status=status_code
-        )
+    except OAuth2Error as e:
+        status = error.status_code
+        body = dict(error.get_body())  # returns list of tuples
+        headers = error.get_headers()
+        response = (status, body, headers)
     return response
 
 
