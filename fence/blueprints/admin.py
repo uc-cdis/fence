@@ -97,7 +97,8 @@ def create_user():
     username = request.get_json().get("name", None)
     role = request.get_json().get("role", None)
     email = request.get_json().get("email", None)
-    return jsonify(admin.create_user(current_session, username, role, email))
+    display_name = request.get_json().get("display_name", None)
+    return jsonify(admin.create_user(current_session, username, role, email, display_name))
 
 
 @blueprint.route("/users/<username>", methods=["PUT"])
