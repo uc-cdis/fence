@@ -113,7 +113,11 @@ def update_user(username):
     name = request.get_json().get("name", None)
     role = request.get_json().get("role", None)
     email = request.get_json().get("email", None)
-    return jsonify(admin.update_user(current_session, username, role, email, name))
+    display_name = request.get_json().get("display_name", None)
+    active = request.get_json().get("active", "false") == "true"
+    return jsonify(admin.update_user(
+        current_session, username, role, email, name, display_name, active
+    ))
 
 
 @blueprint.route("/users/<username>", methods=["DELETE"])
