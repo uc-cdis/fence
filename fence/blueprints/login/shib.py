@@ -33,6 +33,7 @@ class ShibbolethLogin(Resource):
         # https://wiki.shibboleth.net/confluence/display/SP3/SSO
         entityID = flask.request.args.get("shib_idp")
         flask.session["entityID"] = entityID
+        # TODO: use OPENID_CONNECT.shibboleth.redirect_url instead of hardcoded
         actual_redirect = config["BASE_URL"] + "/login/shib/login"
         if not entityID or entityID == "urn:mace:incommon:nih.gov":
             # default to SSO_URL from the config which should be NIH login
@@ -56,7 +57,8 @@ class ShibbolethCallback(Resource):
 
         # eppn stands for eduPersonPrincipalName
         username = flask.request.headers.get("eppn")
-        if not username:
+        entityID = flask.session.get("entityID")
+        if not username or (not entityID or entityID == "urn:mace:incommon:nih.gov"):
             persistent_id = flask.request.headers.get(shib_header)
             username = persistent_id.split("!")[-1] if persistent_id else None
             if not username:
@@ -69,8 +71,8 @@ class ShibbolethCallback(Resource):
                 )
 
         idp = IdentityProvider.itrust
-        if flask.session.get("entityID"):
-            idp = flask.session.get("entityID")
+        if entityID:
+            idp = entityID
         login_user(flask.request, username, idp)
 
         if flask.session.get("redirect"):
