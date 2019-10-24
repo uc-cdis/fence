@@ -82,7 +82,7 @@ def get_all_users(current_session, keyword=None):
             new_user["role"] = "admin"
         else:
             new_user["role"] = "user"
-        new_user["display_name"] = user.display_name
+        new_user["preferred_name"] = user.display_name
         new_user["phone_number"] = user.phone_number
         new_user["active"] = user.active if user.active is not None else True
         new_user["email"] = user.email
@@ -101,7 +101,7 @@ def get_paginated_user(current_session, page, page_size, keyword=None):
             new_user["role"] = "admin"
         else:
             new_user["role"] = "user"
-        new_user["display_name"] = user.display_name
+        new_user["preferred_name"] = user.display_name
         new_user["phone_number"] = user.phone_number
         new_user["active"] = user.active if user.active is not None else True
         new_user["email"] = user.email
@@ -160,7 +160,10 @@ def create_user(current_session, username, role, email):
         return us.get_user_info(current_session, username)
 
 
-def update_user(current_session, username, role, email, new_name):
+def update_user(
+        current_session, username, role, email, new_name,
+        display_name=None, active=None
+):
     usr = us.get_user(current_session, username)
     user_list = [
         user["name"].upper() for user in get_all_users(current_session)["users"]
@@ -181,6 +184,8 @@ def update_user(current_session, username, role, email, new_name):
     if role:
         usr.is_admin = role == "admin"
     usr.username = new_name or usr.username
+    usr.display_name = display_name or usr.display_name
+    usr.active = active if active is not None else usr.active
     return us.get_user_info(current_session, usr.username)
 
 
