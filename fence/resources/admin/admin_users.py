@@ -82,7 +82,7 @@ def get_all_users(current_session, keyword=None):
             new_user["role"] = "admin"
         else:
             new_user["role"] = "user"
-        new_user["preferred_name"] = user.display_name
+        new_user["preferred_username"] = user.display_name
         new_user["phone_number"] = user.phone_number
         new_user["active"] = user.active if user.active is not None else True
         new_user["email"] = user.email
@@ -101,7 +101,7 @@ def get_paginated_user(current_session, page, page_size, keyword=None):
             new_user["role"] = "admin"
         else:
             new_user["role"] = "user"
-        new_user["preferred_name"] = user.display_name
+        new_user["preferred_username"] = user.display_name
         new_user["phone_number"] = user.phone_number
         new_user["active"] = user.active if user.active is not None else True
         new_user["email"] = user.email
@@ -125,7 +125,7 @@ def get_user_groups(current_session, username):
     return {"groups": user_groups_info}
 
 
-def create_user(current_session, username, role, email):
+def create_user(current_session, username, role, email, display_name=None):
     """
     Create a user for all the projects or groups in the list.
     If the user already exists, to avoid unadvertedly changing it, we suggest update
@@ -156,6 +156,7 @@ def create_user(current_session, username, role, email):
         is_admin = role == "admin"
         email_add = email
         usr = User(username=username, active=True, is_admin=is_admin, email=email_add)
+        usr.display_name = display_name
         current_session.add(usr)
         return us.get_user_info(current_session, username)
 
