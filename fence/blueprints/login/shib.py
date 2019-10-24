@@ -52,7 +52,7 @@ class ShibbolethLoginFinish(Resource):
         if "SHIBBOLETH_HEADER" not in config:
             raise InternalError("Missing shibboleth header configuration")
         username = flask.request.headers.get("eppn")
-        if not username:
+        if not username or (not entityID or entityID == "urn:mace:incommon:nih.gov"):
             persistent_id = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
             username = persistent_id.split("!")[-1] if persistent_id else None
             if not username:
