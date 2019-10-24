@@ -51,15 +51,18 @@ class ShibbolethLoginFinish(Resource):
         """
         if "SHIBBOLETH_HEADER" not in config:
             raise InternalError("Missing shibboleth header configuration")
+
+	# eppn stands for eduPersonPrincipalName
         username = flask.request.headers.get("eppn")
-        if not username:
+        entityID = flask.session.get("entityID")
+        if not username or (not entityID or entityID == "urn:mace:incommon:nih.gov"):
             persistent_id = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
             username = persistent_id.split("!")[-1] if persistent_id else None
             if not username:
                 raise Unauthorized("Please login")
         idp = IdentityProvider.itrust
-        if flask.session.get("entityID"):
-            idp = flask.session.get("entityID")
+        if entityID:
+            idp = entityID
         login_user(flask.request, username, idp)
         if flask.session.get("redirect"):
             return flask.redirect(flask.session.get("redirect"))
