@@ -58,7 +58,9 @@ class ShibbolethCallback(Resource):
         # eppn stands for eduPersonPrincipalName
         username = flask.request.headers.get("eppn")
         entityID = flask.session.get("entityID")
-        if not username or (not entityID or entityID == "urn:mace:incommon:nih.gov"):
+
+        # if eppn not available or logging in through NIH
+        if not username or not entityID or entityID == "urn:mace:incommon:nih.gov":
             persistent_id = flask.request.headers.get(shib_header)
             username = persistent_id.split("!")[-1] if persistent_id else None
             if not username:
