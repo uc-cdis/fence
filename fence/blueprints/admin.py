@@ -115,7 +115,7 @@ def update_user(username):
     role = request.get_json().get("role", None)
     email = request.get_json().get("email", None)
     display_name = request.get_json().get("display_name", None)
-    active = request.get_json().get("active", "false") == "true"
+    active = request.get_json().get("active", False)
     return jsonify(admin.update_user(
         current_session, username, role, email, name, display_name, active
     ))
