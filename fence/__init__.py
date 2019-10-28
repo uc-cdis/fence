@@ -248,7 +248,7 @@ def _set_authlib_cfgs(app):
 
 
 def _setup_oidc_clients(app):
-    if "LOGIN_OPTIONS" in config:
+    if config["LOGIN_OPTIONS"]:
         enabled_idp_ids = [option["idp"] for option in config["LOGIN_OPTIONS"]]
     else:
         # fall back on "providers"
