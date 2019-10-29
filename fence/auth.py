@@ -145,7 +145,7 @@ def login_required(scope=None):
                 return f(*args, **kwargs)
 
             eppn = None
-            if "LOGIN_OPTIONS" in config:
+            if config["LOGIN_OPTIONS"]:
                 enable_shib = "shibboleth" in [
                     option["idp"] for option in config["LOGIN_OPTIONS"]
                 ]
