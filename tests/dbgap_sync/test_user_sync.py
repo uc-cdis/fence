@@ -55,42 +55,42 @@ def test_sync(
     if parse_consent_code_config:
         user = models.query_for_user(session=db_session, username="USERC")
         assert user.project_access == {
-            "phs000178.c1": ["read-storage"],
-            "phs000178.c2": ["read-storage"],
-            "phs000178.c999": ["read-storage"],
-            "phs000179.c1": ["read-storage"],
+            "phs000178.c1": ["read-storage", "read"],
+            "phs000178.c2": ["read-storage", "read"],
+            "phs000178.c999": ["read-storage", "read"],
+            "phs000179.c1": ["read-storage", "read"],
         }
 
         user = models.query_for_user(session=db_session, username="USERF")
         assert user.project_access == {
-            "phs000178.c1": ["read-storage"],
-            "phs000178.c2": ["read-storage"],
+            "phs000178.c1": ["read-storage", "read"],
+            "phs000178.c2": ["read-storage", "read"],
         }
 
         user = models.query_for_user(session=db_session, username="TESTUSERB")
         assert user.project_access == {
-            "phs000179.c1": ["read-storage"],
-            "phs000178.c1": ["read-storage"],
+            "phs000179.c1": ["read-storage", "read"],
+            "phs000178.c1": ["read-storage", "read"],
         }
     else:
         user = models.query_for_user(session=db_session, username="USERC")
         assert user.project_access == {
-            "phs000178": ["read-storage"],
-            "TCGA-PCAWG": ["read-storage"],
-            "phs000179": ["read-storage"],
+            "phs000178": ["read-storage", "read"],
+            "TCGA-PCAWG": ["read-storage", "read"],
+            "phs000179": ["read-storage", "read"],
         }
 
         user = models.query_for_user(session=db_session, username="USERF")
         assert user.project_access == {
-            "phs000178": ["read-storage"],
-            "TCGA-PCAWG": ["read-storage"],
+            "phs000178": ["read-storage", "read"],
+            "TCGA-PCAWG": ["read-storage", "read"],
         }
 
         user = models.query_for_user(session=db_session, username="TESTUSERB")
         assert user.project_access == {
-            "phs000178": ["read-storage"],
-            "TCGA-PCAWG": ["read-storage"],
-            "phs000179": ["read-storage"],
+            "phs000178": ["read-storage", "read"],
+            "TCGA-PCAWG": ["read-storage", "read"],
+            "phs000179": ["read-storage", "read"],
         }
 
     user = models.query_for_user(session=db_session, username="TESTUSERD")
@@ -143,57 +143,57 @@ def test_dbgap_consent_codes(
             # b/c user has c999, ensure they have access to all consents, study-specific
             # exchange area (via .c999) and the common exchange area configured
             assert user.project_access == {
-                "phs000179.c1": ["read-storage"],
-                "phs000178.c1": ["read-storage"],
-                "phs000178.c2": ["read-storage"],
-                "phs000178.c999": ["read-storage"],
+                "phs000179.c1": ["read-storage", "read"],
+                "phs000178.c1": ["read-storage", "read"],
+                "phs000178.c2": ["read-storage", "read"],
+                "phs000178.c999": ["read-storage", "read"],
                 # should additionally include the study-specific exchange area access and
                 # access to the common exchange area
-                "test_common_exchange_area": ["read-storage"],
+                "test_common_exchange_area": ["read-storage", "read"],
             }
         else:
             # b/c user has c999 but common exchange area is disabled, ensure they have
             # access to all consents, study-specific exchange area (via .c999)
             assert user.project_access == {
-                "phs000179.c1": ["read-storage"],
+                "phs000179.c1": ["read-storage", "read"],
                 # c999 gives access to all consents
-                "phs000178.c1": ["read-storage"],
-                "phs000178.c2": ["read-storage"],
-                "phs000178.c999": ["read-storage"],
+                "phs000178.c1": ["read-storage", "read"],
+                "phs000178.c2": ["read-storage", "read"],
+                "phs000178.c999": ["read-storage", "read"],
             }
     else:
         # with consent code parsing off, ensure users have access to just phsids
         assert user.project_access == {
-            "phs000178": ["read-storage"],
-            "phs000179": ["read-storage"],
+            "phs000178": ["read-storage", "read"],
+            "phs000179": ["read-storage", "read"],
         }
 
     user = models.query_for_user(session=db_session, username="USERF")
     if parse_consent_code_config:
         assert user.project_access == {
-            "phs000178.c1": ["read-storage"],
-            "phs000178.c2": ["read-storage"],
+            "phs000178.c1": ["read-storage", "read"],
+            "phs000178.c2": ["read-storage", "read"],
         }
     else:
-        assert user.project_access == {"phs000178": ["read-storage"]}
+        assert user.project_access == {"phs000178": ["read-storage", "read"]}
 
     user = models.query_for_user(session=db_session, username="TESTUSERB")
     if parse_consent_code_config:
         assert user.project_access == {
-            "phs000178.c1": ["read-storage"],
-            "phs000179.c1": ["read-storage"],
+            "phs000178.c1": ["read-storage", "read"],
+            "phs000179.c1": ["read-storage", "read"],
         }
     else:
         assert user.project_access == {
-            "phs000178": ["read-storage"],
-            "phs000179": ["read-storage"],
+            "phs000178": ["read-storage", "read"],
+            "phs000179": ["read-storage", "read"],
         }
 
     user = models.query_for_user(session=db_session, username="TESTUSERD")
     if parse_consent_code_config:
-        assert user.project_access == {"phs000179.c1": ["read-storage"]}
+        assert user.project_access == {"phs000179.c1": ["read-storage", "read"]}
     else:
-        assert user.project_access == {"phs000179": ["read-storage"]}
+        assert user.project_access == {"phs000179": ["read-storage", "read"]}
 
     resource_to_parent_paths = {}
     for call in syncer.arborist_client.update_resource.call_args_list:
@@ -248,10 +248,10 @@ def test_sync_from_files(syncer, db_session, storage_client):
     sess = db_session
     phsids = {
         "userA": {
-            "phs000178": {"read-storage"},
-            "phs000179": {"read-storage", "write-storage"},
+            "phs000178": {"read-storage", "read"},
+            "phs000179": {"read-storage", "read", "write-storage"},
         },
-        "userB": {"phs000179": {"read-storage", "write-storage"}},
+        "userB": {"phs000179": {"read-storage", "read", "write-storage"}},
     }
     userinfo = {
         "userA": {"email": "a@b", "tags": {}},
@@ -262,24 +262,24 @@ def test_sync_from_files(syncer, db_session, storage_client):
 
     u = models.query_for_user(session=db_session, username="userB")
     u.project_access["phs000179"].sort()
-    assert u.project_access == {"phs000179": ["read-storage", "write-storage"]}
+    assert u.project_access == {"phs000179": ["read", "read-storage", "write-storage"]}
 
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
 def test_sync_revoke(syncer, db_session, storage_client):
     phsids = {
         "userA": {
-            "phs000178": {"read-storage"},
-            "phs000179": {"read-storage", "write-storage"},
+            "phs000178": {"read-storage", "read"},
+            "phs000179": {"read-storage", "read", "write-storage"},
         },
-        "userB": {"phs000179": {"read-storage", "write-storage"}},
+        "userB": {"phs000179": {"read-storage", "read", "write-storage"}},
     }
     userinfo = {
         "userA": {"email": "a@b", "tags": {}},
         "userB": {"email": "a@b", "tags": {}},
     }
 
-    phsids2 = {"userA": {"phs000179": {"read-storage", "write-storage"}}}
+    phsids2 = {"userA": {"phs000179": {"read-storage", "read", "write-storage"}}}
 
     syncer.sync_to_db_and_storage_backend(phsids, userinfo, db_session)
     syncer.sync_to_db_and_storage_backend(phsids2, userinfo, db_session)
@@ -298,22 +298,22 @@ def test_sync_two_phsids_dict(syncer, db_session, storage_client):
 
     phsids1 = {
         "userA": {
-            "phs000178": {"read-storage"},
-            "phs000179": {"read-storage", "write-storage"},
+            "phs000178": {"read-storage", "read"},
+            "phs000179": {"read-storage", "read", "write-storage"},
         },
-        "userB": {"phs000179": {"read-storage", "write-storage"}},
+        "userB": {"phs000179": {"read-storage", "read", "write-storage"}},
     }
 
-    phsids2 = {"userA": {"phs000180": {"read-storage", "write-storage"}}}
+    phsids2 = {"userA": {"phs000180": {"read-storage", "read", "write-storage"}}}
 
     syncer.sync_two_phsids_dict(phsids1, phsids2)
 
     assert phsids2 == {
-        "userB": {"phs000179": set(["read-storage", "write-storage"])},
+        "userB": {"phs000179": set(["read-storage", "read", "write-storage"])},
         "userA": {
-            "phs000178": set(["read-storage"]),
-            "phs000179": set(["read-storage", "write-storage"]),
-            "phs000180": set(["write-storage", "read-storage"]),
+            "phs000178": set(["read-storage", "read"]),
+            "phs000179": set(["read-storage", "read", "write-storage"]),
+            "phs000180": set(["write-storage", "read-storage", "read"]),
         },
     }
 
@@ -321,19 +321,22 @@ def test_sync_two_phsids_dict(syncer, db_session, storage_client):
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
 def test_sync_two_phsids_dict_override(syncer, db_session, storage_client):
     phsids1 = {
-        "userA": {"phs000178": {"read-storage"}, "phs000179": {"write-storage"}},
-        "userB": {"phs000179": {"read-storage", "write-storage"}},
+        "userA": {
+            "phs000178": {"read-storage", "read"},
+            "phs000179": {"write-storage"},
+        },
+        "userB": {"phs000179": {"read-storage", "read", "write-storage"}},
     }
 
-    phsids2 = {"userA": {"phs000179": {"read-storage"}}}
+    phsids2 = {"userA": {"phs000179": {"read-storage", "read"}}}
 
     syncer.sync_two_phsids_dict(phsids1, phsids2)
 
     assert phsids2 == {
-        "userB": {"phs000179": set(["read-storage", "write-storage"])},
+        "userB": {"phs000179": set(["read-storage", "read", "write-storage"])},
         "userA": {
-            "phs000178": set(["read-storage"]),
-            "phs000179": set(["read-storage", "write-storage"]),
+            "phs000178": set(["read-storage", "read"]),
+            "phs000179": set(["read-storage", "read", "write-storage"]),
         },
     }
 
