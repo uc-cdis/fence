@@ -30,7 +30,10 @@ class FenceLogin(Resource):
         if redirect_url:
             validate_redirect(redirect_url)
             flask.session["redirect"] = redirect_url
-        authorization_url, state = flask.current_app.fence_client.generate_authorize_redirect(
+        (
+            authorization_url,
+            state,
+        ) = flask.current_app.fence_client.generate_authorize_redirect(
             oauth2_redirect_uri, prompt="login"
         )
 

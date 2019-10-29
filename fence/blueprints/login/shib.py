@@ -64,9 +64,7 @@ class ShibbolethCallback(Resource):
                 # or persistent_id. See PXP-4309
                 # print("shib_header", shib_header)
                 # print("flask.request.headers", flask.request.headers)
-                raise Unauthorized(
-                    "Unable to retrieve username"
-                )
+                raise Unauthorized("Unable to retrieve username")
 
         idp = IdentityProvider.itrust
         if flask.session.get("entityID"):
