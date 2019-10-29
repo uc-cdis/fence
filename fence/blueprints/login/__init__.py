@@ -131,7 +131,9 @@ def make_login_blueprint(app):
                 - if provider_id is "fence" and fence_idp is "shibboleth", a
                 list of "shib_idps" can be configured for InCommon login. If
                 not specified, will default to NIH login.
-                - "desc" and "secondary" are optional.
+                - Optional parameters: "desc" (description) and "secondary"
+                (boolean - can be used by the frontend to display secondary
+                buttons differently).
 
             Returns:
                 dict: { name, desc, idp, urls, secondary }
