@@ -84,7 +84,23 @@ def make_login_blueprint(app):
             logger.warn("LOGIN_OPTIONS not configured or empty")
             login_options = []
 
-        def absolute_login_url(provider_id, shib_idp=None):
+        def absolute_login_url(provider_id, fence_idp=None, shib_idp=None):
+            """
+            Args:
+                provider_id (str): provider to log in with; an IDP_URL_MAP key.
+                fence_idp (str, optional): if provider_id is "fence"
+                    (multi-tenant Fence setup), fence_idp can be any of the
+                    providers supported by the other Fence. If not specified,
+                    will default to NIH login.
+                shib_idp (str, optional): if provider_id is "fence" and
+                    fence_idp is "shibboleth", shib_idp can be any Shibboleth/
+                    InCommon provider. If not specified, will default to NIH
+                    login.
+
+            Returns:
+                str: login URL for this provider, including extra query
+                    parameters if fence_idp and/or shib_idp are specified.
+            """
             try:
                 base_url = config["BASE_URL"].rstrip("/")
                 login_url = base_url + "/login/{}".format(IDP_URL_MAP[provider_id])
@@ -93,13 +109,36 @@ def make_login_blueprint(app):
                     "identity provider misconfigured: {}".format(str(e))
                 )
 
+            params = {}
+            if fence_idp:
+                params["idp"] = fence_idp
             if shib_idp:
-                login_url = add_params_to_uri(
-                    login_url, {"idp": "shibboleth", "shib_idp": shib_idp}
-                )
+                params["shib_idp"] = shib_idp
+            login_url = add_params_to_uri(login_url, params)
+
             return login_url
 
         def provider_info(login_details):
+            """
+            Args:
+                login_details (dict):
+                { name, desc, idp, fence_idp, shib_idps, secondary }
+                - "idp": a configured provider.
+                Multiple options can be configured with the same idp.
+                - if provider_id is "fence", "fence_idp" can be any of the
+                providers supported by the other Fence. If not specified, will
+                default to NIH login.
+                - if provider_id is "fence" and fence_idp is "shibboleth", a
+                list of "shib_idps" can be configured for InCommon login. If
+                not specified, will default to NIH login.
+                - Optional parameters: "desc" (description) and "secondary"
+                (boolean - can be used by the frontend to display secondary
+                buttons differently).
+
+            Returns:
+                dict: { name, desc, idp, urls, secondary }
+                - urls: list of { name, url } dictionaries
+            """
             info = {
                 # "id" deprecated, replaced by "idp"
                 "id": login_details["idp"],
@@ -111,9 +150,16 @@ def make_login_blueprint(app):
                 "secondary": login_details.get("secondary", False),
             }
 
-            # handle Shibboleth IDPs
-            if login_details["idp"] == "fence" and "shib_idps" in login_details:
+            # for Fence multi-tenant login
+            fence_idp = None
+            if login_details["idp"] == "fence":
+                fence_idp = login_details.get("fence_idp")
 
+            # handle Shibboleth IDPs: InCommon login can either be configured
+            # directly in this Fence, or through multi-tenant Fence
+            if (
+                login_details["idp"] == "shibboleth" or fence_idp == "shibboleth"
+            ) and "shib_idps" in login_details:
                 # get list of all available shib IDPs
                 if not hasattr(app, "all_shib_idps"):
                     app.all_shib_idps = get_all_shib_idps()
@@ -151,7 +197,7 @@ def make_login_blueprint(app):
                     {
                         "name": shib_idp["name"],
                         "url": absolute_login_url(
-                            login_details["idp"], shib_idp["idp"]
+                            login_details["idp"], fence_idp, shib_idp["idp"]
                         ),
                     }
                     for shib_idp in shib_idps
@@ -162,7 +208,7 @@ def make_login_blueprint(app):
                 info["urls"] = [
                     {
                         "name": login_details["name"],
-                        "url": absolute_login_url(login_details["idp"]),
+                        "url": absolute_login_url(login_details["idp"], fence_idp),
                     }
                 ]
 
