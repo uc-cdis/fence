@@ -65,7 +65,7 @@ class ShibbolethCallback(Resource):
                 # print("shib_header", shib_header)
                 # print("flask.request.headers", flask.request.headers)
                 raise Unauthorized(
-                    "Unable to retrieve username from Shibboleth results"
+                    "Unable to retrieve username"
                 )
 
         idp = IdentityProvider.itrust
