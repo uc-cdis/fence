@@ -54,44 +54,63 @@ def test_sync(
 
     if parse_consent_code_config:
         user = models.query_for_user(session=db_session, username="USERC")
-        assert user.project_access == {
-            "phs000178.c1": ["read", "read-storage"],
-            "phs000178.c2": ["read", "read-storage"],
-            "phs000178.c999": ["read", "read-storage"],
-            "phs000179.c1": ["read", "read-storage"],
-        }
-
+        assert sorted(user.project_access.get("phs000178.c1")) == sorted(
+            ["read", "read-storage"]
+        )
+        assert sorted(user.project_access.get("phs000178.c2")) == sorted(
+            ["read", "read-storage"]
+        )
+        assert sorted(user.project_access.get("phs000178.c999")) == sorted(
+            ["read", "read-storage"]
+        )
+        assert sorted(user.project_access.get("phs000179.c1")) == sorted(
+            ["read", "read-storage"]
+        )
         user = models.query_for_user(session=db_session, username="USERF")
-        assert user.project_access == {
-            "phs000178.c1": ["read", "read-storage"],
-            "phs000178.c2": ["read", "read-storage"],
-        }
+        assert sorted(user.project_access.get("phs000178.c1")) == sorted(
+            ["read", "read-storage"]
+        )
+        assert sorted(user.project_access.get("phs000178.c2")) == sorted(
+            ["read", "read-storage"]
+        )
 
         user = models.query_for_user(session=db_session, username="TESTUSERB")
-        assert user.project_access == {
-            "phs000179.c1": ["read", "read-storage"],
-            "phs000178.c1": ["read", "read-storage"],
-        }
+        assert sorted(user.project_access.get("phs000178.c1")) == sorted(
+            ["read", "read-storage"]
+        )
+        assert sorted(user.project_access.get("phs000179.c1")) == sorted(
+            ["read", "read-storage"]
+        )
     else:
         user = models.query_for_user(session=db_session, username="USERC")
-        assert user.project_access == {
-            "phs000178": ["read", "read-storage"],
-            "TCGA-PCAWG": ["read", "read-storage"],
-            "phs000179": ["read", "read-storage"],
-        }
+        assert sorted(user.project_access.get("phs000178")) == sorted(
+            ["read", "read-storage"]
+        )
+        assert sorted(user.project_access.get("TCGA-PCAWG")) == sorted(
+            ["read", "read-storage"]
+        )
+        assert sorted(user.project_access.get("phs000179")) == sorted(
+            ["read", "read-storage"]
+        )
 
         user = models.query_for_user(session=db_session, username="USERF")
-        assert user.project_access == {
-            "phs000178": ["read", "read-storage"],
-            "TCGA-PCAWG": ["read", "read-storage"],
-        }
+        assert sorted(user.project_access.get("phs000178")) == sorted(
+            ["read", "read-storage"]
+        )
+        assert sorted(user.project_access.get("TCGA-PCAWG")) == sorted(
+            ["read", "read-storage"]
+        )
 
         user = models.query_for_user(session=db_session, username="TESTUSERB")
-        assert user.project_access == {
-            "phs000178": ["read", "read-storage"],
-            "TCGA-PCAWG": ["read", "read-storage"],
-            "phs000179": ["read", "read-storage"],
-        }
+        assert sorted(user.project_access.get("phs000178")) == sorted(
+            ["read", "read-storage"]
+        )
+        assert sorted(user.project_access.get("TCGA-PCAWG")) == sorted(
+            ["read", "read-storage"]
+        )
+        assert sorted(user.project_access.get("phs000179")) == sorted(
+            ["read", "read-storage"]
+        )
 
     user = models.query_for_user(session=db_session, username="TESTUSERD")
     assert user.display_name == "USER D"
