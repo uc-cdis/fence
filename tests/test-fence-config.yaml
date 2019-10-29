@@ -156,18 +156,20 @@ LOGIN_REDIRECT_WHITELIST: []
 #
 LOGIN_OPTIONS:
   - name: 'Google Login'
-    idp: google
     desc: 'description' # optional parameter
+    idp: google
     secondary: True # optional parameter
   - name: 'Fence Multi-Tenant Login'
     idp: fence
   - name: 'InCommon Login'
     idp: fence
+    fence_idp: shibboleth
     shib_idps:
       - urn:mace:incommon:nih.gov
       - urn:mace:incommon:uchicago.edu
   - name: 'Orcid Login'
-    idp: orcid
+    idp: fence
+    fence_idp: orcid
   - name: 'Microsoft Login'
     idp: microsoft
   - name: 'NIH Login'
