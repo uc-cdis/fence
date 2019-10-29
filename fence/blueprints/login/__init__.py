@@ -148,13 +148,16 @@ def make_login_blueprint(app):
                 "secondary": login_details.get("secondary", False),
             }
 
+            # for Fence multi-tenant login
             fence_idp = None
             if login_details["idp"] == "fence":
                 fence_idp = login_details.get("fence_idp")
 
-            # handle Shibboleth IDPs
-            if fence_idp == "shibboleth" and "shib_idps" in login_details:
-
+            # handle Shibboleth IDPs: InCommon login can either be configured
+            # directly in this Fence, or through multi-tenant Fence
+            if (
+                login_details["idp"] == "shibboleth" or fence_idp == "shibboleth"
+            ) and "shib_idps" in login_details:
                 # get list of all available shib IDPs
                 if not hasattr(app, "all_shib_idps"):
                     app.all_shib_idps = get_all_shib_idps()
