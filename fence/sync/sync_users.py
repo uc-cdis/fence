@@ -984,7 +984,7 @@ class UserSyncer(object):
                 exit(1)
 
         self.logger.info("dbgap files: {}".format(dbgap_file_list))
-        permissions = [{"read-storage"} for _ in dbgap_file_list]
+        permissions = [{"read-storage", "read"} for _ in dbgap_file_list]
         if self.parse_consent_code and self.enable_common_exchange_area_access:
             self.logger.info(
                 f"using study to common exchange area mapping: {self.study_common_exchange_areas}"
@@ -1005,7 +1005,7 @@ class UserSyncer(object):
                 os.path.join(self.sync_from_local_csv_dir, "*")
             )
 
-        permissions = [{"read-storage"} for _ in local_csv_file_list]
+        permissions = [{"read-storage", "read"} for _ in local_csv_file_list]
         user_projects_csv, user_info_csv = self._parse_csv(
             dict(list(zip(local_csv_file_list, permissions))),
             encrypted=False,
@@ -1121,7 +1121,7 @@ class UserSyncer(object):
                     #       permission we give for other dbgap projects)
                     for phsid_with_consent in all_phsids_with_consent:
                         user_projects[username].update(
-                            {phsid_with_consent: {"read-storage"}}
+                            {phsid_with_consent: {"read-storage", "read"}}
                         )
 
     def _update_arborist(self, session, user_yaml):
@@ -1131,7 +1131,7 @@ class UserSyncer(object):
 
         The projects are sent to arborist as resources with paths like
         ``/projects/{project}``. Roles are created with just the original names
-        for the privileges like ``"read-storage"`` etc.
+        for the privileges like ``"read-storage", "read"`` etc.
 
         Args:
             session (sqlalchemy.Session)
@@ -1234,7 +1234,7 @@ class UserSyncer(object):
 
         The projects are sent to arborist as resources with paths like
         ``/projects/{project}``. Roles are created with just the original names
-        for the privileges like ``"read-storage"`` etc.
+        for the privileges like ``"read-storage", "read"`` etc.
 
         Args:
             user_projects (dict)
