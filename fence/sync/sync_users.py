@@ -1285,9 +1285,11 @@ class UserSyncer(object):
         for username, user_project_info in user_projects.items():
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
+            if user:
+                username = user.username
 
-            self.arborist_client.create_user_if_not_exist(user.username)
-            self.arborist_client.revoke_all_policies_for_user(user.username)
+            self.arborist_client.create_user_if_not_exist(username)
+            self.arborist_client.revoke_all_policies_for_user(username)
 
             for project, permissions in user_project_info.items():
 
@@ -1347,11 +1349,11 @@ class UserSyncer(object):
                                 )
                             self._created_policies.add(policy_id)
 
-                        self.arborist_client.grant_user_policy(user.username, policy_id)
+                        self.arborist_client.grant_user_policy(username, policy_id)
 
             if user_yaml:
-                for policy in user_yaml.policies.get(user.username, []):
-                    self.arborist_client.grant_user_policy(user.username, policy)
+                for policy in user_yaml.policies.get(username, []):
+                    self.arborist_client.grant_user_policy(username, policy)
 
         for client_name, client_details in user_yaml.clients.items():
             client_policies = client_details.get("policies", [])
