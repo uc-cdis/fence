@@ -195,6 +195,10 @@ class UserYAML(object):
 
         # Fall back on rbac block if no authz. Remove when rbac in useryaml fully deprecated.
         if not data.get("authz") and data.get("rbac"):
+            if logger:
+                logger.info(
+                    "No authz block found but rbac block present. Using rbac block"
+                )
             data["authz"] = data["rbac"]
 
         # get user project mapping to arborist resources if it exists
