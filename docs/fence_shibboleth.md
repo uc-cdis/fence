@@ -1,6 +1,15 @@
 # Shibboleth / InCommon login
 
-Shibboleth must be set up in a multi-tenant Fence instance. It lets us log in through InCommon by specifying the `shib_idp` parameter (as of Fence release 4.7.0 and Fence-shib release 2.7.2). If no `shib_idp` is specified (or if using an earlier Fence version), users will be redirected to the NIH login page by default.
+Shibboleth Single Sign-On and Federating Software is a standards based, open source software package for web single sign-on across or within organizational boundaries. The Shibboleth software implements widely used federated identity standards, principally the OASIS Security Assertion Markup Language (SAML), to provide a federated single sign-on and attribute exchange framework. It is made up of three components ([docs](https://wiki.shibboleth.net/confluence/display/CONCEPT/Home)):
+- The Identity Provider (IdP) is responsible for user authentication and providing user information to the Service Provider (SP). It is located at the home organization, which is the organization which maintains the user's account.
+- The Service Provider (SP) is responsible for protecting an online resource and consuming information from the Identity Provider (IdP). It is located at the resource organization.
+- The Discovery Service (DS) helps the Service Provider (SP) discover the user's Identity Provider (IdP). It may be located anywhere on the web and is not required in all cases.
+
+Shibboleth is part of the InCommon Trusted Access Platform, an IAM software suite that is packaged for easy installation and configuration. InCommon operates the identity management federation for U.S. research and education, and their sponsored partners. InCommon uses SAML-based authentication and authorization systems (such as Shibboleth) to enable scalable, trusted collaborations among its community of participants.
+
+To enable InCommon login, Shibboleth must be set up in a multi-tenant Fence instance, which lets us log in through InCommon by specifying the `shib_idp` parameter (as of Fence release 4.7.0 and Fence-shib release 2.7.2). If no `shib_idp` is specified (or if using an earlier Fence version), users will be redirected to the NIH login page by default.
+
+Note that in Fence, we use the terms "Shibboleth" and "InCommon" interchangeably.
 
 ## Login flow
 
@@ -82,4 +91,4 @@ LOGIN_OPTIONS:
     shib_idps: '*'
 ```
 
-Several login options can use the same provider (`idp`). Each option that uses the `fence` provider and the `shibboleth` Fence provider can specify one or more InCommon IDPs `shib_idps` in a list, _or_ the wildcard string `'*'` to enable all available InCommon IDPs (be careful not to omit the quotes when using the wildcard). If no `shib_idps` are specified, Fence will default to NIH login.
+Several login options can use the same provider (`idp`). Each option that uses the `fence` provider and the `shibboleth` Fence provider (`fence_idp`) can specify one or more InCommon IDPs `shib_idps` in a list, _or_ the wildcard string `'*'` to enable all available InCommon IDPs (be careful not to omit the quotes when using the wildcard). If no `shib_idps` are specified, Fence will default to NIH login.
