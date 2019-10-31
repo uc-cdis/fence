@@ -26,8 +26,7 @@ After the user logs in and is redirected to `/login/shib/login`, we get the `epp
 Notes about the NIH login implementation:
 - NIH login is used as the default when the `idp` is fence and no `shib_idp` is specified (for backwards compatibility).
 - NIH login requires special handling because it uses slightly different login endpoints than other InCommon providers.
-- When a user logs in through NIH, we use the `persistent-id` as the username even when the `eppn` is provided (for backwards compatibility).
-- When a user logs into NIH with an eRA commons ID, only the `persistent-id` is returned. For other NIH logins, both `eppn` and `persistent-id` are returned.
+- When a user logs into NIH with an eRA commons ID, only the `persistent-id` is returned. For other NIH logins, both `eppn` and `persistent-id` are returned. This is why when a user logs in through NIH, we use the `persistent-id` as the username even when the `eppn` is provided (for backwards compatibility).
 
 ## Configuration
 
