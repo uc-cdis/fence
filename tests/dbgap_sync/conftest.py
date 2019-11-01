@@ -120,7 +120,14 @@ def syncer(db_session, request):
         "phstest": [{"name": "Test", "auth_id": "Test"}],
     }
 
-    dbGap = {}
+    dbGap = yaml_load(
+        open(
+            os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                "test-fence-config.yaml",
+            )
+        )
+    ).get("dbGaP")
     test_db = yaml_load(
         open(
             os.path.join(
@@ -155,6 +162,8 @@ def syncer(db_session, request):
     syncer_obj.arborist_client.update_resource = MagicMock(side_effect=mocked_update)
 
     syncer_obj.arborist_client.get_policy.side_effect = lambda _: None
+
+    syncer_obj.arborist_client._user_url = "/user"
 
     for element in provider:
         udm.create_provider(db_session, element["name"], backend=element["backend"])

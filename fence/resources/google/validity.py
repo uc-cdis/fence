@@ -245,7 +245,7 @@ class GoogleProjectValidity(ValidityInfo):
                 "INVALID Fence's Monitoring service account does "
                 "NOT have access in project id {}. Monitor needs access to continue "
                 "checking project validity. Exiting early and determining invalid.".format(
-                    self.user_id, self.google_project_id
+                    self.google_project_id
                 )
             )
             return

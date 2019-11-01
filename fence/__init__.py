@@ -248,14 +248,17 @@ def _set_authlib_cfgs(app):
 
 
 def _setup_oidc_clients(app):
-    enabled_idp_ids = list(config["ENABLED_IDENTITY_PROVIDERS"]["providers"].keys())
+    if config["LOGIN_OPTIONS"]:
+        enabled_idp_ids = [option["idp"] for option in config["LOGIN_OPTIONS"]]
+    else:
+        # fall back on "providers"
+        enabled_idp_ids = list(
+            config.get("ENABLED_IDENTITY_PROVIDERS", {}).get("providers", {}).keys()
+        )
     oidc = config.get("OPENID_CONNECT", {})
 
     # Add OIDC client for Google if configured.
-    configured_google = (
-        "OPENID_CONNECT" in config and "google" in config["OPENID_CONNECT"]
-    )
-    if configured_google:
+    if "google" in oidc:
         app.google_client = GoogleClient(
             config["OPENID_CONNECT"]["google"],
             HTTP_PROXY=config.get("HTTP_PROXY"),
@@ -263,10 +266,7 @@ def _setup_oidc_clients(app):
         )
 
     # Add OIDC client for ORCID if configured.
-    configured_orcid = (
-        "OPENID_CONNECT" in config and "orcid" in config["OPENID_CONNECT"]
-    )
-    if configured_orcid:
+    if "orcid" in oidc:
         app.orcid_client = ORCIDClient(
             config["OPENID_CONNECT"]["orcid"],
             HTTP_PROXY=config.get("HTTP_PROXY"),
@@ -280,10 +280,7 @@ def _setup_oidc_clients(app):
         )
 
     # Add OIDC client for Microsoft if configured.
-    configured_microsoft = (
-        "OPENID_CONNECT" in config and "microsoft" in config["OPENID_CONNECT"]
-    )
-    if configured_microsoft:
+    if "microsoft" in oidc:
         app.microsoft_client = MicrosoftClient(
             config["OPENID_CONNECT"]["microsoft"],
             HTTP_PROXY=config.get("HTTP_PROXY"),
@@ -291,11 +288,7 @@ def _setup_oidc_clients(app):
         )
 
     # Add OIDC client for multi-tenant fence if configured.
-    configured_fence = (
-        "OPENID_CONNECT" in config
-        and "fence" in config["OPENID_CONNECT"]
-        and "fence" in enabled_idp_ids
-    )
+    configured_fence = "fence" in oidc and "fence" in enabled_idp_ids
     if configured_fence:
         app.fence_client = OAuthClient(**config["OPENID_CONNECT"]["fence"])
 

@@ -29,7 +29,7 @@ def test_user_delete_cascade(db_session):
     assert db_session.query(Client).filter_by(client_id=client.client_id).count() == 0
 
 
-def test_service_account_relationsips(db_session):
+def test_service_account_relationships(db_session):
     """
     test service account tables have proper relationships/fields
     """

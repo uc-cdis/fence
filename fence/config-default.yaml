@@ -80,6 +80,9 @@ ENABLE_DB_MIGRATION: true
 #   - Fully configure at least one client so login works
 #   - WARNING: Be careful changing the *_ALLOWED_SCOPES as you can break basic
 #              and optional functionality
+#
+# See ``fence/blueprints/login/__init__.py`` IDP_URL_MAP for which identity
+# providers can be configured.
 # //////////////////////////////////////////////////////////////////////////////////////
 OPENID_CONNECT:
   # These Google values must be obtained from Google's Cloud Console
@@ -128,6 +131,8 @@ OPENID_CONNECT:
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
     mock_default_user: 'test@example.com'
+    # this is needed to enable InCommon login, if some LOGIN_OPTIONS are configured with idp=fence and a list of shib_idps:
+    shibboleth_discovery_url: 'https://login.bionimbus.org/Shibboleth.sso/DiscoFeed'
   # you can setup up an orcid client here: https://orcid.org/developer-tools
   orcid:
     client_id: ''
@@ -160,6 +165,10 @@ OPENID_CONNECT:
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
     mock_default_user: 'test@example.com'
+  shibboleth:
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/shib/login'
 
 # these are the *possible* scopes a client can be given, NOT scopes that are
 # given to all clients. You can be more restrictive during client creation
@@ -197,14 +206,60 @@ SESSION_ALLOWED_SCOPES:
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # LOGIN
-#   - Modify based on which OIDC client(s) you configured above
+#   - Modify based on which OIDC provider(s) you configured above
 #   - NOTE: You can have multiple IDPs for users to login with, but one has to be set
 #           as the default
 # //////////////////////////////////////////////////////////////////////////////////////
-# Login url for identity provider (IDP):
-#   Google? Use: '{{BASE_URL}}/login/google'
-#   Multi-tenant fence (e.g. another fence instance)? Use: '{{BASE_URL}}/login/fence'
-#   Sibboleth? Use: '{{BASE_URL}}/login/shib'
+
+# List of enabled login options (used by data-portal to display login buttons).
+# Each option must be configured with a "name" and an "idp".
+# - "idp" must be a configured provider in OPENID_CONNECT section.
+# Multiple options can be configured with the same idp.
+# - if provider_id is "fence", "fence_idp" can be any of the providers
+# supported by the other Fence. If not specified, will default to NIH login.
+# - if provider_id is "fence" and fence_idp is "shibboleth", a list of
+# "shib_idps" can be configured for InCommon login. If not specified, will
+# default to NIH login.
+# - Optional parameters: "desc" (description) and "secondary" (boolean - can
+# be used by the frontend to display secondary buttons differently).
+LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
+  # - name: 'Login from Google'
+  #   desc: 'description'
+  #   idp: google
+  #   secondary: True
+  # - name: 'ORCID Login'
+  #   idp: orcid
+  # - name: 'Microsoft Login'
+  #   idp: microsoft
+  # - name: 'NIH Login'
+  #   idp: fence
+  #   fence_idp: shibboleth
+  # - name: 'ORCID Login through other Fence'
+  #   idp: fence
+  #   fence_idp: orcid
+  # - name: 'InCommon Login'
+  #   idp: fence
+  #   fence_idp: shibboleth
+  #   # "shib_idps" can be '*' or a list of one or more entity IDs
+  #   shib_idps:
+  #     - urn:mace:incommon:nih.gov
+  #     - urn:mace:incommon:uchicago.edu
+# The following can be used for shibboleth login, simply uncomment.
+# NOTE: Don't enable shibboleth if the deployment is not protected by
+# shibboleth module, the shib module takes care of preventing header
+# spoofing.
+  # - name: 'Shibboleth Login'
+  #   idp: shibboleth
+
+# Default login provider:
+# - must be configured in LOGIN_OPTIONS and OPENID_CONNECT
+# - if several options in LOGIN_OPTIONS are defined for this IDP, will default
+# to the first one.
+# Default login URL:
+# - Google? Use: '{{BASE_URL}}/login/google'
+# - Multi-tenant fence (e.g. another fence instance)? Use: '{{BASE_URL}}/login/fence'
+# - Sibboleth? Use: '{{BASE_URL}}/login/shib'
+DEFAULT_LOGIN_IDP: google
 DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
 
 # `LOGIN_REDIRECT_WHITELIST` is a list of extra whitelisted URLs which can be redirected
@@ -214,38 +269,9 @@ DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
 # only the domains for the additional desired redirects are necessary here).
 LOGIN_REDIRECT_WHITELIST: []
 
-# Which Identity Provider fence will/can use
-#
-# See ``fence/blueprints/login/__init__.py`` for which identity providers can
-# be loaded.
-#
+### DEPRECATED and replaced by OPENID_CONNECT + LOGIN_OPTIONS configs
 ENABLED_IDENTITY_PROVIDERS:
-  # ID for which of the providers to default to
-  default: 'google'
-  # Information for identity providers
-  providers:
-# Additional Identity Provider options, simply uncomment:
-#
-#    orcid:
-#      name: 'Login from ORCID'
-#
-#    microsoft:
-#      name: 'Login from Microsoft'
-#
-#    fence:
-#      name: 'Fence Multi-Tenant Login'
-#
-    google:
-      name: 'Login from Google'
-# The following can be used for shibboleth login, simply uncomment.
-#
-# NOTE: Don't enable shibboleth if the deployment is not protected by
-# shibboleth module, the shib module takes care of preventing header
-# spoofing.
-#
-#    shibboleth:
-#      name: 'NIH Login'
-#
+
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # LIBRARY CONFIGURATION (authlib & flask)
@@ -343,7 +369,7 @@ SUPPORT_EMAIL_FOR_ERRORS: null
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # SHIBBOLETH
-#   - Support using `shibboleth` in ENABLED_IDENTITY_PROVIDERS
+#   - Support using `shibboleth` in LOGIN_OPTIONS
 #   - Contains defaults for using NIH's Login.
 # //////////////////////////////////////////////////////////////////////////////////////
 # assumes shibboleth is deployed under {{BASE_URL}}/shibboleth
@@ -370,15 +396,51 @@ dbGaP:
     proxy_user: ''
   protocol: 'sftp'
   decrypt_key: ''
+  # parse out the consent from the dbgap accession number such that something
+  # like "phs000123.v1.p1.c2" becomes "phs000123.c2".
+  #
+  # NOTE: when this is "false" the above would become "phs000123"
   parse_consent_code: true
-  # A mapping from the dbgap study to which authorization namespaces the actual data
-  # lives in. For example, `studyX` data may exist in multiple organizations, so
-  # we need to know to map authorization to all orgs resources
+  # A consent of "c999" can indicate access to that study's "exchange area data"
+  # and when a user has access to one study's exchange area data, they
+  # have access to the parent study's "common exchange area data" that is not study
+  # specific. The following config is whether or not to parse/handle "c999" codes
+  # for access to the common exchange area data
+  #
+  # NOTE: When enabled you MUST also provide a mapping to the
+  # `study_common_exchange_areas` from study -> parent common exchange area resource
+  enable_common_exchange_area_access: false
+  # The below configuration is a mapping from studies to their "common exchange area data"
+  # Fence project name a user gets access to when parsing c999 exchange area codes (and
+  # subsequently gives access to an Arborist resource representing this common area
+  # as well)
+  study_common_exchange_areas:
+    'example': 'test_common_exchange_area'
+    # 'studyX': 'test_common_exchange_area'
+    # 'studyY': 'test_common_exchange_area'
+    # 'studyZ': 'test_common_exchange_area'
+  # A mapping from the dbgap study / Fence project to which authorization namespaces the
+  # actual data lives in. For example, `studyX` data may exist in multiple organizations, so
+  # we need to know how to map authorization to all orgs resources
   study_to_resource_namespaces:
     '_default': ['/']
-    'studyX': ['/orgA/', '/orgB/']
-    'studyY': ['/orgB/', '/orgC/']
-    'studyZ': ['/orgD/']
+    'test_common_exchange_area': ['/dbgap/']
+    # above are for default support and exchange area support
+    # below are further examples
+    #
+    # 'studyX': ['/orgA/', '/orgB/']
+    # 'studyX.c2': ['/orgB/', '/orgC/']
+    # 'studyZ': ['/orgD/']
+
+# Regex to match an assession number that has consent information in forms like:
+#   phs00301123.c999
+#   phs000123.v3.p1.c3
+#   phs000123.c3
+#   phs00301123.v3.p4.c999
+# Will NOT MATCH forms like: phs000123
+#
+# WARNING: Do not change this without consulting the code that uses it
+DBGAP_ACCESSION_WITH_CONSENT_REGEX: '(?P<phsid>phs[0-9]+)(.(?P<version>v[0-9]+)){0,1}(.(?P<participant_set>p[0-9]+)){0,1}.(?P<consent>c[0-9]+)'
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # STORAGE BACKENDS AND CREDENTIALS
@@ -662,6 +724,6 @@ ALLOWED_USER_SERVICE_ACCOUNT_DOMAINS:
 # seconds if the team matches.
 DREAM_CHALLENGE_TEAM: 'DREAM'
 DREAM_CHALLENGE_GROUP: 'DREAM'
-SYNAPSE_URI: 'https://repo-prod.prod.sagebase.org/auth/v1/'
+SYNAPSE_URI: 'https://repo-prod.prod.sagebase.org/auth/v1'
 SYNAPSE_DISCOVERY_URL:
 SYNAPSE_AUTHZ_TTL: 86400
