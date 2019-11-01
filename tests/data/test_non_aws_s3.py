@@ -22,9 +22,6 @@ except ImportError:
     from mock import patch
 
 
-@pytest.mark.parametrize(
-    "indexd_client", ["s3_non_aws"], indirect=True
-)
 def test_indexd_download_file(
     client,
     oauth_client,
@@ -40,6 +37,25 @@ def test_indexd_download_file(
     """
     Test ``GET /data/download/1``.
     """
+
+    index_document = {
+        "did": "",
+        "baseid": "",
+        "rev": "",
+        "size": 10,
+        "file_name": "file1",
+        "urls": ["s3://bucket6/key"],
+        "hashes": {},
+        "acl": ["phs000178", "phs000218"],
+        "form": "",
+        "created_date": "",
+        "updated_date": "",
+    }
+    mock_index_document = mock.patch(
+        "fence.blueprints.data.indexd.IndexedFile.index_document", index_document
+    )
+    mock_index_document.start()
+
     indexed_file_location = indexd_client["indexed_file_location"]
     path = "/data/download/1"
     query_string = {"protocol": indexed_file_location}
@@ -61,3 +77,5 @@ def test_indexd_download_file(
     # defaults to signing url, check that it's not just raw url
     assert parse.urlparse(response.json["url"]).query != ""
     assert 's3.amazonaws.com' not in response.json['url'], "Shouldn't have an aws url"
+
+    mock_index_document.stop()

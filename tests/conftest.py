@@ -449,20 +449,6 @@ def indexd_client(app, request):
             "created_date": "",
             "updated_date": "",
         }
-    elif request.param == "s3_non_aws":
-        record = {
-            "did": "",
-            "baseid": "",
-            "rev": "",
-            "size": 10,
-            "file_name": "file1",
-            "urls": ["s3://bucket6/key"],
-            "hashes": {},
-            "acl": ["phs000178", "phs000218"],
-            "form": "",
-            "created_date": "",
-            "updated_date": "",
-        }
     else:
         record = {
             "did": "",

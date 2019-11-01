@@ -590,37 +590,20 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
     def get_bucket_signature_version(self):
         """Returns signature_version, None if not set."""
-        s3_buckets = get_value(
-            config, "S3_BUCKETS", InternalError("buckets not configured")
-        )
-        if len(s3_buckets) == 0:
+        bucket_name = self.bucket_name()
+        if not bucket_name:
             return None
+        bucket_cred = config["S3_BUCKETS"][bucket_name]
+        return bucket_cred.get("signature_version")
 
-        bucket_cred = s3_buckets.get(self.bucket_name())
-        if bucket_cred is None:
-            return None
-
-        if "signature_version" not in bucket_cred:
-            return None
-        else:
-            return bucket_cred["signature_version"]
 
     def get_bucket_server_side_encryption(self):
         """Returns server_side_encryption, True if not set."""
-        s3_buckets = get_value(
-            config, "S3_BUCKETS", InternalError("buckets not configured")
-        )
-        if len(s3_buckets) == 0:
+        bucket_name = self.bucket_name()
+        if not bucket_name:
             return True
-
-        bucket_cred = s3_buckets.get(self.bucket_name())
-        if bucket_cred is None:
-            return True
-
-        if "server_side_encryption" not in bucket_cred:
-            return True
-        else:
-            return bucket_cred["server_side_encryption"]
+        bucket_cred = config["S3_BUCKETS"][bucket_name]
+        return bucket_cred.get('server_side_encryption', True)
 
     def get_signed_url(
         self, action, expires_in, public_data=False, force_signed_url=True, **kwargs
@@ -639,8 +622,8 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
         # format url for non-aws s3 endpoint
         if 'endpoint_url' in credential:
-            http_url = "{}/{}".format(
-                credential['endpoint_url'], self.bucket_name()
+            http_url = "{}/{}/{}".format(
+                credential['endpoint_url'], self.bucket_name(), self.parsed_url.path.strip('/')
             )
 
         # if it's public and we don't need to force the signed url, just return the raw
