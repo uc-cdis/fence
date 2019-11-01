@@ -71,22 +71,24 @@ def get_user_info(current_session, username):
     return us.get_user_info(current_session, username)
 
 
+def _user_dump(user):
+    new_user = {"name": user.username}
+    if user.is_admin:
+        new_user["role"] = "admin"
+    else:
+        new_user["role"] = "user"
+    new_user["preferred_username"] = user.display_name
+    new_user["phone_number"] = user.phone_number
+    new_user["active"] = user.active if user.active is not None else False
+    new_user["email"] = user.email
+    return new_user
+
+
 def get_all_users(current_session, keyword=None):
     users = udm.get_all_users(current_session, keyword)
     users_names = []
     for user in users:
-        # TODO Add created at, return all attrs in a dump function
-        new_user = {}
-        new_user["name"] = user.username
-        if user.is_admin:
-            new_user["role"] = "admin"
-        else:
-            new_user["role"] = "user"
-        new_user["preferred_username"] = user.display_name
-        new_user["phone_number"] = user.phone_number
-        new_user["active"] = user.active if user.active is not None else True
-        new_user["email"] = user.email
-        users_names.append(new_user)
+        users_names.append(_user_dump(user))
     return {"users": users_names}
 
 
@@ -94,18 +96,7 @@ def get_paginated_user(current_session, page, page_size, keyword=None):
     pagination = udm.get_paginated_users(current_session, page, page_size, keyword)
     users_names = []
     for user in pagination.items:
-        # TODO Add created at, return all attrs in a dump function
-        new_user = {}
-        new_user["name"] = user.username
-        if user.is_admin:
-            new_user["role"] = "admin"
-        else:
-            new_user["role"] = "user"
-        new_user["preferred_username"] = user.display_name
-        new_user["phone_number"] = user.phone_number
-        new_user["active"] = user.active if user.active is not None else True
-        new_user["email"] = user.email
-        users_names.append(new_user)
+        users_names.append(_user_dump(user))
     return {
         "users": users_names,
         "pagination": {
