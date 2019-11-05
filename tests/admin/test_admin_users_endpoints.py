@@ -190,6 +190,17 @@ def test_get_user_username(
     assert r.json["username"] == "test_a"
 
 
+def test_get_user_long_username(
+    client, admin_user, encoded_admin_jwt, db_session, test_user_long
+):
+    """ GET /users/<username>: [get_user]: happy path """
+    r = client.get(
+        "/admin/users/test_amazing_user_with_an_fancy_but_extremely_long_name", headers={"Authorization": "Bearer " + encoded_admin_jwt}
+    )
+    assert r.status_code == 200
+    assert r.json["username"] == "test_amazing_user_with_an_fancy_but_extremely_long_name"
+
+
 def test_get_user_username_nonexistent(
     client, admin_user, encoded_admin_jwt, db_session
 ):
@@ -212,17 +223,18 @@ def test_get_user_username_noauth(client, db_session):
 
 
 def test_get_user(
-    client, admin_user, encoded_admin_jwt, db_session, test_user_a, test_user_b
+    client, admin_user, encoded_admin_jwt, db_session, test_user_a, test_user_b, test_user_long
 ):
     """ GET /user: [get_all_users] """
     r = client.get(
         "/admin/user", headers={"Authorization": "Bearer " + encoded_admin_jwt}
     )
     assert r.status_code == 200
-    assert len(r.json["users"]) == 3
+    assert len(r.json["users"]) == 4
     usernames = [user["name"] for user in r.json["users"]]
     assert "test_a" in usernames
     assert "test_b" in usernames
+    assert "test_amazing_user_with_an_fancy_but_extremely_long_name" in usernames
     assert "admin_user" in usernames
 
 
