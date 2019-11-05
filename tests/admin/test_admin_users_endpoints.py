@@ -195,10 +195,13 @@ def test_get_user_long_username(
 ):
     """ GET /users/<username>: [get_user]: happy path """
     r = client.get(
-        "/admin/users/test_amazing_user_with_an_fancy_but_extremely_long_name", headers={"Authorization": "Bearer " + encoded_admin_jwt}
+        "/admin/users/test_amazing_user_with_an_fancy_but_extremely_long_name",
+        headers={"Authorization": "Bearer " + encoded_admin_jwt},
     )
     assert r.status_code == 200
-    assert r.json["username"] == "test_amazing_user_with_an_fancy_but_extremely_long_name"
+    assert (
+        r.json["username"] == "test_amazing_user_with_an_fancy_but_extremely_long_name"
+    )
 
 
 def test_get_user_username_nonexistent(
@@ -223,7 +226,13 @@ def test_get_user_username_noauth(client, db_session):
 
 
 def test_get_user(
-    client, admin_user, encoded_admin_jwt, db_session, test_user_a, test_user_b, test_user_long
+    client,
+    admin_user,
+    encoded_admin_jwt,
+    db_session,
+    test_user_a,
+    test_user_b,
+    test_user_long,
 ):
     """ GET /user: [get_all_users] """
     r = client.get(
