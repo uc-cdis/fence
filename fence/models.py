@@ -576,8 +576,6 @@ def migrate(driver):
             % (User.__tablename__, str(User.username.type))
         )
         with driver.session as session:
-            session.execute(to_timestamp)
-        with driver.session as session:
             session.execute(
                 'ALTER TABLE "{}" ALTER COLUMN username TYPE {};'.format(
                     User.__tablename__, str(User.username.type)
