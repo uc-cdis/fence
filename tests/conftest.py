@@ -299,6 +299,26 @@ def test_user_b(db_session):
     return Dict(username="test_b", user_id=test_user.id)
 
 
+@pytest.fixture(scope="function")
+def test_user_long(db_session):
+    test_user = (
+        db_session.query(models.User)
+        .filter_by(username="test_amazing_user_with_an_fancy_but_extremely_long_name")
+        .first()
+    )
+    if not test_user:
+        test_user = models.User(
+            username="test_amazing_user_with_an_fancy_but_extremely_long_name",
+            is_admin=False,
+        )
+        db_session.add(test_user)
+        db_session.commit()
+    return Dict(
+        username="test_amazing_user_with_an_fancy_but_extremely_long_name",
+        user_id=test_user.id,
+    )
+
+
 @pytest.fixture(scope="session")
 def db(app, request):
     """
