@@ -567,6 +567,21 @@ def migrate(driver):
                 )
             )
 
+    # username limit migration
+
+    table = Table(User.__tablename__, md, autoload=True, autoload_with=driver.engine)
+    if str(table.c.username.type) != str(User.username.type):
+        print(
+            "Altering table %s column username type to %s"
+            % (User.__tablename__, str(User.username.type))
+        )
+        with driver.session as session:
+            session.execute(
+                'ALTER TABLE "{}" ALTER COLUMN username TYPE {};'.format(
+                    User.__tablename__, str(User.username.type)
+                )
+            )
+
     # oidc migration
 
     table = Table(Client.__tablename__, md, autoload=True, autoload_with=driver.engine)

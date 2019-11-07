@@ -454,7 +454,7 @@ def test_invalid_service_account_does_not_exist(valid_service_account_patcher):
 
 
 def test_invalid_service_account_does_not_exist_external_access(
-    valid_service_account_patcher
+    valid_service_account_patcher,
 ):
     """
     Test that when a Service Account that does not exist is requested
