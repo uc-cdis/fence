@@ -1056,7 +1056,7 @@ class UserSyncer(object):
             if not self.arborist_client:
                 raise EnvironmentError(
                     "yaml file contains authz section but sync is not configured with"
-                    " arborist client"
+                    " arborist client--did you run sync with --arborist <arborist client> arg?"
                 )
             self.logger.info("Synchronizing arborist...")
             success = self._update_arborist(sess, user_yaml)
