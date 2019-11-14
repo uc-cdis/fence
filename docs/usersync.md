@@ -16,7 +16,8 @@
     <summary>Expand user.yaml</summary>
 
 ```
-rbac:
+# authz information follows the attribute-based access control (ABAC) model
+authz:
   resources: 
     - name: programs
       subresources:
