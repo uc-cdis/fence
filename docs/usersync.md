@@ -1,6 +1,6 @@
 # Usersync
 
-`Usersync` is a script that parses user access information from multiple sources (dbGaP telemetry files, user.yaml files) and keeps users' access to Gen3 resources up to date by updating the Fence and Arborist databases.
+Usersync is a script that parses user access information from multiple sources (user.yaml files, dbGaP user authorization telemetry files AKA whitelists) and keeps users' access to Gen3 resources up to date by updating the Fence and Arborist databases.
 
 ## Usersync flow
 
