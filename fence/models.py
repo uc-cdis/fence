@@ -746,6 +746,45 @@ AFTER INSERT OR UPDATE OR DELETE ON "User"
     FOR EACH ROW EXECUTE PROCEDURE process_user_audit();"""
         )
 
+        session.execute(
+            """\
+CREATE OR REPLACE FUNCTION process_cert_audit() RETURNS TRIGGER AS $cert_audit$
+    BEGIN
+        IF (TG_OP = 'DELETE') THEN
+            INSERT INTO cert_audit_logs (timestamp, operation, user_id, old_values)
+            SELECT now(), 'DELETE', "User".id, row_to_json(OLD)
+            FROM certificate INNER JOIN application ON certificate.application_id = application.id
+            INNER JOIN "User" ON application.user_id = "User".id;
+            RETURN OLD;
+        ELSIF (TG_OP = 'UPDATE') THEN
+            INSERT INTO cert_audit_logs (timestamp, operation, user_id, old_values, new_values)
+            SELECT now(), 'UPDATE', "User".id, row_to_json(OLD), row_to_json(NEW)
+            FROM certificate INNER JOIN application ON certificate.application_id = application.id
+            INNER JOIN "User" ON application.user_id = "User".id;
+            RETURN NEW;
+        ELSIF (TG_OP = 'INSERT') THEN
+            INSERT INTO cert_audit_logs (timestamp, operation, user_id, new_values)
+            SELECT now(), 'INSERT', "User".id, row_to_json(NEW)
+            FROM certificate INNER JOIN application ON certificate.application_id = application.id
+            INNER JOIN "User" ON application.user_id = "User".id;
+            RETURN NEW;
+        END IF;
+        RETURN NULL;
+    END;
+$cert_audit$ LANGUAGE plpgsql;"""
+        )
+
+        exist = session.scalar(
+            "SELECT exists (SELECT * FROM pg_trigger WHERE tgname = 'cert_audit')"
+        )
+        session.execute(
+            ('DROP TRIGGER cert_audit ON certificate; ' if exist else "")
+            + """\
+CREATE TRIGGER cert_audit
+AFTER INSERT OR UPDATE OR DELETE ON certificate
+    FOR EACH ROW EXECUTE PROCEDURE process_cert_audit();"""
+        )
+
 
 def add_foreign_key_column_if_not_exist(
     table_name,
