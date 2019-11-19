@@ -165,6 +165,10 @@ OPENID_CONNECT:
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
     mock_default_user: 'test@example.com'
+  shibboleth:
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/shib/login'
 
 # these are the *possible* scopes a client can be given, NOT scopes that are
 # given to all clients. You can be more restrictive during client creation
@@ -209,24 +213,33 @@ SESSION_ALLOWED_SCOPES:
 
 # List of enabled login options (used by data-portal to display login buttons).
 # Each option must be configured with a "name" and an "idp".
-# "idp" must be a configured provider in OPENID_CONNECT section.
+# - "idp" must be a configured provider in OPENID_CONNECT section.
 # Multiple options can be configured with the same idp.
-# "desc" and "secondary" are optional.
-# If the idp is fence, a list of "shib_idps" can be configured for
-# InCommon login.
+# - if provider_id is "fence", "fence_idp" can be any of the providers
+# supported by the other Fence. If not specified, will default to NIH login.
+# - if provider_id is "fence" and fence_idp is "shibboleth", a list of
+# "shib_idps" can be configured for InCommon login. If not specified, will
+# default to NIH login.
+# - Optional parameters: "desc" (description) and "secondary" (boolean - can
+# be used by the frontend to display secondary buttons differently).
 LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
   # - name: 'Login from Google'
-  #   idp: google
   #   desc: 'description'
+  #   idp: google
   #   secondary: True
-  # - name: 'NIH Login'
-  #   idp: fence
-  # - name: 'Orcid Login'
+  # - name: 'ORCID Login'
   #   idp: orcid
   # - name: 'Microsoft Login'
   #   idp: microsoft
+  # - name: 'NIH Login'
+  #   idp: fence
+  #   fence_idp: shibboleth
+  # - name: 'ORCID Login through other Fence'
+  #   idp: fence
+  #   fence_idp: orcid
   # - name: 'InCommon Login'
   #   idp: fence
+  #   fence_idp: shibboleth
   #   # "shib_idps" can be '*' or a list of one or more entity IDs
   #   shib_idps:
   #     - urn:mace:incommon:nih.gov
@@ -701,6 +714,6 @@ ALLOWED_USER_SERVICE_ACCOUNT_DOMAINS:
 # seconds if the team matches.
 DREAM_CHALLENGE_TEAM: 'DREAM'
 DREAM_CHALLENGE_GROUP: 'DREAM'
-SYNAPSE_URI: 'https://repo-prod.prod.sagebase.org/auth/v1/'
+SYNAPSE_URI: 'https://repo-prod.prod.sagebase.org/auth/v1'
 SYNAPSE_DISCOVERY_URL:
 SYNAPSE_AUTHZ_TTL: 86400
