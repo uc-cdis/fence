@@ -778,7 +778,7 @@ $cert_audit$ LANGUAGE plpgsql;"""
             "SELECT exists (SELECT * FROM pg_trigger WHERE tgname = 'cert_audit')"
         )
         session.execute(
-            ('DROP TRIGGER cert_audit ON certificate; ' if exist else "")
+            ("DROP TRIGGER cert_audit ON certificate; " if exist else "")
             + """\
 CREATE TRIGGER cert_audit
 AFTER INSERT OR UPDATE OR DELETE ON certificate
