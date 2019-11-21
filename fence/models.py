@@ -753,23 +753,20 @@ CREATE OR REPLACE FUNCTION process_cert_audit() RETURNS TRIGGER AS $cert_audit$
         IF (TG_OP = 'DELETE') THEN
             INSERT INTO cert_audit_logs (timestamp, operation, user_id, username, old_values)
             SELECT now(), 'DELETE', "User".id, "User".username, row_to_json(OLD)
-            FROM certificate INNER JOIN application ON certificate.application_id = application.id
-            INNER JOIN "User" ON application.user_id = "User".id
-            WHERE certificate.id = OLD.id;
+            FROM application INNER JOIN "User" ON application.user_id = "User".id
+            WHERE OLD.application_id = application.id;
             RETURN OLD;
         ELSIF (TG_OP = 'UPDATE') THEN
-            INSERT INTO cert_audit_logs (timestamp, operation, user_id, username,  old_values, new_values)
+            INSERT INTO cert_audit_logs (timestamp, operation, user_id, username, old_values, new_values)
             SELECT now(), 'UPDATE', "User".id, "User".username, row_to_json(OLD), row_to_json(NEW)
-            FROM certificate INNER JOIN application ON certificate.application_id = application.id
-            INNER JOIN "User" ON application.user_id = "User".id
-            WHERE certificate.id = NEW.id;
+            FROM application INNER JOIN "User" ON application.user_id = "User".id
+            WHERE NEW.application_id = application.id;
             RETURN NEW;
         ELSIF (TG_OP = 'INSERT') THEN
             INSERT INTO cert_audit_logs (timestamp, operation, user_id, username, new_values)
             SELECT now(), 'INSERT', "User".id, "User".username, row_to_json(NEW)
-            FROM certificate INNER JOIN application ON certificate.application_id = application.id
-            INNER JOIN "User" ON application.user_id = "User".id
-            WHERE certificate.id = NEW.id;
+            FROM application INNER JOIN "User" ON application.user_id = "User".id
+            WHERE NEW.application_id = application.id;
             RETURN NEW;
         END IF;
         RETURN NULL;
