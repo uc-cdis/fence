@@ -56,7 +56,7 @@ def make_login_blueprint(app):
         The default root login route.
         """
         # default login option
-        if "DEFAULT_LOGIN_IDP" in config:
+        if config.get("DEFAULT_LOGIN_IDP"):
             default_idp = config["DEFAULT_LOGIN_IDP"]
         elif "default" in config.get("ENABLED_IDENTITY_PROVIDERS", {}):
             # fall back on ENABLED_IDENTITY_PROVIDERS.default
@@ -219,7 +219,7 @@ def make_login_blueprint(app):
                 provider_info(login_details) for login_details in login_options
             ]
         except KeyError as e:
-            raise InternalError("login options misconfigured: {}".format(e))
+            raise InternalError("LOGIN_OPTIONS misconfigured: {}".format(e))
 
         # if several login_options are defined for this default IDP, will
         # default to the first one:
@@ -227,7 +227,11 @@ def make_login_blueprint(app):
             (info for info in all_provider_info if info["idp"] == default_idp), None
         )
         if not default_provider_info:
-            raise InternalError("default provider misconfigured")
+            raise InternalError(
+                "default provider misconfigured: DEFAULT_LOGIN_IDP is set to {}, which is not configured in LOGIN_OPTIONS".format(
+                    default_idp
+                )
+            )
 
         return flask.jsonify(
             {"default_provider": default_provider_info, "providers": all_provider_info}
