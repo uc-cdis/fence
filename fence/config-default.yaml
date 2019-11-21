@@ -259,7 +259,7 @@ LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
 # - Google? Use: '{{BASE_URL}}/login/google'
 # - Multi-tenant fence (e.g. another fence instance)? Use: '{{BASE_URL}}/login/fence'
 # - Sibboleth? Use: '{{BASE_URL}}/login/shib'
-DEFAULT_LOGIN_IDP: google
+DEFAULT_LOGIN_IDP: null
 DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
 
 # `LOGIN_REDIRECT_WHITELIST` is a list of extra whitelisted URLs which can be redirected
