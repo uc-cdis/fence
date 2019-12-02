@@ -124,7 +124,7 @@ class SynapseOauth2Client(Oauth2ClientBase):
                         return dict(error="Required claim {} not found".format(claim))
                 else:
                     rv[claim] = value
-            rv["fence_username"] = rv["userid"] + " (via Synapse)"
+            rv["fence_username"] = rv["userid"] + " (Synapse ID)"
             return rv
         except Exception as e:
             self.logger.exception("Can't get user info")
