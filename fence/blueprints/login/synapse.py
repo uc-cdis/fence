@@ -26,7 +26,7 @@ class SynapseCallback(DefaultOAuth2Callback):
 
     def post_login(self, user, token_result):
         user.id_from_idp = token_result["sub"]
-        user.email = token_result["email_verified"]
+        user.email = token_result["email"]
         user.display_name = "{given_name} {family_name}".format(**token_result)
         info = {}
         if user.additional_info is not None:

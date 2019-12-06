@@ -318,7 +318,10 @@ class GoogleProjectValidity(ValidityInfo):
         user_members = None
         service_account_members = []
         try:
-            user_members, service_account_members = get_google_project_valid_users_and_service_accounts(
+            (
+                user_members,
+                service_account_members,
+            ) = get_google_project_valid_users_and_service_accounts(
                 self.google_project_id, self.google_cloud_manager, membership=membership
             )
             self.set("valid_member_types", True)

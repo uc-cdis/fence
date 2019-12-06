@@ -195,6 +195,10 @@ class UserYAML(object):
 
         # Fall back on rbac block if no authz. Remove when rbac in useryaml fully deprecated.
         if not data.get("authz") and data.get("rbac"):
+            if logger:
+                logger.info(
+                    "No authz block found but rbac block present. Using rbac block"
+                )
             data["authz"] = data["rbac"]
 
         # get user project mapping to arborist resources if it exists
@@ -1052,7 +1056,7 @@ class UserSyncer(object):
             if not self.arborist_client:
                 raise EnvironmentError(
                     "yaml file contains authz section but sync is not configured with"
-                    " arborist client"
+                    " arborist client--did you run sync with --arborist <arborist client> arg?"
                 )
             self.logger.info("Synchronizing arborist...")
             success = self._update_arborist(sess, user_yaml)
@@ -1188,6 +1192,9 @@ class UserSyncer(object):
         for policy in policies:
             policy_id = policy.pop("id")
             try:
+                self.logger.debug(
+                    "Trying to upsert policy with id {}".format(policy_id)
+                )
                 response = self.arborist_client.update_policy(
                     policy_id, policy, create_if_not_exist=True
                 )
@@ -1196,6 +1203,7 @@ class UserSyncer(object):
                 # keep going; maybe just some conflicts from things existing already
             else:
                 if response:
+                    self.logger.debug("Upserted policy with id {}".format(policy_id))
                     self._created_policies.add(policy_id)
 
         groups = user_yaml.authz.get("groups", [])
@@ -1285,9 +1293,11 @@ class UserSyncer(object):
         for username, user_project_info in user_projects.items():
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
+            if user:
+                username = user.username
 
-            self.arborist_client.create_user_if_not_exist(user.username)
-            self.arborist_client.revoke_all_policies_for_user(user.username)
+            self.arborist_client.create_user_if_not_exist(username)
+            self.arborist_client.revoke_all_policies_for_user(username)
 
             for project, permissions in user_project_info.items():
 
@@ -1347,11 +1357,11 @@ class UserSyncer(object):
                                 )
                             self._created_policies.add(policy_id)
 
-                        self.arborist_client.grant_user_policy(user.username, policy_id)
+                        self.arborist_client.grant_user_policy(username, policy_id)
 
             if user_yaml:
-                for policy in user_yaml.policies.get(user.username, []):
-                    self.arborist_client.grant_user_policy(user.username, policy)
+                for policy in user_yaml.policies.get(username, []):
+                    self.arborist_client.grant_user_policy(username, policy)
 
         for client_name, client_details in user_yaml.clients.items():
             client_policies = client_details.get("policies", [])
