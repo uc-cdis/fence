@@ -379,8 +379,9 @@ class IndexedFile(object):
 
     @cached_property
     def public(self):
-        authz_resources = list(self.set_acls)
-        authz_resources.extend(self.index_document.get("authz", []))
+        authz_resources = self.index_document.get("authz", [])
+        if not authz_resources:
+            authz_resources.extend(list(self.set_acls))
         return "*" in authz_resources or "/open" in authz_resources
 
     @login_required({"data"})
@@ -742,7 +743,10 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         elif public_data and _is_anonymous_user(user_info):
             expiration_time = int(time.time()) + int(expires_in)
             url = self._generate_anonymous_google_storage_signed_url(
-                ACTION_DICT["gs"][action], resource_path, expiration_time
+                ACTION_DICT["gs"][action],
+                resource_path,
+                expiration_time,
+                r_pays_project=r_pays_project,
             )
         else:
             expiration_time = int(time.time()) + int(expires_in)
