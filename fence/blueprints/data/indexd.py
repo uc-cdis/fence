@@ -35,8 +35,12 @@ from fence.resources.google.utils import (
     get_google_app_creds,
     give_service_account_billing_access_if_necessary,
 )
-from fence.utils import get_valid_expiration_from_request
+from fence.utils import (
+    get_valid_expiration_from_request,
+    get_credential_to_access_bucket
+)
 from . import multipart_upload
+
 
 
 logger = get_logger(__name__)
@@ -489,35 +493,6 @@ class S3IndexedFileLocation(IndexedFileLocation):
     An indexed file that lives in an AWS S3 bucket.
     """
 
-    @classmethod
-    def assume_role(cls, bucket_cred, expires_in, aws_creds_config):
-        role_arn = get_value(
-            bucket_cred, "role-arn", InternalError("role-arn of that bucket is missing")
-        )
-        assumed_role = flask.current_app.boto.assume_role(
-            role_arn, expires_in, aws_creds_config
-        )
-        cred = get_value(
-            assumed_role, "Credentials", InternalError("fail to assume role")
-        )
-        return {
-            "aws_access_key_id": get_value(
-                cred,
-                "AccessKeyId",
-                InternalError("outdated format. AccessKeyId missing"),
-            ),
-            "aws_secret_access_key": get_value(
-                cred,
-                "SecretAccessKey",
-                InternalError("outdated format. SecretAccessKey missing"),
-            ),
-            "aws_session_token": get_value(
-                cred,
-                "SessionToken",
-                InternalError("outdated format. Sesssion token missing"),
-            ),
-        }
-
     def bucket_name(self):
         """
         Return:
@@ -533,44 +508,6 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 return bucket
         return None
 
-    @classmethod
-    def get_credential_to_access_bucket(cls, bucket_name, aws_creds, expires_in):
-        s3_buckets = get_value(
-            config, "S3_BUCKETS", InternalError("buckets not configured")
-        )
-        if len(aws_creds) == 0 and len(s3_buckets) == 0:
-            raise InternalError("no bucket is configured")
-        if len(aws_creds) == 0 and len(s3_buckets) > 0:
-            raise InternalError("credential for buckets is not configured")
-
-        bucket_cred = s3_buckets.get(bucket_name)
-        if bucket_cred is None:
-            raise Unauthorized("permission denied for bucket")
-
-        cred_key = get_value(
-            bucket_cred, "cred", InternalError("credential of that bucket is missing")
-        )
-
-        # this is a special case to support public buckets where we do *not* want to
-        # try signing at all
-        if cred_key == "*":
-            return {"aws_access_key_id": "*"}
-
-        if "role-arn" not in bucket_cred:
-            return get_value(
-                aws_creds,
-                cred_key,
-                InternalError("aws credential of that bucket is not found"),
-            )
-        else:
-            aws_creds_config = get_value(
-                aws_creds,
-                cred_key,
-                InternalError("aws credential of that bucket is not found"),
-            )
-            return S3IndexedFileLocation.assume_role(
-                bucket_cred, expires_in, aws_creds_config
-            )
 
     def get_bucket_region(self):
         s3_buckets = get_value(
@@ -599,7 +536,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             self.parsed_url.netloc, self.parsed_url.path.strip("/")
         )
 
-        credential = S3IndexedFileLocation.get_credential_to_access_bucket(
+        credential = get_credential_to_access_bucket(
             self.bucket_name(), aws_creds, expires_in
         )
 
@@ -649,7 +586,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
-        credentials = S3IndexedFileLocation.get_credential_to_access_bucket(
+        credentials = get_credential_to_access_bucket(
             self.bucket_name(), aws_creds, expires_in
         )
 
@@ -672,7 +609,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
-        credential = S3IndexedFileLocation.get_credential_to_access_bucket(
+        credential = get_credential_to_access_bucket(
             self.bucket_name(), aws_creds, expires_in
         )
 
@@ -705,7 +642,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
 
-        credentials = S3IndexedFileLocation.get_credential_to_access_bucket(
+        credentials = get_credential_to_access_bucket(
             self.bucket_name(), aws_creds, expires_in
         )
 

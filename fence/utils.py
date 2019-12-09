@@ -8,18 +8,91 @@ import string
 import requests
 from urllib.parse import urlencode
 from urllib.parse import parse_qs, urlsplit, urlunsplit
+from cdispyutils.config import get_value
 
 import flask
 from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.datastructures import ImmutableMultiDict
 
 from fence.models import Client, GrantType, User, query_for_user
-from fence.errors import NotFound, UserError
 from fence.config import config
+from fence.errors import (
+    InternalError,
+    NotFound,
+    NotSupported,
+    Unauthorized,
+    UnavailableError,
+)
 
 
 rng = SystemRandom()
 alphanumeric = string.ascii_uppercase + string.ascii_lowercase + string.digits
+
+
+def get_credential_to_access_bucket(bucket_name, aws_creds, expires_in):
+    s3_buckets = get_value(
+        config, "S3_BUCKETS", InternalError( "buckets not configured" )
+    )
+    if len( aws_creds ) == 0 and len( s3_buckets ) == 0:
+        raise InternalError( "no bucket is configured" )
+    if len( aws_creds ) == 0 and len( s3_buckets ) > 0:
+        raise InternalError( "credential for buckets is not configured" )
+
+    bucket_cred = s3_buckets.get( bucket_name )
+    if bucket_cred is None:
+        raise Unauthorized( "permission denied for bucket" )
+
+    cred_key = get_value(
+        bucket_cred, "cred", InternalError( "credential of that bucket is missing" )
+    )
+
+    # this is a special case to support public buckets where we do *not* want to
+    # try signing at all
+    if cred_key == "*":
+        return {"aws_access_key_id": "*"}
+
+    if "role-arn" not in bucket_cred:
+        return get_value(
+            aws_creds,
+            cred_key,
+            InternalError( "aws credential of that bucket is not found" ),
+        )
+    else:
+        aws_creds_config = get_value(
+            aws_creds,
+            cred_key,
+            InternalError( "aws credential of that bucket is not found" ),
+        )
+        return assume_role(
+            bucket_cred, expires_in, aws_creds_config
+        )
+
+def assume_role(bucket_cred, expires_in, aws_creds_config):
+    role_arn = get_value(
+         bucket_cred, "role-arn", InternalError("role-arn of that bucket is missing")
+    )
+    assumed_role = flask.current_app.boto.assume_role(
+        role_arn, expires_in, aws_creds_config
+    cred = get_value(
+        assumed_role, "Credentials", InternalError("fail to assume role")
+    )
+    return {
+        "aws_access_key_id": get_value(
+            cred,
+            "AccessKeyId",
+            InternalError("outdated format. AccessKeyId missing"),
+        ),
+        "aws_secret_access_key": get_value(
+            cred,
+            "SecretAccessKey",
+            InternalError("outdated format. SecretAccessKey missing"),
+        ),
+        "aws_session_token": get_value(
+            cred,
+            "SessionToken",
+            InternalError("outdated format. Sesssion token missing"),
+        ),
+    }
 
 
 def random_str(length):
