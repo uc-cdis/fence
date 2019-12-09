@@ -37,10 +37,9 @@ from fence.resources.google.utils import (
 )
 from fence.utils import (
     get_valid_expiration_from_request,
-    get_credential_to_access_bucket
+    get_credential_to_access_bucket,
 )
 from . import multipart_upload
-
 
 
 logger = get_logger(__name__)
@@ -507,7 +506,6 @@ class S3IndexedFileLocation(IndexedFileLocation):
             if re.match("^" + bucket + "$", self.parsed_url.netloc):
                 return bucket
         return None
-
 
     def get_bucket_region(self):
         s3_buckets = get_value(
