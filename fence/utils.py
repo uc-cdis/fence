@@ -22,6 +22,7 @@ from fence.errors import (
     NotSupported,
     Unauthorized,
     UnavailableError,
+    UserError,
 )
 
 
