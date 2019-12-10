@@ -968,6 +968,18 @@ class UserSyncer(object):
             with self.driver.session as s:
                 self._sync(s)
 
+    def download(self):
+        if self.session:
+            self._download(self.session)
+        else:
+            with self.driver.session as s:
+                self._download(s)
+
+    def _download(self, sess):
+        """
+        Download files from dbgap server.
+        """
+
     def _sync(self, sess):
         """
         Collect files from dbgap server, sync csv and yaml files to storage

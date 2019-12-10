@@ -178,7 +178,7 @@ def _remove_client_service_accounts(db_session, client):
                     )
 
 
-def sync_users(
+def init_syncer(
     dbGaP,
     STORAGE_CREDENTIALS,
     DB,
@@ -235,7 +235,7 @@ def sync_users(
         except IOError:
             pass
 
-    syncer = UserSyncer(
+    return UserSyncer(
         dbGaP,
         DB,
         project_mapping=project_mapping,
@@ -244,6 +244,55 @@ def sync_users(
         sync_from_local_csv_dir=sync_from_local_csv_dir,
         sync_from_local_yaml_file=sync_from_local_yaml_file,
         arborist=arborist,
+    )
+
+
+def download_dbgap_files(
+    dbGaP,
+    STORAGE_CREDENTIALS,
+    DB,
+    projects=None,
+    is_sync_from_dbgap_server=False,
+    sync_from_local_csv_dir=None,
+    sync_from_local_yaml_file=None,
+    arborist=None,
+    folder=None,
+):
+    syncer = init_syncer(
+        dbGaP,
+        STORAGE_CREDENTIALS,
+        DB,
+        projects,
+        is_sync_from_dbgap_server,
+        sync_from_local_csv_dir,
+        sync_from_local_yaml_file,
+        arborist,
+        folder,
+    )
+    syncer.download()
+
+
+def sync_users(
+    dbGaP,
+    STORAGE_CREDENTIALS,
+    DB,
+    projects=None,
+    is_sync_from_dbgap_server=False,
+    sync_from_local_csv_dir=None,
+    sync_from_local_yaml_file=None,
+    arborist=None,
+    folder=None,
+):
+    syncer = init_syncer(
+        dbGaP,
+        STORAGE_CREDENTIALS,
+        DB,
+        projects,
+        is_sync_from_dbgap_server,
+        sync_from_local_csv_dir,
+        sync_from_local_yaml_file,
+        arborist,
+        folder,
     )
     syncer.sync()
 
