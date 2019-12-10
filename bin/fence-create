@@ -149,6 +149,9 @@ def parse_arguments():
         "--sync_from_dbgap", help="sync from dbgap server True/False", default="False"
     )
     dbgap_sync.add_argument(
+        "--dbgap_folder", help="sync from dbgap server True/False", default="False"
+    )
+    dbgap_sync.add_argument(
         "--arborist",
         help="the base URL for the arborist service to sync to",
         default=None,

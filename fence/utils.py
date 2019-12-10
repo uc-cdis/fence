@@ -31,19 +31,19 @@ alphanumeric = string.ascii_uppercase + string.ascii_lowercase + string.digits
 
 def get_credential_to_access_bucket(bucket_name, aws_creds, expires_in):
     s3_buckets = get_value(
-        config, "S3_BUCKETS", InternalError( "buckets not configured" )
+        config, "S3_BUCKETS", InternalError("buckets not configured")
     )
-    if len( aws_creds ) == 0 and len( s3_buckets ) == 0:
-        raise InternalError( "no bucket is configured" )
-    if len( aws_creds ) == 0 and len( s3_buckets ) > 0:
-        raise InternalError( "credential for buckets is not configured" )
+    if len(aws_creds) == 0 and len(s3_buckets) == 0:
+        raise InternalError("no bucket is configured")
+    if len(aws_creds) == 0 and len(s3_buckets) > 0:
+        raise InternalError("credential for buckets is not configured")
 
-    bucket_cred = s3_buckets.get( bucket_name )
+    bucket_cred = s3_buckets.get(bucket_name)
     if bucket_cred is None:
-        raise Unauthorized( "permission denied for bucket" )
+        raise Unauthorized("permission denied for bucket")
 
     cred_key = get_value(
-        bucket_cred, "cred", InternalError( "credential of that bucket is missing" )
+        bucket_cred, "cred", InternalError("credential of that bucket is missing")
     )
 
     # this is a special case to support public buckets where we do *not* want to
@@ -55,32 +55,28 @@ def get_credential_to_access_bucket(bucket_name, aws_creds, expires_in):
         return get_value(
             aws_creds,
             cred_key,
-            InternalError( "aws credential of that bucket is not found" ),
+            InternalError("aws credential of that bucket is not found"),
         )
     else:
         aws_creds_config = get_value(
             aws_creds,
             cred_key,
-            InternalError( "aws credential of that bucket is not found" ),
+            InternalError("aws credential of that bucket is not found"),
         )
-        return assume_role(
-            bucket_cred, expires_in, aws_creds_config
-        )
+        return assume_role(bucket_cred, expires_in, aws_creds_config)
+
 
 def assume_role(bucket_cred, expires_in, aws_creds_config):
     role_arn = get_value(
-         bucket_cred, "role-arn", InternalError("role-arn of that bucket is missing")
+        bucket_cred, "role-arn", InternalError("role-arn of that bucket is missing")
     )
     assumed_role = flask.current_app.boto.assume_role(
         role_arn, expires_in, aws_creds_config
-    cred = get_value(
-        assumed_role, "Credentials", InternalError("fail to assume role")
     )
+    cred = get_value(assumed_role, "Credentials", InternalError("fail to assume role"))
     return {
         "aws_access_key_id": get_value(
-            cred,
-            "AccessKeyId",
-            InternalError("outdated format. AccessKeyId missing"),
+            cred, "AccessKeyId", InternalError("outdated format. AccessKeyId missing")
         ),
         "aws_secret_access_key": get_value(
             cred,
