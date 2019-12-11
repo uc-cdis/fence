@@ -975,29 +975,42 @@ class UserSyncer(object):
             with self.driver.session as s:
                 self._download(s)
 
-    def _download(self, sess):
+    def _download(self, sess, folder):
         """
         Download files from dbgap server.
         """
+        cwd = os.getcwd()
+        folderdir = ps.path.join(cwd, folder)
 
-    def _sync(self, sess):
+        if not os.path.exists(folderdir):
+            os.mkdir(folderdir)
+        dbgap_file_list = []
+        self.logger.info("Download from server")
+        try:
+            if self.protocol == "sftp":
+                self._get_from_sftp_with_proxy(folder)
+            else:
+                self._get_from_ftp_with_proxy(folder)
+            dbgap_file_list = glob.glob(os.path.join(folder, "*"))
+            return dbgap_file_list
+        except Exception as e:
+            self.logger.error(e)
+            exit(1)
+
+    def _sync(self, sess, folder="temp_dbgap_files"):
         """
         Collect files from dbgap server, sync csv and yaml files to storage
         backend and fence DB
         """
-        dbgap_file_list = []
-        tmpdir = tempfile.mkdtemp()
+        cwd = os.getcwd()
+        folderdir = os.path.join(cwd, folder)
+
         if self.is_sync_from_dbgap_server:
-            self.logger.info("Download from server")
-            try:
-                if self.protocol == "sftp":
-                    self._get_from_sftp_with_proxy(tmpdir)
-                else:
-                    self._get_from_ftp_with_proxy(tmpdir)
-                dbgap_file_list = glob.glob(os.path.join(tmpdir, "*"))
-            except Exception as e:
-                self.logger.error(e)
-                exit(1)
+            if folder and os.path.exists(folderdir):
+                dbgap_file_list = os.listdir(folderdir)  # get lists of file from folder
+            else:
+                # for backwards compatibility, if we didn't download before syncing
+                dbgap_file_list = self._download(folder)
 
         self.logger.info("dbgap files: {}".format(dbgap_file_list))
         permissions = [{"read-storage", "read"} for _ in dbgap_file_list]
@@ -1009,7 +1022,7 @@ class UserSyncer(object):
             dict(list(zip(dbgap_file_list, permissions))), encrypted=True, sess=sess
         )
         try:
-            shutil.rmtree(tmpdir)
+            shutil.rmtree(folderdir)
         except OSError as e:
             self.logger.info(e)
             if e.errno != errno.ENOENT:
