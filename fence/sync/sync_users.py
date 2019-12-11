@@ -1207,6 +1207,14 @@ class UserSyncer(object):
                     self._created_policies.add(policy_id)
 
         groups = user_yaml.authz.get("groups", [])
+
+        # delete from arborist the groups that have been deleted
+        # from the user.yaml
+        current_groups = set(self.arborist_client.list_groups())
+        for deleted_group in current_groups.difference(set(g["name"] for g in groups)):
+            self.arborist_client.delete_group(deleted_group)
+
+        # create/update the groups defined in the user.yaml
         for group in groups:
             missing = {"name", "users", "policies"}.difference(set(group.keys()))
             if missing:
