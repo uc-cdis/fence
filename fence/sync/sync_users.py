@@ -984,7 +984,7 @@ class UserSyncer(object):
 
         if not os.path.exists(folderdir):
             os.mkdir(folderdir)
-        dbgap_file_list = []
+
         self.logger.info("Download from server")
         try:
             if self.protocol == "sftp":
@@ -1002,6 +1002,7 @@ class UserSyncer(object):
         Collect files from dbgap server, sync csv and yaml files to storage
         backend and fence DB
         """
+        dbgap_file_list = []
         cwd = os.getcwd()
         folderdir = os.path.join(cwd, folder)
 
