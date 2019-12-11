@@ -187,6 +187,7 @@ def init_syncer(
     sync_from_local_csv_dir=None,
     sync_from_local_yaml_file=None,
     arborist=None,
+    folder=None,
 ):
     """
     sync ACL files from dbGap to auth db and storage backends
@@ -244,6 +245,7 @@ def init_syncer(
         sync_from_local_csv_dir=sync_from_local_csv_dir,
         sync_from_local_yaml_file=sync_from_local_yaml_file,
         arborist=arborist,
+        folder=folder,
     )
 
 
