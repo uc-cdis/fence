@@ -271,6 +271,8 @@ def download_dbgap_files(
         arborist,
         folder,
     )
+    if not syncer:
+        exit(1)
     syncer.download()
 
 
@@ -296,6 +298,8 @@ def sync_users(
         arborist,
         folder,
     )
+    if not syncer:
+        exit(1)
     syncer.sync()
 
 
