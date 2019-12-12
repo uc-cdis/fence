@@ -1,12 +1,12 @@
 # Usersync
 
-Usersync is a script that parses user access information from multiple sources (user.yaml files, dbGaP user authorization telemetry files AKA whitelists) and keeps users' access to Gen3 resources up to date by updating the Fence and Arborist databases.
+Usersync is a script that parses user access information from multiple sources (user.yaml files, dbGaP user authorization "telemetry" files AKA whitelists) and keeps users' access to Gen3 resources up to date by updating the Fence and Arborist databases.
 
 ## Usersync flow
 
 ![Usersync Flow](images/usersync.png)
 
-> Note that at the time of writing, the user.yaml file overrides the access obtained from the telemetry files. In the future, usersync will combine the access instead.
+> Note that at the time of writing, the user.yaml file overrides the access obtained from the dbGaP authorization files. In the future, usersync will combine the access instead.
 
 ## Usersync result example
 
@@ -125,7 +125,7 @@ users:
 ```
 </details>
 
-### Example of telemetry file (CSV format):
+### Example of dbGaP authorization file (CSV format):
 
 ```
 user name, login, authority, role, email, phone, status, phsid, permission set, created
@@ -135,7 +135,7 @@ Mrs. GHI,GHI,eRA,PI,ghi@com,"123-456-789",active,phs3.v2.p3.c4,"General Research
 
 Usersync gives users "read" and "read-storage" permissions to the dbGaP studies.
 
-> Note: The dbGaP telemetry files contain consent codes that can be parsed by usersync: [more details here](dbgap_info.md). This simplified example does not include consent code parsing.
+> Note: The dbGaP authorization files contain consent codes that can be parsed by usersync: [more details here](dbgap_info.md). This simplified example does not include consent code parsing.
 
 ### Resulting access:
 
@@ -148,9 +148,9 @@ Usersync gives users "read" and "read-storage" permissions to the dbGaP studies.
   - /open: read + read-storage
   - /programs/phs1: read
   - /programs/phs2: read
-  - /programs/phs3: read + read-storage _(from the telemetry file)_
+  - /programs/phs3: read + read-storage _(from the dbGaP authorization file)_
 - user GHI:
-  - /programs/phs3: create _(user.yaml access overrides telemetry file access)_
+  - /programs/phs3: read + read-storage + create _(user.yaml access combined with dbGaP authorization file access)_
 
 ## Validation
 
