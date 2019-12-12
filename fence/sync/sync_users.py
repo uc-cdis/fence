@@ -1226,7 +1226,8 @@ class UserSyncer(object):
             try:
                 response = self.arborist_client.put_group(
                     group["name"],
-                    description=group.get("description", ""),
+                    # Arborist doesn't handle group descriptions yet
+                    # description=group.get("description", ""),
                     users=group["users"],
                     policies=group["policies"],
                 )
