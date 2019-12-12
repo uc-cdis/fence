@@ -282,7 +282,7 @@ class UserSyncer(object):
         sync_from_local_csv_dir=None,
         sync_from_local_yaml_file=None,
         arborist=None,
-        folder=None,
+        folder="temp_dbgap_files",
     ):
         """
         Syncs ACL files from dbGap to auth database and storage backends
@@ -978,12 +978,12 @@ class UserSyncer(object):
             with self.driver.session as s:
                 self._download(s)
 
-    def _download(self, sess, folder):
+    def _download(self, sess):
         """
         Download files from dbgap server.
         """
         cwd = os.getcwd()
-        folderdir = ps.path.join(cwd, folder)
+        folderdir = os.path.join(cwd, self.folder)
 
         if not os.path.exists(folderdir):
             os.mkdir(folderdir)
@@ -991,30 +991,30 @@ class UserSyncer(object):
         self.logger.info("Download from server")
         try:
             if self.protocol == "sftp":
-                self._get_from_sftp_with_proxy(folder)
+                self._get_from_sftp_with_proxy(self.folder)
             else:
-                self._get_from_ftp_with_proxy(folder)
-            dbgap_file_list = glob.glob(os.path.join(folder, "*"))
+                self._get_from_ftp_with_proxy(self.folder)
+            dbgap_file_list = glob.glob(os.path.join(self.folder, "*"))
             return dbgap_file_list
         except Exception as e:
             self.logger.error(e)
             exit(1)
 
-    def _sync(self, sess, folder="temp_dbgap_files"):
+    def _sync(self, sess):
         """
         Collect files from dbgap server, sync csv and yaml files to storage
         backend and fence DB
         """
         dbgap_file_list = []
         cwd = os.getcwd()
-        folderdir = os.path.join(cwd, folder)
+        folderdir = os.path.join(cwd, self.folder)
 
         if self.is_sync_from_dbgap_server:
-            if folder and os.path.exists(folderdir):
+            if self.folder and os.path.exists(folderdir):
                 dbgap_file_list = os.listdir(folderdir)  # get lists of file from folder
             else:
                 # for backwards compatibility, if we didn't download before syncing
-                dbgap_file_list = self._download(folder)
+                dbgap_file_list = self._download(self.folder)
 
         self.logger.info("dbgap files: {}".format(dbgap_file_list))
         permissions = [{"read-storage", "read"} for _ in dbgap_file_list]
