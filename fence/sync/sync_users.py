@@ -1210,8 +1210,11 @@ class UserSyncer(object):
 
         # delete from arborist the groups that have been deleted
         # from the user.yaml
-        current_groups = set(self.arborist_client.list_groups())
-        for deleted_group in current_groups.difference(set(g["name"] for g in groups)):
+        current_group_names = set(
+            g["name"] for g in self.arborist_client.list_groups().get("groups", [])
+        )
+        useryaml_group_names = set(g["name"] for g in groups)
+        for deleted_group in current_group_names.difference(useryaml_group_names):
             self.arborist_client.delete_group(deleted_group)
 
         # create/update the groups defined in the user.yaml
