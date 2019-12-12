@@ -282,6 +282,7 @@ class UserSyncer(object):
         sync_from_local_csv_dir=None,
         sync_from_local_yaml_file=None,
         arborist=None,
+        folder=None,
     ):
         """
         Syncs ACL files from dbGap to auth database and storage backends
@@ -295,6 +296,7 @@ class UserSyncer(object):
             arborist:
                 ArboristClient instance if the syncer should also create
                 resources in arborist
+            folder: a local folder where dbgap telemetry files will sync to
         """
         self.sync_from_local_csv_dir = sync_from_local_csv_dir
         self.sync_from_local_yaml_file = sync_from_local_yaml_file
@@ -319,6 +321,7 @@ class UserSyncer(object):
             "user_syncer", log_level="debug" if config["DEBUG"] is True else "info"
         )
         self.arborist_client = arborist
+        self.folder = folder
 
         if storage_credentials:
             self.storage_manager = StorageManager(
