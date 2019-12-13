@@ -15,8 +15,7 @@ Flask-CORS==3.0.3
 Flask_OAuthlib==0.9.4
 flask-restful==0.3.6
 Flask_SQLAlchemy_Session==1.1
-# gen3authz==0.3.0
-git+https://github.com/uc-cdis/gen3authz.git@feat/delete-group#egg=gen3authz&subdirectory=python
+gen3authz==0.3.0
 gen3config==0.1.7
 gen3cirrus==1.1.2
 gen3users
