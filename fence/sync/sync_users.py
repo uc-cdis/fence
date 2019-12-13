@@ -983,7 +983,7 @@ class UserSyncer(object):
         Download files from dbgap server.
         """
         cwd = str(os.getcwd())
-        folderdir = os.path.join(cwd, self.folder)
+        folderdir = os.path.join(cwd, str(self.folder))
 
         if not os.path.exists(folderdir):
             os.mkdir(folderdir)
@@ -1007,7 +1007,7 @@ class UserSyncer(object):
         """
         dbgap_file_list = []
         cwd = str(os.getcwd())
-        folderdir = os.path.join(cwd, self.folder)
+        folderdir = os.path.join(cwd, str(self.folder))
 
         if self.is_sync_from_dbgap_server:
             if self.folder and os.path.exists(folderdir):
