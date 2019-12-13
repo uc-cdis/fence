@@ -982,7 +982,7 @@ class UserSyncer(object):
         """
         Download files from dbgap server.
         """
-        cwd = os.getcwd()
+        cwd = str(os.getcwd())
         folderdir = os.path.join(cwd, self.folder)
 
         if not os.path.exists(folderdir):
@@ -1006,7 +1006,7 @@ class UserSyncer(object):
         backend and fence DB
         """
         dbgap_file_list = []
-        cwd = os.getcwd()
+        cwd = str(os.getcwd())
         folderdir = os.path.join(cwd, self.folder)
 
         if self.is_sync_from_dbgap_server:
