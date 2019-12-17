@@ -985,7 +985,7 @@ class UserSyncer(object):
         folderdir = os.path.join("/mnt/shared/", str(self.folder))
 
         if not os.path.exists(folderdir):
-            os.mkdir(folderdir)
+            os.makedirs(folderdir)
 
         self.logger.info("Download from server")
         try:
