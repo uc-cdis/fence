@@ -982,8 +982,7 @@ class UserSyncer(object):
         """
         Download files from dbgap server.
         """
-        cwd = str(os.getcwd())
-        folderdir = os.path.join(cwd, str(self.folder))
+        folderdir = os.path.join("/mnt/shared/", str(self.folder))
 
         if not os.path.exists(folderdir):
             os.mkdir(folderdir)
@@ -1006,8 +1005,7 @@ class UserSyncer(object):
         backend and fence DB
         """
         dbgap_file_list = []
-        cwd = str(os.getcwd())
-        folderdir = os.path.join(cwd, str(self.folder))
+        folderdir = os.path.join("/mnt/shared/", str(self.folder))
 
         if self.is_sync_from_dbgap_server:
             if self.folder and os.path.exists(folderdir):
