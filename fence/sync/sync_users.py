@@ -1010,7 +1010,7 @@ class UserSyncer(object):
         if self.is_sync_from_dbgap_server:
             if self.folder and os.path.exists(folderdir):
                 dbgap_file_list = os.path.join(
-                    "/mnt/shared/", os.listdir(folderdir)
+                    "/mnt/shared/", str(os.listdir(folderdir))
                 )  # get lists of file from folder
             else:
                 # for backwards compatibility, if we didn't download before syncing
