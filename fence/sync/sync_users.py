@@ -990,10 +990,10 @@ class UserSyncer(object):
         self.logger.info("Download from server")
         try:
             if self.protocol == "sftp":
-                self._get_from_sftp_with_proxy(self.folder)
+                self._get_from_sftp_with_proxy(folderdir)
             else:
-                self._get_from_ftp_with_proxy(self.folder)
-            dbgap_file_list = glob.glob(os.path.join(self.folder, "*"))
+                self._get_from_ftp_with_proxy(folderdir)
+            dbgap_file_list = glob.glob(os.path.join(folderdir, "*"))
             return dbgap_file_list
         except Exception as e:
             self.logger.error(e)
@@ -1012,7 +1012,7 @@ class UserSyncer(object):
                 dbgap_file_list = os.listdir(folderdir)  # get lists of file from folder
             else:
                 # for backwards compatibility, if we didn't download before syncing
-                dbgap_file_list = self._download(self.folder)
+                dbgap_file_list = self._download(self)
 
         self.logger.info("dbgap files: {}".format(dbgap_file_list))
         permissions = [{"read-storage", "read"} for _ in dbgap_file_list]
