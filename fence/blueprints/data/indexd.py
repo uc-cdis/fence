@@ -594,13 +594,24 @@ class S3IndexedFileLocation(IndexedFileLocation):
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
-
-        http_url = "https://{}.s3.amazonaws.com/{}".format(
-            self.parsed_url.netloc, self.parsed_url.path.strip("/")
+        s3_buckets = get_value(
+            config, "S3_BUCKETS", InternalError("buckets not configured")
         )
 
+        bucket = self.bucket_name()
+
+        url_for_s3 = config["S3_BUCKETS"].get("endpoint_url")
+        if url_for_s3:
+            http_url = url_for_s3.strip("/") + "/{}".format(
+                self.parsed_url.path.strip("/")
+            )
+        else:
+            http_url = "https://{}.s3.amazonaws.com/{}".format(
+                self.parsed_url.netloc, self.parsed_url.path.strip("/")
+            )
+
         credential = S3IndexedFileLocation.get_credential_to_access_bucket(
-            self.bucket_name(), aws_creds, expires_in
+            bucket, aws_creds, expires_in
         )
 
         # if it's public and we don't need to force the signed url, just return the raw
