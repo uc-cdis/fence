@@ -165,6 +165,10 @@ OPENID_CONNECT:
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
     mock_default_user: 'test@example.com'
+  shibboleth:
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/shib/login'
 
 # these are the *possible* scopes a client can be given, NOT scopes that are
 # given to all clients. You can be more restrictive during client creation
@@ -255,7 +259,7 @@ LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
 # - Google? Use: '{{BASE_URL}}/login/google'
 # - Multi-tenant fence (e.g. another fence instance)? Use: '{{BASE_URL}}/login/fence'
 # - Sibboleth? Use: '{{BASE_URL}}/login/shib'
-DEFAULT_LOGIN_IDP: google
+DEFAULT_LOGIN_IDP: null
 DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
 
 # `LOGIN_REDIRECT_WHITELIST` is a list of extra whitelisted URLs which can be redirected
@@ -712,6 +716,6 @@ ALLOWED_USER_SERVICE_ACCOUNT_DOMAINS:
 # seconds if the team matches.
 DREAM_CHALLENGE_TEAM: 'DREAM'
 DREAM_CHALLENGE_GROUP: 'DREAM'
-SYNAPSE_URI: 'https://repo-prod.prod.sagebase.org/auth/v1/'
+SYNAPSE_URI: 'https://repo-prod.prod.sagebase.org/auth/v1'
 SYNAPSE_DISCOVERY_URL:
 SYNAPSE_AUTHZ_TTL: 86400

@@ -191,7 +191,7 @@ def sync_users(
     """
     sync ACL files from dbGap to auth db and storage backends
     imports from config is done here because dbGap is
-    an optional requirment for fence so it might not be specified
+    an optional requirement for fence so it might not be specified
     in config
     Args:
         projects: path to project_mapping yaml file which contains mapping
