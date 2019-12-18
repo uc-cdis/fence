@@ -567,6 +567,21 @@ def migrate(driver):
                 )
             )
 
+    # username limit migration
+
+    table = Table(User.__tablename__, md, autoload=True, autoload_with=driver.engine)
+    if str(table.c.username.type) != str(User.username.type):
+        print(
+            "Altering table %s column username type to %s"
+            % (User.__tablename__, str(User.username.type))
+        )
+        with driver.session as session:
+            session.execute(
+                'ALTER TABLE "{}" ALTER COLUMN username TYPE {};'.format(
+                    User.__tablename__, str(User.username.type)
+                )
+            )
+
     # oidc migration
 
     table = Table(Client.__tablename__, md, autoload=True, autoload_with=driver.engine)
@@ -729,6 +744,45 @@ $user_audit$ LANGUAGE plpgsql;"""
 CREATE TRIGGER user_audit
 AFTER INSERT OR UPDATE OR DELETE ON "User"
     FOR EACH ROW EXECUTE PROCEDURE process_user_audit();"""
+        )
+
+        session.execute(
+            """\
+CREATE OR REPLACE FUNCTION process_cert_audit() RETURNS TRIGGER AS $cert_audit$
+    BEGIN
+        IF (TG_OP = 'DELETE') THEN
+            INSERT INTO cert_audit_logs (timestamp, operation, user_id, username, old_values)
+            SELECT now(), 'DELETE', "User".id, "User".username, row_to_json(OLD)
+            FROM application INNER JOIN "User" ON application.user_id = "User".id
+            WHERE OLD.application_id = application.id;
+            RETURN OLD;
+        ELSIF (TG_OP = 'UPDATE') THEN
+            INSERT INTO cert_audit_logs (timestamp, operation, user_id, username, old_values, new_values)
+            SELECT now(), 'UPDATE', "User".id, "User".username, row_to_json(OLD), row_to_json(NEW)
+            FROM application INNER JOIN "User" ON application.user_id = "User".id
+            WHERE NEW.application_id = application.id;
+            RETURN NEW;
+        ELSIF (TG_OP = 'INSERT') THEN
+            INSERT INTO cert_audit_logs (timestamp, operation, user_id, username, new_values)
+            SELECT now(), 'INSERT', "User".id, "User".username, row_to_json(NEW)
+            FROM application INNER JOIN "User" ON application.user_id = "User".id
+            WHERE NEW.application_id = application.id;
+            RETURN NEW;
+        END IF;
+        RETURN NULL;
+    END;
+$cert_audit$ LANGUAGE plpgsql;"""
+        )
+
+        exist = session.scalar(
+            "SELECT exists (SELECT * FROM pg_trigger WHERE tgname = 'cert_audit')"
+        )
+        session.execute(
+            ("DROP TRIGGER cert_audit ON certificate; " if exist else "")
+            + """\
+CREATE TRIGGER cert_audit
+AFTER INSERT OR UPDATE OR DELETE ON certificate
+    FOR EACH ROW EXECUTE PROCEDURE process_cert_audit();"""
         )
 
 

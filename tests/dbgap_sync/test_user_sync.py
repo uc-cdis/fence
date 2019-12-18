@@ -8,6 +8,27 @@ from fence.config import config
 from tests.dbgap_sync.conftest import LOCAL_YAML_DIR
 
 
+def equal_project_access(d1, d2):
+    """
+    Check whether d1 and d2 are equal regardless of the order of list values.
+
+    Args:
+        d1, d2 (dict): { project1: [permission1, permission2], project2:...}
+
+    Returns:
+        boolean: True if d1 and d2 contain the same set of permissions for
+        each project, False otherwise
+    """
+    try:
+        assert len(d1.keys()) == len(d2.keys())
+        for project, permissions in d1.items():
+            assert project in d2
+            assert sorted(permissions) == sorted(d2[project])
+    except AssertionError:
+        return False
+    return True
+
+
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
 def test_sync_missing_file(syncer, monkeypatch, db_session):
     """
@@ -54,62 +75,61 @@ def test_sync(
 
     if parse_consent_code_config:
         user = models.query_for_user(session=db_session, username="USERC")
-        assert sorted(user.project_access.get("phs000178.c1")) == sorted(
-            ["read", "read-storage"]
+        assert equal_project_access(
+            user.project_access,
+            {
+                "phs000178.c1": ["read", "read-storage"],
+                "phs000178.c2": ["read", "read-storage"],
+                "phs000178.c999": ["read", "read-storage"],
+                "phs000179.c1": ["read", "read-storage"],
+            },
         )
-        assert sorted(user.project_access.get("phs000178.c2")) == sorted(
-            ["read", "read-storage"]
-        )
-        assert sorted(user.project_access.get("phs000178.c999")) == sorted(
-            ["read", "read-storage"]
-        )
-        assert sorted(user.project_access.get("phs000179.c1")) == sorted(
-            ["read", "read-storage"]
-        )
+
         user = models.query_for_user(session=db_session, username="USERF")
-        assert sorted(user.project_access.get("phs000178.c1")) == sorted(
-            ["read", "read-storage"]
-        )
-        assert sorted(user.project_access.get("phs000178.c2")) == sorted(
-            ["read", "read-storage"]
+        assert equal_project_access(
+            user.project_access,
+            {
+                "phs000178.c1": ["read", "read-storage"],
+                "phs000178.c2": ["read", "read-storage"],
+            },
         )
 
         user = models.query_for_user(session=db_session, username="TESTUSERB")
-        assert sorted(user.project_access.get("phs000178.c1")) == sorted(
-            ["read", "read-storage"]
-        )
-        assert sorted(user.project_access.get("phs000179.c1")) == sorted(
-            ["read", "read-storage"]
+        assert equal_project_access(
+            user.project_access,
+            {
+                "phs000179.c1": ["read", "read-storage"],
+                "phs000178.c1": ["read", "read-storage"],
+            },
         )
     else:
         user = models.query_for_user(session=db_session, username="USERC")
-        assert sorted(user.project_access.get("phs000178")) == sorted(
-            ["read", "read-storage"]
-        )
-        assert sorted(user.project_access.get("TCGA-PCAWG")) == sorted(
-            ["read", "read-storage"]
-        )
-        assert sorted(user.project_access.get("phs000179")) == sorted(
-            ["read", "read-storage"]
+        assert equal_project_access(
+            user.project_access,
+            {
+                "phs000178": ["read", "read-storage"],
+                "TCGA-PCAWG": ["read", "read-storage"],
+                "phs000179": ["read", "read-storage"],
+            },
         )
 
         user = models.query_for_user(session=db_session, username="USERF")
-        assert sorted(user.project_access.get("phs000178")) == sorted(
-            ["read", "read-storage"]
-        )
-        assert sorted(user.project_access.get("TCGA-PCAWG")) == sorted(
-            ["read", "read-storage"]
+        assert equal_project_access(
+            user.project_access,
+            {
+                "phs000178": ["read", "read-storage"],
+                "TCGA-PCAWG": ["read", "read-storage"],
+            },
         )
 
         user = models.query_for_user(session=db_session, username="TESTUSERB")
-        assert sorted(user.project_access.get("phs000178")) == sorted(
-            ["read", "read-storage"]
-        )
-        assert sorted(user.project_access.get("TCGA-PCAWG")) == sorted(
-            ["read", "read-storage"]
-        )
-        assert sorted(user.project_access.get("phs000179")) == sorted(
-            ["read", "read-storage"]
+        assert equal_project_access(
+            user.project_access,
+            {
+                "phs000178": ["read", "read-storage"],
+                "TCGA-PCAWG": ["read", "read-storage"],
+                "phs000179": ["read", "read-storage"],
+            },
         )
 
     user = models.query_for_user(session=db_session, username="TESTUSERD")
@@ -161,85 +181,81 @@ def test_dbgap_consent_codes(
         if enable_common_exchange_area:
             # b/c user has c999, ensure they have access to all consents, study-specific
             # exchange area (via .c999) and the common exchange area configured
-            assert sorted(user.project_access.get("phs000179.c1")) == sorted(
-                ["read", "read-storage"]
+            assert equal_project_access(
+                user.project_access,
+                {
+                    "phs000179.c1": ["read", "read-storage"],
+                    "phs000178.c1": ["read", "read-storage"],
+                    "phs000178.c2": ["read", "read-storage"],
+                    "phs000178.c999": ["read", "read-storage"],
+                    # should additionally include the study-specific exchange area access and
+                    # access to the common exchange area
+                    "test_common_exchange_area": ["read", "read-storage"],
+                },
             )
-            assert sorted(user.project_access.get("phs000178.c1")) == sorted(
-                ["read", "read-storage"]
-            )
-            assert sorted(user.project_access.get("phs000178.c2")) == sorted(
-                ["read", "read-storage"]
-            )
-            assert sorted(user.project_access.get("phs000178.c999")) == sorted(
-                ["read", "read-storage"]
-            )
-            # should additionally include the study-specific exchange area access and
-            # access to the common exchange area
-            assert sorted(
-                user.project_access.get("test_common_exchange_area")
-            ) == sorted(["read", "read-storage"])
         else:
             # b/c user has c999 but common exchange area is disabled, ensure they have
             # access to all consents, study-specific exchange area (via .c999)
-            assert sorted(user.project_access.get("phs000179.c1")) == sorted(
-                ["read", "read-storage"]
-            )
-            # c999 gives access to all consents
-            assert sorted(user.project_access.get("phs000178.c1")) == sorted(
-                ["read", "read-storage"]
-            )
-            assert sorted(user.project_access.get("phs000178.c2")) == sorted(
-                ["read", "read-storage"]
-            )
-            assert sorted(user.project_access.get("phs000178.c999")) == sorted(
-                ["read", "read-storage"]
+            assert equal_project_access(
+                user.project_access,
+                {
+                    "phs000179.c1": ["read", "read-storage"],
+                    # c999 gives access to all consents
+                    "phs000178.c1": ["read", "read-storage"],
+                    "phs000178.c2": ["read", "read-storage"],
+                    "phs000178.c999": ["read", "read-storage"],
+                },
             )
     else:
         # with consent code parsing off, ensure users have access to just phsids
-        assert sorted(user.project_access.get("phs000178")) == sorted(
-            ["read", "read-storage"]
-        )
-        assert sorted(user.project_access.get("phs000179")) == sorted(
-            ["read", "read-storage"]
+        assert equal_project_access(
+            user.project_access,
+            {
+                "phs000178": ["read", "read-storage"],
+                "phs000179": ["read", "read-storage"],
+            },
         )
 
     user = models.query_for_user(session=db_session, username="USERF")
     if parse_consent_code_config:
-        assert sorted(user.project_access.get("phs000178.c1")) == sorted(
-            ["read", "read-storage"]
-        )
-        assert sorted(user.project_access.get("phs000178.c2")) == sorted(
-            ["read", "read-storage"]
+        assert equal_project_access(
+            user.project_access,
+            {
+                "phs000178.c1": ["read", "read-storage"],
+                "phs000178.c2": ["read", "read-storage"],
+            },
         )
     else:
-        assert sorted(user.project_access.get("phs000178")) == sorted(
-            ["read", "read-storage"]
+        assert equal_project_access(
+            user.project_access, {"phs000178": ["read", "read-storage"]}
         )
 
     user = models.query_for_user(session=db_session, username="TESTUSERB")
     if parse_consent_code_config:
-        assert sorted(user.project_access.get("phs000179.c1")) == sorted(
-            ["read", "read-storage"]
-        )
-        assert sorted(user.project_access.get("phs000178.c1")) == sorted(
-            ["read", "read-storage"]
+        assert equal_project_access(
+            user.project_access,
+            {
+                "phs000178.c1": ["read", "read-storage"],
+                "phs000179.c1": ["read", "read-storage"],
+            },
         )
     else:
-        assert sorted(user.project_access.get("phs000178")) == sorted(
-            ["read", "read-storage"]
-        )
-        assert sorted(user.project_access.get("phs000179")) == sorted(
-            ["read", "read-storage"]
+        assert equal_project_access(
+            user.project_access,
+            {
+                "phs000178": ["read", "read-storage"],
+                "phs000179": ["read", "read-storage"],
+            },
         )
 
     user = models.query_for_user(session=db_session, username="TESTUSERD")
     if parse_consent_code_config:
-        assert sorted(user.project_access.get("phs000179.c1")) == sorted(
-            ["read", "read-storage"]
+        assert equal_project_access(
+            user.project_access, {"phs000179.c1": ["read", "read-storage"]}
         )
     else:
-        assert sorted(user.project_access.get("phs000179")) == sorted(
-            ["read", "read-storage"]
+        assert equal_project_access(
+            user.project_access, {"phs000179": ["read", "read-storage"]}
         )
 
     resource_to_parent_paths = {}
@@ -308,8 +324,9 @@ def test_sync_from_files(syncer, db_session, storage_client):
     syncer.sync_to_db_and_storage_backend(phsids, userinfo, sess)
 
     u = models.query_for_user(session=db_session, username="userB")
-    u.project_access["phs000179"].sort()
-    assert u.project_access == {"phs000179": ["read", "read-storage", "write-storage"]}
+    assert equal_project_access(
+        u.project_access, {"phs000179": ["read", "read-storage", "write-storage"]}
+    )
 
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
