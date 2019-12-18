@@ -445,7 +445,8 @@ class UserSyncer(object):
         """
         user_projects = dict()
         user_info = dict()
-        for filepath, privileges in file_dict.items():
+        for file, privileges in file_dict.items():
+            filepath = os.join("mnt/shared/", file)
             self.logger.info("Reading file {}".format(filepath))
             if os.stat(filepath).st_size == 0:
                 self.logger.warning("Empty file {}".format(filepath))
