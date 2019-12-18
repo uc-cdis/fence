@@ -603,8 +603,8 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
         url_for_s3 = current_bucket["endpoint_url"]
         if url_for_s3:
-            http_url = url_for_s3.strip("/") + "/{}".format(
-                self.parsed_url.path.strip("/")
+            http_url = url_for_s3.strip("/") + "/{}/{}".format(
+                self.parsed_url.netloc, self.parsed_url.path.strip("/")
             )
         else:
             http_url = "https://{}.s3.amazonaws.com/{}".format(
