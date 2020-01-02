@@ -6,6 +6,8 @@
 # - This is initially configured for minimal local development with reasonable defaults.
 # - Descriptions for each of the configurations (if any) will be *above* the variable as
 #   comments.
+# - Please avoid using inline comments, because inline comments will be wiped by cloud 
+#   automation's config helper script
 # - Some configuration variables will have examples commented out below them.
 # - This is broken up into 2 main sections for REQUIRED and OPTIONAL configurations.
 #     - Optional configs will note what features or endpoints they support
@@ -101,7 +103,8 @@ OPENID_CONNECT:
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     # will login as the username set in cookie DEV_LOGIN_COOKIE_NAME or default provided
     # here
-    mock: '{{MOCK_GOOGLE_AUTH}}'  # for backwards compatibility with older cfg files
+    # for backwards compatibility with older cfg files
+    mock: '{{MOCK_GOOGLE_AUTH}}'
     mock_default_user: 'test@example.com'
   # Support for multi-tenant fence (another fence is this fence's IDP)
   # If this fence instance is a client of another fence, fill this cfg out.
@@ -489,7 +492,9 @@ S3_BUCKETS:
     cred: 'CRED1'
   bucket2:
     cred: 'CRED2'
-    region: 'us-east-1' #optional but if specified avoids a call to GetBucketLocation which you may lack the AWS ACLs for.
+    # "region" is optional, but if specified avoids a call to GetBucketLocation
+    # which you may lack the AWS ACLs for.
+    region: 'us-east-1'
   bucket3:
     cred: '*'
   bucket4:
