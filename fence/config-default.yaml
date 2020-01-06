@@ -489,7 +489,7 @@ S3_BUCKETS:
     cred: 'CRED1'
   bucket2:
     cred: 'CRED2'
-    region: 'us-east-1' #optional but if specified avoids a call to GetBucketLocation which you may lack the AWS ACLs for.
+    region: 'us-east-1' #REQUIRED because it will avoids a call to get_bucket_region which would decrease the maximum number of requests per second.
   bucket3:
     cred: '*'
   bucket4:

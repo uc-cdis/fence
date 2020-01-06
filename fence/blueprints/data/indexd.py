@@ -618,9 +618,11 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
         region = self.get_bucket_region()
         if not region:
-            region = flask.current_app.boto.get_bucket_region(
-                self.parsed_url.netloc, credential
-            )
+            raise ValueError("No region specified: region is required for S3_BUCKETS")
+            # region = flask.current_app.boto.get_bucket_region(
+            #     self.parsed_url.netloc, credential
+            # )
+            # This requests takes very long so to improve efficiency region is required for s3 buckets
 
         user_info = _get_user_info()
 
@@ -678,9 +680,11 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
         region = self.get_bucket_region()
         if not region:
-            region = flask.current_app.boto.get_bucket_region(
-                self.parsed_url.netloc, credential
-            )
+            raise ValueError("No region specified: region is required for S3_BUCKETS")
+            # region = flask.current_app.boto.get_bucket_region(
+            #     self.parsed_url.netloc, credential
+            # )
+            # This requests takes very long so to improve efficiency region is required for s3 buckets
 
         return multipart_upload.generate_presigned_url_for_uploading_part(
             self.parsed_url.netloc,
