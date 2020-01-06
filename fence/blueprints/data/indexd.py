@@ -601,7 +601,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         bucket = self.bucket_name()
         current_bucket = s3_buckets.get(self.bucket_name())
 
-        if "endpoint_url" in current_bucket and current_bucket["endpoint_url"]:
+        if current_bucket and current_bucket.get("endpoint_url"):
             http_url = current_bucket["endpoint_url"].strip("/") + "/{}/{}".format(
                 self.parsed_url.netloc, self.parsed_url.path.strip("/")
             )
