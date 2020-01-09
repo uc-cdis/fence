@@ -1281,7 +1281,14 @@ class UserSyncer(object):
         self.logger.debug("user_projects 1:\n{}".format(user_projects))
 
         if user_yaml:
-            self.logger.debug("useryaml abac: {}".format(user_yaml.user_abac))
+            self.logger.debug(
+                "useryaml abac before lowering usernames: {}".format(
+                    user_yaml.user_abac
+                )
+            )
+            user_yaml.user_abac = {
+                key.lower(): value for key, value in user_yaml.user_abac.items()
+            }
 
             # update the project info with `projects` specified in user.yaml
             self.sync_two_phsids_dict(user_yaml.user_abac, user_projects)
