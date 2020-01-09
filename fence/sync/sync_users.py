@@ -169,16 +169,18 @@ class UserYAML(object):
         # resources should be the resource tree to construct in arborist
         user_abac = dict()
 
+        # Fall back on rbac block if no authz. Remove when rbac in useryaml fully deprecated.
+        if not data.get("authz") and data.get("rbac"):
+            if logger:
+                logger.info(
+                    "No authz block found but rbac block present. Using rbac block"
+                )
+            data["authz"] = data["rbac"]
+
         # get user project mapping to arborist resources if it exists
         project_to_resource = data.get("authz", dict()).get(
             "user_project_to_resource", dict()
         )
-        if logger:
-            logger.info(
-                "Got user project to arborist resource mapping:\n{}".format(
-                    str(project_to_resource)
-                )
-            )
 
         # read projects and privileges for each user
         users = data.get("users", {})
@@ -206,9 +208,9 @@ class UserYAML(object):
                 # prefer resource field;
                 # if no resource or mapping, assume auth_id is resource.
                 resource = project.get("resource", project["auth_id"])
+
                 if project["auth_id"] not in project_to_resource:
                     project_to_resource[project["auth_id"]] = resource
-
                 resource_permissions[resource] = set(project["privilege"])
 
             user_info[username] = {
@@ -225,13 +227,12 @@ class UserYAML(object):
             # to check if they're allowed to do certain things
             policies[username] = details.get("policies", [])
 
-        # Fall back on rbac block if no authz. Remove when rbac in useryaml fully deprecated.
-        if not data.get("authz") and data.get("rbac"):
-            if logger:
-                logger.info(
-                    "No authz block found but rbac block present. Using rbac block"
+        if logger:
+            logger.info(
+                "Got user project to arborist resource mapping:\n{}".format(
+                    str(project_to_resource)
                 )
-            data["authz"] = data["rbac"]
+            )
 
         authz = data.get("authz", dict())
         if not authz:
@@ -1278,7 +1279,7 @@ class UserSyncer(object):
         if not healthy:
             return False
 
-        self.logger.debug("user_projects 1:\n{}".format(user_projects))
+        self.logger.debug("user_projects: {}".format(user_projects))
 
         if user_yaml:
             self.logger.debug(
@@ -1292,7 +1293,6 @@ class UserSyncer(object):
 
             # update the project info with `projects` specified in user.yaml
             self.sync_two_phsids_dict(user_yaml.user_abac, user_projects)
-        self.logger.debug("user_projects 2:\n{}".format(user_projects))
 
         # get list of users from arborist to make sure users that are completely removed
         # from authorization sources get policies revoked
@@ -1320,7 +1320,6 @@ class UserSyncer(object):
 
         # update the project info with users from arborist
         self.sync_two_phsids_dict(arborist_user_projects, user_projects)
-        self.logger.info("user_projects 3:\n{}".format(user_projects))
 
         for username, user_project_info in user_projects.items():
             self.logger.info("processing user `{}`".format(username))
