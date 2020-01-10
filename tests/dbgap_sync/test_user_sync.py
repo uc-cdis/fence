@@ -383,7 +383,7 @@ def test_sync_two_phsids_dict(syncer, db_session, storage_client):
 
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
-def test_sync_two_phsids_dict_override(syncer, db_session, storage_client):
+def test_sync_two_phsids_dict_combine(syncer, db_session, storage_client):
     phsids1 = {
         "userA": {
             "phs000178": {"read", "read-storage"},

@@ -148,6 +148,10 @@ class UserYAML(object):
 
     @classmethod
     def from_file(cls, filepath, encrypted=True, key=None, logger=None):
+        """
+        Add access by "auth_id" to "self.projects" to update the Fence DB.
+        Add access by "resource" to "self.user_abac" to update Arborist.
+        """
         data = {}
         if filepath:
             with _read_file(filepath, encrypted=encrypted, key=key, logger=logger) as f:
@@ -161,37 +165,9 @@ class UserYAML(object):
         projects = dict()
         user_info = dict()
         policies = dict()
-        project_to_resource = dict()
 
-        users = data.get("users", {})
-        for username, details in users.items():
-            # users should occur only once each; skip if already processed
-            if username in projects:
-                if logger:
-                    logger.error("user `{}` occurs multiple times".format(username))
-                raise EnvironmentError("invalid yaml file")
-
-            privileges = {}
-            try:
-                for project in details.get("projects", {}):
-                    privileges[project["auth_id"]] = set(project["privilege"])
-            except KeyError as e:
-                if logger:
-                    logger.error("project missing field: {}".format(e))
-                continue
-
-            user_info[username] = {
-                "email": details.get("email", username),
-                "display_name": details.get("display_name", ""),
-                "phone_number": details.get("phone_number", ""),
-                "tags": details.get("tags", {}),
-                "admin": details.get("admin", False),
-            }
-            projects[username] = privileges
-
-            # list of policies we want to grant to this user, which get sent to arborist
-            # to check if they're allowed to do certain things
-            policies[username] = details.get("policies", [])
+        # resources should be the resource tree to construct in arborist
+        user_abac = dict()
 
         # Fall back on rbac block if no authz. Remove when rbac in useryaml fully deprecated.
         if not data.get("authz") and data.get("rbac"):
@@ -206,32 +182,50 @@ class UserYAML(object):
             "user_project_to_resource", dict()
         )
 
-        # resources should be the resource tree to construct in arborist
-        user_abac = dict()
+        # read projects and privileges for each user
+        users = data.get("users", {})
         for username, details in users.items():
             # users should occur only once each; skip if already processed
-            if username in user_abac:
+            if username in projects:
                 msg = "invalid yaml file: user `{}` occurs multiple times".format(
                     username
                 )
                 if logger:
                     logger.error(msg)
                 raise EnvironmentError(msg)
+
+            privileges = {}
             resource_permissions = dict()
             for project in details.get("projects", {}):
-                # project may not have `resource` field
                 try:
-                    # prefer resource field
-                    resource = project["resource"]
-                except KeyError:
-                    # if no resource or mapping, assume auth_id is resource
-                    resource = project["auth_id"]
+                    privileges[project["auth_id"]] = set(project["privilege"])
+                except KeyError as e:
+                    if logger:
+                        logger.error("project {} missing field: {}".format(project, e))
+                    continue
+
+                # project may not have `resource` field.
+                # prefer resource field;
+                # if no resource or mapping, assume auth_id is resource.
+                resource = project.get("resource", project["auth_id"])
 
                 if project["auth_id"] not in project_to_resource:
                     project_to_resource[project["auth_id"]] = resource
-
                 resource_permissions[resource] = set(project["privilege"])
+
+            user_info[username] = {
+                "email": details.get("email", username),
+                "display_name": details.get("display_name", ""),
+                "phone_number": details.get("phone_number", ""),
+                "tags": details.get("tags", {}),
+                "admin": details.get("admin", False),
+            }
+            projects[username] = privileges
             user_abac[username] = resource_permissions
+
+            # list of policies we want to grant to this user, which get sent to arborist
+            # to check if they're allowed to do certain things
+            policies[username] = details.get("policies", [])
 
         if logger:
             logger.info(
@@ -575,13 +569,15 @@ class UserSyncer(object):
     @staticmethod
     def sync_two_user_info_dict(user_info1, user_info2):
         """
-        Merge user_info1 into user_info2, which are both nested dicts like:
-
-            {username: {'email': 'abc@email.com'}}
+        Merge user_info1 into user_info2. Values in user_info2 are overriden
+        by values in user_info1. user_info2 ends up containing the merged dict.
 
         Args:
-            user_info1 (dict)
-            user_info2 (dict)
+            user_info1 (dict): nested dict
+            user_info2 (dict): nested dict
+
+            Example:
+            {username: {'email': 'abc@email.com'}}
 
         Returns:
             None
@@ -591,11 +587,13 @@ class UserSyncer(object):
     @staticmethod
     def sync_two_phsids_dict(phsids1, phsids2):
         """
-        Merge pshid1 into phsids2
+        Merge pshid1 into phsids2. phsids2 ends up containing the merged dict
+        (see explanation below).
 
         Args:
             phsids1, phsids2: nested dicts mapping phsids to sets of permissions
 
+            Example:
             {
                 username: {
                     phsid1: {'read-storage','write-storage'},
@@ -664,7 +662,7 @@ class UserSyncer(object):
             for ua in sess.query(AccessPrivilege).all()
         }
 
-        # we need to compare db -> whitelist case-insensitively for username
+        # we need to compare db -> whitelist case-insensitively for username.
         # db stores case-sensitively, but we need to query case-insensitively
         user_project_lowercase = {}
         syncing_user_project_list = set()
@@ -1061,18 +1059,25 @@ class UserSyncer(object):
             key.lower(): value for key, value in user_yaml.projects.items()
         }
 
-        self.sync_two_phsids_dict(user_projects_csv, user_projects)
+        # merge all user info dicts into "user_info".
+        # the user info (such as email) in the user.yaml files
+        # overrides the user info from the CSV files.
         self.sync_two_user_info_dict(user_info_csv, user_info)
-
-        # privileges in yaml files overide ones in csv files
-        self.sync_two_phsids_dict(user_yaml.projects, user_projects)
         self.sync_two_user_info_dict(user_yaml.user_info, user_info)
+
+        # merge all access info dicts into "user_projects".
+        # the access info is combined - if the user.yaml access is
+        # ["read"] and the CSV file access is ["read-storage"], the
+        # resulting access is ["read", "read-storage"].
+        self.sync_two_phsids_dict(user_projects_csv, user_projects)
+        self.sync_two_phsids_dict(user_yaml.projects, user_projects)
 
         if self.parse_consent_code:
             self._grant_all_consents_to_c999_users(
                 user_projects, user_yaml.project_to_resource
             )
 
+        # update the Fence DB
         if user_projects:
             self.logger.info("Sync to db and storage backend")
             self.sync_to_db_and_storage_backend(user_projects, user_info, sess)
@@ -1080,6 +1085,7 @@ class UserSyncer(object):
         else:
             self.logger.info("No users for syncing")
 
+        # update the Arborist DB (resources, roles, policies, groups)
         if user_yaml.authz:
             if not self.arborist_client:
                 raise EnvironmentError(
@@ -1094,8 +1100,9 @@ class UserSyncer(object):
                 self.logger.error("Could not synchronize successfully")
                 exit(1)
         else:
-            self.logger.info("No resources specified; skipping arborist sync")
+            self.logger.info("No `authz` section; skipping arborist sync")
 
+        # update the Arborist DB (user access)
         if self.arborist_client:
             self.logger.info("Synchronizing arborist with authorization info...")
             success = self._update_authz_in_arborist(sess, user_projects, user_yaml)
@@ -1206,6 +1213,7 @@ class UserSyncer(object):
                 self.logger.error(e)
                 # keep going; maybe just some conflicts from things existing already
 
+        # update roles
         roles = user_yaml.authz.get("roles", [])
         for role in roles:
             try:
@@ -1216,6 +1224,7 @@ class UserSyncer(object):
                 self.logger.error(e)
                 # keep going; maybe just some conflicts from things existing already
 
+        # update policies
         policies = user_yaml.authz.get("policies", [])
         for policy in policies:
             policy_id = policy.pop("id")
@@ -1234,7 +1243,21 @@ class UserSyncer(object):
                     self.logger.debug("Upserted policy with id {}".format(policy_id))
                     self._created_policies.add(policy_id)
 
+        # update groups
         groups = user_yaml.authz.get("groups", [])
+
+        # delete from arborist the groups that have been deleted
+        # from the user.yaml
+        arborist_groups = set(
+            g["name"] for g in self.arborist_client.list_groups().get("groups", [])
+        )
+        useryaml_groups = set(g["name"] for g in groups)
+        for deleted_group in arborist_groups.difference(useryaml_groups):
+            # do not try to delete built in groups
+            if deleted_group not in ["anonymous", "logged-in"]:
+                self.arborist_client.delete_group(deleted_group)
+
+        # create/update the groups defined in the user.yaml
         for group in groups:
             missing = {"name", "users", "policies"}.difference(set(group.keys()))
             if missing:
@@ -1246,7 +1269,8 @@ class UserSyncer(object):
             try:
                 response = self.arborist_client.put_group(
                     group["name"],
-                    description=group.get("description", ""),
+                    # Arborist doesn't handle group descriptions yet
+                    # description=group.get("description", ""),
                     users=group["users"],
                     policies=group["policies"],
                 )
@@ -1286,7 +1310,14 @@ class UserSyncer(object):
         self.logger.debug("user_projects: {}".format(user_projects))
 
         if user_yaml:
-            self.logger.debug("useryaml abac: {}".format(user_yaml.user_abac))
+            self.logger.debug(
+                "useryaml abac before lowering usernames: {}".format(
+                    user_yaml.user_abac
+                )
+            )
+            user_yaml.user_abac = {
+                key.lower(): value for key, value in user_yaml.user_abac.items()
+            }
 
             # update the project info with `projects` specified in user.yaml
             self.sync_two_phsids_dict(user_yaml.user_abac, user_projects)
