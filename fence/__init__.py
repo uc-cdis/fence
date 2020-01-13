@@ -27,6 +27,7 @@ from fence.error_handler import get_error_response
 from fence.utils import random_str
 from fence.config import config
 from fence.settings import CONFIG_SEARCH_FOLDERS
+from cdispyutils.config import get_value
 import fence.blueprints.admin
 import fence.blueprints.data
 import fence.blueprints.login
@@ -165,31 +166,33 @@ def app_register_blueprints(app):
             {"keys": [(keypair.kid, keypair.public_key) for keypair in app.keypairs]}
         )
 
-def check_s3_bucket():
+def _check_s3_bucket():
     """
     Check the s3_bucket config
     """
-    s3_buckets = get_value(
-        config, "S3_BUCKETS", InternalError("buckets not configured")
-    )
-    if len(s3_buckets) == 0:
-        return None
+    buckets = config.get("S3_BUCKETS", [])
+    aws_creds = config.get("AWS_CREDENTIALS", [])
 
-    for i, bucket in enumerate(config["S3_BUCKETS"]):
-        cred = bucket["cred"]
-        region == bucket["region"]
+    for bucket_name, bucket_details in buckets.items():
+        cred = bucket_details.get("cred")
+        region = bucket_details.get("region")
         if not cred:
             raise ValueError(
-                "No cred field for S3_BUCKET: {}. The cred field is required.".format(i))
-            if cred != "*" and cred not in config["AWS_CREDENTIALS"]:
+                "No cred field for S3_BUCKET: {}. The cred field is required.".format(bucket_name))
+            if cred != "*" and cred not in aws_creds:
                 raise ValueError(
-                    "No credentials for S3-BUCKET: {} in AWS_CREDENTIALS".format(i))
-        if not region or region == "":
-            print("WARNING: no region field for S3_BUCKET: {}. Providing the region field will increase"
+                    "No credentials for S3-BUCKET: {} in AWS_CREDENTIALS".format(bucket_name))
+        if not region: 
+            logger.WARNING("WARNING: no region field for S3_BUCKET: {}. Providing the region field will increase"
                   " response time and avoid a call to GetBucketLocation which you make lack the AWS ACLs for.")
-            region = flask.current_app.boto.get_bucket_region(
-                bucket, credential
+            credential = S3IndexedFileLocation.get_credential_to_access_bucket(
+                bucket_name, aws_creds, None
             )
+            region = flask.current_app.boto.get_bucket_region(
+                bucket_name, credential
+            )
+            # config.set()
+
 
 def app_config(
     app, settings="fence.settings", root_dir=None, config_path=None, file_name=None
@@ -232,6 +235,8 @@ def app_config(
     get_logger(__name__, log_level="debug" if config["DEBUG"] == True else "info")
 
     _setup_oidc_clients(app)
+
+    _check_s3_bucket()
 
 
 def _setup_data_endpoint_and_boto(app):
