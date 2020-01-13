@@ -190,7 +190,7 @@ def _check_s3_buckets():
                     )
                 )
         if not region:
-            logger.WARNING(
+            logger.warning(
                 "WARNING: no region field for S3_BUCKET: {}. Providing the region field will increase"
                 " response time and avoid a call to GetBucketLocation which you make lack the AWS ACLs for."
             )
