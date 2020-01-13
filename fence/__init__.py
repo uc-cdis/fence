@@ -27,6 +27,7 @@ from fence.error_handler import get_error_response
 from fence.utils import random_str
 from fence.config import config
 from fence.settings import CONFIG_SEARCH_FOLDERS
+from indexd import S3IndexedFileLocation
 from cdispyutils.config import get_value
 import fence.blueprints.admin
 import fence.blueprints.data
