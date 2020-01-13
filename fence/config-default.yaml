@@ -7,7 +7,9 @@
 # - Descriptions for each of the configurations (if any) will be *above* the variable as
 #   comments.
 # - Please avoid using inline comments, because inline comments will be wiped by cloud 
-#   automation's config helper script
+#   automation's config helper script.
+# - Please avoid using inline dicts or lists, because they won't work
+#   with cloud-automation's config helper script either.
 # - Some configuration variables will have examples commented out below them.
 # - This is broken up into 2 main sections for REQUIRED and OPTIONAL configurations.
 #     - Optional configs will note what features or endpoints they support
@@ -426,8 +428,10 @@ dbGaP:
   # actual data lives in. For example, `studyX` data may exist in multiple organizations, so
   # we need to know how to map authorization to all orgs resources
   study_to_resource_namespaces:
-    '_default': ['/']
-    'test_common_exchange_area': ['/dbgap/']
+    _default: 
+      - '/'
+    test_common_exchange_area:
+      - '/dbgap/'
     # above are for default support and exchange area support
     # below are further examples
     #
