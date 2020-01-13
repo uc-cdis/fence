@@ -10,6 +10,7 @@ from fence.resources import userdatamodel as udm
 from fence.resources.google.utils import (
     get_linked_google_account_email,
     get_linked_google_account_exp,
+    get_service_account,
 )
 from fence.resources.userdatamodel import get_user_groups
 import smtplib
