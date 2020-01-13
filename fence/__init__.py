@@ -165,6 +165,31 @@ def app_register_blueprints(app):
             {"keys": [(keypair.kid, keypair.public_key) for keypair in app.keypairs]}
         )
 
+def check_s3_bucket():
+    """
+    Check the s3_bucket config
+    """
+    s3_buckets = get_value(
+        config, "S3_BUCKETS", InternalError("buckets not configured")
+    )
+    if len(s3_buckets) == 0:
+        return None
+
+    for i, bucket in enumerate(config["S3_BUCKETS"]):
+        cred = bucket["cred"]
+        region == bucket["region"]
+        if not cred:
+            raise ValueError(
+                "No cred field for S3_BUCKET: {}. The cred field is required.".format(i))
+            if cred != "*" and cred not in config["AWS_CREDENTIALS"]:
+                raise ValueError(
+                    "No credentials for S3-BUCKET: {} in AWS_CREDENTIALS".format(i))
+        if not region or region == "":
+            print("WARNING: no region field for S3_BUCKET: {}. Providing the region field will increase"
+                  " response time and avoid a call to GetBucketLocation which you make lack the AWS ACLs for.")
+            region = flask.current_app.boto.get_bucket_region(
+                bucket, credential
+            )
 
 def app_config(
     app, settings="fence.settings", root_dir=None, config_path=None, file_name=None
