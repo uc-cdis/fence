@@ -166,7 +166,8 @@ def app_register_blueprints(app):
             {"keys": [(keypair.kid, keypair.public_key) for keypair in app.keypairs]}
         )
 
-def _check_s3_bucket():
+
+def _check_s3_buckets():
     """
     Check the s3_bucket config
     """
@@ -178,20 +179,26 @@ def _check_s3_bucket():
         region = bucket_details.get("region")
         if not cred:
             raise ValueError(
-                "No cred field for S3_BUCKET: {}. The cred field is required.".format(bucket_name))
+                "No cred field for S3_BUCKET: {}. The cred field is required.".format(
+                    bucket_name
+                )
+            )
             if cred != "*" and cred not in aws_creds:
                 raise ValueError(
-                    "No credentials for S3-BUCKET: {} in AWS_CREDENTIALS".format(bucket_name))
-        if not region: 
-            logger.WARNING("WARNING: no region field for S3_BUCKET: {}. Providing the region field will increase"
-                  " response time and avoid a call to GetBucketLocation which you make lack the AWS ACLs for.")
+                    "No credentials for S3-BUCKET: {} in AWS_CREDENTIALS".format(
+                        bucket_name
+                    )
+                )
+        if not region:
+            logger.WARNING(
+                "WARNING: no region field for S3_BUCKET: {}. Providing the region field will increase"
+                " response time and avoid a call to GetBucketLocation which you make lack the AWS ACLs for."
+            )
             credential = S3IndexedFileLocation.get_credential_to_access_bucket(
                 bucket_name, aws_creds, None
             )
-            region = flask.current_app.boto.get_bucket_region(
-                bucket_name, credential
-            )
-            # config.set()
+            region = flask.current_app.boto.get_bucket_region(bucket_name, credential)
+            config["S3_BUCKETS"][bucket_name]["region"] = region
 
 
 def app_config(
@@ -236,7 +243,7 @@ def app_config(
 
     _setup_oidc_clients(app)
 
-    _check_s3_bucket()
+    _check_s3_buckets()
 
 
 def _setup_data_endpoint_and_boto(app):
