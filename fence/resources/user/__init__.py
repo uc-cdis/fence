@@ -91,7 +91,7 @@ def get_user_info(current_session, username):
         "message": "",
     }
 
-    # Note that client_id is None, which is how we store the user's SA
+    # User SAs are stored in db with client_id = None
     primary_service_account = get_service_account(client_id=None, user_id=user.id) or {}
     primary_service_account_email = getattr(primary_service_account, "email", None)
     info["primary_google_service_account"] = primary_service_account_email
