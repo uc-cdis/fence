@@ -83,7 +83,7 @@ In order to fully understand the options for requester pays support, it's import
 The easiest option for supporting requester pays is to simply bill a Google Project you already own for all access to the bucket instead of requiring end-users to supply a project to bill. This essentially makes the requester pays bucket a non-requester pays bucket, since you'll be paying for all the access. This may be a necessary solution in cases where:
 
 1) you want to serve data from a bucket you don't fully control (in other words, can't just turn "requester pays" off)
-2) you don't want end-users to have to do manual configuration in Google Cloud Platform to enable billing their project
+2) you don't want end-users (or client applications) to have to do configuration in Google Cloud Platform to enable billing their own project
 3) you/end-users don't want to have to give your application IAM permissions in a project the end-user owns to automatically enable billing
 
 **NOTE:** If you do _not_ want to bill yourself for access, it is possible to require end-users to provide the project to bill OR configure a default billing project other than one you own. _However_, this will require more work for end-users that you need to consider.
@@ -110,17 +110,24 @@ Whether you bill your own project, or require end-users to specify a billing pro
 
 > "All actions that include a billing project in the request require serviceusage.services.use permission for the project that's specified" [according to Google's docs](https://cloud.google.com/storage/docs/access-control/iam-console).
 
-You have 2 options to achieve the above:
+You have 3 options to achieve the above:
 
 1) assume end-users will provide the necessary permission for billing
 2) configure Fence to automatically attempt to provide the necessary permission for billing
+3) create a client application that automatically provides the necessary permission for billing
 
-If you want Fence to automatically attempt to provide the necessary permissions to the relevant service accounts for data access, the Fence admin service account needs a couple pre-defined Google roles (through their Cloud IAM) on whatever project is provided for billing (be that in a request to Fence or whatever is configured as the "default billing project"):
+If you want Fence to automatically attempt to provide the necessary permissions to the relevant service accounts for data access (option 2 above), the Fence admin service account needs a couple pre-defined Google roles (through their Cloud IAM) on whatever project is provided for billing (be that in a request to Fence or whatever is configured as the "default billing project"):
 
 * `Project IAM Admin`: to update the project's policy to give the necessary service account(s) billing permission
 * `Role Administrator`: for creating a custom role that only provides billing permission to the project
 
 > NOTE: The custom role that Fence creates contains the single permission in Google `serviceusage.services.use`.
+
+If you want to create a client application that will be able to give the right service accounts
+billing permission (option 3) then there is some additional information you should know about. The
+userinfo endpoint supplies the user's `primary_google_service_account` which is the email address of the Google Service Account attached to that user for the creation of Signed URLs.
+
+> NOTE: Users' Primary Google Service Accounts are created lazily, so it is possible that `primary_google_service_account` is `None`/`null` if the user has not previously requested data via a Google Data Access method. There must be an API call previous to reading userinfo to access data in Google that the user has access to.
 
 #### Requester Pays Signed URLs and Temporary Service Account Credentials
 
