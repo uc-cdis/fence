@@ -159,3 +159,4 @@ The [gen3users CLI](https://github.com/uc-cdis/gen3users) includes a user.yaml v
 pip install gen3users
 gen3users validate user.yaml
 ```
+
