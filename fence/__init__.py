@@ -193,7 +193,9 @@ def _check_s3_buckets():
         if not region:
             logger.warning(
                 "WARNING: no region for S3_BUCKET: {}. Providing the region will reduce"
-                " response time and avoid a call to GetBucketLocation which you make lack the AWS ACLs for."
+                " response time and avoid a call to GetBucketLocation which you make lack the AWS ACLs for.".format(
+                    bucket_name
+                )
             )
             credential = S3IndexedFileLocation.get_credential_to_access_bucket(
                 bucket_name, aws_creds, None
