@@ -360,6 +360,7 @@ AWS_CREDENTIALS:
 S3_BUCKETS:
   bucket1:
     cred: 'CRED1'
+    region: 'us-east-1' 
   bucket2:
     cred: 'CRED2'
     region: 'us-east-1' 
