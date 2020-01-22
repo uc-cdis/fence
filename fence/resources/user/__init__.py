@@ -10,6 +10,7 @@ from fence.resources import userdatamodel as udm
 from fence.resources.google.utils import (
     get_linked_google_account_email,
     get_linked_google_account_exp,
+    get_service_account,
 )
 from fence.resources.userdatamodel import get_user_groups
 import smtplib
@@ -89,6 +90,11 @@ def get_user_info(current_session, username):
         "groups": groups,
         "message": "",
     }
+
+    # User SAs are stored in db with client_id = None
+    primary_service_account = get_service_account(client_id=None, user_id=user.id) or {}
+    primary_service_account_email = getattr(primary_service_account, "email", None)
+    info["primary_google_service_account"] = primary_service_account_email
 
     if hasattr(flask.current_app, "arborist"):
         try:
