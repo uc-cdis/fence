@@ -186,8 +186,8 @@ def _check_s3_buckets():
             )
         if cred not in aws_creds and cred != "*":
             raise ValueError(
-                "Credential (cred) for S3_BUCKET {} is not defined in AWS_CREDENTIALS".format(
-                    bucket_name
+                "Credential {} for S3_BUCKET {} is not defined in AWS_CREDENTIALS".format(
+                    cred, bucket_name
                 )
             )
         if not region:
