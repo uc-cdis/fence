@@ -182,9 +182,7 @@ def _check_s3_buckets():
         region = bucket_details.get("region")
         if not cred:
             raise ValueError(
-                "No cred for S3_BUCKET: {}. cred is required.".format(
-                    bucket_name
-                )
+                "No cred for S3_BUCKET: {}. cred is required.".format(bucket_name)
             )
         if cred not in aws_creds and cred != "*":
             raise ValueError(
