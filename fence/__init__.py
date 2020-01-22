@@ -8,6 +8,7 @@ from flask_sqlalchemy_session import flask_scoped_session, current_session
 from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.auth import logout, build_redirect_url
+from fence.blueprints.data.indexd import S3IndexedFileLocation
 from fence.blueprints.login.utils import allowed_login_redirects, domain
 from fence.errors import UserError
 from fence.jwt import keys
@@ -27,8 +28,6 @@ from fence.error_handler import get_error_response
 from fence.utils import random_str
 from fence.config import config
 from fence.settings import CONFIG_SEARCH_FOLDERS
-from indexd import S3IndexedFileLocation
-from cdispyutils.config import get_value
 import fence.blueprints.admin
 import fence.blueprints.data
 import fence.blueprints.login
@@ -42,6 +41,8 @@ import fence.blueprints.google
 import fence.blueprints.privacy
 
 from cdislogging import get_logger
+
+from cdispyutils.config import get_value
 
 from gen3authz.client.arborist.client import ArboristClient
 
@@ -170,29 +171,30 @@ def app_register_blueprints(app):
 
 def _check_s3_buckets():
     """
-    Check the s3_bucket config
+    Function to ensure that all s3_buckets have a valid credential. 
+    Additionally, if there is no region it will produce a warning then trys to fetch and cache the region. 
     """
-    buckets = config.get("S3_BUCKETS", [])
-    aws_creds = config.get("AWS_CREDENTIALS", [])
+    buckets = config.get("S3_BUCKETS", {})
+    aws_creds = config.get("AWS_CREDENTIALS", {})
 
     for bucket_name, bucket_details in buckets.items():
         cred = bucket_details.get("cred")
         region = bucket_details.get("region")
         if not cred:
             raise ValueError(
-                "No cred field for S3_BUCKET: {}. The cred field is required.".format(
+                "No cred for S3_BUCKET: {}. cred is required.".format(
                     bucket_name
                 )
             )
-            if cred != "*" and cred not in aws_creds:
-                raise ValueError(
-                    "No credentials for S3-BUCKET: {} in AWS_CREDENTIALS".format(
-                        bucket_name
-                    )
+        if cred not in aws_creds and cred != "*":
+            raise ValueError(
+                "Credential (cred) for S3_BUCKET {} is not defined in AWS_CREDENTIALS".format(
+                    bucket_name
                 )
+            )
         if not region:
             logger.warning(
-                "WARNING: no region field for S3_BUCKET: {}. Providing the region field will increase"
+                "WARNING: no region for S3_BUCKET: {}. Providing the region will reduce"
                 " response time and avoid a call to GetBucketLocation which you make lack the AWS ACLs for."
             )
             credential = S3IndexedFileLocation.get_credential_to_access_bucket(
