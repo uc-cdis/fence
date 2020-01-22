@@ -200,8 +200,8 @@ def _check_s3_buckets():
             credential = S3IndexedFileLocation.get_credential_to_access_bucket(
                 bucket_name, aws_creds, None
             )
-            # region = flask.current_app.boto.get_bucket_region(bucket_name, credential)
-            # config["S3_BUCKETS"][bucket_name]["region"] = region
+            region = app.boto.get_bucket_region(bucket_name, credential)
+            config["S3_BUCKETS"][bucket_name]["region"] = region
 
 
 def app_config(
