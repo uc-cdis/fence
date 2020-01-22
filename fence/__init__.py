@@ -169,7 +169,7 @@ def app_register_blueprints(app):
         )
 
 
-def _check_s3_buckets():
+def _check_s3_buckets(app):
     """
     Function to ensure that all s3_buckets have a valid credential. 
     Additionally, if there is no region it will produce a warning then trys to fetch and cache the region. 
@@ -246,7 +246,7 @@ def app_config(
 
     _setup_oidc_clients(app)
 
-    _check_s3_buckets()
+    _check_s3_buckets(app)
 
 
 def _setup_data_endpoint_and_boto(app):
