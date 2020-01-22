@@ -270,6 +270,7 @@ class UserSyncer(object):
         dbGaP,
         DB,
         project_mapping,
+        additional_dbGaP=None,
         storage_credentials=None,
         db_session=None,
         is_sync_from_dbgap_server=False,
@@ -281,6 +282,7 @@ class UserSyncer(object):
         Syncs ACL files from dbGap to auth database and storage backends
         Args:
             dbGaP: a dict containing creds to access dbgap sftp
+            additional_dbGaP: list of dicts containing creds to any additional dbgap sftp
             DB: database connection string
             project_mapping: a dict containing how dbgap ids map to projects
             storage_credentials: a dict containing creds for storage backends
@@ -293,15 +295,9 @@ class UserSyncer(object):
         self.sync_from_local_csv_dir = sync_from_local_csv_dir
         self.sync_from_local_yaml_file = sync_from_local_yaml_file
         self.is_sync_from_dbgap_server = is_sync_from_dbgap_server
-        if is_sync_from_dbgap_server:
-            self.server = dbGaP["info"]
-            self.protocol = dbGaP["protocol"]
-            self.dbgap_key = dbGaP["decrypt_key"]
+        self.dbGaP = dbGaP
+        self.additional_dbGaP = additional_dbGaP
         self.parse_consent_code = dbGaP.get("parse_consent_code", True)
-        self.enable_common_exchange_area_access = dbGaP.get(
-            "enable_common_exchange_area_access", False
-        )
-        self.study_common_exchange_areas = dbGaP.get("study_common_exchange_areas", {})
         self.session = db_session
         self.driver = SQLAlchemyDriver(DB)
         self.project_mapping = project_mapping or {}
@@ -337,23 +333,24 @@ class UserSyncer(object):
         pattern += "$"
         return re.match(pattern, os.path.basename(filepath))
 
-    def _get_from_sftp_with_proxy(self, path):
+    def _get_from_sftp_with_proxy(self, server, path):
         """
         Download all data from sftp sever to a local dir
 
         Args:
+            server (dict) : dictionary containing info to access sftp server
             path (str): path to local directory
 
         Returns:
             None
         """
         proxy = None
-        if self.server.get("proxy", "") != "":
+        if server.get("proxy", "") != "":
             command = "ssh -i ~/.ssh/id_rsa {user}@{proxy} nc {host} {port}".format(
-                user=self.server.get("proxy_user", ""),
-                proxy=self.server.get("proxy", ""),
-                host=self.server.get("host", ""),
-                port=self.server.get("port", 22),
+                user=server.get("proxy_user", ""),
+                proxy=server.get("proxy", ""),
+                host=server.get("host", ""),
+                port=server.get("port", 22),
             )
             self.logger.info("SSH proxy command: {}".format(command))
 
@@ -364,10 +361,10 @@ class UserSyncer(object):
 
             client.set_missing_host_key_policy(paramiko.WarningPolicy())
             parameters = {
-                "hostname": str(self.server.get("host", "")),
-                "username": str(self.server.get("username", "")),
-                "password": str(self.server.get("password", "")),
-                "port": int(self.server.get("port", 22)),
+                "hostname": str(server.get("host", "")),
+                "username": str(server.get("username", "")),
+                "password": str(server.get("password", "")),
+                "port": int(server.get("port", 22)),
             }
             if proxy:
                 parameters["sock"] = proxy
@@ -380,33 +377,37 @@ class UserSyncer(object):
         if proxy:
             proxy.close()
 
-    def _get_from_ftp_with_proxy(self, path):
+    def _get_from_ftp_with_proxy(self, server, path):
         """
-        Download data from ftp sever to alocal dir
+        Download data from ftp sever to a local dir
 
         Args:
+            server (dict): dictionary containing information for accessing server
             path(str): path to local files
 
         Returns:
             None
         """
         execstr = 'lftp -u {},{}  {} -e "set ftp:proxy http://{}; mirror . {}; exit"'.format(
-            self.server.get("username", ""),
-            self.server.get("password", ""),
-            self.server.get("host", ""),
-            self.server.get("proxy", ""),
+            server.get("username", ""),
+            server.get("password", ""),
+            server.get("host", ""),
+            server.get("proxy", ""),
             path,
         )
         os.system(execstr)
 
-    def _parse_csv(self, file_dict, sess, encrypted=True):
+    def _parse_csv(self, dbGaP, file_dict, sess, encrypted=True):
         """
         parse csv files to python dict
 
         Args:
-            fild_dict: a dictionary with key(file path) and value(privileges)
-            encrypted: whether those files are encrypted
+            dbGaP: a dictionary containing information about the dbGaP sftp server
+                (comes from fence config)
+            file_dict: a dictionary with key(file path) and value(privileges)
             sess: sqlalchemy session
+            encrypted: whether those files are encrypted
+
 
         Return:
             Tuple[[dict, dict]]:
@@ -427,7 +428,7 @@ class UserSyncer(object):
                     username: {
                         'email': 'email@mail.com',
                         'display_name': 'display name',
-                        'phone_umber': '123-456-789',
+                        'phone_number': '123-456-789',
                         'tags': {'dbgap_role': 'PI'}
                     }
                 },
@@ -436,6 +437,20 @@ class UserSyncer(object):
         """
         user_projects = dict()
         user_info = dict()
+
+        # parse dbGaP sftp server information
+        dbgap_key = dbGaP.get("decrypt_key", None)
+        parse_consent_code = dbGaP.get("parse_consent_code", True)
+        enable_common_exchange_area_access = dbGaP.get(
+                    "enable_common_exchange_area_access", False
+                )
+        study_common_exchange_areas = dbGaP.get("study_common_exchange_areas", {})
+
+        if parse_consent_code and enable_common_exchange_area_access:
+            self.logger.info(
+                f"using study to common exchange area mapping: {study_common_exchange_areas}"
+            )
+
         for filepath, privileges in file_dict.items():
             self.logger.info("Reading file {}".format(filepath))
             if os.stat(filepath).st_size == 0:
@@ -445,7 +460,6 @@ class UserSyncer(object):
                 self.logger.warning("Invalid file path {}".format(filepath))
                 continue
 
-            dbgap_key = getattr(self, "dbgap_key", None)
             with _read_file(
                 filepath, encrypted=encrypted, key=dbgap_key, logger=self.logger
             ) as f:
@@ -458,7 +472,7 @@ class UserSyncer(object):
                     phsid_privileges = {}
                     phsid = row.get("phsid", "").split(".")
                     dbgap_project = phsid[0]
-                    if len(phsid) > 1 and self.parse_consent_code:
+                    if len(phsid) > 1 and parse_consent_code:
                         consent_code = phsid[-1]
 
                         # c999 indicates full access to all consents and access
@@ -475,17 +489,17 @@ class UserSyncer(object):
                         )
                         if (
                             consent_code == "c999"
-                            and self.enable_common_exchange_area_access
-                            and dbgap_project in self.study_common_exchange_areas
+                            and enable_common_exchange_area_access
+                            and dbgap_project in study_common_exchange_areas
                         ):
                             self.logger.info(
                                 "found study with consent c999 and Fence "
                                 "is configured to parse exchange area data. Giving user "
                                 f"{username} {privileges} privileges in project: "
-                                f"{self.study_common_exchange_areas[dbgap_project]}."
+                                f"{study_common_exchange_areas[dbgap_project]}."
                             )
                             self._add_dbgap_project_for_user(
-                                self.study_common_exchange_areas[dbgap_project],
+                                study_common_exchange_areas[dbgap_project],
                                 privileges,
                                 username,
                                 sess,
@@ -959,6 +973,66 @@ class UserSyncer(object):
             sess.add(instance)
         return instance
 
+    def _process_dbgap_files(self, dbGaP, sess):
+        '''
+        returns
+            user_projects (dict)
+            user_info (dict)
+        '''
+        dbgap_file_list = []
+        tmpdir = tempfile.mkdtemp()
+        server = dbGaP["Info"]
+        protocol = dbGaP["protocol"]
+        self.logger.info("Download from server")
+        try:
+            if protocol == "sftp":
+                self._get_from_sftp_with_proxy(server, tmpdir)
+            else:
+                self._get_from_ftp_with_proxy(server, tmpdir)
+            dbgap_file_list = glob.glob(os.path.join(tmpdir, "*"))
+        except Exception as e:
+            self.logger.error(e)
+            exit(1)
+        self.logger.info("dbgap files: {}".format(dbgap_file_list))
+        user_projects, user_info = self._get_user_permissions_from_csv_list(dbGaP, dbgap_file_list, encrypted=True, session=sess)
+        try:
+            shutil.rmtree(tmpdir)
+        except OSError as e:
+            self.logger.info(e)
+            if e.errno != errno.ENOENT:
+                raise
+        user_projects = self._parse_projects(user_projects)
+        return user_projects, user_info
+
+    def _get_user_permissions_from_csv_list(self, dbGaP, file_list, encrypted, session):
+        permissions = [{"read-storage", "read"} for _ in file_list]
+        user_projects, user_info = self._parse_csv(dbGaP,
+            dict(list(zip(file_list, permissions))), encrypted=encrypted, sess=session
+            )
+        return user_projects, user_info
+
+    def _merge_multiple_dbgap_sftp(self, dbgap_servers, sess):
+        merged_user_projects = {}
+        merged_user_info = {}
+        for dbgap in dbgap_servers:
+            user_projects, user_info = self._process_dbgap_files(dbgap, sess)
+            # merge into merged_user_info
+            # user_info overrides original info in merged_user_info
+            self.sync_two_user_info_dict(user_info, merged_user_info)
+
+            # merge all access info dicts into "merged_user_projects".
+            # the access info is combined - if the user_projects access is
+            # ["read"] and the merged_user_projects is ["read-storage"], the
+            # resulting access is ["read", "read-storage"].
+            self.sync_two_phsids_dict(user_projects, merged_user_projects)
+        return merged_user_projects, merged_user_info
+
+    def parse_projects(self, user_projects):
+        '''
+        helper function for parsing projects
+        '''
+        return {key.lower(): value for key, value in user_projects.items()}
+
     def sync(self):
         if self.session:
             self._sync(self.session)
@@ -968,51 +1042,28 @@ class UserSyncer(object):
 
     def _sync(self, sess):
         """
-        Collect files from dbgap server, sync csv and yaml files to storage
+        Collect files from dbgap server(s), sync csv and yaml files to storage
         backend and fence DB
         """
-        dbgap_file_list = []
-        tmpdir = tempfile.mkdtemp()
-        if self.is_sync_from_dbgap_server:
-            self.logger.info("Download from server")
-            try:
-                if self.protocol == "sftp":
-                    self._get_from_sftp_with_proxy(tmpdir)
-                else:
-                    self._get_from_ftp_with_proxy(tmpdir)
-                dbgap_file_list = glob.glob(os.path.join(tmpdir, "*"))
-            except Exception as e:
-                self.logger.error(e)
-                exit(1)
 
-        self.logger.info("dbgap files: {}".format(dbgap_file_list))
-        permissions = [{"read-storage", "read"} for _ in dbgap_file_list]
-        if self.parse_consent_code and self.enable_common_exchange_area_access:
-            self.logger.info(
-                f"using study to common exchange area mapping: {self.study_common_exchange_areas}"
-            )
-        user_projects, user_info = self._parse_csv(
-            dict(list(zip(dbgap_file_list, permissions))), encrypted=True, sess=sess
-        )
-        try:
-            shutil.rmtree(tmpdir)
-        except OSError as e:
-            self.logger.info(e)
-            if e.errno != errno.ENOENT:
-                raise
+        # get all dbgap files
+        user_projects = {}
+        user_info = {}
+        if self.is_sync_from_dbgap_server:
+            if self.additional_dbGaP:
+                dbgap_servers = self.additional_dbGaP.insert(0, self.dbGaP)
+                self.logger.debug("Pulling telemetry files from {} dbgap sftp servers".formart(len(dbgap_servers)))
+                user_projects, user_info = self._merge_multiple_dbgap_sftp(dbgap_servers, sess)
+            else:
+                self.logger.debug("Pulling telemetry files from single dbgap sftp server")
+                user_projects, user_info = self._process_dbgap_files(self.dbGaP, sess)
 
         local_csv_file_list = []
         if self.sync_from_local_csv_dir:
             local_csv_file_list = glob.glob(
                 os.path.join(self.sync_from_local_csv_dir, "*")
             )
-
-        permissions = [{"read-storage", "read"} for _ in local_csv_file_list]
-        user_projects_csv, user_info_csv = self._parse_csv(
-            dict(list(zip(local_csv_file_list, permissions))),
-            encrypted=False,
-            sess=sess,
-        )
+        user_projects_csv, user_info_csv = self._get_user_permissions_from_csv_list(self.dbGaP, local_csv_file_list, encrypted=False, session=sess)
 
         try:
             user_yaml = UserYAML.from_file(
@@ -1023,13 +1074,9 @@ class UserSyncer(object):
             self.logger.error("aborting early")
             return
 
-        user_projects_csv = {
-            key.lower(): value for key, value in user_projects_csv.items()
-        }
-        user_projects = {key.lower(): value for key, value in user_projects.items()}
-        user_yaml.projects = {
-            key.lower(): value for key, value in user_yaml.projects.items()
-        }
+        # parse all projects
+        user_projects_csv = self.parse_projects(user_projects_csv)
+        user_yaml.projects = self.parse_projects(user_yaml.projects)
 
         # merge all user info dicts into "user_info".
         # the user info (such as email) in the user.yaml files

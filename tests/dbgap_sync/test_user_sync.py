@@ -2,6 +2,8 @@ import os
 import pytest
 import yaml
 
+from unittest.mock import MagicMock
+
 from fence import models
 from fence.sync.sync_users import _format_policy_id
 from fence.config import config
@@ -66,7 +68,8 @@ def test_sync(
     syncer, db_session, storage_client, parse_consent_code_config, monkeypatch
 ):
     # patch the sync to use the parameterized config value
-    monkeypatch.setattr(syncer, "parse_consent_code", parse_consent_code_config)
+    monkeypatch.setitem(
+        syncer.dbGaP, "parse_consent_code", parse_consent_code_config)
 
     syncer.sync()
 
@@ -168,10 +171,10 @@ def test_dbgap_consent_codes(
 ):
     # patch the sync to use the parameterized value for whether or not to parse exchange
     # area data
-    monkeypatch.setattr(
-        syncer, "enable_common_exchange_area_access", enable_common_exchange_area
-    )
-    monkeypatch.setattr(syncer, "parse_consent_code", parse_consent_code_config)
+    monkeypatch.setitem(
+        syncer.dbGaP, "enable_common_exchange_area_access", enable_common_exchange_area)
+    monkeypatch.setitem(
+        syncer.dbGaP, "parse_consent_code", parse_consent_code_config)
     monkeypatch.setattr(syncer, "project_mapping", {})
 
     syncer.sync()
@@ -559,3 +562,40 @@ def test_update_arborist(syncer, db_session):
     ]
     for role in expect_roles:
         assert syncer.arborist_client.create_role.called_with(role)
+
+def test_single_dbgap_server(syncer, monkeypatch, db_session):
+    """
+    Test that if the YAML file doesn't exist then the syncer doesn't do
+    anything with the arborist client
+    """
+    monkeypatch.setattr(syncer, "is_sync_from_dbgap_server", True)
+    monkeypatch.setattr(syncer, "additional_dbGaP", None)
+
+    def mock_merge(dbgap_servers, sess):
+        return {}, {}
+
+    syncer._merge_multiple_dbgap_sftp=MagicMock(side_effect=mock_merge)
+    syncer._process_dbgap_files=MagicMock(side_effect=mock_merge)
+
+    syncer.sync()
+    assert syncer._merge_multiple_dbgap_sftp.not_called()
+    print(syncer.dbGaP)
+    assert syncer._process_dbgap_files.called()
+
+def test_additional_dbgap_server(syncer, monkeypatch, db_session):
+    """
+    Test that if the YAML file doesn't exist then the syncer doesn't do
+    anything with the arborist client
+    """
+    monkeypatch.setattr(syncer, "is_sync_from_dbgap_server", True)
+
+    def mock_merge(dbgap_servers, sess):
+        return {}, {}
+
+    syncer._merge_multiple_dbgap_sftp=MagicMock(side_effect=mock_merge)
+    syncer._process_dbgap_files=MagicMock(side_effect=mock_merge)
+
+    syncer.sync()
+    assert syncer._merge_multiple_dbgap_sftp.called()
+    print(syncer.dbGaP)
+    assert syncer._process_dbgap_files.assert_called_once_with(syncer.dbGaP, db_session)

@@ -312,6 +312,31 @@ dbGaP:
     'phs000178': ['/orgA/', '/orgB/', '/']
     # study when parsing consent codes
     'phs000178.c2': ['/orgA/', '/orgB/', '/']
+additional_dbGaP:
+- info:
+    host: ''
+    username: ''
+    password: ''
+    port: 22
+    proxy: ''
+    proxy_user: ''
+  protocol: 'sftp'
+  decrypt_key: ''
+  # parse out the consent from the dbgap accession number such that something
+  # like "phs000123.v1.p1.c2" becomes "phs000123.c2".
+  #
+  # NOTE: when this is "false" the above would become "phs000123"
+  parse_consent_code: true
+  # A consent of "c999" can indicate access to that study's "exchange area data"
+  # and when a user has access to one study's exchange area data, they
+  # have access to the parent study's "common exchange area data" that is not study
+  # specific. The following config is whether or not to parse/handle "c999" codes
+  # for exchange area data
+  enable_common_exchange_area_access: false
+  # The below configuration is a mapping from studies to their "common exchange area data"
+  # Fence project name a user gets access to when parsing c999 exchange area codes (and
+  # subsequently gives access to an arborist resource representing this common area
+  # as well)
 
 # Regex to match an assession number that has consent information in forms like:
 #   phs00301123.c999
