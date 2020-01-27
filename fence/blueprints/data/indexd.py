@@ -490,11 +490,22 @@ class S3IndexedFileLocation(IndexedFileLocation):
     """
 
     @classmethod
-    def assume_role(cls, bucket_cred, expires_in, aws_creds_config):
+    def assume_role(cls, bucket_cred, expires_in, aws_creds_config, boto=None):
+        """
+        Args:
+            bucket_cred
+            expires_in
+            aws_creds_config
+            boto (optional): provide `boto` when calling this function
+                outside of application context, to avoid errors when
+                using `flask.current_app`.
+        """
+        boto = boto or flask.current_app.boto
+
         role_arn = get_value(
             bucket_cred, "role-arn", InternalError("role-arn of that bucket is missing")
         )
-        assumed_role = flask.current_app.boto.assume_role(
+        assumed_role = boto.assume_role(
             role_arn, expires_in, aws_creds_config
         )
         cred = get_value(
@@ -534,7 +545,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         return None
 
     @classmethod
-    def get_credential_to_access_bucket(cls, bucket_name, aws_creds, expires_in):
+    def get_credential_to_access_bucket(cls, bucket_name, aws_creds, expires_in, boto=None):
         s3_buckets = get_value(
             config, "S3_BUCKETS", InternalError("buckets not configured")
         )
@@ -569,7 +580,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 InternalError("aws credential of that bucket is not found"),
             )
             return S3IndexedFileLocation.assume_role(
-                bucket_cred, expires_in, aws_creds_config
+                bucket_cred, expires_in, aws_creds_config, boto
             )
 
     def get_bucket_region(self):
