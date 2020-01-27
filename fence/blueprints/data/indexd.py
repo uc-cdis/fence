@@ -505,9 +505,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         role_arn = get_value(
             bucket_cred, "role-arn", InternalError("role-arn of that bucket is missing")
         )
-        assumed_role = boto.assume_role(
-            role_arn, expires_in, aws_creds_config
-        )
+        assumed_role = boto.assume_role(role_arn, expires_in, aws_creds_config)
         cred = get_value(
             assumed_role, "Credentials", InternalError("fail to assume role")
         )
@@ -545,7 +543,9 @@ class S3IndexedFileLocation(IndexedFileLocation):
         return None
 
     @classmethod
-    def get_credential_to_access_bucket(cls, bucket_name, aws_creds, expires_in, boto=None):
+    def get_credential_to_access_bucket(
+        cls, bucket_name, aws_creds, expires_in, boto=None
+    ):
         s3_buckets = get_value(
             config, "S3_BUCKETS", InternalError("buckets not configured")
         )

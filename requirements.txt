@@ -24,7 +24,7 @@ markdown==3.1.1
 python-jose==2.0.2
 oauthlib==3.0.0
 requests_oauthlib==1.2.0
-psycopg2==2.8.3
+# psycopg2==2.8.3
 pysftp==0.2.9
 pytest-flask==0.10.0
 pytest==3.2.3

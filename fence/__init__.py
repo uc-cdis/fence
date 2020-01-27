@@ -198,7 +198,10 @@ def _check_s3_buckets(app):
                 )
             )
             credential = S3IndexedFileLocation.get_credential_to_access_bucket(
-                bucket_name, aws_creds, None, app.boto
+                bucket_name,
+                aws_creds,
+                config.get("MAX_PRESIGNED_URL_TTL", 3600),
+                app.boto,
             )
             region = app.boto.get_bucket_region(bucket_name, credential)
             config["S3_BUCKETS"][bucket_name]["region"] = region
