@@ -698,6 +698,7 @@ GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS:
   - 'gcp-sa-cloudbuild.iam.gserviceaccount.com'
   - 'gcp-sa-automl.iam.gserviceaccount.com'
   - 'gcp-sa-datalabeling.iam.gserviceaccount.com'
+  - 'gcp-sa-cloudscheduler.iam.gserviceaccount.com'
 
 # The types of service accounts that are allowed to be registered at
 # /google/service_accounts endpoints
