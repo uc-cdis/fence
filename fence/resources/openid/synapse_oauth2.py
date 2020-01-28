@@ -102,7 +102,7 @@ class SynapseOauth2Client(Oauth2ClientBase):
             )
             # For testing new Synapse JWKS doc (if pinned to new JWKS doc) or avoid downtime (if pinned to old JWKS doc)
             # TODO: can also be removed after tested with new Synapse JWKS doc and Synapse has deployed their changes
-            if config["SYNAPSE_JWKS_URI"]:
+            if "SYNAPSE_JWKS_URI" in config.keys() and config["SYNAPSE_JWKS_URI"]:
                 jwks_endpoint = config["SYNAPSE_JWKS_URI"]
             else:
                 jwks_endpoint = self.get_value_from_discovery_doc(
