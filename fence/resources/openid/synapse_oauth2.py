@@ -81,8 +81,12 @@ class SynapseOauth2Client(Oauth2ClientBase):
         Synapse is updating their JWKS document to align it with conventions, so above logic could be abandoned in the future.
         """
         for key in self.get_jwt_keys(jwks_endpoint):
-            # Kept for backward compability
-            if key["kty"] == "RS256" or key["kty"] == "RSA":
+            # For new Synapse JWKS doc, which is modified with conventions
+            if key["kty"] == "RSA":
+                return "RS256", RSAAlgorithm.from_jwk(json.dumps(key))
+            # For old Synapse JWKS odc, kept for backward compability
+            # TODO: remove after tested with new Synapse JWKS doc and Synapse has deployed their changes
+            elif key["kty"] == "RS256":
                 key["kty"] = "RSA"
                 for field in ["e", "n"]:
                     if key[field].isdigit():
