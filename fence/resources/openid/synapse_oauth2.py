@@ -103,8 +103,8 @@ class SynapseOauth2Client(Oauth2ClientBase):
             # For testing new Synapse JWKS doc (if pinned to new JWKS doc) or avoid downtime (if pinned to old JWKS doc)
             # TODO: can also be removed after tested with new Synapse JWKS doc and Synapse has deployed their changes
             self.logger.info(config["SYNAPSE_JWKS_URI"])
-            self.logger.info("SYNAPSE_JWKS_URI" in config.keys())
-            if "SYNAPSE_JWKS_URI" in config.keys() and config["SYNAPSE_JWKS_URI"]:
+            self.logger.info(config.keys())
+            if config["SYNAPSE_JWKS_URI"]:
                 jwks_endpoint = config["SYNAPSE_JWKS_URI"]
                 self.logger.info("yes")
                 self.logger.info(jwks_endpoint)
