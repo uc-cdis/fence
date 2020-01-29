@@ -78,14 +78,16 @@ class SynapseOauth2Client(Oauth2ClientBase):
         * kty is RS256 not RSA
         * e and n are not base64-encoded
 
-        Synapse is updating their JWKS document to align it with conventions, so above logic could be abandoned in the future.
+        Synapse is updating their JWKS document to align it with conventions,
+        so above logic could be abandoned in the future.
         """
         for key in self.get_jwt_keys(jwks_endpoint):
             # For new Synapse JWKS doc, which is modified with conventions
             if key["kty"] == "RSA":
                 return "RS256", RSAAlgorithm.from_jwk(json.dumps(key))
             # For old Synapse JWKS odc, kept for backward compability
-            # TODO: remove after tested with new Synapse JWKS doc and Synapse has deployed their changes
+            # TODO: remove after tested with new Synapse JWKS doc
+            # and Synapse has deployed their changes
             elif key["kty"] == "RS256":
                 key["kty"] = "RSA"
                 for field in ["e", "n"]:
@@ -100,8 +102,10 @@ class SynapseOauth2Client(Oauth2ClientBase):
             token_endpoint = self.get_value_from_discovery_doc(
                 "token_endpoint", config["SYNAPSE_URI"] + "/oauth2/token"
             )
-            # For testing new Synapse JWKS doc (if pinned to new JWKS doc) or avoid downtime (if pinned to old JWKS doc)
-            # TODO: can be removed after tested with new Synapse JWKS doc and Synapse has deployed their changes
+            # For testing new Synapse JWKS doc (if pinned to new JWKS doc)
+            # or avoid downtime (if pinned to old JWKS doc)
+            # TODO: can be removed after tested with new Synapse JWKS doc
+            # and Synapse has deployed their changes
             if config["SYNAPSE_JWKS_URI"]:
                 jwks_endpoint = config["SYNAPSE_JWKS_URI"]
             else:
