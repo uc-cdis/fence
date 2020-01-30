@@ -565,8 +565,8 @@ def test_update_arborist(syncer, db_session):
 
 def test_single_dbgap_server(syncer, monkeypatch, db_session):
     """
-    Test that if the YAML file doesn't exist then the syncer doesn't do
-    anything with the arborist client
+    Test that if there are no additional dbGaP servers,
+    only _process_dbgap_files() is called
     """
     monkeypatch.setattr(syncer, "is_sync_from_dbgap_server", True)
     monkeypatch.setattr(syncer, "additional_dbGaP", None)
@@ -579,13 +579,12 @@ def test_single_dbgap_server(syncer, monkeypatch, db_session):
 
     syncer.sync()
     assert syncer._merge_multiple_dbgap_sftp.not_called()
-    print(syncer.dbGaP)
     assert syncer._process_dbgap_files.called()
 
 def test_additional_dbgap_server(syncer, monkeypatch, db_session):
     """
-    Test that if the YAML file doesn't exist then the syncer doesn't do
-    anything with the arborist client
+    Test that if there are additional dbgap servers,
+    then _merge_multiple_dbgap_sftp() is called
     """
     monkeypatch.setattr(syncer, "is_sync_from_dbgap_server", True)
 
@@ -597,5 +596,4 @@ def test_additional_dbgap_server(syncer, monkeypatch, db_session):
 
     syncer.sync()
     assert syncer._merge_multiple_dbgap_sftp.called()
-    print(syncer.dbGaP)
     assert syncer._process_dbgap_files.assert_called_once_with(syncer.dbGaP, db_session)

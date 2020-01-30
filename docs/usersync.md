@@ -2,11 +2,37 @@
 
 Usersync is a script that parses user access information from multiple sources (user.yaml files, dbGaP user authorization "telemetry" files AKA whitelists) and keeps users' access to Gen3 resources up to date by updating the Fence and Arborist databases.
 
+
+
 ## Usersync flow
 
 ![Usersync Flow](images/usersync.png)
 
 > The access from the user.yaml file and the dbGaP authorization files is combined (see example below), but the user.yaml file overrides the user information (such as email) obtained from the dbGaP authorization files.
+
+## Configuration
+
+Configuration for user sync lives in fence-config.yaml for each respective environment. An example of the fence-config used for unit testing can be found [tests/test-fence-config.yaml](tests/test-fence-config.yaml).
+
+You can configure one or more dbGaP SFTP servers to sync telemetry files from. To configure one single dbGaP server, add credentials and information to the fence-config.yaml under `dbGaP`
+
+To configure additional dbGaP servers, include in the config.yaml a list of dbGaP servers under `additional_dbGaP`, like so:
+
+```
+additional_dbGaP:
+- info:
+    host:
+    username:
+    password:
+    ...
+  protocol: 'sftp'
+  ...
+  ...
+- info:
+    host:
+    username:
+    ...
+```
 
 ## Usersync result example
 
@@ -18,7 +44,7 @@ Usersync is a script that parses user access information from multiple sources (
 ```
 # authz information follows the attribute-based access control (ABAC) model
 authz:
-  resources: 
+  resources:
     - name: programs
       subresources:
         - name: myprogram
