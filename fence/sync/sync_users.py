@@ -1015,6 +1015,8 @@ class UserSyncer(object):
         merged_user_projects = {}
         merged_user_info = {}
         for dbgap in dbgap_servers:
+            print(dbgap)
+            print("perpppppp.....")
             user_projects, user_info = self._process_dbgap_files(dbgap, sess)
             # merge into merged_user_info
             # user_info overrides original info in merged_user_info
@@ -1051,8 +1053,8 @@ class UserSyncer(object):
         user_info = {}
         if self.is_sync_from_dbgap_server:
             if self.additional_dbGaP:
-                dbgap_servers = self.additional_dbGaP.insert(0, self.dbGaP)
-                self.logger.debug("Pulling telemetry files from {} dbgap sftp servers".formart(len(dbgap_servers)))
+                dbgap_servers = [self.dbGaP]+self.additional_dbGaP
+                self.logger.debug("Pulling telemetry files from {} dbgap sftp servers".format(len(dbgap_servers)))
                 user_projects, user_info = self._merge_multiple_dbgap_sftp(dbgap_servers, sess)
             else:
                 self.logger.debug("Pulling telemetry files from single dbgap sftp server")

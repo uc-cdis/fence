@@ -563,6 +563,7 @@ def test_update_arborist(syncer, db_session):
     for role in expect_roles:
         assert syncer.arborist_client.create_role.called_with(role)
 
+@pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
 def test_single_dbgap_server(syncer, monkeypatch, db_session):
     """
     Test that if there are no additional dbGaP servers,
@@ -578,10 +579,12 @@ def test_single_dbgap_server(syncer, monkeypatch, db_session):
     syncer._process_dbgap_files=MagicMock(side_effect=mock_merge)
 
     syncer.sync()
-    assert syncer._merge_multiple_dbgap_sftp.not_called()
-    assert syncer._process_dbgap_files.called()
+    assert syncer._merge_multiple_dbgap_sftp.not_called
+    assert syncer._process_dbgap_files.called
+    syncer._process_dbgap_files.called_once_with(syncer.dbGaP, db_session)
 
-def test_additional_dbgap_server(syncer, monkeypatch, db_session):
+@pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
+def test_merge_dbgap_servers(syncer, monkeypatch, db_session):
     """
     Test that if there are additional dbgap servers,
     then _merge_multiple_dbgap_sftp() is called
@@ -593,7 +596,26 @@ def test_additional_dbgap_server(syncer, monkeypatch, db_session):
 
     syncer._merge_multiple_dbgap_sftp=MagicMock(side_effect=mock_merge)
     syncer._process_dbgap_files=MagicMock(side_effect=mock_merge)
+    dbgap_servers = [syncer.dbGaP]+syncer.additional_dbGaP
 
     syncer.sync()
-    assert syncer._merge_multiple_dbgap_sftp.called()
-    assert syncer._process_dbgap_files.assert_called_once_with(syncer.dbGaP, db_session)
+    syncer._merge_multiple_dbgap_sftp.assert_called_once_with(dbgap_servers, db_session)
+
+@pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
+def test_process_additional_dbgap_servers(syncer, monkeypatch, db_session):
+    """
+    Test that if there are additional dbgap servers,
+    then process_dbgap_files() is called x times where x is # of dbgap servers
+    """
+    monkeypatch.setattr(syncer, "is_sync_from_dbgap_server", True)
+
+    def mock_merge(dbgap_servers, sess):
+        return {}, {}
+
+    syncer._process_dbgap_files=MagicMock(side_effect=mock_merge)
+
+    syncer.sync()
+
+    # this function will be called once for each sftp server
+    # the test config file has 2 dbgap sftp servers
+    assert syncer._process_dbgap_files.call_count == 2

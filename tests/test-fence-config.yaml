@@ -312,6 +312,9 @@ dbGaP:
     'phs000178': ['/orgA/', '/orgB/', '/']
     # study when parsing consent codes
     'phs000178.c2': ['/orgA/', '/orgB/', '/']
+# additional dbGap SFTP servers to sync with
+# Follows the same format as dbGaP entries
+# accepts a list of objects 
 additional_dbGaP:
 - info:
     host: ''
