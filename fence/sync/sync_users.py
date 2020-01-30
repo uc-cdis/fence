@@ -442,8 +442,8 @@ class UserSyncer(object):
         dbgap_key = dbGaP.get("decrypt_key", None)
         parse_consent_code = dbGaP.get("parse_consent_code", True)
         enable_common_exchange_area_access = dbGaP.get(
-                    "enable_common_exchange_area_access", False
-                )
+            "enable_common_exchange_area_access", False
+        )
         study_common_exchange_areas = dbGaP.get("study_common_exchange_areas", {})
 
         if parse_consent_code and enable_common_exchange_area_access:
@@ -974,11 +974,11 @@ class UserSyncer(object):
         return instance
 
     def _process_dbgap_files(self, dbGaP, sess):
-        '''
+        """
         returns
             user_projects (dict)
             user_info (dict)
-        '''
+        """
         dbgap_file_list = []
         tmpdir = tempfile.mkdtemp()
         server = dbGaP["Info"]
@@ -994,7 +994,9 @@ class UserSyncer(object):
             self.logger.error(e)
             exit(1)
         self.logger.info("dbgap files: {}".format(dbgap_file_list))
-        user_projects, user_info = self._get_user_permissions_from_csv_list(dbGaP, dbgap_file_list, encrypted=True, session=sess)
+        user_projects, user_info = self._get_user_permissions_from_csv_list(
+            dbGaP, dbgap_file_list, encrypted=True, session=sess
+        )
         try:
             shutil.rmtree(tmpdir)
         except OSError as e:
@@ -1006,9 +1008,12 @@ class UserSyncer(object):
 
     def _get_user_permissions_from_csv_list(self, dbGaP, file_list, encrypted, session):
         permissions = [{"read-storage", "read"} for _ in file_list]
-        user_projects, user_info = self._parse_csv(dbGaP,
-            dict(list(zip(file_list, permissions))), encrypted=encrypted, sess=session
-            )
+        user_projects, user_info = self._parse_csv(
+            dbGaP,
+            dict(list(zip(file_list, permissions))),
+            encrypted=encrypted,
+            sess=session,
+        )
         return user_projects, user_info
 
     def _merge_multiple_dbgap_sftp(self, dbgap_servers, sess):
@@ -1030,9 +1035,9 @@ class UserSyncer(object):
         return merged_user_projects, merged_user_info
 
     def parse_projects(self, user_projects):
-        '''
+        """
         helper function for parsing projects
-        '''
+        """
         return {key.lower(): value for key, value in user_projects.items()}
 
     def sync(self):
@@ -1053,11 +1058,19 @@ class UserSyncer(object):
         user_info = {}
         if self.is_sync_from_dbgap_server:
             if self.additional_dbGaP:
-                dbgap_servers = [self.dbGaP]+self.additional_dbGaP
-                self.logger.debug("Pulling telemetry files from {} dbgap sftp servers".format(len(dbgap_servers)))
-                user_projects, user_info = self._merge_multiple_dbgap_sftp(dbgap_servers, sess)
+                dbgap_servers = [self.dbGaP] + self.additional_dbGaP
+                self.logger.debug(
+                    "Pulling telemetry files from {} dbgap sftp servers".format(
+                        len(dbgap_servers)
+                    )
+                )
+                user_projects, user_info = self._merge_multiple_dbgap_sftp(
+                    dbgap_servers, sess
+                )
             else:
-                self.logger.debug("Pulling telemetry files from single dbgap sftp server")
+                self.logger.debug(
+                    "Pulling telemetry files from single dbgap sftp server"
+                )
                 user_projects, user_info = self._process_dbgap_files(self.dbGaP, sess)
 
         local_csv_file_list = []
@@ -1065,7 +1078,9 @@ class UserSyncer(object):
             local_csv_file_list = glob.glob(
                 os.path.join(self.sync_from_local_csv_dir, "*")
             )
-        user_projects_csv, user_info_csv = self._get_user_permissions_from_csv_list(self.dbGaP, local_csv_file_list, encrypted=False, session=sess)
+        user_projects_csv, user_info_csv = self._get_user_permissions_from_csv_list(
+            self.dbGaP, local_csv_file_list, encrypted=False, session=sess
+        )
 
         try:
             user_yaml = UserYAML.from_file(

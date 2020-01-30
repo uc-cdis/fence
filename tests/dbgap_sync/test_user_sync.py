@@ -68,8 +68,7 @@ def test_sync(
     syncer, db_session, storage_client, parse_consent_code_config, monkeypatch
 ):
     # patch the sync to use the parameterized config value
-    monkeypatch.setitem(
-        syncer.dbGaP, "parse_consent_code", parse_consent_code_config)
+    monkeypatch.setitem(syncer.dbGaP, "parse_consent_code", parse_consent_code_config)
 
     syncer.sync()
 
@@ -172,9 +171,9 @@ def test_dbgap_consent_codes(
     # patch the sync to use the parameterized value for whether or not to parse exchange
     # area data
     monkeypatch.setitem(
-        syncer.dbGaP, "enable_common_exchange_area_access", enable_common_exchange_area)
-    monkeypatch.setitem(
-        syncer.dbGaP, "parse_consent_code", parse_consent_code_config)
+        syncer.dbGaP, "enable_common_exchange_area_access", enable_common_exchange_area
+    )
+    monkeypatch.setitem(syncer.dbGaP, "parse_consent_code", parse_consent_code_config)
     monkeypatch.setattr(syncer, "project_mapping", {})
 
     syncer.sync()
@@ -563,6 +562,7 @@ def test_update_arborist(syncer, db_session):
     for role in expect_roles:
         assert syncer.arborist_client.create_role.called_with(role)
 
+
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
 def test_single_dbgap_server(syncer, monkeypatch, db_session):
     """
@@ -575,13 +575,14 @@ def test_single_dbgap_server(syncer, monkeypatch, db_session):
     def mock_merge(dbgap_servers, sess):
         return {}, {}
 
-    syncer._merge_multiple_dbgap_sftp=MagicMock(side_effect=mock_merge)
-    syncer._process_dbgap_files=MagicMock(side_effect=mock_merge)
+    syncer._merge_multiple_dbgap_sftp = MagicMock(side_effect=mock_merge)
+    syncer._process_dbgap_files = MagicMock(side_effect=mock_merge)
 
     syncer.sync()
     assert syncer._merge_multiple_dbgap_sftp.not_called
     assert syncer._process_dbgap_files.called
     syncer._process_dbgap_files.called_once_with(syncer.dbGaP, db_session)
+
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
 def test_merge_dbgap_servers(syncer, monkeypatch, db_session):
@@ -594,12 +595,13 @@ def test_merge_dbgap_servers(syncer, monkeypatch, db_session):
     def mock_merge(dbgap_servers, sess):
         return {}, {}
 
-    syncer._merge_multiple_dbgap_sftp=MagicMock(side_effect=mock_merge)
-    syncer._process_dbgap_files=MagicMock(side_effect=mock_merge)
-    dbgap_servers = [syncer.dbGaP]+syncer.additional_dbGaP
+    syncer._merge_multiple_dbgap_sftp = MagicMock(side_effect=mock_merge)
+    syncer._process_dbgap_files = MagicMock(side_effect=mock_merge)
+    dbgap_servers = [syncer.dbGaP] + syncer.additional_dbGaP
 
     syncer.sync()
     syncer._merge_multiple_dbgap_sftp.assert_called_once_with(dbgap_servers, db_session)
+
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
 def test_process_additional_dbgap_servers(syncer, monkeypatch, db_session):
@@ -612,7 +614,7 @@ def test_process_additional_dbgap_servers(syncer, monkeypatch, db_session):
     def mock_merge(dbgap_servers, sess):
         return {}, {}
 
-    syncer._process_dbgap_files=MagicMock(side_effect=mock_merge)
+    syncer._process_dbgap_files = MagicMock(side_effect=mock_merge)
 
     syncer.sync()
 
