@@ -1,7 +1,6 @@
 # pylint: disable=redefined-outer-name
 """
 Define pytest fixtures.
-
 TODO (rudyardrichter, 2018-11-06): clean up/consolidate indexd response mocks
 """
 
@@ -82,27 +81,23 @@ def encoded_jwt(kid, rsa_private_key):
     """
     Return an example JWT containing the claims and encoded with the private
     key.
-
     Args:
         rsa_private_key (str): fixture
-
     Return:
         str: JWT containing claims encoded with private key
     """
     headers = {"kid": kid}
     return jwt.encode(
         utils.default_claims(), key=rsa_private_key, headers=headers, algorithm="RS256"
-    )
+    ).decode("utf-8")
 
 
 @pytest.fixture(scope="session")
 def encoded_jwt_expired(kid, rsa_private_key):
     """
     Return an example JWT that has already expired.
-
     Args:
         rsa_private_key (str): fixture
-
     Return:
         str: JWT containing claims encoded with private key
     """
@@ -113,7 +108,7 @@ def encoded_jwt_expired(kid, rsa_private_key):
     claims_expired["iat"] -= 10000
     return jwt.encode(
         claims_expired, key=rsa_private_key, headers=headers, algorithm="RS256"
-    )
+    ).decode("utf-8")
 
 
 @pytest.fixture(scope="session")
@@ -121,18 +116,16 @@ def encoded_jwt_refresh_token(claims_refresh, kid, rsa_private_key):
     """
     Return an example JWT refresh token containing the claims and encoded with
     the private key.
-
     Args:
         claims_refresh (dict): fixture
         rsa_private_key (str): fixture
-
     Return:
         str: JWT refresh token containing claims encoded with private key
     """
     headers = {"kid": kid}
     return jwt.encode(
         claims_refresh, key=rsa_private_key, headers=headers, algorithm="RS256"
-    )
+    ).decode("utf-8")
 
 
 class Mocker(object):
@@ -180,48 +173,58 @@ def kid_2():
     return "test-keypair-2"
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def mock_arborist_requests(request):
+    """
+    This fixture returns a function which you call to mock out arborist endopints.
+    Give it an argument in this format:
+        {
+            "arborist/health": {
+                "GET": ("", 200)
+            },
+            "arborist/auth/request": {
+                "POST": ('{"auth": "false"}', 403)
+            }
+        }
+    """
+
     def do_patch(urls_to_responses=None):
         urls_to_responses = urls_to_responses or {}
         defaults = {"arborist/health": {"GET": ("", 200)}}
         defaults.update(urls_to_responses)
         urls_to_responses = defaults
 
-        def make_mock_response(method):
-            def response(url):
-                mocked_response = MagicMock(requests.Response)
-                if url in urls_to_responses:
-                    if method in urls_to_responses[url]:
-                        content, code = urls_to_responses[url][method]
-                        mocked_response.status_code = code
-                        if isinstance(content, dict):
-                            mocked_response.json.return_value = content
-                return mocked_response
+        def response_for(method, url, *args, **kwargs):
+            method = method.upper()
+            mocked_response = MagicMock(requests.Response)
+            if url not in urls_to_responses:
+                mocked_response.status_code = 404
+                mocked_response.text = "NOT FOUND"
+            elif method not in urls_to_responses[url]:
+                mocked_response.status_code = 405
+                mocked_response.text = "METHOD NOT ALLOWED"
+            else:
+                content, code = urls_to_responses[url][method]
+                mocked_response.status_code = code
+                if isinstance(content, dict):
+                    mocked_response.json.return_value = content
+                else:
+                    mocked_response.text = content
+            return mocked_response
 
-            return response
+        mocked_method = MagicMock(side_effect=response_for)
+        patch_method = mock.patch(
+            "gen3authz.client.arborist.client.requests.request", mocked_method
+        )
 
-        mocked_get = MagicMock(side_effect=make_mock_response("GET"))
-        mocked_post = MagicMock(side_effect=make_mock_response("POST"))
-        mocked_delete = MagicMock(side_effect=make_mock_response("DELETE"))
-
-        patch_get = mock.patch("fence.rbac.client.requests.get", mocked_get)
-        patch_post = mock.patch("fence.rbac.client.requests.post", mocked_post)
-        patch_delete = mock.patch("fence.rbac.client.requests.delete", mocked_delete)
-
-        patch_get.start()
-        patch_post.start()
-        patch_delete.start()
-
-        request.addfinalizer(patch_get.stop)
-        request.addfinalizer(patch_post.stop)
-        request.addfinalizer(patch_delete.stop)
+        patch_method.start()
+        request.addfinalizer(patch_method.stop)
 
     return do_patch
 
 
 @pytest.fixture(scope="session")
-def app(kid, rsa_private_key, rsa_public_key, mock_arborist_requests):
+def app(kid, rsa_private_key, rsa_public_key):
     """
     Flask application fixture.
     """
@@ -258,7 +261,7 @@ def app(kid, rsa_private_key, rsa_public_key, mock_arborist_requests):
     )
 
     config.update(BASE_URL=config["BASE_URL"])
-    config.update(ENCRYPTION_KEY=Fernet.generate_key())
+    config.update(ENCRYPTION_KEY=Fernet.generate_key().decode("utf-8"))
 
     return fence.app
 
@@ -296,11 +299,30 @@ def test_user_b(db_session):
     return Dict(username="test_b", user_id=test_user.id)
 
 
+@pytest.fixture(scope="function")
+def test_user_long(db_session):
+    test_user = (
+        db_session.query(models.User)
+        .filter_by(username="test_amazing_user_with_an_fancy_but_extremely_long_name")
+        .first()
+    )
+    if not test_user:
+        test_user = models.User(
+            username="test_amazing_user_with_an_fancy_but_extremely_long_name",
+            is_admin=False,
+        )
+        db_session.add(test_user)
+        db_session.commit()
+    return Dict(
+        username="test_amazing_user_with_an_fancy_but_extremely_long_name",
+        user_id=test_user.id,
+    )
+
+
 @pytest.fixture(scope="session")
 def db(app, request):
     """
     Define pytest fixture for database engine (session-scoped).
-
     When the tests are over, drop everything from the test database.
     """
 
@@ -357,7 +379,6 @@ def awg_groups(db_session):
 def db_session(db, patch_app_db_session):
     """
     Define fixture for database session (function-scoped).
-
     At the end of the function, roll back the session to its initial state.
     """
     connection = db.engine.connect()
@@ -476,6 +497,107 @@ def indexd_client(app, request):
     }
 
     return output
+
+
+@pytest.fixture(scope="function")
+def indexd_client_with_arborist(app, request):
+    record = {}
+
+    def do_patch(authz):
+        if request.param == "gs":
+            record = {
+                "did": "",
+                "baseid": "",
+                "rev": "",
+                "size": 10,
+                "file_name": "file1",
+                "urls": ["gs://bucket1/key"],
+                "authz": authz,
+                "hashes": {},
+                "metadata": {"acls": "phs000178,phs000218"},
+                "form": "",
+                "created_date": "",
+                "updated_date": "",
+            }
+        elif request.param == "gs_acl":
+            record = {
+                "did": "",
+                "baseid": "",
+                "rev": "",
+                "size": 10,
+                "file_name": "file1",
+                "urls": ["gs://bucket1/key"],
+                "hashes": {},
+                "acl": ["phs000178", "phs000218"],
+                "authz": authz,
+                "form": "",
+                "created_date": "",
+                "updated_date": "",
+            }
+        elif request.param == "s3_acl":
+            record = {
+                "did": "",
+                "baseid": "",
+                "rev": "",
+                "size": 10,
+                "file_name": "file1",
+                "urls": ["s3://bucket1/key"],
+                "hashes": {},
+                "acl": ["phs000178", "phs000218"],
+                "authz": authz,
+                "form": "",
+                "created_date": "",
+                "updated_date": "",
+            }
+        elif request.param == "s3_external":
+            record = {
+                "did": "",
+                "baseid": "",
+                "rev": "",
+                "size": 10,
+                "file_name": "file1",
+                "urls": ["s3://bucket1/key"],
+                "hashes": {},
+                "acl": ["phs000178", "phs000218"],
+                "authz": authz,
+                "form": "",
+                "created_date": "",
+                "updated_date": "",
+            }
+        else:
+            record = {
+                "did": "",
+                "baseid": "",
+                "rev": "",
+                "size": 10,
+                "file_name": "file1",
+                "urls": ["s3://bucket1/key"],
+                "hashes": {},
+                "metadata": {"acls": "phs000178,phs000218"},
+                "authz": authz,
+                "form": "",
+                "created_date": "",
+                "updated_date": "",
+            }
+
+        mocker = Mocker()
+        mocker.mock_functions()
+
+        # TODO (rudyardrichter, 2018-11-03): consolidate things needing to do this patch
+        indexd_patcher = patch(
+            "fence.blueprints.data.indexd.IndexedFile.index_document", record
+        )
+        mocker.add_mock(indexd_patcher)
+
+        output = {
+            "mocker": mocker,
+            # only gs or s3 for location, ignore specifiers after the _
+            "indexed_file_location": request.param.split("_")[0],
+        }
+
+        return output
+
+    return do_patch
 
 
 @pytest.fixture(scope="function")
@@ -736,7 +858,9 @@ def oauth_client(app, db_session, oauth_user):
     url = "https://oauth-test-client.net"
     client_id = "test-client"
     client_secret = fence.utils.random_str(50)
-    hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
+    hashed_secret = bcrypt.hashpw(
+        client_secret.encode("utf-8"), bcrypt.gensalt()
+    ).decode("utf-8")
     test_user = db_session.query(models.User).filter_by(id=oauth_user.user_id).first()
     db_session.add(
         models.Client(
@@ -764,7 +888,9 @@ def oauth_client_B(app, request, db_session):
     url = "https://oauth-test-client-B.net"
     client_id = "test-client-B"
     client_secret = fence.utils.random_str(50)
-    hashed_secret = bcrypt.hashpw(client_secret, bcrypt.gensalt())
+    hashed_secret = bcrypt.hashpw(
+        client_secret.encode("utf-8"), bcrypt.gensalt()
+    ).decode("utf-8")
 
     test_user = db_session.query(models.User).filter_by(username="test").first()
     if not test_user:
@@ -913,10 +1039,8 @@ def mock_get(monkeypatch, example_keys_response):
     """
     Provide a function to patch the value of the JSON returned by
     ``requests.get``.
-
     Args:
         monkeypatch (pytest.monkeypatch.MonkeyPatch): fixture
-
     Return:
         Calllable[dict, None]:
             function which sets the reponse JSON of ``requests.get``
@@ -926,10 +1050,8 @@ def mock_get(monkeypatch, example_keys_response):
         """
         Args:
             keys_response_json (dict): value to set /jwt/keys return value to
-
         Return:
             None
-
         Side Effects:
             Patch ``requests.get``
         """
@@ -952,11 +1074,9 @@ def encoded_creds_jwt(
     """
     Return a JWT and user_id for a new user containing the claims and
     encoded with the private key.
-
     Args:
         claims (dict): fixture
         rsa_private_key (str): fixture
-
     Return:
         str: JWT containing claims encoded with private key
     """
@@ -972,7 +1092,7 @@ def encoded_creds_jwt(
             key=rsa_private_key,
             headers=headers,
             algorithm="RS256",
-        ),
+        ).decode("utf-8"),
         user_id=user_client["user_id"],
         client_id=oauth_client["client_id"],
         proxy_group_id=google_proxy_group["id"],
@@ -985,11 +1105,9 @@ def encoded_jwt_no_proxy_group(kid, rsa_private_key, user_client, oauth_client):
     """
     Return a JWT and user_id for a new user containing the claims and
     encoded with the private key.
-
     Args:
         claims (dict): fixture
         rsa_private_key (str): fixture
-
     Return:
         str: JWT containing claims encoded with private key
     """
@@ -1004,7 +1122,7 @@ def encoded_jwt_no_proxy_group(kid, rsa_private_key, user_client, oauth_client):
             key=rsa_private_key,
             headers=headers,
             algorithm="RS256",
-        ),
+        ).decode("utf-8"),
         user_id=user_client["user_id"],
         client_id=oauth_client["client_id"],
     )

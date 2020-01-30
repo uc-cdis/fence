@@ -1,14 +1,8 @@
 import flask
 import time
-from urlparse import urlparse, parse_qs, urlunparse
+from urllib.parse import urlparse, parse_qs, urlunparse
 
-# Python 2 and 3 compatible
-try:
-    from unittest.mock import MagicMock
-    from unittest.mock import patch
-except ImportError:
-    from mock import MagicMock
-    from mock import patch
+from unittest.mock import MagicMock, patch
 
 from fence.resources.storage.cdis_jwt import create_session_token
 from fence.config import config
@@ -79,15 +73,10 @@ def test_google_link_redirect_no_google_idp(
     # Don't include google in the enabled idps, but leave it configured
     # in the openid connect clients:
     override_settings = {
-        "ENABLED_IDENTITY_PROVIDERS": {
-            # ID for which of the providers to default to.
-            "default": "fence",
-            # Information for identity providers.
-            "providers": {
-                "fence": {"name": "Fence Multi-Tenant OAuth"},
-                "shibboleth": {"name": "NIH Login"},
-            },
-        },
+        "LOGIN_OPTIONS": [
+            {"idp": "fence", "name": "Fence Multi-Tenant OAuth"},
+            {"idp": "shibboleth", "name": "NIH Login"},
+        ],
         "OPENID_CONNECT": {
             "google": {
                 "client_id": "123",
@@ -314,9 +303,9 @@ def test_patch_google_link(
         .first()
     )
     # make sure the link is valid for the requested time
-    # (allow up to 10 sec for runtime)
+    # (allow up to 15 sec for runtime)
     diff = account_in_proxy_group.expires - int(time.time())
-    assert requested_exp <= diff <= requested_exp + 10
+    assert requested_exp <= diff <= requested_exp + 15
 
 
 def test_patch_google_link_account_not_in_token(

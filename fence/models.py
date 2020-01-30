@@ -17,15 +17,19 @@ import flask
 from sqlalchemy import (
     Integer,
     BigInteger,
+    DateTime,
     String,
     Column,
     Boolean,
     Text,
     MetaData,
     Table,
+    text,
 )
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import relationship, backref
+from sqlalchemy.sql import func
+from sqlalchemy import exc as sa_exc
 from sqlalchemy import func
 from sqlalchemy.schema import ForeignKey
 from userdatamodel import Base
@@ -42,7 +46,6 @@ from userdatamodel.models import (
     HMACKeyPair,
     HMACKeyPairArchive,
     IdentityProvider,
-    Policy,
     Project,
     ProjectToBucket,
     S3Credential,
@@ -51,8 +54,8 @@ from userdatamodel.models import (
     User,
     UserToBucket,
     UserToGroup,
-    users_to_policies,
 )
+import warnings
 
 from fence.config import config
 
@@ -199,7 +202,7 @@ class Client(Base, OAuth2ClientMixin):
     def check_client_secret(self, client_secret):
         check_hash = bcrypt.hashpw(
             client_secret.encode("utf-8"), self.client_secret.encode("utf-8")
-        )
+        ).decode("utf-8")
         return check_hash == self.client_secret
 
     def check_requested_scopes(self, scopes):
@@ -564,10 +567,25 @@ def migrate(driver):
                 )
             )
 
+    # username limit migration
+
+    table = Table(User.__tablename__, md, autoload=True, autoload_with=driver.engine)
+    if str(table.c.username.type) != str(User.username.type):
+        print(
+            "Altering table %s column username type to %s"
+            % (User.__tablename__, str(User.username.type))
+        )
+        with driver.session as session:
+            session.execute(
+                'ALTER TABLE "{}" ALTER COLUMN username TYPE {};'.format(
+                    User.__tablename__, str(User.username.type)
+                )
+            )
+
     # oidc migration
 
     table = Table(Client.__tablename__, md, autoload=True, autoload_with=driver.engine)
-    if not any([index.name == "ix_name" for index in table.indexes]):
+    if not ("ix_name" in [constraint.name for constraint in table.constraints]):
         with driver.session as session:
             session.execute(
                 "ALTER TABLE {} ADD constraint ix_name unique (name);".format(
@@ -644,15 +662,13 @@ def migrate(driver):
     user = Table(User.__tablename__, md, autoload=True, autoload_with=driver.engine)
     found_user_constraint_already_migrated = False
 
-    # TODO: Once sqlalchemy is bumped to above 1.0.0, just use the first version
-    try:
-        for fkey in list(user.foreign_key_constraints):
-            if str(fkey.parent) == "User.google_proxy_group_id" and fkey.ondelete == "SET NULL":
-                found_user_constraint_already_migrated = True
-    except:
-        for fkey in list(user.foreign_keys):
-            if str(fkey.parent) == "User.google_proxy_group_id" and fkey.ondelete == "SET NULL":
-                found_user_constraint_already_migrated = True
+    for fkey in list(user.foreign_key_constraints):
+        if (
+            len(fkey.column_keys) == 1
+            and "google_proxy_group_id" in fkey.column_keys
+            and fkey.ondelete == "SET NULL"
+        ):
+            found_user_constraint_already_migrated = True
 
     if not found_user_constraint_already_migrated:
         # do delete user migration in one session
@@ -677,6 +693,97 @@ def migrate(driver):
             raise
         finally:
             delete_user_session.close()
+
+    _remove_policy(driver, md)
+
+    add_column_if_not_exist(
+        table_name=User.__tablename__,
+        column=Column(
+            "_last_auth", DateTime(timezone=False), server_default=func.now()
+        ),
+        driver=driver,
+        metadata=md,
+    )
+
+    add_column_if_not_exist(
+        table_name=User.__tablename__,
+        column=Column("additional_info", JSONB(), server_default=text("'{}'")),
+        driver=driver,
+        metadata=md,
+    )
+
+    with driver.session as session:
+        session.execute(
+            """\
+CREATE OR REPLACE FUNCTION process_user_audit() RETURNS TRIGGER AS $user_audit$
+    BEGIN
+        IF (TG_OP = 'DELETE') THEN
+            INSERT INTO user_audit_logs (timestamp, operation, old_values)
+            SELECT now(), 'DELETE', row_to_json(OLD);
+            RETURN OLD;
+        ELSIF (TG_OP = 'UPDATE') THEN
+            INSERT INTO user_audit_logs (timestamp, operation, old_values, new_values)
+            SELECT now(), 'UPDATE', row_to_json(OLD), row_to_json(NEW);
+            RETURN NEW;
+        ELSIF (TG_OP = 'INSERT') THEN
+            INSERT INTO user_audit_logs (timestamp, operation, new_values)
+            SELECT now(), 'INSERT', row_to_json(NEW);
+            RETURN NEW;
+        END IF;
+        RETURN NULL;
+    END;
+$user_audit$ LANGUAGE plpgsql;"""
+        )
+
+        exist = session.scalar(
+            "SELECT exists (SELECT * FROM pg_trigger WHERE tgname = 'user_audit')"
+        )
+        session.execute(
+            ('DROP TRIGGER user_audit ON "User"; ' if exist else "")
+            + """\
+CREATE TRIGGER user_audit
+AFTER INSERT OR UPDATE OR DELETE ON "User"
+    FOR EACH ROW EXECUTE PROCEDURE process_user_audit();"""
+        )
+
+        session.execute(
+            """\
+CREATE OR REPLACE FUNCTION process_cert_audit() RETURNS TRIGGER AS $cert_audit$
+    BEGIN
+        IF (TG_OP = 'DELETE') THEN
+            INSERT INTO cert_audit_logs (timestamp, operation, user_id, username, old_values)
+            SELECT now(), 'DELETE', "User".id, "User".username, row_to_json(OLD)
+            FROM application INNER JOIN "User" ON application.user_id = "User".id
+            WHERE OLD.application_id = application.id;
+            RETURN OLD;
+        ELSIF (TG_OP = 'UPDATE') THEN
+            INSERT INTO cert_audit_logs (timestamp, operation, user_id, username, old_values, new_values)
+            SELECT now(), 'UPDATE', "User".id, "User".username, row_to_json(OLD), row_to_json(NEW)
+            FROM application INNER JOIN "User" ON application.user_id = "User".id
+            WHERE NEW.application_id = application.id;
+            RETURN NEW;
+        ELSIF (TG_OP = 'INSERT') THEN
+            INSERT INTO cert_audit_logs (timestamp, operation, user_id, username, new_values)
+            SELECT now(), 'INSERT', "User".id, "User".username, row_to_json(NEW)
+            FROM application INNER JOIN "User" ON application.user_id = "User".id
+            WHERE NEW.application_id = application.id;
+            RETURN NEW;
+        END IF;
+        RETURN NULL;
+    END;
+$cert_audit$ LANGUAGE plpgsql;"""
+        )
+
+        exist = session.scalar(
+            "SELECT exists (SELECT * FROM pg_trigger WHERE tgname = 'cert_audit')"
+        )
+        session.execute(
+            ("DROP TRIGGER cert_audit ON certificate; " if exist else "")
+            + """\
+CREATE TRIGGER cert_audit
+AFTER INSERT OR UPDATE OR DELETE ON certificate
+    FOR EACH ROW EXECUTE PROCEDURE process_cert_audit();"""
+        )
 
 
 def add_foreign_key_column_if_not_exist(
@@ -787,9 +894,22 @@ def set_foreign_key_constraint_on_delete_setnull(
 
 
 def set_foreign_key_constraint_on_delete(
-    table_name, column_name, fk_table_name, fk_column_name, ondelete, driver, session, metadata
+    table_name,
+    column_name,
+    fk_table_name,
+    fk_column_name,
+    ondelete,
+    driver,
+    session,
+    metadata,
 ):
-    table = Table(table_name, metadata, autoload=True, autoload_with=driver.engine)
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="Predicate of partial index \S+ ignored during reflection",
+            category=sa_exc.SAWarning,
+        )
+        table = Table(table_name, metadata, autoload=True, autoload_with=driver.engine)
     foreign_key_name = "{}_{}_fkey".format(table_name.lower(), column_name)
 
     if column_name in table.c:
@@ -890,6 +1010,13 @@ def add_not_null_constraint(table_name, column_name, driver, metadata):
             session.commit()
 
 
+def _remove_policy(driver, md):
+    with driver.session as session:
+        session.execute("DROP TABLE IF EXISTS users_to_policies;")
+        session.execute("DROP TABLE IF EXISTS policy;")
+        session.commit()
+
+
 def _add_google_project_id(driver, md):
     """
     Add new unique not null field to GoogleServiceAccount.
@@ -967,7 +1094,7 @@ def _update_for_authlib(driver, md):
     add_client_col = lambda col: add_column_if_not_exist(
         Client.__tablename__, column=col, driver=driver, metadata=md
     )
-    map(add_client_col, CLIENT_COLUMNS_TO_ADD)
+    list(map(add_client_col, CLIENT_COLUMNS_TO_ADD))
     CODE_COLUMNS_TO_ADD = [Column("response_type", Text, default="")]
 
     with driver.session as session:
@@ -984,7 +1111,7 @@ def _update_for_authlib(driver, md):
     add_code_col = lambda col: add_column_if_not_exist(
         AuthorizationCode.__tablename__, column=col, driver=driver, metadata=md
     )
-    map(add_code_col, CODE_COLUMNS_TO_ADD)
+    list(map(add_code_col, CODE_COLUMNS_TO_ADD))
     with driver.session as session:
         session.execute("ALTER TABLE client ALTER COLUMN client_secret DROP NOT NULL")
         session.commit()
@@ -1084,7 +1211,13 @@ def _set_on_delete_cascades(driver, session, md):
         md,
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "service_account_access_privilege", "project_id", "project", "id", driver, session, md
+        "service_account_access_privilege",
+        "project_id",
+        "project",
+        "id",
+        driver,
+        session,
+        md,
     )
     set_foreign_key_constraint_on_delete_cascade(
         "service_account_access_privilege",
@@ -1135,7 +1268,13 @@ def _set_on_delete_cascades(driver, session, md):
         "access_privilege", "project_id", "project", "id", driver, session, md
     )
     set_foreign_key_constraint_on_delete_cascade(
-        "access_privilege", "provider_id", "authorization_provider", "id", driver, session, md
+        "access_privilege",
+        "provider_id",
+        "authorization_provider",
+        "id",
+        driver,
+        session,
+        md,
     )
     set_foreign_key_constraint_on_delete_cascade(
         "user_to_bucket", "user_id", "User", "id", driver, session, md

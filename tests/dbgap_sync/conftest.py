@@ -1,12 +1,6 @@
 import os
 
-# Python 2 and 3 compatible
-try:
-    from unittest.mock import MagicMock
-    from unittest.mock import patch
-except ImportError:
-    from mock import MagicMock
-    from mock import patch
+from unittest.mock import MagicMock, patch
 from yaml import safe_load as yaml_load
 
 from cirrus import GoogleCloudManager
@@ -16,11 +10,12 @@ from userdatamodel import Base
 from userdatamodel.models import *
 from userdatamodel.driver import SQLAlchemyDriver
 
-from fence.rbac.client import ArboristClient
 from fence.sync.sync_users import UserSyncer
 from fence.resources import userdatamodel as udm
 
 from fence.models import AccessPrivilege, AuthorizationProvider, User
+
+from gen3authz.client.arborist.client import ArboristClient
 
 LOCAL_CSV_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data/csv")
 
@@ -125,7 +120,14 @@ def syncer(db_session, request):
         "phstest": [{"name": "Test", "auth_id": "Test"}],
     }
 
-    dbGap = {}
+    dbGap = yaml_load(
+        open(
+            os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                "test-fence-config.yaml",
+            )
+        )
+    ).get("dbGaP")
     test_db = yaml_load(
         open(
             os.path.join(
@@ -146,7 +148,22 @@ def syncer(db_session, request):
         sync_from_local_yaml_file=LOCAL_YAML_DIR,
     )
     syncer_obj.arborist_client = MagicMock(ArboristClient)
+
+    def mocked_update(parent_path, resource, **kwargs):
+        resource["tag"] = "123456"
+        resource["subresources"] = [
+            subresource.get("name", subresource.get("path", "").lstrip("/"))
+            for subresource in resource.get("subresources", [])
+            if subresource.get("name", subresource.get("path", "").lstrip("/"))
+        ]
+        response = {"updated": resource}
+        return response
+
+    syncer_obj.arborist_client.update_resource = MagicMock(side_effect=mocked_update)
+
     syncer_obj.arborist_client.get_policy.side_effect = lambda _: None
+
+    syncer_obj.arborist_client._user_url = "/user"
 
     for element in provider:
         udm.create_provider(db_session, element["name"], backend=element["backend"])

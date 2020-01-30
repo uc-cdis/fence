@@ -14,7 +14,7 @@ def create_access_token(user, keypair, api_key, expires_in, scopes):
         if not set(claims["aud"]).issuperset(scopes):
             raise JWTError("cannot issue access token with scope beyond refresh token")
     except Exception as e:
-        return flask.jsonify({"errors": e.message})
+        return flask.jsonify({"errors": str(e)})
     return token.generate_signed_access_token(
         keypair.kid, keypair.private_key, user, expires_in, scopes
     ).token
@@ -57,7 +57,7 @@ def create_user_access_token(keypair, api_key, expires_in):
         scopes = claims["aud"]
         user = get_user_from_claims(claims)
     except Exception as e:
-        raise Unauthorized(e.message)
+        raise Unauthorized(str(e))
     return token.generate_signed_access_token(
         keypair.kid, keypair.private_key, user, expires_in, scopes
     ).token

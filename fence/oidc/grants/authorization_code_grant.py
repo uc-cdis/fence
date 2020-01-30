@@ -1,11 +1,11 @@
 import bcrypt
 
 from authlib.common.security import generate_token
-from authlib.specs.rfc6749.errors import InvalidClientError, UnauthorizedClientError
-from authlib.specs.rfc6749.grants import (
-    AuthorizationCodeGrant as AuthlibAuthorizationCodeGrant
+from authlib.oauth2.rfc6749.errors import InvalidClientError, UnauthorizedClientError
+from authlib.oauth2.rfc6749.grants import (
+    AuthorizationCodeGrant as AuthlibAuthorizationCodeGrant,
 )
-from authlib.specs.rfc6749.util import get_obj_value
+from authlib.oauth2.rfc6749.util import get_obj_value
 import flask
 
 from fence.models import AuthorizationCode
@@ -135,7 +135,9 @@ class AuthorizationCodeGrant(AuthlibAuthorizationCodeGrant):
             # Client secrets are stored as hash.
             hashed = client.client_secret
             if (
-                bcrypt.hashpw(client_secret.encode("utf-8"), hashed.encode("utf-8"))
+                bcrypt.hashpw(
+                    client_secret.encode("utf-8"), hashed.encode("utf-8")
+                ).decode("utf-8")
                 != hashed
             ):
                 raise InvalidClientError(uri=self.uri)

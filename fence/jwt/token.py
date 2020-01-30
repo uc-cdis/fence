@@ -3,7 +3,7 @@ import time
 import uuid
 
 from authlib.common.encoding import to_unicode
-from authlib.specs.oidc import CodeIDToken as AuthlibCodeIDToken
+from authlib.oidc.core import CodeIDToken as AuthlibCodeIDToken
 from cdislogging import get_logger
 import flask
 import jwt
@@ -169,9 +169,7 @@ def generate_signed_session_token(kid, private_key, expires_in, context=None):
         "jti": str(uuid.uuid4()),
         "context": context,
     }
-    logger.debug(
-        "issuing JWT session token\n" + json.dumps(claims, indent=4)
-    )
+    logger.debug("issuing JWT session token\n" + json.dumps(claims, indent=4))
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
     token = to_unicode(token, "UTF-8")
 
@@ -192,6 +190,7 @@ def generate_signed_id_token(
     auth_time=None,
     max_age=None,
     nonce=None,
+    include_project_access=True,
     **kwargs
 ):
     """
@@ -220,6 +219,7 @@ def generate_signed_id_token(
         user,
         expires_in,
         client_id,
+        include_project_access=include_project_access,
         audiences=audiences,
         auth_time=auth_time,
         max_age=max_age,
@@ -270,13 +270,8 @@ def generate_signed_refresh_token(
         "azp": client_id or "",
     }
 
-    if flask.current_app:
-        logger.info(
-            "issuing JWT refresh token with id [{}] to [{}]".format(jti, sub)
-        )
-        logger.debug(
-            "issuing JWT refresh token\n" + json.dumps(claims, indent=4)
-        )
+    logger.info("issuing JWT refresh token with id [{}] to [{}]".format(jti, sub))
+    logger.debug("issuing JWT refresh token\n" + json.dumps(claims, indent=4))
 
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
     token = to_unicode(token, "UTF-8")
@@ -313,12 +308,8 @@ def generate_api_key(kid, private_key, user_id, expires_in, scopes, client_id):
         "jti": jti,
         "azp": client_id or "",
     }
-    logger.info(
-        "issuing JWT API key with id [{}] to [{}]".format(jti, sub)
-    )
-    logger.debug(
-        "issuing JWT API key\n" + json.dumps(claims, indent=4)
-    )
+    logger.info("issuing JWT API key with id [{}] to [{}]".format(jti, sub))
+    logger.debug("issuing JWT API key\n" + json.dumps(claims, indent=4))
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
     logger.debug(str(token))
     token = to_unicode(token, "UTF-8")
@@ -335,6 +326,7 @@ def generate_signed_access_token(
     forced_exp_time=None,
     client_id=None,
     linked_google_email=None,
+    include_project_access=True,
 ):
     """
     Generate a JWT access token and output a UTF-8
@@ -364,7 +356,6 @@ def generate_signed_access_token(
                 "must provide value for `iss` (issuer) field if"
                 " running outside of flask application"
             )
-    policies = [policy.id for policy in user.policies]
 
     claims = {
         "pur": "access",
@@ -378,13 +369,36 @@ def generate_signed_access_token(
             "user": {
                 "name": user.username,
                 "is_admin": user.is_admin,
-                "projects": dict(user.project_access),
-                "policies": policies,
                 "google": {"proxy_group": user.google_proxy_group_id},
             }
         },
         "azp": client_id or "",
     }
+
+    if include_project_access:
+        # NOTE: "THIS IS A TERRIBLE STOP-GAP SOLUTION SO THAT USERS WITH
+        #       MINIMAL ACCESS CAN STILL USE LATEST VERSION OF FENCE
+        #       WITH VERSIONS OF PEREGRINE/SHEEPDOG THAT DO NOT CURENTLY
+        #       SUPPORT AUTHORIZATION CHECKS AGAINST ARBORIST (AND INSTEAD
+        #       RELY ON THE PROJECTS IN THE TOKEN). If the token is too large
+        #       everything breaks. I'm sorry" --See PXP-3717
+        if len(dict(user.project_access)) < config["TOKEN_PROJECTS_CUTOFF"]:
+            claims["context"]["user"]["projects"] = dict(user.project_access)
+        else:
+            # truncate to configured number of projects in token
+            projects = dict(user.project_access)
+            for key in list(projects)[config["TOKEN_PROJECTS_CUTOFF"] :]:
+                del projects[key]
+            claims["context"]["user"]["projects"] = projects
+            logger.warning(
+                "NOT including project_access = {} in claims for user {} because there are too many projects for the token\n".format(
+                    {
+                        k: dict(user.project_access)[k]
+                        for k in set(dict(user.project_access)) - set(projects)
+                    },
+                    user.username,
+                )
+            )
 
     # only add google linkage information if provided
     if linked_google_email:
@@ -392,13 +406,8 @@ def generate_signed_access_token(
             "linked_google_account"
         ] = linked_google_email
 
-    if flask.current_app:
-        logger.info(
-            "issuing JWT access token with id [{}] to [{}]".format(jti, sub)
-        )
-        logger.debug(
-            "issuing JWT access token\n" + json.dumps(claims, indent=4)
-        )
+    logger.info("issuing JWT access token with id [{}] to [{}]".format(jti, sub))
+    logger.debug("issuing JWT access token\n" + json.dumps(claims, indent=4))
 
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
     token = to_unicode(token, "UTF-8")
@@ -418,6 +427,7 @@ def generate_id_token(
     auth_time=None,
     max_age=None,
     nonce=None,
+    include_project_access=True,
     **kwargs
 ):
     """
@@ -452,7 +462,6 @@ def generate_id_token(
 
     # If not provided, assume auth time is time this ID token is issued
     auth_time = auth_time or iat
-    policies = [policy.id for policy in user.policies]
 
     # NOTE: if the claims here are modified, be sure to update the
     # `claims_supported` field returned from the OIDC configuration endpoint
@@ -472,8 +481,6 @@ def generate_id_token(
             "user": {
                 "name": user.username,
                 "is_admin": user.is_admin,
-                "projects": dict(user.project_access),
-                "policies": policies,
                 "email": user.email,
                 "display_name": user.display_name,
                 "phone_number": user.phone_number,
@@ -498,9 +505,10 @@ def generate_id_token(
     if nonce:
         claims["nonce"] = nonce
 
-    logger.info(
-        "issuing JWT ID token\n" + json.dumps(claims, indent=4)
-    )
+    if include_project_access:
+        claims["context"]["user"]["projects"] = dict(user.project_access)
+
+    logger.info("issuing JWT ID token\n" + json.dumps(claims, indent=4))
 
     token_options = {
         "iss": {"essential": True, "value": config.get("BASE_URL")},

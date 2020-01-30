@@ -24,7 +24,9 @@ def test_oauth2_authorize(oauth_test_client, method):
 def test_oauth2_authorize_incorrect_scope(oauth_test_client, method):
     """Test ``/oauth2/authorize``."""
     data = {"confirm": "yes", "scope": "openid wrong_code"}
-    auth_response = oauth_test_client.authorize(method=method, data=data, do_asserts=False)
+    auth_response = oauth_test_client.authorize(
+        method=method, data=data, do_asserts=False
+    )
     assert auth_response.response.status_code == 401
 
 
@@ -83,4 +85,4 @@ def test_oauth2_token_post_revoke(oauth_test_client):
     refresh_token = oauth_test_client.token_response.refresh_token
     oauth_test_client.refresh(refresh_token, do_asserts=False)
     response = oauth_test_client.refresh_response.response
-    assert response.status_code == 401
+    assert response.status_code == 400

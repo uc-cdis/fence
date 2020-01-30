@@ -5,7 +5,7 @@ from collections import Mapping
 from fence.errors import NotFound
 
 from fence.resources.google.utils import (
-    get_registered_service_accounts,
+    get_registered_service_accounts_with_access,
     get_project_access_from_service_accounts,
     get_users_from_google_members,
     get_service_account_ids_from_google_members,
@@ -73,7 +73,7 @@ class ValidityInfo(Mapping):
         return key in self._info
 
     def __iter__(self):
-        for key, value in self._info.iteritems():
+        for key, value in self._info.items():
             yield key, value
 
     def __getitem__(self, key):
@@ -86,9 +86,6 @@ class ValidityInfo(Mapping):
         return len(self._info)
 
     def __bool__(self):
-        return self._valid
-
-    def __nonzero__(self):
         return self._valid
 
     def __repr__(self):
@@ -248,7 +245,7 @@ class GoogleProjectValidity(ValidityInfo):
                 "INVALID Fence's Monitoring service account does "
                 "NOT have access in project id {}. Monitor needs access to continue "
                 "checking project validity. Exiting early and determining invalid.".format(
-                    self.user_id, self.google_project_id
+                    self.google_project_id
                 )
             )
             return
@@ -321,7 +318,10 @@ class GoogleProjectValidity(ValidityInfo):
         user_members = None
         service_account_members = []
         try:
-            user_members, service_account_members = get_google_project_valid_users_and_service_accounts(
+            (
+                user_members,
+                service_account_members,
+            ) = get_google_project_valid_users_and_service_accounts(
                 self.google_project_id, self.google_cloud_manager, membership=membership
             )
             self.set("valid_member_types", True)
@@ -347,7 +347,7 @@ class GoogleProjectValidity(ValidityInfo):
                 self.set("members_exist_in_fence", False)
                 logger.warning(
                     "INVALID user(s) do not exist in fence and thus, "
-                    "we cannot determine their authZ info: {}.".format(e.message)
+                    "we cannot determine their authZ info: {}.".format(e)
                 )
                 if early_return:
                     return
@@ -476,16 +476,34 @@ class GoogleProjectValidity(ValidityInfo):
 
         # get the service accounts for the project to determine all the data
         # the project can access through the service accounts
-        service_accounts = get_registered_service_accounts(
+        service_accounts = get_registered_service_accounts_with_access(
             self.google_project_id, db=db
         )
+
+        # don't double check service account being updated if it was previously registered
+        # in other words, this may be an update of existing access (from A&B to just A)
+        # so we need to ONLY validate the new access (which happens below when the project
+        # access list is extended with new access requested)
+        if self.new_service_account:
+            logger.debug(
+                "Removing new/updated SA {} from list of existing SAs in order "
+                "to only validate the newly requested access.".format(
+                    self.new_service_account
+                )
+            )
+            service_accounts = [
+                sa
+                for sa in service_accounts
+                if sa.email.lower() != str(self.new_service_account).lower()
+            ]
+
         service_account_project_access = get_project_access_from_service_accounts(
             service_accounts, db=db
         )
 
         logger.debug(
             "Registered SAs {} current have project access: {}".format(
-                service_accounts, service_account_project_access
+                [sa.email for sa in service_accounts], service_account_project_access
             )
         )
 

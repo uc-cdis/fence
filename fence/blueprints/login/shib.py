@@ -1,13 +1,17 @@
+from cdislogging import get_logger
 import flask
 from flask_restful import Resource
 
 from fence.auth import login_user
+from fence.blueprints.login.redirect import validate_redirect
 from fence.errors import InternalError, Unauthorized
 from fence.models import IdentityProvider
 from fence.config import config
 
+logger = get_logger(__name__)
 
-class ShibbolethLoginStart(Resource):
+
+class ShibbolethLogin(Resource):
     def get(self):
         """
         The login flow is:
@@ -20,28 +24,58 @@ class ShibbolethLoginStart(Resource):
         -> redirect to portal
         """
         redirect_url = flask.request.args.get("redirect")
+        validate_redirect(redirect_url)
         if redirect_url:
             flask.session["redirect"] = redirect_url
+
+        # figure out which IDP to target with shibboleth
+        # check out shibboleth docs here for more info:
+        # https://wiki.shibboleth.net/confluence/display/SP3/SSO
+        entityID = flask.request.args.get("shib_idp")
+        flask.session["entityID"] = entityID
+        # TODO: use OPENID_CONNECT.shibboleth.redirect_url instead of hardcoded
         actual_redirect = config["BASE_URL"] + "/login/shib/login"
-        return flask.redirect(config["SSO_URL"] + actual_redirect)
+        if not entityID or entityID == "urn:mace:incommon:nih.gov":
+            # default to SSO_URL from the config which should be NIH login
+            return flask.redirect(config["SSO_URL"] + actual_redirect)
+        return flask.redirect(
+            config["BASE_URL"]
+            + "/Shibboleth.sso/Login?entityID={}&target={}".format(
+                entityID, actual_redirect
+            )
+        )
 
 
-class ShibbolethLoginFinish(Resource):
+class ShibbolethCallback(Resource):
     def get(self):
         """
         Complete the shibboleth login.
         """
-
-        if "SHIBBOLETH_HEADER" in config:
-            eppn = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
-
-        else:
+        shib_header = config.get("SHIBBOLETH_HEADER")
+        if not shib_header:
             raise InternalError("Missing shibboleth header configuration")
-        username = eppn.split("!")[-1] if eppn else None
-        if username:
-            login_user(flask.request, username, IdentityProvider.itrust)
-            if flask.session.get("redirect"):
-                return flask.redirect(flask.session.get("redirect"))
-            return "logged in"
-        else:
-            raise Unauthorized("Please login")
+
+        # eppn stands for eduPersonPrincipalName
+        username = flask.request.headers.get("eppn")
+        entityID = flask.session.get("entityID")
+
+        # if eppn not available or logging in through NIH
+        if not username or not entityID or entityID == "urn:mace:incommon:nih.gov":
+            persistent_id = flask.request.headers.get(shib_header)
+            username = persistent_id.split("!")[-1] if persistent_id else None
+            if not username:
+                # some inCommon providers are not returning eppn
+                # or persistent_id. See PXP-4309
+                # print("shib_header", shib_header)
+                # print("flask.request.headers", flask.request.headers)
+                raise Unauthorized("Unable to retrieve username")
+
+        idp = IdentityProvider.itrust
+        if entityID:
+            idp = entityID
+        login_user(flask.request, username, idp)
+
+        if flask.session.get("redirect"):
+            return flask.redirect(flask.session.get("redirect"))
+
+        return "logged in"

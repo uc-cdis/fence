@@ -1,9 +1,10 @@
 import re
 import time
-from urlparse import urlparse
+from urllib.parse import urlparse
 
 from cached_property import cached_property
 import cirrus
+from cirrus import GoogleCloudManager
 from cdislogging import get_logger
 from cdispyutils.config import get_value
 from cdispyutils.hmac4 import generate_aws_presigned_url
@@ -11,6 +12,8 @@ import flask
 import requests
 
 from fence.auth import (
+    get_jwt,
+    has_oauth,
     current_token,
     login_required,
     set_current_token,
@@ -30,9 +33,10 @@ from fence.resources.google.utils import (
     create_primary_service_account_key,
     get_or_create_proxy_group_id,
     get_google_app_creds,
+    give_service_account_billing_access_if_necessary,
 )
 from fence.utils import get_valid_expiration_from_request
-import multipart_upload
+from . import multipart_upload
 
 
 logger = get_logger(__name__)
@@ -50,6 +54,7 @@ ANONYMOUS_USERNAME = "anonymous"
 
 def get_signed_url_for_file(action, file_id):
     requested_protocol = flask.request.args.get("protocol", None)
+    r_pays_project = flask.request.args.get("userProject", None)
 
     # default to signing the url even if it's a public object
     # this will work so long as we're provided a user token
@@ -64,7 +69,11 @@ def get_signed_url_for_file(action, file_id):
         expires_in = min(requested_expires_in, expires_in)
 
     signed_url = indexed_file.get_signed_url(
-        requested_protocol, action, expires_in, force_signed_url=force_signed_url
+        requested_protocol,
+        action,
+        expires_in,
+        force_signed_url=force_signed_url,
+        r_pays_project=r_pays_project,
     )
     return {"url": signed_url}
 
@@ -162,7 +171,7 @@ class BlankIndex(object):
 
         Args:
             key(str): object key
-        
+
         Returns:
             uploadId(str)
         """
@@ -209,7 +218,7 @@ class BlankIndex(object):
             key(str): object key of `guid/filename`
             uploadID(str): uploadId of the current upload.
             partNumber(int): the part number
-        
+
         Returns:
             presigned_url(str)
         """
@@ -293,18 +302,26 @@ class IndexedFile(object):
         urls = self.index_document.get("urls", [])
         return list(map(IndexedFileLocation.from_url, urls))
 
-    def get_signed_url(self, protocol, action, expires_in, force_signed_url=True):
+    def get_signed_url(
+        self, protocol, action, expires_in, force_signed_url=True, r_pays_project=None
+    ):
         if self.public and action == "upload":
             raise Unauthorized("Cannot upload on public files")
         # don't check the authorization if the file is public
         # (downloading public files with no auth is fine)
         if not self.public and not self.check_authorization(action):
-            raise Unauthorized("You don't have access permission on this file")
+            raise Unauthorized(
+                "You don't have access permission on this file: {}".format(self.file_id)
+            )
         if action is not None and action not in SUPPORTED_ACTIONS:
             raise NotSupported("action {} is not supported".format(action))
-        return self._get_signed_url(protocol, action, expires_in, force_signed_url)
+        return self._get_signed_url(
+            protocol, action, expires_in, force_signed_url, r_pays_project
+        )
 
-    def _get_signed_url(self, protocol, action, expires_in, force_signed_url):
+    def _get_signed_url(
+        self, protocol, action, expires_in, force_signed_url, r_pays_project
+    ):
         if not protocol:
             # no protocol specified, return first location as signed url
             try:
@@ -313,6 +330,7 @@ class IndexedFile(object):
                     expires_in,
                     public_data=self.public,
                     force_signed_url=force_signed_url,
+                    r_pays_project=r_pays_project,
                 )
             except IndexError:
                 raise NotFound("Can't find any file locations.")
@@ -327,6 +345,7 @@ class IndexedFile(object):
                     expires_in,
                     public_data=self.public,
                     force_signed_url=force_signed_url,
+                    r_pays_project=r_pays_project,
                 )
 
         raise NotFound(
@@ -343,13 +362,26 @@ class IndexedFile(object):
         else:
             raise Unauthorized("This file is not accessible")
 
+    def check_authz(self, action):
+        if not self.index_document.get("authz"):
+            raise ValueError("index record missing `authz`")
+
+        return flask.current_app.arborist.auth_request(
+            jwt=get_jwt(),
+            service="fence",
+            methods=action,
+            resources=self.index_document["authz"],
+        )
+
     @cached_property
     def metadata(self):
         return self.index_document.get("metadata", {})
 
     @cached_property
     def public(self):
-        return check_public(self.set_acls)
+        authz_resources = list(self.set_acls)
+        authz_resources.extend(self.index_document.get("authz", []))
+        return "*" in authz_resources or "/open" in authz_resources
 
     @login_required({"data"})
     def check_authorization(self, action):
@@ -364,12 +396,21 @@ class IndexedFile(object):
                 username = flask.g.user.username
             return self.index_document.get("uploader") == username
 
-        if flask.g.token is None:
-            given_acls = set(filter_auth_ids(action, flask.g.user.project_access))
-        else:
-            given_acls = set(
-                filter_auth_ids(action, flask.g.token["context"]["user"]["projects"])
+        try:
+            action_to_method = {"upload": "write-storage", "download": "read-storage"}
+            method = action_to_method[action]
+            # action should be upload or download
+            # return bool for authorization
+            return self.check_authz(method)
+        except ValueError:
+            # this is ok; we'll default to ACL field (previous behavior)
+            # may want to deprecate in future
+            logger.info(
+                "Couldn't find `authz` field on indexd record, falling back to `acl`."
             )
+
+        given_acls = set(filter_auth_ids(action, flask.g.user.project_access))
+
         return len(self.set_acls & given_acls) > 0
 
     @login_required({"data"})
@@ -438,7 +479,7 @@ class IndexedFileLocation(object):
         return IndexedFileLocation(url)
 
     def get_signed_url(
-        self, action, expires_in, public_data=False, force_signed_url=True
+        self, action, expires_in, public_data=False, force_signed_url=True, **kwargs
     ):
         return self.url
 
@@ -548,7 +589,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             return bucket_cred["region"]
 
     def get_signed_url(
-        self, action, expires_in, public_data=False, force_signed_url=True
+        self, action, expires_in, public_data=False, force_signed_url=True, **kwargs
     ):
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
@@ -654,7 +695,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
     def complete_multipart_upload(self, uploadId, parts, expires_in):
         """
         Complete multipart upload.
-        
+
         Args:
             uploadId(str): upload id of the current upload
             parts(list(set)): List of part infos
@@ -679,11 +720,16 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
 class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     """
-    And indexed file that lives in a Google Storage bucket.
+    An indexed file that lives in a Google Storage bucket.
     """
 
     def get_signed_url(
-        self, action, expires_in, public_data=False, force_signed_url=True
+        self,
+        action,
+        expires_in,
+        public_data=False,
+        force_signed_url=True,
+        r_pays_project=None,
     ):
         resource_path = (
             self.parsed_url.netloc.strip("/") + "/" + self.parsed_url.path.strip("/")
@@ -706,12 +752,13 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                 expiration_time,
                 user_info.get("user_id"),
                 user_info.get("username"),
+                r_pays_project=r_pays_project,
             )
 
         return url
 
     def _generate_anonymous_google_storage_signed_url(
-        self, http_verb, resource_path, expiration_time
+        self, http_verb, resource_path, expiration_time, r_pays_project=None
     ):
         # we will use the main fence SA service account to sign anonymous requests
         private_key = get_google_app_creds()
@@ -723,11 +770,18 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             content_type="",
             md5_value="",
             service_account_creds=private_key,
+            requester_pays_user_project=r_pays_project,
         )
         return final_url
 
     def _generate_google_storage_signed_url(
-        self, http_verb, resource_path, expiration_time, user_id, username
+        self,
+        http_verb,
+        resource_path,
+        expiration_time,
+        user_id,
+        username,
+        r_pays_project=None,
     ):
         proxy_group_id = get_or_create_proxy_group_id()
 
@@ -750,6 +804,17 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                 user_id=user_id, username=username, proxy_group_id=proxy_group_id
             )
 
+        if config["ENABLE_AUTOMATIC_BILLING_PERMISSION_SIGNED_URLS"]:
+            give_service_account_billing_access_if_necessary(
+                private_key,
+                r_pays_project,
+                default_billing_project=config["BILLING_PROJECT_FOR_SIGNED_URLS"],
+            )
+
+        # use configured project if it exists and no user project was given
+        if config["BILLING_PROJECT_FOR_SIGNED_URLS"] and not r_pays_project:
+            r_pays_project = config["BILLING_PROJECT_FOR_SIGNED_URLS"]
+
         final_url = cirrus.google_cloud.utils.get_signed_url(
             resource_path,
             http_verb,
@@ -758,6 +823,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             content_type="",
             md5_value="",
             service_account_creds=private_key,
+            requester_pays_user_project=r_pays_project,
         )
         return final_url
 
@@ -794,12 +860,7 @@ def filter_auth_ids(action, list_auth_ids):
     elif action == "upload":
         checked_permission = "write-storage"
     authorized_dbgaps = []
-    for key, values in list_auth_ids.items():
+    for key, values in list(list_auth_ids.items()):
         if checked_permission in values:
             authorized_dbgaps.append(key)
     return authorized_dbgaps
-
-
-def check_public(set_acls):
-    if "*" in set_acls:
-        return True

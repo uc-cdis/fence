@@ -10,13 +10,14 @@ echo '<virtualhost *:80>
     <directory "/google_job/status.json">
       require all granted
     </directory>
-</virtualhost>' >/etc/apache2/sites-available/fence.conf
-rm -rf /var/run/apache2/apache2.pid
-/usr/sbin/apache2ctl start
+</virtualhost>' >/etc/nginx/sites-available/fence.conf
+
+rm -rf /var/run/nginx.pid
+/fence/dockerrun.bash
+
 while [ $? -eq 0 ]; do
     echo start validation $(date)
     fence-create google-manage-user-registrations
     echo finish validation $(date)
     echo {\"last_run\": \"$(date)\"} >/google_job/status.json
 done
-

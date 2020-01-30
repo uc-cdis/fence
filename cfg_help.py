@@ -39,11 +39,11 @@ NOTE: If using in production with wsgi.py, fence will still look for
 
 """
 import argparse
-import glob
 import os
 from os.path import expanduser
 from shutil import copyfile
 import sys
+from gen3config import config
 
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 LOCAL_CONFIG_FOLDER = "{}/.gen3/fence".format(expanduser("~"))
@@ -106,7 +106,9 @@ def create_config_file(file_name, full_path=None):
 def get_config_file(file_name):
     search_folders = [LOCAL_CONFIG_FOLDER]
     try:
-        config_path = get_config_path(search_folders, file_name=file_name)
+        config_path = config.get_config_path(
+            search_folders=search_folders, file_name=file_name
+        )
     except IOError:
         raise IOError(
             "Config file {file_name} could not be found in the search "
@@ -117,36 +119,6 @@ def get_config_file(file_name):
         )
 
     return config_path
-
-
-def get_config_path(search_folders, file_name="*config.yaml"):
-    """
-    Return the path of a single configuration file ending in config.yaml
-    from one of the search folders.
-
-    NOTE: Will return the first match it finds. If multiple are found,
-    this will error out.
-    """
-    possible_configs = []
-
-    for folder in search_folders:
-        possible_configs.extend(glob.glob(os.path.join(folder, file_name)))
-
-    if not possible_configs:
-        raise IOError(
-            "Could not find config.yaml. Searched in the following locations: "
-            "{}".format(str(search_folders))
-        )
-
-    if len(possible_configs) > 1:
-        raise IOError(
-            "Multiple config.yaml files found: {}. Please specify which "
-            'configuration to use with "python run.py -c some-config.yaml".'.format(
-                str(possible_configs)
-            )
-        )
-
-    return possible_configs[0]
 
 
 if __name__ == "__main__":

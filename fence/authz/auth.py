@@ -8,10 +8,10 @@ from fence.jwt.utils import get_jwt_header
 
 def check_arborist_auth(resource, method, constraints=None):
     """
-    Check with arborist to verify the RBAC for a request.
+    Check with arborist to verify the authz for a request.
 
     TODO (rudyardrichter, 2018-12-21):
-    update as necessary as changes happen to RBAC & arborist
+    update as necessary as changes happen to ABAC & arborist
 
     Args:
         resource (str):
@@ -36,19 +36,15 @@ def check_arborist_auth(resource, method, constraints=None):
         def wrapper(*f_args, **f_kwargs):
             if not hasattr(flask.current_app, "arborist"):
                 raise Forbidden(
-                    "this fence instance is not configured for role-based access"
-                    " control; this endpoint is unavailable"
+                    "this fence instance is not configured with arborist;"
+                    " this endpoint is unavailable"
                 )
-
-            jwt = get_jwt_header()
-            data = {
-                "user": {"token": jwt},
-                "request": {
-                    "resource": resource,
-                    "action": {"service": "fence", "method": method},
-                },
-            }
-            if not flask.current_app.arborist.auth_request(data=data):
+            if not flask.current_app.arborist.auth_request(
+                jwt=get_jwt_header(),
+                service="fence",
+                methods=method,
+                resources=resource,
+            ):
                 raise Forbidden("user does not have privileges to access this endpoint")
             return f(*f_args, **f_kwargs)
 

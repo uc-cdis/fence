@@ -1,7 +1,7 @@
 import flask
 from flask_sqlalchemy_session import current_session
 from functools import wraps
-import urllib
+import urllib.request, urllib.parse, urllib.error
 
 from authutils.errors import JWTError, JWTExpiredError
 from authutils.token.validate import (
@@ -20,6 +20,25 @@ from fence.utils import clear_cookies
 from fence.config import config
 
 logger = get_logger(__name__)
+
+
+def get_jwt():
+    """
+    Return the user's JWT from authorization header. Requires flask application context.
+
+    Raises:
+        - Unauthorized, if header is missing or not in the correct format
+    """
+    header = flask.request.headers.get("Authorization")
+    if not header:
+        raise Unauthorized("missing authorization header")
+    try:
+        bearer, token = header.split(" ")
+    except ValueError:
+        raise Unauthorized("authorization header not in expected format")
+    if bearer.lower() != "bearer":
+        raise Unauthorized("expected bearer token in auth header")
+    return token
 
 
 def build_redirect_url(hostname, path):
@@ -80,16 +99,16 @@ def logout(next_url):
     provider_logout = None
     provider = flask.session.get("provider")
     if provider == IdentityProvider.itrust:
-        safe_url = urllib.quote_plus(next_url)
+        safe_url = urllib.parse.quote_plus(next_url)
         provider_logout = config["ITRUST_GLOBAL_LOGOUT"] + safe_url
     elif provider == IdentityProvider.fence:
         base = config["OPENID_CONNECT"]["fence"]["api_base_url"]
-        safe_url = urllib.quote_plus(next_url)
-        provider_logout = base + "/logout?" + urllib.urlencode({"next": safe_url})
+        safe_url = urllib.parse.quote_plus(next_url)
+        provider_logout = base + "/logout?" + urllib.parse.urlencode({"next": safe_url})
 
     flask.session.clear()
     redirect_response = flask.make_response(
-        flask.redirect(provider_logout or urllib.unquote(next_url))
+        flask.redirect(provider_logout or urllib.parse.unquote(next_url))
     )
     clear_cookies(redirect_response)
     return redirect_response
@@ -126,7 +145,16 @@ def login_required(scope=None):
                 return f(*args, **kwargs)
 
             eppn = None
-            enable_shib = "shibboleth" in config.get("ENABLED_IDENTITY_PROVIDERS", [])
+            if config["LOGIN_OPTIONS"]:
+                enable_shib = "shibboleth" in [
+                    option["idp"] for option in config["LOGIN_OPTIONS"]
+                ]
+            else:
+                # fall back on "providers"
+                enable_shib = "shibboleth" in config.get(
+                    "ENABLED_IDENTITY_PROVIDERS", {}
+                ).get("providers", {})
+
             if enable_shib and "SHIBBOLETH_HEADER" in config:
                 eppn = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
 

@@ -8,15 +8,14 @@ from fence.models import User
 from fence.jwt.keys import default_public_key
 from fence.jwt.validate import validate_jwt
 
-# Python 2 and 3 compatible
-try:
-    from unittest.mock import MagicMock
-    from unittest.mock import patch
-    from unittest.mock import call
-except ImportError:
-    from mock import MagicMock
-    from mock import patch
-    from mock import call
+from unittest.mock import MagicMock, patch, call
+
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def mock_arborist(mock_arborist_requests):
+    mock_arborist_requests()
 
 
 def test_session_cookie_creation(app):
@@ -268,9 +267,7 @@ def test_valid_session_valid_access_token_diff_user(
 
 def _get_cookies_from_response(response):
     raw_cookies = [
-        header[1]
-        for header in response.headers.iteritems()
-        if header[0] == "Set-Cookie"
+        header[1] for header in response.headers.items() if header[0] == "Set-Cookie"
     ]
     cookies = {}
     for cookie in raw_cookies:

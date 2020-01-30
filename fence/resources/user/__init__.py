@@ -2,11 +2,15 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import COMMASPACE, formatdate
+
+from cdislogging import get_logger
 import flask
+
 from fence.resources import userdatamodel as udm
 from fence.resources.google.utils import (
     get_linked_google_account_email,
     get_linked_google_account_exp,
+    get_service_account,
 )
 from fence.resources.userdatamodel import get_user_groups
 import smtplib
@@ -14,6 +18,10 @@ import smtplib
 from fence.errors import NotFound, UserError, InternalError
 from fence.models import query_for_user
 from fence.config import config
+from gen3authz.client.arborist.errors import ArboristError
+
+
+logger = get_logger(__name__)
 
 
 def update_user_resource(username, resource):
@@ -83,6 +91,26 @@ def get_user_info(current_session, username):
         "message": "",
     }
 
+    # User SAs are stored in db with client_id = None
+    primary_service_account = get_service_account(client_id=None, user_id=user.id) or {}
+    primary_service_account_email = getattr(primary_service_account, "email", None)
+    info["primary_google_service_account"] = primary_service_account_email
+
+    if hasattr(flask.current_app, "arborist"):
+        try:
+            resources = flask.current_app.arborist.list_resources_for_user(
+                user.username
+            )
+            auth_mapping = flask.current_app.arborist.auth_mapping(user.username)
+        except ArboristError:
+            logger.error(
+                "request to arborist for user's resources failed; going to list empty"
+            )
+            resources = []
+            auth_mapping = {}
+        info["resources"] = resources
+        info["authz"] = auth_mapping
+
     if user.tags is not None and len(user.tags) > 0:
         info["tags"] = {tag.key: tag.value for tag in user.tags}
 
@@ -105,7 +133,7 @@ def get_user_info(current_session, username):
 
 def _get_optional_userinfo(user, claims):
     info = {}
-    for claim, claim_request in claims.iteritems():
+    for claim in claims:
         if claim == "linked_google_account":
             google_email = get_linked_google_account_email(user.id)
             info["linked_google_account"] = google_email

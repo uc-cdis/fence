@@ -5,6 +5,8 @@ import os
 import sys
 import logging
 
+from cdislogging import get_logger
+
 from fence.jwt import keys
 from fence.config import config
 from fence.scripting.fence_create import (
@@ -28,7 +30,12 @@ from fence.scripting.fence_create import (
     verify_bucket_access_group,
     verify_user_registration,
     force_update_google_link,
+    migrate_database,
+    google_list_authz_groups,
 )
+from fence.settings import CONFIG_SEARCH_FOLDERS
+
+from gen3authz.client.arborist.client import ArboristClient
 
 
 def str2bool(v):
@@ -46,16 +53,15 @@ def parse_arguments():
         "--path", default="/var/www/fence/", help="path to find configuration"
     )
     parser.add_argument(
-        "--verbose",
-        help="whether or not to log to stdout",
-        action="store_true",
-        default=False,
+        "--arborist",
+        help="the base URL for the arborist service to sync to",
+        default=None,
     )
 
     subparsers = parser.add_subparsers(title="action", dest="action")
 
     create = subparsers.add_parser("create")
-    create.add_argument("yaml-input")
+    create.add_argument("yaml-file-path", help="Path to a YAML file")
 
     client_create = subparsers.add_parser("client-create")
     client_create.add_argument("--client", required=True)
@@ -88,6 +94,9 @@ def parse_arguments():
         action="store_true",
         default=False,
     )
+    client_create.add_argument(
+        "--policies", help="which ABAC policies are granted to this client", nargs="*"
+    )
 
     client_modify = subparsers.add_parser("client-modify")
     client_modify.add_argument("--client", required=True)
@@ -108,6 +117,12 @@ def parse_arguments():
     )
     client_modify.add_argument(
         "--delete-urls", help="delete all urls", action="store_true", default=False
+    )
+    client_modify.add_argument(
+        "--policies",
+        help="which ABAC policies are granted to this client; if given, "
+        "previous policies will be revoked",
+        nargs="*",
     )
 
     client_list = subparsers.add_parser("client-list")
@@ -292,6 +307,14 @@ def parse_arguments():
         help="Google Project id that all users belong to",
     )
 
+    subparsers.add_parser("migrate", help="Migrate the fence database")
+    subparsers.add_parser(
+        "google-list-authz-groups",
+        help="List the Google Buckets "
+        "Fence is providing access to. Includes Fence Project.auth_id and Google Bucket "
+        "Access Group",
+    )
+
     return parser.parse_args()
 
 
@@ -300,9 +323,6 @@ def main():
 
     # get database information
     sys.path.append(args.path)
-
-    if not args.verbose:
-        logging.disable(logging.DEBUG)
 
     # replicate cfg loading done in flask app to maintain backwards compatibility
     # TODO (DEPRECATE LOCAL_SETTINGS): REMOVE this when putting cfg in
@@ -315,7 +335,7 @@ def main():
 
     # END - TODO (DEPRECATE LOCAL_SETTINGS): REMOVE
 
-    config.load()
+    config.load(search_folders=CONFIG_SEARCH_FOLDERS)
 
     DB = os.environ.get("FENCE_DB") or config.get("DB")
 
@@ -336,8 +356,16 @@ def main():
         "STORAGE_CREDENTIALS"
     )
 
+    arborist = None
+    if args.arborist:
+        arborist = ArboristClient(
+            arborist_base_url=args.arborist,
+            logger=get_logger("user_syncer.arborist_client"),
+            authz_provider="user-sync",
+        )
+
     if args.action == "create":
-        yaml_input = args.__dict__["yaml-input"]
+        yaml_input = args.__dict__["yaml-file-path"]
         create_sample_data(DB, yaml_input)
     elif args.action == "client-create":
         confidential = not args.public
@@ -349,6 +377,8 @@ def main():
             auto_approve=args.auto_approve,
             grant_types=args.grant_types,
             confidential=confidential,
+            arborist=arborist,
+            policies=args.policies,
         )
     elif args.action == "client-modify":
         modify_client_action(
@@ -360,6 +390,8 @@ def main():
             description=args.description,
             set_auto_approve=args.set_auto_approve,
             unset_auto_approve=args.unset_auto_approve,
+            arborist=arborist,
+            policies=args.policies,
         )
     elif args.action == "client-delete":
         delete_client_action(DB, args.client)
@@ -380,7 +412,7 @@ def main():
             is_sync_from_dbgap_server=str2bool(args.sync_from_dbgap),
             sync_from_local_csv_dir=args.csv_dir,
             sync_from_local_yaml_file=args.yaml,
-            arborist=args.arborist,
+            arborist=arborist,
         )
     elif args.action == "google-manage-keys":
         remove_expired_google_service_account_keys(DB)
@@ -417,7 +449,6 @@ def main():
         )
     elif args.action == "link-external-bucket":
         link_external_bucket(DB, name=args.bucket_name)
-
     elif args.action == "link-bucket-to-project":
         link_bucket_to_project(
             DB,
@@ -425,6 +456,8 @@ def main():
             bucket_provider=args.bucket_provider,
             project_auth_id=args.project_auth_id,
         )
+    elif args.action == "google-list-authz-groups":
+        google_list_authz_groups(DB)
     elif args.action == "token-create":
         keys_path = getattr(args, "keys-dir", os.path.join(ROOT_DIR, "keys"))
         keypairs = keys.load_keypairs(keys_path)
@@ -470,6 +503,8 @@ def main():
         notify_problem_users(
             DB, args.emails, args.auth_ids, args.check_linking, args.google_project_id
         )
+    elif args.action == "migrate":
+        migrate_database(DB)
 
 
 if __name__ == "__main__":

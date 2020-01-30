@@ -1,6 +1,6 @@
 import json
 import mock
-import urlparse
+import urllib.parse
 import uuid
 
 import jwt
@@ -13,13 +13,7 @@ from fence.errors import NotSupported
 
 from tests import utils
 
-# Python 2 and 3 compatible
-try:
-    from unittest.mock import MagicMock
-    from unittest.mock import patch
-except ImportError:
-    from mock import MagicMock
-    from mock import patch
+from unittest.mock import MagicMock, patch
 
 
 @pytest.mark.parametrize(
@@ -41,7 +35,6 @@ def test_indexd_download_file(
     Test ``GET /data/download/1``.
     """
     indexed_file_location = indexd_client["indexed_file_location"]
-
     path = "/data/download/1"
     query_string = {"protocol": indexed_file_location}
     headers = {
@@ -53,14 +46,14 @@ def test_indexd_download_file(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        )
+        ).decode("utf-8")
     }
     response = client.get(path, headers=headers, query_string=query_string)
     assert response.status_code == 200
-    assert "url" in response.json.keys()
+    assert "url" in list(response.json.keys())
 
     # defaults to signing url, check that it's not just raw url
-    assert urlparse.urlparse(response.json["url"]).query != ""
+    assert urllib.parse.urlparse(response.json["url"]).query != ""
 
 
 @pytest.mark.parametrize(
@@ -92,11 +85,11 @@ def test_indexd_upload_file(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        )
+        ).decode("utf-8")
     }
     response = client.get(path, headers=headers)
     assert response.status_code == 200
-    assert "url" in response.json.keys()
+    assert "url" in list(response.json.keys())
 
 
 @pytest.mark.parametrize(
@@ -128,11 +121,11 @@ def test_indexd_download_file_no_protocol(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        )
+        ).decode("utf-8")
     }
     response = client.get(path, headers=headers)
     assert response.status_code == 200
-    assert "url" in response.json.keys()
+    assert "url" in list(response.json.keys())
 
 
 def test_indexd_download_file_no_jwt(client, auth_client):
@@ -144,8 +137,8 @@ def test_indexd_download_file_no_jwt(client, auth_client):
     assert response.status_code == 401
 
     # response should not be JSON, should be HTML error page
-    with pytest.raises(ValueError):
-        response.json
+    assert response.mimetype == "text/html"
+    assert not response.json
 
 
 @pytest.mark.parametrize(
@@ -167,8 +160,8 @@ def test_indexd_unauthorized_download_file(
     assert response.status_code == 401
 
     # response should not be JSON, should be HTML error page
-    with pytest.raises(ValueError):
-        response.json
+    assert response.mimetype == "text/html"
+    assert not response.json
 
 
 @pytest.mark.parametrize(
@@ -190,6 +183,27 @@ def test_unauthorized_indexd_download_file(
     Test ``GET /data/download/1``.
     """
     path = "/data/download/1"
+
+    did = str(uuid.uuid4())
+    index_document = {
+        "did": did,
+        "baseid": "",
+        "rev": "",
+        "size": 10,
+        "file_name": "file1",
+        "urls": ["s3://bucket1/key-{}".format(did[:8])],
+        "acl": ["phs000789"],
+        "hashes": {},
+        "metadata": {},
+        "form": "",
+        "created_date": "",
+        "updated_date": "",
+    }
+    mock_index_document = mock.patch(
+        "fence.blueprints.data.indexd.IndexedFile.index_document", index_document
+    )
+    mock_index_document.start()
+
     headers = {
         "Authorization": "Bearer "
         + jwt.encode(
@@ -199,14 +213,16 @@ def test_unauthorized_indexd_download_file(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        )
+        ).decode("utf-8")
     }
     response = client.get(path, headers=headers)
     assert response.status_code == 401
 
     # response should not be JSON, should be HTML error page
-    with pytest.raises(ValueError):
-        response.json
+    assert response.mimetype == "text/html"
+    assert not response.json
+
+    mock_index_document.stop()
 
 
 @pytest.mark.parametrize(
@@ -229,6 +245,27 @@ def test_unauthorized_indexd_upload_file(
     Test ``GET /data/upload/1``.
     """
     path = "/data/upload/1"
+
+    did = str(uuid.uuid4())
+    index_document = {
+        "did": did,
+        "baseid": "",
+        "rev": "",
+        "size": 10,
+        "file_name": "file1",
+        "urls": ["s3://bucket1/key-{}".format(did[:8])],
+        "acl": ["phs000789"],
+        "hashes": {},
+        "metadata": {},
+        "form": "",
+        "created_date": "",
+        "updated_date": "",
+    }
+    mock_index_document = mock.patch(
+        "fence.blueprints.data.indexd.IndexedFile.index_document", index_document
+    )
+    mock_index_document.start()
+
     headers = {
         "Authorization": "Bearer "
         + jwt.encode(
@@ -238,14 +275,16 @@ def test_unauthorized_indexd_upload_file(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        )
+        ).decode("utf-8")
     }
     response = client.get(path, headers=headers)
     assert response.status_code == 401
 
     # response should not be JSON, should be HTML error page
-    with pytest.raises(ValueError):
-        response.json
+    assert response.mimetype == "text/html"
+    assert not response.json
+
+    mock_index_document.stop()
 
 
 @pytest.mark.parametrize(
@@ -268,6 +307,27 @@ def test_unavailable_indexd_upload_file(
     Test ``GET /data/upload/1``.
     """
     path = "/data/upload/1"
+
+    did = str(uuid.uuid4())
+    index_document = {
+        "did": did,
+        "baseid": "",
+        "rev": "",
+        "size": 10,
+        "file_name": "file1",
+        "urls": ["s3://bucket1/key-{}".format(did[:8])],
+        "acl": ["phs000789"],
+        "hashes": {},
+        "metadata": {},
+        "form": "",
+        "created_date": "",
+        "updated_date": "",
+    }
+    mock_index_document = mock.patch(
+        "fence.blueprints.data.indexd.IndexedFile.index_document", index_document
+    )
+    mock_index_document.start()
+
     headers = {
         "Authorization": "Bearer "
         + jwt.encode(
@@ -277,14 +337,16 @@ def test_unavailable_indexd_upload_file(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        )
+        ).decode("utf-8")
     }
     response = client.get(path, headers=headers)
     assert response.status_code == 401
 
     # response should not be JSON, should be HTML error page
-    with pytest.raises(ValueError):
-        response.json
+    assert response.mimetype == "text/html"
+    assert not response.json
+
+    mock_index_document.stop()
 
 
 @pytest.mark.parametrize(
@@ -305,10 +367,10 @@ def test_public_object_download_file(
     path = "/data/download/1"
     response = client.get(path)
     assert response.status_code == 200
-    assert "url" in response.json.keys()
+    assert "url" in list(response.json.keys())
 
     # defaults to signing url, check that it's not just raw url
-    assert urlparse.urlparse(response.json["url"]).query != ""
+    assert urllib.parse.urlparse(response.json["url"]).query != ""
 
 
 @pytest.mark.parametrize(
@@ -329,10 +391,10 @@ def test_public_object_download_file_no_force_sign(
     path = "/data/download/1?no_force_sign=True"
     response = client.get(path)
     assert response.status_code == 200
-    assert "url" in response.json.keys()
+    assert "url" in list(response.json.keys())
 
     # make sure we honor no_force_sign, check that response is unsigned raw url
-    assert urlparse.urlparse(response.json["url"]).query == ""
+    assert urllib.parse.urlparse(response.json["url"]).query == ""
 
 
 @pytest.mark.parametrize(
@@ -358,7 +420,7 @@ def test_public_bucket_download_file(
     # we should NOT sign AWS S3 urls if the bucket itself is public
     if not public_bucket_indexd_client.startswith("s3"):
         # defaults to signing url, check that it's not just raw url
-        assert urlparse.urlparse(response.json["url"]).query != ""
+        assert urllib.parse.urlparse(response.json["url"]).query != ""
 
 
 @pytest.mark.parametrize(
@@ -382,7 +444,7 @@ def test_public_bucket_download_file_no_force_sign(
     assert response.json.get("url")
 
     # make sure we honor no_force_sign, check that response is unsigned raw url
-    assert urlparse.urlparse(response.json["url"]).query == ""
+    assert urllib.parse.urlparse(response.json["url"]).query == ""
 
 
 @pytest.mark.parametrize("public_bucket_indexd_client", ["s2"], indirect=True)
@@ -403,8 +465,8 @@ def test_public_bucket_unsupported_protocol_file(
     assert response.status_code == 400
 
     # response should not be JSON, should be HTML error page
-    with pytest.raises(ValueError):
-        response.json
+    assert response.mimetype == "text/html"
+    assert not response.json
 
 
 def test_blank_index_upload(app, client, auth_client, encoded_creds_jwt, user_client):
@@ -420,7 +482,7 @@ def test_blank_index_upload(app, client, auth_client, encoded_creds_jwt, user_cl
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
     arborist_requests_mocker = mock.patch(
-        "fence.rbac.client.requests", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
     )
     with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
         data_requests.post.return_value = MockResponse(
@@ -431,8 +493,8 @@ def test_blank_index_upload(app, client, auth_client, encoded_creds_jwt, user_cl
             }
         )
         data_requests.post.return_value.status_code = 200
-        arborist_requests.post.return_value = MockResponse({"auth": True})
-        arborist_requests.post.return_value.status_code = 200
+        arborist_requests.request.return_value = MockResponse({"auth": True})
+        arborist_requests.request.return_value.status_code = 200
         headers = {
             "Authorization": "Bearer " + encoded_creds_jwt.jwt,
             "Content-Type": "application/json",
@@ -451,6 +513,151 @@ def test_blank_index_upload(app, client, auth_client, encoded_creds_jwt, user_cl
         assert response.status_code == 201, response
         assert "guid" in response.json
         assert "url" in response.json
+
+
+def test_indexd_download_with_uploader_unauthenticated(
+    client,
+    oauth_client,
+    user_client,
+    kid,
+    rsa_private_key,
+    google_proxy_group,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+):
+    """
+    Test ``GET /data/download/1`` with unauthenticated user.
+    """
+    did = str(uuid.uuid4())
+    index_document = {
+        "did": did,
+        "baseid": "",
+        "uploader": "fake_uploader_123",
+        "rev": "",
+        "size": 10,
+        "file_name": "file1",
+        "urls": ["s3://bucket1/key-{}".format(did[:8])],
+        "acl": ["phs000178"],
+        "hashes": {},
+        "metadata": {},
+        "form": "",
+        "created_date": "",
+        "updated_date": "",
+    }
+    mock_index_document = mock.patch(
+        "fence.blueprints.data.indexd.IndexedFile.index_document", index_document
+    )
+    mock_index_document.start()
+    indexed_file_location = "s3"
+    path = "/data/download/1"
+    query_string = {"protocol": indexed_file_location}
+    response = client.get(path, query_string=query_string)
+    assert response.status_code == 401
+
+
+def test_indexd_download_with_uploader_authorized(
+    client,
+    oauth_client,
+    user_client,
+    kid,
+    rsa_private_key,
+    google_proxy_group,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+):
+    """
+    Test ``GET /data/download/1`` with authorized user (user is the uploader).
+    """
+    did = str(uuid.uuid4())
+    index_document = {
+        "did": did,
+        "baseid": "",
+        "uploader": user_client.username,
+        "rev": "",
+        "size": 10,
+        "file_name": "file1",
+        "urls": ["s3://bucket1/key-{}".format(did[:8])],
+        "acl": ["phs000178"],
+        "hashes": {},
+        "metadata": {},
+        "form": "",
+        "created_date": "",
+        "updated_date": "",
+    }
+    mock_index_document = mock.patch(
+        "fence.blueprints.data.indexd.IndexedFile.index_document", index_document
+    )
+    mock_index_document.start()
+    indexed_file_location = "s3"
+    path = "/data/download/1"
+    query_string = {"protocol": indexed_file_location}
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+    response = client.get(path, headers=headers, query_string=query_string)
+    assert response.status_code == 200
+
+
+def test_indexd_download_with_uploader_unauthorized(
+    client,
+    oauth_client,
+    user_client,
+    kid,
+    rsa_private_key,
+    google_proxy_group,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+):
+    """
+    Test ``GET /data/download/1`` with unauthorized user (user is not the uploader).
+    """
+    did = str(uuid.uuid4())
+    index_document = {
+        "did": did,
+        "baseid": "",
+        "uploader": "fake_uploader_123",
+        "rev": "",
+        "size": 10,
+        "file_name": "file1",
+        "urls": ["s3://bucket1/key-{}".format(did[:8])],
+        "acl": ["phs000178"],
+        "hashes": {},
+        "metadata": {},
+        "form": "",
+        "created_date": "",
+        "updated_date": "",
+    }
+    mock_index_document = mock.patch(
+        "fence.blueprints.data.indexd.IndexedFile.index_document", index_document
+    )
+    mock_index_document.start()
+    indexed_file_location = "s3"
+    path = "/data/download/1"
+    query_string = {"protocol": indexed_file_location}
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+    response = client.get(path, headers=headers, query_string=query_string)
+    assert response.status_code == 401
 
 
 def test_delete_file_no_auth(app, client, encoded_creds_jwt):
@@ -544,12 +751,12 @@ def test_blank_index_upload_unauthorized(
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
     arborist_requests_mocker = mock.patch(
-        "fence.rbac.client.requests", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
     )
     with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
         # pretend arborist says "no"
-        arborist_requests.post.return_value = MockResponse({"auth": False})
-        arborist_requests.post.return_value.status_code = 200
+        arborist_requests.request.return_value = MockResponse({"auth": False})
+        arborist_requests.request.return_value.status_code = 200
         headers = {
             "Authorization": "Bearer " + encoded_creds_jwt.jwt,
             "Content-Type": "application/json",
@@ -561,7 +768,56 @@ def test_blank_index_upload_unauthorized(
         assert response.status_code == 403, response
 
 
-def test_initialize_multipart_upload(app, client, auth_client, encoded_creds_jwt, user_client):
+@pytest.mark.parametrize(
+    "indexd_client_with_arborist",
+    ["gs", "s3", "gs_acl", "s3_acl", "s3_external"],
+    indirect=True,
+)
+def test_abac(
+    app,
+    client,
+    mock_arborist_requests,
+    indexd_client_with_arborist,
+    user_client,
+    rsa_private_key,
+    kid,
+    google_proxy_group,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+):
+    mock_arborist_requests(
+        {"arborist/auth/request": {"POST": ('{"auth": "true"}', 200)}}
+    )
+    indexd_client = indexd_client_with_arborist("test_abac")
+    indexed_file_location = indexd_client["indexed_file_location"]
+    path = "/data/download/1"
+    query_string = {"protocol": indexed_file_location}
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+    response = client.get(path, headers=headers, query_string=query_string)
+    assert response.status_code == 200
+    assert "url" in list(response.json.keys())
+
+    mock_arborist_requests(
+        {"arborist/auth/request": {"POST": ('{"auth": "false"}', 403)}}
+    )
+    response = client.get(path, headers=headers, query_string=query_string)
+    assert response.status_code == 403
+
+
+def test_initialize_multipart_upload(
+    app, client, auth_client, encoded_creds_jwt, user_client
+):
     class MockResponse(object):
         def __init__(self, data, status_code=200):
             self.data = data
@@ -574,7 +830,7 @@ def test_initialize_multipart_upload(app, client, auth_client, encoded_creds_jwt
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
     arborist_requests_mocker = mock.patch(
-        "fence.rbac.client.requests", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
     )
 
     fence.blueprints.data.indexd.BlankIndex.init_multipart_upload = MagicMock()
@@ -587,9 +843,11 @@ def test_initialize_multipart_upload(app, client, auth_client, encoded_creds_jwt
             }
         )
         data_requests.post.return_value.status_code = 200
-        arborist_requests.post.return_value = MockResponse({"auth": True})
-        arborist_requests.post.return_value.status_code = 200
-        fence.blueprints.data.indexd.BlankIndex.init_multipart_upload.return_value = "test_uploadId"
+        arborist_requests.request.return_value = MockResponse({"auth": True})
+        arborist_requests.request.return_value.status_code = 200
+        fence.blueprints.data.indexd.BlankIndex.init_multipart_upload.return_value = (
+            "test_uploadId"
+        )
         headers = {
             "Authorization": "Bearer " + encoded_creds_jwt.jwt,
             "Content-Type": "application/json",
@@ -610,7 +868,9 @@ def test_initialize_multipart_upload(app, client, auth_client, encoded_creds_jwt
         assert "uploadId" in response.json
 
 
-def test_multipart_upload_presigned_url(app, client, auth_client, encoded_creds_jwt, user_client):
+def test_multipart_upload_presigned_url(
+    app, client, auth_client, encoded_creds_jwt, user_client
+):
     class MockResponse(object):
         def __init__(self, data, status_code=200):
             self.data = data
@@ -623,10 +883,12 @@ def test_multipart_upload_presigned_url(app, client, auth_client, encoded_creds_
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
     arborist_requests_mocker = mock.patch(
-        "fence.rbac.client.requests", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
     )
 
-    fence.blueprints.data.indexd.BlankIndex.generate_aws_presigned_url_for_part = MagicMock()
+    fence.blueprints.data.indexd.BlankIndex.generate_aws_presigned_url_for_part = (
+        MagicMock()
+    )
     with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
         data_requests.post.return_value = MockResponse(
             {
@@ -636,9 +898,11 @@ def test_multipart_upload_presigned_url(app, client, auth_client, encoded_creds_
             }
         )
         data_requests.post.return_value.status_code = 200
-        arborist_requests.post.return_value = MockResponse({"auth": True})
-        arborist_requests.post.return_value.status_code = 200
-        fence.blueprints.data.indexd.BlankIndex.generate_aws_presigned_url_for_part.return_value = "test_presigned"
+        arborist_requests.request.return_value = MockResponse({"auth": True})
+        arborist_requests.request.return_value.status_code = 200
+        fence.blueprints.data.indexd.BlankIndex.generate_aws_presigned_url_for_part.return_value = (
+            "test_presigned"
+        )
         headers = {
             "Authorization": "Bearer " + encoded_creds_jwt.jwt,
             "Content-Type": "application/json",
@@ -651,3 +915,55 @@ def test_multipart_upload_presigned_url(app, client, auth_client, encoded_creds_
 
         assert response.status_code == 200, response
         assert "presigned_url" in response.json
+
+
+def test_multipart_complete_upload(
+    app, client, auth_client, encoded_creds_jwt, user_client
+):
+    class MockResponse(object):
+        def __init__(self, data, status_code=200):
+            self.data = data
+            self.status_code = status_code
+
+        def json(self):
+            return self.data
+
+    data_requests_mocker = mock.patch(
+        "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
+    )
+    arborist_requests_mocker = mock.patch(
+        "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
+    )
+
+    fence.blueprints.data.indexd.BlankIndex.complete_multipart_upload = MagicMock()
+    with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
+        data_requests.post.return_value = MockResponse(
+            {
+                "did": str(uuid.uuid4()),
+                "rev": str(uuid.uuid4())[:8],
+                "baseid": str(uuid.uuid4()),
+            }
+        )
+        data_requests.post.return_value.status_code = 200
+        arborist_requests.request.return_value = MockResponse({"auth": True})
+        arborist_requests.request.return_value.status_code = 200
+        fence.blueprints.data.indexd.BlankIndex.generate_aws_presigned_url_for_part.return_value = (
+            "test_presigned"
+        )
+        headers = {
+            "Authorization": "Bearer " + encoded_creds_jwt.jwt,
+            "Content-Type": "application/json",
+        }
+        key = "guid/asdf"
+        uploadid = "uploadid"
+
+        data = json.dumps(
+            {
+                "key": key,
+                "uploadId": uploadid,
+                "parts": [{"partNumber": 1, "Etag": "test_tag"}],
+            }
+        )
+        response = client.post("/data/multipart/complete", headers=headers, data=data)
+
+        assert response.status_code == 200, response

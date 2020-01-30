@@ -4,7 +4,7 @@ registration.
 """
 import time
 import flask
-from urllib import unquote
+from urllib.parse import unquote
 
 from cirrus.google_cloud.iam import GooglePolicyMember
 
@@ -498,11 +498,20 @@ def patch_user_service_account(
     _revoke_user_service_account_from_google(
         session, to_delete, google_project_id, service_account
     )
+
+    # Use granting_project_ids here, not to_add, bc the google-delete-expired-service-account
+    # job doesn't clean out the entries in the ServiceAccountAccessPrivilege table.
+    # So the set diff (=to_add) won't include the proj if the SA was previously registered for that proj,
+    # even if the SA later expired and was removed from the relevant GBAG.
     add_user_service_account_to_google(
-        session, to_add, google_project_id, service_account
+        session, granting_project_ids, google_project_id, service_account
     )
+
     _revoke_user_service_account_from_db(session, to_delete, service_account)
 
+    # On the other hand, use to_add here and not granting_project_ids,
+    # otherwise this will add duplicates to ServiceAccountAccessPrivilege.
+    # Because at time of writing, aforementioned tbl has no compound unique constraint.
     add_user_service_account_to_db(session, to_add, service_account)
 
 
@@ -696,8 +705,16 @@ def add_user_service_account_to_google(
         service_account (UserServiceAccount): user service account
 
     """
+    logger.debug(
+        "attempting to add {} to groups for projects: {}".format(
+            service_account, to_add_project_ids
+        )
+    )
     for project_id in to_add_project_ids:
         access_groups = _get_google_access_groups(session, project_id)
+        logger.debug(
+            "google group(s) for project {}: {}".format(project_id, access_groups)
+        )
         for access_group in access_groups:
             try:
                 # TODO: Need to remove try/catch after major refactor

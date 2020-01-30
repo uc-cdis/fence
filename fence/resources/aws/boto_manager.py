@@ -50,11 +50,11 @@ class BotoManager(object):
             )
         except (KeyError, Boto3Error) as e:
             self.logger.exception(e)
-            raise InternalError("Failed to delete file: {}".format(e.message))
+            raise InternalError("Failed to delete file: {}".format(str(e)))
 
     def assume_role(self, role_arn, duration_seconds, config=None):
         try:
-            if config and config.has_key("aws_access_key_id"):
+            if config and "aws_access_key_id" in config:
                 self.sts_client = client("sts", **config)
             session_name_postfix = uuid.uuid4()
             return self.sts_client.assume_role(
@@ -64,10 +64,10 @@ class BotoManager(object):
             )
         except Boto3Error as ex:
             self.logger.exception(ex)
-            raise InternalError("Fail to assume role: {}".format(ex.message))
+            raise InternalError("Fail to assume role: {}".format(ex))
         except Exception as ex:
             self.logger.exception(ex)
-            raise UnavailableError("Fail to reach AWS: {}".format(ex.message))
+            raise UnavailableError("Fail to reach AWS: {}".format(ex))
 
     def presigned_url(self, bucket, key, expires, config, method="get_object"):
         """
@@ -80,7 +80,7 @@ class BotoManager(object):
         """
         if method not in ["get_object", "put_object"]:
             raise UserError("method {} not allowed".format(method))
-        if config.has_key("aws_access_key_id"):
+        if "aws_access_key_id" in config:
             self.s3_client = client("s3", **config)
         expires = int(expires) or self.URL_EXPIRATION_DEFAULT
         expires = min(expires, self.URL_EXPIRATION_MAX)
@@ -93,16 +93,16 @@ class BotoManager(object):
 
     def get_bucket_region(self, bucket, config):
         try:
-            if config.has_key("aws_access_key_id"):
+            if "aws_access_key_id" in config:
                 self.s3_client = client("s3", **config)
             response = self.s3_client.get_bucket_location(Bucket=bucket)
             region = response.get("LocationConstraint")
         except Boto3Error as ex:
             self.logger.exception(ex)
-            raise InternalError("Fail to get bucket region: {}".format(ex.message))
+            raise InternalError("Fail to get bucket region: {}".format(ex))
         except Exception as ex:
             self.logger.exception(ex)
-            raise UnavailableError("Fail to reach AWS: {}".format(ex.message))
+            raise UnavailableError("Fail to reach AWS: {}".format(ex))
         if region is None:
             return "us-east-1"
         return region
@@ -122,7 +122,7 @@ class BotoManager(object):
                         groups[group_name] = self.create_user_group(group_name)
         except Exception as ex:
             self.logger.exception(ex)
-            raise UserError("Fail to create list of groups: {}".format(ex.message))
+            raise UserError("Fail to create list of groups: {}".format(ex))
         return groups
 
     def add_user_to_group(self, groups, username):
@@ -133,13 +133,13 @@ class BotoManager(object):
         :return:
         """
         try:
-            for group in groups.values():
+            for group in list(groups.values()):
                 self.iam.add_user_to_group(
                     GroupName=group["GroupName"], UserName=username
                 )
         except Exception as ex:
             self.logger.exception(ex)
-            raise UserError("Fail to add user to group: {}".format(ex.message))
+            raise UserError("Fail to add user to group: {}".format(ex))
 
     def get_user_group(self, group_names):
         try:
@@ -150,9 +150,7 @@ class BotoManager(object):
                     res[group["GroupName"]] = group
         except Exception as ex:
             self.logger.exception(ex)
-            raise UserError(
-                "Fail to get list of groups {}: {}".format(group_names, ex.message)
-            )
+            raise UserError("Fail to get list of groups {}: {}".format(group_names, ex))
         return res
 
     def create_user_group(self, group_name, path=None):
@@ -163,9 +161,7 @@ class BotoManager(object):
             )
         except Exception as ex:
             self.logger.exception(ex)
-            raise UserError(
-                "Fail to create group {}: {}".format(group_name, ex.message)
-            )
+            raise UserError("Fail to create group {}: {}".format(group_name, ex))
         return group
 
     def __get_policy_document_by_group_name__(self, group_name):
@@ -192,7 +188,7 @@ class BotoManager(object):
         """
         try:
             aws_kwargs = dict(Path=path, Description=description)
-            aws_kwargs = {k: v for k, v in aws_kwargs.items() if v is not None}
+            aws_kwargs = {k: v for k, v in list(aws_kwargs.items()) if v is not None}
             policy = self.iam.create_policy(
                 PolicyName=policy_name, PolicyDocument=policy_document, **aws_kwargs
             )
@@ -201,5 +197,5 @@ class BotoManager(object):
             )
         except Exception as ex:
             self.logger.exception(ex)
-            raise UserError("Fail to create policy: {}".format(ex.message))
+            raise UserError("Fail to create policy: {}".format(ex))
         return policy

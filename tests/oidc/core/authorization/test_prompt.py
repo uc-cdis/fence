@@ -35,18 +35,9 @@ import pytest
 
 from fence.config import config
 
-# Python 2 and 3 compatible
-try:
-    from unittest.mock import patch
-except ImportError:
-    from mock import patch
+from unittest.mock import patch
 
-try:
-    # Python 3
-    from urllib.parse import urlparse, parse_qs
-except ImportError:
-    # Python 2
-    from urlparse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs
 
 
 # Reasons for skipping tests.

@@ -1,4 +1,4 @@
-from idp_oauth2 import Oauth2ClientBase
+from .idp_oauth2 import Oauth2ClientBase
 
 
 class OrcidOauth2Client(Oauth2ClientBase):
@@ -28,7 +28,9 @@ class OrcidOauth2Client(Oauth2ClientBase):
             "authorization_endpoint", "https://orcid.org/oauth/authorize"
         )
 
-        uri, state = self.session.authorization_url(authorization_endpoint)
+        uri, state = self.session.create_authorization_url(
+            authorization_endpoint, prompt="login"
+        )
 
         return uri
 

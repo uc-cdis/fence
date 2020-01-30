@@ -1,8 +1,10 @@
 # Fence
 
 [![Build Status](https://travis-ci.org/uc-cdis/fence.svg?branch=master)](https://travis-ci.org/uc-cdis/fence)
-[![Codacy Quality Badge](https://api.codacy.com/project/badge/Grade/1cb2ec9cc64049488d140f44027c4422)](https://www.codacy.com/app/uc-cdis/fence?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=uc-cdis/fence&amp;utm_campaign=Badge_Grade)
-[![Codacy Coverage Badge](https://api.codacy.com/project/badge/Coverage/1cb2ec9cc64049488d140f44027c4422)](https://www.codacy.com/app/uc-cdis/fence?utm_source=github.com&utm_medium=referral&utm_content=uc-cdis/fence&utm_campaign=Badge_Coverage)
+
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/41ff9d807efa4da8a733793b3539ba3e)](https://www.codacy.com/app/uc-cdis/fence?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=uc-cdis/fence&amp;utm_campaign=Badge_Grade)
+[![Coverage Status](https://coveralls.io/repos/github/uc-cdis/fence/badge.svg?branch=master)](https://coveralls.io/github/uc-cdis/fence?branch=master)
+
 
 A `fence` separates protected resources from the outside world and allows
 only trusted entities to enter.
@@ -18,7 +20,7 @@ Fence is a core service of the Gen3 stack that has multiple capabilities:
 
 1. [API Documentation](#API-documentation)
 1. [Terminologies](#Terminologies)
-1. [Identity Providers](#identity-provider)
+1. [Identity Providers](#identity-providers)
 1. [OIDC & OAuth2](#oidc--oauth2)
 1. [Accessing Data](#accessing-data)
 1. [Setup](#setup)
@@ -93,11 +95,10 @@ Relying Party - an OAuth 2.0 Client which uses (requests) OpenID Connect.
 Fence can be configured to support different Identity Providers (IdPs) for AuthN.
 At the moment, supported IDPs include:
 - Google
-- Shibboleth
+- [Shibboleth](docs/shibboleth.md)
   - NIH iTrust
   - InCommon
   - eduGAIN
-
 
 ## OIDC & OAuth2
 
@@ -174,12 +175,12 @@ In the following flow, `Fence (Client Instance)` is an OP relative to `OAuth Cli
 See the [OIDC specification](http://openid.net/specs/openid-connect-core-1_0.html) for more details.
 Additionally, see the [OAuth2 specification](https://tools.ietf.org/html/rfc6749).
 
-## Role-Based Access Control
+## Access Control / Authz
 
 Currently fence works with another Gen3 service named
-[arborist](https://github.com/uc-cdis/arborist) to implement role-based access
+[arborist](https://github.com/uc-cdis/arborist) to implement attribute-based access
 control for commons users. The YAML file of access control information (see
-[#create-user-access-file]()) contains a section `rbac` which are data sent to
+[#create-user-access-file]()) contains a section `authz` which are data sent to
 arborist in order to set up the access control model.
 
 ## Accessing Data
@@ -494,9 +495,7 @@ As a Gen3 commons administrator, if you want to create an implicit oauth client 
 
 ```bash
 fence-create client-create --client fancywebappname --urls 'https://betawebapp.example/fence
-https://webapp.example/fence' --public --username fancyapp --grant-types 'authorization_code
-refresh_token
-implicit'
+https://webapp.example/fence' --public --username fancyapp --grant-types authorization_code refresh_token implicit
 ```
 
 If there are more than one URL to add, use space to delimit them like this:
@@ -544,6 +543,7 @@ fence-create notify-problem-users --emails ex1@gmail.com ex2@gmail.com --auth_id
 ```
 
 `notify-problem-users` emails users in the provided list (can be fence user email or linked google email) who do not have access to any of the auth_ids provided. Also accepts a `check_linking` flag to check that each user has linked their google account.
+
 ## Default Expiration Times in Fence
 
 Table contains various artifacts in fence that have temporary lifetimes and their default values.

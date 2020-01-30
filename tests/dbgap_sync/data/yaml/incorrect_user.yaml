@@ -1,0 +1,69 @@
+cloud_providers: {}
+
+groups: {}
+
+# Define information used for authz.
+# The information in the `authz` section is sent to arborist to populate its
+# access control model.
+authz:
+  policies:
+    - id: 'data_upload'
+      description: 'upload raw data files to S3'
+      role_ids: ['file_uploader']
+      resource_paths: ['/data_file']
+  resources:
+    - name: 'programs'
+      subresources:
+      - name: 'test'
+        subresources:
+        - name: 'projects'
+          subresources:
+          - name: 'test'
+      - name: 'test_program'
+  roles:
+    - id: 'file_uploader'
+      description: 'can upload data files'
+      permissions:
+        - id: 'file_upload'
+          action:
+            service: 'fence'
+            method: 'file_upload'
+
+# auth_id field in projects exists for pre-arborist backwards-compatibility
+
+users:
+  cdis:
+    admin: True
+  test_user1@gmail.com:
+    admin: True
+    policies: ['test-policy-1', 'test-policy-3']
+    projects:
+    - auth_id: test
+      resource: /programs/test/projects/test
+      privilege: ['create', 'read', 'update', 'delete', 'upload']
+    tags:
+      role: reseacher
+  test_user2@gmail.com:
+    admin: True
+    display_name: Test User 2
+    projects:
+    - auth_id: test
+      resource: /programs/test/projects/test
+      privilege: ['create', 'read', 'update', 'delete', 'upload']
+  test_user3@gmail.com:
+    admin: True
+    projects:
+    - auth_id: test
+      resource: /programs/test/projects/test
+      privilege: ['create', 'read', 'update', 'delete', 'upload']
+    display_name: Test User 3
+    tags:
+      role: PI
+      organization: ABC
+  test_user4@gmail.com:
+    admin: False
+    projects:
+    - auth_id: test_program
+      resource: /programs/test_program
+      privilege: ['create', 'read', 'update', 'delete', 'upload']
+    display_name: Test User 4 (program access)

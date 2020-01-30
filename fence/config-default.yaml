@@ -67,11 +67,22 @@ SESSION_COOKIE_SECURE: true
 
 ENABLE_CSRF_PROTECTION: true
 
+# fence (at the moment) attempts a migration on startup. setting this to false will disable that
+# WARNING: ONLY set to false if you do NOT want to automatically migrate your database.
+#          You should be careful about incompatible versions of your db schema with what
+#          fence expects. In other words, things could be broken if you update to a later
+#          fence that expects a schema your database isn't migrated to.
+# NOTE: We are working to improve the migration process in the near future
+ENABLE_DB_MIGRATION: true
+
 # //////////////////////////////////////////////////////////////////////////////////////
 # OPEN ID CONNECT (OIDC)
 #   - Fully configure at least one client so login works
 #   - WARNING: Be careful changing the *_ALLOWED_SCOPES as you can break basic
 #              and optional functionality
+#
+# See ``fence/blueprints/login/__init__.py`` IDP_URL_MAP for which identity
+# providers can be configured.
 # //////////////////////////////////////////////////////////////////////////////////////
 OPENID_CONNECT:
   # These Google values must be obtained from Google's Cloud Console
@@ -85,6 +96,13 @@ OPENID_CONNECT:
     client_secret: ''
     # this is be the allowed redirect back to fence, should not need to change
     redirect_url: '{{BASE_URL}}/login/google/login/'
+    # if mock is true, will fake a successful login response from Google in /login/google
+    #     NOTE: this will also modify the behavior of /link/google endpoints
+    # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
+    # will login as the username set in cookie DEV_LOGIN_COOKIE_NAME or default provided
+    # here
+    mock: '{{MOCK_GOOGLE_AUTH}}'  # for backwards compatibility with older cfg files
+    mock_default_user: 'test@example.com'
   # Support for multi-tenant fence (another fence is this fence's IDP)
   # If this fence instance is a client of another fence, fill this cfg out.
   # REMOVE if not needed
@@ -109,6 +127,48 @@ OPENID_CONNECT:
     # Custom name to display for consent screens. If not provided, will use `fence`.
     # If the other fence is using NIH Login, you should make name: `NIH Login`
     name: ''
+    # if mock is true, will fake a successful login response for login
+    # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
+    mock: false
+    mock_default_user: 'test@example.com'
+    # this is needed to enable InCommon login, if some LOGIN_OPTIONS are configured with idp=fence and a list of shib_idps:
+    shibboleth_discovery_url: 'https://login.bionimbus.org/Shibboleth.sso/DiscoFeed'
+  # you can setup up an orcid client here: https://orcid.org/developer-tools
+  orcid:
+    client_id: ''
+    client_secret: ''
+    # make sure you put the FULL url for this deployment in the allowed redirects in
+    # ORCID.org. DO NOT include {{BASE_URL}} at ORCID.org, you need to actually put the
+    # full url
+    redirect_url: '{{BASE_URL}}/login/orcid/login/'
+    # if mock is true, will fake a successful login response for login
+    # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
+    mock: false
+    mock_default_user: '0000-0002-2601-8132'
+  # Create a client in Azure here:
+  #   https://portal.azure.com/#blade/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/RegisteredAppsPreview
+  # Currently supports organizational account only, so when registering a new App in
+  # Azure, make sure to select the `Accounts in any organizational directory` for
+  # supported account types.
+  microsoft:
+    # after registering a new appl, client_id can be found as
+    # "APPLICATION (CLIENT) ID" in Microsoft Azure
+    client_id: ''
+    # You have a generate a secret in Azure for this app, there should be a
+    # "Certificates & secrets" section where you can create a "New client secret"
+    client_secret: ''
+    # make sure you put the FULL url for this deployment in the allowed redirects in
+    # your app in Azure. DO NOT include {{BASE_URL}} in Azure, you need to actually put the
+    # full url
+    redirect_url: '{{BASE_URL}}/login/microsoft/login/'
+    # if mock is true, will fake a successful login response for login
+    # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
+    mock: false
+    mock_default_user: 'test@example.com'
+  shibboleth:
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/shib/login'
 
 # these are the *possible* scopes a client can be given, NOT scopes that are
 # given to all clients. You can be more restrictive during client creation
@@ -146,38 +206,72 @@ SESSION_ALLOWED_SCOPES:
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # LOGIN
-#   - Modify based on which OIDC client(s) you configured above
+#   - Modify based on which OIDC provider(s) you configured above
 #   - NOTE: You can have multiple IDPs for users to login with, but one has to be set
 #           as the default
 # //////////////////////////////////////////////////////////////////////////////////////
-# Login url for identity provider (IDP):
-#   Google? Use: '{{BASE_URL}}/login/google'
-#   Multi-tenant fence (e.g. another fence instance)? Use: '{{BASE_URL}}/login/fence'
-#   Sibboleth? Use: '{{BASE_URL}}/login/shib'
-DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
 
-# Which Identity Provider fence will/can use
-#
-# See ``fence/blueprints/login/__init__.py`` for which identity providers can
-# be loaded.
-#
-ENABLED_IDENTITY_PROVIDERS:
-  # ID for which of the providers to default to
-  default: 'google'
-  # Information for identity providers
-  providers:
-    google:
-      name: 'Google Login'
-    fence:
-      name: 'Fence Multi-Tenant Login'
+# List of enabled login options (used by data-portal to display login buttons).
+# Each option must be configured with a "name" and an "idp".
+# - "idp" must be a configured provider in OPENID_CONNECT section.
+# Multiple options can be configured with the same idp.
+# - if provider_id is "fence", "fence_idp" can be any of the providers
+# supported by the other Fence. If not specified, will default to NIH login.
+# - if provider_id is "fence" and fence_idp is "shibboleth", a list of
+# "shib_idps" can be configured for InCommon login. If not specified, will
+# default to NIH login.
+# - Optional parameters: "desc" (description) and "secondary" (boolean - can
+# be used by the frontend to display secondary buttons differently).
+LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
+  # - name: 'Login from Google'
+  #   desc: 'description'
+  #   idp: google
+  #   secondary: True
+  # - name: 'ORCID Login'
+  #   idp: orcid
+  # - name: 'Microsoft Login'
+  #   idp: microsoft
+  # - name: 'NIH Login'
+  #   idp: fence
+  #   fence_idp: shibboleth
+  # - name: 'ORCID Login through other Fence'
+  #   idp: fence
+  #   fence_idp: orcid
+  # - name: 'InCommon Login'
+  #   idp: fence
+  #   fence_idp: shibboleth
+  #   # "shib_idps" can be '*' or a list of one or more entity IDs
+  #   shib_idps:
+  #     - urn:mace:incommon:nih.gov
+  #     - urn:mace:incommon:uchicago.edu
 # The following can be used for shibboleth login, simply uncomment.
-#
 # NOTE: Don't enable shibboleth if the deployment is not protected by
 # shibboleth module, the shib module takes care of preventing header
 # spoofing.
-#
-#    shibboleth:
-#      name: 'NIH Login'
+  # - name: 'Shibboleth Login'
+  #   idp: shibboleth
+
+# Default login provider:
+# - must be configured in LOGIN_OPTIONS and OPENID_CONNECT
+# - if several options in LOGIN_OPTIONS are defined for this IDP, will default
+# to the first one.
+# Default login URL:
+# - Google? Use: '{{BASE_URL}}/login/google'
+# - Multi-tenant fence (e.g. another fence instance)? Use: '{{BASE_URL}}/login/fence'
+# - Sibboleth? Use: '{{BASE_URL}}/login/shib'
+DEFAULT_LOGIN_IDP: null
+DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
+
+# `LOGIN_REDIRECT_WHITELIST` is a list of extra whitelisted URLs which can be redirected
+# to by the `/login/*` endpoints. Fence automatically populates this with the redirect
+# URLs for any registered OAuth clients, and its own URL. When validating the redirects,
+# fence chesk whether the domain for the redirect matches a domain in the whitelist (so
+# only the domains for the additional desired redirects are necessary here).
+LOGIN_REDIRECT_WHITELIST: []
+
+### DEPRECATED and replaced by OPENID_CONNECT + LOGIN_OPTIONS configs
+ENABLED_IDENTITY_PROVIDERS:
+
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # LIBRARY CONFIGURATION (authlib & flask)
@@ -209,6 +303,10 @@ ACCESS_TOKEN_COOKIE_NAME: "access_token"
 # ``flask.session`` in the ``context`` field of the token.
 SESSION_COOKIE_NAME: "fence"
 SESSION_COOKIE_DOMAIN: 
+
+# The domain of the browser cookie in which the session token will be stored.
+# Leave unset (not empty string!) for normal single-site deployment.
+SESSION_COOKIE_DOMAIN:
 
 OAUTH2_TOKEN_EXPIRES_IN:
   "authorization_code": 1200
@@ -249,10 +347,19 @@ MAX_API_KEY_TTL: 2592000
 # The number of seconds after an access token is issued until it expires.
 MAX_ACCESS_TOKEN_TTL: 3600
 
+# TEMPORARY: The maximum number of projects allowed in token claims.
+# This config var should be removed after sheepdog and peregrine support
+# auth checks against Arborist, and no longer check the token.
+TOKEN_PROJECTS_CUTOFF: 15
+
 
 ########################################################################################
 #                               OPTIONAL CONFIGURATIONS                                #
 ########################################################################################
+
+# For displaying a privacy policy to users, we can either link to the URL specified by
+# PRIVACY_POLICY_URL, or default to the `static/privacy_policy.md` file in fence.
+PRIVACY_POLICY_URL: null
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # SUPPORT INFO
@@ -263,7 +370,7 @@ SUPPORT_EMAIL_FOR_ERRORS: null
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # SHIBBOLETH
-#   - Support using `shibboleth` in ENABLED_IDENTITY_PROVIDERS
+#   - Support using `shibboleth` in LOGIN_OPTIONS
 #   - Contains defaults for using NIH's Login.
 # //////////////////////////////////////////////////////////////////////////////////////
 # assumes shibboleth is deployed under {{BASE_URL}}/shibboleth
@@ -290,7 +397,51 @@ dbGaP:
     proxy_user: ''
   protocol: 'sftp'
   decrypt_key: ''
+  # parse out the consent from the dbgap accession number such that something
+  # like "phs000123.v1.p1.c2" becomes "phs000123.c2".
+  #
+  # NOTE: when this is "false" the above would become "phs000123"
   parse_consent_code: true
+  # A consent of "c999" can indicate access to that study's "exchange area data"
+  # and when a user has access to one study's exchange area data, they
+  # have access to the parent study's "common exchange area data" that is not study
+  # specific. The following config is whether or not to parse/handle "c999" codes
+  # for access to the common exchange area data
+  #
+  # NOTE: When enabled you MUST also provide a mapping to the
+  # `study_common_exchange_areas` from study -> parent common exchange area resource
+  enable_common_exchange_area_access: false
+  # The below configuration is a mapping from studies to their "common exchange area data"
+  # Fence project name a user gets access to when parsing c999 exchange area codes (and
+  # subsequently gives access to an Arborist resource representing this common area
+  # as well)
+  study_common_exchange_areas:
+    'example': 'test_common_exchange_area'
+    # 'studyX': 'test_common_exchange_area'
+    # 'studyY': 'test_common_exchange_area'
+    # 'studyZ': 'test_common_exchange_area'
+  # A mapping from the dbgap study / Fence project to which authorization namespaces the
+  # actual data lives in. For example, `studyX` data may exist in multiple organizations, so
+  # we need to know how to map authorization to all orgs resources
+  study_to_resource_namespaces:
+    '_default': ['/']
+    'test_common_exchange_area': ['/dbgap/']
+    # above are for default support and exchange area support
+    # below are further examples
+    #
+    # 'studyX': ['/orgA/', '/orgB/']
+    # 'studyX.c2': ['/orgB/', '/orgC/']
+    # 'studyZ': ['/orgD/']
+
+# Regex to match an assession number that has consent information in forms like:
+#   phs00301123.c999
+#   phs000123.v3.p1.c3
+#   phs000123.c3
+#   phs00301123.v3.p4.c999
+# Will NOT MATCH forms like: phs000123
+#
+# WARNING: Do not change this without consulting the code that uses it
+DBGAP_ACCESSION_WITH_CONSENT_REGEX: '(?P<phsid>phs[0-9]+)(.(?P<version>v[0-9]+)){0,1}(.(?P<participant_set>p[0-9]+)){0,1}.(?P<consent>c[0-9]+)'
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # STORAGE BACKENDS AND CREDENTIALS
@@ -363,7 +514,7 @@ HTTP_PROXY:
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # MICROSERVICE PATHS
-#   - Support `/data` endpoints & `/rbac` endpoints
+#   - Support `/data` endpoints & authz functionality
 # //////////////////////////////////////////////////////////////////////////////////////
 # url where indexd microservice is running (for signed urls primarily)
 # NOTE: Leaving as null will force fence to default to {{BASE_URL}}/index
@@ -375,11 +526,11 @@ INDEXD_USERNAME: 'fence'
 # this is the password which fence uses to make authenticated requests to indexd
 INDEXD_PASSWORD: ''
 
-# url where role-based access control microservice is running
+# url where authz microservice is running
 ARBORIST: null
 
 # //////////////////////////////////////////////////////////////////////////////////////
-# CLOUD API LIBRARY (CIRRUS) CONFIGURATION
+# CLOUD API LIBRARY (CIRRUS) AND GOOGLE CONFIGURATION
 #   - Support Google Data Access Methods
 # //////////////////////////////////////////////////////////////////////////////////////
 # Setting this up allows fence to create buckets, manage Google groups, etc.
@@ -407,6 +558,34 @@ GOOGLE_GROUP_PREFIX: ''
 # NOTE: Make this short! Less than 8 characters if possible. Google has
 #       length restrictions on service account names.
 GOOGLE_SERVICE_ACCOUNT_PREFIX: ''
+
+# A Google Project identitifier representing the default project to bill to for
+# accessing Google Requester Pays buckets (for signed urls and/or temporary service account
+# credentials). If this is provided and the API call for
+# Google access does not include a `userProject`, this will be used instead.
+#
+# WARNING: Setting this WITHOUT setting "ENABLE_AUTOMATIC_BILLING_*" to `true` below,
+#          means that clients and end-users will be responsible for making sure that
+#          the service account used in either of these methods actually has billing
+#          permission in the specified project.
+BILLING_PROJECT_FOR_SIGNED_URLS:
+BILLING_PROJECT_FOR_SA_CREDS:
+
+# Setting this to `true` will make Fence automatically attempt to create a Custom Role
+# in the billing project and give the necessary Google Service Account that role
+# (which will allow it to bill to the project).
+#
+# NOTE: The Fence SA will need the necessary permissions in the specified project to
+#       both create a custom role and update the Project's IAM Policy to include the
+#       necessary SA. At the time of writing, there are pre-defined roles in Google's
+#       IAM that provide the necessary permissions. Those are "Project IAM Admin" and
+#       "Role Administrator"
+#
+#       NOTE2: It may be possible to further restrict the permissions in the future to
+#              be more fine-grained.
+#
+ENABLE_AUTOMATIC_BILLING_PERMISSION_SIGNED_URLS: false
+ENABLE_AUTOMATIC_BILLING_PERMISSION_SA_CREDS: false
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # EMAIL
@@ -517,6 +696,10 @@ GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS:
   - 'storage-transfer-service.iam.gserviceaccount.com'
   - 'firebase-sa-management.iam.gserviceaccount.com'
   - 'firebase-rules.iam.gserviceaccount.com'
+  - 'gcp-sa-cloudbuild.iam.gserviceaccount.com'
+  - 'gcp-sa-automl.iam.gserviceaccount.com'
+  - 'gcp-sa-datalabeling.iam.gserviceaccount.com'
+  - 'gcp-sa-cloudscheduler.iam.gserviceaccount.com'
 
 # The types of service accounts that are allowed to be registered at
 # /google/service_accounts endpoints
@@ -527,3 +710,13 @@ ALLOWED_USER_SERVICE_ACCOUNT_DOMAINS:
   - 'appspot.gserviceaccount.com'
   # user-managed service account
   - 'iam.gserviceaccount.com'
+
+# Synapse integration and DREAM challenge mapping. Team is from Synapse, and group is
+# providing the actual permission in Arborist. User will be added to the group for TTL
+# seconds if the team matches.
+DREAM_CHALLENGE_TEAM: 'DREAM'
+DREAM_CHALLENGE_GROUP: 'DREAM'
+SYNAPSE_URI: 'https://repo-prod.prod.sagebase.org/auth/v1'
+SYNAPSE_JWKS_URI:
+SYNAPSE_DISCOVERY_URL:
+SYNAPSE_AUTHZ_TTL: 86400

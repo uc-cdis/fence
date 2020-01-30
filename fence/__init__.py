@@ -8,38 +8,44 @@ from flask_sqlalchemy_session import flask_scoped_session, current_session
 from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.auth import logout, build_redirect_url
+from fence.blueprints.login.utils import allowed_login_redirects, domain
 from fence.errors import UserError
 from fence.jwt import keys
 from fence.models import migrate
 from fence.oidc.client import query_client
 from fence.oidc.server import server
-from fence.rbac.client import ArboristClient
 from fence.resources.aws.boto_manager import BotoManager
 from fence.resources.openid.google_oauth2 import GoogleOauth2Client as GoogleClient
-from fence.resources.openid.microsoft_oauth2 import MicrosoftOauth2Client as MicrosoftClient
+from fence.resources.openid.microsoft_oauth2 import (
+    MicrosoftOauth2Client as MicrosoftClient,
+)
 from fence.resources.openid.orcid_oauth2 import OrcidOauth2Client as ORCIDClient
+from fence.resources.openid.synapse_oauth2 import SynapseOauth2Client as SynapseClient
 from fence.resources.storage import StorageManager
 from fence.resources.user.user_session import UserSessionInterface
 from fence.error_handler import get_error_response
 from fence.utils import random_str
 from fence.config import config
+from fence.settings import CONFIG_SEARCH_FOLDERS
 import fence.blueprints.admin
 import fence.blueprints.data
 import fence.blueprints.login
 import fence.blueprints.oauth2
-import fence.blueprints.rbac
 import fence.blueprints.misc
 import fence.blueprints.storage_creds
 import fence.blueprints.user
 import fence.blueprints.well_known
 import fence.blueprints.link
 import fence.blueprints.google
+import fence.blueprints.privacy
 
 from cdislogging import get_logger
 
+from gen3authz.client.arborist.client import ArboristClient
+
 # Can't read config yet. Just set to debug for now, else no handlers.
 # Later, in app_config(), will actually set level based on config
-logger = get_logger(__name__, log_level='debug')
+logger = get_logger(__name__, log_level="debug")
 
 app = flask.Flask(__name__)
 CORS(app=app, headers=["content-type", "accept"], expose_headers="*")
@@ -76,7 +82,16 @@ def app_init(
 def app_sessions(app):
     app.url_map.strict_slashes = False
     app.db = SQLAlchemyDriver(config["DB"])
-    migrate(app.db)
+
+    # TODO: we will make a more robust migration system external from the application
+    #       initialization soon
+    if config["ENABLE_DB_MIGRATION"]:
+        logger.info("Running database migration...")
+        migrate(app.db)
+        logger.info("Done running database migration.")
+    else:
+        logger.info("NOT running database migration.")
+
     session = flask_scoped_session(app.db.Session, app)  # noqa
     app.session_interface = UserSessionInterface()
 
@@ -102,8 +117,9 @@ def app_register_blueprints(app):
     google_blueprint = fence.blueprints.google.make_google_blueprint()
     app.register_blueprint(google_blueprint, url_prefix="/google")
 
-    if config.get("ARBORIST"):
-        app.register_blueprint(fence.blueprints.rbac.blueprint, url_prefix="/rbac")
+    app.register_blueprint(
+        fence.blueprints.privacy.blueprint, url_prefix="/privacy-policy"
+    )
 
     fence.blueprints.misc.register_misc(app)
 
@@ -127,6 +143,8 @@ def app_register_blueprints(app):
             next_url = request_next
         else:
             next_url = build_redirect_url(config.get("ROOT_URL", ""), request_next)
+        if domain(next_url) not in allowed_login_redirects():
+            raise UserError("invalid logout redirect URL: {}".format(next_url))
         return logout(next_url=next_url)
 
     @app.route("/jwt/keys")
@@ -167,7 +185,11 @@ def app_config(
     config.update(dict(settings_cfg))
 
     # load the configuration file, this overwrites anything from settings/local_settings
-    config.load(config_path, file_name)
+    config.load(
+        config_path=config_path,
+        search_folders=CONFIG_SEARCH_FOLDERS,
+        file_name=file_name,
+    )
 
     # load all config back into flask app config for now, we should PREFER getting config
     # directly from the fence config singleton in the code though.
@@ -189,7 +211,7 @@ def app_config(
 
 def _setup_data_endpoint_and_boto(app):
     if "AWS_CREDENTIALS" in config and len(config["AWS_CREDENTIALS"]) > 0:
-        value = config["AWS_CREDENTIALS"].values()[0]
+        value = list(config["AWS_CREDENTIALS"].values())[0]
         app.boto = BotoManager(value, logger=logger)
         app.register_blueprint(fence.blueprints.data.blueprint, url_prefix="/data")
 
@@ -226,13 +248,17 @@ def _set_authlib_cfgs(app):
 
 
 def _setup_oidc_clients(app):
-    enabled_idp_ids = config["ENABLED_IDENTITY_PROVIDERS"]["providers"].keys()
+    if config["LOGIN_OPTIONS"]:
+        enabled_idp_ids = [option["idp"] for option in config["LOGIN_OPTIONS"]]
+    else:
+        # fall back on "providers"
+        enabled_idp_ids = list(
+            config.get("ENABLED_IDENTITY_PROVIDERS", {}).get("providers", {}).keys()
+        )
+    oidc = config.get("OPENID_CONNECT", {})
 
     # Add OIDC client for Google if configured.
-    configured_google = (
-        "OPENID_CONNECT" in config and "google" in config["OPENID_CONNECT"]
-    )
-    if configured_google:
+    if "google" in oidc:
         app.google_client = GoogleClient(
             config["OPENID_CONNECT"]["google"],
             HTTP_PROXY=config.get("HTTP_PROXY"),
@@ -240,21 +266,21 @@ def _setup_oidc_clients(app):
         )
 
     # Add OIDC client for ORCID if configured.
-    configured_orcid = (
-        "OPENID_CONNECT" in config and "orcid" in config["OPENID_CONNECT"]
-    )
-    if configured_orcid:
+    if "orcid" in oidc:
         app.orcid_client = ORCIDClient(
             config["OPENID_CONNECT"]["orcid"],
             HTTP_PROXY=config.get("HTTP_PROXY"),
             logger=logger,
         )
 
+    # Add OIDC client for Synapse if configured.
+    if "synapse" in oidc:
+        app.synapse_client = SynapseClient(
+            oidc["synapse"], HTTP_PROXY=config.get("HTTP_PROXY"), logger=logger
+        )
+
     # Add OIDC client for Microsoft if configured.
-    configured_microsoft = (
-        "OPENID_CONNECT" in config and "microsoft" in config["OPENID_CONNECT"]
-    )
-    if configured_microsoft:
+    if "microsoft" in oidc:
         app.microsoft_client = MicrosoftClient(
             config["OPENID_CONNECT"]["microsoft"],
             HTTP_PROXY=config.get("HTTP_PROXY"),
@@ -262,11 +288,7 @@ def _setup_oidc_clients(app):
         )
 
     # Add OIDC client for multi-tenant fence if configured.
-    configured_fence = (
-        "OPENID_CONNECT" in config
-        and "fence" in config["OPENID_CONNECT"]
-        and "fence" in enabled_idp_ids
-    )
+    configured_fence = "fence" in oidc and "fence" in enabled_idp_ids
     if configured_fence:
         app.fence_client = OAuthClient(**config["OPENID_CONNECT"]["fence"])
 

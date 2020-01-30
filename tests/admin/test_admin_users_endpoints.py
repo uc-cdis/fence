@@ -4,13 +4,7 @@ import json
 import jwt
 import pytest
 
-# Python 2 and 3 compatible
-try:
-    from unittest.mock import Mock
-    from unittest.mock import patch
-except ImportError:
-    from mock import Mock
-    from mock import patch
+from unittest.mock import Mock, patch
 
 from fence.config import config
 from fence.models import (
@@ -29,6 +23,12 @@ from fence.models import (
 )
 import fence.resources.admin as adm
 from tests import utils
+
+
+@pytest.fixture(autouse=True)
+def mock_arborist(mock_arborist_requests):
+    mock_arborist_requests()
+
 
 # TODO: Not yet tested: PUT,DELETE /users/<username>/projects
 
@@ -57,7 +57,9 @@ def encoded_admin_jwt(kid, rsa_private_key):
     claims["sub"] = "5678"
     claims["iss"] = config["BASE_URL"]
     claims["exp"] += 600
-    return jwt.encode(claims, key=rsa_private_key, headers=headers, algorithm="RS256")
+    return jwt.encode(
+        claims, key=rsa_private_key, headers=headers, algorithm="RS256"
+    ).decode("utf-8")
 
 
 # Dictionary for all these random magic numbers that the delete user
@@ -188,6 +190,20 @@ def test_get_user_username(
     assert r.json["username"] == "test_a"
 
 
+def test_get_user_long_username(
+    client, admin_user, encoded_admin_jwt, db_session, test_user_long
+):
+    """ GET /users/<username>: [get_user]: happy path """
+    r = client.get(
+        "/admin/users/test_amazing_user_with_an_fancy_but_extremely_long_name",
+        headers={"Authorization": "Bearer " + encoded_admin_jwt},
+    )
+    assert r.status_code == 200
+    assert (
+        r.json["username"] == "test_amazing_user_with_an_fancy_but_extremely_long_name"
+    )
+
+
 def test_get_user_username_nonexistent(
     client, admin_user, encoded_admin_jwt, db_session
 ):
@@ -210,17 +226,24 @@ def test_get_user_username_noauth(client, db_session):
 
 
 def test_get_user(
-    client, admin_user, encoded_admin_jwt, db_session, test_user_a, test_user_b
+    client,
+    admin_user,
+    encoded_admin_jwt,
+    db_session,
+    test_user_a,
+    test_user_b,
+    test_user_long,
 ):
     """ GET /user: [get_all_users] """
     r = client.get(
         "/admin/user", headers={"Authorization": "Bearer " + encoded_admin_jwt}
     )
     assert r.status_code == 200
-    assert len(r.json["users"]) == 3
+    assert len(r.json["users"]) == 4
     usernames = [user["name"] for user in r.json["users"]]
     assert "test_a" in usernames
     assert "test_b" in usernames
+    assert "test_amazing_user_with_an_fancy_but_extremely_long_name" in usernames
     assert "admin_user" in usernames
 
 
@@ -421,12 +444,12 @@ def test_put_user_username_try_delete_username(
     client, admin_user, encoded_admin_jwt, db_session, test_user_a
 ):
     """ PUT /users/<username>: [update_user] try to delete username"""
-    """ 
+    """
     This probably shouldn't be allowed. Conveniently, the code flow ends up
-    the same as though the user had not tried to update 'name' at all, 
+    the same as though the user had not tried to update 'name' at all,
     since they pass in None. Right now, this just returns a 200 without
     updating anything or sending any message to the user. So the test has
-    been written to ensure this behavior, but maybe it should be noted that 
+    been written to ensure this behavior, but maybe it should be noted that
     the tail wagged the dog somewhat in this case...
     """
     r = client.put(
@@ -446,12 +469,12 @@ def test_put_user_username_try_delete_role(
     client, admin_user, encoded_admin_jwt, db_session, test_user_a
 ):
     """ PUT /users/<username>: [update_user] try to set role to None"""
-    """ 
+    """
     This probably shouldn't be allowed. Conveniently, the code flow ends up
-    the same as though the user had not tried to update 'role' at all, 
+    the same as though the user had not tried to update 'role' at all,
     since they pass in None. Right now, this just returns a 200 without
     updating anything or sending any message to the user. So the test has
-    been written to ensure this behavior, but maybe it should be noted that 
+    been written to ensure this behavior, but maybe it should be noted that
     the tail wagged the dog somewhat in this case...
     """
     user = db_session.query(User).filter_by(username="test_a").one()
@@ -586,7 +609,7 @@ def assert_google_service_account_data_deleted(db_session):
 
 
 def assert_google_proxy_group_data_remained(db_session):
-    """ 
+    """
     Assert that test_user_d's Google PG and all associated rows remain in Fence db.
     Also assert that the test bucket and GBAG remain.
     """
@@ -620,7 +643,7 @@ def assert_google_proxy_group_data_remained(db_session):
 
 
 def assert_google_proxy_group_data_deleted(db_session):
-    """ 
+    """
     Assert that test_user_d's Google PG and all associated rows removed from Fence db.
     But assert that the test bucket and GBAG remain.
     """

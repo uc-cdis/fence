@@ -1,19 +1,18 @@
-from authlib.specs.oidc.grants import OpenIDImplicitGrant
-from authlib.specs.oidc.grants.base import create_response_mode_response
-from authlib.specs.rfc6749 import AccessDeniedError, InvalidRequestError
+from authlib.oidc.core.grants import OpenIDImplicitGrant
+from authlib.oidc.core.grants.util import create_response_mode_response
+from authlib.oauth2.rfc6749 import AccessDeniedError
 import flask
 
 from fence.models import AuthorizationCode
 
 
 class ImplicitGrant(OpenIDImplicitGrant):
-    def validate_nonce(self, required=False):
-        """
-        Override method in authlib to skip adding ``exists_nonce`` hook on server. I
-        don't think this needs to exist according to OIDC spec but this stays consistent
-        with authlib so here we are
-        """
-        return True
+    def exists_nonce(self, nonce, request):
+        with flask.current_app.db.session as session:
+            code = session.query(AuthorizationCode).filter_by(nonce=nonce).first()
+            if code:
+                return True
+            return False
 
     def create_authorization_response(self, grant_user):
         """
@@ -28,13 +27,15 @@ class ImplicitGrant(OpenIDImplicitGrant):
         if grant_user:
             self.request.user = grant_user
             client = self.request.client
-            include_access_token = self.request.response_type == "id_token token"
+            include_access_token = self.request.response_type != "id_token"
+            nonce = self.request.data.get("nonce")
             token_response = self.generate_token(
                 client,
                 self.GRANT_TYPE,
                 include_access_token=include_access_token,
                 user=grant_user,
                 scope=self.request.scope,
+                nonce=nonce,
             )
             params = [(k, token_response[k]) for k in token_response]
             if state:
@@ -47,7 +48,9 @@ class ImplicitGrant(OpenIDImplicitGrant):
         return create_response_mode_response(
             redirect_uri=self.redirect_uri,
             params=params,
-            response_mode=self.request.response_mode,
+            response_mode=self.request.data.get(
+                "response_mode", self.DEFAULT_RESPONSE_MODE
+            ),
         )
 
     def generate_token(self, *args, **kwargs):

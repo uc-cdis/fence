@@ -1,7 +1,13 @@
+import pytest
+
 import fence.resources.admin as adm
 from fence.models import User, AccessPrivilege, Project, UserToGroup, Group
-import pytest
 from fence.errors import NotFound, UserError
+
+
+@pytest.fixture(autouse=True)
+def mock_arborist(mock_arborist_requests):
+    mock_arborist_requests()
 
 
 def test_get_user(db_session, awg_users):
@@ -200,6 +206,6 @@ def test_get_user_groups(db_session, awg_users):
             "projects": ["test_project_1"],
         },
     ]
-    expected_groups.sort()
-    groups["groups"].sort()
+    expected_groups.sort(key=lambda x: x["name"])
+    groups["groups"].sort(key=lambda x: x["name"])
     assert groups["groups"] == expected_groups

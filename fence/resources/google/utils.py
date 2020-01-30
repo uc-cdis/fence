@@ -19,6 +19,7 @@ from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
 
 from fence.auth import current_token
 from fence.config import config
+from fence.errors import NotSupported, InternalError, UserError
 from fence.models import (
     GoogleServiceAccount,
     GoogleServiceAccountKey,
@@ -72,7 +73,7 @@ def get_or_create_primary_service_account_key(
     if user_service_account_key:
         fernet_key = Fernet(str(config["ENCRYPTION_KEY"]))
         private_key_bytes = fernet_key.decrypt(
-            str(user_service_account_key.private_key)
+            bytes(user_service_account_key.private_key, "utf-8")
         )
         sa_private_key = json.loads(private_key_bytes.decode("utf-8"))
     else:
@@ -140,7 +141,7 @@ def create_primary_service_account_key(user_id, username, proxy_group_id, expire
 
     fernet_key = Fernet(str(config["ENCRYPTION_KEY"]))
     private_key_bytes = json.dumps(sa_private_key).encode("utf-8")
-    private_key = fernet_key.encrypt(private_key_bytes)
+    private_key = fernet_key.encrypt(private_key_bytes).decode("utf-8")
 
     expires = expires or (
         int(time.time())
@@ -152,6 +153,108 @@ def create_primary_service_account_key(user_id, username, proxy_group_id, expire
     )
 
     return sa_private_key
+
+
+def give_service_account_billing_access_if_necessary(
+    sa_private_key, r_pays_project=None, default_billing_project=None
+):
+    """
+    Give the Service Account (whose key is provided) the privilege to bill to the
+    given project. If a project is not provided and there is a configured Google project
+    to bill to, we will use that.
+
+    Args:
+        sa_private_key (dict): JSON key in Google Credentials File format:
+
+            .. code-block:: JavaScript
+
+                {
+                    "type": "service_account",
+                    "project_id": "project-id",
+                    "private_key_id": "some_number",
+                    "private_key": "-----BEGIN PRIVATE KEY-----\n....
+                    =\n-----END PRIVATE KEY-----\n",
+                    "client_email": "<api-name>api@project-id.iam.gserviceaccount.com",
+                    "client_id": "...",
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://accounts.google.com/o/oauth2/token",
+                    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                    "client_x509_cert_url": "https://www.googleapis.com/...<api-name>api%40project-id.iam.gserviceaccount.com"
+                }
+        r_pays_project (str, optional): The Google Project identifier to bill to
+        default_billing_project (str, optional): the default The Google Project
+            identifier to bill to if r_pays_project is None
+    """
+    if not r_pays_project and not default_billing_project:
+        sa_account_id = sa_private_key.get("client_email")
+        raise UserError(
+            "You did NOT provide a `userProject` for requester pays billing, "
+            "so we could not create a custom role in that project to provide "
+            "the necessary service account ({}) billing permission. "
+            "Our main service account ({}) will need valid permissions in the "
+            "project you supplied to create a custom role and change the project "
+            "IAM policy. There is no configured default billing project so you must "
+            "provide a `userProject` query parameter.".format(
+                sa_account_id, config["CIRRUS_CFG"].get("GOOGLE_ADMIN_EMAIL")
+            )
+        )
+
+    # use configured project if it exists and no user project was given
+    is_default_billing = False
+    if default_billing_project and not r_pays_project:
+        r_pays_project = default_billing_project
+        is_default_billing = True
+
+    if r_pays_project:
+        sa_account_id = sa_private_key.get("client_email")
+
+        try:
+            # attempt to create custom role that gives
+            # the SA access to bill the project provided
+            # NOTE: this may fail if our fence SA doesn't have the right permissions
+            #       to add this role and update the project policy
+            with GoogleCloudManager(project_id=r_pays_project) as g_cloud_manager:
+                g_cloud_manager.give_service_account_billing_access(
+                    sa_account_id, project_id=r_pays_project
+                )
+        except Exception as exc:
+            logger.error(
+                "Unable to create a custom role in Google Project {} to "
+                "give Google service account {} rights to bill the project. Error: {}".format(
+                    r_pays_project, sa_account_id, exc
+                )
+            )
+            if is_default_billing:
+                raise InternalError(
+                    "Fence has a configured Google Project for requester pays billing ({}), "
+                    "but could not create a custom role in that project to provide "
+                    "the necessary service account ({}) billing permission. It could be that "
+                    "the Fence admin service account ({}) does not have valid permissions in the "
+                    "project.".format(
+                        r_pays_project,
+                        sa_account_id,
+                        config["CIRRUS_CFG"].get("GOOGLE_ADMIN_EMAIL"),
+                    )
+                )
+            else:
+                raise NotSupported(
+                    "You provided {} as a `userProject` for requester pays billing, "
+                    "but we could not create a custom role in that project to provide "
+                    "the necessary service account ({}) billing permission. It could be that "
+                    "our main service account ({}) does not have valid permissions in the "
+                    "project you supplied to create a custom role and change the project IAM policy.".format(
+                        r_pays_project,
+                        sa_account_id,
+                        config["CIRRUS_CFG"].get("GOOGLE_ADMIN_EMAIL"),
+                    )
+                )
+
+        logger.info(
+            "Created a custom role in Google Project {} to "
+            "give Google service account {} rights to bill the project.".format(
+                r_pays_project, sa_account_id
+            )
+        )
 
 
 def create_google_access_key(client_id, user_id, username, proxy_group_id):
@@ -539,12 +642,15 @@ def get_users_linked_google_email_from_token():
     Returns:
         str: email address of account or None
     """
-    return (
-        current_token.get("context", {})
-        .get("user", {})
-        .get("google", {})
-        .get("linked_google_account", None)
-    )
+    if current_token:
+        return (
+            current_token.get("context", {})
+            .get("user", {})
+            .get("google", {})
+            .get("linked_google_account", None)
+        )
+
+    return None
 
 
 def get_users_proxy_group_from_token():
@@ -555,12 +661,15 @@ def get_users_proxy_group_from_token():
     Returns:
         str: proxy group ID or None
     """
-    return (
-        current_token.get("context", {})
-        .get("user", {})
-        .get("google", {})
-        .get("proxy_group", None)
-    )
+    if current_token:
+        return (
+            current_token.get("context", {})
+            .get("user", {})
+            .get("google", {})
+            .get("proxy_group", None)
+        )
+
+    return None
 
 
 def get_prefix_for_google_proxy_groups():
@@ -596,6 +705,21 @@ def get_all_registered_service_accounts(db=None):
     )
 
     return list(registered_service_accounts)
+
+
+def get_registered_service_accounts_with_access(google_project_id, db=None):
+    session = get_db_session(db)
+
+    return (
+        session.query(UserServiceAccount)
+        .join(ServiceAccountToGoogleBucketAccessGroup)
+        .filter(
+            UserServiceAccount.id
+            == ServiceAccountToGoogleBucketAccessGroup.service_account_id
+        )
+        .filter(UserServiceAccount.google_project_id == google_project_id)
+        .all()
+    )
 
 
 def get_registered_service_accounts(google_project_id, db=None):

@@ -109,9 +109,9 @@ class Keypair(object):
         # Raise an error if either key does not match our expectations that the
         # private key should be private and the public key should not be
         # private.
-        if "PRIVATE KEY" not in private_key:
+        if "PRIVATE KEY" not in str(private_key):
             raise ValueError("received private key that was not an RSA private key")
-        if "PRIVATE KEY" in public_key:
+        if "PRIVATE KEY" in str(public_key):
             raise ValueError("received public key that was actually an RSA private key")
 
         self.kid = kid
@@ -181,8 +181,13 @@ class Keypair(object):
         Return:
             dict: JWK representation of the public key
         """
-        n, e = _rsa_public_numbers(self.public_key)
         jwk_dict = jwk.construct(self.public_key, algorithm="RS256").to_dict()
+        for k in jwk_dict:  # convert byte values to string
+            try:
+                jwk_dict[k] = jwk_dict[k].decode("utf-8")
+            except AttributeError:
+                # there is no need to decode values that are already strings
+                pass
         jwk_dict.update({"use": "sig", "key_ops": "verify", "kid": self.kid})
         return jwk_dict
 
@@ -200,7 +205,9 @@ def _rsa_public_numbers(public_key_data):
     Return:
         Tuple[int, int]: the public key modulus ``n`` and exponent ``e``
     """
-    key = serialization.load_pem_public_key(public_key_data, default_backend())
+    key = serialization.load_pem_public_key(
+        bytes(public_key_data, "utf-8"), default_backend()
+    )
     numbers = key.public_numbers()
     return (numbers.n, numbers.e)
 

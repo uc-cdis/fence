@@ -45,6 +45,7 @@ from fence.models import (
     UserRefreshToken,
     ServiceAccountToGoogleBucketAccessGroup,
     query_for_user,
+    migrate,
 )
 from fence.scripting.google_monitor import email_users_without_access, validation_check
 from fence.config import config
@@ -61,7 +62,7 @@ def list_client_action(db):
             for row in s.query(Client).all():
                 pprint.pprint(row.__dict__)
     except Exception as e:
-        print(e.message)
+        print(str(e))
 
 
 def modify_client_action(
@@ -73,6 +74,8 @@ def modify_client_action(
     description=None,
     set_auto_approve=False,
     unset_auto_approve=False,
+    arborist=None,
+    policies=None,
 ):
     driver = SQLAlchemyDriver(DB)
     with driver.session as s:
@@ -98,6 +101,8 @@ def modify_client_action(
             client.description = description
             print("Updating description to {}".format(description))
         s.commit()
+    if arborist is not None and policies:
+        arborist.update_client(client.client_id, policies)
 
 
 def create_client_action(
@@ -110,7 +115,7 @@ def create_client_action(
             )
         )
     except Exception as e:
-        print(e.message)
+        print(str(e))
 
 
 def delete_client_action(DB, client_name):
@@ -142,7 +147,7 @@ def delete_client_action(DB, client_name):
 
         print("Client {} deleted".format(client_name))
     except Exception as e:
-        print(e.message)
+        print(str(e))
 
 
 def _remove_client_service_accounts(db_session, client):
@@ -186,7 +191,7 @@ def sync_users(
     """
     sync ACL files from dbGap to auth db and storage backends
     imports from config is done here because dbGap is
-    an optional requirment for fence so it might not be specified
+    an optional requirement for fence so it might not be specified
     in config
     Args:
         projects: path to project_mapping yaml file which contains mapping
@@ -243,8 +248,8 @@ def sync_users(
     syncer.sync()
 
 
-def create_sample_data(DB, yaml_input):
-    with open(yaml_input, "r") as f:
+def create_sample_data(DB, yaml_file_path):
+    with open(yaml_file_path, "r") as f:
         data = safe_load(f)
 
     db = SQLAlchemyDriver(DB)
@@ -256,11 +261,13 @@ def create_sample_data(DB, yaml_input):
 
 
 def create_group(s, data):
-    for group_name, fields in data["groups"].iteritems():
+    groups = data.get("groups", {})
+    for group_name, fields in groups.items():
         projects = fields.get("projects", [])
         group = s.query(Group).filter(Group.name == group_name).first()
         if not group:
             group = Group(name=group_name)
+            s.add(group)
         for project_data in projects:
             grant_project_to_group_or_user(s, project_data, group)
 
@@ -279,7 +286,7 @@ def create_project(s, project_data):
         project = Project(name=name, auth_id=auth_id)
         s.add(project)
     if "storage_accesses" in project_data:
-        sa_list = project_data["storage_accesses"]
+        sa_list = project_data.get("storage_accesses", [])
         for storage_access in sa_list:
             provider = storage_access["name"]
             buckets = storage_access.get("buckets", [])
@@ -290,8 +297,9 @@ def create_project(s, project_data):
                 .filter(CloudProvider.name == provider)
                 .first()
             )
+            c_provider = s.query(CloudProvider).filter_by(name=provider).first()
+            assert c_provider, "CloudProvider {} does not exist".format(provider)
             if not sa:
-                c_provider = s.query(CloudProvider).filter_by(name=provider).first()
                 sa = StorageAccess(provider=c_provider, project=project)
                 s.add(sa)
                 print(
@@ -318,13 +326,13 @@ def create_project(s, project_data):
 
 
 def grant_project_to_group_or_user(s, project_data, group=None, user=None):
-    privilege = project_data["privilege"]
+    privilege = project_data.get("privilege", [])
     project = create_project(s, project_data)
     if group:
         ap = (
             s.query(AccessPrivilege)
             .join(AccessPrivilege.project)
-            .join(AccessPrivilege.research_group)
+            .join(AccessPrivilege.group)
             .filter(Project.name == project.name, Group.name == group.name)
             .first()
         )
@@ -345,9 +353,7 @@ def grant_project_to_group_or_user(s, project_data, group=None, user=None):
         raise Exception("need to provide either a user or group")
     if not ap:
         if group:
-            ap = AccessPrivilege(
-                project=project, research_group=group, privilege=privilege
-            )
+            ap = AccessPrivilege(project=project, group=group, privilege=privilege)
         elif user:
             ap = AccessPrivilege(project=project, user=user, privilege=privilege)
         else:
@@ -368,8 +374,8 @@ def grant_project_to_group_or_user(s, project_data, group=None, user=None):
 
 
 def create_cloud_providers(s, data):
-    cloud_data = data.get("cloud_providers", [])
-    for name, fields in cloud_data.iteritems():
+    cloud_data = data.get("cloud_providers", {})
+    for name, fields in cloud_data.items():
         cloud_provider = (
             s.query(CloudProvider).filter(CloudProvider.name == name).first()
         )
@@ -384,8 +390,9 @@ def create_cloud_providers(s, data):
 
 def create_users_with_group(DB, s, data):
     providers = {}
-    data_groups = data["groups"]
-    for username, data in data["users"].iteritems():
+    data_groups = data.get("groups", {})
+    users = data.get("users", {})
+    for username, data in users.items():
         is_existing_user = True
         user = query_for_user(session=s, username=username)
 
@@ -602,7 +609,7 @@ def delete_expired_service_accounts(DB):
                     except Exception as e:
                         print(
                             "ERROR: Could not delete service account {}. Details: {}".format(
-                                record.service_account.email, e.message
+                                record.service_account.email, e
                             )
                         )
 
@@ -631,7 +638,7 @@ def verify_bucket_access_group(DB):
                 try:
                     members = manager.get_group_members(access_group.email)
                 except GoogleAuthError as e:
-                    print("ERROR: Authentication error!!!. Detail {}".format(e.message))
+                    print("ERROR: Authentication error!!!. Detail {}".format(e))
                     return
                 except Exception as e:
                     print(
@@ -892,9 +899,14 @@ def link_bucket_to_project(db, bucket_id, bucket_provider, project_auth_id):
             current_session.query(Project).filter_by(auth_id=project_auth_id).first()
         )
         if not project_db_entry:
-            raise NameError(
-                'No project with auth_id "{}" exists.'.format(project_auth_id)
+            print(
+                'WARNING: No project with auth_id "{}" exists. Creating...'.format(
+                    project_auth_id
+                )
             )
+            project_db_entry = Project(name=project_auth_id, auth_id=project_auth_id)
+            current_session.add(project_db_entry)
+            current_session.commit()
 
         # Add StorageAccess if it doesn't exist for the project
         storage_access = (
@@ -1336,3 +1348,41 @@ def notify_problem_users(db, emails, auth_ids, check_linking, google_project_id)
     check_linking (bool): flag for if emails should be checked for linked google email
     """
     email_users_without_access(db, auth_ids, emails, check_linking, google_project_id)
+
+
+def migrate_database(db):
+    driver = SQLAlchemyDriver(db)
+    migrate(driver)
+    print("Done.")
+
+
+def google_list_authz_groups(db):
+    """
+    Builds a list of Google authorization information which includes
+    the Google Bucket Access Group emails, Bucket(s) they're associated with, and
+    underlying Fence Project auth_id that provides access to that Bucket/Group
+
+    db (string): database instance
+    """
+    driver = SQLAlchemyDriver(db)
+
+    with driver.session as db_session:
+        google_authz = (
+            db_session.query(
+                GoogleBucketAccessGroup.email,
+                Bucket.name,
+                Project.auth_id,
+                ProjectToBucket,
+            )
+            .join(Project, ProjectToBucket.project_id == Project.id)
+            .join(Bucket, ProjectToBucket.bucket_id == Bucket.id)
+            .join(
+                GoogleBucketAccessGroup, GoogleBucketAccessGroup.bucket_id == Bucket.id
+            )
+        ).all()
+
+        print("GoogleBucketAccessGroup.email, Bucket.name, Project.auth_id")
+        for item in google_authz:
+            print(", ".join(item[:-1]))
+
+        return google_authz

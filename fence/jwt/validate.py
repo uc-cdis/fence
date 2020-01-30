@@ -89,7 +89,7 @@ def validate_jwt(
     try:
         token_iss = jwt.decode(encoded_token, verify=False).get("iss")
     except jwt.InvalidTokenError as e:
-        raise JWTError(e.message)
+        raise JWTError(e)
     attempt_refresh = attempt_refresh and (token_iss != iss)
     public_key = authutils.token.keys.get_public_key_for_token(
         encoded_token, attempt_refresh=attempt_refresh
