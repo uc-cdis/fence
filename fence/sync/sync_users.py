@@ -296,7 +296,7 @@ class UserSyncer(object):
         if is_sync_from_dbgap_server:
             self.server = dbGaP["info"]
             self.protocol = dbGaP["protocol"]
-            self.dbgap_key = dbGaP["decrypt_key"]
+            self.dbgap_key = dbGaP["decrypt_key"].decode('utf-8')
         self.parse_consent_code = dbGaP.get("parse_consent_code", True)
         self.enable_common_exchange_area_access = dbGaP.get(
             "enable_common_exchange_area_access", False
