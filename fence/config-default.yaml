@@ -698,6 +698,7 @@ GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS:
   - 'gcp-sa-cloudbuild.iam.gserviceaccount.com'
   - 'gcp-sa-automl.iam.gserviceaccount.com'
   - 'gcp-sa-datalabeling.iam.gserviceaccount.com'
+  - 'gcp-sa-cloudscheduler.iam.gserviceaccount.com'
 
 # The types of service accounts that are allowed to be registered at
 # /google/service_accounts endpoints
@@ -715,5 +716,6 @@ ALLOWED_USER_SERVICE_ACCOUNT_DOMAINS:
 DREAM_CHALLENGE_TEAM: 'DREAM'
 DREAM_CHALLENGE_GROUP: 'DREAM'
 SYNAPSE_URI: 'https://repo-prod.prod.sagebase.org/auth/v1'
+SYNAPSE_JWKS_URI:
 SYNAPSE_DISCOVERY_URL:
 SYNAPSE_AUTHZ_TTL: 86400
