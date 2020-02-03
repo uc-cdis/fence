@@ -981,7 +981,7 @@ class UserSyncer(object):
         """
         dbgap_file_list = []
         tmpdir = tempfile.mkdtemp()
-        server = dbGaP["Info"]
+        server = dbGaP["info"]
         protocol = dbGaP["protocol"]
         self.logger.info("Download from server")
         try:
@@ -1003,7 +1003,7 @@ class UserSyncer(object):
             self.logger.info(e)
             if e.errno != errno.ENOENT:
                 raise
-        user_projects = self._parse_projects(user_projects)
+        user_projects = self.parse_projects(user_projects)
         return user_projects, user_info
 
     def _get_user_permissions_from_csv_list(self, dbGaP, file_list, encrypted, session):

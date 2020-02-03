@@ -12,9 +12,9 @@ Usersync is a script that parses user access information from multiple sources (
 
 ## Configuration
 
-Configuration for user sync lives in fence-config.yaml for each respective environment. An example of the fence-config can be found [fence/config-default.yaml](fence/config-default.yaml).
+Configuration for user sync lives in fence-config.yaml for each respective environment. An example of the fence-config can be found [fence/config-default.yaml](https://github.com/uc-cdis/fence/blob/master/fence/config-default.yaml).
 
-You can configure one or more dbGaP SFTP servers to sync telemetry files from. To configure one single dbGaP server, add credentials and information to the fence-config.yaml under `dbGaP`, this is outlined in [fence/config-default.yaml](fence/config-default.yaml)
+You can configure one or more dbGaP SFTP servers to sync telemetry files from. To configure one single dbGaP server, add credentials and information to the fence-config.yaml under `dbGaP`, this is outlined in [here](https://github.com/uc-cdis/fence/blob/4.14.0/fence/config-default.yaml#L389-L433)
 
 To configure additional dbGaP servers, include in the config.yaml a list of dbGaP servers under `additional_dbGaP`, like so:
 
@@ -34,7 +34,7 @@ additional_dbGaP:
     ...
 ```
 
-An example can be found in the config used for unit testing [tests/test-fence-config.yaml](tests/test-fence-config.yaml)
+An example can be found in the config used for unit testing [tests/test-fence-config.yaml](https://github.com/uc-cdis/fence/blob/master/tests/test-fence-config.yaml)
 
 ## Usersync result example
 
