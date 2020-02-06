@@ -1000,7 +1000,7 @@ class UserSyncer(object):
             exit(1)
         self.logger.info("dbgap files: {}".format(dbgap_file_list))
         user_projects, user_info = self._get_user_permissions_from_csv_list(
-            dbgap_config, dbgap_file_list, encrypted=True, session=sess
+            dbgap_file_list, encrypted=True, session=sess
         )
         try:
             shutil.rmtree(tmpdir)
@@ -1095,7 +1095,7 @@ class UserSyncer(object):
             )
 
         user_projects_csv, user_info_csv = self._get_user_permissions_from_csv_list(
-            local_csv_file_list, dbgap_config={}, encrypted=False, session=sess
+            local_csv_file_list, encrypted=False, session=sess
         )
 
         try:
