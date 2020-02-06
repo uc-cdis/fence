@@ -443,7 +443,9 @@ class UserSyncer(object):
         enable_common_exchange_area_access = dbgap_config.get(
             "enable_common_exchange_area_access", False
         )
-        study_common_exchange_areas = dbgap_config.get("study_common_exchange_areas", {})
+        study_common_exchange_areas = dbgap_config.get(
+            "study_common_exchange_areas", {}
+        )
 
         if parse_consent_code and enable_common_exchange_area_access:
             self.logger.info(
@@ -1083,11 +1085,9 @@ class UserSyncer(object):
             self.logger.debug(
                 "Pulling telemetry files from {} dbgap sftp servers".format(
                     len(self.dbGaP)
-                    )
                 )
-            user_projects, user_info = self._merge_multiple_dbgap_sftp(
-                self.dbGaP, sess
             )
+            user_projects, user_info = self._merge_multiple_dbgap_sftp(self.dbGaP, sess)
 
         local_csv_file_list = []
         if self.sync_from_local_csv_dir:
@@ -1095,7 +1095,9 @@ class UserSyncer(object):
                 os.path.join(self.sync_from_local_csv_dir, "*")
             )
 
-        user_projects_csv, user_info_csv = self._get_user_permissions_from_csv_list(local_csv_file_list, dbgap_config={}, encrypted=False, session=sess)
+        user_projects_csv, user_info_csv = self._get_user_permissions_from_csv_list(
+            local_csv_file_list, dbgap_config={}, encrypted=False, session=sess
+        )
 
         try:
             user_yaml = UserYAML.from_file(
