@@ -294,7 +294,6 @@ class UserSyncer(object):
         self.sync_from_local_yaml_file = sync_from_local_yaml_file
         self.is_sync_from_dbgap_server = is_sync_from_dbgap_server
         self.dbGaP = dbGaP
-        self.additional_dbGaP = additional_dbGaP
         if is_sync_from_dbgap_server:
             self.parse_consent_code = dbGaP[0].get("parse_consent_code", True)
         self.session = db_session
