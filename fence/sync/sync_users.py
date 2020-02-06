@@ -1000,7 +1000,7 @@ class UserSyncer(object):
             exit(1)
         self.logger.info("dbgap files: {}".format(dbgap_file_list))
         user_projects, user_info = self._get_user_permissions_from_csv_list(
-            dbgap_file_list, encrypted=True, session=sess
+            dbgap_file_list, encrypted=True, session=sess, dbgap_config=dbgap_config
         )
         try:
             shutil.rmtree(tmpdir)
@@ -1011,13 +1011,16 @@ class UserSyncer(object):
         user_projects = self.parse_projects(user_projects)
         return user_projects, user_info
 
-    def _get_user_permissions_from_csv_list(self, file_list, encrypted, session):
+    def _get_user_permissions_from_csv_list(
+        self, file_list, encrypted, session, dbgap_config={}
+    ):
         """
         Args:
-            file_list: list of strings, paths to csv files
+            file_list: list of files (represented as strings)
             encrypted: boolean indicating whether those files are encrypted
             session: sqlalchemy session
-
+            dbgap_config: a dictionary containing information about the dbGaP sftp server
+                    (comes from fence config)
 
         Return:
             user_projects (dict)
@@ -1026,9 +1029,9 @@ class UserSyncer(object):
         permissions = [{"read-storage", "read"} for _ in file_list]
         user_projects, user_info = self._parse_csv(
             dict(list(zip(file_list, permissions))),
-            dbgap_config={},
-            encrypted=encrypted,
             sess=session,
+            dbgap_config=dbgap_config,
+            encrypted=encrypted,
         )
         return user_projects, user_info
 
