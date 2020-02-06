@@ -564,31 +564,9 @@ def test_update_arborist(syncer, db_session):
 
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
-def test_single_dbgap_server(syncer, monkeypatch, db_session):
-    """
-    Test that if there are no additional dbGaP servers,
-    only _process_dbgap_files() is called
-    """
-    monkeypatch.setattr(syncer, "is_sync_from_dbgap_server", True)
-    monkeypatch.setattr(syncer, "additional_dbGaP", None)
-
-    def mock_merge(dbgap_servers, sess):
-        return {}, {}
-
-    syncer._merge_multiple_dbgap_sftp = MagicMock(side_effect=mock_merge)
-    syncer._process_dbgap_files = MagicMock(side_effect=mock_merge)
-
-    syncer.sync()
-    assert syncer._merge_multiple_dbgap_sftp.not_called
-    assert syncer._process_dbgap_files.called
-    syncer._process_dbgap_files.called_once_with(syncer.dbGaP, db_session)
-
-
-@pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
 def test_merge_dbgap_servers(syncer, monkeypatch, db_session):
     """
-    Test that if there are additional dbgap servers,
-    then _merge_multiple_dbgap_sftp() is called
+    Test _merge_multiple_dbgap_sftp() is called when sync from dbgap server is true
     """
     monkeypatch.setattr(syncer, "is_sync_from_dbgap_server", True)
 
@@ -597,10 +575,9 @@ def test_merge_dbgap_servers(syncer, monkeypatch, db_session):
 
     syncer._merge_multiple_dbgap_sftp = MagicMock(side_effect=mock_merge)
     syncer._process_dbgap_files = MagicMock(side_effect=mock_merge)
-    dbgap_servers = [syncer.dbGaP] + syncer.additional_dbGaP
 
     syncer.sync()
-    syncer._merge_multiple_dbgap_sftp.assert_called_once_with(dbgap_servers, db_session)
+    syncer._merge_multiple_dbgap_sftp.assert_called_once_with(syncer.dbGaP, db_session)
 
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)

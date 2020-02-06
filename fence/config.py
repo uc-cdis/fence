@@ -42,7 +42,6 @@ class FenceConfig(Config):
             "GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN",
             "ACCESS_TOKEN_EXPIRES_IN",
             "dbGaP",
-            "additional_dbGaP",
             "CIRRUS_CFG",
             "WHITE_LISTED_GOOGLE_PARENT_ORGS",
         ]

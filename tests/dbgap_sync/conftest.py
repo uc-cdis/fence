@@ -136,21 +136,12 @@ def syncer(db_session, request):
             )
         )
     ).get("DB")
-    additional_dbGaP = yaml_load(
-        open(
-            os.path.join(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                "test-fence-config.yaml",
-            )
-        )
-    ).get("additional_dbGaP")
 
     syncer_obj = UserSyncer(
         dbGaP=dbGap,
         DB=test_db,
         db_session=db_session,
         project_mapping=project_mapping,
-        additional_dbGaP=additional_dbGaP,
         storage_credentials=storage_credentials,
         is_sync_from_dbgap_server=False,
         sync_from_local_csv_dir=LOCAL_CSV_DIR,

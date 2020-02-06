@@ -270,7 +270,6 @@ class UserSyncer(object):
         dbGaP,
         DB,
         project_mapping,
-        additional_dbGaP=None,
         storage_credentials=None,
         db_session=None,
         is_sync_from_dbgap_server=False,
@@ -281,8 +280,7 @@ class UserSyncer(object):
         """
         Syncs ACL files from dbGap to auth database and storage backends
         Args:
-            dbGaP: a dict containing creds to access dbgap sftp
-            additional_dbGaP: list of dicts containing creds to any additional dbgap sftp
+            dbGaP: a list of dict containing creds to access dbgap sftp
             DB: database connection string
             project_mapping: a dict containing how dbgap ids map to projects
             storage_credentials: a dict containing creds for storage backends
@@ -297,7 +295,8 @@ class UserSyncer(object):
         self.is_sync_from_dbgap_server = is_sync_from_dbgap_server
         self.dbGaP = dbGaP
         self.additional_dbGaP = additional_dbGaP
-        self.parse_consent_code = dbGaP.get("parse_consent_code", True)
+        if is_sync_from_dbgap_server:
+            self.parse_consent_code = dbGaP[0].get("parse_consent_code", True)
         self.session = db_session
         self.driver = SQLAlchemyDriver(DB)
         self.project_mapping = project_mapping or {}
@@ -397,16 +396,16 @@ class UserSyncer(object):
         )
         os.system(execstr)
 
-    def _parse_csv(self, dbGaP, file_dict, sess, encrypted=True):
+    def _parse_csv(self, file_dict, sess, dbgap_config={}, encrypted=True):
         """
         parse csv files to python dict
 
         Args:
-            dbGaP: a dictionary containing information about the dbGaP sftp server
-                (comes from fence config)
             file_dict: a dictionary with key(file path) and value(privileges)
             sess: sqlalchemy session
-            encrypted: whether those files are encrypted
+            dbgap_config: a dictionary containing information about the dbGaP sftp server
+                (comes from fence config)
+            encrypted: boolean indicating whether those files are encrypted
 
 
         Return:
@@ -439,12 +438,12 @@ class UserSyncer(object):
         user_info = dict()
 
         # parse dbGaP sftp server information
-        dbgap_key = dbGaP.get("decrypt_key", None)
-        parse_consent_code = dbGaP.get("parse_consent_code", True)
-        enable_common_exchange_area_access = dbGaP.get(
+        dbgap_key = dbgap_config.get("decrypt_key", None)
+        parse_consent_code = dbgap_config.get("parse_consent_code", True)
+        enable_common_exchange_area_access = dbgap_config.get(
             "enable_common_exchange_area_access", False
         )
-        study_common_exchange_areas = dbGaP.get("study_common_exchange_areas", {})
+        study_common_exchange_areas = dbgap_config.get("study_common_exchange_areas", {})
 
         if parse_consent_code and enable_common_exchange_area_access:
             self.logger.info(
@@ -973,16 +972,21 @@ class UserSyncer(object):
             sess.add(instance)
         return instance
 
-    def _process_dbgap_files(self, dbGaP, sess):
+    def _process_dbgap_files(self, dbgap_config, sess):
         """
-        returns
+        Args:
+            dbgap_config : a dictionary containing information about a single
+                           dbgap sftp server (from fence config)
+            sess: database session
+
+        Return:
             user_projects (dict)
             user_info (dict)
         """
         dbgap_file_list = []
         tmpdir = tempfile.mkdtemp()
-        server = dbGaP["info"]
-        protocol = dbGaP["protocol"]
+        server = dbgap_config["info"]
+        protocol = dbgap_config["protocol"]
         self.logger.info("Download from server")
         try:
             if protocol == "sftp":
@@ -995,7 +999,7 @@ class UserSyncer(object):
             exit(1)
         self.logger.info("dbgap files: {}".format(dbgap_file_list))
         user_projects, user_info = self._get_user_permissions_from_csv_list(
-            dbGaP, dbgap_file_list, encrypted=True, session=sess
+            dbgap_config, dbgap_file_list, encrypted=True, session=sess
         )
         try:
             shutil.rmtree(tmpdir)
@@ -1006,17 +1010,38 @@ class UserSyncer(object):
         user_projects = self.parse_projects(user_projects)
         return user_projects, user_info
 
-    def _get_user_permissions_from_csv_list(self, dbGaP, file_list, encrypted, session):
+    def _get_user_permissions_from_csv_list(self, file_list, encrypted, session):
+        """
+        Args:
+            file_list: list of strings, paths to csv files
+            encrypted: boolean indicating whether those files are encrypted
+            session: sqlalchemy session
+
+
+        Return:
+            user_projects (dict)
+            user_info (dict)
+        """
         permissions = [{"read-storage", "read"} for _ in file_list]
         user_projects, user_info = self._parse_csv(
-            dbGaP,
             dict(list(zip(file_list, permissions))),
+            dbgap_config={},
             encrypted=encrypted,
             sess=session,
         )
         return user_projects, user_info
 
     def _merge_multiple_dbgap_sftp(self, dbgap_servers, sess):
+        """
+        Args:
+            dbgap_servers : a list of dictionaries each containging config on
+                           dbgap sftp server (comes from fence config)
+            sess: database session
+
+        Return:
+            merged_user_projects (dict)
+            merged_user_info (dict)
+        """
         merged_user_projects = {}
         merged_user_info = {}
         for dbgap in dbgap_servers:
@@ -1055,30 +1080,22 @@ class UserSyncer(object):
         user_projects = {}
         user_info = {}
         if self.is_sync_from_dbgap_server:
-            if self.additional_dbGaP:
-                dbgap_servers = [self.dbGaP] + self.additional_dbGaP
-                self.logger.debug(
-                    "Pulling telemetry files from {} dbgap sftp servers".format(
-                        len(dbgap_servers)
+            self.logger.debug(
+                "Pulling telemetry files from {} dbgap sftp servers".format(
+                    len(self.dbGaP)
                     )
                 )
-                user_projects, user_info = self._merge_multiple_dbgap_sftp(
-                    dbgap_servers, sess
-                )
-            else:
-                self.logger.debug(
-                    "Pulling telemetry files from single dbgap sftp server"
-                )
-                user_projects, user_info = self._process_dbgap_files(self.dbGaP, sess)
+            user_projects, user_info = self._merge_multiple_dbgap_sftp(
+                self.dbGaP, sess
+            )
 
         local_csv_file_list = []
         if self.sync_from_local_csv_dir:
             local_csv_file_list = glob.glob(
                 os.path.join(self.sync_from_local_csv_dir, "*")
             )
-        user_projects_csv, user_info_csv = self._get_user_permissions_from_csv_list(
-            self.dbGaP, local_csv_file_list, encrypted=False, session=sess
-        )
+
+        user_projects_csv, user_info_csv = self._get_user_permissions_from_csv_list(local_csv_file_list, dbgap_config={}, encrypted=False, session=sess)
 
         try:
             user_yaml = UserYAML.from_file(

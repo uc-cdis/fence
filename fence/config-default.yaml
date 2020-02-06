@@ -431,18 +431,6 @@ dbGaP:
     # 'studyX': ['/orgA/', '/orgB/']
     # 'studyX.c2': ['/orgB/', '/orgC/']
     # 'studyZ': ['/orgD/']
-# additional dbGap SFTP servers to sync with
-# Follows the same format as dbGaP entries
-# accepts a list of objects
-# example:
-# additional_dbGaP:
-# - info:
-#     host: ''
-#     username: ''
-#     password: ''
-#     ...
-
-additional_dbGaP: null
 
 # Regex to match an assession number that has consent information in forms like:
 #   phs00301123.c999

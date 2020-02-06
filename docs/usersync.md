@@ -16,10 +16,10 @@ Configuration for user sync lives in fence-config.yaml for each respective envir
 
 You can configure one or more dbGaP SFTP servers to sync telemetry files from. To configure one single dbGaP server, add credentials and information to the fence-config.yaml under `dbGaP`, this is outlined in [here](https://github.com/uc-cdis/fence/blob/4.14.0/fence/config-default.yaml#L389-L433)
 
-To configure additional dbGaP servers, include in the config.yaml a list of dbGaP servers under `additional_dbGaP`, like so:
+To configure additional dbGaP servers, include in the config.yaml a list of dbGaP servers under `dbGaP`, like so:
 
 ```
-additional_dbGaP:
+dbGaP:
 - info:
     host:
     username:
