@@ -429,6 +429,8 @@ paths:
                 $ref: '#/components/schemas/SignedURL'
         '400':
           description: 'Invalid input: UUID not found or invalid location'
+        '404':
+          description: 'No location found for this file'
   '/data/upload':
     post:
       tags:
