@@ -294,8 +294,7 @@ class UserSyncer(object):
         self.sync_from_local_yaml_file = sync_from_local_yaml_file
         self.is_sync_from_dbgap_server = is_sync_from_dbgap_server
         self.dbGaP = dbGaP
-        if is_sync_from_dbgap_server:
-            self.parse_consent_code = dbGaP[0].get("parse_consent_code", True)
+        self.parse_consent_code = dbGaP[0].get("parse_consent_code", True)
         self.session = db_session
         self.driver = SQLAlchemyDriver(DB)
         self.project_mapping = project_mapping or {}
@@ -445,7 +444,6 @@ class UserSyncer(object):
         study_common_exchange_areas = dbgap_config.get(
             "study_common_exchange_areas", {}
         )
-
         if parse_consent_code and enable_common_exchange_area_access:
             self.logger.info(
                 f"using study to common exchange area mapping: {study_common_exchange_areas}"
@@ -504,6 +502,7 @@ class UserSyncer(object):
                                 username,
                                 sess,
                                 user_projects,
+                                dbgap_config,
                             )
 
                         dbgap_project += "." + consent_code
@@ -528,7 +527,12 @@ class UserSyncer(object):
 
                     if dbgap_project not in self.project_mapping:
                         self._add_dbgap_project_for_user(
-                            dbgap_project, privileges, username, sess, user_projects
+                            dbgap_project,
+                            privileges,
+                            username,
+                            sess,
+                            user_projects,
+                            dbgap_config,
                         )
                     for element_dict in self.project_mapping.get(dbgap_project, []):
                         try:
@@ -539,7 +543,7 @@ class UserSyncer(object):
                             # need to add dbgap project to arborist
                             if self.arborist_client:
                                 self._add_dbgap_study_to_arborist(
-                                    element_dict["auth_id"]
+                                    element_dict["auth_id"], dbgap_config
                                 )
 
                             if username not in user_projects:
@@ -550,7 +554,7 @@ class UserSyncer(object):
         return user_projects, user_info
 
     def _add_dbgap_project_for_user(
-        self, dbgap_project, privileges, username, sess, user_projects
+        self, dbgap_project, privileges, username, sess, user_projects, dbgap_config
     ):
         """
         Helper function for csv parsing that adds a given dbgap project to Fence/Arborist
@@ -565,7 +569,7 @@ class UserSyncer(object):
 
             # need to add dbgap project to arborist
             if self.arborist_client:
-                self._add_dbgap_study_to_arborist(dbgap_project)
+                self._add_dbgap_study_to_arborist(dbgap_project, dbgap_config)
 
             if project.name is None:
                 project.name = dbgap_project
@@ -1097,8 +1101,13 @@ class UserSyncer(object):
                 os.path.join(self.sync_from_local_csv_dir, "*")
             )
 
+        # if syncing from local csv dir dbgap configurations
+        # come from the first dbgap instance in the fence config file
         user_projects_csv, user_info_csv = self._get_user_permissions_from_csv_list(
-            local_csv_file_list, encrypted=False, session=sess
+            local_csv_file_list,
+            encrypted=False,
+            session=sess,
+            dbgap_config=self.dbGaP[0],
         )
 
         try:
@@ -1502,13 +1511,14 @@ class UserSyncer(object):
 
         return True
 
-    def _add_dbgap_study_to_arborist(self, dbgap_study):
+    def _add_dbgap_study_to_arborist(self, dbgap_study, dbgap_config):
         """
         Return the arborist resource path after adding the specified dbgap study
         to arborist.
 
         Args:
             dbgap_study (str): study phs identifier
+            dbgap_config (dict): dictionary of config for dbgap server
 
         Returns:
             str: arborist resource path for study
@@ -1517,15 +1527,11 @@ class UserSyncer(object):
         if not healthy:
             return False
 
-        default_namespaces = (
-            config["dbGaP"]
-            .get("study_to_resource_namespaces", {})
-            .get("_default", ["/"])
+        default_namespaces = dbgap_config.get("study_to_resource_namespaces", {}).get(
+            "_default", ["/"]
         )
-        namespaces = (
-            config["dbGaP"]
-            .get("study_to_resource_namespaces", {})
-            .get(dbgap_study, default_namespaces)
+        namespaces = dbgap_config.get("study_to_resource_namespaces", {}).get(
+            dbgap_study, default_namespaces
         )
 
         self.logger.debug(f"dbgap study namespaces: {namespaces}")

@@ -68,7 +68,10 @@ def test_sync(
     syncer, db_session, storage_client, parse_consent_code_config, monkeypatch
 ):
     # patch the sync to use the parameterized config value
-    monkeypatch.setitem(syncer.dbGaP, "parse_consent_code", parse_consent_code_config)
+    monkeypatch.setitem(
+        syncer.dbGaP[0], "parse_consent_code", parse_consent_code_config
+    )
+    monkeypatch.setattr(syncer, "parse_consent_code", parse_consent_code_config)
 
     syncer.sync()
 
@@ -170,10 +173,20 @@ def test_dbgap_consent_codes(
 ):
     # patch the sync to use the parameterized value for whether or not to parse exchange
     # area data
+
+    # we moved to support multiple dbgap sftp servers, the config file has a list of dbgap
+    # for local file dir, we only use the parameters from first dbgap config
+    # hence only those are mocked here
     monkeypatch.setitem(
-        syncer.dbGaP, "enable_common_exchange_area_access", enable_common_exchange_area
+        syncer.dbGaP[0],
+        "enable_common_exchange_area_access",
+        enable_common_exchange_area,
     )
-    monkeypatch.setitem(syncer.dbGaP, "parse_consent_code", parse_consent_code_config)
+    monkeypatch.setattr(syncer, "parse_consent_code", parse_consent_code_config)
+    monkeypatch.setitem(
+        syncer.dbGaP[0], "parse_consent_code", parse_consent_code_config
+    )
+
     monkeypatch.setattr(syncer, "project_mapping", {})
 
     syncer.sync()
