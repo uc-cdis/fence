@@ -137,6 +137,14 @@ Usersync gives users "read" and "read-storage" permissions to the dbGaP studies.
 
 > Note: The dbGaP authorization files contain consent codes that can be parsed by usersync: [more details here](dbgap_info.md). This simplified example does not include consent code parsing.
 
+### Enable dbGaP backup to s3:
+Add below to manifest.json to global block:
+```
++    "dbgap_backup_bucket": "s3://di-planx-test",
++    "aws_sa_rule_arn": "arn:aws:iam::707767160287:role/devplanetv1-dbgap-bakup-role",
+```
+
+More deployment details can be found here: https://github.com/uc-cdis/cdis-wiki/blob/master/ops/DBGAP-backup-deployment.md
 ### Resulting access:
 
 - user ABC:
