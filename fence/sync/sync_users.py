@@ -276,7 +276,7 @@ class UserSyncer(object):
         sync_from_local_csv_dir=None,
         sync_from_local_yaml_file=None,
         arborist=None,
-        folder="temp_dbgap_files",
+        folder=None,
     ):
         """
         Syncs ACL files from dbGap to auth database and storage backends
@@ -439,8 +439,10 @@ class UserSyncer(object):
         """
         user_projects = dict()
         user_info = dict()
+        cwd = os.getcwd()
+
         for file, privileges in file_dict.items():
-            filepath = os.path.join("/mnt/shared/", str(self.folder), file)
+            filepath = os.path.join(cwd, str(self.folder), file)
             self.logger.info("Reading file {}".format(filepath))
             if os.stat(filepath).st_size == 0:
                 self.logger.warning("Empty file {}".format(filepath))
@@ -981,7 +983,8 @@ class UserSyncer(object):
         """
         Download files from dbgap server.
         """
-        folderdir = os.path.join("/mnt/shared/", str(self.folder))
+        cwd = os.getcwd()
+        folderdir = os.path.join(cwd, str(self.folder))
 
         if not os.path.exists(folderdir):
             os.makedirs(folderdir)
@@ -1004,7 +1007,8 @@ class UserSyncer(object):
         backend and fence DB
         """
         dbgap_file_list = []
-        folderdir = os.path.join("/mnt/shared/", str(self.folder))
+        cwd = os.getcwd()
+        folderdir = os.path.join(cwd, str(self.folder))
 
         if self.is_sync_from_dbgap_server:
             if self.folder and os.path.exists(folderdir):
