@@ -7,7 +7,7 @@ Shibboleth Single Sign-On and Federating Software is a standards based, open sou
 
 Shibboleth is part of the InCommon Trusted Access Platform, an IAM software suite that is packaged for easy installation and configuration. InCommon operates the identity management federation for U.S. research and education, and their sponsored partners. InCommon uses SAML-based authentication and authorization systems (such as Shibboleth) to enable scalable, trusted collaborations among its community of participants.
 
-To enable InCommon login, Shibboleth must be set up in a multi-tenant Fence instance, which lets us log in through InCommon by specifying the `shib_idp` parameter (as of Fence release 4.7.0 and Fence-shib release 2.7.2). If no `shib_idp` is specified (or if using an earlier Fence version), users will be redirected to the NIH login page by default.
+To enable InCommon login, Shibboleth must be set up in a multi-tenant Fence instance, which lets us log in through InCommon by specifying the `shib_idp` parameter (as of Fence release 4.7.0 and Fenceshib release 2.7.2). If no `shib_idp` is specified (or if using an earlier Fence version), users will be redirected to the NIH login page by default.
 
 Note that in Fence, we use the terms "Shibboleth" and "InCommon" interchangeably.
 
@@ -26,7 +26,7 @@ After the user logs in and is redirected to `/login/shib/login`, we get the `epp
 Notes about the NIH login implementation:
 - NIH login is used as the default when the `idp` is fence and no `shib_idp` is specified (for backwards compatibility).
 - NIH login requires special handling because it uses slightly different login endpoints than other InCommon providers.
-- When a user logs into NIH with an eRA commons ID, only the `persistent-id` is returned. For other NIH logins, both `eppn` and `persistent-id` are returned. This is why when a user logs in through NIH, we use the `persistent-id` as the username even when the `eppn` is provided (for backwards compatibility).
+- When a user logs into NIH with an eRA commons ID, only the `persistent-id` is returned. For other NIH logins, both `eppn` and `persistent-id` are returned. When a user logs in through NIH, we use the `persistent-id` as the username even when the `eppn` is provided for backwards compatibility.
 
 ## Configuration
 
@@ -54,7 +54,7 @@ The Shibboleth configuration can be checked inside the Fenceshib pod under `/etc
 
 ### In the Commons which is set up with InCommon login
 
-Register an OIDC client using [this `fence-create` command](https://github.com/uc-cdis/fence#register-internal-oauth-client), the redirect url should be `<COMMONS_URL>/user/login/fence/login`.
+You will need to register this Fence as an OIDC client to the multi-tenant Fence using [this `fence-create` command](https://github.com/uc-cdis/fence#register-internal-oauth-client), the redirect url should be `<COMMONS_URL>/user/login/fence/login`.
 
 The Fence configuration enables the `fence` provider (multi-tenant Fence setup) with the `shibboleth` provider (provider to be used by the multi-tenant Fence instance):
 ```
