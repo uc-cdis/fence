@@ -8,6 +8,7 @@ from flask_sqlalchemy_session import flask_scoped_session, current_session
 from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.auth import logout, build_redirect_url
+from fence.blueprints.data.indexd import S3IndexedFileLocation
 from fence.blueprints.login.utils import allowed_login_redirects, domain
 from fence.errors import UserError
 from fence.jwt import keys
@@ -40,6 +41,8 @@ import fence.blueprints.google
 import fence.blueprints.privacy
 
 from cdislogging import get_logger
+
+from cdispyutils.config import get_value
 
 from gen3authz.client.arborist.client import ArboristClient
 
@@ -166,6 +169,44 @@ def app_register_blueprints(app):
         )
 
 
+def _check_s3_buckets(app):
+    """
+    Function to ensure that all s3_buckets have a valid credential. 
+    Additionally, if there is no region it will produce a warning then trys to fetch and cache the region. 
+    """
+    buckets = config.get("S3_BUCKETS", {})
+    aws_creds = config.get("AWS_CREDENTIALS", {})
+
+    for bucket_name, bucket_details in buckets.items():
+        cred = bucket_details.get("cred")
+        region = bucket_details.get("region")
+        if not cred:
+            raise ValueError(
+                "No cred for S3_BUCKET: {}. cred is required.".format(bucket_name)
+            )
+        if cred not in aws_creds and cred != "*":
+            raise ValueError(
+                "Credential {} for S3_BUCKET {} is not defined in AWS_CREDENTIALS".format(
+                    cred, bucket_name
+                )
+            )
+        if not region:
+            logger.warning(
+                "WARNING: no region for S3_BUCKET: {}. Providing the region will reduce"
+                " response time and avoid a call to GetBucketLocation which you make lack the AWS ACLs for.".format(
+                    bucket_name
+                )
+            )
+            credential = S3IndexedFileLocation.get_credential_to_access_bucket(
+                bucket_name,
+                aws_creds,
+                config.get("MAX_PRESIGNED_URL_TTL", 3600),
+                app.boto,
+            )
+            region = app.boto.get_bucket_region(bucket_name, credential)
+            config["S3_BUCKETS"][bucket_name]["region"] = region
+
+
 def app_config(
     app, settings="fence.settings", root_dir=None, config_path=None, file_name=None
 ):
@@ -207,6 +248,8 @@ def app_config(
     get_logger(__name__, log_level="debug" if config["DEBUG"] == True else "info")
 
     _setup_oidc_clients(app)
+
+    _check_s3_buckets(app)
 
 
 def _setup_data_endpoint_and_boto(app):

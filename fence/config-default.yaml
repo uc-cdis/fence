@@ -484,16 +484,21 @@ AWS_CREDENTIALS:
     aws_access_key_id: ''
     aws_secret_access_key: ''
 
+# NOTE: the region is optonal for s3_buckets, however it should be specified to avoid a 
+# call to GetBucketLocation which you make lack the AWS ACLs for. 
 S3_BUCKETS:
   bucket1:
     cred: 'CRED1'
+    region: 'us-east-1' 
   bucket2:
     cred: 'CRED2'
-    region: 'us-east-1' #optional but if specified avoids a call to GetBucketLocation which you may lack the AWS ACLs for.
+    region: 'us-east-1' 
   bucket3:
     cred: '*'
+    region: 'us-east-1' 
   bucket4:
     cred: 'CRED1'
+    region: 'us-east-1' 
     role-arn: 'arn:aws:iam::role1'
 
 # `DATA_UPLOAD_BUCKET` specifies an S3 bucket to which data files are uploaded,

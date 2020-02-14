@@ -53,6 +53,9 @@ class BotoManager(object):
             raise InternalError("Failed to delete file: {}".format(str(e)))
 
     def assume_role(self, role_arn, duration_seconds, config=None):
+        assert (
+            duration_seconds
+        ), 'assume_role() cannot be called without "duration_seconds" parameter; please check your "expires_in" parameters'
         try:
             if config and "aws_access_key_id" in config:
                 self.sts_client = client("sts", **config)
