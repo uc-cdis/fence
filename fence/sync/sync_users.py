@@ -1026,12 +1026,6 @@ class UserSyncer(object):
         user_projects, user_info = self._parse_csv(
             dict(list(zip(dbgap_file_list, permissions))), encrypted=True, sess=sess
         )
-        try:
-            shutil.rmtree(folderdir)
-        except OSError as e:
-            self.logger.info(e)
-            if e.errno != errno.ENOENT:
-                raise
 
         local_csv_file_list = []
         if self.sync_from_local_csv_dir:
