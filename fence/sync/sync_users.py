@@ -1121,6 +1121,7 @@ class UserSyncer(object):
 
         # parse all projects
         user_projects_csv = self.parse_projects(user_projects_csv)
+        user_projects = self.parse_projects(user_projects)
         user_yaml.projects = self.parse_projects(user_yaml.projects)
 
         # merge all user info dicts into "user_info".
