@@ -91,7 +91,7 @@ def _read_file(filepath, encrypted=True, key=None, logger=None):
         has_crypt = sp.call(["which", "mcrypt"])
         if has_crypt != 0:
             if logger:
-                logger.error("Need to install crypt to decrypt files from dbgap")
+                logger.error("Need to install mcrypt to decrypt files from dbgap")
             # TODO (rudyardrichter, 2019-01-08): raise error and move exit out to script
             exit(1)
         p = sp.Popen(
@@ -315,7 +315,7 @@ class UserSyncer(object):
     @staticmethod
     def _match_pattern(filepath, encrypted=True):
         """
-        Check if the filename match dbgap access control file patern
+        Check if the filename matches dbgap access control file pattern
 
         Args:
             filepath (str): path to file
@@ -455,7 +455,11 @@ class UserSyncer(object):
                 self.logger.warning("Empty file {}".format(filepath))
                 continue
             if not self._match_pattern(filepath, encrypted=encrypted):
-                self.logger.warning("Invalid file path {}".format(filepath))
+                self.logger.warning(
+                    "Invalid filename {} does not match dbgap access control filename pattern".format(
+                        filepath
+                    )
+                )
                 continue
 
             with _read_file(
