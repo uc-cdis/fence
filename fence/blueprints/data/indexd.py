@@ -834,6 +834,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         )
         return final_url
 
+
 def _get_user_info():
     """
     Attempt to parse the request for token to authenticate the user. fallback to
@@ -850,12 +851,14 @@ def _get_user_info():
 
     return {"user_id": user_id, "username": username}
 
+
 def _is_anonymous_user(user_info):
     """
     Check if there's a current user authenticated or if request is anonymous
     """
     user_info = user_info or _get_user_info()
     return user_info.get("user_id") == ANONYMOUS_USER_ID
+
 
 def filter_auth_ids(action, list_auth_ids):
     checked_permission = ""
