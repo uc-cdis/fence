@@ -17,7 +17,7 @@ setup(
         "Flask-CORS>=3.0.3,<4.0.0",
         "Flask_OAuthlib>=0.9.4,<1.0.0",
         "Flask_SQLAlchemy_Session>=1.1,<2.0",
-        "gen3authz>=0.3.0,<0.4.0",
+        "gen3authz>=0.4.0,<0.5.0",
         "gen3cirrus>=1.1.0,<2.0",
         "gen3config>=0.1.6,<1.0.0",
         "google_api_python_client>=1.6.4,<2.0.0",
