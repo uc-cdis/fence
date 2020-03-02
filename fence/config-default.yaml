@@ -449,8 +449,8 @@ DBGAP_ACCESSION_WITH_CONSENT_REGEX: '(?P<phsid>phs[0-9]+)(.(?P<version>v[0-9]+))
 #               access for users.
 # //////////////////////////////////////////////////////////////////////////////////////
 # Configuration for various storage systems for the backend
-# NOTE: Remove the [] and supply backends if needed. Example in comments below
-STORAGE_CREDENTIALS: []
+# NOTE: Remove the {} and supply backends if needed. Example in comments below
+STORAGE_CREDENTIALS: {}
 # Google Cloud Storage backend
 #
 #  'google':
@@ -476,8 +476,8 @@ STORAGE_CREDENTIALS: []
 # AWS BUCKETS AND CREDENTIALS
 #   - Support `/data` endpoints
 # //////////////////////////////////////////////////////////////////////////////////////
-AWS_CREDENTIALS: []
-# NOTE: Remove the [] and supply creds if needed. Example in comments below
+AWS_CREDENTIALS: {}
+# NOTE: Remove the {} and supply creds if needed. Example in comments below
 #   'CRED1':
 #     aws_access_key_id: ''
 #     aws_secret_access_key: ''
@@ -487,8 +487,8 @@ AWS_CREDENTIALS: []
 
 # NOTE: the region is optonal for s3_buckets, however it should be specified to avoid a
 # call to GetBucketLocation which you make lack the AWS ACLs for.
-S3_BUCKETS: []
-# NOTE: Remove the [] and supply buckets if needed. Example in comments below
+S3_BUCKETS: {}
+# NOTE: Remove the {} and supply buckets if needed. Example in comments below
 #   bucket1:
 #     cred: 'CRED1'
 #     region: 'us-east-1'
