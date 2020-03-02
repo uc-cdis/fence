@@ -99,6 +99,16 @@ At the moment, supported IDPs include:
   - NIH iTrust
   - InCommon
   - eduGAIN
+  
+### Adding a new IdP
+
+To add a completely new idp, there are a few steps:
+* Add a new blueprint for something like /login/cognito here: https://github.com/uc-cdis/fence/tree/master/fence/blueprints/login
+  - If it's OIDC, Look at the Google one for example. 
+* Add a new client https://github.com/uc-cdis/fence/blob/a0d91bcb12ac56b166983ccd9df6100fff79be6b/fence/resources/openid/google_oauth2.py 
+* Then update init here https://github.com/uc-cdis/fence/blob/a0d91bcb12ac56b166983ccd9df6100fff79be6b/fence/__init__.py#L303
+* Add a block to the config with creds for a new client for that idp
+  - This block is an example: https://github.com/uc-cdis/fence/blob/a0d91bcb12ac56b166983ccd9df6100fff79be6b/fence/config-default.yaml#L94
 
 ## OIDC & OAuth2
 
