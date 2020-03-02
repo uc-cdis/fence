@@ -476,30 +476,32 @@ STORAGE_CREDENTIALS: []
 # AWS BUCKETS AND CREDENTIALS
 #   - Support `/data` endpoints
 # //////////////////////////////////////////////////////////////////////////////////////
-AWS_CREDENTIALS:
-  'CRED1':
-    aws_access_key_id: ''
-    aws_secret_access_key: ''
-  'CRED2':
-    aws_access_key_id: ''
-    aws_secret_access_key: ''
+AWS_CREDENTIALS: []
+# NOTE: Remove the [] and supply creds if needed. Example in comments below
+#   'CRED1':
+#     aws_access_key_id: ''
+#     aws_secret_access_key: ''
+#   'CRED2':
+#     aws_access_key_id: ''
+#     aws_secret_access_key: ''
 
 # NOTE: the region is optonal for s3_buckets, however it should be specified to avoid a
 # call to GetBucketLocation which you make lack the AWS ACLs for.
-S3_BUCKETS:
-  bucket1:
-    cred: 'CRED1'
-    region: 'us-east-1'
-  bucket2:
-    cred: 'CRED2'
-    region: 'us-east-1'
-  bucket3:
-    cred: '*'
-    region: 'us-east-1'
-  bucket4:
-    cred: 'CRED1'
-    region: 'us-east-1'
-    role-arn: 'arn:aws:iam::role1'
+S3_BUCKETS: []
+# NOTE: Remove the [] and supply buckets if needed. Example in comments below
+#   bucket1:
+#     cred: 'CRED1'
+#     region: 'us-east-1'
+#   bucket2:
+#     cred: 'CRED2'
+#     region: 'us-east-1'
+#   bucket3:
+#     cred: '*'
+#     region: 'us-east-1'
+#   bucket4:
+#     cred: 'CRED1'
+#     region: 'us-east-1'
+#     role-arn: 'arn:aws:iam::role1'
 
 # `DATA_UPLOAD_BUCKET` specifies an S3 bucket to which data files are uploaded,
 # using the `/data/upload` endpoint. This must be one of the first keys under
