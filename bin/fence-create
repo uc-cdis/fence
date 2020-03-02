@@ -361,6 +361,8 @@ def main():
         os.path.dirname(os.path.realpath(__file__))
     )
     dbGaP = os.environ.get("dbGaP") or config.get("dbGaP")
+    if not isinstance(dbGaP, list):
+        dbGaP = [dbGaP]
     STORAGE_CREDENTIALS = os.environ.get("STORAGE_CREDENTIALS") or config.get(
         "STORAGE_CREDENTIALS"
     )

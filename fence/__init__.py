@@ -174,8 +174,8 @@ def _check_s3_buckets(app):
     Function to ensure that all s3_buckets have a valid credential. 
     Additionally, if there is no region it will produce a warning then trys to fetch and cache the region. 
     """
-    buckets = config.get("S3_BUCKETS", {})
-    aws_creds = config.get("AWS_CREDENTIALS", {})
+    buckets = config.get("S3_BUCKETS") or {}
+    aws_creds = config.get("AWS_CREDENTIALS") or {}
 
     for bucket_name, bucket_details in buckets.items():
         cred = bucket_details.get("cred")
