@@ -178,7 +178,7 @@ def _remove_client_service_accounts(db_session, client):
                     )
 
 
-def init_syncer(
+def sync_users(
     dbGaP,
     STORAGE_CREDENTIALS,
     DB,
@@ -236,7 +236,7 @@ def init_syncer(
         except IOError:
             pass
 
-    return UserSyncer(
+    syncer = UserSyncer(
         dbGaP,
         DB,
         project_mapping=project_mapping,
