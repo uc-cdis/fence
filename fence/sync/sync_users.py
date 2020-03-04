@@ -998,16 +998,18 @@ class UserSyncer(object):
             user_info (dict)
         """
         dbgap_file_list = []
-        tmpdir = tempfile.mkdtemp()
-        server = dbgap_config["info"]
-        protocol = dbgap_config["protocol"]
-        self.logger.info("Download from server")
+        cwd = os.getcwd()
+        hostname = dbgap_config["host"]
+        username = dbgap_config["username"]
+        folderdir = os.path.join(cwd, str(self.folder), str(hostname), "_", str(username))
+
         try:
-            if protocol == "sftp":
-                self._get_from_sftp_with_proxy(server, tmpdir)
+            if os.path.exists(folderdir):
+                # add logic to list everything for hosts subfolders os.walk
+                # to support backwards compatible
+                dbgap_file_list = os.listdir(folderdir)  # get lists of file from folder
             else:
-                self._get_from_ftp_with_proxy(server, tmpdir)
-            dbgap_file_list = glob.glob(os.path.join(tmpdir, "*"))
+                dbgap_file_list = self._download(self, dbgap_config)
         except Exception as e:
             self.logger.error(e)
             exit(1)
@@ -1015,12 +1017,7 @@ class UserSyncer(object):
         user_projects, user_info = self._get_user_permissions_from_csv_list(
             dbgap_file_list, encrypted=True, session=sess, dbgap_config=dbgap_config
         )
-        try:
-            shutil.rmtree(tmpdir)
-        except OSError as e:
-            self.logger.info(e)
-            if e.errno != errno.ENOENT:
-                raise
+
         user_projects = self.parse_projects(user_projects)
         return user_projects, user_info
 
@@ -1088,30 +1085,35 @@ class UserSyncer(object):
                 self._sync(s)
 
     def download(self):
-        if self.session:
-            self._download(self.session)
-        else:
-            with self.driver.session as s:
-                self._download(s)
+        for dbgap_server in self.dbGaP:
+            if self.session:
+                self._download(self.session, dbgap_server)
+            else:
+                with self.driver.session as s:
+                    self._download(s, dbgap_server)
 
-    def _download(self, sess):
+    def _download(self, dbgap_config, sess):
         """
         Download files from dbgap server.
         """
         cwd = os.getcwd()
-        folderdir = os.path.join(cwd, str(self.folder))
+        server = dbgap_config["info"]
+        protocol = dbgap_config["protocol"]
+        hostname = dbgap_config["host"]
+        username = dbgap_config["username"]
+        folderdir = os.path.join(cwd, str(self.folder), str(hostname), "_", str(username))
 
         if not os.path.exists(folderdir):
             os.makedirs(folderdir)
 
         self.logger.info("Download from server")
         try:
-            if self.protocol == "sftp":
-                self._get_from_sftp_with_proxy(folderdir)
+            if protocol == "sftp":
+                self._get_from_sftp_with_proxy(server, folderdir)
             else:
-                self._get_from_ftp_with_proxy(folderdir)
-            dbgap_file_list = glob.glob(os.path.join(folderdir, "*"))
-            return dbgap_file_list
+                self._get_from_ftp_with_proxy(server, folderdir)
+            dbgap_files = glob.glob(os.path.join(folderdir, "*"))
+            return dbgap_files
         except Exception as e:
             self.logger.error(e)
             exit(1)
