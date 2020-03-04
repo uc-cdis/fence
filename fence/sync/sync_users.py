@@ -448,13 +448,19 @@ class UserSyncer(object):
         study_common_exchange_areas = dbgap_config.get(
             "study_common_exchange_areas", {}
         )
+        dbgap_server = dbgap_config["info"]
+        dbgap_host = dbgap_server["host"]
+        dbgap_username = dbgap_server["username"]
+
         if parse_consent_code and enable_common_exchange_area_access:
             self.logger.info(
                 f"using study to common exchange area mapping: {study_common_exchange_areas}"
             )
 
         for file, privileges in file_dict.items():
-            filepath = os.path.join(cwd, str(self.folder), file)
+            filepath = os.path.join(
+                cwd, str(self.folder), str(dbgap_host), "_", str(dbgap_username), file
+            )
             self.logger.info("Reading file {}".format(filepath))
             if os.stat(filepath).st_size == 0:
                 self.logger.warning("Empty file {}".format(filepath))
