@@ -999,9 +999,11 @@ class UserSyncer(object):
         """
         dbgap_file_list = []
         cwd = os.getcwd()
-        hostname = dbgap_config["host"]
-        username = dbgap_config["username"]
-        folderdir = os.path.join(cwd, str(self.folder), str(hostname), "_", str(username))
+        hostname = dbgap_config["info"]["host"]
+        username = dbgap_config["info"]["username"]
+        folderdir = os.path.join(
+            cwd, str(self.folder), str(hostname), "_", str(username)
+        )
 
         try:
             if os.path.exists(folderdir):
@@ -1099,9 +1101,11 @@ class UserSyncer(object):
         cwd = os.getcwd()
         server = dbgap_config["info"]
         protocol = dbgap_config["protocol"]
-        hostname = dbgap_config["host"]
-        username = dbgap_config["username"]
-        folderdir = os.path.join(cwd, str(self.folder), str(hostname), "_", str(username))
+        hostname = server["host"]
+        username = server["username"]
+        folderdir = os.path.join(
+            cwd, str(self.folder), str(hostname), "_", str(username)
+        )
 
         if not os.path.exists(folderdir):
             os.makedirs(folderdir)
