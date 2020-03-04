@@ -2,9 +2,7 @@ import errno
 import glob
 import os
 import re
-import shutil
 import subprocess as sp
-import tempfile
 import yaml
 import copy
 from contextlib import contextmanager
@@ -1100,7 +1098,7 @@ class UserSyncer(object):
                 with self.driver.session as s:
                     self._download(s, dbgap_server)
 
-    def _download(self, dbgap_config, sess):
+    def _download(self, sess, dbgap_config):
         """
         Download files from dbgap server.
         """

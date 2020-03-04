@@ -431,6 +431,7 @@ def main():
             dbGaP,
             STORAGE_CREDENTIALS,
             DB,
+            is_sync_from_dbgap_server=True,
             folder=args.folder,
         )
     elif args.action == "google-manage-keys":
