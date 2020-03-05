@@ -1017,7 +1017,7 @@ class UserSyncer(object):
                 # to support backwards compatible
                 dbgap_file_list = os.listdir(folderdir)  # get lists of file from folder
             else:
-                dbgap_file_list = self._download(self, dbgap_config)
+                dbgap_file_list = self._download(dbgap_config)
         except Exception as e:
             self.logger.error(e)
             exit(1)
@@ -1094,13 +1094,9 @@ class UserSyncer(object):
 
     def download(self):
         for dbgap_server in self.dbGaP:
-            if self.session:
-                self._download(self.session, dbgap_server)
-            else:
-                with self.driver.session as s:
-                    self._download(s, dbgap_server)
+            self._download(dbgap_server)
 
-    def _download(self, sess, dbgap_config):
+    def _download(self, dbgap_config):
         """
         Download files from dbgap server.
         """
