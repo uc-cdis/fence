@@ -160,6 +160,9 @@ def parse_arguments():
 
     dbgap_download = subparsers.add_parser("dbgap-download-access-files")
     dbgap_download.add_argument(
+        "--sync_from_dbgap", help="sync from dbgap server True/False", default="False"
+    )
+    dbgap_download.add_argument(
         "--folder", required=False, help="destination where dbGaP whitelist files are saved", default=None,
     )
 

@@ -456,7 +456,11 @@ class UserSyncer(object):
 
         for file, privileges in file_dict.items():
             filepath = os.path.join(
-                "/var/www/fence/", str(self.folder), str(dbgap_host), str(dbgap_username), file
+                "/var/www/fence/",
+                str(self.folder),
+                str(dbgap_host),
+                str(dbgap_username),
+                file,
             )
             self.logger.info("Reading file {}".format(filepath))
             if os.stat(filepath).st_size == 0:
