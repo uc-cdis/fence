@@ -250,10 +250,26 @@ def init_syncer(
 
 
 def download_dbgap_files(
-    dbGaP, STORAGE_CREDENTIALS, DB, is_sync_from_dbgap_server=True, folder=None,
+    dbGaP,
+    STORAGE_CREDENTIALS,
+    DB,
+    projects=None,
+    is_sync_from_dbgap_server=False,
+    sync_from_local_csv_dir=None,
+    sync_from_local_yaml_file=None,
+    arborist=None,
+    folder=None,
 ):
     syncer = init_syncer(
-        dbGaP, STORAGE_CREDENTIALS, DB, is_sync_from_dbgap_server, folder
+        dbGaP,
+        STORAGE_CREDENTIALS,
+        DB,
+        projects,
+        is_sync_from_dbgap_server,
+        sync_from_local_csv_dir,
+        sync_from_local_yaml_file,
+        arborist,
+        folder,
     )
     if not syncer:
         exit(1)

@@ -355,7 +355,7 @@ class UserSyncer(object):
             proxy = ProxyCommand(command)
 
         with paramiko.SSHClient() as client:
-            client.set_log_channel(self.logger.name)
+            # client.set_log_channel(self.logger.name)
 
             client.set_missing_host_key_policy(paramiko.WarningPolicy())
             parameters = {
@@ -367,7 +367,9 @@ class UserSyncer(object):
             if proxy:
                 parameters["sock"] = proxy
 
-            self.logger.info("SSH connection parameters: {}".format(parameters))
+            # self.logger.info("SSH connection parameters: {}".format(parameters))
+            print("!!!!Parameters")
+            print(parameters)
             client.connect(**parameters)
             with client.open_sftp() as sftp:
                 download_dir(sftp, "./", path)
