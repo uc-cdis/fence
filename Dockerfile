@@ -8,7 +8,7 @@ ENV appname=fence
 RUN apk update \
     && apk add postgresql-libs postgresql-dev libffi-dev libressl-dev \
     && apk add linux-headers musl-dev gcc \
-    && apk add curl bash git vim make
+    && apk add curl bash git vim make lftp
 
 COPY . /$appname
 COPY ./deployment/uwsgi/uwsgi.ini /etc/uwsgi/uwsgi.ini
