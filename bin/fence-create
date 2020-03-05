@@ -160,10 +160,11 @@ def parse_arguments():
 
     dbgap_download = subparsers.add_parser("dbgap-download-access-files")
     dbgap_download.add_argument(
-        "--sync_from_dbgap", help="sync from dbgap server True/False", default="False"
-    )
-    dbgap_download.add_argument(
         "--folder", required=False, help="destination where dbGaP whitelist files are saved", default=None,
+    )
+    """
+    dbgap_download.add_argument(
+        "--sync_from_dbgap", help="sync from dbgap server True/False", default="False"
     )
     dbgap_download.add_argument(
         "--projects", dest="project_mapping", help="Specify project mapping yaml file"
@@ -174,7 +175,7 @@ def parse_arguments():
         "--arborist",
         help="the base URL for the arborist service to sync to",
         default=None,
-    )
+    )"""
 
     bucket_link_to_project = subparsers.add_parser("link-bucket-to-project")
     bucket_link_to_project.add_argument(
@@ -444,12 +445,12 @@ def main():
             dbGaP,
             STORAGE_CREDENTIALS,
             DB,
-            projects=args.project_mapping,
-            is_sync_from_dbgap_server=str2bool( args.sync_from_dbgap ),
-            sync_from_local_csv_dir=args.csv_dir,
-            sync_from_local_yaml_file=args.yaml,
+            # projects=args.project_mapping,
+            #  is_sync_from_dbgap_server=str2bool( args.sync_from_dbgap ),
+            # sync_from_local_csv_dir=args.csv_dir,
+            # sync_from_local_yaml_file=args.yaml,
             folder=args.folder,
-            arborist=arborist,
+            # arborist=arborist,
         )
     elif args.action == "google-manage-keys":
         remove_expired_google_service_account_keys(DB)
