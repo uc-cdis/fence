@@ -81,10 +81,17 @@ def authorize(*args, **kwargs):
                 raise UserError("idp {} is not supported".format(idp))
             idp_url = IDP_URL_MAP[idp]
             login_url = "{}/login/{}".format(config.get("BASE_URL"), idp_url)
-            if idp == "shibboleth":
-                shib_idp = flask.request.args.get("shib_idp")
-                if shib_idp:
+
+            # handle valid extra params for fence multi-tenant and shib login
+            fence_idp = flask.request.args.get("fence_idp")
+            shib_idp = flask.request.args.get("shib_idp")
+            if idp == "fence" and fence_idp:
+                params["idp"] = fence_idp
+                if fence_idp == "shibboleth":
                     params["shib_idp"] = shib_idp
+            elif idp == "shibboleth" and shib_idp:
+                params["shib_idp"] = shib_idp
+
         login_url = add_params_to_uri(login_url, params)
         return flask.redirect(login_url)
 
