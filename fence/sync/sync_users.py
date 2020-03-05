@@ -435,7 +435,6 @@ class UserSyncer(object):
         """
         user_projects = dict()
         user_info = dict()
-        cwd = os.getcwd()
 
         # parse dbGaP sftp server information
         dbgap_key = dbgap_config.get("decrypt_key", None)
@@ -457,7 +456,7 @@ class UserSyncer(object):
 
         for file, privileges in file_dict.items():
             filepath = os.path.join(
-                cwd, str(self.folder), str(dbgap_host), "_", str(dbgap_username), file
+                "/var/www/fence/", str(self.folder), str(dbgap_host), str(dbgap_username), file
             )
             self.logger.info("Reading file {}".format(filepath))
             if os.stat(filepath).st_size == 0:
@@ -1002,11 +1001,10 @@ class UserSyncer(object):
             user_info (dict)
         """
         dbgap_file_list = []
-        cwd = os.getcwd()
         hostname = dbgap_config["info"]["host"]
         username = dbgap_config["info"]["username"]
         folderdir = os.path.join(
-            cwd, str(self.folder), str(hostname), "_", str(username)
+            "/var/www/fence/", str(self.folder), str(hostname), str(username)
         )
 
         try:
@@ -1102,13 +1100,12 @@ class UserSyncer(object):
         """
         Download files from dbgap server.
         """
-        cwd = os.getcwd()
         server = dbgap_config["info"]
         protocol = dbgap_config["protocol"]
         hostname = server["host"]
         username = server["username"]
         folderdir = os.path.join(
-            cwd, str(self.folder), str(hostname), "_", str(username)
+            "/var/www/fence/", str(self.folder), str(hostname), str(username)
         )
 
         if not os.path.exists(folderdir):
