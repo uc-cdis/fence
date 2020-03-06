@@ -837,7 +837,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
 
 def _get_user_info():
     """
-    Attempt to parse the request for token to authenticate the user. fallback to
+    Attempt to parse the request for token to authenticate the user. Fallback to
     populated information about an anonymous user.
     """
     try:
