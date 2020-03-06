@@ -253,11 +253,6 @@ def download_dbgap_files(
     dbGaP,
     STORAGE_CREDENTIALS,
     DB,
-    projects=None,
-    is_sync_from_dbgap_server=False,
-    sync_from_local_csv_dir=None,
-    sync_from_local_yaml_file=None,
-    arborist=None,
     folder=None,
 ):
     syncer = init_syncer(
