@@ -250,6 +250,7 @@ def init_syncer(
 
 
 def download_dbgap_files(
+    # Note: need to keep all parameter to prevent download failure
     dbGaP,
     STORAGE_CREDENTIALS,
     DB,
