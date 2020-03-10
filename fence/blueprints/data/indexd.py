@@ -641,7 +641,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         # only attempt to get the region when we're not specifying an
         # s3-compatible endpoint URL (ex: no need for region when using cleversafe)
         region = None
-        if not current_bucket.get("endpoint_url"):
+        if not bucket.get("endpoint_url"):
             region = self.get_bucket_region()
             if not region:
                 region = flask.current_app.boto.get_bucket_region(
