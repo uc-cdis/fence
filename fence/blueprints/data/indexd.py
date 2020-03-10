@@ -622,7 +622,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             )
 
         credential = S3IndexedFileLocation.get_credential_to_access_bucket(
-            bucket, aws_creds, expires_in
+            bucket_name, aws_creds, expires_in
         )
 
         # if it's public and we don't need to force the signed url, just return the raw
