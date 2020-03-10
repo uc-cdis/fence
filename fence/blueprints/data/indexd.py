@@ -598,8 +598,8 @@ class S3IndexedFileLocation(IndexedFileLocation):
             config, "S3_BUCKETS", InternalError("buckets not configured")
         )
 
-        bucket = self.bucket_name()
-        current_bucket = s3_buckets.get(self.bucket_name())
+        bucket_name = self.bucket_name()
+        bucket = s3_buckets.get(bucket_name)
 
         if current_bucket and current_bucket.get("endpoint_url"):
             http_url = current_bucket["endpoint_url"].strip("/") + "/{}/{}".format(
