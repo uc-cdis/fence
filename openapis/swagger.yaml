@@ -46,11 +46,11 @@ paths:
         - oauth2
       summary: Perform OAuth2 authorization
       description: |
-        **IMPORTANT NOTE**: These docs are provided as a courtesy but do _NOT_ include the entirety of the OIDC Standard 
+        **IMPORTANT NOTE**: These docs are provided as a courtesy but do _NOT_ include the entirety of the OIDC Standard
         simply because of its length and complexity.
-        
+
         Please [refer to the standard](https://openid.net/specs/openid-connect-core-1_0.html) for complete details.
-        
+
         Obtain an authorization grant through the OAuth2 protocol. To handle
         this request, render a page for the user to confirm the OAuth2 grant
         (through e.g. Google). Redirect user to `redirect_uri` with an added
@@ -114,11 +114,11 @@ paths:
         - oauth2
       summary: Perform OAuth2 authorization
       description: |
-        **IMPORTANT NOTE**: These docs are provided as a courtesy but do _NOT_ include the entirety of the OIDC Standard 
+        **IMPORTANT NOTE**: These docs are provided as a courtesy but do _NOT_ include the entirety of the OIDC Standard
         simply because of its length and complexity.
-        
+
         Please [refer to the standard](https://openid.net/specs/openid-connect-core-1_0.html) for complete details.
-        
+
         Obtain an authorization grant through the OAuth2 protocol. To handle
         this request, render a page for the user to confirm the OAuth2 grant
         (through e.g. Google). Redirect user to `redirect_uri` with an added
@@ -166,11 +166,11 @@ paths:
         - oauth2
       summary: Exchange code for or refresh the access token.
       description: |
-        **IMPORTANT NOTE**: These docs are provided as a courtesy but do _NOT_ include the entirety of the OIDC Standard 
+        **IMPORTANT NOTE**: These docs are provided as a courtesy but do _NOT_ include the entirety of the OIDC Standard
         simply because of its length and complexity.
-        
+
         Please [refer to the standard](https://openid.net/specs/openid-connect-core-1_0.html) for complete details.
-        
+
         Exchange the `code` obtained from OAuth2 for an access token, or refresh
         the access token using a refresh token.
       operationId: token
@@ -429,6 +429,8 @@ paths:
                 $ref: '#/components/schemas/SignedURL'
         '400':
           description: 'Invalid input: UUID not found or invalid location'
+        '404':
+          description: 'No location found for this file'
   '/data/upload':
     post:
       tags:
@@ -841,7 +843,7 @@ paths:
       summary: Receive API key
       description: >-
         Get a new API key for the current user. API keys can be used to retrieve
-        access tokens which will allow for authed communication to our API. Can 
+        access tokens which will allow for authed communication to our API. Can
         pass a list of requested OIDC scopes in the body. Automatically gives "openid" scope.
         Any additional scopes (like "user" for seeing user information or "data" for hitting
         signed url endpoint) must be explicitly requested and user must already have access.
@@ -1980,6 +1982,7 @@ components:
         - certificates_uploaded
         - email
         - message
+        - primary_google_service_account
       properties:
         pdc_id:
           type: string
@@ -2003,6 +2006,9 @@ components:
           description: ''
         message:
           type: string
+        primary_google_service_account:
+          type: string
+          description: 'email address of the users primary service account used for signing URLs'
     SignedURL:
       type: object
       properties:

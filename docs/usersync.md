@@ -1,12 +1,40 @@
 # Usersync
 
-Usersync is a script that parses user access information from multiple sources (user.yaml files, dbGaP user authorization telemetry files AKA whitelists) and keeps users' access to Gen3 resources up to date by updating the Fence and Arborist databases.
+Usersync is a script that parses user access information from multiple sources (user.yaml files, dbGaP user authorization "telemetry" files AKA whitelists) and keeps users' access to Gen3 resources up to date by updating the Fence and Arborist databases.
+
+
 
 ## Usersync flow
 
 ![Usersync Flow](images/usersync.png)
 
-> Note that at the time of writing, the user.yaml file overrides the access obtained from the telemetry files. In the future, usersync will combine the access instead.
+> The access from the user.yaml file and the dbGaP authorization files is combined (see example below), but the user.yaml file overrides the user information (such as email) obtained from the dbGaP authorization files.
+
+## Configuration
+
+Configuration for user sync lives in fence-config.yaml for each respective environment. An example of the fence-config can be found [fence/config-default.yaml](https://github.com/uc-cdis/fence/blob/master/fence/config-default.yaml).
+
+You can configure one or more dbGaP SFTP servers to sync telemetry files from. To configure one single dbGaP server, add credentials and information to the fence-config.yaml under `dbGaP`, this is outlined in [here](https://github.com/uc-cdis/fence/blob/4.14.0/fence/config-default.yaml#L389-L433)
+
+To configure additional dbGaP servers, include in the config.yaml a list of dbGaP servers under `dbGaP`, like so:
+
+```
+dbGaP:
+- info:
+    host:
+    username:
+    password:
+    ...
+  protocol: 'sftp'
+  ...
+  ...
+- info:
+    host:
+    username:
+    ...
+```
+
+An example can be found in the config used for unit testing [tests/test-fence-config.yaml](https://github.com/uc-cdis/fence/blob/master/tests/test-fence-config.yaml)
 
 ## Usersync result example
 
@@ -18,7 +46,7 @@ Usersync is a script that parses user access information from multiple sources (
 ```
 # authz information follows the attribute-based access control (ABAC) model
 authz:
-  resources: 
+  resources:
     - name: programs
       subresources:
         - name: myprogram
@@ -125,7 +153,7 @@ users:
 ```
 </details>
 
-### Example of telemetry file (CSV format):
+### Example of dbGaP authorization file (CSV format):
 
 ```
 user name, login, authority, role, email, phone, status, phsid, permission set, created
@@ -135,7 +163,7 @@ Mrs. GHI,GHI,eRA,PI,ghi@com,"123-456-789",active,phs3.v2.p3.c4,"General Research
 
 Usersync gives users "read" and "read-storage" permissions to the dbGaP studies.
 
-> Note: The dbGaP telemetry files contain consent codes that can be parsed by usersync: [more details here](dbgap_info.md). This simplified example does not include consent code parsing.
+> Note: The dbGaP authorization files contain consent codes that can be parsed by usersync: [more details here](dbgap_info.md). This simplified example does not include consent code parsing.
 
 ### Resulting access:
 
@@ -148,9 +176,9 @@ Usersync gives users "read" and "read-storage" permissions to the dbGaP studies.
   - /open: read + read-storage
   - /programs/phs1: read
   - /programs/phs2: read
-  - /programs/phs3: read + read-storage _(from the telemetry file)_
+  - /programs/phs3: read + read-storage _(from the dbGaP authorization file)_
 - user GHI:
-  - /programs/phs3: create _(user.yaml access overrides telemetry file access)_
+  - /programs/phs3: read + read-storage + create _(user.yaml access combined with dbGaP authorization file access)_
 
 ## Validation
 

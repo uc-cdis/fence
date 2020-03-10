@@ -2,6 +2,8 @@ import os
 import pytest
 import yaml
 
+from unittest.mock import MagicMock
+
 from fence import models
 from fence.sync.sync_users import _format_policy_id
 from fence.config import config
@@ -66,6 +68,9 @@ def test_sync(
     syncer, db_session, storage_client, parse_consent_code_config, monkeypatch
 ):
     # patch the sync to use the parameterized config value
+    monkeypatch.setitem(
+        syncer.dbGaP[0], "parse_consent_code", parse_consent_code_config
+    )
     monkeypatch.setattr(syncer, "parse_consent_code", parse_consent_code_config)
 
     syncer.sync()
@@ -168,10 +173,20 @@ def test_dbgap_consent_codes(
 ):
     # patch the sync to use the parameterized value for whether or not to parse exchange
     # area data
-    monkeypatch.setattr(
-        syncer, "enable_common_exchange_area_access", enable_common_exchange_area
+
+    # we moved to support multiple dbgap sftp servers, the config file has a list of dbgap
+    # for local file dir, we only use the parameters from first dbgap config
+    # hence only those are mocked here
+    monkeypatch.setitem(
+        syncer.dbGaP[0],
+        "enable_common_exchange_area_access",
+        enable_common_exchange_area,
     )
     monkeypatch.setattr(syncer, "parse_consent_code", parse_consent_code_config)
+    monkeypatch.setitem(
+        syncer.dbGaP[0], "parse_consent_code", parse_consent_code_config
+    )
+
     monkeypatch.setattr(syncer, "project_mapping", {})
 
     syncer.sync()
@@ -383,7 +398,7 @@ def test_sync_two_phsids_dict(syncer, db_session, storage_client):
 
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
-def test_sync_two_phsids_dict_override(syncer, db_session, storage_client):
+def test_sync_two_phsids_dict_combine(syncer, db_session, storage_client):
     phsids1 = {
         "userA": {
             "phs000178": {"read", "read-storage"},
@@ -559,3 +574,40 @@ def test_update_arborist(syncer, db_session):
     ]
     for role in expect_roles:
         assert syncer.arborist_client.create_role.called_with(role)
+
+
+@pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
+def test_merge_dbgap_servers(syncer, monkeypatch, db_session):
+    """
+    Test _merge_multiple_dbgap_sftp() is called when sync from dbgap server is true
+    """
+    monkeypatch.setattr(syncer, "is_sync_from_dbgap_server", True)
+
+    def mock_merge(dbgap_servers, sess):
+        return {}, {}
+
+    syncer._merge_multiple_dbgap_sftp = MagicMock(side_effect=mock_merge)
+    syncer._process_dbgap_files = MagicMock(side_effect=mock_merge)
+
+    syncer.sync()
+    syncer._merge_multiple_dbgap_sftp.assert_called_once_with(syncer.dbGaP, db_session)
+
+
+@pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
+def test_process_additional_dbgap_servers(syncer, monkeypatch, db_session):
+    """
+    Test that if there are additional dbgap servers,
+    then process_dbgap_files() is called x times where x is # of dbgap servers
+    """
+    monkeypatch.setattr(syncer, "is_sync_from_dbgap_server", True)
+
+    def mock_merge(dbgap_servers, sess):
+        return {}, {}
+
+    syncer._process_dbgap_files = MagicMock(side_effect=mock_merge)
+
+    syncer.sync()
+
+    # this function will be called once for each sftp server
+    # the test config file has 2 dbgap sftp servers
+    assert syncer._process_dbgap_files.call_count == 2
