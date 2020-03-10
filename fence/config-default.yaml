@@ -387,50 +387,50 @@ ITRUST_GLOBAL_LOGOUT: 'https://auth.nih.gov/siteminderagent/smlogout.asp?mode=ni
 # User syncing and access can also be done throught a User Access file. See
 # fence's README for more information
 dbGaP:
-  info:
-    host: ''
-    username: ''
-    password: ''
-    port: 22
-    proxy: ''
-    proxy_user: ''
-  protocol: 'sftp'
-  decrypt_key: ''
-  # parse out the consent from the dbgap accession number such that something
-  # like "phs000123.v1.p1.c2" becomes "phs000123.c2".
-  #
-  # NOTE: when this is "false" the above would become "phs000123"
-  parse_consent_code: true
-  # A consent of "c999" can indicate access to that study's "exchange area data"
-  # and when a user has access to one study's exchange area data, they
-  # have access to the parent study's "common exchange area data" that is not study
-  # specific. The following config is whether or not to parse/handle "c999" codes
-  # for access to the common exchange area data
-  #
-  # NOTE: When enabled you MUST also provide a mapping to the
-  # `study_common_exchange_areas` from study -> parent common exchange area resource
-  enable_common_exchange_area_access: false
-  # The below configuration is a mapping from studies to their "common exchange area data"
-  # Fence project name a user gets access to when parsing c999 exchange area codes (and
-  # subsequently gives access to an Arborist resource representing this common area
-  # as well)
-  study_common_exchange_areas:
-    'example': 'test_common_exchange_area'
-    # 'studyX': 'test_common_exchange_area'
-    # 'studyY': 'test_common_exchange_area'
-    # 'studyZ': 'test_common_exchange_area'
-  # A mapping from the dbgap study / Fence project to which authorization namespaces the
-  # actual data lives in. For example, `studyX` data may exist in multiple organizations, so
-  # we need to know how to map authorization to all orgs resources
-  study_to_resource_namespaces:
-    '_default': ['/']
-    'test_common_exchange_area': ['/dbgap/']
-    # above are for default support and exchange area support
-    # below are further examples
+  - info:
+      host: ''
+      username: ''
+      password: ''
+      port: 22
+      proxy: ''
+      proxy_user: ''
+    protocol: 'sftp'
+    decrypt_key: ''
+    # parse out the consent from the dbgap accession number such that something
+    # like "phs000123.v1.p1.c2" becomes "phs000123.c2".
     #
-    # 'studyX': ['/orgA/', '/orgB/']
-    # 'studyX.c2': ['/orgB/', '/orgC/']
-    # 'studyZ': ['/orgD/']
+    # NOTE: when this is "false" the above would become "phs000123"
+    parse_consent_code: true
+    # A consent of "c999" can indicate access to that study's "exchange area data"
+    # and when a user has access to one study's exchange area data, they
+    # have access to the parent study's "common exchange area data" that is not study
+    # specific. The following config is whether or not to parse/handle "c999" codes
+    # for access to the common exchange area data
+    #
+    # NOTE: When enabled you MUST also provide a mapping to the
+    # `study_common_exchange_areas` from study -> parent common exchange area resource
+    enable_common_exchange_area_access: false
+    # The below configuration is a mapping from studies to their "common exchange area data"
+    # Fence project name a user gets access to when parsing c999 exchange area codes (and
+    # subsequently gives access to an Arborist resource representing this common area
+    # as well)
+    study_common_exchange_areas:
+      'example': 'test_common_exchange_area'
+      # 'studyX': 'test_common_exchange_area'
+      # 'studyY': 'test_common_exchange_area'
+      # 'studyZ': 'test_common_exchange_area'
+    # A mapping from the dbgap study / Fence project to which authorization namespaces the
+    # actual data lives in. For example, `studyX` data may exist in multiple organizations, so
+    # we need to know how to map authorization to all orgs resources
+    study_to_resource_namespaces:
+      '_default': ['/']
+      'test_common_exchange_area': ['/dbgap/']
+      # above are for default support and exchange area support
+      # below are further examples
+      #
+      # 'studyX': ['/orgA/', '/orgB/']
+      # 'studyX.c2': ['/orgB/', '/orgC/']
+      # 'studyZ': ['/orgD/']
 
 # Regex to match an assession number that has consent information in forms like:
 #   phs00301123.c999
@@ -449,8 +449,8 @@ DBGAP_ACCESSION_WITH_CONSENT_REGEX: '(?P<phsid>phs[0-9]+)(.(?P<version>v[0-9]+))
 #               access for users.
 # //////////////////////////////////////////////////////////////////////////////////////
 # Configuration for various storage systems for the backend
-# NOTE: Remove the [] and supply backends if needed. Example in comments below
-STORAGE_CREDENTIALS: []
+# NOTE: Remove the {} and supply backends if needed. Example in comments below
+STORAGE_CREDENTIALS: {}
 # Google Cloud Storage backend
 #
 #  'google':
@@ -476,27 +476,34 @@ STORAGE_CREDENTIALS: []
 # AWS BUCKETS AND CREDENTIALS
 #   - Support `/data` endpoints
 # //////////////////////////////////////////////////////////////////////////////////////
-AWS_CREDENTIALS:
-  'CRED1':
-    aws_access_key_id: ''
-    aws_secret_access_key: ''
-  'CRED2':
-    aws_access_key_id: ''
-    aws_secret_access_key: ''
+AWS_CREDENTIALS: {}
+# NOTE: Remove the {} and supply creds if needed. Example in comments below
+#   'CRED1':
+#     aws_access_key_id: ''
+#     aws_secret_access_key: ''
+#   'CRED2':
+#     aws_access_key_id: ''
+#     aws_secret_access_key: ''
 
-S3_BUCKETS:
-  bucket1:
-    cred: 'CRED1'
-    # optionally you can manually specify an s3-compliant endpoint for this bucket
-    endpoint_url: 'https://cleversafe.example.com/'
-  bucket2:
-    cred: 'CRED2'
-    region: 'us-east-1' #optional but if specified avoids a call to GetBucketLocation which you may lack the AWS ACLs for.
-  bucket3:
-    cred: '*'
-  bucket4:
-    cred: 'CRED1'
-    role-arn: 'arn:aws:iam::role1'
+# NOTE: the region is optonal for s3_buckets, however it should be specified to avoid a
+# call to GetBucketLocation which you make lack the AWS ACLs for.
+S3_BUCKETS: {}
+# NOTE: Remove the {} and supply buckets if needed. Example in comments below
+#   bucket1:
+#     cred: 'CRED1'
+#     region: 'us-east-1'
+#     # optionally you can manually specify an s3-compliant endpoint for this bucket
+#     endpoint_url: 'https://cleversafe.example.com/'
+#   bucket2:
+#     cred: 'CRED2'
+#     region: 'us-east-1'
+#   bucket3:
+#     cred: '*'
+#     region: 'us-east-1'
+#   bucket4:
+#     cred: 'CRED1'
+#     region: 'us-east-1'
+#     role-arn: 'arn:aws:iam::role1'
 
 # `DATA_UPLOAD_BUCKET` specifies an S3 bucket to which data files are uploaded,
 # using the `/data/upload` endpoint. This must be one of the first keys under
@@ -700,6 +707,7 @@ GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS:
   - 'gcp-sa-cloudbuild.iam.gserviceaccount.com'
   - 'gcp-sa-automl.iam.gserviceaccount.com'
   - 'gcp-sa-datalabeling.iam.gserviceaccount.com'
+  - 'gcp-sa-cloudscheduler.iam.gserviceaccount.com'
 
 # The types of service accounts that are allowed to be registered at
 # /google/service_accounts endpoints
@@ -717,5 +725,6 @@ ALLOWED_USER_SERVICE_ACCOUNT_DOMAINS:
 DREAM_CHALLENGE_TEAM: 'DREAM'
 DREAM_CHALLENGE_GROUP: 'DREAM'
 SYNAPSE_URI: 'https://repo-prod.prod.sagebase.org/auth/v1'
+SYNAPSE_JWKS_URI:
 SYNAPSE_DISCOVERY_URL:
 SYNAPSE_AUTHZ_TTL: 86400
