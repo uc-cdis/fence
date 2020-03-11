@@ -171,8 +171,8 @@ def app_register_blueprints(app):
 
 def _check_s3_buckets(app):
     """
-    Function to ensure that all s3_buckets have a valid credential. 
-    Additionally, if there is no region it will produce a warning then trys to fetch and cache the region. 
+    Function to ensure that all s3_buckets have a valid credential.
+    Additionally, if there is no region it will produce a warning then trys to fetch and cache the region.
     """
     buckets = config.get("S3_BUCKETS") or {}
     aws_creds = config.get("AWS_CREDENTIALS") or {}
@@ -190,21 +190,25 @@ def _check_s3_buckets(app):
                     cred, bucket_name
                 )
             )
-        if not region:
-            logger.warning(
-                "WARNING: no region for S3_BUCKET: {}. Providing the region will reduce"
-                " response time and avoid a call to GetBucketLocation which you make lack the AWS ACLs for.".format(
-                    bucket_name
+
+        # only require region when we're not specifying an
+        # s3-compatible endpoint URL (ex: no need for region when using cleversafe)
+        if not bucket_details.get("endpoint_url"):
+            if not region:
+                logger.warning(
+                    "WARNING: no region for S3_BUCKET: {}. Providing the region will reduce"
+                    " response time and avoid a call to GetBucketLocation which you make lack the AWS ACLs for.".format(
+                        bucket_name
+                    )
                 )
-            )
-            credential = S3IndexedFileLocation.get_credential_to_access_bucket(
-                bucket_name,
-                aws_creds,
-                config.get("MAX_PRESIGNED_URL_TTL", 3600),
-                app.boto,
-            )
-            region = app.boto.get_bucket_region(bucket_name, credential)
-            config["S3_BUCKETS"][bucket_name]["region"] = region
+                credential = S3IndexedFileLocation.get_credential_to_access_bucket(
+                    bucket_name,
+                    aws_creds,
+                    config.get("MAX_PRESIGNED_URL_TTL", 3600),
+                    app.boto,
+                )
+                region = app.boto.get_bucket_region(bucket_name, credential)
+                config["S3_BUCKETS"][bucket_name]["region"] = region
 
 
 def app_config(
