@@ -606,13 +606,24 @@ class S3IndexedFileLocation(IndexedFileLocation):
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
-
-        http_url = "https://{}.s3.amazonaws.com/{}".format(
-            self.parsed_url.netloc, self.parsed_url.path.strip("/")
+        s3_buckets = get_value(
+            config, "S3_BUCKETS", InternalError("buckets not configured")
         )
 
+        bucket_name = self.bucket_name()
+        bucket = s3_buckets.get(bucket_name)
+
+        if bucket and bucket.get("endpoint_url"):
+            http_url = bucket["endpoint_url"].strip("/") + "/{}/{}".format(
+                self.parsed_url.netloc, self.parsed_url.path.strip("/")
+            )
+        else:
+            http_url = "https://{}.s3.amazonaws.com/{}".format(
+                self.parsed_url.netloc, self.parsed_url.path.strip("/")
+            )
+
         credential = S3IndexedFileLocation.get_credential_to_access_bucket(
-            self.bucket_name(), aws_creds, expires_in
+            bucket_name, aws_creds, expires_in
         )
 
         # if it's public and we don't need to force the signed url, just return the raw
@@ -628,11 +639,15 @@ class S3IndexedFileLocation(IndexedFileLocation):
         if aws_access_key_id == "*" or (public_data and not force_signed_url):
             return http_url
 
-        region = self.get_bucket_region()
-        if not region:
-            region = flask.current_app.boto.get_bucket_region(
-                self.parsed_url.netloc, credential
-            )
+        # only attempt to get the region when we're not specifying an
+        # s3-compatible endpoint URL (ex: no need for region when using cleversafe)
+        region = None
+        if not bucket.get("endpoint_url"):
+            region = self.get_bucket_region()
+            if not region:
+                region = flask.current_app.boto.get_bucket_region(
+                    self.parsed_url.netloc, credential
+                )
 
         user_info = _get_user_info()
 
