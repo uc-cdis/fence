@@ -165,6 +165,12 @@ OPENID_CONNECT:
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
     mock_default_user: 'test@example.com'
+  cognito:
+    # You must create a user pool in order to have a discovery url
+    discovery_url: 'https://cognito-idp.{REGION}.amazonaws.com/{USER-POOL-ID}/.well-known/openid-configuration'
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/cognito/login/'
   shibboleth:
     client_id: ''
     client_secret: ''
