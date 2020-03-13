@@ -16,6 +16,7 @@ from fence.models import migrate
 from fence.oidc.client import query_client
 from fence.oidc.server import server
 from fence.resources.aws.boto_manager import BotoManager
+from fence.resources.openid.cognito_oauth2 import CognitoOauth2Client as CognitoClient
 from fence.resources.openid.google_oauth2 import GoogleOauth2Client as GoogleClient
 from fence.resources.openid.microsoft_oauth2 import (
     MicrosoftOauth2Client as MicrosoftClient,
@@ -338,6 +339,14 @@ def _setup_oidc_clients(app):
     if "microsoft" in oidc:
         app.microsoft_client = MicrosoftClient(
             config["OPENID_CONNECT"]["microsoft"],
+            HTTP_PROXY=config.get("HTTP_PROXY"),
+            logger=logger,
+        )
+
+    # Add OIDC client for Amazon Cognito if configured.
+    if "cognito" in oidc:
+        app.cognito_client = CognitoClient(
+            config["OPENID_CONNECT"]["cognito"],
             HTTP_PROXY=config.get("HTTP_PROXY"),
             logger=logger,
         )
