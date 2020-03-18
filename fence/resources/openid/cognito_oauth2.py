@@ -47,7 +47,9 @@ class CognitoOauth2Client(Oauth2ClientBase):
             jwks_endpoint = self.get_value_from_discovery_doc("jwks_uri", "")
             claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
 
-            if claims["email"] and claims["email_verified"]:
+            if claims["email"] and (
+                claims["email_verified"] or self.settings["assume_emails_verified"]
+            ):
                 return {"email": claims["email"]}
             elif claims["email"]:
                 return {"error": "Email is not verified"}
