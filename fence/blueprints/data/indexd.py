@@ -638,17 +638,18 @@ class S3IndexedFileLocation(IndexedFileLocation):
         if aws_access_key_id == "*" or (public_data and not force_signed_url):
             return http_url
 
-        # only attempt to get the region when we're not specifying an
-        # s3-compatible endpoint URL (ex: no need for region when using cleversafe)
-        region = None
-        if not bucket.get("endpoint_url"):
-            region = self.get_bucket_region()
-            if not region:
-                region = flask.current_app.boto.get_bucket_region(
-                    self.parsed_url.netloc, credential
-                )
+        region = self.get_bucket_region()
+        if not region:
+            region = flask.current_app.boto.get_bucket_region(
+                self.parsed_url.netloc, credential
+            )
+            logging.info(f"got aws region {self.parsed_url.netloc} for {region}")
 
         user_info = _get_user_info()
+
+        logging.debug(f"generating aws presigned url with http_url {http_url}, "
+            f"action {ACTION_DICT["s3"][action]}, "
+            f"region {region}, expires_in {expires_in}, user_info {user_info}")
 
         url = generate_aws_presigned_url(
             http_url,
