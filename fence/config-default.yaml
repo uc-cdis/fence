@@ -241,6 +241,11 @@ LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
   #   idp: orcid
   # - name: 'Microsoft Login'
   #   idp: microsoft
+  # # Cognito login: You may want to edit the name to reflect Cognito's IdP,
+  # # especially if Cognito is only using one IdP
+  # - name: 'Login from Cognito'
+  #   desc: 'Amazon Cognito login'
+  #   idp: cognito
   # - name: 'NIH Login'
   #   idp: fence
   #   fence_idp: shibboleth
