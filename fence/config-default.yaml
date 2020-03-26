@@ -492,6 +492,8 @@ S3_BUCKETS: {}
 #   bucket1:
 #     cred: 'CRED1'
 #     region: 'us-east-1'
+#     # optionally you can manually specify an s3-compliant endpoint for this bucket
+#     endpoint_url: 'https://cleversafe.example.com/'
 #   bucket2:
 #     cred: 'CRED2'
 #     region: 'us-east-1'
