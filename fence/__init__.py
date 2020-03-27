@@ -214,7 +214,7 @@ def _check_s3_buckets(app):
                         "bucket regions."
                     )
                     return
-                
+
                 region = app.boto.get_bucket_region(bucket_name, credential)
                 config["S3_BUCKETS"][bucket_name]["region"] = region
 
