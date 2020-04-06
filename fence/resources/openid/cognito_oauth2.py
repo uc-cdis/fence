@@ -1,3 +1,4 @@
+import json
 from .idp_oauth2 import Oauth2ClientBase
 
 
@@ -46,6 +47,12 @@ class CognitoOauth2Client(Oauth2ClientBase):
             token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
             jwks_endpoint = self.get_value_from_discovery_doc("jwks_uri", "")
             claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
+
+            self.logger.info(
+                "Received id token from Cognito:\n{}".format(
+                    json.dumps(claims, indent=4)
+                )
+            )
 
             if claims["email"] and (
                 claims["email_verified"] or self.settings["assume_emails_verified"]
