@@ -346,9 +346,7 @@ def _setup_oidc_clients(app):
     # Add OIDC client for Amazon Cognito if configured.
     if "cognito" in oidc:
         app.cognito_client = CognitoClient(
-            config["OPENID_CONNECT"]["cognito"],
-            HTTP_PROXY=config.get("HTTP_PROXY"),
-            logger=logger,
+            oidc["cognito"], HTTP_PROXY=config.get("HTTP_PROXY"), logger=logger
         )
 
     # Add OIDC client for multi-tenant fence if configured.
