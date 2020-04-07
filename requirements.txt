@@ -8,7 +8,7 @@ cached_property==1.5.1
 cdislogging>=1.0.0<2.0.0
 cdiserrors==0.1.2
 cdispyutils==1.0.3
-cryptography==2.8
+cryptography>=2.1.2<=2.8
 datamodelutils==0.4.5
 Flask==1.1.1
 Flask-CORS==3.0.3
