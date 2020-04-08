@@ -7,7 +7,7 @@ boto3>=1.5<1.6
 cached_property==1.5.1
 cdislogging>=1.0.0<2.0.0
 cdiserrors==0.1.2
-cdispyutils==1.0.3
+cdispyutils==1.0.4
 cryptography==2.8
 datamodelutils==0.4.5
 Flask==1.1.1
