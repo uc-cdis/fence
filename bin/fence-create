@@ -166,6 +166,7 @@ def parse_arguments():
     )
 
     google_bucket_create = subparsers.add_parser("google-bucket-create")
+    mgroup = google_bucket_create.add_mutually_exclusive_group()
     google_bucket_create.add_argument(
         "--unique-name",
         required=True,
@@ -177,7 +178,7 @@ def parse_arguments():
         help='Currently must be one of the following: "MULTI_REGIONAL", '
         '"REGIONAL", "NEARLINE", "COLDLINE", "STANDARD"',
     )
-    google_bucket_create.add_argument(
+    mgroup.add_argument(
         "--public",
         default=None,
         help="whether or not the bucket should be open to the public."
@@ -185,6 +186,14 @@ def parse_arguments():
         "untouched. to set or reset the policy use: "
         "--public True or --public False",
     )
+    # google_bucket_create.add_argument(
+    #     "--public",
+    #     default=None,
+    #     help="whether or not the bucket should be open to the public."
+    #     "WARNING: not providing this field will leave the bucket IAM policy"
+    #     "untouched. to set or reset the policy use: "
+    #     "--public True or --public False",
+    # )
     google_bucket_create.add_argument(
         "--requester-pays",
         action="store_true",
@@ -196,12 +205,18 @@ def parse_arguments():
         default=None,
         help="Google project this bucket should be associated with",
     )
-    google_bucket_create.add_argument(
+    mgroup.add_argument(
         "--project-auth-id",
         default=None,
         help="a Project.auth_id to associate this bucket with. "
         "The project must exist in the db already.",
     )
+    # google_bucket_create.add_argument(
+    #     "--project-auth-id",
+    #     default=None,
+    #     help="a Project.auth_id to associate this bucket with. "
+    #     "The project must exist in the db already.",
+    # )
     google_bucket_create.add_argument(
         "--access-logs-bucket",
         default=None,
