@@ -636,7 +636,8 @@ WHITE_LISTED_GOOGLE_PARENT_ORGS: []
 # whitelist.
 #
 # NOTE: Remove the [] and service account emails if needed. Example in comments below
-WHITE_LISTED_SERVICE_ACCOUNT_EMAILS: []
+WHITE_LISTED_SERVICE_ACCOUNT_EMAILS:
+  - 'isb-cgc-project-monitor@isb-cgc-dev-1.iam.gserviceaccount.com'
 #  - 'example@developer.gserviceaccount.com'
 #  - 'example@test.iam.gserviceaccount.com'
 
