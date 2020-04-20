@@ -165,6 +165,16 @@ OPENID_CONNECT:
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
     mock_default_user: 'test@example.com'
+  cognito:
+    # You must create a user pool in order to have a discovery url
+    discovery_url: 'https://cognito-idp.{REGION}.amazonaws.com/{USER-POOL-ID}/.well-known/openid-configuration'
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/cognito/login/'
+    # In the case where Cognito is being used solely as an intermediary to a single IdP,
+    # and that IdP is a SAML IdP with no 'email_verified' outgoing claim, but it is safe
+    # to assume all emails from this SAML IdP are in fact verified, we may set this to True
+    assume_emails_verified: False
   shibboleth:
     client_id: ''
     client_secret: ''
@@ -231,6 +241,11 @@ LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
   #   idp: orcid
   # - name: 'Microsoft Login'
   #   idp: microsoft
+  # # Cognito login: You may want to edit the name to reflect Cognito's IdP,
+  # # especially if Cognito is only using one IdP
+  # - name: 'Login from Cognito'
+  #   desc: 'Amazon Cognito login'
+  #   idp: cognito
   # - name: 'NIH Login'
   #   idp: fence
   #   fence_idp: shibboleth

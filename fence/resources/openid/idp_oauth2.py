@@ -84,10 +84,10 @@ class Oauth2ClientBase(object):
                     )
                 )
                 return_value = default_value
-            elif return_value != default_value:
+            elif return_value != default_value and default_value != "":
                 self.logger.info(
-                    "{}'s {}, {} differs from our "
-                    "default {}. Using {}'s...".format(
+                    "{}'s discovery doc {}, `{}`, differs from our "
+                    "default, `{}`. Using {}'s...".format(
                         self.idp, key, return_value, default_value, self.idp
                     )
                 )
@@ -105,6 +105,14 @@ class Oauth2ClientBase(object):
                 )
             )
             return_value = default_value
+
+        if not return_value:
+            self.logger.error(
+                "Could not retrieve `{}` from {} discovery doc {} "
+                "and default value {} appears to not be set.".format(
+                    key, self.idp, self.discovery_doc.json(), default_value
+                )
+            )
 
         return return_value
 
