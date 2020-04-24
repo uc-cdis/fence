@@ -2072,6 +2072,7 @@ components:
           description: 'list of resource paths the user has access to'
         tags:
           type: object
+          description: User's tags
         azp:
           type: string
           description: 'authorized party - the party to which the ID token was issued.'
