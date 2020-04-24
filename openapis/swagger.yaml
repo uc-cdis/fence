@@ -2044,7 +2044,7 @@ components:
           description: ''
         project_access:
           type: object
-          description: ''
+          description: 'This value is deprecated in favor of authz and resources.'
         certificates_uploaded:
           type: array
           items:
