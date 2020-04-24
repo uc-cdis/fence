@@ -305,8 +305,8 @@ paths:
       tags:
         - user
       summary: Return info about the current user
-      description: |
-      **IMPORTANT NOTE**: These docs are provided as a courtesy but do _NOT_ include the entirety of the OIDC Standard
+      description: >-
+        **IMPORTANT NOTE**: These docs are provided as a courtesy but do _NOT_ include the entirety of the OIDC Standard
         simply because of its length and complexity.
 
         Please [refer to the standard](https://openid.net/specs/openid-connect-core-1_0.html) for complete details.
