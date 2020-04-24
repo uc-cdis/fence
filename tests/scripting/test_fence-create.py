@@ -324,7 +324,7 @@ def test_delete_expired_service_accounts_with_one_fail_first(
     cloud_manager, app, db_session
 ):
     """
-    Test the case that there is a failure of removing service account from google group
+    Test the case that there is a failure of removing service account from google group 
     """
     from googleapiclient.errors import HttpError
     import fence
