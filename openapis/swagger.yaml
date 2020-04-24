@@ -1997,10 +1997,11 @@ components:
         - message
       properties:
         user_id:
-          type: string
+          type: number
           description: 'This value is deprecated in favor of sub.'
         sub:
           type: string
+          description: 'Subject Identifier. A locally unique and never reassigned identifier within the Issuer for the end-user.'
         username:
           type: string
           description: 'This value is deprecated in favor of name.'
@@ -2037,9 +2038,24 @@ components:
           items:
             type: string
         groups:
-          type: object
+          type: array
+          items:
+            type: string
         message:
           type: string
+        primary_google_service_account:
+          type: string
+          description: 'email address of the users primary service account used for signing URLs'
+        authz:
+          type: object
+          description: 'end user authorization information'
+        resources:
+          type: array
+          items:
+            type: string
+          description: 'list of resource paths the user has access to'
+        tags:
+          type: object
         azp:
           type: string
           description: 'authorized party - the party to which the ID token was issued.'
