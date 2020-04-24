@@ -6,7 +6,7 @@ info:
   title: Fence OpenAPI Specification
   version: 0.1.0
   description: >-
-    Access management for CDIS data commons. Code is available on
+    Access management for Gen3 data commons. Code is available on
     [GitHub](https://github.com/uc-cdis/fence).
   termsOfService: 'http://cdis.uchicago.edu/terms/'
   contact:
@@ -305,6 +305,11 @@ paths:
       tags:
         - user
       summary: Return info about the current user
+      description: |
+      **IMPORTANT NOTE**: These docs are provided as a courtesy but do _NOT_ include the entirety of the OIDC Standard
+        simply because of its length and complexity.
+
+        Please [refer to the standard](https://openid.net/specs/openid-connect-core-1_0.html) for complete details.
       security:
         - OAuth2:
             - user
@@ -1975,40 +1980,69 @@ components:
     UserInfo:
       type: object
       required:
-        - pdc_id
+        - user_id
+        - sub
         - username
-        - resources_granted
+        - name
+        - display_name
+        - preferred_username
+        - phone_number
+        - email
+        - is_admin
+        - role
         - project_access
         - certificates_uploaded
-        - email
+        - resources_granted
+        - groups
         - message
-        - primary_google_service_account
       properties:
-        pdc_id:
+        user_id:
+          type: string
+          description: 'This value is deprecated in favor of sub.'
+        sub:
           type: string
         username:
           type: string
+          description: 'This value is deprecated in favor of name.'
+        name:
+          type: string
+          description: 'The full name of the end-user.'
+        display_name:
+          type: string
+          description: 'The display name of the end-user.'
+        preferred_username:
+          type: string
+          description: 'The preferred username of the end-user.'
+        phone_number:
+          type: string
+          description: 'The phone number of the end-user.'
+        email:
+          type: string
+          description: 'The email of the end-user'
+        is_admin:
+          type: boolean
+          description: 'Boolean value stating if end-user is an admin or not'
+        role:
+          type: string
           description: ''
-        resources_granted:
-          type: array
-          items:
-            type: string
         project_access:
           type: object
-          additionalProperties:
-            type: string
+          description: ''
         certificates_uploaded:
           type: array
           items:
             type: string
-        email:
-          type: string
-          description: ''
+        resources_granted:
+          type: array
+          items:
+            type: string
+        groups:
+          type: object
         message:
           type: string
-        primary_google_service_account:
+        azp:
           type: string
-          description: 'email address of the users primary service account used for signing URLs'
+          description: 'authorized party - the party to which the ID token was issued.'
     SignedURL:
       type: object
       properties:
