@@ -2044,7 +2044,7 @@ components:
           description: ''
         project_access:
           type: object
-          description: ''
+          description: 'dictionary mapping of project name to list of permissions'
         certificates_uploaded:
           type: array
           items:
@@ -2064,7 +2064,7 @@ components:
           description: 'email address of the users primary service account used for signing URLs'
         authz:
           type: object
-          description: 'end user authorization information'
+          description: 'end user authorization information, mapping of resource name to list of permission, service roles'
         resources:
           type: array
           items:
