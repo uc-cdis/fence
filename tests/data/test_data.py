@@ -1,4 +1,8 @@
 import json
+import time
+
+from datetime import datetime, timedelta
+
 import mock
 import urllib.parse
 import uuid
@@ -606,6 +610,114 @@ def test_indexd_download_with_uploader_authorized(
     }
     response = client.get(path, headers=headers, query_string=query_string)
     assert response.status_code == 200
+
+
+def test_assume_role_cache(
+    client,
+    oauth_client,
+    user_client,
+    kid,
+    rsa_private_key,
+    google_proxy_group,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+):
+    """
+    Test ``GET /data/download/1`` with authorized user (user is the uploader).
+    """
+
+    assume_role_called = 0
+
+    def mock_assume_role(self, role_arn, duration_seconds, config=None):
+        nonlocal assume_role_called
+        assume_role_called += 1
+        return {
+            "Credentials": {
+                "AccessKeyId": "",
+                "SecretAccessKey": "",
+                "SessionToken": "",
+                "Expiration": datetime.now() + timedelta(seconds=duration_seconds),
+            },
+            "AssumedRoleUser": {"AssumedRoleId": "", "Arn": role_arn},
+        }
+
+    assume_role_patcher = patch(
+        "fence.resources.aws.boto_manager.BotoManager.assume_role", mock_assume_role
+    )
+    assume_role_patcher.start()
+
+    did = str(uuid.uuid4())
+    index_document = {
+        "did": did,
+        "baseid": "",
+        "uploader": user_client.username,
+        "rev": "",
+        "size": 10,
+        "file_name": "file1",
+        "urls": ["s3://bucket5/key-{}".format(did[:8])],
+        "acl": ["phs000178"],
+        "hashes": {},
+        "metadata": {},
+        "form": "",
+        "created_date": "",
+        "updated_date": "",
+    }
+    mock_index_document = mock.patch(
+        "fence.blueprints.data.indexd.IndexedFile.index_document", index_document
+    )
+    mock_index_document.start()
+    indexed_file_location = "s3"
+    path = "/data/download/1"
+    query_string = {"protocol": indexed_file_location}
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+
+    # initial call
+    response = client.get(path, headers=headers, query_string=query_string)
+    assert response.status_code == 200
+    assert assume_role_called == 1
+
+    # in-memory cache
+    response = client.get(path, headers=headers, query_string=query_string)
+    assert response.status_code == 200
+    assert assume_role_called == 1
+
+    # use database cache if in-memory cache is missing
+    fence.S3IndexedFileLocation._assume_role_cache.clear()
+    response = client.get(path, headers=headers, query_string=query_string)
+    assert response.status_code == 200
+    assert assume_role_called == 1
+
+    # use database cache if in-memory cache is expired
+    arn, vals = list(fence.S3IndexedFileLocation._assume_role_cache.items())[0]
+    fence.S3IndexedFileLocation._assume_role_cache[arn] = vals[0], time.time() - 10
+    response = client.get(path, headers=headers, query_string=query_string)
+    assert response.status_code == 200
+    assert assume_role_called == 1
+
+    # in-memory cache is missing and database cache is expired
+    fence.S3IndexedFileLocation._assume_role_cache.clear()
+    import flask
+
+    with flask.current_app.db.session as session:
+        session.execute(
+            "UPDATE assume_role_cache SET expires_at = :ts", dict(ts=time.time() - 10)
+        )
+    response = client.get(path, headers=headers, query_string=query_string)
+    assert response.status_code == 200
+    assert assume_role_called == 2
+
+    assume_role_patcher.stop()
 
 
 def test_indexd_download_with_uploader_unauthorized(

@@ -534,6 +534,16 @@ class ServiceAccountToGoogleBucketAccessGroup(Base):
     )
 
 
+class AssumeRoleCache(Base):
+    __tablename__ = "assume_role_cache"
+
+    arn = Column(String(), primary_key=True)
+    expires_at = Column(Integer())
+    aws_access_key_id = Column(String())
+    aws_secret_access_key = Column(String())
+    aws_session_token = Column(String())
+
+
 to_timestamp = (
     "CREATE OR REPLACE FUNCTION pc_datetime_to_timestamp(datetoconvert timestamp) "
     "RETURNS BIGINT AS "

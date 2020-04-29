@@ -489,6 +489,8 @@ class S3IndexedFileLocation(IndexedFileLocation):
     An indexed file that lives in an AWS S3 bucket.
     """
 
+    _assume_role_cache = {}
+
     @classmethod
     def assume_role(cls, bucket_cred, expires_in, aws_creds_config, boto=None):
         """
@@ -500,16 +502,46 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 outside of application context, to avoid errors when
                 using `flask.current_app`.
         """
-        boto = boto or flask.current_app.boto
-
         role_arn = get_value(
             bucket_cred, "role-arn", InternalError("role-arn of that bucket is missing")
         )
-        assumed_role = boto.assume_role(role_arn, expires_in, aws_creds_config)
+        expiry = time.time() + expires_in
+
+        # try to retrieve from local in-memory cache
+        rv, expires_at = cls._assume_role_cache.get(role_arn, (None, 0))
+        if expires_at > expiry:
+            return rv
+
+        # try to retrieve from database cache
+        from ...models import AssumeRoleCache
+
+        with flask.current_app.db.session as session:
+            cache = (
+                session.query(AssumeRoleCache)
+                .filter(AssumeRoleCache.arn == role_arn)
+                .first()
+            )
+            if cache and cache.expires_at and cache.expires_at > expiry:
+                rv = dict(
+                    aws_access_key_id=cache.aws_access_key_id,
+                    aws_secret_access_key=cache.aws_secret_access_key,
+                    aws_session_token=cache.aws_session_token,
+                )
+                cls._assume_role_cache[role_arn] = rv, cache.expires_at
+                return rv
+
+        # retrieve from AWS, with additional 30 minutes buffer for cache
+        boto = boto or flask.current_app.boto
+        assumed_role = boto.assume_role(
+            role_arn,
+            expires_in
+            + int(flask.current_app.config.get("ASSUME_ROLE_CACHE_SECONDS", 1800)),
+            aws_creds_config,
+        )
         cred = get_value(
             assumed_role, "Credentials", InternalError("fail to assume role")
         )
-        return {
+        rv = {
             "aws_access_key_id": get_value(
                 cred,
                 "AccessKeyId",
@@ -523,9 +555,39 @@ class S3IndexedFileLocation(IndexedFileLocation):
             "aws_session_token": get_value(
                 cred,
                 "SessionToken",
-                InternalError("outdated format. Sesssion token missing"),
+                InternalError("outdated format. Session token missing"),
             ),
         }
+        expires_at = get_value(
+            cred, "Expiration", InternalError("outdated format. Expiration missing")
+        ).timestamp()
+
+        # stores back to cache
+        cls._assume_role_cache[role_arn] = rv, expires_at
+        with flask.current_app.db.session as session:
+            session.execute(
+                """\
+                INSERT INTO assume_role_cache (
+                    arn,
+                    expires_at,
+                    aws_access_key_id,
+                    aws_secret_access_key,
+                    aws_session_token
+                ) VALUES (
+                    :arn,
+                    :expires_at,
+                    :aws_access_key_id,
+                    :aws_secret_access_key,
+                    :aws_session_token
+                ) ON CONFLICT (arn) DO UPDATE SET
+                    expires_at = EXCLUDED.expires_at,
+                    aws_access_key_id = EXCLUDED.aws_access_key_id,
+                    aws_secret_access_key = EXCLUDED.aws_secret_access_key,
+                    aws_session_token = EXCLUDED.aws_session_token;""",
+                dict(arn=role_arn, expires_at=expires_at, **rv),
+            )
+
+        return rv
 
     def bucket_name(self):
         """
