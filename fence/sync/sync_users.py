@@ -456,7 +456,10 @@ class UserSyncer(object):
                 continue
             if not self._match_pattern(filepath, encrypted=encrypted):
                 self.logger.warning(
-                    "Invalid filename {} does not match dbgap access control filename pattern".format(
+                    "Filename {} does not match dbgap access control filename pattern;"
+                    " this could mean that the filename has an invalid format, or has"
+                    " an unexpected .enc extension, or lacks the .enc extension where"
+                    " expected. This file is NOT being processed by usersync!".format(
                         filepath
                     )
                 )
