@@ -437,6 +437,8 @@ class IndexedFile(object):
         for location in locations_to_delete:
             bucket = location.bucket_name()
             flask.current_app.boto.delete_data_file(bucket, self.file_id)
+            # TODO: make this line work? idk
+            flask.current_app.google_cloud.delete_data_file(bucket, self.file_id)
 
     @login_required({"data"})
     def delete(self):

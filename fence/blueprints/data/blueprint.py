@@ -11,6 +11,7 @@ from fence.blueprints.data.indexd import (
 from fence.errors import Forbidden, InternalError, UserError
 from fence.utils import is_valid_expiration
 from fence.authz.auth import check_arborist_auth
+from fence.auth import get_jwt
 
 
 logger = get_logger(__name__)
@@ -36,13 +37,33 @@ def delete_data_file(file_id):
         file_id (str): GUID of file to delete
     """
     record = IndexedFile(file_id)
-    # check auth: user must have uploaded the file (so `uploader` field on the record is
-    # this user)
+
+
+    authz = record.index_document.get("authz")
+
+    if authz:
+        # ask arborist if the requester has auth to DELETE that resource
+        if not flask.current_app.arborist.auth_request(
+            jwt=get_jwt(),
+            service="fence",
+            methods="DELETE",
+            resources=authz,
+        ):
+            raise Forbidden("user does not have arborist permissions to delete this file")
+        else:
+            logger.info("deleting record and files for {}".format(file_id))
+            record.delete_files(delete_all=True)
+            return record.delete()
+    
+    # Because the authz field is empty, we fall back on checking the uploader field.
+    # This user must have uploaded the file, so `uploader` field on the record is this user
     uploader = record.index_document.get("uploader")
     if not uploader:
         raise Forbidden("deleting submitted records is not supported")
+    
     if current_token["context"]["user"]["name"] != uploader:
         raise Forbidden("user is not uploader for file {}".format(file_id))
+    
     logger.info("deleting record and files for {}".format(file_id))
     record.delete_files(delete_all=True)
     return record.delete()
