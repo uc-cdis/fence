@@ -34,6 +34,7 @@ from fence.resources.google.utils import (
     get_or_create_proxy_group_id,
     get_google_app_creds,
     give_service_account_billing_access_if_necessary,
+    delete_data_file
 )
 from fence.utils import get_valid_expiration_from_request
 from . import multipart_upload
@@ -437,7 +438,6 @@ class IndexedFile(object):
         for location in locations_to_delete:
             bucket = location.bucket_name()
             flask.current_app.boto.delete_data_file(bucket, self.file_id)
-            # TODO: make this line work? idk
             flask.current_app.google_cloud.delete_data_file(bucket, self.file_id)
 
     @login_required({"data"})

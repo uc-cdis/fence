@@ -881,3 +881,6 @@ def get_db_session(db=None):
         return SQLAlchemyDriver(db).Session()
     else:
         return current_session
+
+def delete_data_file(google_cloud_storage_bucket, file_id):
+    pass
