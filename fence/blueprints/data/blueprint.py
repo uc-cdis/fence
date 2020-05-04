@@ -59,10 +59,8 @@ def delete_data_file(file_id):
     uploader = record.index_document.get("uploader")
     if not uploader:
         raise Forbidden("deleting submitted records is not supported")
-    
     if current_token["context"]["user"]["name"] != uploader:
         raise Forbidden("user is not uploader for file {}".format(file_id))
-    
     logger.info("deleting record and files for {}".format(file_id))
     record.delete_files(delete_all=True)
     return record.delete()
