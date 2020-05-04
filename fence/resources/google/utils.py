@@ -886,9 +886,7 @@ def get_db_session(db=None):
 def delete_data_file(google_cloud_storage_bucket, file_id):
     session = get_db_session(db)
 
-    bucket = (
-        session.query(Bucket).filter_by(email=google_cloud_storage_bucket).first()
-    )
+    bucket = session.query(Bucket).filter_by(email=google_cloud_storage_bucket).first()
 
     if not bucket:
         return
@@ -896,8 +894,7 @@ def delete_data_file(google_cloud_storage_bucket, file_id):
     try:
         with GoogleCloudManager(google_project_id, use_default=False) as g_manager:
             g_manager.delete_data_file(
-                member_email=service_account.email,
-                file_id=file_id,
+                member_email=service_account.email, file_id=file_id
             )
     except Exception as exc:
         raise GoogleAPIError(
