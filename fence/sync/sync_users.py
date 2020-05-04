@@ -113,7 +113,10 @@ def _read_file(filepath, encrypted=True, key=None, logger=None):
             stderr=open(os.devnull, "w"),
             universal_newlines=True,
         )
-        yield StringIO(p.communicate()[0])
+        try:
+            yield StringIO(p.communicate()[0])
+        except UnicodeDecodeError:
+            logger.error("Could not decode file. Check the decryption key.")
     else:
         f = open(filepath, "r")
         yield f
