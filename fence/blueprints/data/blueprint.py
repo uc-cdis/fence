@@ -38,7 +38,6 @@ def delete_data_file(file_id):
     """
     record = IndexedFile(file_id)
 
-
     authz = record.index_document.get("authz")
 
     if authz:
