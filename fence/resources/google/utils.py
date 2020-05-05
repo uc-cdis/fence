@@ -13,6 +13,7 @@ from cirrus.google_cloud.utils import (
     get_valid_service_account_id_for_client,
     get_valid_service_account_id_for_user,
 )
+from cirrus.google_cloud.errors import GoogleAPIError
 
 from userdatamodel.driver import SQLAlchemyDriver
 from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
@@ -21,6 +22,7 @@ from fence.auth import current_token
 from fence.config import config
 from fence.errors import NotSupported, InternalError, UserError
 from fence.models import (
+    Bucket,
     GoogleServiceAccount,
     GoogleServiceAccountKey,
     UserGoogleAccount,
@@ -875,15 +877,7 @@ def is_google_managed_service_account(service_account_email):
 
     return service_account_domain in google_managed_service_account_domains
 
-
-def get_db_session(db=None):
-    if db:
-        return SQLAlchemyDriver(db).Session()
-    else:
-        return current_session
-
-
-def delete_data_file(google_cloud_storage_bucket, file_id):
+def delete_data_file(google_cloud_storage_bucket, file_name, db=None):
     session = get_db_session(db)
 
     bucket = session.query(Bucket).filter_by(email=google_cloud_storage_bucket).first()
@@ -892,13 +886,20 @@ def delete_data_file(google_cloud_storage_bucket, file_id):
         return
 
     try:
-        with GoogleCloudManager(google_project_id, use_default=False) as g_manager:
+        with GoogleCloudManager() as g_manager:
             g_manager.delete_data_file(
-                member_email=service_account.email, file_id=file_id
+                bucket, file_name
             )
     except Exception as exc:
         raise GoogleAPIError(
             "Can not remove data file {} from bucket {}. Detail {}".format(
-                file_id, bucket, exc
+                file_name, bucket, exc
             )
         )
+
+
+def get_db_session(db=None):
+    if db:
+        return SQLAlchemyDriver(db).Session()
+    else:
+        return current_session
