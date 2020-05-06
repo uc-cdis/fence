@@ -39,19 +39,18 @@ def delete_data_file(file_id):
     record = IndexedFile(file_id)
 
     authz = record.index_document.get("authz")
-
-    if authz:
-        # ask arborist if the requester has auth to DELETE that resource
-        if not flask.current_app.arborist.auth_request(
-            jwt=get_jwt(), service="fence", methods="delete", resources=authz
-        ):
-            raise Forbidden(
-                "user does not have arborist permissions to delete this file"
-            )
-        else:
-            logger.info("deleting record and files for {}".format(file_id))
-            record.delete_files(delete_all=True)
-            return record.delete()
+    
+    # ask arborist if the requester has auth to DELETE that resource
+    if authz and flask.current_app.arborist.auth_request(
+        jwt=get_jwt(), service="fence", methods="delete", resources=authz
+    ):
+        logger.info("deleting record and files for {}".format(file_id))
+        record.delete_files(delete_all=True)
+        return record.delete()
+    
+    raise Forbidden(
+        "user does not have arborist permissions to delete this file"
+    )
 
 
 @blueprint.route("/upload", methods=["POST"])
