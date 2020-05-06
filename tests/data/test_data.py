@@ -670,8 +670,6 @@ def test_delete_file_no_auth(app, client, encoded_creds_jwt):
         "did": did,
         "baseid": "",
         "rev": "",
-        # uploader field is no longer sufficient for auth:
-        "uploader": user_client.username,
         "size": 10,
         "file_name": "file1",
         "urls": ["s3://bucket1/key-{}".format(did[:8])],
