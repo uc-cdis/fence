@@ -728,10 +728,18 @@ def test_delete_file_locations(
     mock_boto_delete = mock.MagicMock()
     monkeypatch.setattr(app.boto, "delete_data_file", mock_boto_delete)
 
+    class MockResponse(object):
+        def __init__(self, data, status_code=200):
+            self.data = data
+            self.status_code = status_code
+
+        def json(self):
+            return self.data
+
     mock_delete_response = mock.MagicMock()
     mock_delete_response.status_code = 200
     mock_delete = mock.MagicMock(requests.put, return_value=mock_delete_response)
-    with mock.patch("fence.blueprints.data.indexd.requests.delete", mock_delete), data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
+    with mock.patch("fence.blueprints.data.indexd.requests.delete", mock_delete), arborist_requests_mocker as arborist_requests:
         # pretend arborist says "yes"
         arborist_requests.request.return_value = MockResponse({"auth": False})
         arborist_requests.request.return_value.status_code = 200
