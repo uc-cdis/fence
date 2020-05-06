@@ -887,9 +887,7 @@ def delete_data_file(google_cloud_storage_bucket, file_name, db=None):
 
     try:
         with GoogleCloudManager() as g_manager:
-            g_manager.delete_data_file(
-                bucket, file_name
-            )
+            g_manager.delete_data_file(bucket, file_name)
     except Exception as exc:
         raise GoogleAPIError(
             "Can not remove data file {} from bucket {}. Detail {}".format(

@@ -48,9 +48,7 @@ def delete_data_file(file_id):
         record.delete_files(delete_all=True)
         return record.delete()
     
-    raise Forbidden(
-        "user does not have arborist permissions to delete this file"
-    )
+    raise Forbidden("user does not have arborist permissions to delete this file")
 
 
 @blueprint.route("/upload", methods=["POST"])
