@@ -207,6 +207,14 @@ def _check_s3_buckets(app):
                     config.get("MAX_PRESIGNED_URL_TTL", 3600),
                     app.boto,
                 )
+                if not getattr(app, "boto"):
+                    logger.warning(
+                        "WARNING: boto not setup for app, probably b/c "
+                        "nothing in AWS_CREDENTIALS. Cannot attempt to get bucket "
+                        "bucket regions."
+                    )
+                    return
+
                 region = app.boto.get_bucket_region(bucket_name, credential)
                 config["S3_BUCKETS"][bucket_name]["region"] = region
 
