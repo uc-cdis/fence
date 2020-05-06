@@ -1,5 +1,6 @@
 import time
 import mock
+import logging
 
 from unittest.mock import MagicMock, patch
 import pytest
@@ -881,15 +882,17 @@ def test_delete_expired_service_account_keys_both_user_and_client(
 
 
 def test_list_client_action(db_session, capsys):
+    logger = logging.getLogger("fence.scripting.fence_create")
+    logger.addHandler(logging.StreamHandler())
     client_name = "test123"
     client = Client(client_id=client_name, client_secret="secret", name=client_name)
     db_session.add(client)
     db_session.commit()
     list_client_action(db_session)
     captured = capsys.readouterr()
-    assert "'client_id': " + "'test123'" in captured[0]
-    assert "'client_secret': " + "'secret'" in captured[0]
-    assert "'name': " + "'test123'" in captured[0]
+    assert "'client_id': " + "'test123'" in captured[1]
+    assert "'client_secret': " + "'secret'" in captured[1]
+    assert "'name': " + "'test123'" in captured[1]
 
 
 def test_modify_client_action(db_session):
