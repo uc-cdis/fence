@@ -719,6 +719,10 @@ def test_delete_file_locations(
         "check_authorization",
         return_value=True,
     )
+    arborist_requests_mocker = mock.patch(
+        "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
+    )
+
     mock_index_document.start()
     mock_check_auth.start()
     mock_boto_delete = mock.MagicMock()
@@ -727,7 +731,10 @@ def test_delete_file_locations(
     mock_delete_response = mock.MagicMock()
     mock_delete_response.status_code = 200
     mock_delete = mock.MagicMock(requests.put, return_value=mock_delete_response)
-    with mock.patch("fence.blueprints.data.indexd.requests.delete", mock_delete):
+    with mock.patch("fence.blueprints.data.indexd.requests.delete", mock_delete), data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
+        # pretend arborist says "yes"
+        arborist_requests.request.return_value = MockResponse({"auth": False})
+        arborist_requests.request.return_value.status_code = 200
         headers = {"Authorization": "Bearer " + encoded_creds_jwt.jwt}
         response = client.delete("/data/{}".format(did), headers=headers)
         assert response.status_code == 204
