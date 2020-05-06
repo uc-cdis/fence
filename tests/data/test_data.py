@@ -741,7 +741,7 @@ def test_delete_file_locations(
     mock_delete = mock.MagicMock(requests.put, return_value=mock_delete_response)
     with mock.patch("fence.blueprints.data.indexd.requests.delete", mock_delete), arborist_requests_mocker as arborist_requests:
         # pretend arborist says "yes"
-        arborist_requests.request.return_value = MockResponse({"auth": False})
+        arborist_requests.request.return_value = MockResponse({"auth": True})
         arborist_requests.request.return_value.status_code = 200
         headers = {"Authorization": "Bearer " + encoded_creds_jwt.jwt}
         response = client.delete("/data/{}".format(did), headers=headers)
