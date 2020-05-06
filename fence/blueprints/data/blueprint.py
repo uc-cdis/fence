@@ -48,7 +48,7 @@ def delete_data_file(file_id):
         record.delete_files(delete_all=True)
         return record.delete()
     
-    return flask.jsonify({"message": "user does not have arborist permissions to delete this file""}), 403
+    return flask.jsonify({"message": "user does not have arborist permissions to delete this file"}), 403
 
 
 @blueprint.route("/upload", methods=["POST"])
