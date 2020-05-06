@@ -16,6 +16,7 @@ from fence.models import migrate
 from fence.oidc.client import query_client
 from fence.oidc.server import server
 from fence.resources.aws.boto_manager import BotoManager
+from fence.resources.openid.cognito_oauth2 import CognitoOauth2Client as CognitoClient
 from fence.resources.openid.google_oauth2 import GoogleOauth2Client as GoogleClient
 from fence.resources.openid.microsoft_oauth2 import (
     MicrosoftOauth2Client as MicrosoftClient,
@@ -171,8 +172,8 @@ def app_register_blueprints(app):
 
 def _check_s3_buckets(app):
     """
-    Function to ensure that all s3_buckets have a valid credential. 
-    Additionally, if there is no region it will produce a warning then trys to fetch and cache the region. 
+    Function to ensure that all s3_buckets have a valid credential.
+    Additionally, if there is no region it will produce a warning then trys to fetch and cache the region.
     """
     buckets = config.get("S3_BUCKETS") or {}
     aws_creds = config.get("AWS_CREDENTIALS") or {}
@@ -190,21 +191,33 @@ def _check_s3_buckets(app):
                     cred, bucket_name
                 )
             )
-        if not region:
-            logger.warning(
-                "WARNING: no region for S3_BUCKET: {}. Providing the region will reduce"
-                " response time and avoid a call to GetBucketLocation which you make lack the AWS ACLs for.".format(
-                    bucket_name
+
+        # only require region when we're not specifying an
+        # s3-compatible endpoint URL (ex: no need for region when using cleversafe)
+        if not bucket_details.get("endpoint_url"):
+            if not region:
+                logger.warning(
+                    "WARNING: no region for S3_BUCKET: {}. Providing the region will reduce"
+                    " response time and avoid a call to GetBucketLocation which you make lack the AWS ACLs for.".format(
+                        bucket_name
+                    )
                 )
-            )
-            credential = S3IndexedFileLocation.get_credential_to_access_bucket(
-                bucket_name,
-                aws_creds,
-                config.get("MAX_PRESIGNED_URL_TTL", 3600),
-                app.boto,
-            )
-            region = app.boto.get_bucket_region(bucket_name, credential)
-            config["S3_BUCKETS"][bucket_name]["region"] = region
+                credential = S3IndexedFileLocation.get_credential_to_access_bucket(
+                    bucket_name,
+                    aws_creds,
+                    config.get("MAX_PRESIGNED_URL_TTL", 3600),
+                    app.boto,
+                )
+                if not getattr(app, "boto"):
+                    logger.warning(
+                        "WARNING: boto not setup for app, probably b/c "
+                        "nothing in AWS_CREDENTIALS. Cannot attempt to get bucket "
+                        "bucket regions."
+                    )
+                    return
+
+                region = app.boto.get_bucket_region(bucket_name, credential)
+                config["S3_BUCKETS"][bucket_name]["region"] = region
 
 
 def app_config(
@@ -328,6 +341,12 @@ def _setup_oidc_clients(app):
             config["OPENID_CONNECT"]["microsoft"],
             HTTP_PROXY=config.get("HTTP_PROXY"),
             logger=logger,
+        )
+
+    # Add OIDC client for Amazon Cognito if configured.
+    if "cognito" in oidc:
+        app.cognito_client = CognitoClient(
+            oidc["cognito"], HTTP_PROXY=config.get("HTTP_PROXY"), logger=logger
         )
 
     # Add OIDC client for multi-tenant fence if configured.

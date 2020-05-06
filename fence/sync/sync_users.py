@@ -1349,8 +1349,16 @@ class UserSyncer(object):
             except ArboristError as e:
                 self.logger.info("couldn't put group: {}".format(str(e)))
 
-        # add policies for `anonymous` and `logged-in` groups
+        # Update policies for built-in (`anonymous` and `logged-in`) groups
 
+        # First recreate these groups in order to clear out old, possibly deleted policies
+        for builtin_group in ["anonymous", "logged-in"]:
+            try:
+                response = self.arborist_client.put_group(builtin_group)
+            except ArboristError as e:
+                self.logger.info("couldn't put group: {}".format(str(e)))
+
+        # Now add back policies that are in the user.yaml
         for policy in user_yaml.authz.get("anonymous_policies", []):
             self.arborist_client.grant_group_policy("anonymous", policy)
 
