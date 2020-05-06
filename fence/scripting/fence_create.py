@@ -1251,7 +1251,9 @@ def link_external_bucket(db, name):
             current_session, name, bucket_db_entry.id, google_project_id, privileges
         )
 
-    logger.info(json.dumps("bucket access group email: {}".format(access_group.email), indent=2))
+    logger.info(
+        json.dumps("bucket access group email: {}".format(access_group.email), indent=2)
+    )
     return access_group.email
 
 
