@@ -113,7 +113,10 @@ def _read_file(filepath, encrypted=True, key=None, logger=None):
             stderr=open(os.devnull, "w"),
             universal_newlines=True,
         )
-        yield StringIO(p.communicate()[0])
+        try:
+            yield StringIO(p.communicate()[0])
+        except UnicodeDecodeError:
+            logger.error("Could not decode file. Check the decryption key.")
     else:
         f = open(filepath, "r")
         yield f
@@ -456,7 +459,10 @@ class UserSyncer(object):
                 continue
             if not self._match_pattern(filepath, encrypted=encrypted):
                 self.logger.warning(
-                    "Invalid filename {} does not match dbgap access control filename pattern".format(
+                    "Filename {} does not match dbgap access control filename pattern;"
+                    " this could mean that the filename has an invalid format, or has"
+                    " an unexpected .enc extension, or lacks the .enc extension where"
+                    " expected. This file is NOT being processed by usersync!".format(
                         filepath
                     )
                 )
