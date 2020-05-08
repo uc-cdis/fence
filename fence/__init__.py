@@ -262,7 +262,8 @@ def app_config(
 
     _setup_oidc_clients(app)
 
-    _check_s3_buckets(app)
+    with app.app_context():
+        _check_s3_buckets(app)
 
 
 def _setup_data_endpoint_and_boto(app):

@@ -37,7 +37,7 @@ from fence.resources.google.utils import (
 )
 from fence.utils import get_valid_expiration_from_request
 from . import multipart_upload
-
+from ...models import AssumeRoleCache
 
 logger = get_logger(__name__)
 
@@ -513,29 +513,27 @@ class S3IndexedFileLocation(IndexedFileLocation):
             return rv
 
         # try to retrieve from database cache
-        from ...models import AssumeRoleCache
-
-        with flask.current_app.db.session as session:
-            cache = (
-                session.query(AssumeRoleCache)
-                .filter(AssumeRoleCache.arn == role_arn)
-                .first()
-            )
-            if cache and cache.expires_at and cache.expires_at > expiry:
-                rv = dict(
-                    aws_access_key_id=cache.aws_access_key_id,
-                    aws_secret_access_key=cache.aws_secret_access_key,
-                    aws_session_token=cache.aws_session_token,
+        if hasattr(flask.current_app, "db"):  # we don't have db in startup
+            with flask.current_app.db.session as session:
+                cache = (
+                    session.query(AssumeRoleCache)
+                    .filter(AssumeRoleCache.arn == role_arn)
+                    .first()
                 )
-                cls._assume_role_cache[role_arn] = rv, cache.expires_at
-                return rv
+                if cache and cache.expires_at and cache.expires_at > expiry:
+                    rv = dict(
+                        aws_access_key_id=cache.aws_access_key_id,
+                        aws_secret_access_key=cache.aws_secret_access_key,
+                        aws_session_token=cache.aws_session_token,
+                    )
+                    cls._assume_role_cache[role_arn] = rv, cache.expires_at
+                    return rv
 
         # retrieve from AWS, with additional 30 minutes buffer for cache
         boto = boto or flask.current_app.boto
         assumed_role = boto.assume_role(
             role_arn,
-            expires_in
-            + int(flask.current_app.config.get("ASSUME_ROLE_CACHE_SECONDS", 1800)),
+            expires_in + int(flask.current_app.config["ASSUME_ROLE_CACHE_SECONDS"]),
             aws_creds_config,
         )
         cred = get_value(
@@ -564,28 +562,29 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
         # stores back to cache
         cls._assume_role_cache[role_arn] = rv, expires_at
-        with flask.current_app.db.session as session:
-            session.execute(
-                """\
-                INSERT INTO assume_role_cache (
-                    arn,
-                    expires_at,
-                    aws_access_key_id,
-                    aws_secret_access_key,
-                    aws_session_token
-                ) VALUES (
-                    :arn,
-                    :expires_at,
-                    :aws_access_key_id,
-                    :aws_secret_access_key,
-                    :aws_session_token
-                ) ON CONFLICT (arn) DO UPDATE SET
-                    expires_at = EXCLUDED.expires_at,
-                    aws_access_key_id = EXCLUDED.aws_access_key_id,
-                    aws_secret_access_key = EXCLUDED.aws_secret_access_key,
-                    aws_session_token = EXCLUDED.aws_session_token;""",
-                dict(arn=role_arn, expires_at=expires_at, **rv),
-            )
+        if hasattr(flask.current_app, "db"):  # we don't have db in startup
+            with flask.current_app.db.session as session:
+                session.execute(
+                    """\
+                    INSERT INTO assume_role_cache (
+                        arn,
+                        expires_at,
+                        aws_access_key_id,
+                        aws_secret_access_key,
+                        aws_session_token
+                    ) VALUES (
+                        :arn,
+                        :expires_at,
+                        :aws_access_key_id,
+                        :aws_secret_access_key,
+                        :aws_session_token
+                    ) ON CONFLICT (arn) DO UPDATE SET
+                        expires_at = EXCLUDED.expires_at,
+                        aws_access_key_id = EXCLUDED.aws_access_key_id,
+                        aws_secret_access_key = EXCLUDED.aws_secret_access_key,
+                        aws_session_token = EXCLUDED.aws_session_token;""",
+                    dict(arn=role_arn, expires_at=expires_at, **rv),
+                )
 
         return rv
 

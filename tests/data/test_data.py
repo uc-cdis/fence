@@ -718,6 +718,7 @@ def test_assume_role_cache(
     assert assume_role_called == 2
 
     assume_role_patcher.stop()
+    mock_index_document.stop()
 
 
 def test_indexd_download_with_uploader_unauthorized(
