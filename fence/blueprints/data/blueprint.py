@@ -57,7 +57,7 @@ def delete_data_file(file_id):
                         )
                     }
                 ),
-                403,
+                500,
             )
         return record.delete()
 
