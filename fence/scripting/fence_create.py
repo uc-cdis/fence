@@ -3,7 +3,6 @@ import os.path
 import time
 from yaml import safe_load
 import json
-import pprint
 
 from cirrus import GoogleCloudManager
 from cirrus.google_cloud.errors import GoogleAuthError
@@ -315,7 +314,6 @@ def create_project(s, project_data):
                     .filter(CloudProvider.name == provider)
                     .first()
                 )
-                logger.info(b)
                 if not b:
                     b = Bucket(name=bucket)
                     b.provider = c_provider
