@@ -747,7 +747,7 @@ def test_delete_file_locations(
         arborist_requests.request.return_value.status_code = 200
         headers = {"Authorization": "Bearer " + encoded_creds_jwt.jwt}
         response = client.delete("/data/{}".format(did), headers=headers)
-        print(response)
+        print("DOOD ERROR: ", response)
         assert response.status_code == 204
         assert mock_boto_delete.called_once()
 
