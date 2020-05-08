@@ -877,6 +877,7 @@ def is_google_managed_service_account(service_account_email):
 
     return service_account_domain in google_managed_service_account_domains
 
+
 def delete_data_file(google_cloud_storage_bucket, file_name, db=None):
     session = get_db_session(db)
 

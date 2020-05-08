@@ -439,20 +439,8 @@ class IndexedFile(object):
             bucket = location.bucket_name()
             flask.current_app.boto.delete_data_file(bucket, self.file_id)
 
-            try:
-                with GoogleCloudManager() as gcm:
-                    gcm.delete_data_file(bucket, self.file_id)
-
-            except Exception as exc:
-                error_message = {
-                    "error": "g_acnt_access_error",
-                    "error_description": (
-                        "Couldn't delete data file from Google Cloud bucket."
-                        "Google API failure. Exception: {}".format(exc)
-                    ),
-                }
-                return error_message, 400
-            
+            with GoogleCloudManager() as gcm:
+                gcm.delete_data_file(bucket, self.file_id)
 
     @login_required({"data"})
     def delete(self):
