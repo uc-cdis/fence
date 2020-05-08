@@ -2,5 +2,5 @@
 
 @Library('cdis-jenkins-lib@master') _
 
-testPipeline { 
+testPipeline {
 }

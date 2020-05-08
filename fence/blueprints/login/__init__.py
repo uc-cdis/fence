@@ -1,5 +1,5 @@
 """
-Create a blueprint with endoints for logins from configured identity providers.
+Create a blueprint with endpoints for logins from configured identity providers.
 
 The identity providers include, for example, Google, Shibboleth, or another
 fence instance. See the other files in this directory for the definitions of
@@ -12,6 +12,7 @@ import requests
 
 from cdislogging import get_logger
 
+from fence.blueprints.login.cognito import CognitoLogin, CognitoCallback
 from fence.blueprints.login.fence_login import FenceLogin, FenceCallback
 from fence.blueprints.login.google import GoogleLogin, GoogleCallback
 from fence.blueprints.login.shib import ShibbolethLogin, ShibbolethCallback
@@ -32,6 +33,7 @@ IDP_URL_MAP = {
     "orcid": "orcid",
     "synapse": "synapse",
     "microsoft": "microsoft",
+    "cognito": "cognito",
 }
 
 
@@ -264,6 +266,12 @@ def make_login_blueprint(app):
         blueprint_api.add_resource(MicrosoftLogin, "/microsoft", strict_slashes=False)
         blueprint_api.add_resource(
             MicrosoftCallback, "/microsoft/login", strict_slashes=False
+        )
+
+    if "cognito" in configured_idps:
+        blueprint_api.add_resource(CognitoLogin, "/cognito", strict_slashes=False)
+        blueprint_api.add_resource(
+            CognitoCallback, "/cognito/login", strict_slashes=False
         )
 
     if "shibboleth" in configured_idps:
