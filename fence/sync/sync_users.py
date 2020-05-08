@@ -111,7 +111,10 @@ def _read_file(filepath, encrypted=True, key=None, logger=None):
             stderr=open(os.devnull, "w"),
             universal_newlines=True,
         )
-        yield StringIO(p.communicate()[0])
+        try:
+            yield StringIO(p.communicate()[0])
+        except UnicodeDecodeError:
+            logger.error("Could not decode file. Check the decryption key.")
     else:
         f = open(filepath, "r")
         yield f
@@ -468,7 +471,10 @@ class UserSyncer(object):
                 continue
             if not self._match_pattern(filepath, encrypted=encrypted):
                 self.logger.warning(
-                    "Invalid filename {} does not match dbgap access control filename pattern".format(
+                    "Filename {} does not match dbgap access control filename pattern;"
+                    " this could mean that the filename has an invalid format, or has"
+                    " an unexpected .enc extension, or lacks the .enc extension where"
+                    " expected. This file is NOT being processed by usersync!".format(
                         filepath
                     )
                 )
@@ -1390,8 +1396,16 @@ class UserSyncer(object):
             except ArboristError as e:
                 self.logger.info("couldn't put group: {}".format(str(e)))
 
-        # add policies for `anonymous` and `logged-in` groups
+        # Update policies for built-in (`anonymous` and `logged-in`) groups
 
+        # First recreate these groups in order to clear out old, possibly deleted policies
+        for builtin_group in ["anonymous", "logged-in"]:
+            try:
+                response = self.arborist_client.put_group(builtin_group)
+            except ArboristError as e:
+                self.logger.info("couldn't put group: {}".format(str(e)))
+
+        # Now add back policies that are in the user.yaml
         for policy in user_yaml.authz.get("anonymous_policies", []):
             self.arborist_client.grant_group_policy("anonymous", policy)
 
