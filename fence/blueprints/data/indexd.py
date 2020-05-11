@@ -444,6 +444,7 @@ class IndexedFile(object):
             print("441")
             with GoogleCloudManager() as gcm:
                 gcm.delete_data_file(bucket, self.file_id)
+            print("447")
 
     @login_required({"data"})
     def delete(self):
