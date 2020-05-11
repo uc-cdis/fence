@@ -430,15 +430,18 @@ class IndexedFile(object):
         """
         locations_to_delete = []
         if urls is None and delete_all:
+            print("433")
             locations_to_delete = self.indexed_file_locations
         else:
+            print("435")
             locations_to_delete = [
                 location for location in locations_to_delete if location.url in urls
             ]
         for location in locations_to_delete:
             bucket = location.bucket_name()
+            print("440")
             flask.current_app.boto.delete_data_file(bucket, self.file_id)
-
+            print("441")
             with GoogleCloudManager() as gcm:
                 gcm.delete_data_file(bucket, self.file_id)
 
