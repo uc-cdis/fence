@@ -452,6 +452,7 @@ class IndexedFile(object):
         # it's possible that for some reason (something else modified the record in the
         # meantime) that the revision doesn't match, which would lead to error here
         if response.status_code != 200:
+            print("455")
             return (flask.jsonify(response.json()), 500)
         return ("", 204)
 
