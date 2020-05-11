@@ -46,7 +46,7 @@ def delete_data_file(file_id):
         jwt=get_jwt(), service="fence", methods="delete", resources=authz
     ):
         logger.info("deleting record and files for {}".format(file_id))
-
+        record.delete_files(delete_all=True)
         try:
             record.delete_files(delete_all=True)
         except Exception as exc:
