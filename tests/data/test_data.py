@@ -748,6 +748,7 @@ def test_delete_file_locations(
         headers = {"Authorization": "Bearer " + encoded_creds_jwt.jwt}
         response = client.delete("/data/{}".format(did), headers=headers)
         print("DOOD ERROR: ", response)
+        print("..... ", response)
         print("DOOD ERROR: ", str(response))
         print("DOOD ERROR: ", response.get_data())
         assert response.status_code == 204
