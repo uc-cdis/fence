@@ -441,7 +441,7 @@ class IndexedFile(object):
             bucket = location.bucket_name()
             print("440")
             flask.current_app.boto.delete_data_file(bucket, self.file_id)
-            print("441")
+            print("441-")
             with GoogleCloudManager() as gcm:
                 gcm.delete_data_file(bucket, self.file_id)
             print("447")
