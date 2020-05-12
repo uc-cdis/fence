@@ -758,7 +758,7 @@ def test_delete_file_locations(
         def json(self):
             return self.data
 
-    delete_response = mock.MagicMock()
+    mock_delete_response = mock.MagicMock()
     mock_delete_response.status_code = 200
     mock_delete = mock.MagicMock(requests.put, return_value=mock_delete_response)
     with mock.patch(
