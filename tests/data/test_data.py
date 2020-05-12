@@ -733,10 +733,11 @@ def test_delete_file_locations(
             return {}, 200
     
     mock_gcm = mock.patch(
-        "cirrus.GoogleCloudManager",  new_callable=mock.Mock
+        "cirrus.GoogleCloudManager",
+        new_callable=mock.Mock,
+        return_value=FakeGCM()
     )
-    mock_gcm.return_value = FakeGCM()
-    monkeypatch.setattr(cirrus, "GoogleCloudManager", FakeGCM)
+    # monkeypatch.setattr(cirrus, "GoogleCloudManager", mock_gcm)
 
     mock_index_document.start()
     mock_check_auth.start()
@@ -751,12 +752,12 @@ def test_delete_file_locations(
         def json(self):
             return self.data
 
-    mock_delete_response = mock.MagicMock()
+    delete_response = mock.MagicMock()
     mock_delete_response.status_code = 200
     mock_delete = mock.MagicMock(requests.put, return_value=mock_delete_response)
     with mock.patch(
         "fence.blueprints.data.indexd.requests.delete", mock_delete
-    ), arborist_requests_mocker as arborist_requests:
+    ), arborist_requests_mocker as arborist_requests, mock_gcm as mock_gcm_2:
         # pretend arborist says "yes"
         arborist_requests.request.return_value = MockResponse({"auth": True})
         arborist_requests.request.return_value.status_code = 200
