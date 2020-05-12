@@ -732,7 +732,7 @@ def test_delete_file_locations(
         def __enter__(self):
             return
         
-        def __exit__(self):
+        def __exit__(self, a, b):
             return
 
         def delete_data_file(self):
