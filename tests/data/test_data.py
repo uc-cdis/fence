@@ -759,7 +759,6 @@ def test_delete_file_locations(
     with mock.patch(
         "fence.blueprints.data.indexd.requests.delete", mock_delete
     ), arborist_requests_mocker as arborist_requests, mock_gcm as mock_gcm_2:
-        # pretend arborist says "yes"
         arborist_requests.request.return_value = MockResponse({"auth": True})
         arborist_requests.request.return_value.status_code = 200
         headers = {"Authorization": "Bearer " + encoded_creds_jwt.jwt}
