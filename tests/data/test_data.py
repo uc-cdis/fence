@@ -728,7 +728,7 @@ def test_delete_file_locations(
     )
     
     cirrus.GoogleCloudManager.return_value = 'foo'
-    cirrus.GoogleCloudManager.delete_data_file.return_value = {}
+    cirrus.GoogleCloudManager.delete_data_file.return_value = {}, 200
     # gcm_mock = MagicMock()
     # gcm_patcher = patch(
     #     "cirrus.GoogleCloudManager.delete_data_file",
