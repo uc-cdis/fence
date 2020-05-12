@@ -15,7 +15,7 @@ from tests import utils
 
 from unittest.mock import MagicMock, patch
 
-import cirrus.GoogleCloudManager
+import cirrus
 
 
 @pytest.mark.parametrize(
