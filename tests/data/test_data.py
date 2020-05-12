@@ -744,8 +744,9 @@ def test_delete_file_locations(
     mock_gcm.start()
     mock_cirrus_delete_data_file.start()
     mock_boto_delete = mock.MagicMock()
+    mock_gcm_delete = mock.MagicMock()
     monkeypatch.setattr(app.boto, "delete_data_file", mock_boto_delete)
-    monkeypatch.setattr(app.boto, "delete_data_file", mock_boto_delete)
+    monkeypatch.setattr(mock_gcm, "delete_data_file", mock_gcm_delete)
 
     class MockResponse(object):
         def __init__(self, data, status_code=200):
