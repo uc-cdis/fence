@@ -736,6 +736,7 @@ def test_delete_file_locations(
         "cirrus.GoogleCloudManager",  new_callable=mock.Mock
     )
     mock_gcm.return_value = FakeGCM()
+    monkeypatch.setattr(cirrus, "GoogleCloudManager", FakeGCM)
 
     mock_index_document.start()
     mock_check_auth.start()
