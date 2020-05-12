@@ -15,6 +15,9 @@ from tests import utils
 
 from unittest.mock import MagicMock, patch
 
+import cirrus
+from cirrus import GoogleCloudManager
+
 
 @pytest.mark.parametrize(
     "indexd_client", ["gs", "s3", "gs_acl", "s3_acl", "s3_external"], indirect=True
@@ -700,6 +703,7 @@ def test_delete_file_locations(
         "baseid": "",
         "rev": "",
         "uploader": user_client.username,
+         "authz": "/programs/phs000178",
         "size": 10,
         "file_name": "file1",
         "urls": ["s3://bucket1/key-{}".format(did[:8])],
@@ -710,6 +714,9 @@ def test_delete_file_locations(
         "created_date": "",
         "updated_date": "",
     }
+    arborist_requests_mocker = mock.patch(
+        "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
+    )
     mock_index_document = mock.patch(
         "fence.blueprints.data.indexd.IndexedFile.index_document", index_document
     )
@@ -723,10 +730,23 @@ def test_delete_file_locations(
     mock_boto_delete = mock.MagicMock()
     monkeypatch.setattr(app.boto, "delete_data_file", mock_boto_delete)
 
+    class MockResponse(object):
+        def __init__(self, data, status_code=200):
+            self.data = data
+            self.status_code = status_code
+
+        def json(self):
+            return self.data
+
     mock_delete_response = mock.MagicMock()
     mock_delete_response.status_code = 200
     mock_delete = mock.MagicMock(requests.put, return_value=mock_delete_response)
-    with mock.patch("fence.blueprints.data.indexd.requests.delete", mock_delete):
+   with mock.patch(
+        "fence.blueprints.data.indexd.requests.delete", mock_delete
+    ), arborist_requests_mocker as arborist_requests:
+    # pretend arborist says "yes"
+        arborist_requests.request.return_value = MockResponse({"auth": True})
+        arborist_requests.request.return_value.status_code = 200
         headers = {"Authorization": "Bearer " + encoded_creds_jwt.jwt}
         response = client.delete("/data/{}".format(did), headers=headers)
         assert response.status_code == 204
