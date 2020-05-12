@@ -693,6 +693,7 @@ def test_delete_file_no_auth(app, client, encoded_creds_jwt):
         assert response.status_code == 403
     mock_index_document.stop()
 
+
 def test_delete_file_locations(
     app, client, encoded_creds_jwt, user_client, monkeypatch
 ):
@@ -728,28 +729,16 @@ def test_delete_file_locations(
     class FakeGCM(object):
         def __enter__(self):
             return self
-        
+
         def __exit__(self, a, b, c):
             return
 
         def delete_data_file(self, bucket, file_id):
             return {}, 200
-    
-    # mock_gcm = mock.patch(
-    #     "cirrus.GoogleCloudManager",
-    #     new_callable=mock.Mock,
-    #     return_value=FakeGCM()
-    # )
-    # mock_gcm = mock.patch(
-    #     "fence.blueprints.data.indexd.cirrus.GoogleCloudManager",
-    #     return_value=FakeGCM()
-    # )
+
     mock_gcm = mock.patch(
-        "fence.blueprints.data.indexd.GoogleCloudManager",
-        return_value=FakeGCM()
+        "fence.blueprints.data.indexd.GoogleCloudManager", return_value=FakeGCM()
     )
-    
-    # monkeypatch.setattr(cirrus, "GoogleCloudManager", mock_gcm)
 
     mock_index_document.start()
     mock_check_auth.start()
