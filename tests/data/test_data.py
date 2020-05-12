@@ -727,7 +727,7 @@ def test_delete_file_locations(
 
     class FakeGCM(object):
         def __enter__(self):
-            return
+            return self
         
         def __exit__(self, a, b, c):
             return
@@ -735,18 +735,18 @@ def test_delete_file_locations(
         def delete_data_file(self):
             return {}, 200
     
-    mock_gcm = mock.patch(
-        "cirrus.GoogleCloudManager",
-        new_callable=mock.Mock,
-        return_value=FakeGCM
-    )
+    # mock_gcm = mock.patch(
+    #     "cirrus.GoogleCloudManager",
+    #     new_callable=mock.Mock,
+    #     return_value=FakeGCM()
+    # )
     # mock_gcm = mock.patch(
     #     "fence.blueprints.data.indexd.cirrus.GoogleCloudManager",
     #     return_value=FakeGCM()
     # )
     mock_gcm = mock.patch(
         "fence.blueprints.data.indexd.GoogleCloudManager",
-        return_value=FakeGCM
+        return_value=FakeGCM()
     )
     
     # monkeypatch.setattr(cirrus, "GoogleCloudManager", mock_gcm)
