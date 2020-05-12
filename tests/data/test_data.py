@@ -693,9 +693,9 @@ def test_delete_file_no_auth(app, client, encoded_creds_jwt):
         assert response.status_code == 403
     mock_index_document.stop()
 
-
+@mock.patch('cirrus.GoogleCloudManager', autospec=True)
 def test_delete_file_locations(
-    app, client, encoded_creds_jwt, user_client, monkeypatch
+    app, client, encoded_creds_jwt, user_client, monkeypatch, mock_gcm
 ):
     did = str(uuid.uuid4())
     index_document = {
@@ -725,6 +725,10 @@ def test_delete_file_locations(
         "check_authorization",
         return_value=True,
     )
+
+    mock_gcm.return_value = MagicMock()
+    mock_gcm.delete_data_file.return_value = ({}, 200)
+
     mock_index_document.start()
     mock_check_auth.start()
     mock_boto_delete = mock.MagicMock()
