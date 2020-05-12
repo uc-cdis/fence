@@ -878,25 +878,6 @@ def is_google_managed_service_account(service_account_email):
     return service_account_domain in google_managed_service_account_domains
 
 
-def delete_data_file(google_cloud_storage_bucket, file_name, db=None):
-    session = get_db_session(db)
-
-    bucket = session.query(Bucket).filter_by(email=google_cloud_storage_bucket).first()
-
-    if not bucket:
-        return
-
-    try:
-        with GoogleCloudManager() as g_manager:
-            g_manager.delete_data_file(bucket, file_name)
-    except Exception as exc:
-        raise GoogleAPIError(
-            "Can not remove data file {} from bucket {}. Detail {}".format(
-                file_name, bucket, exc
-            )
-        )
-
-
 def get_db_session(db=None):
     if db:
         return SQLAlchemyDriver(db).Session()
