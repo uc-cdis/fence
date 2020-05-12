@@ -737,6 +737,12 @@ def test_delete_file_locations(
         new_callable=mock.Mock,
         return_value=FakeGCM()
     )
+    mock_gcm = mock.patch(
+        "fence.blueprints.data.indexd.cirrus.GoogleCloudManager",
+        new_callable=mock.Mock,
+        return_value=FakeGCM()
+    )
+    
     # monkeypatch.setattr(cirrus, "GoogleCloudManager", mock_gcm)
 
     mock_index_document.start()
