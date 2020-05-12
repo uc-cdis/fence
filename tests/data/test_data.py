@@ -694,6 +694,7 @@ def test_delete_file_no_auth(app, client, encoded_creds_jwt):
     mock_index_document.stop()
 
 
+@mock.patch('cirrus.GoogleCloudManager')
 def test_delete_file_locations(
     app, client, encoded_creds_jwt, user_client, monkeypatch
 ):
@@ -725,6 +726,15 @@ def test_delete_file_locations(
     arborist_requests_mocker = mock.patch(
         "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
     )
+    
+    cirrus.GoogleCloudManager.return_value = 'foo'
+    # gcm_mock = MagicMock()
+    # gcm_patcher = patch(
+    #     "cirrus.GoogleCloudManager.delete_data_file",
+    #     get_users_mock,
+    # )
+    # get_users_patcher.start()
+
     mock_gcm = mock.patch(
         "cirrus.GoogleCloudManager",
         autospec=True
@@ -739,6 +749,7 @@ def test_delete_file_locations(
     mock_gcm.start()
     mock_cirrus_delete_data_file.start()
     mock_boto_delete = mock.MagicMock()
+    monkeypatch.setattr(app.boto, "delete_data_file", mock_boto_delete)
     monkeypatch.setattr(app.boto, "delete_data_file", mock_boto_delete)
 
     class MockResponse(object):
