@@ -36,7 +36,6 @@ def delete_data_file(file_id):
     Args:
         file_id (str): GUID of file to delete
     """
-    print("39!!!!!")
     record = IndexedFile(file_id)
 
     authz = record.index_document.get("authz")
@@ -60,7 +59,6 @@ def delete_data_file(file_id):
                 ),
                 500,
             )
-        print("63")
         return record.delete()
 
     return (
