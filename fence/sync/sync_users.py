@@ -458,10 +458,7 @@ class UserSyncer(object):
 
         for file, privileges in file_dict.items():
             filepath = os.path.join(
-                str(self.folder),
-                str(dbgap_host),
-                str(dbgap_username),
-                file,
+                str(self.folder), str(dbgap_host), str(dbgap_username), file,
             )
             self.logger.info("Reading file {}".format(filepath))
             if os.stat(filepath).st_size == 0:
@@ -1011,9 +1008,7 @@ class UserSyncer(object):
         dbgap_file_list = []
         hostname = dbgap_config["info"]["host"]
         username = dbgap_config["info"]["username"]
-        folderdir = os.path.join(
-            str(self.folder), str(hostname), str(username)
-        )
+        folderdir = os.path.join(str(self.folder), str(hostname), str(username))
 
         try:
             if os.path.exists(folderdir):
@@ -1106,9 +1101,7 @@ class UserSyncer(object):
         protocol = dbgap_config["protocol"]
         hostname = server["host"]
         username = server["username"]
-        folderdir = os.path.join(
-            str(self.folder), str(hostname), str(username)
-        )
+        folderdir = os.path.join(str(self.folder), str(hostname), str(username))
 
         if not os.path.exists(folderdir):
             os.makedirs(folderdir)
