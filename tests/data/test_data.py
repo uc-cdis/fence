@@ -722,9 +722,14 @@ def test_delete_file_locations(
     arborist_requests_mocker = mock.patch(
         "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
     )
+    mock_cirrus_delete_data_file = mock.patch(
+        "gen3cirrus.GoogleCloudManager.delete_data_file",
+        { "message": "", "status": 200 }
+    )
 
     mock_index_document.start()
     mock_check_auth.start()
+    mock_cirrus_delete_data_file.start()
     mock_boto_delete = mock.MagicMock()
     monkeypatch.setattr(app.boto, "delete_data_file", mock_boto_delete)
 
