@@ -740,14 +740,12 @@ def test_delete_file_locations(
         new_callable=mock.Mock,
         return_value=FakeGCM()
     )
-    mock_gcm = mock.patch(
-        "fence.blueprints.data.indexd.cirrus.GoogleCloudManager",
-        new_callable=mock.Mock,
-        return_value=FakeGCM()
-    )
+    # mock_gcm = mock.patch(
+    #     "fence.blueprints.data.indexd.cirrus.GoogleCloudManager",
+    #     return_value=FakeGCM()
+    # )
     mock_gcm = mock.patch(
         "fence.blueprints.data.indexd.GoogleCloudManager",
-        new_callable=mock.Mock,
         return_value=FakeGCM()
     )
     
