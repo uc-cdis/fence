@@ -36,6 +36,12 @@ dbGaP:
 
 An example can be found in the config used for unit testing [tests/test-fence-config.yaml](https://github.com/uc-cdis/fence/blob/master/tests/test-fence-config.yaml)
 
+### Enable dbGaP backup to s3:
+Add below to manifest.json to global block:
+```
++    "dbgap_backup_bucket": "s3://di-planx-test",
++    "aws_sa_rule_arn": "arn:aws:iam::707767160287:role/devplanetv1-dbgap-bakup-role",
+```
 ## Usersync result example
 
 ### Example of user.yaml file:
@@ -164,13 +170,6 @@ Mrs. GHI,GHI,eRA,PI,ghi@com,"123-456-789",active,phs3.v2.p3.c4,"General Research
 Usersync gives users "read" and "read-storage" permissions to the dbGaP studies.
 
 > Note: The dbGaP authorization files contain consent codes that can be parsed by usersync: [more details here](dbgap_info.md). This simplified example does not include consent code parsing.
-
-### Enable dbGaP backup to s3:
-Add below to manifest.json to global block:
-```
-+    "dbgap_backup_bucket": "s3://di-planx-test",
-+    "aws_sa_rule_arn": "arn:aws:iam::707767160287:role/devplanetv1-dbgap-bakup-role",
-```
 
 More deployment details can be found here: https://github.com/uc-cdis/cdis-wiki/blob/master/ops/DBGAP-backup-deployment.md
 ### Resulting access:

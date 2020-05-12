@@ -1,4 +1,3 @@
-import errno
 import glob
 import os
 import re
@@ -459,7 +458,6 @@ class UserSyncer(object):
 
         for file, privileges in file_dict.items():
             filepath = os.path.join(
-                "/var/www/fence/",
                 str(self.folder),
                 str(dbgap_host),
                 str(dbgap_username),
@@ -1014,13 +1012,11 @@ class UserSyncer(object):
         hostname = dbgap_config["info"]["host"]
         username = dbgap_config["info"]["username"]
         folderdir = os.path.join(
-            "/var/www/fence/", str(self.folder), str(hostname), str(username)
+            str(self.folder), str(hostname), str(username)
         )
 
         try:
             if os.path.exists(folderdir):
-                # add logic to list everything for hosts subfolders os.walk
-                # to support backwards compatible
                 dbgap_file_list = os.listdir(folderdir)  # get lists of file from folder
             else:
                 dbgap_file_list = self._download(dbgap_config)
@@ -1111,7 +1107,7 @@ class UserSyncer(object):
         hostname = server["host"]
         username = server["username"]
         folderdir = os.path.join(
-            "/var/www/fence/", str(self.folder), str(hostname), str(username)
+            str(self.folder), str(hostname), str(username)
         )
 
         if not os.path.exists(folderdir):
