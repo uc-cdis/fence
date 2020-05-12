@@ -13,7 +13,6 @@ from cirrus.google_cloud.utils import (
     get_valid_service_account_id_for_client,
     get_valid_service_account_id_for_user,
 )
-from cirrus.google_cloud.errors import GoogleAPIError
 
 from userdatamodel.driver import SQLAlchemyDriver
 from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
@@ -22,7 +21,6 @@ from fence.auth import current_token
 from fence.config import config
 from fence.errors import NotSupported, InternalError, UserError
 from fence.models import (
-    Bucket,
     GoogleServiceAccount,
     GoogleServiceAccountKey,
     UserGoogleAccount,
