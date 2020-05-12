@@ -15,6 +15,8 @@ from tests import utils
 
 from unittest.mock import MagicMock, patch
 
+import cirrus.GoogleCloudManager
+
 
 @pytest.mark.parametrize(
     "indexd_client", ["gs", "s3", "gs_acl", "s3_acl", "s3_external"], indirect=True
@@ -723,7 +725,7 @@ def test_delete_file_locations(
         "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
     )
     mock_cirrus_delete_data_file = mock.patch(
-        "gen3cirrus.GoogleCloudManager.delete_data_file",
+        "cirrus.GoogleCloudManager.delete_data_file",
         { "message": "", "status": 200 }
     )
 
