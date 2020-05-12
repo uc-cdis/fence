@@ -728,6 +728,7 @@ def test_delete_file_locations(
     )
     
     cirrus.GoogleCloudManager.return_value = 'foo'
+    cirrus.GoogleCloudManager.delete_data_file.return_value = {}
     # gcm_mock = MagicMock()
     # gcm_patcher = patch(
     #     "cirrus.GoogleCloudManager.delete_data_file",
@@ -735,14 +736,14 @@ def test_delete_file_locations(
     # )
     # get_users_patcher.start()
 
-    mock_gcm = mock.patch(
-        "cirrus.GoogleCloudManager",
-        autospec=True
-    )
-    mock_cirrus_delete_data_file = mock.patch(
-        "cirrus.GoogleCloudManager.delete_data_file",
-        { "message": "", "status": 200 }
-    )
+    # mock_gcm = mock.patch(
+    #     "cirrus.GoogleCloudManager",
+    #     autospec=True
+    # )
+    # mock_cirrus_delete_data_file = mock.patch(
+    #     "cirrus.GoogleCloudManager.delete_data_file",
+    #     { "message": "", "status": 200 }
+    # )
 
     mock_index_document.start()
     mock_check_auth.start()
