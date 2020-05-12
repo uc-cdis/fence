@@ -732,7 +732,7 @@ def test_delete_file_locations(
         def __exit__(self, a, b, c):
             return
 
-        def delete_data_file(self):
+        def delete_data_file(self, bucket, file_id):
             return {}, 200
     
     # mock_gcm = mock.patch(
