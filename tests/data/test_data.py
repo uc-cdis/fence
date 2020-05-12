@@ -726,11 +726,11 @@ def test_delete_file_locations(
         "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
     )
     mock_gcm = mock.patch(
-        "GoogleCloudManager",
+        "cirrus.GoogleCloudManager",
         autospec=True
     )
     mock_cirrus_delete_data_file = mock.patch(
-        "GoogleCloudManager.delete_data_file",
+        "cirrus.GoogleCloudManager.delete_data_file",
         { "message": "", "status": 200 }
     )
 
