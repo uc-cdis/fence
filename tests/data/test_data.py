@@ -726,8 +726,6 @@ def test_delete_file_locations(
     )
 
     class FakeGCM(object):
-        
-        
         def __enter__(self):
             return
         
