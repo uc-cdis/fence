@@ -703,7 +703,7 @@ def test_delete_file_locations(
         "baseid": "",
         "rev": "",
         "uploader": user_client.username,
-         "authz": "/programs/phs000178",
+        "authz": "/programs/phs000178",
         "size": 10,
         "file_name": "file1",
         "urls": ["s3://bucket1/key-{}".format(did[:8])],
@@ -744,7 +744,7 @@ def test_delete_file_locations(
     with mock.patch(
         "fence.blueprints.data.indexd.requests.delete", mock_delete
     ), arborist_requests_mocker as arborist_requests:
-    # pretend arborist says "yes"
+        # pretend arborist says "yes"
         arborist_requests.request.return_value = MockResponse({"auth": True})
         arborist_requests.request.return_value.status_code = 200
         headers = {"Authorization": "Bearer " + encoded_creds_jwt.jwt}
