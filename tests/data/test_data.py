@@ -770,6 +770,7 @@ def test_delete_file_locations(
     mock_check_auth.stop()
     mock_index_document.stop()
 
+
 def test_blank_index_upload_unauthorized(
     app, client, auth_client, encoded_creds_jwt, user_client
 ):
