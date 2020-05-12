@@ -693,7 +693,6 @@ def test_delete_file_no_auth(app, client, encoded_creds_jwt):
         assert response.status_code == 403
     mock_index_document.stop()
 
-
 def test_delete_file_locations(
     app, client, encoded_creds_jwt, user_client, monkeypatch
 ):
@@ -726,11 +725,17 @@ def test_delete_file_locations(
         return_value=True,
     )
 
-    mock_gcm = MagicMock()
+    class FakeGCM(object):
+        def __init__(self):
+            pass
 
-    # mock_gcm = mock.MagicMock() #mock.patch('cirrus.GoogleCloudManager', autospec=True)
-    # mock_gcm.delete_data_file.return_value = ({}, 200)
-    # monkeypatch.setattr(app.boto, "delete_data_file", mock_boto_delete)
+        def delete_data_file(self):
+            return {}, 200
+    
+    mock_gcm = mock.patch(
+        "cirrus.GoogleCloudManager",  new_callable=mock.Mock
+    )
+    mock_gcm.return_value = FakeGCM()
 
     mock_index_document.start()
     mock_check_auth.start()
@@ -750,9 +755,7 @@ def test_delete_file_locations(
     mock_delete = mock.MagicMock(requests.put, return_value=mock_delete_response)
     with mock.patch(
         "fence.blueprints.data.indexd.requests.delete", mock_delete
-    ), arborist_requests_mocker as arborist_requests, patch(
-        "cirrus.GoogleCloudManager", mock
-    ):
+    ), arborist_requests_mocker as arborist_requests:
         # pretend arborist says "yes"
         arborist_requests.request.return_value = MockResponse({"auth": True})
         arborist_requests.request.return_value.status_code = 200
