@@ -315,7 +315,6 @@ def create_project(s, project_data):
                     .filter(CloudProvider.name == provider)
                     .first()
                 )
-                logger.info(b)
                 if not b:
                     b = Bucket(name=bucket)
                     b.provider = c_provider
