@@ -60,7 +60,7 @@ def list_client_action(db):
         driver = SQLAlchemyDriver(db)
         with driver.session as s:
             for row in s.query(Client).all():
-                logger.info(json.dumps(row.__dict__, indent=2))
+                pprint.pprint(row.__dict__)
     except Exception as e:
         logger.error(str(e))
 
@@ -109,7 +109,7 @@ def create_client_action(
     DB, username=None, client=None, urls=None, auto_approve=False, **kwargs
 ):
     try:
-        logger.info(
+        print(
             create_client(
                 username, urls, DB, name=client, auto_approve=auto_approve, **kwargs
             )
@@ -1251,7 +1251,7 @@ def link_external_bucket(db, name):
             current_session, name, bucket_db_entry.id, google_project_id, privileges
         )
 
-    logger.info(json.dumps("bucket access group email: {}".format(access_group.email), indent=2))
+    logger.info("bucket access group email: {}".format(access_group.email))
     return access_group.email
 
 
@@ -1381,8 +1381,8 @@ def google_list_authz_groups(db):
             )
         ).all()
 
-        logger.info("GoogleBucketAccessGroup.email, Bucket.name, Project.auth_id")
+        print("GoogleBucketAccessGroup.email, Bucket.name, Project.auth_id")
         for item in google_authz:
-            logger.info(", ".join(item[:-1]))
+            print(", ".join(item[:-1]))
 
         return google_authz
