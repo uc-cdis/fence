@@ -1,6 +1,5 @@
 import time
 import mock
-import logging
 
 from unittest.mock import MagicMock, patch
 import pytest
