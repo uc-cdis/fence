@@ -34,7 +34,6 @@ from fence.resources.google.utils import (
     get_or_create_proxy_group_id,
     get_google_app_creds,
     give_service_account_billing_access_if_necessary,
-
 )
 from fence.utils import get_valid_expiration_from_request
 from . import multipart_upload
