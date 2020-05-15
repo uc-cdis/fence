@@ -37,6 +37,7 @@ from fence.settings import CONFIG_SEARCH_FOLDERS
 
 from gen3authz.client.arborist.client import ArboristClient
 
+logger=get_logger(__name__)
 
 def str2bool(v):
     if v.lower() == "true":
