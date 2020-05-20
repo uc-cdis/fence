@@ -187,7 +187,7 @@ def init_syncer(
     sync_from_local_csv_dir=None,
     sync_from_local_yaml_file=None,
     arborist=None,
-    folder=None,
+    folder="tmp",
 ):
     """
     sync ACL files from dbGap to auth db and storage backends
@@ -259,7 +259,7 @@ def download_dbgap_files(
     sync_from_local_csv_dir=None,
     sync_from_local_yaml_file=None,
     arborist=None,
-    folder=None,
+    folder="tmp",
 ):
     syncer = init_syncer(
         dbGaP,
@@ -286,7 +286,7 @@ def sync_users(
     sync_from_local_csv_dir=None,
     sync_from_local_yaml_file=None,
     arborist=None,
-    folder=None,
+    folder="tmp",
 ):
     syncer = init_syncer(
         dbGaP,
