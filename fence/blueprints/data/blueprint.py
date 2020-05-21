@@ -41,7 +41,9 @@ def delete_data_file(file_id):
     authz = record.index_document.get("authz")
     has_correct_authz = None
     if authz:
-        logger.debug("Trying to ask arborist if user can delete in fence for {}".format(authz))
+        logger.debug(
+            "Trying to ask arborist if user can delete in fence for {}".format(authz)
+        )
         has_correct_authz = flask.current_app.arborist.auth_request(
             jwt=get_jwt(), service="fence", methods="delete", resources=authz
         )
