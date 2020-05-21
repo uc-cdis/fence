@@ -39,15 +39,15 @@ def delete_data_file(file_id):
     record = IndexedFile(file_id)
 
     authz = record.index_document.get("authz")
-    arborist_check = None
+    has_correct_authz = None
     if authz:
-        arborist_check = flask.current_app.arborist.auth_request(
+        has_correct_authz = flask.current_app.arborist.auth_request(
             jwt=get_jwt(), service="fence", methods="delete", resources=authz
         )
 
     # If authz is not empty, use *only* arborist to check if user can delete
     # (don't fall back on uploader, this stops that security issue from happening).
-    if authz and arborist_check:
+    if authz and has_correct_authz:
         logger.info("deleting record and files for {}".format(file_id))
         try:
             record.delete_files(delete_all=True)
@@ -64,7 +64,7 @@ def delete_data_file(file_id):
             )
         return record.delete()
 
-    if authz and not arborist_check:
+    if authz and not has_correct_authz:
         return (
             flask.jsonify(
                 {
