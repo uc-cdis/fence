@@ -41,17 +41,21 @@ def delete_data_file(file_id):
     authz = record.index_document.get("authz")
     has_correct_authz = None
     if authz:
+        logger.debug("Trying to ask arborist if user can delete in fence for {}".format(authz))
         has_correct_authz = flask.current_app.arborist.auth_request(
             jwt=get_jwt(), service="fence", methods="delete", resources=authz
         )
 
     # If authz is not empty, use *only* arborist to check if user can delete
-    # (don't fall back on uploader, this stops that security issue from happening).
+    # Don't fall back on uploader -- this prevents users from escalating from edit to
+    # delete permissions by changing the uploader field to their own username
+    # (b/c users only have edit access through arborist/authz)
     if authz and has_correct_authz:
         logger.info("deleting record and files for {}".format(file_id))
         try:
             record.delete_files(delete_all=True)
         except Exception as exc:
+            logger.error(exc, exc_info=True)
             return (
                 flask.jsonify(
                     {
@@ -84,6 +88,7 @@ def delete_data_file(file_id):
     try:
         record.delete_files(delete_all=True)
     except Exception as exc:
+        logger.error(exc, exc_info=True)
         return (
             flask.jsonify(
                 {
