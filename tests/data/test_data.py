@@ -693,6 +693,7 @@ def test_delete_file_no_auth(app, client, encoded_creds_jwt):
         assert response.status_code == 403
     mock_index_document.stop()
 
+
 def test_delete_file_locations(
     app, client, encoded_creds_jwt, user_client, monkeypatch
 ):
@@ -766,6 +767,7 @@ def test_delete_file_locations(
 
     mock_check_auth.stop()
     mock_index_document.stop()
+
 
 def test_delete_file_locations_by_uploader(
     app, client, encoded_creds_jwt, user_client, monkeypatch
