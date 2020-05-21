@@ -44,7 +44,7 @@ def delete_data_file(file_id):
         jwt=get_jwt(), service="fence", methods="delete", resources=authz
     )
 
-    # If authz is not empty, use *only* arborist to check if user can delete 
+    # If authz is not empty, use *only* arborist to check if user can delete
     # (don't fall back on uploader, this stops that security issue from happening).
     if authz and arborist_check:
         logger.info("deleting record and files for {}".format(file_id))
@@ -66,11 +66,13 @@ def delete_data_file(file_id):
     if authz and not arborist_check:
         return (
             flask.jsonify(
-                {"message": "user does not have arborist permissions to delete this file"}
+                {
+                    "message": "user does not have arborist permissions to delete this file"
+                }
             ),
             403,
         )
-    
+
     # If authz is empty: use uploader == user to see if user can delete.
     uploader = record.index_document.get("uploader")
     if not uploader:
@@ -92,7 +94,6 @@ def delete_data_file(file_id):
             500,
         )
     return record.delete()
-
 
 
 @blueprint.route("/upload", methods=["POST"])
