@@ -40,12 +40,14 @@ def delete_data_file(file_id):
 
     authz = record.index_document.get("authz")
 
-    # ask arborist if the requester has auth to DELETE that resource
-    if authz and flask.current_app.arborist.auth_request(
+    arborist_check = flask.current_app.arborist.auth_request(
         jwt=get_jwt(), service="fence", methods="delete", resources=authz
-    ):
+    )
+
+    # If authz is not empty, use *only* arborist to check if user can delete 
+    # (don't fall back on uploader, this stops that security issue from happening).
+    if authz and arborist_check:
         logger.info("deleting record and files for {}".format(file_id))
-        record.delete_files(delete_all=True)
         try:
             record.delete_files(delete_all=True)
         except Exception as exc:
@@ -61,12 +63,36 @@ def delete_data_file(file_id):
             )
         return record.delete()
 
-    return (
-        flask.jsonify(
-            {"message": "user does not have arborist permissions to delete this file"}
-        ),
-        403,
-    )
+    if authz and not arborist_check:
+        return (
+            flask.jsonify(
+                {"message": "user does not have arborist permissions to delete this file"}
+            ),
+            403,
+        )
+    
+    # If authz is empty: use uploader == user to see if user can delete.
+    uploader = record.index_document.get("uploader")
+    if not uploader:
+        raise Forbidden("deleting submitted records is not supported")
+    if current_token["context"]["user"]["name"] != uploader:
+        raise Forbidden("user is not uploader for file {}".format(file_id))
+    logger.info("deleting record and files for {}".format(file_id))
+    try:
+        record.delete_files(delete_all=True)
+    except Exception as exc:
+        return (
+            flask.jsonify(
+                {
+                    "message": "Unable to delete this record's data files. Backing off. Exception: {}".format(
+                        exc
+                    )
+                }
+            ),
+            500,
+        )
+    return record.delete()
+
 
 
 @blueprint.route("/upload", methods=["POST"])
