@@ -502,6 +502,7 @@ AWS_CREDENTIALS: {}
 
 # NOTE: the region is optonal for s3_buckets, however it should be specified to avoid a
 # call to GetBucketLocation which you make lack the AWS ACLs for.
+# public buckets do not need the region field.
 S3_BUCKETS: {}
 # NOTE: Remove the {} and supply buckets if needed. Example in comments below
 #   bucket1:
@@ -513,8 +514,7 @@ S3_BUCKETS: {}
 #     cred: 'CRED2'
 #     region: 'us-east-1'
 #   bucket3:
-#     cred: '*'
-#     region: 'us-east-1'
+#     cred: '*' # public bucket
 #   bucket4:
 #     cred: 'CRED1'
 #     region: 'us-east-1'
