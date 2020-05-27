@@ -504,6 +504,11 @@ If there are more than one URL to add, use space to delimit them like this:
 fence-create client-create --urls 'https://url1/' 'https://url2/' --client ...
 ```
 
+To specify allowed scopes, use the `allowed-scopes` argument:
+```bash
+fence-create client-create ...  --allowed-scopes openid user data
+```
+
 #### Modify OAuth Client
 
 ```bash
