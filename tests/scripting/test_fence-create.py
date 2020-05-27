@@ -29,6 +29,7 @@ from fence.models import (
 from fence.scripting.fence_create import (
     delete_users,
     JWTCreator,
+    create_client_action,
     delete_client_action,
     delete_expired_service_accounts,
     link_external_bucket,
@@ -49,6 +50,60 @@ ROOT_DIR = "./"
 @pytest.fixture(autouse=True)
 def mock_arborist(mock_arborist_requests):
     mock_arborist_requests()
+
+
+def test_client_create(db_session):
+    create_client_action(
+        config["DB"],
+        client="exampleapp",
+        username="exampleuser",
+        urls=["https://betawebapp.example/fence", "https://webapp.example/fence"],
+        grant_types=["authorization_code", "refresh_token", "implicit"],
+        allowed_scopes=["openid", "user", "data"],
+    )
+
+    saved_client = db_session.query(Client).filter_by(name="exampleapp").first()
+    assert (
+        saved_client.redirect_uri
+        == "https://betawebapp.example/fence\nhttps://webapp.example/fence"
+    )
+    assert saved_client.grant_type == "authorization_code\nrefresh_token\nimplicit"
+    assert saved_client._allowed_scopes == "openid user data"
+
+
+def test_client_create_inits_default_allowed_scopes(db_session):
+    create_client_action(
+        config["DB"],
+        client="exampleapp2",
+        username="exampleuser",
+        urls=["https://betawebapp.example/fence", "https://webapp.example/fence"],
+    )
+    saved_client = db_session.query(Client).filter_by(name="exampleapp2").first()
+    assert saved_client._allowed_scopes == " ".join(config["CLIENT_ALLOWED_SCOPES"])
+
+
+def test_client_create_doesnt_create_client_without_openid_scope(db_session):
+    create_client_action(
+        config["DB"],
+        client="exampleapp3",
+        username="exampleuser",
+        urls=["https://betawebapp.example/fence", "https://webapp.example/fence"],
+        allowed_scopes=["user", "data"],
+    )
+    client_after = db_session.query(Client).filter_by(name="exampleapp3").all()
+    assert len(client_after) == 0
+
+
+def test_client_create_doesnt_create_client_with_invalid_scope(db_session):
+    create_client_action(
+        config["DB"],
+        client="exampleapp4",
+        username="exampleuser",
+        urls=["https://betawebapp.example/fence", "https://webapp.example/fence"],
+        allowed_scopes=["openid", "user", "data", "invalid_scope"],
+    )
+    client_after = db_session.query(Client).filter_by(name="exampleapp4").all()
+    assert len(client_after) == 0
 
 
 def test_client_delete(app, db_session, cloud_manager, test_user_a):
@@ -151,8 +206,8 @@ def test_delete_user_with_access_privilege(app, db_session):
     db_session.add(access_privilege)
     db_session.commit()
     delete_users(config["DB"], [user.username])
-    remaining_usernames = db_session.query(User.username).all()
-    assert db_session.query(User).count() == 0, remaining_usernames
+    remaining_usernames = db_session.query(User).filter_by(username=user.username).all()
+    assert len(remaining_usernames) == 0, remaining_usernames
 
 
 def test_create_user_access_token_with_no_found_user(
