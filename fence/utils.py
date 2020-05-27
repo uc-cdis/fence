@@ -42,6 +42,7 @@ def create_client(
     confidential=True,
     arborist=None,
     policies=None,
+    allowed_scopes=None
 ):
     client_id = random_str(40)
     if arborist is not None:
@@ -56,6 +57,11 @@ def create_client(
             client_secret.encode("utf-8"), bcrypt.gensalt()
         ).decode("utf-8")
     auth_method = "client_secret_basic" if confidential else "none"
+    allowed_scopes = allowed_scopes or config["CLIENT_ALLOWED_SCOPES"]
+    if not set(allowed_scopes).issubset(set(config["CLIENT_ALLOWED_SCOPES"])):
+        raise ValueError("Each allowed scope must be one of: {}".format(config["CLIENT_ALLOWED_SCOPES"]))
+    if "openid" not in allowed_scopes:
+        raise ValueError("One of the allowed scopes must be openid")
     with driver.session as s:
         user = query_for_user(session=s, username=username)
 
@@ -71,7 +77,7 @@ def create_client(
             client_secret=hashed_secret,
             user=user,
             redirect_uris=urls,
-            _allowed_scopes=" ".join(config["CLIENT_ALLOWED_SCOPES"]),
+            allowed_scopes=allowed_scopes,
             description=description,
             name=name,
             auto_approve=auto_approve,
