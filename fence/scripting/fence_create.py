@@ -62,7 +62,7 @@ def list_client_action(db):
             for row in s.query(Client).all():
                 pprint.pprint(row.__dict__)
     except Exception as e:
-        print(str(e))
+        logger.error(str(e))
 
 
 def modify_client_action(
@@ -84,22 +84,22 @@ def modify_client_action(
             raise Exception("client {} does not exist".format(client))
         if urls:
             client.redirect_uris = urls
-            print("Changing urls to {}".format(urls))
+            logger.info("Changing urls to {}".format(urls))
         if delete_urls:
             client.redirect_uris = []
-            print("Deleting urls")
+            logger.info("Deleting urls")
         if set_auto_approve:
             client.auto_approve = True
-            print("Auto approve set to True")
+            logger.info("Auto approve set to True")
         if unset_auto_approve:
             client.auto_approve = False
-            print("Auto approve set to False")
+            logger.info("Auto approve set to False")
         if name:
             client.name = name
-            print("Updating name to {}".format(name))
+            logger.info("Updating name to {}".format(name))
         if description:
             client.description = description
-            print("Updating description to {}".format(description))
+            logger.info("Updating description to {}".format(description))
         s.commit()
     if arborist is not None and policies:
         arborist.update_client(client.client_id, policies)
@@ -115,7 +115,7 @@ def create_client_action(
             )
         )
     except Exception as e:
-        print(str(e))
+        logger.error(str(e))
 
 
 def delete_client_action(DB, client_name):
@@ -145,9 +145,9 @@ def delete_client_action(DB, client_name):
                 current_session.delete(client)
             current_session.commit()
 
-        print("Client {} deleted".format(client_name))
+        logger.info("Client {} deleted".format(client_name))
     except Exception as e:
-        print(str(e))
+        logger.error(str(e))
 
 
 def _remove_client_service_accounts(db_session, client):
@@ -160,7 +160,7 @@ def _remove_client_service_accounts(db_session, client):
     if client_service_accounts:
         with GoogleCloudManager() as g_mgr:
             for service_account in client_service_accounts:
-                print(
+                logger.info(
                     "Deleting client {}'s service account: {}".format(
                         client.name, service_account.email
                     )
@@ -170,8 +170,8 @@ def _remove_client_service_accounts(db_session, client):
                     db_session.delete(service_account)
                     db_session.commit()
                 else:
-                    print("ERROR - from Google: {}".format(response))
-                    print(
+                    logger.error("ERROR - from Google: {}".format(response))
+                    logger.error(
                         "ERROR - Could not delete client service account: {}".format(
                             service_account.email
                         )
@@ -358,7 +358,7 @@ def create_project(s, project_data):
             if not sa:
                 sa = StorageAccess(provider=c_provider, project=project)
                 s.add(sa)
-                print(
+                logger.info(
                     "created storage access for {} to {}".format(
                         project.name, c_provider.name
                     )
@@ -371,12 +371,11 @@ def create_project(s, project_data):
                     .filter(CloudProvider.name == provider)
                     .first()
                 )
-                print(b)
                 if not b:
                     b = Bucket(name=bucket)
                     b.provider = c_provider
                     s.add(b)
-                    print("created bucket {} in db".format(bucket))
+                    logger.info("created bucket {} in db".format(bucket))
 
     return project
 
@@ -415,14 +414,14 @@ def grant_project_to_group_or_user(s, project_data, group=None, user=None):
         else:
             raise Exception("need to provide either a user or group")
         s.add(ap)
-        print(
+        logger.info(
             "created access privilege {} of project {} to {}".format(
                 privilege, project.name, name
             )
         )
     else:
         ap.privilege = privilege
-        print(
+        logger.info(
             "updated access privilege {} of project {} to {}".format(
                 privilege, project.name, name
             )
@@ -511,7 +510,7 @@ def remove_expired_google_service_account_keys(db):
         ).filter(GoogleServiceAccount.client_id == Client.client_id)
 
         current_time = int(time.time())
-        print("Current time: {}\n".format(current_time))
+        logger.info("Current time: {}\n".format(current_time))
 
         expired_sa_keys_for_users = current_session.query(
             GoogleServiceAccountKey
@@ -539,14 +538,14 @@ def remove_expired_google_service_account_keys(db):
 
                 if not response_error_code:
                     current_session.delete(expired_user_key)
-                    print(
+                    logger.info(
                         "INFO: Removed expired service account key {} "
                         "for service account {} (owned by user with id {}).\n".format(
                             expired_user_key.key_id, sa.email, sa.user_id
                         )
                     )
                 elif response_error_code == 404:
-                    print(
+                    logger.info(
                         "INFO: Service account key {} for service account {} "
                         "(owned by user with id {}) does not exist in Google. "
                         "Removing from database...\n".format(
@@ -555,7 +554,7 @@ def remove_expired_google_service_account_keys(db):
                     )
                     current_session.delete(expired_user_key)
                 else:
-                    print(
+                    logger.error(
                         "ERROR: Google returned an error when attempting to "
                         "remove service account key {} "
                         "for service account {} (owned by user with id {}). "
@@ -571,7 +570,7 @@ def remove_expired_google_accounts_from_proxy_groups(db):
     db = SQLAlchemyDriver(db)
     with db.session as current_session:
         current_time = int(time.time())
-        print("Current time: {}".format(current_time))
+        logger.info("Current time: {}".format(current_time))
 
         expired_accounts = current_session.query(UserGoogleAccountToProxyGroup).filter(
             UserGoogleAccountToProxyGroup.expires <= current_time
@@ -596,13 +595,13 @@ def remove_expired_google_accounts_from_proxy_groups(db):
 
                     if not response_error_code:
                         current_session.delete(expired_account_access)
-                        print(
+                        logger.info(
                             "INFO: Removed {} from proxy group with id {}.\n".format(
                                 g_account.email, expired_account_access.proxy_group_id
                             )
                         )
                     else:
-                        print(
+                        logger.error(
                             "ERROR: Google returned an error when attempting to "
                             "remove member {} from proxy group {}. Error:\n{}\n".format(
                                 g_account.email,
@@ -611,7 +610,7 @@ def remove_expired_google_accounts_from_proxy_groups(db):
                             )
                         )
                 except Exception as exc:
-                    print(
+                    logger.error(
                         "ERROR: Google returned an error when attempting to "
                         "remove member {} from proxy group {}. Error:\n{}\n".format(
                             g_account.email, expired_account_access.proxy_group_id, exc
@@ -657,13 +656,13 @@ def delete_expired_service_accounts(DB):
                             record.service_account.email, record.access_group.email
                         )
                         session.delete(record)
-                        print(
+                        logger.info(
                             "Removed expired service account: {}".format(
                                 record.service_account.email
                             )
                         )
                     except Exception as e:
-                        print(
+                        logger.error(
                             "ERROR: Could not delete service account {}. Details: {}".format(
                                 record.service_account.email, e
                             )
@@ -694,10 +693,10 @@ def verify_bucket_access_group(DB):
                 try:
                     members = manager.get_group_members(access_group.email)
                 except GoogleAuthError as e:
-                    print("ERROR: Authentication error!!!. Detail {}".format(e))
+                    logger.error("ERROR: Authentication error!!!. Detail {}".format(e))
                     return
                 except Exception as e:
-                    print(
+                    logger.error(
                         "ERROR: Could not list group members of {}. Detail {}".format(
                             access_group.email, e
                         )
@@ -741,12 +740,12 @@ def _verify_google_group_member(session, access_group, member):
                 manager.remove_member_from_group(
                     member.get("email"), access_group.email
                 )
-                print(
+                logger.info(
                     "Removed {} from {}, not found in fence but found "
                     "in Google Group.".format(member.get("email"), access_group.email)
                 )
         except Exception as e:
-            print(
+            logger.error(
                 "ERROR: Could not remove google group memeber {} from access group {}. Detail {}".format(
                     member.get("email"), access_group.email, e
                 )
@@ -782,12 +781,12 @@ def _verify_google_service_account_member(session, access_group, member):
                 manager.remove_member_from_group(
                     member.get("email"), access_group.email
                 )
-                print(
+                logger.info(
                     "Removed {} from {}, not found in fence but found "
                     "in Google Group.".format(member.get("email"), access_group.email)
                 )
         except Exception as e:
-            print(
+            logger.error(
                 "ERROR: Could not remove service account memeber {} from access group {}. Detail {}".format(
                     member.get("email"), access_group.email, e
                 )
@@ -955,7 +954,7 @@ def link_bucket_to_project(db, bucket_id, bucket_provider, project_auth_id):
             current_session.query(Project).filter_by(auth_id=project_auth_id).first()
         )
         if not project_db_entry:
-            print(
+            logger.warning(
                 'WARNING: No project with auth_id "{}" exists. Creating...'.format(
                     project_auth_id
                 )
@@ -1096,7 +1095,7 @@ def create_google_logging_bucket(name, storage_class=None, google_project_id=Non
             for_logging=True,
         )
 
-        print(
+        logger.info(
             "Successfully created Google Bucket {} "
             "to store Access Logs.".format(name)
         )
@@ -1153,7 +1152,7 @@ def _create_or_update_google_bucket_and_db(
             db_session.add(bucket_db_entry)
             db_session.commit()
 
-        print("Successfully updated Google Bucket {}.".format(name))
+        logger.info("Successfully updated Google Bucket {}.".format(name))
 
         # optionally link this new bucket to an existing project
         if project_auth_id:
@@ -1176,12 +1175,12 @@ def _create_or_update_google_bucket_and_db(
                     )
                     db_session.add(project_linkage)
                     db_session.commit()
-                print(
+                logger.info(
                     "Successfully linked project with auth_id {} "
                     "to the bucket.".format(project_auth_id)
                 )
             else:
-                print(
+                logger.info(
                     "No project with auth_id {} found. No linking "
                     "occured.".format(project_auth_id)
                 )
@@ -1225,7 +1224,7 @@ def _setup_google_bucket_access_group(
             access_group.email, google_bucket_name, access=privileges
         )
 
-    print(
+    logger.info(
         "Successfully set up Google Bucket Access Group {} "
         "for Google Bucket {}.".format(access_group.email, google_bucket_name)
     )
@@ -1307,7 +1306,7 @@ def link_external_bucket(db, name):
             current_session, name, bucket_db_entry.id, google_project_id, privileges
         )
 
-    pprint.pprint("bucket access group email: {}".format(access_group.email))
+    logger.info("bucket access group email: {}".format(access_group.email))
     return access_group.email
 
 
@@ -1409,7 +1408,7 @@ def notify_problem_users(db, emails, auth_ids, check_linking, google_project_id)
 def migrate_database(db):
     driver = SQLAlchemyDriver(db)
     migrate(driver)
-    print("Done.")
+    logger.info("Done.")
 
 
 def google_list_authz_groups(db):
