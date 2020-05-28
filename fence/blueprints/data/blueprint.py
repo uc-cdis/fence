@@ -83,7 +83,7 @@ def delete_data_file(file_id):
     # If authz is empty: use uploader == user to see if user can delete.
     uploader = record.index_document.get("uploader")
     if not uploader:
-        raise Forbidden("deleting submitted records is not supported")
+        raise Forbidden("You cannot delete this file because the uploader field indicates it does not belong to you.")
     if current_token["context"]["user"]["name"] != uploader:
         raise Forbidden("user is not uploader for file {}".format(file_id))
     logger.info("deleting record and files for {}".format(file_id))
