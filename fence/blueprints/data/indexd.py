@@ -438,7 +438,7 @@ class IndexedFile(object):
             bucket = location.bucket_name()
             logger.info('Attempting to delete file_id {} from bucket {}'.format(self.file_id, bucket))
 
-            if isinstance(location, fence.blueprints.data.indexd.GoogleStorageIndexedFileLocation):
+            if isinstance(location, GoogleStorageIndexedFileLocation):
                 with GoogleCloudManager() as gcm:
                     gcm.delete_data_file(bucket, self.file_id)
             else:
