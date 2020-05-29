@@ -435,13 +435,15 @@ class IndexedFile(object):
                 location for location in locations_to_delete if location.url in urls
             ]
         for location in locations_to_delete:
-            print(location)
-            logger.info(location)
-            
             bucket = location.bucket_name()
-            flask.current_app.boto.delete_data_file(bucket, self.file_id)
-            with GoogleCloudManager() as gcm:
-                gcm.delete_data_file(bucket, self.file_id)
+            logger.info('Attempting to delete file_id {} from bucket {}'.format(self.file_id, bucket))
+
+            if isinstance(location, fence.blueprints.data.indexd.GoogleStorageIndexedFileLocation):
+                with GoogleCloudManager() as gcm:
+                    gcm.delete_data_file(bucket, self.file_id)
+            else:
+                flask.current_app.boto.delete_data_file(bucket, self.file_id)
+            
 
     @login_required({"data"})
     def delete(self):
