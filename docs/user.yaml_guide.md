@@ -166,7 +166,7 @@ If you are using Arborist and you get this error message when trying to create a
 
 ### Notes
 
-- Granular access control beyond the `program` and `project` graph nodes is not supported by Gen3 at the moment.
+- While Arborist itself allows granular and inherited access through use of its resource tree / paths, granular access control beyond the `program` and `project` in the current Gen3 graph is not supported at the moment.
 - Arborist does not support policies granting access to a root resource `/`.
 
 ## Deprecated format
