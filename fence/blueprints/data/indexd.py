@@ -754,6 +754,9 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     An indexed file that lives in a Google Storage bucket.
     """
 
+    def get_resource_path(self):
+        return self.parsed_url.netloc.strip("/") + "/" + self.parsed_url.path.strip("/") 
+
     def get_signed_url(
         self,
         action,
@@ -762,9 +765,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         force_signed_url=True,
         r_pays_project=None,
     ):
-        resource_path = (
-            self.parsed_url.netloc.strip("/") + "/" + self.parsed_url.path.strip("/")
-        )
+        resource_path = self.get_resource_path()
 
         user_info = _get_user_info()
 
@@ -804,6 +805,19 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             requester_pays_user_project=r_pays_project,
         )
         return final_url
+    
+    def bucket_name(self):
+        resource_path = self.get_resource_path()
+
+        print('817')
+        print(resource_path)
+        bucket_name = None
+        try:
+            bucket_name = resource_path.split('://')[1].split('/')[0]
+        except Exception as exc:
+            logging.error('Unable to get bucket name from resource path. {}'.format(exc))
+        
+        return bucket_name
 
     def _generate_google_storage_signed_url(
         self,
