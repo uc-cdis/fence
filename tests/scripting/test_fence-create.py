@@ -7,6 +7,7 @@ import pytest
 import cirrus
 from cirrus.google_cloud.errors import GoogleAuthError
 from userdatamodel.models import Group
+from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.config import config
 from fence.jwt.validate import validate_jwt
@@ -52,58 +53,105 @@ def mock_arborist(mock_arborist_requests):
     mock_arborist_requests()
 
 
-def test_client_create(db_session):
+def create_client_action_wrapper(
+    to_test,
+    db=None,
+    client_name="exampleapp",
+    username="exampleuser",
+    urls=["https://betawebapp.example/fence", "https://webapp.example/fence"],
+    grant_types=["authorization_code", "refresh_token", "implicit"],
+    **kwargs,
+):
+    """
+    Wraps create_client_action function and cleans up the client and user that
+    are created in the database by create_client_action.
+    """
+    db = db or config["DB"]
     create_client_action(
-        config["DB"],
-        client="exampleapp",
-        username="exampleuser",
-        urls=["https://betawebapp.example/fence", "https://webapp.example/fence"],
-        grant_types=["authorization_code", "refresh_token", "implicit"],
-        allowed_scopes=["openid", "user", "data"],
+        db,
+        client=client_name,
+        username=username,
+        urls=urls,
+        grant_types=grant_types,
+        **kwargs,
+    )
+    to_test()
+    driver = SQLAlchemyDriver(db)
+    with driver.session as session:
+        client = session.query(Client).filter_by(name=client_name).first()
+        user = session.query(User).filter_by(username=username).first()
+        if client is not None:
+            session.delete(client)
+        if user is not None:
+            session.delete(user)
+        session.commit()
+
+
+def test_create_client_inits_default_allowed_scopes(db_session):
+    """
+    Test that calling create_client_action without allowed scopes still
+    initializes the default allowed scopes for the client in the database.
+    """
+    client_name = "exampleapp"
+
+    def to_test():
+        saved_client = db_session.query(Client).filter_by(name=client_name).first()
+        assert saved_client._allowed_scopes == " ".join(config["CLIENT_ALLOWED_SCOPES"])
+
+    create_client_action_wrapper(
+        to_test, client_name=client_name,
     )
 
-    saved_client = db_session.query(Client).filter_by(name="exampleapp").first()
-    assert (
-        saved_client.redirect_uri
-        == "https://betawebapp.example/fence\nhttps://webapp.example/fence"
+
+def test_create_client_inits_passed_allowed_scopes(db_session):
+    """
+    Test that calling create_client_action with allowed scopes correctly
+    initializes only the specified allowed scopes for the created client in the
+    database.
+    """
+    client_name = "exampleapp"
+
+    def to_test():
+        saved_client = db_session.query(Client).filter_by(name=client_name).first()
+        assert saved_client._allowed_scopes == "openid user data"
+
+    create_client_action_wrapper(
+        to_test, client_name=client_name, allowed_scopes=["openid", "user", "data"],
     )
-    assert saved_client.grant_type == "authorization_code\nrefresh_token\nimplicit"
-    assert saved_client._allowed_scopes == "openid user data"
 
 
-def test_client_create_inits_default_allowed_scopes(db_session):
-    create_client_action(
-        config["DB"],
-        client="exampleapp2",
-        username="exampleuser",
-        urls=["https://betawebapp.example/fence", "https://webapp.example/fence"],
+def test_create_client_doesnt_create_client_without_openid_scope(db_session):
+    """
+    Test that create_client_action does not create a client record in the
+    database when the allowed scopes passed in do not include openid scope.
+    """
+    client_name = "exampleapp"
+
+    def to_test():
+        client_after = db_session.query(Client).filter_by(name=client_name).all()
+        assert len(client_after) == 0
+
+    create_client_action_wrapper(
+        to_test, client_name=client_name, allowed_scopes=["user", "data"],
     )
-    saved_client = db_session.query(Client).filter_by(name="exampleapp2").first()
-    assert saved_client._allowed_scopes == " ".join(config["CLIENT_ALLOWED_SCOPES"])
 
 
-def test_client_create_doesnt_create_client_without_openid_scope(db_session):
-    create_client_action(
-        config["DB"],
-        client="exampleapp3",
-        username="exampleuser",
-        urls=["https://betawebapp.example/fence", "https://webapp.example/fence"],
-        allowed_scopes=["user", "data"],
-    )
-    client_after = db_session.query(Client).filter_by(name="exampleapp3").all()
-    assert len(client_after) == 0
+def test_create_client_doesnt_create_client_with_invalid_scope(db_session):
+    """
+    Test that create_client_action does not create a client record in the
+    database when one of the allowed scopes passed in is invalid.
+    """
+    client_name = "exampleapp"
 
+    def to_test():
+        client_after = db_session.query(Client).filter_by(name=client_name).all()
+        assert len(client_after) == 0
 
-def test_client_create_doesnt_create_client_with_invalid_scope(db_session):
-    create_client_action(
-        config["DB"],
-        client="exampleapp4",
-        username="exampleuser",
-        urls=["https://betawebapp.example/fence", "https://webapp.example/fence"],
+    create_client_action_wrapper(
+        to_test,
+        client_name=client_name,
         allowed_scopes=["openid", "user", "data", "invalid_scope"],
     )
-    client_after = db_session.query(Client).filter_by(name="exampleapp4").all()
-    assert len(client_after) == 0
 
 
 def test_client_delete(app, db_session, cloud_manager, test_user_a):
@@ -206,8 +254,8 @@ def test_delete_user_with_access_privilege(app, db_session):
     db_session.add(access_privilege)
     db_session.commit()
     delete_users(config["DB"], [user.username])
-    remaining_usernames = db_session.query(User).filter_by(username=user.username).all()
-    assert len(remaining_usernames) == 0, remaining_usernames
+    remaining_usernames = db_session.query(User.username).all()
+    assert db_session.query(User).count() == 0, remaining_usernames
 
 
 def test_create_user_access_token_with_no_found_user(
