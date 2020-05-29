@@ -436,12 +436,14 @@ class IndexedFile(object):
             ]
         for location in locations_to_delete:
             bucket = location.bucket_name()
-            logger.info('Attempting to delete file_id {} from bucket {}'.format(self.file_id, bucket))
 
             if isinstance(location, GoogleStorageIndexedFileLocation):
+                file_name = location.file_name()
+                logger.info('Attempting to delete file named {} from bucket {}'.format(file_name, bucket))
                 with GoogleCloudManager() as gcm:
-                    gcm.delete_data_file(bucket, self.file_id)
+                    gcm.delete_data_file(bucket, file_name)
             else:
+                logger.info('Attempting to delete file_id {} from bucket {}'.format(self.file_id, bucket))
                 flask.current_app.boto.delete_data_file(bucket, self.file_id)
             
 
@@ -811,8 +813,6 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     def bucket_name(self):
         resource_path = self.get_resource_path()
 
-        print('817')
-        print(resource_path)
         bucket_name = None
         try:
             bucket_name = resource_path.split('/')[0]
@@ -820,6 +820,17 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             logger.error('Unable to get bucket name from resource path. {}'.format(exc))
         
         return bucket_name
+    
+    def file_name(self):
+        resource_path = self.get_resource_path()
+
+        file_name = None
+        try:
+            file_name = resource_path.split('/')[1]
+        except Exception as exc:
+            logger.error('Unable to get file name from resource path. {}'.format(exc))
+        
+        return file_name
 
     def _generate_google_storage_signed_url(
         self,
