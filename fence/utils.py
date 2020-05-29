@@ -81,7 +81,7 @@ def create_client(
             client_secret=hashed_secret,
             user=user,
             redirect_uris=urls,
-            allowed_scopes=allowed_scopes,
+            _allowed_scopes=" ".join(allowed_scopes),
             description=description,
             name=name,
             auto_approve=auto_approve,
