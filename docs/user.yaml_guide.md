@@ -26,7 +26,7 @@ The `user.yaml` file is usually hosted in S3 and configured via the `global.user
 
 A template, ready-to-use `user.yaml` file can be found [here](base_user.yaml).
 
-When updating your `user.yaml` file, you can use the [`gen3users` CLI](https://github.com/uc-cdis/gen3users#gen3users) to validate it before use.
+When updating your `user.yaml` file, you should use the [`gen3users` CLI](https://github.com/uc-cdis/gen3users#gen3users) to validate it before use.
 
 ## Format
 
