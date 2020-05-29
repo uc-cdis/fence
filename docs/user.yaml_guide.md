@@ -7,7 +7,7 @@
   - [Programs and projects CRUD access](#programs-and-projects-crud-access)
   - [Notes](#notes)
 - [Deprecated format](#deprecated-format)
-  - [For Gen3 Data Commons that do not use Arborist](#for-gen3-data-commons-that-do-not-use-arborist)
+  - [For Gen3 Data Commons that do not use Arborist or use the Google Data Access method of Google Service Account Registration](#for-gen3-data-commons-that-do-not-use-arborist-or-use-the-google-data-access-method-of-google-service-account-registration)
 
 ## Introduction
 
