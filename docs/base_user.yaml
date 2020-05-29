@@ -4,8 +4,7 @@ authz:
   - open_data_reader
 
   # policies automatically given to authenticated users (in addition to their other policies)
-  all_users_policies:
-  - open_data_reader
+  all_users_policies: []
 
   groups:
   # can CRUD programs and projects and upload data files
@@ -91,7 +90,7 @@ authz:
     - storage_reader
     - storage_writer
     resource_paths:
-    - /programs
+    - /programs/MyFirstProgram/projects/MyFirstProject
 
   roles:
   - id: file_uploader

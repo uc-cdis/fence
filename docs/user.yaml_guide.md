@@ -11,9 +11,11 @@
 
 ## Introduction
 
-The `user.yaml` file is one way to get authorization information into Gen3. It is ingested via [Fence's `usersync` script](usersync.md). The format of this file is tightly coupled with the notions of resource, role and policy as defined by Gen3's policy engine, [Arborist](https://github.com/uc-cdis/arborist#arborist). For Gen3 Data Commons that do not use Arborist, refer to the [Deprecated format](#deprecated-format) section.
+The `user.yaml` file is one way to get authorization information into Gen3. It is ingested via [Fence's `usersync` script](usersync.md). The format of this file is tightly coupled with the notions of resource, role and policy as defined by Gen3's policy engine, [Arborist](https://github.com/uc-cdis/arborist#arborist).
 
-The `user.yaml` file is usually hosted in S3 and configured via the `global.useryaml_s3path` setting of the Gen3 Data Commons manifest:
+For Gen3 Data Commons that do not use Arborist or that use the Google Data Access method of [Google Service Account Registration](https://github.com/uc-cdis/fence/blob/master/docs/google_architecture.md#google-account-linking-and-service-account-registration), refer to the [Deprecated format](#deprecated-format) section.
+
+In a fully deployed Gen3 Commons using [Cloud Automation](https://github.com/uc-cdis/cloud-automation), the `user.yaml` file is usually hosted in S3 and configured via the `global.useryaml_s3path` setting of the Gen3 Data Commons manifest:
 ```
 {
   "global": {
@@ -30,6 +32,8 @@ When updating your `user.yaml` file, you should use the [`gen3users` CLI](https:
 
 ## Format
 
+Note that the `user.yaml` example below is minimal, as the goal is only to describe its structure. For a working `user.yaml` file that contains everything needed to get started, refer to the [base user.yaml](base_user.yaml) instead.
+
 ```
 authz:
   # policies automatically given to anyone, even if they are not authenticated
@@ -39,6 +43,7 @@ authz:
   # policies automatically given to authenticated users (in addition to their other policies)
   all_users_policies: []
 
+  # each group can contain multiple policies and multiple users
   groups:
   - name: program1_readers
     policies:
@@ -53,6 +58,7 @@ authz:
     subresources:
     - name: program1
 
+  # each policy can contain multiple roles and multiple resources
   policies:
   - id: open_data_reader
     role_ids:
@@ -189,9 +195,9 @@ users:
       - write-storage
 ```
 
-### For Gen3 Data Commons that do not use Arborist
+### For Gen3 Data Commons that do not use Arborist or use the Google Data Access method of Google Service Account Registration
 
-When Arborist is not being used (which is when the deprecated `acl` field of [Indexd](https://github.com/uc-cdis/indexd) records is used for access control instead of the newer `authz` field), only the access granted to users through the deprecated `user.yaml` format will take effect. This is how you should configure your `user.yaml` if you are not using Arborist:
+When Arborist is not being used (which is when the deprecated `acl` field of [Indexd](https://github.com/uc-cdis/indexd) records is used for access control instead of the newer `authz` field), or when the Google Data Access method of Google Service Account Registration is used, only the access granted to users through the deprecated `user.yaml` format will take effect. This is how you should configure your `user.yaml` if you are not using Arborist:
 
 ```
 authz:
