@@ -813,7 +813,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         print(resource_path)
         bucket_name = None
         try:
-            bucket_name = resource_path.split('://')[1].split('/')[0]
+            bucket_name = resource_path.split('/')[0]
         except Exception as exc:
             logging.error('Unable to get bucket name from resource path. {}'.format(exc))
         
