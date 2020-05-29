@@ -815,7 +815,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         try:
             bucket_name = resource_path.split('/')[0]
         except Exception as exc:
-            logging.error('Unable to get bucket name from resource path. {}'.format(exc))
+            logger.error('Unable to get bucket name from resource path. {}'.format(exc))
         
         return bucket_name
 
