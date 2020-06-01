@@ -1006,7 +1006,9 @@ class UserSyncer(object):
 
         try:
             if os.path.exists(folderdir):
-                dbgap_file_list = glob.glob(os.path.join(folderdir, "*")) # get lists of file from folder
+                dbgap_file_list = glob.glob(
+                    os.path.join(folderdir, "*")
+                )  # get lists of file from folder
             else:
                 dbgap_file_list = self._download(dbgap_config)
         except Exception as e:
