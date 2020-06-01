@@ -27,7 +27,6 @@ def delete_data_file(file_id):
     """
     Delete all the locations for a data file which was uploaded to bucket storage from
     indexd.
-
     If the data file has authz matching the user's permissions, delete it.
     If the data file has no authz, then the deleting user should match the uploader
     field on the record in indexd.
