@@ -9,6 +9,7 @@ import requests
 from urllib.parse import urlencode
 from urllib.parse import parse_qs, urlsplit, urlunsplit
 
+from cdislogging import get_logger
 import flask
 from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.datastructures import ImmutableMultiDict
@@ -20,6 +21,7 @@ from fence.config import config
 
 rng = SystemRandom()
 alphanumeric = string.ascii_uppercase + string.ascii_lowercase + string.digits
+logger = get_logger(__name__)
 
 
 def random_str(length):
@@ -65,7 +67,8 @@ def create_client(
             )
         )
     if "openid" not in allowed_scopes:
-        raise ValueError("One of the allowed scopes must be openid")
+        allowed_scopes.append("openid")
+        logger.warning('Adding required "openid" scope to list of allowed scopes.')
     with driver.session as s:
         user = query_for_user(session=s, username=username)
 

@@ -120,16 +120,17 @@ def test_create_client_inits_passed_allowed_scopes(db_session):
     )
 
 
-def test_create_client_doesnt_create_client_without_openid_scope(db_session):
+def test_create_client_adds_openid_when_not_in_allowed_scopes(db_session):
     """
-    Test that create_client_action does not create a client record in the
-    database when the allowed scopes passed in do not include openid scope.
+    Test that when the allowed scopes passed to create_client_action do not
+    include the "openid" scope, that it still gets initialized as one of the
+    client's allowed scopes.
     """
     client_name = "exampleapp"
 
     def to_test():
-        client_after = db_session.query(Client).filter_by(name=client_name).all()
-        assert len(client_after) == 0
+        saved_client = db_session.query(Client).filter_by(name=client_name).first()
+        assert saved_client._allowed_scopes == "user data openid"
 
     create_client_action_wrapper(
         to_test, client_name=client_name, allowed_scopes=["user", "data"],
