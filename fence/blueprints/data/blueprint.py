@@ -112,7 +112,20 @@ def delete_data_file(file_id):
             ),
             500,
         )
-    return record.delete()
+    try:
+        return record.delete()
+    except Exception as exc:
+            logger.error(exc, exc_info=True)
+            return (
+                flask.jsonify(
+                    {
+                        "message": "Unable to delete this record's data files. Backing off. Exception: {}".format(
+                            exc
+                        )
+                    }
+                ),
+                500,
+            )
 
 
 @blueprint.route("/upload", methods=["POST"])
