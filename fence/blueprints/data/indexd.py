@@ -442,7 +442,6 @@ class IndexedFile(object):
                 logger.info('Attempting to delete file named {} from bucket {}'.format(file_name, bucket))
                 with GoogleCloudManager() as gcm:
                     gcm.delete_data_file(bucket, file_name)
-                    
 
             else:
                 logger.info('Attempting to delete file_id {} from bucket {}'.format(self.file_id, bucket))
