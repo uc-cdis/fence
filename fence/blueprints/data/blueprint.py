@@ -53,6 +53,7 @@ def delete_data_file(file_id):
     if authz and has_correct_authz:
         logger.info("deleting record and files for {}".format(file_id))
         try:
+            logger.info('Inside try-block')
             record.delete_files(delete_all=True)
         except Exception as exc:
             logger.error(exc, exc_info=True)
