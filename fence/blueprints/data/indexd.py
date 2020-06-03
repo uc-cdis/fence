@@ -440,7 +440,7 @@ class IndexedFile(object):
             if isinstance(location, GoogleStorageIndexedFileLocation):
                 file_name = location.file_name()
                 logger.info('Attempting to delete file named {} from bucket {}'.format(file_name, bucket))
-                with GoogleCloudManager() as gcm:
+                with GoogleCloudManager(creds=config.get("GOOGLE_STORAGE_CREDS")) as gcm:
                     gcm.delete_data_file(bucket, file_name)
 
             else:
