@@ -440,11 +440,13 @@ class IndexedFile(object):
             if isinstance(location, GoogleStorageIndexedFileLocation):
                 file_name = location.file_name()
                 logger.info('Attempting to delete file named {} from bucket {}'.format(file_name, bucket))
-                print('config: ', config)
+                
+                print('config 444: ', config.get('_configs'))
+                print('config 445: ', config.get('CIRRUS_CFG'))
                 print('----------')
                 print(config.__dict__)
-                print('fence 443 :' , config["GOOGLE_STORAGE_CREDS"])
-                with GoogleCloudManager(creds=config["GOOGLE_STORAGE_CREDS"]) as gcm:
+                print('fence 448 :' , config["CIRRUS_CFG"]["GOOGLE_STORAGE_CREDS"])
+                with GoogleCloudManager(creds=config["CIRRUS_CFG"]["GOOGLE_STORAGE_CREDS"] as gcm:
                     gcm.delete_data_file(bucket, file_name)
 
             else:
