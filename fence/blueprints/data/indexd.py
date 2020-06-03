@@ -387,7 +387,7 @@ class IndexedFile(object):
     def check_authorization(self, action):
         # if we have a data file upload without corresponding metadata, the record can
         # have just the `uploader` field and no ACLs. in this just check that the
-        # current user's username matches the uploader field
+        # current user's username matches the uploader field 
         if self.index_document.get("uploader"):
             username = None
             if flask.g.token:
