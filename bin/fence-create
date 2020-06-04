@@ -98,6 +98,11 @@ def parse_arguments():
     client_create.add_argument(
         "--policies", help="which ABAC policies are granted to this client", nargs="*"
     )
+    client_create.add_argument(
+        "--allowed-scopes",
+        help="which scopes are allowed for this client",
+        nargs="+"
+    )
 
     client_modify = subparsers.add_parser("client-modify")
     client_modify.add_argument("--client", required=True)
@@ -390,6 +395,7 @@ def main():
             confidential=confidential,
             arborist=arborist,
             policies=args.policies,
+            allowed_scopes=args.allowed_scopes
         )
     elif args.action == "client-modify":
         modify_client_action(
