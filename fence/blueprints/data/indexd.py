@@ -446,7 +446,7 @@ class IndexedFile(object):
                 print('----------') 
                 print(config.__dict__)
                 print('fence 448 :' , config["CIRRUS_CFG"]["GOOGLE_STORAGE_CREDS"])
-                with GoogleCloudManager(creds=config["CIRRUS_CFG"]["GOOGLE_STORAGE_CREDS"] as gcm:
+                with GoogleCloudManager(creds=config["CIRRUS_CFG"]["GOOGLE_STORAGE_CREDS"]) as gcm:
                     gcm.delete_data_file(bucket, file_name)
 
             else:
