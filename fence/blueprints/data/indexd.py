@@ -419,7 +419,7 @@ class IndexedFile(object):
         Delete the data files stored at all the locations for this indexed file.
 
         If a list of URLs is specified, delete only files at those locations;
-        otherwise, delete files at all locations.
+        otherwise, delete files at all locations. 
 
         Args:
             urls (Optional[List[str]])
