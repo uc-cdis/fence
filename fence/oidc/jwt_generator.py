@@ -80,28 +80,11 @@ def generate_implicit_response(
     if not "user" in scope:
         scope.append("user")
 
-    # don't provide user projects access in id_tokens for implicit flow
-    # due to issues with "Location" header size during redirect (and b/c
-    # of general deprecation of user access information in tokens)
-    id_token = generate_signed_id_token(
-        kid=keypair.kid,
-        private_key=keypair.private_key,
-        user=user,
-        expires_in=config["ACCESS_TOKEN_EXPIRES_IN"],
-        client_id=client.client_id,
-        audiences=scope,
-        nonce=nonce,
-        linked_google_email=linked_google_email,
-        linked_google_account_exp=linked_google_account_exp,
-        include_project_access=False,
-    ).token
-
     # ``expires_in`` is just the token expiration time.
     expires_in = config["ACCESS_TOKEN_EXPIRES_IN"]
 
     response = {
         "token_type": "Bearer",
-        "id_token": id_token,
         "expires_in": expires_in,
         # "state" handled in authlib
     }
@@ -121,6 +104,23 @@ def generate_implicit_response(
             include_project_access=False,
         ).token
         response["access_token"] = access_token
+
+    # don't provide user projects access in id_tokens for implicit flow
+    # due to issues with "Location" header size during redirect (and b/c
+    # of general deprecation of user access information in tokens)
+    id_token = generate_signed_id_token(
+        kid=keypair.kid,
+        private_key=keypair.private_key,
+        user=user,
+        expires_in=config["ACCESS_TOKEN_EXPIRES_IN"],
+        client_id=client.client_id,
+        audiences=scope,
+        nonce=nonce,
+        linked_google_email=linked_google_email,
+        linked_google_account_exp=linked_google_account_exp,
+        include_project_access=False,
+    ).token
+    response["id_token"] = id_token
 
     return response
 
