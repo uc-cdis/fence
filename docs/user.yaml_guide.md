@@ -127,6 +127,19 @@ users:
     - program1_reader
 ```
 
+The resource tree contains, among other resources, the programs and projects created via [Sheepdog](https://github.com/uc-cdis/sheepdog). If you created a program `{ "name": "program1" }` and a project `{ "name": "project1", "dbgap_accession_number": "phs1", "code": "P1" }`, your resource tree should contain the following:
+```
+  resources:
+  - name: programs
+    subresources:
+    - name: program1
+      subresources:
+      - name: projects
+        subresources:
+        - name: P1
+```
+Policies would refer to this resource as `/programs/program1/projects/P1`.
+
 ### Programs and projects CRUD access
 
 ```
