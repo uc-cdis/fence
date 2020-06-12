@@ -176,6 +176,15 @@ def generate_token_response(
     if not isinstance(scope, list):
         scope = scope.split(" ")
 
+    access_token = generate_signed_access_token(
+        kid=keypair.kid,
+        private_key=keypair.private_key,
+        user=user,
+        expires_in=config["ACCESS_TOKEN_EXPIRES_IN"],
+        scopes=scope,
+        client_id=client.client_id,
+        linked_google_email=linked_google_email,
+    ).token
     id_token = generate_signed_id_token(
         kid=keypair.kid,
         private_key=keypair.private_key,
@@ -186,15 +195,6 @@ def generate_token_response(
         nonce=nonce,
         linked_google_email=linked_google_email,
         linked_google_account_exp=linked_google_account_exp,
-    ).token
-    access_token = generate_signed_access_token(
-        kid=keypair.kid,
-        private_key=keypair.private_key,
-        user=user,
-        expires_in=config["ACCESS_TOKEN_EXPIRES_IN"],
-        scopes=scope,
-        client_id=client.client_id,
-        linked_google_email=linked_google_email,
     ).token
     # If ``refresh_token`` was passed (for instance from the refresh
     # grant), use that instead of generating a new one.
