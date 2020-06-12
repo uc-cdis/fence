@@ -2,6 +2,7 @@ import flask
 from flask_sqlalchemy_session import current_session
 
 from fence.jwt.token import (
+    AuthFlowTypes,
     generate_signed_access_token,
     generate_signed_id_token,
     generate_signed_refresh_token,
@@ -119,6 +120,8 @@ def generate_implicit_response(
         linked_google_email=linked_google_email,
         linked_google_account_exp=linked_google_account_exp,
         include_project_access=False,
+        auth_flow_type=AuthFlowTypes.IMPLICIT,
+        access_token=access_token if include_access_token else None,
     ).token
     response["id_token"] = id_token
 
