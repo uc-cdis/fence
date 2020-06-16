@@ -150,6 +150,22 @@ OPENID_CONNECT:
   # Currently supports organizational account only, so when registering a new App in
   # Azure, make sure to select the `Accounts in any organizational directory` for
   # supported account types.
+  ras:
+    client_id: ''
+    client_secret: ''
+    # make sure you put the FULL url for this deployment in the allowed redirects in
+    # ORCID.org. DO NOT include {{BASE_URL}} at ORCID.org, you need to actually put the
+    # full url
+    redirect_url: '{{BASE_URL}}/login/ras/login/'
+    # if mock is true, will fake a successful login response for login
+    # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
+    mock: false
+    mock_default_user: 'test@example.com'
+  # Create a client in Azure here:
+  #   https://portal.azure.com/#blade/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/RegisteredAppsPreview
+  # Currently supports organizational account only, so when registering a new App in
+  # Azure, make sure to select the `Accounts in any organizational directory` for
+  # supported account types.
   microsoft:
     # after registering a new appl, client_id can be found as
     # "APPLICATION (CLIENT) ID" in Microsoft Azure
@@ -246,6 +262,8 @@ LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
   # - name: 'Login from Cognito'
   #   desc: 'Amazon Cognito login'
   #   idp: cognito
+  #   name: 'Login from RAS'
+  #   idp: ras
   # - name: 'NIH Login'
   #   idp: fence
   #   fence_idp: shibboleth
