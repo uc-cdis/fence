@@ -1,10 +1,10 @@
-#need new RAS
+# need new RAS
 from .idp_oauth2 import Oauth2ClientBase
 
 
 class RASOauth2Client(Oauth2ClientBase):
     """
-    client for interacting with orcid oauth 2,
+    client for interacting with RAS oauth 2,
     as openid connect is supported under oauth2
 
     """
@@ -37,18 +37,14 @@ class RASOauth2Client(Oauth2ClientBase):
 
     def get_user_id(self, code):
         try:
-            token_endpoint = self.get_value_from_discovery_doc(
-                "token_endpoint", ""
-            )
-            jwks_endpoint = self.get_value_from_discovery_doc(
-                "jwks_uri", ""
-            )
+            token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
+            jwks_endpoint = self.get_value_from_discovery_doc("jwks_uri", "")
             claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
 
             if claims["sub"]:
-                return {"orcid": claims["sub"]}
+                return {"ras": claims["sub"]}
             else:
-                return {"error": "Can't get user's orcid"}
+                return {"error": "Can't get user's ras"}
         except Exception as e:
             self.logger.exception("Can't get user info")
-            return {"error": "Can't get your orcid: {}".format(e)}
+            return {"error": "Can't get your ras: {}".format(e)}
