@@ -327,7 +327,9 @@ class IndexedFile(object):
     ):
         if action == "upload":
             blank_record = BlankIndex(uploader="", guid=self.file_id)
-            return blank_record.make_signed_url(file_name=file_name)
+            return blank_record.make_signed_url(
+                file_name=file_name, expires_in=expires_in
+            )
 
         if not protocol:
             # no protocol specified, return first location as signed url
