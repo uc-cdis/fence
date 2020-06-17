@@ -636,6 +636,7 @@ def verify_bucket_access_group(DB):
             for access_group in access_groups:
                 try:
                     members = manager.get_group_members(access_group.email)
+                    logging.debug(f"google group members response: {members}")
                 except GoogleAuthError as e:
                     logger.error("ERROR: Authentication error!!!. Detail {}".format(e))
                     return
