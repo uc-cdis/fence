@@ -17,7 +17,7 @@ class RASOauth2Client(Oauth2ClientBase):
             logger,
             scope="openid",
             discovery_url=self.RAS_DISCOVERY_URL,
-            idp="RAS",
+            idp="ras",
             HTTP_PROXY=HTTP_PROXY,
         )
 
@@ -40,7 +40,7 @@ class RASOauth2Client(Oauth2ClientBase):
             token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
             jwks_endpoint = self.get_value_from_discovery_doc("jwks_uri", "")
             claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
-
+            
             if claims["sub"]:
                 return {"ras": claims["sub"]}
             else:

@@ -260,7 +260,7 @@ def make_login_blueprint(app):
 
     if "ras" in configured_idps:
         blueprint_api.add_resource(RASLogin, "/ras", strict_slashes=False)
-        blueprint_api.add_resource(RASCallback, "/ras/login", strict_slashes=False)
+        blueprint_api.add_resource(RASCallback, "/ras/callback", strict_slashes=False)
 
     if "synapse" in configured_idps:
         blueprint_api.add_resource(SynapseLogin, "/synapse", strict_slashes=False)
