@@ -153,9 +153,6 @@ OPENID_CONNECT:
   ras:
     client_id: ''
     client_secret: ''
-    # make sure you put the FULL url for this deployment in the allowed redirects in
-    # ORCID.org. DO NOT include {{BASE_URL}} at ORCID.org, you need to actually put the
-    # full url
     redirect_url: '{{BASE_URL}}/login/ras/login/'
     # if mock is true, will fake a successful login response for login
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)

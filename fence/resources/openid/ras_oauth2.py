@@ -38,7 +38,8 @@ class RASOauth2Client(Oauth2ClientBase):
         return uri
 
     def get_userinfo(self, token, userinfo_endpoint, code):
-        header = {"Authorization:" "Bearer " + token}
+        access_token = token["access_token"]
+        header = {"Authorization": "Bearer " + access_token}
         res = requests.get(userinfo_endpoint, headers=header)
         return res.json()
 
@@ -61,9 +62,9 @@ class RASOauth2Client(Oauth2ClientBase):
 
             userinfo = self.get_userinfo(token, userinfo_endpoint, code)
 
-            if userinfo["preferred_username"]:
+            if "preferred_username" in userinfo and userinfo["preferred_username"]:
                 return {"ras": userinfo["preferred_username"]}
-            elif userinfo["UserID"]:
+            elif "UserID" in userinfo and userinfo["UserID"]:
                 return {"ras": userinfo["UserID"]}
             elif claims["sub"]:
                 return {"ras": claims["sub"]}
