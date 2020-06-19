@@ -1,5 +1,7 @@
 # need new RAS
 from .idp_oauth2 import Oauth2ClientBase
+from jose import jwt
+import requests
 
 
 class RASOauth2Client(Oauth2ClientBase):
@@ -35,13 +37,35 @@ class RASOauth2Client(Oauth2ClientBase):
 
         return uri
 
+    def get_userinfo(self, token, userinfo_endpoint, code):
+        header = {"Authorization:" "Bearer " + token}
+        res = requests.get(userinfo_endpoint, headers=header)
+        return res.json()
+
     def get_user_id(self, code):
         try:
             token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
             jwks_endpoint = self.get_value_from_discovery_doc("jwks_uri", "")
-            claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
-            
-            if claims["sub"]:
+            userinfo_endpoint = self.get_value_from_discovery_doc(
+                "userinfo_endpoint", ""
+            )
+
+            token = self.get_token(token_endpoint, code)
+            keys = self.get_jwt_keys(jwks_endpoint)
+
+            claims = jwt.decode(
+                token["id_token"],
+                keys,
+                options={"verify_aud": False, "verify_at_hash": False},
+            )
+
+            userinfo = self.get_userinfo(token, userinfo_endpoint, code)
+
+            if userinfo["preferred_username"]:
+                return {"ras": userinfo["preferred_username"]}
+            elif userinfo["UserID"]:
+                return {"ras": userinfo["UserID"]}
+            elif claims["sub"]:
                 return {"ras": claims["sub"]}
             else:
                 return {"error": "Can't get user's ras"}
