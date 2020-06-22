@@ -516,6 +516,14 @@ paths:
             the configured maximum will be used.
           schema:
             type: integer
+        - name: file_name
+          required: false
+          in: query
+          description: >-
+            the requested file name in the cloud bucket you will upload to.
+            if not provided, will use the GUID/file_id
+          schema:
+            type: string
       responses:
         '200':
           description: successful operation

@@ -326,7 +326,10 @@ class IndexedFile(object):
         self, protocol, action, expires_in, force_signed_url, r_pays_project, file_name
     ):
         if action == "upload":
-            blank_record = BlankIndex(uploader="", guid=self.file_id)
+            # NOTE: self.index_document ensures the GUID exists in indexd and raises
+            #       an error if not (which is expected to be caught upstream in the
+            #       app)
+            blank_record = BlankIndex(uploader="", guid=self.index_document)
             return blank_record.make_signed_url(
                 file_name=file_name, expires_in=expires_in
             )
@@ -401,7 +404,6 @@ class IndexedFile(object):
         # have just the `uploader` field and no ACLs. in this just check that the
         # current user's username matches the uploader field
         if self.index_document.get("uploader"):
-            logger.info("Checking access using `uploader` value")
             username = None
             if flask.g.token:
                 username = flask.g.token["context"]["user"]["name"]

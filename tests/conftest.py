@@ -37,6 +37,7 @@ from fence import app_init
 from fence import models
 from fence.jwt.keys import Keypair
 from fence.config import config
+from fence.errors import NotFound
 
 import tests
 from tests import test_settings
@@ -469,6 +470,18 @@ def indexd_client(app, request):
             "created_date": "",
             "updated_date": "",
         }
+    elif request.param == "nonexistent_guid":
+        # throw an error when requested to simulate the GUID not existing
+        # TODO (rudyardrichter, 2018-11-03): consolidate things needing to do this patch
+        mock = MagicMock(side_effect=NotFound("no guid"))
+        indexd_patcher = patch(
+            "fence.blueprints.data.indexd.IndexedFile.index_document", mock
+        )
+        mocker.add_mock(indexd_patcher)
+
+        output = {"mocker": mocker, "indexed_file_location": None}
+
+        return output
     else:
         record = {
             "did": "",
