@@ -99,6 +99,8 @@ class BlankIndex(object):
 
         if uploader is None:
             self.uploader = current_token["context"]["user"]["name"]
+        else:
+            self.uploader = uploader
 
         self.file_name = file_name
         self.authz = authz
