@@ -89,19 +89,18 @@ def upload_data_file():
                 authz_err_msg.format("create' and 'write-storage", authz)
                 + " Falling back to 'file_upload' on '/data_file'."
             )
-
-    if not authorized:
-        # either no 'authz' was provided, or user doesn't have
-        # the right CRUD access. Fall back on 'file_upload' logic
+    else:
+        # no 'authz' was provided, so fall back on 'file_upload' logic
         authorized = flask.current_app.arborist.auth_request(
             jwt=get_jwt(),
             service="fence",
             methods=["file_upload"],
             resources=["/data_file"],
         )
+        if not authorized:
+            logger.error(authz_err_msg.format("file_upload", "/data_file"))
 
     if not authorized:
-        logger.error(authz_err_msg.format("file_upload", "/data_file"))
         raise Forbidden(
             "You do not have access to upload data. You either need "
             "general file uploader permissions or create & write-storage permissions "
