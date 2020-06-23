@@ -97,10 +97,12 @@ class BlankIndex(object):
             or flask.current_app.config["BASE_URL"] + "/index"
         )
 
-        if uploader is None:
-            self.uploader = current_token["context"]["user"]["name"]
+        # allow passing "" empty string to signify you do NOT want
+        # uploader to be populated
+        if uploader == "":
+            self.uploader = None
         else:
-            self.uploader = uploader
+            self.uploader = current_token["context"]["user"]["name"]
 
         self.file_name = file_name
         self.authz = authz
@@ -129,7 +131,9 @@ class BlankIndex(object):
 
             auth = None
             headers = {"Authorization": f"bearer {token}"}
+            logger.info("passing users authorization header to create blank record")
         else:
+            logger.info("using indexd basic auth to create blank record")
             auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
             headers = {}
 
