@@ -62,14 +62,23 @@ class RASOauth2Client(Oauth2ClientBase):
 
             userinfo = self.get_userinfo(token, userinfo_endpoint, code)
 
-            if "preferred_username" in userinfo and userinfo["preferred_username"]:
-                return {"ras": userinfo["preferred_username"]}
-            elif "UserID" in userinfo and userinfo["UserID"]:
-                return {"ras": userinfo["UserID"]}
-            elif claims["sub"]:
-                return {"ras": claims["sub"]}
-            else:
-                return {"error": "Can't get user's ras"}
+            err_msg = "Can't get user's info"
+
+            username = None
+            if userinfo.get("preferred_username"):
+                username = userinfo["preferred_username"]
+            elif userinfo.get("UserID"):
+                username = userinfo["UserID"]
+            elif claims.get("sub"):
+                username = claims["sub"]
+            if not username:
+                logger.error(
+                    "{}, received claims: {} and userinfo: {}".format(
+                        err_msg, claims, userinfo
+                    )
+                )
+                return {"error": err_msg}
+            return {"username": username}
         except Exception as e:
-            self.logger.exception("Can't get user info")
-            return {"error": "Can't get your ras: {}".format(e)}
+            self.logger.exception("{}: {}".format(err_msg, e))
+            return {"error": err_msg}

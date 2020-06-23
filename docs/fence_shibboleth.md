@@ -88,9 +88,6 @@ LOGIN_OPTIONS:
     idp: fence
     fence_idp: shibboleth
     shib_idps: '*'
-  - name: 'RAS login'
-    idp: fence
-    fence_idp: ras
 ```
 
 Several login options can use the same provider (`idp`). Each option that uses the `fence` provider and the `shibboleth` Fence provider (`fence_idp`) can specify one or more InCommon IDPs `shib_idps` in a list, _or_ the wildcard string `'*'` to enable all available InCommon IDPs (be careful not to omit the quotes when using the wildcard). If no `shib_idps` are specified, Fence will default to NIH login.

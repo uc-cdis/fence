@@ -179,9 +179,7 @@ LOGIN_OPTIONS:
   - name: 'NIH Login'
     idp: shibboleth
   - name: 'RAS Login'
-    idp: fence
-    fence_idp: ras
-
+    idp: ras
 # //////////////////////////////////////////////////////////////////////////////////////
 # LIBRARY CONFIGURATION (authlib & flask)
 #   - Already contains reasonable defaults

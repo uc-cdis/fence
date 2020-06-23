@@ -17,5 +17,5 @@ class RASCallback(DefaultOAuth2Callback):
         super(RASCallback, self).__init__(
             idp_name=IdentityProvider.ras,
             client=flask.current_app.ras_client,
-            username_field="ras",
+            username_field="username",
         )

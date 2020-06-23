@@ -145,11 +145,6 @@ OPENID_CONNECT:
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
     mock_default_user: '0000-0002-2601-8132'
-  # Create a client in Azure here:
-  #   https://portal.azure.com/#blade/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/RegisteredAppsPreview
-  # Currently supports organizational account only, so when registering a new App in
-  # Azure, make sure to select the `Accounts in any organizational directory` for
-  # supported account types.
   ras:
     client_id: ''
     client_secret: ''
