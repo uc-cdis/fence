@@ -443,7 +443,7 @@ paths:
       summary: >-
         Create a new blank record in indexd to use for uploading a data file
         less than 5GB. For files larger than 5GB, please use multipart upload presigned url
-      description: >-
+      description: |
         This is the first step on the API side for the data upload flow.  This
         endpoint causes fence to make a request to indexd to create a new, blank
         index record, and returns the GUID for this new record and a presigned
@@ -451,6 +451,20 @@ paths:
         storage bucket. No parameters are accepted because fence retrieves the
         username from the current token to send to indexd for the `uploader`
         field in the new record.
+
+        This API also supports utilizing the newer authorization within the indexing
+        service by providing an "authz" field.
+
+        If an "authz" field is provided, the authorization checks are slightly different:
+        your user must have *both* "create" and "write-storage" permission on the resources
+        you are including in the "authz" list.
+
+        In addition to a different authorization check, when "authz" is provided the
+        "uploader" field in indexd with *not* be populated.
+
+        Previous authorization check requires a more general, global upload permission:
+        "file_upload" on "/data_file" resource. When "authz" is *not* provided, this
+        endpoint will check for that permission for your user.
       security:
         - OAuth2:
           - user
@@ -461,8 +475,6 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/RequestUploadBlank'
-
-
       responses:
         201:
           description: successful operation; created new record in indexd
