@@ -69,7 +69,14 @@ def upload_data_file():
     if "file_name" not in params:
         raise UserError("missing required argument `file_name`")
 
-    blank_index = BlankIndex(file_name=params["file_name"], authz=params.get("authz"))
+    # if requesting an authz field, using new authorization method which doesn't
+    # rely on uploader field, so clear it out
+    if params.get("authz"):
+        uploader = ""
+
+    blank_index = BlankIndex(
+        file_name=params["file_name"], authz=params.get("authz"), uploader=uploader
+    )
     expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
 
     if "expires_in" in params:
