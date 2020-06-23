@@ -88,7 +88,9 @@ class BlankIndex(object):
         https://github.com/uc-cdis/cdis-wiki/tree/master/dev/gen3/data_upload
     """
 
-    def __init__(self, uploader=None, file_name=None, logger_=None, guid=None):
+    def __init__(
+        self, uploader=None, file_name=None, logger_=None, guid=None, authz=None
+    ):
         self.logger = logger_ or logger
         self.indexd = (
             flask.current_app.config.get("INDEXD")
@@ -99,6 +101,8 @@ class BlankIndex(object):
             self.uploader = current_token["context"]["user"]["name"]
 
         self.file_name = file_name
+        self.authz = authz
+
         # if a guid is not provided, this will create a blank record for you
         self.guid = guid or self.index_document["did"]
 
@@ -114,8 +118,22 @@ class BlankIndex(object):
         """
         index_url = self.indexd.rstrip("/") + "/index/blank/"
         params = {"uploader": self.uploader, "file_name": self.file_name}
-        auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
-        indexd_response = requests.post(index_url, json=params, auth=auth)
+
+        # if attempting to set record's authz field, need to pass token
+        # through
+        if self.authz:
+            params["authz"] = self.authz
+            token = get_jwt()
+
+            auth = None
+            headers = {"Authorization": f"bearer {token}"}
+        else:
+            auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
+            headers = {}
+
+        indexd_response = requests.post(
+            index_url, json=params, headers=headers, auth=auth
+        )
         if indexd_response.status_code not in [200, 201]:
             try:
                 data = indexd_response.json()

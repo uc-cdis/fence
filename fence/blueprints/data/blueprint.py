@@ -65,17 +65,22 @@ def upload_data_file():
     params = flask.request.get_json()
     if not params:
         raise UserError("wrong Content-Type; expected application/json")
+
     if "file_name" not in params:
         raise UserError("missing required argument `file_name`")
-    blank_index = BlankIndex(file_name=params["file_name"])
+
+    blank_index = BlankIndex(file_name=params["file_name"], authz=params.get("authz"))
     expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
+
     if "expires_in" in params:
         is_valid_expiration(params["expires_in"])
         expires_in = min(params["expires_in"], expires_in)
+
     response = {
         "guid": blank_index.guid,
         "url": blank_index.make_signed_url(params["file_name"], expires_in=expires_in),
     }
+
     return flask.jsonify(response), 201
 
 

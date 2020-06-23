@@ -1518,6 +1518,12 @@ components:
         expires_in:
           type: integer
           description: optional integer specifying the presigned URL lifetime
+        authz:
+          type: array
+          items:
+            type: string
+          description: requested authorization resources to be set on the
+            resulting indexed record. You must have proper authorization to set this
       example:
         file_name: "my_file.bam"
         expires_in: 1200
