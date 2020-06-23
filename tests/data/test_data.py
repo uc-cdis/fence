@@ -635,11 +635,7 @@ def test_blank_index_upload_authz(
         data_requests.post.assert_called_once_with(
             endpoint,
             auth=None,
-            json={
-                "file_name": file_name,
-                "uploader": user_client.username,
-                "authz": authz,
-            },
+            json={"file_name": file_name, "uploader": None, "authz": authz},
             headers={"Authorization": "bearer " + encoded_creds_jwt.jwt},
         )
         assert response.status_code == 201, response

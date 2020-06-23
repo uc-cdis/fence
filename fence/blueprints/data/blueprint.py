@@ -2,13 +2,13 @@ import flask
 
 from cdislogging import get_logger
 
-from fence.auth import login_required, require_auth_header, current_token
+from fence.auth import login_required, require_auth_header, current_token, get_jwt
 from fence.blueprints.data.indexd import (
     BlankIndex,
     IndexedFile,
     get_signed_url_for_file,
 )
-from fence.errors import Forbidden, InternalError, UserError
+from fence.errors import Forbidden, InternalError, UserError, Forbidden
 from fence.utils import is_valid_expiration
 from fence.authz.auth import check_arborist_auth
 
@@ -51,7 +51,6 @@ def delete_data_file(file_id):
 @blueprint.route("/upload", methods=["POST"])
 @require_auth_header(aud={"data"})
 @login_required({"data"})
-@check_arborist_auth(resource="/data_file", method="file_upload")
 def upload_data_file():
     """
     Return a presigned URL for use with uploading a data file.
@@ -69,10 +68,45 @@ def upload_data_file():
     if "file_name" not in params:
         raise UserError("missing required argument `file_name`")
 
-    # if requesting an authz field, using new authorization method which doesn't
-    # rely on uploader field, so clear it out
-    if params.get("authz"):
+    authorized = False
+    authz_err_msg = "Auth error when attempting to update a blank record. User must have '{}' access on '{}'."
+
+    authz = params.get("authz")
+    uploader = None
+
+    if authz:
+        # if requesting an authz field, using new authorization method which doesn't
+        # rely on uploader field, so clear it out
         uploader = ""
+        authorized = flask.current_app.arborist.auth_request(
+            jwt=get_jwt(),
+            service="fence",
+            methods=["create", "write-storage"],
+            resources=authz,
+        )
+        if not authorized:
+            logger.error(
+                authz_err_msg.format("create' and 'write-storage", authz)
+                + " Falling back to 'file_upload' on '/data_file'."
+            )
+
+    if not authorized:
+        # either no 'authz' was provided, or user doesn't have
+        # the right CRUD access. Fall back on 'file_upload' logic
+        authorized = flask.current_app.arborist.auth_request(
+            jwt=get_jwt(),
+            service="fence",
+            methods=["file_upload"],
+            resources=["/data_file"],
+        )
+
+    if not authorized:
+        logger.error(authz_err_msg.format("file_upload", "/data_file"))
+        raise Forbidden(
+            "You do not have access to upload data. You either need "
+            "general file uploader permissions or create & write-storage permissions "
+            "on the authz resources you specified (if you specified any)."
+        )
 
     blank_index = BlankIndex(
         file_name=params["file_name"], authz=params.get("authz"), uploader=uploader
