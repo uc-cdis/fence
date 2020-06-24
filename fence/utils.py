@@ -9,6 +9,7 @@ import requests
 from urllib.parse import urlencode
 from urllib.parse import parse_qs, urlsplit, urlunsplit
 
+from cdislogging import get_logger
 import flask
 from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.datastructures import ImmutableMultiDict
@@ -20,6 +21,7 @@ from fence.config import config
 
 rng = SystemRandom()
 alphanumeric = string.ascii_uppercase + string.ascii_lowercase + string.digits
+logger = get_logger(__name__)
 
 
 def random_str(length):
@@ -42,6 +44,7 @@ def create_client(
     confidential=True,
     arborist=None,
     policies=None,
+    allowed_scopes=None,
 ):
     client_id = random_str(40)
     if arborist is not None:
@@ -56,6 +59,16 @@ def create_client(
             client_secret.encode("utf-8"), bcrypt.gensalt()
         ).decode("utf-8")
     auth_method = "client_secret_basic" if confidential else "none"
+    allowed_scopes = allowed_scopes or config["CLIENT_ALLOWED_SCOPES"]
+    if not set(allowed_scopes).issubset(set(config["CLIENT_ALLOWED_SCOPES"])):
+        raise ValueError(
+            "Each allowed scope must be one of: {}".format(
+                config["CLIENT_ALLOWED_SCOPES"]
+            )
+        )
+    if "openid" not in allowed_scopes:
+        allowed_scopes.append("openid")
+        logger.warning('Adding required "openid" scope to list of allowed scopes.')
     with driver.session as s:
         user = query_for_user(session=s, username=username)
 
@@ -71,7 +84,7 @@ def create_client(
             client_secret=hashed_secret,
             user=user,
             redirect_uris=urls,
-            _allowed_scopes=" ".join(config["CLIENT_ALLOWED_SCOPES"]),
+            _allowed_scopes=" ".join(allowed_scopes),
             description=description,
             name=name,
             auto_approve=auto_approve,

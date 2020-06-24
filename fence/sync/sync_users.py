@@ -11,6 +11,7 @@ from stat import S_ISDIR
 
 import paramiko
 from cdislogging import get_logger
+from email_validator import validate_email, EmailNotValidError
 from gen3authz.client.arborist.client import ArboristError
 from gen3users.validation import validate_user_yaml
 from paramiko.proxy import ProxyCommand
@@ -214,12 +215,20 @@ class UserYAML(object):
                 resource_permissions[resource] = set(project["privilege"])
 
             user_info[username] = {
-                "email": details.get("email", username),
+                "email": details.get("email", ""),
                 "display_name": details.get("display_name", ""),
                 "phone_number": details.get("phone_number", ""),
                 "tags": details.get("tags", {}),
                 "admin": details.get("admin", False),
             }
+            if not details.get("email"):
+                try:
+                    valid = validate_email(
+                        username, allow_smtputf8=False, check_deliverability=False
+                    )
+                    user_info[username]["email"] = valid.email
+                except EmailNotValidError:
+                    pass
             projects[username] = privileges
             user_abac[username] = resource_permissions
 
