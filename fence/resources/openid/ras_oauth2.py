@@ -65,21 +65,23 @@ class RASOauth2Client(Oauth2ClientBase):
 
             userinfo = self.get_userinfo(token, userinfo_endpoint, code)
 
-            username = None
-            if userinfo.get("preferred_username"):
-                username = userinfo["preferred_username"]
-            elif userinfo.get("UserID"):
-                username = userinfo["UserID"]
-            elif claims.get("sub"):
-                username = claims["sub"]
-            if not username:
-                logger.error(
-                    "{}, received claims: {} and userinfo: {}".format(
-                        err_msg, claims, userinfo
-                    )
-                )
-                return {"error": err_msg}
-            return {"username": username}
         except Exception as e:
             self.logger.exception("{}: {}".format(err_msg, e))
             return {"error": err_msg}
+
+        username = None
+        if userinfo.get("preferred_username"):
+            username = userinfo["preferred_username"]
+        elif userinfo.get("UserID"):
+            username = userinfo["UserID"]
+        elif claims.get("sub"):
+            username = claims["sub"]
+        if not username:
+            logger.error(
+                "{}, received claims: {} and userinfo: {}".format(
+                    err_msg, claims, userinfo
+                )
+            )
+            return {"error": err_msg}
+        return {"username": username}
+
