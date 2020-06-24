@@ -44,6 +44,9 @@ class RASOauth2Client(Oauth2ClientBase):
         return res.json()
 
     def get_user_id(self, code):
+
+        err_msg = "Can't get user's info"
+
         try:
             token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
             jwks_endpoint = self.get_value_from_discovery_doc("jwks_uri", "")
@@ -61,8 +64,6 @@ class RASOauth2Client(Oauth2ClientBase):
             )
 
             userinfo = self.get_userinfo(token, userinfo_endpoint, code)
-
-            err_msg = "Can't get user's info"
 
             username = None
             if userinfo.get("preferred_username"):
