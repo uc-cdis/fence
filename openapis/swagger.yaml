@@ -1539,6 +1539,7 @@ components:
       example:
         file_name: "my_file.bam"
         expires_in: 1200
+        authz: ["/programs/A"]
     RequestMultipartUpload:
       type: object
       required:
