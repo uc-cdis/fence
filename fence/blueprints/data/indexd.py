@@ -353,7 +353,7 @@ class IndexedFile(object):
             # NOTE: self.index_document ensures the GUID exists in indexd and raises
             #       an error if not (which is expected to be caught upstream in the
             #       app)
-            blank_record = BlankIndex(uploader="", guid=self.index_document)
+            blank_record = BlankIndex(uploader="", guid=self.index_document.get("did"))
             return blank_record.make_signed_url(
                 file_name=file_name, expires_in=expires_in
             )
