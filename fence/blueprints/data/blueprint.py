@@ -69,7 +69,7 @@ def upload_data_file():
         raise UserError("missing required argument `file_name`")
 
     authorized = False
-    authz_err_msg = "Auth error when attempting to update a blank record. User must have '{}' access on '{}'."
+    authz_err_msg = "Auth error when attempting to get a presigned URL for upload. User must have '{}' access on '{}'."
 
     authz = params.get("authz")
     uploader = None
