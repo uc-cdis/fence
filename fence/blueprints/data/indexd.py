@@ -98,9 +98,12 @@ class BlankIndex(object):
         )
 
         # allow passing "" empty string to signify you do NOT want
-        # uploader to be populated
+        # uploader to be populated. If nothing is provided, default
+        # to parsing from token
         if uploader == "":
             self.uploader = None
+        elif uploader:
+            self.uploader = uploader
         else:
             self.uploader = current_token["context"]["user"]["name"]
 
