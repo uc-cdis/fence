@@ -17,7 +17,7 @@ class RASOauth2Client(Oauth2ClientBase):
         super(RASOauth2Client, self).__init__(
             settings,
             logger,
-            scope="openid",
+            scope="openid ga4gh_passport_v1 email profile ras_dbgap_v1",
             discovery_url=self.RAS_DISCOVERY_URL,
             idp="ras",
             HTTP_PROXY=HTTP_PROXY,
@@ -84,4 +84,3 @@ class RASOauth2Client(Oauth2ClientBase):
             )
             return {"error": err_msg}
         return {"username": username}
-
