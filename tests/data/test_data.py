@@ -145,7 +145,7 @@ def test_indexd_upload_file_doesnt_exist(
     google_signed_url,
 ):
     """
-    Test ``GET /data/download/1`` when foobar doesn't exist.
+    Test ``GET /data/upload/1`` when 1 doesn't exist.
     """
     file_name = "some_test_file.txt"
     path = "/data/upload/1?file_name=" + file_name
