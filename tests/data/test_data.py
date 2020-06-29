@@ -201,7 +201,10 @@ def test_indexd_download_file_no_protocol(
     assert "url" in list(response.json.keys())
 
 
-def test_indexd_download_file_no_jwt(client, auth_client):
+@pytest.mark.parametrize(
+    "indexd_client", ["gs", "s3", "gs_acl", "s3_acl"], indirect=True
+)
+def test_indexd_download_file_no_jwt(client, indexd_client, auth_client):
     """
     Test ``GET /data/download/1``.
     """

@@ -413,6 +413,7 @@ def unauthorized_oauth_user(app, db_session):
 def indexd_client(app, request):
     mocker = Mocker()
     mocker.mock_functions()
+    record = {}
 
     if request.param == "gs":
         record = {
@@ -477,11 +478,19 @@ def indexd_client(app, request):
         indexd_patcher = patch(
             "fence.blueprints.data.indexd.IndexedFile.index_document", mock
         )
+        blank_patcher = patch(
+            "fence.blueprints.data.indexd.BlankIndex.index_document", mock
+        )
         mocker.add_mock(indexd_patcher)
+        mocker.add_mock(blank_patcher)
 
         output = {"mocker": mocker, "indexed_file_location": None}
 
-        return output
+        yield output
+
+        mocker.unmock_functions()
+
+        return
     else:
         record = {
             "did": "",
@@ -501,7 +510,11 @@ def indexd_client(app, request):
     indexd_patcher = patch(
         "fence.blueprints.data.indexd.IndexedFile.index_document", record
     )
+    blank_patcher = patch(
+        "fence.blueprints.data.indexd.BlankIndex.index_document", record
+    )
     mocker.add_mock(indexd_patcher)
+    mocker.add_mock(blank_patcher)
 
     output = {
         "mocker": mocker,
@@ -509,7 +522,9 @@ def indexd_client(app, request):
         "indexed_file_location": request.param.split("_")[0],
     }
 
-    return output
+    yield output
+
+    mocker.unmock_functions()
 
 
 @pytest.fixture(scope="function")
@@ -617,6 +632,7 @@ def indexd_client_with_arborist(app, request):
 def unauthorized_indexd_client(app, request):
     mocker = Mocker()
     mocker.mock_functions()
+    record = {}
 
     if request.param == "gs":
         record = {
