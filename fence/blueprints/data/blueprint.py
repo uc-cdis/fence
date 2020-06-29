@@ -87,7 +87,6 @@ def upload_data_file():
         if not authorized:
             logger.error(
                 authz_err_msg.format("create' and 'write-storage", authz)
-                + " Falling back to 'file_upload' on '/data_file'."
             )
     else:
         # no 'authz' was provided, so fall back on 'file_upload' logic
