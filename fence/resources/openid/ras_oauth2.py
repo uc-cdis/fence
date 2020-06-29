@@ -37,7 +37,7 @@ class RASOauth2Client(Oauth2ClientBase):
 
         return uri
 
-    def get_userinfo(self, token, userinfo_endpoint, code):
+    def get_userinfo(self, token, userinfo_endpoint):
         access_token = token["access_token"]
         header = {"Authorization": "Bearer " + access_token}
         res = requests.get(userinfo_endpoint, headers=header)
@@ -63,7 +63,7 @@ class RASOauth2Client(Oauth2ClientBase):
                 options={"verify_aud": False, "verify_at_hash": False},
             )
 
-            userinfo = self.get_userinfo(token, userinfo_endpoint, code)
+            userinfo = self.get_userinfo(token, userinfo_endpoint)
 
         except Exception as e:
             self.logger.exception("{}: {}".format(err_msg, e))

@@ -338,7 +338,7 @@ def _setup_oidc_clients(app):
     # Add OIDC client for RAS if configured.
     if "ras" in oidc:
         app.ras_client = RASClient(
-            config["OPENID_CONNECT"]["ras"],
+            oidc["ras"],
             HTTP_PROXY=config.get("HTTP_PROXY"),
             logger=logger,
         )
