@@ -387,7 +387,7 @@ class IndexedFile(object):
     def check_authorization(self, action):
         # if we have a data file upload without corresponding metadata, the record can
         # have just the `uploader` field and no ACLs. in this just check that the
-        # current user's username matches the uploader field 
+        # current user's username matches the uploader field
         if self.index_document.get("uploader"):
             logger.info("Checking access using `uploader` value")
             username = None
@@ -440,15 +440,24 @@ class IndexedFile(object):
 
             if isinstance(location, GoogleStorageIndexedFileLocation):
                 file_name = location.file_name()
-                logger.info('Attempting to delete file named {} from bucket {}'.format(file_name, bucket))
-                print('fence 448 :' , config["CIRRUS_CFG"]["GOOGLE_STORAGE_CREDS"])
-                with GoogleCloudManager(creds=config["CIRRUS_CFG"]["GOOGLE_STORAGE_CREDS"]) as gcm:
+                logger.info(
+                    "Attempting to delete file named {} from bucket {}".format(
+                        file_name, bucket
+                    )
+                )
+                print("fence 448 :", config["CIRRUS_CFG"]["GOOGLE_STORAGE_CREDS"])
+                with GoogleCloudManager(
+                    creds=config["CIRRUS_CFG"]["GOOGLE_STORAGE_CREDS"]
+                ) as gcm:
                     gcm.delete_data_file(bucket, file_name)
 
             else:
-                logger.info('Attempting to delete file_id {} from bucket {}'.format(self.file_id, bucket))
+                logger.info(
+                    "Attempting to delete file_id {} from bucket {}".format(
+                        self.file_id, bucket
+                    )
+                )
                 flask.current_app.boto.delete_data_file(bucket, self.file_id)
-            
 
     @login_required({"data"})
     def delete(self):
@@ -762,7 +771,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     """
 
     def get_resource_path(self):
-        return self.parsed_url.netloc.strip("/") + "/" + self.parsed_url.path.strip("/") 
+        return self.parsed_url.netloc.strip("/") + "/" + self.parsed_url.path.strip("/")
 
     def get_signed_url(
         self,
@@ -812,27 +821,27 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             requester_pays_user_project=r_pays_project,
         )
         return final_url
-    
+
     def bucket_name(self):
         resource_path = self.get_resource_path()
 
         bucket_name = None
         try:
-            bucket_name = resource_path.split('/')[0]
+            bucket_name = resource_path.split("/")[0]
         except Exception as exc:
-            logger.error('Unable to get bucket name from resource path. {}'.format(exc))
-        
+            logger.error("Unable to get bucket name from resource path. {}".format(exc))
+
         return bucket_name
-    
+
     def file_name(self):
         resource_path = self.get_resource_path()
 
         file_name = None
         try:
-            file_name = resource_path.split('/')[1]
+            file_name = resource_path.split("/")[1]
         except Exception as exc:
-            logger.error('Unable to get file name from resource path. {}'.format(exc))
-        
+            logger.error("Unable to get file name from resource path. {}".format(exc))
+
         return file_name
 
     def _generate_google_storage_signed_url(

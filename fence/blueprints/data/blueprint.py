@@ -53,7 +53,7 @@ def delete_data_file(file_id):
         if has_correct_authz:
             logger.info("deleting record and files for {}".format(file_id))
             try:
-                logger.info('Inside try-block')
+                logger.info("Inside try-block")
                 record.delete_files(delete_all=True)
             except Exception as exc:
                 logger.error(exc, exc_info=True)
@@ -94,7 +94,9 @@ def delete_data_file(file_id):
     # If authz is empty: use uploader == user to see if user can delete.
     uploader = record.index_document.get("uploader")
     if not uploader:
-        raise Forbidden("You cannot delete this file because the uploader field indicates it does not belong to you.")
+        raise Forbidden(
+            "You cannot delete this file because the uploader field indicates it does not belong to you."
+        )
     if current_token["context"]["user"]["name"] != uploader:
         raise Forbidden("user is not uploader for file {}".format(file_id))
     logger.info("deleting record and files for {}".format(file_id))
@@ -115,17 +117,17 @@ def delete_data_file(file_id):
     try:
         return record.delete()
     except Exception as exc:
-            logger.error(exc, exc_info=True)
-            return (
-                flask.jsonify(
-                    {
-                        "message": "Unable to delete this record's data files. Backing off. Exception: {}".format(
-                            exc
-                        )
-                    }
-                ),
-                500,
-            )
+        logger.error(exc, exc_info=True)
+        return (
+            flask.jsonify(
+                {
+                    "message": "Unable to delete this record's data files. Backing off. Exception: {}".format(
+                        exc
+                    )
+                }
+            ),
+            500,
+        )
 
 
 @blueprint.route("/upload", methods=["POST"])
