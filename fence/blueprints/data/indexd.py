@@ -389,6 +389,7 @@ class IndexedFile(object):
         # have just the `uploader` field and no ACLs. in this just check that the
         # current user's username matches the uploader field 
         if self.index_document.get("uploader"):
+            logger.info("Checking access using `uploader` value")
             username = None
             if flask.g.token:
                 username = flask.g.token["context"]["user"]["name"]
