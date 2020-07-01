@@ -1,4 +1,5 @@
 # need new RAS
+import flask
 from .idp_oauth2 import Oauth2ClientBase
 from jose import jwt
 import requests
@@ -64,6 +65,9 @@ class RASOauth2Client(Oauth2ClientBase):
             )
 
             userinfo = self.get_userinfo(token, userinfo_endpoint)
+
+            # Save userinfo in flask.g.user for later use in post_login
+            flask.g.userinfo = userinfo
 
         except Exception as e:
             self.logger.exception("{}: {}".format(err_msg, e))
