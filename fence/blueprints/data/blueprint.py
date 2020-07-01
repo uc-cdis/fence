@@ -46,51 +46,50 @@ def delete_data_file(file_id):
             jwt=get_jwt(), service="fence", methods="delete", resources=authz
         )
 
-    # If authz is not empty, use *only* arborist to check if user can delete
-    # Don't fall back on uploader -- this prevents users from escalating from edit to
-    # delete permissions by changing the uploader field to their own username
-    # (b/c users only have edit access through arborist/authz)
-    if authz and has_correct_authz:
-        logger.info("deleting record and files for {}".format(file_id))
-        try:
-            logger.info('Inside try-block')
-            record.delete_files(delete_all=True)
-        except Exception as exc:
-            logger.error(exc, exc_info=True)
+        # If authz is not empty, use *only* arborist to check if user can delete
+        # Don't fall back on uploader -- this prevents users from escalating from edit to
+        # delete permissions by changing the uploader field to their own username
+        # (b/c users only have edit access through arborist/authz)
+        if has_correct_authz:
+            logger.info("deleting record and files for {}".format(file_id))
+            try:
+                logger.info('Inside try-block')
+                record.delete_files(delete_all=True)
+            except Exception as exc:
+                logger.error(exc, exc_info=True)
+                return (
+                    flask.jsonify(
+                        {
+                            "message": "Unable to delete this record's data files. Backing off. Exception: {}".format(
+                                exc
+                            )
+                        }
+                    ),
+                    500,
+                )
+            try:
+                return record.delete()
+            except Exception as exc:
+                logger.error(exc, exc_info=True)
+                return (
+                    flask.jsonify(
+                        {
+                            "message": "Unable to delete this record's data files. Backing off. Exception: {}".format(
+                                exc
+                            )
+                        }
+                    ),
+                    500,
+                )
+        else:
             return (
                 flask.jsonify(
                     {
-                        "message": "Unable to delete this record's data files. Backing off. Exception: {}".format(
-                            exc
-                        )
+                        "message": "user does not have arborist permissions to delete this file"
                     }
                 ),
-                500,
+                403,
             )
-        try:
-            return record.delete()
-        except Exception as exc:
-            logger.error(exc, exc_info=True)
-            return (
-                flask.jsonify(
-                    {
-                        "message": "Unable to delete this record's data files. Backing off. Exception: {}".format(
-                            exc
-                        )
-                    }
-                ),
-                500,
-            )
-
-    if authz and not has_correct_authz:
-        return (
-            flask.jsonify(
-                {
-                    "message": "user does not have arborist permissions to delete this file"
-                }
-            ),
-            403,
-        )
 
     # If authz is empty: use uploader == user to see if user can delete.
     uploader = record.index_document.get("uploader")
