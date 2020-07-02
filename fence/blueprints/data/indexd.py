@@ -420,7 +420,7 @@ class IndexedFile(object):
         Delete the data files stored at all the locations for this indexed file.
 
         If a list of URLs is specified, delete only files at those locations;
-        otherwise, delete files at all locations. 
+        otherwise, delete files at all locations.
 
         Args:
             urls (Optional[List[str]])
@@ -445,7 +445,6 @@ class IndexedFile(object):
                         file_name, bucket
                     )
                 )
-                print("fence 448 :", config["CIRRUS_CFG"]["GOOGLE_STORAGE_CREDS"])
                 with GoogleCloudManager(
                     creds=config["CIRRUS_CFG"]["GOOGLE_STORAGE_CREDS"]
                 ) as gcm:
