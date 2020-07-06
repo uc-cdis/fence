@@ -12,7 +12,6 @@ setup(
         "boto3>=1.5,<1.6",
         "cached_property>=1.5.1,<2.0.0",
         "cryptography==2.8",
-        "email_validator~=1.1.1",
         "flask-restful>=0.3.6,<1.0.0",
         "Flask>=1.1.1,<2.0.0",
         "Flask-CORS>=3.0.3,<4.0.0",

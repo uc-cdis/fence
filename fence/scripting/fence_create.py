@@ -178,7 +178,7 @@ def _remove_client_service_accounts(db_session, client):
                     )
 
 
-def init_syncer(
+def sync_users(
     dbGaP,
     STORAGE_CREDENTIALS,
     DB,
@@ -187,7 +187,6 @@ def init_syncer(
     sync_from_local_csv_dir=None,
     sync_from_local_yaml_file=None,
     arborist=None,
-    folder=None,
 ):
     """
     sync ACL files from dbGap to auth db and storage backends
@@ -236,7 +235,7 @@ def init_syncer(
         except IOError:
             pass
 
-    return UserSyncer(
+    syncer = UserSyncer(
         dbGaP,
         DB,
         project_mapping=project_mapping,
@@ -245,62 +244,7 @@ def init_syncer(
         sync_from_local_csv_dir=sync_from_local_csv_dir,
         sync_from_local_yaml_file=sync_from_local_yaml_file,
         arborist=arborist,
-        folder=folder,
     )
-
-
-def download_dbgap_files(
-    # Note: need to keep all parameter to prevent download failure
-    dbGaP,
-    STORAGE_CREDENTIALS,
-    DB,
-    projects=None,
-    is_sync_from_dbgap_server=False,
-    sync_from_local_csv_dir=None,
-    sync_from_local_yaml_file=None,
-    arborist=None,
-    folder=None,
-):
-    syncer = init_syncer(
-        dbGaP,
-        STORAGE_CREDENTIALS,
-        DB,
-        projects,
-        is_sync_from_dbgap_server,
-        sync_from_local_csv_dir,
-        sync_from_local_yaml_file,
-        arborist,
-        folder,
-    )
-    if not syncer:
-        exit(1)
-    syncer.download()
-
-
-def sync_users(
-    dbGaP,
-    STORAGE_CREDENTIALS,
-    DB,
-    projects=None,
-    is_sync_from_dbgap_server=False,
-    sync_from_local_csv_dir=None,
-    sync_from_local_yaml_file=None,
-    arborist=None,
-    folder=None,
-):
-    syncer = init_syncer(
-        dbGaP,
-        STORAGE_CREDENTIALS,
-        DB,
-        projects,
-        is_sync_from_dbgap_server,
-        sync_from_local_csv_dir,
-        sync_from_local_yaml_file,
-        arborist,
-        folder,
-    )
-    if not syncer:
-        exit(1)
     syncer.sync()
 
 
@@ -675,10 +619,13 @@ def verify_bucket_access_group(DB):
     """
     Go through all the google group members, remove them from Google group and Google
     user service account if they are not in Fence
+
     Args:
         DB(str): db connection string
+
     Returns:
         None
+
     """
     cirrus_config.update(**config["CIRRUS_CFG"])
 
@@ -712,12 +659,15 @@ def verify_bucket_access_group(DB):
 def _verify_google_group_member(session, access_group, member):
     """
     Delete if the member which is a google group is not in Fence.
+
     Args:
         session(Session): db session
         access_group(GoogleBucketAccessGroup): access group
         member(dict): group member info
+
     Returns:
         None
+
     """
     account_emails = [
         granted_group.proxy_group.email
@@ -749,12 +699,15 @@ def _verify_google_group_member(session, access_group, member):
 def _verify_google_service_account_member(session, access_group, member):
     """
     Delete if the member which is a service account is not in Fence.
+
     Args:
         session(session): db session
         access_group(GoogleBucketAccessGroup): access group
         members(dict): service account member info
+
     Returns:
         None
+
     """
 
     account_emails = [
@@ -825,6 +778,7 @@ class JWTCreator(object):
     def create_access_token(self):
         """
         Create a new access token.
+
         Return:
             JWTResult: result containing the encoded token and claims
         """
@@ -848,6 +802,7 @@ class JWTCreator(object):
     def create_refresh_token(self):
         """
         Create a new refresh token and add its entry to the database.
+
         Return:
             JWTResult: the refresh token result
         """
@@ -882,6 +837,7 @@ class JWTCreator(object):
 def link_bucket_to_project(db, bucket_id, bucket_provider, project_auth_id):
     """
     Associate a bucket to a specific project (with provided auth_id).
+
     Args:
         db (TYPE): database
         bucket_id (str): bucket db id or unique name
@@ -992,13 +948,16 @@ def create_or_update_google_bucket(
 ):
     """
     Create a Google bucket and populate database with necessary information.
+
     If the bucket is not public, this will also create a Google Bucket Access
     Group(s) to control access to the new bucket. In order to give access
     to a new user, simply add them to the Google Bucket Access Group.
+
     NOTE: At the moment, a different Google Bucket Access Group is created
           for each different privilege in allowed_privileges (which defaults
           to ['read', 'write']). So there will be separate Google Groups for
           each access level.
+
     Args:
         db (TYPE): database
         name (str): name for the bucket, must be globally unique throughout Google
@@ -1309,6 +1268,7 @@ def force_update_google_link(DB, username, google_email, expires_in=None):
     WARNING: This function circumvents Google Auth flow, and should only be
     used for internal testing!
     WARNING: This function assumes that a user already has a proxy group!
+
     Adds user's google account to proxy group and/or updates expiration for
     that google account's access.
     WARNING: This assumes that provided arguments represent valid information.
@@ -1317,13 +1277,16 @@ def force_update_google_link(DB, username, google_email, expires_in=None):
     Specifically, this ASSUMES that the proxy group provided belongs to the
     given user and that the user has ALREADY authenticated to prove the
     provided google_email is also their's.
+
     Args:
         DB
         username (str): Username to link with
         google_email (str): Google email to link to
+
     Raises:
         NotFound: Linked Google account not found
         Unauthorized: Couldn't determine user
+
     Returns:
         Expiration time of the newly updated google account's access
     """
@@ -1377,6 +1340,7 @@ def notify_problem_users(db, emails, auth_ids, check_linking, google_project_id)
     Builds a list of users (from provided list of emails) who do not
     have access to any subset of provided auth_ids. Send email to users
     informing them to get access to needed projects.
+
     db (string): database instance
     emails (list(string)): list of emails to check for access
     auth_ids (list(string)): list of project auth_ids to check that emails have access
@@ -1396,6 +1360,7 @@ def google_list_authz_groups(db):
     Builds a list of Google authorization information which includes
     the Google Bucket Access Group emails, Bucket(s) they're associated with, and
     underlying Fence Project auth_id that provides access to that Bucket/Group
+
     db (string): database instance
     """
     driver = SQLAlchemyDriver(db)
