@@ -8,7 +8,7 @@ setup(
         "oauth2client<4.0dev,>=2.0.0",
         "addict>=2.1.1, <3.0.0",
         "boto>=2.36.0,<3.0.0",
-        "botocore>=1.7,<1.10.39",
+        "botocore>=1.7,<1.9.0",
         "boto3>=1.5,<1.6",
         "cached_property>=1.5.1,<2.0.0",
         "cryptography==2.8",
