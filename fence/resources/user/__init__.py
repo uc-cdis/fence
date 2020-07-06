@@ -131,13 +131,8 @@ def get_user_info(current_session, username):
 
     # Include ga4gh passport visas
     # TODO: Respect access token claims (only include if ga4gh_passport_v1 scope present)
-    decoded_visas = []
-    for visa_row in user.ga4gh_visas_v1:
-        encoded_visa = visa_row.ga4gh_visa
-        # OK to not verify on this end. Visas were verified on ingest.
-        decoded_visa = jwt.decode(encoded_visa, verify=False)
-        decoded_visas.append(decoded_visa)
-    info["ga4gh_passport_v1"] = decoded_visas
+    encoded_visas = [row.ga4gh_visa for row in user.ga4gh_visas_v1]
+    info["ga4gh_passport_v1"] = encoded_visas
 
     return info
 
