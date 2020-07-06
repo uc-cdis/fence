@@ -1,10 +1,7 @@
-import errno
 import glob
 import os
 import re
-import shutil
 import subprocess as sp
-import tempfile
 import yaml
 import copy
 from contextlib import contextmanager
@@ -14,6 +11,7 @@ from stat import S_ISDIR
 
 import paramiko
 from cdislogging import get_logger
+from email_validator import validate_email, EmailNotValidError
 from gen3authz.client.arborist.client import ArboristError
 from gen3users.validation import validate_user_yaml
 from paramiko.proxy import ProxyCommand
@@ -79,11 +77,9 @@ def _read_file(filepath, encrypted=True, key=None, logger=None):
     """
     Context manager for reading and optionally decrypting file it only
     decrypts files encrypted by unix 'crypt' tool which is used by dbGaP.
-
     Args:
         filepath (str): path to the file
         encrypted (bool): whether the file is encrypted
-
     Returns:
         Generator[file-like class]: file like object for the file
     """
@@ -217,12 +213,20 @@ class UserYAML(object):
                 resource_permissions[resource] = set(project["privilege"])
 
             user_info[username] = {
-                "email": details.get("email", username),
+                "email": details.get("email", ""),
                 "display_name": details.get("display_name", ""),
                 "phone_number": details.get("phone_number", ""),
                 "tags": details.get("tags", {}),
                 "admin": details.get("admin", False),
             }
+            if not details.get("email"):
+                try:
+                    valid = validate_email(
+                        username, allow_smtputf8=False, check_deliverability=False
+                    )
+                    user_info[username]["email"] = valid.email
+                except EmailNotValidError:
+                    pass
             projects[username] = privileges
             user_abac[username] = resource_permissions
 
@@ -279,6 +283,7 @@ class UserSyncer(object):
         sync_from_local_csv_dir=None,
         sync_from_local_yaml_file=None,
         arborist=None,
+        folder=None,
     ):
         """
         Syncs ACL files from dbGap to auth database and storage backends
@@ -292,6 +297,7 @@ class UserSyncer(object):
             arborist:
                 ArboristClient instance if the syncer should also create
                 resources in arborist
+            folder: a local folder where dbgap telemetry files will sync to
         """
         self.sync_from_local_csv_dir = sync_from_local_csv_dir
         self.sync_from_local_yaml_file = sync_from_local_yaml_file
@@ -309,6 +315,7 @@ class UserSyncer(object):
             "user_syncer", log_level="debug" if config["DEBUG"] is True else "info"
         )
         self.arborist_client = arborist
+        self.folder = folder
 
         if storage_credentials:
             self.storage_manager = StorageManager(
@@ -319,11 +326,9 @@ class UserSyncer(object):
     def _match_pattern(filepath, encrypted=True):
         """
         Check if the filename matches dbgap access control file pattern
-
         Args:
             filepath (str): path to file
             encrypted (bool): whether the file is encrypted
-
         Returns:
             bool: whether the pattern matches
         """
@@ -336,11 +341,9 @@ class UserSyncer(object):
     def _get_from_sftp_with_proxy(self, server, path):
         """
         Download all data from sftp sever to a local dir
-
         Args:
             server (dict) : dictionary containing info to access sftp server
             path (str): path to local directory
-
         Returns:
             None
         """
@@ -380,11 +383,9 @@ class UserSyncer(object):
     def _get_from_ftp_with_proxy(self, server, path):
         """
         Download data from ftp sever to a local dir
-
         Args:
             server (dict): dictionary containing information for accessing server
             path(str): path to local files
-
         Returns:
             None
         """
@@ -400,23 +401,18 @@ class UserSyncer(object):
     def _parse_csv(self, file_dict, sess, dbgap_config={}, encrypted=True):
         """
         parse csv files to python dict
-
         Args:
             file_dict: a dictionary with key(file path) and value(privileges)
             sess: sqlalchemy session
             dbgap_config: a dictionary containing information about the dbGaP sftp server
                 (comes from fence config)
             encrypted: boolean indicating whether those files are encrypted
-
-
         Return:
             Tuple[[dict, dict]]:
                 (user_project, user_info) where user_project is a mapping from
                 usernames to project permissions and user_info is a mapping
                 from usernames to user details, such as email
-
         Example:
-
             (
                 {
                     username: {
@@ -433,7 +429,6 @@ class UserSyncer(object):
                     }
                 },
             )
-
         """
         user_projects = dict()
         user_info = dict()
@@ -447,6 +442,7 @@ class UserSyncer(object):
         study_common_exchange_areas = dbgap_config.get(
             "study_common_exchange_areas", {}
         )
+
         if parse_consent_code and enable_common_exchange_area_access:
             self.logger.info(
                 f"using study to common exchange area mapping: {study_common_exchange_areas}"
@@ -595,14 +591,11 @@ class UserSyncer(object):
         """
         Merge user_info1 into user_info2. Values in user_info2 are overriden
         by values in user_info1. user_info2 ends up containing the merged dict.
-
         Args:
             user_info1 (dict): nested dict
             user_info2 (dict): nested dict
-
             Example:
             {username: {'email': 'abc@email.com'}}
-
         Returns:
             None
         """
@@ -613,10 +606,8 @@ class UserSyncer(object):
         """
         Merge pshid1 into phsids2. phsids2 ends up containing the merged dict
         (see explanation below).
-
         Args:
             phsids1, phsids2: nested dicts mapping phsids to sets of permissions
-
             Example:
             {
                 username: {
@@ -624,25 +615,16 @@ class UserSyncer(object):
                     phsid2: {'read-storage'},
                 }
             }
-
         Return:
             None
-
         Explanation:
             Consider merging projects of the same user:
-
                 {user1: {phsid1: privillege1}}
-
                 {user1: {phsid2: privillege2}}
-
             case 1: phsid1 != phsid2. Output:
-
                 {user1: {phsid1: privillege1, phsid2: privillege2}}
-
             case 2: phsid1 == phsid2 and privillege1! = privillege2. Output:
-
                 {user1: {phsid1: union(privillege1, privillege2)}}
-
             For the other cases, just simple addition
         """
         for user, projects1 in phsids1.items():
@@ -657,20 +639,16 @@ class UserSyncer(object):
     def sync_to_db_and_storage_backend(self, user_project, user_info, sess):
         """
         sync user access control to database and storage backend
-
         Args:
             user_project (dict): a dictionary of
-
                 {
                     username: {
                         'project1': {'read-storage','write-storage'},
                         'project2': {'read-storage'}
                     }
                 }
-
             user_info (dict): a dictionary of {username: user_info{}}
             sess: a sqlalchemy session
-
         Return:
             None
         """
@@ -730,7 +708,6 @@ class UserSyncer(object):
     def _revoke_from_db(self, sess, to_delete):
         """
         Revoke user access to projects in the auth database
-
         Args:
             sess: sqlalchemy session
             to_delete: a set of (username, project.auth_id) to be revoked from db
@@ -754,7 +731,6 @@ class UserSyncer(object):
     def _validate_and_update_user_admin(self, sess, user_info):
         """
         Make sure there is no admin user that is not in yaml/csv files
-
         Args:
             sess: sqlalchemy session
             user_info: a dict of
@@ -783,12 +759,10 @@ class UserSyncer(object):
     def _update_from_db(self, sess, to_update, user_project):
         """
         Update user access to projects in the auth database
-
         Args:
             sess: sqlalchemy session
             to_update:
                 a set of (username, project.auth_id) to be updated from db
-
         Return:
             None
         """
@@ -843,12 +817,10 @@ class UserSyncer(object):
     def _upsert_userinfo(self, sess, user_info):
         """
         update user info to database.
-
         Args:
             sess: sqlalchemy session
             user_info:
                 a dict of {username: {display_name, phone_number, tags, admin}
-
         Return:
             None
         """
@@ -894,10 +866,8 @@ class UserSyncer(object):
         """
         If a project have storage backend, revoke user's access to buckets in
         the storage backend.
-
         Args:
             to_delete: a set of (username, project.auth_id) to be revoked
-
         Return:
             None
         """
@@ -922,13 +892,10 @@ class UserSyncer(object):
         """
         If a project have storage backend, grant user's access to buckets in
         the storage backend.
-
         Args:
             to_add: a set of (username, project.auth_id)  to be granted
             user_project: a dictionary like:
-
                     {username: {phsid: {'read-storage','write-storage'}}}
-
         Return:
             None
         """
@@ -993,22 +960,22 @@ class UserSyncer(object):
             dbgap_config : a dictionary containing information about a single
                            dbgap sftp server (from fence config)
             sess: database session
-
         Return:
             user_projects (dict)
             user_info (dict)
         """
         dbgap_file_list = []
-        tmpdir = tempfile.mkdtemp()
-        server = dbgap_config["info"]
-        protocol = dbgap_config["protocol"]
-        self.logger.info("Download from server")
+        hostname = dbgap_config["info"]["host"]
+        username = dbgap_config["info"]["username"]
+        folderdir = os.path.join(str(self.folder), str(hostname), str(username))
+
         try:
-            if protocol == "sftp":
-                self._get_from_sftp_with_proxy(server, tmpdir)
+            if os.path.exists(folderdir):
+                dbgap_file_list = glob.glob(
+                    os.path.join(folderdir, "*")
+                )  # get lists of file from folder
             else:
-                self._get_from_ftp_with_proxy(server, tmpdir)
-            dbgap_file_list = glob.glob(os.path.join(tmpdir, "*"))
+                dbgap_file_list = self._download(dbgap_config)
         except Exception as e:
             self.logger.error(e)
             exit(1)
@@ -1016,12 +983,7 @@ class UserSyncer(object):
         user_projects, user_info = self._get_user_permissions_from_csv_list(
             dbgap_file_list, encrypted=True, session=sess, dbgap_config=dbgap_config
         )
-        try:
-            shutil.rmtree(tmpdir)
-        except OSError as e:
-            self.logger.info(e)
-            if e.errno != errno.ENOENT:
-                raise
+
         user_projects = self.parse_projects(user_projects)
         return user_projects, user_info
 
@@ -1035,7 +997,6 @@ class UserSyncer(object):
             session: sqlalchemy session
             dbgap_config: a dictionary containing information about the dbGaP sftp server
                     (comes from fence config)
-
         Return:
             user_projects (dict)
             user_info (dict)
@@ -1055,7 +1016,6 @@ class UserSyncer(object):
             dbgap_servers : a list of dictionaries each containging config on
                            dbgap sftp server (comes from fence config)
             sess: database session
-
         Return:
             merged_user_projects (dict)
             merged_user_info (dict)
@@ -1087,6 +1047,35 @@ class UserSyncer(object):
         else:
             with self.driver.session as s:
                 self._sync(s)
+
+    def download(self):
+        for dbgap_server in self.dbGaP:
+            self._download(dbgap_server)
+
+    def _download(self, dbgap_config):
+        """
+        Download files from dbgap server.
+        """
+        server = dbgap_config["info"]
+        protocol = dbgap_config["protocol"]
+        hostname = server["host"]
+        username = server["username"]
+        folderdir = os.path.join(str(self.folder), str(hostname), str(username))
+
+        if not os.path.exists(folderdir):
+            os.makedirs(folderdir)
+
+        self.logger.info("Download from server")
+        try:
+            if protocol == "sftp":
+                self._get_from_sftp_with_proxy(server, folderdir)
+            else:
+                self._get_from_ftp_with_proxy(server, folderdir)
+            dbgap_files = glob.glob(os.path.join(folderdir, "*"))
+            return dbgap_files
+        except Exception as e:
+            self.logger.error(e)
+            exit(1)
 
     def _sync(self, sess):
         """
@@ -1245,15 +1234,12 @@ class UserSyncer(object):
         """
         Create roles, resources, policies, groups in arborist from the information in
         ``user_yaml``.
-
         The projects are sent to arborist as resources with paths like
         ``/projects/{project}``. Roles are created with just the original names
         for the privileges like ``"read-storage", "read"`` etc.
-
         Args:
             session (sqlalchemy.Session)
             user_yaml (UserYAML)
-
         Return:
             bool: success
         """
@@ -1377,15 +1363,12 @@ class UserSyncer(object):
         """
         Assign users policies in arborist from the information in
         ``user_projects`` and optionally a ``user_yaml``.
-
         The projects are sent to arborist as resources with paths like
         ``/projects/{project}``. Roles are created with just the original names
         for the privileges like ``"read-storage", "read"`` etc.
-
         Args:
             user_projects (dict)
             user_yaml (UserYAML) optional, if there are policies for users in a user.yaml
-
         Return:
             bool: success
         """
@@ -1534,11 +1517,9 @@ class UserSyncer(object):
         """
         Return the arborist resource path after adding the specified dbgap study
         to arborist.
-
         Args:
             dbgap_study (str): study phs identifier
             dbgap_config (dict): dictionary of config for dbgap server
-
         Returns:
             str: arborist resource path for study
         """
