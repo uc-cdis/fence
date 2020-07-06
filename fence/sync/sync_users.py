@@ -1,10 +1,7 @@
-import errno
 import glob
 import os
 import re
-import shutil
 import subprocess as sp
-import tempfile
 import yaml
 import copy
 from contextlib import contextmanager
@@ -14,6 +11,7 @@ from stat import S_ISDIR
 
 import paramiko
 from cdislogging import get_logger
+from email_validator import validate_email, EmailNotValidError
 from gen3authz.client.arborist.client import ArboristError
 from gen3users.validation import validate_user_yaml
 from paramiko.proxy import ProxyCommand
@@ -217,12 +215,20 @@ class UserYAML(object):
                 resource_permissions[resource] = set(project["privilege"])
 
             user_info[username] = {
-                "email": details.get("email", username),
+                "email": details.get("email", ""),
                 "display_name": details.get("display_name", ""),
                 "phone_number": details.get("phone_number", ""),
                 "tags": details.get("tags", {}),
                 "admin": details.get("admin", False),
             }
+            if not details.get("email"):
+                try:
+                    valid = validate_email(
+                        username, allow_smtputf8=False, check_deliverability=False
+                    )
+                    user_info[username]["email"] = valid.email
+                except EmailNotValidError:
+                    pass
             projects[username] = privileges
             user_abac[username] = resource_permissions
 
@@ -279,6 +285,7 @@ class UserSyncer(object):
         sync_from_local_csv_dir=None,
         sync_from_local_yaml_file=None,
         arborist=None,
+        folder=None,
     ):
         """
         Syncs ACL files from dbGap to auth database and storage backends
@@ -292,6 +299,7 @@ class UserSyncer(object):
             arborist:
                 ArboristClient instance if the syncer should also create
                 resources in arborist
+            folder: a local folder where dbgap telemetry files will sync to
         """
         self.sync_from_local_csv_dir = sync_from_local_csv_dir
         self.sync_from_local_yaml_file = sync_from_local_yaml_file
@@ -309,6 +317,7 @@ class UserSyncer(object):
             "user_syncer", log_level="debug" if config["DEBUG"] is True else "info"
         )
         self.arborist_client = arborist
+        self.folder = folder
 
         if storage_credentials:
             self.storage_manager = StorageManager(
@@ -447,6 +456,7 @@ class UserSyncer(object):
         study_common_exchange_areas = dbgap_config.get(
             "study_common_exchange_areas", {}
         )
+
         if parse_consent_code and enable_common_exchange_area_access:
             self.logger.info(
                 f"using study to common exchange area mapping: {study_common_exchange_areas}"
@@ -999,16 +1009,17 @@ class UserSyncer(object):
             user_info (dict)
         """
         dbgap_file_list = []
-        tmpdir = tempfile.mkdtemp()
-        server = dbgap_config["info"]
-        protocol = dbgap_config["protocol"]
-        self.logger.info("Download from server")
+        hostname = dbgap_config["info"]["host"]
+        username = dbgap_config["info"]["username"]
+        folderdir = os.path.join(str(self.folder), str(hostname), str(username))
+
         try:
-            if protocol == "sftp":
-                self._get_from_sftp_with_proxy(server, tmpdir)
+            if os.path.exists(folderdir):
+                dbgap_file_list = glob.glob(
+                    os.path.join(folderdir, "*")
+                )  # get lists of file from folder
             else:
-                self._get_from_ftp_with_proxy(server, tmpdir)
-            dbgap_file_list = glob.glob(os.path.join(tmpdir, "*"))
+                dbgap_file_list = self._download(dbgap_config)
         except Exception as e:
             self.logger.error(e)
             exit(1)
@@ -1016,12 +1027,7 @@ class UserSyncer(object):
         user_projects, user_info = self._get_user_permissions_from_csv_list(
             dbgap_file_list, encrypted=True, session=sess, dbgap_config=dbgap_config
         )
-        try:
-            shutil.rmtree(tmpdir)
-        except OSError as e:
-            self.logger.info(e)
-            if e.errno != errno.ENOENT:
-                raise
+
         user_projects = self.parse_projects(user_projects)
         return user_projects, user_info
 
@@ -1087,6 +1093,35 @@ class UserSyncer(object):
         else:
             with self.driver.session as s:
                 self._sync(s)
+
+    def download(self):
+        for dbgap_server in self.dbGaP:
+            self._download(dbgap_server)
+
+    def _download(self, dbgap_config):
+        """
+        Download files from dbgap server.
+        """
+        server = dbgap_config["info"]
+        protocol = dbgap_config["protocol"]
+        hostname = server["host"]
+        username = server["username"]
+        folderdir = os.path.join(str(self.folder), str(hostname), str(username))
+
+        if not os.path.exists(folderdir):
+            os.makedirs(folderdir)
+
+        self.logger.info("Download from server")
+        try:
+            if protocol == "sftp":
+                self._get_from_sftp_with_proxy(server, folderdir)
+            else:
+                self._get_from_ftp_with_proxy(server, folderdir)
+            dbgap_files = glob.glob(os.path.join(folderdir, "*"))
+            return dbgap_files
+        except Exception as e:
+            self.logger.error(e)
+            exit(1)
 
     def _sync(self, sess):
         """

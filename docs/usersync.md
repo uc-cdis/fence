@@ -36,6 +36,14 @@ dbGaP:
 
 An example can be found in the config used for unit testing [tests/test-fence-config.yaml](https://github.com/uc-cdis/fence/blob/master/tests/test-fence-config.yaml)
 
+### Enable dbGaP backup to s3:
+Add below to manifest.json to global block to copy dbGaP authorization files to <dbgap_backup_bucket>:
+```
++    "dbgap_backup_bucket": "s3://di-planx-test",
++    "aws_sa_rule_arn": "arn:aws:iam::707767160287:role/devplanetv1-dbgap-bakup-role",
+```
+More deployment details can be found here: https://github.com/uc-cdis/cdis-wiki/blob/master/ops/DBGAP-backup-deployment.md
+
 ## Usersync result example
 
 ### Example of user.yaml file:
@@ -187,3 +195,4 @@ The [gen3users CLI](https://github.com/uc-cdis/gen3users) includes a user.yaml v
 pip install gen3users
 gen3users validate user.yaml
 ```
+
