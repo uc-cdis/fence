@@ -437,26 +437,16 @@ class IndexedFile(object):
             ]
         for location in locations_to_delete:
             bucket = location.bucket_name()
-
-            if isinstance(location, GoogleStorageIndexedFileLocation):
-                file_name = location.file_name()
-                logger.info(
-                    "Attempting to delete file named {} from bucket {}".format(
-                        file_name, bucket
-                    )
+            file_suffix = self.file_id
+            if not file_suffix:
+                file_suffix = location.file_name()
+            
+            logger.info(
+                "Attempting to delete file named {} from bucket {}".format(
+                    file_suffix, bucket
                 )
-                with GoogleCloudManager(
-                    creds=config["CIRRUS_CFG"]["GOOGLE_STORAGE_CREDS"]
-                ) as gcm:
-                    gcm.delete_data_file(bucket, file_name)
-
-            else:
-                logger.info(
-                    "Attempting to delete file_id {} from bucket {}".format(
-                        self.file_id, bucket
-                    )
-                )
-                flask.current_app.boto.delete_data_file(bucket, self.file_id)
+            )
+            location.delete(bucket, file_suffix)
 
     @login_required({"data"})
     def delete(self):
@@ -762,6 +752,9 @@ class S3IndexedFileLocation(IndexedFileLocation):
             uploadId,
             parts,
         )
+    
+    def delete(self, bucket, file_id):
+        flask.current_app.boto.delete_data_file(bucket, file_id)
 
 
 class GoogleStorageIndexedFileLocation(IndexedFileLocation):
@@ -895,6 +888,14 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             requester_pays_user_project=r_pays_project,
         )
         return final_url
+    
+    def delete(self, bucket, file_id):
+        """
+        Delete data file in Google Cloud Storage. Note that file_id is unused to satisfy
+        polymorphism -- the s3 subclass needs the file_id argument.
+        """
+        with GoogleCloudManager(creds=config["CIRRUS_CFG"]["GOOGLE_STORAGE_CREDS"]) as gcm:
+            gcm.delete_data_file(bucket, self.file_name())
 
 
 def _get_user_info():
