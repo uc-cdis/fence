@@ -9,7 +9,7 @@ setup(
         "addict>=2.1.1, <3.0.0",
         "boto>=2.36.0,<3.0.0",
         "botocore>=1.12.91,<1.13.0",
-        "boto3>=1.9.91,<2.0",
+        "boto3>=1.9.91,<1.10.0",
         "cached_property>=1.5.1,<2.0.0",
         "cryptography==2.8",
         "email_validator~=1.1.1",
