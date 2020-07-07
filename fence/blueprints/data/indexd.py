@@ -440,7 +440,7 @@ class IndexedFile(object):
             file_suffix = self.file_id
             if not file_suffix:
                 file_suffix = location.file_name()
-            
+
             logger.info(
                 "Attempting to delete file named {} from bucket {}".format(
                     file_suffix, bucket
@@ -752,7 +752,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             uploadId,
             parts,
         )
-    
+
     def delete(self, bucket, file_id):
         flask.current_app.boto.delete_data_file(bucket, file_id)
 
@@ -888,13 +888,15 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             requester_pays_user_project=r_pays_project,
         )
         return final_url
-    
+
     def delete(self, bucket, file_id):
         """
         Delete data file in Google Cloud Storage. Note that file_id is unused to satisfy
         polymorphism -- the s3 subclass needs the file_id argument.
         """
-        with GoogleCloudManager(creds=config["CIRRUS_CFG"]["GOOGLE_STORAGE_CREDS"]) as gcm:
+        with GoogleCloudManager(
+            creds=config["CIRRUS_CFG"]["GOOGLE_STORAGE_CREDS"]
+        ) as gcm:
             gcm.delete_data_file(bucket, self.file_name())
 
 
