@@ -917,7 +917,7 @@ class UserSyncer(object):
             )
             for sa in project.storage_access:
                 if not getattr(self, "storage_manager"):
-                    logging.error(
+                    self.logger.error(
                         (
                             "CANNOT revoke {} access to {} in {} because there is NO "
                             "configured storage accesses at all. See configuration. "
@@ -957,7 +957,7 @@ class UserSyncer(object):
             for sa in project.storage_access:
                 access = list(user_project[username][project_auth_id])
                 if not getattr(self, "storage_manager"):
-                    logging.error(
+                    self.logger.error(
                         (
                             "CANNOT grant {} access {} to {} in {} because there is NO "
                             "configured storage accesses at all. See configuration. "
