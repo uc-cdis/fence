@@ -916,7 +916,7 @@ class UserSyncer(object):
                 sess.query(Project).filter(Project.auth_id == project_auth_id).first()
             )
             for sa in project.storage_access:
-                if not getattr(self, "storage_manager"):
+                if not hasattr(self, "storage_manager"):
                     self.logger.error(
                         (
                             "CANNOT revoke {} access to {} in {} because there is NO "
@@ -956,7 +956,7 @@ class UserSyncer(object):
             project = self._projects[project_auth_id]
             for sa in project.storage_access:
                 access = list(user_project[username][project_auth_id])
-                if not getattr(self, "storage_manager"):
+                if not hasattr(self, "storage_manager"):
                     self.logger.error(
                         (
                             "CANNOT grant {} access {} to {} in {} because there is NO "
