@@ -84,6 +84,10 @@ OPENID_CONNECT:
     client_id: ''
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/orcid/login'
+  ras:
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/ras/login'
   microsoft:
     client_id: ''
     client_secret: ''
@@ -174,7 +178,8 @@ LOGIN_OPTIONS:
     idp: microsoft
   - name: 'NIH Login'
     idp: shibboleth
-
+  - name: 'RAS Login'
+    idp: ras
 # //////////////////////////////////////////////////////////////////////////////////////
 # LIBRARY CONFIGURATION (authlib & flask)
 #   - Already contains reasonable defaults

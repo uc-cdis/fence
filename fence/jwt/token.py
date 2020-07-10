@@ -1,9 +1,12 @@
 import json
 import time
 import uuid
+from enum import Enum
 
 from authlib.common.encoding import to_unicode
-from authlib.oidc.core import CodeIDToken as AuthlibCodeIDToken
+from authlib.oidc.core import IDToken, CodeIDToken, ImplicitIDToken
+from authlib.oidc.core.util import create_half_hash
+
 from cdislogging import get_logger
 import flask
 import jwt
@@ -27,6 +30,11 @@ SCOPE_DESCRIPTION = {
 }
 
 
+class AuthFlowTypes(Enum):
+    CODE = 1
+    IMPLICIT = 2
+
+
 class JWTResult(object):
     """
     Just a container for the results necessary to keep track of from generating
@@ -39,7 +47,7 @@ class JWTResult(object):
         self.claims = claims
 
 
-class UnsignedIDToken(AuthlibCodeIDToken):
+class UnsignedIDToken(IDToken):
     def __init__(self, token, header=None, **kwargs):
         header = header or {}
         super(UnsignedIDToken, self).__init__(token, header, **kwargs)
@@ -117,6 +125,14 @@ class UnsignedIDToken(AuthlibCodeIDToken):
         return token
 
 
+class UnsignedCodeIDToken(UnsignedIDToken, CodeIDToken):
+    pass
+
+
+class UnsignedImplicitIDToken(UnsignedIDToken, ImplicitIDToken):
+    pass
+
+
 def issued_and_expiration_times(seconds_to_expire):
     """
     Return the times in unix time that a token is being issued and will be
@@ -191,6 +207,8 @@ def generate_signed_id_token(
     max_age=None,
     nonce=None,
     include_project_access=True,
+    auth_flow_type=AuthFlowTypes.CODE,
+    access_token=None,
     **kwargs
 ):
     """
@@ -224,6 +242,8 @@ def generate_signed_id_token(
         auth_time=auth_time,
         max_age=max_age,
         nonce=nonce,
+        auth_flow_type=auth_flow_type,
+        access_token=access_token,
         **kwargs
     )
     signed_token = token.get_signed_and_encoded_token(kid, private_key)
@@ -428,6 +448,8 @@ def generate_id_token(
     max_age=None,
     nonce=None,
     include_project_access=True,
+    auth_flow_type=AuthFlowTypes.CODE,
+    access_token=None,
     **kwargs
 ):
     """
@@ -450,6 +472,7 @@ def generate_id_token(
     Returns:
         UnsignedIDToken: Unsigned ID token
     """
+
     iat, exp = issued_and_expiration_times(expires_in)
     issuer = config.get("BASE_URL")
 
@@ -508,13 +531,37 @@ def generate_id_token(
     if include_project_access:
         claims["context"]["user"]["projects"] = dict(user.project_access)
 
+    if access_token:
+        at_hash = to_unicode(create_half_hash(access_token, "RS256"))
+        claims["at_hash"] = at_hash
+
     logger.info("issuing JWT ID token\n" + json.dumps(claims, indent=4))
 
     token_options = {
         "iss": {"essential": True, "value": config.get("BASE_URL")},
-        "nonce": {"value": nonce},
+        "nonce": {
+            "essential": auth_flow_type == AuthFlowTypes.IMPLICIT,
+            "value": nonce,
+        },
     }
-    token = UnsignedIDToken(claims, options=token_options)
+    if auth_flow_type == AuthFlowTypes.IMPLICIT:
+        token = UnsignedImplicitIDToken(
+            claims,
+            header={"alg": "RS256"},
+            options=token_options,
+            params={"access_token": access_token},
+        )
+    else:
+        if auth_flow_type != AuthFlowTypes.CODE:
+            logger.error(
+                "Invalid auth_flow_type passed to generate_id_token. Assuming code flow."
+            )
+        token = UnsignedCodeIDToken(
+            claims,
+            header={"alg": "RS256"},
+            options=token_options,
+            params={"access_token": access_token},
+        )
     token.validate()
 
     return token

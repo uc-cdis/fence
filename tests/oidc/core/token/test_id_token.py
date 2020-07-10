@@ -3,7 +3,11 @@ import time
 
 from authlib.jose.errors import InvalidClaimError
 
-from fence.jwt.token import generate_signed_id_token, UnsignedIDToken
+from fence.jwt.token import (
+    generate_signed_id_token,
+    UnsignedCodeIDToken,
+    UnsignedIDToken,
+)
 from fence.jwt.validate import validate_jwt
 from fence.models import User
 from fence.utils import random_str
@@ -34,7 +38,7 @@ def test_recode_id_token(app, kid, rsa_private_key):
         max_age=max_age,
         nonce=nonce,
     )
-    original_unsigned_token = UnsignedIDToken.from_signed_and_encoded_token(
+    original_unsigned_token = UnsignedCodeIDToken.from_signed_and_encoded_token(
         original_signed_token.token,
         client_id=client_id,
         issuer=issuer,
@@ -45,7 +49,7 @@ def test_recode_id_token(app, kid, rsa_private_key):
     new_signed_token = original_unsigned_token.get_signed_and_encoded_token(
         kid, rsa_private_key
     )
-    new_unsigned_token = UnsignedIDToken.from_signed_and_encoded_token(
+    new_unsigned_token = UnsignedCodeIDToken.from_signed_and_encoded_token(
         new_signed_token,
         client_id=client_id,
         issuer=issuer,
