@@ -29,6 +29,13 @@ class RASCallback(DefaultOAuth2Callback):
         # This saves us a call to RAS /userinfo, but will not make sense
         # when there is more than one visa issuer.
 
+        # Clear all of user's visas, to avoid having duplicate visas
+        # where only iss/exp/jti differ
+        # TODO: This is not IdP-specific and will need a rethink when
+        # we have multiple IdPs
+        user.ga4gh_visas_v1 = []
+        current_session.commit()
+
         encoded_visas = flask.g.userinfo.get("ga4gh_passport_v1", [])
 
         for encoded_visa in encoded_visas:
