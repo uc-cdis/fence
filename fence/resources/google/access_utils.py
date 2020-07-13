@@ -46,7 +46,9 @@ def bulk_update_google_groups(google_bulk_mapping):
             logger.debug(f"Starting diff for group {group}...")
 
             # get members list from google
-            google_members = [member.email for member in gcm.get_group_members(group)]
+            google_members = [
+                member.get("email") for member in gcm.get_group_members(group)
+            ]
             logger.debug(f"Google membership for {group}: {google_members}")
             logger.debug(f"Expected membership for {group}: {expected_members}")
 
