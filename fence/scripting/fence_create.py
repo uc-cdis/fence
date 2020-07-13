@@ -109,11 +109,14 @@ def create_client_action(
     DB, username=None, client=None, urls=None, auto_approve=False, **kwargs
 ):
     try:
-        print(
-            create_client(
-                username, urls, DB, name=client, auto_approve=auto_approve, **kwargs
-            )
+        client_id, client_secret = create_client(
+            username, urls, DB, name=client, auto_approve=auto_approve, **kwargs
         )
+        print(
+            "\nSave these credentials! Fence will not save the unhashed client_secret."
+        )
+        print("client_id    : {}".format(client_id))
+        print("client_secret: {}".format(client_secret))
     except Exception as e:
         logger.error(str(e))
 
