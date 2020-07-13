@@ -43,12 +43,13 @@ def bulk_update_google_groups(google_bulk_mapping):
     )
     with GoogleCloudManager(google_project_id) as gcm:
         for group, expected_members in google_bulk_mapping.items():
+            expected_members = set(expected_members)
             logger.debug(f"Starting diff for group {group}...")
 
             # get members list from google
-            google_members = [
+            google_members = set(
                 member.get("email") for member in gcm.get_group_members(group)
-            ]
+            )
             logger.debug(f"Google membership for {group}: {google_members}")
             logger.debug(f"Expected membership for {group}: {expected_members}")
 
