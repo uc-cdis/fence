@@ -37,6 +37,37 @@ from fence.utils import get_valid_expiration_from_request
 logger = get_logger(__name__)
 
 
+def bulk_update_google_groups(google_bulk_mapping):
+    google_project_id = (
+        config["STORAGE_CREDENTIALS"].get("google", {}).get("google_project_id")
+    )
+    with GoogleCloudManager(google_project_id) as gcm:
+        for group, expected_members in google_bulk_mapping.items():
+            logger.debug(f"Starting diff for group {group}...")
+
+            # get members list from google
+            google_members = [member.email for member in gcm.get_group_members(group)]
+            logger.debug(f"Google membership for {group}: {google_members}")
+            logger.debug(f"Expected membership for {group}: {expected_members}")
+
+            # diff between expected group membership and actual membership
+            to_delete = set.difference(google_members, expected_members)
+            to_add = set.difference(expected_members, google_members)
+            to_update = set.intersection(google_members, expected_members)
+
+            # do add
+            for member_email in to_add:
+                logger.info(f"Adding to group {group}: {member_email}")
+                gcm.add_member_to_group(member_email, group)
+
+            # do remove
+            for member_email in to_delete:
+                logger.info(f"Removing from group {group}: {member_email}")
+                gcm.remove_member_from_group(member_email, group)
+
+            logger.info(f"All already in group {group}: {to_update}")
+
+
 def get_google_project_number(google_project_id, google_cloud_manager):
     """
     Return a project's "projectNumber" which uniquely identifies it.

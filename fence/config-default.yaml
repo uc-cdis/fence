@@ -475,6 +475,7 @@ DBGAP_ACCESSION_WITH_CONSENT_REGEX: '(?P<phsid>phs[0-9]+)(.(?P<version>v[0-9]+))
 #               Also used during User Syncing process to automate managing Storage
 #               access for users.
 # //////////////////////////////////////////////////////////////////////////////////////
+GOOGLE_BULK_UPDATES: false
 # Configuration for various storage systems for the backend
 # NOTE: Remove the {} and supply backends if needed. Example in comments below
 STORAGE_CREDENTIALS: {}
