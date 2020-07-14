@@ -38,6 +38,12 @@ logger = get_logger(__name__)
 
 
 def bulk_update_google_groups(google_bulk_mapping):
+    """
+    Update Google Groups based on mapping provided from Group -> Users.
+
+    Args:
+        google_bulk_mapping (dict): {"googlegroup@google.com": ["member1", "member2"]}
+    """
     google_project_id = (
         config["STORAGE_CREDENTIALS"].get("google", {}).get("google_project_id")
     )
