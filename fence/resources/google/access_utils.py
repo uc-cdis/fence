@@ -62,7 +62,9 @@ def bulk_update_google_groups(google_bulk_mapping):
             # diff between expected group membership and actual membership
             to_delete = set.difference(google_members, expected_members)
             to_add = set.difference(expected_members, google_members)
-            to_update = set.intersection(google_members, expected_members)
+            no_update = set.intersection(google_members, expected_members)
+
+            logger.info(f"All already in group {group}: {no_update}")
 
             # do add
             for member_email in to_add:
@@ -73,8 +75,6 @@ def bulk_update_google_groups(google_bulk_mapping):
             for member_email in to_delete:
                 logger.info(f"Removing from group {group}: {member_email}")
                 gcm.remove_member_from_group(member_email, group)
-
-            logger.info(f"All already in group {group}: {to_update}")
 
 
 def get_google_project_number(google_project_id, google_cloud_manager):
