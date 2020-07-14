@@ -110,6 +110,12 @@ def create_client_action(
 ):
     try:
         print(
+            "\nSave these credentials! Fence will not save the unhashed client secret."
+        )
+        print("client id, client secret:")
+        # This should always be the last line of output and should remain in this format--
+        # cloud-auto and gen3-qa use the output programmatically.
+        print(
             create_client(
                 username, urls, DB, name=client, auto_approve=auto_approve, **kwargs
             )
