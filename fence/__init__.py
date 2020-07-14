@@ -23,6 +23,7 @@ from fence.resources.openid.microsoft_oauth2 import (
 )
 from fence.resources.openid.orcid_oauth2 import OrcidOauth2Client as ORCIDClient
 from fence.resources.openid.synapse_oauth2 import SynapseOauth2Client as SynapseClient
+from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
 from fence.resources.storage import StorageManager
 from fence.resources.user.user_session import UserSessionInterface
 from fence.error_handler import get_error_response
@@ -332,6 +333,12 @@ def _setup_oidc_clients(app):
             config["OPENID_CONNECT"]["orcid"],
             HTTP_PROXY=config.get("HTTP_PROXY"),
             logger=logger,
+        )
+
+    # Add OIDC client for RAS if configured.
+    if "ras" in oidc:
+        app.ras_client = RASClient(
+            oidc["ras"], HTTP_PROXY=config.get("HTTP_PROXY"), logger=logger,
         )
 
     # Add OIDC client for Synapse if configured.

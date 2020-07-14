@@ -1,4 +1,5 @@
 from .idp_oauth2 import Oauth2ClientBase
+from fence.config import config
 
 
 class GoogleOauth2Client(Oauth2ClientBase):
@@ -40,6 +41,8 @@ class GoogleOauth2Client(Oauth2ClientBase):
         """
         Get user id
         """
+        if config.get("MOCK_GOOGLE_AUTH", False):
+            return {"email": "test@gmail.com"}
         try:
             token_endpoint = self.get_value_from_discovery_doc(
                 "token_endpoint", "https://oauth2.googleapis.com/token"

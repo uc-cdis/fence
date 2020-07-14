@@ -145,6 +145,14 @@ OPENID_CONNECT:
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
     mock_default_user: '0000-0002-2601-8132'
+  ras:
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/ras/callback/'
+    # if mock is true, will fake a successful login response for login
+    # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
+    mock: false
+    mock_default_user: 'test@example.com'
   # Create a client in Azure here:
   #   https://portal.azure.com/#blade/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/RegisteredAppsPreview
   # Currently supports organizational account only, so when registering a new App in
@@ -189,6 +197,8 @@ CLIENT_ALLOWED_SCOPES:
   - "google_credentials"
   - "google_service_account"
   - "google_link"
+  - "ras_dbgap_v1"
+  - "ga4gh_passport_v1"
 
 # these are the scopes that CAN be included in a user's own access_token
 USER_ALLOWED_SCOPES:
@@ -246,6 +256,8 @@ LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
   # - name: 'Login from Cognito'
   #   desc: 'Amazon Cognito login'
   #   idp: cognito
+  #   name: 'Login from RAS'
+  #   idp: ras
   # - name: 'NIH Login'
   #   idp: fence
   #   fence_idp: shibboleth
@@ -364,7 +376,7 @@ MAX_ACCESS_TOKEN_TTL: 3600
 # TEMPORARY: The maximum number of projects allowed in token claims.
 # This config var should be removed after sheepdog and peregrine support
 # auth checks against Arborist, and no longer check the token.
-TOKEN_PROJECTS_CUTOFF: 15
+TOKEN_PROJECTS_CUTOFF: 10
 
 
 ########################################################################################
