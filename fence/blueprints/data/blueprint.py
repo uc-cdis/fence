@@ -85,9 +85,7 @@ def upload_data_file():
             resources=authz,
         )
         if not authorized:
-            logger.error(
-                authz_err_msg.format("create' and 'write-storage", authz)
-            )
+            logger.error(authz_err_msg.format("create' and 'write-storage", authz))
     else:
         # no 'authz' was provided, so fall back on 'file_upload' logic
         authorized = flask.current_app.arborist.auth_request(
