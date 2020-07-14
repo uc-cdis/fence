@@ -475,7 +475,15 @@ DBGAP_ACCESSION_WITH_CONSENT_REGEX: '(?P<phsid>phs[0-9]+)(.(?P<version>v[0-9]+))
 #               Also used during User Syncing process to automate managing Storage
 #               access for users.
 # //////////////////////////////////////////////////////////////////////////////////////
+# When true, this modifies usersync (not fence service itself) such that when syncing user
+# access to a Google storage backend happens in "bulk" by doing a diff *per google group* 
+# between what's in Google and what's expected. Then it adds, removes only as necessary.
+# This is in contrast to the default logic which does blind updates per user and ignores
+# 409s from Google.
+# NOTE: This reduces the number of API calls to Google in the general case, but increases
+#       memory usages by usersync (as it has to track all the Google groups and user access)
 GOOGLE_BULK_UPDATES: false
+
 # Configuration for various storage systems for the backend
 # NOTE: Remove the {} and supply backends if needed. Example in comments below
 STORAGE_CREDENTIALS: {}
