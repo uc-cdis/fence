@@ -9,7 +9,7 @@ Fence's login endpoints must redirect only to valid URLs:
 import pytest
 
 
-@pytest.mark.parametrize("idp", ["google", "shib", "microsoft", "orcid"])
+@pytest.mark.parametrize("idp", ["google", "shib", "microsoft", "orcid", "ras"])
 def test_valid_redirect_base(app, client, idp):
     """
     Check that a valid redirect is allowed, using the base URL for this application as
@@ -20,7 +20,7 @@ def test_valid_redirect_base(app, client, idp):
     assert response.status_code == 302
 
 
-@pytest.mark.parametrize("idp", ["google", "shib", "microsoft", "orcid"])
+@pytest.mark.parametrize("idp", ["google", "shib", "microsoft", "orcid", "ras"])
 def test_valid_redirect_oauth(client, oauth_client, idp):
     """
     Check that a valid redirect is allowed. Here we use the URL from the test OAuth
@@ -30,7 +30,7 @@ def test_valid_redirect_oauth(client, oauth_client, idp):
     assert response.status_code == 302
 
 
-@pytest.mark.parametrize("idp", ["google", "shib", "microsoft", "orcid"])
+@pytest.mark.parametrize("idp", ["google", "shib", "microsoft", "orcid", "ras"])
 def test_invalid_redirect_fails(client, idp):
     """
     Check that giving a bogus redirect to the login endpoint returns an error.

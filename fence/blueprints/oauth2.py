@@ -98,7 +98,7 @@ def authorize(*args, **kwargs):
     try:
         grant = server.validate_consent_request(end_user=user)
     except OAuth2Error as e:
-        raise Unauthorized("{} failed to authorize".format(str(e)))
+        raise Unauthorized("Failed to authorize: {}".format(str(e)))
 
     client_id = grant.client.client_id
     with flask.current_app.db.session as session:

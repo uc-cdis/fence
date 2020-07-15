@@ -2,13 +2,13 @@ import flask
 
 from cdislogging import get_logger
 
-from fence.auth import login_required, require_auth_header, current_token
+from fence.auth import login_required, require_auth_header, current_token, get_jwt
 from fence.blueprints.data.indexd import (
     BlankIndex,
     IndexedFile,
     get_signed_url_for_file,
 )
-from fence.errors import Forbidden, InternalError, UserError
+from fence.errors import Forbidden, InternalError, UserError, Forbidden
 from fence.utils import is_valid_expiration
 from fence.authz.auth import check_arborist_auth
 from fence.auth import get_jwt
@@ -132,7 +132,6 @@ def delete_data_file(file_id):
 @blueprint.route("/upload", methods=["POST"])
 @require_auth_header(aud={"data"})
 @login_required({"data"})
-@check_arborist_auth(resource="/data_file", method="file_upload")
 def upload_data_file():
     """
     Return a presigned URL for use with uploading a data file.
@@ -146,17 +145,60 @@ def upload_data_file():
     params = flask.request.get_json()
     if not params:
         raise UserError("wrong Content-Type; expected application/json")
+
     if "file_name" not in params:
         raise UserError("missing required argument `file_name`")
-    blank_index = BlankIndex(file_name=params["file_name"])
+
+    authorized = False
+    authz_err_msg = "Auth error when attempting to get a presigned URL for upload. User must have '{}' access on '{}'."
+
+    authz = params.get("authz")
+    uploader = None
+
+    if authz:
+        # if requesting an authz field, using new authorization method which doesn't
+        # rely on uploader field, so clear it out
+        uploader = ""
+        authorized = flask.current_app.arborist.auth_request(
+            jwt=get_jwt(),
+            service="fence",
+            methods=["create", "write-storage"],
+            resources=authz,
+        )
+        if not authorized:
+            logger.error(authz_err_msg.format("create' and 'write-storage", authz))
+    else:
+        # no 'authz' was provided, so fall back on 'file_upload' logic
+        authorized = flask.current_app.arborist.auth_request(
+            jwt=get_jwt(),
+            service="fence",
+            methods=["file_upload"],
+            resources=["/data_file"],
+        )
+        if not authorized:
+            logger.error(authz_err_msg.format("file_upload", "/data_file"))
+
+    if not authorized:
+        raise Forbidden(
+            "You do not have access to upload data. You either need "
+            "general file uploader permissions or create & write-storage permissions "
+            "on the authz resources you specified (if you specified any)."
+        )
+
+    blank_index = BlankIndex(
+        file_name=params["file_name"], authz=params.get("authz"), uploader=uploader
+    )
     expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
+
     if "expires_in" in params:
         is_valid_expiration(params["expires_in"])
         expires_in = min(params["expires_in"], expires_in)
+
     response = {
         "guid": blank_index.guid,
         "url": blank_index.make_signed_url(params["file_name"], expires_in=expires_in),
     }
+
     return flask.jsonify(response), 201
 
 
@@ -253,7 +295,12 @@ def upload_file(file_id):
     """
     Get a presigned url to upload a file given by file_id.
     """
-    result = get_signed_url_for_file("upload", file_id)
+    file_name = flask.request.args.get("file_name")
+    if not file_name:
+        logger.warning(f"file_name not provided, using GUID: {file_id}")
+        file_name = str(file_id)
+
+    result = get_signed_url_for_file("upload", file_id, file_name=file_name)
     return flask.jsonify(result)
 
 

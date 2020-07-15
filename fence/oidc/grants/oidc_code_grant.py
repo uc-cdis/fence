@@ -61,17 +61,8 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
         if not user:
             raise InvalidRequestError('There is no "user" for this code.')
 
-        scope = authorization_code.get_scope()
-
-        query_args = dict(self.request.query_params)
-        code = self.request.body.get("code") or query_args.get("code")
-        with flask.current_app.db.session as session:
-            authorization_code = (
-                session.query(AuthorizationCode)
-                .filter_by(code=code, client_id=client.client_id)
-                .first()
-            )
-            nonce = authorization_code.nonce
+        scope = authorization_code.scope
+        nonce = authorization_code.nonce
 
         token = self.generate_token(
             client,
