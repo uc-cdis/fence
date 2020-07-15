@@ -74,8 +74,9 @@ def test_indexd_upload_file(
     """
     Test ``GET /data/download/1``.
     """
+    file_id = "1"
     indexed_file_location = indexd_client["indexed_file_location"]
-    path = "/data/upload/1?protocol=" + indexed_file_location
+    path = f"/data/upload/{file_id}?protocol=" + indexed_file_location
     headers = {
         "Authorization": "Bearer "
         + jwt.encode(
@@ -90,6 +91,78 @@ def test_indexd_upload_file(
     response = client.get(path, headers=headers)
     assert response.status_code == 200
     assert "url" in list(response.json.keys())
+    assert file_id in response.json.get("url")
+
+
+@pytest.mark.parametrize(
+    "indexd_client", ["gs", "s3", "gs_acl", "s3_acl", "s3_external"], indirect=True
+)
+def test_indexd_upload_file_filename(
+    client,
+    oauth_client,
+    user_client,
+    indexd_client,
+    kid,
+    rsa_private_key,
+    google_proxy_group,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+):
+    """
+    Test ``GET /data/download/1``.
+    """
+    file_name = "some_test_file.txt"
+    path = "/data/upload/1?file_name=" + file_name
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_upload_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+    response = client.get(path, headers=headers)
+    assert response.status_code == 200
+    assert "url" in list(response.json.keys())
+    assert file_name in response.json.get("url")
+
+
+@pytest.mark.parametrize("indexd_client", ["nonexistent_guid"], indirect=True)
+def test_indexd_upload_file_doesnt_exist(
+    client,
+    oauth_client,
+    user_client,
+    indexd_client,
+    kid,
+    rsa_private_key,
+    google_proxy_group,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+):
+    """
+    Test ``GET /data/upload/1`` when 1 doesn't exist.
+    """
+    file_name = "some_test_file.txt"
+    path = "/data/upload/1?file_name=" + file_name
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_upload_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+    response = client.get(path, headers=headers)
+
+    assert response.status_code == 401
 
 
 @pytest.mark.parametrize(
@@ -128,7 +201,10 @@ def test_indexd_download_file_no_protocol(
     assert "url" in list(response.json.keys())
 
 
-def test_indexd_download_file_no_jwt(client, auth_client):
+@pytest.mark.parametrize(
+    "indexd_client", ["gs", "s3", "gs_acl", "s3_acl"], indirect=True
+)
+def test_indexd_download_file_no_jwt(client, indexd_client, auth_client):
     """
     Test ``GET /data/download/1``.
     """
@@ -509,6 +585,61 @@ def test_blank_index_upload(app, client, auth_client, encoded_creds_jwt, user_cl
             endpoint,
             auth=indexd_auth,
             json={"file_name": file_name, "uploader": user_client.username},
+            headers={},
+        )
+        assert response.status_code == 201, response
+        assert "guid" in response.json
+        assert "url" in response.json
+
+
+def test_blank_index_upload_authz(
+    app, client, auth_client, encoded_creds_jwt, user_client
+):
+    """
+    Same test as above, except request a specific "authz" for the new record
+    """
+
+    class MockResponse(object):
+        def __init__(self, data, status_code=200):
+            self.data = data
+            self.status_code = status_code
+
+        def json(self):
+            return self.data
+
+    data_requests_mocker = mock.patch(
+        "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
+    )
+    arborist_requests_mocker = mock.patch(
+        "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
+    )
+    with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
+        data_requests.post.return_value = MockResponse(
+            {
+                "did": str(uuid.uuid4()),
+                "rev": str(uuid.uuid4())[:8],
+                "baseid": str(uuid.uuid4()),
+            }
+        )
+        data_requests.post.return_value.status_code = 200
+        arborist_requests.request.return_value = MockResponse({"auth": True})
+        arborist_requests.request.return_value.status_code = 200
+        headers = {
+            "Authorization": "Bearer " + encoded_creds_jwt.jwt,
+            "Content-Type": "application/json",
+        }
+        file_name = "asdf"
+        authz = ["/test1/test1", "/test2/test3/test4"]
+        data = json.dumps({"file_name": file_name, "authz": authz})
+        response = client.post("/data/upload", headers=headers, data=data)
+        indexd_url = app.config.get("INDEXD") or app.config.get("BASE_URL") + "/index"
+        endpoint = indexd_url + "/index/blank/"
+        indexd_auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
+        data_requests.post.assert_called_once_with(
+            endpoint,
+            auth=None,
+            json={"file_name": file_name, "uploader": None, "authz": authz},
+            headers={"Authorization": "bearer " + encoded_creds_jwt.jwt},
         )
         assert response.status_code == 201, response
         assert "guid" in response.json
@@ -862,6 +993,7 @@ def test_initialize_multipart_upload(
             endpoint,
             auth=indexd_auth,
             json={"file_name": file_name, "uploader": user_client.username},
+            headers={},
         )
         assert response.status_code == 201, response
         assert "guid" in response.json
