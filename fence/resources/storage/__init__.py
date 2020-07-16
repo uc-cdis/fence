@@ -150,7 +150,9 @@ class StorageManager(object):
         c.get_or_create_bucket(bucketname)
 
     @check_exist
-    def grant_access(self, provider, username, project, access, session):
+    def grant_access(
+        self, provider, username, project, access, session, google_bulk_mapping=None
+    ):
         """
         this should be exposed via admin endpoint
         grant user access to a project in storage backend
@@ -167,11 +169,19 @@ class StorageManager(object):
         if storage_username:
             for b in project.buckets:
                 self._update_access_to_bucket(
-                    b, provider, storage_user, storage_username, access, session
+                    b,
+                    provider,
+                    storage_user,
+                    storage_username,
+                    access,
+                    session,
+                    google_bulk_mapping=google_bulk_mapping,
                 )
 
     @check_exist
-    def revoke_access(self, provider, username, project, session):
+    def revoke_access(
+        self, provider, username, project, session, google_bulk_mapping=None
+    ):
         """
         this should be exposed via admin endpoint
         revoke user access to a project in storage backend
@@ -188,7 +198,12 @@ class StorageManager(object):
         if storage_username:
             for b in project.buckets:
                 self._revoke_access_to_bucket(
-                    b, provider, storage_user, storage_username, session
+                    b,
+                    provider,
+                    storage_user,
+                    storage_username,
+                    session,
+                    google_bulk_mapping=google_bulk_mapping,
                 )
 
     @check_exist
@@ -346,7 +361,14 @@ class StorageManager(object):
         return self.clients[provider].get_or_create_user(username)
 
     def _update_access_to_bucket(
-        self, bucket, provider, storage_user, storage_username, access, session
+        self,
+        bucket,
+        provider,
+        storage_user,
+        storage_username,
+        access,
+        session,
+        google_bulk_mapping=None,
     ):
         # Need different logic for google (since buckets can have multiple
         # access groups)
@@ -368,16 +390,26 @@ class StorageManager(object):
             if set(bucket_privileges).issubset(access):
                 bucket_name = bucket_access_group.email
 
-                # NOTE: bucket_name for Google is the Google Access Group's
-                #       email address.
-                # TODO Update storageclient API for more clarity
-                self.clients[provider].add_bucket_acl(bucket_name, storage_username)
-
-                self.logger.info(
-                    "User {}'s Google proxy group ({}) added to Google Bucket Access Group {}.".format(
-                        storage_user.email, storage_username, bucket_name
+                if google_bulk_mapping is not None:
+                    google_bulk_mapping.setdefault(bucket_name, []).append(
+                        storage_username
                     )
-                )
+                    self.logger.info(
+                        "User {}'s Google proxy group ({}) added to bulk mapping for Google Bucket Access Group {}.".format(
+                            storage_user.email, storage_username, bucket_name
+                        )
+                    )
+                else:
+                    # NOTE: bucket_name for Google is the Google Access Group's
+                    #       email address.
+                    # TODO Update storageclient API for more clarity
+                    self.clients[provider].add_bucket_acl(bucket_name, storage_username)
+
+                    self.logger.info(
+                        "User {}'s Google proxy group ({}) added to Google Bucket Access Group {}.".format(
+                            storage_user.email, storage_username, bucket_name
+                        )
+                    )
 
                 StorageManager._add_google_db_entry_for_bucket_access(
                     storage_user, bucket_access_group, session
@@ -393,16 +425,36 @@ class StorageManager(object):
                 )
 
                 bucket_name = bucket_access_group.email
-                self.clients[provider].delete_bucket_acl(bucket_name, storage_username)
 
-                self.logger.info(
-                    "User {}'s Google proxy group ({}) removed or never existed in Google Bucket Access Group {}.".format(
-                        storage_user.email, storage_username, bucket_name
+                if google_bulk_mapping is not None:
+                    google_bulk_mapping.setdefault(bucket_name, [])
+                    while storage_username in google_bulk_mapping[bucket_name]:
+                        google_bulk_mapping[bucket_name].remove(storage_username)
+                        self.logger.debug(
+                            "User {}'s Google proxy group ({}) removed from bulk mapping in Google Bucket Access Group {}.".format(
+                                storage_user.email, storage_username, bucket_name
+                            )
+                        )
+
+                else:
+                    self.clients[provider].delete_bucket_acl(
+                        bucket_name, storage_username
                     )
-                )
+
+                    self.logger.info(
+                        "User {}'s Google proxy group ({}) removed or never existed in Google Bucket Access Group {}.".format(
+                            storage_user.email, storage_username, bucket_name
+                        )
+                    )
 
     def _revoke_access_to_bucket(
-        self, bucket, provider, storage_user, storage_username, session
+        self,
+        bucket,
+        provider,
+        storage_user,
+        storage_username,
+        session,
+        google_bulk_mapping=None,
     ):
         # Need different logic for google (since buckets can have multiple
         # access groups)
@@ -412,13 +464,26 @@ class StorageManager(object):
                     storage_user, bucket_access_group, session
                 )
                 bucket_name = bucket_access_group.email
-                self.clients[provider].delete_bucket_acl(bucket_name, storage_username)
 
-                self.logger.info(
-                    "User {}'s Google proxy group ({}) removed or never existed in from Google Bucket Access Group {}.".format(
-                        storage_user.email, storage_username, bucket_name
+                if google_bulk_mapping is not None:
+                    google_bulk_mapping.setdefault(bucket_name, [])
+                    while storage_username in google_bulk_mapping[bucket_name]:
+                        google_bulk_mapping[bucket_name].remove(storage_username)
+                        self.logger.debug(
+                            "User {}'s Google proxy group ({}) removed from bulk mapping in Google Bucket Access Group {}.".format(
+                                storage_user.email, storage_username, bucket_name
+                            )
+                        )
+                else:
+                    self.clients[provider].delete_bucket_acl(
+                        bucket_name, storage_username
                     )
-                )
+
+                    self.logger.info(
+                        "User {}'s Google proxy group ({}) removed or never existed in from Google Bucket Access Group {}.".format(
+                            storage_user.email, storage_username, bucket_name
+                        )
+                    )
         else:
             self.clients[provider].delete_bucket_acl(bucket.name, storage_username)
 
