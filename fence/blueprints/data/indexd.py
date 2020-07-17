@@ -52,7 +52,7 @@ ANONYMOUS_USER_ID = "anonymous"
 ANONYMOUS_USERNAME = "anonymous"
 
 
-def get_signed_url_for_file(action, file_id):
+def get_signed_url_for_file(action, file_id, file_name=None):
     requested_protocol = flask.request.args.get("protocol", None)
     r_pays_project = flask.request.args.get("userProject", None)
 
@@ -74,36 +74,44 @@ def get_signed_url_for_file(action, file_id):
         expires_in,
         force_signed_url=force_signed_url,
         r_pays_project=r_pays_project,
+        file_name=file_name,
     )
     return {"url": signed_url}
 
 
 class BlankIndex(object):
     """
-    Create a new blank record in indexd, to use for the data upload flow.
+    A blank record in indexd, to use for the data upload flow.
 
     See docs on data upload flow for further details:
 
         https://github.com/uc-cdis/cdis-wiki/tree/master/dev/gen3/data_upload
     """
 
-    def __init__(self, uploader=None, file_name=None, logger_=None):
+    def __init__(
+        self, uploader=None, file_name=None, logger_=None, guid=None, authz=None
+    ):
         self.logger = logger_ or logger
         self.indexd = (
             flask.current_app.config.get("INDEXD")
             or flask.current_app.config["BASE_URL"] + "/index"
         )
-        self.uploader = uploader or current_token["context"]["user"]["name"]
+
+        # allow passing "" empty string to signify you do NOT want
+        # uploader to be populated. If nothing is provided, default
+        # to parsing from token
+        if uploader == "":
+            self.uploader = None
+        elif uploader:
+            self.uploader = uploader
+        else:
+            self.uploader = current_token["context"]["user"]["name"]
+
         self.file_name = file_name
+        self.authz = authz
 
-    @property
-    def guid(self):
-        """
-        Return the GUID for this record in indexd.
-
-        Currently the field in indexd is actually called ``did``.
-        """
-        return self.index_document["did"]
+        # if a guid is not provided, this will create a blank record for you
+        self.guid = guid or self.index_document["did"]
 
     @cached_property
     def index_document(self):
@@ -117,8 +125,24 @@ class BlankIndex(object):
         """
         index_url = self.indexd.rstrip("/") + "/index/blank/"
         params = {"uploader": self.uploader, "file_name": self.file_name}
-        auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
-        indexd_response = requests.post(index_url, json=params, auth=auth)
+
+        # if attempting to set record's authz field, need to pass token
+        # through
+        if self.authz:
+            params["authz"] = self.authz
+            token = get_jwt()
+
+            auth = None
+            headers = {"Authorization": f"bearer {token}"}
+            logger.info("passing users authorization header to create blank record")
+        else:
+            logger.info("using indexd basic auth to create blank record")
+            auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
+            headers = {}
+
+        indexd_response = requests.post(
+            index_url, json=params, headers=headers, auth=auth
+        )
         if indexd_response.status_code not in [200, 201]:
             try:
                 data = indexd_response.json()
@@ -303,7 +327,13 @@ class IndexedFile(object):
         return list(map(IndexedFileLocation.from_url, urls))
 
     def get_signed_url(
-        self, protocol, action, expires_in, force_signed_url=True, r_pays_project=None
+        self,
+        protocol,
+        action,
+        expires_in,
+        force_signed_url=True,
+        r_pays_project=None,
+        file_name=None,
     ):
         if self.public and action == "upload":
             raise Unauthorized("Cannot upload on public files")
@@ -316,12 +346,21 @@ class IndexedFile(object):
         if action is not None and action not in SUPPORTED_ACTIONS:
             raise NotSupported("action {} is not supported".format(action))
         return self._get_signed_url(
-            protocol, action, expires_in, force_signed_url, r_pays_project
+            protocol, action, expires_in, force_signed_url, r_pays_project, file_name
         )
 
     def _get_signed_url(
-        self, protocol, action, expires_in, force_signed_url, r_pays_project
+        self, protocol, action, expires_in, force_signed_url, r_pays_project, file_name
     ):
+        if action == "upload":
+            # NOTE: self.index_document ensures the GUID exists in indexd and raises
+            #       an error if not (which is expected to be caught upstream in the
+            #       app)
+            blank_record = BlankIndex(uploader="", guid=self.index_document.get("did"))
+            return blank_record.make_signed_url(
+                file_name=file_name, expires_in=expires_in
+            )
+
         if not protocol:
             # no protocol specified, return first location as signed url
             try:
@@ -366,6 +405,9 @@ class IndexedFile(object):
         if not self.index_document.get("authz"):
             raise ValueError("index record missing `authz`")
 
+        logger.debug(
+            f"authz check can user {action} on {self.index_document['authz']} for fence?"
+        )
         return flask.current_app.arborist.auth_request(
             jwt=get_jwt(),
             service="fence",
@@ -389,12 +431,14 @@ class IndexedFile(object):
         # have just the `uploader` field and no ACLs. in this just check that the
         # current user's username matches the uploader field
         if self.index_document.get("uploader"):
-            logger.info("Checking access using `uploader` value")
             username = None
             if flask.g.token:
                 username = flask.g.token["context"]["user"]["name"]
             else:
                 username = flask.g.user.username
+            logger.debug(
+                f"authz check using uploader field: {self.index_document.get('uploader')} == {username}"
+            )
             return self.index_document.get("uploader") == username
 
         try:
