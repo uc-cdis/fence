@@ -2,4 +2,9 @@ not included: boto, datamodelutils, Flask_OAuthlib, httplib2s, oauthlib, request
 
 TODO: pytest-cov, codacy-coverage, coveralls
 
-awscli (see https://github.com/uc-cdis/fence/pull/745#discussion_r423441492) 1.18.0 conflicts with botocore<1.13.0
+awscli (see https://github.com/uc-cdis/fence/pull/745#discussion_r423441492) 1.18.0 conflicts with botocore<1.13.0 and s3transfer, dependency of storageclient
+-> removed for now
+
+cdiserrors <1: gen3config, cdis-python-utils, authutils
+cdiserrors >=1: gen3authz
+authutils cannot be updated because fence works on 4.0.0 but not on 5.0.0
