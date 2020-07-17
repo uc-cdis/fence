@@ -49,6 +49,29 @@ cryptography = "*"
 requests = "*"
 
 [[package]]
+category = "main"
+description = "Gen3 auth utility functions"
+name = "authutils"
+optional = false
+python-versions = ">=3.6,<4.0"
+version = "5.0.4"
+
+[package.dependencies]
+authlib = ">=0.11,<1.0"
+cached-property = ">=1.4,<2.0"
+cdiserrors = ">=1.0,<2.0"
+httpx = ">=0.12.1,<0.13.0"
+xmltodict = ">=0.9,<1.0"
+
+[package.dependencies.pyjwt]
+extras = ["crypto"]
+version = ">=1.5,<2.0"
+
+[package.extras]
+fastapi = ["fastapi (>=0.54.1,<0.55.0)"]
+flask = ["Flask (>=0.10.1)"]
+
+[[package]]
 category = "dev"
 description = "AWS SAM Translator is a library that transform SAM templates into AWS CloudFormation templates"
 name = "aws-sam-translator"
@@ -1481,7 +1504,7 @@ python-versions = "*"
 version = "1.12.1"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Makes working with XML feel like you are working with JSON"
 name = "xmltodict"
 optional = false
@@ -1502,7 +1525,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "81517090d17389dd2f218d2d8f740a04d46f83f5bba8cd30dab7051b5d00e365"
+content-hash = "a6db65f5f8165e05b9fc273f6616d64c395c0011e1837e83ed2a5e07af5ef0ea"
 python-versions = "^3.6"
 
 [metadata.files]
@@ -1525,6 +1548,10 @@ attrs = [
 authlib = [
     {file = "Authlib-0.11-py2.py3-none-any.whl", hash = "sha256:3a226f231e962a16dd5f6fcf0c113235805ba206e294717a64fa8e04ae3ad9c4"},
     {file = "Authlib-0.11.tar.gz", hash = "sha256:9741db6de2950a0a5cefbdb72ec7ab12f7e9fd530ff47219f1530e79183cbaaf"},
+]
+authutils = [
+    {file = "authutils-5.0.4-py3-none-any.whl", hash = "sha256:70d750b6ff68748b2812e11f868c724146e8d770aa17f7c1506faf67abf08ad5"},
+    {file = "authutils-5.0.4.tar.gz", hash = "sha256:1d64bc5f8e796405309f3027fea873c9533f1b05ca1076cf1d16ace829a20948"},
 ]
 aws-sam-translator = [
     {file = "aws-sam-translator-1.25.0.tar.gz", hash = "sha256:5b31769d271fa6c7e87cde076ce819f9f9c7da324b3880f2cd0f5f5aa837e520"},
