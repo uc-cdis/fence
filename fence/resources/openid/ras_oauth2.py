@@ -74,10 +74,10 @@ class RASOauth2Client(Oauth2ClientBase):
             return {"error": err_msg}
 
         username = None
-        if userinfo.get("preferred_username"):
-            username = userinfo["preferred_username"]
-        elif userinfo.get("UserID"):
+        if userinfo.get("UserID"):
             username = userinfo["UserID"]
+        elif userinfo.get("preferred_username"):
+            username = userinfo["preferred_username"]
         elif claims.get("sub"):
             username = claims["sub"]
         if not username:
