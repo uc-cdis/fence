@@ -15,10 +15,6 @@ COPY ./deployment/uwsgi/uwsgi.ini /etc/uwsgi/uwsgi.ini
 COPY ./deployment/uwsgi/wsgi.py /$appname/wsgi.py
 WORKDIR /$appname
 
-RUN python -m pip install --upgrade pip \
-    && python -m pip install --upgrade setuptools \
-    && pip install -r requirements.txt
-
 RUN mkdir -p /var/www/$appname \
     && mkdir -p /var/www/.cache/Python-Eggs/ \
     && mkdir /run/nginx/ \
@@ -50,9 +46,12 @@ RUN (cd /tmp \
   && /bin/rm -rf /tmp/*)
 EXPOSE 80
 
+RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
+
 RUN COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" >$appname/version_data.py \
     && VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >>$appname/version_data.py \
-    && python setup.py develop
+    && source $HOME/.poetry/env \
+    && poetry install -vv
 
 WORKDIR /var/www/$appname
 
