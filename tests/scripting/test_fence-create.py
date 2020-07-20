@@ -1015,7 +1015,7 @@ def test_modify_client_action(db_session):
     assert client.name == "test321"
     assert client.description == "test client"
 
-    """ 
+    """
     TODO: Write test for unset_auto_approve modification of client action. As
     it stands it, seems as though this does not function properly in the case
     in which client is to be modified from auto_approve = True to
