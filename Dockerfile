@@ -46,6 +46,12 @@ RUN (cd /tmp \
   && /bin/rm -rf /tmp/*)
 EXPOSE 80
 
+# aws cli v2
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
+    && unzip awscliv2.zip \
+    && ./aws/install \
+    && /bin/rm -rf awscliv2.zip ./aws
+
 RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
 
 RUN COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" >$appname/version_data.py \

@@ -1,10 +1,10 @@
-not included: boto, datamodelutils, Flask_OAuthlib, httplib2s, oauthlib, requests_oauthlib, pysftp, setuptools, six, temps
-
-TODO: pytest-cov, codacy-coverage, coveralls
+not included: boto, datamodelutils, Flask_OAuthlib, httplib2, oauthlib, requests_oauthlib, pysftp, setuptools, six, temps
+not included from setup.py: oauth2client, google_api_python_client
 
 awscli (see https://github.com/uc-cdis/fence/pull/745#discussion_r423441492) 1.18.0 conflicts with botocore<1.13.0 and s3transfer, dependency of storageclient
--> removed for now
+-> add it in dockerfile instead of poetry
 
 cdiserrors <1: gen3config, cdis-python-utils, authutils
 cdiserrors >=1: gen3authz
-authutils cannot be updated because fence works on 4.0.0 but not on 5.0.0
+fence works on 4.0.0 but not on 5.0.0 (NIH login through GDC issues?)
+-> to discuss
