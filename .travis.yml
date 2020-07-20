@@ -25,7 +25,7 @@ before_script:
   - cd -
 
 script:
-  - poetry run pytest -vv --cov=fence --cov-report tests
+  - poetry run pytest -vv --cov=fence --cov-report xml tests
 
 after_script:
   - python-codacy-coverage -r coverage.xml
