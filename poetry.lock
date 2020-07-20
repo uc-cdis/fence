@@ -1283,12 +1283,12 @@ description = "A set of py.test fixtures to test Flask applications."
 name = "pytest-flask"
 optional = false
 python-versions = "*"
-version = "0.10.0"
+version = "0.11.0"
 
 [package.dependencies]
 Flask = "*"
 Werkzeug = ">=0.7"
-pytest = ">=2.4"
+pytest = "*"
 
 [package.extras]
 docs = ["sphinx", "sphinx-rtd-theme"]
@@ -1590,7 +1590,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "eb59dc9c3411fe987c2e799f9613ce6340c126ac194375b99d16b58d3f941452"
+content-hash = "e2397635da693d8814f714a899a0fa89640de1876f57af4e8db7d878f4f16f68"
 python-versions = "^3.6"
 
 [metadata.files]
@@ -2190,8 +2190,8 @@ pytest-cov = [
     {file = "pytest_cov-2.9.0-py2.py3-none-any.whl", hash = "sha256:c87dfd8465d865655a8213859f1b4749b43448b5fae465cb981e16d52a811424"},
 ]
 pytest-flask = [
-    {file = "pytest-flask-0.10.0.tar.gz", hash = "sha256:2c5a36f9033ef8b6f85ddbefaebdd4f89197fc283f94b20dfe1a1beba4b77f03"},
-    {file = "pytest_flask-0.10.0-py2.py3-none-any.whl", hash = "sha256:657c7de386215ab0230bee4d76ace0339ae82fcbb34e134e17a29f65032eef03"},
+    {file = "pytest-flask-0.11.0.tar.gz", hash = "sha256:b0014dbc87c9877effbc632dcbdab5228bc939bf8974ead8b083eb784461d69c"},
+    {file = "pytest_flask-0.11.0-py2.py3-none-any.whl", hash = "sha256:fbf77a4ff2efdaa15d895af00625d8242f4bbdf10aceaefc9deb170bb7a45767"},
 ]
 python-dateutil = [
     {file = "python-dateutil-2.8.1.tar.gz", hash = "sha256:73ebfe9dbf22e832286dafa60473e4cd239f8592f699aa5adaf10050e6e1823c"},
