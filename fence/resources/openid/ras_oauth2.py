@@ -1,15 +1,15 @@
-# need new RAS
 import flask
 from .idp_oauth2 import Oauth2ClientBase
 from jose import jwt
 import requests
+from fence.models import UpstreamRefreshToken, query_for_user
+from flask_sqlalchemy_session import current_session
 
 
 class RASOauth2Client(Oauth2ClientBase):
     """
     client for interacting with RAS oauth 2,
     as openid connect is supported under oauth2
-
     """
 
     RAS_DISCOVERY_URL = "https://stsstg.nih.gov/.well-known/openid-configuration"
@@ -57,6 +57,7 @@ class RASOauth2Client(Oauth2ClientBase):
 
             token = self.get_token(token_endpoint, code)
             keys = self.get_jwt_keys(jwks_endpoint)
+            userinfo = self.get_userinfo(token, userinfo_endpoint)
 
             claims = jwt.decode(
                 token["id_token"],
@@ -64,7 +65,23 @@ class RASOauth2Client(Oauth2ClientBase):
                 options={"verify_aud": False, "verify_at_hash": False},
             )
 
-            userinfo = self.get_userinfo(token, userinfo_endpoint)
+            username = None
+            if userinfo.get("UserID"):
+                username = userinfo["UserID"]
+            elif userinfo.get("preferred_username"):
+                username = userinfo["preferred_username"]
+            elif claims.get("sub"):
+                username = claims["sub"]
+            if not username:
+                logger.error(
+                    "{}, received claims: {} and userinfo: {}".format(
+                        err_msg, claims, userinfo
+                    )
+                )
+                return {"error": err_msg}
+
+            user = query_for_user(session=current_session, username=username)
+            self.store_refresh_token(user, token["refresh_token"], token["expires_at"])
 
             # Save userinfo in flask.g.user for later use in post_login
             flask.g.userinfo = userinfo
@@ -73,18 +90,4 @@ class RASOauth2Client(Oauth2ClientBase):
             self.logger.exception("{}: {}".format(err_msg, e))
             return {"error": err_msg}
 
-        username = None
-        if userinfo.get("UserID"):
-            username = userinfo["UserID"]
-        elif userinfo.get("preferred_username"):
-            username = userinfo["preferred_username"]
-        elif claims.get("sub"):
-            username = claims["sub"]
-        if not username:
-            logger.error(
-                "{}, received claims: {} and userinfo: {}".format(
-                    err_msg, claims, userinfo
-                )
-            )
-            return {"error": err_msg}
         return {"username": username}

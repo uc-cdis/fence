@@ -2,6 +2,10 @@ from authlib.client import OAuth2Session
 from cached_property import cached_property
 from jose import jwt
 import requests
+import time
+from fence.errors import AuthError
+from fence.models import UpstreamRefreshToken
+from flask_sqlalchemy_session import current_session
 
 
 class Oauth2ClientBase(object):
@@ -128,3 +132,45 @@ class Oauth2ClientBase(object):
         for successfully logged in user OR "error" field with details of the error.
         """
         raise NotImplementedError()
+
+    def get_access_token(self, user, token_endpoint):
+
+        """
+        Get accesst_token using a refresh_token
+        """
+
+        err_msg = "Failed to get refresh token"
+
+        # get refresh_token and expiration from db
+        for row in user.upstream_refresh_tokens:
+            refresh_token = row.refresh_token
+            expires = row.expires
+
+        if not refresh_token:
+            raise AuthError("User doesnt have a refresh token")
+        if time.time() > expires:
+            raise AuthError("Refresh token expired. Please login again.")
+
+        try:
+            token = self.session.refresh_token(
+                url=token_endpoint,
+                proxies=self.get_proxies(),
+                refresh_token=refresh_token,
+            )
+
+        except Exception as e:
+            self.logger.exception("{} : {}".format(err_msg, e))
+            return {"error": err_msg}
+        return token
+
+    def store_refresh_token(self, user, refresh_token, expires):
+        """
+        Store refresh token in db.
+        """
+        user.upstream_refresh_tokens = []
+        current_session.commit()
+        upstream_refresh_token = UpstreamRefreshToken(
+            user=user, refresh_token=refresh_token, expires=expires,
+        )
+        current_session.add(upstream_refresh_token)
+        current_session.commit()
