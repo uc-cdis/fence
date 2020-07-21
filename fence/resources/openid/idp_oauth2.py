@@ -157,6 +157,12 @@ class Oauth2ClientBase(object):
                 proxies=self.get_proxies(),
                 refresh_token=refresh_token,
             )
+            new_refresh_token = token["refresh_token"]
+            expires = token["expires_at"]
+
+            self.store_refresh_token(
+                user, refresh_token=new_refresh_token, expires=expires
+            )
 
         except Exception as e:
             self.logger.exception("{} : {}".format(err_msg, e))
@@ -172,5 +178,6 @@ class Oauth2ClientBase(object):
         upstream_refresh_token = UpstreamRefreshToken(
             user=user, refresh_token=refresh_token, expires=expires,
         )
-        current_session.add(upstream_refresh_token)
+        current_db_session = current_session.object_session(upstream_refresh_token)
+        current_db_session.add(upstream_refresh_token)
         current_session.commit()
