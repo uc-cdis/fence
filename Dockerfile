@@ -46,18 +46,33 @@ RUN (cd /tmp \
   && /bin/rm -rf /tmp/*)
 EXPOSE 80
 
-# aws cli v2
+# aws cli v2 - needed for storing files in s3 during usersync k8s job
 RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
     && unzip awscliv2.zip \
     && ./aws/install \
     && /bin/rm -rf awscliv2.zip ./aws
 
+# install poetry
+ENV POETRY_HOME="$HOME/.poetry/bin"
 RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
+# ENV PATH="$POETRY_HOME/bin$PATH"
+# ENV PATH="usr/local/src$PATH" <-- pythonpath
+ENV PYTHONPATH="${PYTHONPATH}:/usr/local/src/"
+RUN echo $PYTHONPATH
 
 RUN COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" >$appname/version_data.py \
-    && VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >>$appname/version_data.py \
-    && source $HOME/.poetry/env \
-    && poetry install -vv
+    && VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >>$appname/version_data.py
+
+# cache so that poetry install will run if these files change
+COPY poetry.lock pyproject.toml /$appname
+
+# install Fence and dependencies via poetry
+RUN source $HOME/.poetry/env \
+    && poetry config virtualenvs.create false \
+    && poetry install -vv --no-dev --no-interaction \
+    && pip list
+RUN pip show flask
+RUN pip show gen3config
 
 WORKDIR /var/www/$appname
 
