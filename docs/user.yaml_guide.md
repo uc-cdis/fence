@@ -222,7 +222,7 @@ authz:
     subresources:
     - name: program1
     - name: program2
-  
+
 users:
   username1:
     projects:
