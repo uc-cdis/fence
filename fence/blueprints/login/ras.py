@@ -6,6 +6,8 @@ from fence.models import GA4GHVisaV1, IdentityProvider, User
 
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 
+from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
+
 
 class RASLogin(DefaultOAuth2Login):
     def __init__(self):
@@ -58,3 +60,10 @@ class RASCallback(DefaultOAuth2Callback):
 
             current_session.add(visa)
             current_session.commit()
+
+        # Store refresh token in db
+        refresh_token = flask.g.tokens.get("refresh_token")
+        expires = flask.g.tokens.get("expires_at")
+        flask.current_app.ras_client.store_refresh_token(
+            user=user, refresh_token=refresh_token, expires=expires
+        )

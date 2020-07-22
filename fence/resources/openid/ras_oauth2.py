@@ -68,23 +68,26 @@ class RASOauth2Client(Oauth2ClientBase):
             username = None
             if userinfo.get("UserID"):
                 username = userinfo["UserID"]
+                field_name = "UserID"
             elif userinfo.get("preferred_username"):
                 username = userinfo["preferred_username"]
+                field_name = "preferred_username"
             elif claims.get("sub"):
                 username = claims["sub"]
+                field_name = "sub"
             if not username:
-                logger.error(
+                self.logger.error(
                     "{}, received claims: {} and userinfo: {}".format(
                         err_msg, claims, userinfo
                     )
                 )
                 return {"error": err_msg}
 
-            user = query_for_user(session=current_session, username=username)
-            self.store_refresh_token(user, token["refresh_token"], token["expires_at"])
+            self.logger.info("Using {} field as username.".format(field_name))
 
-            # Save userinfo in flask.g.user for later use in post_login
+            # Save userinfo and token in flask.g for later use in post_login
             flask.g.userinfo = userinfo
+            flask.g.tokens = token
 
         except Exception as e:
             self.logger.exception("{}: {}".format(err_msg, e))

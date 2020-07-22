@@ -136,10 +136,10 @@ class Oauth2ClientBase(object):
     def get_access_token(self, user, token_endpoint):
 
         """
-        Get accesst_token using a refresh_token
+        Get access_token using a refresh_token
         """
-
-        err_msg = "Failed to get refresh token"
+        refresh_token = None
+        expires = None
 
         # get refresh_token and expiration from db
         for row in user.upstream_refresh_tokens:
@@ -152,22 +152,22 @@ class Oauth2ClientBase(object):
             raise AuthError("Refresh token expired. Please login again.")
 
         try:
-            token = self.session.refresh_token(
+            token_response = self.session.refresh_token(
                 url=token_endpoint,
                 proxies=self.get_proxies(),
                 refresh_token=refresh_token,
             )
-            new_refresh_token = token["refresh_token"]
-            expires = token["expires_at"]
+            new_refresh_token = token_response["refresh_token"]
+            expires = token_response["expires_at"]
 
             self.store_refresh_token(
                 user, refresh_token=new_refresh_token, expires=expires
             )
 
         except Exception as e:
+            err_msg = "Failed to get refresh token"
             self.logger.exception("{} : {}".format(err_msg, e))
-            return {"error": err_msg}
-        return token
+        return token_response
 
     def store_refresh_token(self, user, refresh_token, expires):
         """
