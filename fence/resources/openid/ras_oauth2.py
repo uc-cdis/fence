@@ -2,8 +2,6 @@ import flask
 from .idp_oauth2 import Oauth2ClientBase
 from jose import jwt
 import requests
-from fence.models import query_for_user
-from flask_sqlalchemy_session import current_session
 
 
 class RASOauth2Client(Oauth2ClientBase):

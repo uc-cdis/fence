@@ -6,8 +6,6 @@ from fence.models import GA4GHVisaV1, IdentityProvider, User
 
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 
-from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
-
 
 class RASLogin(DefaultOAuth2Login):
     def __init__(self):
