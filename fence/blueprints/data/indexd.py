@@ -939,7 +939,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         with GoogleCloudManager(
             creds=config["CIRRUS_CFG"]["GOOGLE_STORAGE_CREDS"]
         ) as gcm:
-            gcm.delete_data_file(bucket, self.file_name())
+            gcm.delete_data_file(bucket, file_id)
 
 
 def _get_user_info():
