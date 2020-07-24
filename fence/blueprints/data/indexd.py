@@ -481,16 +481,14 @@ class IndexedFile(object):
             ]
         for location in locations_to_delete:
             bucket = location.bucket_name()
-            file_suffix = self.file_id
-            if not file_suffix:
-                file_suffix = location.file_name()
+            file_name = location.file_name()
 
             logger.info(
                 "Attempting to delete file named {} from bucket {}".format(
-                    file_suffix, bucket
+                    file_name, bucket
                 )
             )
-            location.delete(bucket, file_suffix)
+            location.delete(bucket, file_name)
 
     @login_required({"data"})
     def delete(self):
@@ -874,7 +872,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
 
         file_name = None
         try:
-            file_name = resource_path.split("/")[1]
+            file_name = resource_path.split("/")[-1]
         except Exception as exc:
             logger.error("Unable to get file name from resource path. {}".format(exc))
 
