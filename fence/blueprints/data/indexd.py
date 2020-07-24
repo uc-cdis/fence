@@ -873,7 +873,8 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
 
         file_name = None
         try:
-            file_name = resource_path.split("/")[-1]
+            logger.info("Determining filename from resource_path {}".format(resource_path))
+            file_name = "/".join(resource_path.split("/")[3:])
         except Exception as exc:
             logger.error("Unable to get file name from resource path. {}".format(exc))
 
