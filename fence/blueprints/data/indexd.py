@@ -482,6 +482,7 @@ class IndexedFile(object):
         for location in locations_to_delete:
             bucket = location.bucket_name()
             file_name = location.file_name()
+            
 
             logger.info(
                 "Attempting to delete file named {} from bucket {}".format(
