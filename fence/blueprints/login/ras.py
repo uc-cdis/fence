@@ -61,7 +61,9 @@ class RASCallback(DefaultOAuth2Callback):
 
         # Store refresh token in db
         refresh_token = flask.g.tokens.get("refresh_token")
-        expires = flask.g.tokens.get("expires_at")
+        id_token = flask.g.tokens.get("id_token")
+        # Add 15 days to iat to calculate refresh token expiration time
+        expires = id_token.get("iat") + (15 * 24 * 60 * 60)
         flask.current_app.ras_client.store_refresh_token(
             user=user, refresh_token=refresh_token, expires=expires
         )

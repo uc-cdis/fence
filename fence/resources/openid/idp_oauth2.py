@@ -158,7 +158,6 @@ class Oauth2ClientBase(object):
                 refresh_token=refresh_token,
             )
             new_refresh_token = token_response["refresh_token"]
-            expires = token_response["expires_at"]
 
             self.store_refresh_token(
                 user, refresh_token=new_refresh_token, expires=expires
