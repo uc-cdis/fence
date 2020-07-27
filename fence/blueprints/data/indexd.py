@@ -482,7 +482,7 @@ class IndexedFile(object):
         for location in locations_to_delete:
             bucket = location.bucket_name()
 
-            file_suffix = ''
+            file_suffix = ""
             try:
                 file_suffix = location.file_name()
             except Exception:
@@ -598,7 +598,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             if re.match("^" + bucket + "$", self.parsed_url.netloc):
                 return bucket
         return None
-    
+
     def file_name(self):
         return self.file_id
 
@@ -880,7 +880,9 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
 
         file_name = None
         try:
-            logger.info("Determining filename from resource_path {}".format(resource_path))
+            logger.info(
+                "Determining filename from resource_path {}".format(resource_path)
+            )
             file_name = "/".join(resource_path.split("/")[1:])
         except Exception as exc:
             logger.error("Unable to get file name from resource path. {}".format(exc))
