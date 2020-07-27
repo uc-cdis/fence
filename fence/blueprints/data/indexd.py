@@ -489,7 +489,7 @@ class IndexedFile(object):
                 file_suffix = self.file_id
 
             logger.info(
-                "Attempting to delete file named {} from bucket {}".format(
+                "Attempting to delete file named {} from bucket {}.".format(
                     file_suffix, bucket
                 )
             )
