@@ -481,14 +481,19 @@ class IndexedFile(object):
             ]
         for location in locations_to_delete:
             bucket = location.bucket_name()
-            file_name = location.file_name()
+
+            file_suffix = ''
+            try:
+                file_suffix = location.file_name()
+            except Exception:
+                file_suffix = self.file_id
 
             logger.info(
                 "Attempting to delete file named {} from bucket {}".format(
-                    file_name, bucket
+                    file_suffix, bucket
                 )
             )
-            location.delete(bucket, file_name)
+            location.delete(bucket, file_suffix)
 
     @login_required({"data"})
     def delete(self):
