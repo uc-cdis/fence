@@ -482,7 +482,6 @@ class IndexedFile(object):
         for location in locations_to_delete:
             bucket = location.bucket_name()
             file_name = location.file_name()
-            
 
             logger.info(
                 "Attempting to delete file named {} from bucket {}".format(
@@ -594,6 +593,9 @@ class S3IndexedFileLocation(IndexedFileLocation):
             if re.match("^" + bucket + "$", self.parsed_url.netloc):
                 return bucket
         return None
+    
+    def file_name(self):
+        return self.file_id
 
     @classmethod
     def get_credential_to_access_bucket(
