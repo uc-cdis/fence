@@ -385,6 +385,7 @@ def generate_signed_access_token(
         "iat": iat,
         "exp": exp,
         "jti": jti,
+        "scope": scopes,
         "context": {
             "user": {
                 "name": user.username,
