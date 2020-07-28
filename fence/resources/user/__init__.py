@@ -3,8 +3,9 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import COMMASPACE, formatdate
 
-from cdislogging import get_logger
 import flask
+import jwt
+from cdislogging import get_logger
 
 from fence.resources import userdatamodel as udm
 from fence.resources.google.utils import (
@@ -127,6 +128,17 @@ def get_user_info(current_session, username):
         )
         optional_info = _get_optional_userinfo(user, requested_userinfo_claims)
         info.update(optional_info)
+
+    # Include ga4gh passport visas
+    if not flask.g.access_token:
+        logger.warning(
+            "Session token present but no access token found. Unable to check scopes in userinfo; returning."
+        )
+    else:
+        at_scopes = jwt.decode(flask.g.access_token, verify=False).get("scope", "")
+        if "ga4gh_passport_v1" in at_scopes:
+            encoded_visas = [row.ga4gh_visa for row in user.ga4gh_visas_v1]
+            info["ga4gh_passport_v1"] = encoded_visas
 
     return info
 

@@ -534,6 +534,27 @@ class ServiceAccountToGoogleBucketAccessGroup(Base):
     )
 
 
+class GA4GHVisaV1(Base):
+
+    __tablename__ = "ga4gh_visa_v1"
+
+    # As Fence will consume visas from many visa issuers, will not use jti as pkey
+    id = Column(BigInteger, primary_key=True)
+
+    user_id = Column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
+    user = relationship(
+        "User",
+        backref=backref(
+            "ga4gh_visas_v1", cascade="all, delete-orphan", passive_deletes=True
+        ),
+    )
+    ga4gh_visa = Column(Text, nullable=False)  # In encoded form
+    source = Column(String, nullable=False)
+    type = Column(String, nullable=False)
+    asserted = Column(BigInteger, nullable=False)
+    expires = Column(BigInteger, nullable=False)
+
+
 to_timestamp = (
     "CREATE OR REPLACE FUNCTION pc_datetime_to_timestamp(datetoconvert timestamp) "
     "RETURNS BIGINT AS "

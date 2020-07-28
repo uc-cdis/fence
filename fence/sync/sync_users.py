@@ -30,6 +30,7 @@ from fence.models import (
     Client,
 )
 from fence.resources.storage import StorageManager
+from fence.resources.google.access_utils import bulk_update_google_groups
 from fence.sync import utils
 
 
@@ -684,6 +685,10 @@ class UserSyncer(object):
         Return:
             None
         """
+        google_bulk_mapping = None
+        if config["GOOGLE_BULK_UPDATES"]:
+            google_bulk_mapping = {}
+
         self._init_projects(user_project, sess)
 
         auth_provider_list = [
@@ -718,9 +723,20 @@ class UserSyncer(object):
         # when updating users we want to maintain case sesitivity in the username so
         # pass the original, non-lowered user_info dict
         self._upsert_userinfo(sess, user_info)
-        self._revoke_from_storage(to_delete, sess)
+
+        self._revoke_from_storage(
+            to_delete, sess, google_bulk_mapping=google_bulk_mapping
+        )
+
         self._revoke_from_db(sess, to_delete)
-        self._grant_from_storage(to_add, user_project_lowercase, sess)
+
+        self._grant_from_storage(
+            to_add,
+            user_project_lowercase,
+            sess,
+            google_bulk_mapping=google_bulk_mapping,
+        )
+
         self._grant_from_db(
             sess,
             to_add,
@@ -730,10 +746,20 @@ class UserSyncer(object):
         )
 
         # re-grant
-        self._grant_from_storage(to_update, user_project_lowercase, sess)
+        self._grant_from_storage(
+            to_update,
+            user_project_lowercase,
+            sess,
+            google_bulk_mapping=google_bulk_mapping,
+        )
         self._update_from_db(sess, to_update, user_project_lowercase)
 
         self._validate_and_update_user_admin(sess, user_info_lowercase)
+
+        if config["GOOGLE_BULK_UPDATES"]:
+            self.logger.info("Doing bulk Google update...")
+            bulk_update_google_groups(google_bulk_mapping)
+            self.logger.info("Bulk Google update done!")
 
         sess.commit()
 
@@ -900,7 +926,7 @@ class UserSyncer(object):
                     tag = Tag(key=k, value=v)
                     u.tags.append(tag)
 
-    def _revoke_from_storage(self, to_delete, sess):
+    def _revoke_from_storage(self, to_delete, sess, google_bulk_mapping=None):
         """
         If a project have storage backend, revoke user's access to buckets in
         the storage backend.
@@ -916,6 +942,16 @@ class UserSyncer(object):
                 sess.query(Project).filter(Project.auth_id == project_auth_id).first()
             )
             for sa in project.storage_access:
+                if not hasattr(self, "storage_manager"):
+                    self.logger.error(
+                        (
+                            "CANNOT revoke {} access to {} in {} because there is NO "
+                            "configured storage accesses at all. See configuration. "
+                            "Continuing anyway..."
+                        ).format(username, project_auth_id, sa.provider.name)
+                    )
+                    continue
+
                 self.logger.info(
                     "revoke {} access to {} in {}".format(
                         username, project_auth_id, sa.provider.name
@@ -926,9 +962,10 @@ class UserSyncer(object):
                     username=username,
                     project=project,
                     session=sess,
+                    google_bulk_mapping=google_bulk_mapping,
                 )
 
-    def _grant_from_storage(self, to_add, user_project, sess):
+    def _grant_from_storage(self, to_add, user_project, sess, google_bulk_mapping=None):
         """
         If a project have storage backend, grant user's access to buckets in
         the storage backend.
@@ -946,6 +983,16 @@ class UserSyncer(object):
             project = self._projects[project_auth_id]
             for sa in project.storage_access:
                 access = list(user_project[username][project_auth_id])
+                if not hasattr(self, "storage_manager"):
+                    self.logger.error(
+                        (
+                            "CANNOT grant {} access {} to {} in {} because there is NO "
+                            "configured storage accesses at all. See configuration. "
+                            "Continuing anyway..."
+                        ).format(username, access, project_auth_id, sa.provider.name)
+                    )
+                    continue
+
                 self.logger.info(
                     "grant {} access {} to {} in {}".format(
                         username, access, project_auth_id, sa.provider.name
@@ -957,6 +1004,7 @@ class UserSyncer(object):
                     project=project,
                     access=access,
                     session=sess,
+                    google_bulk_mapping=google_bulk_mapping,
                 )
 
     def _init_projects(self, user_project, sess):

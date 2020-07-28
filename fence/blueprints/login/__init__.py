@@ -18,6 +18,7 @@ from fence.blueprints.login.google import GoogleLogin, GoogleCallback
 from fence.blueprints.login.shib import ShibbolethLogin, ShibbolethCallback
 from fence.blueprints.login.microsoft import MicrosoftLogin, MicrosoftCallback
 from fence.blueprints.login.orcid import ORCIDLogin, ORCIDCallback
+from fence.blueprints.login.ras import RASLogin, RASCallback
 from fence.blueprints.login.synapse import SynapseLogin, SynapseCallback
 from fence.errors import InternalError
 from fence.restful import RestfulApi
@@ -34,6 +35,7 @@ IDP_URL_MAP = {
     "synapse": "synapse",
     "microsoft": "microsoft",
     "cognito": "cognito",
+    "ras": "ras",
 }
 
 
@@ -255,6 +257,11 @@ def make_login_blueprint(app):
     if "orcid" in configured_idps:
         blueprint_api.add_resource(ORCIDLogin, "/orcid", strict_slashes=False)
         blueprint_api.add_resource(ORCIDCallback, "/orcid/login", strict_slashes=False)
+
+    if "ras" in configured_idps:
+        blueprint_api.add_resource(RASLogin, "/ras", strict_slashes=False)
+        # note that the callback endpoint is "/ras/callback", not "/ras/login" like other IDPs
+        blueprint_api.add_resource(RASCallback, "/ras/callback", strict_slashes=False)
 
     if "synapse" in configured_idps:
         blueprint_api.add_resource(SynapseLogin, "/synapse", strict_slashes=False)
