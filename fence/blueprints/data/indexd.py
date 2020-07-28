@@ -461,7 +461,7 @@ class IndexedFile(object):
     @login_required({"data"})
     def delete_files(self, urls=None, delete_all=True):
         """
-        Delete the data files stored at all the locations for this indexed file.
+        Delete the data files stored at all the locations for this indexed file. 
 
         If a list of URLs is specified, delete only files at those locations;
         otherwise, delete files at all locations.
