@@ -485,7 +485,8 @@ class IndexedFile(object):
             file_suffix = ""
             try:
                 file_suffix = location.file_name()
-            except Exception:
+            except Exception as e:
+                logger.info(e)
                 file_suffix = self.file_id
 
             logger.info(
