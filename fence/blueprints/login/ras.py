@@ -64,7 +64,7 @@ class RASCallback(DefaultOAuth2Callback):
         id_token = flask.g.tokens.get("id_token")
         decoded_id = jwt.decode(id_token, verify=False)
         # Add 15 days to iat to calculate refresh token expiration time
-        expires = decoded_id.get("iat") + (15 * 24 * 60 * 60)
+        expires = int(decoded_id.get("iat")) + (15 * 24 * 60 * 60)
         flask.current_app.ras_client.store_refresh_token(
             user=user, refresh_token=refresh_token, expires=expires
         )
