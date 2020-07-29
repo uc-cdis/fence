@@ -495,7 +495,12 @@ class IndexedFile(object):
                     file_suffix, bucket
                 )
             )
-            location.delete(bucket, file_suffix)
+            try:
+                print('trying to catch the exception on 499 indexd.py')
+                location.delete(bucket, file_suffix)
+            except Exception as e:
+                logger.error(e)
+                print('503 caught it')
 
     @login_required({"data"})
     def delete(self):
@@ -948,10 +953,16 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         Delete data file in Google Cloud Storage. Note that file_id is unused to satisfy
         polymorphism -- the s3 subclass needs the file_id argument.
         """
-        with GoogleCloudManager(
-            creds=config["CIRRUS_CFG"]["GOOGLE_STORAGE_CREDS"]
-        ) as gcm:
-            gcm.delete_data_file(bucket, file_id)
+        try:
+            print('trying to catch the exception on indexd.py 956')
+            with GoogleCloudManager(
+                creds=config["CIRRUS_CFG"]["GOOGLE_STORAGE_CREDS"]
+            ) as gcm:
+                gcm.delete_data_file(bucket, file_id)
+        except Exception as e:
+            logger.error(e)
+            print('963 caught it')
+
 
 
 def _get_user_info():
