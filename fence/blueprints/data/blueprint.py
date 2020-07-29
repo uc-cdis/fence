@@ -54,8 +54,10 @@ def delete_data_file(file_id):
             message, status_code = record.delete_files(delete_all=True)
             print('blueprint got message', message)
             logger.warn('blueprint got message {}'.format(message))
+            logger.info('blueprint got message {}'.format(message))
             print('blueprint got status_code', status_code)
             logger.warn('blueprint got status_code {}'.format(status_code))
+            logger.info('blueprint got status_code {}'.format(status_code))
             if str(status_code)[0] != 2:
                 return flask.jsonify({"message": message}), status_code
             

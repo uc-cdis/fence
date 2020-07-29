@@ -951,10 +951,6 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         return final_url
 
     def delete(self, bucket, file_id):
-        """
-        Delete data file in Google Cloud Storage. Note that file_id is unused to satisfy
-        polymorphism -- the s3 subclass needs the file_id argument.
-        """
         try:
             with GoogleCloudManager(
                 creds=config["CIRRUS_CFG"]["GOOGLE_STORAGE_CREDS"]
@@ -969,6 +965,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             except Exception as exc:
                 logger.error(exc)
                 status_code = 500
+            print("returning status code {}".format(status_code))
             return ("Failed to delete data file.", status_code)
             
 
