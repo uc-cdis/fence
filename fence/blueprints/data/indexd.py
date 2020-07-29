@@ -882,9 +882,6 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
 
         file_name = None
         try:
-            logger.info(
-                "Determining filename from resource_path {}".format(resource_path)
-            )
             # GCS Filenames must be encoded according to https://tools.ietf.org/html/rfc3986#section-3.3
             # As described in this doc: https://cloud.google.com/storage/docs/request-endpoints
             file_name = urlquote("/".join(resource_path.split("/")[1:]), safe='')
