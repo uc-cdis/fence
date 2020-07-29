@@ -495,12 +495,7 @@ class IndexedFile(object):
                     file_suffix, bucket
                 )
             )
-            try:
-                print('trying to catch the exception on 499 indexd.py')
-                location.delete(bucket, file_suffix)
-            except Exception as e:
-                logger.error(e)
-                print('503 caught it')
+            return location.delete(bucket, file_suffix)
 
     @login_required({"data"})
     def delete(self):
@@ -811,7 +806,14 @@ class S3IndexedFileLocation(IndexedFileLocation):
         )
 
     def delete(self, bucket, file_id):
-        flask.current_app.boto.delete_data_file(bucket, file_id)
+        try:
+            delete_result = flask.current_app.boto.delete_data_file(bucket, file_id)
+            print('s3 delete_result:' , delete_result) # TODO: delete this line
+            return ("", 204)
+        except Exception as e:
+            logger.error(e)
+            return ("Failed to delete data file.", 500)
+
 
 
 class GoogleStorageIndexedFileLocation(IndexedFileLocation):
@@ -959,9 +961,16 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                 creds=config["CIRRUS_CFG"]["GOOGLE_STORAGE_CREDS"]
             ) as gcm:
                 gcm.delete_data_file(bucket, file_id)
+            return ("", 204)
         except Exception as e:
             logger.error(e)
-            print('963 caught it')
+            try:
+                status_code = e.response.status_code
+            except Exception as exc:
+                logger.error(exc)
+                status_code = 500
+            return ("Failed to delete data file.", status_code)
+            
 
 
 
