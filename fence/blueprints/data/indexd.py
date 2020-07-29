@@ -1,6 +1,7 @@
 import re
 import time
 from urllib.parse import urlparse
+from urllib.parse import quote as urlquote
 
 from cached_property import cached_property
 import cirrus
@@ -884,7 +885,9 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             logger.info(
                 "Determining filename from resource_path {}".format(resource_path)
             )
-            file_name = "/".join(resource_path.split("/")[1:])
+            # GCS Filenames must be encoded according to https://tools.ietf.org/html/rfc3986#section-3.3
+            # As described in this doc: https://cloud.google.com/storage/docs/request-endpoints
+            file_name = urlquote("/".join(resource_path.split("/")[1:]))
         except Exception as exc:
             logger.error("Unable to get file name from resource path. {}".format(exc))
 
