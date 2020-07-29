@@ -956,7 +956,6 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         polymorphism -- the s3 subclass needs the file_id argument.
         """
         try:
-            print('trying to catch the exception on indexd.py 956')
             with GoogleCloudManager(
                 creds=config["CIRRUS_CFG"]["GOOGLE_STORAGE_CREDS"]
             ) as gcm:
@@ -964,8 +963,9 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             return ("", 204)
         except Exception as e:
             logger.error(e)
+            print(dir(e))
             try:
-                status_code = e.response.status_code
+                status_code = e.resp.status
             except Exception as exc:
                 logger.error(exc)
                 status_code = 500
