@@ -51,34 +51,13 @@ def delete_data_file(file_id):
         # (b/c users only have edit access through arborist/authz)
         if has_correct_authz:
             logger.info("deleting record and files for {}".format(file_id))
-            try:
-                record.delete_files(delete_all=True)
-            except Exception as exc:
-                logger.error(exc, exc_info=True)
-                return (
-                    flask.jsonify(
-                        {
-                            "message": "Unable to delete this record's data files. Backing off. Exception: {}".format(
-                                exc
-                            )
-                        }
-                    ),
-                    500,
-                )
-            try:
-                return record.delete()
-            except Exception as exc:
-                logger.error(exc, exc_info=True)
-                return (
-                    flask.jsonify(
-                        {
-                            "message": "Unable to delete this record's data files. Backing off. Exception: {}".format(
-                                exc
-                            )
-                        }
-                    ),
-                    500,
-                )
+            message, status_code = record.delete_files(delete_all=True)
+            print('blueprint got message', message)
+            print('blueprint got status_code', status_code)
+            if str(status_code)[0] != 2:
+                return flask.jsonify({"message": message}), status_code
+            
+            return record.delete()
         else:
             return (
                 flask.jsonify(
