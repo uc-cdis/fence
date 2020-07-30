@@ -75,40 +75,29 @@ def delete_data_file(file_id):
     # If authz is empty: use uploader == user to see if user can delete.
     uploader = record.index_document.get("uploader")
     if not uploader:
-        raise Forbidden(
-            "You cannot delete this file because the uploader field indicates it does not belong to you."
-        )
+        return (
+                flask.jsonify(
+                    {
+                        "message": "You cannot delete this file because the uploader field indicates it does not belong to you."
+                    }
+                ),
+                403,
+            )
     if current_token["context"]["user"]["name"] != uploader:
         raise Forbidden("user is not uploader for file {}".format(file_id))
     logger.info("deleting record and files for {}".format(file_id))
-    try:
-        record.delete_files(delete_all=True)
-    except Exception as exc:
-        logger.error(exc, exc_info=True)
-        return (
-            flask.jsonify(
-                {
-                    "message": "Unable to delete this record's data files. Backing off. Exception: {}".format(
-                        exc
-                    )
-                }
-            ),
-            500,
-        )
-    try:
-        return record.delete()
-    except Exception as exc:
-        logger.error(exc, exc_info=True)
-        return (
-            flask.jsonify(
-                {
-                    "message": "Unable to delete this record's data files. Backing off. Exception: {}".format(
-                        exc
-                    )
-                }
-            ),
-            500,
-        )
+    
+    message, status_code = record.delete_files(delete_all=True)
+    print('blueprint got message', message)
+    logger.warn('blueprint got message {}'.format(message))
+    logger.info('blueprint got message {}'.format(message))
+    print('blueprint got status_code', status_code)
+    logger.warn('blueprint got status_code {}'.format(status_code))
+    logger.info('blueprint got status_code {}'.format(status_code))
+    if str(status_code)[0] != 2:
+        return flask.jsonify({"message": message}), status_code
+
+    return record.delete()
 
 
 @blueprint.route("/upload", methods=["POST"])
