@@ -124,7 +124,6 @@ def upload_data_file():
 
     """
     # make new record in indexd, with just the `uploader` field (and a GUID)
-    print("inside data/upload path callback 127")
     params = flask.request.get_json()
     if not params:
         raise UserError("wrong Content-Type; expected application/json")
@@ -137,11 +136,10 @@ def upload_data_file():
 
     authz = params.get("authz")
     uploader = None
-    print("140")
+
     if authz:
         # if requesting an authz field, using new authorization method which doesn't
         # rely on uploader field, so clear it out
-        print("144")
         uploader = ""
         authorized = flask.current_app.arborist.auth_request(
             jwt=get_jwt(),
@@ -152,7 +150,6 @@ def upload_data_file():
         if not authorized:
             logger.error(authz_err_msg.format("create' and 'write-storage", authz))
     else:
-        print("155")
         # no 'authz' was provided, so fall back on 'file_upload' logic
         authorized = flask.current_app.arborist.auth_request(
             jwt=get_jwt(),
@@ -164,28 +161,26 @@ def upload_data_file():
             logger.error(authz_err_msg.format("file_upload", "/data_file"))
 
     if not authorized:
-        print("167")
         raise Forbidden(
             "You do not have access to upload data. You either need "
             "general file uploader permissions or create & write-storage permissions "
             "on the authz resources you specified (if you specified any)."
         )
-    print("173")
+
     blank_index = BlankIndex(
         file_name=params["file_name"], authz=params.get("authz"), uploader=uploader
     )
     expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
-    print("178")
+
     if "expires_in" in params:
         is_valid_expiration(params["expires_in"])
         expires_in = min(params["expires_in"], expires_in)
-    print("182")
+
     response = {
         "guid": blank_index.guid,
         "url": blank_index.make_signed_url(params["file_name"], expires_in=expires_in),
     }
-    print("187")
-    print(response)
+
     return flask.jsonify(response), 201
 
 
