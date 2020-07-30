@@ -54,7 +54,7 @@ def delete_data_file(file_id):
             message, status_code = record.delete_files(delete_all=True)
             if str(status_code)[0] != 2:
                 return flask.jsonify({"message": message}), status_code
-            
+
             return record.delete()
         else:
             return (
@@ -71,24 +71,16 @@ def delete_data_file(file_id):
     uploader = record.index_document.get("uploader")
     if not uploader:
         return (
-                flask.jsonify(
-                    {
-                        "message": uploader_mismatch_error_message
-                    }
-                ),
-                403,
-            )
+            flask.jsonify({"message": uploader_mismatch_error_message}),
+            403,
+        )
     if current_token["context"]["user"]["name"] != uploader:
         return (
-                flask.jsonify(
-                    {
-                        "message": uploader_mismatch_error_message
-                    }
-                ),
-                403,
-            )
+            flask.jsonify({"message": uploader_mismatch_error_message}),
+            403,
+        )
     logger.info("deleting record and files for {}".format(file_id))
-    
+
     message, status_code = record.delete_files(delete_all=True)
     if str(status_code)[0] != 2:
         return flask.jsonify({"message": message}), status_code

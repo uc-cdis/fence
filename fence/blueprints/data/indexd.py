@@ -814,7 +814,6 @@ class S3IndexedFileLocation(IndexedFileLocation):
             return ("Failed to delete data file.", 500)
 
 
-
 class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     """
     An indexed file that lives in a Google Storage bucket.
@@ -890,7 +889,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         try:
             # GCS Filenames must be encoded according to https://tools.ietf.org/html/rfc3986#section-3.3
             # As described in this doc: https://cloud.google.com/storage/docs/request-endpoints
-            file_name = urlquote("/".join(resource_path.split("/")[1:]), safe='')
+            file_name = urlquote("/".join(resource_path.split("/")[1:]), safe="")
         except Exception as exc:
             logger.error("Unable to get file name from resource path. {}".format(exc))
 
@@ -964,8 +963,6 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                 logger.error(exc)
                 status_code = 500
             return ("Failed to delete data file.", status_code)
-            
-
 
 
 def _get_user_info():
