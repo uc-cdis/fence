@@ -180,12 +180,12 @@ def upload_data_file():
         is_valid_expiration(params["expires_in"])
         expires_in = min(params["expires_in"], expires_in)
     print("182")
-    print(response)
     response = {
         "guid": blank_index.guid,
         "url": blank_index.make_signed_url(params["file_name"], expires_in=expires_in),
     }
     print("187")
+    print(response)
     return flask.jsonify(response), 201
 
 
