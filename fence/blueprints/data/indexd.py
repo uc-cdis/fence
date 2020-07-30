@@ -808,7 +808,6 @@ class S3IndexedFileLocation(IndexedFileLocation):
     def delete(self, bucket, file_id):
         try:
             delete_result = flask.current_app.boto.delete_data_file(bucket, file_id)
-            print('s3 delete_result:' , delete_result) # TODO: delete this line
             return ("", 204)
         except Exception as e:
             logger.error(e)
@@ -959,13 +958,11 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             return ("", 204)
         except Exception as e:
             logger.error(e)
-            print(dir(e))
             try:
                 status_code = e.resp.status
             except Exception as exc:
                 logger.error(exc)
                 status_code = 500
-            print("returning status code {}".format(status_code))
             return ("Failed to delete data file.", status_code)
             
 

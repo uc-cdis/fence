@@ -50,14 +50,8 @@ def delete_data_file(file_id):
         # delete permissions by changing the uploader field to their own username
         # (b/c users only have edit access through arborist/authz)
         if has_correct_authz:
-            logger.info("deleting record and files for {}".format(file_id))
+            logger.info("Deleting record and files for {}".format(file_id))
             message, status_code = record.delete_files(delete_all=True)
-            print('blueprint got message', message)
-            logger.warn('blueprint got message {}'.format(message))
-            logger.info('blueprint got message {}'.format(message))
-            print('blueprint got status_code', status_code)
-            logger.warn('blueprint got status_code {}'.format(status_code))
-            logger.info('blueprint got status_code {}'.format(status_code))
             if str(status_code)[0] != 2:
                 return flask.jsonify({"message": message}), status_code
             
@@ -66,34 +60,36 @@ def delete_data_file(file_id):
             return (
                 flask.jsonify(
                     {
-                        "message": "user does not have arborist permissions to delete this file"
+                        "message": "You do not have arborist permissions to delete this file."
                     }
                 ),
                 403,
             )
 
     # If authz is empty: use uploader == user to see if user can delete.
+    uploader_mismatch_error_message = "You cannot delete this file because the uploader field indicates it does not belong to you."
     uploader = record.index_document.get("uploader")
     if not uploader:
         return (
                 flask.jsonify(
                     {
-                        "message": "You cannot delete this file because the uploader field indicates it does not belong to you."
+                        "message": uploader_mismatch_error_message
                     }
                 ),
                 403,
             )
     if current_token["context"]["user"]["name"] != uploader:
-        raise Forbidden("user is not uploader for file {}".format(file_id))
+        return (
+                flask.jsonify(
+                    {
+                        "message": uploader_mismatch_error_message
+                    }
+                ),
+                403,
+            )
     logger.info("deleting record and files for {}".format(file_id))
     
     message, status_code = record.delete_files(delete_all=True)
-    print('blueprint got message', message)
-    logger.warn('blueprint got message {}'.format(message))
-    logger.info('blueprint got message {}'.format(message))
-    print('blueprint got status_code', status_code)
-    logger.warn('blueprint got status_code {}'.format(status_code))
-    logger.info('blueprint got status_code {}'.format(status_code))
     if str(status_code)[0] != 2:
         return flask.jsonify({"message": message}), status_code
 
