@@ -52,7 +52,8 @@ def delete_data_file(file_id):
         if has_correct_authz:
             logger.info("Deleting record and files for {}".format(file_id))
             message, status_code = record.delete_files(delete_all=True)
-            if str(status_code)[0] != 2:
+            if str(status_code)[0] != "2":
+                print("exiting early without deleting record")
                 return flask.jsonify({"message": message}), status_code
 
             return record.delete()
@@ -82,7 +83,9 @@ def delete_data_file(file_id):
     logger.info("deleting record and files for {}".format(file_id))
 
     message, status_code = record.delete_files(delete_all=True)
-    if str(status_code)[0] != 2:
+    if str(status_code)[0] != "2":
+        print("exiting early without deleting record")
+        print(status_code)
         return flask.jsonify({"message": message}), status_code
 
     return record.delete()
