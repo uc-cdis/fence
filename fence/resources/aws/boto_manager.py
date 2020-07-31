@@ -36,21 +36,24 @@ class BotoManager(object):
             if not s3_objects.get("Contents"):
                 # file not found in the bucket
                 self.logger.info(
-                    "tried to delete GUID {} but didn't find in bucket {}".format(
+                    "tried to delete prefix {} but didn't find in bucket {}".format(
                         guid, bucket
                     )
                 )
-                return
+                return ("Unable to delete the data file associated with this record. Backing off.", 404)
             if len(s3_objects["Contents"]) > 1:
-                raise InternalError("multiple files found with GUID {}".format(guid))
+                self.logger.error("multiple files found with prefix {}".format(guid))
+                return ("Multiple files found matching this prefix. Backing off.", 400)
             key = s3_objects["Contents"][0]["Key"]
             self.s3_client.delete_object(Bucket=bucket, Key=key)
             self.logger.info(
                 "deleted file for GUID {} in bucket {}".format(guid, bucket)
             )
+            return ("", 204)
         except (KeyError, Boto3Error) as e:
             self.logger.exception(e)
-            raise InternalError("Failed to delete file: {}".format(str(e)))
+            self.logger.error("Failed to delete file: {}".format(str(e)))
+            return ("Unable to delete data file.", 500)
 
     def assume_role(self, role_arn, duration_seconds, config=None):
         assert (
@@ -67,10 +70,10 @@ class BotoManager(object):
             )
         except Boto3Error as ex:
             self.logger.exception(ex)
-            raise InternalError("Fail to assume role: {}".format(ex))
+            self.logger.error("Fail to assume role: {}".format(ex))
         except Exception as ex:
             self.logger.exception(ex)
-            raise UnavailableError("Fail to reach AWS: {}".format(ex))
+            self.logger.error("Fail to reach AWS: {}".format(ex))
 
     def presigned_url(self, bucket, key, expires, config, method="get_object"):
         """
