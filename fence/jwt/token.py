@@ -27,6 +27,7 @@ SCOPE_DESCRIPTION = {
     "google_credentials": "Receive temporary Google credentials to access data on Google.",
     "google_service_account": "Allow registration of external Google service accounts to access data.",
     "admin": "View and update user authorizations.",
+    "ga4gh_passport_v1": "Retrieve ga4gh passports and visas",
 }
 
 
