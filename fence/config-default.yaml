@@ -197,7 +197,6 @@ CLIENT_ALLOWED_SCOPES:
   - "google_credentials"
   - "google_service_account"
   - "google_link"
-  - "ras_dbgap_v1"
   - "ga4gh_passport_v1"
 
 # these are the scopes that CAN be included in a user's own access_token
