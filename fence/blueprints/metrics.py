@@ -8,7 +8,7 @@ import flask
 blueprint = flask.Blueprint("metrics", __name__)
 
 
-@blueprint.route("/metrics", methods=["GET"])
+@blueprint.route("/", methods=["GET"])
 def metrics():
     payload = """
 # HELP metric_placeholder sample metric here
