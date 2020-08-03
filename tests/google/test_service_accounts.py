@@ -1027,6 +1027,7 @@ def test_register_service_account_already_exists(
     assert len(db_session.query(ServiceAccountAccessPrivilege).all()) == 1
     assert len(db_session.query(ServiceAccountToGoogleBucketAccessGroup).all()) == 1
 
+
 def test_post_service_account_limit(
     app,
     db_session,
@@ -1061,9 +1062,8 @@ def test_post_service_account_limit(
 
         db_session.add(gbag)
         db_session.commit()
-        
-        project_access.append("auth_id_{}".format(i))
 
+        project_access.append("auth_id_{}".format(i))
 
     google_project_id = "project-id"
     encoded_creds_jwt = encoded_jwt_service_accounts_access["jwt"]
@@ -1117,7 +1117,7 @@ def test_patch_service_account_limit(
     encoded_creds_jwt = encoded_jwt_service_accounts_access["jwt"]
     service_account = register_user_service_account["service_account"]
     n_projects = 8
-    project_access = [] 
+    project_access = []
     for i in range(n_projects):
         project_access.append("valid-project-{}".format(i))
     valid_service_account = {
@@ -1129,7 +1129,7 @@ def test_patch_service_account_limit(
         content_type="application/json",
         data=json.dumps(valid_service_account),
     )
-    assert response.status_code == 400 
+    assert response.status_code == 400
 
 
 def _assert_expected_service_account_response_structure(data):
