@@ -127,9 +127,14 @@ class GoogleServiceAccountRoot(Resource):
         user_id = current_token["sub"]
         payload = flask.request.get_json(silent=True) or {}
 
+        project_access = payload.get("project_access")
+
+        if len(project_access) > 6:
+            raise UserError("Project access limited to 6. You added {}".format(len(project_access)))
+
         sa = GoogleServiceAccountRegistration(
             email=payload.get("service_account_email"),
-            project_access=payload.get("project_access"),
+            project_access=project_access,
             google_project_id=payload.get("google_project_id"),
             user_id=user_id,
         )
@@ -352,9 +357,14 @@ class GoogleServiceAccount(Resource):
         user_id = current_token["sub"]
         payload = flask.request.get_json(silent=True) or {}
 
+        project_access = payload.get("project_access")
+
+        if len(project_access) > 6:
+            raise UserError("Project access limited to 6. You added {}".format(len(project_access)))
+
         sa = GoogleServiceAccountRegistration(
             email=payload.get("service_account_email"),
-            project_access=payload.get("project_access"),
+            project_access=project_access,
             google_project_id=payload.get("google_project_id"),
             user_id=user_id,
         )
@@ -586,6 +596,9 @@ def _get_service_account_for_patch(id_):
             access_privilege.project.auth_id
             for access_privilege in registered_service_account.access_privileges
         ]
+
+    if len(project_access) > 6:
+        raise UserError("Project access limited to 6. You added {}".format(len(project_access)))
 
     google_project_id = registered_service_account.google_project_id
 
