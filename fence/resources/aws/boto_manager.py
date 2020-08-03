@@ -30,9 +30,15 @@ class BotoManager(object):
             https://docs.aws.amazon.com/AmazonS3/latest/dev/DeletingObjectsfromVersioningSuspendedBuckets.html
         """
         try:
+            print("Checking {} {} ".format(bucket, guid))
+
             s3_objects = self.s3_client.list_objects_v2(
                 Bucket=bucket, Prefix=guid, Delimiter="/"
             )
+            
+            print("Found s3 objects:") # TODO: delete
+            print(s3_objects) # TODO: delete
+            
             if not s3_objects.get("Contents"):
                 # file not found in the bucket
                 self.logger.info(
