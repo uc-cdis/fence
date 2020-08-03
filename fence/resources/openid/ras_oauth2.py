@@ -16,7 +16,7 @@ class RASOauth2Client(Oauth2ClientBase):
         super(RASOauth2Client, self).__init__(
             settings,
             logger,
-            scope="openid ga4gh_passport_v1 email profile ras_dbgap_v1",
+            scope="openid ga4gh_passport_v1 email profile",
             discovery_url=self.RAS_DISCOVERY_URL,
             idp="ras",
             HTTP_PROXY=HTTP_PROXY,
