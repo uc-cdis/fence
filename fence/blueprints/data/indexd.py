@@ -602,7 +602,8 @@ class S3IndexedFileLocation(IndexedFileLocation):
         return None
 
     def file_name(self):
-        return self.file_id
+        print("605 s3 url: {}".format(self.url))
+        return self.url
 
     @classmethod
     def get_credential_to_access_bucket(
