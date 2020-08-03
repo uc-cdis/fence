@@ -18,14 +18,3 @@ if [ -f /fence/jwt-keys.tar ]; then
     fi
   )
 fi
-
-# add nginx status config
-nginx_status_conf="\ \ \ \ location /nginx_status {\n\ \ \ \ \ \ stub_status;\n\ \ \ \ \ \ allow 127.0.0.1;\n\ \ \ \ \ \ deny all;\n\ \ \ \ \ \ access_log off;\n\ \ \ \ }"
-sed -i "/\ \ \ \ error_page\ 502/i ${nginx_status_conf}" /etc/nginx/sites-available/uwsgi.conf
-# add uwsgi status config
-uwsgi_status_conf="\ \ \ \ location /uwsgi_status {\n\ \ \ \ \ \ proxy_pass \"http://127.0.0.1:9191\";\n\ \ \ \ \ \ allow 127.0.0.1;\n\ \ \ \ \ \ deny all;\n\ \ \ \ \ \ access_log off;\n\ \ \ \ }"
-sed -i "/\ \ \ \ error_page\ 502/i ${uwsgi_status_conf}" /etc/nginx/sites-available/uwsgi.conf
-
-# add another access log in a non-json format
-additional_access_log_conf="\ \ \ \ access_log  /var/log/nginx/access_not_json.log main;"
-sed -i "/\ \ \ \ access_log/a ${additional_access_log_conf}" /etc/nginx/nginx.conf
