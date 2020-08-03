@@ -804,11 +804,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
     def delete(self, bucket, file_id):
         try:
-            delete_result = flask.current_app.boto.delete_data_file(bucket, file_id)
-            print("s3 response: ")
-            print(delete_result)
-            logger.info(delete_result)
-            return ("", 204)
+            return flask.current_app.boto.delete_data_file(bucket, file_id)
         except Exception as e:
             logger.error(e)
             return ("Failed to delete data file.", 500)
