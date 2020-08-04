@@ -848,7 +848,7 @@ def test_delete_file_locations(
         "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
     )
     mock_indexed_file_delete_file = mock.patch(
-        "fence.blueprints.data.indexd.IndexedFile.delete_file",
+        "fence.blueprints.data.indexd.IndexedFile.delete_files",
         mock.MagicMock(return_value=("", 204)),
     )
     mock_index_document = mock.patch(
