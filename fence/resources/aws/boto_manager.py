@@ -73,10 +73,10 @@ class BotoManager(object):
             )
         except Boto3Error as ex:
             self.logger.exception(ex)
-            self.logger.error("Fail to assume role: {}".format(ex))
+            raise InternalError("Fail to assume role: {}".format(ex))
         except Exception as ex:
             self.logger.exception(ex)
-            self.logger.error("Fail to reach AWS: {}".format(ex))
+            raise UnavailableError("Fail to reach AWS: {}".format(ex))
 
     def presigned_url(self, bucket, key, expires, config, method="get_object"):
         """
