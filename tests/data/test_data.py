@@ -848,8 +848,8 @@ def test_delete_file_locations(
         "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
     )
     mock_indexed_file_delete_file = mock.patch(
-        "fence.blueprints.data.indexd.IndexedFile.delete_file", 
-        mock.MagicMock(return_value=('', 204))
+        "fence.blueprints.data.indexd.IndexedFile.delete_file",
+        mock.MagicMock(return_value=("", 204)),
     )
     mock_index_document = mock.patch(
         "fence.blueprints.data.indexd.IndexedFile.index_document", index_document
@@ -868,13 +868,14 @@ def test_delete_file_locations(
             return
 
         def delete_data_file(self, bucket, file_id):
-            return '', 200
+            return "", 200
 
     mock_gcm = mock.patch(
         "fence.blueprints.data.indexd.GoogleCloudManager", return_value=FakeGCM()
     )
 
     mock_index_document.start()
+    mock_indexed_file_delete_file.start()
     mock_check_auth.start()
     mock_boto_delete = mock.MagicMock()
     monkeypatch.setattr(app.boto, "delete_data_file", mock_boto_delete)
@@ -902,6 +903,7 @@ def test_delete_file_locations(
 
     mock_check_auth.stop()
     mock_index_document.stop()
+    mock_indexed_file_delete_file.stop()
 
 
 def test_delete_file_locations_by_uploader(
@@ -943,7 +945,7 @@ def test_delete_file_locations_by_uploader(
             return
 
         def delete_data_file(self, bucket, file_id):
-            return '', 200
+            return "", 200
 
     mock_gcm = mock.patch(
         "fence.blueprints.data.indexd.GoogleCloudManager", return_value=FakeGCM()

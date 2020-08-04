@@ -33,7 +33,7 @@ class BotoManager(object):
             s3_objects = self.s3_client.list_objects_v2(
                 Bucket=bucket, Prefix=guid, Delimiter="/"
             )
-            
+
             if not s3_objects.get("Contents"):
                 # file not found in the bucket
                 self.logger.info(
@@ -41,7 +41,10 @@ class BotoManager(object):
                         guid, bucket
                     )
                 )
-                return ("Unable to delete the data file associated with this record. Backing off.", 404)
+                return (
+                    "Unable to delete the data file associated with this record. Backing off.",
+                    404,
+                )
             if len(s3_objects["Contents"]) > 1:
                 self.logger.error("multiple files found with prefix {}".format(guid))
                 return ("Multiple files found matching this prefix. Backing off.", 400)
