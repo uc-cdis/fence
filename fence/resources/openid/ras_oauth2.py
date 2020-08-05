@@ -97,9 +97,14 @@ class RASOauth2Client(Oauth2ClientBase):
 
         return {"username": username}
 
-    def update_visa(self, user, token, userinfo_endpoint):
+    def update_visa(self, user):
 
         try:
+            token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
+            userinfo_endpoint = self.get_value_from_discovery_doc(
+                "userinfo_endpoint", ""
+            )
+            token = self.get_access_token(user, token_endpoint)
             userinfo = self.get_userinfo(token, userinfo_endpoint)
             encoded_visas = userinfo.get("ga4gh_passport_v1", [])
             user.ga4gh_visas_v1 = []
