@@ -21,6 +21,8 @@ from fence.models import query_for_user
 from fence.config import config
 from gen3authz.client.arborist.errors import ArboristError
 
+from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
+
 
 logger = get_logger(__name__)
 
@@ -128,6 +130,14 @@ def get_user_info(current_session, username):
         )
         optional_info = _get_optional_userinfo(user, requested_userinfo_claims)
         info.update(optional_info)
+
+    token = flask.current_app.ras_client.get_access_token(
+        user, "https://stsstg.nih.gov:443/auth/oauth/v2/token"
+    )
+    print(token)
+    flask.current_app.ras_client.update_visa(
+        user, token, "https://stsstg.nih.gov:443/openid/connect/v1/userinfo"
+    )
 
     # Include ga4gh passport visas
     if not flask.g.access_token:

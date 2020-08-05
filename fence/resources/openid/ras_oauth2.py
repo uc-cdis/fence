@@ -3,6 +3,10 @@ from .idp_oauth2 import Oauth2ClientBase
 from jose import jwt
 import requests
 
+import jwt as jwt2
+from fence.models import GA4GHVisaV1
+from flask_sqlalchemy_session import current_session
+
 
 class RASOauth2Client(Oauth2ClientBase):
     """
@@ -92,3 +96,29 @@ class RASOauth2Client(Oauth2ClientBase):
             return {"error": err_msg}
 
         return {"username": username}
+
+    def update_visa(self, user, token, userinfo_endpoint):
+
+        try:
+            userinfo = self.get_userinfo(token, userinfo_endpoint)
+            encoded_visas = userinfo.get("ga4gh_passport_v1", [])
+            user.ga4gh_visas_v1 = []
+
+            for encoded_visa in encoded_visas:
+                decoded_visa = jwt2.decode(encoded_visa, verify=False)
+                visa = GA4GHVisaV1(
+                    user=user,
+                    source=decoded_visa["ga4gh_visa_v1"]["source"],
+                    type=decoded_visa["ga4gh_visa_v1"]["type"],
+                    asserted=int(decoded_visa["ga4gh_visa_v1"]["asserted"]),
+                    expires=int(decoded_visa["exp"]),
+                    ga4gh_visa=encoded_visa,
+                )
+
+                current_db_session = current_session.object_session(visa)
+
+                current_db_session.add(visa)
+                current_session.commit()
+        except Exception as e:
+            err_msg = "Could not update visa"
+            self.logger.exception("{}: {}".format(err_msg, e))
