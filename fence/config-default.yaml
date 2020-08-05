@@ -765,3 +765,5 @@ SYNAPSE_URI: 'https://repo-prod.prod.sagebase.org/auth/v1'
 SYNAPSE_JWKS_URI:
 SYNAPSE_DISCOVERY_URL:
 SYNAPSE_AUTHZ_TTL: 86400
+# RAS refresh_tokens expire in 15 days
+RAS_REFRESH_EXPIRATION: 1296000
