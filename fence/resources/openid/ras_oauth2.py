@@ -1,9 +1,8 @@
 import flask
 from .idp_oauth2 import Oauth2ClientBase
-from jose import jwt
+from jose import jwt as jose_jwt
 import requests
-
-import jwt as jwt2
+import jwt
 from fence.models import GA4GHVisaV1
 from flask_sqlalchemy_session import current_session
 
@@ -61,7 +60,7 @@ class RASOauth2Client(Oauth2ClientBase):
             keys = self.get_jwt_keys(jwks_endpoint)
             userinfo = self.get_userinfo(token, userinfo_endpoint)
 
-            claims = jwt.decode(
+            claims = jose_jwt.decode(
                 token["id_token"],
                 keys,
                 options={"verify_aud": False, "verify_at_hash": False},
@@ -110,7 +109,7 @@ class RASOauth2Client(Oauth2ClientBase):
             user.ga4gh_visas_v1 = []
 
             for encoded_visa in encoded_visas:
-                decoded_visa = jwt2.decode(encoded_visa, verify=False)
+                decoded_visa = jwt.decode(encoded_visa, verify=False)
                 visa = GA4GHVisaV1(
                     user=user,
                     source=decoded_visa["ga4gh_visa_v1"]["source"],
