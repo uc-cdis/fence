@@ -209,16 +209,12 @@ paths:
     post:
       tags:
         - oauth2
-      summary: Revoke a refresh token
+      summary: Revoke a refresh token per RFC 7009
       description: Revoke a refresh (not access) token granted to a user.
       operationId: revoke
       responses:
         '200':
           description: 'successful operation, OR invalid token submitted'
-        '400':
-          description: >-
-            invalid token provided: not a refresh token, or token was missing a
-            claim, or token could not be validated
       requestBody:
         content:
           application/x-www-form-urlencoded:
