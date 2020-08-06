@@ -129,9 +129,11 @@ class GoogleServiceAccountRoot(Resource):
 
         project_access = payload.get("project_access")
 
-        if len(project_access) > 6:
+        if len(project_access) > config["SERVICE_ACCOUNT_LIMIT"]:
             raise UserError(
-                "Project access limited to 6. You added {}".format(len(project_access))
+                "Project access limited to {}. You added {}".format(
+                    config["SERVICE_ACCOUNT_LIMIT"], len(project_access)
+                )
             )
 
         sa = GoogleServiceAccountRegistration(
@@ -361,9 +363,11 @@ class GoogleServiceAccount(Resource):
 
         project_access = payload.get("project_access")
 
-        if len(project_access) > 6:
+        if len(project_access) > config["SERVICE_ACCOUNT_LIMIT"]:
             raise UserError(
-                "Project access limited to 6. You added {}".format(len(project_access))
+                "Project access limited to {}. You added {}".format(
+                    config["SERVICE_ACCOUNT_LIMIT"], len(project_access)
+                )
             )
 
         sa = GoogleServiceAccountRegistration(
@@ -601,9 +605,11 @@ def _get_service_account_for_patch(id_):
             for access_privilege in registered_service_account.access_privileges
         ]
 
-    if len(project_access) > 6:
+    if len(project_access) > config["SERVICE_ACCOUNT_LIMIT"]:
         raise UserError(
-            "Project access limited to 6. You added {}".format(len(project_access))
+            "Project access limited to {}. You added {}".format(
+                config["SERVICE_ACCOUNT_LIMIT"], len(project_access)
+            )
         )
 
     google_project_id = registered_service_account.google_project_id

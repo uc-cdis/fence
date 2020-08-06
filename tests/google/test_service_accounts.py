@@ -1028,7 +1028,7 @@ def test_register_service_account_already_exists(
     assert len(db_session.query(ServiceAccountToGoogleBucketAccessGroup).all()) == 1
 
 
-def test_post_service_account_limit(
+def test_valid_project_limit_service_account_registration(
     app,
     db_session,
     client,
@@ -1038,12 +1038,87 @@ def test_post_service_account_limit(
     valid_service_account_patcher,
 ):
     """
-    Test that adding more than 6 service accounts returns a 400. 
+    Test that the projects are registered when there are SERVICE_ACCOUNT_LIMIT number of projects and the database is updated. 
     """
-
     proj_patcher = valid_google_project_patcher
     project_access = []
-    n_projects = 8
+    n_projects = config["SERVICE_ACCOUNT_LIMIT"]
+    for i in range(n_projects):
+        project = Project(id=i, auth_id="auth_id_{}".format(i))
+
+        bucket = Bucket(id=i)
+
+        db_session.add(project)
+        db_session.add(bucket)
+        db_session.commit()
+
+        project_to_bucket = ProjectToBucket(project_id=i, bucket_id=i)
+
+        db_session.add(project_to_bucket)
+        db_session.commit()
+
+        gbag = GoogleBucketAccessGroup(id=i, bucket_id=i, email="gbag@gmail.com")
+
+        db_session.add(gbag)
+        db_session.commit()
+
+        project_access.append("auth_id_{}".format(i))
+
+    google_project_id = "project-id"
+    encoded_creds_jwt = encoded_jwt_service_accounts_access["jwt"]
+    proj_patcher["get_service_account_ids_from_google_members"].return_value = [
+        "test-{}@test.com".format(google_project_id),
+        "{}@compute-system.iam.gserviceaccount.com".format(google_project_id),
+    ]
+    valid_service_account = {
+        "service_account_email": "sa@gmail.com",
+        "google_project_id": google_project_id,
+        "project_access": project_access,
+    }
+
+    (
+        cloud_manager.return_value.__enter__.return_value.get_service_account.return_value
+    ) = {"uniqueId": "sa_unique_id", "email": "sa@gmail.com"}
+
+    (
+        cloud_manager.return_value.__enter__.return_value.add_member_to_group.return_value
+    ) = {"email": "sa@gmail.com"}
+
+    assert len(db_session.query(UserServiceAccount).all()) == 0
+    assert len(db_session.query(ServiceAccountAccessPrivilege).all()) == 0
+    assert len(db_session.query(ServiceAccountToGoogleBucketAccessGroup).all()) == 0
+
+    response = client.post(
+        "/google/service_accounts",
+        headers={"Authorization": "Bearer " + encoded_creds_jwt},
+        data=json.dumps(valid_service_account),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+
+    assert len(db_session.query(UserServiceAccount).all()) == 1
+    assert len(db_session.query(ServiceAccountAccessPrivilege).all()) == n_projects
+    assert (
+        len(db_session.query(ServiceAccountToGoogleBucketAccessGroup).all())
+        == n_projects
+    )
+
+
+def test_invalid_project_limit_service_account_registration(
+    app,
+    db_session,
+    client,
+    encoded_jwt_service_accounts_access,
+    cloud_manager,
+    valid_google_project_patcher,
+):
+    """
+    Test that we get a 400 when there are SERVICE_ACCOUNT_LIMIT + 1 number of projects and the databse isn't updated. 
+    """
+    proj_patcher = valid_google_project_patcher
+    project_access = []
+    n_projects = config["SERVICE_ACCOUNT_LIMIT"] + 1
     for i in range(n_projects):
         project = Project(id=i, auth_id="auth_id_{}".format(i))
 
@@ -1098,6 +1173,10 @@ def test_post_service_account_limit(
 
     assert response.status_code == 400
 
+    assert len(db_session.query(UserServiceAccount).all()) == 0
+    assert len(db_session.query(ServiceAccountAccessPrivilege).all()) == 0
+    assert len(db_session.query(ServiceAccountToGoogleBucketAccessGroup).all()) == 0
+
 
 def test_patch_service_account_limit(
     client,
@@ -1112,7 +1191,7 @@ def test_patch_service_account_limit(
 ):
     """
     Test that patching with new project_access against _dry_run returns 400
-    when more than 6 projects are trying to be registered. 
+    when more than SERVICE_ACCOUNT_LIMIT projects are trying to be registered. 
     """
     encoded_creds_jwt = encoded_jwt_service_accounts_access["jwt"]
     service_account = register_user_service_account["service_account"]
@@ -1123,13 +1202,23 @@ def test_patch_service_account_limit(
     valid_service_account = {
         "project_access": project_access,
     }
+
+    assert len(db_session.query(UserServiceAccount).all()) == 1
+    assert len(db_session.query(ServiceAccountAccessPrivilege).all()) == 2
+    assert len(db_session.query(ServiceAccountToGoogleBucketAccessGroup).all()) == 2
+
     response = client.patch(
-        "/google/service_accounts/_dry_run/{}".format(quote(service_account.email)),
+        "/google/service_accounts/{}".format(quote(service_account.email)),
         headers={"Authorization": "Bearer " + encoded_creds_jwt},
         content_type="application/json",
         data=json.dumps(valid_service_account),
     )
+
     assert response.status_code == 400
+
+    assert len(db_session.query(UserServiceAccount).all()) == 1
+    assert len(db_session.query(ServiceAccountAccessPrivilege).all()) == 2
+    assert len(db_session.query(ServiceAccountToGoogleBucketAccessGroup).all()) == 2
 
 
 def _assert_expected_service_account_response_structure(data):
