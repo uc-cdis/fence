@@ -1,4 +1,3 @@
-# need new RAS
 import flask
 from .idp_oauth2 import Oauth2ClientBase
 from jose import jwt
@@ -9,7 +8,6 @@ class RASOauth2Client(Oauth2ClientBase):
     """
     client for interacting with RAS oauth 2,
     as openid connect is supported under oauth2
-
     """
 
     RAS_DISCOVERY_URL = "https://stsstg.nih.gov/.well-known/openid-configuration"
@@ -18,7 +16,7 @@ class RASOauth2Client(Oauth2ClientBase):
         super(RASOauth2Client, self).__init__(
             settings,
             logger,
-            scope="openid ga4gh_passport_v1 email profile ras_dbgap_v1",
+            scope="openid ga4gh_passport_v1 email profile",
             discovery_url=self.RAS_DISCOVERY_URL,
             idp="ras",
             HTTP_PROXY=HTTP_PROXY,
@@ -57,6 +55,7 @@ class RASOauth2Client(Oauth2ClientBase):
 
             token = self.get_token(token_endpoint, code)
             keys = self.get_jwt_keys(jwks_endpoint)
+            userinfo = self.get_userinfo(token, userinfo_endpoint)
 
             claims = jwt.decode(
                 token["id_token"],
@@ -64,27 +63,32 @@ class RASOauth2Client(Oauth2ClientBase):
                 options={"verify_aud": False, "verify_at_hash": False},
             )
 
-            userinfo = self.get_userinfo(token, userinfo_endpoint)
+            username = None
+            if userinfo.get("UserID"):
+                username = userinfo["UserID"]
+                field_name = "UserID"
+            elif userinfo.get("preferred_username"):
+                username = userinfo["preferred_username"]
+                field_name = "preferred_username"
+            elif claims.get("sub"):
+                username = claims["sub"]
+                field_name = "sub"
+            if not username:
+                self.logger.error(
+                    "{}, received claims: {} and userinfo: {}".format(
+                        err_msg, claims, userinfo
+                    )
+                )
+                return {"error": err_msg}
 
-            # Save userinfo in flask.g.user for later use in post_login
+            self.logger.info("Using {} field as username.".format(field_name))
+
+            # Save userinfo and token in flask.g for later use in post_login
             flask.g.userinfo = userinfo
+            flask.g.tokens = token
 
         except Exception as e:
             self.logger.exception("{}: {}".format(err_msg, e))
             return {"error": err_msg}
 
-        username = None
-        if userinfo.get("UserID"):
-            username = userinfo["UserID"]
-        elif userinfo.get("preferred_username"):
-            username = userinfo["preferred_username"]
-        elif claims.get("sub"):
-            username = claims["sub"]
-        if not username:
-            logger.error(
-                "{}, received claims: {} and userinfo: {}".format(
-                    err_msg, claims, userinfo
-                )
-            )
-            return {"error": err_msg}
         return {"username": username}
