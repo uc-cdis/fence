@@ -4,6 +4,7 @@ to host fence metrics that will be added later on
 """
 
 import flask
+from flask import make_response
 
 blueprint = flask.Blueprint("metrics", __name__)
 
