@@ -148,7 +148,7 @@ OPENID_CONNECT:
   ras:
     client_id: ''
     client_secret: ''
-    redirect_url: '{{BASE_URL}}/login/ras/callback/'
+    redirect_url: '{{BASE_URL}}/login/ras/callback'
     # if mock is true, will fake a successful login response for login
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
@@ -257,7 +257,7 @@ LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
   # - name: 'Login from Cognito'
   #   desc: 'Amazon Cognito login'
   #   idp: cognito
-  #   name: 'Login from RAS'
+  # - name: 'Login from RAS'
   #   idp: ras
   # - name: 'NIH Login'
   #   idp: fence
