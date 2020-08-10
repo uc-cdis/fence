@@ -21,7 +21,7 @@ class BotoManager(object):
         self.ec2 = None
         self.iam = None
 
-    def delete_data_file(self, bucket, guid):
+    def delete_data_file(self, bucket, prefix):
         """
         We use buckets with versioning disabled.
 
@@ -31,14 +31,14 @@ class BotoManager(object):
         """
         try:
             s3_objects = self.s3_client.list_objects_v2(
-                Bucket=bucket, Prefix=guid, Delimiter="/"
+                Bucket=bucket, Prefix=prefix, Delimiter="/"
             )
 
             if not s3_objects.get("Contents"):
                 # file not found in the bucket
                 self.logger.info(
                     "tried to delete prefix {} but didn't find in bucket {}".format(
-                        guid, bucket
+                        prefix, bucket
                     )
                 )
                 return (
@@ -46,12 +46,12 @@ class BotoManager(object):
                     404,
                 )
             if len(s3_objects["Contents"]) > 1:
-                self.logger.error("multiple files found with prefix {}".format(guid))
+                self.logger.error("multiple files found with prefix {}".format(prefix))
                 return ("Multiple files found matching this prefix. Backing off.", 400)
             key = s3_objects["Contents"][0]["Key"]
             self.s3_client.delete_object(Bucket=bucket, Key=key)
             self.logger.info(
-                "deleted file for GUID {} in bucket {}".format(guid, bucket)
+                "deleted file for prefix {} in bucket {}".format(prefix, bucket)
             )
             return ("", 204)
         except (KeyError, Boto3Error) as e:
