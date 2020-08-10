@@ -5,6 +5,8 @@ import requests
 import jwt
 from fence.models import GA4GHVisaV1
 from flask_sqlalchemy_session import current_session
+import backoff
+from fence.utils import DEFAULT_BACKOFF_SETTINGS
 
 
 class RASOauth2Client(Oauth2ClientBase):
@@ -96,6 +98,7 @@ class RASOauth2Client(Oauth2ClientBase):
 
         return {"username": username}
 
+    @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
     def update_visa(self, user):
 
         try:

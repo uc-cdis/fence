@@ -136,7 +136,7 @@ class Oauth2ClientBase(object):
     def get_access_token(self, user, token_endpoint):
 
         """
-        Get access_token using a refresh_token
+        Get access_token using a refresh_token and store it in upstream_refresh_token table.
         """
         refresh_token = None
         expires = None
