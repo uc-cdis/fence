@@ -602,7 +602,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         return None
 
     def file_name(self):
-        file_name = "/".join(self.url.split("/")[3:])
+        file_name = self.parsed_url.path[1:]
         return file_name
 
     @classmethod
