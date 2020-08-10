@@ -1,7 +1,6 @@
 import re
 import time
 from urllib.parse import urlparse
-from urllib.parse import quote as urlquote
 
 from cached_property import cached_property
 import cirrus
