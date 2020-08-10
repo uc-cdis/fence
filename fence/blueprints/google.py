@@ -131,8 +131,8 @@ class GoogleServiceAccountRoot(Resource):
 
         if len(project_access) > config["SERVICE_ACCOUNT_LIMIT"]:
             raise UserError(
-                "Project access limited to {}. You added {}".format(
-                    config["SERVICE_ACCOUNT_LIMIT"], len(project_access)
+                "Exceeded Allowable Number of Projects. Maximum {} Projects allowed per account.".format(
+                    config["SERVICE_ACCOUNT_LIMIT"]
                 )
             )
 
@@ -364,9 +364,9 @@ class GoogleServiceAccount(Resource):
         project_access = payload.get("project_access")
 
         if len(project_access) > config["SERVICE_ACCOUNT_LIMIT"]:
-            raise UserError(
-                "Project access limited to {}. You added {}".format(
-                    config["SERVICE_ACCOUNT_LIMIT"], len(project_access)
+            return UserError(
+                "Exceeded Allowable Number of Projects. Maximum {} Projects allowed per account.".format(
+                    config["SERVICE_ACCOUNT_LIMIT"]
                 )
             )
 
@@ -607,8 +607,8 @@ def _get_service_account_for_patch(id_):
 
     if len(project_access) > config["SERVICE_ACCOUNT_LIMIT"]:
         raise UserError(
-            "Project access limited to {}. You added {}".format(
-                config["SERVICE_ACCOUNT_LIMIT"], len(project_access)
+            "Exceeded Allowable Number of Projects. Maximum {} Projects allowed per account.".format(
+                config["SERVICE_ACCOUNT_LIMIT"]
             )
         )
 
