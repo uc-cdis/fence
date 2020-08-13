@@ -60,9 +60,3 @@ class UnavailableError(APIError):
     def __init__(self, message):
         self.message = str(message)
         self.code = 503
-
-
-class MovedTemporarily(APIError):
-    def __init__(self, message):
-        self.message = str(message)
-        self.code = 302

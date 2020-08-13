@@ -4,7 +4,7 @@ from flask_restful import Resource
 from fence.auth import login_user
 from fence.blueprints.login.redirect import validate_redirect
 from fence.config import config
-from fence.errors import UserError, MovedTemporarily
+from fence.errors import UserError
 
 
 class DefaultOAuth2Login(Resource):
@@ -69,12 +69,12 @@ class DefaultOAuth2Callback(Resource):
         self.username_field = username_field
 
     def get(self):
-        error = flask.request.args.get("error")
-        full_path = flask.request.full_path
-        if error:
-            err_msg = flask.request.args.get("error_description")
-            err = {"error": error, "error_description": err_msg}
-            raise MovedTemporarily(flask.jsonify(err))
+
+        if flask.request.args.get("error"):
+            # Check if user granted access
+            path_to_add = flask.request.full_path[flask.request.full_path.find("?") :]
+            location = flask.session.get("redirect") or config["BASE_URL"]
+            return flask.redirect(location=location + path_to_add)
 
         code = flask.request.args.get("code")
         result = self.client.get_user_id(code)
