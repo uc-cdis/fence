@@ -102,6 +102,9 @@ class RASOauth2Client(Oauth2ClientBase):
     @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
     def update_visa(self, user):
 
+        user.ga4gh_visas_v1 = []
+        current_session.commit()
+
         try:
             token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
             userinfo_endpoint = self.get_value_from_discovery_doc(
@@ -109,7 +112,6 @@ class RASOauth2Client(Oauth2ClientBase):
             )
             token = self.get_access_token(user, token_endpoint)
             userinfo = self.get_userinfo(token, userinfo_endpoint)
-            user.ga4gh_visas_v1 = []
             encoded_visas = userinfo.get("ga4gh_passport_v1", [])
         except Exception as e:
             err_msg = "Could not retrieve visa"
@@ -131,7 +133,8 @@ class RASOauth2Client(Oauth2ClientBase):
                 current_db_session = current_session.object_session(visa)
 
                 current_db_session.add(visa)
-            current_session.commit()
         except Exception as e:
             err_msg = "Could not update visa"
-            self.logger.exception("{}: {}".format(err_msg, e))
+            self.logger.exception("{}: {}".format(err_msg, e), exc_info=True)
+        finally:
+            current_session.commit()
