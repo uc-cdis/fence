@@ -102,6 +102,7 @@ At the moment, supported IDPs include:
 - Cognito
 - Synapse
 - Microsoft
+- ORCID
 - RAS
 
 ## OIDC & OAuth2
