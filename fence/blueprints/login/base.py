@@ -72,9 +72,9 @@ class DefaultOAuth2Callback(Resource):
     def get(self):
         # Check if user granted access
         if flask.request.args.get("error"):
-            reqiest_url = flask.request.url
+            request_url = flask.request.url
             received_query_params = parse_qsl(
-                urlparse(reqiest_url).query, keep_blank_values=True
+                urlparse(request_url).query, keep_blank_values=True
             )
             redirect_uri = flask.session.get("redirect") or config["BASE_URL"]
             redirect_query_params = parse_qsl(
