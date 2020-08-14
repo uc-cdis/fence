@@ -100,8 +100,13 @@ class RASOauth2Client(Oauth2ClientBase):
         return {"username": username}
 
     @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
-    def update_visa(self, user):
-
+    def update_user_visas(self, user):
+        """
+        Updates user's RAS refresh token and uses the new access token to retrieve new visas from
+        RAS's /userinfo endpoint and update the db with the new visa.
+        - delete user's visas from db if we're not able to get a new access_token
+        - delete user's visas from db if we're not able to get a new visa
+        """
         user.ga4gh_visas_v1 = []
         current_session.commit()
 
