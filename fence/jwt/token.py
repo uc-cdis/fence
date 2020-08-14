@@ -377,10 +377,12 @@ def generate_signed_access_token(
                 "must provide value for `iss` (issuer) field if"
                 " running outside of flask application"
             )
-    audiences = scopes.copy()
-    # include client_id in audiences as required by GA4GH
+    audiences = []
     if client_id:
         audiences.append(client_id)
+    # append scopes for backwards compatibility
+    # eventual goal is to remove scopes from `aud`
+    audiences = audiences + scopes
 
     claims = {
         "pur": "access",

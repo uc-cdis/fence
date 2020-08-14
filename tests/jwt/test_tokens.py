@@ -33,5 +33,6 @@ def test_passport_access_token(app, kid, rsa_private_key, test_user_a):
     assert payload["iat"] is not None
     assert payload["exp"] == payload["iat"] + exp
     assert payload["scope"] == ["openid", "user", "ga4gh_passport_v1"]
+    assert isinstance(payload["aud"], list)
     # assert client_id in audiences
     assert "client_a" in payload["aud"]
