@@ -116,6 +116,7 @@ class RASOauth2Client(Oauth2ClientBase):
         except Exception as e:
             err_msg = "Could not retrieve visa"
             self.logger.exception("{}: {}".format(err_msg, e))
+            raise
 
         try:
             for encoded_visa in encoded_visas:
