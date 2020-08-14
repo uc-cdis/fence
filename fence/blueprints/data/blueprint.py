@@ -55,7 +55,14 @@ def delete_data_file(file_id):
             if str(status_code)[0] != "2":
                 return flask.jsonify({"message": message}), status_code
 
-            return record.delete()
+            try:
+                return record.delete()
+            except Exception as e:
+                logger.error(e)
+                return (
+                    flask.jsonify({"message": "There was an error deleting this index record."}),
+                    500,
+                )
         else:
             return (
                 flask.jsonify(
@@ -85,7 +92,14 @@ def delete_data_file(file_id):
     if str(status_code)[0] != "2":
         return flask.jsonify({"message": message}), status_code
 
-    return record.delete()
+    try:
+        return record.delete()
+    except Exception as e:
+        logger.error(e)
+        return (
+            flask.jsonify({"message": "There was an error deleting this index record."}),
+            500,
+        )
 
 
 @blueprint.route("/upload", methods=["POST"])
