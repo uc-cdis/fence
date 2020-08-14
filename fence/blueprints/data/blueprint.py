@@ -60,7 +60,9 @@ def delete_data_file(file_id):
             except Exception as e:
                 logger.error(e)
                 return (
-                    flask.jsonify({"message": "There was an error deleting this index record."}),
+                    flask.jsonify(
+                        {"message": "There was an error deleting this index record."}
+                    ),
                     500,
                 )
         else:
@@ -97,7 +99,9 @@ def delete_data_file(file_id):
     except Exception as e:
         logger.error(e)
         return (
-            flask.jsonify({"message": "There was an error deleting this index record."}),
+            flask.jsonify(
+                {"message": "There was an error deleting this index record."}
+            ),
             500,
         )
 
