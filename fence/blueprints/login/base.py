@@ -1,5 +1,6 @@
 import flask
 from flask_restful import Resource
+from urllib.parse import urlparse, urljoin
 
 from fence.auth import login_user
 from fence.blueprints.login.redirect import validate_redirect
@@ -72,9 +73,11 @@ class DefaultOAuth2Callback(Resource):
 
         if flask.request.args.get("error"):
             # Check if user granted access
-            path_to_add = flask.request.full_path[flask.request.full_path.find("?") :]
+            url = flask.request.url
+            parsed_url = urlparse(url)            
             location = flask.session.get("redirect") or config["BASE_URL"]
-            return flask.redirect(location=location + path_to_add)
+            redirect_url = urljoin(location, parsed_url.path)
+            return flask.redirect(location=redirect_url)
 
         code = flask.request.args.get("code")
         result = self.client.get_user_id(code)
