@@ -14,6 +14,9 @@ from cdislogging import get_logger
 
 from fence.auth import admin_login_required
 from fence.resources import admin
+from fence.scripting.fence_create import sync_users
+from fence.config import config
+
 
 
 logger = get_logger(__name__)
@@ -187,6 +190,40 @@ def add_user_to_projects(username):
         admin.add_user_to_projects(current_session, username, projects=projects)
     )
 
+
+@blueprint.route("/update_user_authz", methods=["POST"])
+# @admin_login_required
+@debug_log
+def update_user_authz():
+    """
+    run user sync to update fence anf arborist DB
+
+    Receive a JSON object with the list of resources, policies, roles, and user auth
+
+    Returns a json object
+    """
+
+    logger.warning("IN UPDATE")
+    logger.warning(request.get_json())
+
+
+    sync_users(
+            [{'info': {'host': '', 'username': '', 'password': '', 'port': 22, 'proxy': '', 'proxy_user': ''}, 'protocol': 'sftp', 'decrypt_key': '', 'parse_consent_code': True}], # dbGap
+            {}, # storage_credential
+            config["DB"], # flask.current_app.db, # postgresql://fence_user:fence_pass@postgres:5432/fence_db DB
+            projects=None, #project_mapping
+            is_sync_from_dbgap_server=False,
+            sync_from_local_csv_dir=None,
+            sync_from_local_yaml_file=None, #'user.yaml',
+            json_from_api=request.get_json(),
+            arborist=flask.current_app.arborist,
+        )
+
+    # username = request.get_json().get("name", None)
+    # role = request.get_json().get("role", None)
+    # email = request.get_json().get("email", None)
+    # return jsonify(admin.create_user(current_session, username, role, email))
+    return jsonify("test")
 
 #### PROJECTS ####
 

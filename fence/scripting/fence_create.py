@@ -186,6 +186,7 @@ def sync_users(
     is_sync_from_dbgap_server=False,
     sync_from_local_csv_dir=None,
     sync_from_local_yaml_file=None,
+    json_from_api=None,
     arborist=None,
 ):
     """
@@ -243,6 +244,7 @@ def sync_users(
         is_sync_from_dbgap_server=is_sync_from_dbgap_server,
         sync_from_local_csv_dir=sync_from_local_csv_dir,
         sync_from_local_yaml_file=sync_from_local_yaml_file,
+        json_from_api=json_from_api,
         arborist=arborist,
     )
     syncer.sync()
