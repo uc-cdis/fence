@@ -2,6 +2,7 @@ import flask
 from flask_sqlalchemy_session import current_session
 
 from fence.jwt.token import (
+    AuthFlowTypes,
     generate_signed_access_token,
     generate_signed_id_token,
     generate_signed_refresh_token,
@@ -80,28 +81,11 @@ def generate_implicit_response(
     if not "user" in scope:
         scope.append("user")
 
-    # don't provide user projects access in id_tokens for implicit flow
-    # due to issues with "Location" header size during redirect (and b/c
-    # of general deprecation of user access information in tokens)
-    id_token = generate_signed_id_token(
-        kid=keypair.kid,
-        private_key=keypair.private_key,
-        user=user,
-        expires_in=config["ACCESS_TOKEN_EXPIRES_IN"],
-        client_id=client.client_id,
-        audiences=scope,
-        nonce=nonce,
-        linked_google_email=linked_google_email,
-        linked_google_account_exp=linked_google_account_exp,
-        include_project_access=False,
-    ).token
-
     # ``expires_in`` is just the token expiration time.
     expires_in = config["ACCESS_TOKEN_EXPIRES_IN"]
 
     response = {
         "token_type": "Bearer",
-        "id_token": id_token,
         "expires_in": expires_in,
         # "state" handled in authlib
     }
@@ -121,6 +105,25 @@ def generate_implicit_response(
             include_project_access=False,
         ).token
         response["access_token"] = access_token
+
+    # don't provide user projects access in id_tokens for implicit flow
+    # due to issues with "Location" header size during redirect (and b/c
+    # of general deprecation of user access information in tokens)
+    id_token = generate_signed_id_token(
+        kid=keypair.kid,
+        private_key=keypair.private_key,
+        user=user,
+        expires_in=config["ACCESS_TOKEN_EXPIRES_IN"],
+        client_id=client.client_id,
+        audiences=scope,
+        nonce=nonce,
+        linked_google_email=linked_google_email,
+        linked_google_account_exp=linked_google_account_exp,
+        include_project_access=False,
+        auth_flow_type=AuthFlowTypes.IMPLICIT,
+        access_token=access_token if include_access_token else None,
+    ).token
+    response["id_token"] = id_token
 
     return response
 
@@ -173,6 +176,15 @@ def generate_token_response(
     if not isinstance(scope, list):
         scope = scope.split(" ")
 
+    access_token = generate_signed_access_token(
+        kid=keypair.kid,
+        private_key=keypair.private_key,
+        user=user,
+        expires_in=config["ACCESS_TOKEN_EXPIRES_IN"],
+        scopes=scope,
+        client_id=client.client_id,
+        linked_google_email=linked_google_email,
+    ).token
     id_token = generate_signed_id_token(
         kid=keypair.kid,
         private_key=keypair.private_key,
@@ -183,15 +195,8 @@ def generate_token_response(
         nonce=nonce,
         linked_google_email=linked_google_email,
         linked_google_account_exp=linked_google_account_exp,
-    ).token
-    access_token = generate_signed_access_token(
-        kid=keypair.kid,
-        private_key=keypair.private_key,
-        user=user,
-        expires_in=config["ACCESS_TOKEN_EXPIRES_IN"],
-        scopes=scope,
-        client_id=client.client_id,
-        linked_google_email=linked_google_email,
+        auth_flow_type=AuthFlowTypes.CODE,
+        access_token=access_token,
     ).token
     # If ``refresh_token`` was passed (for instance from the refresh
     # grant), use that instead of generating a new one.

@@ -72,6 +72,7 @@ def test_access_token_correct_fields(token_response):
         "exp",
         "iat",
         "jti",
+        "scope",
         "context",
         "azp",
     }

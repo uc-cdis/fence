@@ -91,3 +91,21 @@ LOGIN_OPTIONS:
 ```
 
 Several login options can use the same provider (`idp`). Each option that uses the `fence` provider and the `shibboleth` Fence provider (`fence_idp`) can specify one or more InCommon IDPs `shib_idps` in a list, _or_ the wildcard string `'*'` to enable all available InCommon IDPs (be careful not to omit the quotes when using the wildcard). If no `shib_idps` are specified, Fence will default to NIH login.
+
+## Known issues
+
+Both or neither `fence_idp` and `shib_idps` need to be configured for NIH login to work. If `fence_idp` is configured but `shib_idps` is not, a `shib_idp=None` parameter is appended to the redirect URL and user login fails.
+
+```
+LOGIN_OPTIONS:
+  - name: 'NIH Login by default'
+    idp: fence
+  - name: 'NIH Login'
+    idp: fence
+    fence_idp: shibboleth
+    shib_idps:
+      - urn:mace:incommon:nih.gov
+  - name: 'Do not do this'
+    idp: fence
+    fence_idp: shibboleth
+```

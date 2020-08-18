@@ -1,4 +1,4 @@
-# Fence 
+# Fence
 
 [![Build Status](https://travis-ci.org/uc-cdis/fence.svg?branch=master)](https://travis-ci.org/uc-cdis/fence)
 
@@ -95,10 +95,15 @@ Relying Party - an OAuth 2.0 Client which uses (requests) OpenID Connect.
 Fence can be configured to support different Identity Providers (IdPs) for AuthN.
 At the moment, supported IDPs include:
 - Google
-- [Shibboleth](docs/shibboleth.md)
+- [Shibboleth](docs/fence_shibboleth.md)
   - NIH iTrust
   - InCommon
   - eduGAIN
+- Cognito
+- Synapse
+- Microsoft
+- ORCID
+- RAS
 
 ## OIDC & OAuth2
 
