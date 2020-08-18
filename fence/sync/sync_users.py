@@ -1239,7 +1239,7 @@ class UserSyncer(object):
             user_yaml.project_to_resource = self.json_from_api.get("project_to_resource")
 
         #TODO add sync clients
-        self.logger.warning("projects Luca")
+        self.logger.warning("projects Luca test")
         if self.json_from_api:
             self.logger.warning(self.json_from_api)
         self.logger.warning(user_projects)
