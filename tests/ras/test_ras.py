@@ -12,11 +12,22 @@ import tests.utils
 
 logger = get_logger(__name__, log_level="debug")
 
+
 @mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_userinfo")
 @mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_access_token")
-@mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_value_from_discovery_doc")
-def test_update_visa_token(mock_discovery, mock_get_token, mock_userinfo, config, db_session, rsa_private_key, kid):
-    
+@mock.patch(
+    "fence.resources.openid.ras_oauth2.RASOauth2Client.get_value_from_discovery_doc"
+)
+def test_update_visa_token(
+    mock_discovery,
+    mock_get_token,
+    mock_userinfo,
+    config,
+    db_session,
+    rsa_private_key,
+    kid,
+):
+
     mock_discovery.return_value = "https://ras/token_endpoint"
 
     new_token = "refresh12345abcdefg"
@@ -36,7 +47,7 @@ def test_update_visa_token(mock_discovery, mock_get_token, mock_userinfo, config
         "email": "",
     }
     mock_userinfo.return_value = userinfo_response
-    
+
     test_user = User(username="admin_user", id="5678", is_admin=True)
     db_session.add(test_user)
     db_session.commit()
@@ -47,9 +58,7 @@ def test_update_visa_token(mock_discovery, mock_get_token, mock_userinfo, config
 
     db_session.add(
         UpstreamRefreshToken(
-            refresh_token=refresh_token,
-            user_id=test_user.id,
-            expires=expires,
+            refresh_token=refresh_token, user_id=test_user.id, expires=expires,
         )
     )
     db_session.commit()
@@ -85,4 +94,3 @@ def test_update_visa_token(mock_discovery, mock_get_token, mock_userinfo, config
 
     visa = db_session.query(GA4GHVisaV1).first()
     assert visa.ga4gh_visa
-
