@@ -46,8 +46,6 @@ class RASOauth2Client(Oauth2ClientBase):
 
         try:
             token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
-            print("-------token endpoint----------------")
-            print(token_endpoint)
             jwks_endpoint = self.get_value_from_discovery_doc("jwks_uri", "")
             userinfo_endpoint = self.get_value_from_discovery_doc(
                 "userinfo_endpoint", ""
