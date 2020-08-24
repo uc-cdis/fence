@@ -27,7 +27,7 @@ SCOPE_DESCRIPTION = {
     "google_credentials": "Receive temporary Google credentials to access data on Google.",
     "google_service_account": "Allow registration of external Google service accounts to access data.",
     "admin": "View and update user authorizations.",
-    "ga4gh_passport_v1": "Retrieve ga4gh passports and visas",
+    "ga4gh_passport_v1": "Retrieve GA4GH Passports and Visas",
 }
 
 
@@ -377,10 +377,16 @@ def generate_signed_access_token(
                 "must provide value for `iss` (issuer) field if"
                 " running outside of flask application"
             )
+    audiences = []
+    if client_id:
+        audiences.append(client_id)
+    # append scopes for backwards compatibility
+    # eventual goal is to remove scopes from `aud`
+    audiences = audiences + scopes
 
     claims = {
         "pur": "access",
-        "aud": scopes,
+        "aud": audiences,
         "sub": sub,
         "iss": iss,
         "iat": iat,
