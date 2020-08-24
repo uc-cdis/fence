@@ -15,7 +15,8 @@ class RASOauth2Client(Oauth2ClientBase):
             settings,
             logger,
             scope="openid ga4gh_passport_v1 email profile",
-            discovery_url=settings["discovery_url"],
+            discovery_url=settings["discovery_url"]
+            or "https://sts.nih.gov/.well-known/openid-configuration",
             idp="ras",
             HTTP_PROXY=HTTP_PROXY,
         )
