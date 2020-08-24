@@ -103,7 +103,6 @@ def logout(next_url):
         provider_logout = config["ITRUST_GLOBAL_LOGOUT"] + safe_url
     elif provider == IdentityProvider.fence:
         base = config["OPENID_CONNECT"]["fence"]["api_base_url"]
-        safe_url = urllib.parse.quote_plus(next_url)
         provider_logout = base + "/logout?" + urllib.parse.urlencode({"next": next_url})
 
     flask.session.clear()
