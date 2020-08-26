@@ -1644,8 +1644,11 @@ class UserSyncer(object):
 
         try:
             for resource_namespace in arborist_resource_namespaces:
-                # The update_resourece function creates a put request which will overwrite existing resources. Therefore, only create if get_resource returns the resource doesn't exist.
-                if not self.arborist_client.get_resource(resource_namespace+dbgap_study):
+                # The update_resource function creates a put request which will overwrite
+                # existing resources. Therefore, only create if get_resource returns
+                # the resource doesn't exist.
+                full_resource_path = resource_namespace + dbgap_study
+                if not self.arborist_client.get_resource(full_resource_path):
                     response = self.arborist_client.update_resource(
                         resource_namespace,
                         {"name": dbgap_study, "description": "synced from dbGaP"},
@@ -1657,12 +1660,17 @@ class UserSyncer(object):
                         )
                     )
                     self.logger.debug("Arborist response: {}".format(response))
+                else:
+                    self.logger.debug(
+                        "Arborist resource already exists: {}".format(
+                            full_resource_path
+                        )
+                    )
+
                 if dbgap_study not in self._dbgap_study_to_resources:
                     self._dbgap_study_to_resources[dbgap_study] = []
 
-                self._dbgap_study_to_resources[dbgap_study].append(
-                    resource_namespace + dbgap_study
-                )
+                self._dbgap_study_to_resources[dbgap_study].append(full_resource_path)
 
             return arborist_resource_namespaces
         except ArboristError as e:
