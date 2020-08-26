@@ -76,6 +76,8 @@ def modify_client_action(
     unset_auto_approve=False,
     arborist=None,
     policies=None,
+    allowed_scopes=None,
+    append=False
 ):
     driver = SQLAlchemyDriver(DB)
     with driver.session as s:
@@ -100,6 +102,11 @@ def modify_client_action(
         if description:
             client.description = description
             logger.info("Updating description to {}".format(description))
+        if allowed_scopes:
+            if append:
+                client._allowed_scopes.append(allowed_scopes)
+            else:
+                client._allowed_scopes = allowed_scopes
         s.commit()
     if arborist is not None and policies:
         arborist.update_client(client.client_id, policies)
