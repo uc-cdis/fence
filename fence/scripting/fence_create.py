@@ -77,7 +77,7 @@ def modify_client_action(
     arborist=None,
     policies=None,
     allowed_scopes=None,
-    append=False
+    append=False,
 ):
     driver = SQLAlchemyDriver(DB)
     with driver.session as s:
