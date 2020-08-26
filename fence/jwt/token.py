@@ -484,13 +484,6 @@ def generate_id_token(
     iat, exp = issued_and_expiration_times(expires_in)
     issuer = config.get("BASE_URL")
 
-    # include client_id if not already in audiences
-    if audiences:
-        if client_id not in audiences:
-            audiences.append(client_id)
-    else:
-        audiences = [client_id]
-
     # If not provided, assume auth time is time this ID token is issued
     auth_time = auth_time or iat
 
@@ -500,7 +493,6 @@ def generate_id_token(
     # ``fence/blueprints/well_known.py``.
     claims = {
         "pur": "id",
-        "aud": audiences,
         "sub": str(user.id),
         "iss": issuer,
         "iat": iat,
@@ -518,6 +510,12 @@ def generate_id_token(
             }
         },
     }
+    aud = audiences.copy() if audiences else []
+    if client_id and client_id not in aud:
+        aud.append(client_id)
+    if aud:
+        claims["aud"] = aud
+
     if user.tags:
         claims["context"]["user"]["tags"] = {tag.key: tag.value for tag in user.tags}
 
