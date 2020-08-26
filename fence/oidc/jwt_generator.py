@@ -192,7 +192,6 @@ def generate_token_response(
         user=user,
         expires_in=config["ACCESS_TOKEN_EXPIRES_IN"],
         client_id=client.client_id,
-        audiences=scope,
         nonce=nonce,
         linked_google_email=linked_google_email,
         linked_google_account_exp=linked_google_account_exp,
