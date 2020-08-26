@@ -398,12 +398,14 @@ class UserSyncer(object):
         Returns:
             None
         """
-        execstr = 'lftp -u {},{}  {} -e "set ftp:proxy http://{}; mirror . {}; exit"'.format(
-            server.get("username", ""),
-            server.get("password", ""),
-            server.get("host", ""),
-            server.get("proxy", ""),
-            path,
+        execstr = (
+            'lftp -u {},{}  {} -e "set ftp:proxy http://{}; mirror . {}; exit"'.format(
+                server.get("username", ""),
+                server.get("password", ""),
+                server.get("host", ""),
+                server.get("proxy", ""),
+                path,
+            )
         )
         os.system(execstr)
 
