@@ -159,7 +159,12 @@ def syncer(db_session, request):
         response = {"updated": resource}
         return response
 
+    def mocked_get(path, **kwargs):
+        return None
+
     syncer_obj.arborist_client.update_resource = MagicMock(side_effect=mocked_update)
+
+    syncer_obj.arborist_client.get_resource = MagicMock(side_effect=mocked_get)
 
     syncer_obj.arborist_client.get_policy.side_effect = lambda _: None
 
