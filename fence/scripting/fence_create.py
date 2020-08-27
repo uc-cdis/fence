@@ -104,7 +104,7 @@ def modify_client_action(
             logger.info("Updating description to {}".format(description))
         if allowed_scopes:
             if append:
-                client._allowed_scopes.append(allowed_scopes)
+                client._allowed_scopes += " " + allowed_scopes
             else:
                 client._allowed_scopes = allowed_scopes
         s.commit()

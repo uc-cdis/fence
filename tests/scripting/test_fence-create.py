@@ -1111,7 +1111,7 @@ def test_modify_client_action_modify_allowed_scopes(db_session):
         client_id=client_id,
         client_secret="secret",
         name=client_name,
-        _allowed_scopes=["openid", "user", "data"],
+        _allowed_scopes="openid user data",
     )
     db_session.add(client)
     db_session.commit()
@@ -1122,13 +1122,13 @@ def test_modify_client_action_modify_allowed_scopes(db_session):
         name="test321",
         description="test client",
         urls=["test"],
-        allowed_scopes=["openid"],
+        allowed_scopes="openid",
     )
     list_client_action(db_session)
     assert client.auto_approve == True
     assert client.name == "test321"
     assert client.description == "test client"
-    assert client._allowed_scopes == ["openid"]
+    assert client._allowed_scopes == "openid"
 
 
 def test_modify_client_action_modify_allowed_scopes_append_true(db_session):
@@ -1138,7 +1138,7 @@ def test_modify_client_action_modify_allowed_scopes_append_true(db_session):
         client_id=client_id,
         client_secret="secret",
         name=client_name,
-        _allowed_scopes=["openid", "user", "data"],
+        _allowed_scopes="openid user data",
     )
     db_session.add(client)
     db_session.commit()
@@ -1156,4 +1156,4 @@ def test_modify_client_action_modify_allowed_scopes_append_true(db_session):
     assert client.auto_approve == True
     assert client.name == "test321"
     assert client.description == "test client"
-    assert client._allowed_scopes == ["openid", "user", "data", "new_scope"]
+    assert client._allowed_scopes == "openid user data new_scope"
