@@ -85,8 +85,13 @@ def modify_client_action(
         if not client:
             raise Exception("client {} does not exist".format(client))
         if urls:
-            client.redirect_uris = urls
-            logger.info("Changing urls to {}".format(urls))
+            print(append)
+            if append:
+                new_uri = client.redirect_uris + urls.split()
+                client.redirect_uris = new_uri
+            else:
+                client.redirect_uris = urls
+                logger.info("Changing urls to {}".format(urls))
         if delete_urls:
             client.redirect_uris = []
             logger.info("Deleting urls")
@@ -104,9 +109,10 @@ def modify_client_action(
             logger.info("Updating description to {}".format(description))
         if allowed_scopes:
             if append:
-                client._allowed_scopes += " " + allowed_scopes
+                new_scopes = client._allowed_scopes.split() + allowed_scopes.split()
+                client._allowed_scopes = " ".join(new_scopes)
             else:
-                client._allowed_scopes = allowed_scopes
+                client._allowed_scopes = "".join(allowed_scopes)
         s.commit()
     if arborist is not None and policies:
         arborist.update_client(client.client_id, policies)

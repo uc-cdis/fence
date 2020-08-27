@@ -1129,6 +1129,7 @@ def test_modify_client_action_modify_allowed_scopes(db_session):
     assert client.name == "test321"
     assert client.description == "test client"
     assert client._allowed_scopes == "openid"
+    assert client.redirect_uris == ["test"]
 
 
 def test_modify_client_action_modify_allowed_scopes_append_true(db_session):
@@ -1148,7 +1149,6 @@ def test_modify_client_action_modify_allowed_scopes_append_true(db_session):
         set_auto_approve=True,
         name="test321",
         description="test client",
-        urls=["test"],
         append=True,
         allowed_scopes="new_scope",
     )
@@ -1157,3 +1157,33 @@ def test_modify_client_action_modify_allowed_scopes_append_true(db_session):
     assert client.name == "test321"
     assert client.description == "test client"
     assert client._allowed_scopes == "openid user data new_scope"
+
+
+def test_modify_client_action_modify_append_url(db_session):
+    client_id = "testid"
+    client_name = "test123"
+    client = Client(
+        client_id=client_id,
+        client_secret="secret",
+        name=client_name,
+        _allowed_scopes="openid user data",
+        redirect_uris="abcd",
+    )
+    db_session.add(client)
+    db_session.commit()
+    modify_client_action(
+        db_session,
+        client.name,
+        set_auto_approve=True,
+        name="test321",
+        description="test client",
+        urls="test",
+        append=True,
+        allowed_scopes="new_scope",
+    )
+    list_client_action(db_session)
+    assert client.auto_approve == True
+    assert client.name == "test321"
+    assert client.description == "test client"
+    assert client._allowed_scopes == "openid user data new_scope"
+    assert client.redirect_uris == ["abcd", "test"]
