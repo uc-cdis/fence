@@ -88,6 +88,7 @@ def modify_client_action(
             if append:
                 new_uri = client.redirect_uris + urls
                 client.redirect_uris = new_uri
+                logger.info("Adding {} to urls".format(urls))
             else:
                 client.redirect_uris = urls
                 logger.info("Changing urls to {}".format(urls))
@@ -108,10 +109,12 @@ def modify_client_action(
             logger.info("Updating description to {}".format(description))
         if allowed_scopes:
             if append:
-                new_scopes = client._allowed_scopes.split() + allowed_scopes.split()
+                new_scopes = client._allowed_scopes.split() + allowed_scopes
                 client._allowed_scopes = " ".join(new_scopes)
+                logger.info("Adding {} to allowed_scopes".format(allowed_scopes))
             else:
                 client._allowed_scopes = "".join(allowed_scopes)
+                logger.info("Updating allowed_scopes to {}".format(allowed_scopes))
         s.commit()
     if arborist is not None and policies:
         arborist.update_client(client.client_id, policies)

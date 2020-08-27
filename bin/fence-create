@@ -107,7 +107,7 @@ def parse_arguments():
     client_modify.add_argument("--urls", required=False, nargs="+")
     client_modify.add_argument("--name", required=False)
     client_modify.add_argument("--description", required=False)
-    client_modify.add_argument("--allowed_scopes", required=False)
+    client_modify.add_argument("--allowed-scopes", required=False, nargs="+")
     client_modify.add_argument(
         "--append", 
         help="set the oidc process to skip user consent step",
