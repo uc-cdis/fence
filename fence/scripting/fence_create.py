@@ -85,9 +85,8 @@ def modify_client_action(
         if not client:
             raise Exception("client {} does not exist".format(client))
         if urls:
-            print(append)
             if append:
-                new_uri = client.redirect_uris + urls.split()
+                new_uri = client.redirect_uris + urls
                 client.redirect_uris = new_uri
             else:
                 client.redirect_uris = urls

@@ -1177,7 +1177,7 @@ def test_modify_client_action_modify_append_url(db_session):
         set_auto_approve=True,
         name="test321",
         description="test client",
-        urls="test",
+        urls=["test"],
         append=True,
         allowed_scopes="new_scope",
     )
