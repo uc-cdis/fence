@@ -174,6 +174,19 @@ OPENID_CONNECT:
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
     mock_default_user: 'test@example.com'
+  # For information on configuring an Okta tenant as an OIDC IdP refer to Okta documentation at:
+  # https://developer.okta.com/docs/reference/api/oidc/#2-okta-as-the-identity-platform-for-your-app-or-api  
+  okta:
+    discovery_url: ''
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/okta/login/'
+  # generic is for use with an OIDC compliant IdP. It requires the discover URL to parse the various OIDC endpoints required. 
+  generic:
+    discovery_url: ''
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/generic/login/'
   cognito:
     # You must create a user pool in order to have a discovery url
     discovery_url: 'https://cognito-idp.{REGION}.amazonaws.com/{USER-POOL-ID}/.well-known/openid-configuration'
@@ -253,6 +266,11 @@ LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
   #   idp: orcid
   # - name: 'Microsoft Login'
   #   idp: microsoft
+  # - name: 'Okta Login'
+  #   idp: okta
+  # Generic Login: You may want to edit the name to reflect your OIDC idP.
+  # - name: 'Generic Login'
+  #   idp: generic
   # # Cognito login: You may want to edit the name to reflect Cognito's IdP,
   # # especially if Cognito is only using one IdP
   # - name: 'Login from Cognito'
