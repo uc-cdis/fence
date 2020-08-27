@@ -17,6 +17,8 @@ from fence.blueprints.login.fence_login import FenceLogin, FenceCallback
 from fence.blueprints.login.google import GoogleLogin, GoogleCallback
 from fence.blueprints.login.shib import ShibbolethLogin, ShibbolethCallback
 from fence.blueprints.login.microsoft import MicrosoftLogin, MicrosoftCallback
+from fence.blueprints.login.okta import OktaLogin, OktaCallback
+from fence.blueprints.login.generic import GenericLogin, GenericCallback
 from fence.blueprints.login.orcid import ORCIDLogin, ORCIDCallback
 from fence.blueprints.login.ras import RASLogin, RASCallback
 from fence.blueprints.login.synapse import SynapseLogin, SynapseCallback
@@ -34,6 +36,8 @@ IDP_URL_MAP = {
     "orcid": "orcid",
     "synapse": "synapse",
     "microsoft": "microsoft",
+    "okta": "okta",
+    "generic": "generic",
     "cognito": "cognito",
     "ras": "ras",
 }
@@ -273,6 +277,18 @@ def make_login_blueprint(app):
         blueprint_api.add_resource(MicrosoftLogin, "/microsoft", strict_slashes=False)
         blueprint_api.add_resource(
             MicrosoftCallback, "/microsoft/login", strict_slashes=False
+        )
+
+    if "okta" in configured_idps:
+        blueprint_api.add_resource(OktaLogin, "/okta", strict_slashes=False)
+        blueprint_api.add_resource(
+            OktaCallback, "/okta/login", strict_slashes=False
+        )
+
+    if "generic" in configured_idps:
+        blueprint_api.add_resource(GenericLogin, "/generic", strict_slashes=False)
+        blueprint_api.add_resource(
+            GenericCallback, "/generic/login", strict_slashes=False
         )
 
     if "cognito" in configured_idps:
