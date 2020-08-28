@@ -1038,7 +1038,7 @@ def test_valid_project_limit_service_account_registration(
     valid_service_account_patcher,
 ):
     """
-    Test that the projects are registered when there are SERVICE_ACCOUNT_LIMIT number of projects and the database is updated. 
+    Test that the projects are registered when there are SERVICE_ACCOUNT_LIMIT number of projects and the database is updated.
     """
     proj_patcher = valid_google_project_patcher
     project_access = []
@@ -1114,7 +1114,7 @@ def test_invalid_project_limit_service_account_registration(
     valid_google_project_patcher,
 ):
     """
-    Test that we get a 400 when there are SERVICE_ACCOUNT_LIMIT + 1 number of projects and the databse isn't updated. 
+    Test that we get a 400 when there are SERVICE_ACCOUNT_LIMIT + 1 number of projects and the databse isn't updated.
     """
     proj_patcher = valid_google_project_patcher
     project_access = []
@@ -1191,7 +1191,7 @@ def test_patch_service_account_invalid_limit(
 ):
     """
     Test that patching with new project_access returns 400
-    when more than SERVICE_ACCOUNT_LIMIT projects are trying to be registered. 
+    when more than SERVICE_ACCOUNT_LIMIT projects are trying to be registered.
     """
     encoded_creds_jwt = encoded_jwt_service_accounts_access["jwt"]
     service_account = register_user_service_account["service_account"]
@@ -1234,7 +1234,7 @@ def test_patch_service_account_valid_limit(
 ):
     """
     Test that patching with new project_access returns 204
-    when SERVICE_ACCOUNT_LIMIT number of projects is registered. 
+    when SERVICE_ACCOUNT_LIMIT number of projects is registered.
     """
     encoded_creds_jwt = encoded_jwt_service_accounts_access["jwt"]
     service_account = register_user_service_account["service_account"]
