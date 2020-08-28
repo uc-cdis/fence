@@ -113,7 +113,7 @@ def modify_client_action(
                 client._allowed_scopes = " ".join(new_scopes)
                 logger.info("Adding {} to allowed_scopes".format(allowed_scopes))
             else:
-                client._allowed_scopes = "".join(allowed_scopes)
+                client._allowed_scopes = " ".join(allowed_scopes)
                 logger.info("Updating allowed_scopes to {}".format(allowed_scopes))
         s.commit()
     if arborist is not None and policies:
