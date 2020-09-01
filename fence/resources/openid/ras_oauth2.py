@@ -142,5 +142,4 @@ class RASOauth2Client(Oauth2ClientBase):
             except Exception as e:
                 err_msg = f"Could not process visa '{encoded_visa}' - skipping this visa"
                 self.logger.exception("{}: {}".format(err_msg, e), exc_info=True)
-            finally:
-                current_session.commit()
+            current_session.commit()
