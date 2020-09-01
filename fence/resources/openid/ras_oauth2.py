@@ -140,7 +140,7 @@ class RASOauth2Client(Oauth2ClientBase):
 
                 current_db_session.add(visa)
             except Exception as e:
-                err_msg = "Could not update visa"
+                err_msg = f"Could not process visa '{encoded_visa}' - skipping this visa"
                 self.logger.exception("{}: {}".format(err_msg, e), exc_info=True)
             finally:
                 current_session.commit()
