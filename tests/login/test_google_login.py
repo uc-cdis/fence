@@ -42,7 +42,11 @@ def test_google_login_http_headers_are_less_than_4k_for_user_with_many_projects(
             for x in range(20)
         }
     }
-    user_info = {"test": {"tags": {},}}
+    user_info = {
+        "test": {
+            "tags": {},
+        }
+    }
     dbGaP = os.environ.get("dbGaP") or config.get("dbGaP")
     syncer = UserSyncer(dbGaP, config["DB"], {})
     syncer.sync_to_db_and_storage_backend(user_projects, user_info, db_session)

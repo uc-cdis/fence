@@ -123,8 +123,8 @@ class RASOauth2Client(Oauth2ClientBase):
             self.logger.exception("{}: {}".format(err_msg, e))
             raise
 
-        try:
-            for encoded_visa in encoded_visas:
+        for encoded_visa in encoded_visas:
+            try:
                 # TODO: These visas must be validated!!!
                 decoded_visa = jwt.decode(encoded_visa, verify=False)
                 visa = GA4GHVisaV1(
@@ -139,8 +139,8 @@ class RASOauth2Client(Oauth2ClientBase):
                 current_db_session = current_session.object_session(visa)
 
                 current_db_session.add(visa)
-        except Exception as e:
-            err_msg = "Could not update visa"
-            self.logger.exception("{}: {}".format(err_msg, e), exc_info=True)
-        finally:
-            current_session.commit()
+            except Exception as e:
+                err_msg = "Could not update visa"
+                self.logger.exception("{}: {}".format(err_msg, e), exc_info=True)
+            finally:
+                current_session.commit()

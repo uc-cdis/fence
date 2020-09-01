@@ -99,7 +99,8 @@ def test_create_client_inits_default_allowed_scopes(db_session):
         assert saved_client._allowed_scopes == " ".join(config["CLIENT_ALLOWED_SCOPES"])
 
     create_client_action_wrapper(
-        to_test, client_name=client_name,
+        to_test,
+        client_name=client_name,
     )
 
 
@@ -116,7 +117,9 @@ def test_create_client_inits_passed_allowed_scopes(db_session):
         assert saved_client._allowed_scopes == "openid user data"
 
     create_client_action_wrapper(
-        to_test, client_name=client_name, allowed_scopes=["openid", "user", "data"],
+        to_test,
+        client_name=client_name,
+        allowed_scopes=["openid", "user", "data"],
     )
 
 
@@ -133,7 +136,9 @@ def test_create_client_adds_openid_when_not_in_allowed_scopes(db_session):
         assert saved_client._allowed_scopes == "user data openid"
 
     create_client_action_wrapper(
-        to_test, client_name=client_name, allowed_scopes=["user", "data"],
+        to_test,
+        client_name=client_name,
+        allowed_scopes=["user", "data"],
     )
 
 
