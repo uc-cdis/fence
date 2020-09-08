@@ -40,6 +40,7 @@ def validate_purpose(claims, pur):
 def validate_jwt(
     encoded_token=None,
     aud=None,
+    scope={"openid"},
     purpose=None,
     public_key=None,
     attempt_refresh=False,
@@ -54,9 +55,15 @@ def validate_jwt(
 
     Args:
         encoded_token (str): the base64 encoding of the token
-        aud (Optional[Iterable[str]]):
-            list of audiences that the token must satisfy; defaults to
-            ``{'openid'}`` (minimum expected by OpenID provider)
+        aud (Optional[str]):
+          audience with which the app identifies, usually an OIDC
+          client id, which the JWT will be expected to include in its ``aud``
+          claim. Optional; if no ``aud`` argument given and the JWT has no
+          ``aud`` claim, validation will pass.
+        scope (Optional[Iterable[str]]):
+            list of scopes each of which the token must satisfy; defaults
+            to ``{'openid'}`` (minimum expected by OpenID provider).
+            Explicitly set this to None to skip scope validation.
         purpose (Optional[str]):
             which purpose the token is supposed to be used for (access,
             refresh, or id)
@@ -77,8 +84,10 @@ def validate_jwt(
         except Unauthorized as e:
             raise JWTError(e.message)
 
-    aud = aud or {"openid"}
-    aud = set(aud)
+    assert (
+        type(scope) is set or type(scope) is list or scope is None
+    ), "scope argument must be set or list or None"
+
     iss = config["BASE_URL"]
     issuers = [iss]
     oidc_iss = (
@@ -98,6 +107,7 @@ def validate_jwt(
         claims = authutils.token.validate.validate_jwt(
             encoded_token=encoded_token,
             aud=aud,
+            scope=scope,
             purpose=purpose,
             issuers=issuers,
             public_key=public_key,
@@ -107,7 +117,7 @@ def validate_jwt(
     except authutils.errors.JWTError as e:
         msg = "Invalid token : {}".format(str(e))
         unverified_claims = jwt.decode(encoded_token, verify=False)
-        if "" in unverified_claims["aud"]:
+        if not unverified_claims.get("scope") or "" in unverified_claims["scope"]:
             msg += "; was OIDC client configured with scopes?"
         raise JWTError(msg)
     if purpose:
