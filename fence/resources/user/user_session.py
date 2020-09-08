@@ -48,7 +48,7 @@ class UserSession(SessionMixin):
 
         if session_token:
             try:
-                jwt_info = validate_jwt(session_token, aud={"fence"})
+                jwt_info = validate_jwt(session_token, aud="fence")
             except JWTError:
                 # if session token is invalid, create a new
                 # empty one silently
@@ -70,9 +70,10 @@ class UserSession(SessionMixin):
             expires_in=config.get("SESSION_TIMEOUT"),
         ).token
         self._encoded_token = session_token
+
         initial_token = validate_jwt(
             session_token,
-            aud={"fence"},
+            aud="fence",
             purpose="session",
             public_key=default_public_key(),
         )
