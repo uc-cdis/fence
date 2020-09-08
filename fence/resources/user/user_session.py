@@ -48,7 +48,13 @@ class UserSession(SessionMixin):
 
         if session_token:
             try:
-                jwt_info = validate_jwt(session_token, aud="fence")
+                jwt_info = validate_jwt(
+                    session_token,
+                    aud="fence",
+                    scope=None,
+                    purpose="session",
+                    public_key=default_public_key(),
+                )
             except JWTError:
                 # if session token is invalid, create a new
                 # empty one silently
@@ -74,6 +80,7 @@ class UserSession(SessionMixin):
         initial_token = validate_jwt(
             session_token,
             aud="fence",
+            scope=None,
             purpose="session",
             public_key=default_public_key(),
         )
