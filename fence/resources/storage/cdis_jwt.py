@@ -53,7 +53,7 @@ def create_user_access_token(keypair, api_key, expires_in):
         access token
     """
     try:
-        claims = validate_jwt(api_key, aud={"fence"}, purpose="api_key")
+        claims = validate_jwt(api_key, aud="fence", purpose="api_key")
         scopes = claims["aud"]
         user = get_user_from_claims(claims)
     except Exception as e:
