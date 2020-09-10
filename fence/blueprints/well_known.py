@@ -78,6 +78,7 @@ def openid_configuration():
         "jti",
         "auth_time",
         "azp",
+        "scope",
         "nonce",
         "context",
     ]
