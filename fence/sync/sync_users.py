@@ -379,7 +379,7 @@ class UserSyncer(object):
             if proxy:
                 parameters["sock"] = proxy
 
-            self.logger.info("SSH connection hostname:post {}:{}".format(parameters.get("hostname", "unknown"), parameters.get("port", "unknown"))
+            self.logger.info("SSH connection hostname:post {}:{}".format(parameters.get("hostname", "unknown"), parameters.get("port", "unknown")))
             client.connect(**parameters)
             with client.open_sftp() as sftp:
                 download_dir(sftp, "./", path)
