@@ -244,8 +244,8 @@ def init_syncer(
             pass
 
     return UserSyncer(
-        dbGaP,
-        DB,
+        dbGaP=dbGaP,
+        DB=DB,
         project_mapping=project_mapping,
         storage_credentials=STORAGE_CREDENTIALS,
         is_sync_from_dbgap_server=is_sync_from_dbgap_server,
@@ -293,19 +293,21 @@ def sync_users(
     is_sync_from_dbgap_server=False,
     sync_from_local_csv_dir=None,
     sync_from_local_yaml_file=None,
+    json_from_api=None,
     arborist=None,
     folder=None,
 ):
     syncer = init_syncer(
-        dbGaP,
-        STORAGE_CREDENTIALS,
-        DB,
-        projects,
-        is_sync_from_dbgap_server,
-        sync_from_local_csv_dir,
-        sync_from_local_yaml_file,
-        arborist,
-        folder,
+        dbGaP=dbGaP,
+        STORAGE_CREDENTIALS=STORAGE_CREDENTIALS,
+        DB=DB,
+        projects=projects,
+        is_sync_from_dbgap_server=is_sync_from_dbgap_server,
+        sync_from_local_csv_dir=sync_from_local_csv_dir,
+        sync_from_local_yaml_file=sync_from_local_yaml_file,
+        json_from_api=json_from_api,
+        arborist=arborist,
+        folder=folder,
     )
     if not syncer:
         exit(1)

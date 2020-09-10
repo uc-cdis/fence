@@ -426,15 +426,16 @@ def main():
         verify_bucket_access_group(DB)
     elif args.action == "sync":
         sync_users(
-            dbGaP,
-            STORAGE_CREDENTIALS,
-            DB,
+            dbGaP=dbGaP,
+            STORAGE_CREDENTIALS=STORAGE_CREDENTIALS,
+            DB=DB,
             projects=args.project_mapping,
             is_sync_from_dbgap_server=str2bool(args.sync_from_dbgap),
             sync_from_local_csv_dir=args.csv_dir,
             sync_from_local_yaml_file=args.yaml,
             folder=args.folder,
             arborist=arborist,
+            json_from_api=None
         )
     elif args.action == "dbgap-download-access-files":
         download_dbgap_files(
