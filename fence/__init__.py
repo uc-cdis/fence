@@ -338,7 +338,9 @@ def _setup_oidc_clients(app):
     # Add OIDC client for RAS if configured.
     if "ras" in oidc:
         app.ras_client = RASClient(
-            oidc["ras"], HTTP_PROXY=config.get("HTTP_PROXY"), logger=logger,
+            oidc["ras"],
+            HTTP_PROXY=config.get("HTTP_PROXY"),
+            logger=logger,
         )
 
     # Add OIDC client for Synapse if configured.
