@@ -164,10 +164,12 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
             return
 
         # token is dict so just get the scope, don't use get_scope()
-        original_scope = token.get("aud")
+        original_scope = token.get("scope")
         if not original_scope:
-            raise InvalidScopeError()
+            raise InvalidScopeError("No scope claim found in original refresh token.")
 
         original_scope = set(scope_to_list(original_scope))
         if not original_scope.issuperset(set(scope_to_list(scope))):
-            raise InvalidScopeError()
+            raise InvalidScopeError(
+                "Cannot request scopes that were not in original refresh token."
+            )
