@@ -41,7 +41,7 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         Return:
             dict: the claims from the validated token
         """
-        return validate_jwt(refresh_token, purpose="refresh")
+        return validate_jwt(refresh_token, aud=self.client.client_id, purpose="refresh")
 
     def create_access_token(self, token, client, authenticated_token):
         """
