@@ -77,6 +77,5 @@ def test_logout_fence(app, client, user_with_fence_provider, monkeypatch):
         assert r.location.startswith(other_fence_logout_url)
 
         parsed_url = urllib.parse.urlparse(r.location)
-        raw_redirect = urllib.parse.parse_qs(parsed_url.query).get("next")[0]
-        result_redirect = urllib.parse.unquote(raw_redirect)
+        result_redirect = urllib.parse.parse_qs(parsed_url.query).get("next")[0]
         assert result_redirect == redirect

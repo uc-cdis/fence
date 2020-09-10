@@ -737,8 +737,7 @@ def test_google_link_when_google_mocked(
     add_google_email_to_proxy_group_mock,
     monkeypatch,
 ):
-    """
-    """
+    """"""
     monkeypatch.setitem(config, "MOCK_GOOGLE_AUTH", True)
 
     user_id = encoded_creds_jwt["user_id"]
