@@ -20,3 +20,17 @@ Fence presently guards several endpoints (e.g. /data, signed urls, SA registrati
 Address above.
 ##### Other notes:
 n/a
+
+
+### Not validating aud claim in Bearer tokens
+##### Problem:
+- The login_required decorator purports to enforce requirement of a user session (see fence/auth.py).
+- However, it also allows falling back on the presence of a Bearer token in the request.
+- In the latter case, the decorator calls has_oauth, which validates the JWT and checks that it has the right scopes. However, the validation does not verify the 'aud' claim. This is a security risk in settings where one Authorization server is issuing JWTs for multiple Resource servers. See [RFC 6819 5.1.5.5](https://tools.ietf.org/html/rfc6819#section-5.1.5.5).
+##### Historical context:
+- Fence used to use the 'aud' claim for scopes, overriding conventional 'aud' validation; the 'aud' claim was therefore not being used or validated correctly.
+- Now scopes have been moved into a custom 'scope' claim with custom 'scope' validation, and 'aud' is populated with client_id (required by OIDC for id_tokens). 'aud' validation has reverted to the conventional validation.
+- However, this means that now Fence cannot consume its own JWTs in its capacity as its own Resource server, since it does not identify as the client_id.
+- In order to keep allowing the affected Fence endpoints to be used with a Bearer token, has_oauth currently skips validation of the 'aud' claim.
+##### Possible solution:
+- Along with client_id, put iss in aud as well? Need to think about whether this captures all current use cases, e.g. when Fence is trusted as Auth server to different Resource servers with different domains.

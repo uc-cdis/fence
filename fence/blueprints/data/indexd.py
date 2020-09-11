@@ -13,7 +13,6 @@ import requests
 
 from fence.auth import (
     get_jwt,
-    has_oauth,
     current_token,
     login_required,
     set_current_token,
