@@ -85,9 +85,10 @@ class DefaultOAuth2Callback(Resource):
             )
             if "client_id" in redirect_uri:
                 redirect_query_dict = parse_qs(urlparse(redirect_uri).query, keep_blank_values=True)
-                client_id = redirect_query_dict["client_id"]
+                client_id = redirect_query_dict["client_id"][0]
                 with flask.current_app.db.session as session:
                     client = session.query(Client).filter_by(client_id=client_id).first()
+                    redirect_uri = client.redirect_uri
 
             final_query_params = urlencode(
                 redirect_query_params + received_query_params
