@@ -74,7 +74,6 @@ class DefaultOAuth2Callback(Resource):
         # Check if user granted access
         if flask.request.args.get("error"):
 
-           
             request_url = flask.request.url
             received_query_params = parse_qsl(
                 urlparse(request_url).query, keep_blank_values=True
@@ -84,10 +83,14 @@ class DefaultOAuth2Callback(Resource):
                 urlparse(redirect_uri).query, keep_blank_values=True
             )
             if "client_id" in redirect_uri:
-                redirect_query_dict = parse_qs(urlparse(redirect_uri).query, keep_blank_values=True)
+                redirect_query_dict = parse_qs(
+                    urlparse(redirect_uri).query, keep_blank_values=True
+                )
                 client_id = redirect_query_dict["client_id"][0]
                 with flask.current_app.db.session as session:
-                    client = session.query(Client).filter_by(client_id=client_id).first()
+                    client = (
+                        session.query(Client).filter_by(client_id=client_id).first()
+                    )
                     redirect_uri = client.redirect_uri
 
             final_query_params = urlencode(
