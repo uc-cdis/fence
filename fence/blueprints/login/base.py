@@ -82,7 +82,7 @@ class DefaultOAuth2Callback(Resource):
             redirect_query_params = parse_qsl(
                 urlparse(redirect_uri).query, keep_blank_values=True
             )
-            if "client_id" in redirect_uri:
+            if "client_id" in redirect_query_params:
                 redirect_query_dict = parse_qs(
                     urlparse(redirect_uri).query, keep_blank_values=True
                 )
