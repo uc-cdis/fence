@@ -1,6 +1,6 @@
 import flask
 from flask_restful import Resource
-from urllib.parse import urlparse, urlencode, parse_qsl, parse_qs
+from urllib.parse import urlparse, urlencode, parse_qsl
 
 from fence.auth import login_user
 from fence.blueprints.login.redirect import validate_redirect
@@ -84,7 +84,6 @@ class DefaultOAuth2Callback(Resource):
             )
             client_id = dict(redirect_query_params).get("client_id")
             if client_id:
-                client_id = client_id[0]
                 with flask.current_app.db.session as session:
                     client = (
                         session.query(Client).filter_by(client_id=client_id).first()
