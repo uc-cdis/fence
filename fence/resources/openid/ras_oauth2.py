@@ -46,6 +46,9 @@ class RASOauth2Client(Oauth2ClientBase):
         access_token = token["access_token"]
         header = {"Authorization": "Bearer " + access_token}
         res = requests.get(userinfo_endpoint, headers=header)
+        if res.status_code != 200:
+            self.logger.info("Unable to get visa: status_code: {}, error: {}, error_description: {}".format(res.status_code, res.json().get("error"), res.json().get("error_description")))
+            return {}
         return res.json()
 
     def get_user_id(self, code):
@@ -61,11 +64,7 @@ class RASOauth2Client(Oauth2ClientBase):
 
             token = self.get_token(token_endpoint, code)
             keys = self.get_jwt_keys(jwks_endpoint)
-            userinfo = {}
-            try:
-                userinfo = self.get_userinfo(token, userinfo_endpoint)
-            except:
-                pass
+            userinfo = self.get_userinfo(token, userinfo_endpoint)
 
             claims = jose_jwt.decode(
                 token["id_token"],
