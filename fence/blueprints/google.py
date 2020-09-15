@@ -130,10 +130,11 @@ class GoogleServiceAccountRoot(Resource):
         project_access = payload.get("project_access")
 
         if len(project_access) > config["SERVICE_ACCOUNT_LIMIT"]:
-            raise UserError(
+            return (
                 "Exceeded Allowable Number of Projects. Maximum {} Projects allowed per account.".format(
                     config["SERVICE_ACCOUNT_LIMIT"]
-                )
+                ),
+                400,
             )
 
         sa = GoogleServiceAccountRegistration(
@@ -364,10 +365,11 @@ class GoogleServiceAccount(Resource):
         project_access = payload.get("project_access")
 
         if len(project_access) > config["SERVICE_ACCOUNT_LIMIT"]:
-            return UserError(
+            return (
                 "Exceeded Allowable Number of Projects. Maximum {} Projects allowed per account.".format(
                     config["SERVICE_ACCOUNT_LIMIT"]
-                )
+                ),
+                400,
             )
 
         sa = GoogleServiceAccountRegistration(
@@ -407,6 +409,8 @@ class GoogleServiceAccount(Resource):
             id_ (str): Google service account identifier to update
         """
         sa = _get_service_account_for_patch(id_)
+        if type(sa) != GoogleServiceAccountRegistration:
+            return sa
         error_response = _get_patched_service_account_error_status(id_, sa)
         if error_response.get("success") is not True:
             return error_response, 400
@@ -606,10 +610,11 @@ def _get_service_account_for_patch(id_):
         ]
 
     if len(project_access) > config["SERVICE_ACCOUNT_LIMIT"]:
-        raise UserError(
+        return (
             "Exceeded Allowable Number of Projects. Maximum {} Projects allowed per account.".format(
                 config["SERVICE_ACCOUNT_LIMIT"]
-            )
+            ),
+            400,
         )
 
     google_project_id = registered_service_account.google_project_id
