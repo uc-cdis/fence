@@ -34,3 +34,5 @@ n/a
 - In order to keep allowing the affected Fence endpoints to be used with a Bearer token, has_oauth currently skips validation of the 'aud' claim.
 ##### Possible solution:
 - Along with client_id, put iss in aud as well? Need to think about whether this captures all current use cases, e.g. when Fence is trusted as Auth server to different Resource servers with different domains.
+### Other notes:
+- Also applies to require_auth_header decorator in authutils.

@@ -344,10 +344,6 @@ def generate_api_key(kid, private_key, user_id, expires_in, scopes, client_id):
         "azp": client_id or "",
         "scope": scopes,
     }
-
-    if client_id:
-        claims["aud"] = [client_id]
-
     logger.info("issuing JWT API key with id [{}] to [{}]".format(jti, sub))
     logger.debug("issuing JWT API key\n" + json.dumps(claims, indent=4))
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
