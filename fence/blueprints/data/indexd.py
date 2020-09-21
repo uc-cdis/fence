@@ -4,6 +4,7 @@ from urllib.parse import urlparse
 
 from cached_property import cached_property
 import cirrus
+from cirrus import GoogleCloudManager
 from cdislogging import get_logger
 from cdispyutils.config import get_value
 from cdispyutils.hmac4 import generate_aws_presigned_url
