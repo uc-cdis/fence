@@ -126,7 +126,7 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
 
         scope = self.request.scope
         if not scope:
-            scope = credential["aud"]
+            scope = credential["scope"]
 
         client = self.request.client
         expires_in = credential["exp"]
