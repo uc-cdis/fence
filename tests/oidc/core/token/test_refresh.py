@@ -27,13 +27,15 @@ from fence.jwt.validate import validate_jwt
 
 def test_same_claims(oauth_test_client, token_response_json):
     original_id_token = token_response_json["id_token"]
-    original_claims = validate_jwt(original_id_token, {"openid"})
+    original_claims = validate_jwt(original_id_token, aud=oauth_test_client.client_id)
     refresh_token = token_response_json["refresh_token"]
     refresh_token_response = oauth_test_client.refresh(
         refresh_token=refresh_token
     ).response
     assert "id_token" in refresh_token_response.json
-    new_claims = validate_jwt(refresh_token_response.json["id_token"], {"openid"})
+    new_claims = validate_jwt(
+        refresh_token_response.json["id_token"], aud=oauth_test_client.client_id
+    )
     assert original_claims["iss"] == new_claims["iss"]
     assert original_claims["sub"] == new_claims["sub"]
     assert original_claims["iat"] <= new_claims["iat"]
@@ -42,3 +44,6 @@ def test_same_claims(oauth_test_client, token_response_json):
         assert original_claims["azp"] == new_claims["azp"]
     else:
         assert "azp" not in new_claims
+
+    # Also test that custom (non-OIDC) scope claim is unchanged
+    assert original_claims["scope"] == new_claims["scope"]

@@ -367,7 +367,11 @@ def test_create_refresh_token_with_found_user(
         refresh_token=jwt_result.token
     ).response
 
-    ret_claims = validate_jwt(refresh_token_response.json["id_token"], {"openid"})
+    ret_claims = validate_jwt(
+        refresh_token_response.json["id_token"],
+        aud=oauth_test_client.client_id,
+        scope={"openid"},
+    )
     assert jwt_result.claims["iss"] == ret_claims["iss"]
     assert jwt_result.claims["sub"] == ret_claims["sub"]
     assert jwt_result.claims["iat"] <= ret_claims["iat"]
