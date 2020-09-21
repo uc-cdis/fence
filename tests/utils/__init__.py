@@ -235,19 +235,19 @@ def default_claims():
     Return:
         dict: dictionary of claims
     """
-    aud = ["openid", "user"]
     iss = "https://user-api.test.net"
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
         "pur": "access",
-        "aud": aud,
+        "aud": ["fake-client-id"],
         "sub": "1234",
         "iss": iss,
         "iat": iat,
         "exp": exp,
         "jti": jti,
         "azp": "",
+        "scope": ["openid", "user"],
         "context": {
             "user": {
                 "name": "test-user",
@@ -265,12 +265,11 @@ def unauthorized_context_claims(user_name, user_id):
     Return:
         dict: dictionary of claims
     """
-    aud = ["access", "data", "user", "openid"]
     iss = config["BASE_URL"]
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
-        "aud": aud,
+        "aud": ["fake-client-id"],
         "sub": user_id,
         "pur": "access",
         "iss": iss,
@@ -278,6 +277,7 @@ def unauthorized_context_claims(user_name, user_id):
         "exp": exp,
         "jti": jti,
         "azp": "",
+        "scope": ["access", "data", "user", "openid"],
         "context": {
             "user": {
                 "name": "test",
@@ -298,12 +298,11 @@ def authorized_download_context_claims(user_name, user_id):
     Return:
         dict: dictionary of claims
     """
-    aud = ["access", "data", "user", "openid"]
     iss = config["BASE_URL"]
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
-        "aud": aud,
+        "aud": ["fake-client-id"],
         "sub": user_id,
         "iss": iss,
         "iat": iat,
@@ -311,6 +310,7 @@ def authorized_download_context_claims(user_name, user_id):
         "jti": jti,
         "azp": "",
         "pur": "access",
+        "scope": ["access", "data", "user", "openid"],
         "context": {
             "user": {
                 "name": user_name,
@@ -331,12 +331,11 @@ def authorized_service_account_management_claims(user_name, user_id, client_id):
     Return:
         dict: dictionary of claims
     """
-    aud = ["access", "data", "user", "openid", "google_link", "google_service_account"]
     iss = config["BASE_URL"]
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
-        "aud": aud,
+        "aud": ["fake-client-id"],
         "sub": user_id,
         "iss": iss,
         "iat": iat,
@@ -344,6 +343,14 @@ def authorized_service_account_management_claims(user_name, user_id, client_id):
         "jti": jti,
         "azp": client_id,
         "pur": "access",
+        "scope": [
+            "access",
+            "data",
+            "user",
+            "openid",
+            "google_link",
+            "google_service_account",
+        ],
         "context": {
             "user": {
                 "name": user_name,
@@ -365,7 +372,7 @@ def authorized_download_credentials_context_claims(
     Return:
         dict: dictionary of claims
     """
-    aud = [
+    scope = [
         "access",
         "data",
         "user",
@@ -378,7 +385,7 @@ def authorized_download_credentials_context_claims(
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
-        "aud": aud,
+        "aud": [client_id],
         "sub": user_id,
         "iss": iss,
         "iat": iat,
@@ -386,6 +393,7 @@ def authorized_download_credentials_context_claims(
         "jti": jti,
         "azp": client_id,
         "pur": "access",
+        "scope": scope,
         "context": {
             "user": {
                 "name": user_name,
@@ -406,12 +414,11 @@ def authorized_upload_context_claims(user_name, user_id):
     Return:
         dict: dictionary of claims
     """
-    aud = ["access", "data", "user", "openid"]
     iss = config["BASE_URL"]
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
-        "aud": aud,
+        "aud": ["fake-client-id"],
         "sub": user_id,
         "iss": iss,
         "pur": "access",
@@ -419,6 +426,7 @@ def authorized_upload_context_claims(user_name, user_id):
         "exp": exp,
         "jti": jti,
         "azp": "test-client",
+        "scope": ["access", "data", "user", "openid"],
         "context": {
             "user": {
                 "name": user_name,

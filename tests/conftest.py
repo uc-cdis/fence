@@ -73,7 +73,6 @@ def mock_assume_role(self, role_arn, duration_seconds, config=None):
 def claims_refresh():
     new_claims = tests.utils.default_claims()
     new_claims["pur"] = "refresh"
-    new_claims["aud"].append("fence")
     return new_claims
 
 
