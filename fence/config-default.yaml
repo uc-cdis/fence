@@ -146,6 +146,7 @@ OPENID_CONNECT:
     mock: false
     mock_default_user: '0000-0002-2601-8132'
   ras:
+    discovery_url: 'https://sts.nih.gov/.well-known/openid-configuration'
     client_id: ''
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/ras/callback'

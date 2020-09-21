@@ -6,6 +6,7 @@ from fence.auth import login_user
 from fence.blueprints.login.redirect import validate_redirect
 from fence.config import config
 from fence.errors import UserError
+from fence.models import Client
 
 
 class DefaultOAuth2Login(Resource):
@@ -72,14 +73,23 @@ class DefaultOAuth2Callback(Resource):
     def get(self):
         # Check if user granted access
         if flask.request.args.get("error"):
-            reqiest_url = flask.request.url
+
+            request_url = flask.request.url
             received_query_params = parse_qsl(
-                urlparse(reqiest_url).query, keep_blank_values=True
+                urlparse(request_url).query, keep_blank_values=True
             )
             redirect_uri = flask.session.get("redirect") or config["BASE_URL"]
             redirect_query_params = parse_qsl(
                 urlparse(redirect_uri).query, keep_blank_values=True
             )
+            client_id = dict(redirect_query_params).get("client_id")
+            if client_id:
+                with flask.current_app.db.session as session:
+                    client = (
+                        session.query(Client).filter_by(client_id=client_id).first()
+                    )
+                    redirect_uri = client.redirect_uri
+
             final_query_params = urlencode(
                 redirect_query_params + received_query_params
             )
