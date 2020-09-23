@@ -82,13 +82,14 @@ class DefaultOAuth2Callback(Resource):
             redirect_query_params = parse_qsl(
                 urlparse(redirect_uri).query, keep_blank_values=True
             )
-            client_id = dict(redirect_query_params).get("client_id")
-            if client_id:
-                with flask.current_app.db.session as session:
-                    client = (
-                        session.query(Client).filter_by(client_id=client_id).first()
-                    )
-                    redirect_uri = client.redirect_uri
+            redirect_uri = dict(redirect_query_params).get("redirect_uri")
+            # client_id = dict(redirect_query_params).get("client_id")
+            # if client_id:
+            #     with flask.current_app.db.session as session:
+            #         client = (
+            #             session.query(Client).filter_by(client_id=client_id).first()
+            #         )
+            #         redirect_uri = client.redirect_uri
 
             final_query_params = urlencode(
                 redirect_query_params + received_query_params
