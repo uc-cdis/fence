@@ -6,7 +6,6 @@ from fence.auth import login_user
 from fence.blueprints.login.redirect import validate_redirect
 from fence.config import config
 from fence.errors import UserError
-from fence.models import Client
 
 
 class DefaultOAuth2Login(Resource):
