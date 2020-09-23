@@ -13,7 +13,8 @@ include = [
 [tool.poetry.dependencies]
 python = "^3.6"
 authlib = "^0.11"
-authutils = "^5.0.5"
+#authutils = "^5.0.5"
+authutils = {git = "https://github.com/uc-cdis/authutils.git", branch = "fix/aud"}
 bcrypt = "^3.1.4"
 boto3 = "~1.9.91"
 botocore = "^1.12.253"
