@@ -130,12 +130,20 @@ class GoogleServiceAccountRoot(Resource):
         project_access = payload.get("project_access")
 
         if len(project_access) > config["SERVICE_ACCOUNT_LIMIT"]:
-            return (
-                "Exceeded Allowable Number of Projects. Maximum {} Projects allowed per account.".format(
-                    config["SERVICE_ACCOUNT_LIMIT"]
-                ),
-                400,
-            )
+            response = {
+                "success": False,
+                "errors": {
+                    "service_account_limit": {
+                        "status": 400,
+                        "error": "project_limit",
+                        "error_description": "Exceeded Allowable Number of Projects. Maximum {} Projects allowed per account.".format(
+                            config["SERVICE_ACCOUNT_LIMIT"]
+                        ),
+                    }
+                },
+            }
+
+            return response, 400
 
         sa = GoogleServiceAccountRegistration(
             email=payload.get("service_account_email"),
@@ -365,12 +373,20 @@ class GoogleServiceAccount(Resource):
         project_access = payload.get("project_access")
 
         if len(project_access) > config["SERVICE_ACCOUNT_LIMIT"]:
-            return (
-                "Exceeded Allowable Number of Projects. Maximum {} Projects allowed per account.".format(
-                    config["SERVICE_ACCOUNT_LIMIT"]
-                ),
-                400,
-            )
+            response = {
+                "success": False,
+                "errors": {
+                    "service_account_limit": {
+                        "status": 400,
+                        "error": "project_limit",
+                        "error_description": "Exceeded Allowable Number of Projects. Maximum {} Projects allowed per account.".format(
+                            config["SERVICE_ACCOUNT_LIMIT"]
+                        ),
+                    }
+                },
+            }
+
+            return response, 400
 
         sa = GoogleServiceAccountRegistration(
             email=payload.get("service_account_email"),
@@ -610,12 +626,20 @@ def _get_service_account_for_patch(id_):
         ]
 
     if len(project_access) > config["SERVICE_ACCOUNT_LIMIT"]:
-        return (
-            "Exceeded Allowable Number of Projects. Maximum {} Projects allowed per account.".format(
-                config["SERVICE_ACCOUNT_LIMIT"]
-            ),
-            400,
-        )
+        response = {
+            "success": False,
+            "errors": {
+                "service_account_limit": {
+                    "status": 400,
+                    "error": "project_limit",
+                    "error_description": "Exceeded Allowable Number of Projects. Maximum {} Projects allowed per account.".format(
+                        config["SERVICE_ACCOUNT_LIMIT"]
+                    ),
+                }
+            },
+        }
+
+        return response, 400
 
     google_project_id = registered_service_account.google_project_id
 

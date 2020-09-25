@@ -4,6 +4,7 @@ from urllib.parse import urlparse
 
 from cached_property import cached_property
 import cirrus
+from cirrus import GoogleCloudManager
 from cdislogging import get_logger
 from cdispyutils.config import get_value
 from cdispyutils.hmac4 import generate_aws_presigned_url
@@ -480,7 +481,20 @@ class IndexedFile(object):
             ]
         for location in locations_to_delete:
             bucket = location.bucket_name()
-            flask.current_app.boto.delete_data_file(bucket, self.file_id)
+
+            file_suffix = ""
+            try:
+                file_suffix = location.file_name()
+            except Exception as e:
+                logger.info(e)
+                file_suffix = self.file_id
+
+            logger.info(
+                "Attempting to delete file named {} from bucket {}.".format(
+                    file_suffix, bucket
+                )
+            )
+            return location.delete(bucket, file_suffix)
 
     @login_required({"data"})
     def delete(self):
@@ -585,6 +599,10 @@ class S3IndexedFileLocation(IndexedFileLocation):
             if re.match("^" + bucket + "$", self.parsed_url.netloc):
                 return bucket
         return None
+
+    def file_name(self):
+        file_name = self.parsed_url.path[1:]
+        return file_name
 
     @classmethod
     def get_credential_to_access_bucket(
@@ -783,11 +801,21 @@ class S3IndexedFileLocation(IndexedFileLocation):
             parts,
         )
 
+    def delete(self, bucket, file_id):
+        try:
+            return flask.current_app.boto.delete_data_file(bucket, file_id)
+        except Exception as e:
+            logger.error(e)
+            return ("Failed to delete data file.", 500)
+
 
 class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     """
     An indexed file that lives in a Google Storage bucket.
     """
+
+    def get_resource_path(self):
+        return self.parsed_url.netloc.strip("/") + "/" + self.parsed_url.path.strip("/")
 
     def get_signed_url(
         self,
@@ -797,9 +825,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         force_signed_url=True,
         r_pays_project=None,
     ):
-        resource_path = (
-            self.parsed_url.netloc.strip("/") + "/" + self.parsed_url.path.strip("/")
-        )
+        resource_path = self.get_resource_path()
 
         user_info = _get_user_info()
 
@@ -839,6 +865,28 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             requester_pays_user_project=r_pays_project,
         )
         return final_url
+
+    def bucket_name(self):
+        resource_path = self.get_resource_path()
+
+        bucket_name = None
+        try:
+            bucket_name = resource_path.split("/")[0]
+        except Exception as exc:
+            logger.error("Unable to get bucket name from resource path. {}".format(exc))
+
+        return bucket_name
+
+    def file_name(self):
+        resource_path = self.get_resource_path()
+
+        file_name = None
+        try:
+            file_name = "/".join(resource_path.split("/")[1:])
+        except Exception as exc:
+            logger.error("Unable to get file name from resource path. {}".format(exc))
+
+        return file_name
 
     def _generate_google_storage_signed_url(
         self,
@@ -892,6 +940,22 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             requester_pays_user_project=r_pays_project,
         )
         return final_url
+
+    def delete(self, bucket, file_id):
+        try:
+            with GoogleCloudManager(
+                creds=config["CIRRUS_CFG"]["GOOGLE_STORAGE_CREDS"]
+            ) as gcm:
+                gcm.delete_data_file(bucket, file_id)
+            return ("", 204)
+        except Exception as e:
+            logger.error(e)
+            try:
+                status_code = e.resp.status
+            except Exception as exc:
+                logger.error(exc)
+                status_code = 500
+            return ("Failed to delete data file.", status_code)
 
 
 def _get_user_info():
