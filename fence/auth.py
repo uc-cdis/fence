@@ -2,6 +2,9 @@ import flask
 from flask_sqlalchemy_session import current_session
 from functools import wraps
 import urllib.request, urllib.parse, urllib.error
+from urllib.parse import urlparse, urlencode, parse_qsl
+import base64
+import requests
 
 from authutils.errors import JWTError, JWTExpiredError
 from authutils.token.validate import (
@@ -101,6 +104,26 @@ def logout(next_url):
     if provider == IdentityProvider.itrust:
         safe_url = urllib.parse.quote_plus(next_url)
         provider_logout = config["ITRUST_GLOBAL_LOGOUT"] + safe_url
+    elif provider == IdentityProvider.ras:
+        client = flask.current_app.ras_client
+        discovery = client.discovery_url 
+        parsed = urlparse(discovery)
+
+        # params = parse_qsl(parsed.query, keep_blank_values=True)
+
+        AUTH = "({}:{})".format(config["OPENID_CONNECT"]["ras"]["client_id"], config["OPENID_CONNECT"]["ras"]["client_secret"])
+        AUTH = AUTH.encode('ascii')
+        AUTH = base64.b64encode(AUTH)
+        AUTH = "Basic "+str(AUTH)
+
+        headers = {"Authorization": AUTH, "Content-Type": "application/x-www-form-urlencoded"}
+        params = {"id_token": flask.session["id_token"]}
+
+        logout_url = parsed[0] + "://" + parsed[1] + "/connect/session/logout"
+        
+        response = requests.post(logout_url, headers=headers, params=params, data="")
+
+
     elif provider == IdentityProvider.fence:
         base = config["OPENID_CONNECT"]["fence"]["api_base_url"]
         provider_logout = base + "/logout?" + urllib.parse.urlencode({"next": next_url})
