@@ -109,19 +109,15 @@ def logout(next_url):
         discovery = client.discovery_url 
         parsed = urlparse(discovery)
 
-        # params = parse_qsl(parsed.query, keep_blank_values=True)
+        client_id = config["OPENID_CONNECT"]["ras"]["client_id"]
+        client_secret = config["OPENID_CONNECT"]["ras"]["client_secret"]
 
-        AUTH = "({}:{})".format(config["OPENID_CONNECT"]["ras"]["client_id"], config["OPENID_CONNECT"]["ras"]["client_secret"])
-        AUTH = AUTH.encode('ascii')
-        AUTH = base64.b64encode(AUTH)
-        AUTH = "Basic "+str(AUTH)
-
-        headers = {"Authorization": AUTH, "Content-Type": "application/x-www-form-urlencoded"}
-        params = {"id_token": flask.session["id_token"]}
+        headers = {"Content-Type": "application/x-www-form-urlencoded"}
+        # params = {"id_token": flask.session["id_token"], "id_token_type"}
 
         logout_url = parsed[0] + "://" + parsed[1] + "/connect/session/logout"
         
-        response = requests.post(logout_url, headers=headers, params=params, data="")
+        response = requests.post(logout_url, headers=headers, params=params, data="", auth=(client_id, client_secret))
 
 
     elif provider == IdentityProvider.fence:
