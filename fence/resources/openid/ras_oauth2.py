@@ -105,7 +105,6 @@ class RASOauth2Client(Oauth2ClientBase):
             # Save userinfo and token in flask.g for later use in post_login
             flask.g.userinfo = userinfo
             flask.g.tokens = token
-            flask.session["id_token"] = token["id_token"]
 
         except Exception as e:
             self.logger.exception("{}: {}".format(err_msg, e))
