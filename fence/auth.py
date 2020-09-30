@@ -2,9 +2,6 @@ import flask
 from flask_sqlalchemy_session import current_session
 from functools import wraps
 import urllib.request, urllib.parse, urllib.error
-from urllib.parse import urlparse, urlencode, parse_qsl
-import base64
-import requests
 
 from authutils.errors import JWTError, JWTExpiredError
 from authutils.token.validate import (
@@ -28,7 +25,6 @@ logger = get_logger(__name__)
 def get_jwt():
     """
     Return the user's JWT from authorization header. Requires flask application context.
-
     Raises:
         - Unauthorized, if header is missing or not in the correct format
     """
@@ -47,12 +43,10 @@ def get_jwt():
 def build_redirect_url(hostname, path):
     """
     Compute a redirect given a hostname and next path where
-
     Args:
         hostname (str): may be empty string or a bare hostname or
                a hostname with a protocal attached (https?://...)
         path (int): is a path to attach to hostname
-
     Return:
         string url suitable for flask.redirect
     """
@@ -89,10 +83,8 @@ def login_user(request, username, provider):
 def logout(next_url):
     """
     Return a redirect which another logout from IDP or the provided redirect.
-
     Depending on the IDP, this logout will propogate. For example, if using
     another fence as an IDP, this will hit that fence's logout endpoint.
-
     Args:
         next_url (str): Final redirect desired after logout
     """
@@ -104,22 +96,6 @@ def logout(next_url):
     if provider == IdentityProvider.itrust:
         safe_url = urllib.parse.quote_plus(next_url)
         provider_logout = config["ITRUST_GLOBAL_LOGOUT"] + safe_url
-    elif provider == IdentityProvider.ras:
-        client = flask.current_app.ras_client
-        discovery = client.discovery_url 
-        parsed = urlparse(discovery)
-
-        client_id = config["OPENID_CONNECT"]["ras"]["client_id"]
-        client_secret = config["OPENID_CONNECT"]["ras"]["client_secret"]
-
-        headers = {"Content-Type": "application/x-www-form-urlencoded"}
-        # params = {"id_token": flask.session["id_token"], "id_token_type"}
-
-        logout_url = parsed[0] + "://" + parsed[1] + "/connect/session/logout"
-        
-        response = requests.post(logout_url, headers=headers, params=params, data="", auth=(client_id, client_secret))
-
-
     elif provider == IdentityProvider.fence:
         base = config["OPENID_CONNECT"]["fence"]["api_base_url"]
         provider_logout = base + "/logout?" + urllib.parse.urlencode({"next": next_url})
