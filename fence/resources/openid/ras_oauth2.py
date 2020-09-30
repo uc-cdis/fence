@@ -47,10 +47,15 @@ class RASOauth2Client(Oauth2ClientBase):
         header = {"Authorization": "Bearer " + access_token}
         res = requests.get(userinfo_endpoint, headers=header)
         if res.status_code != 200:
-            self.logger.info(
+            msg = res.text
+            try:
+                msg = res.json()
+            except:
+                pass
+            self.logger.error(
                 "Unable to get visa: status_code: {}, message: {}".format(
                     res.status_code,
-                    str(res.json()),
+                    msg,
                 )
             )
             return {}
