@@ -2,9 +2,6 @@ import flask
 from flask_sqlalchemy_session import current_session
 from functools import wraps
 import urllib.request, urllib.parse, urllib.error
-from urllib.parse import urlparse, urlencode, parse_qsl
-import base64
-import requests
 
 from authutils.errors import JWTError, JWTExpiredError
 from authutils.token.validate import (
