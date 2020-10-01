@@ -101,7 +101,7 @@ def logout(next_url):
     # propogate logout to IDP
     provider_logout = None
     provider = flask.session.get("provider")
-    if provider == IdentityProvider.itrust:
+    if provider == IdentityProvider.itrust or (provider == IdentityProvider.ras and config["ERA_GLOBAL_LOGOUT"]):
         safe_url = urllib.parse.quote_plus(next_url)
         provider_logout = config["ITRUST_GLOBAL_LOGOUT"] + safe_url
     elif provider == IdentityProvider.ras:
