@@ -144,13 +144,14 @@ def app_register_blueprints(app):
     def logout_endpoint():
         root = config.get("BASE_URL", "")
         request_next = flask.request.args.get("next", root)
+        era_global_logout = flask.request.args.get("era_global_logout") == "true"
         if request_next.startswith("https") or request_next.startswith("http"):
             next_url = request_next
         else:
             next_url = build_redirect_url(config.get("ROOT_URL", ""), request_next)
         if domain(next_url) not in allowed_login_redirects():
             raise UserError("invalid logout redirect URL: {}".format(next_url))
-        return logout(next_url=next_url)
+        return logout(next_url=next_url, era_global_logout=era_global_logout)
 
     @app.route("/jwt/keys")
     def public_keys():
