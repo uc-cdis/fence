@@ -91,6 +91,7 @@ def get_user_info(current_session, username):
         "resources_granted": [],
         "groups": groups,
         "message": "",
+        "active": user.active,
     }
 
     # User SAs are stored in db with client_id = None

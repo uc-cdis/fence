@@ -1,4 +1,5 @@
-from sqlalchemy import func
+import flask
+from sqlalchemy import func, or_
 
 from fence.errors import NotFound, UserError
 from fence.models import (
@@ -13,13 +14,14 @@ from fence.models import (
     UserToGroup,
     query_for_user,
 )
-
+from fence.pagination import paginate
 
 __all__ = [
     "get_user",
     "get_user_accesses",
     "create_user_by_username_project",
     "get_all_users",
+    "get_paginated_users",
     "get_user_groups",
 ]
 
@@ -72,8 +74,38 @@ def create_user_by_username_project(current_session, new_user, proj):
     return {"user": new_user, "project": project, "privileges": priv}
 
 
-def get_all_users(current_session):
-    return current_session.query(User).all()
+def _get_user_query(current_session, keyword=None):
+    q = current_session.query(User)
+    if keyword:
+        keyword = keyword.replace(' ', '').lower()
+        q = q.filter(
+            or_(
+                func.replace(User.display_name, ' ', '').ilike(
+                    '%{}%'.format(keyword)),
+                func.replace(User.email, ' ', '').ilike(
+                    '%{}%'.format(keyword)),
+            )
+        )
+    return q
+
+
+def get_all_users(current_session, keyword=None):
+    q = _get_user_query(current_session, keyword)
+    return q.order_by(User.id.desc()).all()
+
+
+def get_paginated_users(current_session, page, page_size, keyword=None):
+    q = _get_user_query(current_session, keyword)
+    q = q.order_by(User.id.desc())
+    page = int(page)
+    page_size = int(page_size)
+    pagination = paginate(
+        query=q,
+        page=page,
+        per_page=page_size,
+        error_out=False
+    )
+    return pagination
 
 
 def get_user_groups(current_session, username):

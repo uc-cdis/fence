@@ -21,6 +21,7 @@ __all__ = [
     "connect_user_to_project",
     "get_user_info",
     "get_all_users",
+    "get_paginated_user",
     "get_user_groups",
     "create_user",
     "update_user",
@@ -70,18 +71,41 @@ def get_user_info(current_session, username):
     return us.get_user_info(current_session, username)
 
 
-def get_all_users(current_session):
-    users = udm.get_all_users(current_session)
+def _user_dump(user):
+    new_user = {"name": user.username}
+    if user.is_admin:
+        new_user["role"] = "admin"
+    else:
+        new_user["role"] = "user"
+    new_user["preferred_username"] = user.display_name
+    new_user["phone_number"] = user.phone_number
+    new_user["active"] = user.active if user.active is not None else False
+    new_user["email"] = user.email
+    return new_user
+
+
+def get_all_users(current_session, keyword=None):
+    users = udm.get_all_users(current_session, keyword)
     users_names = []
     for user in users:
-        new_user = {}
-        new_user["name"] = user.username
-        if user.is_admin:
-            new_user["role"] = "admin"
-        else:
-            new_user["role"] = "user"
-        users_names.append(new_user)
+        users_names.append(_user_dump(user))
     return {"users": users_names}
+
+
+def get_paginated_user(current_session, page, page_size, keyword=None):
+    pagination = udm.get_paginated_users(current_session, page, page_size, keyword)
+    users_names = []
+    for user in pagination.items:
+        users_names.append(_user_dump(user))
+    return {
+        "users": users_names,
+        "pagination": {
+            "page": pagination.page,
+            "page_size": pagination.per_page,
+            "next_page": pagination.next_num,
+            "total_count": pagination.total,
+        }
+    }
 
 
 def get_user_groups(current_session, username):
@@ -92,7 +116,7 @@ def get_user_groups(current_session, username):
     return {"groups": user_groups_info}
 
 
-def create_user(current_session, username, role, email):
+def create_user(current_session, username, role, email, display_name=None):
     """
     Create a user for all the projects or groups in the list.
     If the user already exists, to avoid unadvertedly changing it, we suggest update
@@ -123,11 +147,15 @@ def create_user(current_session, username, role, email):
         is_admin = role == "admin"
         email_add = email
         usr = User(username=username, active=True, is_admin=is_admin, email=email_add)
+        usr.display_name = display_name
         current_session.add(usr)
         return us.get_user_info(current_session, username)
 
 
-def update_user(current_session, username, role, email, new_name):
+def update_user(
+        current_session, username, role, email, new_name,
+        display_name=None, active=None
+):
     usr = us.get_user(current_session, username)
     user_list = [
         user["name"].upper() for user in get_all_users(current_session)["users"]
@@ -148,6 +176,8 @@ def update_user(current_session, username, role, email, new_name):
     if role:
         usr.is_admin = role == "admin"
     usr.username = new_name or usr.username
+    usr.display_name = display_name or usr.display_name
+    usr.active = active if active is not None else usr.active
     return us.get_user_info(current_session, usr.username)
 
 

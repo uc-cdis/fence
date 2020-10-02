@@ -63,7 +63,24 @@ def get_all_users():
     Retrieve the information regarding the buckets created within a project.
     Returns a json object.
     """
-    return jsonify(admin.get_all_users(current_session))
+    keyword = request.args.get('keyword')
+    return jsonify(admin.get_all_users(current_session, keyword))
+
+
+@blueprint.route("/paginated_users", methods=["GET"])
+@admin_login_required
+@debug_log
+def get_paginated_users():
+    """
+    Retrieve the information regarding the buckets created within a project.
+    Returns a json object.
+    """
+    keyword = request.args.get('keyword')
+    page = request.args.get('page')
+    page_size = request.args.get('page_size')
+    return jsonify(
+        admin.get_paginated_user(current_session, page, page_size, keyword)
+    )
 
 
 @blueprint.route("/users", methods=["POST"])
@@ -79,7 +96,8 @@ def create_user():
     username = request.get_json().get("name", None)
     role = request.get_json().get("role", None)
     email = request.get_json().get("email", None)
-    return jsonify(admin.create_user(current_session, username, role, email))
+    display_name = request.get_json().get("display_name", None)
+    return jsonify(admin.create_user(current_session, username, role, email, display_name))
 
 
 @blueprint.route("/users/<username>", methods=["PUT"])
@@ -95,7 +113,11 @@ def update_user(username):
     name = request.get_json().get("name", None)
     role = request.get_json().get("role", None)
     email = request.get_json().get("email", None)
-    return jsonify(admin.update_user(current_session, username, role, email, name))
+    display_name = request.get_json().get("display_name", None)
+    active = request.get_json().get("active", False)
+    return jsonify(admin.update_user(
+        current_session, username, role, email, name, display_name, active
+    ))
 
 
 @blueprint.route("/users/<username>", methods=["DELETE"])
