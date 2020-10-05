@@ -331,6 +331,12 @@ paths:
             type: string
           description: The url to redirect the user to after logout
           required: false
+        - in: query
+          name: force_era_global_logout
+          schema:
+            type: boolean
+          description: Use era commons itrust to logout
+          required: false
       responses:
         '302':
           description: redirect to root or url in parameter if provided
