@@ -83,7 +83,7 @@ def login_user(request, username, provider):
     flask.g.token = None
 
 
-def logout(next_url):
+def logout(next_url, force_era_global_logout=False):
     """
     Return a redirect which another logout from IDP or the provided redirect.
 
@@ -98,7 +98,7 @@ def logout(next_url):
     # propogate logout to IDP
     provider_logout = None
     provider = flask.session.get("provider")
-    if provider == IdentityProvider.itrust:
+    if force_era_global_logout or provider == IdentityProvider.itrust:
         safe_url = urllib.parse.quote_plus(next_url)
         provider_logout = config["ITRUST_GLOBAL_LOGOUT"] + safe_url
     elif provider == IdentityProvider.fence:
