@@ -4,6 +4,8 @@
 - Observed: July 2020
 - Impact: (If this tech debt affected your work somehow, add a +1 here with a date and note)
   - +1 Zoe 2020 July 15 This is an example of a +1
+  - +1 Vahid Oct 2020
+  
 ##### Problem:
 Fence puts OAuth2 scopes into the 'aud' claim of access tokens.
 ##### Why it was done this way:
