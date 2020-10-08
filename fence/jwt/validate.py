@@ -56,10 +56,11 @@ def validate_jwt(
     Args:
         encoded_token (str): the base64 encoding of the token
         aud (Optional[str]):
-          audience with which the app identifies, usually an OIDC
-          client id, which the JWT will be expected to include in its ``aud``
-          claim. Optional; if no ``aud`` argument given and the JWT has no
-          ``aud`` claim, validation will pass.
+            audience as which the app identifies, which the JWT will be
+            expected to include in its ``aud`` claim.
+            Optional; will default to issuer (config["BASE_URL"]).
+            To skip aud validation, pass the following as a kwarg:
+              options={"verify_aud": False}
         scope (Optional[Iterable[str]]):
             list of scopes each of which the token must satisfy; defaults
             to ``{'openid'}`` (minimum expected by OpenID provider).
@@ -87,6 +88,10 @@ def validate_jwt(
     assert (
         type(scope) is set or type(scope) is list or scope is None
     ), "scope argument must be set or list or None"
+
+    # Can't set arg default to config[x] in fn def, so doing it this way.
+    if aud is None:
+        aud = config["BASE_URL"]
 
     iss = config["BASE_URL"]
     issuers = [iss]
