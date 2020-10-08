@@ -210,7 +210,8 @@ def has_oauth(scope=None):
     scope.update({"openid"})
     try:
         access_token_claims = validate_jwt(
-            scope=scope, purpose="access", options={"verify_aud": False}
+            scope=scope,
+            purpose="access",
         )
     except JWTError as e:
         raise Unauthorized("failed to validate token: {}".format(e))
