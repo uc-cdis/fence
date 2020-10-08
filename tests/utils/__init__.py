@@ -385,7 +385,7 @@ def authorized_download_credentials_context_claims(
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
-        "aud": [client_id],
+        "aud": [client_id, iss],
         "sub": user_id,
         "iss": iss,
         "iat": iat,

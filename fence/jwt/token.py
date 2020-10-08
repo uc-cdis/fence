@@ -178,7 +178,7 @@ def generate_signed_session_token(kid, private_key, expires_in, context=None):
 
     claims = {
         "pur": "session",
-        "aud": ["fence"],
+        "aud": ["fence", issuer],
         "sub": context.get("user_id", ""),
         "iss": issuer,
         "iat": iat,
@@ -296,6 +296,7 @@ def generate_signed_refresh_token(
         "pur": "refresh",
         "sub": sub,
         "iss": iss,
+        "aud": [iss],
         "iat": iat,
         "exp": exp,
         "jti": jti,
@@ -304,7 +305,7 @@ def generate_signed_refresh_token(
     }
 
     if client_id:
-        claims["aud"] = [client_id]
+        claims["aud"].append(client_id)
 
     logger.info("issuing JWT refresh token with id [{}] to [{}]".format(jti, sub))
     logger.debug("issuing JWT refresh token\n" + json.dumps(claims, indent=4))
@@ -334,10 +335,12 @@ def generate_api_key(kid, private_key, user_id, expires_in, scopes, client_id):
     iat, exp = issued_and_expiration_times(expires_in)
     jti = str(uuid.uuid4())
     sub = str(user_id)
+    iss = config.get("BASE_URL")
     claims = {
         "pur": "api_key",
         "sub": sub,
-        "iss": config.get("BASE_URL"),
+        "iss": iss,
+        "aud": [iss],
         "iat": iat,
         "exp": exp,
         "jti": jti,
@@ -397,6 +400,7 @@ def generate_signed_access_token(
         "pur": "access",
         "sub": sub,
         "iss": iss,
+        "aud": [iss],
         "iat": iat,
         "exp": exp,
         "jti": jti,
@@ -412,7 +416,7 @@ def generate_signed_access_token(
     }
 
     if client_id:
-        claims["aud"] = [client_id]
+        claims["aud"].append(client_id)
 
     if include_project_access:
         # NOTE: "THIS IS A TERRIBLE STOP-GAP SOLUTION SO THAT USERS WITH
@@ -536,8 +540,9 @@ def generate_id_token(
     aud = audiences.copy() if audiences else []
     if client_id and client_id not in aud:
         aud.append(client_id)
-    if aud:
-        claims["aud"] = aud
+    if issuer not in aud:
+        aud.append(issuer)
+    claims["aud"] = aud
 
     if user.tags:
         claims["context"]["user"]["tags"] = {tag.key: tag.value for tag in user.tags}
