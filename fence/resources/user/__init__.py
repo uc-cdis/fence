@@ -6,6 +6,7 @@ from email.utils import COMMASPACE, formatdate
 import flask
 import jwt
 import smtplib
+import json
 from cdislogging import get_logger
 from gen3authz.client.arborist.errors import ArboristError
 
@@ -18,7 +19,7 @@ from fence.resources.google.utils import (
 from fence.resources.userdatamodel import get_user_groups
 
 from fence.config import config
-from fence.errors import NotFound, Unauthorized, UserError, InternalError
+from fence.errors import NotFound, Unauthorized, UserError, InternalError, Forbidden
 from fence.jwt.utils import get_jwt_header
 from fence.models import query_for_user
 
@@ -46,6 +47,19 @@ def update_user_resource(username, resource):
                 server=config["EMAIL_SERVER"],
             )
         return get_user_info(user, session)
+
+
+def update_user(current_session, additional_info):
+    usr = get_user(current_session, current_session.merge(flask.g.user).username)
+
+    if usr.additional_info and usr.additional_info != "'{}'":
+        raise Forbidden(
+                    "You need to be an admin to update user additional information"
+                    " if they have been inserted previously"
+                )
+
+    udm.update_user(current_session, usr.username, additional_info)
+    return get_user_info(current_session, usr.username)
 
 
 def find_user(username, session):
@@ -80,6 +94,7 @@ def get_user_info(current_session, username):
         "sub": user.id,
         "username": user.username,  # TODO deprecated, use 'name'
         "name": user.username,
+        "additional_info": user.additional_info,
         "display_name": user.display_name,  # TODO deprecated, use 'preferred_username'
         "preferred_username": user.display_name,
         "phone_number": user.phone_number,
