@@ -235,12 +235,12 @@ def default_claims():
     Return:
         dict: dictionary of claims
     """
-    iss = "https://user-api.test.net"
+    iss = config["BASE_URL"]
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
         "pur": "access",
-        "aud": ["fake-client-id"],
+        "aud": [iss],
         "sub": "1234",
         "iss": iss,
         "iat": iat,
@@ -269,7 +269,7 @@ def unauthorized_context_claims(user_name, user_id):
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
-        "aud": ["fake-client-id"],
+        "aud": [iss],
         "sub": user_id,
         "pur": "access",
         "iss": iss,
@@ -302,7 +302,7 @@ def authorized_download_context_claims(user_name, user_id):
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
-        "aud": ["fake-client-id"],
+        "aud": [iss],
         "sub": user_id,
         "iss": iss,
         "iat": iat,
@@ -335,7 +335,7 @@ def authorized_service_account_management_claims(user_name, user_id, client_id):
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
-        "aud": ["fake-client-id"],
+        "aud": [iss],
         "sub": user_id,
         "iss": iss,
         "iat": iat,
@@ -385,7 +385,7 @@ def authorized_download_credentials_context_claims(
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
-        "aud": [client_id, iss],
+        "aud": [iss],
         "sub": user_id,
         "iss": iss,
         "iat": iat,
@@ -418,7 +418,7 @@ def authorized_upload_context_claims(user_name, user_id):
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
-        "aud": ["fake-client-id"],
+        "aud": [iss],
         "sub": user_id,
         "iss": iss,
         "pur": "access",
