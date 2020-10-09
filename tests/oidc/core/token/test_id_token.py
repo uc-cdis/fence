@@ -135,7 +135,7 @@ def test_id_token_has_nonce(oauth_test_client):
     data = {"confirm": "yes", "nonce": nonce}
     oauth_test_client.authorize(data=data)
     response_json = oauth_test_client.token(data=data).response.json
-    id_token = validate_jwt(response_json["id_token"], aud="test-client")
+    id_token = validate_jwt(response_json["id_token"])
     assert "nonce" in id_token
     assert nonce == id_token["nonce"]
 
@@ -144,6 +144,6 @@ def test_aud(client, oauth_client, id_token):
     """
     Test that the audiences of the ID token contain the OAuth client id.
     """
-    id_claims = validate_jwt(id_token, aud=oauth_client.client_id)
+    id_claims = validate_jwt(id_token)
     assert "aud" in id_claims
     assert oauth_client.client_id in id_claims["aud"]

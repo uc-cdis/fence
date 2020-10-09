@@ -50,7 +50,6 @@ class UserSession(SessionMixin):
             try:
                 jwt_info = validate_jwt(
                     session_token,
-                    aud="fence",
                     scope=None,
                     purpose="session",
                     public_key=default_public_key(),
@@ -79,7 +78,6 @@ class UserSession(SessionMixin):
 
         initial_token = validate_jwt(
             session_token,
-            aud="fence",
             scope=None,
             purpose="session",
             public_key=default_public_key(),
