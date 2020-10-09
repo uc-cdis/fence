@@ -10,8 +10,8 @@ from fence.models import UserRefreshToken
 
 def create_access_token(user, keypair, api_key, expires_in, scopes):
     try:
-        claims = validate_jwt(api_key, aud=scopes, purpose="api_key")
-        if not set(claims["aud"]).issuperset(scopes):
+        claims = validate_jwt(api_key, scope=scopes, purpose="api_key")
+        if not set(claims["scope"]).issuperset(scopes):
             raise JWTError("cannot issue access token with scope beyond refresh token")
     except Exception as e:
         return flask.jsonify({"errors": str(e)})

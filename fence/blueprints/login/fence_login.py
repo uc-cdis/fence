@@ -92,7 +92,7 @@ class FenceCallback(DefaultOAuth2Callback):
             redirect_uri, **flask.request.args.to_dict()
         )
         id_token_claims = validate_jwt(
-            tokens["id_token"], aud="openid", purpose="id", attempt_refresh=True
+            tokens["id_token"], scope="openid", purpose="id", attempt_refresh=True
         )
         username = id_token_claims["context"]["user"]["name"]
         login_user(

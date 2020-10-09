@@ -29,5 +29,5 @@ def test_id_token_contains_auth_time(oauth_test_client):
     data = {"confirm": "yes", "max_age": 3600}
     oauth_test_client.authorize(data=data)
     id_token = oauth_test_client.token().id_token
-    id_token_claims = validate_jwt(id_token, aud="test-client")
+    id_token_claims = validate_jwt(id_token)
     assert "auth_time" in id_token_claims
