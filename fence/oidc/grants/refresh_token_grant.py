@@ -43,9 +43,7 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         """
         return validate_jwt(
             refresh_token,
-            aud=self.client.client_id,
             purpose="refresh",
-            options={"verify_aud": False},
         )
 
     def create_access_token(self, token, client, authenticated_token):
