@@ -1381,16 +1381,21 @@ class UserSyncer(object):
                 self.logger.error(e)
                 # keep going; maybe just some conflicts from things existing already
 
-        # update roles - here!
+        # update roles
         roles = user_yaml.authz.get("roles", [])
         for role in roles:
             try:
-                response = self.arborist_client.create_role(role)
+                response = self.arborist_client.update_role(role["id"], role)
                 if response:
                     self._created_roles.add(role["id"])
-            except ArboristError as e:
-                self.logger.error(e)
-                # keep going; maybe just some conflicts from things existing already
+            except:
+                try:
+                    response = self.arborist_client.create_role(role)
+                    if response:
+                        self._created_roles.add(role["id"])
+                except ArboristError as e:
+                    self.logger.error(e)
+                    # keep going; maybe just some conflicts from things existing already
 
         # update policies
         policies = user_yaml.authz.get("policies", [])
