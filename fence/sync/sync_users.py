@@ -1381,7 +1381,7 @@ class UserSyncer(object):
                 self.logger.error(e)
                 # keep going; maybe just some conflicts from things existing already
 
-        # update roles
+        # update roles - here!
         roles = user_yaml.authz.get("roles", [])
         for role in roles:
             try:
