@@ -1,6 +1,5 @@
 import uuid
 from http.client import responses as http_responses
-import flask
 from flask import render_template
 from werkzeug.exceptions import HTTPException
 

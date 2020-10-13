@@ -29,9 +29,7 @@ import pytz
 import time
 
 import flask
-from flask import current_app
-from flask.sessions import SessionInterface
-from flask.sessions import SessionMixin
+from flask.sessions import SessionInterface, SessionMixin
 
 from fence.errors import Unauthorized
 from fence.jwt.keys import default_public_key
@@ -65,7 +63,7 @@ class UserSession(SessionMixin):
         super(UserSession, self).__init__()
 
     def _get_initial_session_token(self):
-        keypair = current_app.keypairs[0]
+        keypair = flask.current_app.keypairs[0]
         session_token = generate_signed_session_token(
             kid=keypair.kid,
             private_key=keypair.private_key,
@@ -91,7 +89,7 @@ class UserSession(SessionMixin):
             # to the issue time for the JWT and passed into future tokens
             # to keep track of the overall lifetime of the session
             token = create_session_token(
-                current_app.keypairs[0],
+                flask.current_app.keypairs[0],
                 config.get("SESSION_TIMEOUT"),
                 self.session_token["context"],
             )

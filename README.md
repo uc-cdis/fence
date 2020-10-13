@@ -1,4 +1,4 @@
-# Fence 
+# Fence
 
 [![Build Status](https://travis-ci.org/uc-cdis/fence.svg?branch=master)](https://travis-ci.org/uc-cdis/fence)
 
@@ -102,6 +102,7 @@ At the moment, supported IDPs include:
 - Cognito
 - Synapse
 - Microsoft
+- ORCID
 - RAS
 
 ## OIDC & OAuth2
