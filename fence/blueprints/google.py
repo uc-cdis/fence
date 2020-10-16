@@ -578,6 +578,9 @@ class GoogleServiceAccountDryRun(Resource):
         """
         sa = _get_service_account_for_patch(id_)
 
+        if type(sa) != GoogleServiceAccountRegistration:
+            return sa
+
         error_response = _get_patched_service_account_error_status(id_, sa)
 
         # this is where it actually does stuff in the non-dryrun endpoint
