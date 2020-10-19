@@ -3,6 +3,9 @@
 
 FROM quay.io/cdis/python-nginx:pybase3-1.4.0
 
+## clear cache
+RUN echo "clear cache"
+
 ENV appname=fence
 
 RUN apk update \
