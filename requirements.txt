@@ -20,7 +20,7 @@ Flask_SQLAlchemy_Session==1.1
 
 # testing put_role logging patch
 # gen3authz==0.4.0
-git+git://github.com/uc-cdis/gen3authz@fix/matt-patch-1#egg=gen3authz
+git+https://github.com/uc-cdis/gen3authz.git@fix/matt-patch-1#egg=gen3authz
 
 gen3config==0.1.7
 gen3cirrus>=1.3.0,<2.0.0
