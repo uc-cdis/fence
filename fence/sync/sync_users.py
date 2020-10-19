@@ -1388,10 +1388,7 @@ class UserSyncer(object):
                 response = self.arborist_client.update_role(role["id"], role)
                 if response:
                     self._created_roles.add(role["id"])
-            except Exception as e:
-                # debug / dev'ing - expecting this to be an ArboristError
-                print("\tHERE - arborist error:\n")
-                print("\t", e)
+            except ArboristError as e:
                 try:
                     response = self.arborist_client.create_role(role)
                     if response:
