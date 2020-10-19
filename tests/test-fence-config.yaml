@@ -88,6 +88,7 @@ OPENID_CONNECT:
     client_id: ''
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/ras/login'
+    discovery_url: 'https://sts.nih.gov/.well-known/openid-configuration'
   microsoft:
     client_id: ''
     client_secret: ''

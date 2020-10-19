@@ -21,12 +21,17 @@ __all__ = [
     "create_user_by_username_project",
     "get_all_users",
     "get_user_groups",
+    "update_user",
 ]
 
 
 def get_user(current_session, username):
     return query_for_user(session=current_session, username=username)
 
+def update_user(current_session, username, additional_info):
+    return (
+        current_session.query(User).filter(User.username == username).update({User.additional_info: additional_info})
+    )
 
 def get_user_accesses(current_session):
     return (

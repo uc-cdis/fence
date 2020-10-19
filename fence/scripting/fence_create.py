@@ -76,6 +76,8 @@ def modify_client_action(
     unset_auto_approve=False,
     arborist=None,
     policies=None,
+    allowed_scopes=None,
+    append=False,
 ):
     driver = SQLAlchemyDriver(DB)
     with driver.session as s:
@@ -83,8 +85,12 @@ def modify_client_action(
         if not client:
             raise Exception("client {} does not exist".format(client))
         if urls:
-            client.redirect_uris = urls
-            logger.info("Changing urls to {}".format(urls))
+            if append:
+                client.redirect_uris += urls
+                logger.info("Adding {} to urls".format(urls))
+            else:
+                client.redirect_uris = urls
+                logger.info("Changing urls to {}".format(urls))
         if delete_urls:
             client.redirect_uris = []
             logger.info("Deleting urls")
@@ -100,6 +106,14 @@ def modify_client_action(
         if description:
             client.description = description
             logger.info("Updating description to {}".format(description))
+        if allowed_scopes:
+            if append:
+                new_scopes = client._allowed_scopes.split() + allowed_scopes
+                client._allowed_scopes = " ".join(new_scopes)
+                logger.info("Adding {} to allowed_scopes".format(allowed_scopes))
+            else:
+                client._allowed_scopes = " ".join(allowed_scopes)
+                logger.info("Updating allowed_scopes to {}".format(allowed_scopes))
         s.commit()
     if arborist is not None and policies:
         arborist.update_client(client.client_id, policies)
@@ -192,6 +206,7 @@ def init_syncer(
     is_sync_from_dbgap_server=False,
     sync_from_local_csv_dir=None,
     sync_from_local_yaml_file=None,
+    json_from_api=None,
     arborist=None,
     folder=None,
 ):
@@ -243,13 +258,14 @@ def init_syncer(
             pass
 
     return UserSyncer(
-        dbGaP,
-        DB,
+        dbGaP=dbGaP,
+        DB=DB,
         project_mapping=project_mapping,
         storage_credentials=STORAGE_CREDENTIALS,
         is_sync_from_dbgap_server=is_sync_from_dbgap_server,
         sync_from_local_csv_dir=sync_from_local_csv_dir,
         sync_from_local_yaml_file=sync_from_local_yaml_file,
+        json_from_api=json_from_api,
         arborist=arborist,
         folder=folder,
     )
@@ -291,19 +307,21 @@ def sync_users(
     is_sync_from_dbgap_server=False,
     sync_from_local_csv_dir=None,
     sync_from_local_yaml_file=None,
+    json_from_api=None,
     arborist=None,
     folder=None,
 ):
     syncer = init_syncer(
-        dbGaP,
-        STORAGE_CREDENTIALS,
-        DB,
-        projects,
-        is_sync_from_dbgap_server,
-        sync_from_local_csv_dir,
-        sync_from_local_yaml_file,
-        arborist,
-        folder,
+        dbGaP=dbGaP,
+        STORAGE_CREDENTIALS=STORAGE_CREDENTIALS,
+        DB=DB,
+        projects=projects,
+        is_sync_from_dbgap_server=is_sync_from_dbgap_server,
+        sync_from_local_csv_dir=sync_from_local_csv_dir,
+        sync_from_local_yaml_file=sync_from_local_yaml_file,
+        json_from_api=json_from_api,
+        arborist=arborist,
+        folder=folder,
     )
     if not syncer:
         exit(1)

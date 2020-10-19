@@ -72,14 +72,19 @@ class DefaultOAuth2Callback(Resource):
     def get(self):
         # Check if user granted access
         if flask.request.args.get("error"):
-            reqiest_url = flask.request.url
+
+            request_url = flask.request.url
             received_query_params = parse_qsl(
-                urlparse(reqiest_url).query, keep_blank_values=True
+                urlparse(request_url).query, keep_blank_values=True
             )
             redirect_uri = flask.session.get("redirect") or config["BASE_URL"]
             redirect_query_params = parse_qsl(
                 urlparse(redirect_uri).query, keep_blank_values=True
             )
+            redirect_uri = (
+                dict(redirect_query_params).get("redirect_uri") or redirect_uri
+            )  # the query params returns empty when we're using the default fence client
+
             final_query_params = urlencode(
                 redirect_query_params + received_query_params
             )

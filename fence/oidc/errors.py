@@ -10,6 +10,7 @@ class OIDCError(AuthError):
     error_code = "oidc_error"
 
     def __init__(self, message=""):
+        super(OIDCError, self).__init__(message)
         self.message = message
 
     def __str__(self):

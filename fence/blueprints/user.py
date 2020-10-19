@@ -4,7 +4,7 @@ from flask_sqlalchemy_session import current_session
 from fence.auth import login_required, current_token
 from fence.errors import Unauthorized, UserError, NotFound
 from fence.models import Application, Certificate
-from fence.resources.user import send_mail, get_current_user_info
+from fence.resources.user import send_mail, get_current_user_info, update_user
 from fence.config import config
 
 
@@ -25,6 +25,24 @@ def user_info():
     info = get_current_user_info()
     info["azp"] = client_id
     return flask.jsonify(info)
+
+
+@blueprint.route("/", methods=["PUT"])
+@login_required({"user"})
+def update_user_info():
+    firstName = flask.request.get_json().get("firstName", None)
+    lastName = flask.request.get_json().get("lastName", None)
+    institution = flask.request.get_json().get("institution", None)
+    additional_info = {}
+
+    if firstName:
+        additional_info["first_name"] = firstName
+    if lastName:
+        additional_info["last_name"] = lastName
+    if institution:
+        additional_info["institution"] = institution
+        
+    return flask.jsonify(update_user(current_session, additional_info))
 
 
 @blueprint.route("/anyaccess", methods=["GET"])
