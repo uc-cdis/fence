@@ -12,7 +12,7 @@ from stat import S_ISDIR
 import paramiko
 from cdislogging import get_logger
 from email_validator import validate_email, EmailNotValidError
-from gen3authz.client.arborist.client import ArboristError
+from gen3authz.client.arborist.errors import ArboristError
 from gen3users.validation import validate_user_yaml
 from paramiko.proxy import ProxyCommand
 from sqlalchemy.exc import IntegrityError
