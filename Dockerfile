@@ -17,11 +17,11 @@ WORKDIR /$appname
 
 #### for testing gen3authz change ####
 RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -
-RUN $HOME/.poetry/bin/poetry install
+# RUN $HOME/.poetry/bin/poetry install
 RUN git clone -q https://github.com/uc-cdis/gen3authz.git \
     && git checkout fix/matt-patch-1 \
     && cd gen3authz/python \
-    && poetry install
+    && $HOME/.poetry/bin/poetry install
 
 ######################################
 
