@@ -18,6 +18,7 @@ WORKDIR /$appname
 #### for testing gen3authz change ####
 RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -
 # RUN $HOME/.poetry/bin/poetry install
+RUN echo "clear cache"
 RUN git clone https://github.com/uc-cdis/gen3authz \
     && cd gen3authz/python \
     && git checkout fix/matt-patch-1 \
