@@ -22,6 +22,7 @@ RUN echo "clear cache"
 RUN git clone https://github.com/uc-cdis/gen3authz \
     && cd gen3authz/python \
     && git checkout fix/matt-patch-1 \
+    && $HOME/.poetry/bin/poetry config virtualenvs.create false \
     && $HOME/.poetry/bin/poetry install
 
 ######################################
