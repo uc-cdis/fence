@@ -15,21 +15,22 @@ COPY ./deployment/uwsgi/uwsgi.ini /etc/uwsgi/uwsgi.ini
 COPY ./deployment/uwsgi/wsgi.py /$appname/wsgi.py
 WORKDIR /$appname
 
-#### for testing gen3authz change ####
-RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -
-# RUN $HOME/.poetry/bin/poetry install
-RUN echo "clear cache"
-RUN git clone https://github.com/uc-cdis/gen3authz \
-    && cd gen3authz/python \
-    && git checkout fix/matt-patch-1 \
-    && $HOME/.poetry/bin/poetry config virtualenvs.create false \
-    && $HOME/.poetry/bin/poetry install
-
-######################################
-
 RUN python -m pip install --upgrade pip \
     && python -m pip install --upgrade setuptools \
     && pip install -r requirements.txt
+
+#### for testing gen3authz change ####
+RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -
+RUN git clone https://github.com/uc-cdis/gen3authz \
+    && cd gen3authz/python \
+    && git checkout fix/matt-patch-1 \
+    && $HOME/.poetry/bin/poetry export -f requirements.txt --output requirements.txt \
+    && pip install .
+    # && $HOME/.poetry/bin/poetry config virtualenvs.create false \
+    # && $HOME/.poetry/bin/poetry install
+
+######################################
+
 
 RUN mkdir -p /var/www/$appname \
     && mkdir -p /var/www/.cache/Python-Eggs/ \
