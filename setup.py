@@ -11,6 +11,7 @@ setup(
         "botocore>=1.12.91,<1.13.0",
         "boto3>=1.9.91,<1.10.0",
         "cached_property>=1.5.1,<2.0.0",
+        "cdiserrors==1.0.0",
         "cryptography==2.8",
         "email_validator~=1.1.1",
         "flask-restful>=0.3.6,<1.0.0",
