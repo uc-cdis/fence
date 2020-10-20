@@ -1508,7 +1508,7 @@ class UserSyncer(object):
         # from authorization sources get policies revoked
         arborist_user_projects = {}
         try:
-            arborist_users = await self.arborist_client.get(
+            arborist_users = self.arborist_client.get(
                 url=self.arborist_client._user_url
             ).json["users"]
 
@@ -1518,7 +1518,7 @@ class UserSyncer(object):
             arborist_user_projects = {
                 user["name"].lower(): {} for user in arborist_users
             }
-        except (ArboristError, KeyError) as error:
+        except (ArboristError, KeyError, AttributeError) as error:
             # TODO usersync should probably exit with non-zero exit code at the end,
             #      but sync should continue from this point so there are no partial
             #      updates
