@@ -15,6 +15,16 @@ COPY ./deployment/uwsgi/uwsgi.ini /etc/uwsgi/uwsgi.ini
 COPY ./deployment/uwsgi/wsgi.py /$appname/wsgi.py
 WORKDIR /$appname
 
+#### for testing gen3authz change ####
+RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -
+RUN $HOME/.poetry/bin/poetry install
+RUN git clone -q https://github.com/uc-cdis/gen3authz.git \
+    && git checkout fix/matt-patch-1 \
+    && cd gen3authz/python \
+    && poetry install
+
+######################################
+
 RUN python -m pip install --upgrade pip \
     && python -m pip install --upgrade setuptools \
     && pip install -r requirements.txt
