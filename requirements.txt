@@ -7,7 +7,7 @@ botocore>=1.12.91,<1.13.0
 boto3>=1.9.91,<1.10.0
 cached_property==1.5.1
 cdislogging>=1.0.0,<2.0.0
-cdiserrors==0.1.2
+cdiserrors==1.0.0
 cdispyutils==1.0.4
 cryptography==2.8
 datamodelutils==0.4.5
