@@ -21,7 +21,7 @@ setup(
         "Flask_SQLAlchemy_Session>=1.1,<2.0",
         "gen3authz==1.0.1",
         "gen3cirrus>=1.1.0,<2.0",
-        "gen3config>=0.1.6,<1.0.0", # 0.1.8
+        "gen3config>=0.1.6,<1.0.0",
         "google_api_python_client>=1.6.4,<2.0.0",
         "httplib2>=0.17.0,<1.0.0",
         "markdown>=3.1.1,<4.0.0",
