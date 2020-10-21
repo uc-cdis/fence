@@ -215,7 +215,7 @@ def mock_arborist_requests(request):
 
         mocked_method = MagicMock(side_effect=response_for)
         patch_method = mock.patch(
-            "gen3authz.client.arborist.client.requests.request", mocked_method
+            "gen3authz.client.arborist.client.ArboristClient.request", mocked_method
         )
 
         patch_method.start()
