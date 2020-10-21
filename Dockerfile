@@ -8,12 +8,8 @@ ENV appname=fence
 RUN apk update \
     && apk add postgresql-libs postgresql-dev libffi-dev libressl-dev \
     && apk add linux-headers musl-dev gcc \
-    && apk add curl bash git vim make lftp
-
-COPY . /$appname
-COPY ./deployment/uwsgi/uwsgi.ini /etc/uwsgi/uwsgi.ini
-COPY ./deployment/uwsgi/wsgi.py /$appname/wsgi.py
-WORKDIR /$appname
+    && apk add curl bash git vim make lftp \
+    && apk update && apk add openssh && apk add libmcrypt-dev
 
 RUN mkdir -p /var/www/$appname \
     && mkdir -p /var/www/.cache/Python-Eggs/ \
@@ -22,8 +18,6 @@ RUN mkdir -p /var/www/$appname \
     && ln -sf /dev/stderr /var/log/nginx/error.log \
     && chown nginx -R /var/www/.cache/Python-Eggs/ \
     && chown nginx /var/www/$appname
-
-RUN apk update && apk add openssh && apk add libmcrypt-dev
 
 #
 # libmhash is required by mcrypt - below - no apk package available
@@ -53,26 +47,24 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2
     && /bin/rm -rf awscliv2.zip ./aws
 
 # install poetry
-ENV POETRY_HOME="$HOME/.poetry/bin"
 RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
-# ENV PATH="$POETRY_HOME/bin$PATH"
-# ENV PATH="usr/local/src$PATH" <-- pythonpath
-ENV PYTHONPATH="${PYTHONPATH}:/usr/local/src/"
-RUN echo $PYTHONPATH
 
-RUN COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" >$appname/version_data.py \
-    && VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >>$appname/version_data.py
+COPY . /$appname
+COPY ./deployment/uwsgi/uwsgi.ini /etc/uwsgi/uwsgi.ini
+COPY ./deployment/uwsgi/wsgi.py /$appname/wsgi.py
+WORKDIR /$appname
 
 # cache so that poetry install will run if these files change
-COPY poetry.lock pyproject.toml /$appname
+COPY poetry.lock pyproject.toml /$appname/
 
 # install Fence and dependencies via poetry
 RUN source $HOME/.poetry/env \
     && poetry config virtualenvs.create false \
     && poetry install -vv --no-dev --no-interaction \
-    && pip list
-RUN pip show flask
-RUN pip show gen3config
+    && poetry show -v
+
+RUN COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" >$appname/version_data.py \
+    && VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >>$appname/version_data.py
 
 WORKDIR /var/www/$appname
 
