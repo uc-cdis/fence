@@ -29,7 +29,6 @@ from mock import patch, MagicMock
 from moto import mock_s3, mock_sts
 import pytest
 import requests
-import httpx
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.schema import DropTable
 
@@ -198,7 +197,7 @@ def mock_arborist_requests(request):
 
         def response_for(method, url, *args, **kwargs):
             method = method.upper()
-            mocked_response = MagicMock(httpx.Response)
+            mocked_response = MagicMock(requests.Response)
             if url not in urls_to_responses:
                 mocked_response.status_code = 404
                 mocked_response.text = "NOT FOUND"
@@ -214,13 +213,9 @@ def mock_arborist_requests(request):
                     mocked_response.text = content
             return mocked_response
 
-        async def async_response_for(method, url, *args, **kwargs):
-            return response_for(method, url, *args, **kwargs)
-
-        mocked_method = mock.MagicMock(side_effect=async_response_for)
+        mocked_method = MagicMock(side_effect=response_for)
         patch_method = mock.patch(
-            "gen3authz.client.arborist.client.httpx.AsyncClient.request",
-            mocked_method,
+            "gen3authz.client.arborist.client.requests.request", mocked_method
         )
 
         patch_method.start()
