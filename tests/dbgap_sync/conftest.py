@@ -1,7 +1,6 @@
 import os
 
 from unittest.mock import MagicMock, patch
-from asynctest import MagicMock as AsyncMagicMock
 from yaml import safe_load as yaml_load
 
 from cirrus import GoogleCloudManager
@@ -148,8 +147,7 @@ def syncer(db_session, request):
         sync_from_local_csv_dir=LOCAL_CSV_DIR,
         sync_from_local_yaml_file=LOCAL_YAML_DIR,
     )
-    # https://asynctest.readthedocs.io/en/latest/asynctest.mock.html?highlight=magicmock#asynctest.MagicMock
-    syncer_obj.arborist_client = AsyncMagicMock(ArboristClient) # asynctest.MagicMock
+    syncer_obj.arborist_client = MagicMock(ArboristClient)
 
     def mocked_update(parent_path, resource, **kwargs):
         resource["tag"] = "123456"
