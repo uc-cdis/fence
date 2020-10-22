@@ -108,7 +108,7 @@ def generate_presigned_url_for_uploading_part(
         partNumber(int): part number
         region(str): bucket region
         expires(int): expiration time
-    
+
     Returns:
         presigned_url(str)
     """

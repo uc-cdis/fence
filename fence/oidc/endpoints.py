@@ -30,7 +30,15 @@ class RevocationEndpoint(authlib.oauth2.rfc7009.RevocationEndpoint):
         """
         Revoke a token.
         """
-        fence.jwt.blacklist.blacklist_encoded_token(token)
+        try:
+            fence.jwt.blacklist.blacklist_encoded_token(token)
+        except BlacklistingError as err:
+            logger.info(
+                "Token provided for revocation is not valid. "
+                "Per rfc7009, this should still return a 200. Error: "
+                f"{err}",
+                exc_info=True,
+            )
 
     def validate_authenticate_client(self):
         """

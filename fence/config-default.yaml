@@ -146,9 +146,10 @@ OPENID_CONNECT:
     mock: false
     mock_default_user: '0000-0002-2601-8132'
   ras:
+    discovery_url: 'https://sts.nih.gov/.well-known/openid-configuration'
     client_id: ''
     client_secret: ''
-    redirect_url: '{{BASE_URL}}/login/ras/callback/'
+    redirect_url: '{{BASE_URL}}/login/ras/callback'
     # if mock is true, will fake a successful login response for login
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
@@ -197,7 +198,6 @@ CLIENT_ALLOWED_SCOPES:
   - "google_credentials"
   - "google_service_account"
   - "google_link"
-  - "ras_dbgap_v1"
   - "ga4gh_passport_v1"
 
 # these are the scopes that CAN be included in a user's own access_token
@@ -210,6 +210,7 @@ USER_ALLOWED_SCOPES:
   - "google_credentials"
   - "google_service_account"
   - "google_link"
+  - "ga4gh_passport_v1"
 
 # these are the scopes that a browser session can create for a user (very
 # similar to USER_ALLOWED_SCOPES, as the session will actually create access_tokens
@@ -223,6 +224,7 @@ SESSION_ALLOWED_SCOPES:
   - "google_credentials"
   - "google_service_account"
   - "google_link"
+  - "ga4gh_passport_v1"
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # LOGIN
@@ -256,7 +258,7 @@ LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
   # - name: 'Login from Cognito'
   #   desc: 'Amazon Cognito login'
   #   idp: cognito
-  #   name: 'Login from RAS'
+  # - name: 'Login from RAS'
   #   idp: ras
   # - name: 'NIH Login'
   #   idp: fence
@@ -476,7 +478,7 @@ DBGAP_ACCESSION_WITH_CONSENT_REGEX: '(?P<phsid>phs[0-9]+)(.(?P<version>v[0-9]+))
 #               access for users.
 # //////////////////////////////////////////////////////////////////////////////////////
 # When true, this modifies usersync (not fence service itself) such that when syncing user
-# access to a Google storage backend happens in "bulk" by doing a diff *per google group* 
+# access to a Google storage backend happens in "bulk" by doing a diff *per google group*
 # between what's in Google and what's expected. Then it adds, removes only as necessary.
 # This is in contrast to the default logic which does blind updates per user and ignores
 # 409s from Google.
@@ -764,3 +766,7 @@ SYNAPSE_URI: 'https://repo-prod.prod.sagebase.org/auth/v1'
 SYNAPSE_JWKS_URI:
 SYNAPSE_DISCOVERY_URL:
 SYNAPSE_AUTHZ_TTL: 86400
+# RAS refresh_tokens expire in 15 days
+RAS_REFRESH_EXPIRATION: 1296000
+# Number of projects that can be registered to a Google Service Accont
+SERVICE_ACCOUNT_LIMIT: 6

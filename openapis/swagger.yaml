@@ -209,16 +209,12 @@ paths:
     post:
       tags:
         - oauth2
-      summary: Revoke a refresh token
+      summary: Revoke a refresh token per RFC 7009
       description: Revoke a refresh (not access) token granted to a user.
       operationId: revoke
       responses:
         '200':
           description: 'successful operation, OR invalid token submitted'
-        '400':
-          description: >-
-            invalid token provided: not a refresh token, or token was missing a
-            claim, or token could not be validated
       requestBody:
         content:
           application/x-www-form-urlencoded:
@@ -334,6 +330,12 @@ paths:
           schema:
             type: string
           description: The url to redirect the user to after logout
+          required: false
+        - in: query
+          name: force_era_global_logout
+          schema:
+            type: boolean
+          description: Use era commons itrust to logout
           required: false
       responses:
         '302':
