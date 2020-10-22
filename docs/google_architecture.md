@@ -114,7 +114,7 @@ Quick summary of minimal end-user actions to be able to specify `userProject`:
 * Click "add", Click "Select a role" dropdown, then "Manage roles", then "Create new role"/"Add role"
     * For the role: name it "BillingAdmin", add the single permission `serviceusage.services.use`
 * Go back to "IAM"
-* Click "add", Click "Select a role" dropdown, select new "BillingAdmin" custom role, in "New members" field, paste the email you copied from `primary_google_service_account` 
+* Click "add", Click "Select a role" dropdown, select new "BillingAdmin" custom role, in "New members" field, paste the email you copied from `primary_google_service_account`
 * Now you can specify the `userProject` in signed URL requests to be the project ID for the project you just setup IAM billing permission on. `userProject=YOUR-GOOGLE-PROJECT-ID`
 
 #### Required Google Cloud Platform (GCP) Configuration for Billing Project
