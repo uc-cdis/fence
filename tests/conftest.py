@@ -26,7 +26,7 @@ import bcrypt
 from cdisutilstest.code.storage_client_mock import get_client
 import jwt
 from mock import patch, MagicMock
-from moto import mock_s3, mock_sts
+from moto import mock_sts
 import pytest
 import requests
 from sqlalchemy.ext.compiler import compiles

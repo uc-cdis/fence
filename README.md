@@ -221,11 +221,11 @@ See [Fence and Google](docs/google_architecture.md) for more details on data acc
 
 #### Install Requirements and Fence
 
+Install [Poetry](https://python-poetry.org/docs/#installation).
+
 ```bash
-# Install requirements.
-pip install -r requirements.txt
-# Install fence in your preferred manner.
-python setup.py develop
+# Install Fence and dependencies
+poetry install
 ```
 
 #### Create Configuration File
