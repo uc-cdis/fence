@@ -1,6 +1,7 @@
 import bcrypt
 import collections
 from functools import wraps
+import logging
 import json
 from random import SystemRandom
 import re
@@ -14,7 +15,7 @@ import flask
 from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.datastructures import ImmutableMultiDict
 
-from fence.models import Client, GrantType, User, query_for_user
+from fence.models import Client, User, query_for_user
 from fence.errors import NotFound, UserError
 from fence.config import config
 
@@ -295,3 +296,64 @@ def is_valid_expiration(expires_in):
         assert expires_in > 0
     except (ValueError, AssertionError):
         raise UserError("expires_in must be a positive integer")
+
+
+def _print_func_name(function):
+    return "{}.{}".format(function.__module__, function.__name__)
+
+
+def _print_kwargs(kwargs):
+    return ", ".join("{}={}".format(k, repr(v)) for k, v in list(kwargs.items()))
+
+
+def log_backoff_retry(details):
+    args_str = ", ".join(map(str, details["args"]))
+    kwargs_str = (
+        (", " + _print_kwargs(details["kwargs"])) if details.get("kwargs") else ""
+    )
+    func_call_log = "{}({}{})".format(
+        _print_func_name(details["target"]), args_str, kwargs_str
+    )
+    logging.warning(
+        "backoff: call {func_call} delay {wait:0.1f} seconds after {tries} tries".format(
+            func_call=func_call_log, **details
+        )
+    )
+
+
+def log_backoff_giveup(details):
+    args_str = ", ".join(map(str, details["args"]))
+    kwargs_str = (
+        (", " + _print_kwargs(details["kwargs"])) if details.get("kwargs") else ""
+    )
+    func_call_log = "{}({}{})".format(
+        _print_func_name(details["target"]), args_str, kwargs_str
+    )
+    logging.error(
+        "backoff: gave up call {func_call} after {tries} tries; exception: {exc}".format(
+            func_call=func_call_log, exc=sys.exc_info(), **details
+        )
+    )
+
+
+def exception_do_not_retry(error):
+    def _is_status(code):
+        return (
+            str(getattr(error, "code", None)) == code
+            or str(getattr(error, "status", None)) == code
+            or str(getattr(error, "status_code", None)) == code
+        )
+
+    if _is_status("409") or _is_status("404"):
+        return True
+
+    return False
+
+
+# Default settings to control usage of backoff library.
+DEFAULT_BACKOFF_SETTINGS = {
+    "on_backoff": log_backoff_retry,
+    "on_giveup": log_backoff_giveup,
+    "max_tries": 3,
+    "giveup": exception_do_not_retry,
+}

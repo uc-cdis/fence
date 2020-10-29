@@ -146,13 +146,18 @@ def app_register_blueprints(app):
     def logout_endpoint():
         root = config.get("BASE_URL", "")
         request_next = flask.request.args.get("next", root)
+        force_era_global_logout = (
+            flask.request.args.get("force_era_global_logout") == "true"
+        )
         if request_next.startswith("https") or request_next.startswith("http"):
             next_url = request_next
         else:
             next_url = build_redirect_url(config.get("ROOT_URL", ""), request_next)
         if domain(next_url) not in allowed_login_redirects():
             raise UserError("invalid logout redirect URL: {}".format(next_url))
-        return logout(next_url=next_url)
+        return logout(
+            next_url=next_url, force_era_global_logout=force_era_global_logout
+        )
 
     @app.route("/jwt/keys")
     def public_keys():
@@ -340,7 +345,9 @@ def _setup_oidc_clients(app):
     # Add OIDC client for RAS if configured.
     if "ras" in oidc:
         app.ras_client = RASClient(
-            oidc["ras"], HTTP_PROXY=config.get("HTTP_PROXY"), logger=logger,
+            oidc["ras"],
+            HTTP_PROXY=config.get("HTTP_PROXY"),
+            logger=logger,
         )
 
     # Add OIDC client for Synapse if configured.

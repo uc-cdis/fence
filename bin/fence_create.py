@@ -107,6 +107,13 @@ def parse_arguments():
     client_modify.add_argument("--urls", required=False, nargs="+")
     client_modify.add_argument("--name", required=False)
     client_modify.add_argument("--description", required=False)
+    client_modify.add_argument("--allowed-scopes", required=False, nargs="+")
+    client_modify.add_argument(
+        "--append",
+        help="append either new allowed scopes or urls instead of replacing",
+        action="store_true",
+        default=False,
+    )
     client_modify.add_argument(
         "--set-auto-approve",
         help="set the oidc process to skip user consent step",
@@ -413,6 +420,8 @@ def main():
             unset_auto_approve=args.unset_auto_approve,
             arborist=arborist,
             policies=args.policies,
+            allowed_scopes=args.allowed_scopes,
+            append=args.append,
         )
     elif args.action == "client-delete":
         delete_client_action(DB, args.client)
@@ -438,7 +447,10 @@ def main():
         )
     elif args.action == "dbgap-download-access-files":
         download_dbgap_files(
-            dbGaP, STORAGE_CREDENTIALS, DB, folder=args.folder,
+            dbGaP,
+            STORAGE_CREDENTIALS,
+            DB,
+            folder=args.folder,
         )
     elif args.action == "google-manage-keys":
         remove_expired_google_service_account_keys(DB)
