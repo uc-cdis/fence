@@ -1342,8 +1342,8 @@ def link_external_bucket(db, name):
 
             access_group = access_group[0]
 
-            email = getattr(access_group, "email", "N/A")
-
+            email = access_group.email
+            
             logger.warning(
                 f"bucket already exists with name: {name}, using existing group email: {email}"
             )
