@@ -15,7 +15,7 @@ import flask
 from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.datastructures import ImmutableMultiDict
 
-from fence.models import Client, GrantType, User, query_for_user
+from fence.models import Client, User, query_for_user
 from fence.errors import NotFound, UserError
 from fence.config import config
 
