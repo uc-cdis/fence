@@ -28,7 +28,7 @@ import jwt
 from mock import patch, MagicMock
 from moto import mock_sts
 import pytest
-import requests
+import httpx
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.schema import DropTable
 
@@ -177,7 +177,7 @@ def kid_2():
 @pytest.fixture(scope="function")
 def mock_arborist_requests(request):
     """
-    This fixture returns a function which you call to mock out arborist endopints.
+    This fixture returns a function which you call to mock out arborist endpoints.
     Give it an argument in this format:
         {
             "arborist/health": {
@@ -197,7 +197,7 @@ def mock_arborist_requests(request):
 
         def response_for(method, url, *args, **kwargs):
             method = method.upper()
-            mocked_response = MagicMock(requests.Response)
+            mocked_response = MagicMock(httpx.Response)
             if url not in urls_to_responses:
                 mocked_response.status_code = 404
                 mocked_response.text = "NOT FOUND"
@@ -1067,12 +1067,12 @@ def google_signed_url():
 def mock_get(monkeypatch, example_keys_response):
     """
     Provide a function to patch the value of the JSON returned by
-    ``requests.get``.
+    ``httpx.Client.get``.
     Args:
         monkeypatch (pytest.monkeypatch.MonkeyPatch): fixture
     Return:
         Calllable[dict, None]:
-            function which sets the reponse JSON of ``requests.get``
+            function which sets the reponse JSON of ``httpx.Client.get``
     """
 
     def do_patch(urls_to_responses=None):
@@ -1082,16 +1082,16 @@ def mock_get(monkeypatch, example_keys_response):
         Return:
             None
         Side Effects:
-            Patch ``requests.get``
+            Patch ``httpx.Client.get``
         """
 
         def get(url):
             """Define a mock ``get`` function to return a mocked response."""
-            mocked_response = MagicMock(requests.Response)
+            mocked_response = MagicMock(httpx.Response)
             mocked_response.json.return_value = urls_to_responses[url]
             return mocked_response
 
-        monkeypatch.setattr("requests.get", MagicMock(side_effect=get))
+        monkeypatch.setattr("httpx.Client.get", MagicMock(side_effect=get))
 
     return do_patch
 

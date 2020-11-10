@@ -55,6 +55,7 @@ moto = "^1.1.24"
 pytest = "^3.2.3"
 pytest-cov = "^2.5.1"
 pytest-flask = "^0.11.0"
+httpx = "^0.12.1"
 
 [tool.poetry.scripts]
 fence-create = 'bin.fence_create:main'

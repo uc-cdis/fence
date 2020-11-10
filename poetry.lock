@@ -1324,7 +1324,7 @@ testing = ["pytest (>=3.5,<3.7.3 || >3.7.3)", "pytest-checkdocs (>=1.2.3)", "pyt
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "57f632c62c037b84caf92ea6a56a0f569cd6272a5cf9b1e248e4ce68f21f567e"
+content-hash = "01b9853b3234c9217d04833cf798fd64352edcebcfda83eabb5a8b4fd2b395c2"
 
 [metadata.files]
 addict = [
