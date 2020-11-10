@@ -206,10 +206,16 @@ def mock_arborist_requests(request):
                 mocked_response.text = "METHOD NOT ALLOWED"
             else:
                 content, code = urls_to_responses[url][method]
+
+                # debug
+                print("content, code:", content, code)
+
                 mocked_response.status_code = code
                 if isinstance(content, dict):
+                    print(1)
                     mocked_response.json.return_value = content
                 else:
+                    print(2)
                     mocked_response.text = content
             return mocked_response
 
