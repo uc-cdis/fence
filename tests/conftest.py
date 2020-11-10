@@ -28,7 +28,7 @@ import jwt
 from mock import patch, MagicMock
 from moto import mock_sts
 import pytest
-import httpx
+import requests
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.schema import DropTable
 
@@ -177,7 +177,7 @@ def kid_2():
 @pytest.fixture(scope="function")
 def mock_arborist_requests(request):
     """
-    This fixture returns a function which you call to mock out arborist endpoints.
+    This fixture returns a function which you call to mock out arborist endopints.
     Give it an argument in this format:
         {
             "arborist/health": {
@@ -197,7 +197,7 @@ def mock_arborist_requests(request):
 
         def response_for(method, url, *args, **kwargs):
             method = method.upper()
-            mocked_response = MagicMock(httpx.Response)
+            mocked_response = MagicMock(requests.Response)
             if url not in urls_to_responses:
                 mocked_response.status_code = 404
                 mocked_response.text = "NOT FOUND"
@@ -206,22 +206,16 @@ def mock_arborist_requests(request):
                 mocked_response.text = "METHOD NOT ALLOWED"
             else:
                 content, code = urls_to_responses[url][method]
-
-                # debug
-                print("content, code:", content, code)
-
                 mocked_response.status_code = code
                 if isinstance(content, dict):
-                    print(1)
                     mocked_response.json.return_value = content
                 else:
-                    print(2)
                     mocked_response.text = content
             return mocked_response
 
         mocked_method = MagicMock(side_effect=response_for)
         patch_method = mock.patch(
-            "gen3authz.client.arborist.client.httpx.Client.request", mocked_method
+            "gen3authz.client.arborist.client.requests.request", mocked_method
         )
 
         patch_method.start()
@@ -1073,12 +1067,12 @@ def google_signed_url():
 def mock_get(monkeypatch, example_keys_response):
     """
     Provide a function to patch the value of the JSON returned by
-    ``httpx.Client.get``.
+    ``requests.get``.
     Args:
         monkeypatch (pytest.monkeypatch.MonkeyPatch): fixture
     Return:
         Calllable[dict, None]:
-            function which sets the reponse JSON of ``httpx.Client.get``
+            function which sets the reponse JSON of ``requests.get``
     """
 
     def do_patch(urls_to_responses=None):
@@ -1088,16 +1082,16 @@ def mock_get(monkeypatch, example_keys_response):
         Return:
             None
         Side Effects:
-            Patch ``httpx.Client.get``
+            Patch ``requests.get``
         """
 
         def get(url):
             """Define a mock ``get`` function to return a mocked response."""
-            mocked_response = MagicMock(httpx.Response)
+            mocked_response = MagicMock(requests.Response)
             mocked_response.json.return_value = urls_to_responses[url]
             return mocked_response
 
-        monkeypatch.setattr("httpx.Client.get", MagicMock(side_effect=get))
+        monkeypatch.setattr("requests.get", MagicMock(side_effect=get))
 
     return do_patch
 
