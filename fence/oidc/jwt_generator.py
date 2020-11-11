@@ -205,7 +205,7 @@ def generate_token_response(
         ### Matt dev'ing ###
 
         exp = config["REFRESH_TOKEN_EXPIRES_IN"]
-        if flask.session["refresh_token_expires_in"]:
+        if "refresh_token_expires_in" in flask.session:
             exp = min(flask.session["refresh_token_expires_in"], exp)
 
         ### ------------ ###
