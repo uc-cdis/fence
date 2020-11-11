@@ -76,6 +76,9 @@ def authorize(*args, **kwargs):
 
     # requested lifetime (in seconds) of the refresh token
     requested_expires_in = get_valid_expiration_from_request()
+
+    print("HERE! -> /authorize - token expiration: ", requested_expires_in)
+
     if requested_expires_in:
         flask.session["refresh_token_expires_in"] = requested_expires_in
 

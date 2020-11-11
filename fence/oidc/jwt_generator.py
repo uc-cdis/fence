@@ -208,6 +208,8 @@ def generate_token_response(
         if "refresh_token_expires_in" in flask.session:
             exp = min(flask.session["refresh_token_expires_in"], exp)
 
+        print("HERE! /token -> refresh_token expire time: ", exp)
+
         ### ------------ ###
 
         refresh_token = generate_signed_refresh_token(
