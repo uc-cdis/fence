@@ -201,23 +201,11 @@ def generate_token_response(
     # If ``refresh_token`` was passed (for instance from the refresh
     # grant), use that instead of generating a new one.
     if refresh_token is None:
-        
-        ### Matt dev'ing ###
-
-        exp = config["REFRESH_TOKEN_EXPIRES_IN"]
-        if "refresh_token_expires_in" in flask.session:
-            exp = min(flask.session["refresh_token_expires_in"], exp)
-
-        print("HERE! /token -> refresh_token expire time: ", exp)
-
-        ### ------------ ###
-
         refresh_token = generate_signed_refresh_token(
             kid=keypair.kid,
             private_key=keypair.private_key,
             user=user,
-            # expires_in=config["REFRESH_TOKEN_EXPIRES_IN"], # prev
-            expires_in=exp,
+            expires_in=config["REFRESH_TOKEN_EXPIRES_IN"],
             scopes=scope,
             client_id=client.client_id,
         ).token

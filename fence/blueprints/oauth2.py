@@ -29,7 +29,7 @@ from fence.jwt.token import SCOPE_DESCRIPTION
 from fence.models import Client
 from fence.oidc.endpoints import RevocationEndpoint
 from fence.oidc.server import server
-from fence.utils import clear_cookies, get_valid_expiration_from_request
+from fence.utils import clear_cookies
 from fence.user import get_current_user
 from fence.config import config
 
@@ -70,19 +70,6 @@ def authorize(*args, **kwargs):
         user = get_current_user()
     except Unauthorized:
         need_authentication = True
-
-        
-    ### Matt dev'ing ###
-
-    # requested lifetime (in seconds) of the refresh token
-    requested_expires_in = get_valid_expiration_from_request()
-
-    print("HERE! -> /authorize - token expiration: ", requested_expires_in)
-
-    if requested_expires_in:
-        flask.session["refresh_token_expires_in"] = requested_expires_in
-
-    ### ------ ###
 
     if need_authentication or not user:
         redirect_url = config.get("BASE_URL") + flask.request.full_path
