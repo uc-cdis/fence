@@ -46,40 +46,16 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
         else:
             refresh_token_expires_in = config["REFRESH_TOKEN_EXPIRES_IN"]
 
-        #here - handle case - db migration hasn't occurred yet
-        with flask.current_app.db.session as session:
-            result = session.execute(
-                """
-                SELECT column_name 
-                FROM information_schema.columns
-                WHERE table_name = 'authorization_code' AND column_name = 'refresh_token_expires_in'
-                """
-            )
+        code = AuthorizationCode(
+            code=generate_token(50),
+            client_id=client.client_id,
+            redirect_uri=request.redirect_uri,
+            scope=request.scope,
+            user_id=grant_user.id,
+            nonce=request.data.get("nonce"),
+            refresh_token_expires_in=refresh_token_expires_in,
+        )
 
-        if result.rowcount > 0:
-            code = AuthorizationCode(
-                code=generate_token(50),
-                client_id=client.client_id,
-                redirect_uri=request.redirect_uri,
-                scope=request.scope,
-                user_id=grant_user.id,
-                nonce=request.data.get("nonce"),
-                refresh_token_expires_in=refresh_token_expires_in,
-            )
-        else:
-            # don't include "refresh_token_expires_in" param
-            # because db migration hasn't occurred yet
-            # i.e., that "refresh_token_expires_in" col doesn't exist
-            # in the authorization_code table
-            code = AuthorizationCode(
-                code=generate_token(50),
-                client_id=client.client_id,
-                redirect_uri=request.redirect_uri,
-                scope=request.scope,
-                user_id=grant_user.id,
-                nonce=request.data.get("nonce"),
-            )
-            
         with flask.current_app.db.session as session:
             session.add(code)
             session.commit()
