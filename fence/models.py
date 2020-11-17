@@ -245,7 +245,18 @@ class AuthorizationCode(Base, OAuth2AuthorizationCodeMixin):
 
     nonce = Column(String, nullable=True)
 
-    refresh_token_expires_in = Column(Integer, nullable=True)
+    # only init this column if it actually exists in the db
+    # for handling case of pre-db-migration
+    with flask.current_app.db.session as session:
+        results = session.execute(
+            """
+            SELECT column_name 
+            FROM information_schema.columns
+            WHERE table_name = 'authorization_code' AND column_name = 'refresh_token_expires_in'
+            """
+        )
+    if results.rowcount > 0:
+        refresh_token_expires_in = Column(Integer, nullable=True)
 
     _scope = Column(Text, default="")
 
