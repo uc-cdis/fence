@@ -662,6 +662,14 @@ def migrate(driver):
         metadata=md,
     )
 
+    #here
+    add_column_if_not_exist(
+        table_name=AuthorizationCode.__tablename__,
+        column=Column("refresh_token_expires_in", Integer),
+        driver=driver,
+        metadata=md,
+    )
+
     drop_foreign_key_column_if_exist(
         table_name=GoogleProxyGroup.__tablename__,
         column_name="user_id",
