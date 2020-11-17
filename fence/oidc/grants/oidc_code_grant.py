@@ -73,6 +73,7 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
 
         scope = authorization_code.scope
         nonce = authorization_code.nonce
+        refresh_token_expires_in = authorization_code.refresh_token_expires_in
 
         token = self.generate_token(
             client,
@@ -81,6 +82,7 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
             scope=scope,
             include_refresh_token=client.has_client_secret(),
             nonce=nonce,
+            refresh_token_expires_in=refresh_token_expires_in,
         )
 
         self.request.user = user
