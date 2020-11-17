@@ -256,6 +256,21 @@ class AuthorizationCode(Base, OAuth2AuthorizationCodeMixin):
                 kwargs["_scope"] = " ".join(scope)
             else:
                 kwargs["_scope"] = scope
+        
+        #here - handle case of pre-db-migration
+        # only include "refresh_token_expires_in" if that column exists
+        if "refresh_token_expires_in" in kwargs:
+            refresh_token_expires_in = kwargs.pop("refresh_token_expires_in")
+            with flask.current_app.db.session as session:
+                results = session.execute(
+                    """
+                    SELECT column_name 
+                    FROM information_schema.columns
+                    WHERE table_name = 'authorization_code' AND column_name = 'refresh_token_expires_in'
+                    """
+                )
+            if results.rowcount > 0:
+                kwargs["refresh_token_expires_in"] = refresh_token_expires_in
         super(AuthorizationCode, self).__init__(**kwargs)
 
     @property
