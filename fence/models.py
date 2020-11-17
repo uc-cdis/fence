@@ -245,6 +245,8 @@ class AuthorizationCode(Base, OAuth2AuthorizationCodeMixin):
 
     nonce = Column(String, nullable=True)
 
+    refresh_token_expires_in = Column(Integer, nullable=True)
+
     _scope = Column(Text, default="")
 
     def __init__(self, **kwargs):
