@@ -52,11 +52,11 @@ def update_user_resource(username, resource):
 def update_user(current_session, additional_info):
     usr = get_user(current_session, current_session.merge(flask.g.user).username)
 
-    if usr.additional_info and usr.additional_info != "'{}'":
-        raise Forbidden(
-                    "You need to be an admin to update user additional information"
-                    " if they have been inserted previously"
-                )
+    # if usr.additional_info and usr.additional_info != "'{}'":
+    #     raise Forbidden(
+    #                 "You need to be an admin to update user additional information"
+    #                 " if they have been inserted previously"
+    #             )
 
     udm.update_user(current_session, usr.username, additional_info)
     return get_user_info(current_session, usr.username)
