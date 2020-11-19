@@ -51,7 +51,7 @@ def update_user_resource(username, resource):
 
 
 def update_user(current_session, additional_info):
-    #TODO check if user is already in the system
+    #TODO check if user is already in the system - you can get create_user_if_not_exist with new gen3authz version. 
     register_arborist_user(flask.g.user)
 
     usr = get_user(current_session, current_session.merge(flask.g.user).username)
