@@ -123,12 +123,17 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
         scope = authorization_code.scope
         nonce = authorization_code.nonce
 
-        # might cause an error if that name doesn't exist
-        # hopefully it just returns None?
-        # probably will error.
-        # if so, do try / except - if err, log warning db needs to be migrated
         #here
-        refresh_token_expires_in = authorization_code.refresh_token_expires_in
+        dbAuthorizationCodeTable = Table(
+            "authorization_code",
+            MetaData(),
+            autoload=True,
+            autoload_with=flask.current_app.db.engine
+        )
+        if "refresh_token_expires_in" in dbAuthorizationCodeTable.columns:
+            refresh_token_expires_in = authorization_code.refresh_token_expires_in
+        else:
+            refresh_token_expires_in = config["REFRESH_TOKEN_EXPIRES_IN"]
 
         token = self.generate_token(
             client,
