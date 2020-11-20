@@ -58,6 +58,8 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
         # >>> [c.name for c in messages.columns]
         # ['message_id', 'message_name', 'date']
 
+        ## see: https://docs.sqlalchemy.org/en/13/core/reflection.html
+
         dbAuthorizationCodeTable = Table(
             "authorization_code",
             MetaData(),
