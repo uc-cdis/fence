@@ -85,11 +85,20 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
             Base = automap_base()
             Base.prepare(flask.current_app.db.engine, reflect=True)
             reflectedAuthorizationCode = Base.classes.authorization_code
+
+            # handle this pre-processing check/step
+            # see AuthorizationCode class for why this is here.
+            scope = request.scope
+            if isinstance(scope, list):
+                _scope = " ".join(scope)
+            else:
+                _scope = scope
+
             code = reflectedAuthorizationCode(
                 code=generate_token(50),
                 client_id=client.client_id,
                 redirect_uri=request.redirect_uri,
-                scope=request.scope,
+                _scope=_scope,
                 user_id=grant_user.id,
                 nonce=request.data.get("nonce"),
             )
