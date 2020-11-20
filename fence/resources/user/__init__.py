@@ -22,6 +22,7 @@ from fence.config import config
 from fence.errors import NotFound, Unauthorized, UserError, InternalError, Forbidden
 from fence.jwt.utils import get_jwt_header
 from fence.models import query_for_user
+from fence.authz.auth import register_arborist_user
 
 
 logger = get_logger(__name__)
@@ -50,15 +51,24 @@ def update_user_resource(username, resource):
 
 
 def update_user(current_session, additional_info):
+    #TODO check if user is already in the system - you can get create_user_if_not_exist with new gen3authz version. 
+    register_arborist_user(flask.g.user)
+
     usr = get_user(current_session, current_session.merge(flask.g.user).username)
-
+    additional_info_tmp = {}
     if usr.additional_info and usr.additional_info != "'{}'":
-        raise Forbidden(
-                    "You need to be an admin to update user additional information"
-                    " if they have been inserted previously"
-                )
+        # merge the information
+        additional_info_tmp = dict(usr.additional_info)
+        if additional_info["firstName"] is not None:
+            additional_info_tmp["firstName"] = additional_info["firstName"]
+        if additional_info["lastName"] is not None:
+            additional_info_tmp["lastName"] = additional_info["lastName"]
+        if additional_info["institution"] is not None:
+            additional_info_tmp["institution"] = additional_info["institution"]
+    else:
+        additional_info_tmp = additional_info
 
-    udm.update_user(current_session, usr.username, additional_info)
+    udm.update_user(current_session, usr.username, additional_info_tmp)
     return get_user_info(current_session, usr.username)
 
 

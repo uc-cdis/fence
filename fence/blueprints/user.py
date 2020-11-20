@@ -36,9 +36,9 @@ def update_user_info():
     additional_info = {}
 
     if firstName:
-        additional_info["first_name"] = firstName
+        additional_info["firstName"] = firstName
     if lastName:
-        additional_info["last_name"] = lastName
+        additional_info["lastName"] = lastName
     if institution:
         additional_info["institution"] = institution
         

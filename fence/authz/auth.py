@@ -2,6 +2,7 @@ from functools import wraps
 
 import flask
 
+from fence.authz.errors import ArboristError
 from fence.errors import Forbidden, Unauthorized
 from fence.jwt.utils import get_jwt_header
 
@@ -51,3 +52,50 @@ def check_arborist_auth(resource, method, constraints=None):
         return wrapper
 
     return decorator
+
+
+
+def register_arborist_user(user):
+    if not hasattr(flask.current_app, "arborist"):
+        raise Forbidden(
+            "this fence instance is not configured with arborist;"
+            " this endpoint is unavailable"
+        )
+
+    policy = flask.current_app.arborist.get_policy("login_no_access")
+    if not policy:
+        raise NotFound(
+            "Policy {} NOT FOUND".format(
+                "login_no_access"
+            )
+        )
+
+
+    created_user = flask.current_app.arborist.create_user(dict(name=user.username))
+
+    res = flask.current_app.arborist.grant_user_policy(user.username, "login_no_access")
+    if res is None:
+        raise ArboristError(
+            "Policy {} has not been assigned.".format(
+                policy["id"]
+            )
+        )
+    
+
+       # with flask.current_app.arborist.context(authz_provider="synapse"):
+       #      if config["DREAM_CHALLENGE_TEAM"] in token_result.get("team", []):
+       #          # make sure the user exists in Arborist
+       #          flask.current_app.arborist.create_user(dict(name=user.username))
+       #          flask.current_app.arborist.add_user_to_group(
+       #              user.username,
+       #              config["DREAM_CHALLENGE_GROUP"],
+       #              datetime.now(timezone.utc)
+       #              + timedelta(seconds=config["SYNAPSE_AUTHZ_TTL"]),
+       #          )
+       #      else:
+       #          flask.current_app.arborist.remove_user_from_group(
+       #              user.username, config["DREAM_CHALLENGE_GROUP"]
+       #          )
+
+
+    

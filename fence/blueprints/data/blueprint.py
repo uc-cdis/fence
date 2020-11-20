@@ -158,7 +158,7 @@ def upload_data_file():
     if not authorized:
         raise Forbidden(
             "You do not have access to upload data. You either need "
-            "general file uploader permissions or create & write-storage permissions "
+            "general file uploader permissions or create and write-storage permissions "
             "on the authz resources you specified (if you specified any)."
         )
 
