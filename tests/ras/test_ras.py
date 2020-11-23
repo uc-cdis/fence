@@ -98,6 +98,7 @@ def test_store_refresh_token(db_session):
     assert final_query.expires == new_expire
 
 
+@mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.validate_passport")
 @mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_userinfo")
 @mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_access_token")
 @mock.patch(
@@ -107,6 +108,7 @@ def test_update_visa_token(
     mock_discovery,
     mock_get_token,
     mock_userinfo,
+    mock_validate_passport,
     config,
     db_session,
     rsa_private_key,
@@ -176,6 +178,8 @@ def test_update_visa_token(
     userinfo_response["ga4gh_passport_v1"] = [encoded_visa]
     mock_userinfo.return_value = userinfo_response
 
+    mock_validate_passport.return_value = "Valid"
+
     ras_client.update_user_visas(test_user)
 
     query_visa = db_session.query(GA4GHVisaV1).first()
@@ -183,6 +187,7 @@ def test_update_visa_token(
     assert query_visa.ga4gh_visa == encoded_visa
 
 
+@mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.validate_passport")
 @mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_userinfo")
 @mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_access_token")
 @mock.patch(
@@ -192,6 +197,7 @@ def test_update_visa_empty_visa_returned(
     mock_discovery,
     mock_get_token,
     mock_userinfo,
+    mock_validate_passport,
     config,
     db_session,
     rsa_private_key,
@@ -223,6 +229,8 @@ def test_update_visa_empty_visa_returned(
 
     mock_userinfo.return_value = userinfo_response
 
+    mock_validate_passport.return_value = "Valid"
+
     test_user = add_test_user(db_session)
     add_visa_manually(db_session, test_user, rsa_private_key, kid)
     add_refresh_token(db_session, test_user)
@@ -244,6 +252,7 @@ def test_update_visa_empty_visa_returned(
     assert query_visa == None
 
 
+@mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.validate_passport")
 @mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_userinfo")
 @mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_access_token")
 @mock.patch(
@@ -253,6 +262,7 @@ def test_update_visa_token_with_invalid_visa(
     mock_discovery,
     mock_get_token,
     mock_userinfo,
+    mock_validate_passport,
     config,
     db_session,
     rsa_private_key,
@@ -323,6 +333,8 @@ def test_update_visa_token_with_invalid_visa(
 
     userinfo_response["ga4gh_passport_v1"] = [encoded_visa, [], encoded_visa]
     mock_userinfo.return_value = userinfo_response
+
+    mock_validate_passport.return_value = "Valid"
 
     ras_client.update_user_visas(test_user)
 

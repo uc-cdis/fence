@@ -70,8 +70,10 @@ class RASOauth2Client(Oauth2ClientBase):
             userinfo_endpoint = self.get_value_from_discovery_doc(
                 "userinfo_endpoint", ""
             )
-            validation_endpoint = self.get_value_from_discovery_doc("issuer", "") + "/passport/validate"
-            
+            validation_endpoint = (
+                self.get_value_from_discovery_doc("issuer", "") + "/passport/validate"
+            )
+
             token = self.get_token(token_endpoint, code)
             keys = self.get_jwt_keys(jwks_endpoint)
             userinfo = self.get_userinfo(token, userinfo_endpoint)
@@ -137,9 +139,13 @@ class RASOauth2Client(Oauth2ClientBase):
             self.logger.exception("{}: {}".format(err_msg, e))
             raise
 
-        validation_endpoint = self.get_value_from_discovery_doc("issuer", "") + "/passport/validate"
+        validation_endpoint = (
+            self.get_value_from_discovery_doc("issuer", "") + "/passport/validate"
+        )
         validation = self.validate_passport(validation_endpoint, userinfo)
-        encoded_visas = userinfo.get("ga4gh_passport_v1", []) if validation == "Valid" else []
+        encoded_visas = (
+            userinfo.get("ga4gh_passport_v1", []) if validation == "Valid" else []
+        )
         # TODO: add logs for visa validation
 
         for encoded_visa in encoded_visas:
