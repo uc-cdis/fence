@@ -193,6 +193,94 @@ def test_update_visa_token(
 @mock.patch(
     "fence.resources.openid.ras_oauth2.RASOauth2Client.get_value_from_discovery_doc"
 )
+def test_update_visa_token_validation_invalid(
+    mock_discovery,
+    mock_get_token,
+    mock_userinfo,
+    mock_validate_passport,
+    config,
+    db_session,
+    rsa_private_key,
+    kid,
+    kid_2,
+):
+    """
+    Test to check visa table is not updated when passport validation fails
+    """
+
+    mock_discovery.return_value = "https://ras/token_endpoint"
+    new_token = "refresh12345abcdefg"
+    token_response = {
+        "access_token": "abcdef12345",
+        "id_token": "id12345abcdef",
+        "refresh_token": new_token,
+    }
+    mock_get_token.return_value = token_response
+
+    userinfo_response = {
+        "sub": "abcd-asdj-sajpiasj12iojd-asnoin",
+        "name": "",
+        "preferred_username": "someuser@era.com",
+        "UID": "",
+        "UserID": "admin_user",
+        "email": "",
+    }
+
+    test_user = add_test_user(db_session)
+    add_visa_manually(db_session, test_user, rsa_private_key, kid)
+    add_refresh_token(db_session, test_user)
+
+    visa_query = db_session.query(GA4GHVisaV1).filter_by(user=test_user).first()
+    initial_visa = visa_query.ga4gh_visa
+    assert initial_visa
+
+    oidc = config.get("OPENID_CONNECT", {})
+    ras_client = RASClient(
+        oidc["ras"],
+        HTTP_PROXY=config.get("HTTP_PROXY"),
+        logger=logger,
+    )
+
+    new_visa = {
+        "iss": "https://stsstg.nih.gov",
+        "sub": "abcde12345aspdij",
+        "iat": int(time.time()),
+        "exp": int(time.time()) + 1000,
+        "scope": "openid ga4gh_passport_v1 email profile",
+        "jti": "jtiajoidasndokmasdl",
+        "txn": "sapidjspa.asipidja",
+        "name": "",
+        "ga4gh_visa_v1": {
+            "type": "https://ras/visa/v1",
+            "asserted": int(time.time()),
+            "value": "https://nig/passport/dbgap",
+            "source": "https://ncbi/gap",
+        },
+    }
+
+    headers = {"kid": kid_2}
+
+    encoded_visa = jwt.encode(
+        new_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
+    ).decode("utf-8")
+
+    userinfo_response["ga4gh_passport_v1"] = [encoded_visa]
+    mock_userinfo.return_value = userinfo_response
+
+    mock_validate_passport.return_value = "Invalid"
+
+    ras_client.update_user_visas(test_user)
+
+    query_visa = db_session.query(GA4GHVisaV1).filter_by(user=test_user).all()
+    assert len(query_visa) == 0
+
+
+@mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.validate_passport")
+@mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_userinfo")
+@mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_access_token")
+@mock.patch(
+    "fence.resources.openid.ras_oauth2.RASOauth2Client.get_value_from_discovery_doc"
+)
 def test_update_visa_empty_visa_returned(
     mock_discovery,
     mock_get_token,
