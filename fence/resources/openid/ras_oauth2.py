@@ -58,7 +58,7 @@ class RASOauth2Client(Oauth2ClientBase):
         payload = json.dumps(passport)
         headers = {"Content-Type": "application/json"}
         res = requests.post(validation_endpoint, headers=headers, data=payload)
-        return res.text.encode("utf8")
+        return res.text
 
     def get_user_id(self, code):
 
