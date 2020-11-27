@@ -104,6 +104,19 @@ API requests to create a signed url and get temporary service account credential
 
 If you do **not** want to bill a project you own and actually require end-users to pay for access to requester pays buckets, it will require manual configuration by the end-users. The configuration necessary for billing a project is the same whether you or an end-user has to enable it, as detailed below.
 
+Quick summary of minimal end-user actions to be able to specify `userProject`:
+
+* Create a new Google Project (or use an existing one) in Google Cloud Platform (GCP), remember the project **ID**
+* Attach a billing account to the project
+* Log into Fence, go to userinfo endpoint, usually at `https://example.com/user/user` and copy the value from `primary_google_service_account`
+    * Keep this, you'll need it later
+* Go to "IAM" in GCP
+* Click "add", Click "Select a role" dropdown, then "Manage roles", then "Create new role"/"Add role"
+    * For the role: name it "BillingAdmin", add the single permission `serviceusage.services.use`
+* Go back to "IAM"
+* Click "add", Click "Select a role" dropdown, select new "BillingAdmin" custom role, in "New members" field, paste the email you copied from `primary_google_service_account`
+* Now you can specify the `userProject` in signed URL requests to be the project ID for the project you just setup IAM billing permission on. `userProject=YOUR-GOOGLE-PROJECT-ID`
+
 #### Required Google Cloud Platform (GCP) Configuration for Billing Project
 
 Whether you bill your own project, or require end-users to specify a billing project, the required configuration in GCP is the same. The service account used to sign the URL and/or the service account used for Temporary Service Account Credentials needs the GCP permission `serviceusage.services.use` in the Google Project specified to bill to.
