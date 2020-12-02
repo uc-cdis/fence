@@ -10,12 +10,6 @@ import flask
 from fence.utils import get_valid_expiration_from_request
 from fence.config import config
 from fence.models import AuthorizationCode, ClientAuthType, User
-from sqlalchemy.ext.automap import automap_base
-from sqlalchemy import (
-    MetaData,
-    Table,
-)
-
 
 
 class OpenIDCodeGrant(grants.OpenIDCodeGrant):
@@ -52,56 +46,15 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
         else:
             refresh_token_expires_in = config["REFRESH_TOKEN_EXPIRES_IN"]
 
-
-        #here
-        ### doing some introspection ###
-        # app.db = SQLAlchemyDriver(config["DB"])
-        # >>> messages = Table('messages', meta, autoload=True, autoload_with=engine)
-        # >>> [c.name for c in messages.columns]
-        # ['message_id', 'message_name', 'date']
-
-        ## see: https://docs.sqlalchemy.org/en/13/core/reflection.html
-
-        dbAuthorizationCodeTable = Table(
-            "authorization_code",
-            MetaData(),
-            autoload=True,
-            autoload_with=flask.current_app.db.engine
+        code = AuthorizationCode(
+            code=generate_token(50),
+            client_id=client.client_id,
+            redirect_uri=request.redirect_uri,
+            scope=request.scope,
+            user_id=grant_user.id,
+            nonce=request.data.get("nonce"),
+            refresh_token_expires_in=refresh_token_expires_in,
         )
-
-        if "refresh_token_expires_in" in dbAuthorizationCodeTable.columns:
-            code = AuthorizationCode(
-                code=generate_token(50),
-                client_id=client.client_id,
-                redirect_uri=request.redirect_uri,
-                scope=request.scope,
-                user_id=grant_user.id,
-                nonce=request.data.get("nonce"),
-                refresh_token_expires_in=refresh_token_expires_in,
-            )
-        else:
-            # db hasn't been migrated yet
-            # i.e., the "refresh_token_expires_in" column hasn't been added to this table yet
-            Base = automap_base()
-            Base.prepare(flask.current_app.db.engine, reflect=True)
-            reflectedAuthorizationCode = Base.classes.authorization_code
-
-            # handle this pre-processing check/step
-            # see AuthorizationCode class for why this is here.
-            scope = request.scope
-            if isinstance(scope, list):
-                _scope = " ".join(scope)
-            else:
-                _scope = scope
-
-            code = reflectedAuthorizationCode(
-                code=generate_token(50),
-                client_id=client.client_id,
-                redirect_uri=request.redirect_uri,
-                _scope=_scope,
-                user_id=grant_user.id,
-                nonce=request.data.get("nonce"),
-            )
 
         with flask.current_app.db.session as session:
             session.add(code)
@@ -122,18 +75,7 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
 
         scope = authorization_code.scope
         nonce = authorization_code.nonce
-
-        #here
-        dbAuthorizationCodeTable = Table(
-            "authorization_code",
-            MetaData(),
-            autoload=True,
-            autoload_with=flask.current_app.db.engine
-        )
-        if "refresh_token_expires_in" in dbAuthorizationCodeTable.columns:
-            refresh_token_expires_in = authorization_code.refresh_token_expires_in
-        else:
-            refresh_token_expires_in = config["REFRESH_TOKEN_EXPIRES_IN"]
+        refresh_token_expires_in = authorization_code.refresh_token_expires_in
 
         token = self.generate_token(
             client,
