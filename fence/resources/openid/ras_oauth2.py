@@ -107,7 +107,16 @@ class RASOauth2Client(Oauth2ClientBase):
             self.logger.info("Using {} field as username.".format(field_name))
 
             # Save userinfo and token in flask.g for later use in post_login
-            flask.g.userinfo = userinfo if validation == "Valid" else {}
+            flask.g.userinfo = {}
+            if validation == "Valid":
+                self.logger.info("Passport validated")
+                flask.g.userinfo = userinfo
+            else:
+                self.logger.error(
+                    "Passport validation failed. Not storing passport in database. Error: {}".format(
+                        validation
+                    )
+                )
             flask.g.tokens = token
 
         except Exception as e:
@@ -146,7 +155,16 @@ class RASOauth2Client(Oauth2ClientBase):
         encoded_visas = (
             userinfo.get("ga4gh_passport_v1", []) if validation == "Valid" else []
         )
-        # TODO: add logs for visa validation
+
+        encoded_visas = []
+        if validation == "Valid":
+            encoded_visas = userinfo.get("ga4gh_passport_v1", [])
+        else:
+            self.logger.error(
+                "Passport validation failed. Not storing passport in database. Error: {}".format(
+                    validation
+                )
+            )
 
         for encoded_visa in encoded_visas:
             try:
