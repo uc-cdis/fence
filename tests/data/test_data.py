@@ -845,7 +845,7 @@ def test_delete_file_locations(
         "updated_date": "",
     }
     arborist_requests_mocker = mock.patch(
-        "gen3authz.client.arborist.client.httpx.Client", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
     )
     mock_indexed_file_delete_file = mock.patch(
         "fence.blueprints.data.indexd.IndexedFile.delete_files",
@@ -880,8 +880,8 @@ def test_delete_file_locations(
     with mock.patch(
         "fence.blueprints.data.indexd.requests.delete", mock_delete
     ), arborist_requests_mocker as arborist_requests:
-        arborist_requests.request.return_value = MockResponse({"auth": True})
-        arborist_requests.request.return_value.status_code = 200
+        arborist_requests.return_value = MockResponse({"auth": True})
+        arborist_requests.return_value.status_code = 200
         headers = {"Authorization": "Bearer " + encoded_creds_jwt.jwt}
         response = client.delete("/data/{}".format(did), headers=headers)
         assert response.status_code == 204
@@ -912,7 +912,7 @@ def test_delete_file_locations_by_uploader(
         "updated_date": "",
     }
     arborist_requests_mocker = mock.patch(
-        "gen3authz.client.arborist.client.httpx.Client", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
     )
     mock_index_document = mock.patch(
         "fence.blueprints.data.indexd.IndexedFile.index_document", index_document
@@ -961,8 +961,8 @@ def test_delete_file_locations_by_uploader(
     with mock.patch(
         "fence.blueprints.data.indexd.requests.delete", mock_delete
     ), arborist_requests_mocker as arborist_requests, mock_gcm as mock_gcm_2:
-        arborist_requests.request.return_value = MockResponse({"auth": True})
-        arborist_requests.request.return_value.status_code = 200
+        arborist_requests.return_value = MockResponse({"auth": True})
+        arborist_requests.return_value.status_code = 200
         headers = {"Authorization": "Bearer " + encoded_creds_jwt.jwt}
         response = client.delete("/data/{}".format(did), headers=headers)
         assert response.status_code == 204
