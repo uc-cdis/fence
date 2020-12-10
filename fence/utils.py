@@ -7,6 +7,7 @@ from random import SystemRandom
 import re
 import string
 import requests
+import boto3
 from urllib.parse import urlencode
 from urllib.parse import parse_qs, urlsplit, urlunsplit
 
@@ -274,6 +275,90 @@ def send_email(from_email, to_emails, subject, text, smtp_domain):
         data={"from": from_email, "to": to_emails, "subject": subject, "text": text},
     )
 
+def send_email_ses(body, to_emails, subject):
+    """
+    Send email to group of emails using AWS SES api.
+
+    Args:
+        from_email(str): from email
+        to_emails(list): list of emails to receive the messages
+        text(str): the text message
+        smtp_domain(dict): smtp domain server
+
+            {
+                "smtp_hostname": "smtp.mailgun.org",
+                "default_login": "postmaster@mailgun.planx-pla.net",
+                "api_url": "https://api.mailgun.net/v3/mailgun.planx-pla.net",
+                "smtp_password": "password",
+                "api_key": "api key"
+            }
+
+    Returns:
+        Http response
+
+    Exceptions:
+        KeyError
+
+    """
+    #TODO add import for boto
+
+    logging.warning( sender in config["AWS_SES"])
+    logging.warning( SENDER in config["AWS_SES"])
+    if not config["AWS_SES"]:
+        raise NotFound("AWS SES '{}' does not exist in configuration. Cannot send email.")
+    if sender not in config["AWS_SES"]:
+        raise NotFound("AWS SES sender does not exist in configuration. Cannot send email.")
+    if AWS_ACCESS_KEY not in config["AWS_SES"] or AWS_SECRET_KEY not in config["AWS_SES"]:
+        raise NotFound("AWS SES credentials are missing in configuration. Cannot send email.")
+
+    body = "try the text." #TODO retrieve body from template (pass as external param above)
+    if not body:
+        raise Exception('You must provide a text or html body.')
+
+    sender = config["AWS_SES"]["sender"]
+    AWS_ACCESS_KEY = config["AWS_SES"]["AWS_ACCESS_KEY"]
+    AWS_SECRET_KEY = config["AWS_SES"]["AWS_SECRET_KEY"]
+    region = config["AWS_SES"]["AWS_REGION"] if config["AWS_SES"]["AWS_REGION"] is not None else "us-east-1"
+    #TODO get a general team email for this
+    RECIPIENT = config["AWS_SES"]["RECIPIENT"] if config["AWS_SES"]["RECIPIENT"] is not None else "lgraglia@uchicago.edu"
+        
+        # if not self._html:
+        #     self._format = 'text'
+        #     body = self._text
+
+    client = boto3.client(
+        'ses',
+        region_name=region,
+        aws_access_key_id=AWS_ACCESS_KEY,
+        aws_secret_access_key=AWS_SECRET_KEY
+    )
+    try:
+        response = client.send_email(
+            Destination={
+                'ToAddresses': [RECIPIENT],
+            },
+            Message={
+                'Body': {
+                    'Text': {
+                        'Charset': 'UTF-8',
+                        'Data': 'email body string',
+                    },
+                },
+                'Subject': {
+                    'Charset': 'UTF-8',
+                    'Data': 'email subject string',
+                },
+            },
+            Source=sender,
+        )
+    except ClientError as e:
+        print(e.response['Error']['Message'])
+    else:
+        print("Email sent! Message ID:"),
+        print(response['MessageId'])
+    logging.warning("LUCA EMAIL")
+    logging.warning(json.dumps(response))
+    return response
 
 def get_valid_expiration_from_request():
     """
