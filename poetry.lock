@@ -50,23 +50,29 @@ cryptography = "*"
 
 [[package]]
 name = "authutils"
-version = "5.0.4"
+version = "5.0.5"
 description = "Gen3 auth utility functions"
 category = "main"
 optional = false
-python-versions = ">=3.6,<4.0"
+python-versions = "^3.6"
 
 [package.dependencies]
-cdiserrors = ">=1.0,<2.0"
-httpx = ">=0.12.1,<0.13.0"
-xmltodict = ">=0.9,<1.0"
-cached-property = ">=1.4,<2.0"
-authlib = ">=0.11,<1.0"
-pyjwt = {version = ">=1.5,<2.0", extras = ["crypto"]}
+cdiserrors = "~=1.0"
+httpx = "^0.14.0"
+xmltodict = "~=0.9"
+cached-property = "~=1.4"
+authlib = "~=0.11"
+pyjwt = {version = "~=1.5", extras = ["crypto"]}
 
 [package.extras]
 flask = ["Flask (>=0.10.1)"]
-fastapi = ["fastapi (>=0.54.1,<0.55.0)"]
+fastapi = ["fastapi (^0.54.1)"]
+
+[package.source]
+type = "git"
+url = "https://github.com/uc-cdis/authutils.git"
+reference = "chore/httpx"
+resolved_reference = "7771308ddcf155d1dde53b63993b8e5c5de3fd64"
 
 [[package]]
 name = "backoff"
@@ -458,7 +464,7 @@ python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
 
 [[package]]
 name = "gen3authz"
-version = "1.0.1"
+version = "1.0.2"
 description = "Gen3 authz client"
 category = "main"
 optional = false
@@ -467,7 +473,7 @@ python-versions = ">=3.6,<4.0"
 [package.dependencies]
 contextvars = {version = ">=2.4,<3.0", markers = "python_version < \"3.7\""}
 cdiserrors = ">=1.0.0,<2.0.0"
-httpx = ">=0.12.1,<0.13.0"
+httpx = ">=0.14.0,<0.15.0"
 backoff = ">=1.6,<2.0"
 
 [[package]]
@@ -664,32 +670,19 @@ optional = false
 python-versions = "*"
 
 [[package]]
-name = "h2"
-version = "3.2.0"
-description = "HTTP/2 State-Machine based protocol implementation"
-category = "main"
-optional = false
-python-versions = "*"
-
-[package.dependencies]
-hyperframe = ">=5.2.0,<6"
-hpack = ">=3.0,<4"
-
-[[package]]
-name = "hpack"
-version = "3.0.0"
-description = "Pure-Python HPACK header compression"
-category = "main"
-optional = false
-python-versions = "*"
-
-[[package]]
-name = "hstspreload"
-version = "2020.11.21"
-description = "Chromium HSTS Preload list as a Python package"
+name = "httpcore"
+version = "0.10.2"
+description = "A minimal low-level HTTP client."
 category = "main"
 optional = false
 python-versions = ">=3.6"
+
+[package.dependencies]
+h11 = ">=0.8,<0.10"
+sniffio = ">=1.0.0,<2.0.0"
+
+[package.extras]
+http2 = ["h2 (>=3.0.0,<4.0.0)"]
 
 [[package]]
 name = "httplib2"
@@ -701,30 +694,22 @@ python-versions = "*"
 
 [[package]]
 name = "httpx"
-version = "0.12.1"
+version = "0.14.3"
 description = "The next generation HTTP client."
 category = "main"
 optional = false
 python-versions = ">=3.6"
 
 [package.dependencies]
-hstspreload = "*"
-h2 = ">=3.0.0,<4.0.0"
-h11 = ">=0.8,<0.10"
-urllib3 = ">=1.0.0,<2.0.0"
-sniffio = ">=1.0.0,<2.0.0"
-chardet = ">=3.0.0,<4.0.0"
-rfc3986 = ">=1.3,<2"
 certifi = "*"
-idna = ">=2.0.0,<3.0.0"
+chardet = ">=3.0.0,<4.0.0"
+httpcore = ">=0.10.0,<0.11.0"
+rfc3986 = {version = ">=1.3,<2", extras = ["idna2008"]}
+sniffio = "*"
 
-[[package]]
-name = "hyperframe"
-version = "5.2.0"
-description = "HTTP/2 framing layer for Python"
-category = "main"
-optional = false
-python-versions = "*"
+[package.extras]
+brotli = ["brotlipy (>=0.7.0,<0.8.0)"]
+http2 = ["h2 (>=3.0.0,<4.0.0)"]
 
 [[package]]
 name = "idna"
@@ -1168,6 +1153,9 @@ category = "main"
 optional = false
 python-versions = "*"
 
+[package.dependencies]
+idna = {version = "*", optional = true, markers = "extra == \"idna2008\""}
+
 [package.extras]
 idna2008 = ["idna"]
 
@@ -1325,7 +1313,7 @@ testing = ["pytest (>=3.5,<3.7.3 || >3.7.3)", "pytest-checkdocs (>=1.2.3)", "pyt
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "3da0669fbc26adaeca01cf3840db347e3c476dcac5c5325929177ebe5deb4947"
+content-hash = "4cc53fec7a62c530e60283b84abd0efb8ebe7c78da3d6cbfaf2b0528be726e78"
 
 [metadata.files]
 addict = [
@@ -1348,10 +1336,7 @@ authlib = [
     {file = "Authlib-0.11-py2.py3-none-any.whl", hash = "sha256:3a226f231e962a16dd5f6fcf0c113235805ba206e294717a64fa8e04ae3ad9c4"},
     {file = "Authlib-0.11.tar.gz", hash = "sha256:9741db6de2950a0a5cefbdb72ec7ab12f7e9fd530ff47219f1530e79183cbaaf"},
 ]
-authutils = [
-    {file = "authutils-5.0.4-py3-none-any.whl", hash = "sha256:70d750b6ff68748b2812e11f868c724146e8d770aa17f7c1506faf67abf08ad5"},
-    {file = "authutils-5.0.4.tar.gz", hash = "sha256:1d64bc5f8e796405309f3027fea873c9533f1b05ca1076cf1d16ace829a20948"},
-]
+authutils = []
 backoff = [
     {file = "backoff-1.10.0-py2.py3-none-any.whl", hash = "sha256:5e73e2cbe780e1915a204799dba0a01896f45f4385e636bcca7a0614d879d0cd"},
     {file = "backoff-1.10.0.tar.gz", hash = "sha256:b8fba021fac74055ac05eb7c7bfce4723aedde6cd0a504e5326bcb0bdd6d19a4"},
@@ -1561,8 +1546,8 @@ future = [
     {file = "future-0.18.2.tar.gz", hash = "sha256:b1bead90b70cf6ec3f0710ae53a525360fa360d306a86583adc6bf83a4db537d"},
 ]
 gen3authz = [
-    {file = "gen3authz-1.0.1-py3-none-any.whl", hash = "sha256:0912482d3a14c3ec9969aab9ea9851a6ea2a7d9ff86adb04d8815328271e7d89"},
-    {file = "gen3authz-1.0.1.tar.gz", hash = "sha256:505053351257f2cf885c8bf328211ab19f8c89f5c6def61132464957cbfbe3cd"},
+    {file = "gen3authz-1.0.2-py3-none-any.whl", hash = "sha256:6e759f802ee0e17cef3961e1ea7b717fada45f1310df3110e5a9d10193563378"},
+    {file = "gen3authz-1.0.2.tar.gz", hash = "sha256:a11a655d9f2aad6d76c2c5ec6606a8b8333ceb938912c65d99fa0ec2c0b91cc0"},
 ]
 gen3cirrus = [
     {file = "gen3cirrus-1.3.0.tar.gz", hash = "sha256:e73c9a77d2e98adee066e6547af6c2a7d49bf5d44d11eaca7fbb6549184e9635"},
@@ -1629,29 +1614,17 @@ h11 = [
     {file = "h11-0.9.0-py2.py3-none-any.whl", hash = "sha256:4bc6d6a1238b7615b266ada57e0618568066f57dd6fa967d1290ec9309b2f2f1"},
     {file = "h11-0.9.0.tar.gz", hash = "sha256:33d4bca7be0fa039f4e84d50ab00531047e53d6ee8ffbc83501ea602c169cae1"},
 ]
-h2 = [
-    {file = "h2-3.2.0-py2.py3-none-any.whl", hash = "sha256:61e0f6601fa709f35cdb730863b4e5ec7ad449792add80d1410d4174ed139af5"},
-    {file = "h2-3.2.0.tar.gz", hash = "sha256:875f41ebd6f2c44781259005b157faed1a5031df3ae5aa7bcb4628a6c0782f14"},
-]
-hpack = [
-    {file = "hpack-3.0.0-py2.py3-none-any.whl", hash = "sha256:0edd79eda27a53ba5be2dfabf3b15780928a0dff6eb0c60a3d6767720e970c89"},
-    {file = "hpack-3.0.0.tar.gz", hash = "sha256:8eec9c1f4bfae3408a3f30500261f7e6a65912dc138526ea054f9ad98892e9d2"},
-]
-hstspreload = [
-    {file = "hstspreload-2020.11.21-py3-none-any.whl", hash = "sha256:7bf30f772ebc5ef3b1261d44636d5892f153393b34e51f365357e6c38d38a572"},
-    {file = "hstspreload-2020.11.21.tar.gz", hash = "sha256:a0c2ce53e4e065a830995db5bb4e5c1991ec4c277ba1868d4eb5f88301b920b3"},
+httpcore = [
+    {file = "httpcore-0.10.2-py3-none-any.whl", hash = "sha256:afc1402fcaa6fca057bb3a9c6ccf6989a17bd0393b0cffbd778bac5fdd27446b"},
+    {file = "httpcore-0.10.2.tar.gz", hash = "sha256:93a4caf743e7ed29dbf7900515f0917babaa26bfaae6fb6c922ca1228519d400"},
 ]
 httplib2 = [
     {file = "httplib2-0.18.1-py3-none-any.whl", hash = "sha256:ca2914b015b6247791c4866782fa6042f495b94401a0f0bd3e1d6e0ba2236782"},
     {file = "httplib2-0.18.1.tar.gz", hash = "sha256:8af66c1c52c7ffe1aa5dc4bcd7c769885254b0756e6e69f953c7f0ab49a70ba3"},
 ]
 httpx = [
-    {file = "httpx-0.12.1-py3-none-any.whl", hash = "sha256:ce51c8e8ed2834447fde5a94650299fd74017b7da69cc786b6421fefda09a393"},
-    {file = "httpx-0.12.1.tar.gz", hash = "sha256:405b4749f597b1f45cae5bffc17b23dc251cce30a0c4c8126f1007b9e728a615"},
-]
-hyperframe = [
-    {file = "hyperframe-5.2.0-py2.py3-none-any.whl", hash = "sha256:5187962cb16dcc078f23cb5a4b110098d546c3f41ff2d4038a9896893bbd0b40"},
-    {file = "hyperframe-5.2.0.tar.gz", hash = "sha256:a9f5c17f2cc3c719b917c4f33ed1c61bd1f8dfac4b1bd23b7c80b3400971b41f"},
+    {file = "httpx-0.14.3-py3-none-any.whl", hash = "sha256:3f2aa21d927ac56bfabdb82d079cf5ddd5b3147130dedc5fe8fed3a24e7a8d34"},
+    {file = "httpx-0.14.3.tar.gz", hash = "sha256:96bd4de4e6b742d672e2338720baf98518efaf85c86e0b48218e1bef9f272333"},
 ]
 idna = [
     {file = "idna-2.10-py2.py3-none-any.whl", hash = "sha256:b97d804b1e9b523befed77c48dacec60e6dcb0b5391d57af6a65a312a90648c0"},
