@@ -23,6 +23,7 @@ from fence.errors import NotFound, Unauthorized, UserError, InternalError, Forbi
 from fence.jwt.utils import get_jwt_header
 from fence.models import query_for_user
 from fence.authz.auth import register_arborist_user
+from fence.crm import hubspot
 
 
 logger = get_logger(__name__)
@@ -68,6 +69,11 @@ def update_user(current_session, additional_info):
     else:
         additional_info_tmp = additional_info
 
+    #TODO - add this to HUBSPOT
+    hubspot.update_user_info(additional_info["firstName"], additional_info["firstName"], additional_info["institution"])
+    additional_info_tmp = {}
+    additional_info_tmp["hubspot_id"] = 1
+
     udm.update_user(current_session, usr.username, additional_info_tmp)
     return get_user_info(current_session, usr.username)
 
@@ -97,6 +103,10 @@ def get_user_info(current_session, username):
         role = "admin"
     else:
         role = "user"
+
+    if user.additional_info and user.additional_info["hubspot_id"] is not None:
+        user_info = hubspot.get_user_info(user.additional_info["hubspot_id"])
+        user.additional_info = user.additional_info.update(user_info)
 
     groups = udm.get_user_groups(current_session, username)["groups"]
     info = {
