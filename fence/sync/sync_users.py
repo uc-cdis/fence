@@ -469,7 +469,6 @@ class UserSyncer(object):
             self.logger.info(
                 f"using study to common exchange area mapping: {study_common_exchange_areas}"
             )
-
         for filepath, privileges in file_dict.items():
             self.logger.info("Reading file {}".format(filepath))
             if os.stat(filepath).st_size == 0:
