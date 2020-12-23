@@ -73,6 +73,9 @@ class RASOauth2Client(Oauth2ClientBase):
             if userinfo.get("UserID"):
                 username = userinfo["UserID"]
                 field_name = "UserID"
+            elif userinfo.get("userid"):
+                username = userinfo["userid"]
+                field_name = "userid"
             elif userinfo.get("preferred_username"):
                 username = userinfo["preferred_username"]
                 field_name = "preferred_username"
