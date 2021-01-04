@@ -94,9 +94,9 @@ OPENID_CONNECT:
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/microsoft/login/'
   okta:
-    discovery_url: 'https://ngisdev.oktapreview.com/oauth2/default/.well-known/oauth-authorization-server'
-    client_id: '0oatcuakqnjbPdg2V0h7'
-    client_secret: '830S4JvI-5Ybdxbjn-_Msg2N8z3_iYwPIJcdyKWf'
+    discovery_url: 'https://<tenant>.oktapreview.com/oauth2/default/.well-known/oauth-authorization-server'
+    client_id: ''
+    client_secret: ''
     redirect_url: '{{BASE_URL}}/login/okta/login/'
   fence:
     client_id: ''
