@@ -22,7 +22,6 @@ from fence.resources.openid.microsoft_oauth2 import (
     MicrosoftOauth2Client as MicrosoftClient,
 )
 from fence.resources.openid.okta_oauth2 import OktaOauth2Client as OktaClient
-from fence.resources.openid.generic_oauth2 import GenericOauth2Client as GenericClient
 from fence.resources.openid.orcid_oauth2 import OrcidOauth2Client as ORCIDClient
 from fence.resources.openid.synapse_oauth2 import SynapseOauth2Client as SynapseClient
 from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
@@ -368,14 +367,6 @@ def _setup_oidc_clients(app):
     if "okta" in oidc:
         app.okta_client = OktaClient(
             config["OPENID_CONNECT"]["okta"],
-            HTTP_PROXY=config.get("HTTP_PROXY"),
-            logger=logger,
-        )
-
-    # Add OIDC client for generic IDP if configured
-    if "generic" in oidc:
-        app.generic_client = GenericClient(
-            config["OPENID_CONNECT"]["generic"],
             HTTP_PROXY=config.get("HTTP_PROXY"),
             logger=logger,
         )

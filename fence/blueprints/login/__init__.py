@@ -37,7 +37,6 @@ IDP_URL_MAP = {
     "synapse": "synapse",
     "microsoft": "microsoft",
     "okta": "okta",
-    "generic": "generic",
     "cognito": "cognito",
     "ras": "ras",
 }
@@ -283,12 +282,6 @@ def make_login_blueprint(app):
         blueprint_api.add_resource(OktaLogin, "/okta", strict_slashes=False)
         blueprint_api.add_resource(
             OktaCallback, "/okta/login", strict_slashes=False
-        )
-
-    if "generic" in configured_idps:
-        blueprint_api.add_resource(GenericLogin, "/generic", strict_slashes=False)
-        blueprint_api.add_resource(
-            GenericCallback, "/generic/login", strict_slashes=False
         )
 
     if "cognito" in configured_idps:

@@ -181,12 +181,6 @@ OPENID_CONNECT:
     client_id: ''
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/okta/login/'
-  # generic is for use with an OIDC compliant IdP. It requires the discover URL to parse the various OIDC endpoints required. 
-  generic:
-    discovery_url: ''
-    client_id: ''
-    client_secret: ''
-    redirect_url: '{{BASE_URL}}/login/generic/login/'
   cognito:
     # You must create a user pool in order to have a discovery url
     discovery_url: 'https://cognito-idp.{REGION}.amazonaws.com/{USER-POOL-ID}/.well-known/openid-configuration'
@@ -268,9 +262,6 @@ LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
   #   idp: microsoft
   # - name: 'Okta Login'
   #   idp: okta
-  # Generic Login: You may want to edit the name to reflect your OIDC idP.
-  # - name: 'Generic Login'
-  #   idp: generic
   # # Cognito login: You may want to edit the name to reflect Cognito's IdP,
   # # especially if Cognito is only using one IdP
   # - name: 'Login from Cognito'
