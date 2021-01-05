@@ -59,6 +59,7 @@ class DefaultVisa(object):
     def _get_single_passport(self, user):
         """
         Retrieve passport stored in fence db
+        TODO: Retrieve visa of specific type.
         """
         encoded_visas = [row.ga4gh_visa for row in user.ga4gh_visas_v1]
         # print(jwt.decode(encoded_visas[0], verify=False))

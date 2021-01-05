@@ -592,6 +592,7 @@ class UserSyncer(object):
                 "creating Project in fence for dbGaP study: {}".format(dbgap_project)
             )
 
+            # @HERE create resource in fence
             project = self._get_or_create(sess, Project, auth_id=dbgap_project)
 
             # need to add dbgap project to arborist

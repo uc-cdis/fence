@@ -14,8 +14,8 @@ import tests.utils
 logger = get_logger(__name__, log_level="debug")
 
 
-def add_test_user(db_session):
-    test_user = User(username="admin_user", id="5678", is_admin=True)
+def add_test_user(db_session, username="admin_user", user_id="5678"):
+    test_user = User(username=username, id=user_id, is_admin=True)
     db_session.add(test_user)
     db_session.commit()
     return test_user
@@ -373,6 +373,7 @@ def test_visa_parse(
     }
 
     test_user = add_test_user(db_session)
+    test_user_2 = add_test_user(db_session, "test_user_1", "1234")
     add_visa_manually(db_session, test_user, rsa_private_key, kid)
     add_refresh_token(db_session, test_user)
 
@@ -470,11 +471,14 @@ def test_visa_parse(
     mock_userinfo.return_value = userinfo_response
 
     ras_client.update_user_visas(test_user)
+    ras_client.update_user_visas(test_user_2)
 
     query_visa = db_session.query(GA4GHVisaV1).first()
-    print(query_visa.ga4gh_visa)
     assert query_visa.ga4gh_visa
     assert query_visa.ga4gh_visa == encoded_visa
 
     visa_class = RASVisa()
-    visa_class._parse_single_user_visas(test_user)
+    user_projects, user_info = visa_class._parse_user_visas(test_user, db_session)
+    assert len(user_projects) == 2
+    assert len(user_info) == 2 
+    # TODO: Check format
