@@ -398,7 +398,7 @@ def test_update_visa_token_with_invalid_visa(
 
     new_visa = {
         "iss": "https://stsstg.nih.gov",
-        "sub": "abcde12345aspdij",
+        "sub": "abcde12345aspdijk",
         "iat": int(time.time()),
         "exp": int(time.time()) + 1000,
         "scope": "openid ga4gh_passport_v1 email profile",
