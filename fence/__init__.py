@@ -23,6 +23,7 @@ from fence.resources.openid.microsoft_oauth2 import (
 )
 from fence.resources.openid.orcid_oauth2 import OrcidOauth2Client as ORCIDClient
 from fence.resources.openid.synapse_oauth2 import SynapseOauth2Client as SynapseClient
+from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
 from fence.resources.storage import StorageManager
 from fence.resources.user.user_session import UserSessionInterface
 from fence.error_handler import get_error_response
@@ -143,13 +144,18 @@ def app_register_blueprints(app):
     def logout_endpoint():
         root = config.get("BASE_URL", "")
         request_next = flask.request.args.get("next", root)
+        force_era_global_logout = (
+            flask.request.args.get("force_era_global_logout") == "true"
+        )
         if request_next.startswith("https") or request_next.startswith("http"):
             next_url = request_next
         else:
             next_url = build_redirect_url(config.get("ROOT_URL", ""), request_next)
         if domain(next_url) not in allowed_login_redirects():
             raise UserError("invalid logout redirect URL: {}".format(next_url))
-        return logout(next_url=next_url)
+        return logout(
+            next_url=next_url, force_era_global_logout=force_era_global_logout
+        )
 
     @app.route("/jwt/keys")
     def public_keys():
@@ -331,6 +337,14 @@ def _setup_oidc_clients(app):
     if "orcid" in oidc:
         app.orcid_client = ORCIDClient(
             config["OPENID_CONNECT"]["orcid"],
+            HTTP_PROXY=config.get("HTTP_PROXY"),
+            logger=logger,
+        )
+
+    # Add OIDC client for RAS if configured.
+    if "ras" in oidc:
+        app.ras_client = RASClient(
+            oidc["ras"],
             HTTP_PROXY=config.get("HTTP_PROXY"),
             logger=logger,
         )

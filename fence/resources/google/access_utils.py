@@ -37,6 +37,46 @@ from fence.utils import get_valid_expiration_from_request
 logger = get_logger(__name__)
 
 
+def bulk_update_google_groups(google_bulk_mapping):
+    """
+    Update Google Groups based on mapping provided from Group -> Users.
+
+    Args:
+        google_bulk_mapping (dict): {"googlegroup@google.com": ["member1", "member2"]}
+    """
+    google_project_id = (
+        config["STORAGE_CREDENTIALS"].get("google", {}).get("google_project_id")
+    )
+    with GoogleCloudManager(google_project_id) as gcm:
+        for group, expected_members in google_bulk_mapping.items():
+            expected_members = set(expected_members)
+            logger.debug(f"Starting diff for group {group}...")
+
+            # get members list from google
+            google_members = set(
+                member.get("email") for member in gcm.get_group_members(group)
+            )
+            logger.debug(f"Google membership for {group}: {google_members}")
+            logger.debug(f"Expected membership for {group}: {expected_members}")
+
+            # diff between expected group membership and actual membership
+            to_delete = set.difference(google_members, expected_members)
+            to_add = set.difference(expected_members, google_members)
+            no_update = set.intersection(google_members, expected_members)
+
+            logger.info(f"All already in group {group}: {no_update}")
+
+            # do add
+            for member_email in to_add:
+                logger.info(f"Adding to group {group}: {member_email}")
+                gcm.add_member_to_group(member_email, group)
+
+            # do remove
+            for member_email in to_delete:
+                logger.info(f"Removing from group {group}: {member_email}")
+                gcm.remove_member_from_group(member_email, group)
+
+
 def get_google_project_number(google_project_id, google_cloud_manager):
     """
     Return a project's "projectNumber" which uniquely identifies it.
@@ -272,23 +312,23 @@ def is_user_member_of_google_project(
     user_id, google_cloud_manager, db=None, membership=None
 ):
     """
-        Return whether or not the given user is a member of the provided
-        Google project ID.
+    Return whether or not the given user is a member of the provided
+    Google project ID.
 
-        This will verify that either the user's email or their linked Google
-        account email exists as a member in the project.
+    This will verify that either the user's email or their linked Google
+    account email exists as a member in the project.
 
-        Args:
-            user_id (int): User identifier
-            google_cloud_manager (GoogleCloudManager): cloud manager instance
-            db(str): db connection string
-            membership (List(GooglePolicyMember) : pre-calculated list of members,
-                Will make call to Google API if membership is None
+    Args:
+        user_id (int): User identifier
+        google_cloud_manager (GoogleCloudManager): cloud manager instance
+        db(str): db connection string
+        membership (List(GooglePolicyMember) : pre-calculated list of members,
+            Will make call to Google API if membership is None
 
-        Returns:
-            bool: whether or not the given user is a member of ALL of the provided
-                  Google project IDs
-        """
+    Returns:
+        bool: whether or not the given user is a member of ALL of the provided
+              Google project IDs
+    """
     session = get_db_session(db)
     user = session.query(User).filter_by(id=user_id).first()
     if not user:
@@ -364,7 +404,7 @@ def is_user_member_of_all_google_projects(
 
 
 def get_user_by_linked_email(linked_email, db=None):
-    """"
+    """ "
     Return user identified by linked_email address
 
     Args:

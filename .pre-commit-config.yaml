@@ -1,0 +1,18 @@
+repos:
+-   repo: git@github.com:Yelp/detect-secrets
+    rev: v0.13.1
+    hooks:
+    -   id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: poetry.lock
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.5.0
+    hooks:
+    -   id: trailing-whitespace
+    -   id: end-of-file-fixer
+    -   id: no-commit-to-branch
+        args: [--branch, develop, --branch, master, --pattern, release/.*]
+-   repo: https://github.com/psf/black
+    rev: 20.8b1
+    hooks:
+    -   id: black

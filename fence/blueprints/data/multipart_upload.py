@@ -1,5 +1,5 @@
 import boto3
-import botocore
+from botocore.exceptions import ClientError
 from retry.api import retry_call
 
 from cdispyutils.hmac4 import generate_aws_presigned_url
@@ -37,7 +37,7 @@ def initilize_multipart_upload(bucket, key, credentials):
             tries=MAX_TRIES,
             jitter=10,
         )
-    except botocore.exceptions.ClientError as error:
+    except ClientError as error:
         logger.error(
             "Error when create multiple part upload for object with uuid {}. Detail {}".format(
                 key, error
@@ -83,7 +83,7 @@ def complete_multipart_upload(bucket, key, credentials, uploadId, parts):
             tries=MAX_TRIES,
             jitter=10,
         )
-    except botocore.exceptions.ClientError as error:
+    except ClientError as error:
         logger.error(
             "Error when completing multiple part upload for object with uuid {}. Detail {}".format(
                 key, error
@@ -108,7 +108,7 @@ def generate_presigned_url_for_uploading_part(
         partNumber(int): part number
         region(str): bucket region
         expires(int): expiration time
-    
+
     Returns:
         presigned_url(str)
     """

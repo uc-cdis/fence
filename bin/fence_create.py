@@ -26,6 +26,7 @@ from fence.scripting.fence_create import (
     remove_expired_google_accounts_from_proxy_groups,
     remove_expired_google_service_account_keys,
     sync_users,
+    download_dbgap_files,
     delete_expired_service_accounts,
     verify_bucket_access_group,
     verify_user_registration,
@@ -97,12 +98,22 @@ def parse_arguments():
     client_create.add_argument(
         "--policies", help="which ABAC policies are granted to this client", nargs="*"
     )
+    client_create.add_argument(
+        "--allowed-scopes", help="which scopes are allowed for this client", nargs="+"
+    )
 
     client_modify = subparsers.add_parser("client-modify")
     client_modify.add_argument("--client", required=True)
     client_modify.add_argument("--urls", required=False, nargs="+")
     client_modify.add_argument("--name", required=False)
     client_modify.add_argument("--description", required=False)
+    client_modify.add_argument("--allowed-scopes", required=False, nargs="+")
+    client_modify.add_argument(
+        "--append",
+        help="append either new allowed scopes or urls instead of replacing",
+        action="store_true",
+        default=False,
+    )
     client_modify.add_argument(
         "--set-auto-approve",
         help="set the oidc process to skip user consent step",
@@ -151,6 +162,20 @@ def parse_arguments():
     dbgap_sync.add_argument(
         "--arborist",
         help="the base URL for the arborist service to sync to",
+        default=None,
+    )
+    dbgap_sync.add_argument(
+        "--folder",
+        required=False,
+        help="destination where dbGaP whitelist files are saved",
+        default=None,
+    )
+
+    dbgap_download = subparsers.add_parser("dbgap-download-access-files")
+    dbgap_download.add_argument(
+        "--folder",
+        required=False,
+        help="destination where dbGaP whitelist files are saved",
         default=None,
     )
 
@@ -381,6 +406,7 @@ def main():
             confidential=confidential,
             arborist=arborist,
             policies=args.policies,
+            allowed_scopes=args.allowed_scopes,
         )
     elif args.action == "client-modify":
         modify_client_action(
@@ -394,6 +420,8 @@ def main():
             unset_auto_approve=args.unset_auto_approve,
             arborist=arborist,
             policies=args.policies,
+            allowed_scopes=args.allowed_scopes,
+            append=args.append,
         )
     elif args.action == "client-delete":
         delete_client_action(DB, args.client)
@@ -414,7 +442,15 @@ def main():
             is_sync_from_dbgap_server=str2bool(args.sync_from_dbgap),
             sync_from_local_csv_dir=args.csv_dir,
             sync_from_local_yaml_file=args.yaml,
+            folder=args.folder,
             arborist=arborist,
+        )
+    elif args.action == "dbgap-download-access-files":
+        download_dbgap_files(
+            dbGaP,
+            STORAGE_CREDENTIALS,
+            DB,
+            folder=args.folder,
         )
     elif args.action == "google-manage-keys":
         remove_expired_google_service_account_keys(DB)

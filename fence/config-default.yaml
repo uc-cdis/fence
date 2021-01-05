@@ -145,6 +145,15 @@ OPENID_CONNECT:
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
     mock_default_user: '0000-0002-2601-8132'
+  ras:
+    discovery_url: 'https://sts.nih.gov/.well-known/openid-configuration'
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/ras/callback'
+    # if mock is true, will fake a successful login response for login
+    # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
+    mock: false
+    mock_default_user: 'test@example.com'
   # Create a client in Azure here:
   #   https://portal.azure.com/#blade/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/RegisteredAppsPreview
   # Currently supports organizational account only, so when registering a new App in
@@ -189,6 +198,7 @@ CLIENT_ALLOWED_SCOPES:
   - "google_credentials"
   - "google_service_account"
   - "google_link"
+  - "ga4gh_passport_v1"
 
 # these are the scopes that CAN be included in a user's own access_token
 USER_ALLOWED_SCOPES:
@@ -200,6 +210,7 @@ USER_ALLOWED_SCOPES:
   - "google_credentials"
   - "google_service_account"
   - "google_link"
+  - "ga4gh_passport_v1"
 
 # these are the scopes that a browser session can create for a user (very
 # similar to USER_ALLOWED_SCOPES, as the session will actually create access_tokens
@@ -213,6 +224,7 @@ SESSION_ALLOWED_SCOPES:
   - "google_credentials"
   - "google_service_account"
   - "google_link"
+  - "ga4gh_passport_v1"
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # LOGIN
@@ -246,6 +258,8 @@ LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
   # - name: 'Login from Cognito'
   #   desc: 'Amazon Cognito login'
   #   idp: cognito
+  # - name: 'Login from RAS'
+  #   idp: ras
   # - name: 'NIH Login'
   #   idp: fence
   #   fence_idp: shibboleth
@@ -364,7 +378,7 @@ MAX_ACCESS_TOKEN_TTL: 3600
 # TEMPORARY: The maximum number of projects allowed in token claims.
 # This config var should be removed after sheepdog and peregrine support
 # auth checks against Arborist, and no longer check the token.
-TOKEN_PROJECTS_CUTOFF: 15
+TOKEN_PROJECTS_CUTOFF: 10
 
 
 ########################################################################################
@@ -463,6 +477,15 @@ DBGAP_ACCESSION_WITH_CONSENT_REGEX: '(?P<phsid>phs[0-9]+)(.(?P<version>v[0-9]+))
 #               Also used during User Syncing process to automate managing Storage
 #               access for users.
 # //////////////////////////////////////////////////////////////////////////////////////
+# When true, this modifies usersync (not fence service itself) such that when syncing user
+# access to a Google storage backend happens in "bulk" by doing a diff *per google group*
+# between what's in Google and what's expected. Then it adds, removes only as necessary.
+# This is in contrast to the default logic which does blind updates per user and ignores
+# 409s from Google.
+# NOTE: This reduces the number of API calls to Google in the general case, but increases
+#       memory usages by usersync (as it has to track all the Google groups and user access)
+GOOGLE_BULK_UPDATES: false
+
 # Configuration for various storage systems for the backend
 # NOTE: Remove the {} and supply backends if needed. Example in comments below
 STORAGE_CREDENTIALS: {}
@@ -744,3 +767,8 @@ SYNAPSE_JWKS_URI:
 SYNAPSE_DISCOVERY_URL:
 SYNAPSE_AUTHZ_TTL: 86400
 ASSUME_ROLE_CACHE_SECONDS: 1800
+# RAS refresh_tokens expire in 15 days
+RAS_REFRESH_EXPIRATION: 1296000
+# Number of projects that can be registered to a Google Service Accont
+SERVICE_ACCOUNT_LIMIT: 6
+>>>>>>> 28d169ac8277e8f8b57fc6ba18d2bcf65bb2c380

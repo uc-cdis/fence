@@ -1,23 +1,15 @@
-# To run: docker run -d -v /path/to/fence-config.yaml:/var/www/fence/fence-config.yaml --name=fence -p 80:80 fence
+# To run: docker run --rm -d -v /path/to/fence-config.yaml:/var/www/fence/fence-config.yaml --name=fence -p 80:80 fence
 # To check running container: docker exec -it fence /bin/bash
 
-FROM quay.io/cdis/python-nginx:pybase3-1.2.0
+FROM quay.io/cdis/python-nginx:pybase3-1.4.2
 
 ENV appname=fence
 
 RUN apk update \
     && apk add postgresql-libs postgresql-dev libffi-dev libressl-dev \
     && apk add linux-headers musl-dev gcc \
-    && apk add curl bash git vim make lftp
-
-COPY . /$appname
-COPY ./deployment/uwsgi/uwsgi.ini /etc/uwsgi/uwsgi.ini
-COPY ./deployment/uwsgi/wsgi.py /$appname/wsgi.py
-WORKDIR /$appname
-
-RUN python -m pip install --upgrade pip \
-    && python -m pip install --upgrade setuptools \
-    && pip install -r requirements.txt
+    && apk add curl bash git vim make lftp \
+    && apk update && apk add openssh && apk add libmcrypt-dev
 
 RUN mkdir -p /var/www/$appname \
     && mkdir -p /var/www/.cache/Python-Eggs/ \
@@ -26,8 +18,6 @@ RUN mkdir -p /var/www/$appname \
     && ln -sf /dev/stderr /var/log/nginx/error.log \
     && chown nginx -R /var/www/.cache/Python-Eggs/ \
     && chown nginx /var/www/$appname
-
-RUN apk update && apk add openssh && apk add libmcrypt-dev
 
 #
 # libmhash is required by mcrypt - below - no apk package available
@@ -50,9 +40,31 @@ RUN (cd /tmp \
   && /bin/rm -rf /tmp/*)
 EXPOSE 80
 
+# aws cli v2 - needed for storing files in s3 during usersync k8s job
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
+    && unzip awscliv2.zip \
+    && ./aws/install \
+    && /bin/rm -rf awscliv2.zip ./aws
+
+# install poetry
+RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
+
+COPY . /$appname
+COPY ./deployment/uwsgi/uwsgi.ini /etc/uwsgi/uwsgi.ini
+COPY ./deployment/uwsgi/wsgi.py /$appname/wsgi.py
+WORKDIR /$appname
+
+# cache so that poetry install will run if these files change
+COPY poetry.lock pyproject.toml /$appname/
+
+# install Fence and dependencies via poetry
+RUN source $HOME/.poetry/env \
+    && poetry config virtualenvs.create false \
+    && poetry install -vv --no-dev --no-interaction \
+    && poetry show -v
+
 RUN COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" >$appname/version_data.py \
-    && VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >>$appname/version_data.py \
-    && python setup.py develop
+    && VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >>$appname/version_data.py
 
 WORKDIR /var/www/$appname
 

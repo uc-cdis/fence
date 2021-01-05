@@ -196,7 +196,7 @@ def test_project_has_invalid_membership(cloud_manager, db_session):
     """
     Test that a project with a non-users or service acounts
      has invalid membership
-     """
+    """
     (cloud_manager.get_project_membership.return_value) = [
         GooglePolicyMember("user", "user@gmail.com"),
         GooglePolicyMember("otherType", "other@gmail.com"),

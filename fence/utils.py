@@ -1,6 +1,7 @@
 import bcrypt
 import collections
 from functools import wraps
+import logging
 import json
 from random import SystemRandom
 import re
@@ -9,17 +10,19 @@ import requests
 from urllib.parse import urlencode
 from urllib.parse import parse_qs, urlsplit, urlunsplit
 
+from cdislogging import get_logger
 import flask
 from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.datastructures import ImmutableMultiDict
 
-from fence.models import Client, GrantType, User, query_for_user
+from fence.models import Client, User, query_for_user
 from fence.errors import NotFound, UserError
 from fence.config import config
 
 
 rng = SystemRandom()
 alphanumeric = string.ascii_uppercase + string.ascii_lowercase + string.digits
+logger = get_logger(__name__)
 
 
 def random_str(length):
@@ -42,6 +45,7 @@ def create_client(
     confidential=True,
     arborist=None,
     policies=None,
+    allowed_scopes=None,
 ):
     client_id = random_str(40)
     if arborist is not None:
@@ -56,6 +60,16 @@ def create_client(
             client_secret.encode("utf-8"), bcrypt.gensalt()
         ).decode("utf-8")
     auth_method = "client_secret_basic" if confidential else "none"
+    allowed_scopes = allowed_scopes or config["CLIENT_ALLOWED_SCOPES"]
+    if not set(allowed_scopes).issubset(set(config["CLIENT_ALLOWED_SCOPES"])):
+        raise ValueError(
+            "Each allowed scope must be one of: {}".format(
+                config["CLIENT_ALLOWED_SCOPES"]
+            )
+        )
+    if "openid" not in allowed_scopes:
+        allowed_scopes.append("openid")
+        logger.warning('Adding required "openid" scope to list of allowed scopes.')
     with driver.session as s:
         user = query_for_user(session=s, username=username)
 
@@ -71,7 +85,7 @@ def create_client(
             client_secret=hashed_secret,
             user=user,
             redirect_uris=urls,
-            _allowed_scopes=" ".join(config["CLIENT_ALLOWED_SCOPES"]),
+            _allowed_scopes=" ".join(allowed_scopes),
             description=description,
             name=name,
             auto_approve=auto_approve,
@@ -282,3 +296,64 @@ def is_valid_expiration(expires_in):
         assert expires_in > 0
     except (ValueError, AssertionError):
         raise UserError("expires_in must be a positive integer")
+
+
+def _print_func_name(function):
+    return "{}.{}".format(function.__module__, function.__name__)
+
+
+def _print_kwargs(kwargs):
+    return ", ".join("{}={}".format(k, repr(v)) for k, v in list(kwargs.items()))
+
+
+def log_backoff_retry(details):
+    args_str = ", ".join(map(str, details["args"]))
+    kwargs_str = (
+        (", " + _print_kwargs(details["kwargs"])) if details.get("kwargs") else ""
+    )
+    func_call_log = "{}({}{})".format(
+        _print_func_name(details["target"]), args_str, kwargs_str
+    )
+    logging.warning(
+        "backoff: call {func_call} delay {wait:0.1f} seconds after {tries} tries".format(
+            func_call=func_call_log, **details
+        )
+    )
+
+
+def log_backoff_giveup(details):
+    args_str = ", ".join(map(str, details["args"]))
+    kwargs_str = (
+        (", " + _print_kwargs(details["kwargs"])) if details.get("kwargs") else ""
+    )
+    func_call_log = "{}({}{})".format(
+        _print_func_name(details["target"]), args_str, kwargs_str
+    )
+    logging.error(
+        "backoff: gave up call {func_call} after {tries} tries; exception: {exc}".format(
+            func_call=func_call_log, exc=sys.exc_info(), **details
+        )
+    )
+
+
+def exception_do_not_retry(error):
+    def _is_status(code):
+        return (
+            str(getattr(error, "code", None)) == code
+            or str(getattr(error, "status", None)) == code
+            or str(getattr(error, "status_code", None)) == code
+        )
+
+    if _is_status("409") or _is_status("404"):
+        return True
+
+    return False
+
+
+# Default settings to control usage of backoff library.
+DEFAULT_BACKOFF_SETTINGS = {
+    "on_backoff": log_backoff_retry,
+    "on_giveup": log_backoff_giveup,
+    "max_tries": 3,
+    "giveup": exception_do_not_retry,
+}

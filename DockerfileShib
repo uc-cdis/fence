@@ -1,6 +1,10 @@
 # To run: docker run -d -v /path/to/fence-config.yaml:/var/www/fence/fence-config.yaml --name=fence -p 80:80 fence
 # To check running container: docker exec -it fence /bin/bash
 
+# (pauline, 07/20/2020) Dockerfile for the fence-shib image.
+# This Dockerfile is NOT compatible yet with the latest Fence (Python 3
+# and depdencency management via Poetry) - for now, use Fence 2.7.x.
+
 FROM ubuntu:16.04
 
 ENV DEBIAN_FRONTEND=noninteractive

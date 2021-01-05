@@ -26,7 +26,7 @@ import bcrypt
 from cdisutilstest.code.storage_client_mock import get_client
 import jwt
 from mock import patch, MagicMock
-from moto import mock_s3, mock_sts
+from moto import mock_sts
 import pytest
 import requests
 from sqlalchemy.ext.compiler import compiles
@@ -37,6 +37,7 @@ from fence import app_init
 from fence import models
 from fence.jwt.keys import Keypair
 from fence.config import config
+from fence.errors import NotFound
 
 import tests
 from tests import test_settings
@@ -412,6 +413,7 @@ def unauthorized_oauth_user(app, db_session):
 def indexd_client(app, request):
     mocker = Mocker()
     mocker.mock_functions()
+    record = {}
 
     if request.param == "gs":
         record = {
@@ -469,6 +471,26 @@ def indexd_client(app, request):
             "created_date": "",
             "updated_date": "",
         }
+    elif request.param == "nonexistent_guid":
+        # throw an error when requested to simulate the GUID not existing
+        # TODO (rudyardrichter, 2018-11-03): consolidate things needing to do this patch
+        mock = MagicMock(side_effect=NotFound("no guid"))
+        indexd_patcher = patch(
+            "fence.blueprints.data.indexd.IndexedFile.index_document", mock
+        )
+        blank_patcher = patch(
+            "fence.blueprints.data.indexd.BlankIndex.index_document", mock
+        )
+        mocker.add_mock(indexd_patcher)
+        mocker.add_mock(blank_patcher)
+
+        output = {"mocker": mocker, "indexed_file_location": None}
+
+        yield output
+
+        mocker.unmock_functions()
+
+        return
     else:
         record = {
             "did": "",
@@ -488,7 +510,11 @@ def indexd_client(app, request):
     indexd_patcher = patch(
         "fence.blueprints.data.indexd.IndexedFile.index_document", record
     )
+    blank_patcher = patch(
+        "fence.blueprints.data.indexd.BlankIndex.index_document", record
+    )
     mocker.add_mock(indexd_patcher)
+    mocker.add_mock(blank_patcher)
 
     output = {
         "mocker": mocker,
@@ -496,7 +522,9 @@ def indexd_client(app, request):
         "indexed_file_location": request.param.split("_")[0],
     }
 
-    return output
+    yield output
+
+    mocker.unmock_functions()
 
 
 @pytest.fixture(scope="function")
@@ -604,6 +632,7 @@ def indexd_client_with_arborist(app, request):
 def unauthorized_indexd_client(app, request):
     mocker = Mocker()
     mocker.mock_functions()
+    record = {}
 
     if request.param == "gs":
         record = {

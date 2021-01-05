@@ -2,13 +2,13 @@ import flask
 
 from cdislogging import get_logger
 
-from fence.auth import login_required, require_auth_header, current_token
+from fence.auth import login_required, require_auth_header, current_token, get_jwt
 from fence.blueprints.data.indexd import (
     BlankIndex,
     IndexedFile,
     get_signed_url_for_file,
 )
-from fence.errors import Forbidden, InternalError, UserError
+from fence.errors import Forbidden, InternalError, UserError, Forbidden
 from fence.utils import is_valid_expiration
 from fence.authz.auth import check_arborist_auth
 
@@ -26,32 +26,89 @@ def delete_data_file(file_id):
     """
     Delete all the locations for a data file which was uploaded to bucket storage from
     indexd.
-
-    If the data file is still at the first stage where it belongs to just the uploader
-    (and isn't linked to a project), then the deleting user should match the uploader
-    field on the record in indexd. Otherwise, the user must have delete permissions in
-    the project.
+    If the data file has authz matching the user's permissions, delete it.
+    If the data file has no authz, then the deleting user should match the uploader
+    field on the record in indexd.
 
     Args:
         file_id (str): GUID of file to delete
     """
     record = IndexedFile(file_id)
-    # check auth: user must have uploaded the file (so `uploader` field on the record is
-    # this user)
+
+    authz = record.index_document.get("authz")
+    has_correct_authz = None
+    if authz:
+        logger.debug(
+            "Trying to ask arborist if user can delete in fence for {}".format(authz)
+        )
+        has_correct_authz = flask.current_app.arborist.auth_request(
+            jwt=get_jwt(), service="fence", methods="delete", resources=authz
+        )
+
+        # If authz is not empty, use *only* arborist to check if user can delete
+        # Don't fall back on uploader -- this prevents users from escalating from edit to
+        # delete permissions by changing the uploader field to their own username
+        # (b/c users only have edit access through arborist/authz)
+        if has_correct_authz:
+            logger.info("Deleting record and files for {}".format(file_id))
+            message, status_code = record.delete_files(delete_all=True)
+            if str(status_code)[0] != "2":
+                return flask.jsonify({"message": message}), status_code
+
+            try:
+                return record.delete()
+            except Exception as e:
+                logger.error(e)
+                return (
+                    flask.jsonify(
+                        {"message": "There was an error deleting this index record."}
+                    ),
+                    500,
+                )
+        else:
+            return (
+                flask.jsonify(
+                    {
+                        "message": "You do not have arborist permissions to delete this file."
+                    }
+                ),
+                403,
+            )
+
+    # If authz is empty: use uploader == user to see if user can delete.
+    uploader_mismatch_error_message = "You cannot delete this file because the uploader field indicates it does not belong to you."
     uploader = record.index_document.get("uploader")
     if not uploader:
-        raise Forbidden("deleting submitted records is not supported")
+        return (
+            flask.jsonify({"message": uploader_mismatch_error_message}),
+            403,
+        )
     if current_token["context"]["user"]["name"] != uploader:
-        raise Forbidden("user is not uploader for file {}".format(file_id))
+        return (
+            flask.jsonify({"message": uploader_mismatch_error_message}),
+            403,
+        )
     logger.info("deleting record and files for {}".format(file_id))
-    record.delete_files(delete_all=True)
-    return record.delete()
+
+    message, status_code = record.delete_files(delete_all=True)
+    if str(status_code)[0] != "2":
+        return flask.jsonify({"message": message}), status_code
+
+    try:
+        return record.delete()
+    except Exception as e:
+        logger.error(e)
+        return (
+            flask.jsonify(
+                {"message": "There was an error deleting this index record."}
+            ),
+            500,
+        )
 
 
 @blueprint.route("/upload", methods=["POST"])
 @require_auth_header(aud={"data"})
 @login_required({"data"})
-@check_arborist_auth(resource="/data_file", method="file_upload")
 def upload_data_file():
     """
     Return a presigned URL for use with uploading a data file.
@@ -65,17 +122,60 @@ def upload_data_file():
     params = flask.request.get_json()
     if not params:
         raise UserError("wrong Content-Type; expected application/json")
+
     if "file_name" not in params:
         raise UserError("missing required argument `file_name`")
-    blank_index = BlankIndex(file_name=params["file_name"])
+
+    authorized = False
+    authz_err_msg = "Auth error when attempting to get a presigned URL for upload. User must have '{}' access on '{}'."
+
+    authz = params.get("authz")
+    uploader = None
+
+    if authz:
+        # if requesting an authz field, using new authorization method which doesn't
+        # rely on uploader field, so clear it out
+        uploader = ""
+        authorized = flask.current_app.arborist.auth_request(
+            jwt=get_jwt(),
+            service="fence",
+            methods=["create", "write-storage"],
+            resources=authz,
+        )
+        if not authorized:
+            logger.error(authz_err_msg.format("create' and 'write-storage", authz))
+    else:
+        # no 'authz' was provided, so fall back on 'file_upload' logic
+        authorized = flask.current_app.arborist.auth_request(
+            jwt=get_jwt(),
+            service="fence",
+            methods=["file_upload"],
+            resources=["/data_file"],
+        )
+        if not authorized:
+            logger.error(authz_err_msg.format("file_upload", "/data_file"))
+
+    if not authorized:
+        raise Forbidden(
+            "You do not have access to upload data. You either need "
+            "general file uploader permissions or create and write-storage permissions "
+            "on the authz resources you specified (if you specified any)."
+        )
+
+    blank_index = BlankIndex(
+        file_name=params["file_name"], authz=params.get("authz"), uploader=uploader
+    )
     expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
+
     if "expires_in" in params:
         is_valid_expiration(params["expires_in"])
         expires_in = min(params["expires_in"], expires_in)
+
     response = {
         "guid": blank_index.guid,
         "url": blank_index.make_signed_url(params["file_name"], expires_in=expires_in),
     }
+
     return flask.jsonify(response), 201
 
 
@@ -172,7 +272,12 @@ def upload_file(file_id):
     """
     Get a presigned url to upload a file given by file_id.
     """
-    result = get_signed_url_for_file("upload", file_id)
+    file_name = flask.request.args.get("file_name")
+    if not file_name:
+        logger.warning(f"file_name not provided, using GUID: {file_id}")
+        file_name = str(file_id)
+
+    result = get_signed_url_for_file("upload", file_id, file_name=file_name)
     return flask.jsonify(result)
 
 

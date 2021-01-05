@@ -1,4 +1,4 @@
-# Fence 
+# Fence
 
 [![Build Status](https://travis-ci.org/uc-cdis/fence.svg?branch=master)](https://travis-ci.org/uc-cdis/fence)
 
@@ -95,10 +95,15 @@ Relying Party - an OAuth 2.0 Client which uses (requests) OpenID Connect.
 Fence can be configured to support different Identity Providers (IdPs) for AuthN.
 At the moment, supported IDPs include:
 - Google
-- [Shibboleth](docs/shibboleth.md)
+- [Shibboleth](docs/fence_shibboleth.md)
   - NIH iTrust
   - InCommon
   - eduGAIN
+- Cognito
+- Synapse
+- Microsoft
+- ORCID
+- RAS
 
 ## OIDC & OAuth2
 
@@ -216,11 +221,11 @@ See [Fence and Google](docs/google_architecture.md) for more details on data acc
 
 #### Install Requirements and Fence
 
+Install [Poetry](https://python-poetry.org/docs/#installation).
+
 ```bash
-# Install requirements.
-pip install -r requirements.txt
-# Install fence in your preferred manner.
-python setup.py develop
+# Install Fence and dependencies
+poetry install
 ```
 
 #### Create Configuration File
@@ -502,6 +507,11 @@ If there are more than one URL to add, use space to delimit them like this:
 
 ```bash
 fence-create client-create --urls 'https://url1/' 'https://url2/' --client ...
+```
+
+To specify allowed scopes, use the `allowed-scopes` argument:
+```bash
+fence-create client-create ...  --allowed-scopes openid user data
 ```
 
 #### Modify OAuth Client

@@ -1,10 +1,7 @@
-import errno
 import glob
 import os
 import re
-import shutil
 import subprocess as sp
-import tempfile
 import yaml
 import copy
 from contextlib import contextmanager
@@ -14,7 +11,8 @@ from stat import S_ISDIR
 
 import paramiko
 from cdislogging import get_logger
-from gen3authz.client.arborist.client import ArboristError
+from email_validator import validate_email, EmailNotValidError
+from gen3authz.client.arborist.errors import ArboristError
 from gen3users.validation import validate_user_yaml
 from paramiko.proxy import ProxyCommand
 from sqlalchemy.exc import IntegrityError
@@ -32,6 +30,7 @@ from fence.models import (
     Client,
 )
 from fence.resources.storage import StorageManager
+from fence.resources.google.access_utils import bulk_update_google_groups
 from fence.sync import utils
 
 
@@ -217,12 +216,20 @@ class UserYAML(object):
                 resource_permissions[resource] = set(project["privilege"])
 
             user_info[username] = {
-                "email": details.get("email", username),
+                "email": details.get("email", ""),
                 "display_name": details.get("display_name", ""),
                 "phone_number": details.get("phone_number", ""),
                 "tags": details.get("tags", {}),
                 "admin": details.get("admin", False),
             }
+            if not details.get("email"):
+                try:
+                    valid = validate_email(
+                        username, allow_smtputf8=False, check_deliverability=False
+                    )
+                    user_info[username]["email"] = valid.email
+                except EmailNotValidError:
+                    pass
             projects[username] = privileges
             user_abac[username] = resource_permissions
 
@@ -279,6 +286,7 @@ class UserSyncer(object):
         sync_from_local_csv_dir=None,
         sync_from_local_yaml_file=None,
         arborist=None,
+        folder=None,
     ):
         """
         Syncs ACL files from dbGap to auth database and storage backends
@@ -292,6 +300,7 @@ class UserSyncer(object):
             arborist:
                 ArboristClient instance if the syncer should also create
                 resources in arborist
+            folder: a local folder where dbgap telemetry files will sync to
         """
         self.sync_from_local_csv_dir = sync_from_local_csv_dir
         self.sync_from_local_yaml_file = sync_from_local_yaml_file
@@ -309,6 +318,7 @@ class UserSyncer(object):
             "user_syncer", log_level="debug" if config["DEBUG"] is True else "info"
         )
         self.arborist_client = arborist
+        self.folder = folder
 
         if storage_credentials:
             self.storage_manager = StorageManager(
@@ -369,7 +379,12 @@ class UserSyncer(object):
             if proxy:
                 parameters["sock"] = proxy
 
-            self.logger.info("SSH connection parameters: {}".format(parameters))
+            self.logger.info(
+                "SSH connection hostname:post {}:{}".format(
+                    parameters.get("hostname", "unknown"),
+                    parameters.get("port", "unknown"),
+                )
+            )
             client.connect(**parameters)
             with client.open_sftp() as sftp:
                 download_dir(sftp, "./", path)
@@ -388,12 +403,14 @@ class UserSyncer(object):
         Returns:
             None
         """
-        execstr = 'lftp -u {},{}  {} -e "set ftp:proxy http://{}; mirror . {}; exit"'.format(
-            server.get("username", ""),
-            server.get("password", ""),
-            server.get("host", ""),
-            server.get("proxy", ""),
-            path,
+        execstr = (
+            'lftp -u {},{}  {} -e "set ftp:proxy http://{}; mirror . {}; exit"'.format(
+                server.get("username", ""),
+                server.get("password", ""),
+                server.get("host", ""),
+                server.get("proxy", ""),
+                path,
+            )
         )
         os.system(execstr)
 
@@ -447,6 +464,7 @@ class UserSyncer(object):
         study_common_exchange_areas = dbgap_config.get(
             "study_common_exchange_areas", {}
         )
+
         if parse_consent_code and enable_common_exchange_area_access:
             self.logger.info(
                 f"using study to common exchange area mapping: {study_common_exchange_areas}"
@@ -674,6 +692,10 @@ class UserSyncer(object):
         Return:
             None
         """
+        google_bulk_mapping = None
+        if config["GOOGLE_BULK_UPDATES"]:
+            google_bulk_mapping = {}
+
         self._init_projects(user_project, sess)
 
         auth_provider_list = [
@@ -708,9 +730,20 @@ class UserSyncer(object):
         # when updating users we want to maintain case sesitivity in the username so
         # pass the original, non-lowered user_info dict
         self._upsert_userinfo(sess, user_info)
-        self._revoke_from_storage(to_delete, sess)
+
+        self._revoke_from_storage(
+            to_delete, sess, google_bulk_mapping=google_bulk_mapping
+        )
+
         self._revoke_from_db(sess, to_delete)
-        self._grant_from_storage(to_add, user_project_lowercase, sess)
+
+        self._grant_from_storage(
+            to_add,
+            user_project_lowercase,
+            sess,
+            google_bulk_mapping=google_bulk_mapping,
+        )
+
         self._grant_from_db(
             sess,
             to_add,
@@ -720,10 +753,20 @@ class UserSyncer(object):
         )
 
         # re-grant
-        self._grant_from_storage(to_update, user_project_lowercase, sess)
+        self._grant_from_storage(
+            to_update,
+            user_project_lowercase,
+            sess,
+            google_bulk_mapping=google_bulk_mapping,
+        )
         self._update_from_db(sess, to_update, user_project_lowercase)
 
         self._validate_and_update_user_admin(sess, user_info_lowercase)
+
+        if config["GOOGLE_BULK_UPDATES"]:
+            self.logger.info("Doing bulk Google update...")
+            bulk_update_google_groups(google_bulk_mapping)
+            self.logger.info("Bulk Google update done!")
 
         sess.commit()
 
@@ -890,7 +933,7 @@ class UserSyncer(object):
                     tag = Tag(key=k, value=v)
                     u.tags.append(tag)
 
-    def _revoke_from_storage(self, to_delete, sess):
+    def _revoke_from_storage(self, to_delete, sess, google_bulk_mapping=None):
         """
         If a project have storage backend, revoke user's access to buckets in
         the storage backend.
@@ -906,6 +949,16 @@ class UserSyncer(object):
                 sess.query(Project).filter(Project.auth_id == project_auth_id).first()
             )
             for sa in project.storage_access:
+                if not hasattr(self, "storage_manager"):
+                    self.logger.error(
+                        (
+                            "CANNOT revoke {} access to {} in {} because there is NO "
+                            "configured storage accesses at all. See configuration. "
+                            "Continuing anyway..."
+                        ).format(username, project_auth_id, sa.provider.name)
+                    )
+                    continue
+
                 self.logger.info(
                     "revoke {} access to {} in {}".format(
                         username, project_auth_id, sa.provider.name
@@ -916,9 +969,10 @@ class UserSyncer(object):
                     username=username,
                     project=project,
                     session=sess,
+                    google_bulk_mapping=google_bulk_mapping,
                 )
 
-    def _grant_from_storage(self, to_add, user_project, sess):
+    def _grant_from_storage(self, to_add, user_project, sess, google_bulk_mapping=None):
         """
         If a project have storage backend, grant user's access to buckets in
         the storage backend.
@@ -936,6 +990,16 @@ class UserSyncer(object):
             project = self._projects[project_auth_id]
             for sa in project.storage_access:
                 access = list(user_project[username][project_auth_id])
+                if not hasattr(self, "storage_manager"):
+                    self.logger.error(
+                        (
+                            "CANNOT grant {} access {} to {} in {} because there is NO "
+                            "configured storage accesses at all. See configuration. "
+                            "Continuing anyway..."
+                        ).format(username, access, project_auth_id, sa.provider.name)
+                    )
+                    continue
+
                 self.logger.info(
                     "grant {} access {} to {} in {}".format(
                         username, access, project_auth_id, sa.provider.name
@@ -947,6 +1011,7 @@ class UserSyncer(object):
                     project=project,
                     access=access,
                     session=sess,
+                    google_bulk_mapping=google_bulk_mapping,
                 )
 
     def _init_projects(self, user_project, sess):
@@ -999,16 +1064,17 @@ class UserSyncer(object):
             user_info (dict)
         """
         dbgap_file_list = []
-        tmpdir = tempfile.mkdtemp()
-        server = dbgap_config["info"]
-        protocol = dbgap_config["protocol"]
-        self.logger.info("Download from server")
+        hostname = dbgap_config["info"]["host"]
+        username = dbgap_config["info"]["username"]
+        folderdir = os.path.join(str(self.folder), str(hostname), str(username))
+
         try:
-            if protocol == "sftp":
-                self._get_from_sftp_with_proxy(server, tmpdir)
+            if os.path.exists(folderdir):
+                dbgap_file_list = glob.glob(
+                    os.path.join(folderdir, "*")
+                )  # get lists of file from folder
             else:
-                self._get_from_ftp_with_proxy(server, tmpdir)
-            dbgap_file_list = glob.glob(os.path.join(tmpdir, "*"))
+                dbgap_file_list = self._download(dbgap_config)
         except Exception as e:
             self.logger.error(e)
             exit(1)
@@ -1016,12 +1082,7 @@ class UserSyncer(object):
         user_projects, user_info = self._get_user_permissions_from_csv_list(
             dbgap_file_list, encrypted=True, session=sess, dbgap_config=dbgap_config
         )
-        try:
-            shutil.rmtree(tmpdir)
-        except OSError as e:
-            self.logger.info(e)
-            if e.errno != errno.ENOENT:
-                raise
+
         user_projects = self.parse_projects(user_projects)
         return user_projects, user_info
 
@@ -1087,6 +1148,35 @@ class UserSyncer(object):
         else:
             with self.driver.session as s:
                 self._sync(s)
+
+    def download(self):
+        for dbgap_server in self.dbGaP:
+            self._download(dbgap_server)
+
+    def _download(self, dbgap_config):
+        """
+        Download files from dbgap server.
+        """
+        server = dbgap_config["info"]
+        protocol = dbgap_config["protocol"]
+        hostname = server["host"]
+        username = server["username"]
+        folderdir = os.path.join(str(self.folder), str(hostname), str(username))
+
+        if not os.path.exists(folderdir):
+            os.makedirs(folderdir)
+
+        self.logger.info("Download from server")
+        try:
+            if protocol == "sftp":
+                self._get_from_sftp_with_proxy(server, folderdir)
+            else:
+                self._get_from_ftp_with_proxy(server, folderdir)
+            dbgap_files = glob.glob(os.path.join(folderdir, "*"))
+            return dbgap_files
+        except Exception as e:
+            self.logger.error(e)
+            exit(1)
 
     def _sync(self, sess):
         """
@@ -1561,23 +1651,33 @@ class UserSyncer(object):
 
         try:
             for resource_namespace in arborist_resource_namespaces:
-                response = self.arborist_client.update_resource(
-                    resource_namespace,
-                    {"name": dbgap_study, "description": "synced from dbGaP"},
-                    create_parents=True,
-                )
-                self.logger.info(
-                    "added arborist resource under parent path: {} for dbgap project {}.".format(
-                        resource_namespace, dbgap_study
+                # The update_resource function creates a put request which will overwrite
+                # existing resources. Therefore, only create if get_resource returns
+                # the resource doesn't exist.
+                full_resource_path = resource_namespace + dbgap_study
+                if not self.arborist_client.get_resource(full_resource_path):
+                    response = self.arborist_client.update_resource(
+                        resource_namespace,
+                        {"name": dbgap_study, "description": "synced from dbGaP"},
+                        create_parents=True,
                     )
-                )
-                self.logger.debug("Arborist response: {}".format(response))
+                    self.logger.info(
+                        "added arborist resource under parent path: {} for dbgap project {}.".format(
+                            resource_namespace, dbgap_study
+                        )
+                    )
+                    self.logger.debug("Arborist response: {}".format(response))
+                else:
+                    self.logger.debug(
+                        "Arborist resource already exists: {}".format(
+                            full_resource_path
+                        )
+                    )
+
                 if dbgap_study not in self._dbgap_study_to_resources:
                     self._dbgap_study_to_resources[dbgap_study] = []
 
-                self._dbgap_study_to_resources[dbgap_study].append(
-                    resource_namespace + dbgap_study
-                )
+                self._dbgap_study_to_resources[dbgap_study].append(full_resource_path)
 
             return arborist_resource_namespaces
         except ArboristError as e:

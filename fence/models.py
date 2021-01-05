@@ -1,10 +1,8 @@
 """
 Define sqlalchemy models.
-
 The models here inherit from the `Base` in userdatamodel, so when the fence app
 is initialized, the resulting db session includes everything from userdatamodel
 and this file.
-
 The `migrate` function in this file is called every init and can be used for
 database migrations.
 """
@@ -71,11 +69,9 @@ def query_for_user(session, username):
 class ClientAuthType(Enum):
     """
     List the possible types of OAuth client authentication, which are
-
     - None (no authentication).
     - Basic (using basic HTTP authorization header to include the client ID & secret).
     - POST (the client ID & secret are included in the body of a POST request).
-
     These all have a corresponding string which identifies them to authlib.
     """
 
@@ -542,6 +538,47 @@ class AssumeRoleCache(Base):
     aws_access_key_id = Column(String())
     aws_secret_access_key = Column(String())
     aws_session_token = Column(String())
+
+
+class GA4GHVisaV1(Base):
+
+    __tablename__ = "ga4gh_visa_v1"
+
+    # As Fence will consume visas from many visa issuers, will not use jti as pkey
+    id = Column(BigInteger, primary_key=True)
+
+    user_id = Column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
+    user = relationship(
+        "User",
+        backref=backref(
+            "ga4gh_visas_v1", cascade="all, delete-orphan", passive_deletes=True
+        ),
+    )
+    ga4gh_visa = Column(Text, nullable=False)  # In encoded form
+    source = Column(String, nullable=False)
+    type = Column(String, nullable=False)
+    asserted = Column(BigInteger, nullable=False)
+    expires = Column(BigInteger, nullable=False)
+
+
+class UpstreamRefreshToken(Base):
+    # General table to store any refresh_token sent from any oidc client
+
+    __tablename__ = "upstream_refresh_token"
+
+    id = Column(BigInteger, primary_key=True)
+
+    user_id = Column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
+    user = relationship(
+        "User",
+        backref=backref(
+            "upstream_refresh_tokens",
+            cascade="all, delete-orphan",
+            passive_deletes=True,
+        ),
+    )
+    refresh_token = Column(Text, nullable=False)
+    expires = Column(BigInteger, nullable=False)
 
 
 to_timestamp = (
@@ -1030,7 +1067,6 @@ def _remove_policy(driver, md):
 def _add_google_project_id(driver, md):
     """
     Add new unique not null field to GoogleServiceAccount.
-
     In order to do this without errors, we have to:
         - add the field and allow null (for all previous rows)
         - update all null entries to be unique

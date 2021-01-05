@@ -52,7 +52,7 @@ ANONYMOUS_USER_ID = "anonymous"
 ANONYMOUS_USERNAME = "anonymous"
 
 
-def get_signed_url_for_file(action, file_id):
+def get_signed_url_for_file(action, file_id, file_name=None):
     requested_protocol = flask.request.args.get("protocol", None)
     r_pays_project = flask.request.args.get("userProject", None)
 
@@ -74,36 +74,44 @@ def get_signed_url_for_file(action, file_id):
         expires_in,
         force_signed_url=force_signed_url,
         r_pays_project=r_pays_project,
+        file_name=file_name,
     )
     return {"url": signed_url}
 
 
 class BlankIndex(object):
     """
-    Create a new blank record in indexd, to use for the data upload flow.
+    A blank record in indexd, to use for the data upload flow.
 
     See docs on data upload flow for further details:
 
         https://github.com/uc-cdis/cdis-wiki/tree/master/dev/gen3/data_upload
     """
 
-    def __init__(self, uploader=None, file_name=None, logger_=None):
+    def __init__(
+        self, uploader=None, file_name=None, logger_=None, guid=None, authz=None
+    ):
         self.logger = logger_ or logger
         self.indexd = (
             flask.current_app.config.get("INDEXD")
             or flask.current_app.config["BASE_URL"] + "/index"
         )
-        self.uploader = uploader or current_token["context"]["user"]["name"]
+
+        # allow passing "" empty string to signify you do NOT want
+        # uploader to be populated. If nothing is provided, default
+        # to parsing from token
+        if uploader == "":
+            self.uploader = None
+        elif uploader:
+            self.uploader = uploader
+        else:
+            self.uploader = current_token["context"]["user"]["name"]
+
         self.file_name = file_name
+        self.authz = authz
 
-    @property
-    def guid(self):
-        """
-        Return the GUID for this record in indexd.
-
-        Currently the field in indexd is actually called ``did``.
-        """
-        return self.index_document["did"]
+        # if a guid is not provided, this will create a blank record for you
+        self.guid = guid or self.index_document["did"]
 
     @cached_property
     def index_document(self):
@@ -117,8 +125,24 @@ class BlankIndex(object):
         """
         index_url = self.indexd.rstrip("/") + "/index/blank/"
         params = {"uploader": self.uploader, "file_name": self.file_name}
-        auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
-        indexd_response = requests.post(index_url, json=params, auth=auth)
+
+        # if attempting to set record's authz field, need to pass token
+        # through
+        if self.authz:
+            params["authz"] = self.authz
+            token = get_jwt()
+
+            auth = None
+            headers = {"Authorization": f"bearer {token}"}
+            logger.info("passing users authorization header to create blank record")
+        else:
+            logger.info("using indexd basic auth to create blank record")
+            auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
+            headers = {}
+
+        indexd_response = requests.post(
+            index_url, json=params, headers=headers, auth=auth
+        )
         if indexd_response.status_code not in [200, 201]:
             try:
                 data = indexd_response.json()
@@ -303,7 +327,13 @@ class IndexedFile(object):
         return list(map(IndexedFileLocation.from_url, urls))
 
     def get_signed_url(
-        self, protocol, action, expires_in, force_signed_url=True, r_pays_project=None
+        self,
+        protocol,
+        action,
+        expires_in,
+        force_signed_url=True,
+        r_pays_project=None,
+        file_name=None,
     ):
         if self.public and action == "upload":
             raise Unauthorized("Cannot upload on public files")
@@ -316,12 +346,21 @@ class IndexedFile(object):
         if action is not None and action not in SUPPORTED_ACTIONS:
             raise NotSupported("action {} is not supported".format(action))
         return self._get_signed_url(
-            protocol, action, expires_in, force_signed_url, r_pays_project
+            protocol, action, expires_in, force_signed_url, r_pays_project, file_name
         )
 
     def _get_signed_url(
-        self, protocol, action, expires_in, force_signed_url, r_pays_project
+        self, protocol, action, expires_in, force_signed_url, r_pays_project, file_name
     ):
+        if action == "upload":
+            # NOTE: self.index_document ensures the GUID exists in indexd and raises
+            #       an error if not (which is expected to be caught upstream in the
+            #       app)
+            blank_record = BlankIndex(uploader="", guid=self.index_document.get("did"))
+            return blank_record.make_signed_url(
+                file_name=file_name, expires_in=expires_in
+            )
+
         if not protocol:
             # no protocol specified, return first location as signed url
             try:
@@ -366,6 +405,9 @@ class IndexedFile(object):
         if not self.index_document.get("authz"):
             raise ValueError("index record missing `authz`")
 
+        logger.debug(
+            f"authz check can user {action} on {self.index_document['authz']} for fence?"
+        )
         return flask.current_app.arborist.auth_request(
             jwt=get_jwt(),
             service="fence",
@@ -394,6 +436,9 @@ class IndexedFile(object):
                 username = flask.g.token["context"]["user"]["name"]
             else:
                 username = flask.g.user.username
+            logger.debug(
+                f"authz check using uploader field: {self.index_document.get('uploader')} == {username}"
+            )
             return self.index_document.get("uploader") == username
 
         try:
@@ -436,7 +481,20 @@ class IndexedFile(object):
             ]
         for location in locations_to_delete:
             bucket = location.bucket_name()
-            flask.current_app.boto.delete_data_file(bucket, self.file_id)
+
+            file_suffix = ""
+            try:
+                file_suffix = location.file_name()
+            except Exception as e:
+                logger.info(e)
+                file_suffix = self.file_id
+
+            logger.info(
+                "Attempting to delete file named {} from bucket {}.".format(
+                    file_suffix, bucket
+                )
+            )
+            return location.delete(bucket, file_suffix)
 
     @login_required({"data"})
     def delete(self):
@@ -603,6 +661,10 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 return bucket
         return None
 
+    def file_name(self):
+        file_name = self.parsed_url.path[1:]
+        return file_name
+
     @classmethod
     def get_credential_to_access_bucket(
         cls, bucket_name, aws_creds, expires_in, boto=None
@@ -699,15 +761,11 @@ class S3IndexedFileLocation(IndexedFileLocation):
         if aws_access_key_id == "*" or (public_data and not force_signed_url):
             return http_url
 
-        # only attempt to get the region when we're not specifying an
-        # s3-compatible endpoint URL (ex: no need for region when using cleversafe)
-        region = None
-        if not bucket.get("endpoint_url"):
-            region = self.get_bucket_region()
-            if not region:
-                region = flask.current_app.boto.get_bucket_region(
-                    self.parsed_url.netloc, credential
-                )
+        region = self.get_bucket_region()
+        if not region and not bucket.get("endpoint_url"):
+            region = flask.current_app.boto.get_bucket_region(
+                self.parsed_url.netloc, credential
+            )
 
         user_info = _get_user_info()
 
@@ -804,11 +862,21 @@ class S3IndexedFileLocation(IndexedFileLocation):
             parts,
         )
 
+    def delete(self, bucket, file_id):
+        try:
+            return flask.current_app.boto.delete_data_file(bucket, file_id)
+        except Exception as e:
+            logger.error(e)
+            return ("Failed to delete data file.", 500)
+
 
 class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     """
     An indexed file that lives in a Google Storage bucket.
     """
+
+    def get_resource_path(self):
+        return self.parsed_url.netloc.strip("/") + "/" + self.parsed_url.path.strip("/")
 
     def get_signed_url(
         self,
@@ -818,9 +886,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         force_signed_url=True,
         r_pays_project=None,
     ):
-        resource_path = (
-            self.parsed_url.netloc.strip("/") + "/" + self.parsed_url.path.strip("/")
-        )
+        resource_path = self.get_resource_path()
 
         user_info = _get_user_info()
 
@@ -860,6 +926,28 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             requester_pays_user_project=r_pays_project,
         )
         return final_url
+
+    def bucket_name(self):
+        resource_path = self.get_resource_path()
+
+        bucket_name = None
+        try:
+            bucket_name = resource_path.split("/")[0]
+        except Exception as exc:
+            logger.error("Unable to get bucket name from resource path. {}".format(exc))
+
+        return bucket_name
+
+    def file_name(self):
+        resource_path = self.get_resource_path()
+
+        file_name = None
+        try:
+            file_name = "/".join(resource_path.split("/")[1:])
+        except Exception as exc:
+            logger.error("Unable to get file name from resource path. {}".format(exc))
+
+        return file_name
 
     def _generate_google_storage_signed_url(
         self,
@@ -913,6 +1001,22 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             requester_pays_user_project=r_pays_project,
         )
         return final_url
+
+    def delete(self, bucket, file_id):
+        try:
+            with GoogleCloudManager(
+                creds=config["CIRRUS_CFG"]["GOOGLE_STORAGE_CREDS"]
+            ) as gcm:
+                gcm.delete_data_file(bucket, file_id)
+            return ("", 204)
+        except Exception as e:
+            logger.error(e)
+            try:
+                status_code = e.resp.status
+            except Exception as exc:
+                logger.error(exc)
+                status_code = 500
+            return ("Failed to delete data file.", status_code)
 
 
 def _get_user_info():
