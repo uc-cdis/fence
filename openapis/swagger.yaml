@@ -2026,6 +2026,7 @@ components:
       type: object
       required:
         - user_id
+        - idp
         - sub
         - username
         - name
@@ -2044,6 +2045,22 @@ components:
         user_id:
           type: number
           description: 'This value is deprecated in favor of sub.'
+        idp:
+          type: string
+          description: |
+            The Identity Provider used to autheticate the user. Given instances of Fence
+            may or may not have all of these available (the set of IDPs available is a configuration).
+
+            * *google* - Google/GSuite
+            * *ras* - NIH's Researcher Auth Service (RAS)
+            * *itrust* - NIH Login / iTrust / eRA Commons
+            * *fence* - Upstream Fence (the idp used depends on the specific configuration, consult the Gen3 Operators)
+            * *orcid* - ORCHID
+            * *microsoft* - Microsoft
+            * *elixir* - Elixir
+            * *synapse* - Synapse
+            * *cognito* - AWS Cognito
+            * More may be added in the future...
         sub:
           type: string
           description: 'Subject Identifier. A locally unique and never reassigned identifier within the Issuer for the end-user.'
