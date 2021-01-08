@@ -76,6 +76,8 @@ def modify_client_action(
     unset_auto_approve=False,
     arborist=None,
     policies=None,
+    allowed_scopes=None,
+    append=False,
 ):
     driver = SQLAlchemyDriver(DB)
     with driver.session as s:
@@ -83,8 +85,12 @@ def modify_client_action(
         if not client:
             raise Exception("client {} does not exist".format(client))
         if urls:
-            client.redirect_uris = urls
-            logger.info("Changing urls to {}".format(urls))
+            if append:
+                client.redirect_uris += urls
+                logger.info("Adding {} to urls".format(urls))
+            else:
+                client.redirect_uris = urls
+                logger.info("Changing urls to {}".format(urls))
         if delete_urls:
             client.redirect_uris = []
             logger.info("Deleting urls")
@@ -100,6 +106,14 @@ def modify_client_action(
         if description:
             client.description = description
             logger.info("Updating description to {}".format(description))
+        if allowed_scopes:
+            if append:
+                new_scopes = client._allowed_scopes.split() + allowed_scopes
+                client._allowed_scopes = " ".join(new_scopes)
+                logger.info("Adding {} to allowed_scopes".format(allowed_scopes))
+            else:
+                client._allowed_scopes = " ".join(allowed_scopes)
+                logger.info("Updating allowed_scopes to {}".format(allowed_scopes))
         s.commit()
     if arborist is not None and policies:
         arborist.update_client(client.client_id, policies)
@@ -1303,6 +1317,38 @@ def link_external_bucket(db, name):
     db = SQLAlchemyDriver(db)
     with db.session as current_session:
         google_cloud_provider = _get_or_create_google_provider(current_session)
+
+        # search for existing bucket based on name, try to use existing group email
+        existing_bucket = current_session.query(Bucket).filter_by(name=name).first()
+        if existing_bucket:
+            access_group = (
+                current_session.query(GoogleBucketAccessGroup)
+                .filter(GoogleBucketAccessGroup.privileges.any("read"))
+                .filter_by(bucket_id=existing_bucket.id)
+                .all()
+            )
+            if len(access_group) > 1:
+                raise Exception(
+                    f"Existing bucket {name} has more than 1 associated "
+                    "Google Bucket Access Group with privilege of 'read'. "
+                    "This is not expected and we cannot continue linking."
+                )
+            elif len(access_group) == 0:
+                raise Exception(
+                    f"Existing bucket {name} has no associated "
+                    "Google Bucket Access Group with privilege of 'read'. "
+                    "This is not expected and we cannot continue linking."
+                )
+
+            access_group = access_group[0]
+
+            email = access_group.email
+
+            logger.warning(
+                f"bucket already exists with name: {name}, using existing group email: {email}"
+            )
+
+            return email
 
         bucket_db_entry = Bucket(name=name, provider_id=google_cloud_provider.id)
         current_session.add(bucket_db_entry)

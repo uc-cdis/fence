@@ -331,6 +331,12 @@ paths:
             type: string
           description: The url to redirect the user to after logout
           required: false
+        - in: query
+          name: force_era_global_logout
+          schema:
+            type: boolean
+          description: Use era commons itrust to logout
+          required: false
       responses:
         '302':
           description: redirect to root or url in parameter if provided
@@ -2020,6 +2026,7 @@ components:
       type: object
       required:
         - user_id
+        - idp
         - sub
         - username
         - name
@@ -2038,6 +2045,22 @@ components:
         user_id:
           type: number
           description: 'This value is deprecated in favor of sub.'
+        idp:
+          type: string
+          description: |
+            The Identity Provider used to autheticate the user. Given instances of Fence
+            may or may not have all of these available (the set of IDPs available is a configuration).
+
+            * *google* - Google/GSuite
+            * *ras* - NIH's Researcher Auth Service (RAS)
+            * *itrust* - NIH Login / iTrust / eRA Commons
+            * *fence* - Upstream Fence (the idp used depends on the specific configuration, consult the Gen3 Operators)
+            * *orcid* - ORCHID
+            * *microsoft* - Microsoft
+            * *elixir* - Elixir
+            * *synapse* - Synapse
+            * *cognito* - AWS Cognito
+            * More may be added in the future...
         sub:
           type: string
           description: 'Subject Identifier. A locally unique and never reassigned identifier within the Issuer for the end-user.'

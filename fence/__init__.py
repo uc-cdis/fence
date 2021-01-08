@@ -7,6 +7,10 @@ from flask_cors import CORS
 from flask_sqlalchemy_session import flask_scoped_session, current_session
 from userdatamodel.driver import SQLAlchemyDriver
 
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
+from prometheus_client import multiprocess, make_wsgi_app
+from prometheus_flask_exporter.multiprocess import UWsgiPrometheusMetrics
+
 from fence.auth import logout, build_redirect_url
 from fence.blueprints.data.indexd import S3IndexedFileLocation
 from fence.blueprints.login.utils import allowed_login_redirects, domain
@@ -53,8 +57,13 @@ from gen3authz.client.arborist.client import ArboristClient
 # Later, in app_config(), will actually set level based on config
 logger = get_logger(__name__, log_level="debug")
 
+registry = prometheus_client.CollectorRegistry()
+multiprocess.MultiProcessCollector(registry)
+
 app = flask.Flask(__name__)
 CORS(app=app, headers=["content-type", "accept"], expose_headers="*")
+
+metrics = UWsgiPrometheusMetrics(app)
 
 
 def warn_about_logger():
@@ -147,13 +156,18 @@ def app_register_blueprints(app):
     def logout_endpoint():
         root = config.get("BASE_URL", "")
         request_next = flask.request.args.get("next", root)
+        force_era_global_logout = (
+            flask.request.args.get("force_era_global_logout") == "true"
+        )
         if request_next.startswith("https") or request_next.startswith("http"):
             next_url = request_next
         else:
             next_url = build_redirect_url(config.get("ROOT_URL", ""), request_next)
         if domain(next_url) not in allowed_login_redirects():
             raise UserError("invalid logout redirect URL: {}".format(next_url))
-        return logout(next_url=next_url)
+        return logout(
+            next_url=next_url, force_era_global_logout=force_era_global_logout
+        )
 
     @app.route("/jwt/keys")
     def public_keys():
@@ -341,7 +355,9 @@ def _setup_oidc_clients(app):
     # Add OIDC client for RAS if configured.
     if "ras" in oidc:
         app.ras_client = RASClient(
-            oidc["ras"], HTTP_PROXY=config.get("HTTP_PROXY"), logger=logger,
+            oidc["ras"],
+            HTTP_PROXY=config.get("HTTP_PROXY"),
+            logger=logger,
         )
 
     # Add OIDC client for Synapse if configured.
@@ -413,3 +429,9 @@ def set_csrf(response):
     if flask.request.method in ["POST", "PUT", "DELETE"]:
         current_session.commit()
     return response
+
+
+# Add prometheus wsgi middleware to route /metrics requests
+app.wsgi_app = DispatcherMiddleware(
+    app.wsgi_app, {"/metrics": make_wsgi_app(registry=registry)}
+)

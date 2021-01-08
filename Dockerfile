@@ -1,7 +1,7 @@
 # To run: docker run -d -v /path/to/fence-config.yaml:/var/www/fence/fence-config.yaml --name=fence -p 80:80 fence
 # To check running container: docker exec -it fence /bin/bash
 
-FROM quay.io/cdis/python-nginx:chore_new_sidecars_for_fence
+FROM quay.io/cdis/python-nginx:pybase3-1.4.2
 
 ENV appname=fence
 
@@ -13,6 +13,7 @@ RUN apk update \
 COPY . /$appname
 COPY ./deployment/uwsgi/uwsgi.ini /etc/uwsgi/uwsgi.ini
 COPY ./deployment/uwsgi/wsgi.py /$appname/wsgi.py
+COPY clear_prometheus_multiproc /bin/
 WORKDIR /$appname
 
 RUN python -m pip install --upgrade pip \
