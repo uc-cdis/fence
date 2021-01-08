@@ -135,8 +135,6 @@ def app_register_blueprints(app):
         fence.blueprints.privacy.blueprint, url_prefix="/privacy-policy"
     )
 
-    app.register_blueprint(fence.blueprints.metrics.blueprint, url_prefix="/metrics")
-
     fence.blueprints.misc.register_misc(app)
 
     @app.route("/")
