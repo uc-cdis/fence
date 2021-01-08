@@ -45,7 +45,6 @@ import fence.blueprints.well_known
 import fence.blueprints.link
 import fence.blueprints.google
 import fence.blueprints.privacy
-import fence.blueprints.metrics
 
 from cdislogging import get_logger
 
