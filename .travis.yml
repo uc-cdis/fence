@@ -25,6 +25,7 @@ before_script:
   - cd -
 
 script:
+  - mkdir -p /var/tmp/uwsgi_flask_metrics
   - poetry run pytest -vv --cov=fence --cov-report xml tests
 
 after_script:
