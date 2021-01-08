@@ -13,7 +13,7 @@ import requests
 from prometheus_flask_exporter import Counter
 
 pre_signed_url_req = Counter(
-    "pre_signed_url_req", "tracking presigned url requests", ["username", "svc_account"]
+    "pre_signed_url_req", "tracking presigned url requests", ["username", "file_id"]
 )
 
 from fence.auth import (
