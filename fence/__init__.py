@@ -8,7 +8,7 @@ from flask_sqlalchemy_session import flask_scoped_session, current_session
 from userdatamodel.driver import SQLAlchemyDriver
 
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
-from prometheus_client import multiprocess, make_wsgi_app
+from prometheus_client import CollectorRegistry, multiprocess, make_wsgi_app
 from prometheus_flask_exporter.multiprocess import UWsgiPrometheusMetrics
 
 from fence.auth import logout, build_redirect_url
@@ -56,7 +56,7 @@ from gen3authz.client.arborist.client import ArboristClient
 # Later, in app_config(), will actually set level based on config
 logger = get_logger(__name__, log_level="debug")
 
-registry = prometheus_client.CollectorRegistry()
+registry = CollectorRegistry()
 multiprocess.MultiProcessCollector(registry)
 
 app = flask.Flask(__name__)
