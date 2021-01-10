@@ -18,6 +18,8 @@ from unittest.mock import MagicMock, patch
 import cirrus
 from cirrus import GoogleCloudManager
 
+from fence import registry
+
 
 @pytest.mark.parametrize(
     "indexd_client", ["gs", "s3", "gs_acl", "s3_acl", "s3_external"], indirect=True
@@ -37,6 +39,10 @@ def test_indexd_download_file(
     """
     Test ``GET /data/download/1``.
     """
+    before = registry.get_sample_value(
+        "pre_signed_url_req_total", {"username": "test", "file_id": "1"}
+    )
+
     indexed_file_location = indexd_client["indexed_file_location"]
     path = "/data/download/1"
     query_string = {"protocol": indexed_file_location}
@@ -54,6 +60,12 @@ def test_indexd_download_file(
     response = client.get(path, headers=headers, query_string=query_string)
     assert response.status_code == 200
     assert "url" in list(response.json.keys())
+
+    # assert metrics have been processed successfully
+    after = registry.get_sample_value(
+        "pre_signed_url_req_total", {"username": "test", "file_id": "1"}
+    )
+    assert 1 == (after - before)
 
     # defaults to signing url, check that it's not just raw url
     assert urllib.parse.urlparse(response.json["url"]).query != ""

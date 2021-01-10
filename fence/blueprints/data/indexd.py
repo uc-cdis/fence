@@ -42,7 +42,7 @@ from fence.resources.google.utils import (
 )
 from fence.utils import get_valid_expiration_from_request
 from . import multipart_upload
-
+from fence.user import get_current_user
 
 logger = get_logger(__name__)
 
@@ -83,7 +83,11 @@ def get_signed_url_for_file(action, file_id, file_name=None):
     )
 
     # increment counter for gen3-metrics
-    pre_signed_url_req.labels(current_token["context"]["user"]["name"], file_id).inc()
+    try:
+        current_user = get_current_user().username
+    except Unauthorized:
+        current_user = "unauthorized"
+    pre_signed_url_req.labels(current_user, file_id).inc()
 
     return {"url": signed_url}
 
