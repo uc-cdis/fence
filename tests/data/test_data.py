@@ -39,8 +39,11 @@ def test_indexd_download_file(
     """
     Test ``GET /data/download/1``.
     """
-    before = registry.get_sample_value(
-        "pre_signed_url_req_total", {"username": "test", "file_id": "1"}
+    before = (
+        registry.get_sample_value(
+            "pre_signed_url_req_total", {"username": "test", "file_id": "1"}
+        )
+        or 0
     )
 
     indexed_file_location = indexd_client["indexed_file_location"]
