@@ -12,6 +12,7 @@ RUN apk update \
     && apk update && apk add openssh && apk add libmcrypt-dev
 
 RUN mkdir -p /var/www/$appname \
+    && mkdir -p /var/tmp/uwsgi_flask_metrics \
     && mkdir -p /var/www/.cache/Python-Eggs/ \
     && mkdir /run/nginx/ \
     && ln -sf /dev/stdout /var/log/nginx/access.log \
