@@ -19,11 +19,9 @@ if [ -f /fence/jwt-keys.tar ]; then
   )
 fi
 
-if [[ $GEN3_DRYRUN == "False" ]]; then
-  (
-    while true; do
-      curl -s http://127.0.0.1/metrics >> /var/www/metrics/metrics.txt
-      sleep 10
-    done
-  ) &
-fi
+(
+  while true; do
+    curl -s http://127.0.0.1/metrics >> /var/www/metrics/metrics.txt
+    sleep 10
+  done
+) &
