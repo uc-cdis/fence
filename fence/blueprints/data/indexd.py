@@ -96,9 +96,8 @@ def get_signed_url_for_file(action, file_id, file_name=None):
     # this is breaking unit tests
     # current_token["context"]["user"]["name"]
 
-    pre_signed_url_req.labels(
-        current_token["context"]["user"]["name"], file_id, requested_protocol
-    ).inc()
+    username = _get_user_info()["username"]
+    pre_signed_url_req.labels(username, file_id, requested_protocol).inc()
 
     return {"url": signed_url}
 
