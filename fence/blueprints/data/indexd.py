@@ -13,7 +13,9 @@ import requests
 from prometheus_flask_exporter import Counter
 
 pre_signed_url_req = Counter(
-    "pre_signed_url_req", "tracking presigned url requests", ["username", "file_id"]
+    "pre_signed_url_req",
+    "tracking presigned url requests",
+    ["username", "file_id", "requested_protocol"],
 )
 
 from fence.auth import (
@@ -87,7 +89,7 @@ def get_signed_url_for_file(action, file_id, file_name=None):
         current_user = get_current_user().username
     except Unauthorized:
         current_user = "unauthorized"
-    pre_signed_url_req.labels(current_user, file_id).inc()
+    pre_signed_url_req.labels(current_user, file_id, requested_protocol).inc()
 
     return {"url": signed_url}
 
