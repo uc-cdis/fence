@@ -8,6 +8,7 @@ from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
 
 
 class Visa_Token_Update(object):
+
     def __init__(
         self,
         visa_type=None,
@@ -20,3 +21,10 @@ class Visa_Token_Update(object):
         self.thread_pool_size = thread_pool_size or 2
         self.buffer_size = buffer_size or 10
         
+    def update_tokens(self):
+        """
+        Have dictionary or something to decide which client to use. Can go through the whole list and decide which client to use 
+        looking at the type field in the ga4gh table. 
+
+        """
+        client = RASClient()
