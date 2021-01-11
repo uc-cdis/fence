@@ -22,6 +22,6 @@ fi
 (
   while true; do
     curl -s http://127.0.0.1/metrics >> /var/www/metrics/metrics.txt
-    sleep 10
+    sleep 8
   done
 ) &
