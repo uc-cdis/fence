@@ -41,7 +41,12 @@ def test_indexd_download_file(
     """
     before = (
         registry.get_sample_value(
-            "pre_signed_url_req_total", {"username": "test", "file_id": "1"}
+            "pre_signed_url_req_total",
+            {
+                "username": "test",
+                "file_id": "1",
+                "requested_protocol": indexd_client["indexed_file_location"],
+            },
         )
         or 0
     )
@@ -66,7 +71,12 @@ def test_indexd_download_file(
 
     # assert metrics have been processed successfully
     after = registry.get_sample_value(
-        "pre_signed_url_req_total", {"username": "test", "file_id": "1"}
+        "pre_signed_url_req_total",
+        {
+            "username": "test",
+            "file_id": "1",
+            "requested_protocol": indexd_client["indexed_file_location"],
+        },
     )
     assert 1 == (after - before)
 
