@@ -12,6 +12,8 @@ import flask
 import requests
 from prometheus_flask_exporter import Counter
 
+# from fence.user import get_current_user
+
 pre_signed_url_req = Counter(
     "pre_signed_url_req",
     "tracking presigned url requests",
@@ -44,7 +46,6 @@ from fence.resources.google.utils import (
 )
 from fence.utils import get_valid_expiration_from_request
 from . import multipart_upload
-from fence.user import get_current_user
 
 logger = get_logger(__name__)
 
@@ -85,11 +86,19 @@ def get_signed_url_for_file(action, file_id, file_name=None):
     )
 
     # increment counter for gen3-metrics
-    try:
-        current_user = get_current_user().username
-    except Unauthorized:
-        current_user = "unauthorized"
-    pre_signed_url_req.labels(current_user, file_id, requested_protocol).inc()
+
+    # This approach is not ideal as it doesn't track usernames when there is no flask session
+    # try:
+    #    current_user = get_current_user().username
+    # except Unauthorized:
+    #    current_user = "unauthorized"
+
+    # this is breaking unit tests
+    # current_token["context"]["user"]["name"]
+
+    pre_signed_url_req.labels(
+        current_token["context"]["user"]["name"], file_id, requested_protocol
+    ).inc()
 
     return {"url": signed_url}
 
