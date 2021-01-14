@@ -27,18 +27,9 @@ class Visa_Token_Update(object):
         Have dictionary or something to decide which client to use. Can go through the whole list and decide which client to use 
         looking at the type field in the ga4gh table. 
         """
-        
+
         queue = asyncio.Queue(maxsize=self.buffer_size)
 
-        # Iterate through all users in upstream_refresh_token table (or should it be the ga4gh_visa_v1 table since we want to maximize access)
-            # No case where there might be a refresh token but no visa so should iterate through the visa table
-
-            # 
-
-
-        # Check what type of visa they have 
-
-        # Depending on the type of visa change their OauthClient 
 
         
 
@@ -48,6 +39,9 @@ class Visa_Token_Update(object):
         Producer: Produces users and puts them in a queue for processing
 
         """
+        # while there are users:
+            # fill queue with users until queue is full 
+            # could use a counter to query through each user in db and use this counter for Prometheus (???)
 
     async def consumer(self, queue):
         """
