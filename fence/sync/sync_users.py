@@ -1463,7 +1463,7 @@ class UserSyncer(object):
 
         return True
 
-    def _update_authz_in_arborist(self, session, user_projects, user_yaml=None):
+    async def _update_authz_in_arborist(self, session, user_projects, user_yaml=None):
         """
         Assign users policies in arborist from the information in
         ``user_projects`` and optionally a ``user_yaml``.
@@ -1503,7 +1503,7 @@ class UserSyncer(object):
         arborist_user_projects = {}
         try:
             arborist_users = self.arborist_client.get(
-                url=self.arborist_client._user_url
+                url=await self.arborist_client._user_url
             ).json["users"]
 
             # construct user information, NOTE the lowering of the username. when adding/
