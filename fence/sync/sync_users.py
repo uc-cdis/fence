@@ -1504,9 +1504,9 @@ class UserSyncer(object):
         try:
             print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
             print(self.arborist_client._user_url)
-            self.arborist_client.get(
+            print(self.arborist_client.get(
                 url=self.arborist_client._user_url
-            )
+            ))
             arborist_users = self.arborist_client.get(
                 url=self.arborist_client._user_url
             ).json["users"]
