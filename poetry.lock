@@ -473,7 +473,7 @@ description = "Gen3 authz client"
 name = "gen3authz"
 optional = false
 python-versions = ">=3.6,<4.0"
-version = "1.0.32"
+version = "1.0.34"
 
 [package.dependencies]
 backoff = ">=1.6,<2.0"
@@ -487,7 +487,7 @@ version = ">=2.4,<3.0"
 [package.source]
 reference = ""
 type = "file"
-url = "pkg/gen3authz-1.0.32.tar.gz"
+url = "pkg/gen3authz-1.0.34.tar.gz"
 
 [[package]]
 category = "main"
@@ -1356,7 +1356,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["pytest (>=3.5,<3.7.3 || >3.7.3)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pytest-cov", "jaraco.test (>=3.2.0)", "jaraco.itertools", "func-timeout", "pytest-black (>=0.3.7)", "pytest-mypy"]
 
 [metadata]
-content-hash = "a1ce61944537e48b22b29782b274abfbe3b31c5c015f0da430175060fa1bab63"
+content-hash = "89202b10088926c08209dba3a4138d98a058118ebf0401c58c8f668052c10ce0"
 python-versions = "^3.6"
 
 [metadata.files]
@@ -1605,7 +1605,7 @@ future = [
     {file = "future-0.18.2.tar.gz", hash = "sha256:b1bead90b70cf6ec3f0710ae53a525360fa360d306a86583adc6bf83a4db537d"},
 ]
 gen3authz = [
-    {file = "gen3authz-1.0.32.tar.gz", hash = "sha256:e10cb40995c23c8198a093722c83f72dacd8bf8360071072aa93134bb83db017"},
+    {file = "gen3authz-1.0.34.tar.gz", hash = "sha256:2873069d937731b578038f6e23dc8a722e86f72c5bbc892243364c63da85dc8d"},
 ]
 gen3cirrus = [
     {file = "gen3cirrus-1.3.0.tar.gz", hash = "sha256:e73c9a77d2e98adee066e6547af6c2a7d49bf5d44d11eaca7fbb6549184e9635"},
