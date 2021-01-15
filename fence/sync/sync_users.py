@@ -1502,14 +1502,6 @@ class UserSyncer(object):
         # from authorization sources get policies revoked
         arborist_user_projects = {}
         try:
-            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            print(self.arborist_client._user_url)
-            print(self.arborist_client.get_users(
-                url=self.arborist_client._user_url
-            ))
-            print(self.arborist_client.get_users(
-                url=self.arborist_client._user_url
-            ).json["users"])
             arborist_users = self.arborist_client.get_users(
                 url=self.arborist_client._user_url
             ).json["users"]
