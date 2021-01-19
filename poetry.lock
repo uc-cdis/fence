@@ -59,7 +59,7 @@ version = "5.0.5"
 [package.dependencies]
 authlib = "~=0.11"
 cached-property = "~=1.4"
-cdiserrors = "~=1.0"
+cdiserrors = "<2.0.0"
 httpx = "^0.14.0"
 xmltodict = "~=0.9"
 
@@ -72,7 +72,7 @@ fastapi = ["fastapi (^0.54.1)"]
 flask = ["Flask (>=0.10.1)"]
 
 [package.source]
-reference = "7771308ddcf155d1dde53b63993b8e5c5de3fd64"
+reference = "620e26faa2edbd3cb9141e3c7f841943a57c8f57"
 type = "git"
 url = "https://github.com/uc-cdis/authutils.git"
 [[package]]
@@ -184,7 +184,7 @@ description = "General utilities for Gen3 development"
 name = "cdispyutils"
 optional = false
 python-versions = "*"
-version = "1.0.4"
+version = "1.0.5"
 
 [package.dependencies]
 Flask = "*"
@@ -196,10 +196,6 @@ requests = ">=2.5,<3.0"
 [package.extras]
 profiling = ["Werkzeug (>=0.9,<1.0)", "matplotlib (>=2.2,<3.0)", "numpy (>=1.15,<2.0)"]
 
-[package.source]
-reference = "b1e13b7132d7843041da9fca7a4ca78b04984890"
-type = "git"
-url = "https://github.com/uc-cdis/cdis-python-utils.git"
 [[package]]
 category = "dev"
 description = "Collection of test data and tools"
@@ -473,11 +469,11 @@ description = "Gen3 authz client"
 name = "gen3authz"
 optional = false
 python-versions = ">=3.6,<4.0"
-version = "1.0.35"
+version = "1.0.3"
 
 [package.dependencies]
 backoff = ">=1.6,<2.0"
-cdiserrors = ">=1.0.0,<2.0.0"
+cdiserrors = "<2.0.0"
 httpx = ">=0.14.0,<0.15.0"
 
 [package.dependencies.contextvars]
@@ -487,7 +483,7 @@ version = ">=2.4,<3.0"
 [package.source]
 reference = ""
 type = "file"
-url = "pkg/gen3authz-1.0.35.tar.gz"
+url = "pkg/gen3authz-1.0.3.tar.gz"
 
 [[package]]
 category = "main"
@@ -1356,7 +1352,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["pytest (>=3.5,<3.7.3 || >3.7.3)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pytest-cov", "jaraco.test (>=3.2.0)", "jaraco.itertools", "func-timeout", "pytest-black (>=0.3.7)", "pytest-mypy"]
 
 [metadata]
-content-hash = "94489f176ae79480336ed2190bddeb203d420d579cc861effac7e5b6b53aa8e1"
+content-hash = "2d5dc019c827d806ca01265bfa4aeb3995d0987b0866133a9fe6c43b18acf6e8"
 python-versions = "^3.6"
 
 [metadata.files]
@@ -1421,7 +1417,9 @@ cdiserrors = [
 cdislogging = [
     {file = "cdislogging-1.0.0.tar.gz", hash = "sha256:a1cc2e48d5fc26d4b354b80c6497f1f1136f3e3e4f1d1855de8980ccf497fa0a"},
 ]
-cdispyutils = []
+cdispyutils = [
+    {file = "cdispyutils-1.0.5.tar.gz", hash = "sha256:74f43a4f428abe592cf484d52c9aa3e89ad754808f737b72c35cf24e5832e94e"},
+]
 cdisutilstest = []
 certifi = [
     {file = "certifi-2020.12.5-py2.py3-none-any.whl", hash = "sha256:719a74fb9e33b9bd44cc7f3a8d94bc35e4049deebe19ba7d8e108280cfd59830"},
@@ -1605,7 +1603,7 @@ future = [
     {file = "future-0.18.2.tar.gz", hash = "sha256:b1bead90b70cf6ec3f0710ae53a525360fa360d306a86583adc6bf83a4db537d"},
 ]
 gen3authz = [
-    {file = "gen3authz-1.0.35.tar.gz", hash = "sha256:8e77ba6e1cd0875e2366a7435f1c06d21ce4635d8fd8b48ec4cb08db7e6d45fa"},
+    {file = "gen3authz-1.0.3.tar.gz", hash = "sha256:1c0249803fdf9eb36021114e32f2adc63a59d2cda6e56abd1bb5566f2b9d2c56"},
 ]
 gen3cirrus = [
     {file = "gen3cirrus-1.3.0.tar.gz", hash = "sha256:e73c9a77d2e98adee066e6547af6c2a7d49bf5d44d11eaca7fbb6549184e9635"},
