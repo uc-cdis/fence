@@ -7,6 +7,7 @@ from cdislogging import get_logger
 from fence.models import User, UpstreamRefreshToken, GA4GHVisaV1
 from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
 from fence.config import config
+from fence.job.visa_update_cronjob import Visa_Token_Update
 import tests.utils
 
 logger = get_logger(__name__, log_level="debug")
@@ -331,3 +332,92 @@ def test_update_visa_token_with_invalid_visa(
     for query_visa in query_visas:
         assert query_visa.ga4gh_visa
         assert query_visa.ga4gh_visa == encoded_visa
+
+
+@mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_userinfo")
+@mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_access_token")
+@mock.patch(
+    "fence.resources.openid.ras_oauth2.RASOauth2Client.get_value_from_discovery_doc"
+)
+def test_cronjob(
+    mock_discovery,
+    mock_get_token,
+    mock_userinfo,
+    config,
+    db_session,
+    rsa_private_key,
+    kid,
+    kid_2,
+):
+    """
+    Test to check visa table is updated when getting new visa
+    """
+
+    mock_discovery.return_value = "https://ras/token_endpoint"
+    new_token = "refresh12345abcdefg"
+    token_response = {
+        "access_token": "abcdef12345",
+        "id_token": "id12345abcdef",
+        "refresh_token": new_token,
+    }
+    mock_get_token.return_value = token_response
+
+    userinfo_response = {
+        "sub": "abcd-asdj-sajpiasj12iojd-asnoin",
+        "name": "",
+        "preferred_username": "someuser@era.com",
+        "UID": "",
+        "UserID": "admin_user",
+        "email": "",
+    }
+
+    test_user = add_test_user(db_session)
+    add_visa_manually(db_session, test_user, rsa_private_key, kid)
+    add_refresh_token(db_session, test_user)
+
+    visa_query = db_session.query(GA4GHVisaV1).filter_by(user=test_user).first()
+    initial_visa = visa_query.ga4gh_visa
+    assert initial_visa
+
+    oidc = config.get("OPENID_CONNECT", {})
+    ras_client = RASClient(
+        oidc["ras"],
+        HTTP_PROXY=config.get("HTTP_PROXY"),
+        logger=logger,
+    )
+
+    new_visa = {
+        "iss": "https://stsstg.nih.gov",
+        "sub": "abcde12345aspdij",
+        "iat": int(time.time()),
+        "exp": int(time.time()) + 1000,
+        "scope": "openid ga4gh_passport_v1 email profile",
+        "jti": "jtiajoidasndokmasdl",
+        "txn": "sapidjspa.asipidja",
+        "name": "",
+        "ga4gh_visa_v1": {
+            "type": "https://ras/visa/v1",
+            "asserted": int(time.time()),
+            "value": "https://nig/passport/dbgap",
+            "source": "https://ncbi/gap",
+        },
+    }
+
+    headers = {"kid": kid_2}
+
+    encoded_visa = jwt.encode(
+        new_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
+    ).decode("utf-8")
+
+    userinfo_response["ga4gh_passport_v1"] = [encoded_visa]
+    mock_userinfo.return_value = userinfo_response
+
+    ras_client.update_user_visas(test_user)
+
+    query_visa = db_session.query(GA4GHVisaV1).first()
+    assert query_visa.ga4gh_visa
+    assert query_visa.ga4gh_visa == encoded_visa
+
+    cronjob = Visa_Token_Update()
+
+    cronjob.update_tokens(db_session)
