@@ -473,7 +473,7 @@ class IndexedFile(object):
             None
         """
         locations_to_delete = []
-        if urls is None and delete_all:
+        if not urls and delete_all:
             locations_to_delete = self.indexed_file_locations
         else:
             locations_to_delete = [
