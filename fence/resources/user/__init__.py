@@ -53,29 +53,20 @@ def update_user_resource(username, resource):
 
 def update_user(current_session, additional_info):
     #TODO check if user is already in the system - you can get create_user_if_not_exist with new gen3authz version. 
+    # See if when you try to create a user with an email already in the system, it may throw an error
     register_arborist_user(flask.g.user)
 
-    usr = get_user(current_session, current_session.merge(flask.g.user).username)
-    additional_info_tmp = {}
-    if usr.additional_info and usr.additional_info != "'{}'":
-        # merge the information
-        additional_info_tmp = dict(usr.additional_info)
-        if additional_info["firstName"] is not None:
-            additional_info_tmp["firstName"] = additional_info["firstName"]
-        if additional_info["lastName"] is not None:
-            additional_info_tmp["lastName"] = additional_info["lastName"]
-        if additional_info["institution"] is not None:
-            additional_info_tmp["institution"] = additional_info["institution"]
-    else:
-        additional_info_tmp = additional_info
+    # logger.error("IN UPDATE")
+    #TODO - add this to HUBSPOT or update if already existing
+    if flask.current_app.hubspot_api_key:
+        hubspot_id = hubspot.update_user_info(flask.g.user.username, additional_info)
+        additional_info_tmp = flask.g.user.additional_info or {}    
+        additional_info_tmp["hubspot_id"] = hubspot_id
+        # usr = get_user(current_session, current_session.merge(flask.g.user).username)
+        logger.warning(additional_info_tmp)
+        udm.update_user(current_session, flask.g.user.username, additional_info_tmp)
 
-    #TODO - add this to HUBSPOT
-    hubspot.update_user_info(additional_info["firstName"], additional_info["firstName"], additional_info["institution"])
-    additional_info_tmp = {}
-    additional_info_tmp["hubspot_id"] = 1
-
-    udm.update_user(current_session, usr.username, additional_info_tmp)
-    return get_user_info(current_session, usr.username)
+    return get_user_info(current_session, flask.g.user.username)
 
 
 def find_user(username, session):
@@ -104,9 +95,12 @@ def get_user_info(current_session, username):
     else:
         role = "user"
 
-    if user.additional_info and user.additional_info["hubspot_id"] is not None:
-        user_info = hubspot.get_user_info(user.additional_info["hubspot_id"])
-        user.additional_info = user.additional_info.update(user_info)
+    # logger.error(type(user.additional_info))
+    additional_info_merged = user.additional_info.copy()
+    if flask.current_app.hubspot_api_key and user.additional_info and ("hubspot_id" in user.additional_info) and user.additional_info["hubspot_id"] is not None:
+        user_info = hubspot.get_user(user.username, user.additional_info["hubspot_id"])
+        if user_info:
+            additional_info_merged.update(user_info)
 
     groups = udm.get_user_groups(current_session, username)["groups"]
     info = {
@@ -114,7 +108,7 @@ def get_user_info(current_session, username):
         "sub": user.id,
         "username": user.username,  # TODO deprecated, use 'name'
         "name": user.username,
-        "additional_info": user.additional_info,
+        "additional_info": additional_info_merged,
         "display_name": user.display_name,  # TODO deprecated, use 'preferred_username'
         "preferred_username": user.display_name,
         "phone_number": user.phone_number,
