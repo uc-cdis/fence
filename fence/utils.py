@@ -309,9 +309,11 @@ def send_email_ses(body, to_emails, subject):
     if "AWS_ACCESS_KEY" not in config["AWS_SES"] or "AWS_SECRET_KEY" not in config["AWS_SES"]:
         raise NotFound("AWS SES credentials are missing in configuration. Cannot send email.")
 
-    body = "try the text." #TODO retrieve body from template (pass as external param above)
+    #TODO retrieve body from template (pass as external param above)
     if not body:
         raise Exception('You must provide a text or html body.')
+    if not subject:
+        raise Exception('You must provide a text subject for the email.')
 
     sender = config["AWS_SES"]["SENDER"]
     AWS_ACCESS_KEY = config["AWS_SES"]["AWS_ACCESS_KEY"]
@@ -339,12 +341,12 @@ def send_email_ses(body, to_emails, subject):
                 'Body': {
                     'Text': {
                         'Charset': 'UTF-8',
-                        'Data': 'email body string',
+                        'Data': body,
                     },
                 },
                 'Subject': {
                     'Charset': 'UTF-8',
-                    'Data': 'email subject string',
+                    'Data': subject,
                 },
             },
             Source=sender,
@@ -354,7 +356,6 @@ def send_email_ses(body, to_emails, subject):
     else:
         print("Email sent! Message ID:"),
         print(response['MessageId'])
-    logging.warning("LUCA EMAIL")
     logging.warning(json.dumps(response))
     return response
 

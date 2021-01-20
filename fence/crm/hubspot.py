@@ -215,7 +215,7 @@ def update_user_info(email, user_info):
     company = get_associated_company(email)
     if company is None:
         #TODO finish an test
-        send_email_ses("test body", "graglia01@gmail.com", "We need to add a company")
+        send_email_ses("User " + email + " has needs an Associated company", None, "PCDC GEN3 User Registration - Missing company")
 
     return hubspot_id
 
