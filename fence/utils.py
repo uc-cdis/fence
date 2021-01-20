@@ -302,20 +302,18 @@ def send_email_ses(body, to_emails, subject):
     """
     #TODO add import for boto
 
-    logging.warning( sender in config["AWS_SES"])
-    logging.warning( SENDER in config["AWS_SES"])
     if not config["AWS_SES"]:
         raise NotFound("AWS SES '{}' does not exist in configuration. Cannot send email.")
-    if sender not in config["AWS_SES"]:
+    if "SENDER" not in config["AWS_SES"]:
         raise NotFound("AWS SES sender does not exist in configuration. Cannot send email.")
-    if AWS_ACCESS_KEY not in config["AWS_SES"] or AWS_SECRET_KEY not in config["AWS_SES"]:
+    if "AWS_ACCESS_KEY" not in config["AWS_SES"] or "AWS_SECRET_KEY" not in config["AWS_SES"]:
         raise NotFound("AWS SES credentials are missing in configuration. Cannot send email.")
 
     body = "try the text." #TODO retrieve body from template (pass as external param above)
     if not body:
         raise Exception('You must provide a text or html body.')
 
-    sender = config["AWS_SES"]["sender"]
+    sender = config["AWS_SES"]["SENDER"]
     AWS_ACCESS_KEY = config["AWS_SES"]["AWS_ACCESS_KEY"]
     AWS_SECRET_KEY = config["AWS_SES"]["AWS_SECRET_KEY"]
     region = config["AWS_SES"]["AWS_REGION"] if config["AWS_SES"]["AWS_REGION"] is not None else "us-east-1"
