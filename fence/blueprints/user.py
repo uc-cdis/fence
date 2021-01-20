@@ -41,7 +41,7 @@ def update_user_info():
         additional_info["lastName"] = lastName
     if institution:
         additional_info["institution"] = institution
-        
+
     return flask.jsonify(update_user(current_session, additional_info))
 
 
