@@ -42,6 +42,7 @@ def update_user_info():
     if institution:
         additional_info["institution"] = institution
 
+    #TODO make sure institution is present at all times at least for now
     return flask.jsonify(update_user(current_session, additional_info))
 
 

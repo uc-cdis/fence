@@ -52,19 +52,25 @@ def update_user_resource(username, resource):
 
 
 def update_user(current_session, additional_info):
-    #TODO check if user is already in the system - you can get create_user_if_not_exist with new gen3authz version. 
-    # See if when you try to create a user with an email already in the system, it may throw an error
-    register_arborist_user(flask.g.user)
-
-    # logger.error("IN UPDATE")
-    #TODO - add this to HUBSPOT or update if already existing
     if flask.current_app.hubspot_api_key:
         hubspot_id = hubspot.update_user_info(flask.g.user.username, additional_info)
         additional_info_tmp = flask.g.user.additional_info or {}    
         additional_info_tmp["hubspot_id"] = hubspot_id
-        # usr = get_user(current_session, current_session.merge(flask.g.user).username)
-        logger.warning(additional_info_tmp)
+
+        # TODO This is in case we want to maintain a double record in fence
+        # def merge_two_dicts(x, y):
+        #     z = x.copy()   # start with x's keys and values
+        #     z.update(y)    # modifies z with y's keys and values & returns None
+        #     return z
+        # additional_info_tmp = flask.g.user.additional_info or {}    
+        # additional_info_tmp = merge_two_dicts(additional_info_tmp, additional_info)
+        # additional_info_tmp["hubspot_id"] = 1
+
         udm.update_user(current_session, flask.g.user.username, additional_info_tmp)
+
+    #TODO check if user is already in the system - you can get create_user_if_not_exist with new gen3authz version. 
+    # See if when you try to create a user with an email already in the system, it may throw an error
+    register_arborist_user(flask.g.user)
 
     return get_user_info(current_session, flask.g.user.username)
 

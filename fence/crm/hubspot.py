@@ -31,6 +31,10 @@ def is_domain(name):
     return pattern.match(name)
 
 
+def is_company_legit(company, typed_company):
+    return company == typed_company
+
+
 def get_user(email, hubspot_id):
     data = {
         "filterGroups": [{
@@ -42,7 +46,6 @@ def get_user(email, hubspot_id):
         }],
         "properties": ["firstname", "lastname", "institution"]
     }
-    print("GET HUB USER")
     r = request_hubspot(data=data, path="/contacts/search")
     # {"total": 0, "results": []}
     r = r.json()
@@ -51,8 +54,8 @@ def get_user(email, hubspot_id):
 
     user_properties = r.get("results")[0].get("properties")
     return {
-        "firstname": user_properties.get("firstname"),
-        "lastname": user_properties.get("lastname"),
+        "firstName": user_properties.get("firstname"),
+        "lastName": user_properties.get("lastname"),
         "institution": user_properties.get("institution")
     }
     # return flask.jsonify({"user": {
@@ -109,14 +112,15 @@ def create_user(email, user_info):
             "lastname": user_info["lastName"],
         }
     }
-    print("CREATE HUB USER")
     r = request_hubspot(data=data, path="/contacts")
-    print(r)
-    print(r.json())
-    print(dumps(r))
+
     success = r.status_code == requests.codes.created
-    #TODO thrpw error if not success
-    return flask.jsonify({"success": success})
+    if not success:
+        raise Exception(
+            "User registration on HubSpot failed: " + r.json()
+        )
+    r = r.json()
+    return (r.get("id"), r.get("properties"))
 
 
 def update_user(email, user_info):
@@ -130,9 +134,7 @@ def update_user(email, user_info):
         }],
         "properties": [""]
     }
-    print("UPDATES HUB USER")
     r_get = request_hubspot(data=data_get, path="/contacts/search")
-    print(dumps(r_get))
     user_id = r_get.json().get("results")[0].get("id")
 
     data_update = {
@@ -144,41 +146,34 @@ def update_user(email, user_info):
     }
     r_update = request_hubspot(
         data=data_update, method="PATCH", path=f"/contacts/{user_id}")
+    
     success = r_update.status_code == requests.codes.ok
-    #TODO thrpw error if not success
-    return user_id
-
-# {
-#     "id": "14851",
-#     "properties": {
-#         "firstname": "Luca",
-#         "institution": "University of Chicago",
-#         "lastmodifieddate": "2021-01-18T02:42:39.069Z",
-#         "lastname": "Graglia"
-#     },
-#     "createdAt": "2020-04-09T18:29:50.923Z",
-#     "updatedAt": "2021-01-18T02:42:39.069Z",
-#     "archived": false
-# }
+    if not success:
+        raise Exception(
+            "User update on HubSpot failed: " + r_update.json()
+        )
+    r_update = r_update.json()
+    return (r_update.get("id"), r_update.get("properties"))
 
 
-def get_associated_company(email):
-    data_user_id = {
-        "filterGroups": [{
-            "filters": [{
-                "value": email,
-                "propertyName": "email",
-                "operator": "EQ"
-            }]
-        }],
-        "properties": [""]
-    }
-    r_user_id = request_hubspot(data=data_user_id, path="/contacts/search")
-    user_id = r_user_id.json().get("results")[0].get("id")
+def get_associated_company(hubspot_id):
+    # data_user_id = {
+    #     "filterGroups": [{
+    #         "filters": [{
+    #             "value": email,
+    #             "propertyName": "email",
+    #             "operator": "EQ"
+    #         }]
+    #     }],
+    #     "properties": [""]
+    # }
+    # r_user_id = request_hubspot(data=data_user_id, path="/contacts/search")
+    # user_id = r_user_id.json().get("results")[0].get("id")
 
     r_company_id = request_hubspot(
-        method="GET", path=f"/contacts/{user_id}/associations/companies")
+        method="GET", path=f"/contacts/{hubspot_id}/associations/companies")
     company_id_results = r_company_id.json().get("results")
+
     if len(company_id_results) == 0:
         return None
     else:
@@ -186,81 +181,23 @@ def get_associated_company(email):
         r_company = request_hubspot(
             method="GET", path=f"/companies/{company_id}")
         company_properties = r_company.json().get("properties")
-        return {"name": company_properties.get("name")}
-
-# {
-#     "id": "2498298527",
-#     "properties": {
-#         "createdate": "2019-10-15T15:20:24.594Z",
-#         "domain": "uchicago.edu",
-#         "hs_lastmodifieddate": "2021-01-12T21:49:48.218Z",
-#         "hs_object_id": "2498298527",
-#         "name": "The University of Chicago"
-#     },
-#     "createdAt": "2019-10-15T15:20:24.594Z",
-#     "updatedAt": "2021-01-12T21:49:48.218Z",
-#     "archived": false
-# }
+        return company_properties
 
 
 def update_user_info(email, user_info):
     hubspot_id = None
+    properties = None
     if is_user(email, None):
-        hubspot_id = update_user(email, user_info)
+        hubspot_id, properties = update_user(email, user_info)
     else:
-        create_user(email, user_info)
-        #TODO call hubspot API and return id
-        hubspot_id = 1
+        hubspot_id, properties = create_user(email, user_info)
 
-    company = get_associated_company(email)
+    company = get_associated_company(hubspot_id)
     if company is None:
-        #TODO finish an test
-        send_email_ses("User " + email + " has needs an Associated company", None, "PCDC GEN3 User Registration - Missing company")
+        send_email_ses("User with email: " + email + " needs an 'Associated Company' to be able to use all the functionality of the portal. Please refer to the user input in the 'Institution' field to associate the user to the correct company.", None, "PCDC GEN3 User Registration - Missing company")
+    elif not is_company_legit(company.get("name"), properties["institution"]):
+        send_email_ses("User with email: " + email + " has an 'Associated Company' that doesn't match the company typed during registration. Please refer to the user input in the 'Institution' field to doublecheck on it. In case of a simple typos please update the 'Institution' field, while in case the 'Institution' field is a different company please update the 'Associated Company' field. The 'Institution' field has to match with the 'Associated Company' name.", None, "PCDC GEN3 User Registration - Mismatching company")
 
     return hubspot_id
-
-
-
-
-
-
-
-
-
-
-
-# def register_arborist_user(user, policies=None):
-#     if not hasattr(flask.current_app, "arborist"):
-#         raise Forbidden(
-#             "this fence instance is not configured with arborist;"
-#             " this endpoint is unavailable"
-#         )
-
-#     created_user = flask.current_app.arborist.create_user(dict(name=user.username))
-
-#     if policies is None:
-#         policies = ["login_no_access", "analysis"]
-
-#     for policy_name in policies:
-#         policy = flask.current_app.arborist.get_policy(policy_name)
-#         if not policy:
-#             raise NotFound(
-#                 "Policy {} NOT FOUND".format(
-#                     policy_name
-#                 )
-#             )
-
-#         res = flask.current_app.arborist.grant_user_policy(user.username, policy_name)
-#         if res is None:
-#             raise ArboristError(
-#                 "Policy {} has not been assigned.".format(
-#                     policy["id"]
-#                 )
-#             )
-
-
-
-
-
 
 
