@@ -1,0 +1,7 @@
+#!/bin/bash
+set -ex
+
+rm -Rf $1
+mkdir $1
+chmod 755 $1
+chown 100:101 $1

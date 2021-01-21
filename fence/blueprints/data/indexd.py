@@ -10,6 +10,15 @@ from cdispyutils.config import get_value
 from cdispyutils.hmac4 import generate_aws_presigned_url
 import flask
 import requests
+from prometheus_flask_exporter import Counter
+
+# from fence.user import get_current_user
+
+pre_signed_url_req = Counter(
+    "pre_signed_url_req",
+    "tracking presigned url requests",
+    ["username", "file_id", "requested_protocol"],
+)
 
 from fence.auth import (
     get_jwt,
@@ -76,6 +85,11 @@ def get_signed_url_for_file(action, file_id, file_name=None):
         r_pays_project=r_pays_project,
         file_name=file_name,
     )
+
+    # increment counter for gen3-metrics
+    username = _get_user_info()["username"]
+    pre_signed_url_req.labels(username, file_id, requested_protocol).inc()
+
     return {"url": signed_url}
 
 

@@ -7,6 +7,10 @@ from flask_cors import CORS
 from flask_sqlalchemy_session import flask_scoped_session, current_session
 from userdatamodel.driver import SQLAlchemyDriver
 
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
+from prometheus_client import CollectorRegistry, multiprocess, make_wsgi_app
+from prometheus_flask_exporter.multiprocess import UWsgiPrometheusMetrics
+
 from fence.auth import logout, build_redirect_url
 from fence.blueprints.data.indexd import S3IndexedFileLocation
 from fence.blueprints.login.utils import allowed_login_redirects, domain
@@ -52,8 +56,13 @@ from gen3authz.client.arborist.client import ArboristClient
 # Later, in app_config(), will actually set level based on config
 logger = get_logger(__name__, log_level="debug")
 
+registry = CollectorRegistry()
+multiprocess.MultiProcessCollector(registry)
+
 app = flask.Flask(__name__)
 CORS(app=app, headers=["content-type", "accept"], expose_headers="*")
+
+metrics = UWsgiPrometheusMetrics(app)
 
 
 def warn_about_logger():
@@ -417,3 +426,9 @@ def set_csrf(response):
     if flask.request.method in ["POST", "PUT", "DELETE"]:
         current_session.commit()
     return response
+
+
+# Add prometheus wsgi middleware to route /metrics requests
+app.wsgi_app = DispatcherMiddleware(
+    app.wsgi_app, {"/metrics": make_wsgi_app(registry=registry)}
+)

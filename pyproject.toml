@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fence"
-version = "4.22.0"
+version = "4.22.1"
 description = "Gen3 AuthN/AuthZ OIDC Service"
 authors = ["CTDS UChicago <cdis@uchicago.edu>"]
 license = "Apache-2.0"
@@ -45,6 +45,8 @@ sqlalchemy = "^1.3.3"
 storageclient = {git = "https://github.com/uc-cdis/storage-client", rev = "1.0.1"}
 userdatamodel = "^2.3.3"
 werkzeug = "^0.16.0"
+prometheus-client = "^0.9.0"
+prometheus-flask-exporter = "^0.18.1"
 
 [tool.poetry.dev-dependencies]
 addict = "^2.2.1"

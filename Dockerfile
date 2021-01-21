@@ -8,7 +8,7 @@ ENV appname=fence
 RUN apk update \
     && apk add postgresql-libs postgresql-dev libffi-dev libressl-dev \
     && apk add linux-headers musl-dev gcc \
-    && apk add curl bash git vim make lftp \
+    && apk add curl bash git vim make lftp logrotate \
     && apk update && apk add openssh && apk add libmcrypt-dev
 
 RUN mkdir -p /var/www/$appname \
@@ -52,6 +52,7 @@ RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-
 COPY . /$appname
 COPY ./deployment/uwsgi/uwsgi.ini /etc/uwsgi/uwsgi.ini
 COPY ./deployment/uwsgi/wsgi.py /$appname/wsgi.py
+COPY clear_prometheus_multiproc /$appname/clear_prometheus_multiproc
 WORKDIR /$appname
 
 # cache so that poetry install will run if these files change
