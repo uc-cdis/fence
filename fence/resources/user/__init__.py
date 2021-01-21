@@ -52,21 +52,29 @@ def update_user_resource(username, resource):
 
 
 def update_user(current_session, additional_info):
-    if flask.current_app.hubspot_api_key:
-        hubspot_id = hubspot.update_user_info(flask.g.user.username, additional_info)
-        additional_info_tmp = flask.g.user.additional_info or {}    
-        additional_info_tmp["hubspot_id"] = hubspot_id
+    if not flask.current_app.hubspot_api_key:
+        raise Exception(
+            "The Hubspot API key is missing."
+        )
 
-        # TODO This is in case we want to maintain a double record in fence
-        # def merge_two_dicts(x, y):
-        #     z = x.copy()   # start with x's keys and values
-        #     z.update(y)    # modifies z with y's keys and values & returns None
-        #     return z
-        # additional_info_tmp = flask.g.user.additional_info or {}    
-        # additional_info_tmp = merge_two_dicts(additional_info_tmp, additional_info)
-        # additional_info_tmp["hubspot_id"] = 1
+    #TODO revert comments for Hubspot
+    additional_info_tmp = flask.g.user.additional_info.copy()
+    additional_info_tmp.update(additional_info)
+    # hubspot_id = hubspot.update_user_info(flask.g.user.username, additional_info)
+    # additional_info_tmp = flask.g.user.additional_info or {}    
+    # additional_info_tmp["hubspot_id"] = hubspot_id
 
-        udm.update_user(current_session, flask.g.user.username, additional_info_tmp)
+
+    # TODO This is in case we want to maintain a double record in fence
+    # def merge_two_dicts(x, y):
+    #     z = x.copy()   # start with x's keys and values
+    #     z.update(y)    # modifies z with y's keys and values & returns None
+    #     return z
+    # additional_info_tmp = flask.g.user.additional_info or {}    
+    # additional_info_tmp = merge_two_dicts(additional_info_tmp, additional_info)
+    # additional_info_tmp["hubspot_id"] = 1
+
+    udm.update_user(current_session, flask.g.user.username, additional_info_tmp)
 
     #TODO check if user is already in the system - you can get create_user_if_not_exist with new gen3authz version. 
     # See if when you try to create a user with an email already in the system, it may throw an error
@@ -103,10 +111,11 @@ def get_user_info(current_session, username):
 
     # logger.error(type(user.additional_info))
     additional_info_merged = user.additional_info.copy()
-    if flask.current_app.hubspot_api_key and user.additional_info and ("hubspot_id" in user.additional_info) and user.additional_info["hubspot_id"] is not None:
-        user_info = hubspot.get_user(user.username, user.additional_info["hubspot_id"])
-        if user_info:
-            additional_info_merged.update(user_info)
+    #TODO revert comments when hubspot is working
+    # if flask.current_app.hubspot_api_key and user.additional_info and ("hubspot_id" in user.additional_info) and user.additional_info["hubspot_id"] is not None:
+    #     user_info = hubspot.get_user(user.username, user.additional_info["hubspot_id"])
+    #     if user_info:
+    #         additional_info_merged.update(user_info)
 
     groups = udm.get_user_groups(current_session, username)["groups"]
     info = {
