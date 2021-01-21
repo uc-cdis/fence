@@ -56,6 +56,9 @@ from gen3authz.client.arborist.client import ArboristClient
 # Later, in app_config(), will actually set level based on config
 logger = get_logger(__name__, log_level="debug")
 
+if "prometheus_multiproc_dir" not in os.environ:
+    os.environ["prometheus_multiproc_dir"] = "/tmp"
+
 registry = CollectorRegistry()
 multiprocess.MultiProcessCollector(registry)
 
