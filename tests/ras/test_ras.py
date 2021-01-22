@@ -1,3 +1,4 @@
+import asyncio
 import time
 import mock
 import jwt
@@ -13,8 +14,8 @@ import tests.utils
 logger = get_logger(__name__, log_level="debug")
 
 
-def add_test_user(db_session):
-    test_user = User(username="admin_user", id="5678", is_admin=True)
+def add_test_user(db_session, username="admin_user", id="5678", is_admin=True):
+    test_user = User(username=username, id=id, is_admin=is_admin)
     db_session.add(test_user)
     db_session.commit()
     return test_user
@@ -353,6 +354,8 @@ def test_cronjob(
     Test to check visa table is updated when getting new visa
     """
 
+    n_users = 50
+
     mock_discovery.return_value = "https://ras/token_endpoint"
     new_token = "refresh12345abcdefg"
     token_response = {
@@ -371,9 +374,11 @@ def test_cronjob(
         "email": "",
     }
 
-    test_user = add_test_user(db_session)
-    add_visa_manually(db_session, test_user, rsa_private_key, kid)
-    add_refresh_token(db_session, test_user)
+    for i in range(n_users):
+        username = "admin_user_{}".format(i)
+        test_user = add_test_user(db_session, username, i)
+        add_visa_manually(db_session, test_user, rsa_private_key, kid)
+        add_refresh_token(db_session, test_user)
 
     visa_query = db_session.query(GA4GHVisaV1).filter_by(user=test_user).first()
     initial_visa = visa_query.ga4gh_visa
@@ -415,9 +420,7 @@ def test_cronjob(
     ras_client.update_user_visas(test_user)
 
     query_visa = db_session.query(GA4GHVisaV1).first()
-    assert query_visa.ga4gh_visa
-    assert query_visa.ga4gh_visa == encoded_visa
 
     cronjob = Visa_Token_Update()
 
-    cronjob.update_tokens(db_session)
+    asyncio.run(cronjob.update_tokens(db_session))
