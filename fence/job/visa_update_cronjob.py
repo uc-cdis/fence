@@ -20,13 +20,11 @@ logger = get_logger(__name__, log_level="debug")
 class Visa_Token_Update(object):
     def __init__(
         self,
-        visa_type=None,
         concurrency=None,  # number of concurrent users going through the visa update flow
         thread_pool_size=None,  # number of Docker container CPU used for jwt verification
         buffer_size=None,  # max size of asyncio queue
     ):
-        self.visa_type = visa_type or "ras"
-        self.concurrency = concurrency or 3
+        self.concurrency = concurrency or 2
         self.thread_pool_size = thread_pool_size or 2
         self.buffer_size = buffer_size or 10
         self.n_workers = self.thread_pool_size + self.concurrency
@@ -37,60 +35,88 @@ class Visa_Token_Update(object):
         looking at the type field in the ga4gh table.
         """
         queue = asyncio.Queue(maxsize=self.buffer_size)
-        # producers = [asyncio.create_task(self.producer(i, db_session, queue)) for i in range(1)]
-        producer = [
+        semaphore = asyncio.Queue(maxsize=self.n_workers)
+        producers = [
             asyncio.create_task(self.producer(db_session, queue, window_idx=0))
             for _ in range(1)
         ]
-        workers = [asyncio.create_task(self.worker(j, queue)) for j in range(5)]
+        workers = [
+            asyncio.create_task(self.worker(j, queue, semaphore))
+            for j in range(self.n_workers)
+        ]
+        updaters = [
+            asyncio.create_task(self.updater(i, semaphore))
+            for i in range(self.concurrency)
+        ]
 
-        await asyncio.gather(*producer)
+        await asyncio.gather(*producers)
+        await queue.join() # blocks until everything in queue is complete
 
-        await queue.join()
+        await asyncio.gather(*workers)
+        await semaphore.join() # blocks until everything in semaphore is complete 
 
         for w in workers:
             w.cancel()
+        for u in updaters:
+            u.cancel()
 
     async def window(self, db_session, queue, window_idx):
+        """
+        window function to get chunks of data from the table
+        """
         window_size = 8
         start, stop = window_size * window_idx, window_size * (window_idx + 1)
-        visas = db_session.query(GA4GHVisaV1).slice(start, stop).all()
-
-        return visas
+        users = db_session.query(User).slice(start, stop).all()
+        return users
 
     async def producer(self, db_session, queue, window_idx):
         """
-        TODO: Rename this
-        Producer: Produces users and puts them in a queue for processing
-
+        Produces users from db and puts them in a queue for processing
         """
         window_size = 8
         while True:
-            visas = await self.window(db_session, queue, window_idx)
-            if visas == None:
+            users = await self.window(db_session, queue, window_idx)
+
+            if users == None:
                 break
-            for visa in visas:
-                print("Producer producing visa for user {}".format(visa.user.username))
-                await queue.put(visa)
-            if len(visas) < window_size:
+            for user in users:
+                # print("Producer producing user for user {}".format(user.username))
+                await queue.put(user)
+            if len(users) < window_size:
                 break
             window_idx += 1
 
-    async def worker(self, name, queue):
+    async def worker(self, name, queue, semaphore):
         """
-        TODO: Rename this
-        worker: Create workers that does the visa update flow
+        Create tasks to pass tot updater to update visas AND pass updated visas to _verify_jwt_token for verification
         """
-        # update visa stuff here
         while True:
-            visa = await queue.get()
-            client = self._pick_client(visa)
-            username = visa.user.username
-            user = visa.user
-            # print("worker {} working on user {}".format(name, username))
-            client.update_user_visas(user)
-            await asyncio.sleep(random.random())
+            user = await queue.get()
+            await semaphore.put(user)
+            # print("Adding {} to semaphore".format(user.username))
             queue.task_done()
+            if queue.empty():
+                break
+
+    async def updater(self, name, semaphore):
+        """
+        Update visas in the semaphore
+        """
+        while True:
+            user = await semaphore.get()
+            if user.ga4gh_visas_v1:
+                for visa in user.ga4gh_visas_v1:
+                    client = self._pick_client(visa)
+                    print(
+                        "Updater {} updating visa for user {}".format(
+                            name, user.username
+                        )
+                    )
+                    client.update_user_visas(user)
+                    await asyncio.sleep(random.random())
+            else:
+                print("User {} doesnt have visa. Skipping . . ".format(user.username))
+            semaphore.task_done()
 
     def _pick_client(self, visa):
         """
@@ -103,3 +129,7 @@ class Visa_Token_Update(object):
                 HTTP_PROXY=config.get("HTTP_PROXY"),
                 logger=logger,
             )
+
+    def _verify_jwt_token(self, visa):
+        # TODO: Once local jwt verification is ready use thread_pool_size to determine how many users we want to verify the token for
+        pass
