@@ -1612,8 +1612,8 @@ class UserSyncer(object):
             try:
                 loop = asyncio.get_event_loop()
                 loop.run_until_complete(
-                    self.arborist_client.update_client(
-                        client.client_id, client_policies
+                    self.arborist_client.update_client_sync(
+                        loop, client.client_id, client_policies
                     )
                 )
                 loop.close()
