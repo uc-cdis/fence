@@ -33,6 +33,8 @@ from fence.resources.storage import StorageManager
 from fence.resources.google.access_utils import bulk_update_google_groups
 from fence.sync import utils
 
+import asyncio
+
 
 def _format_policy_id(path, privilege):
     resource = ".".join(name for name in path.split("/") if name)
@@ -1608,7 +1610,13 @@ class UserSyncer(object):
                 )
                 continue
             try:
-                self.arborist_client.update_client(client.client_id, client_policies)
+                loop = asyncio.get_event_loop()
+                loop.run_until_complete(
+                    self.arborist_client.update_client(
+                        client.client_id, client_policies
+                    )
+                )
+                loop.close()
             except ArboristError as e:
                 self.logger.info(
                     "not granting policies {} to client `{}`; {}".format(
