@@ -453,7 +453,7 @@ python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
 
 [[package]]
 name = "gen3authz"
-version = "1.0.6"
+version = "1.0.7"
 description = "Gen3 authz client"
 category = "main"
 optional = false
@@ -467,7 +467,7 @@ httpx = ">=0.12.1,<1.0.0"
 
 [package.source]
 type = "url"
-url = "https://cdistest-public-test-bucket.s3.amazonaws.com/gen3authz-1.0.6.tar.gz"
+url = "https://cdistest-public-test-bucket.s3.amazonaws.com/gen3authz-1.0.7.tar.gz"
 [[package]]
 name = "gen3cirrus"
 version = "1.3.0"
@@ -1314,7 +1314,7 @@ testing = ["pytest (>=3.5,!=3.7.3)", "pytest-checkdocs (>=1.2.3)", "pytest-flake
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "440caa4ef422bcb7db706bce397f8acef648396b63090a1afa5f3ffc809a8b05"
+content-hash = "44f5d008dee43eca87660a89183c8efcfa49e5f0a7e1886087d80cae1a7d24c1"
 
 [metadata.files]
 addict = [
