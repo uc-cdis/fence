@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fence"
-version = "4.22.0"
+version = "4.25.1"
 description = "Gen3 AuthN/AuthZ OIDC Service"
 authors = ["CTDS UChicago <cdis@uchicago.edu>"]
 license = "Apache-2.0"
@@ -29,7 +29,6 @@ flask_sqlalchemy_session = "^1.1"
 email_validator = "^1.1.1"
 gen3cirrus = "^1.3.0"
 gen3config = "^0.1.7"
-gen3authz = { git = "https://github.com/uc-cdis/gen3authz.git", branch = "chore/tryingsomething"}
 gen3users = "^0.6.0"
 idna = "^2.10" # https://github.com/python-poetry/poetry/issues/3555
 markdown = "^3.1.1"
@@ -45,6 +44,7 @@ sqlalchemy = "^1.3.3"
 storageclient = {git = "https://github.com/uc-cdis/storage-client", rev = "1.0.1"}
 userdatamodel = "^2.3.3"
 werkzeug = "^0.16.0"
+gen3authz = {url = "https://cdistest-public-test-bucket.s3.amazonaws.com/gen3authz-1.0.5.tar.gz"}
 
 [tool.poetry.dev-dependencies]
 addict = "^2.2.1"
