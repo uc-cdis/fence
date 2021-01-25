@@ -133,7 +133,7 @@ class Oauth2ClientBase(object):
         """
         raise NotImplementedError()
 
-    def get_access_token(self, user, token_endpoint, db_session):
+    def get_access_token(self, user, token_endpoint, db_session=None):
 
         """
         Get access_token using a refresh_token and store it in upstream_refresh_token table.
@@ -162,7 +162,7 @@ class Oauth2ClientBase(object):
 
         return token_response
 
-    def store_refresh_token(self, user, refresh_token, expires, db_session):
+    def store_refresh_token(self, user, refresh_token, expires, db_session=current_session):
         """
         Store refresh token in db.
         """

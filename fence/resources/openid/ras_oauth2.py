@@ -118,7 +118,7 @@ class RASOauth2Client(Oauth2ClientBase):
             userinfo_endpoint = self.get_value_from_discovery_doc(
                 "userinfo_endpoint", ""
             )
-            token = self.get_access_token(user, token_endpoint)
+            token = self.get_access_token(user, token_endpoint, db_session)
             userinfo = self.get_userinfo(token, userinfo_endpoint)
             encoded_visas = userinfo.get("ga4gh_passport_v1", [])
         except Exception as e:
