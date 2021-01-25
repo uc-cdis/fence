@@ -354,7 +354,8 @@ def test_cronjob(
     Test to check visa table is updated when updating visas using cronjob
     """
 
-    n_users = 50
+    n_users = 20
+    n_users_no_visa = 20
 
     mock_discovery.return_value = "https://ras/token_endpoint"
     new_token = "refresh12345abcdefg"
@@ -379,6 +380,9 @@ def test_cronjob(
         test_user = add_test_user(db_session, username, i)
         add_visa_manually(db_session, test_user, rsa_private_key, kid)
         add_refresh_token(db_session, test_user)
+    for j in range(n_users_no_visa):
+        username = "no_visa_{}".format(j)
+        test_user = add_test_user(db_session, username, j+n_users)
 
     new_visa = {
         "iss": "https://stsstg.nih.gov",

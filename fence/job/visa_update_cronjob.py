@@ -130,27 +130,29 @@ class Visa_Token_Update(object):
         Update visas in the semaphore
         """
         while True:
-            user = await semaphore.get()
-            if user.ga4gh_visas_v1:
-                for visa in user.ga4gh_visas_v1:
-                    client = self._pick_client(visa)
-                    self.logger.info(
-                        "Updater {} updating visa for user {}".format(
-                            name, user.username
+            try:
+                user = await semaphore.get()
+                if user.ga4gh_visas_v1:
+                    for visa in user.ga4gh_visas_v1:
+                        client = self._pick_client(visa)
+                        self.logger.info(
+                            "Updater {} updating visa for user {}".format(
+                                name, user.username
+                            )
                         )
+                        client.update_user_visas(user, db_session)
+                else:
+                    self.logger.info(
+                        "User {} doesnt have visa. Skipping . . .".format(user.username)
                     )
-                    client.update_user_visas(user, db_session)
-            else:
-                self.logger.info(
-                    "User {} doesnt have visa. Skipping . . .".format(user.username)
-                )
-            semaphore.task_done()
+            finally:
+                semaphore.task_done()
 
     def _pick_client(self, visa):
         """
         Pick oidc client according to the visa provider
         """
-        if visa.type == "https://ras/visa/v1":
+        if "ras" in visa.type:
             oidc = config.get("OPENID_CONNECT", {})
             return RASClient(
                 oidc["ras"],
