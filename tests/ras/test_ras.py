@@ -408,7 +408,9 @@ def test_cronjob(
 
     # test "fence-create visa-update"
     job = Visa_Token_Update()
-    asyncio.run(job.update_tokens(db_session))
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(job.update_tokens(db_session))
+    # asyncio.run(job.update_tokens(db_session))
 
     query_visas = db_session.query(GA4GHVisaV1).all()
 
