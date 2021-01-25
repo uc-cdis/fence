@@ -55,17 +55,18 @@ class Visa_Token_Update(object):
 
         queue = asyncio.Queue(maxsize=self.buffer_size)
         semaphore = asyncio.Queue(maxsize=self.n_workers)
+        loop = asyncio.get_event_loop()
 
         producers = [
-            asyncio.create_task(self.producer(db_session, queue, window_idx=0))
+            loop.create_task(self.producer(db_session, queue, window_idx=0))
             for _ in range(1)
         ]
         workers = [
-            asyncio.create_task(self.worker(j, queue, semaphore))
+            loop.create_task(self.worker(j, queue, semaphore))
             for j in range(self.n_workers)
         ]
         updaters = [
-            asyncio.create_task(self.updater(i, semaphore))
+            loop.create_task(self.updater(i, semaphore))
             for i in range(self.concurrency)
         ]
 
