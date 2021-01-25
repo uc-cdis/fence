@@ -23,6 +23,7 @@ from fence.errors import NotFound, Unauthorized, UserError, InternalError, Forbi
 from fence.jwt.utils import get_jwt_header
 from fence.models import query_for_user
 from fence.authz.auth import register_arborist_user
+from fence.crm import hubspot
 
 
 logger = get_logger(__name__)
@@ -51,25 +52,35 @@ def update_user_resource(username, resource):
 
 
 def update_user(current_session, additional_info):
+    if not flask.current_app.hubspot_api_key:
+        raise Exception(
+            "The Hubspot API key is missing."
+        )
+
+    #TODO revert comments for Hubspot
+    additional_info_tmp = flask.g.user.additional_info.copy()
+    additional_info_tmp.update(additional_info)
+    # hubspot_id = hubspot.update_user_info(flask.g.user.username, additional_info)
+    # additional_info_tmp = flask.g.user.additional_info or {}    
+    # additional_info_tmp["hubspot_id"] = hubspot_id
+
+
+    # TODO This is in case we want to maintain a double record in fence
+    # def merge_two_dicts(x, y):
+    #     z = x.copy()   # start with x's keys and values
+    #     z.update(y)    # modifies z with y's keys and values & returns None
+    #     return z
+    # additional_info_tmp = flask.g.user.additional_info or {}    
+    # additional_info_tmp = merge_two_dicts(additional_info_tmp, additional_info)
+    # additional_info_tmp["hubspot_id"] = 1
+
+    udm.update_user(current_session, flask.g.user.username, additional_info_tmp)
+
     #TODO check if user is already in the system - you can get create_user_if_not_exist with new gen3authz version. 
+    # See if when you try to create a user with an email already in the system, it may throw an error
     register_arborist_user(flask.g.user)
 
-    usr = get_user(current_session, current_session.merge(flask.g.user).username)
-    additional_info_tmp = {}
-    if usr.additional_info and usr.additional_info != "'{}'":
-        # merge the information
-        additional_info_tmp = dict(usr.additional_info)
-        if additional_info["firstName"] is not None:
-            additional_info_tmp["firstName"] = additional_info["firstName"]
-        if additional_info["lastName"] is not None:
-            additional_info_tmp["lastName"] = additional_info["lastName"]
-        if additional_info["institution"] is not None:
-            additional_info_tmp["institution"] = additional_info["institution"]
-    else:
-        additional_info_tmp = additional_info
-
-    udm.update_user(current_session, usr.username, additional_info_tmp)
-    return get_user_info(current_session, usr.username)
+    return get_user_info(current_session, flask.g.user.username)
 
 
 def find_user(username, session):
@@ -98,13 +109,21 @@ def get_user_info(current_session, username):
     else:
         role = "user"
 
+    # logger.error(type(user.additional_info))
+    additional_info_merged = user.additional_info.copy()
+    #TODO revert comments when hubspot is working
+    # if flask.current_app.hubspot_api_key and user.additional_info and ("hubspot_id" in user.additional_info) and user.additional_info["hubspot_id"] is not None:
+    #     user_info = hubspot.get_user(user.username, user.additional_info["hubspot_id"])
+    #     if user_info:
+    #         additional_info_merged.update(user_info)
+
     groups = udm.get_user_groups(current_session, username)["groups"]
     info = {
         "user_id": user.id,  # TODO deprecated, use 'sub'
         "sub": user.id,
         "username": user.username,  # TODO deprecated, use 'name'
         "name": user.username,
-        "additional_info": user.additional_info,
+        "additional_info": additional_info_merged,
         "display_name": user.display_name,  # TODO deprecated, use 'preferred_username'
         "preferred_username": user.display_name,
         "phone_number": user.phone_number,

@@ -655,6 +655,23 @@ SEND_FROM: 'example@gmail.com'
 SEND_TO: 'example@gmail.com'
 
 # //////////////////////////////////////////////////////////////////////////////////////
+# EMAIL
+#   - Support for sending hubspot API work updates to project management team
+# //////////////////////////////////////////////////////////////////////////////////////
+# Simple Email Service (for sending emails from fence)
+#
+# NOTE: Example in comments below
+AWS_SES:
+  SENDER: ""
+  RECIPIENT: ""
+  AWS_REGION: "us-east-1"
+  AWS_ACCESS_KEY: ""
+  AWS_SECRET_KEY: ""
+
+HUBSPOT:
+  API_KEY: ""
+  
+# //////////////////////////////////////////////////////////////////////////////////////
 # DATA ACCESS: GOOGLE LINKING & SERVICE ACCOUNT REGISTRATION
 #   - Support `/google/service_accounts` endpoints
 # //////////////////////////////////////////////////////////////////////////////////////

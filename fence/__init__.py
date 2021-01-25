@@ -260,6 +260,7 @@ def app_config(
     # directly from the fence config singleton in the code though.
     app.config.update(**config._configs)
 
+    _setup_hubspot_key(app)
     _setup_arborist_client(app)
     _setup_data_endpoint_and_boto(app)
     _load_keys(app, root_dir)
@@ -378,6 +379,12 @@ def _setup_arborist_client(app):
     if app.config.get("ARBORIST"):
         app.arborist = ArboristClient(arborist_base_url=config["ARBORIST"])
 
+def _setup_hubspot_key(app):
+    if app.config.get("HUBSPOT"):
+        if "API_KEY" in config["HUBSPOT"]:
+            app.hubspot_api_key = config["HUBSPOT"]["API_KEY"]
+        # else:
+            #TODO throw error
 
 @app.errorhandler(Exception)
 def handle_error(error):
