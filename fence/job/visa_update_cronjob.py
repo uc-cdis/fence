@@ -66,7 +66,7 @@ class Visa_Token_Update(object):
             for j in range(self.n_workers)
         ]
         updaters = [
-            loop.create_task(self.updater(i, semaphore))
+            loop.create_task(self.updater(i, semaphore, db_session))
             for i in range(self.concurrency)
         ]
 
@@ -125,7 +125,7 @@ class Visa_Token_Update(object):
             if queue.empty():
                 break
 
-    async def updater(self, name, semaphore):
+    async def updater(self, name, semaphore, db_session):
         """
         Update visas in the semaphore
         """
@@ -139,7 +139,7 @@ class Visa_Token_Update(object):
                             name, user.username
                         )
                     )
-                    client.update_user_visas(user)
+                    client.update_user_visas(user, db_session)
             else:
                 self.logger.info(
                     "User {} doesnt have visa. Skipping . . .".format(user.username)

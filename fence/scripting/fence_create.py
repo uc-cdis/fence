@@ -1498,7 +1498,7 @@ def google_list_authz_groups(db):
         return google_authz
 
 
-async def update_user_visas(db):
+def update_user_visas(db):
     """
     Update visas and refresh tokens for users with valid visas and refresh tokens
 

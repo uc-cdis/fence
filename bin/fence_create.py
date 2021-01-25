@@ -340,7 +340,10 @@ def parse_arguments():
         "Fence is providing access to. Includes Fence Project.auth_id and Google Bucket "
         "Access Group",
     )
-    subparsers.add_parser("visa-update", help="Update visas and refresh tokens for users with valid visas and refresh tokens")
+    subparsers.add_parser(
+        "visa-update",
+        help="Update visas and refresh tokens for users with valid visas and refresh tokens",
+    )
 
     return parser.parse_args()
 
