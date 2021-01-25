@@ -110,7 +110,9 @@ def get_user_info(current_session, username):
         role = "user"
 
     # logger.error(type(user.additional_info))
-    additional_info_merged = user.additional_info.copy()
+    additional_info_merged = {}
+    if user.additional_info:
+        additional_info_merged = user.additional_info.copy()
     #TODO revert comments when hubspot is working
     # if flask.current_app.hubspot_api_key and user.additional_info and ("hubspot_id" in user.additional_info) and user.additional_info["hubspot_id"] is not None:
     #     user_info = hubspot.get_user(user.username, user.additional_info["hubspot_id"])
