@@ -351,7 +351,7 @@ def test_cronjob(
     kid_2,
 ):
     """
-    Test to check visa table is updated when getting new visa
+    Test to check visa table is updated when updating visas using cronjob
     """
 
     n_users = 50
@@ -380,17 +380,6 @@ def test_cronjob(
         add_visa_manually(db_session, test_user, rsa_private_key, kid)
         add_refresh_token(db_session, test_user)
 
-    visa_query = db_session.query(GA4GHVisaV1).filter_by(user=test_user).first()
-    initial_visa = visa_query.ga4gh_visa
-    assert initial_visa
-
-    oidc = config.get("OPENID_CONNECT", {})
-    ras_client = RASClient(
-        oidc["ras"],
-        HTTP_PROXY=config.get("HTTP_PROXY"),
-        logger=logger,
-    )
-
     new_visa = {
         "iss": "https://stsstg.nih.gov",
         "sub": "abcde12345aspdij",
@@ -417,10 +406,11 @@ def test_cronjob(
     userinfo_response["ga4gh_passport_v1"] = [encoded_visa]
     mock_userinfo.return_value = userinfo_response
 
-    ras_client.update_user_visas(test_user)
+    # test "fence-create visa-update"
+    job = Visa_Token_Update()
+    asyncio.run(job.update_tokens(db_session))
 
-    query_visa = db_session.query(GA4GHVisaV1).first()
+    query_visas = db_session.query(GA4GHVisaV1).all()
 
-    cronjob = Visa_Token_Update()
-
-    asyncio.run(cronjob.update_tokens(db_session))
+    for visa in query_visas:
+        assert visa.ga4gh_visa == encoded_visa

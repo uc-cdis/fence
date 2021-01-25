@@ -33,6 +33,7 @@ from fence.scripting.fence_create import (
     force_update_google_link,
     migrate_database,
     google_list_authz_groups,
+    update_user_visas,
 )
 from fence.settings import CONFIG_SEARCH_FOLDERS
 
@@ -339,6 +340,7 @@ def parse_arguments():
         "Fence is providing access to. Includes Fence Project.auth_id and Google Bucket "
         "Access Group",
     )
+    subparsers.add_parser("visa-update", help="Update visas and refresh tokens for users with valid visas and refresh tokens")
 
     return parser.parse_args()
 
@@ -543,6 +545,8 @@ def main():
         )
     elif args.action == "migrate":
         migrate_database(DB)
+    elif args.action == "visa-update":
+        update_user_visas(DB)
 
 
 if __name__ == "__main__":

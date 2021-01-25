@@ -4,6 +4,7 @@ import time
 from yaml import safe_load
 import json
 import pprint
+import asyncio
 
 from cirrus import GoogleCloudManager
 from cirrus.google_cloud.errors import GoogleAuthError
@@ -34,6 +35,7 @@ from fence.jwt.token import (
     generate_signed_refresh_token,
     issued_and_expiration_times,
 )
+from fence.job.visa_update_cronjob import Visa_Token_Update
 from fence.models import (
     Client,
     GoogleServiceAccount,
@@ -1494,3 +1496,16 @@ def google_list_authz_groups(db):
             print(", ".join(item[:-1]))
 
         return google_authz
+
+
+async def update_user_visas(db):
+    """
+    Update visas and refresh tokens for users with valid visas and refresh tokens
+
+    db (string): database instance
+    """
+    driver = SQLAlchemyDriver(db)
+    job = Visa_Token_Update()
+
+    with driver.session as db_session:
+        asyncio.run(job.update_tokens(db_session))
