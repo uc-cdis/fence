@@ -118,35 +118,32 @@ class Visa_Token_Update(object):
         """
         Create tasks to pass tot updater to update visas AND pass updated visas to _verify_jwt_token for verification
         """
-        while True:
+        while queue.empty():
             user = await queue.get()
             await semaphore.put(user)
             queue.task_done()
-            if queue.empty():
-                break
 
     async def updater(self, name, semaphore, db_session):
         """
         Update visas in the semaphore
         """
         while True:
-            try:
-                user = await semaphore.get()
-                if user.ga4gh_visas_v1:
-                    for visa in user.ga4gh_visas_v1:
-                        client = self._pick_client(visa)
-                        self.logger.info(
-                            "Updater {} updating visa for user {}".format(
-                                name, user.username
-                            )
-                        )
-                        client.update_user_visas(user, db_session)
-                else:
+            user = await semaphore.get()
+            if user.ga4gh_visas_v1:
+                for visa in user.ga4gh_visas_v1:
+                    client = self._pick_client(visa)
                     self.logger.info(
-                        "User {} doesnt have visa. Skipping . . .".format(user.username)
+                        "Updater {} updating visa for user {}".format(
+                            name, user.username
+                        )
                     )
-            finally:
-                semaphore.task_done()
+                    client.update_user_visas(user, db_session)
+            else:
+                self.logger.info(
+                    "User {} doesnt have visa. Skipping . . .".format(user.username)
+                )
+
+            semaphore.task_done()
 
     def _pick_client(self, visa):
         """
