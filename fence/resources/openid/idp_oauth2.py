@@ -155,7 +155,6 @@ class Oauth2ClientBase(object):
             url=token_endpoint,
             proxies=self.get_proxies(),
             refresh_token=refresh_token,
-            grant_type="refresh_token",
             client_id=self.settings["client_id"],
         )
         new_refresh_token = token_response["refresh_token"]
