@@ -118,7 +118,7 @@ class Visa_Token_Update(object):
         """
         Create tasks to pass tot updater to update visas AND pass updated visas to _verify_jwt_token for verification
         """
-        while queue.empty():
+        while not queue.empty():
             user = await queue.get()
             await semaphore.put(user)
             queue.task_done()
