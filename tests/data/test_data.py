@@ -77,7 +77,7 @@ def test_indexd_download_file(
             "requested_protocol": indexd_client["indexed_file_location"],
         },
     )
-    assert 1 == (after - before)
+    assert 1 == (after - before), "1 presigned URL request should have been counted"
 
     # defaults to signing url, check that it's not just raw url
     assert urllib.parse.urlparse(response.json["url"]).query != ""
