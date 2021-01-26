@@ -12,13 +12,6 @@ import flask
 from prometheus_flask_exporter import Counter
 import requests
 
-
-pre_signed_url_req = Counter(
-    "pre_signed_url_req",
-    "tracking presigned url requests",
-    ["username", "guid", "requested_protocol"],
-)
-
 from fence.auth import (
     get_jwt,
     has_oauth,
@@ -58,6 +51,13 @@ SUPPORTED_PROTOCOLS = ["s3", "http", "ftp", "https", "gs"]
 SUPPORTED_ACTIONS = ["upload", "download"]
 ANONYMOUS_USER_ID = "anonymous"
 ANONYMOUS_USERNAME = "anonymous"
+
+# gen3 metrics
+pre_signed_url_req = Counter(
+    "pre_signed_url_req",
+    "tracking presigned url requests",
+    ["username", "guid", "requested_protocol"],
+)
 
 
 def get_signed_url_for_file(action, file_id, file_name=None):
