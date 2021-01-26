@@ -18,10 +18,3 @@ if [ -f /fence/jwt-keys.tar ]; then
     fi
   )
 fi
-
-(
-  while true; do
-    curl -s http://127.0.0.1/metrics >> /var/www/metrics/metrics.txt
-    sleep 12
-  done
-) &

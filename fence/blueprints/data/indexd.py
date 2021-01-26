@@ -9,15 +9,14 @@ from cdislogging import get_logger
 from cdispyutils.config import get_value
 from cdispyutils.hmac4 import generate_aws_presigned_url
 import flask
-import requests
 from prometheus_flask_exporter import Counter
+import requests
 
-# from fence.user import get_current_user
 
 pre_signed_url_req = Counter(
     "pre_signed_url_req",
     "tracking presigned url requests",
-    ["username", "file_id", "requested_protocol"],
+    ["username", "guid", "requested_protocol"],
 )
 
 from fence.auth import (

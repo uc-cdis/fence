@@ -6,7 +6,6 @@ import flask
 from flask_cors import CORS
 from flask_sqlalchemy_session import flask_scoped_session, current_session
 from userdatamodel.driver import SQLAlchemyDriver
-
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from prometheus_client import CollectorRegistry, multiprocess, make_wsgi_app
 from prometheus_flask_exporter.multiprocess import UWsgiPrometheusMetrics
@@ -56,16 +55,8 @@ from gen3authz.client.arborist.client import ArboristClient
 # Later, in app_config(), will actually set level based on config
 logger = get_logger(__name__, log_level="debug")
 
-if "prometheus_multiproc_dir" not in os.environ:
-    os.environ["prometheus_multiproc_dir"] = "/tmp"
-
-registry = CollectorRegistry()
-multiprocess.MultiProcessCollector(registry)
-
 app = flask.Flask(__name__)
 CORS(app=app, headers=["content-type", "accept"], expose_headers="*")
-
-metrics = UWsgiPrometheusMetrics(app)
 
 
 def warn_about_logger():
@@ -94,6 +85,23 @@ def app_init(
     app_sessions(app)
     app_register_blueprints(app)
     server.init_app(app, query_client=query_client)
+
+
+def setup_prometheus(app):
+    if "prometheus_multiproc_dir" not in os.environ:
+        os.environ["prometheus_multiproc_dir"] = "/tmp"
+
+    registry = CollectorRegistry()
+    multiprocess.MultiProcessCollector(registry)
+
+    metrics = UWsgiPrometheusMetrics(app)
+
+    # Add prometheus wsgi middleware to route /metrics requests
+    app.wsgi_app = DispatcherMiddleware(
+        app.wsgi_app, {"/metrics": make_wsgi_app(registry=registry)}
+    )
+
+    return registry
 
 
 def app_sessions(app):
@@ -431,7 +439,4 @@ def set_csrf(response):
     return response
 
 
-# Add prometheus wsgi middleware to route /metrics requests
-app.wsgi_app = DispatcherMiddleware(
-    app.wsgi_app, {"/metrics": make_wsgi_app(registry=registry)}
-)
+registry = setup_prometheus(app)
