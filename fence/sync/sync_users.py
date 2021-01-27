@@ -1500,7 +1500,6 @@ class UserSyncer(object):
             user_yaml.user_abac = {
                 key.lower(): value for key, value in user_yaml.user_abac.items()
             }
-
             # update the project info with `projects` specified in user.yaml
             self.sync_two_phsids_dict(user_yaml.user_abac, user_projects)
 
