@@ -34,8 +34,8 @@ class Visa_Token_Update(object):
             thread_pool_size: number of Docker container CPU used for jwt verifcation
             buffer_size: max size of queue
         """
-        self.window_size = window_size or 8
-        self.concurrency = concurrency or 2
+        self.window_size = window_size or 10
+        self.concurrency = concurrency or 5
         self.thread_pool_size = thread_pool_size or 2
         self.buffer_size = buffer_size or 10
         self.n_workers = self.thread_pool_size + self.concurrency

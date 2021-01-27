@@ -1512,10 +1512,10 @@ def update_user_visas(
     """
     driver = SQLAlchemyDriver(db)
     job = Visa_Token_Update(
-        window_size=int(window_size) if not window_size else None,
-        concurrency=int(concurrency) if not concurrency else None,
-        thread_pool_size=int(thread_pool_size) if not thread_pool_size else None,
-        buffer_size=int(buffer_size) if not buffer_size else None,
+        window_size=int(window_size) if window_size else None,
+        concurrency=int(concurrency) if concurrency else None,
+        thread_pool_size=int(thread_pool_size) if thread_pool_size else None,
+        buffer_size=int(buffer_size) if buffer_size else None,
     )
     with driver.session as db_session:
         loop = asyncio.get_event_loop()
