@@ -1514,7 +1514,7 @@ def update_user_visas(
     job = Visa_Token_Update(
         window_size=int(window_size) if not window_size else None,
         concurrency=int(concurrency) if not concurrency else None,
-        thread_pool_size=int(thread_pool_size) if not thread_pool_size else Non,
+        thread_pool_size=int(thread_pool_size) if not thread_pool_size else None,
         buffer_size=int(buffer_size) if not buffer_size else None,
     )
     with driver.session as db_session:
