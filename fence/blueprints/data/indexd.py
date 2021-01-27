@@ -473,7 +473,7 @@ class IndexedFile(object):
             None
         """
         locations_to_delete = []
-        if not urls and delete_all:
+        if urls is None and delete_all:
             locations_to_delete = self.indexed_file_locations
         else:
             locations_to_delete = [
@@ -495,6 +495,7 @@ class IndexedFile(object):
                 )
             )
             return location.delete(bucket, file_suffix)
+        return ("No URLs to delete", 200)
 
     @login_required({"data"})
     def delete(self):
