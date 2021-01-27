@@ -158,5 +158,6 @@ class Visa_Token_Update(object):
             )
 
     def _verify_jwt_token(self, visa):
+        # NOT IMPLEMENTED
         # TODO: Once local jwt verification is ready use thread_pool_size to determine how many users we want to verify the token for
         pass

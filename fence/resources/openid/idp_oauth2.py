@@ -158,11 +158,18 @@ class Oauth2ClientBase(object):
         )
         new_refresh_token = token_response["refresh_token"]
 
-        self.store_refresh_token(user, refresh_token=new_refresh_token, expires=expires, db_session=db_session)
+        self.store_refresh_token(
+            user,
+            refresh_token=new_refresh_token,
+            expires=expires,
+            db_session=db_session,
+        )
 
         return token_response
 
-    def store_refresh_token(self, user, refresh_token, expires, db_session=current_session):
+    def store_refresh_token(
+        self, user, refresh_token, expires, db_session=current_session
+    ):
         """
         Store refresh token in db.
         """

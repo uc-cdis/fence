@@ -382,7 +382,7 @@ def test_cronjob(
         add_refresh_token(db_session, test_user)
     for j in range(n_users_no_visa):
         username = "no_visa_{}".format(j)
-        test_user = add_test_user(db_session, username, j+n_users)
+        test_user = add_test_user(db_session, username, j + n_users)
 
     new_visa = {
         "iss": "https://stsstg.nih.gov",
@@ -410,7 +410,7 @@ def test_cronjob(
     userinfo_response["ga4gh_passport_v1"] = [encoded_visa]
     mock_userinfo.return_value = userinfo_response
 
-    # test "fence-create visa-update"
+    # test "fence-create update-visa"
     job = Visa_Token_Update()
     loop = asyncio.get_event_loop()
     loop.run_until_complete(job.update_tokens(db_session))
