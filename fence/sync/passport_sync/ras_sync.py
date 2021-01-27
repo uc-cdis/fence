@@ -85,34 +85,36 @@ class RASVisa(DefaultVisa):
         users = db_session.query(User).all()
 
         for user in users:
-            username = user.username
-            user_projects[username] = {}
-            encoded_visas = self._get_single_passport(user)
-            decoded_visas = [jwt.decode(visa, verify=False) for visa in encoded_visas]
+            project, info = self._parse_single_visa(user)
+            user_projects[user.username] = project
+            user_info[user.username] = info
 
-            # Retrieve phsid information
-            user_projects[username] = dict()
-            project_list = user_projects[username]
-            for decoded_visa in decoded_visas:
-                ras_dbgap_permissions = decoded_visa.get("ras_dbgap_permissions", [])
-                for permission in ras_dbgap_permissions:
-                    phsid = permission.get("phs_id", "")
-                    version = permission.get("version", "")
-                    participant_set = permission.get("participant_set", "")
-                    consent_group = permission.get("consent_group", "")
-                    full_phsid = ".".join(filter(None,[phsid, version, participant_set, consent_group]))
-                    privileges = {"read-storage", "read"}
-                    project_list[full_phsid] = privileges
-                    # TODO: Check/create resources in arborist
+        return(user_projects, user_info)     
 
-            # Retrieve user information
-            user_info[username] = dict()
-            info = user_info[username]
-            info["email"] = user.email or ""
-            info["display_name"] = user.display_name or ""
-            info["phone_number"] = user.phone_number or ""
-            # info["tags"] = {"dbgap_role": user.roles or ""} # Check this out today
-        return(user_projects, user_info)        
+    def _parse_single_visa(self, user):
+        encoded_visas = self._get_single_passport(user)
+        decoded_visas = [jwt.decode(visa, verify=False) for visa in encoded_visas]
+        project = {}
+
+        for visa in decoded_visas:
+            ras_dbgap_permissions = visa.get("ras_dbgap_permissions", [])
+            for permission in ras_dbgap_permissions:
+                phsid = permission.get("phs_id", "")
+                version = permission.get("version", "")
+                participant_set = permission.get("participant_set", "")
+                consent_group = permission.get("consent_group", "")
+                full_phsid = ".".join(filter(None,[phsid, version, participant_set, consent_group]))
+                privileges = {"read-storage", "read"}
+                project[full_phsid] = privileges
+
+        # Retrieve user information
+        info = {}
+        info["email"] = user.email or ""
+        info["display_name"] = user.display_name or ""
+        info["phone_number"] = user.phone_number or ""
+        
+        return project, info
+
 
 
 

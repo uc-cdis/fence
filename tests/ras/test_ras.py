@@ -481,4 +481,6 @@ def test_visa_parse(
     user_projects, user_info = visa_class._parse_user_visas(test_user, db_session)
     assert len(user_projects) == 2
     assert len(user_info) == 2 
+    print(user_projects)
+    print(user_info)
     # TODO: Check format
