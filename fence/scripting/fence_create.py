@@ -1511,12 +1511,12 @@ def update_user_visas(
     buffer_size (int): max size of queue
     """
     driver = SQLAlchemyDriver(db)
-    job = Visa_Token_Update()
-    job.window_size = window_size
-    job.concurrency = concurrency
-    job.thread_pool_size = thread_pool_size
-    job.buffer_size = buffer_size
-
+    job = Visa_Token_Update(
+        window_size=window_size,
+        concurrency=concurrency,
+        thread_pool_size=thread_pool_size,
+        buffer_size=buffer_size,
+    )
     with driver.session as db_session:
         loop = asyncio.get_event_loop()
         loop.run_until_complete(job.update_tokens(db_session))

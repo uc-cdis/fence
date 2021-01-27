@@ -92,8 +92,7 @@ class Visa_Token_Update(object):
         """
         window function to get chunks of data from the table
         """
-        window_size = self.window_size
-        start, stop = window_size * window_idx, window_size * (window_idx + 1)
+        start, stop = self.window_size * window_idx, self.window_size * (window_idx + 1)
         users = db_session.query(User).slice(start, stop).all()
         return users
 
