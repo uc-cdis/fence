@@ -470,7 +470,7 @@ class IndexedFile(object):
             urls (Optional[List[str]])
 
         Return:
-            None
+            Response (str, str)
         """
         locations_to_delete = []
         if urls is None and delete_all:
@@ -479,6 +479,7 @@ class IndexedFile(object):
             locations_to_delete = [
                 location for location in locations_to_delete if location.url in urls
             ]
+        response = ("No URLs to delete", 200)
         for location in locations_to_delete:
             bucket = location.bucket_name()
 
@@ -494,8 +495,11 @@ class IndexedFile(object):
                     file_suffix, bucket
                 )
             )
-            return location.delete(bucket, file_suffix)
-        return ("No URLs to delete", 200)
+            response = location.delete(bucket, file_suffix)
+            # check status code not in 200s
+            if response[1][0] != "2":
+                break
+        return response
 
     @login_required({"data"})
     def delete(self):
