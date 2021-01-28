@@ -9,6 +9,7 @@ from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
 from fence.config import config
 from fence.sync.passport_sync.base_sync import DefaultVisa
 from fence.sync.passport_sync.ras_sync import RASVisa
+from fence.sync.passport_sync.sync_users import VisaSync
 import tests.utils
 
 logger = get_logger(__name__, log_level="debug")
@@ -477,10 +478,10 @@ def test_visa_parse(
     assert query_visa.ga4gh_visa
     assert query_visa.ga4gh_visa == encoded_visa
 
-    visa_class = RASVisa()
+    visa_class = VisaSync()
     user_projects, user_info = visa_class._parse_user_visas(test_user, db_session)
     assert len(user_projects) == 2
-    assert len(user_info) == 2 
+    assert len(user_info) == 2
     print(user_projects)
     print(user_info)
     # TODO: Check format

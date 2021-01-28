@@ -36,25 +36,10 @@ class DefaultVisa(object):
 
     def __init__(
         self,
-        projects=None,  # Add access by "auth_id" to "self.projects" to update the Fence DB
-        user_info=None,
-        policies=None,
-        client=None,  # Prob dont need this
-        authz=None,
-        project_to_resource=None,  # Prob done need this either. Just putting it because of user yaml
         logger=None,
-        user_abac=None,  # Add access by "resource" to "self.user_abac" to update Arborist.
-        visa_type=None,
     ):
-        self.projects = projects or {}
-        self.user_info = user_info or {}
-        self.policies = policies or {}
-        self.client = client or {}
-        self.authz = authz or {}
-        self.project_to_resource = project_to_resource or {}
-        self.user_abac = user_abac or {}
-        self.visa_type = visa_type or ""
         self.logger = logger
+        # add option for DB and dbsession 
 
     def _get_single_passport(self, user):
         """
@@ -74,4 +59,9 @@ class DefaultVisa(object):
         """
         return {key.lower(): value for key, value in user_projects.items()}
 
-    
+    def _single_visa_sync(self):
+        pass
+
+    def _sync(self):
+        # do the sync here for all clients and call parsing depending on _pick_client
+        pass
