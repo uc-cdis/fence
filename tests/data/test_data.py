@@ -1204,3 +1204,39 @@ def test_multipart_complete_upload(
         response = client.post("/data/multipart/complete", headers=headers, data=data)
 
         assert response.status_code == 200, response
+
+
+@patch("fence.blueprints.data.indexd.IndexedFile.indexed_file_locations")
+def test_delete_files(
+    mocklocations, app, client, auth_client, encoded_creds_jwt, user_client
+):
+
+    fence.auth.config["MOCK_AUTH"] = True
+    did = str(uuid.uuid4())
+    # test for when no urls are present
+    indx = fence.blueprints.data.indexd.IndexedFile(did)
+    mocklocations.return_value = []
+    urls = []
+    message, status = indx.delete_files(urls)
+    assert status == 200
+
+    # test for when urls present
+    indx = fence.blueprints.data.indexd.IndexedFile(did)
+    urls = ["s3://bucket1/key-{}".format(did[:8])]
+    mocklocations.return_value = [
+        fence.blueprints.data.indexd.S3IndexedFileLocation(x) for x in urls
+    ]
+    with patch("fence.blueprints.data.indexd.S3IndexedFileLocation") as s3mock:
+        s3mock.bucket_name.return_value = "bucket"
+        s3mock.file_name.return_value = "file"
+
+        # with error
+        s3mock().delete.return_value = ("bad response", 400)
+        message, status = indx.delete_files(urls)
+        assert status == 400
+
+        # without error
+        s3mock().delete.return_value = ("ok", 200)
+        message, status = indx.delete_files(urls)
+        assert status == 200
+    fence.auth.config["MOCK_AUTH"] = False

@@ -470,15 +470,13 @@ class IndexedFile(object):
             urls (Optional[List[str]])
 
         Return:
-            Response (str, str)
+            Response (str: message, int: status code)
         """
         locations_to_delete = []
-        if urls is None and delete_all:
+        if not urls and delete_all:
             locations_to_delete = self.indexed_file_locations
         else:
-            locations_to_delete = [
-                location for location in locations_to_delete if location.url in urls
-            ]
+            locations_to_delete = list(map(IndexedFileLocation.from_url, urls))
         response = ("No URLs to delete", 200)
         for location in locations_to_delete:
             bucket = location.bucket_name()
@@ -497,7 +495,7 @@ class IndexedFile(object):
             )
             response = location.delete(bucket, file_suffix)
             # check status code not in 200s
-            if response[1][0] != "2":
+            if response[1] > 399:
                 break
         return response
 
