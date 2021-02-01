@@ -543,6 +543,7 @@ def remove_expired_google_service_account_keys(db):
 
             # handle service accounts with custom expiration
             for expired_user_key in expired_sa_keys_for_users:
+                logger.info("expired_user_key: {}\n".format(expired_user_key))
                 sa = (
                     current_session.query(GoogleServiceAccount)
                     .filter(
@@ -555,6 +556,9 @@ def remove_expired_google_service_account_keys(db):
                     account=sa.email, key_name=expired_user_key.key_id
                 )
                 response_error_code = response.get("error", {}).get("code")
+                response_error_status = response.get("error", {}).get("status")
+                logger.info("response_error_code: {}\n".format(response_error_code))
+                logger.info("response_error_status: {}\n".format(response_error_status))
 
                 if not response_error_code:
                     current_session.delete(expired_user_key)
@@ -564,7 +568,10 @@ def remove_expired_google_service_account_keys(db):
                             expired_user_key.key_id, sa.email, sa.user_id
                         )
                     )
-                elif response_error_code == 404:
+                elif (
+                    response_error_code == 404
+                    or response_error_status == "FAILED_PRECONDITION"
+                ):
                     logger.info(
                         "INFO: Service account key {} for service account {} "
                         "(owned by user with id {}) does not exist in Google. "
@@ -1317,6 +1324,38 @@ def link_external_bucket(db, name):
     db = SQLAlchemyDriver(db)
     with db.session as current_session:
         google_cloud_provider = _get_or_create_google_provider(current_session)
+
+        # search for existing bucket based on name, try to use existing group email
+        existing_bucket = current_session.query(Bucket).filter_by(name=name).first()
+        if existing_bucket:
+            access_group = (
+                current_session.query(GoogleBucketAccessGroup)
+                .filter(GoogleBucketAccessGroup.privileges.any("read"))
+                .filter_by(bucket_id=existing_bucket.id)
+                .all()
+            )
+            if len(access_group) > 1:
+                raise Exception(
+                    f"Existing bucket {name} has more than 1 associated "
+                    "Google Bucket Access Group with privilege of 'read'. "
+                    "This is not expected and we cannot continue linking."
+                )
+            elif len(access_group) == 0:
+                raise Exception(
+                    f"Existing bucket {name} has no associated "
+                    "Google Bucket Access Group with privilege of 'read'. "
+                    "This is not expected and we cannot continue linking."
+                )
+
+            access_group = access_group[0]
+
+            email = access_group.email
+
+            logger.warning(
+                f"bucket already exists with name: {name}, using existing group email: {email}"
+            )
+
+            return email
 
         bucket_db_entry = Bucket(name=name, provider_id=google_cloud_provider.id)
         current_session.add(bucket_db_entry)
