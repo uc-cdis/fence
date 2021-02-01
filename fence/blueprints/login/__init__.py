@@ -18,7 +18,6 @@ from fence.blueprints.login.google import GoogleLogin, GoogleCallback
 from fence.blueprints.login.shib import ShibbolethLogin, ShibbolethCallback
 from fence.blueprints.login.microsoft import MicrosoftLogin, MicrosoftCallback
 from fence.blueprints.login.okta import OktaLogin, OktaCallback
-from fence.blueprints.login.generic import GenericLogin, GenericCallback
 from fence.blueprints.login.orcid import ORCIDLogin, ORCIDCallback
 from fence.blueprints.login.ras import RASLogin, RASCallback
 from fence.blueprints.login.synapse import SynapseLogin, SynapseCallback
