@@ -666,7 +666,6 @@ def test_user_sync_with_visas(
     # assert user.display_name == "USER D"
     # assert user.phone_number == "123-456-789"
 
-
     # user = models.query_for_user(session=db_session, username="test_user1@gmail.com")
     # user_access = db_session.query(models.AccessPrivilege).filter_by(user=user).all()
     # assert set(user_access[0].privilege) == {
