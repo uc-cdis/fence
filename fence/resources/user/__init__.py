@@ -58,7 +58,7 @@ def update_user(current_session, additional_info):
         )
 
     #TODO revert comments for Hubspot
-    additional_info_tmp = flask.g.user.additional_info.copy()
+    additional_info_tmp = flask.g.user.additional_info.copy() if flask.g.user.additional_info else {}
     additional_info_tmp.update(additional_info)
     # hubspot_id = hubspot.update_user_info(flask.g.user.username, additional_info)
     # additional_info_tmp = flask.g.user.additional_info or {}    
