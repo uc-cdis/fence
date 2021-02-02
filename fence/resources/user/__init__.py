@@ -57,6 +57,10 @@ def update_user(current_session, additional_info):
             "The Hubspot API key is missing."
         )
 
+    #TODO check if user is already in the system - you can get create_user_if_not_exist with new gen3authz version. 
+    # See if when you try to create a user with an email already in the system, it may throw an error
+    register_arborist_user(flask.g.user)
+
     #TODO revert comments for Hubspot
     additional_info_tmp = flask.g.user.additional_info.copy() if flask.g.user.additional_info else {}
     additional_info_tmp.update(additional_info)
@@ -76,9 +80,7 @@ def update_user(current_session, additional_info):
 
     udm.update_user(current_session, flask.g.user.username, additional_info_tmp)
 
-    #TODO check if user is already in the system - you can get create_user_if_not_exist with new gen3authz version. 
-    # See if when you try to create a user with an email already in the system, it may throw an error
-    register_arborist_user(flask.g.user)
+    
 
     return get_user_info(current_session, flask.g.user.username)
 
@@ -159,7 +161,7 @@ def get_user_info(current_session, username):
             resources = []
             auth_mapping = {}
         
-        auth_mapping["/portal"]: [{"method": "*", "service": "*"}]
+        auth_mapping["/portal"] = [{"method": "*", "service": "*"}]
 
         info["resources"] = resources
         info["authz"] = auth_mapping
