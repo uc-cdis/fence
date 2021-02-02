@@ -290,6 +290,8 @@ class UserSyncer(object):
         arborist=None,
         folder=None,
         visa_sync=None,
+        sync_from_visa=None,
+        fallback_to_telemetry=None,
     ):
         """
         Syncs ACL files from dbGap to auth database and storage backends
@@ -322,6 +324,8 @@ class UserSyncer(object):
         )
         self.arborist_client = arborist
         self.folder = folder
+        self.sync_from_visa = dbGaP[0].get("sync_from_visa", False)
+        self.fallback_to_telemetry = dbGaP[0].get("fallback_to_telemetry", False)
 
         if storage_credentials:
             self.storage_manager = StorageManager(
@@ -1257,7 +1261,6 @@ class UserSyncer(object):
             self.logger.info("No users for syncing")
 
         # update the Arborist DB (resources, roles, policies, groups)
-        # TODO: Figure out how to do this without having any user_yaml
         if user_yaml.authz:
             if not self.arborist_client:
                 raise EnvironmentError(
@@ -1778,6 +1781,15 @@ class UserSyncer(object):
             "study_common_exchange_areas", {}
         )
 
+        try:
+            user_yaml = UserYAML.from_file(
+                self.sync_from_local_yaml_file, encrypted=False, logger=self.logger
+            )
+        except (EnvironmentError, AssertionError) as e:
+            self.logger.error(str(e))
+            self.logger.error("aborting early")
+            return
+
         if self.parse_consent_code and enable_common_exchange_area_access:
             self.logger.info(
                 f"using study to common exchange area mapping: {study_common_exchange_areas}"
@@ -1790,6 +1802,15 @@ class UserSyncer(object):
                 privileges = user_projects[username][project]
                 if len(phsid) > 1 and self.parse_consent_code:
                     consent_code = phsid[-1]
+
+                    # c999 indicates full access to all consents and access
+                    # to a study-specific exchange area
+                    # access to at least one study-specific exchange area implies access
+                    # to the parent study's common exchange area
+                    #
+                    # NOTE: Handling giving access to all consents is done at
+                    #       a later time, when we have full information about possible
+                    #       consents
                     self.logger.debug(
                         f"got consent code {consent_code} from dbGaP project "
                         f"{dbgap_project}"
@@ -1843,12 +1864,36 @@ class UserSyncer(object):
                     except ValueError as e:
                         self.logger.info(e)
 
+        # Note: if there are multiple dbgap sftp servers configured
+        # this parameter is always from the config for the first dbgap sftp server
+        # not any additional ones
+        if self.parse_consent_code:
+            self._grant_all_consents_to_c999_users(
+                user_projects, user_yaml.project_to_resource
+            )
         # update fence db
         if user_projects:
             self.logger.info("Sync to db and storage backend")
             self.sync_to_db_and_storage_backend(user_projects, user_info, sess)
+        else:
+            self.logger.info("No users for syncing")
 
-        # update arborist db (resources, roles, policies, groups)
+        # update the Arborist DB (resources, roles, policies, groups)
+        if user_yaml.authz:
+            if not self.arborist_client:
+                raise EnvironmentError(
+                    "yaml file contains authz section but sync is not configured with"
+                    " arborist client--did you run sync with --arborist <arborist client> arg?"
+                )
+            self.logger.info("Synchronizing arborist...")
+            success = self._update_arborist(sess, user_yaml)
+            if success:
+                self.logger.info("Finished synchronizing arborist")
+            else:
+                self.logger.error("Could not synchronize successfully")
+                exit(1)
+        else:
+            self.logger.info("No `authz` section; skipping arborist sync")
 
         # update arborist db (user access)
         if self.arborist_client:
@@ -1864,11 +1909,10 @@ class UserSyncer(object):
                 )
                 exit(1)
 
-        # is fallback to telemetry? if yes then usersync
-
     def sync_visas(self):
         if self.session:
             self._sync_visas(self.session)
         else:
             with self.driver.session as s:
                 self._sync_visas(s)
+        # if returns with some failure use telemetry file

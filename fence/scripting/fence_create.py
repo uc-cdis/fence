@@ -321,7 +321,10 @@ def sync_users(
     )
     if not syncer:
         exit(1)
-    syncer.sync()
+    if dbGaP[0].sync_from_visa:
+        syncer.sync_visas()
+    else:
+        syncer.sync()
 
 
 def create_sample_data(DB, yaml_file_path):
