@@ -461,6 +461,15 @@ dbGaP:
       # 'studyX.c2': ['/orgB/', '/orgC/']
       # 'studyZ': ['/orgD/']
 
+
+visaSync:
+  parse_consent_code: true
+  fallback_to_telemetry: true
+  enable_common_exchange_area_access: false
+
+
+
+
 # Regex to match an assession number that has consent information in forms like:
 #   phs00301123.c999
 #   phs000123.v3.p1.c3

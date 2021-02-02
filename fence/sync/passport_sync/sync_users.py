@@ -51,7 +51,13 @@ class VisaSync(object):
         encoded_visas = [row.ga4gh_visa for row in user.ga4gh_visas_v1]
         return encoded_visas
 
-    def _parse_user_visas(self, user, db_session):
+    def _parse_projects(self, user_projects):
+        """
+        helper function for parsing projects
+        """
+        return {key.lower(): value for key, value in user_projects.items()}
+
+    def _parse_user_visas(self, db_session):
         """
         Retrieve all visas from fence db and parse to python dict
 
@@ -96,3 +102,32 @@ class VisaSync(object):
             user_info[user.username] = info
 
         return (user_projects, user_info)
+
+    def sync_to_db_and_storage_backend(self, user_project, user_info, db_session):
+        """
+        sync user access control to database and storage backend
+        """
+        google_bulk_mapping = None
+
+    def _single_visa_sync(self, db_session):
+        pass
+
+    def _sync(self, db_session):
+        """
+        Collect passports from db, sync info to backend
+        """
+
+        # get all users and info
+        user_projects, user_info = self._parse_user_visas(db_session)
+
+        user_projects = self._parse_projects(user_projects)
+
+        # update fence db
+        if user_projects:
+            self.logger.info("Sync to db and storage backend")
+
+        # is fallback to telemetry? if yes then usersync
+
+        # update arborist db (resources, roles, policies, groups)
+
+        # update arborist db (user access)

@@ -10,6 +10,7 @@ from fence.config import config
 from fence.sync.passport_sync.base_sync import DefaultVisa
 from fence.sync.passport_sync.ras_sync import RASVisa
 from fence.sync.passport_sync.sync_users import VisaSync
+from fence.sync.sync_users import UserSyncer
 import tests.utils
 
 logger = get_logger(__name__, log_level="debug")
@@ -42,6 +43,63 @@ def add_visa_manually(db_session, user, rsa_private_key, kid):
             "source": "https://ncbi/gap",
         },
     }
+
+    decoded_visa["ras_dbgap_permissions"] = [
+        {
+            "consent_name": "Health/Medical/Biomedical",
+            "phs_id": "phs000991",
+            "version": "v1",
+            "participant_set": "p1",
+            "consent_group": "c1",
+            "role": "designated user",
+            "expiration": "2020-11-14 00:00:00",
+        },
+        {
+            "consent_name": "General Research Use (IRB, PUB)",
+            "phs_id": "phs000961",
+            "version": "v1",
+            "participant_set": "p1",
+            "consent_group": "c1",
+            "role": "designated user",
+            "expiration": "2020-11-14 00:00:00",
+        },
+        {
+            "consent_name": "Disease-Specific (Cardiovascular Disease)",
+            "phs_id": "phs000279",
+            "version": "v2",
+            "participant_set": "p1",
+            "consent_group": "c1",
+            "role": "designated user",
+            "expiration": "2020-11-14 00:00:00",
+        },
+        {
+            "consent_name": "Health/Medical/Biomedical (IRB)",
+            "phs_id": "phs000286",
+            "version": "v6",
+            "participant_set": "p2",
+            "consent_group": "c3",
+            "role": "designated user",
+            "expiration": "2020-11-14 00:00:00",
+        },
+        {
+            "consent_name": "Disease-Specific (Focused Disease Only, IRB, NPU)",
+            "phs_id": "phs000289",
+            "version": "v6",
+            "participant_set": "p2",
+            "consent_group": "c2",
+            "role": "designated user",
+            "expiration": "2020-11-14 00:00:00",
+        },
+        {
+            "consent_name": "Disease-Specific (Autism Spectrum Disorder)",
+            "phs_id": "phs000298",
+            "version": "v4",
+            "participant_set": "p3",
+            "consent_group": "c1",
+            "role": "designated user",
+            "expiration": "2020-11-14 00:00:00",
+        },
+    ]
 
     encoded_visa = jwt.encode(
         decoded_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
@@ -443,7 +501,7 @@ def test_visa_parse(
             },
             {
                 "consent_name": "Disease-Specific (Focused Disease Only, IRB, NPU)",
-                "phs_id": "phs000286",
+                "phs_id": "phs000289",
                 "version": "v6",
                 "participant_set": "p2",
                 "consent_group": "c2",
@@ -478,8 +536,8 @@ def test_visa_parse(
     assert query_visa.ga4gh_visa
     assert query_visa.ga4gh_visa == encoded_visa
 
-    visa_class = VisaSync()
-    user_projects, user_info = visa_class._parse_user_visas(test_user, db_session)
+    visa_class = UserSyncer()
+    user_projects, user_info = UserSyncer._parse_user_visas(db_session)
     assert len(user_projects) == 2
     assert len(user_info) == 2
     print(user_projects)

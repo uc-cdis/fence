@@ -15,6 +15,8 @@ from fence.resources import userdatamodel as udm
 
 from fence.models import AccessPrivilege, AuthorizationProvider, User
 
+from tests.ras.test_ras import add_visa_manually
+
 from gen3authz.client.arborist.client import ArboristClient
 
 LOCAL_CSV_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data/csv")
@@ -69,7 +71,7 @@ def storage_client():
 
 
 @pytest.fixture
-def syncer(db_session, request):
+def syncer(db_session, request, rsa_private_key, kid):
     if request.param == "google":
         backend = "google"
     else:
@@ -184,7 +186,9 @@ def syncer(db_session, request):
                 )
 
     for user in users:
-        db_session.add(User(**user))
+        user = User(**user)
+        db_session.add(user)
+        add_visa_manually(db_session, user, rsa_private_key, kid)
 
     db_session.commit()
 

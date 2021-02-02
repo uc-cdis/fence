@@ -1,4 +1,5 @@
 import glob
+import jwt
 import os
 import re
 import subprocess as sp
@@ -32,6 +33,7 @@ from fence.models import (
 from fence.resources.storage import StorageManager
 from fence.resources.google.access_utils import bulk_update_google_groups
 from fence.sync import utils
+from fence.sync.passport_sync.ras_sync import RASVisa
 
 
 def _format_policy_id(path, privilege):
@@ -287,6 +289,7 @@ class UserSyncer(object):
         sync_from_local_yaml_file=None,
         arborist=None,
         folder=None,
+        visa_sync=None,
     ):
         """
         Syncs ACL files from dbGap to auth database and storage backends
@@ -1254,6 +1257,7 @@ class UserSyncer(object):
             self.logger.info("No users for syncing")
 
         # update the Arborist DB (resources, roles, policies, groups)
+        # TODO: Figure out how to do this without having any user_yaml
         if user_yaml.authz:
             if not self.arborist_client:
                 raise EnvironmentError(
@@ -1503,7 +1507,6 @@ class UserSyncer(object):
         arborist_user_projects = {}
         try:
             arborist_users = self.arborist_client.get_users().json["users"]
-
             # construct user information, NOTE the lowering of the username. when adding/
             # removing access, the case in the Fence db is used. For combining access, it is
             # case-insensitive, so we lower
@@ -1596,25 +1599,28 @@ class UserSyncer(object):
                 for policy in user_yaml.policies.get(username, []):
                     self.arborist_client.grant_user_policy(username, policy)
 
-        for client_name, client_details in user_yaml.clients.items():
-            client_policies = client_details.get("policies", [])
-            client = session.query(Client).filter_by(name=client_name).first()
-            # update existing clients, do not create new ones
-            if not client:
-                self.logger.warning(
-                    "client to update (`{}`) does not exist in fence: skipping".format(
-                        client_name
+        if user_yaml:
+            for client_name, client_details in user_yaml.clients.items():
+                client_policies = client_details.get("policies", [])
+                client = session.query(Client).filter_by(name=client_name).first()
+                # update existing clients, do not create new ones
+                if not client:
+                    self.logger.warning(
+                        "client to update (`{}`) does not exist in fence: skipping".format(
+                            client_name
+                        )
                     )
-                )
-                continue
-            try:
-                self.arborist_client.update_client(client.client_id, client_policies)
-            except ArboristError as e:
-                self.logger.info(
-                    "not granting policies {} to client `{}`; {}".format(
-                        client_policies, client_name, str(e)
+                    continue
+                try:
+                    self.arborist_client.update_client(
+                        client.client_id, client_policies
                     )
-                )
+                except ArboristError as e:
+                    self.logger.info(
+                        "not granting policies {} to client `{}`; {}".format(
+                            client_policies, client_name, str(e)
+                        )
+                    )
 
         return True
 
@@ -1693,3 +1699,176 @@ class UserSyncer(object):
             )
             return False
         return True
+
+    def _pick_type(self, visa):
+        """
+        Pick type of visa to parse according to the visa provider
+        """
+        if "ras" in visa.type:
+            return RASVisa()
+
+    def _get_single_passport(self, user):
+        """
+        Retrieve passport stored in fence db
+        """
+        encoded_visas = [row.ga4gh_visa for row in user.ga4gh_visas_v1]
+        return encoded_visas
+
+    def parse_user_visas(self, db_session):
+        """
+        Retrieve all visas from fence db and parse to python dict
+
+        Return:
+            Tuple[[dict, dict]]:
+                (user_project, user_info) where user_project is a mapping from
+                usernames to project permissions and user_info is a mapping
+                from usernames to user details, such as email
+
+        Example:
+
+            (
+                {
+                    username: {
+                        'project1': {'read-storage','write-storage'},
+                        'project2': {'read-storage'},
+                    }
+                },
+                {
+                    username: {
+                        'email': 'email@mail.com',
+                        'display_name': 'display name',
+                        'phone_number': '123-456-789',
+                        'tags': {'dbgap_role': 'PI'}
+                    }
+                },
+            )
+
+        """
+        user_projects = dict()
+        user_info = dict()
+
+        users = db_session.query(User).all()
+
+        for user in users:
+            projects = {}
+            info = {}
+            for visa in user.ga4gh_visas_v1:
+                visa_type = self._pick_type(visa)
+                encoded_visa = visa.ga4gh_visa
+                decoded_visa = jwt.decode(encoded_visa, verify=False)
+                project, info = visa_type._parse_single_visa(
+                    user, decoded_visa, self.parse_consent_code
+                )
+                projects = {**projects, **project}
+            user_projects[user.username] = project
+            user_info[user.username] = info
+
+        return (user_projects, user_info)
+
+    def _sync_visas(self, sess):
+        # TODO: Using dbgap_config for now since we aren't completely transitioning to visas yet and still could use that config to get info about the current common
+        # get all users and info
+        dbgap_config = self.dbGaP[0]
+        user_projects, user_info = self.parse_user_visas(sess)
+        user_projects = self.parse_projects(user_projects)
+        enable_common_exchange_area_access = dbgap_config.get(
+            "enable_common_exchange_area_access", False
+        )
+        study_common_exchange_areas = dbgap_config.get(
+            "study_common_exchange_areas", {}
+        )
+
+        if self.parse_consent_code and enable_common_exchange_area_access:
+            self.logger.info(
+                f"using study to common exchange area mapping: {study_common_exchange_areas}"
+            )
+
+        for username in user_projects.keys():
+            for project in user_projects[username].keys():
+                phsid = project.split(".")
+                dbgap_project = phsid[0]
+                privileges = user_projects[username][project]
+                if len(phsid) > 1 and self.parse_consent_code:
+                    consent_code = phsid[-1]
+                    self.logger.debug(
+                        f"got consent code {consent_code} from dbGaP project "
+                        f"{dbgap_project}"
+                    )
+                    if (
+                        consent_code == "c999"
+                        and enable_common_exchange_area_access
+                        and dbgap_project in study_common_exchange_areas
+                    ):
+                        self.logger.info(
+                            "found study with consent c999 and Fence "
+                            "is configured to parse exchange area data. Giving user "
+                            f"{username} {privileges} privileges in project: "
+                            f"{study_common_exchange_areas[dbgap_project]}."
+                        )
+                        self._add_dbgap_project_for_user(
+                            study_common_exchange_areas[dbgap_project],
+                            privileges,
+                            username,
+                            sess,
+                            user_projects,
+                            dbgap_config,
+                        )
+
+                    dbgap_project += "." + consent_code
+
+                if dbgap_project not in self.project_mapping:
+                    self._add_dbgap_project_for_user(
+                        dbgap_project,
+                        privileges,
+                        username,
+                        sess,
+                        user_projects,
+                        dbgap_config,
+                    )
+
+                for element_dict in self.project_mapping.get(dbgap_project, []):
+                    try:
+                        phsid_privileges = {element_dict["auth_id"]: set(privileges)}
+
+                        # need to add dbgap project to arborist
+                        if self.arborist_client:
+                            self._add_dbgap_study_to_arborist(
+                                element_dict["auth_id"], dbgap_config
+                            )
+
+                        if username not in user_projects:
+                            user_projects[username] = {}
+                        user_projects[username].update(phsid_privileges)
+
+                    except ValueError as e:
+                        self.logger.info(e)
+
+        # update fence db
+        if user_projects:
+            self.logger.info("Sync to db and storage backend")
+            self.sync_to_db_and_storage_backend(user_projects, user_info, sess)
+
+        # update arborist db (resources, roles, policies, groups)
+
+        # update arborist db (user access)
+        if self.arborist_client:
+            self.logger.info("Synchronizing arborist with authorization info...")
+            success = self._update_authz_in_arborist(sess, user_projects)
+            if success:
+                self.logger.info(
+                    "Finished synchronizing authorization info to arborist"
+                )
+            else:
+                self.logger.error(
+                    "Could not synchronize authorization info successfully to arborist"
+                )
+                exit(1)
+
+        # is fallback to telemetry? if yes then usersync
+
+    def sync_visas(self):
+        if self.session:
+            self._sync_visas(self.session)
+        else:
+            with self.driver.session as s:
+                self._sync_visas(s)

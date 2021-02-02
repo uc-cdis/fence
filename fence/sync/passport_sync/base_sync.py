@@ -39,7 +39,7 @@ class DefaultVisa(object):
         logger=None,
     ):
         self.logger = logger
-        # add option for DB and dbsession 
+        # add option for DB and dbsession
 
     def _get_single_passport(self, user):
         """
@@ -49,9 +49,6 @@ class DefaultVisa(object):
         encoded_visas = [row.ga4gh_visa for row in user.ga4gh_visas_v1]
         # print(jwt.decode(encoded_visas[0], verify=False))
         return encoded_visas
-    
-    def _parse_single_visa(self, visa):
-        pass
 
     def _parse_projects(self, user_projects):
         """
@@ -59,9 +56,5 @@ class DefaultVisa(object):
         """
         return {key.lower(): value for key, value in user_projects.items()}
 
-    def _single_visa_sync(self):
-        pass
-
-    def _sync(self):
-        # do the sync here for all clients and call parsing depending on _pick_client
+    def _parse_single_visa(self, user, visa):
         pass

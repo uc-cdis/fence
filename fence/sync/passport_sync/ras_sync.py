@@ -28,7 +28,7 @@ from fence.models import (
 from fence.resources.storage import StorageManager
 from fence.resources.google.access_utils import bulk_update_google_groups
 from fence.sync import utils
-from .base_sync import DefaultVisa
+from fence.sync.passport_sync.base_sync import DefaultVisa
 
 
 class RASVisa(DefaultVisa):
@@ -47,21 +47,22 @@ class RASVisa(DefaultVisa):
             except ImportError:
                 pass
 
-    def _parse_single_visa(self, user, visa):
+    def _parse_single_visa(self, user, visa, parse_consent_code):
         ras_dbgap_permissions = visa.get("ras_dbgap_permissions", [])
         project = {}
+        info = {}
         for permission in ras_dbgap_permissions:
             phsid = permission.get("phs_id", "")
-            version = permission.get("version", "")
-            participant_set = permission.get("participant_set", "")
+            version = permission.get("version", "")  # Not using (yet?)
+            participant_set = permission.get("participant_set", "")  # Not using (yet?)
             consent_group = permission.get("consent_group", "")
-            full_phsid = ".".join(
-                filter(None, [phsid, version, participant_set, consent_group])
-            )
+            full_phsid = phsid
+            if parse_consent_code:
+                full_phsid += "." + consent_group
             privileges = {"read-storage", "read"}
             project[full_phsid] = privileges
+            info["tags"] = {"dbgap_role": permission.get("role", "")}
 
-        info = {}
         info["email"] = user.email or ""
         info["display_name"] = user.display_name or ""
         info["phone_number"] = user.phone_number or ""
