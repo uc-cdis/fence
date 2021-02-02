@@ -158,6 +158,9 @@ def get_user_info(current_session, username):
             )
             resources = []
             auth_mapping = {}
+        
+        auth_mapping["/portal"]: [{"method": "*", "service": "*"}]
+
         info["resources"] = resources
         info["authz"] = auth_mapping
 
