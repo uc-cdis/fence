@@ -321,7 +321,7 @@ def sync_users(
     )
     if not syncer:
         exit(1)
-    if dbGaP[0].sync_from_visa:
+    if dbGaP[0].get("sync_from_visa", False):
         syncer.sync_visas()
     else:
         syncer.sync()
