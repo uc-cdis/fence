@@ -628,11 +628,7 @@ def test_user_sync_with_visas(
 
     users = db_session.query(models.User).all()
 
-    for user in users:
-        print("-------------------")
-        print(user)
-
-    assert len(users) == 5
+    assert len(users) == 9
 
     # if parse_consent_code_config:
 

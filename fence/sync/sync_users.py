@@ -918,7 +918,7 @@ class UserSyncer(object):
             u.display_name = user_info[username].get("display_name", "")
             u.phone_number = user_info[username].get("phone_number", "")
             u.is_admin = user_info[username].get("admin", False)
-
+            
             # do not update if there is no tag
             if user_info[username]["tags"] == {}:
                 continue
@@ -1753,18 +1753,19 @@ class UserSyncer(object):
         users = db_session.query(User).all()
 
         for user in users:
-            projects = {}
-            info = {}
-            for visa in user.ga4gh_visas_v1:
-                visa_type = self._pick_type(visa)
-                encoded_visa = visa.ga4gh_visa
-                decoded_visa = jwt.decode(encoded_visa, verify=False)
-                project, info = visa_type._parse_single_visa(
-                    user, decoded_visa, self.parse_consent_code
-                )
-                projects = {**projects, **project}
-            user_projects[user.username] = project
-            user_info[user.username] = info
+            if user.ga4gh_visas_v1:
+                projects = {}
+                info = {}
+                for visa in user.ga4gh_visas_v1:
+                    visa_type = self._pick_type(visa)
+                    encoded_visa = visa.ga4gh_visa
+                    decoded_visa = jwt.decode(encoded_visa, verify=False)
+                    project, info = visa_type._parse_single_visa(
+                        user, decoded_visa, self.parse_consent_code
+                    )
+                    projects = {**projects, **project}
+                user_projects[user.username] = projects
+                user_info[user.username] = info
 
         return (user_projects, user_info)
 
@@ -1773,7 +1774,6 @@ class UserSyncer(object):
         # get all users and info
         dbgap_config = self.dbGaP[0]
         user_projects, user_info = self.parse_user_visas(sess)
-        user_projects = self.parse_projects(user_projects)
         enable_common_exchange_area_access = dbgap_config.get(
             "enable_common_exchange_area_access", False
         )
@@ -1789,6 +1789,11 @@ class UserSyncer(object):
             self.logger.error(str(e))
             self.logger.error("aborting early")
             return
+
+        # parse projects
+        user_projects = self.parse_projects(user_projects)
+        user_yaml.projects = self.parse_projects(user_yaml.projects)
+
 
         if self.parse_consent_code and enable_common_exchange_area_access:
             self.logger.info(
@@ -1864,6 +1869,18 @@ class UserSyncer(object):
                     except ValueError as e:
                         self.logger.info(e)
 
+
+        # merge all user info dicts into "user_info".
+        # the user info (such as email) in the user.yaml files
+        # overrides the user info from the CSV files.
+        self.sync_two_user_info_dict(user_yaml.user_info, user_info)
+
+        # merge all access info dicts into "user_projects".
+        # the access info is combined - if the user.yaml access is
+        # ["read"] and the CSV file access is ["read-storage"], the
+        # resulting access is ["read", "read-storage"].
+        self.sync_two_phsids_dict(user_yaml.projects, user_projects)
+
         # Note: if there are multiple dbgap sftp servers configured
         # this parameter is always from the config for the first dbgap sftp server
         # not any additional ones
@@ -1898,7 +1915,7 @@ class UserSyncer(object):
         # update arborist db (user access)
         if self.arborist_client:
             self.logger.info("Synchronizing arborist with authorization info...")
-            success = self._update_authz_in_arborist(sess, user_projects)
+            success = self._update_authz_in_arborist(sess, user_projects, user_yaml)
             if success:
                 self.logger.info(
                     "Finished synchronizing authorization info to arborist"
