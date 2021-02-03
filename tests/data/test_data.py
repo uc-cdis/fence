@@ -1211,14 +1211,13 @@ def test_delete_files(app, client, auth_client, encoded_creds_jwt, user_client):
     did = str(uuid.uuid4())
     did2 = str(uuid.uuid4())
 
-    # test for when no urls are present
+    # case for when no urls =[]
     indx = fence.blueprints.data.indexd.IndexedFile(did)
     indx.indexed_file_locations = []
     urls = []
     message, status = indx.delete_files(urls)
     assert status == 200
 
-    # test for when urls present
     indx = fence.blueprints.data.indexd.IndexedFile(did)
     indx.indexed_file_locations = []
     urls = [
@@ -1231,29 +1230,39 @@ def test_delete_files(app, client, auth_client, encoded_creds_jwt, user_client):
         s3mock.return_value.file_name.return_value = "file"
         mocklocation = s3mock.return_value
 
+        # case for no urls is None
         message, status = indx.delete_files(urls=None, delete_all=True)
-        assert 0 == mocklocation.file_name.call_count
+        assert 0 == mocklocation.delete.call_count
         assert status == 200
 
-        # with error
+        # case with error generated
         mocklocation.reset_mock()
         mocklocation.delete.return_value = ("bad response", 400)
         message, status = indx.delete_files(urls)
-        assert 1 == mocklocation.file_name.call_count
+        assert 1 == mocklocation.delete.call_count
         assert status == 400
 
-        # without error
+        # case without error and files
         mocklocation.reset_mock()
         mocklocation.delete.return_value = ("ok", 200)
         message, status = indx.delete_files(urls)
-        assert 2 == mocklocation.file_name.call_count
+        assert 2 == mocklocation.delete.call_count
         assert status == 200
-        mocklocation = s3mock.return_value
 
+        # case for urls subset of total locations without error
         mocklocation.reset_mock()
         indx.indexed_file_locations = [mocklocation, mocklocation]
-        message, status = indx.delete_files(urls=None, delete_all=True)
-        assert 2 == mocklocation.file_name.call_count
+        urls = ["s3://bucket1/key-{}".format(did2[:8])]
+        message, status = indx.delete_files(urls, delete_all=True)
+        assert 1 == mocklocation.delete.call_count
         assert status == 200
+
+        # case for urls subset of total locations with error
+        mocklocation.reset_mock()
+        mocklocation.delete.return_value = ("bad response", 400)
+        indx.indexed_file_locations = [mocklocation, mocklocation]
+        message, status = indx.delete_files(urls, delete_all=True)
+        assert 1 == mocklocation.delete.call_count
+        assert status == 400
 
     fence.auth.config["MOCK_AUTH"] = False
