@@ -94,7 +94,7 @@ OPENID_CONNECT:
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/microsoft/login/'
   okta:
-    discovery_url: 'https://optumvcdodev.okta.com/oauth2/default/.well-known/oauth-authorization-server'
+    discovery_url: 'https://{tenant}.okta.com/oauth2/default/.well-known/oauth-authorization-server'
     client_id: ''
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/okta/login/'
