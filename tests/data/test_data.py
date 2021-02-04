@@ -1263,8 +1263,6 @@ def test_delete_files(app, client, auth_client, encoded_creds_jwt, user_client):
 
         # case for urls subset of total locations with error
         mocklocation.reset_mock()
-        mocklocation.delete.return_value = ("bad response", 400)
-        indx.indexed_file_locations = [mocklocation, mocklocation]
         message, status = indx.delete_files(urls, delete_all=True)
         assert 1 == mocklocation.delete.call_count
         assert status == 400
