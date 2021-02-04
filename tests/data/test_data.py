@@ -1211,51 +1211,55 @@ def test_delete_files(app, client, auth_client, encoded_creds_jwt, user_client):
     did = str(uuid.uuid4())
     did2 = str(uuid.uuid4())
 
-    # case for when no urls =[]
     indx = fence.blueprints.data.indexd.IndexedFile(did)
-    indx.indexed_file_locations = []
-    urls = []
-    message, status = indx.delete_files(urls)
-    assert status == 200
-
-    indx = fence.blueprints.data.indexd.IndexedFile(did)
-    indx.indexed_file_locations = []
     urls = [
         "s3://bucket1/key-{}".format(did[:8]),
         "s3://bucket1/key-{}".format(did2[:8]),
     ]
     with patch("fence.blueprints.data.indexd.S3IndexedFileLocation") as s3mock:
-
         s3mock.return_value.bucket_name.return_value = "bucket"
         s3mock.return_value.file_name.return_value = "file"
         mocklocation = s3mock.return_value
 
-        # case for no urls is None
+        # no urls, no files, no error
+        mocklocation.delete.return_value = ("ok", 200)
+        indx.indexed_file_locations = []
         message, status = indx.delete_files(urls=None, delete_all=True)
         assert 0 == mocklocation.delete.call_count
         assert status == 200
 
-        # case with error generated
+        # urls, files, no error
         mocklocation.reset_mock()
-        mocklocation.delete.return_value = ("bad response", 400)
-        message, status = indx.delete_files(urls)
-        assert 1 == mocklocation.delete.call_count
-        assert status == 400
+        indx.indexed_file_locations = [mocklocation, mocklocation]
+        message, status = indx.delete_files(urls, delete_all=True)
+        assert 2 == mocklocation.delete.call_count
+        assert status == 200
 
-        # case without error and files
+        # url, files, no error
         mocklocation.reset_mock()
-        mocklocation.delete.return_value = ("ok", 200)
-        message, status = indx.delete_files(urls)
+        message, status = indx.delete_files(urls=None)
         assert 2 == mocklocation.delete.call_count
         assert status == 200
 
         # case for urls subset of total locations without error
         mocklocation.reset_mock()
-        indx.indexed_file_locations = [mocklocation, mocklocation]
         urls = ["s3://bucket1/key-{}".format(did2[:8])]
         message, status = indx.delete_files(urls, delete_all=True)
         assert 1 == mocklocation.delete.call_count
         assert status == 200
+
+        # no urls, files, error
+        mocklocation.reset_mock()
+        mocklocation.delete.return_value = ("bad response", 400)
+        message, status = indx.delete_files(urls=None, delete_all=True)
+        assert 1 == mocklocation.delete.call_count
+        assert status == 400
+
+        # urls, files, error
+        mocklocation.reset_mock()
+        message, status = indx.delete_files(urls)
+        assert 1 == mocklocation.delete.call_count
+        assert status == 400
 
         # case for urls subset of total locations with error
         mocklocation.reset_mock()
