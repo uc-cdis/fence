@@ -7,10 +7,6 @@ from cdislogging import get_logger
 from fence.models import User, UpstreamRefreshToken, GA4GHVisaV1
 from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
 from fence.config import config
-from fence.sync.passport_sync.base_sync import DefaultVisa
-from fence.sync.passport_sync.ras_sync import RASVisa
-from fence.sync.passport_sync.sync_users import VisaSync
-from fence.sync.sync_users import UserSyncer
 import tests.utils
 
 logger = get_logger(__name__, log_level="debug")
@@ -105,12 +101,18 @@ def add_visa_manually(db_session, user, rsa_private_key, kid):
         decoded_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
     ).decode("utf-8")
 
+    expires = int(decoded_visa["exp"])
+    if user.username == "expired_visa_user":
+        expires -= 100000
+    if user.username == "invalid_visa_user":
+        encoded_visa += "abcedefg"
+
     visa = GA4GHVisaV1(
         user=user,
         source=decoded_visa["ga4gh_visa_v1"]["source"],
         type=decoded_visa["ga4gh_visa_v1"]["type"],
         asserted=int(decoded_visa["ga4gh_visa_v1"]["asserted"]),
-        expires=int(decoded_visa["exp"]),
+        expires=expires,
         ga4gh_visa=encoded_visa,
     )
 

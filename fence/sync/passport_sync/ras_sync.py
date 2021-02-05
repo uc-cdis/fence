@@ -2,6 +2,7 @@ import glob
 import os
 import re
 import jwt
+import time
 
 from cdislogging import get_logger
 from email_validator import validate_email, EmailNotValidError
@@ -47,24 +48,33 @@ class RASVisa(DefaultVisa):
             except ImportError:
                 pass
 
-    def _parse_single_visa(self, user, visa, parse_consent_code):
+    def _parse_single_visa(self, user, visa, expires, parse_consent_code):
         ras_dbgap_permissions = visa.get("ras_dbgap_permissions", [])
         project = {}
         info = {}
-        for permission in ras_dbgap_permissions:
-            phsid = permission.get("phs_id", "")
-            version = permission.get("version", "")  # Not using (yet?)
-            participant_set = permission.get("participant_set", "")  # Not using (yet?)
-            consent_group = permission.get("consent_group", "")
-            full_phsid = phsid
-            if parse_consent_code:
-                full_phsid += "." + consent_group
-            privileges = {"read-storage", "read"}
-            project[full_phsid] = privileges
-            info["tags"] = {"dbgap_role": permission.get("role", "")}
+        info["tags"] = {}
+
+        if time.time() < expires:
+            for permission in ras_dbgap_permissions:
+                phsid = permission.get("phs_id", "")
+                version = permission.get("version", "")  # Not using (yet?)
+                participant_set = permission.get(
+                    "participant_set", ""
+                )  # Not using (yet?)
+                consent_group = permission.get(
+                    "consent_group", ""
+                )  # need to return nothing when for some of these
+                full_phsid = phsid
+                if parse_consent_code and consent_group:
+                    full_phsid += "." + consent_group
+                privileges = {"read-storage", "read"}
+                project[full_phsid] = privileges
+                info["tags"] = {"dbgap_role": permission.get("role", "")}
 
         info["email"] = user.email or ""
         info["display_name"] = user.display_name or ""
         info["phone_number"] = user.phone_number or ""
-
         return project, info
+
+
+# take look at merging to see how it works. if this returns empty

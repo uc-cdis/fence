@@ -76,7 +76,7 @@ def test_sync(
     syncer.sync()
 
     users = db_session.query(models.User).all()
-    assert len(users) == 11
+    assert len(users) == 13
 
     if parse_consent_code_config:
         user = models.query_for_user(session=db_session, username="USERC")
@@ -628,11 +628,18 @@ def test_user_sync_with_visas(
 
     users = db_session.query(models.User).all()
 
-    assert len(users) == 9
+    assert len(users) == 11
 
     # if parse_consent_code_config:
 
     user = models.query_for_user(session=db_session, username="TESTUSERB")
+    expired_user = models.query_for_user(
+        session=db_session, username="expired_visa_user"
+    )
+    invalid_user = models.query_for_user(
+        session=db_session, username="invalid_visa_user"
+    )
+
     if parse_consent_code_config:
         assert equal_project_access(
             user.project_access,
@@ -645,6 +652,9 @@ def test_user_sync_with_visas(
                 "phs000298.c1": ["read", "read-storage"],
             },
         )
+        # assertion for expired visa user
+        # assertion for invalid visa user
+
     else:
         assert equal_project_access(
             user.project_access,

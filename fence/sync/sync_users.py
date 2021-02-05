@@ -918,7 +918,7 @@ class UserSyncer(object):
             u.display_name = user_info[username].get("display_name", "")
             u.phone_number = user_info[username].get("phone_number", "")
             u.is_admin = user_info[username].get("admin", False)
-            
+
             # do not update if there is no tag
             if user_info[username]["tags"] == {}:
                 continue
@@ -1761,7 +1761,7 @@ class UserSyncer(object):
                     encoded_visa = visa.ga4gh_visa
                     decoded_visa = jwt.decode(encoded_visa, verify=False)
                     project, info = visa_type._parse_single_visa(
-                        user, decoded_visa, self.parse_consent_code
+                        user, decoded_visa, visa.expires, self.parse_consent_code
                     )
                     projects = {**projects, **project}
                 user_projects[user.username] = projects
@@ -1794,6 +1794,22 @@ class UserSyncer(object):
         user_projects = self.parse_projects(user_projects)
         user_yaml.projects = self.parse_projects(user_yaml.projects)
 
+        if self.fallback_to_telemetry:
+            # Collect user_info and user_projects from telemetry
+            user_projects_telemetry = {}
+            user_info_telemetry = (
+                {}
+            )  # TODO: might not end up using telemetry files for user_info so drop this if not used
+            if self.is_sync_from_dbgap_server:
+                self.logger.debug(
+                    "Pulling telemetry files from {} dbgap sftp servers".format(
+                        len(self.dbGaP)
+                    )
+                )
+                (
+                    user_projects_telemetry,
+                    user_info_telemetry,
+                ) = self._merge_multiple_dbgap_sftp(self.dbGaP, sess)
 
         if self.parse_consent_code and enable_common_exchange_area_access:
             self.logger.info(
@@ -1801,6 +1817,10 @@ class UserSyncer(object):
             )
 
         for username in user_projects.keys():
+            if self.fallback_to_telemetry:
+                if not user_projects and user_projects_telemetry[username]:
+                    user_projects[username] = user_projects_telemetry[username]
+
             for project in user_projects[username].keys():
                 phsid = project.split(".")
                 dbgap_project = phsid[0]
@@ -1868,7 +1888,6 @@ class UserSyncer(object):
 
                     except ValueError as e:
                         self.logger.info(e)
-
 
         # merge all user info dicts into "user_info".
         # the user info (such as email) in the user.yaml files

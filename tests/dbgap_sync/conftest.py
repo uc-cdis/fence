@@ -95,6 +95,16 @@ def syncer(db_session, request, rsa_private_key, kid):
             "email": "deleted_user@gmail.com",
         },
         {"username": "TESTUSERD", "is_admin": True, "email": "userD@gmail.com"},
+        {
+            "username": "expired_visa_user",
+            "is_admin": False,
+            "email": "expired@expired.com",
+        },
+        {
+            "username": "invalid_visa_user",
+            "is_admin": False,
+            "email": "invalid@invalid.com",
+        },
     ]
 
     projects = [
