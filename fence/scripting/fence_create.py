@@ -1499,20 +1499,20 @@ def google_list_authz_groups(db):
 
 
 def update_user_visas(
-    db, window_size=None, concurrency=None, thread_pool_size=None, buffer_size=None
+    db, chunk_size=None, concurrency=None, thread_pool_size=None, buffer_size=None
 ):
     """
     Update visas and refresh tokens for users with valid visas and refresh tokens
 
     db (string): database instance
-    window_size (int): size of chunk of users we want to take from each iteration
+    chunk_size (int): size of chunk of users we want to take from each iteration
     concurrency (int): number of concurrent users going through the visa update flow
     thread_pool_size (int): number of Docker container CPU used for jwt verifcation
     buffer_size (int): max size of queue
     """
     driver = SQLAlchemyDriver(db)
     job = Visa_Token_Update(
-        window_size=int(window_size) if window_size else None,
+        chunk_size=int(chunk_size) if chunk_size else None,
         concurrency=int(concurrency) if concurrency else None,
         thread_pool_size=int(thread_pool_size) if thread_pool_size else None,
         buffer_size=int(buffer_size) if buffer_size else None,

@@ -36,7 +36,7 @@ class Visa_Token_Update(object):
         """
         self.chunk_size = chunk_size or 10
         self.concurrency = concurrency or 5
-        self.thread_pool_size = thread_pool_size or 2
+        self.thread_pool_size = thread_pool_size or 3
         self.buffer_size = buffer_size or 10
         self.n_workers = self.thread_pool_size + self.concurrency
         self.logger = logger
@@ -47,10 +47,10 @@ class Visa_Token_Update(object):
             self.logger.error("RAS client not configured")
         else:
             self.ras_client = RASClient(
-                    oidc["ras"],
-                    HTTP_PROXY=config.get("HTTP_PROXY"),
-                    logger=logger,
-                )
+                oidc["ras"],
+                HTTP_PROXY=config.get("HTTP_PROXY"),
+                logger=logger,
+            )
 
     async def update_tokens(self, db_session):
         """
@@ -58,7 +58,7 @@ class Visa_Token_Update(object):
 
         Producer: Collects users from db and feeds it to the workers
         Worker: Takes in the users from the Producer and passes it to the Updater to update the tokens and passes those updated tokens for JWT validation
-        Updater: Updates refresh_tokens and visas
+        Updater: Updates refresh_tokens and visas by calling the update_user_visas from the correct client
 
         """
         start_time = time.time()
@@ -94,14 +94,14 @@ class Visa_Token_Update(object):
 
         for u in updaters:
             u.cancel()
-            
+
         self.logger.info(
             "Visa cron job completed in {}".format(
                 datetime.timedelta(seconds=time.time() - start_time)
             )
         )
 
-    async def get_user_from_db(self, db_session, queue, chunk_idx):
+    async def get_user_from_db(self, db_session, chunk_idx):
         """
         Window function to get chunks of data from the table
         """
@@ -115,7 +115,7 @@ class Visa_Token_Update(object):
         """
         chunk_size = self.chunk_size
         while True:
-            users = await self.get_user_from_db(db_session, queue, chunk_idx)
+            users = await self.get_user_from_db(db_session, chunk_idx)
 
             if users == None:
                 break

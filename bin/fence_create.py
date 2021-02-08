@@ -342,24 +342,26 @@ def parse_arguments():
     )
     update_visas = subparsers.add_parser(
         "update-visas",
-        help="Update visas and refresh tokens for users with valid visas and refresh tokens",
+        help="Update visas and refresh tokens for users with valid visas and refresh tokens.",
     )
     update_visas.add_argument(
-        "--window-size",
+        "--chunk-size",
         required=False,
-        help="size of chunk of users we want to take from each query to db",
+        help="size of chunk of users we want to take from each query to db. Default value: 10",
     )
     update_visas.add_argument(
         "--concurrency",
         required=False,
-        help="number of concurrent users going through the visa update flow",
+        help="number of concurrent users going through the visa update flow. Default value: 5",
     )
     update_visas.add_argument(
         "--thread-pool-size",
         required=False,
-        help="number of Docker container CPU used for jwt verifcation",
+        help="number of Docker container CPU used for jwt verifcation. Default value: 3",
     )
-    update_visas.add_argument("--buffer-size", required=False, help="max size of queue")
+    update_visas.add_argument(
+        "--buffer-size", required=False, help="max size of queue. Default value: 10"
+    )
 
     return parser.parse_args()
 
@@ -567,7 +569,7 @@ def main():
     elif args.action == "update-visas":
         update_user_visas(
             DB,
-            window_size=args.window_size,
+            chunk_size=args.chunk_size,
             concurrency=args.concurrency,
             thread_pool_size=args.thread_pool_size,
             buffer_size=args.buffer_size,

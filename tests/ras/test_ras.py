@@ -5,6 +5,7 @@ import jwt
 
 from cdislogging import get_logger
 
+from fence.config import config
 from fence.models import User, UpstreamRefreshToken, GA4GHVisaV1
 from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
 from fence.job.visa_update_cronjob import Visa_Token_Update
@@ -343,7 +344,6 @@ def test_visa_update_cronjob(
     mock_discovery,
     mock_get_token,
     mock_userinfo,
-    config,
     db_session,
     rsa_private_key,
     kid,
