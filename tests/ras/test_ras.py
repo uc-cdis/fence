@@ -7,7 +7,6 @@ from cdislogging import get_logger
 
 from fence.models import User, UpstreamRefreshToken, GA4GHVisaV1
 from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
-from fence.config import config
 from fence.job.visa_update_cronjob import Visa_Token_Update
 import tests.utils
 
@@ -340,7 +339,7 @@ def test_update_visa_token_with_invalid_visa(
 @mock.patch(
     "fence.resources.openid.ras_oauth2.RASOauth2Client.get_value_from_discovery_doc"
 )
-def test_cronjob(
+def test_visa_update_cronjob(
     mock_discovery,
     mock_get_token,
     mock_userinfo,
@@ -355,7 +354,7 @@ def test_cronjob(
     """
 
     n_users = 20
-    n_users_no_visa = 20
+    n_users_no_visa = 15
 
     mock_discovery.return_value = "https://ras/token_endpoint"
     new_token = "refresh12345abcdefg"
@@ -376,7 +375,7 @@ def test_cronjob(
     }
 
     for i in range(n_users):
-        username = "admin_user_{}".format(i)
+        username = "user_{}".format(i)
         test_user = add_test_user(db_session, username, i)
         add_visa_manually(db_session, test_user, rsa_private_key, kid)
         add_refresh_token(db_session, test_user)
@@ -414,9 +413,10 @@ def test_cronjob(
     job = Visa_Token_Update()
     loop = asyncio.get_event_loop()
     loop.run_until_complete(job.update_tokens(db_session))
-    # asyncio.run(job.update_tokens(db_session))
 
     query_visas = db_session.query(GA4GHVisaV1).all()
+
+    assert len(query_visas) == n_users
 
     for visa in query_visas:
         assert visa.ga4gh_visa == encoded_visa
