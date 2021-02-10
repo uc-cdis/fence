@@ -70,7 +70,9 @@ def test_logout_fence(app, client, user_with_fence_provider, monkeypatch):
     # this redirect valid
     with mock.patch("fence.allowed_login_redirects", return_value={"some_site.com"}):
         # manually set cookie for initial session
-        client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
+        client.set_cookie(
+            "localhost", config["SESSION_COOKIE_NAME"], test_session_jwt, httponly=True
+        )
 
         r = client.get("/logout?next={}".format(redirect))
         assert r.status_code == 302
