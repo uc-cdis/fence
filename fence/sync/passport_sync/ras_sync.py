@@ -48,8 +48,14 @@ class RASVisa(DefaultVisa):
             except ImportError:
                 pass
 
-    def _parse_single_visa(self, user, visa, expires, parse_consent_code):
-        ras_dbgap_permissions = visa.get("ras_dbgap_permissions", [])
+    def _parse_single_visa(self, user, encoded_visa, expires, parse_consent_code):
+        decoded_visa = {}
+        try:
+            decoded_visa = jwt.decode(encoded_visa, verify=False)
+        except Exception as e:
+            self.logger.warning("Couldn't decode visa {}".format(e))
+        finally:
+            ras_dbgap_permissions = decoded_visa.get("ras_dbgap_permissions", [])
         project = {}
         info = {}
         info["tags"] = {}

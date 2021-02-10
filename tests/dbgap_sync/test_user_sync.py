@@ -613,79 +613,118 @@ def test_process_additional_dbgap_servers(syncer, monkeypatch, db_session):
     assert syncer._process_dbgap_files.call_count == 2
 
 
-@pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
+@pytest.mark.parametrize("syncer", ["cleversafe"], indirect=True)
 @pytest.mark.parametrize("parse_consent_code_config", [False, True])
+@pytest.mark.parametrize("fallback_to_telemetry", [False, True])
 def test_user_sync_with_visas(
-    syncer, db_session, storage_client, parse_consent_code_config, monkeypatch
+    syncer,
+    db_session,
+    storage_client,
+    parse_consent_code_config,
+    fallback_to_telemetry,
+    monkeypatch,
 ):
     # patch the sync to use the parameterized config value
     monkeypatch.setitem(
         syncer.dbGaP[0], "parse_consent_code", parse_consent_code_config
     )
     monkeypatch.setattr(syncer, "parse_consent_code", parse_consent_code_config)
+    monkeypatch.setattr(syncer, "fallback_to_telemetry", fallback_to_telemetry)
+    monkeypatch.setattr(syncer, "sync_from_visa", True)
 
     syncer.sync_visas()
 
     users = db_session.query(models.User).all()
 
-    assert len(users) == 11
+    user = models.query_for_user(
+        session=db_session, username="TESTUSERB"
+    )  # contains only visa information
+    test_user = models.query_for_user(
+        session=db_session, username="test_user1@gmail.com"
+    )  # contains visa + user.yaml information
 
-    # if parse_consent_code_config:
+    backup_user = models.query_for_user(
+        session=db_session, username="TESTUSERD"
+    )  # Contains invalid visa and also in telemetry file
 
-    user = models.query_for_user(session=db_session, username="TESTUSERB")
     expired_user = models.query_for_user(
-        session=db_session, username="expired_visa_user"
+        session=db_session,
+        username="expired_visa_user",
     )
     invalid_user = models.query_for_user(
         session=db_session, username="invalid_visa_user"
     )
 
-    if parse_consent_code_config:
-        assert equal_project_access(
-            user.project_access,
-            {
-                "phs000991.c1": ["read", "read-storage"],
-                "phs000961.c1": ["read", "read-storage"],
-                "phs000279.c1": ["read", "read-storage"],
-                "phs000286.c3": ["read", "read-storage"],
-                "phs000289.c2": ["read", "read-storage"],
-                "phs000298.c1": ["read", "read-storage"],
-            },
-        )
-        # assertion for expired visa user
-        # assertion for invalid visa user
+    print("----------------------------------------------------------------------")
+    print(backup_user)
+    assert len(invalid_user.project_access) == 0
+    assert len(expired_user.project_access) == 0
+
+    if fallback_to_telemetry:
+        assert len(users) == 13
+
+        if parse_consent_code_config:
+            assert equal_project_access(
+                user.project_access,
+                {
+                    "phs000991.c1": ["read", "read-storage"],
+                    "phs000961.c1": ["read", "read-storage"],
+                    "phs000279.c1": ["read", "read-storage"],
+                    "phs000286.c3": ["read", "read-storage"],
+                    "phs000289.c2": ["read", "read-storage"],
+                    "phs000298.c1": ["read", "read-storage"],
+                },
+            )
+            assert equal_project_access(
+                backup_user.project_access,
+                {
+                    "phs000179.c1": ["read", "read-storage"],
+                },
+            )
+        else:
+            assert equal_project_access(
+                user.project_access,
+                {
+                    "phs000991": ["read", "read-storage"],
+                    "phs000961": ["read", "read-storage"],
+                    "phs000279": ["read", "read-storage"],
+                    "phs000286": ["read", "read-storage"],
+                    "phs000289": ["read", "read-storage"],
+                    "phs000298": ["read", "read-storage"],
+                },
+            )
+            assert equal_project_access(
+                backup_user.project_access,
+                {
+                    "phs000179": ["read", "read-storage"],
+                },
+            )
 
     else:
-        assert equal_project_access(
-            user.project_access,
-            {
-                "phs000991": ["read", "read-storage"],
-                "phs000961": ["read", "read-storage"],
-                "phs000279": ["read", "read-storage"],
-                "phs000286": ["read", "read-storage"],
-                "phs000289": ["read", "read-storage"],
-                "phs000298": ["read", "read-storage"],
-            },
-        )
-
-    # user = models.query_for_user(session=db_session, username="TESTUSERB")
-    # assert user.display_name == "USER D"
-    # assert user.phone_number == "123-456-789"
-
-    # user = models.query_for_user(session=db_session, username="test_user1@gmail.com")
-    # user_access = db_session.query(models.AccessPrivilege).filter_by(user=user).all()
-    # assert set(user_access[0].privilege) == {
-    #     "create",
-    #     "read",
-    #     "update",
-    #     "delete",
-    #     "upload",
-    # }
-    # assert len(user_access) == 1
-
-    # # TODO: check user policy access (add in user sync changes)
-
-    # user = models.query_for_user(session=db_session, username="deleted_user@gmail.com")
-    # assert not user.is_admin
-    # user_access = db_session.query(models.AccessPrivilege).filter_by(user=user).all()
-    # assert not user_access
+        assert len(users) == 11
+        assert len(backup_user.project_access) == 0
+        if parse_consent_code_config:
+            assert equal_project_access(
+                user.project_access,
+                {
+                    "phs000991.c1": ["read", "read-storage"],
+                    "phs000961.c1": ["read", "read-storage"],
+                    "phs000279.c1": ["read", "read-storage"],
+                    "phs000286.c3": ["read", "read-storage"],
+                    "phs000289.c2": ["read", "read-storage"],
+                    "phs000298.c1": ["read", "read-storage"],
+                },
+            )
+        else:
+            assert equal_project_access(
+                user.project_access,
+                {
+                    "phs000991": ["read", "read-storage"],
+                    "phs000961": ["read", "read-storage"],
+                    "phs000279": ["read", "read-storage"],
+                    "phs000286": ["read", "read-storage"],
+                    "phs000289": ["read", "read-storage"],
+                    "phs000298": ["read", "read-storage"],
+                },
+            )
+        

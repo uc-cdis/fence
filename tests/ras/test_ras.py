@@ -105,7 +105,9 @@ def add_visa_manually(db_session, user, rsa_private_key, kid):
     if user.username == "expired_visa_user":
         expires -= 100000
     if user.username == "invalid_visa_user":
-        encoded_visa += "abcedefg"
+        encoded_visa = encoded_visa[: len(encoded_visa) // 2]
+    if user.username == "TESTUSERD":
+        encoded_visa = encoded_visa[: len(encoded_visa) // 2]
 
     visa = GA4GHVisaV1(
         user=user,

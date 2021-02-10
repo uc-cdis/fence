@@ -633,8 +633,8 @@ class UserSyncer(object):
         """
         user_info2.update(user_info1)
 
-    @staticmethod
-    def sync_two_phsids_dict(phsids1, phsids2):
+    # @staticmethod
+    def sync_two_phsids_dict(self, phsids1, phsids2):
         """
         Merge pshid1 into phsids2. phsids2 ends up containing the merged dict
         (see explanation below).
@@ -672,8 +672,17 @@ class UserSyncer(object):
         """
         for user, projects1 in phsids1.items():
             if not phsids2.get(user):
+
                 phsids2[user] = projects1
             else:
+                # We want visa to be the source of truth when its available and not merge any telemetry file info into this.
+                # We only want visa to be used when visa is not valid of available
+                if (
+                    self.sync_from_visa
+                    and self.fallback_to_telemetry
+                    and phsids2.get(user) != {}
+                ):
+                    continue
                 for phsid1, privilege1 in projects1.items():
                     if phsid1 not in phsids2[user]:
                         phsids2[user][phsid1] = set()
@@ -1708,7 +1717,7 @@ class UserSyncer(object):
         Pick type of visa to parse according to the visa provider
         """
         if "ras" in visa.type:
-            return RASVisa()
+            return self.ras_client
 
     def _get_single_passport(self, user):
         """
@@ -1757,11 +1766,11 @@ class UserSyncer(object):
                 projects = {}
                 info = {}
                 for visa in user.ga4gh_visas_v1:
+                    project = {}
                     visa_type = self._pick_type(visa)
                     encoded_visa = visa.ga4gh_visa
-                    decoded_visa = jwt.decode(encoded_visa, verify=False)
                     project, info = visa_type._parse_single_visa(
-                        user, decoded_visa, visa.expires, self.parse_consent_code
+                        user, encoded_visa, visa.expires, self.parse_consent_code
                     )
                     projects = {**projects, **project}
                 user_projects[user.username] = projects
@@ -1772,6 +1781,10 @@ class UserSyncer(object):
     def _sync_visas(self, sess):
         # TODO: Using dbgap_config for now since we aren't completely transitioning to visas yet and still could use that config to get info about the current common
         # get all users and info
+
+        # Initialize visa update classes
+        self.ras_client = RASVisa(logger=self.logger)
+
         dbgap_config = self.dbGaP[0]
         user_projects, user_info = self.parse_user_visas(sess)
         enable_common_exchange_area_access = dbgap_config.get(
@@ -1810,6 +1823,37 @@ class UserSyncer(object):
                     user_projects_telemetry,
                     user_info_telemetry,
                 ) = self._merge_multiple_dbgap_sftp(self.dbGaP, sess)
+            local_csv_file_list = []
+            if self.sync_from_local_csv_dir:
+                local_csv_file_list = glob.glob(
+                    os.path.join(self.sync_from_local_csv_dir, "*")
+                )
+
+            # if syncing from local csv dir dbgap configurations
+            # come from the first dbgap instance in the fence config file
+            user_projects_csv, user_info_csv = self._get_user_permissions_from_csv_list(
+                local_csv_file_list,
+                encrypted=False,
+                session=sess,
+                dbgap_config=self.dbGaP[0],
+            )
+            user_projects_csv = self.parse_projects(user_projects_csv)
+            user_projects_telemetry = self.parse_projects(user_projects_telemetry)
+
+            # merge all user info dicts into "user_info".
+            # the user info (such as email) in the user.yaml files
+            # overrides the user info from the CSV files.
+            self.sync_two_user_info_dict(user_info_csv, user_info_telemetry)
+
+            # merge all access info dicts into "user_projects".
+            # the access info is combined - if the user.yaml access is
+            # ["read"] and the CSV file access is ["read-storage"], the
+            # resulting access is ["read", "read-storage"].
+            self.sync_two_phsids_dict(user_projects_csv, user_projects_telemetry)
+
+            # sync phsids so that this adds projects if visas were invalid or adds users that dont have visas
+            self.sync_two_phsids_dict(user_projects_telemetry, user_projects)
+            self.sync_two_user_info_dict(user_info_telemetry, user_info)
 
         if self.parse_consent_code and enable_common_exchange_area_access:
             self.logger.info(
@@ -1817,10 +1861,6 @@ class UserSyncer(object):
             )
 
         for username in user_projects.keys():
-            if self.fallback_to_telemetry:
-                if not user_projects and user_projects_telemetry[username]:
-                    user_projects[username] = user_projects_telemetry[username]
-
             for project in user_projects[username].keys():
                 phsid = project.split(".")
                 dbgap_project = phsid[0]
