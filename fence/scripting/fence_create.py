@@ -545,6 +545,7 @@ def remove_expired_google_service_account_keys(db):
 
             # handle service accounts with custom expiration
             for expired_user_key in expired_sa_keys_for_users:
+                logger.info("expired_user_key: {}\n".format(expired_user_key))
                 sa = (
                     current_session.query(GoogleServiceAccount)
                     .filter(
@@ -557,6 +558,9 @@ def remove_expired_google_service_account_keys(db):
                     account=sa.email, key_name=expired_user_key.key_id
                 )
                 response_error_code = response.get("error", {}).get("code")
+                response_error_status = response.get("error", {}).get("status")
+                logger.info("response_error_code: {}\n".format(response_error_code))
+                logger.info("response_error_status: {}\n".format(response_error_status))
 
                 if not response_error_code:
                     current_session.delete(expired_user_key)
@@ -566,7 +570,10 @@ def remove_expired_google_service_account_keys(db):
                             expired_user_key.key_id, sa.email, sa.user_id
                         )
                     )
-                elif response_error_code == 404:
+                elif (
+                    response_error_code == 404
+                    or response_error_status == "FAILED_PRECONDITION"
+                ):
                     logger.info(
                         "INFO: Service account key {} for service account {} "
                         "(owned by user with id {}) does not exist in Google. "
