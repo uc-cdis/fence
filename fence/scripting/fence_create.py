@@ -269,7 +269,7 @@ def init_syncer(
         arborist=arborist,
         folder=folder,
         sync_from_visa=sync_from_visa,
-        fallback_to_telemetry=fallback_to_telemetry
+        fallback_to_telemetry=fallback_to_telemetry,
     )
 
 

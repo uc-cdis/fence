@@ -1783,6 +1783,10 @@ class UserSyncer(object):
 
         # Initialize visa update classes
         self.logger.info("Running usersync with Visas")
+        self.logger.info(
+            "Fallback to telemetry files: {}".format(self.fallback_to_telemetry)
+        )
+
         self.ras_client = RASVisa(logger=self.logger)
 
         dbgap_config = self.dbGaP[0]
