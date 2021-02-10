@@ -727,4 +727,3 @@ def test_user_sync_with_visas(
                     "phs000298": ["read", "read-storage"],
                 },
             )
-        

@@ -444,6 +444,8 @@ def main():
             sync_from_local_yaml_file=args.yaml,
             folder=args.folder,
             arborist=arborist,
+            sync_from_visa=config.get("SYNC_FROM_VISA", False),
+            fallback_to_telemetry=config.get("FALLBACK_TO_TELEMETRY", False),
         )
     elif args.action == "dbgap-download-access-files":
         download_dbgap_files(

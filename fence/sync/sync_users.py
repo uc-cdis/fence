@@ -289,7 +289,6 @@ class UserSyncer(object):
         sync_from_local_yaml_file=None,
         arborist=None,
         folder=None,
-        visa_sync=None,
         sync_from_visa=None,
         fallback_to_telemetry=None,
     ):
@@ -324,8 +323,8 @@ class UserSyncer(object):
         )
         self.arborist_client = arborist
         self.folder = folder
-        self.sync_from_visa = dbGaP[0].get("sync_from_visa", False)
-        self.fallback_to_telemetry = dbGaP[0].get("fallback_to_telemetry", False)
+        self.sync_from_visa = sync_from_visa
+        self.fallback_to_telemetry = fallback_to_telemetry
 
         if storage_credentials:
             self.storage_manager = StorageManager(
@@ -1783,6 +1782,7 @@ class UserSyncer(object):
         # get all users and info
 
         # Initialize visa update classes
+        self.logger.info("Running usersync with Visas")
         self.ras_client = RASVisa(logger=self.logger)
 
         dbgap_config = self.dbGaP[0]
