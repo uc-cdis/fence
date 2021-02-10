@@ -771,3 +771,6 @@ SYNAPSE_AUTHZ_TTL: 86400
 RAS_REFRESH_EXPIRATION: 1296000
 # Number of projects that can be registered to a Google Service Accont
 SERVICE_ACCOUNT_LIMIT: 6
+# Settings for usersync with visas
+SYNC_FROM_VISA: false
+FALLBACK_TO_TELEMETRY: false
