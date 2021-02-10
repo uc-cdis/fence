@@ -215,7 +215,10 @@ def test_valid_session_valid_access_token(
             "localhost", config["SESSION_COOKIE_NAME"], test_session_jwt, httponly=True
         )
         client.set_cookie(
-            "localhost", config["ACCESS_TOKEN_COOKIE_NAME"], test_access_jwt
+            "localhost",
+            config["ACCESS_TOKEN_COOKIE_NAME"],
+            test_access_jwt,
+            httponly=True,
         )
 
         response = client.get("/user")
@@ -260,7 +263,10 @@ def test_valid_session_valid_access_token_diff_user(
             "localhost", config["SESSION_COOKIE_NAME"], test_session_jwt, httponly=True
         )
         client.set_cookie(
-            "localhost", config["ACCESS_TOKEN_COOKIE_NAME"], test_access_jwt
+            "localhost",
+            config["ACCESS_TOKEN_COOKIE_NAME"],
+            test_access_jwt,
+            httponly=True,
         )
 
         response = client.get("/user")
