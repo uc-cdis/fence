@@ -6,6 +6,7 @@ import subprocess as sp
 import yaml
 import copy
 from contextlib import contextmanager
+from collections import defaultdict
 from csv import DictReader
 from io import StringIO
 from stat import S_ISDIR
@@ -326,6 +327,9 @@ class UserSyncer(object):
         self.sync_from_visa = sync_from_visa
         self.fallback_to_telemetry = fallback_to_telemetry
 
+        self.auth_source = defaultdict(set)
+        # auth_source used for logging. username : [source1, source2]
+
         if storage_credentials:
             self.storage_manager = StorageManager(
                 storage_credentials, logger=self.logger
@@ -633,13 +637,24 @@ class UserSyncer(object):
         user_info2.update(user_info1)
 
     # @staticmethod
-    def sync_two_phsids_dict(self, phsids1, phsids2):
+    def sync_two_phsids_dict(
+        self,
+        phsids1,
+        phsids2,
+        source1=None,
+        source2=None,
+        phsids2_overrides_phsids1=True,
+    ):
         """
-        Merge pshid1 into phsids2. phsids2 ends up containing the merged dict
-        (see explanation below).
+        Merge pshid1 into phsids2. If `phsids2_overrides_phsids1`, values in
+        phsids2 are overriden by values in phsids1. phsids2 ends up containing
+        the merged dict (see explanation below).
+        `source1` and `source2_name`: for logging.
 
         Args:
             phsids1, phsids2: nested dicts mapping phsids to sets of permissions
+
+            source1, source2: source of authz information (eg. dbgap, user_yaml, visas)
 
             Example:
             {
@@ -669,23 +684,20 @@ class UserSyncer(object):
 
             For the other cases, just simple addition
         """
+
         for user, projects1 in phsids1.items():
             if not phsids2.get(user):
-
+                if source1: self.auth_source[user].add(source1)
                 phsids2[user] = projects1
-            else:
-                # We want visa to be the source of truth when its available and not merge any telemetry file info into this.
-                # We only want visa to be used when visa is not valid of available
-                if (
-                    self.sync_from_visa
-                    and self.fallback_to_telemetry
-                    and phsids2.get(user) != {}
-                ):
-                    continue
+            elif phsids2_overrides_phsids1:
+                if source1: self.auth_source[user].add(source1)
+                if source2: self.auth_source[user].add(source2)
                 for phsid1, privilege1 in projects1.items():
                     if phsid1 not in phsids2[user]:
                         phsids2[user][phsid1] = set()
                     phsids2[user][phsid1].update(privilege1)
+            elif not phsids2_overrides_phsids1:
+                if source2: self.auth_source[user].add(source2)
 
     def sync_to_db_and_storage_backend(self, user_project, user_info, sess):
         """
@@ -1299,6 +1311,9 @@ class UserSyncer(object):
                 )
                 exit(1)
 
+        # for user, access_sources in self.sources.items():
+        #     print(user, access_sources)
+
     def _grant_all_consents_to_c999_users(
         self, user_projects, user_yaml_project_to_resources
     ):
@@ -1761,9 +1776,9 @@ class UserSyncer(object):
         users = db_session.query(User).all()
 
         for user in users:
+            projects = {}
+            info = {}
             if user.ga4gh_visas_v1:
-                projects = {}
-                info = {}
                 for visa in user.ga4gh_visas_v1:
                     project = {}
                     visa_type = self._pick_type(visa)
@@ -1776,16 +1791,15 @@ class UserSyncer(object):
                         self.session,
                     )
                     projects = {**projects, **project}
+                if projects:
+                    self.auth_source[user.username].add("visas")
                 user_projects[user.username] = projects
                 user_info[user.username] = info
 
         return (user_projects, user_info)
 
     def _sync_visas(self, sess):
-        # TODO: Using dbgap_config for now since we aren't completely transitioning to visas yet and still could use that config to get info about the current common
-        # get all users and info
 
-        # Initialize visa update classes
         self.logger.info("Running usersync with Visas")
         self.logger.info(
             "Fallback to telemetry files: {}".format(self.fallback_to_telemetry)
@@ -1857,16 +1871,42 @@ class UserSyncer(object):
             # the access info is combined - if the user.yaml access is
             # ["read"] and the CSV file access is ["read-storage"], the
             # resulting access is ["read", "read-storage"].
-            self.sync_two_phsids_dict(user_projects_csv, user_projects_telemetry)
+            self.sync_two_phsids_dict(
+                user_projects_csv,
+                user_projects_telemetry,
+                source1="local_csv",
+                source2="dbgap",
+            )
 
-            # sync phsids so that this adds projects if visas were invalid or adds users that dont have visas
-            self.sync_two_phsids_dict(user_projects_telemetry, user_projects)
+            # sync phsids so that this adds projects if visas were invalid or adds users that dont have visas.
+            # `phsids2_overrides_phsids1=True` because We want visa to be the source of truth when its available and not merge any telemetry file info into this.
+            # We only want visa to be used when visa is not valid or available
+            self.sync_two_phsids_dict(
+                user_projects_telemetry,
+                user_projects,
+                source1="dbgap",
+                source2="visa",
+                phsids2_overrides_phsids1=False,
+            )
             self.sync_two_user_info_dict(user_info_telemetry, user_info)
 
         if self.parse_consent_code and enable_common_exchange_area_access:
             self.logger.info(
                 f"using study to common exchange area mapping: {study_common_exchange_areas}"
             )
+
+        # merge all user info dicts into "user_info".
+        # the user info (such as email) in the user.yaml files
+        # overrides the user info from the CSV files.
+        self.sync_two_user_info_dict(user_yaml.user_info, user_info)
+
+        # merge all access info dicts into "user_projects".
+        # the access info is combined - if the user.yaml access is
+        # ["read"] and the CSV file access is ["read-storage"], the
+        # resulting access is ["read", "read-storage"].
+        self.sync_two_phsids_dict(
+            user_yaml.projects, user_projects, source1="user_yaml", source2="visa"
+        )
 
         for username in user_projects.keys():
             for project in user_projects[username].keys():
@@ -1937,16 +1977,7 @@ class UserSyncer(object):
                     except ValueError as e:
                         self.logger.info(e)
 
-        # merge all user info dicts into "user_info".
-        # the user info (such as email) in the user.yaml files
-        # overrides the user info from the CSV files.
-        self.sync_two_user_info_dict(user_yaml.user_info, user_info)
 
-        # merge all access info dicts into "user_projects".
-        # the access info is combined - if the user.yaml access is
-        # ["read"] and the CSV file access is ["read-storage"], the
-        # resulting access is ["read", "read-storage"].
-        self.sync_two_phsids_dict(user_yaml.projects, user_projects)
 
         # Note: if there are multiple dbgap sftp servers configured
         # this parameter is always from the config for the first dbgap sftp server
@@ -1992,6 +2023,9 @@ class UserSyncer(object):
                     "Could not synchronize authorization info successfully to arborist"
                 )
                 exit(1)
+        # Logging authz source
+        for u, s in self.auth_source.items():
+            self.logger.info("Access for user {} from {}".format(u, s))
 
     def sync_visas(self):
         if self.session:
