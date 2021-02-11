@@ -48,7 +48,7 @@ class RASVisa(DefaultVisa):
             except ImportError:
                 pass
 
-    def _parse_single_visa(self, user, encoded_visa, expires, parse_consent_code):
+    def _parse_single_visa(self, user, encoded_visa, expires, parse_consent_code, db_session):
         decoded_visa = {}
         try:
             decoded_visa = jwt.decode(encoded_visa, verify=False)
@@ -56,7 +56,7 @@ class RASVisa(DefaultVisa):
             self.logger.warning("Couldn't decode visa {}".format(e))
             # Remove visas if its invalid or expired
             user.ga4gh_visas_v1 = []
-            current_session.commit()
+            db_session.commit()
         finally:
             ras_dbgap_permissions = decoded_visa.get("ras_dbgap_permissions", [])
         project = {}
@@ -82,7 +82,7 @@ class RASVisa(DefaultVisa):
         else:
             # Remove visas if its invalid or expired
             user.ga4gh_visas_v1 = []
-            current_session.commit()
+            db_session.commit()
 
         info["email"] = user.email or ""
         info["display_name"] = user.display_name or ""

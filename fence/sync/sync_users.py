@@ -1769,7 +1769,7 @@ class UserSyncer(object):
                     visa_type = self._pick_type(visa)
                     encoded_visa = visa.ga4gh_visa
                     project, info = visa_type._parse_single_visa(
-                        user, encoded_visa, visa.expires, self.parse_consent_code
+                        user, encoded_visa, visa.expires, self.parse_consent_code, self.db_session
                     )
                     projects = {**projects, **project}
                 user_projects[user.username] = projects
