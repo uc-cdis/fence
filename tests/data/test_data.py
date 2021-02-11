@@ -467,13 +467,22 @@ def test_public_object_download_file_no_force_sign(
     """
     Test ``GET /data/download/1?no_force_sign=True``.
     """
-    path = "/data/download/1?no_force_sign=True"
-    response = client.get(path)
+
+    no_force_sign_enabled_path = "/data/download/1?no_force_sign=True"
+    response = client.get(no_force_sign_enabled_path)
     assert response.status_code == 200
     assert "url" in list(response.json.keys())
 
     # make sure we honor no_force_sign, check that response is unsigned raw url
     assert urllib.parse.urlparse(response.json["url"]).query == ""
+
+    no_force_sign_disabled_path = "/data/download/1?no_force_sign=False"
+    response = client.get(no_force_sign_disabled_path)
+    assert response.status_code == 200
+    assert "url" in list(response.json.keys())
+
+    # url should be signed, as normal
+    assert urllib.parse.urlparse(response.json["url"]).query != ""
 
 
 @pytest.mark.parametrize(
