@@ -48,7 +48,9 @@ class RASVisa(DefaultVisa):
             except ImportError:
                 pass
 
-    def _parse_single_visa(self, user, encoded_visa, expires, parse_consent_code, db_session):
+    def _parse_single_visa(
+        self, user, encoded_visa, expires, parse_consent_code, db_session
+    ):
         decoded_visa = {}
         try:
             decoded_visa = jwt.decode(encoded_visa, verify=False)
