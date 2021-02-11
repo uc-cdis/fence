@@ -1261,8 +1261,8 @@ class UserSyncer(object):
         # the access info is combined - if the user.yaml access is
         # ["read"] and the CSV file access is ["read-storage"], the
         # resulting access is ["read", "read-storage"].
-        self.sync_two_phsids_dict(user_projects_csv, user_projects)
-        self.sync_two_phsids_dict(user_yaml.projects, user_projects)
+        self.sync_two_phsids_dict(user_projects_csv, user_projects, source1="local_csv", source2="dbgap")
+        self.sync_two_phsids_dict(user_yaml.projects, user_projects, source1="user_yaml", source2="dbgap")
 
         # Note: if there are multiple dbgap sftp servers configured
         # this parameter is always from the config for the first dbgap sftp server
