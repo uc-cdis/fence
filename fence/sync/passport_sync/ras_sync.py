@@ -54,6 +54,9 @@ class RASVisa(DefaultVisa):
             decoded_visa = jwt.decode(encoded_visa, verify=False)
         except Exception as e:
             self.logger.warning("Couldn't decode visa {}".format(e))
+            # Remove visas if its invalid or expired
+            user.ga4gh_visas_v1 = []
+            current_session.commit()
         finally:
             ras_dbgap_permissions = decoded_visa.get("ras_dbgap_permissions", [])
         project = {}
@@ -76,6 +79,10 @@ class RASVisa(DefaultVisa):
                 privileges = {"read-storage", "read"}
                 project[full_phsid] = privileges
                 info["tags"] = {"dbgap_role": permission.get("role", "")}
+        else:
+            # Remove visas if its invalid or expired
+            user.ga4gh_visas_v1 = []
+            current_session.commit()
 
         info["email"] = user.email or ""
         info["display_name"] = user.display_name or ""

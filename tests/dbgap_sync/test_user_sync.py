@@ -639,9 +639,6 @@ def test_user_sync_with_visas(
     user = models.query_for_user(
         session=db_session, username="TESTUSERB"
     )  # contains only visa information
-    test_user = models.query_for_user(
-        session=db_session, username="test_user1@gmail.com"
-    )  # contains visa + user.yaml information
 
     backup_user = models.query_for_user(
         session=db_session, username="TESTUSERD"
@@ -655,10 +652,11 @@ def test_user_sync_with_visas(
         session=db_session, username="invalid_visa_user"
     )
 
-    print("----------------------------------------------------------------------")
-    print(backup_user)
     assert len(invalid_user.project_access) == 0
     assert len(expired_user.project_access) == 0
+
+    assert len(invalid_user.ga4gh_visas_v1) == 0
+    assert len(expired_user.ga4gh_visas_v1) == 0
 
     if fallback_to_telemetry:
         assert len(users) == 13
