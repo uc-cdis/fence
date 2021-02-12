@@ -45,6 +45,7 @@ class Visa_Token_Update(object):
         oidc = config.get("OPENID_CONNECT", {})
         if "ras" not in oidc:
             self.logger.error("RAS client not configured")
+            self.ras_client = None
         else:
             self.ras_client = RASClient(
                 oidc["ras"],
@@ -72,10 +73,7 @@ class Visa_Token_Update(object):
         updater_queue = asyncio.Queue(maxsize=self.n_workers)
         loop = asyncio.get_event_loop()
 
-        producers = [
-            loop.create_task(self.producer(db_session, queue, chunk_idx=0))
-            for _ in range(1)
-        ]
+        producers = loop.create_task(self.producer(db_session, queue, chunk_idx=0))
         workers = [
             loop.create_task(self.worker(j, queue, updater_queue))
             for j in range(self.n_workers)
@@ -85,7 +83,7 @@ class Visa_Token_Update(object):
             for i in range(self.concurrency)
         ]
 
-        await asyncio.gather(*producers)
+        await asyncio.gather(producers)
         self.logger.info("Producers done producing")
         await queue.join()
 
@@ -133,6 +131,7 @@ class Visa_Token_Update(object):
         while not queue.empty():
             user = await queue.get()
             await updater_queue.put(user)
+            self._verify_jwt_token(user.ga4gh_visas_v1)
             queue.task_done()
 
     async def updater(self, name, updater_queue, db_session):
@@ -161,8 +160,12 @@ class Visa_Token_Update(object):
         """
         Pick oidc client according to the visa provider
         """
+        client = None
         if "ras" in visa.type:
-            return self.ras_client
+            client = self.ras_client
+        if not client:
+            raise Exception("Visa Client not set up or not avaialable")
+        return client
 
     def _verify_jwt_token(self, visa):
         # NOT IMPLEMENTED
