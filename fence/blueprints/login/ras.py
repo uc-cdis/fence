@@ -1,5 +1,6 @@
 import flask
 import jwt
+import os
 from flask_sqlalchemy_session import current_session
 
 from fence.models import GA4GHVisaV1, IdentityProvider, User
@@ -7,6 +8,8 @@ from fence.models import GA4GHVisaV1, IdentityProvider, User
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 
 from fence.config import config
+
+from fence.sync.sync_users import UserSyncer
 
 
 class RASLogin(DefaultOAuth2Login):
@@ -61,6 +64,21 @@ class RASCallback(DefaultOAuth2Callback):
             current_session.add(visa)
             current_session.commit()
 
+        if not user.project_access:
+            DB = os.environ.get("FENCE_DB") or config.get("DB")
+            if DB is None:
+                try:
+                    from fence.settings import DB
+                except ImportError:
+                    pass
+
+            sync = UserSyncer(
+                dbGaP=None,
+                DB=DB,
+                project_mapping=None,
+                db_session=current_session,
+            )
+            sync.sync_single_user_visas(user, current_session)
         # Store refresh token in db
         refresh_token = flask.g.tokens.get("refresh_token")
         id_token = flask.g.tokens.get("id_token")

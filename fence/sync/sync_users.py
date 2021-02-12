@@ -290,8 +290,8 @@ class UserSyncer(object):
         sync_from_local_yaml_file=None,
         arborist=None,
         folder=None,
-        sync_from_visa=None,
-        fallback_to_telemetry=None,
+        sync_from_visa=False,
+        fallback_to_telemetry=False,
     ):
         """
         Syncs ACL files from dbGap to auth database and storage backends
@@ -687,17 +687,21 @@ class UserSyncer(object):
 
         for user, projects1 in phsids1.items():
             if not phsids2.get(user):
-                if source1: self.auth_source[user].add(source1)
+                if source1:
+                    self.auth_source[user].add(source1)
                 phsids2[user] = projects1
             elif phsids2_overrides_phsids1:
-                if source1: self.auth_source[user].add(source1)
-                if source2: self.auth_source[user].add(source2)
+                if source1:
+                    self.auth_source[user].add(source1)
+                if source2:
+                    self.auth_source[user].add(source2)
                 for phsid1, privilege1 in projects1.items():
                     if phsid1 not in phsids2[user]:
                         phsids2[user][phsid1] = set()
                     phsids2[user][phsid1].update(privilege1)
             elif not phsids2_overrides_phsids1:
-                if source2: self.auth_source[user].add(source2)
+                if source2:
+                    self.auth_source[user].add(source2)
 
     def sync_to_db_and_storage_backend(self, user_project, user_info, sess):
         """
@@ -1261,8 +1265,12 @@ class UserSyncer(object):
         # the access info is combined - if the user.yaml access is
         # ["read"] and the CSV file access is ["read-storage"], the
         # resulting access is ["read", "read-storage"].
-        self.sync_two_phsids_dict(user_projects_csv, user_projects, source1="local_csv", source2="dbgap")
-        self.sync_two_phsids_dict(user_yaml.projects, user_projects, source1="user_yaml", source2="dbgap")
+        self.sync_two_phsids_dict(
+            user_projects_csv, user_projects, source1="local_csv", source2="dbgap"
+        )
+        self.sync_two_phsids_dict(
+            user_yaml.projects, user_projects, source1="user_yaml", source2="dbgap"
+        )
 
         # Note: if there are multiple dbgap sftp servers configured
         # this parameter is always from the config for the first dbgap sftp server
@@ -1311,8 +1319,9 @@ class UserSyncer(object):
                 )
                 exit(1)
 
-        # for user, access_sources in self.sources.items():
-        #     print(user, access_sources)
+        # Logging authz source
+        for u, s in self.auth_source.items():
+            self.logger.info("Access for user {} from {}".format(u, s))
 
     def _grant_all_consents_to_c999_users(
         self, user_projects, user_yaml_project_to_resources
@@ -1788,7 +1797,7 @@ class UserSyncer(object):
                         encoded_visa,
                         visa.expires,
                         self.parse_consent_code,
-                        self.session,
+                        db_session,
                     )
                     projects = {**projects, **project}
                 if projects:
@@ -1977,8 +1986,6 @@ class UserSyncer(object):
                     except ValueError as e:
                         self.logger.info(e)
 
-
-
         # Note: if there are multiple dbgap sftp servers configured
         # this parameter is always from the config for the first dbgap sftp server
         # not any additional ones
@@ -2034,3 +2041,156 @@ class UserSyncer(object):
             with self.driver.session as s:
                 self._sync_visas(s)
         # if returns with some failure use telemetry file
+
+    def sync_single_user_visas(self, user, db_session):
+        """
+        Sync a single user's visa during login
+        """
+
+        # self.logger.info("Syncing Authz info for user {}".format(user))
+        user_projects = dict()
+        user_info = dict()
+
+        for visa in user.ga4gh_visas_v1:
+            project = {}
+            visa_type = self._pick_type(visa)
+            encoded_visa = visa.ga4gh_visa
+            project, info = visa_type._parse_single_visa(
+                user,
+                encoded_visa,
+                visa.expires,
+                self.parse_consent_code,
+                db_session,
+            )
+            projects = {**projects, **project}
+        user_projects[user.username] = projects
+        user_info[user.username] = info
+
+        enable_common_exchange_area_access = dbgap_config.get(
+            "enable_common_exchange_area_access", False
+        )
+        study_common_exchange_areas = dbgap_config.get(
+            "study_common_exchange_areas", {}
+        )
+
+        user_projects = self.parse_projects(user_projects)
+
+        if self.parse_consent_code and enable_common_exchange_area_access:
+            self.logger.info(
+                f"using study to common exchange area mapping: {study_common_exchange_areas}"
+            )
+
+        for username in user_projects.keys():
+            for project in user_projects[username].keys():
+                phsid = project.split(".")
+                dbgap_project = phsid[0]
+                privileges = user_projects[username][project]
+                if len(phsid) > 1 and self.parse_consent_code:
+                    consent_code = phsid[-1]
+
+                    # c999 indicates full access to all consents and access
+                    # to a study-specific exchange area
+                    # access to at least one study-specific exchange area implies access
+                    # to the parent study's common exchange area
+                    #
+                    # NOTE: Handling giving access to all consents is done at
+                    #       a later time, when we have full information about possible
+                    #       consents
+                    self.logger.debug(
+                        f"got consent code {consent_code} from dbGaP project "
+                        f"{dbgap_project}"
+                    )
+                    if (
+                        consent_code == "c999"
+                        and enable_common_exchange_area_access
+                        and dbgap_project in study_common_exchange_areas
+                    ):
+                        self.logger.info(
+                            "found study with consent c999 and Fence "
+                            "is configured to parse exchange area data. Giving user "
+                            f"{username} {privileges} privileges in project: "
+                            f"{study_common_exchange_areas[dbgap_project]}."
+                        )
+                        self._add_dbgap_project_for_user(
+                            study_common_exchange_areas[dbgap_project],
+                            privileges,
+                            username,
+                            sess,
+                            user_projects,
+                            dbgap_config,
+                        )
+
+                    dbgap_project += "." + consent_code
+
+                if dbgap_project not in self.project_mapping:
+                    self._add_dbgap_project_for_user(
+                        dbgap_project,
+                        privileges,
+                        username,
+                        sess,
+                        user_projects,
+                        dbgap_config,
+                    )
+
+                for element_dict in self.project_mapping.get(dbgap_project, []):
+                    try:
+                        phsid_privileges = {element_dict["auth_id"]: set(privileges)}
+
+                        # need to add dbgap project to arborist
+                        if self.arborist_client:
+                            self._add_dbgap_study_to_arborist(
+                                element_dict["auth_id"], dbgap_config
+                            )
+
+                        if username not in user_projects:
+                            user_projects[username] = {}
+                        user_projects[username].update(phsid_privileges)
+
+                    except ValueError as e:
+                        self.logger.info(e)
+
+        # Note: if there are multiple dbgap sftp servers configured
+        # this parameter is always from the config for the first dbgap sftp server
+        # not any additional ones
+        if self.parse_consent_code:
+            self._grant_all_consents_to_c999_users(
+                user_projects, user_yaml.project_to_resource
+            )
+        # update fence db
+        if user_projects:
+            self.logger.info("Sync to db and storage backend")
+            self.sync_to_db_and_storage_backend(user_projects, user_info, sess)
+        else:
+            self.logger.info("No users for syncing")
+
+        # update the Arborist DB (resources, roles, policies, groups)
+        if user_yaml.authz:
+            if not self.arborist_client:
+                raise EnvironmentError(
+                    "yaml file contains authz section but sync is not configured with"
+                    " arborist client--did you run sync with --arborist <arborist client> arg?"
+                )
+            self.logger.info("Synchronizing arborist...")
+            success = self._update_arborist(sess, user_yaml)
+            if success:
+                self.logger.info("Finished synchronizing arborist")
+            else:
+                self.logger.error("Could not synchronize successfully")
+                exit(1)
+        else:
+            self.logger.info("No `authz` section; skipping arborist sync")
+
+        # update arborist db (user access)
+        if self.arborist_client:
+            self.logger.info("Synchronizing arborist with authorization info...")
+            success = self._update_authz_in_arborist(sess, user_projects, user_yaml)
+            if success:
+                self.logger.info(
+                    "Finished synchronizing authorization info to arborist"
+                )
+            else:
+                self.logger.error(
+                    "Could not synchronize authorization info successfully to arborist"
+                )
+                exit(1)
+        # Logging authz source
