@@ -215,10 +215,8 @@ class UserSessionInterface(SessionInterface):
                     domain=domain,
                 )
 
-            # if a user is logged in and doesn't have an access token, let's
-            # generate one
-            if user and not flask.g.access_token:
-                _create_access_token_cookie(app, session, response, user)
+            # always generate an new access token if user is logged in
+            _create_access_token_cookie(app, session, response, user)
         else:
             # If there isn't a session token, we should set
             # the cookies to nothing and expire them immediately.
