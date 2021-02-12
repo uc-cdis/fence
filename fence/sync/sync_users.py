@@ -757,7 +757,6 @@ class UserSyncer(object):
             username.lower(): info for username, info in user_info.items()
         }
 
-        to_delete = set.difference(cur_db_user_project_list, syncing_user_project_list)
         to_add = set.difference(syncing_user_project_list, cur_db_user_project_list)
         to_update = set.intersection(
             cur_db_user_project_list, syncing_user_project_list
@@ -768,6 +767,7 @@ class UserSyncer(object):
         self._upsert_userinfo(sess, user_info)
 
         if not self.single_visa_sync:
+            to_delete = set.difference(cur_db_user_project_list, syncing_user_project_list)
             self._revoke_from_storage(
                 to_delete, sess, google_bulk_mapping=google_bulk_mapping
             )
@@ -2047,7 +2047,7 @@ class UserSyncer(object):
                 self._sync_visas(s)
         # if returns with some failure use telemetry file
 
-    def sync_single_user_visas(self, user, db_session):
+    def sync_single_user_visas(self, user, sess):
         """
         Sync a single user's visa during login
         """
@@ -2073,6 +2073,7 @@ class UserSyncer(object):
         user_projects = dict()
         user_info = dict()
         projects = {}
+        info = {}
 
         for visa in user.ga4gh_visas_v1:
             project = {}
@@ -2083,7 +2084,7 @@ class UserSyncer(object):
                 encoded_visa,
                 visa.expires,
                 self.parse_consent_code,
-                db_session,
+                sess,
             )
             projects = {**projects, **project}
         user_projects[user.username] = projects
@@ -2131,7 +2132,7 @@ class UserSyncer(object):
                             study_common_exchange_areas[dbgap_project],
                             privileges,
                             username,
-                            db_session,
+                            sess,
                             user_projects,
                             dbgap_config,
                         )
@@ -2143,7 +2144,7 @@ class UserSyncer(object):
                         dbgap_project,
                         privileges,
                         username,
-                        db_session,
+                        sess,
                         user_projects,
                         dbgap_config,
                     )
@@ -2171,14 +2172,14 @@ class UserSyncer(object):
         # update fence db
         if user_projects:
             self.logger.info("Sync to db and storage backend")
-            self.sync_to_db_and_storage_backend(user_projects, user_info, db_session)
+            self.sync_to_db_and_storage_backend(user_projects, user_info, sess)
         else:
             self.logger.info("No users for syncing")
 
         # update the Arborist DB (resources, roles, policies, groups)
         if self.arborist_client:
             self.logger.info("Synchronizing arborist with authorization info...")
-            success = self._update_authz_in_arborist(db_session, user_projects)
+            success = self._update_authz_in_arborist(sess, user_projects)
             if success:
                 self.logger.info(
                     "Finished synchronizing authorization info to arborist"
