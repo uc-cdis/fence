@@ -767,11 +767,10 @@ class UserSyncer(object):
         # pass the original, non-lowered user_info dict
         self._upsert_userinfo(sess, user_info)
 
-        self._revoke_from_storage(
-            to_delete, sess, google_bulk_mapping=google_bulk_mapping
-        )
-
         if not self.single_visa_sync:
+            self._revoke_from_storage(
+                to_delete, sess, google_bulk_mapping=google_bulk_mapping
+            )
             self._revoke_from_db(sess, to_delete)
 
         self._grant_from_storage(
@@ -798,7 +797,8 @@ class UserSyncer(object):
         )
         self._update_from_db(sess, to_update, user_project_lowercase)
 
-        self._validate_and_update_user_admin(sess, user_info_lowercase)
+        if not self.single_visa_sync:
+            self._validate_and_update_user_admin(sess, user_info_lowercase)
 
         if config["GOOGLE_BULK_UPDATES"]:
             self.logger.info("Doing bulk Google update...")
@@ -1574,7 +1574,7 @@ class UserSyncer(object):
                 username = user.username
 
             self.arborist_client.create_user_if_not_exist(username)
-            if self.single_visa_sync:
+            if not self.single_visa_sync:
                 self.arborist_client.revoke_all_policies_for_user(username)
 
             for project, permissions in user_project_info.items():
