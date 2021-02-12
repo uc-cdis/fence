@@ -292,6 +292,7 @@ class UserSyncer(object):
         folder=None,
         sync_from_visa=False,
         fallback_to_telemetry=False,
+        single_visa_sync=False,
     ):
         """
         Syncs ACL files from dbGap to auth database and storage backends
@@ -306,6 +307,9 @@ class UserSyncer(object):
                 ArboristClient instance if the syncer should also create
                 resources in arborist
             folder: a local folder where dbgap telemetry files will sync to
+            sync_from_visa: use visa for sync instead of dbgap
+            fallback_to_telemetry: fallback to telemetry files when visa sync fails 
+            single_visa_sync: syncing single visa during login
         """
         self.sync_from_local_csv_dir = sync_from_local_csv_dir
         self.sync_from_local_yaml_file = sync_from_local_yaml_file
@@ -326,6 +330,7 @@ class UserSyncer(object):
         self.folder = folder
         self.sync_from_visa = sync_from_visa
         self.fallback_to_telemetry = fallback_to_telemetry
+        self.single_visa_sync = single_visa_sync
 
         self.auth_source = defaultdict(set)
         # auth_source used for logging. username : [source1, source2]
@@ -2047,6 +2052,18 @@ class UserSyncer(object):
         Sync a single user's visa during login
         """
 
+        self.ras_client = RASVisa(logger=self.logger)
+        dbgap_config = self.dbGaP[0]
+
+        try:
+            user_yaml = UserYAML.from_file(
+                self.sync_from_local_yaml_file, encrypted=False, logger=self.logger
+            )
+        except (EnvironmentError, AssertionError) as e:
+            self.logger.error(str(e))
+            self.logger.error("aborting early")
+            return
+
         # self.logger.info("Syncing Authz info for user {}".format(user))
         user_projects = dict()
         user_info = dict()
@@ -2115,7 +2132,7 @@ class UserSyncer(object):
                             study_common_exchange_areas[dbgap_project],
                             privileges,
                             username,
-                            sess,
+                            db_session,
                             user_projects,
                             dbgap_config,
                         )
@@ -2127,7 +2144,7 @@ class UserSyncer(object):
                         dbgap_project,
                         privileges,
                         username,
-                        sess,
+                        db_session,
                         user_projects,
                         dbgap_config,
                     )
@@ -2148,10 +2165,6 @@ class UserSyncer(object):
 
                     except ValueError as e:
                         self.logger.info(e)
-
-        # Note: if there are multiple dbgap sftp servers configured
-        # this parameter is always from the config for the first dbgap sftp server
-        # not any additional ones
         if self.parse_consent_code:
             self._grant_all_consents_to_c999_users(
                 user_projects, user_yaml.project_to_resource
@@ -2159,31 +2172,14 @@ class UserSyncer(object):
         # update fence db
         if user_projects:
             self.logger.info("Sync to db and storage backend")
-            self.sync_to_db_and_storage_backend(user_projects, user_info, sess)
+            self.sync_to_db_and_storage_backend(user_projects, user_info, db_session)
         else:
             self.logger.info("No users for syncing")
 
         # update the Arborist DB (resources, roles, policies, groups)
-        if user_yaml.authz:
-            if not self.arborist_client:
-                raise EnvironmentError(
-                    "yaml file contains authz section but sync is not configured with"
-                    " arborist client--did you run sync with --arborist <arborist client> arg?"
-                )
-            self.logger.info("Synchronizing arborist...")
-            success = self._update_arborist(sess, user_yaml)
-            if success:
-                self.logger.info("Finished synchronizing arborist")
-            else:
-                self.logger.error("Could not synchronize successfully")
-                exit(1)
-        else:
-            self.logger.info("No `authz` section; skipping arborist sync")
-
-        # update arborist db (user access)
         if self.arborist_client:
             self.logger.info("Synchronizing arborist with authorization info...")
-            success = self._update_authz_in_arborist(sess, user_projects, user_yaml)
+            success = self._update_authz_in_arborist(db_session, user_projects)
             if success:
                 self.logger.info(
                     "Finished synchronizing authorization info to arborist"

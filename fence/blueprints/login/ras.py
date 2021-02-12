@@ -71,9 +71,12 @@ class RASCallback(DefaultOAuth2Callback):
                     from fence.settings import DB
                 except ImportError:
                     pass
+            dbGaP = os.environ.get("dbGaP") or config.get("dbGaP")
+            if not isinstance(dbGaP, list):
+                dbGaP = [dbGaP]
 
             sync = UserSyncer(
-                dbGaP=None,
+                dbGaP=dbGaP,
                 DB=DB,
                 project_mapping=None,
                 db_session=current_session,
