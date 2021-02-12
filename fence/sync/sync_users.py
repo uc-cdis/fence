@@ -308,7 +308,7 @@ class UserSyncer(object):
                 resources in arborist
             folder: a local folder where dbgap telemetry files will sync to
             sync_from_visa: use visa for sync instead of dbgap
-            fallback_to_telemetry: fallback to telemetry files when visa sync fails 
+            fallback_to_telemetry: fallback to telemetry files when visa sync fails
             single_visa_sync: syncing single visa during login
         """
         self.sync_from_local_csv_dir = sync_from_local_csv_dir
@@ -1848,9 +1848,7 @@ class UserSyncer(object):
         if self.fallback_to_telemetry:
             # Collect user_info and user_projects from telemetry
             user_projects_telemetry = {}
-            user_info_telemetry = (
-                {}
-            ) 
+            user_info_telemetry = {}
             if self.is_sync_from_dbgap_server:
                 self.logger.debug(
                     "Pulling telemetry files from {} dbgap sftp servers".format(
@@ -2090,8 +2088,6 @@ class UserSyncer(object):
             projects = {**projects, **project}
         user_projects[user.username] = projects
         user_info[user.username] = info
-
-
 
         user_projects = self.parse_projects(user_projects)
 
