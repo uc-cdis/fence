@@ -771,7 +771,8 @@ class UserSyncer(object):
             to_delete, sess, google_bulk_mapping=google_bulk_mapping
         )
 
-        self._revoke_from_db(sess, to_delete)
+        if not self.single_visa_sync:
+            self._revoke_from_db(sess, to_delete)
 
         self._grant_from_storage(
             to_add,
@@ -1573,7 +1574,8 @@ class UserSyncer(object):
                 username = user.username
 
             self.arborist_client.create_user_if_not_exist(username)
-            self.arborist_client.revoke_all_policies_for_user(username)
+            if self.single_visa_sync:
+                self.arborist_client.revoke_all_policies_for_user(username)
 
             for project, permissions in user_project_info.items():
 
@@ -1848,7 +1850,7 @@ class UserSyncer(object):
             user_projects_telemetry = {}
             user_info_telemetry = (
                 {}
-            )  # TODO: might not end up using telemetry files for user_info so drop this if not used
+            ) 
             if self.is_sync_from_dbgap_server:
                 self.logger.debug(
                     "Pulling telemetry files from {} dbgap sftp servers".format(
@@ -2054,6 +2056,12 @@ class UserSyncer(object):
 
         self.ras_client = RASVisa(logger=self.logger)
         dbgap_config = self.dbGaP[0]
+        enable_common_exchange_area_access = dbgap_config.get(
+            "enable_common_exchange_area_access", False
+        )
+        study_common_exchange_areas = dbgap_config.get(
+            "study_common_exchange_areas", {}
+        )
 
         try:
             user_yaml = UserYAML.from_file(
@@ -2064,9 +2072,9 @@ class UserSyncer(object):
             self.logger.error("aborting early")
             return
 
-        # self.logger.info("Syncing Authz info for user {}".format(user))
         user_projects = dict()
         user_info = dict()
+        projects = {}
 
         for visa in user.ga4gh_visas_v1:
             project = {}
@@ -2083,12 +2091,7 @@ class UserSyncer(object):
         user_projects[user.username] = projects
         user_info[user.username] = info
 
-        enable_common_exchange_area_access = dbgap_config.get(
-            "enable_common_exchange_area_access", False
-        )
-        study_common_exchange_areas = dbgap_config.get(
-            "study_common_exchange_areas", {}
-        )
+
 
         user_projects = self.parse_projects(user_projects)
 

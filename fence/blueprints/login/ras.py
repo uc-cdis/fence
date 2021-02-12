@@ -80,6 +80,7 @@ class RASCallback(DefaultOAuth2Callback):
                 DB=DB,
                 project_mapping=None,
                 db_session=current_session,
+                single_visa_sync=True,
             )
             sync.sync_single_user_visas(user, current_session)
         # Store refresh token in db
