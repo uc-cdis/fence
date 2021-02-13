@@ -82,7 +82,7 @@ class RASCallback(DefaultOAuth2Callback):
                 db_session=current_session,
                 single_visa_sync=True,
             )
-            sync.sync_single_user_visas(user, current_session)
+            sync.sync_single_user_visas(user)
         # Store refresh token in db
         refresh_token = flask.g.tokens.get("refresh_token")
         id_token = flask.g.tokens.get("id_token")

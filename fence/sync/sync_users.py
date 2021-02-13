@@ -2047,10 +2047,12 @@ class UserSyncer(object):
                 self._sync_visas(s)
         # if returns with some failure use telemetry file
 
-    def sync_single_user_visas(self, user, sess):
+    def sync_single_user_visas(self, user):
         """
         Sync a single user's visa during login
         """
+
+        sess = self.session
 
         self.ras_client = RASVisa(logger=self.logger)
         dbgap_config = self.dbGaP[0]
@@ -2177,16 +2179,16 @@ class UserSyncer(object):
             self.logger.info("No users for syncing")
 
         # update the Arborist DB (resources, roles, policies, groups)
-        if self.arborist_client:
-            self.logger.info("Synchronizing arborist with authorization info...")
-            success = self._update_authz_in_arborist(sess, user_projects)
-            if success:
-                self.logger.info(
-                    "Finished synchronizing authorization info to arborist"
-                )
-            else:
-                self.logger.error(
-                    "Could not synchronize authorization info successfully to arborist"
-                )
-                exit(1)
+        # if self.arborist_client:
+        #     self.logger.info("Synchronizing arborist with authorization info...")
+        #     success = self._update_authz_in_arborist(sess, user_projects)
+        #     if success:
+        #         self.logger.info(
+        #             "Finished synchronizing authorization info to arborist"
+        #         )
+        #     else:
+        #         self.logger.error(
+        #             "Could not synchronize authorization info successfully to arborist"
+        #         )
+        #         exit(1)
         # Logging authz source
