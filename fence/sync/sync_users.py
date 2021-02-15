@@ -906,7 +906,7 @@ class UserSyncer(object):
             auth_provider = auth_provider_list[0]
             if "dbgap_role" not in user_info[username]["tags"]:
                 auth_provider = auth_provider_list[1]
-
+                
             user_access = AccessPrivilege(
                 user=u,
                 project=self._projects[project_auth_id],
@@ -2047,12 +2047,12 @@ class UserSyncer(object):
                 self._sync_visas(s)
         # if returns with some failure use telemetry file
 
-    def sync_single_user_visas(self, user):
+    def sync_single_user_visas(self, user, sess=None):
         """
         Sync a single user's visa during login
         """
 
-        sess = self.session
+        # sess = self.session
 
         self.ras_client = RASVisa(logger=self.logger)
         dbgap_config = self.dbGaP[0]

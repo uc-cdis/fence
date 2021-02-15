@@ -81,6 +81,7 @@ class RASCallback(DefaultOAuth2Callback):
                 None,
                 DB,
             )
+            sync.single_visa_sync = True
             sync.sync_single_user_visas(user)
         # Store refresh token in db
         refresh_token = flask.g.tokens.get("refresh_token")
