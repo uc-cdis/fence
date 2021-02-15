@@ -41,6 +41,8 @@ class Visa_Token_Update(object):
         self.n_workers = self.thread_pool_size + self.concurrency
         self.logger = logger
 
+        self.visa_types = config.get("USERSYNC").get("visa_types")
+
         # Initialize visa clients:
         oidc = config.get("OPENID_CONNECT", {})
         if "ras" not in oidc:
@@ -161,10 +163,12 @@ class Visa_Token_Update(object):
         Pick oidc client according to the visa provider
         """
         client = None
-        if "ras" in visa.type:
+        if visa.type in self.visa_types["ras"]:
             client = self.ras_client
+        else:
+            raise Exception("Visa type {} not configured in fence-config".format(visa.type))
         if not client:
-            raise Exception("Visa Client not set up or not avaialable")
+            raise Exception("Visa Client not set up or not avaialable for type {}".format(visa.type))
         return client
 
     def _verify_jwt_token(self, visa):
