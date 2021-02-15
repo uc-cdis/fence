@@ -61,28 +61,9 @@ class RASCallback(DefaultOAuth2Callback):
                 expires=int(decoded_visa["exp"]),
                 ga4gh_visa=encoded_visa,
             )
-
             current_session.add(visa)
             current_session.commit()
 
-        if not user.project_access:
-            DB = os.environ.get("FENCE_DB") or config.get("DB")
-            if DB is None:
-                try:
-                    from fence.settings import DB
-                except ImportError:
-                    pass
-            dbGaP = os.environ.get("dbGaP") or config.get("dbGaP")
-            if not isinstance(dbGaP, list):
-                dbGaP = [dbGaP]
-
-            sync = init_syncer(
-                dbGaP,
-                None,
-                DB,
-            )
-            sync.single_visa_sync = True
-            sync.sync_single_user_visas(user, current_session)
         # Store refresh token in db
         refresh_token = flask.g.tokens.get("refresh_token")
         id_token = flask.g.tokens.get("id_token")
