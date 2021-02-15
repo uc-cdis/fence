@@ -208,8 +208,8 @@ def init_syncer(
     sync_from_local_yaml_file=None,
     arborist=None,
     folder=None,
-    sync_from_visa=None,
-    fallback_to_telemetry=None,
+    sync_from_visas=None,
+    fallback_to_dbgap_sftp=None,
 ):
     """
     sync ACL files from dbGap to auth db and storage backends
@@ -268,8 +268,8 @@ def init_syncer(
         sync_from_local_yaml_file=sync_from_local_yaml_file,
         arborist=arborist,
         folder=folder,
-        sync_from_visa=sync_from_visa,
-        fallback_to_telemetry=fallback_to_telemetry,
+        sync_from_visas=sync_from_visas,
+        fallback_to_dbgap_sftp=fallback_to_dbgap_sftp,
     )
 
 
@@ -311,8 +311,8 @@ def sync_users(
     sync_from_local_yaml_file=None,
     arborist=None,
     folder=None,
-    sync_from_visa=False,
-    fallback_to_telemetry=False,
+    sync_from_visas=False,
+    fallback_to_dbgap_sftp=False,
 ):
     syncer = init_syncer(
         dbGaP,
@@ -324,12 +324,12 @@ def sync_users(
         sync_from_local_yaml_file,
         arborist,
         folder,
-        sync_from_visa,
-        fallback_to_telemetry,
+        sync_from_visas,
+        fallback_to_dbgap_sftp,
     )
     if not syncer:
         exit(1)
-    if sync_from_visa:
+    if sync_from_visas:
         syncer.sync_visas()
     else:
         syncer.sync()

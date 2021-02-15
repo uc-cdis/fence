@@ -290,8 +290,8 @@ class UserSyncer(object):
         sync_from_local_yaml_file=None,
         arborist=None,
         folder=None,
-        sync_from_visa=False,
-        fallback_to_telemetry=False,
+        sync_from_visas=False,
+        fallback_to_dbgap_sftp=False,
     ):
         """
         Syncs ACL files from dbGap to auth database and storage backends
@@ -306,8 +306,8 @@ class UserSyncer(object):
                 ArboristClient instance if the syncer should also create
                 resources in arborist
             folder: a local folder where dbgap telemetry files will sync to
-            sync_from_visa: use visa for sync instead of dbgap
-            fallback_to_telemetry: fallback to telemetry files when visa sync fails
+            sync_from_visas: use visa for sync instead of dbgap
+            fallback_to_dbgap_sftp: fallback to telemetry files when visa sync fails
         """
         self.sync_from_local_csv_dir = sync_from_local_csv_dir
         self.sync_from_local_yaml_file = sync_from_local_yaml_file
@@ -326,8 +326,8 @@ class UserSyncer(object):
         )
         self.arborist_client = arborist
         self.folder = folder
-        self.sync_from_visa = sync_from_visa
-        self.fallback_to_telemetry = fallback_to_telemetry
+        self.sync_from_visas = sync_from_visas
+        self.fallback_to_dbgap_sftp = fallback_to_dbgap_sftp
 
         self.auth_source = defaultdict(set)
         # auth_source used for logging. username : [source1, source2]
@@ -1811,7 +1811,7 @@ class UserSyncer(object):
 
         self.logger.info("Running usersync with Visas")
         self.logger.info(
-            "Fallback to telemetry files: {}".format(self.fallback_to_telemetry)
+            "Fallback to telemetry files: {}".format(self.fallback_to_dbgap_sftp)
         )
 
         self.ras_client = RASVisa(logger=self.logger)
@@ -1838,7 +1838,7 @@ class UserSyncer(object):
         user_projects = self.parse_projects(user_projects)
         user_yaml.projects = self.parse_projects(user_yaml.projects)
 
-        if self.fallback_to_telemetry:
+        if self.fallback_to_dbgap_sftp:
             # Collect user_info and user_projects from telemetry
             user_projects_telemetry = {}
             user_info_telemetry = {}

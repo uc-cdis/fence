@@ -460,8 +460,6 @@ dbGaP:
       # 'studyX': ['/orgA/', '/orgB/']
       # 'studyX.c2': ['/orgB/', '/orgC/']
       # 'studyZ': ['/orgD/']
-    sync_from_visa: true
-    fallback_to_telemetry: false
 # Regex to match an assession number that has consent information in forms like:
 #   phs00301123.c999
 #   phs000123.v3.p1.c3
@@ -772,5 +770,7 @@ RAS_REFRESH_EXPIRATION: 1296000
 # Number of projects that can be registered to a Google Service Accont
 SERVICE_ACCOUNT_LIMIT: 6
 # Settings for usersync with visas
-SYNC_FROM_VISA: false
-FALLBACK_TO_TELEMETRY: false
+
+USERSYNC:
+  sync_from_visas: false
+  fallback_to_dbgap_sftp: false

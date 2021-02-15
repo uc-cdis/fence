@@ -630,7 +630,7 @@ def test_user_sync_with_visas(
     )
     monkeypatch.setattr(syncer, "parse_consent_code", parse_consent_code_config)
     monkeypatch.setattr(syncer, "fallback_to_telemetry", fallback_to_telemetry)
-    monkeypatch.setattr(syncer, "sync_from_visa", True)
+    monkeypatch.setattr(syncer, "sync_from_visas", True)
 
     syncer.sync_visas()
 
