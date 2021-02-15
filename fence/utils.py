@@ -191,7 +191,7 @@ def clear_cookies(response):
     Set all cookies to empty and expired.
     """
     for cookie_name in list(flask.request.cookies.keys()):
-        response.set_cookie(cookie_name, "", expires=0)
+        response.set_cookie(cookie_name, "", expires=0, httponly=True)
 
 
 def get_error_params(error, description):
