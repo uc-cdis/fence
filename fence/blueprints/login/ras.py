@@ -10,6 +10,7 @@ from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callbac
 from fence.config import config
 
 from fence.sync.sync_users import UserSyncer
+from fence.scripting.fence_create import init_syncer
 
 
 class RASLogin(DefaultOAuth2Login):
@@ -75,12 +76,10 @@ class RASCallback(DefaultOAuth2Callback):
             if not isinstance(dbGaP, list):
                 dbGaP = [dbGaP]
 
-            sync = UserSyncer(
-                dbGaP=dbGaP,
-                DB=DB,
-                project_mapping=None,
-                db_session=current_session,
-                single_visa_sync=True,
+            sync = init_syncer(
+                dbGaP,
+                None,
+                DB,
             )
             sync.sync_single_user_visas(user)
         # Store refresh token in db
