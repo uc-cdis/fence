@@ -615,13 +615,13 @@ def test_process_additional_dbgap_servers(syncer, monkeypatch, db_session):
 
 @pytest.mark.parametrize("syncer", ["cleversafe"], indirect=True)
 @pytest.mark.parametrize("parse_consent_code_config", [False, True])
-@pytest.mark.parametrize("fallback_to_telemetry", [False, True])
+@pytest.mark.parametrize("fallback_to_dbgap_sftp", [False, True])
 def test_user_sync_with_visas(
     syncer,
     db_session,
     storage_client,
     parse_consent_code_config,
-    fallback_to_telemetry,
+    fallback_to_dbgap_sftp,
     monkeypatch,
 ):
     # patch the sync to use the parameterized config value
@@ -629,7 +629,7 @@ def test_user_sync_with_visas(
         syncer.dbGaP[0], "parse_consent_code", parse_consent_code_config
     )
     monkeypatch.setattr(syncer, "parse_consent_code", parse_consent_code_config)
-    monkeypatch.setattr(syncer, "fallback_to_telemetry", fallback_to_telemetry)
+    monkeypatch.setattr(syncer, "fallback_to_dbgap_sftp", fallback_to_dbgap_sftp)
     monkeypatch.setattr(syncer, "sync_from_visas", True)
 
     syncer.sync_visas()
@@ -658,7 +658,7 @@ def test_user_sync_with_visas(
     assert len(invalid_user.ga4gh_visas_v1) == 0
     assert len(expired_user.ga4gh_visas_v1) == 0
 
-    if fallback_to_telemetry:
+    if fallback_to_dbgap_sftp:
         assert len(users) == 13
 
         if parse_consent_code_config:
