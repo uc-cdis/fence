@@ -405,6 +405,9 @@ def main():
     STORAGE_CREDENTIALS = os.environ.get("STORAGE_CREDENTIALS") or config.get(
         "STORAGE_CREDENTIALS"
     )
+    usersync = config.get("USERSYNC", {})
+    sync_from_visas = usersync.get("sync_from_visas", False)
+    fallback_to_dbgap_sftp = usersync.get("fallback_to_dbgap_sftp", False)
 
     arborist = None
     if args.arborist:
@@ -467,6 +470,8 @@ def main():
             sync_from_local_yaml_file=args.yaml,
             folder=args.folder,
             arborist=arborist,
+            sync_from_visas=sync_from_visas,
+            fallback_to_dbgap_sftp=fallback_to_dbgap_sftp,
         )
     elif args.action == "dbgap-download-access-files":
         download_dbgap_files(

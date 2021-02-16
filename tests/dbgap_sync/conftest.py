@@ -1,4 +1,6 @@
 import os
+import time
+import jwt
 
 from unittest.mock import MagicMock, patch
 from yaml import safe_load as yaml_load
@@ -13,7 +15,7 @@ from userdatamodel.driver import SQLAlchemyDriver
 from fence.sync.sync_users import UserSyncer
 from fence.resources import userdatamodel as udm
 
-from fence.models import AccessPrivilege, AuthorizationProvider, User
+from fence.models import AccessPrivilege, AuthorizationProvider, User, GA4GHVisaV1
 
 from gen3authz.client.arborist.client import ArboristClient
 
@@ -69,7 +71,7 @@ def storage_client():
 
 
 @pytest.fixture
-def syncer(db_session, request):
+def syncer(db_session, request, rsa_private_key, kid):
     if request.param == "google":
         backend = "google"
     else:
@@ -93,6 +95,16 @@ def syncer(db_session, request):
             "email": "deleted_user@gmail.com",
         },
         {"username": "TESTUSERD", "is_admin": True, "email": "userD@gmail.com"},
+        {
+            "username": "expired_visa_user",
+            "is_admin": False,
+            "email": "expired@expired.com",
+        },
+        {
+            "username": "invalid_visa_user",
+            "is_admin": False,
+            "email": "invalid@invalid.com",
+        },
     ]
 
     projects = [
@@ -184,8 +196,112 @@ def syncer(db_session, request):
                 )
 
     for user in users:
-        db_session.add(User(**user))
+        user = User(**user)
+        db_session.add(user)
+        add_visa_manually(db_session, user, rsa_private_key, kid)
 
     db_session.commit()
 
     return syncer_obj
+
+
+def add_visa_manually(db_session, user, rsa_private_key, kid):
+
+    headers = {"kid": kid}
+
+    decoded_visa = {
+        "iss": "https://stsstg.nih.gov",
+        "sub": "abcde12345aspdij",
+        "iat": int(time.time()),
+        "exp": int(time.time()) + 1000,
+        "scope": "openid ga4gh_passport_v1 email profile",
+        "jti": "jtiajoidasndokmasdl",
+        "txn": "sapidjspa.asipidja",
+        "name": "",
+        "ga4gh_visa_v1": {
+            "type": "https://ras.nih.gov/visas/v1",
+            "asserted": int(time.time()),
+            "value": "https://nig/passport/dbgap",
+            "source": "https://ncbi/gap",
+        },
+        "ras_dbgap_permissions": [
+            {
+                "consent_name": "Health/Medical/Biomedical",
+                "phs_id": "phs000991",
+                "version": "v1",
+                "participant_set": "p1",
+                "consent_group": "c1",
+                "role": "designated user",
+                "expiration": "2020-11-14 00:00:00",
+            },
+            {
+                "consent_name": "General Research Use (IRB, PUB)",
+                "phs_id": "phs000961",
+                "version": "v1",
+                "participant_set": "p1",
+                "consent_group": "c1",
+                "role": "designated user",
+                "expiration": "2020-11-14 00:00:00",
+            },
+            {
+                "consent_name": "Disease-Specific (Cardiovascular Disease)",
+                "phs_id": "phs000279",
+                "version": "v2",
+                "participant_set": "p1",
+                "consent_group": "c1",
+                "role": "designated user",
+                "expiration": "2020-11-14 00:00:00",
+            },
+            {
+                "consent_name": "Health/Medical/Biomedical (IRB)",
+                "phs_id": "phs000286",
+                "version": "v6",
+                "participant_set": "p2",
+                "consent_group": "c3",
+                "role": "designated user",
+                "expiration": "2020-11-14 00:00:00",
+            },
+            {
+                "consent_name": "Disease-Specific (Focused Disease Only, IRB, NPU)",
+                "phs_id": "phs000289",
+                "version": "v6",
+                "participant_set": "p2",
+                "consent_group": "c2",
+                "role": "designated user",
+                "expiration": "2020-11-14 00:00:00",
+            },
+            {
+                "consent_name": "Disease-Specific (Autism Spectrum Disorder)",
+                "phs_id": "phs000298",
+                "version": "v4",
+                "participant_set": "p3",
+                "consent_group": "c1",
+                "role": "designated user",
+                "expiration": "2020-11-14 00:00:00",
+            },
+        ],
+    }
+
+    encoded_visa = jwt.encode(
+        decoded_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
+    ).decode("utf-8")
+
+    expires = int(decoded_visa["exp"])
+    if user.username == "expired_visa_user":
+        expires -= 100000
+    if user.username == "invalid_visa_user":
+        encoded_visa = encoded_visa[: len(encoded_visa) // 2]
+    if user.username == "TESTUSERD":
+        encoded_visa = encoded_visa[: len(encoded_visa) // 2]
+
+    visa = GA4GHVisaV1(
+        user=user,
+        source=decoded_visa["ga4gh_visa_v1"]["source"],
+        type=decoded_visa["ga4gh_visa_v1"]["type"],
+        asserted=int(decoded_visa["ga4gh_visa_v1"]["asserted"]),
+        expires=expires,
+        ga4gh_visa=encoded_visa,
+    )
+
+    db_session.add(visa)
+    db_session.commit()

@@ -8,6 +8,9 @@ from cdislogging import get_logger
 from fence.config import config
 from fence.models import User, UpstreamRefreshToken, GA4GHVisaV1
 from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
+from fence.config import config
+
+from tests.dbgap_sync.conftest import add_visa_manually
 from fence.job.visa_update_cronjob import Visa_Token_Update
 import tests.utils
 
@@ -19,44 +22,6 @@ def add_test_user(db_session, username="admin_user", id="5678", is_admin=True):
     db_session.add(test_user)
     db_session.commit()
     return test_user
-
-
-def add_visa_manually(db_session, user, rsa_private_key, kid):
-
-    headers = {"kid": kid}
-
-    decoded_visa = {
-        "iss": "https://stsstg.nih.gov",
-        "sub": "abcde12345aspdij",
-        "iat": int(time.time()),
-        "exp": int(time.time()) + 1000,
-        "scope": "openid ga4gh_passport_v1 email profile",
-        "jti": "jtiajoidasndokmasdl",
-        "txn": "sapidjspa.asipidja",
-        "name": "",
-        "ga4gh_visa_v1": {
-            "type": "https://ras.nih.gov/visas/v1",
-            "asserted": int(time.time()),
-            "value": "https://nig/passport/dbgap",
-            "source": "https://ncbi/gap",
-        },
-    }
-
-    encoded_visa = jwt.encode(
-        decoded_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
-    ).decode("utf-8")
-
-    visa = GA4GHVisaV1(
-        user=user,
-        source=decoded_visa["ga4gh_visa_v1"]["source"],
-        type=decoded_visa["ga4gh_visa_v1"]["type"],
-        asserted=int(decoded_visa["ga4gh_visa_v1"]["asserted"]),
-        expires=int(decoded_visa["exp"]),
-        ga4gh_visa=encoded_visa,
-    )
-
-    db_session.add(visa)
-    db_session.commit()
 
 
 def add_refresh_token(db_session, user):
@@ -382,6 +347,10 @@ def test_visa_update_cronjob(
     for j in range(n_users_no_visa):
         username = "no_visa_{}".format(j)
         test_user = add_test_user(db_session, username, j + n_users)
+
+    query_visas = db_session.query(GA4GHVisaV1).all()
+
+    assert len(query_visas) == n_users
 
     new_visa = {
         "iss": "https://stsstg.nih.gov",
