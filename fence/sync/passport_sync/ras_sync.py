@@ -54,4 +54,3 @@ class RASVisa(DefaultVisa):
         return project, info
 
 
-# take look at merging to see how it works. if this returns empty

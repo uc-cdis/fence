@@ -9,7 +9,6 @@ class DefaultVisa(object):
         logger=None,
     ):
         self.logger = logger
-        # add option for DB and dbsession
 
     def _parse_single_visa(self, user, visa):
         pass
