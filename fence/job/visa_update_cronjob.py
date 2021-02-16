@@ -166,9 +166,13 @@ class Visa_Token_Update(object):
         if visa.type in self.visa_types["ras"]:
             client = self.ras_client
         else:
-            raise Exception("Visa type {} not configured in fence-config".format(visa.type))
+            raise Exception(
+                "Visa type {} not configured in fence-config".format(visa.type)
+            )
         if not client:
-            raise Exception("Visa Client not set up or not avaialable for type {}".format(visa.type))
+            raise Exception(
+                "Visa Client not set up or not avaialable for type {}".format(visa.type)
+            )
         return client
 
     def _verify_jwt_token(self, visa):
