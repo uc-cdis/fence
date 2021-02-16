@@ -443,6 +443,10 @@ INDEXD_PASSWORD: 'fake_password'
 # url where authz microservice is running
 ARBORIST: '/arborist'
 
+# url where the audit-service is running
+AUDIT_SERVICE: 'http://audit-service'
+ENABLE_AUDIT_LOGS: false
+
 # //////////////////////////////////////////////////////////////////////////////////////
 # CLOUD API LIBRARY (CIRRUS) CONFIGURATION
 #   - Support Google Data Access Methods

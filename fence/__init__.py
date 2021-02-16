@@ -15,6 +15,7 @@ from fence.jwt import keys
 from fence.models import migrate
 from fence.oidc.client import query_client
 from fence.oidc.server import server
+from fence.resources.audit_service_client import AuditServiceClient
 from fence.resources.aws.boto_manager import BotoManager
 from fence.resources.openid.cognito_oauth2 import CognitoOauth2Client as CognitoClient
 from fence.resources.openid.google_oauth2 import GoogleOauth2Client as GoogleClient
@@ -261,6 +262,7 @@ def app_config(
     app.config.update(**config._configs)
 
     _setup_arborist_client(app)
+    _setup_audit_service_client(app)
     _setup_data_endpoint_and_boto(app)
     _load_keys(app, root_dir)
     _set_authlib_cfgs(app)
@@ -377,6 +379,23 @@ def _setup_oidc_clients(app):
 def _setup_arborist_client(app):
     if app.config.get("ARBORIST"):
         app.arborist = ArboristClient(arborist_base_url=config["ARBORIST"])
+
+
+def _setup_audit_service_client(app):
+    if app.config.get("ENABLE_AUDIT_LOGS"):
+        logger.info("Enabling audit logs")
+    else:
+        logger.info("NOT enabling audit logs")
+    # Initialize the client regardless of whether audit logs are enabled. This
+    # allows us to call `app.audit_service_client.create_x_log()` from
+    # anywhere without checking if audit logs are enabled. The client
+    # checks that for us.
+    service_url = (
+        app.config.get("AUDIT_SERVICE") or app.config["BASE_URL"].rstrip("/") + "/audit"
+    )
+    app.audit_service_client = AuditServiceClient(
+        service_url=service_url, logger=logger
+    )
 
 
 @app.errorhandler(Exception)
