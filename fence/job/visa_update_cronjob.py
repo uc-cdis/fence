@@ -171,7 +171,7 @@ class Visa_Token_Update(object):
             )
         if not client:
             raise Exception(
-                "Visa Client not set up or not avaialable for type {}".format(visa.type)
+                "Visa Client not set up or not available for type {}".format(visa.type)
             )
         return client
 

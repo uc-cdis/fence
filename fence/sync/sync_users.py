@@ -1737,8 +1737,19 @@ class UserSyncer(object):
         """
         Pick type of visa to parse according to the visa provider
         """
+        sync_client = None
         if visa.type in self.visa_types["ras"]:
-            return self.ras_sync_client
+            sync_client = self.ras_sync_client
+        else:
+            raise Exception(
+                "Visa type {} not recognized. Configure in fence-config".format(
+                    visa.type
+                )
+            )
+        if not sync_client:
+            raise Exception("Sync client for {} not configured".format(visa.type))
+
+        return sync_client
 
     def parse_user_visas(self, db_session):
         """
