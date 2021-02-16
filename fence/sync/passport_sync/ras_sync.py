@@ -52,5 +52,3 @@ class RASVisa(DefaultVisa):
         info["display_name"] = user.display_name or ""
         info["phone_number"] = user.phone_number or ""
         return project, info
-
-
