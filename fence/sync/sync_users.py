@@ -331,6 +331,7 @@ class UserSyncer(object):
 
         self.auth_source = defaultdict(set)
         # auth_source used for logging. username : [source1, source2]
+        self.visa_types = config.get("USERSYNC", {}).get("visa_types", {})
 
         if storage_credentials:
             self.storage_manager = StorageManager(
@@ -1736,7 +1737,7 @@ class UserSyncer(object):
         """
         Pick type of visa to parse according to the visa provider
         """
-        if "ras" in visa.type:
+        if visa.type in self.visa_types["ras"]:
             return self.ras_sync_client
 
     def parse_user_visas(self, db_session):

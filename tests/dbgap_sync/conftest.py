@@ -219,7 +219,7 @@ def add_visa_manually(db_session, user, rsa_private_key, kid):
         "txn": "sapidjspa.asipidja",
         "name": "",
         "ga4gh_visa_v1": {
-            "type": "https://ras/visa/v1",
+            "type": "https://ras.nih.gov/visas/v1",
             "asserted": int(time.time()),
             "value": "https://nig/passport/dbgap",
             "source": "https://ncbi/gap",

@@ -33,6 +33,7 @@ from fence.scripting.fence_create import (
     force_update_google_link,
     migrate_database,
     google_list_authz_groups,
+    update_user_visas,
 )
 from fence.settings import CONFIG_SEARCH_FOLDERS
 
@@ -339,6 +340,28 @@ def parse_arguments():
         "Fence is providing access to. Includes Fence Project.auth_id and Google Bucket "
         "Access Group",
     )
+    update_visas = subparsers.add_parser(
+        "update-visas",
+        help="Update visas and refresh tokens for users with valid visas and refresh tokens.",
+    )
+    update_visas.add_argument(
+        "--chunk-size",
+        required=False,
+        help="size of chunk of users we want to take from each query to db. Default value: 10",
+    )
+    update_visas.add_argument(
+        "--concurrency",
+        required=False,
+        help="number of concurrent users going through the visa update flow. Default value: 5",
+    )
+    update_visas.add_argument(
+        "--thread-pool-size",
+        required=False,
+        help="number of Docker container CPU used for jwt verifcation. Default value: 3",
+    )
+    update_visas.add_argument(
+        "--buffer-size", required=False, help="max size of queue. Default value: 10"
+    )
 
     return parser.parse_args()
 
@@ -548,6 +571,14 @@ def main():
         )
     elif args.action == "migrate":
         migrate_database(DB)
+    elif args.action == "update-visas":
+        update_user_visas(
+            DB,
+            chunk_size=args.chunk_size,
+            concurrency=args.concurrency,
+            thread_pool_size=args.thread_pool_size,
+            buffer_size=args.buffer_size,
+        )
 
 
 if __name__ == "__main__":
