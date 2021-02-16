@@ -41,7 +41,7 @@ class Visa_Token_Update(object):
         self.n_workers = self.thread_pool_size + self.concurrency
         self.logger = logger
 
-        self.visa_types = config.get("USERSYNC").get("visa_types")
+        self.visa_types = config.get("USERSYNC", {}).get("visa_types", {})
 
         # Initialize visa clients:
         oidc = config.get("OPENID_CONNECT", {})
