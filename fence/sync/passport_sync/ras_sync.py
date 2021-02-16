@@ -1,34 +1,6 @@
-import glob
-import os
-import re
 import jwt
 import time
 
-from cdislogging import get_logger
-from email_validator import validate_email, EmailNotValidError
-from flask_sqlalchemy_session import current_session
-from gen3authz.client.arborist.errors import ArboristError
-from gen3users.validation import validate_user_yaml
-from paramiko.proxy import ProxyCommand
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy import func
-from userdatamodel.driver import SQLAlchemyDriver
-
-from fence.config import config
-from fence.models import (
-    AccessPrivilege,
-    AuthorizationProvider,
-    GA4GHVisaV1,
-    Project,
-    Tag,
-    User,
-    query_for_user,
-    Client,
-)
-
-from fence.resources.storage import StorageManager
-from fence.resources.google.access_utils import bulk_update_google_groups
-from fence.sync import utils
 from fence.sync.passport_sync.base_sync import DefaultVisa
 
 

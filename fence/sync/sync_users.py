@@ -699,9 +699,8 @@ class UserSyncer(object):
                     if phsid1 not in phsids2[user]:
                         phsids2[user][phsid1] = set()
                     phsids2[user][phsid1].update(privilege1)
-            elif not phsids2_overrides_phsids1:
-                if source2:
-                    self.auth_source[user].add(source2)
+            elif source2:
+                self.auth_source[user].add(source2)
 
     def sync_to_db_and_storage_backend(self, user_project, user_info, sess):
         """
