@@ -382,7 +382,7 @@ def main():
     STORAGE_CREDENTIALS = os.environ.get("STORAGE_CREDENTIALS") or config.get(
         "STORAGE_CREDENTIALS"
     )
-    usersync = config.get("USERSYNC")
+    usersync = config.get("USERSYNC", {})
     sync_from_visas = usersync.get("sync_from_visas", False)
     fallback_to_dbgap_sftp = usersync.get("fallback_to_dbgap_sftp", False)
 
