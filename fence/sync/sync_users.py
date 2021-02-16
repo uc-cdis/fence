@@ -651,7 +651,7 @@ class UserSyncer(object):
         Merge pshid1 into phsids2. If `phsids2_overrides_phsids1`, values in
         phsids2 are overriden by values in phsids1. phsids2 ends up containing
         the merged dict (see explanation below).
-        `source1` and `source2_name`: for logging.
+        `source1` and `source2`: for logging.
 
         Args:
             phsids1, phsids2: nested dicts mapping phsids to sets of permissions
