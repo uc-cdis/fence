@@ -9,9 +9,6 @@ from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callbac
 
 from fence.config import config
 
-from fence.sync.sync_users import UserSyncer
-from fence.scripting.fence_create import init_syncer
-
 
 class RASLogin(DefaultOAuth2Login):
     def __init__(self):

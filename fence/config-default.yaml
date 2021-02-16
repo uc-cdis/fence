@@ -772,4 +772,5 @@ SERVICE_ACCOUNT_LIMIT: 6
 # Settings for usersync with visas
 USERSYNC:
   sync_from_visas: false
-  fallback_to_dbgap_sftp: false
+  # fallback to dbgap sftp when there are no valid visas i.e. if they're expired or if they're malformed
+  fallback_to_dbgap_sftp: false 

@@ -42,12 +42,6 @@ class RASVisa(DefaultVisa):
             logger=logger,
         )
 
-        if self.DB is None:
-            try:
-                from fence.settings import DB
-            except ImportError:
-                pass
-
     def _parse_single_visa(
         self, user, encoded_visa, expires, parse_consent_code, db_session
     ):
@@ -68,13 +62,9 @@ class RASVisa(DefaultVisa):
         if time.time() < expires:
             for permission in ras_dbgap_permissions:
                 phsid = permission.get("phs_id", "")
-                version = permission.get("version", "")  # Not using (yet?)
-                participant_set = permission.get(
-                    "participant_set", ""
-                )  # Not using (yet?)
-                consent_group = permission.get(
-                    "consent_group", ""
-                )  # need to return nothing when for some of these
+                version = permission.get("version", "")
+                participant_set = permission.get("participant_set", "")
+                consent_group = permission.get("consent_group", "")
                 full_phsid = phsid
                 if parse_consent_code and consent_group:
                     full_phsid += "." + consent_group

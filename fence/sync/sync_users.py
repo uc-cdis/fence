@@ -604,7 +604,6 @@ class UserSyncer(object):
                 "creating Project in fence for dbGaP study: {}".format(dbgap_project)
             )
 
-            # @HERE create resource in fence
             project = self._get_or_create(sess, Project, auth_id=dbgap_project)
 
             # need to add dbgap project to arborist
@@ -638,7 +637,6 @@ class UserSyncer(object):
         """
         user_info2.update(user_info1)
 
-    # @staticmethod
     def sync_two_phsids_dict(
         self,
         phsids1,
@@ -754,6 +752,7 @@ class UserSyncer(object):
             username.lower(): info for username, info in user_info.items()
         }
 
+        to_delete = set.difference(cur_db_user_project_list, syncing_user_project_list)
         to_add = set.difference(syncing_user_project_list, cur_db_user_project_list)
         to_update = set.intersection(
             cur_db_user_project_list, syncing_user_project_list
@@ -763,7 +762,6 @@ class UserSyncer(object):
         # pass the original, non-lowered user_info dict
         self._upsert_userinfo(sess, user_info)
 
-        to_delete = set.difference(cur_db_user_project_list, syncing_user_project_list)
         self._revoke_from_storage(
             to_delete, sess, google_bulk_mapping=google_bulk_mapping
         )
@@ -1735,19 +1733,12 @@ class UserSyncer(object):
             return False
         return True
 
-    def _pick_type(self, visa):
+    def _pick_sync_type(self, visa):
         """
         Pick type of visa to parse according to the visa provider
         """
         if "ras" in visa.type:
-            return self.ras_client
-
-    def _get_single_passport(self, user):
-        """
-        Retrieve passport stored in fence db
-        """
-        encoded_visas = [row.ga4gh_visa for row in user.ga4gh_visas_v1]
-        return encoded_visas
+            return self.ras_sync_client
 
     def parse_user_visas(self, db_session):
         """
@@ -1790,7 +1781,7 @@ class UserSyncer(object):
             if user.ga4gh_visas_v1:
                 for visa in user.ga4gh_visas_v1:
                     project = {}
-                    visa_type = self._pick_type(visa)
+                    visa_type = self._pick_sync_type(visa)
                     encoded_visa = visa.ga4gh_visa
                     project, info = visa_type._parse_single_visa(
                         user,
@@ -1814,7 +1805,7 @@ class UserSyncer(object):
             "Fallback to telemetry files: {}".format(self.fallback_to_dbgap_sftp)
         )
 
-        self.ras_client = RASVisa(logger=self.logger)
+        self.ras_sync_client = RASVisa(logger=self.logger)
 
         dbgap_config = self.dbGaP[0]
         user_projects, user_info = self.parse_user_visas(sess)

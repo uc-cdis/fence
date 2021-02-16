@@ -613,7 +613,7 @@ def test_process_additional_dbgap_servers(syncer, monkeypatch, db_session):
     assert syncer._process_dbgap_files.call_count == 2
 
 
-@pytest.mark.parametrize("syncer", ["cleversafe"], indirect=True)
+@pytest.mark.parametrize("syncer", ["cleversafe", "google"], indirect=True)
 @pytest.mark.parametrize("parse_consent_code_config", [False, True])
 @pytest.mark.parametrize("fallback_to_dbgap_sftp", [False, True])
 def test_user_sync_with_visas(
