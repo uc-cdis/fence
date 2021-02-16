@@ -103,7 +103,7 @@ class RASOauth2Client(Oauth2ClientBase):
         return {"username": username}
 
     @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
-    def update_user_visas(self, user):
+    def update_user_visas(self, user, db_session=current_session):
         """
         Updates user's RAS refresh token and uses the new access token to retrieve new visas from
         RAS's /userinfo endpoint and update the db with the new visa.
@@ -111,14 +111,14 @@ class RASOauth2Client(Oauth2ClientBase):
         - delete user's visas from db if we're not able to get a new visa
         """
         user.ga4gh_visas_v1 = []
-        current_session.commit()
+        db_session.commit()
 
         try:
             token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
             userinfo_endpoint = self.get_value_from_discovery_doc(
                 "userinfo_endpoint", ""
             )
-            token = self.get_access_token(user, token_endpoint)
+            token = self.get_access_token(user, token_endpoint, db_session)
             userinfo = self.get_userinfo(token, userinfo_endpoint)
             encoded_visas = userinfo.get("ga4gh_passport_v1", [])
         except Exception as e:
@@ -139,7 +139,7 @@ class RASOauth2Client(Oauth2ClientBase):
                     ga4gh_visa=encoded_visa,
                 )
 
-                current_db_session = current_session.object_session(visa)
+                current_db_session = db_session.object_session(visa)
 
                 current_db_session.add(visa)
             except Exception as e:
@@ -147,4 +147,4 @@ class RASOauth2Client(Oauth2ClientBase):
                     f"Could not process visa '{encoded_visa}' - skipping this visa"
                 )
                 self.logger.exception("{}: {}".format(err_msg, e), exc_info=True)
-            current_session.commit()
+            db_session.commit()
