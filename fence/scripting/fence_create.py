@@ -208,8 +208,8 @@ def init_syncer(
     sync_from_local_yaml_file=None,
     arborist=None,
     folder=None,
-    sync_from_visas=None,
-    fallback_to_dbgap_sftp=None,
+    sync_from_visas=False,
+    fallback_to_dbgap_sftp=False,
 ):
     """
     sync ACL files from dbGap to auth db and storage backends
