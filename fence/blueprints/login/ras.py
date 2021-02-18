@@ -62,6 +62,16 @@ class RASCallback(DefaultOAuth2Callback):
             current_session.add(visa)
             current_session.commit()
 
+        # Store refresh token in db
+        refresh_token = flask.g.tokens.get("refresh_token")
+        id_token = flask.g.tokens.get("id_token")
+        decoded_id = jwt.decode(id_token, verify=False)
+        # Add 15 days to iat to calculate refresh token expiration time
+        expires = int(decoded_id.get("iat")) + config["RAS_REFRESH_EXPIRATION"]
+        flask.current_app.ras_client.store_refresh_token(
+            user=user, refresh_token=refresh_token, expires=expires
+        )
+
         if not user.project_access:
             DB = os.environ.get("FENCE_DB") or config.get("DB")
             if DB is None:
@@ -79,14 +89,4 @@ class RASCallback(DefaultOAuth2Callback):
                 DB,
             )
             sync.single_visa_sync = True
-            sync.sync_single_user_visas(user)
-
-        # Store refresh token in db
-        refresh_token = flask.g.tokens.get("refresh_token")
-        id_token = flask.g.tokens.get("id_token")
-        decoded_id = jwt.decode(id_token, verify=False)
-        # Add 15 days to iat to calculate refresh token expiration time
-        expires = int(decoded_id.get("iat")) + config["RAS_REFRESH_EXPIRATION"]
-        flask.current_app.ras_client.store_refresh_token(
-            user=user, refresh_token=refresh_token, expires=expires
-        )
+            sync.sync_single_user_visas(user, current_session)
