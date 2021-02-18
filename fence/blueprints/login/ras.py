@@ -73,6 +73,7 @@ class RASCallback(DefaultOAuth2Callback):
         )
 
         if not user.project_access:
+            current_session.close()
             DB = os.environ.get("FENCE_DB") or config.get("DB")
             if DB is None:
                 try:
