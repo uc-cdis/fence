@@ -4,6 +4,7 @@ import time
 from yaml import safe_load
 import json
 import pprint
+import asyncio
 
 from cirrus import GoogleCloudManager
 from cirrus.google_cloud.errors import GoogleAuthError
@@ -34,6 +35,7 @@ from fence.jwt.token import (
     generate_signed_refresh_token,
     issued_and_expiration_times,
 )
+from fence.job.visa_update_cronjob import Visa_Token_Update
 from fence.models import (
     Client,
     GoogleServiceAccount,
@@ -208,6 +210,8 @@ def init_syncer(
     sync_from_local_yaml_file=None,
     arborist=None,
     folder=None,
+    sync_from_visas=False,
+    fallback_to_dbgap_sftp=False,
 ):
     """
     sync ACL files from dbGap to auth db and storage backends
@@ -266,6 +270,8 @@ def init_syncer(
         sync_from_local_yaml_file=sync_from_local_yaml_file,
         arborist=arborist,
         folder=folder,
+        sync_from_visas=sync_from_visas,
+        fallback_to_dbgap_sftp=fallback_to_dbgap_sftp,
     )
 
 
@@ -307,6 +313,8 @@ def sync_users(
     sync_from_local_yaml_file=None,
     arborist=None,
     folder=None,
+    sync_from_visas=False,
+    fallback_to_dbgap_sftp=False,
 ):
     syncer = init_syncer(
         dbGaP,
@@ -318,10 +326,15 @@ def sync_users(
         sync_from_local_yaml_file,
         arborist,
         folder,
+        sync_from_visas,
+        fallback_to_dbgap_sftp,
     )
     if not syncer:
         exit(1)
-    syncer.sync()
+    if sync_from_visas:
+        syncer.sync_visas()
+    else:
+        syncer.sync()
 
 
 def create_sample_data(DB, yaml_file_path):
@@ -1501,3 +1514,27 @@ def google_list_authz_groups(db):
             print(", ".join(item[:-1]))
 
         return google_authz
+
+
+def update_user_visas(
+    db, chunk_size=None, concurrency=None, thread_pool_size=None, buffer_size=None
+):
+    """
+    Update visas and refresh tokens for users with valid visas and refresh tokens
+
+    db (string): database instance
+    chunk_size (int): size of chunk of users we want to take from each iteration
+    concurrency (int): number of concurrent users going through the visa update flow
+    thread_pool_size (int): number of Docker container CPU used for jwt verifcation
+    buffer_size (int): max size of queue
+    """
+    driver = SQLAlchemyDriver(db)
+    job = Visa_Token_Update(
+        chunk_size=int(chunk_size) if chunk_size else None,
+        concurrency=int(concurrency) if concurrency else None,
+        thread_pool_size=int(thread_pool_size) if thread_pool_size else None,
+        buffer_size=int(buffer_size) if buffer_size else None,
+    )
+    with driver.session as db_session:
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(job.update_tokens(db_session))

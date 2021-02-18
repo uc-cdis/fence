@@ -2,7 +2,7 @@ import flask
 import jwt
 from flask_sqlalchemy_session import current_session
 
-from fence.models import GA4GHVisaV1, IdentityProvider, User
+from fence.models import GA4GHVisaV1, IdentityProvider
 
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 
@@ -57,7 +57,6 @@ class RASCallback(DefaultOAuth2Callback):
                 expires=int(decoded_visa["exp"]),
                 ga4gh_visa=encoded_visa,
             )
-
             current_session.add(visa)
             current_session.commit()
 
