@@ -65,8 +65,7 @@ def register_arborist_user(user, policies=None):
     created_user = flask.current_app.arborist.create_user(dict(name=user.username))
 
     if policies is None:
-        #TODO add login_no_access instead of tmp_no_access
-        policies = ["tmp_no_access", "analysis"]
+        policies = ["login_no_access", "analysis"]
 
     for policy_name in policies:
         policy = flask.current_app.arborist.get_policy(policy_name)
