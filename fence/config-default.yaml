@@ -775,6 +775,6 @@ SERVICE_ACCOUNT_LIMIT: 6
 USERSYNC:
   sync_from_visas: false
   # fallback to dbgap sftp when there are no valid visas for a user i.e. if they're expired or if they're malformed
-  fallback_to_dbgap_sftp: false 
+  fallback_to_dbgap_sftp: false
   visa_types:
     ras: [https://ras.nih.gov/visas/v1, https://ras.nih.gov/visas/v1.1]

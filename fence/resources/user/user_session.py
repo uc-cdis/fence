@@ -219,7 +219,10 @@ class UserSessionInterface(SessionInterface):
             # user is logged in AND one of the following:
             # 1. RENEW_ACCESS_TOKEN_BEFORE_EXPIRATION = true in config
             # 2. current access token has expired (no access_token)
-            if user and (config.get("RENEW_ACCESS_TOKEN_BEFORE_EXPIRATION") or not flask.g.access_token):
+            if user and (
+                config.get("RENEW_ACCESS_TOKEN_BEFORE_EXPIRATION")
+                or not flask.g.access_token
+            ):
                 _create_access_token_cookie(app, session, response, user)
         else:
             # If there isn't a session token, we should set
