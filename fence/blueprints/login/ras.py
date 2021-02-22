@@ -72,7 +72,11 @@ class RASCallback(DefaultOAuth2Callback):
             user=user, refresh_token=refresh_token, expires=expires
         )
 
+        # Check if user has any project_access from a previous session or from usersync
+        # if not do an on-the-fly usersync for this user to give them instant access after logging in through RAS
         if not user.project_access:
+            # Close previous db sessions. Leaving it open causes a race condition where we're viewing user.project_access while trying to update it in usersync
+            # not closing leads to partially updated records
             current_session.close()
             DB = os.environ.get("FENCE_DB") or config.get("DB")
             if DB is None:
@@ -89,5 +93,4 @@ class RASCallback(DefaultOAuth2Callback):
                 None,
                 DB,
             )
-            sync.single_visa_sync = True
             sync.sync_single_user_visas(user, current_session)

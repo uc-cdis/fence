@@ -292,7 +292,6 @@ class UserSyncer(object):
         folder=None,
         sync_from_visas=False,
         fallback_to_dbgap_sftp=False,
-        single_visa_sync=False,
     ):
         """
         Syncs ACL files from dbGap to auth database and storage backends
@@ -333,7 +332,6 @@ class UserSyncer(object):
         self.auth_source = defaultdict(set)
         # auth_source used for logging. username : [source1, source2]
         self.visa_types = config.get("USERSYNC", {}).get("visa_types", {})
-        self.single_visa_sync = single_visa_sync
 
         if storage_credentials:
             self.storage_manager = StorageManager(
@@ -688,7 +686,9 @@ class UserSyncer(object):
             elif source2:
                 self.auth_source[user].add(source2)
 
-    def sync_to_db_and_storage_backend(self, user_project, user_info, sess):
+    def sync_to_db_and_storage_backend(
+        self, user_project, user_info, sess, single_visa_sync=False
+    ):
         """
         sync user access control to database and storage backend
 
@@ -747,7 +747,7 @@ class UserSyncer(object):
         # pass the original, non-lowered user_info dict
         self._upsert_userinfo(sess, user_info)
 
-        if not self.single_visa_sync:
+        if not single_visa_sync:
             self._revoke_from_storage(
                 to_delete, sess, google_bulk_mapping=google_bulk_mapping
             )
@@ -777,7 +777,7 @@ class UserSyncer(object):
         )
         self._update_from_db(sess, to_update, user_project_lowercase)
 
-        if not self.single_visa_sync:
+        if not single_visa_sync:
             self._validate_and_update_user_admin(sess, user_info_lowercase)
 
         if config["GOOGLE_BULK_UPDATES"]:
@@ -2063,7 +2063,6 @@ class UserSyncer(object):
         """
 
         self.ras_sync_client = RASVisa(logger=self.logger)
-        self.single_visa_sync = True
         dbgap_config = self.dbGaP[0]
         enable_common_exchange_area_access = dbgap_config.get(
             "enable_common_exchange_area_access", False
@@ -2123,6 +2122,6 @@ class UserSyncer(object):
         # update fence db
         if user_projects:
             self.logger.info("Sync to db and storage backend")
-            self.sync_to_db_and_storage_backend(user_projects, user_info, sess)
+            self.sync_to_db_and_storage_backend(user_projects, user_info, sess, True)
         else:
             self.logger.info("No users for syncing")

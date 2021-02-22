@@ -736,12 +736,15 @@ def test_sync_in_login(
     kid,
     monkeypatch,
 ):
-    monkeypatch.setattr(syncer, "single_visa_sync", True)
     user = models.query_for_user(
         session=db_session, username="TESTUSERB"
-    )  # contains only visa information
+    )  # contains no information
+    assert len(user.project_access) == 0
+    db_session.close()
     syncer.sync_single_user_visas(user, db_session)
     user = models.query_for_user(
         session=db_session, username="TESTUSERB"
-    )  # contains only visa information
+    )  # contains only visa information\
+    user1 = models.query_for_user(session=db_session, username="USER_1")
+    assert (len(user1.project_access)) == 0
     assert len(user.project_access) == 6
