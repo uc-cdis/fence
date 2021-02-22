@@ -38,7 +38,9 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
         """
 
         # requested lifetime (in seconds) for the refresh token
-        refresh_token_expires_in = get_valid_expiration_from_request()
+        refresh_token_expires_in = get_valid_expiration_from_request(
+            expiry_param="refresh_token_expires_in"
+        )
         if refresh_token_expires_in:
             refresh_token_expires_in = min(
                 refresh_token_expires_in, config["REFRESH_TOKEN_EXPIRES_IN"]
