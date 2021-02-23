@@ -62,19 +62,20 @@ def build_redirect_url(hostname, path):
 
 def login_user(request, username, provider):
     user = query_for_user(session=current_session, username=username)
-
     if not user:
         user = User(username=username)
-        idp = (
-            current_session.query(IdentityProvider)
-            .filter(IdentityProvider.name == provider)
-            .first()
-        )
-        if not idp:
-            idp = IdentityProvider(name=provider)
-        user.identity_provider = idp
-        current_session.add(user)
-        current_session.commit()
+
+    idp = (
+        current_session.query(IdentityProvider)
+        .filter(IdentityProvider.name == provider)
+        .first()
+    )
+    if not idp:
+        idp = IdentityProvider(name=provider)
+    user.identity_provider = idp
+    current_session.add(user)
+    current_session.commit()
+
     flask.session["username"] = username
     flask.session["provider"] = provider
     flask.session["user_id"] = str(user.id)
