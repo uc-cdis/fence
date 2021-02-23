@@ -9,7 +9,7 @@ from fence.blueprints.data.indexd import (
     get_signed_url_for_file,
 )
 from fence.errors import Forbidden, InternalError, UserError, Forbidden
-from fence.utils import is_valid_expiration
+from fence.utils import get_valid_expiration
 from fence.authz.auth import check_arborist_auth
 
 
@@ -165,11 +165,13 @@ def upload_data_file():
     blank_index = BlankIndex(
         file_name=params["file_name"], authz=params.get("authz"), uploader=uploader
     )
-    expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
+    default_expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
 
-    if "expires_in" in params:
-        is_valid_expiration(params["expires_in"])
-        expires_in = min(params["expires_in"], expires_in)
+    expires_in = get_valid_expiration(
+        params.get("expires_in"),
+        max_limit=default_expires_in,
+        default=default_expires_in,
+    )
 
     response = {
         "guid": blank_index.guid,
@@ -193,10 +195,14 @@ def init_multipart_upload():
     if "file_name" not in params:
         raise UserError("missing required argument `file_name`")
     blank_index = BlankIndex(file_name=params["file_name"])
-    expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
-    if "expires_in" in params:
-        is_valid_expiration(params["expires_in"])
-        expires_in = min(params["expires_in"], expires_in)
+
+    default_expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
+    expires_in = get_valid_expiration(
+        params.get("expires_in"),
+        max_limit=default_expires_in,
+        default=default_expires_in,
+    )
+
     response = {
         "guid": blank_index.guid,
         "uploadId": BlankIndex.init_multipart_upload(
@@ -222,10 +228,13 @@ def generate_multipart_upload_presigned_url():
     if missing:
         raise UserError("missing required arguments: {}".format(list(missing)))
 
-    expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
-    if "expires_in" in params:
-        is_valid_expiration(params["expires_in"])
-        expires_in = min(params["expires_in"], expires_in)
+    default_expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
+    expires_in = get_valid_expiration(
+        params.get("expires_in"),
+        max_limit=default_expires_in,
+        default=default_expires_in,
+    )
+
     response = {
         "presigned_url": BlankIndex.generate_aws_presigned_url_for_part(
             params["key"],
@@ -253,10 +262,12 @@ def complete_multipart_upload():
     if missing:
         raise UserError("missing required arguments: {}".format(list(missing)))
 
-    expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
-    if "expires_in" in params:
-        is_valid_expiration(params["expires_in"])
-        expires_in = min(params["expires_in"], expires_in)
+    default_expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
+    expires_in = get_valid_expiration(
+        params.get("expires_in"),
+        max_limit=default_expires_in,
+        default=default_expires_in,
+    )
 
     try:
         BlankIndex.complete_multipart_upload(
