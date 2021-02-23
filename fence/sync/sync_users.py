@@ -565,32 +565,15 @@ class UserSyncer(object):
                         "tags": tags,
                     }
 
-                    if dbgap_project not in self.project_mapping:
-                        self._add_dbgap_project_for_user(
-                            dbgap_project,
-                            privileges,
-                            username,
-                            sess,
-                            user_projects,
-                            dbgap_config,
-                        )
-                    for element_dict in self.project_mapping.get(dbgap_project, []):
-                        try:
-                            phsid_privileges = {
-                                element_dict["auth_id"]: set(privileges)
-                            }
+                    self._process_dbgap_project(
+                        dbgap_project,
+                        privileges,
+                        username,
+                        sess,
+                        user_projects,
+                        dbgap_config,
+                    )
 
-                            # need to add dbgap project to arborist
-                            if self.arborist_client:
-                                self._add_dbgap_study_to_arborist(
-                                    element_dict["auth_id"], dbgap_config
-                                )
-
-                            if username not in user_projects:
-                                user_projects[username] = {}
-                            user_projects[username].update(phsid_privileges)
-                        except ValueError as e:
-                            self.logger.info(e)
         return user_projects, user_info
 
     def _add_dbgap_project_for_user(
@@ -703,7 +686,9 @@ class UserSyncer(object):
             elif source2:
                 self.auth_source[user].add(source2)
 
-    def sync_to_db_and_storage_backend(self, user_project, user_info, sess):
+    def sync_to_db_and_storage_backend(
+        self, user_project, user_info, sess, single_visa_sync=False
+    ):
         """
         sync user access control to database and storage backend
 
@@ -762,10 +747,11 @@ class UserSyncer(object):
         # pass the original, non-lowered user_info dict
         self._upsert_userinfo(sess, user_info)
 
-        self._revoke_from_storage(
-            to_delete, sess, google_bulk_mapping=google_bulk_mapping
-        )
-        self._revoke_from_db(sess, to_delete)
+        if not single_visa_sync:
+            self._revoke_from_storage(
+                to_delete, sess, google_bulk_mapping=google_bulk_mapping
+            )
+            self._revoke_from_db(sess, to_delete)
 
         self._grant_from_storage(
             to_add,
@@ -791,7 +777,8 @@ class UserSyncer(object):
         )
         self._update_from_db(sess, to_update, user_project_lowercase)
 
-        self._validate_and_update_user_admin(sess, user_info_lowercase)
+        if not single_visa_sync:
+            self._validate_and_update_user_admin(sess, user_info_lowercase)
 
         if config["GOOGLE_BULK_UPDATES"]:
             self.logger.info("Doing bulk Google update...")
@@ -1170,6 +1157,95 @@ class UserSyncer(object):
         helper function for parsing projects
         """
         return {key.lower(): value for key, value in user_projects.items()}
+
+    def _process_dbgap_project(
+        self, dbgap_project, privileges, username, sess, user_projects, dbgap_config
+    ):
+        if dbgap_project not in self.project_mapping:
+            self._add_dbgap_project_for_user(
+                dbgap_project,
+                privileges,
+                username,
+                sess,
+                user_projects,
+                dbgap_config,
+            )
+
+        for element_dict in self.project_mapping.get(dbgap_project, []):
+            try:
+                phsid_privileges = {element_dict["auth_id"]: set(privileges)}
+
+                # need to add dbgap project to arborist
+                if self.arborist_client:
+                    self._add_dbgap_study_to_arborist(
+                        element_dict["auth_id"], dbgap_config
+                    )
+
+                if username not in user_projects:
+                    user_projects[username] = {}
+                user_projects[username].update(phsid_privileges)
+
+            except ValueError as e:
+                self.logger.info(e)
+
+    def _process_user_projects(
+        self,
+        user_projects,
+        enable_common_exchange_area_access,
+        study_common_exchange_areas,
+        dbgap_config,
+        sess,
+    ):
+        for username in user_projects.keys():
+            for project in user_projects[username].keys():
+                phsid = project.split(".")
+                dbgap_project = phsid[0]
+                privileges = user_projects[username][project]
+                if len(phsid) > 1 and self.parse_consent_code:
+                    consent_code = phsid[-1]
+
+                    # c999 indicates full access to all consents and access
+                    # to a study-specific exchange area
+                    # access to at least one study-specific exchange area implies access
+                    # to the parent study's common exchange area
+                    #
+                    # NOTE: Handling giving access to all consents is done at
+                    #       a later time, when we have full information about possible
+                    #       consents
+                    self.logger.debug(
+                        f"got consent code {consent_code} from dbGaP project "
+                        f"{dbgap_project}"
+                    )
+                    if (
+                        consent_code == "c999"
+                        and enable_common_exchange_area_access
+                        and dbgap_project in study_common_exchange_areas
+                    ):
+                        self.logger.info(
+                            "found study with consent c999 and Fence "
+                            "is configured to parse exchange area data. Giving user "
+                            f"{username} {privileges} privileges in project: "
+                            f"{study_common_exchange_areas[dbgap_project]}."
+                        )
+                        self._add_dbgap_project_for_user(
+                            study_common_exchange_areas[dbgap_project],
+                            privileges,
+                            username,
+                            sess,
+                            user_projects,
+                            dbgap_config,
+                        )
+
+                    dbgap_project += "." + consent_code
+
+                self._process_dbgap_project(
+                    dbgap_project,
+                    privileges,
+                    username,
+                    sess,
+                    user_projects,
+                    dbgap_config,
+                )
 
     def sync(self):
         if self.session:
@@ -1917,74 +1993,13 @@ class UserSyncer(object):
             user_yaml.projects, user_projects, source1="user_yaml", source2="visa"
         )
 
-        for username in user_projects.keys():
-            for project in user_projects[username].keys():
-                phsid = project.split(".")
-                dbgap_project = phsid[0]
-                privileges = user_projects[username][project]
-                if len(phsid) > 1 and self.parse_consent_code:
-                    consent_code = phsid[-1]
-
-                    # c999 indicates full access to all consents and access
-                    # to a study-specific exchange area
-                    # access to at least one study-specific exchange area implies access
-                    # to the parent study's common exchange area
-                    #
-                    # NOTE: Handling giving access to all consents is done at
-                    #       a later time, when we have full information about possible
-                    #       consents
-                    self.logger.debug(
-                        f"got consent code {consent_code} from dbGaP project "
-                        f"{dbgap_project}"
-                    )
-                    if (
-                        consent_code == "c999"
-                        and enable_common_exchange_area_access
-                        and dbgap_project in study_common_exchange_areas
-                    ):
-                        self.logger.info(
-                            "found study with consent c999 and Fence "
-                            "is configured to parse exchange area data. Giving user "
-                            f"{username} {privileges} privileges in project: "
-                            f"{study_common_exchange_areas[dbgap_project]}."
-                        )
-                        self._add_dbgap_project_for_user(
-                            study_common_exchange_areas[dbgap_project],
-                            privileges,
-                            username,
-                            sess,
-                            user_projects,
-                            dbgap_config,
-                        )
-
-                    dbgap_project += "." + consent_code
-
-                if dbgap_project not in self.project_mapping:
-                    self._add_dbgap_project_for_user(
-                        dbgap_project,
-                        privileges,
-                        username,
-                        sess,
-                        user_projects,
-                        dbgap_config,
-                    )
-
-                for element_dict in self.project_mapping.get(dbgap_project, []):
-                    try:
-                        phsid_privileges = {element_dict["auth_id"]: set(privileges)}
-
-                        # need to add dbgap project to arborist
-                        if self.arborist_client:
-                            self._add_dbgap_study_to_arborist(
-                                element_dict["auth_id"], dbgap_config
-                            )
-
-                        if username not in user_projects:
-                            user_projects[username] = {}
-                        user_projects[username].update(phsid_privileges)
-
-                    except ValueError as e:
-                        self.logger.info(e)
+        self._process_user_projects(
+            user_projects,
+            enable_common_exchange_area_access,
+            study_common_exchange_areas,
+            dbgap_config,
+            sess,
+        )
 
         # Note: if there are multiple dbgap sftp servers configured
         # this parameter is always from the config for the first dbgap sftp server
@@ -2041,3 +2056,72 @@ class UserSyncer(object):
             with self.driver.session as s:
                 self._sync_visas(s)
         # if returns with some failure use telemetry file
+
+    def sync_single_user_visas(self, user, sess=None):
+        """
+        Sync a single user's visa during login
+        """
+
+        self.ras_sync_client = RASVisa(logger=self.logger)
+        dbgap_config = self.dbGaP[0]
+        enable_common_exchange_area_access = dbgap_config.get(
+            "enable_common_exchange_area_access", False
+        )
+        study_common_exchange_areas = dbgap_config.get(
+            "study_common_exchange_areas", {}
+        )
+
+        try:
+            user_yaml = UserYAML.from_file(
+                self.sync_from_local_yaml_file, encrypted=False, logger=self.logger
+            )
+        except (EnvironmentError, AssertionError) as e:
+            self.logger.error(str(e))
+            self.logger.error("aborting early")
+            return
+
+        user_projects = dict()
+        user_info = dict()
+        projects = {}
+        info = {}
+
+        for visa in user.ga4gh_visas_v1:
+            project = {}
+            visa_type = self._pick_sync_type(visa)
+            encoded_visa = visa.ga4gh_visa
+            project, info = visa_type._parse_single_visa(
+                user,
+                encoded_visa,
+                visa.expires,
+                self.parse_consent_code,
+                sess,
+            )
+            projects = {**projects, **project}
+        user_projects[user.username] = projects
+        user_info[user.username] = info
+
+        user_projects = self.parse_projects(user_projects)
+
+        if self.parse_consent_code and enable_common_exchange_area_access:
+            self.logger.info(
+                f"using study to common exchange area mapping: {study_common_exchange_areas}"
+            )
+
+        self._process_user_projects(
+            user_projects,
+            enable_common_exchange_area_access,
+            study_common_exchange_areas,
+            dbgap_config,
+            sess,
+        )
+
+        if self.parse_consent_code:
+            self._grant_all_consents_to_c999_users(
+                user_projects, user_yaml.project_to_resource
+            )
+        # update fence db
+        if user_projects:
+            self.logger.info("Sync to db and storage backend")
+            self.sync_to_db_and_storage_backend(user_projects, user_info, sess, True)
+        else:
+            self.logger.info("No users for syncing")
