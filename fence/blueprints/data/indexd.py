@@ -839,16 +839,16 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         if public_data and not force_signed_url:
             url = "https://storage.cloud.google.com/" + resource_path
         elif public_data and _is_anonymous_user(user_info):
-            expiration_time = int(time.time()) + int(expires_in)
+            # expiration_time = int(time.time()) + int(expires_in)
             url = self._generate_anonymous_google_storage_signed_url(
-                ACTION_DICT["gs"][action], resource_path, expiration_time
+                ACTION_DICT["gs"][action], resource_path, int(expires_in)
             )
         else:
-            expiration_time = int(time.time()) + int(expires_in)
+            # expiration_time = int(time.time()) + int(expires_in)
             url = self._generate_google_storage_signed_url(
                 ACTION_DICT["gs"][action],
                 resource_path,
-                expiration_time,
+                int(expires_in),
                 user_info.get("user_id"),
                 user_info.get("username"),
                 r_pays_project=r_pays_project,
