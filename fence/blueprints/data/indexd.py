@@ -934,24 +934,11 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         # use configured project if it exists and no user project was given
         if config["BILLING_PROJECT_FOR_SIGNED_URLS"] and not r_pays_project:
             r_pays_project = config["BILLING_PROJECT_FOR_SIGNED_URLS"]
-        print("GOOGLE SIGNED URL")
-        print(
-            resource_path,
-            http_verb,
-            expiration_time,
-            extension_headers=None,
-            content_type="",
-            md5_value="",
-            service_account_creds=private_key,
-            requester_pays_user_project=r_pays_project,
-        )
         final_url = cirrus.google_cloud.utils.get_signed_url(
             resource_path,
             http_verb,
             expiration_time,
             extension_headers=None,
-            content_type="",
-            md5_value="",
             service_account_creds=private_key,
             requester_pays_user_project=r_pays_project,
         )
