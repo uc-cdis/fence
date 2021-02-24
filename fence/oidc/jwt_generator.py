@@ -132,6 +132,7 @@ def generate_token_response(
     client,
     grant_type,
     expires_in=None,
+    refresh_token_expires_in=None,
     user=None,
     scope=None,
     include_refresh_token=True,
@@ -201,11 +202,13 @@ def generate_token_response(
     # If ``refresh_token`` was passed (for instance from the refresh
     # grant), use that instead of generating a new one.
     if refresh_token is None:
+        if refresh_token_expires_in is None:
+            refresh_token_expires_in = config["REFRESH_TOKEN_EXPIRES_IN"]
         refresh_token = generate_signed_refresh_token(
             kid=keypair.kid,
             private_key=keypair.private_key,
             user=user,
-            expires_in=config["REFRESH_TOKEN_EXPIRES_IN"],
+            expires_in=refresh_token_expires_in,
             scopes=scope,
             client_id=client.client_id,
         ).token
