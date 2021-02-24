@@ -412,7 +412,7 @@ def set_csrf(response):
     """
     if not flask.request.cookies.get("csrftoken"):
         secure = config.get("SESSION_COOKIE_SECURE", True)
-        response.set_cookie("csrftoken", random_str(40), secure=secure)
+        response.set_cookie("csrftoken", random_str(40), secure=secure, httponly=True)
 
     if flask.request.method in ["POST", "PUT", "DELETE"]:
         current_session.commit()

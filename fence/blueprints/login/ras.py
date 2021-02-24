@@ -1,12 +1,14 @@
 import flask
 import jwt
+import os
 from flask_sqlalchemy_session import current_session
 
-from fence.models import GA4GHVisaV1, IdentityProvider, User
+from fence.models import GA4GHVisaV1, IdentityProvider
 
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 
 from fence.config import config
+from fence.scripting.fence_create import init_syncer
 
 
 class RASLogin(DefaultOAuth2Login):
@@ -57,7 +59,6 @@ class RASCallback(DefaultOAuth2Callback):
                 expires=int(decoded_visa["exp"]),
                 ga4gh_visa=encoded_visa,
             )
-
             current_session.add(visa)
             current_session.commit()
 
@@ -70,3 +71,26 @@ class RASCallback(DefaultOAuth2Callback):
         flask.current_app.ras_client.store_refresh_token(
             user=user, refresh_token=refresh_token, expires=expires
         )
+
+        # Check if user has any project_access from a previous session or from usersync
+        # if not do an on-the-fly usersync for this user to give them instant access after logging in through RAS
+        if not user.project_access:
+            # Close previous db sessions. Leaving it open causes a race condition where we're viewing user.project_access while trying to update it in usersync
+            # not closing leads to partially updated records
+            current_session.close()
+            DB = os.environ.get("FENCE_DB") or config.get("DB")
+            if DB is None:
+                try:
+                    from fence.settings import DB
+                except ImportError:
+                    pass
+            dbGaP = os.environ.get("dbGaP") or config.get("dbGaP")
+            if not isinstance(dbGaP, list):
+                dbGaP = [dbGaP]
+
+            sync = init_syncer(
+                dbGaP,
+                None,
+                DB,
+            )
+            sync.sync_single_user_visas(user, current_session)

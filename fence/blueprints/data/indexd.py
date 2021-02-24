@@ -59,7 +59,8 @@ def get_signed_url_for_file(action, file_id, file_name=None):
     # default to signing the url even if it's a public object
     # this will work so long as we're provided a user token
     force_signed_url = True
-    if flask.request.args.get("no_force_sign"):
+    no_force_sign_param = flask.request.args.get("no_force_sign")
+    if no_force_sign_param and no_force_sign_param.lower() == "true":
         force_signed_url = False
 
     indexed_file = IndexedFile(file_id)

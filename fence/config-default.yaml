@@ -380,6 +380,8 @@ MAX_ACCESS_TOKEN_TTL: 3600
 # auth checks against Arborist, and no longer check the token.
 TOKEN_PROJECTS_CUTOFF: 10
 
+# If set to true, will generate an new access token each time when a browser session update happens
+RENEW_ACCESS_TOKEN_BEFORE_EXPIRATION: false
 
 ########################################################################################
 #                               OPTIONAL CONFIGURATIONS                                #
@@ -460,7 +462,6 @@ dbGaP:
       # 'studyX': ['/orgA/', '/orgB/']
       # 'studyX.c2': ['/orgB/', '/orgC/']
       # 'studyZ': ['/orgD/']
-
 # Regex to match an assession number that has consent information in forms like:
 #   phs00301123.c999
 #   phs000123.v3.p1.c3
@@ -770,3 +771,10 @@ SYNAPSE_AUTHZ_TTL: 86400
 RAS_REFRESH_EXPIRATION: 1296000
 # Number of projects that can be registered to a Google Service Accont
 SERVICE_ACCOUNT_LIMIT: 6
+# Settings for usersync with visas
+USERSYNC:
+  sync_from_visas: false
+  # fallback to dbgap sftp when there are no valid visas for a user i.e. if they're expired or if they're malformed
+  fallback_to_dbgap_sftp: false
+  visa_types:
+    ras: [https://ras.nih.gov/visas/v1, https://ras.nih.gov/visas/v1.1]
