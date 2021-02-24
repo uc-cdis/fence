@@ -1426,7 +1426,7 @@ class UserSyncer(object):
                 if response:
                     self._created_roles.add(role["id"])
             except ArboristError as e:
-                self.logger.info("couldn't put role: {}".format(str(e)))
+                self.logger.info("couldn't update role '{}', creating instead".format(str(e)))
                 try:
                     response = self.arborist_client.create_role(role)
                     if response:
