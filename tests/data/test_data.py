@@ -1244,7 +1244,7 @@ def test_delete_files(app, client, auth_client, encoded_creds_jwt, user_client):
         assert 2 == mocklocation.delete.call_count
         assert status == 200
 
-        # url, files, no error
+        # no urls, files, no error
         mocklocation.reset_mock()
         message, status = indx.delete_files(urls=None)
         assert 2 == mocklocation.delete.call_count
