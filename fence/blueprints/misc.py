@@ -24,6 +24,10 @@ def register_misc(app):
         Return the version of this service.
         """
 
-        base = {"version": VERSION, "commit": COMMIT}
+        base = {
+            "MY_EXTERNAL_CONTRIBUTOR_TEST": "YOLO!",
+            "version": VERSION,
+            "commit": COMMIT,
+        }
 
         return flask.jsonify(base), 200
