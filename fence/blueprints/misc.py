@@ -25,7 +25,7 @@ def register_misc(app):
         """
 
         base = {
-            "MY_EXTERNAL_CONTRIBUTOR_TEST": "YOLO!",
+            "MY_EXTERNAL_CONTRIBUTOR_TEST": "YOLO2!",
             "version": VERSION,
             "commit": COMMIT,
         }
