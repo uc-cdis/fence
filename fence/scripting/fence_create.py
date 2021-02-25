@@ -52,7 +52,7 @@ from fence.models import (
 from fence.scripting.google_monitor import email_users_without_access, validation_check
 from fence.config import config
 from fence.sync.sync_users import UserSyncer
-from fence.utils import create_client, is_valid_expiration
+from fence.utils import create_client, get_valid_expiration
 
 logger = get_logger(__name__)
 
@@ -1444,16 +1444,17 @@ def force_update_google_link(DB, username, google_email, expires_in=None):
                 user_id, google_email, session
             )
 
-        # timestamp at which the SA will lose bucket access
+        # time until the SA will lose bucket access
         # by default: use configured time or 7 days
-        expiration = int(time.time()) + config.get(
+        default_expires_in = config.get(
             "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN", 604800
         )
-        if expires_in:
-            is_valid_expiration(expires_in)
-            # convert it to timestamp
-            requested_expiration = int(time.time()) + expires_in
-            expiration = min(expiration, requested_expiration)
+        # use expires_in from arg if it was provided and it was not greater than the default
+        expires_in = get_valid_expiration(
+            expires_in, max_limit=default_expires_in, default=default_expires_in
+        )
+        # convert expires_in to timestamp
+        expiration = int(time.time() + expires_in)
 
         force_update_user_google_account_expiration(
             user_google_account, proxy_group_id, google_email, expiration, session
