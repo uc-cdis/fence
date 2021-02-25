@@ -18,6 +18,8 @@ def test_login_user_already_in_db(db_session):
     user_id = str(test_user.id)
 
     login_user(flask.request, email, provider)
+
+    assert test_user.identity_provider.name == provider
     assert flask.session["username"] == email
     assert flask.session["provider"] == provider
     assert flask.session["user_id"] == user_id
@@ -33,8 +35,10 @@ def test_login_new_user(db_session):
     provider = "Test Provider"
 
     login_user(flask.request, email, provider)
+
     test_user = db_session.query(User).filter(User.username == email.lower()).first()
 
+    assert test_user.identity_provider.name == provider
     assert flask.session["username"] == email
     assert flask.session["provider"] == provider
     assert flask.session["user_id"] == str(test_user.id)
