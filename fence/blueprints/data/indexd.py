@@ -844,7 +844,6 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                 ACTION_DICT["gs"][action], resource_path, int(expires_in)
             )
         else:
-            # trigger rebuild
             # expiration_time = int(time.time()) + int(expires_in)
             url = self._generate_google_storage_signed_url(
                 ACTION_DICT["gs"][action],
