@@ -61,6 +61,17 @@ def build_redirect_url(hostname, path):
 
 
 def login_user(request, username, provider):
+    """
+    Login a user with the given username and provider. Set values in Flask
+    session to indicate the user being logged in. In addition, commit the user
+    and associated idp information to the db.
+
+    Args:
+        request (flask.request): not currently used by this function, TODO
+        username (str): specific username of user to be logged in
+        provider (str): specfic idp of user to be logged in
+
+    """
     user = query_for_user(session=current_session, username=username)
     if not user:
         user = User(username=username)
