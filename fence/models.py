@@ -245,6 +245,8 @@ class AuthorizationCode(Base, OAuth2AuthorizationCodeMixin):
 
     nonce = Column(String, nullable=True)
 
+    refresh_token_expires_in = Column(Integer, nullable=True)
+
     _scope = Column(Text, default="")
 
     def __init__(self, **kwargs):
@@ -656,6 +658,13 @@ def migrate(driver):
     add_column_if_not_exist(
         table_name=GoogleProxyGroup.__tablename__,
         column=Column("email", String),
+        driver=driver,
+        metadata=md,
+    )
+
+    add_column_if_not_exist(
+        table_name=AuthorizationCode.__tablename__,
+        column=Column("refresh_token_expires_in", Integer),
         driver=driver,
         metadata=md,
     )

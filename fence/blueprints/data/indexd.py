@@ -64,10 +64,11 @@ def get_signed_url_for_file(action, file_id, file_name=None):
         force_signed_url = False
 
     indexed_file = IndexedFile(file_id)
-    expires_in = config.get("MAX_PRESIGNED_URL_TTL", 3600)
-    requested_expires_in = get_valid_expiration_from_request()
-    if requested_expires_in:
-        expires_in = min(requested_expires_in, expires_in)
+    default_expires_in = config.get("MAX_PRESIGNED_URL_TTL", 3600)
+    expires_in = get_valid_expiration_from_request(
+        max_limit=default_expires_in,
+        default=default_expires_in,
+    )
 
     signed_url = indexed_file.get_signed_url(
         requested_protocol,
