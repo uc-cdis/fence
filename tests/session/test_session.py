@@ -58,7 +58,9 @@ def test_valid_session(app):
     # the username
     with app.test_client() as client:
         # manually set cookie for initial session
-        client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
+        client.set_cookie(
+            "localhost", config["SESSION_COOKIE_NAME"], test_session_jwt, httponly=True
+        )
         with client.session_transaction() as session:
             assert session["username"] == username
 
@@ -75,7 +77,9 @@ def test_valid_session_modified(app):
     # the username
     with app.test_client() as client:
         # manually set cookie for initial session
-        client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
+        client.set_cookie(
+            "localhost", config["SESSION_COOKIE_NAME"], test_session_jwt, httponly=True
+        )
         with client.session_transaction() as session:
 
             assert session["username"] == username
@@ -100,7 +104,9 @@ def test_expired_session_lifetime(app):
 
     with app.test_client() as client:
         # manually set cookie for initial session
-        client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
+        client.set_cookie(
+            "localhost", config["SESSION_COOKIE_NAME"], test_session_jwt, httponly=True
+        )
         with client.session_transaction() as session:
             # make sure we don't have the username when opening
             # the session, since it has expired
@@ -127,7 +133,9 @@ def test_expired_session_timeout(app):
 
     with app.test_client() as client:
         # manually set cookie for initial session
-        client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
+        client.set_cookie(
+            "localhost", config["SESSION_COOKIE_NAME"], test_session_jwt, httponly=True
+        )
         with client.session_transaction() as session:
             # make sure we don't have the username when opening
             # the session, since it has expired
@@ -145,7 +153,9 @@ def test_session_cleared(app):
     # the username
     with app.test_client() as client:
         # manually set cookie for initial session
-        client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
+        client.set_cookie(
+            "localhost", config["SESSION_COOKIE_NAME"], test_session_jwt, httponly=True
+        )
         with client.session_transaction() as session:
             session["username"] = username
             session.clear()
@@ -161,7 +171,9 @@ def test_invalid_session_cookie(app):
     # the username
     with app.test_client() as client:
         # manually set cookie for initial session
-        client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
+        client.set_cookie(
+            "localhost", config["SESSION_COOKIE_NAME"], test_session_jwt, httponly=True
+        )
         with client.session_transaction() as session:
             # main test is that we haven't raised an exception by this point
 
@@ -199,9 +211,14 @@ def test_valid_session_valid_access_token(
     # the username
     with app.test_client() as client:
         # manually set cookie for initial session
-        client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
         client.set_cookie(
-            "localhost", config["ACCESS_TOKEN_COOKIE_NAME"], test_access_jwt
+            "localhost", config["SESSION_COOKIE_NAME"], test_session_jwt, httponly=True
+        )
+        client.set_cookie(
+            "localhost",
+            config["ACCESS_TOKEN_COOKIE_NAME"],
+            test_access_jwt,
+            httponly=True,
         )
 
         response = client.get("/user")
@@ -242,9 +259,14 @@ def test_valid_session_valid_access_token_diff_user(
 
     with app.test_client() as client:
         # manually set cookie for initial session
-        client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
         client.set_cookie(
-            "localhost", config["ACCESS_TOKEN_COOKIE_NAME"], test_access_jwt
+            "localhost", config["SESSION_COOKIE_NAME"], test_session_jwt, httponly=True
+        )
+        client.set_cookie(
+            "localhost",
+            config["ACCESS_TOKEN_COOKIE_NAME"],
+            test_access_jwt,
+            httponly=True,
         )
 
         response = client.get("/user")
