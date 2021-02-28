@@ -26,6 +26,31 @@ def test_login_user_already_in_db(db_session):
     assert flask.g.user == test_user
 
 
+def test_login_user_with_idp_already_in_db(db_session):
+    """
+    Test that if a user is already in the database, has identity_provider
+    configured, and logs in, the session will contain the user's information.
+    """
+    email = "testuser@gmail.com"
+    provider = "Test Provider"
+
+    test_user = User(username=email, is_admin=False)
+    test_idp = IdentityProvider(name=provider)
+    test_user.identity_provider = test_idp
+
+    db_session.add(test_user)
+    db_session.commit()
+    user_id = str(test_user.id)
+
+    login_user(flask.request, email, provider)
+
+    assert test_user.identity_provider.name == provider
+    assert flask.session["username"] == email
+    assert flask.session["provider"] == provider
+    assert flask.session["user_id"] == user_id
+    assert flask.g.user == test_user
+
+
 def test_login_new_user(db_session):
     """
     Test that if a user is not in the database and logs in, the user is added to the

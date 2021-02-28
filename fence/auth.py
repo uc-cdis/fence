@@ -72,8 +72,30 @@ def login_user(request, username, provider):
         provider (str): specfic idp of user to be logged in
 
     """
+
+    def set_flask_session_values(user):
+        """
+        Helper fuction to set user values in the session.
+
+        Args:
+            user (User): User object
+        """
+        flask.session["username"] = user.username
+        flask.session["provider"] = user.identity_provider.name
+        flask.session["user_id"] = str(user.id)
+        flask.g.user = user
+        flask.g.scopes = ["_all"]
+        flask.g.token = None
+
     user = query_for_user(session=current_session, username=username)
-    if not user:
+    if user:
+        #  This expression is relevant to those users who already have user and
+        #  idp info persisted to the database. We return early to avoid
+        #  unnecessarily re-saving that user and idp info.
+        if user.identity_provider and user.identity_provider.name == provider:
+            set_flask_session_values(user)
+            return
+    else:
         user = User(username=username)
 
     idp = (
@@ -83,16 +105,12 @@ def login_user(request, username, provider):
     )
     if not idp:
         idp = IdentityProvider(name=provider)
+
     user.identity_provider = idp
     current_session.add(user)
     current_session.commit()
 
-    flask.session["username"] = username
-    flask.session["provider"] = provider
-    flask.session["user_id"] = str(user.id)
-    flask.g.user = user
-    flask.g.scopes = ["_all"]
-    flask.g.token = None
+    set_flask_session_values(user)
 
 
 def logout(next_url, force_era_global_logout=False):
