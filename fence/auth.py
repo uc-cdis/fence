@@ -60,14 +60,13 @@ def build_redirect_url(hostname, path):
     return redirect_base + path
 
 
-def login_user(request, username, provider):
+def login_user(username, provider):
     """
     Login a user with the given username and provider. Set values in Flask
     session to indicate the user being logged in. In addition, commit the user
     and associated idp information to the db.
 
     Args:
-        request (flask.request): not currently used by this function, TODO
         username (str): specific username of user to be logged in
         provider (str): specfic idp of user to be logged in
 
@@ -168,9 +167,7 @@ def login_required(scope=None):
         @wraps(f)
         def wrapper(*args, **kwargs):
             if flask.session.get("username"):
-                login_user(
-                    flask.request, flask.session["username"], flask.session["provider"]
-                )
+                login_user(flask.session["username"], flask.session["provider"])
                 return f(*args, **kwargs)
 
             eppn = None
@@ -199,7 +196,7 @@ def login_required(scope=None):
                 username = eppn.split("!")[-1]
                 flask.session["username"] = username
                 flask.session["provider"] = IdentityProvider.itrust
-                login_user(flask.request, username, flask.session["provider"])
+                login_user(username, flask.session["provider"])
                 return f(*args, **kwargs)
             else:
                 raise Unauthorized("Please login")
@@ -211,7 +208,7 @@ def login_required(scope=None):
 
 def handle_login(scope):
     if flask.session.get("username"):
-        login_user(flask.request, flask.session["username"], flask.session["provider"])
+        login_user(flask.session["username"], flask.session["provider"])
 
     eppn = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
 
@@ -226,7 +223,7 @@ def handle_login(scope):
         username = eppn.split("!")[-1]
         flask.session["username"] = username
         flask.session["provider"] = IdentityProvider.itrust
-        login_user(flask.request, username, flask.session["provider"])
+        login_user(username, flask.session["provider"])
     else:
         raise Unauthorized("Please login")
 

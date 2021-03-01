@@ -17,7 +17,7 @@ def test_login_user_already_in_db(db_session):
     db_session.commit()
     user_id = str(test_user.id)
 
-    login_user(flask.request, email, provider)
+    login_user(email, provider)
 
     assert test_user.identity_provider.name == provider
     assert flask.session["username"] == email
@@ -42,7 +42,7 @@ def test_login_user_with_idp_already_in_db(db_session):
     db_session.commit()
     user_id = str(test_user.id)
 
-    login_user(flask.request, email, provider)
+    login_user(email, provider)
 
     assert test_user.identity_provider.name == provider
     assert flask.session["username"] == email
@@ -59,7 +59,7 @@ def test_login_new_user(db_session):
     email = "testuser@gmail.com"
     provider = "Test Provider"
 
-    login_user(flask.request, email, provider)
+    login_user(email, provider)
 
     test_user = db_session.query(User).filter(User.username == email.lower()).first()
 
