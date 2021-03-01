@@ -15,7 +15,6 @@ from fence.authz.auth import check_arborist_auth
 
 logger = get_logger(__name__)
 
-
 blueprint = flask.Blueprint("data", __name__)
 
 
