@@ -1502,9 +1502,7 @@ class UserSyncer(object):
         # from authorization sources get policies revoked
         arborist_user_projects = {}
         try:
-            arborist_users = self.arborist_client.get(
-                url=self.arborist_client._user_url
-            ).json["users"]
+            arborist_users = self.arborist_client.get_users().json["users"]
 
             # construct user information, NOTE the lowering of the username. when adding/
             # removing access, the case in the Fence db is used. For combining access, it is
