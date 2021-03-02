@@ -38,7 +38,7 @@ def test_presigned_url_log(
     audit_service_mocker = mock.patch(
         "fence.resources.audit_service_client.requests", new_callable=mock.Mock
     )
-    monkeypatch.setitem(config, "ENABLE_AUDIT_LOGS", True)
+    monkeypatch.setitem(config, "ENABLE_AUDIT_LOGS", {"presigned_url": True})
 
     guid = "dg.hello/abc"
     path = f"/data/download/{guid}"

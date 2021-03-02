@@ -77,26 +77,29 @@ def get_signed_url_for_file(action, file_id, file_name=None):
         file_name=file_name,
     )
 
-    # record audit log
+    create_presigned_url_audit_log(
+        protocol=requested_protocol, indexed_file=indexed_file, action=action
+    )
+
+    return {"url": signed_url}
+
+
+def create_presigned_url_audit_log(indexed_file, action, protocol):
     user_info = _get_user_info(sub_to_string=False)
-    protocol = requested_protocol
     if not protocol:
         # we can assume there are locations since `get_signed_url()`
-        # used the same logic
+        # used the same logic before this code runs
         protocol = indexed_file.indexed_file_locations[0].protocol
     flask.current_app.audit_service_client.create_presigned_url_log(
-        request_url=f"/data/download/{file_id}",
         status_code=200,  # only record successful requests for now
         username=user_info["username"],
         sub=user_info["user_id"],
-        guid=file_id,
+        guid=indexed_file.file_id,
         # TODO handle ACL
         resource_paths=indexed_file.index_document.get("authz", []),
         action=action,
         protocol=protocol,
     )
-
-    return {"url": signed_url}
 
 
 class BlankIndex(object):

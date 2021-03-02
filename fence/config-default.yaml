@@ -576,7 +576,9 @@ ARBORIST: null
 
 # url where the audit-service is running
 AUDIT_SERVICE: 'http://audit-service'
-ENABLE_AUDIT_LOGS: false
+ENABLE_AUDIT_LOGS:
+  presigned_url: false
+  login: false
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # CLOUD API LIBRARY (CIRRUS) AND GOOGLE CONFIGURATION

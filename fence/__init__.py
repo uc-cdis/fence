@@ -382,10 +382,6 @@ def _setup_arborist_client(app):
 
 
 def _setup_audit_service_client(app):
-    if app.config.get("ENABLE_AUDIT_LOGS"):
-        logger.info("Enabling audit logs")
-    else:
-        logger.info("NOT enabling audit logs")
     # Initialize the client regardless of whether audit logs are enabled. This
     # allows us to call `app.audit_service_client.create_x_log()` from
     # anywhere without checking if audit logs are enabled. The client

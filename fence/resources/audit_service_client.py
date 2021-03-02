@@ -11,10 +11,17 @@ class AuditServiceClient:
         self.logger = logger
 
         # audit logs should not be enabled if the audit-service is unavailable
-        if config.get("ENABLE_AUDIT_LOGS"):
+        if self.is_enabled():
+            logger.info("Enabling audit logs")
             self.ping()
+        else:
+            logger.info("NOT enabling audit logs")
 
-    def ping():
+    def is_enabled(self):
+        enable_audit_logs = config.get("ENABLE_AUDIT_LOGS") or {}
+        return enable_audit_logs and any(v for v in enable_audit_logs.values())
+
+    def ping(self):
         self.logger.debug("Checking audit-service availability...")
         status_url = f"{self.service_url}/_status"
         r = requests.get(status_url)
@@ -24,7 +31,6 @@ class AuditServiceClient:
 
     def create_presigned_url_log(
         self,
-        request_url,
         status_code,
         username,
         sub,
@@ -33,8 +39,17 @@ class AuditServiceClient:
         action,
         protocol,
     ):
-        if not config.get("ENABLE_AUDIT_LOGS"):
+        if not self.is_enabled():
             return
+
+        request_url = ""
+        if action == "download":
+            request_url = f"/data/download/{guid}"
+        else:
+            self.logger.warning(
+                f"Audit log `request_url` for action `{action}` is unknown"
+            )
+
         url = f"{self.service_url}/log/presigned_url"
         body = {
             "request_url": request_url,
