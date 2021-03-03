@@ -1498,12 +1498,20 @@ class UserSyncer(object):
         roles = user_yaml.authz.get("roles", [])
         for role in roles:
             try:
-                response = self.arborist_client.create_role(role)
+                response = self.arborist_client.update_role(role["id"], role)
                 if response:
                     self._created_roles.add(role["id"])
             except ArboristError as e:
-                self.logger.error(e)
-                # keep going; maybe just some conflicts from things existing already
+                self.logger.info(
+                    "couldn't update role '{}', creating instead".format(str(e))
+                )
+                try:
+                    response = self.arborist_client.create_role(role)
+                    if response:
+                        self._created_roles.add(role["id"])
+                except ArboristError as e:
+                    self.logger.error(e)
+                    # keep going; maybe just some conflicts from things existing already
 
         # update policies
         policies = user_yaml.authz.get("policies", [])
@@ -1607,7 +1615,6 @@ class UserSyncer(object):
             user_yaml.user_abac = {
                 key.lower(): value for key, value in user_yaml.user_abac.items()
             }
-
             # update the project info with `projects` specified in user.yaml
             self.sync_two_phsids_dict(user_yaml.user_abac, user_projects)
 
@@ -1622,7 +1629,7 @@ class UserSyncer(object):
             arborist_user_projects = {
                 user["name"].lower(): {} for user in arborist_users
             }
-        except (ArboristError, KeyError) as error:
+        except (ArboristError, KeyError, AttributeError) as error:
             # TODO usersync should probably exit with non-zero exit code at the end,
             #      but sync should continue from this point so there are no partial
             #      updates
