@@ -2,6 +2,7 @@ import flask
 import jwt
 import os
 from flask_sqlalchemy_session import current_session
+import urllib.request, urllib.parse, urllib.error
 
 from fence.models import GA4GHVisaV1, IdentityProvider
 
@@ -9,6 +10,7 @@ from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callbac
 
 from fence.config import config
 from fence.scripting.fence_create import init_syncer
+from fence.utils import get_valid_expiration_from_request
 
 
 class RASLogin(DefaultOAuth2Login):
@@ -63,11 +65,15 @@ class RASCallback(DefaultOAuth2Callback):
             current_session.commit()
 
         # Store refresh token in db
+        parsed_url = urllib.parse.parse_qs(flask.redirect_url)
         refresh_token = flask.g.tokens.get("refresh_token")
         id_token = flask.g.tokens.get("id_token")
         decoded_id = jwt.decode(id_token, verify=False)
         # Add 15 days to iat to calculate refresh token expiration time
-        expires = int(decoded_id.get("iat")) + config["RAS_REFRESH_EXPIRATION"]
+        default_time = int(decoded_id.get("iat")) + config["RAS_REFRESH_EXPIRATION"]
+        expires = get_valid_expiration_from_request(
+            parsed_url.get("visa_refresh_exp"), default_time, default_time
+        )
         flask.current_app.ras_client.store_refresh_token(
             user=user, refresh_token=refresh_token, expires=expires
         )
