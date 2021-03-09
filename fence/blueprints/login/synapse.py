@@ -52,3 +52,5 @@ class SynapseCallback(DefaultOAuth2Callback):
                 flask.current_app.arborist.remove_user_from_group(
                     user.username, config["DREAM_CHALLENGE_GROUP"]
                 )
+
+        super(SynapseCallback, self).post_login(user)

@@ -29,8 +29,8 @@ def test_presigned_url_log(
 ):
     """
     TODO description
-    TODO anonymous user / public data
     TODO with ACLs
+    TODO bad request
     """
     mock_arborist_requests(
         {"arborist/auth/request": {"POST": ('{"auth": "true"}', 200)}}
@@ -83,5 +83,38 @@ def test_presigned_url_log(
     assert response.status_code == 200
     assert response.json.get("url")
 
-    # defaults to signing url, check that it's not just raw url
-    # assert urllib.parse.urlparse(response.json["url"]).query != ""
+
+@pytest.mark.parametrize("public_indexd_client", ["s3_and_gs"], indirect=True)
+def test_presigned_url_log_public(client, public_indexd_client, monkeypatch):
+    """
+    Same as the previous test, but an anonymous user downloading public data.
+    """
+    audit_service_mocker = mock.patch(
+        "fence.resources.audit_service_client.requests", new_callable=mock.Mock
+    )
+    monkeypatch.setitem(config, "ENABLE_AUDIT_LOGS", {"presigned_url": True})
+
+    guid = "dg.hello/abc"
+    path = f"/data/download/{guid}"
+
+    with audit_service_mocker as audit_service_requests:
+        audit_service_requests.post.return_value = MockResponse(
+            data={},
+            status_code=201,
+        )
+        response = client.get(path)
+        audit_service_requests.post.assert_called_once_with(
+            "http://audit-service/log/presigned_url",
+            json={
+                "request_url": path,
+                "status_code": 200,
+                "username": "anonymous",
+                "sub": None,
+                "guid": guid,
+                "resource_paths": [],
+                "action": "download",
+                "protocol": "s3",
+            },
+        )
+    assert response.status_code == 200
+    assert response.json.get("url")

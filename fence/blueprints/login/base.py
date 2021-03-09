@@ -101,8 +101,19 @@ class DefaultOAuth2Callback(Resource):
             return resp
         raise UserError(result)
 
-    def post_login(self, user, token_result):
-        pass
+    def post_login(self, user, token_result=None):
+        create_login_log(self.idp_name)
+
+
+def create_login_log(idp_name):
+    flask.current_app.audit_service_client.create_login_log(
+        status_code=200,  # only record successful requests for now
+        username=flask.g.user.username,
+        sub=flask.g.user.id,
+        idp=idp_name,
+        fence_idp=flask.session.get("fence_idp"),
+        shib_idp=flask.session.get("shib_idp"),
+    )
 
 
 def _login(username, idp_name):

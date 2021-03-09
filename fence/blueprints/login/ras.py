@@ -24,7 +24,7 @@ class RASCallback(DefaultOAuth2Callback):
             username_field="username",
         )
 
-    def post_login(self, user, token_result):
+    def post_login(self, user, token_result=None):
 
         # TODO: I'm not convinced this code should be in post_login.
         # Just putting it in here for now, but might refactor later.
@@ -69,3 +69,5 @@ class RASCallback(DefaultOAuth2Callback):
         flask.current_app.ras_client.store_refresh_token(
             user=user, refresh_token=refresh_token, expires=expires
         )
+
+        super(RASCallback, self).post_login(user)
