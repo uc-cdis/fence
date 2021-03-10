@@ -85,7 +85,7 @@ class ShibbolethCallback(DefaultOAuth2Callback):
         if entityID:
             idp = entityID
         login_user(username, idp)
-        self.post_login(flask.g.user)
+        self.post_login()
 
         if flask.session.get("redirect"):
             return flask.redirect(flask.session.get("redirect"))

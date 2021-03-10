@@ -615,6 +615,22 @@ def indexd_client_with_arborist(app, request):
                 "created_date": "",
                 "updated_date": "",
             }
+        elif protocol == "s3_and_gs_acl_no_authz":
+            record = {
+                "did": "",
+                "baseid": "",
+                "rev": "",
+                "size": 10,
+                "file_name": "file1",
+                "urls": ["s3://bucket1/key", "gs://bucket1/key"],
+                "authz": [],
+                "hashes": {},
+                "acl": ["phs000178", "phs000218"],
+                "metadata": {"acls": "phs000178,phs000218"},
+                "form": "",
+                "created_date": "",
+                "updated_date": "",
+            }
         else:
             record = {
                 "did": "",

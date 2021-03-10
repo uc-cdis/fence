@@ -26,7 +26,7 @@ class RASCallback(DefaultOAuth2Callback):
             username_field="username",
         )
 
-    def post_login(self, user, token_result=None):
+    def post_login(self, user, token_result):
 
         # TODO: I'm not convinced this code should be in post_login.
         # Just putting it in here for now, but might refactor later.
@@ -95,4 +95,4 @@ class RASCallback(DefaultOAuth2Callback):
             )
             sync.sync_single_user_visas(user, current_session)
 
-        super(RASCallback, self).post_login(user)
+        super(RASCallback, self).post_login()

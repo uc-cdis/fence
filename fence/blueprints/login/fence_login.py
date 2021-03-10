@@ -101,7 +101,7 @@ class FenceCallback(DefaultOAuth2Callback):
             fence_idp=flask.session.get("fence_idp"),
             shib_idp=flask.session.get("shib_idp"),
         )
-        self.post_login(flask.g.user)
+        self.post_login()
 
         if "redirect" in flask.session:
             return flask.redirect(flask.session.get("redirect"))

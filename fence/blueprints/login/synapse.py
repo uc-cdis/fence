@@ -53,4 +53,4 @@ class SynapseCallback(DefaultOAuth2Callback):
                     user.username, config["DREAM_CHALLENGE_GROUP"]
                 )
 
-        super(SynapseCallback, self).post_login(user)
+        super(SynapseCallback, self).post_login()

@@ -88,6 +88,10 @@ def get_signed_url_for_file(action, file_id, file_name=None):
 
 def create_presigned_url_audit_log(indexed_file, action, protocol):
     user_info = _get_user_info(sub_to_string=False)
+    resource_paths = indexed_file.index_document.get("authz", [])
+    if not resource_paths:
+        # fall back on ACL
+        resource_paths = indexed_file.index_document.get("acl", [])
     if not protocol:
         # we can assume there are locations since `get_signed_url()`
         # used the same logic before this code runs
@@ -96,8 +100,7 @@ def create_presigned_url_audit_log(indexed_file, action, protocol):
         username=user_info["username"],
         sub=user_info["user_id"],
         guid=indexed_file.file_id,
-        # TODO handle ACL
-        resource_paths=indexed_file.index_document.get("authz", []),
+        resource_paths=resource_paths,
         action=action,
         protocol=protocol,
     )
