@@ -84,7 +84,7 @@ class ShibbolethCallback(DefaultOAuth2Callback):
         idp = IdentityProvider.itrust
         if entityID:
             idp = entityID
-        login_user(flask.request, username, idp)
+        login_user(username, idp)
         self.post_login(flask.g.user)
 
         if flask.session.get("redirect"):

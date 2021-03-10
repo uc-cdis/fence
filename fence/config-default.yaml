@@ -380,6 +380,8 @@ MAX_ACCESS_TOKEN_TTL: 3600
 # auth checks against Arborist, and no longer check the token.
 TOKEN_PROJECTS_CUTOFF: 10
 
+# If set to true, will generate an new access token each time when a browser session update happens
+RENEW_ACCESS_TOKEN_BEFORE_EXPIRATION: false
 
 ########################################################################################
 #                               OPTIONAL CONFIGURATIONS                                #

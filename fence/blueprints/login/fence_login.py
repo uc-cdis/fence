@@ -96,7 +96,6 @@ class FenceCallback(DefaultOAuth2Callback):
         )
         username = id_token_claims["context"]["user"]["name"]
         login_user(
-            flask.request,
             username,
             IdentityProvider.fence,
             fence_idp=flask.session.get("fence_idp"),

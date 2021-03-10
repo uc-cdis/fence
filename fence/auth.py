@@ -60,33 +60,60 @@ def build_redirect_url(hostname, path):
     return redirect_base + path
 
 
-def login_user(request, username, provider, fence_idp=None, shib_idp=None):
+def login_user(username, provider, fence_idp=None, shib_idp=None):
+    """
+    Login a user with the given username and provider. Set values in Flask
+    session to indicate the user being logged in. In addition, commit the user
+    and associated idp information to the db.
+
+    Args:
+        username (str): specific username of user to be logged in
+        provider (str): specfic idp of user to be logged in
+
+    """
+
+    def set_flask_session_values(user, fence_idp, shib_idp):
+        """
+        Helper fuction to set user values in the session.
+
+        Args:
+            user (User): User object
+        """
+        flask.session["username"] = user.username
+        flask.session["user_id"] = str(user.id)
+        flask.session["provider"] = user.identity_provider.name
+        if fence_idp:
+            flask.session["fence_idp"] = fence_idp
+        if shib_idp:
+            flask.session["shib_idp"] = shib_idp
+        flask.g.user = user
+        flask.g.scopes = ["_all"]
+        flask.g.token = None
+
     user = query_for_user(session=current_session, username=username)
-
-    if not user:
+    if user:
+        #  This expression is relevant to those users who already have user and
+        #  idp info persisted to the database. We return early to avoid
+        #  unnecessarily re-saving that user and idp info.
+        if user.identity_provider and user.identity_provider.name == provider:
+            set_flask_session_values(user, fence_idp, shib_idp)
+            return
+    else:
         user = User(username=username)
-        idp = (
-            current_session.query(IdentityProvider)
-            .filter(IdentityProvider.name == provider)
-            .first()
-        )
-        if not idp:
-            idp = IdentityProvider(name=provider)
-        user.identity_provider = idp
-        current_session.add(user)
-        current_session.commit()
 
-    flask.session["username"] = username
-    flask.session["user_id"] = str(user.id)
-    flask.session["provider"] = provider
-    if fence_idp:
-        flask.session["fence_idp"] = fence_idp
-    if shib_idp:
-        flask.session["shib_idp"] = shib_idp
+    idp = (
+        current_session.query(IdentityProvider)
+        .filter(IdentityProvider.name == provider)
+        .first()
+    )
+    if not idp:
+        idp = IdentityProvider(name=provider)
 
-    flask.g.user = user
-    flask.g.scopes = ["_all"]
-    flask.g.token = None
+    user.identity_provider = idp
+    current_session.add(user)
+    current_session.commit()
+
+    set_flask_session_values(user, fence_idp, shib_idp)
 
 
 def logout(next_url, force_era_global_logout=False):
@@ -144,9 +171,7 @@ def login_required(scope=None):
         @wraps(f)
         def wrapper(*args, **kwargs):
             if flask.session.get("username"):
-                login_user(
-                    flask.request, flask.session["username"], flask.session["provider"]
-                )
+                login_user(flask.session["username"], flask.session["provider"])
                 return f(*args, **kwargs)
 
             eppn = None
@@ -175,7 +200,7 @@ def login_required(scope=None):
                 username = eppn.split("!")[-1]
                 flask.session["username"] = username
                 flask.session["provider"] = IdentityProvider.itrust
-                login_user(flask.request, username, flask.session["provider"])
+                login_user(username, flask.session["provider"])
                 return f(*args, **kwargs)
             else:
                 raise Unauthorized("Please login")

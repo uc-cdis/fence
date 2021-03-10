@@ -7,7 +7,8 @@ from authlib.oidc.core.errors import (
 )
 from authlib.oauth2.rfc6749 import InvalidRequestError
 import flask
-
+from fence.utils import get_valid_expiration_from_request
+from fence.config import config
 from fence.models import AuthorizationCode, ClientAuthType, User
 
 
@@ -35,6 +36,14 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
         the arguments passed from the OAuth request (the redirect URI, scope,
         and nonce).
         """
+
+        # requested lifetime (in seconds) for the refresh token
+        refresh_token_expires_in = get_valid_expiration_from_request(
+            expiry_param="refresh_token_expires_in",
+            max_limit=config["REFRESH_TOKEN_EXPIRES_IN"],
+            default=config["REFRESH_TOKEN_EXPIRES_IN"],
+        )
+
         code = AuthorizationCode(
             code=generate_token(50),
             client_id=client.client_id,
@@ -42,6 +51,7 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
             scope=request.scope,
             user_id=grant_user.id,
             nonce=request.data.get("nonce"),
+            refresh_token_expires_in=refresh_token_expires_in,
         )
 
         with flask.current_app.db.session as session:
@@ -63,6 +73,7 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
 
         scope = authorization_code.scope
         nonce = authorization_code.nonce
+        refresh_token_expires_in = authorization_code.refresh_token_expires_in
 
         token = self.generate_token(
             client,
@@ -71,6 +82,7 @@ class OpenIDCodeGrant(grants.OpenIDCodeGrant):
             scope=scope,
             include_refresh_token=client.has_client_secret(),
             nonce=nonce,
+            refresh_token_expires_in=refresh_token_expires_in,
         )
 
         self.request.user = user

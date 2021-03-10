@@ -317,13 +317,6 @@ def _set_authlib_cfgs(app):
 
 
 def _setup_oidc_clients(app):
-    if config["LOGIN_OPTIONS"]:
-        enabled_idp_ids = [option["idp"] for option in config["LOGIN_OPTIONS"]]
-    else:
-        # fall back on "providers"
-        enabled_idp_ids = list(
-            config.get("ENABLED_IDENTITY_PROVIDERS", {}).get("providers", {}).keys()
-        )
     oidc = config.get("OPENID_CONNECT", {})
 
     # Add OIDC client for Google if configured.
@@ -371,8 +364,7 @@ def _setup_oidc_clients(app):
         )
 
     # Add OIDC client for multi-tenant fence if configured.
-    configured_fence = "fence" in oidc and "fence" in enabled_idp_ids
-    if configured_fence:
+    if "fence" in oidc:
         app.fence_client = OAuthClient(**config["OPENID_CONNECT"]["fence"])
 
 
