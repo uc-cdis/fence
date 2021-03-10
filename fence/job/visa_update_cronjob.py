@@ -152,6 +152,10 @@ class Visa_Token_Update(object):
                     )
                     client.update_user_visas(user, db_session)
             else:
+                if user.upstream_refresh_tokens:
+                    user.upstream_refresh_tokens = []
+                    db_session.commit()
+
                 self.logger.info(
                     "User {} doesnt have visa. Skipping . . .".format(user.username)
                 )
