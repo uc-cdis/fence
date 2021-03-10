@@ -68,20 +68,22 @@ class RASCallback(DefaultOAuth2Callback):
         refresh_token = flask.g.tokens.get("refresh_token")
         id_token = flask.g.tokens.get("id_token")
         decoded_id = jwt.decode(id_token, verify=False)
-        
+
         # Add 15 days to iat to calculate refresh token expiration time
         expires = int(decoded_id.get("iat")) + config["RAS_REFRESH_EXPIRATION"]
-        
+
         # User definied RAS refresh token expiration time
         parsed_url = urllib.parse.parse_qs(flask.redirect_url)
         if parsed_url.get("visa_refresh_exp"):
-            custom_refresh_expiration = int(decoded_id.get("iat")) + int(parsed_url.get("visa_refresh_exp")[0])
+            custom_refresh_expiration = int(decoded_id.get("iat")) + int(
+                parsed_url.get("visa_refresh_exp")[0]
+            )
             expires = get_valid_expiration(
                 custom_refresh_expiration,
                 expires,
                 expires,
             )
-            
+
         flask.current_app.ras_client.store_refresh_token(
             user=user, refresh_token=refresh_token, expires=expires
         )
