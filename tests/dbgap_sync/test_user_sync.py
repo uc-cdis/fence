@@ -725,3 +725,26 @@ def test_user_sync_with_visas(
                     "phs000298": ["read", "read-storage"],
                 },
             )
+
+
+@pytest.mark.parametrize("syncer", ["google"], indirect=True)
+def test_sync_in_login(
+    syncer,
+    db_session,
+    storage_client,
+    rsa_private_key,
+    kid,
+    monkeypatch,
+):
+    user = models.query_for_user(
+        session=db_session, username="TESTUSERB"
+    )  # contains no information
+    assert len(user.project_access) == 0
+    db_session.close()
+    syncer.sync_single_user_visas(user, db_session)
+    user = models.query_for_user(
+        session=db_session, username="TESTUSERB"
+    )  # contains only visa information
+    user1 = models.query_for_user(session=db_session, username="USER_1")
+    assert len(user1.project_access) == 0  # other users are not affected
+    assert len(user.project_access) == 6
