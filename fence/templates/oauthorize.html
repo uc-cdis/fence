@@ -7,6 +7,7 @@
   <title>Authorization Required</title>
 
   <!-- <link rel="stylesheet" href="css/styles.css?v=1.0"> -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
   <!--[if lt IE 9]>
 </head>
@@ -173,7 +174,7 @@ h1.auth-title{
         if (parts.length == 2) return parts.pop().split(";").shift();
     }
     $(document).ready(function(){
-        $("#yes").click(function(){
+        $("#yes").on("click", function(){
           $.ajax({
             type : 'POST',
             //remove the .php from results.php.php
@@ -193,7 +194,7 @@ h1.auth-title{
           });
         })
 
-        $("#no").click(function(){
+        $("#no").on("click", function(){
           $.ajax({
             type : 'POST',
             //remove the .php from results.php.php
