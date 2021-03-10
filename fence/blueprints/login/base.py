@@ -107,12 +107,12 @@ class DefaultOAuth2Callback(Resource):
 
 def create_login_log(idp_name):
     flask.current_app.audit_service_client.create_login_log(
-        status_code=200,  # only record successful requests for now
         username=flask.g.user.username,
         sub=flask.g.user.id,
         idp=idp_name,
         fence_idp=flask.session.get("fence_idp"),
         shib_idp=flask.session.get("shib_idp"),
+        client_id=flask.session.get("client_id"),
     )
 
 

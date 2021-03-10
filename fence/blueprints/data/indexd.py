@@ -93,7 +93,6 @@ def create_presigned_url_audit_log(indexed_file, action, protocol):
         # used the same logic before this code runs
         protocol = indexed_file.indexed_file_locations[0].protocol
     flask.current_app.audit_service_client.create_presigned_url_log(
-        status_code=200,  # only record successful requests for now
         username=user_info["username"],
         sub=user_info["user_id"],
         guid=indexed_file.file_id,

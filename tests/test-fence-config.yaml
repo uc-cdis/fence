@@ -147,6 +147,8 @@ SESSION_ALLOWED_SCOPES:
 #   Multi-tenant fence (e.g. another fence instance)? Use: '{{BASE_URL}}/login/fence'
 #   Sibboleth? Use: '{{BASE_URL}}/login/shib'
 DEFAULT_LOGIN_IDP: google
+
+# Default login URL: DEPRECATED and replaced by LOGIN_OPTIONS + DEFAULT_LOGIN_IDP configs
 DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
 
 # `LOGIN_REDIRECT_WHITELIST` is a list of extra whitelisted URLs which can be redirected

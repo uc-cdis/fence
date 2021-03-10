@@ -51,7 +51,6 @@ class AuditServiceClient:
 
     def create_presigned_url_log(
         self,
-        status_code,
         username,
         sub,
         guid,
@@ -73,7 +72,7 @@ class AuditServiceClient:
         url = f"{self.service_url}/log/presigned_url"
         body = {
             "request_url": request_url,
-            "status_code": status_code,
+            "status_code": 200,  # only record successful requests for now
             "username": username,
             "sub": sub,
             "guid": guid,
@@ -86,7 +85,6 @@ class AuditServiceClient:
 
     def create_login_log(
         self,
-        status_code,
         username,
         sub,
         idp,
@@ -97,10 +95,15 @@ class AuditServiceClient:
         if not self.is_enabled():
             return
 
+        # special case for idp=fence when falling back on
+        # fence_idp=shibboleth and shib_idp=NIH
+        if shib_idp == "None":
+            shib_idp = None
+
         url = f"{self.service_url}/log/login"
         body = {
             "request_url": "TODO remove request_url?",
-            "status_code": status_code,
+            "status_code": 200,  # only record successful requests for now
             "username": username,
             "sub": sub,
             "idp": idp,

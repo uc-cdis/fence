@@ -118,3 +118,6 @@ def test_presigned_url_log_public(client, public_indexd_client, monkeypatch):
         )
     assert response.status_code == 200
     assert response.json.get("url")
+
+
+# TODO login logs
