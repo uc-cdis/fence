@@ -70,14 +70,13 @@ class RASCallback(DefaultOAuth2Callback):
         decoded_id = jwt.decode(id_token, verify=False)
 
         # Add 15 days to iat to calculate refresh token expiration time
-        expires = int(decoded_id.get("iat")) + config["RAS_REFRESH_EXPIRATION"]
+        issued_time = int(decoded_id.get("iat"))
+        expires = config["RAS_REFRESH_EXPIRATION"]
 
         # User definied RAS refresh token expiration time
         parsed_url = urllib.parse.parse_qs(flask.redirect_url)
-        if parsed_url.get("visa_refresh_exp"):
-            custom_refresh_expiration = int(decoded_id.get("iat")) + int(
-                parsed_url.get("visa_refresh_exp")[0]
-            )
+        if parsed_url.get("upstream_expires_in"):
+            custom_refresh_expiration = parsed_url.get("upstream_expires_in")[0]
             expires = get_valid_expiration(
                 custom_refresh_expiration,
                 expires,
@@ -85,7 +84,7 @@ class RASCallback(DefaultOAuth2Callback):
             )
 
         flask.current_app.ras_client.store_refresh_token(
-            user=user, refresh_token=refresh_token, expires=expires
+            user=user, refresh_token=refresh_token, expires=expires + issued_time
         )
 
         # Check if user has any project_access from a previous session or from usersync
