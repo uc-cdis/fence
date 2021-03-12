@@ -1922,6 +1922,7 @@ class UserSyncer(object):
         # parse projects
         user_projects = self.parse_projects(user_projects)
         user_yaml.projects = self.parse_projects(user_yaml.projects)
+        something = "some_other_thing"
 
         if self.fallback_to_dbgap_sftp:
             # Collect user_info and user_projects from telemetry
