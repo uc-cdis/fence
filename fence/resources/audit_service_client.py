@@ -14,23 +14,24 @@ def get_request_url():
     return request_url
 
 
+def is_audit_enabled(category=None):
+    enable_audit_logs = config.get("ENABLE_AUDIT_LOGS") or {}
+    if category:
+        return enable_audit_logs and enable_audit_logs.get(category, False)
+    return enable_audit_logs and any(v for v in enable_audit_logs.values())
+
+
 class AuditServiceClient:
     def __init__(self, service_url, logger):
         self.service_url = service_url.rstrip("/")
         self.logger = logger
 
         # audit logs should not be enabled if the audit-service is unavailable
-        if self.is_enabled():
+        if is_audit_enabled():
             logger.info("Enabling audit logs")
             self.ping()
         else:
             logger.warn("NOT enabling audit logs")
-
-    def is_enabled(self, category=None):
-        enable_audit_logs = config.get("ENABLE_AUDIT_LOGS") or {}
-        if category:
-            return enable_audit_logs and enable_audit_logs.get(category, False)
-        return enable_audit_logs and any(v for v in enable_audit_logs.values())
 
     def ping(self):
         max_tries = 3
@@ -70,7 +71,7 @@ class AuditServiceClient:
         action,
         protocol,
     ):
-        if not self.is_enabled("presigned_url"):
+        if not is_audit_enabled("presigned_url"):
             return
 
         url = f"{self.service_url}/log/presigned_url"
@@ -96,7 +97,7 @@ class AuditServiceClient:
         shib_idp=None,
         client_id=None,
     ):
-        if not self.is_enabled("login"):
+        if not is_audit_enabled("login"):
             return
 
         # special case for idp=fence when falling back on
