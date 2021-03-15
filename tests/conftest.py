@@ -922,6 +922,8 @@ def patch_app_db_session(app, monkeypatch):
             "fence.blueprints.google",
             "fence.oidc.jwt_generator",
             "fence.user",
+            "fence.blueprints.login.synapse",
+            "fence.blueprints.login.ras",
         ]
         for module in modules_to_patch:
             monkeypatch.setattr("{}.current_session".format(module), session)

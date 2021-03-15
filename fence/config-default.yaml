@@ -184,6 +184,10 @@ OPENID_CONNECT:
     # and that IdP is a SAML IdP with no 'email_verified' outgoing claim, but it is safe
     # to assume all emails from this SAML IdP are in fact verified, we may set this to True
     assume_emails_verified: False
+  synapse:
+    client_id: ''
+    client_secret: ''
+    redirect_url: ''
   shibboleth:
     client_id: ''
     client_secret: ''

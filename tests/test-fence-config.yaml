@@ -92,7 +92,16 @@ OPENID_CONNECT:
   microsoft:
     client_id: ''
     client_secret: ''
-    redirect_url: '{{BASE_URL}}/login/microsoft/login/'
+    redirect_url: '{{BASE_URL}}/login/cognito/login/'
+  cognito:
+    client_id: ''
+    client_secret: ''
+    redirect_url: ''
+    discovery_url: ''
+  synapse:
+    client_id: ''
+    client_secret: ''
+    redirect_url: ''
   fence:
     client_id: ''
     client_secret: ''

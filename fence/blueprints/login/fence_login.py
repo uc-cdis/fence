@@ -5,6 +5,7 @@ from flask_restful import Resource
 from fence.auth import login_user
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 from fence.blueprints.login.redirect import validate_redirect
+from fence.config import config
 from fence.errors import Unauthorized
 from fence.jwt.validate import validate_jwt
 from fence.models import IdentityProvider
@@ -81,7 +82,7 @@ class FenceCallback(DefaultOAuth2Callback):
             or "state" not in flask.session
             or flask.request.args["state"] != flask.session.pop("state", "")
         )
-        if mismatched_state:
+        if mismatched_state and not config.get("MOCK_AUTH"):
             raise Unauthorized(
                 "Login flow was interrupted (state mismatch). Please go back to the"
                 " login page for the original application to continue."

@@ -6,6 +6,14 @@ from fence.config import config
 from fence.errors import InternalError
 
 
+def get_request_url():
+    request_url = flask.request.url
+    base_url = config.get("BASE_URL", "")
+    if request_url.startswith(base_url):
+        request_url = request_url[len(base_url) :]
+    return request_url
+
+
 class AuditServiceClient:
     def __init__(self, service_url, logger):
         self.service_url = service_url.rstrip("/")
@@ -18,21 +26,25 @@ class AuditServiceClient:
         else:
             logger.warn("NOT enabling audit logs")
 
-    def is_enabled(self):
+    def is_enabled(self, category=None):
         enable_audit_logs = config.get("ENABLE_AUDIT_LOGS") or {}
+        if category:
+            return enable_audit_logs and enable_audit_logs.get(category, False)
         return enable_audit_logs and any(v for v in enable_audit_logs.values())
 
     def ping(self):
         max_tries = 3
         status_url = f"{self.service_url}/_status"
         self.logger.debug(f"Checking audit-service availability at {status_url}")
+        wait_time = 1
         for t in range(max_tries):
             r = requests.get(status_url)
             if r.status_code == 200:
                 return  # all good!
             if t + 1 < max_tries:
                 self.logger.debug(f"Retrying... (got status code {r.status_code})")
-                time.sleep(1)
+                time.sleep(wait_time)
+                wait_time *= 2
         raise Exception(
             f"Audit logs are enabled but audit-service is unreachable at {status_url}: {r.text}"
         )
@@ -58,20 +70,12 @@ class AuditServiceClient:
         action,
         protocol,
     ):
-        if not self.is_enabled():
+        if not self.is_enabled("presigned_url"):
             return
-
-        request_url = ""
-        if action == "download":
-            request_url = f"/data/download/{guid}"
-        else:
-            self.logger.warning(
-                f"Audit log `request_url` for action `{action}` is unknown"
-            )
 
         url = f"{self.service_url}/log/presigned_url"
         body = {
-            "request_url": request_url,
+            "request_url": get_request_url(),
             "status_code": 200,  # only record successful requests for now
             "username": username,
             "sub": sub,
@@ -92,7 +96,7 @@ class AuditServiceClient:
         shib_idp=None,
         client_id=None,
     ):
-        if not self.is_enabled():
+        if not self.is_enabled("login"):
             return
 
         # special case for idp=fence when falling back on
@@ -102,7 +106,7 @@ class AuditServiceClient:
 
         url = f"{self.service_url}/log/login"
         body = {
-            "request_url": "TODO remove request_url?",
+            "request_url": get_request_url(),
             "status_code": 200,  # only record successful requests for now
             "username": username,
             "sub": sub,

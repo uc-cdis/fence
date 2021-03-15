@@ -66,6 +66,7 @@ def authorize(*args, **kwargs):
         **kwargs: additional keyword arguments
     """
     need_authentication = False
+    user = None
     try:
         user = get_current_user()
     except Unauthorized:
