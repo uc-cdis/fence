@@ -214,14 +214,74 @@ def test_presigned_url_log_public(client, public_indexd_client, monkeypatch):
         )
 
 
+@pytest.mark.parametrize("indexd_client_with_arborist", ["s3_and_gs"], indirect=True)
+def test_presigned_url_log_disabled(
+    client,
+    user_client,
+    mock_arborist_requests,
+    indexd_client_with_arborist,
+    kid,
+    rsa_private_key,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+    monkeypatch,
+):
+    """
+    Disable presigned URL logs, enable login logs, get a presigned URL from Fence and make sure no audit log was created.
+    """
+    mock_arborist_requests(
+        {"arborist/auth/request": {"POST": ('{"auth": "true"}', 200)}}
+    )
+    audit_service_mocker = mock.patch(
+        "fence.resources.audit_service_client.requests", new_callable=mock.Mock
+    )
+    monkeypatch.setitem(
+        config, "ENABLE_AUDIT_LOGS", {"presigned_url": False, "login": True}
+    )
+
+    protocol = "gs"
+    guid = "dg.hello/abc"
+    path = f"/data/download/{guid}"
+    if protocol:
+        path += f"?protocol={protocol}"
+    resource_paths = ["/my/resource/path1", "/path2"]
+    indexd_client = indexd_client_with_arborist(resource_paths)
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+
+    # protocol=None should fall back to s3 (first indexed location):
+    expected_protocol = protocol or "s3"
+
+    with audit_service_mocker as audit_service_requests:
+        audit_service_requests.post.return_value = MockResponse(
+            data={},
+            status_code=201,
+        )
+        response = client.get(path, headers=headers)
+        assert response.status_code == 200, response
+        assert response.json.get("url")
+        audit_service_requests.post.assert_not_called()
+
+
 @pytest.mark.parametrize("indexd_client", ["s3_and_gs"], indirect=True)
-def test_presigned_url_log_failure(client, indexd_client, db_session):
+def test_presigned_url_log_failure(client, indexd_client, db_session, monkeypatch):
     """
     If Fence does not return a presigned URL, no audit log should be created.
     """
     audit_service_mocker = mock.patch(
         "fence.resources.audit_service_client.requests", new_callable=mock.Mock
     )
+    monkeypatch.setitem(config, "ENABLE_AUDIT_LOGS", {"presigned_url": True})
     path = "/data/download/1"
     with audit_service_mocker as audit_service_requests:
         response = client.get(path)

@@ -1,6 +1,5 @@
 from cdislogging import get_logger
 import flask
-from flask_restful import Resource
 
 from fence.auth import login_user
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback

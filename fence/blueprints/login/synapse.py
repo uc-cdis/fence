@@ -24,7 +24,7 @@ class SynapseCallback(DefaultOAuth2Callback):
             username_field="fence_username",
         )
 
-    def post_login(self, user, token_result):
+    def post_login(self, user=None, token_result=None):
         user.id_from_idp = token_result["sub"]
         user.email = token_result["email"]
         user.display_name = "{given_name} {family_name}".format(**token_result)

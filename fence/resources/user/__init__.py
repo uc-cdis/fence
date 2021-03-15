@@ -194,7 +194,7 @@ def send_mail(send_from, send_to, subject, text, server, certificates=None):
     smtp.close()
 
 
-def get_user_accesses():
+def get_user_accesses(current_session):
     user = udm.get_user_accesses()
     if not user:
         raise InternalError("Error: %s user does not exist" % flask.g.user.username)
