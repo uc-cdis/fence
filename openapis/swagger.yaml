@@ -166,7 +166,7 @@ paths:
                   description: Requested authorization scope. Must include `openid`. `user` allows getting a user's access information.
                   type: string
                 upstream_expires_in:
-                  description: the time (in seconds) during which the upstream refresh token (eg. RAS) is valid. Must be less than the configured maximum . If it's greater, the configured maximum will be used.
+                  description: the time (in seconds) during which the upstream refresh token (eg. RAS) is valid. Must be less than the configured maximum. If it's greater, the configured maximum will be used.
                   type: string
               required:
                 - client_id
