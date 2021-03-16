@@ -72,7 +72,7 @@ def login_user(username, provider, fence_idp=None, shib_idp=None):
 
     """
 
-    def set_flask_session_values(user, fence_idp, shib_idp):
+    def set_flask_session_values(user):
         """
         Helper fuction to set user values in the session.
 
@@ -96,7 +96,7 @@ def login_user(username, provider, fence_idp=None, shib_idp=None):
         #  idp info persisted to the database. We return early to avoid
         #  unnecessarily re-saving that user and idp info.
         if user.identity_provider and user.identity_provider.name == provider:
-            set_flask_session_values(user, fence_idp, shib_idp)
+            set_flask_session_values(user)
             return
     else:
         user = User(username=username)
@@ -113,7 +113,7 @@ def login_user(username, provider, fence_idp=None, shib_idp=None):
     current_session.add(user)
     current_session.commit()
 
-    set_flask_session_values(user, fence_idp, shib_idp)
+    set_flask_session_values(user)
 
 
 def logout(next_url, force_era_global_logout=False):

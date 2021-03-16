@@ -5,6 +5,7 @@ from authutils.oauth2.client import OAuthClient
 import flask
 from flask_cors import CORS
 from flask_sqlalchemy_session import flask_scoped_session, current_session
+from urllib.parse import urljoin
 from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.auth import logout, build_redirect_url
@@ -378,8 +379,8 @@ def _setup_audit_service_client(app):
     # allows us to call `app.audit_service_client.create_x_log()` from
     # anywhere without checking if audit logs are enabled. The client
     # checks that for us.
-    service_url = (
-        app.config.get("AUDIT_SERVICE") or app.config["BASE_URL"].rstrip("/") + "/audit"
+    service_url = app.config.get("AUDIT_SERVICE") or urljoin(
+        app.config["BASE_URL"], "/audit"
     )
     app.audit_service_client = AuditServiceClient(
         service_url=service_url, logger=logger
