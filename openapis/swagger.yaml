@@ -111,7 +111,7 @@ paths:
           in: query
           description: |
               the time (in seconds) during which the upstream refresh token (eg. RAS) is valid. Must be less
-              than the configured maximum . If it's greater,
+              than the configured maximum. If it's greater,
               the configured maximum will be used.
           schema:
             type: string
