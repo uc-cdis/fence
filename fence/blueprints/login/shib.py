@@ -73,7 +73,7 @@ class ShibbolethCallback(Resource):
         idp = IdentityProvider.itrust
         if entityID:
             idp = entityID
-        login_user(flask.request, username, idp)
+        login_user(username, idp)
 
         if flask.session.get("redirect"):
             return flask.redirect(flask.session.get("redirect"))

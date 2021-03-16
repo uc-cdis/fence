@@ -7,9 +7,7 @@
   <title>Authorization Required</title>
 
   <!-- <link rel="stylesheet" href="css/styles.css?v=1.0"> -->
-  <link rel="stylesheet" href="/api/static/css/bootstrap.min.css">
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
-   <script src="/api/static/js/bootstrap.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 
   <!--[if lt IE 9]>
 </head>
@@ -176,7 +174,7 @@ h1.auth-title{
         if (parts.length == 2) return parts.pop().split(";").shift();
     }
     $(document).ready(function(){
-        $("#yes").click(function(){
+        $("#yes").on("click", function(){
           $.ajax({
             type : 'POST',
             //remove the .php from results.php.php
@@ -196,7 +194,7 @@ h1.auth-title{
           });
         })
 
-        $("#no").click(function(){
+        $("#no").on("click", function(){
           $.ajax({
             type : 'POST',
             //remove the .php from results.php.php

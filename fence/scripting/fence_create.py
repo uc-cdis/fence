@@ -4,6 +4,7 @@ import time
 from yaml import safe_load
 import json
 import pprint
+import asyncio
 
 from cirrus import GoogleCloudManager
 from cirrus.google_cloud.errors import GoogleAuthError
@@ -34,6 +35,7 @@ from fence.jwt.token import (
     generate_signed_refresh_token,
     issued_and_expiration_times,
 )
+from fence.job.visa_update_cronjob import Visa_Token_Update
 from fence.models import (
     Client,
     GoogleServiceAccount,
@@ -50,7 +52,7 @@ from fence.models import (
 from fence.scripting.google_monitor import email_users_without_access, validation_check
 from fence.config import config
 from fence.sync.sync_users import UserSyncer
-from fence.utils import create_client, is_valid_expiration
+from fence.utils import create_client, get_valid_expiration
 
 logger = get_logger(__name__)
 
@@ -208,6 +210,8 @@ def init_syncer(
     sync_from_local_yaml_file=None,
     arborist=None,
     folder=None,
+    sync_from_visas=False,
+    fallback_to_dbgap_sftp=False,
 ):
     """
     sync ACL files from dbGap to auth db and storage backends
@@ -266,6 +270,8 @@ def init_syncer(
         sync_from_local_yaml_file=sync_from_local_yaml_file,
         arborist=arborist,
         folder=folder,
+        sync_from_visas=sync_from_visas,
+        fallback_to_dbgap_sftp=fallback_to_dbgap_sftp,
     )
 
 
@@ -307,6 +313,8 @@ def sync_users(
     sync_from_local_yaml_file=None,
     arborist=None,
     folder=None,
+    sync_from_visas=False,
+    fallback_to_dbgap_sftp=False,
 ):
     syncer = init_syncer(
         dbGaP,
@@ -318,10 +326,15 @@ def sync_users(
         sync_from_local_yaml_file,
         arborist,
         folder,
+        sync_from_visas,
+        fallback_to_dbgap_sftp,
     )
     if not syncer:
         exit(1)
-    syncer.sync()
+    if sync_from_visas:
+        syncer.sync_visas()
+    else:
+        syncer.sync()
 
 
 def create_sample_data(DB, yaml_file_path):
@@ -543,6 +556,7 @@ def remove_expired_google_service_account_keys(db):
 
             # handle service accounts with custom expiration
             for expired_user_key in expired_sa_keys_for_users:
+                logger.info("expired_user_key: {}\n".format(expired_user_key))
                 sa = (
                     current_session.query(GoogleServiceAccount)
                     .filter(
@@ -555,6 +569,9 @@ def remove_expired_google_service_account_keys(db):
                     account=sa.email, key_name=expired_user_key.key_id
                 )
                 response_error_code = response.get("error", {}).get("code")
+                response_error_status = response.get("error", {}).get("status")
+                logger.info("response_error_code: {}\n".format(response_error_code))
+                logger.info("response_error_status: {}\n".format(response_error_status))
 
                 if not response_error_code:
                     current_session.delete(expired_user_key)
@@ -564,7 +581,10 @@ def remove_expired_google_service_account_keys(db):
                             expired_user_key.key_id, sa.email, sa.user_id
                         )
                     )
-                elif response_error_code == 404:
+                elif (
+                    response_error_code == 404
+                    or response_error_status == "FAILED_PRECONDITION"
+                ):
                     logger.info(
                         "INFO: Service account key {} for service account {} "
                         "(owned by user with id {}) does not exist in Google. "
@@ -1424,16 +1444,17 @@ def force_update_google_link(DB, username, google_email, expires_in=None):
                 user_id, google_email, session
             )
 
-        # timestamp at which the SA will lose bucket access
+        # time until the SA will lose bucket access
         # by default: use configured time or 7 days
-        expiration = int(time.time()) + config.get(
+        default_expires_in = config.get(
             "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN", 604800
         )
-        if expires_in:
-            is_valid_expiration(expires_in)
-            # convert it to timestamp
-            requested_expiration = int(time.time()) + expires_in
-            expiration = min(expiration, requested_expiration)
+        # use expires_in from arg if it was provided and it was not greater than the default
+        expires_in = get_valid_expiration(
+            expires_in, max_limit=default_expires_in, default=default_expires_in
+        )
+        # convert expires_in to timestamp
+        expiration = int(time.time() + expires_in)
 
         force_update_user_google_account_expiration(
             user_google_account, proxy_group_id, google_email, expiration, session
@@ -1494,3 +1515,27 @@ def google_list_authz_groups(db):
             print(", ".join(item[:-1]))
 
         return google_authz
+
+
+def update_user_visas(
+    db, chunk_size=None, concurrency=None, thread_pool_size=None, buffer_size=None
+):
+    """
+    Update visas and refresh tokens for users with valid visas and refresh tokens
+
+    db (string): database instance
+    chunk_size (int): size of chunk of users we want to take from each iteration
+    concurrency (int): number of concurrent users going through the visa update flow
+    thread_pool_size (int): number of Docker container CPU used for jwt verifcation
+    buffer_size (int): max size of queue
+    """
+    driver = SQLAlchemyDriver(db)
+    job = Visa_Token_Update(
+        chunk_size=int(chunk_size) if chunk_size else None,
+        concurrency=int(concurrency) if concurrency else None,
+        thread_pool_size=int(thread_pool_size) if thread_pool_size else None,
+        buffer_size=int(buffer_size) if buffer_size else None,
+    )
+    with driver.session as db_session:
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(job.update_tokens(db_session))
