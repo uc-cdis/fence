@@ -176,7 +176,9 @@ def test_google_link_auth_return(
     )
 
     # manually set cookie for initial session
-    client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
+    client.set_cookie(
+        "localhost", config["SESSION_COOKIE_NAME"], test_session_jwt, httponly=True
+    )
 
     # simulate successfully authed reponse with user email
     google_auth_get_user_info_mock.return_value = {"email": google_account}
@@ -251,7 +253,9 @@ def test_patch_google_link(
     db_session.commit()
 
     # manually set cookie for initial session
-    client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
+    client.set_cookie(
+        "localhost", config["SESSION_COOKIE_NAME"], test_session_jwt, httponly=True
+    )
 
     r = client.patch(
         "/link/google", headers={"Authorization": "Bearer " + encoded_credentials_jwt}
@@ -349,7 +353,9 @@ def test_patch_google_link_account_not_in_token(
     db_session.commit()
 
     # manually set cookie for initial session
-    client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
+    client.set_cookie(
+        "localhost", config["SESSION_COOKIE_NAME"], test_session_jwt, httponly=True
+    )
 
     r = client.patch(
         "/link/google", headers={"Authorization": "Bearer " + encoded_credentials_jwt}
@@ -399,7 +405,9 @@ def test_patch_google_link_account_doesnt_exist(
     )
 
     # manually set cookie for initial session
-    client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
+    client.set_cookie(
+        "localhost", config["SESSION_COOKIE_NAME"], test_session_jwt, httponly=True
+    )
 
     r = client.patch(
         "/link/google", headers={"Authorization": "Bearer " + encoded_credentials_jwt}
@@ -462,7 +470,9 @@ def test_google_link_g_account_exists(
     db_session.commit()
 
     # manually set cookie for initial session
-    client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
+    client.set_cookie(
+        "localhost", config["SESSION_COOKIE_NAME"], test_session_jwt, httponly=True
+    )
 
     # simulate successfully authed reponse with user email
     google_auth_get_user_info_mock.return_value = {"email": google_account}
@@ -535,7 +545,9 @@ def test_google_link_g_account_access_extension(
     db_session.commit()
 
     # manually set cookie for initial session
-    client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
+    client.set_cookie(
+        "localhost", config["SESSION_COOKIE_NAME"], test_session_jwt, httponly=True
+    )
 
     # simulate successfully authed reponse with user email
     google_auth_get_user_info_mock.return_value = {"email": google_account}
@@ -616,7 +628,9 @@ def test_google_link_g_account_exists_linked_to_different_user(
     db_session.commit()
 
     # manually set cookie for initial session
-    client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
+    client.set_cookie(
+        "localhost", config["SESSION_COOKIE_NAME"], test_session_jwt, httponly=True
+    )
 
     # simulate successfully authed reponse with user email
     google_auth_get_user_info_mock.return_value = {"email": google_account}
@@ -678,7 +692,9 @@ def test_google_link_no_proxy_group(
     db_session.commit()
 
     # manually set cookie for initial session
-    client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
+    client.set_cookie(
+        "localhost", config["SESSION_COOKIE_NAME"], test_session_jwt, httponly=True
+    )
 
     # simulate successfully authed reponse with user email
     google_auth_get_user_info_mock.return_value = {"email": google_account}
@@ -758,7 +774,9 @@ def test_google_link_when_google_mocked(
     )
 
     # manually set cookie for initial session
-    client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
+    client.set_cookie(
+        "localhost", config["SESSION_COOKIE_NAME"], test_session_jwt, httponly=True
+    )
 
     headers = {"Authorization": "Bearer " + encoded_creds_jwt.jwt}
 
