@@ -1,6 +1,5 @@
 import flask
 
-from fence.models import IdentityProvider
 from fence.resources.openid.okta_oauth2 import OKTA_IDP_NAME
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 
