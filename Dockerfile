@@ -59,10 +59,10 @@ COPY poetry.lock pyproject.toml /$appname/
 
 # install Fence and dependencies via poetry
 RUN source $HOME/.poetry/env \
+    && pip install cryptography \
     && poetry config virtualenvs.create false \
     && poetry install -vv --no-dev --no-interaction \
-    && poetry show -v \
-    && pip install cryptography
+    && poetry show -v
 
 RUN COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" >$appname/version_data.py \
     && VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >>$appname/version_data.py
