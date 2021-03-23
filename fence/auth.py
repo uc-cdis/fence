@@ -25,7 +25,6 @@ logger = get_logger(__name__)
 def get_jwt():
     """
     Return the user's JWT from authorization header. Requires flask application context.
-
     Raises:
         - Unauthorized, if header is missing or not in the correct format
     """
@@ -44,12 +43,10 @@ def get_jwt():
 def build_redirect_url(hostname, path):
     """
     Compute a redirect given a hostname and next path where
-
     Args:
         hostname (str): may be empty string or a bare hostname or
                a hostname with a protocal attached (https?://...)
         path (int): is a path to attach to hostname
-
     Return:
         string url suitable for flask.redirect
     """
@@ -119,10 +116,8 @@ def login_user(username, provider, fence_idp=None, shib_idp=None):
 def logout(next_url, force_era_global_logout=False):
     """
     Return a redirect which another logout from IDP or the provided redirect.
-
     Depending on the IDP, this logout will propogate. For example, if using
     another fence as an IDP, this will hit that fence's logout endpoint.
-
     Args:
         next_url (str): Final redirect desired after logout
     """
