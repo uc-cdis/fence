@@ -61,7 +61,8 @@ COPY poetry.lock pyproject.toml /$appname/
 RUN source $HOME/.poetry/env \
     && poetry config virtualenvs.create false \
     && poetry install -vv --no-dev --no-interaction \
-    && poetry show -v
+    && poetry show -v \
+    && pip install cryptography
 
 RUN COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" >$appname/version_data.py \
     && VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >>$appname/version_data.py
