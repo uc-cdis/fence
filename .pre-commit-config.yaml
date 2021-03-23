@@ -4,6 +4,7 @@ repos:
     hooks:
     -   id: detect-secrets
         args: ['--baseline', '.secrets.baseline']
+        exclude: poetry.lock
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v2.5.0
     hooks:
@@ -12,6 +13,6 @@ repos:
     -   id: no-commit-to-branch
         args: [--branch, develop, --branch, master, --pattern, release/.*]
 -   repo: https://github.com/psf/black
-    rev: 19.10b0
+    rev: stable
     hooks:
     -   id: black

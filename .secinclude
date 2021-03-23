@@ -1,8 +1,7 @@
 bin/*
-dev-requirements.txt
 cfg_help.py
 fence/*
-requirements.txt
 run.py
-setup.py
 wsgi.py
+poetry.lock
+pyproject.toml

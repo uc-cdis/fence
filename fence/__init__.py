@@ -144,13 +144,18 @@ def app_register_blueprints(app):
     def logout_endpoint():
         root = config.get("BASE_URL", "")
         request_next = flask.request.args.get("next", root)
+        force_era_global_logout = (
+            flask.request.args.get("force_era_global_logout") == "true"
+        )
         if request_next.startswith("https") or request_next.startswith("http"):
             next_url = request_next
         else:
             next_url = build_redirect_url(config.get("ROOT_URL", ""), request_next)
         if domain(next_url) not in allowed_login_redirects():
             raise UserError("invalid logout redirect URL: {}".format(next_url))
-        return logout(next_url=next_url)
+        return logout(
+            next_url=next_url, force_era_global_logout=force_era_global_logout
+        )
 
     @app.route("/jwt/keys")
     def public_keys():
@@ -310,13 +315,6 @@ def _set_authlib_cfgs(app):
 
 
 def _setup_oidc_clients(app):
-    if config["LOGIN_OPTIONS"]:
-        enabled_idp_ids = [option["idp"] for option in config["LOGIN_OPTIONS"]]
-    else:
-        # fall back on "providers"
-        enabled_idp_ids = list(
-            config.get("ENABLED_IDENTITY_PROVIDERS", {}).get("providers", {}).keys()
-        )
     oidc = config.get("OPENID_CONNECT", {})
 
     # Add OIDC client for Google if configured.
@@ -364,8 +362,7 @@ def _setup_oidc_clients(app):
         )
 
     # Add OIDC client for multi-tenant fence if configured.
-    configured_fence = "fence" in oidc and "fence" in enabled_idp_ids
-    if configured_fence:
+    if "fence" in oidc:
         app.fence_client = OAuthClient(**config["OPENID_CONNECT"]["fence"])
 
 
@@ -407,7 +404,7 @@ def set_csrf(response):
     """
     if not flask.request.cookies.get("csrftoken"):
         secure = config.get("SESSION_COOKIE_SECURE", True)
-        response.set_cookie("csrftoken", random_str(40), secure=secure)
+        response.set_cookie("csrftoken", random_str(40), secure=secure, httponly=True)
 
     if flask.request.method in ["POST", "PUT", "DELETE"]:
         current_session.commit()

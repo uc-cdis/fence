@@ -26,7 +26,7 @@ import bcrypt
 from cdisutilstest.code.storage_client_mock import get_client
 import jwt
 from mock import patch, MagicMock
-from moto import mock_s3, mock_sts
+from moto import mock_sts
 import pytest
 import requests
 from sqlalchemy.ext.compiler import compiles
@@ -215,7 +215,7 @@ def mock_arborist_requests(request):
 
         mocked_method = MagicMock(side_effect=response_for)
         patch_method = mock.patch(
-            "gen3authz.client.arborist.client.requests.request", mocked_method
+            "gen3authz.client.arborist.client.httpx.Client.request", mocked_method
         )
 
         patch_method.start()

@@ -78,6 +78,8 @@ def get_user_info(current_session, username):
     info = {
         "user_id": user.id,  # TODO deprecated, use 'sub'
         "sub": user.id,
+        # getattr b/c the identity_provider sqlalchemy relationship could not exists (be None)
+        "idp": getattr(user.identity_provider, "name", ""),
         "username": user.username,  # TODO deprecated, use 'name'
         "name": user.username,
         "display_name": user.display_name,  # TODO deprecated, use 'preferred_username'
