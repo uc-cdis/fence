@@ -46,10 +46,9 @@ paths:
     get:
       tags:
         - system
-      summary: Returns if IndexD is healthy or not
+      summary: Returns if Fence is healthy or not
       description: >-
-        Health check endpoint which checks if IndexD can connect to its
-        backing datastore or not.
+        Health check endpoint
       produces:
         - application/text
       responses:
@@ -61,7 +60,7 @@ paths:
     get:
       tags:
         - system
-      summary: Returns the version of IndexD
+      summary: Returns the version of Fence
       produces:
         - application/json
       responses:
