@@ -39,7 +39,36 @@ tags:
     description: Google functionality
   - name: keys
     description: Get public keys used to validate JWTs issued by fence
+  - name: system
+    description: System endpoints
 paths:
+  /_status:
+    get:
+      tags:
+        - system
+      summary: Returns if IndexD is healthy or not
+      description: >-
+        Health check endpoint which checks if IndexD can connect to its
+        backing datastore or not.
+      produces:
+        - application/text
+      responses:
+        '200':
+          description: Healthy
+        default:
+          description: Unhealthy
+  /_version:
+    get:
+      tags:
+        - system
+      summary: Returns the version of IndexD
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: successful operation
+          schema:
+            $ref: '#/definitions/SystemVersionOutputRef'
   /oauth2/authorize:
     get:
       tags:
