@@ -57,7 +57,7 @@ def build_redirect_url(hostname, path):
     return redirect_base + path
 
 
-def login_user(username, provider):
+def login_user(username, provider, fence_idp=None, shib_idp=None):
     """
     Login a user with the given username and provider. Set values in Flask
     session to indicate the user being logged in. In addition, commit the user
@@ -77,8 +77,12 @@ def login_user(username, provider):
             user (User): User object
         """
         flask.session["username"] = user.username
-        flask.session["provider"] = user.identity_provider.name
         flask.session["user_id"] = str(user.id)
+        flask.session["provider"] = user.identity_provider.name
+        if fence_idp:
+            flask.session["fence_idp"] = fence_idp
+        if shib_idp:
+            flask.session["shib_idp"] = shib_idp
         flask.g.user = user
         flask.g.scopes = ["_all"]
         flask.g.token = None
@@ -199,28 +203,6 @@ def login_required(scope=None):
         return wrapper
 
     return decorator
-
-
-def handle_login(scope):
-    if flask.session.get("username"):
-        login_user(flask.session["username"], flask.session["provider"])
-
-    eppn = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
-
-    if config.get("MOCK_AUTH") is True:
-        eppn = "test"
-    # if there is authorization header for oauth
-    if "Authorization" in flask.request.headers:
-        has_oauth(scope=scope)
-    # if there is shibboleth session, then create user session and
-    # log user in
-    elif eppn:
-        username = eppn.split("!")[-1]
-        flask.session["username"] = username
-        flask.session["provider"] = IdentityProvider.itrust
-        login_user(username, flask.session["provider"])
-    else:
-        raise Unauthorized("Please login")
 
 
 def has_oauth(scope=None):

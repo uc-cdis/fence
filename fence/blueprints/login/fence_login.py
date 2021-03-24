@@ -1,15 +1,16 @@
 from authlib.common.urls import add_params_to_uri
 import flask
-from flask_restful import Resource
 
 from fence.auth import login_user
+from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 from fence.blueprints.login.redirect import validate_redirect
+from fence.config import config
 from fence.errors import Unauthorized
 from fence.jwt.validate import validate_jwt
 from fence.models import IdentityProvider
 
 
-class FenceLogin(Resource):
+class FenceLogin(DefaultOAuth2Login):
     """
     For ``/login/fence`` endpoint.
 
@@ -20,6 +21,11 @@ class FenceLogin(Resource):
     Also, if this client fence instance should redirect back to a URL from the
     original OAuth client, record that for the next step.
     """
+
+    def __init__(self):
+        super(FenceLogin, self).__init__(
+            idp_name=IdentityProvider.fence, client=flask.current_app.fence_client
+        )
 
     def get(self):
         """Handle ``GET /login/fence``."""
@@ -40,23 +46,31 @@ class FenceLogin(Resource):
         # add idp parameter to the authorization URL
         if "idp" in flask.request.args:
             idp = flask.request.args["idp"]
+            flask.session["fence_idp"] = idp
             params = {"idp": idp}
             # if requesting to login through Shibboleth, also add shib_idp
             # parameter to the authorization URL
             if idp == "shibboleth" and "shib_idp" in flask.request.args:
-                params["shib_idp"] = flask.request.args["shib_idp"]
+                shib_idp = flask.request.args["shib_idp"]
+                params["shib_idp"] = shib_idp
+                flask.session["shib_idp"] = shib_idp
             authorization_url = add_params_to_uri(authorization_url, params)
 
         flask.session["state"] = state
         return flask.redirect(authorization_url)
 
 
-class FenceCallback(Resource):
+class FenceCallback(DefaultOAuth2Callback):
     """
     For ``/login/fence/login`` endpoint.
 
     The IDP fence app should redirect back to here with an authorization grant.
     """
+
+    def __init__(self):
+        super(FenceCallback, self).__init__(
+            idp_name=IdentityProvider.fence, client=flask.current_app.fence_client
+        )
 
     def get(self):
         """Handle ``GET /login/fence/login``."""
@@ -67,7 +81,7 @@ class FenceCallback(Resource):
             or "state" not in flask.session
             or flask.request.args["state"] != flask.session.pop("state", "")
         )
-        if mismatched_state:
+        if mismatched_state and not config.get("MOCK_AUTH"):
             raise Unauthorized(
                 "Login flow was interrupted (state mismatch). Please go back to the"
                 " login page for the original application to continue."
@@ -81,7 +95,13 @@ class FenceCallback(Resource):
             tokens["id_token"], aud={"openid"}, purpose="id", attempt_refresh=True
         )
         username = id_token_claims["context"]["user"]["name"]
-        login_user(username, IdentityProvider.fence)
+        login_user(
+            username,
+            IdentityProvider.fence,
+            fence_idp=flask.session.get("fence_idp"),
+            shib_idp=flask.session.get("shib_idp"),
+        )
+        self.post_login()
 
         if "redirect" in flask.session:
             return flask.redirect(flask.session.get("redirect"))
