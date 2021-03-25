@@ -36,8 +36,6 @@ def test_valid_redirect_base(mock_discovery, app, client, idp):
     assert response.status_code == 302
     """
 
-
-
 @pytest.mark.parametrize("idp", ["google", "shib", "microsoft", "okta","orcid", "ras"])
 @mock.patch(
     "fence.resources.openid.ras_oauth2.RASOauth2Client.get_value_from_discovery_doc"
