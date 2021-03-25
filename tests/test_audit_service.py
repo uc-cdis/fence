@@ -363,7 +363,7 @@ def test_login_log_login_endpoint(
         }
         flask.redirect_url = ""
 
-    if idp in ["google", "microsoft", "synapse", "cognito"]:
+    if idp in ["google", "microsoft", "okta", "synapse", "cognito"]:
         get_user_id_value["email"] = username
 
     get_user_id_patch = None
