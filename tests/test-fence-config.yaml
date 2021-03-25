@@ -93,6 +93,11 @@ OPENID_CONNECT:
     client_id: ''
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/cognito/login/'
+  okta:
+      discovery_url: ''
+      client_id: ''
+      client_secret: ''
+      redirect_url: '{{BASE_URL}}/login/okta/login/'
   cognito:
     client_id: ''
     client_secret: ''
