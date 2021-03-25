@@ -28,8 +28,7 @@ class RASCallback(DefaultOAuth2Callback):
             username_field="username",
         )
 
-    def post_login(self, user, token_result):
-
+    def post_login(self, user=None, token_result=None):
         # TODO: I'm not convinced this code should be in post_login.
         # Just putting it in here for now, but might refactor later.
         # This saves us a call to RAS /userinfo, but will not make sense
@@ -65,8 +64,10 @@ class RASCallback(DefaultOAuth2Callback):
             current_session.commit()
 
         # Store refresh token in db
-        refresh_token = flask.g.tokens.get("refresh_token")
-        id_token = flask.g.tokens.get("id_token")
+        assert "refresh_token" in flask.g.tokens, "No refresh_token in user tokens"
+        refresh_token = flask.g.tokens["refresh_token"]
+        assert "id_token" in flask.g.tokens, "No id_token in user tokens"
+        id_token = flask.g.tokens["id_token"]
         decoded_id = jwt.decode(id_token, verify=False)
 
         # Add 15 days to iat to calculate refresh token expiration time
@@ -109,3 +110,5 @@ class RASCallback(DefaultOAuth2Callback):
                 DB,
             )
             sync.sync_single_user_visas(user, current_session)
+
+        super(RASCallback, self).post_login()

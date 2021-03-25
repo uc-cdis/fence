@@ -1,8 +1,8 @@
 from cdislogging import get_logger
 import flask
-from flask_restful import Resource
 
 from fence.auth import login_user
+from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 from fence.blueprints.login.redirect import validate_redirect
 from fence.errors import InternalError, Unauthorized
 from fence.models import IdentityProvider
@@ -11,7 +11,12 @@ from fence.config import config
 logger = get_logger(__name__)
 
 
-class ShibbolethLogin(Resource):
+class ShibbolethLogin(DefaultOAuth2Login):
+    def __init__(self):
+        super(ShibbolethLogin, self).__init__(
+            idp_name=IdentityProvider.itrust, client=None
+        )
+
     def get(self):
         """
         The login flow is:
@@ -46,7 +51,12 @@ class ShibbolethLogin(Resource):
         )
 
 
-class ShibbolethCallback(Resource):
+class ShibbolethCallback(DefaultOAuth2Callback):
+    def __init__(self):
+        super(ShibbolethCallback, self).__init__(
+            idp_name=IdentityProvider.itrust, client=None
+        )
+
     def get(self):
         """
         Complete the shibboleth login.
@@ -74,6 +84,7 @@ class ShibbolethCallback(Resource):
         if entityID:
             idp = entityID
         login_user(username, idp)
+        self.post_login()
 
         if flask.session.get("redirect"):
             return flask.redirect(flask.session.get("redirect"))

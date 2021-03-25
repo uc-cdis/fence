@@ -191,6 +191,10 @@ OPENID_CONNECT:
     # and that IdP is a SAML IdP with no 'email_verified' outgoing claim, but it is safe
     # to assume all emails from this SAML IdP are in fact verified, we may set this to True
     assume_emails_verified: False
+  synapse:
+    client_id: ''
+    client_secret: ''
+    redirect_url: ''
   shibboleth:
     client_id: ''
     client_secret: ''
@@ -293,11 +297,12 @@ LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
 # - must be configured in LOGIN_OPTIONS and OPENID_CONNECT
 # - if several options in LOGIN_OPTIONS are defined for this IDP, will default
 # to the first one.
-# Default login URL:
+DEFAULT_LOGIN_IDP: null
+
+# Default login URL: DEPRECATED and replaced by LOGIN_OPTIONS + DEFAULT_LOGIN_IDP configs
 # - Google? Use: '{{BASE_URL}}/login/google'
 # - Multi-tenant fence (e.g. another fence instance)? Use: '{{BASE_URL}}/login/fence'
 # - Sibboleth? Use: '{{BASE_URL}}/login/shib'
-DEFAULT_LOGIN_IDP: null
 DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
 
 # `LOGIN_REDIRECT_WHITELIST` is a list of extra whitelisted URLs which can be redirected
@@ -584,6 +589,12 @@ INDEXD_PASSWORD: ''
 
 # url where authz microservice is running
 ARBORIST: null
+
+# url where the audit-service is running
+AUDIT_SERVICE: 'http://audit-service'
+ENABLE_AUDIT_LOGS:
+  presigned_url: false
+  login: false
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # CLOUD API LIBRARY (CIRRUS) AND GOOGLE CONFIGURATION
