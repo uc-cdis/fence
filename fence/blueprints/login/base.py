@@ -110,7 +110,7 @@ def _login(username, idp_name):
     Login user with given username, then redirect if session has a saved
     redirect.
     """
-    login_user(flask.request, username, idp_name)
+    login_user(username, idp_name)
     if flask.session.get("redirect"):
         return flask.redirect(flask.session.get("redirect"))
     return flask.jsonify({"username": username})

@@ -851,18 +851,19 @@ def add_user_service_account_to_db(session, to_add_project_ids, service_account)
 
         access_groups = _get_google_access_groups(session, project_id)
 
-        # timestamp at which the SA will lose bucket access
+        # time until the SA will lose bucket access
         # by default: use configured time or 7 days
-        expiration_time = int(time.time()) + config.get(
+        default_expires_in = config.get(
             "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN", 604800
         )
-        requested_expires_in = (
-            get_valid_expiration_from_request()
-        )  # requested time (in seconds)
-        if requested_expires_in:
-            # convert it to timestamp
-            requested_expiration = int(time.time()) + requested_expires_in
-            expiration_time = min(expiration_time, requested_expiration)
+        # use expires_in from request query params if it was provided and
+        # it was not greater than the default
+        expires_in = get_valid_expiration_from_request(
+            max_limit=default_expires_in,
+            default=default_expires_in,
+        )
+        # convert expires_in to timestamp
+        expiration_time = int(time.time() + expires_in)
 
         for access_group in access_groups:
             sa_to_group = ServiceAccountToGoogleBucketAccessGroup(
