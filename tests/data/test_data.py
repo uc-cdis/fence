@@ -60,7 +60,9 @@ def test_indexd_download_file(
 
 
 @pytest.mark.parametrize(
-    "indexd_client", ["gs", "s3", "gs_acl", "s3_acl", "s3_external"], indirect=True
+    "indexd_client",
+    ["gs", "s3", "gs_acl", "s3_acl", "s3_external", "no_urls"],
+    indirect=True,
 )
 def test_indexd_upload_file(
     client,
