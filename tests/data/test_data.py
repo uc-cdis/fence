@@ -18,6 +18,38 @@ from unittest.mock import MagicMock, patch
 import cirrus
 from cirrus import GoogleCloudManager
 
+INDEXD_RECORD_WITH_AUTHZ_POPULATED = {
+    "did": "1",
+    "baseid": "",
+    "rev": "",
+    "size": 10,
+    "file_name": "file1",
+    "urls": ["s3://bucket1/key"],
+    "hashes": {},
+    "metadata": {},
+    "authz": ["/open"],
+    "acl": [],
+    "form": "",
+    "created_date": "",
+    "updated_date": "",
+}
+
+INDEXD_RECORD_WITH_AUTHZ_AND_ACL_POPULATED = {
+    "did": "1",
+    "baseid": "",
+    "rev": "",
+    "size": 10,
+    "file_name": "file1",
+    "urls": ["s3://bucket1/key"],
+    "hashes": {},
+    "metadata": {},
+    "authz": ["/open"],
+    "acl": ["*"],
+    "form": "",
+    "created_date": "",
+    "updated_date": "",
+}
+
 
 @pytest.mark.parametrize(
     "indexd_client", ["gs", "s3", "gs_acl", "s3_acl", "s3_external"], indirect=True
@@ -555,6 +587,120 @@ def test_public_bucket_unsupported_protocol_file(
     # response should not be JSON, should be HTML error page
     assert response.mimetype == "text/html"
     assert not response.json
+
+
+def test_public_acl_object_upload_file(
+    client,
+    public_indexd_client,
+):
+    """
+    Test `GET /data/upload/1` in which the `1` Indexd record has acl populated
+    with the public value.
+    """
+    path = "/data/upload/1"
+    response = client.get(path)
+
+    assert response.status_code == 401
+    assert response.data
+    assert response.mimetype == "text/html"
+    assert not response.json
+
+
+def test_public_authz_object_upload_file(
+    client,
+    indexd_client_accepting_record,
+    mock_arborist_requests,
+    user_client,
+    rsa_private_key,
+    kid,
+):
+    """
+    Test `GET /data/upload/1` in which the `1` Indexd record has authz
+    populated with the public value.
+    """
+    indexd_client_accepting_record(INDEXD_RECORD_WITH_AUTHZ_POPULATED)
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+    path = "/data/upload/1"
+    response = client.get(path, headers=headers)
+    assert response.status_code == 200
+    assert "url" in response.json
+
+
+def test_public_authz_object_upload_file_with_failed_authz_check(
+    client,
+    indexd_client_accepting_record,
+    mock_arborist_requests,
+    user_client,
+    rsa_private_key,
+    kid,
+):
+    """
+    Test `GET /data/upload/1` in which the `1` Indexd record has authz
+    populated with the public value, but the user doesn't have the correct
+    authz permission'
+    """
+    indexd_client_accepting_record(INDEXD_RECORD_WITH_AUTHZ_POPULATED)
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": False}, 200)}})
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+    path = "/data/upload/1"
+    response = client.get(path, headers=headers)
+    assert response.status_code == 401
+    assert response.data
+    assert response.mimetype == "text/html"
+    assert not response.json
+
+
+def test_public_authz_and_acl_object_upload_file(
+    client,
+    indexd_client_accepting_record,
+    mock_arborist_requests,
+    user_client,
+    rsa_private_key,
+    kid,
+):
+    """
+    Test `GET /data/upload/1` in which the `1` Indexd record has both authz and
+    acl populated with public values. In this case, authz takes precedence over
+    acl.
+    """
+    indexd_client_accepting_record(INDEXD_RECORD_WITH_AUTHZ_AND_ACL_POPULATED)
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+    path = "/data/upload/1"
+    response = client.get(path, headers=headers)
+    assert response.status_code == 200
+    assert "url" in response.json
 
 
 def test_blank_index_upload(app, client, auth_client, encoded_creds_jwt, user_client):

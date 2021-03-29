@@ -668,6 +668,25 @@ def indexd_client_with_arborist(app, request):
 
 
 @pytest.fixture(scope="function")
+def indexd_client_accepting_record():
+    """
+    Patches IndexedFile's index_document with a caller-supplied dictionary
+    representing an Indexd record.
+    """
+
+    def do_patch(record):
+        mocker = Mocker()
+        mocker.mock_functions()
+
+        indexd_patcher = patch(
+            "fence.blueprints.data.indexd.IndexedFile.index_document", record
+        )
+        mocker.add_mock(indexd_patcher)
+
+    return do_patch
+
+
+@pytest.fixture(scope="function")
 def unauthorized_indexd_client(app, request):
     mocker = Mocker()
     mocker.mock_functions()
