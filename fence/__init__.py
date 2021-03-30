@@ -51,6 +51,7 @@ import fence.blueprints.well_known
 import fence.blueprints.link
 import fence.blueprints.google
 import fence.blueprints.privacy
+import fence.blueprints.register
 
 
 # for some reason the temp dir does not get created properly if we move
@@ -134,6 +135,10 @@ def app_register_blueprints(app):
 
     app.register_blueprint(
         fence.blueprints.privacy.blueprint, url_prefix="/privacy-policy"
+    )
+
+    app.register_blueprint(
+        fence.blueprints.register.blueprint, url_prefix="/register-user"
     )
 
     fence.blueprints.misc.register_misc(app)

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Register</title>
+</head>
+
+
+{% block header %}
+  <h1>{% block title %}Register{% endblock %}</h1>
+{% endblock %}
+
+{% block content %}
+  <form method="post">
+
+    <h1 class="introduction">Register in order to get access to download data</h1>
+    <ul>
+      <li>
+          <label for="name">Name</label>
+          <input name="name" id="name" required>
+      </li>
+      <li>
+          <label for="organization">Organization</label>
+          <input name="organization" id="organization" required>
+      </li>
+
+      <li>
+          {% if user.email %}
+            <p> This account is connected to the email: <strong>{{ user.email }}</strong> </p>
+          {% else %}
+            <label for="email">Email</label>
+            <input type="email" name="email" id="email" required>
+          {% endif %}
+      </li>
+
+    </ul>
+    <button class="button-primary-orange" type="submit">Register</button>
+    <a href={{ on_decline_redirect }}>
+      <button class="button-primary-white" type="button">Maybe Later</button>
+    </a>
+  </form>
+{% endblock %}
+
+
+<!--styling is mostly taken from the OAuth authorize form-->
+<style>
+body {
+    background-color: #F5F5F5;
+    font-family: 'Source Sans Pro', sans-serif;
+}
+ul {
+    list-style: none;
+}
+label {
+    display: inline-block;
+    width: 90px;
+    text-align: right;
+}
+button {
+  border-radius: 4px;
+  width: 152px;
+  height: 40px;
+  font-size: 14px;
+  font-weight: 500;
+  display: inline-block;
+  vertical-align: middle;
+  cursor: pointer;
+  margin-left: 16px;
+}
+.introduction {
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 18px;
+    letter-spacing: .03rem;
+    color: #000000;
+    display: inline-block;
+}
+.button-primary-white {
+    border: 1px solid #9B9B9B;
+    background-color: #FFFFFF;
+    font-weight: 500;
+    color: #606060;
+    fill: #606060;
+}
+.button-primary-white:hover svg path,
+.button-primary-white:hover {
+    border: 1px solid #000000;
+    font-weight: 600;
+    color: #000000;
+    fill: #000000;
+}
+.button-primary-white:active {
+    border: 1px solid #ef8523;
+    color: #ef8523;
+}
+.button-primary-orange {
+  border: 1px solid #9b9b9b;
+  background-color: #ef8523;
+  letter-spacing: .06rem;
+  color: #FFFFFF;
+  fill: #FFFFFF;
+  font-weight: 500;
+}
+.button-primary-orange:hover {
+    border: 1px solid #606060;
+    font-weight: 600;
+    background-color: #ff9635;
+}
+.button-primary-orange:active {
+    opacity: 0.8;
+}
+</style>
+</html>
