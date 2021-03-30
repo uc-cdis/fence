@@ -13,7 +13,9 @@ import mock
 import pytest
 
 
-@pytest.mark.parametrize("idp", ["google", "shib", "microsoft", "orcid", "ras"])
+@pytest.mark.parametrize(
+    "idp", ["google", "shib", "microsoft", "orcid", "ras", "cilogon"]
+)
 @mock.patch(
     "fence.resources.openid.ras_oauth2.RASOauth2Client.get_value_from_discovery_doc"
 )
@@ -29,7 +31,9 @@ def test_valid_redirect_base(mock_discovery, app, client, idp):
     assert response.status_code == 302
 
 
-@pytest.mark.parametrize("idp", ["google", "shib", "microsoft", "orcid", "ras"])
+@pytest.mark.parametrize(
+    "idp", ["google", "shib", "microsoft", "orcid", "ras", "cilogon"]
+)
 @mock.patch(
     "fence.resources.openid.ras_oauth2.RASOauth2Client.get_value_from_discovery_doc"
 )
@@ -44,7 +48,9 @@ def test_valid_redirect_oauth(mock_discovery, client, oauth_client, idp):
     assert response.status_code == 302
 
 
-@pytest.mark.parametrize("idp", ["google", "shib", "microsoft", "orcid", "ras"])
+@pytest.mark.parametrize(
+    "idp", ["google", "shib", "microsoft", "orcid", "ras", "cilogon"]
+)
 def test_invalid_redirect_fails(client, idp):
     """
     Check that giving a bogus redirect to the login endpoint returns an error.

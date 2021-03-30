@@ -18,6 +18,7 @@ from fence.oidc.client import query_client
 from fence.oidc.server import server
 from fence.resources.audit_service_client import AuditServiceClient
 from fence.resources.aws.boto_manager import BotoManager
+from fence.resources.openid.cilogon_oauth2 import CilogonOauth2Client as CilogonClient
 from fence.resources.openid.cognito_oauth2 import CognitoOauth2Client as CognitoClient
 from fence.resources.openid.google_oauth2 import GoogleOauth2Client as GoogleClient
 from fence.resources.openid.microsoft_oauth2 import (
@@ -362,6 +363,14 @@ def _setup_oidc_clients(app):
     if "cognito" in oidc:
         app.cognito_client = CognitoClient(
             oidc["cognito"], HTTP_PROXY=config.get("HTTP_PROXY"), logger=logger
+        )
+
+    # Add OIDC client for CILogon if configured.
+    if "cilogon" in oidc:
+        app.cilogon_client = CilogonClient(
+            config["OPENID_CONNECT"]["cilogon"],
+            HTTP_PROXY=config.get("HTTP_PROXY"),
+            logger=logger,
         )
 
     # Add OIDC client for multi-tenant fence if configured.

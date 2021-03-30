@@ -84,6 +84,10 @@ OPENID_CONNECT:
     client_id: ''
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/orcid/login'
+  cilogon:
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/cilogon/login'
   ras:
     client_id: ''
     client_secret: ''
@@ -186,6 +190,8 @@ LOGIN_OPTIONS:
   - name: 'Orcid Login'
     idp: fence
     fence_idp: orcid
+  - name: 'CILogon Login'
+    idp: cilogon
   - name: 'Microsoft Login'
     idp: microsoft
   - name: 'NIH Login'

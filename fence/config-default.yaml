@@ -184,6 +184,19 @@ OPENID_CONNECT:
     # and that IdP is a SAML IdP with no 'email_verified' outgoing claim, but it is safe
     # to assume all emails from this SAML IdP are in fact verified, we may set this to True
     assume_emails_verified: False
+  # CILogon subscribers can create and manage OIDC clients using COmanage Registry.
+  # Free tier users may request OIDC clients at https://cilogon.org/oauth2/register
+  cilogon:
+    client_id: ''
+    client_secret: ''
+    # When registering the Callback URLs for your CILogon OIDC client be
+    # sure to include the FULL url for this deployment, including the https:// scheme
+    # and server FQDN.
+    redirect_url: '{{BASE_URL}}/login/cilogon/login/'
+    # if mock is true, will fake a successful login response for login
+    # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
+    mock: false
+    mock_default_user: 'http://cilogon.org/serverT/users/64703'
   synapse:
     client_id: ''
     client_secret: ''
@@ -270,6 +283,8 @@ LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
   # - name: 'ORCID Login through other Fence'
   #   idp: fence
   #   fence_idp: orcid
+  # - name: 'CILogon Login'
+  #   idp: cilogon
   # - name: 'InCommon Login'
   #   idp: fence
   #   fence_idp: shibboleth
