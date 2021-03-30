@@ -9,12 +9,11 @@ from fence.blueprints.data.indexd import (
     get_signed_url_for_file,
 )
 from fence.errors import Forbidden, InternalError, UserError, Forbidden
-from fence.utils import is_valid_expiration
+from fence.utils import get_valid_expiration
 from fence.authz.auth import check_arborist_auth
 
 
 logger = get_logger(__name__)
-
 
 blueprint = flask.Blueprint("data", __name__)
 
@@ -26,26 +25,84 @@ def delete_data_file(file_id):
     """
     Delete all the locations for a data file which was uploaded to bucket storage from
     indexd.
-
-    If the data file is still at the first stage where it belongs to just the uploader
-    (and isn't linked to a project), then the deleting user should match the uploader
-    field on the record in indexd. Otherwise, the user must have delete permissions in
-    the project.
+    If the data file has authz matching the user's permissions, delete it.
+    If the data file has no authz, then the deleting user should match the uploader
+    field on the record in indexd.
 
     Args:
         file_id (str): GUID of file to delete
     """
     record = IndexedFile(file_id)
-    # check auth: user must have uploaded the file (so `uploader` field on the record is
-    # this user)
+
+    authz = record.index_document.get("authz")
+    has_correct_authz = None
+    if authz:
+        logger.debug(
+            "Trying to ask arborist if user can delete in fence for {}".format(authz)
+        )
+        has_correct_authz = flask.current_app.arborist.auth_request(
+            jwt=get_jwt(), service="fence", methods="delete", resources=authz
+        )
+
+        # If authz is not empty, use *only* arborist to check if user can delete
+        # Don't fall back on uploader -- this prevents users from escalating from edit to
+        # delete permissions by changing the uploader field to their own username
+        # (b/c users only have edit access through arborist/authz)
+        if has_correct_authz:
+            logger.info("Deleting record and files for {}".format(file_id))
+            message, status_code = record.delete_files(delete_all=True)
+            if str(status_code)[0] != "2":
+                return flask.jsonify({"message": message}), status_code
+
+            try:
+                return record.delete()
+            except Exception as e:
+                logger.error(e)
+                return (
+                    flask.jsonify(
+                        {"message": "There was an error deleting this index record."}
+                    ),
+                    500,
+                )
+        else:
+            return (
+                flask.jsonify(
+                    {
+                        "message": "You do not have arborist permissions to delete this file."
+                    }
+                ),
+                403,
+            )
+
+    # If authz is empty: use uploader == user to see if user can delete.
+    uploader_mismatch_error_message = "You cannot delete this file because the uploader field indicates it does not belong to you."
     uploader = record.index_document.get("uploader")
     if not uploader:
-        raise Forbidden("deleting submitted records is not supported")
+        return (
+            flask.jsonify({"message": uploader_mismatch_error_message}),
+            403,
+        )
     if current_token["context"]["user"]["name"] != uploader:
-        raise Forbidden("user is not uploader for file {}".format(file_id))
+        return (
+            flask.jsonify({"message": uploader_mismatch_error_message}),
+            403,
+        )
     logger.info("deleting record and files for {}".format(file_id))
-    record.delete_files(delete_all=True)
-    return record.delete()
+
+    message, status_code = record.delete_files(delete_all=True)
+    if str(status_code)[0] != "2":
+        return flask.jsonify({"message": message}), status_code
+
+    try:
+        return record.delete()
+    except Exception as e:
+        logger.error(e)
+        return (
+            flask.jsonify(
+                {"message": "There was an error deleting this index record."}
+            ),
+            500,
+        )
 
 
 @blueprint.route("/upload", methods=["POST"])
@@ -100,18 +157,20 @@ def upload_data_file():
     if not authorized:
         raise Forbidden(
             "You do not have access to upload data. You either need "
-            "general file uploader permissions or create & write-storage permissions "
+            "general file uploader permissions or create and write-storage permissions "
             "on the authz resources you specified (if you specified any)."
         )
 
     blank_index = BlankIndex(
         file_name=params["file_name"], authz=params.get("authz"), uploader=uploader
     )
-    expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
+    default_expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
 
-    if "expires_in" in params:
-        is_valid_expiration(params["expires_in"])
-        expires_in = min(params["expires_in"], expires_in)
+    expires_in = get_valid_expiration(
+        params.get("expires_in"),
+        max_limit=default_expires_in,
+        default=default_expires_in,
+    )
 
     response = {
         "guid": blank_index.guid,
@@ -135,10 +194,14 @@ def init_multipart_upload():
     if "file_name" not in params:
         raise UserError("missing required argument `file_name`")
     blank_index = BlankIndex(file_name=params["file_name"])
-    expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
-    if "expires_in" in params:
-        is_valid_expiration(params["expires_in"])
-        expires_in = min(params["expires_in"], expires_in)
+
+    default_expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
+    expires_in = get_valid_expiration(
+        params.get("expires_in"),
+        max_limit=default_expires_in,
+        default=default_expires_in,
+    )
+
     response = {
         "guid": blank_index.guid,
         "uploadId": BlankIndex.init_multipart_upload(
@@ -164,10 +227,13 @@ def generate_multipart_upload_presigned_url():
     if missing:
         raise UserError("missing required arguments: {}".format(list(missing)))
 
-    expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
-    if "expires_in" in params:
-        is_valid_expiration(params["expires_in"])
-        expires_in = min(params["expires_in"], expires_in)
+    default_expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
+    expires_in = get_valid_expiration(
+        params.get("expires_in"),
+        max_limit=default_expires_in,
+        default=default_expires_in,
+    )
+
     response = {
         "presigned_url": BlankIndex.generate_aws_presigned_url_for_part(
             params["key"],
@@ -195,10 +261,12 @@ def complete_multipart_upload():
     if missing:
         raise UserError("missing required arguments: {}".format(list(missing)))
 
-    expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
-    if "expires_in" in params:
-        is_valid_expiration(params["expires_in"])
-        expires_in = min(params["expires_in"], expires_in)
+    default_expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
+    expires_in = get_valid_expiration(
+        params.get("expires_in"),
+        max_limit=default_expires_in,
+        default=default_expires_in,
+    )
 
     try:
         BlankIndex.complete_multipart_upload(

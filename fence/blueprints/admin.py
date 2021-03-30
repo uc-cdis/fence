@@ -6,7 +6,6 @@ will maintain coherence between both systems.
 
 import functools
 
-import flask
 from flask import request, jsonify, Blueprint, current_app
 from flask_sqlalchemy_session import current_session
 

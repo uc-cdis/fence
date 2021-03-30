@@ -159,8 +159,10 @@ def validation_check(db):
             )
 
             try:
-                user_email_list = _get_user_email_list_from_google_project_with_owner_role(
-                    google_project_id
+                user_email_list = (
+                    _get_user_email_list_from_google_project_with_owner_role(
+                        google_project_id
+                    )
                 )
             except GoogleAPIError:
                 logger.warning(
@@ -478,8 +480,10 @@ def _send_emails_informing_service_account_removal(
 
     for email, removal_reasons in invalid_service_account_reasons.items():
         if removal_reasons:
-            content += "\n\t - Service account {} was removed from Google Project {}.".format(
-                email, project_id
+            content += (
+                "\n\t - Service account {} was removed from Google Project {}.".format(
+                    email, project_id
+                )
             )
             for reason in removal_reasons:
                 content += "\n\t\t - {}".format(reason)

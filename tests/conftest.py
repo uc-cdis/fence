@@ -26,7 +26,7 @@ import bcrypt
 from cdisutilstest.code.storage_client_mock import get_client
 import jwt
 from mock import patch, MagicMock
-from moto import mock_s3, mock_sts
+from moto import mock_sts
 import pytest
 import requests
 from sqlalchemy.ext.compiler import compiles
@@ -215,7 +215,7 @@ def mock_arborist_requests(request):
 
         mocked_method = MagicMock(side_effect=response_for)
         patch_method = mock.patch(
-            "gen3authz.client.arborist.client.requests.request", mocked_method
+            "gen3authz.client.arborist.client.httpx.Client.request", mocked_method
         )
 
         patch_method.start()
@@ -415,7 +415,11 @@ def indexd_client(app, request):
     mocker.mock_functions()
     record = {}
 
-    if request.param == "gs":
+    protocol = "s3"
+    if hasattr(request, "param"):
+        protocol = request.param
+
+    if protocol == "gs":
         record = {
             "did": "",
             "baseid": "",
@@ -429,7 +433,7 @@ def indexd_client(app, request):
             "created_date": "",
             "updated_date": "",
         }
-    elif request.param == "gs_acl":
+    elif protocol == "gs_acl":
         record = {
             "did": "",
             "baseid": "",
@@ -443,7 +447,7 @@ def indexd_client(app, request):
             "created_date": "",
             "updated_date": "",
         }
-    elif request.param == "s3_acl":
+    elif protocol == "s3_acl":
         record = {
             "did": "",
             "baseid": "",
@@ -457,7 +461,7 @@ def indexd_client(app, request):
             "created_date": "",
             "updated_date": "",
         }
-    elif request.param == "s3_external":
+    elif protocol == "s3_external":
         record = {
             "did": "",
             "baseid": "",
@@ -471,7 +475,7 @@ def indexd_client(app, request):
             "created_date": "",
             "updated_date": "",
         }
-    elif request.param == "nonexistent_guid":
+    elif protocol == "nonexistent_guid":
         # throw an error when requested to simulate the GUID not existing
         # TODO (rudyardrichter, 2018-11-03): consolidate things needing to do this patch
         mock = MagicMock(side_effect=NotFound("no guid"))
@@ -519,7 +523,7 @@ def indexd_client(app, request):
     output = {
         "mocker": mocker,
         # only gs or s3 for location, ignore specifiers after the _
-        "indexed_file_location": request.param.split("_")[0],
+        "indexed_file_location": protocol.split("_")[0],
     }
 
     yield output
@@ -531,8 +535,12 @@ def indexd_client(app, request):
 def indexd_client_with_arborist(app, request):
     record = {}
 
+    protocol = "s3"
+    if hasattr(request, "param"):
+        protocol = request.param
+
     def do_patch(authz):
-        if request.param == "gs":
+        if protocol == "gs":
             record = {
                 "did": "",
                 "baseid": "",
@@ -547,7 +555,7 @@ def indexd_client_with_arborist(app, request):
                 "created_date": "",
                 "updated_date": "",
             }
-        elif request.param == "gs_acl":
+        elif protocol == "gs_acl":
             record = {
                 "did": "",
                 "baseid": "",
@@ -562,7 +570,7 @@ def indexd_client_with_arborist(app, request):
                 "created_date": "",
                 "updated_date": "",
             }
-        elif request.param == "s3_acl":
+        elif protocol == "s3_acl":
             record = {
                 "did": "",
                 "baseid": "",
@@ -577,7 +585,7 @@ def indexd_client_with_arborist(app, request):
                 "created_date": "",
                 "updated_date": "",
             }
-        elif request.param == "s3_external":
+        elif protocol == "s3_external":
             record = {
                 "did": "",
                 "baseid": "",
@@ -588,6 +596,37 @@ def indexd_client_with_arborist(app, request):
                 "hashes": {},
                 "acl": ["phs000178", "phs000218"],
                 "authz": authz,
+                "form": "",
+                "created_date": "",
+                "updated_date": "",
+            }
+        elif protocol == "s3_and_gs":
+            record = {
+                "did": "",
+                "baseid": "",
+                "rev": "",
+                "size": 10,
+                "file_name": "file1",
+                "urls": ["s3://bucket1/key", "gs://bucket1/key"],
+                "authz": authz,
+                "hashes": {},
+                "metadata": {"acls": "phs000178,phs000218"},
+                "form": "",
+                "created_date": "",
+                "updated_date": "",
+            }
+        elif protocol == "s3_and_gs_acl_no_authz":
+            record = {
+                "did": "",
+                "baseid": "",
+                "rev": "",
+                "size": 10,
+                "file_name": "file1",
+                "urls": ["s3://bucket1/key", "gs://bucket1/key"],
+                "authz": [],
+                "hashes": {},
+                "acl": ["phs000178", "phs000218"],
+                "metadata": {"acls": "phs000178,phs000218"},
                 "form": "",
                 "created_date": "",
                 "updated_date": "",
@@ -620,7 +659,7 @@ def indexd_client_with_arborist(app, request):
         output = {
             "mocker": mocker,
             # only gs or s3 for location, ignore specifiers after the _
-            "indexed_file_location": request.param.split("_")[0],
+            "indexed_file_location": protocol.split("_")[0],
         }
 
         return output
@@ -634,7 +673,11 @@ def unauthorized_indexd_client(app, request):
     mocker.mock_functions()
     record = {}
 
-    if request.param == "gs":
+    protocol = "s3"
+    if hasattr(request, "param"):
+        protocol = request.param
+
+    if protocol == "gs":
         record = {
             "did": "",
             "baseid": "",
@@ -648,7 +691,7 @@ def unauthorized_indexd_client(app, request):
             "created_date": "",
             "updated_date": "",
         }
-    elif request.param == "gs_acl":
+    elif protocol == "gs_acl":
         record = {
             "did": "",
             "baseid": "",
@@ -662,7 +705,7 @@ def unauthorized_indexd_client(app, request):
             "created_date": "",
             "updated_date": "",
         }
-    elif request.param == "s3_acl":
+    elif protocol == "s3_acl":
         record = {
             "did": "",
             "baseid": "",
@@ -702,7 +745,11 @@ def public_indexd_client(app, request):
     mocker = Mocker()
     mocker.mock_functions()
 
-    if request.param == "gs":
+    protocol = "s3"
+    if hasattr(request, "param"):
+        protocol = request.param
+
+    if protocol == "gs":
         record = {
             "did": "",
             "baseid": "",
@@ -716,7 +763,7 @@ def public_indexd_client(app, request):
             "created_date": "",
             "updated_date": "",
         }
-    elif request.param == "gs_acl":
+    elif protocol == "gs_acl":
         record = {
             "did": "",
             "baseid": "",
@@ -730,7 +777,7 @@ def public_indexd_client(app, request):
             "created_date": "",
             "updated_date": "",
         }
-    elif request.param == "s3_acl":
+    elif protocol == "s3_acl":
         record = {
             "did": "",
             "baseid": "",
@@ -775,7 +822,11 @@ def public_bucket_indexd_client(app, request):
     mocker = Mocker()
     mocker.mock_functions()
 
-    if request.param == "gs":
+    protocol = "s3"
+    if hasattr(request, "param"):
+        protocol = request.param
+
+    if protocol == "gs":
         record = {
             "did": "",
             "baseid": "",
@@ -789,7 +840,7 @@ def public_bucket_indexd_client(app, request):
             "created_date": "",
             "updated_date": "",
         }
-    elif request.param == "gs_acl":
+    elif protocol == "gs_acl":
         record = {
             "did": "",
             "baseid": "",
@@ -803,7 +854,7 @@ def public_bucket_indexd_client(app, request):
             "created_date": "",
             "updated_date": "",
         }
-    elif request.param == "s3_acl":
+    elif protocol == "s3_acl":
         record = {
             "did": "",
             "baseid": "",
@@ -817,7 +868,7 @@ def public_bucket_indexd_client(app, request):
             "created_date": "",
             "updated_date": "",
         }
-    elif request.param == "s2":
+    elif protocol == "s2":
         record = {
             "did": "",
             "baseid": "",
@@ -852,7 +903,7 @@ def public_bucket_indexd_client(app, request):
     mocker.add_mock(indexd_patcher)
     request.addfinalizer(indexd_patcher.stop)
 
-    return request.param
+    return protocol
 
 
 @pytest.fixture(scope="function")
@@ -871,6 +922,8 @@ def patch_app_db_session(app, monkeypatch):
             "fence.blueprints.google",
             "fence.oidc.jwt_generator",
             "fence.user",
+            "fence.blueprints.login.synapse",
+            "fence.blueprints.login.ras",
         ]
         for module in modules_to_patch:
             monkeypatch.setattr("{}.current_session".format(module), session)
@@ -1061,39 +1114,6 @@ def google_signed_url():
         "sFpqXsQI8IQi1493mw%3D"
     )
     return manager
-
-
-@pytest.fixture(scope="function")
-def mock_get(monkeypatch, example_keys_response):
-    """
-    Provide a function to patch the value of the JSON returned by
-    ``requests.get``.
-    Args:
-        monkeypatch (pytest.monkeypatch.MonkeyPatch): fixture
-    Return:
-        Calllable[dict, None]:
-            function which sets the reponse JSON of ``requests.get``
-    """
-
-    def do_patch(urls_to_responses=None):
-        """
-        Args:
-            keys_response_json (dict): value to set /jwt/keys return value to
-        Return:
-            None
-        Side Effects:
-            Patch ``requests.get``
-        """
-
-        def get(url):
-            """Define a mock ``get`` function to return a mocked response."""
-            mocked_response = MagicMock(requests.Response)
-            mocked_response.json.return_value = urls_to_responses[url]
-            return mocked_response
-
-        monkeypatch.setattr("requests.get", MagicMock(side_effect=get))
-
-    return do_patch
 
 
 @pytest.fixture(scope="function")

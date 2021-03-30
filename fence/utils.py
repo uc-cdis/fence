@@ -1,6 +1,7 @@
 import bcrypt
 import collections
 from functools import wraps
+import logging
 import json
 from random import SystemRandom
 import re
@@ -14,7 +15,7 @@ import flask
 from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.datastructures import ImmutableMultiDict
 
-from fence.models import Client, GrantType, User, query_for_user
+from fence.models import Client, User, query_for_user
 from fence.errors import NotFound, UserError
 from fence.config import config
 
@@ -190,7 +191,7 @@ def clear_cookies(response):
     Set all cookies to empty and expired.
     """
     for cookie_name in list(flask.request.cookies.keys()):
-        response.set_cookie(cookie_name, "", expires=0)
+        response.set_cookie(cookie_name, "", expires=0, httponly=True)
 
 
 def get_error_params(error, description):
@@ -274,24 +275,98 @@ def send_email(from_email, to_emails, subject, text, smtp_domain):
     )
 
 
-def get_valid_expiration_from_request():
+def get_valid_expiration_from_request(
+    expiry_param="expires_in", max_limit=None, default=None
+):
     """
-    Return the expires_in param if it is in the request, None otherwise.
-    Throw an error if the requested expires_in is not a positive integer.
+    Thin wrapper around get_valid_expiration; looks for default query parameter "expires_in"
+    in flask request, unless a different parameter name was specified.
     """
-    if "expires_in" in flask.request.args:
-        is_valid_expiration(flask.request.args["expires_in"])
-        return int(flask.request.args["expires_in"])
-    else:
-        return None
+    return get_valid_expiration(
+        flask.request.args.get(expiry_param), max_limit=max_limit, default=default
+    )
 
 
-def is_valid_expiration(expires_in):
+def get_valid_expiration(requested_expiration, max_limit=None, default=None):
     """
-    Throw an error if expires_in is not a positive integer.
+    If requested_expiration is not a positive integer and not None, throw error.
+    If max_limit is provided and requested_expiration exceeds max_limit,
+      return max_limit.
+    If requested_expiration is None, return default (which may also be None).
+    Else return requested_expiration.
     """
+    if requested_expiration is None:
+        return default
     try:
-        expires_in = int(flask.request.args["expires_in"])
-        assert expires_in > 0
+        rv = int(requested_expiration)
+        assert rv > 0
+        if max_limit:
+            rv = min(rv, max_limit)
+        return rv
     except (ValueError, AssertionError):
-        raise UserError("expires_in must be a positive integer")
+        raise UserError(
+            "Requested expiry must be a positive integer; instead got {}".format(
+                requested_expiration
+            )
+        )
+
+
+def _print_func_name(function):
+    return "{}.{}".format(function.__module__, function.__name__)
+
+
+def _print_kwargs(kwargs):
+    return ", ".join("{}={}".format(k, repr(v)) for k, v in list(kwargs.items()))
+
+
+def log_backoff_retry(details):
+    args_str = ", ".join(map(str, details["args"]))
+    kwargs_str = (
+        (", " + _print_kwargs(details["kwargs"])) if details.get("kwargs") else ""
+    )
+    func_call_log = "{}({}{})".format(
+        _print_func_name(details["target"]), args_str, kwargs_str
+    )
+    logging.warning(
+        "backoff: call {func_call} delay {wait:0.1f} seconds after {tries} tries".format(
+            func_call=func_call_log, **details
+        )
+    )
+
+
+def log_backoff_giveup(details):
+    args_str = ", ".join(map(str, details["args"]))
+    kwargs_str = (
+        (", " + _print_kwargs(details["kwargs"])) if details.get("kwargs") else ""
+    )
+    func_call_log = "{}({}{})".format(
+        _print_func_name(details["target"]), args_str, kwargs_str
+    )
+    logging.error(
+        "backoff: gave up call {func_call} after {tries} tries; exception: {exc}".format(
+            func_call=func_call_log, exc=sys.exc_info(), **details
+        )
+    )
+
+
+def exception_do_not_retry(error):
+    def _is_status(code):
+        return (
+            str(getattr(error, "code", None)) == code
+            or str(getattr(error, "status", None)) == code
+            or str(getattr(error, "status_code", None)) == code
+        )
+
+    if _is_status("409") or _is_status("404"):
+        return True
+
+    return False
+
+
+# Default settings to control usage of backoff library.
+DEFAULT_BACKOFF_SETTINGS = {
+    "on_backoff": log_backoff_retry,
+    "on_giveup": log_backoff_giveup,
+    "max_tries": 3,
+    "giveup": exception_do_not_retry,
+}

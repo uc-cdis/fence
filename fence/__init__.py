@@ -5,6 +5,7 @@ from authutils.oauth2.client import OAuthClient
 import flask
 from flask_cors import CORS
 from flask_sqlalchemy_session import flask_scoped_session, current_session
+from urllib.parse import urljoin
 from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.auth import logout, build_redirect_url
@@ -15,6 +16,7 @@ from fence.jwt import keys
 from fence.models import migrate
 from fence.oidc.client import query_client
 from fence.oidc.server import server
+from fence.resources.audit_service_client import AuditServiceClient
 from fence.resources.aws.boto_manager import BotoManager
 from fence.resources.openid.cognito_oauth2 import CognitoOauth2Client as CognitoClient
 from fence.resources.openid.google_oauth2 import GoogleOauth2Client as GoogleClient
@@ -146,13 +148,18 @@ def app_register_blueprints(app):
     def logout_endpoint():
         root = config.get("BASE_URL", "")
         request_next = flask.request.args.get("next", root)
+        force_era_global_logout = (
+            flask.request.args.get("force_era_global_logout") == "true"
+        )
         if request_next.startswith("https") or request_next.startswith("http"):
             next_url = request_next
         else:
             next_url = build_redirect_url(config.get("ROOT_URL", ""), request_next)
         if domain(next_url) not in allowed_login_redirects():
             raise UserError("invalid logout redirect URL: {}".format(next_url))
-        return logout(next_url=next_url)
+        return logout(
+            next_url=next_url, force_era_global_logout=force_era_global_logout
+        )
 
     @app.route("/jwt/keys")
     def public_keys():
@@ -258,6 +265,7 @@ def app_config(
     app.config.update(**config._configs)
 
     _setup_arborist_client(app)
+    _setup_audit_service_client(app)
     _setup_data_endpoint_and_boto(app)
     _load_keys(app, root_dir)
     _set_authlib_cfgs(app)
@@ -312,13 +320,6 @@ def _set_authlib_cfgs(app):
 
 
 def _setup_oidc_clients(app):
-    if config["LOGIN_OPTIONS"]:
-        enabled_idp_ids = [option["idp"] for option in config["LOGIN_OPTIONS"]]
-    else:
-        # fall back on "providers"
-        enabled_idp_ids = list(
-            config.get("ENABLED_IDENTITY_PROVIDERS", {}).get("providers", {}).keys()
-        )
     oidc = config.get("OPENID_CONNECT", {})
 
     # Add OIDC client for Google if configured.
@@ -340,7 +341,9 @@ def _setup_oidc_clients(app):
     # Add OIDC client for RAS if configured.
     if "ras" in oidc:
         app.ras_client = RASClient(
-            oidc["ras"], HTTP_PROXY=config.get("HTTP_PROXY"), logger=logger,
+            oidc["ras"],
+            HTTP_PROXY=config.get("HTTP_PROXY"),
+            logger=logger,
         )
 
     # Add OIDC client for Synapse if configured.
@@ -380,14 +383,26 @@ def _setup_oidc_clients(app):
         )
 
     # Add OIDC client for multi-tenant fence if configured.
-    configured_fence = "fence" in oidc and "fence" in enabled_idp_ids
-    if configured_fence:
+    if "fence" in oidc:
         app.fence_client = OAuthClient(**config["OPENID_CONNECT"]["fence"])
 
 
 def _setup_arborist_client(app):
     if app.config.get("ARBORIST"):
         app.arborist = ArboristClient(arborist_base_url=config["ARBORIST"])
+
+
+def _setup_audit_service_client(app):
+    # Initialize the client regardless of whether audit logs are enabled. This
+    # allows us to call `app.audit_service_client.create_x_log()` from
+    # anywhere without checking if audit logs are enabled. The client
+    # checks that for us.
+    service_url = app.config.get("AUDIT_SERVICE") or urljoin(
+        app.config["BASE_URL"], "/audit"
+    )
+    app.audit_service_client = AuditServiceClient(
+        service_url=service_url, logger=logger
+    )
 
 
 @app.errorhandler(Exception)
@@ -423,7 +438,7 @@ def set_csrf(response):
     """
     if not flask.request.cookies.get("csrftoken"):
         secure = config.get("SESSION_COOKIE_SECURE", True)
-        response.set_cookie("csrftoken", random_str(40), secure=secure)
+        response.set_cookie("csrftoken", random_str(40), secure=secure, httponly=True)
 
     if flask.request.method in ["POST", "PUT", "DELETE"]:
         current_session.commit()

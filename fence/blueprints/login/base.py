@@ -48,7 +48,9 @@ class DefaultOAuth2Login(Resource):
             username = flask.request.cookies.get(
                 config.get("DEV_LOGIN_COOKIE_NAME"), mock_default_user
             )
-            return _login(username, self.idp_name)
+            resp = _login(username, self.idp_name)
+            create_login_log(self.idp_name)
+            return resp
 
         return flask.redirect(self.client.get_auth_url())
 
@@ -72,6 +74,7 @@ class DefaultOAuth2Callback(Resource):
     def get(self):
         # Check if user granted access
         if flask.request.args.get("error"):
+
             request_url = flask.request.url
             received_query_params = parse_qsl(
                 urlparse(request_url).query, keep_blank_values=True
@@ -80,6 +83,10 @@ class DefaultOAuth2Callback(Resource):
             redirect_query_params = parse_qsl(
                 urlparse(redirect_uri).query, keep_blank_values=True
             )
+            redirect_uri = (
+                dict(redirect_query_params).get("redirect_uri") or redirect_uri
+            )  # the query params returns empty when we're using the default fence client
+
             final_query_params = urlencode(
                 redirect_query_params + received_query_params
             )
@@ -96,8 +103,19 @@ class DefaultOAuth2Callback(Resource):
             return resp
         raise UserError(result)
 
-    def post_login(self, user, token_result):
-        pass
+    def post_login(self, user=None, token_result=None):
+        create_login_log(self.idp_name)
+
+
+def create_login_log(idp_name):
+    flask.current_app.audit_service_client.create_login_log(
+        username=flask.g.user.username,
+        sub=flask.g.user.id,
+        idp=idp_name,
+        fence_idp=flask.session.get("fence_idp"),
+        shib_idp=flask.session.get("shib_idp"),
+        client_id=flask.session.get("client_id"),
+    )
 
 
 def _login(username, idp_name):
@@ -105,7 +123,7 @@ def _login(username, idp_name):
     Login user with given username, then redirect if session has a saved
     redirect.
     """
-    login_user(flask.request, username, idp_name)
+    login_user(username, idp_name)
     if flask.session.get("redirect"):
         return flask.redirect(flask.session.get("redirect"))
     return flask.jsonify({"username": username})

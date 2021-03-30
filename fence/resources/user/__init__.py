@@ -78,6 +78,8 @@ def get_user_info(current_session, username):
     info = {
         "user_id": user.id,  # TODO deprecated, use 'sub'
         "sub": user.id,
+        # getattr b/c the identity_provider sqlalchemy relationship could not exists (be None)
+        "idp": getattr(user.identity_provider, "name", ""),
         "username": user.username,  # TODO deprecated, use 'name'
         "name": user.username,
         "display_name": user.display_name,  # TODO deprecated, use 'preferred_username'
@@ -92,6 +94,11 @@ def get_user_info(current_session, username):
         "groups": groups,
         "message": "",
     }
+
+    if "fence_idp" in flask.session:
+        info["fence_idp"] = flask.session["fence_idp"]
+    if "shib_idp" in flask.session:
+        info["shib_idp"] = flask.session["shib_idp"]
 
     # User SAs are stored in db with client_id = None
     primary_service_account = get_service_account(client_id=None, user_id=user.id) or {}
@@ -187,7 +194,7 @@ def send_mail(send_from, send_to, subject, text, server, certificates=None):
     smtp.close()
 
 
-def get_user_accesses():
+def get_user_accesses(current_session):
     user = udm.get_user_accesses()
     if not user:
         raise InternalError("Error: %s user does not exist" % flask.g.user.username)

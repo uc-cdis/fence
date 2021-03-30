@@ -312,23 +312,23 @@ def is_user_member_of_google_project(
     user_id, google_cloud_manager, db=None, membership=None
 ):
     """
-        Return whether or not the given user is a member of the provided
-        Google project ID.
+    Return whether or not the given user is a member of the provided
+    Google project ID.
 
-        This will verify that either the user's email or their linked Google
-        account email exists as a member in the project.
+    This will verify that either the user's email or their linked Google
+    account email exists as a member in the project.
 
-        Args:
-            user_id (int): User identifier
-            google_cloud_manager (GoogleCloudManager): cloud manager instance
-            db(str): db connection string
-            membership (List(GooglePolicyMember) : pre-calculated list of members,
-                Will make call to Google API if membership is None
+    Args:
+        user_id (int): User identifier
+        google_cloud_manager (GoogleCloudManager): cloud manager instance
+        db(str): db connection string
+        membership (List(GooglePolicyMember) : pre-calculated list of members,
+            Will make call to Google API if membership is None
 
-        Returns:
-            bool: whether or not the given user is a member of ALL of the provided
-                  Google project IDs
-        """
+    Returns:
+        bool: whether or not the given user is a member of ALL of the provided
+              Google project IDs
+    """
     session = get_db_session(db)
     user = session.query(User).filter_by(id=user_id).first()
     if not user:
@@ -404,7 +404,7 @@ def is_user_member_of_all_google_projects(
 
 
 def get_user_by_linked_email(linked_email, db=None):
-    """"
+    """ "
     Return user identified by linked_email address
 
     Args:
@@ -851,18 +851,19 @@ def add_user_service_account_to_db(session, to_add_project_ids, service_account)
 
         access_groups = _get_google_access_groups(session, project_id)
 
-        # timestamp at which the SA will lose bucket access
+        # time until the SA will lose bucket access
         # by default: use configured time or 7 days
-        expiration_time = int(time.time()) + config.get(
+        default_expires_in = config.get(
             "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN", 604800
         )
-        requested_expires_in = (
-            get_valid_expiration_from_request()
-        )  # requested time (in seconds)
-        if requested_expires_in:
-            # convert it to timestamp
-            requested_expiration = int(time.time()) + requested_expires_in
-            expiration_time = min(expiration_time, requested_expiration)
+        # use expires_in from request query params if it was provided and
+        # it was not greater than the default
+        expires_in = get_valid_expiration_from_request(
+            max_limit=default_expires_in,
+            default=default_expires_in,
+        )
+        # convert expires_in to timestamp
+        expiration_time = int(time.time() + expires_in)
 
         for access_group in access_groups:
             sa_to_group = ServiceAccountToGoogleBucketAccessGroup(

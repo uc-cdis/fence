@@ -334,9 +334,7 @@ class GoogleProjectValidity(ValidityInfo):
             if early_return:
                 return
 
-        logger.debug(
-            "Determining if valid users exist in fence.".format(self.google_project_id)
-        )
+        logger.debug("Determining if valid users exist in fence.")
         # if we have valid members, we can check if they exist in fence
         users_in_project = None
         if user_members is not None:

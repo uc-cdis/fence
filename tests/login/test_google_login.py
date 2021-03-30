@@ -26,7 +26,9 @@ def test_google_login_http_headers_are_less_than_4k_for_user_with_many_projects(
             "redirect": "https://localhost/user/oauth2/authorize?client_id=7f7kAS4MJraUuo77d7RWHr4mZ6bvGtuzup7hw46I&response_type=id_token&redirect_uri=https://webapp.example/fence&scope=openid+user+data+google_credentials&nonce=randomvalue"
         },
     )
-    client.set_cookie("localhost", config["SESSION_COOKIE_NAME"], test_session_jwt)
+    client.set_cookie(
+        "localhost", config["SESSION_COOKIE_NAME"], test_session_jwt, httponly=True
+    )
 
     user_projects = {
         "test": {
@@ -42,7 +44,11 @@ def test_google_login_http_headers_are_less_than_4k_for_user_with_many_projects(
             for x in range(20)
         }
     }
-    user_info = {"test": {"tags": {},}}
+    user_info = {
+        "test": {
+            "tags": {},
+        }
+    }
     dbGaP = os.environ.get("dbGaP") or config.get("dbGaP")
     syncer = UserSyncer(dbGaP, config["DB"], {})
     syncer.sync_to_db_and_storage_backend(user_projects, user_info, db_session)

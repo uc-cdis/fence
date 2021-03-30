@@ -1,12 +1,16 @@
 import flask
 import jwt
+import os
 from flask_sqlalchemy_session import current_session
+import urllib.request, urllib.parse, urllib.error
 
-from fence.models import GA4GHVisaV1, IdentityProvider, User
+from fence.models import GA4GHVisaV1, IdentityProvider
 
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 
 from fence.config import config
+from fence.scripting.fence_create import init_syncer
+from fence.utils import get_valid_expiration
 
 
 class RASLogin(DefaultOAuth2Login):
@@ -24,8 +28,7 @@ class RASCallback(DefaultOAuth2Callback):
             username_field="username",
         )
 
-    def post_login(self, user, token_result):
-
+    def post_login(self, user=None, token_result=None):
         # TODO: I'm not convinced this code should be in post_login.
         # Just putting it in here for now, but might refactor later.
         # This saves us a call to RAS /userinfo, but will not make sense
@@ -57,16 +60,55 @@ class RASCallback(DefaultOAuth2Callback):
                 expires=int(decoded_visa["exp"]),
                 ga4gh_visa=encoded_visa,
             )
-
             current_session.add(visa)
             current_session.commit()
 
         # Store refresh token in db
-        refresh_token = flask.g.tokens.get("refresh_token")
-        id_token = flask.g.tokens.get("id_token")
+        assert "refresh_token" in flask.g.tokens, "No refresh_token in user tokens"
+        refresh_token = flask.g.tokens["refresh_token"]
+        assert "id_token" in flask.g.tokens, "No id_token in user tokens"
+        id_token = flask.g.tokens["id_token"]
         decoded_id = jwt.decode(id_token, verify=False)
+
         # Add 15 days to iat to calculate refresh token expiration time
-        expires = int(decoded_id.get("iat")) + config["RAS_REFRESH_EXPIRATION"]
+        issued_time = int(decoded_id.get("iat"))
+        expires = config["RAS_REFRESH_EXPIRATION"]
+
+        # User definied RAS refresh token expiration time
+        parsed_url = urllib.parse.parse_qs(flask.redirect_url)
+        if parsed_url.get("upstream_expires_in"):
+            custom_refresh_expiration = parsed_url.get("upstream_expires_in")[0]
+            expires = get_valid_expiration(
+                custom_refresh_expiration,
+                expires,
+                expires,
+            )
+
         flask.current_app.ras_client.store_refresh_token(
-            user=user, refresh_token=refresh_token, expires=expires
+            user=user, refresh_token=refresh_token, expires=expires + issued_time
         )
+
+        # Check if user has any project_access from a previous session or from usersync
+        # if not do an on-the-fly usersync for this user to give them instant access after logging in through RAS
+        if not user.project_access:
+            # Close previous db sessions. Leaving it open causes a race condition where we're viewing user.project_access while trying to update it in usersync
+            # not closing leads to partially updated records
+            current_session.close()
+            DB = os.environ.get("FENCE_DB") or config.get("DB")
+            if DB is None:
+                try:
+                    from fence.settings import DB
+                except ImportError:
+                    pass
+            dbGaP = os.environ.get("dbGaP") or config.get("dbGaP")
+            if not isinstance(dbGaP, list):
+                dbGaP = [dbGaP]
+
+            sync = init_syncer(
+                dbGaP,
+                None,
+                DB,
+            )
+            sync.sync_single_user_visas(user, current_session)
+
+        super(RASCallback, self).post_login()

@@ -15,6 +15,9 @@ from tests import utils
 
 from unittest.mock import MagicMock, patch
 
+import cirrus
+from cirrus import GoogleCloudManager
+
 
 @pytest.mark.parametrize(
     "indexd_client", ["gs", "s3", "gs_acl", "s3_acl", "s3_external"], indirect=True
@@ -464,13 +467,22 @@ def test_public_object_download_file_no_force_sign(
     """
     Test ``GET /data/download/1?no_force_sign=True``.
     """
-    path = "/data/download/1?no_force_sign=True"
-    response = client.get(path)
+
+    no_force_sign_enabled_path = "/data/download/1?no_force_sign=True"
+    response = client.get(no_force_sign_enabled_path)
     assert response.status_code == 200
     assert "url" in list(response.json.keys())
 
     # make sure we honor no_force_sign, check that response is unsigned raw url
     assert urllib.parse.urlparse(response.json["url"]).query == ""
+
+    no_force_sign_disabled_path = "/data/download/1?no_force_sign=False"
+    response = client.get(no_force_sign_disabled_path)
+    assert response.status_code == 200
+    assert "url" in list(response.json.keys())
+
+    # url should be signed, as normal
+    assert urllib.parse.urlparse(response.json["url"]).query != ""
 
 
 @pytest.mark.parametrize(
@@ -558,7 +570,7 @@ def test_blank_index_upload(app, client, auth_client, encoded_creds_jwt, user_cl
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
     arborist_requests_mocker = mock.patch(
-        "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
     )
     with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
         data_requests.post.return_value = MockResponse(
@@ -569,8 +581,8 @@ def test_blank_index_upload(app, client, auth_client, encoded_creds_jwt, user_cl
             }
         )
         data_requests.post.return_value.status_code = 200
-        arborist_requests.request.return_value = MockResponse({"auth": True})
-        arborist_requests.request.return_value.status_code = 200
+        arborist_requests.return_value = MockResponse({"auth": True})
+        arborist_requests.return_value.status_code = 200
         headers = {
             "Authorization": "Bearer " + encoded_creds_jwt.jwt,
             "Content-Type": "application/json",
@@ -611,7 +623,7 @@ def test_blank_index_upload_authz(
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
     arborist_requests_mocker = mock.patch(
-        "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
     )
     with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
         data_requests.post.return_value = MockResponse(
@@ -622,8 +634,8 @@ def test_blank_index_upload_authz(
             }
         )
         data_requests.post.return_value.status_code = 200
-        arborist_requests.request.return_value = MockResponse({"auth": True})
-        arborist_requests.request.return_value.status_code = 200
+        arborist_requests.return_value = MockResponse({"auth": True})
+        arborist_requests.return_value.status_code = 200
         headers = {
             "Authorization": "Bearer " + encoded_creds_jwt.jwt,
             "Content-Type": "application/json",
@@ -830,6 +842,73 @@ def test_delete_file_locations(
         "did": did,
         "baseid": "",
         "rev": "",
+        "authz": ["/programs/phs000178"],
+        "size": 10,
+        "file_name": "file1",
+        "urls": ["s3://bucket1/key-{}".format(did[:8])],
+        "acl": ["phs000178"],
+        "hashes": {},
+        "metadata": {},
+        "form": "",
+        "created_date": "",
+        "updated_date": "",
+    }
+    arborist_requests_mocker = mock.patch(
+        "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
+    )
+    mock_indexed_file_delete_file = mock.patch(
+        "fence.blueprints.data.indexd.IndexedFile.delete_files",
+        mock.MagicMock(return_value=("", 204)),
+    )
+    mock_index_document = mock.patch(
+        "fence.blueprints.data.indexd.IndexedFile.index_document", index_document
+    )
+    mock_check_auth = mock.patch.object(
+        fence.blueprints.data.indexd.IndexedFile,
+        "check_authorization",
+        return_value=True,
+    )
+
+    mock_index_document.start()
+    mock_indexed_file_delete_file.start()
+    mock_check_auth.start()
+    mock_boto_delete = mock.MagicMock()
+    monkeypatch.setattr(app.boto, "delete_data_file", mock_boto_delete)
+
+    class MockResponse(object):
+        def __init__(self, data, status_code=200):
+            self.data = data
+            self.status_code = status_code
+
+        def json(self):
+            return self.data
+
+    mock_delete_response = mock.MagicMock()
+    mock_delete_response.status_code = 200
+    mock_delete = mock.MagicMock(requests.put, return_value=mock_delete_response)
+    with mock.patch(
+        "fence.blueprints.data.indexd.requests.delete", mock_delete
+    ), arborist_requests_mocker as arborist_requests:
+        arborist_requests.return_value = MockResponse({"auth": True})
+        arborist_requests.return_value.status_code = 200
+        headers = {"Authorization": "Bearer " + encoded_creds_jwt.jwt}
+        response = client.delete("/data/{}".format(did), headers=headers)
+        assert response.status_code == 204
+        assert mock_boto_delete.called_once()
+
+    mock_check_auth.stop()
+    mock_index_document.stop()
+    mock_indexed_file_delete_file.stop()
+
+
+def test_delete_file_locations_by_uploader(
+    app, client, encoded_creds_jwt, user_client, monkeypatch
+):
+    did = str(uuid.uuid4())
+    index_document = {
+        "did": did,
+        "baseid": "",
+        "rev": "",
         "uploader": user_client.username,
         "size": 10,
         "file_name": "file1",
@@ -841,23 +920,58 @@ def test_delete_file_locations(
         "created_date": "",
         "updated_date": "",
     }
+    arborist_requests_mocker = mock.patch(
+        "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
+    )
     mock_index_document = mock.patch(
         "fence.blueprints.data.indexd.IndexedFile.index_document", index_document
+    )
+    mock_indexed_file_delete_file = mock.patch(
+        "fence.blueprints.data.indexd.IndexedFile.delete_files",
+        mock.MagicMock(return_value=("", 204)),
     )
     mock_check_auth = mock.patch.object(
         fence.blueprints.data.indexd.IndexedFile,
         "check_authorization",
         return_value=True,
     )
+
+    class FakeGCM(object):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, a, b, c):
+            return
+
+        def delete_data_file(self, bucket, file_id):
+            return "", 200
+
+    mock_gcm = mock.patch(
+        "fence.blueprints.data.indexd.GoogleCloudManager", return_value=FakeGCM()
+    )
+
     mock_index_document.start()
+    mock_indexed_file_delete_file.start()
     mock_check_auth.start()
     mock_boto_delete = mock.MagicMock()
     monkeypatch.setattr(app.boto, "delete_data_file", mock_boto_delete)
 
+    class MockResponse(object):
+        def __init__(self, data, status_code=200):
+            self.data = data
+            self.status_code = status_code
+
+        def json(self):
+            return self.data
+
     mock_delete_response = mock.MagicMock()
     mock_delete_response.status_code = 200
     mock_delete = mock.MagicMock(requests.put, return_value=mock_delete_response)
-    with mock.patch("fence.blueprints.data.indexd.requests.delete", mock_delete):
+    with mock.patch(
+        "fence.blueprints.data.indexd.requests.delete", mock_delete
+    ), arborist_requests_mocker as arborist_requests, mock_gcm as mock_gcm_2:
+        arborist_requests.return_value = MockResponse({"auth": True})
+        arborist_requests.return_value.status_code = 200
         headers = {"Authorization": "Bearer " + encoded_creds_jwt.jwt}
         response = client.delete("/data/{}".format(did), headers=headers)
         assert response.status_code == 204
@@ -865,6 +979,7 @@ def test_delete_file_locations(
 
     mock_check_auth.stop()
     mock_index_document.stop()
+    mock_indexed_file_delete_file.stop()
 
 
 def test_blank_index_upload_unauthorized(
@@ -882,17 +997,16 @@ def test_blank_index_upload_unauthorized(
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
     arborist_requests_mocker = mock.patch(
-        "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
     )
     with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
         # pretend arborist says "no"
-        arborist_requests.request.return_value = MockResponse({"auth": False})
-        arborist_requests.request.return_value.status_code = 200
+        arborist_requests.return_value = MockResponse({"auth": False})
+        arborist_requests.return_value.status_code = 200
         headers = {
             "Authorization": "Bearer " + encoded_creds_jwt.jwt,
             "Content-Type": "application/json",
         }
-        file_name = "asdf"
         data = json.dumps({"file_name": "doesn't matter"})
         response = client.post("/data/upload", headers=headers, data=data)
         data_requests.post.assert_not_called()
@@ -961,7 +1075,7 @@ def test_initialize_multipart_upload(
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
     arborist_requests_mocker = mock.patch(
-        "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
     )
 
     fence.blueprints.data.indexd.BlankIndex.init_multipart_upload = MagicMock()
@@ -974,8 +1088,8 @@ def test_initialize_multipart_upload(
             }
         )
         data_requests.post.return_value.status_code = 200
-        arborist_requests.request.return_value = MockResponse({"auth": True})
-        arborist_requests.request.return_value.status_code = 200
+        arborist_requests.return_value = MockResponse({"auth": True})
+        arborist_requests.return_value.status_code = 200
         fence.blueprints.data.indexd.BlankIndex.init_multipart_upload.return_value = (
             "test_uploadId"
         )
@@ -1015,7 +1129,7 @@ def test_multipart_upload_presigned_url(
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
     arborist_requests_mocker = mock.patch(
-        "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
     )
 
     fence.blueprints.data.indexd.BlankIndex.generate_aws_presigned_url_for_part = (
@@ -1030,8 +1144,8 @@ def test_multipart_upload_presigned_url(
             }
         )
         data_requests.post.return_value.status_code = 200
-        arborist_requests.request.return_value = MockResponse({"auth": True})
-        arborist_requests.request.return_value.status_code = 200
+        arborist_requests.return_value = MockResponse({"auth": True})
+        arborist_requests.return_value.status_code = 200
         fence.blueprints.data.indexd.BlankIndex.generate_aws_presigned_url_for_part.return_value = (
             "test_presigned"
         )
@@ -1064,7 +1178,7 @@ def test_multipart_complete_upload(
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
     arborist_requests_mocker = mock.patch(
-        "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
     )
 
     fence.blueprints.data.indexd.BlankIndex.complete_multipart_upload = MagicMock()
@@ -1077,8 +1191,8 @@ def test_multipart_complete_upload(
             }
         )
         data_requests.post.return_value.status_code = 200
-        arborist_requests.request.return_value = MockResponse({"auth": True})
-        arborist_requests.request.return_value.status_code = 200
+        arborist_requests.return_value = MockResponse({"auth": True})
+        arborist_requests.return_value.status_code = 200
         fence.blueprints.data.indexd.BlankIndex.generate_aws_presigned_url_for_part.return_value = (
             "test_presigned"
         )
@@ -1099,3 +1213,67 @@ def test_multipart_complete_upload(
         response = client.post("/data/multipart/complete", headers=headers, data=data)
 
         assert response.status_code == 200, response
+
+
+def test_delete_files(app, client, auth_client, encoded_creds_jwt, user_client):
+    fence.auth.config["MOCK_AUTH"] = True
+    did = str(uuid.uuid4())
+    did2 = str(uuid.uuid4())
+
+    indx = fence.blueprints.data.indexd.IndexedFile(did)
+    urls = [
+        "s3://bucket1/key-{}".format(did[:8]),
+        "s3://bucket1/key-{}".format(did2[:8]),
+    ]
+    with patch("fence.blueprints.data.indexd.S3IndexedFileLocation") as s3mock:
+        s3mock.return_value.bucket_name.return_value = "bucket"
+        s3mock.return_value.file_name.return_value = "file"
+        mocklocation = s3mock.return_value
+
+        # no urls, no files, no error
+        mocklocation.delete.return_value = ("ok", 200)
+        indx.indexed_file_locations = []
+        message, status = indx.delete_files(urls=None, delete_all=True)
+        assert 0 == mocklocation.delete.call_count
+        assert status == 200
+
+        # urls, files, no error
+        mocklocation.reset_mock()
+        indx.indexed_file_locations = [mocklocation, mocklocation]
+        message, status = indx.delete_files(urls, delete_all=True)
+        assert 2 == mocklocation.delete.call_count
+        assert status == 200
+
+        # no urls, files, no error
+        mocklocation.reset_mock()
+        message, status = indx.delete_files(urls=None)
+        assert 2 == mocklocation.delete.call_count
+        assert status == 200
+
+        # case for urls subset of total locations without error
+        mocklocation.reset_mock()
+        urls = ["s3://bucket1/key-{}".format(did2[:8])]
+        message, status = indx.delete_files(urls, delete_all=True)
+        assert 1 == mocklocation.delete.call_count
+        assert status == 200
+
+        # no urls, files, error
+        mocklocation.reset_mock()
+        mocklocation.delete.return_value = ("bad response", 400)
+        message, status = indx.delete_files(urls=None, delete_all=True)
+        assert 1 == mocklocation.delete.call_count
+        assert status == 400
+
+        # urls, files, error
+        mocklocation.reset_mock()
+        message, status = indx.delete_files(urls)
+        assert 1 == mocklocation.delete.call_count
+        assert status == 400
+
+        # case for urls subset of total locations with error
+        mocklocation.reset_mock()
+        message, status = indx.delete_files(urls, delete_all=True)
+        assert 1 == mocklocation.delete.call_count
+        assert status == 400
+
+    fence.auth.config["MOCK_AUTH"] = False

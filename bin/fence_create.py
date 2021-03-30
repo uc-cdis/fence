@@ -33,6 +33,7 @@ from fence.scripting.fence_create import (
     force_update_google_link,
     migrate_database,
     google_list_authz_groups,
+    update_user_visas,
 )
 from fence.settings import CONFIG_SEARCH_FOLDERS
 
@@ -107,6 +108,13 @@ def parse_arguments():
     client_modify.add_argument("--urls", required=False, nargs="+")
     client_modify.add_argument("--name", required=False)
     client_modify.add_argument("--description", required=False)
+    client_modify.add_argument("--allowed-scopes", required=False, nargs="+")
+    client_modify.add_argument(
+        "--append",
+        help="append either new allowed scopes or urls instead of replacing",
+        action="store_true",
+        default=False,
+    )
     client_modify.add_argument(
         "--set-auto-approve",
         help="set the oidc process to skip user consent step",
@@ -332,6 +340,28 @@ def parse_arguments():
         "Fence is providing access to. Includes Fence Project.auth_id and Google Bucket "
         "Access Group",
     )
+    update_visas = subparsers.add_parser(
+        "update-visas",
+        help="Update visas and refresh tokens for users with valid visas and refresh tokens.",
+    )
+    update_visas.add_argument(
+        "--chunk-size",
+        required=False,
+        help="size of chunk of users we want to take from each query to db. Default value: 10",
+    )
+    update_visas.add_argument(
+        "--concurrency",
+        required=False,
+        help="number of concurrent users going through the visa update flow. Default value: 5",
+    )
+    update_visas.add_argument(
+        "--thread-pool-size",
+        required=False,
+        help="number of Docker container CPU used for jwt verifcation. Default value: 3",
+    )
+    update_visas.add_argument(
+        "--buffer-size", required=False, help="max size of queue. Default value: 10"
+    )
 
     return parser.parse_args()
 
@@ -375,6 +405,9 @@ def main():
     STORAGE_CREDENTIALS = os.environ.get("STORAGE_CREDENTIALS") or config.get(
         "STORAGE_CREDENTIALS"
     )
+    usersync = config.get("USERSYNC", {})
+    sync_from_visas = usersync.get("sync_from_visas", False)
+    fallback_to_dbgap_sftp = usersync.get("fallback_to_dbgap_sftp", False)
 
     arborist = None
     if args.arborist:
@@ -413,6 +446,8 @@ def main():
             unset_auto_approve=args.unset_auto_approve,
             arborist=arborist,
             policies=args.policies,
+            allowed_scopes=args.allowed_scopes,
+            append=args.append,
         )
     elif args.action == "client-delete":
         delete_client_action(DB, args.client)
@@ -435,10 +470,15 @@ def main():
             sync_from_local_yaml_file=args.yaml,
             folder=args.folder,
             arborist=arborist,
+            sync_from_visas=sync_from_visas,
+            fallback_to_dbgap_sftp=fallback_to_dbgap_sftp,
         )
     elif args.action == "dbgap-download-access-files":
         download_dbgap_files(
-            dbGaP, STORAGE_CREDENTIALS, DB, folder=args.folder,
+            dbGaP,
+            STORAGE_CREDENTIALS,
+            DB,
+            folder=args.folder,
         )
     elif args.action == "google-manage-keys":
         remove_expired_google_service_account_keys(DB)
@@ -531,6 +571,14 @@ def main():
         )
     elif args.action == "migrate":
         migrate_database(DB)
+    elif args.action == "update-visas":
+        update_user_visas(
+            DB,
+            chunk_size=args.chunk_size,
+            concurrency=args.concurrency,
+            thread_pool_size=args.thread_pool_size,
+            buffer_size=args.buffer_size,
+        )
 
 
 if __name__ == "__main__":

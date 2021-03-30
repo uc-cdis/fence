@@ -1,7 +1,13 @@
 import flask
-from .idp_oauth2 import Oauth2ClientBase
-from jose import jwt
 import requests
+import jwt
+import backoff
+from flask_sqlalchemy_session import current_session
+from jose import jwt as jose_jwt
+
+from fence.models import GA4GHVisaV1
+from fence.utils import DEFAULT_BACKOFF_SETTINGS
+from .idp_oauth2 import Oauth2ClientBase
 
 
 class RASOauth2Client(Oauth2ClientBase):
@@ -40,6 +46,19 @@ class RASOauth2Client(Oauth2ClientBase):
         access_token = token["access_token"]
         header = {"Authorization": "Bearer " + access_token}
         res = requests.get(userinfo_endpoint, headers=header)
+        if res.status_code != 200:
+            msg = res.text
+            try:
+                msg = res.json()
+            except:
+                pass
+            self.logger.error(
+                "Unable to get visa: status_code: {}, message: {}".format(
+                    res.status_code,
+                    msg,
+                )
+            )
+            return {}
         return res.json()
 
     def get_user_id(self, code):
@@ -57,7 +76,7 @@ class RASOauth2Client(Oauth2ClientBase):
             keys = self.get_jwt_keys(jwks_endpoint)
             userinfo = self.get_userinfo(token, userinfo_endpoint)
 
-            claims = jwt.decode(
+            claims = jose_jwt.decode(
                 token["id_token"],
                 keys,
                 options={"verify_aud": False, "verify_at_hash": False},
@@ -67,6 +86,9 @@ class RASOauth2Client(Oauth2ClientBase):
             if userinfo.get("UserID"):
                 username = userinfo["UserID"]
                 field_name = "UserID"
+            elif userinfo.get("userid"):
+                username = userinfo["userid"]
+                field_name = "userid"
             elif userinfo.get("preferred_username"):
                 username = userinfo["preferred_username"]
                 field_name = "preferred_username"
@@ -92,3 +114,50 @@ class RASOauth2Client(Oauth2ClientBase):
             return {"error": err_msg}
 
         return {"username": username}
+
+    @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
+    def update_user_visas(self, user, db_session=current_session):
+        """
+        Updates user's RAS refresh token and uses the new access token to retrieve new visas from
+        RAS's /userinfo endpoint and update the db with the new visa.
+        - delete user's visas from db if we're not able to get a new access_token
+        - delete user's visas from db if we're not able to get a new visa
+        """
+        user.ga4gh_visas_v1 = []
+        db_session.commit()
+
+        try:
+            token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
+            userinfo_endpoint = self.get_value_from_discovery_doc(
+                "userinfo_endpoint", ""
+            )
+            token = self.get_access_token(user, token_endpoint, db_session)
+            userinfo = self.get_userinfo(token, userinfo_endpoint)
+            encoded_visas = userinfo.get("ga4gh_passport_v1", [])
+        except Exception as e:
+            err_msg = "Could not retrieve visa"
+            self.logger.exception("{}: {}".format(err_msg, e))
+            raise
+
+        for encoded_visa in encoded_visas:
+            try:
+                # TODO: These visas must be validated!!!
+                decoded_visa = jwt.decode(encoded_visa, verify=False)
+                visa = GA4GHVisaV1(
+                    user=user,
+                    source=decoded_visa["ga4gh_visa_v1"]["source"],
+                    type=decoded_visa["ga4gh_visa_v1"]["type"],
+                    asserted=int(decoded_visa["ga4gh_visa_v1"]["asserted"]),
+                    expires=int(decoded_visa["exp"]),
+                    ga4gh_visa=encoded_visa,
+                )
+
+                current_db_session = db_session.object_session(visa)
+
+                current_db_session.add(visa)
+            except Exception as e:
+                err_msg = (
+                    f"Could not process visa '{encoded_visa}' - skipping this visa"
+                )
+                self.logger.exception("{}: {}".format(err_msg, e), exc_info=True)
+            db_session.commit()

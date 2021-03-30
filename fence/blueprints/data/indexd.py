@@ -59,14 +59,16 @@ def get_signed_url_for_file(action, file_id, file_name=None):
     # default to signing the url even if it's a public object
     # this will work so long as we're provided a user token
     force_signed_url = True
-    if flask.request.args.get("no_force_sign"):
+    no_force_sign_param = flask.request.args.get("no_force_sign")
+    if no_force_sign_param and no_force_sign_param.lower() == "true":
         force_signed_url = False
 
     indexed_file = IndexedFile(file_id)
-    expires_in = config.get("MAX_PRESIGNED_URL_TTL", 3600)
-    requested_expires_in = get_valid_expiration_from_request()
-    if requested_expires_in:
-        expires_in = min(requested_expires_in, expires_in)
+    default_expires_in = config.get("MAX_PRESIGNED_URL_TTL", 3600)
+    expires_in = get_valid_expiration_from_request(
+        max_limit=default_expires_in,
+        default=default_expires_in,
+    )
 
     signed_url = indexed_file.get_signed_url(
         requested_protocol,
@@ -76,7 +78,32 @@ def get_signed_url_for_file(action, file_id, file_name=None):
         r_pays_project=r_pays_project,
         file_name=file_name,
     )
+
+    create_presigned_url_audit_log(
+        protocol=requested_protocol, indexed_file=indexed_file, action=action
+    )
+
     return {"url": signed_url}
+
+
+def create_presigned_url_audit_log(indexed_file, action, protocol):
+    user_info = _get_user_info(sub_to_string=False)
+    resource_paths = indexed_file.index_document.get("authz", [])
+    if not resource_paths:
+        # fall back on ACL
+        resource_paths = indexed_file.index_document.get("acl", [])
+    if not protocol:
+        # we can assume there are locations since `get_signed_url()`
+        # used the same logic before this code runs
+        protocol = indexed_file.indexed_file_locations[0].protocol
+    flask.current_app.audit_service_client.create_presigned_url_log(
+        username=user_info["username"],
+        sub=user_info["user_id"],
+        guid=indexed_file.file_id,
+        resource_paths=resource_paths,
+        action=action,
+        protocol=protocol,
+    )
 
 
 class BlankIndex(object):
@@ -470,18 +497,34 @@ class IndexedFile(object):
             urls (Optional[List[str]])
 
         Return:
-            None
+            Response (str: message, int: status code)
         """
         locations_to_delete = []
-        if urls is None and delete_all:
+        if not urls and delete_all:
             locations_to_delete = self.indexed_file_locations
         else:
-            locations_to_delete = [
-                location for location in locations_to_delete if location.url in urls
-            ]
+            locations_to_delete = list(map(IndexedFileLocation.from_url, urls))
+        response = ("No URLs to delete", 200)
         for location in locations_to_delete:
             bucket = location.bucket_name()
-            flask.current_app.boto.delete_data_file(bucket, self.file_id)
+
+            file_suffix = ""
+            try:
+                file_suffix = location.file_name()
+            except Exception as e:
+                logger.info(e)
+                file_suffix = self.file_id
+
+            logger.info(
+                "Attempting to delete file named {} from bucket {}.".format(
+                    file_suffix, bucket
+                )
+            )
+            response = location.delete(bucket, file_suffix)
+            # check status code not in 200s
+            if response[1] > 399:
+                break
+        return response
 
     @login_required({"data"})
     def delete(self):
@@ -586,6 +629,10 @@ class S3IndexedFileLocation(IndexedFileLocation):
             if re.match("^" + bucket + "$", self.parsed_url.netloc):
                 return bucket
         return None
+
+    def file_name(self):
+        file_name = self.parsed_url.path[1:]
+        return file_name
 
     @classmethod
     def get_credential_to_access_bucket(
@@ -784,11 +831,21 @@ class S3IndexedFileLocation(IndexedFileLocation):
             parts,
         )
 
+    def delete(self, bucket, file_id):
+        try:
+            return flask.current_app.boto.delete_data_file(bucket, file_id)
+        except Exception as e:
+            logger.error(e)
+            return ("Failed to delete data file.", 500)
+
 
 class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     """
     An indexed file that lives in a Google Storage bucket.
     """
+
+    def get_resource_path(self):
+        return self.parsed_url.netloc.strip("/") + "/" + self.parsed_url.path.strip("/")
 
     def get_signed_url(
         self,
@@ -798,9 +855,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         force_signed_url=True,
         r_pays_project=None,
     ):
-        resource_path = (
-            self.parsed_url.netloc.strip("/") + "/" + self.parsed_url.path.strip("/")
-        )
+        resource_path = self.get_resource_path()
 
         user_info = _get_user_info()
 
@@ -840,6 +895,28 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             requester_pays_user_project=r_pays_project,
         )
         return final_url
+
+    def bucket_name(self):
+        resource_path = self.get_resource_path()
+
+        bucket_name = None
+        try:
+            bucket_name = resource_path.split("/")[0]
+        except Exception as exc:
+            logger.error("Unable to get bucket name from resource path. {}".format(exc))
+
+        return bucket_name
+
+    def file_name(self):
+        resource_path = self.get_resource_path()
+
+        file_name = None
+        try:
+            file_name = "/".join(resource_path.split("/")[1:])
+        except Exception as exc:
+            logger.error("Unable to get file name from resource path. {}".format(exc))
+
+        return file_name
 
     def _generate_google_storage_signed_url(
         self,
@@ -894,19 +971,39 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         )
         return final_url
 
+    def delete(self, bucket, file_id):
+        try:
+            with GoogleCloudManager(
+                creds=config["CIRRUS_CFG"]["GOOGLE_STORAGE_CREDS"]
+            ) as gcm:
+                gcm.delete_data_file(bucket, file_id)
+            return ("", 204)
+        except Exception as e:
+            logger.error(e)
+            try:
+                status_code = e.resp.status
+            except Exception as exc:
+                logger.error(exc)
+                status_code = 500
+            return ("Failed to delete data file.", status_code)
 
-def _get_user_info():
+
+def _get_user_info(sub_to_string=True):
     """
     Attempt to parse the request for token to authenticate the user. fallback to
     populated information about an anonymous user.
     """
     try:
         set_current_token(validate_request(aud={"user"}))
-        user_id = str(current_token["sub"])
+        user_id = current_token["sub"]
+        if sub_to_string:
+            user_id = str(user_id)
         username = current_token["context"]["user"]["name"]
     except JWTError:
         # this is fine b/c it might be public data, sign with anonymous username/id
-        user_id = ANONYMOUS_USER_ID
+        user_id = None
+        if sub_to_string:
+            user_id = ANONYMOUS_USER_ID
         username = ANONYMOUS_USERNAME
 
     return {"user_id": user_id, "username": username}

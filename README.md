@@ -185,7 +185,7 @@ Additionally, see the [OAuth2 specification](https://tools.ietf.org/html/rfc6749
 Currently fence works with another Gen3 service named
 [arborist](https://github.com/uc-cdis/arborist) to implement attribute-based access
 control for commons users. The YAML file of access control information (see
-[#create-user-access-file]()) contains a section `authz` which are data sent to
+[#create-user-access-file](#create-user-access-file)) contains a section `authz` which are data sent to
 arborist in order to set up the access control model.
 
 ## Accessing Data
@@ -221,11 +221,11 @@ See [Fence and Google](docs/google_architecture.md) for more details on data acc
 
 #### Install Requirements and Fence
 
+Install [Poetry](https://python-poetry.org/docs/#installation).
+
 ```bash
-# Install requirements.
-pip install -r requirements.txt
-# Install fence in your preferred manner.
-python setup.py develop
+# Install Fence and dependencies
+poetry install
 ```
 
 #### Create Configuration File

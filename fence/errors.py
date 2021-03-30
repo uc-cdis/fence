@@ -7,12 +7,14 @@ class AuthError(APIError):
 
 class UserError(APIError):
     def __init__(self, message):
+        super(UserError, self).__init__(message)
         self.message = str(message)
         self.code = 400
 
 
 class BlacklistingError(APIError):
     def __init__(self, message):
+        super(BlacklistingError, self).__init__(message)
         self.message = str(message)
         self.code = 400
 
@@ -30,6 +32,7 @@ class Unauthorized(APIError):
     """
 
     def __init__(self, message):
+        super(Unauthorized, self).__init__(message)
         self.message = str(message)
         self.code = 401
 
@@ -40,23 +43,27 @@ class Forbidden(APIError):
     """
 
     def __init__(self, message):
+        super(Forbidden, self).__init__(message)
         self.message = str(message)
         self.code = 403
 
 
 class NotFound(APIError):
     def __init__(self, message):
+        super(NotFound, self).__init__(message)
         self.message = str(message)
         self.code = 404
 
 
 class NotSupported(APIError):
     def __init__(self, message):
+        super(NotSupported, self).__init__(message)
         self.message = str(message)
         self.code = 400
 
 
 class UnavailableError(APIError):
     def __init__(self, message):
+        super(UnavailableError, self).__init__(message)
         self.message = str(message)
         self.code = 503

@@ -104,5 +104,7 @@ ENV/
 # jwt keys
 keys
 tests/resources/keys/*.pem
+
 .DS_Store
 build.sh
+.vscode
