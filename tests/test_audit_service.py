@@ -336,6 +336,9 @@ def test_login_log_login_endpoint(
     elif idp == "orcid":
         mocked_get_user_id = MagicMock()
         get_user_id_value = {"orcid": username}
+    elif idp == "cilogon":
+        mocked_get_user_id = MagicMock()
+        get_user_id_value = {"sub": username}
     elif idp == "shib":
         headers["persistent_id"] = username
         idp_name = "itrust"
