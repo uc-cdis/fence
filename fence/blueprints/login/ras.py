@@ -74,7 +74,7 @@ class RASCallback(DefaultOAuth2Callback):
         expires = config["RAS_REFRESH_EXPIRATION"]
 
         # User definied RAS refresh token expiration time
-        parsed_url = urllib.parse.parse_qs(flask.redirect_url)
+        parsed_url = urllib.parse.parse_qs(flask.session["redirect"])
         if parsed_url.get("upstream_expires_in"):
             custom_refresh_expiration = parsed_url.get("upstream_expires_in")[0]
             expires = get_valid_expiration(
@@ -87,9 +87,11 @@ class RASCallback(DefaultOAuth2Callback):
             user=user, refresh_token=refresh_token, expires=expires + issued_time
         )
 
-        # Check if user has any project_access from a previous session or from usersync
+        usersync = config.get("USERSYNC", {})
+        sync_from_visas = usersync.get("sync_from_visas", False)
+        # Check if user has any project_access from a previous session or from usersync AND if fence is configured to use visas as authZ source
         # if not do an on-the-fly usersync for this user to give them instant access after logging in through RAS
-        if not user.project_access:
+        if not user.project_access and sync_from_visas:
             # Close previous db sessions. Leaving it open causes a race condition where we're viewing user.project_access while trying to update it in usersync
             # not closing leads to partially updated records
             current_session.close()
