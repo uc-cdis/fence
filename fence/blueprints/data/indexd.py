@@ -362,24 +362,31 @@ class IndexedFile(object):
         r_pays_project=None,
         file_name=None,
     ):
-        method = "write-storage"
-        if self.public_authz and action == "upload":
-            #  this check has to be nested to handle when authz and acl are
-            #  both public. in that case we want authz to take precedence
-            if not self.check_authz(method):
+        if self.index_document.get("authz"):
+            action_to_permission = {
+                "upload": "write-storage",
+                "download": "read-storage",
+            }
+            if not self.check_authz(action_to_permission[action]):
                 raise Unauthorized(
-                    f"Failed authz check: you don't have {method} permission "
+                    f"You are either not logged in or don't have "
+                    f"{action_to_permission[action]} permission "
                     f"on {self.index_document['authz']} for fence"
                 )
-        elif self.public_acl and action == "upload":
-            raise Unauthorized("Cannot upload on public files")
+        else:
+            if self.public_acl and action == "upload":
+                raise Unauthorized(
+                    "Cannot upload on public files while using acl field"
+                )
+            # don't check the authorization if the file is public
+            # (downloading public files with no auth is fine)
+            if not self.public_acl and not self.check_authorization(action):
+                raise Unauthorized(
+                    "You don't have access permission on this file: {}".format(
+                        self.file_id
+                    )
+                )
 
-        # don't check the authorization if the file is public
-        # (downloading public files with no auth is fine)
-        if not self.public and not self.check_authorization(action):
-            raise Unauthorized(
-                "You don't have access permission on this file: {}".format(self.file_id)
-            )
         if action is not None and action not in SUPPORTED_ACTIONS:
             raise NotSupported("action {} is not supported".format(action))
         return self._get_signed_url(
@@ -458,6 +465,9 @@ class IndexedFile(object):
 
     @cached_property
     def public(self):
+        #  authz_resources = list(self.set_acls)
+        #  authz_resources.extend(self.index_document.get("authz", []))
+        #  return "*" in authz_resources or "/open" in authz_resources
         return self.public_acl or self.public_authz
 
     @cached_property

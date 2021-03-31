@@ -197,7 +197,7 @@ def test_indexd_upload_file_doesnt_exist(
     }
     response = client.get(path, headers=headers)
 
-    assert response.status_code == 401
+    assert response.status_code == 404
 
 
 @pytest.mark.parametrize(
