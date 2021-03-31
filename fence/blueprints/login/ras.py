@@ -75,7 +75,7 @@ class RASCallback(DefaultOAuth2Callback):
         expires = config["RAS_REFRESH_EXPIRATION"]
 
         # User definied RAS refresh token expiration time
-        parsed_url = urllib.parse.parse_qs(flask.session["redirect"])
+        parsed_url = urllib.parse.parse_qs(flask.session.get("redirect"))
         if parsed_url.get("upstream_expires_in"):
             custom_refresh_expiration = parsed_url.get("upstream_expires_in")[0]
             expires = get_valid_expiration(
