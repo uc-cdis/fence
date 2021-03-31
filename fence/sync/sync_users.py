@@ -929,7 +929,7 @@ class UserSyncer(object):
             u.is_admin = user_info[username].get("admin", False)
 
             # do not update if there is no tag
-            if user_info[username]["tags"] == {}:
+            if not user_info[username].get("tags"):
                 continue
 
             # remove user db tags if they are not shown in new tags

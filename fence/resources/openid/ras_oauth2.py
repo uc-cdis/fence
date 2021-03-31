@@ -46,6 +46,19 @@ class RASOauth2Client(Oauth2ClientBase):
         access_token = token["access_token"]
         header = {"Authorization": "Bearer " + access_token}
         res = requests.get(userinfo_endpoint, headers=header)
+        if res.status_code != 200:
+            msg = res.text
+            try:
+                msg = res.json()
+            except:
+                pass
+            self.logger.error(
+                "Unable to get visa: status_code: {}, message: {}".format(
+                    res.status_code,
+                    msg,
+                )
+            )
+            return {}
         return res.json()
 
     def get_user_id(self, code):
