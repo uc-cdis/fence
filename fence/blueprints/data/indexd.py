@@ -369,7 +369,7 @@ class IndexedFile(object):
             }
             if not self.check_authz(action_to_permission[action]):
                 raise Unauthorized(
-                    f"You are either not logged in or don't have "
+                    f"Authz check failed: you don't have "
                     f"{action_to_permission[action]} permission "
                     f"on {self.index_document['authz']} for fence"
                 )
@@ -452,8 +452,18 @@ class IndexedFile(object):
         logger.debug(
             f"authz check can user {action} on {self.index_document['authz']} for fence?"
         )
+
+        header = flask.request.headers.get("Authorization")
+        if header:
+            try:
+                bearer, token = header.split(" ")
+            except ValueError:
+                raise Unauthorized("authorization header not in expected format")
+        else:
+            token = None
+
         return flask.current_app.arborist.auth_request(
-            jwt=get_jwt(),
+            jwt=token,
             service="fence",
             methods=action,
             resources=self.index_document["authz"],
