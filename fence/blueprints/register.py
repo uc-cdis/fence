@@ -1,32 +1,40 @@
 """
-Endpoint for user registration.
+Endpoints for user registration.
 
-- If config["REGISTER_USERS_ON"] is True, then unregistered users are redirected
-  here after logging in.
-- Users may then register or decline to register.
-- Users may access this endpoint directly if they initially declined to register.
-- At the moment, registration involves providing name, org, and (if user.email for
-  the user is None) email.
-- If a user registers, add the new information to the user's additional_info column,
-  and add the user to the Arborist group specified in
-  config["REGISTERED_USERS_GROUP"].
-  The idea is that users can register in order to obtain certain permissions (where
-  the permissions are defined by the group definition in the useryaml).
+register_user:
+  - If config["REGISTER_USERS_ON"] is True, then unregistered users are redirected
+    here after logging in.
+  - Users may then register or decline to register.
+  - Users may access this endpoint directly if they initially declined to register.
+  - At the moment, registration involves providing name, org, and (if user.email for
+    the user is None) email.
+  - If a user registers, add the new information to the user's additional_info column,
+    and add the user to the Arborist group specified in
+    config["REGISTERED_USERS_GROUP"].
+    The idea is that users can register in order to obtain certain permissions (where
+    the permissions are defined by the group definition in the useryaml).
 
-The registration info is added as a dict under user.additional_info["registration_info"];
-it is a separate blob in order to avoid namespace collision and make clear that the
-information was self-declared by the user during registration.
+  | The registration info is added as a dict under user.additional_info["registration_info"];
+  | it is a separate blob in order to avoid namespace collision and make clear that the
+  | information was self-declared by the user during registration.
 
-The HTML form performs some dumb client-side validation, but actual verification
-(for example, checking organization info against some trusted authority's records)
-has been deemed out of scope.
+  | The HTML form performs some dumb client-side validation, but actual verification
+  | (for example, checking organization info against some trusted authority's records)
+  | has been deemed out of scope.
+
+get_registered_users:
+  - List registration info for every user for which there exists registration info.
+  - Endpoint accessible to admins only.
+  - Response json structure is provisional.
+
 """
 
 import flask
 from flask_sqlalchemy_session import current_session
 
 from fence import config
-from fence.auth import login_required
+from fence.auth import login_required, admin_login_required
+from fence.models import User
 
 blueprint = flask.Blueprint("register-user", __name__)
 
@@ -78,3 +86,17 @@ def register_user():
     if flask.session.get("redirect"):
         return flask.redirect(flask.session.get("redirect"))
     return flask.jsonify(registration_info)
+
+
+@blueprint.route("/list", methods=["GET"])
+@admin_login_required
+def get_registered_users():
+    registered_users = (
+        current_session.query(User)
+        .filter(User.additional_info["registration_info"] != "{}")
+        .all()
+    )
+    registration_info_list = {
+        u.username: u.additional_info["registration_info"] for u in registered_users
+    }
+    return registration_info_list
