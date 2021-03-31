@@ -465,9 +465,6 @@ class IndexedFile(object):
 
     @cached_property
     def public(self):
-        #  authz_resources = list(self.set_acls)
-        #  authz_resources.extend(self.index_document.get("authz", []))
-        #  return "*" in authz_resources or "/open" in authz_resources
         return self.public_acl or self.public_authz
 
     @cached_property
@@ -494,21 +491,7 @@ class IndexedFile(object):
             )
             return self.index_document.get("uploader") == username
 
-        try:
-            action_to_method = {"upload": "write-storage", "download": "read-storage"}
-            method = action_to_method[action]
-            # action should be upload or download
-            # return bool for authorization
-            return self.check_authz(method)
-        except ValueError:
-            # this is ok; we'll default to ACL field (previous behavior)
-            # may want to deprecate in future
-            logger.info(
-                "Couldn't find `authz` field on indexd record, falling back to `acl`."
-            )
-
         given_acls = set(filter_auth_ids(action, flask.g.user.project_access))
-
         return len(self.set_acls & given_acls) > 0
 
     @login_required({"data"})

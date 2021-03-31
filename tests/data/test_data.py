@@ -18,7 +18,7 @@ from unittest.mock import MagicMock, patch
 import cirrus
 from cirrus import GoogleCloudManager
 
-INDEXD_RECORD_WITH_AUTHZ_POPULATED = {
+INDEXD_RECORD_WITH_PUBLIC_AUTHZ_POPULATED = {
     "did": "1",
     "baseid": "",
     "rev": "",
@@ -29,22 +29,6 @@ INDEXD_RECORD_WITH_AUTHZ_POPULATED = {
     "metadata": {},
     "authz": ["/open"],
     "acl": [],
-    "form": "",
-    "created_date": "",
-    "updated_date": "",
-}
-
-INDEXD_RECORD_WITH_AUTHZ_AND_ACL_POPULATED = {
-    "did": "1",
-    "baseid": "",
-    "rev": "",
-    "size": 10,
-    "file_name": "file1",
-    "urls": ["s3://bucket1/key"],
-    "hashes": {},
-    "metadata": {},
-    "authz": ["/open"],
-    "acl": ["*"],
     "form": "",
     "created_date": "",
     "updated_date": "",
@@ -618,7 +602,7 @@ def test_public_authz_object_upload_file(
     Test `GET /data/upload/1` in which the `1` Indexd record has authz
     populated with the public value.
     """
-    indexd_client_accepting_record(INDEXD_RECORD_WITH_AUTHZ_POPULATED)
+    indexd_client_accepting_record(INDEXD_RECORD_WITH_PUBLIC_AUTHZ_POPULATED)
     mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
     headers = {
         "Authorization": "Bearer "
@@ -650,7 +634,7 @@ def test_public_authz_object_upload_file_with_failed_authz_check(
     populated with the public value, but the user doesn't have the correct
     authz permission'
     """
-    indexd_client_accepting_record(INDEXD_RECORD_WITH_AUTHZ_POPULATED)
+    indexd_client_accepting_record(INDEXD_RECORD_WITH_PUBLIC_AUTHZ_POPULATED)
     mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": False}, 200)}})
     headers = {
         "Authorization": "Bearer "
@@ -684,7 +668,23 @@ def test_public_authz_and_acl_object_upload_file(
     acl populated with public values. In this case, authz takes precedence over
     acl.
     """
-    indexd_client_accepting_record(INDEXD_RECORD_WITH_AUTHZ_AND_ACL_POPULATED)
+    indexd_record_with_public_authz_and_acl_populated = {
+        "did": "1",
+        "baseid": "",
+        "rev": "",
+        "size": 10,
+        "file_name": "file1",
+        "urls": ["s3://bucket1/key"],
+        "hashes": {},
+        "metadata": {},
+        "authz": ["/open"],
+        "acl": ["*"],
+        "form": "",
+        "created_date": "",
+        "updated_date": "",
+    }
+
+    indexd_client_accepting_record(indexd_record_with_public_authz_and_acl_populated)
     mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
     headers = {
         "Authorization": "Bearer "
