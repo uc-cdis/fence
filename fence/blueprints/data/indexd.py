@@ -458,7 +458,7 @@ class IndexedFile(object):
         header = flask.request.headers.get("Authorization")
         if header:
             try:
-                bearer, token = header.split(" ")
+                _, token = header.split(" ")
             except ValueError:
                 raise Unauthorized("authorization header not in expected format")
         else:
