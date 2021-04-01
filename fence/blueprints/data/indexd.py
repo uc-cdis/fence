@@ -93,9 +93,10 @@ def create_presigned_url_audit_log(indexed_file, action, protocol):
         # fall back on ACL
         resource_paths = indexed_file.index_document.get("acl", [])
     if not protocol:
-        # we can assume there are locations since `get_signed_url()`
-        # used the same logic before this code runs
-        protocol = indexed_file.indexed_file_locations[0].protocol
+        protocol = (
+            indexed_file.indexed_file_locations
+            and indexed_file.indexed_file_locations[0].protocol
+        )
     flask.current_app.audit_service_client.create_presigned_url_log(
         username=user_info["username"],
         sub=user_info["user_id"],
@@ -369,7 +370,7 @@ class IndexedFile(object):
             }
             if not self.check_authz(action_to_permission[action]):
                 raise Unauthorized(
-                    f"Authz check failed: you don't have "
+                    f"Either you weren't logged in or you don't have "
                     f"{action_to_permission[action]} permission "
                     f"on {self.index_document['authz']} for fence"
                 )
