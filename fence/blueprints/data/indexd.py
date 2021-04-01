@@ -93,11 +93,8 @@ def create_presigned_url_audit_log(indexed_file, action, protocol):
     if not resource_paths:
         # fall back on ACL
         resource_paths = indexed_file.index_document.get("acl", [])
-    if not protocol:
-        protocol = (
-            indexed_file.indexed_file_locations
-            and indexed_file.indexed_file_locations[0].protocol
-        )
+    if not protocol and indexed_file.indexed_file_locations:
+        protocol = indexed_file.indexed_file_locations[0].protocol
     flask.current_app.audit_service_client.create_presigned_url_log(
         username=user_info["username"],
         sub=user_info["user_id"],
@@ -384,9 +381,7 @@ class IndexedFile(object):
             # (downloading public files with no auth is fine)
             if not self.public_acl and not self.check_authorization(action):
                 raise Unauthorized(
-                    "You don't have access permission on this file: {}".format(
-                        self.file_id
-                    )
+                    f"You don't have access permission on this file: {self.file_id}"
                 )
 
         if action is not None and action not in SUPPORTED_ACTIONS:
@@ -455,13 +450,9 @@ class IndexedFile(object):
             f"authz check can user {action} on {self.index_document['authz']} for fence?"
         )
 
-        header = flask.request.headers.get("Authorization")
-        if header:
-            try:
-                _, token = header.split(" ")
-            except ValueError:
-                raise Unauthorized("authorization header not in expected format")
-        else:
+        try:
+            token = get_jwt()
+        except Unauthorized:
             token = None
 
         return flask.current_app.arborist.auth_request(
