@@ -475,6 +475,20 @@ def indexd_client(app, request):
             "created_date": "",
             "updated_date": "",
         }
+    elif protocol == "no_urls":
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file2",
+            "urls": [],
+            "hashes": {},
+            "acl": ["phs000178", "phs000218"],
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
     elif protocol == "nonexistent_guid":
         # throw an error when requested to simulate the GUID not existing
         # TODO (rudyardrichter, 2018-11-03): consolidate things needing to do this patch
