@@ -361,7 +361,6 @@ def test_login_log_login_endpoint(
             "refresh_token": jwt_string,
             "id_token": jwt_string,
         }
-        flask.redirect_url = ""
 
     if idp in ["google", "microsoft", "okta", "synapse", "cognito"]:
         get_user_id_value["email"] = username
