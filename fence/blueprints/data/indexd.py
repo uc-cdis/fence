@@ -453,6 +453,9 @@ class IndexedFile(object):
         try:
             token = get_jwt()
         except Unauthorized:
+            #  get_jwt raises an Unauthorized error when user is anonymous (no
+            #  availble token), so to allow anonymous users possible access to
+            #  public data, we still make the request to Arborist
             token = None
 
         return flask.current_app.arborist.auth_request(
