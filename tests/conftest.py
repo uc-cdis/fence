@@ -25,7 +25,7 @@ from cryptography.fernet import Fernet
 import bcrypt
 from cdisutilstest.code.storage_client_mock import get_client
 import jwt
-from mock import patch, MagicMock
+from mock import patch, MagicMock, PropertyMock
 from moto import mock_sts
 import pytest
 import requests
@@ -492,7 +492,7 @@ def indexd_client(app, request):
     elif protocol == "nonexistent_guid":
         # throw an error when requested to simulate the GUID not existing
         # TODO (rudyardrichter, 2018-11-03): consolidate things needing to do this patch
-        mock = MagicMock(side_effect=NotFound("no guid"))
+        mock = PropertyMock(side_effect=NotFound("no guid"))
         indexd_patcher = patch(
             "fence.blueprints.data.indexd.IndexedFile.index_document", mock
         )
@@ -677,6 +677,25 @@ def indexd_client_with_arborist(app, request):
         }
 
         return output
+
+    return do_patch
+
+
+@pytest.fixture(scope="function")
+def indexd_client_accepting_record():
+    """
+    Patches IndexedFile's index_document with a caller-supplied dictionary
+    representing an Indexd record.
+    """
+
+    def do_patch(record):
+        mocker = Mocker()
+        mocker.mock_functions()
+
+        indexd_patcher = patch(
+            "fence.blueprints.data.indexd.IndexedFile.index_document", record
+        )
+        mocker.add_mock(indexd_patcher)
 
     return do_patch
 

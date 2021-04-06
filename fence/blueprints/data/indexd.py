@@ -93,9 +93,7 @@ def create_presigned_url_audit_log(indexed_file, action, protocol):
     if not resource_paths:
         # fall back on ACL
         resource_paths = indexed_file.index_document.get("acl", [])
-    if not protocol:
-        # we can assume there are locations since `get_signed_url()`
-        # used the same logic before this code runs
+    if not protocol and indexed_file.indexed_file_locations:
         protocol = indexed_file.indexed_file_locations[0].protocol
     flask.current_app.audit_service_client.create_presigned_url_log(
         username=user_info["username"],
@@ -363,14 +361,29 @@ class IndexedFile(object):
         r_pays_project=None,
         file_name=None,
     ):
-        if self.public and action == "upload":
-            raise Unauthorized("Cannot upload on public files")
-        # don't check the authorization if the file is public
-        # (downloading public files with no auth is fine)
-        if not self.public and not self.check_authorization(action):
-            raise Unauthorized(
-                "You don't have access permission on this file: {}".format(self.file_id)
-            )
+        if self.index_document.get("authz"):
+            action_to_permission = {
+                "upload": "write-storage",
+                "download": "read-storage",
+            }
+            if not self.check_authz(action_to_permission[action]):
+                raise Unauthorized(
+                    f"Either you weren't logged in or you don't have "
+                    f"{action_to_permission[action]} permission "
+                    f"on {self.index_document['authz']} for fence"
+                )
+        else:
+            if self.public_acl and action == "upload":
+                raise Unauthorized(
+                    "Cannot upload on public files while using acl field"
+                )
+            # don't check the authorization if the file is public
+            # (downloading public files with no auth is fine)
+            if not self.public_acl and not self.check_authorization(action):
+                raise Unauthorized(
+                    f"You don't have access permission on this file: {self.file_id}"
+                )
+
         if action is not None and action not in SUPPORTED_ACTIONS:
             raise NotSupported("action {} is not supported".format(action))
         return self._get_signed_url(
@@ -436,8 +449,17 @@ class IndexedFile(object):
         logger.debug(
             f"authz check can user {action} on {self.index_document['authz']} for fence?"
         )
+
+        try:
+            token = get_jwt()
+        except Unauthorized:
+            #  get_jwt raises an Unauthorized error when user is anonymous (no
+            #  availble token), so to allow anonymous users possible access to
+            #  public data, we still make the request to Arborist
+            token = None
+
         return flask.current_app.arborist.auth_request(
-            jwt=get_jwt(),
+            jwt=token,
             service="fence",
             methods=action,
             resources=self.index_document["authz"],
@@ -449,9 +471,15 @@ class IndexedFile(object):
 
     @cached_property
     def public(self):
-        authz_resources = list(self.set_acls)
-        authz_resources.extend(self.index_document.get("authz", []))
-        return "*" in authz_resources or "/open" in authz_resources
+        return self.public_acl or self.public_authz
+
+    @cached_property
+    def public_acl(self):
+        return "*" in self.set_acls
+
+    @cached_property
+    def public_authz(self):
+        return "/open" in self.index_document.get("authz", [])
 
     @login_required({"data"})
     def check_authorization(self, action):
@@ -469,21 +497,7 @@ class IndexedFile(object):
             )
             return self.index_document.get("uploader") == username
 
-        try:
-            action_to_method = {"upload": "write-storage", "download": "read-storage"}
-            method = action_to_method[action]
-            # action should be upload or download
-            # return bool for authorization
-            return self.check_authz(method)
-        except ValueError:
-            # this is ok; we'll default to ACL field (previous behavior)
-            # may want to deprecate in future
-            logger.info(
-                "Couldn't find `authz` field on indexd record, falling back to `acl`."
-            )
-
         given_acls = set(filter_auth_ids(action, flask.g.user.project_access))
-
         return len(self.set_acls & given_acls) > 0
 
     @login_required({"data"})
