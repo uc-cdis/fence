@@ -79,7 +79,7 @@ class RASCallback(DefaultOAuth2Callback):
         parsed_url = urlparse(flask.session.get("redirect"))
         query_params = parse_qs(parsed_url.query)
         if query_params.get("upstream_expires_in"):
-            custom_refresh_expiration = parsed_url.get("upstream_expires_in")[0]
+            custom_refresh_expiration = query_params.get("upstream_expires_in")[0]
             expires = get_valid_expiration(
                 custom_refresh_expiration,
                 expires,
