@@ -18,6 +18,38 @@ from unittest.mock import MagicMock, patch
 import cirrus
 from cirrus import GoogleCloudManager
 
+INDEXD_RECORD_WITH_PUBLIC_AUTHZ_POPULATED = {
+    "did": "1",
+    "baseid": "",
+    "rev": "",
+    "size": 10,
+    "file_name": "file1",
+    "urls": ["s3://bucket1/key"],
+    "hashes": {},
+    "metadata": {},
+    "authz": ["/open"],
+    "acl": [],
+    "form": "",
+    "created_date": "",
+    "updated_date": "",
+}
+
+INDEXD_RECORD_WITH_PUBLIC_AUTHZ_AND_ACL_POPULATED = {
+    "did": "1",
+    "baseid": "",
+    "rev": "",
+    "size": 10,
+    "file_name": "file1",
+    "urls": ["s3://bucket1/key"],
+    "hashes": {},
+    "metadata": {},
+    "authz": ["/open"],
+    "acl": ["*"],
+    "form": "",
+    "created_date": "",
+    "updated_date": "",
+}
+
 
 @pytest.mark.parametrize(
     "indexd_client", ["gs", "s3", "gs_acl", "s3_acl", "s3_external"], indirect=True
@@ -60,7 +92,9 @@ def test_indexd_download_file(
 
 
 @pytest.mark.parametrize(
-    "indexd_client", ["gs", "s3", "gs_acl", "s3_acl", "s3_external"], indirect=True
+    "indexd_client",
+    ["gs", "s3", "gs_acl", "s3_acl", "s3_external", "no_urls"],
+    indirect=True,
 )
 def test_indexd_upload_file(
     client,
@@ -165,7 +199,7 @@ def test_indexd_upload_file_doesnt_exist(
     }
     response = client.get(path, headers=headers)
 
-    assert response.status_code == 401
+    assert response.status_code == 404
 
 
 @pytest.mark.parametrize(
@@ -553,6 +587,235 @@ def test_public_bucket_unsupported_protocol_file(
     assert response.status_code == 400
 
     # response should not be JSON, should be HTML error page
+    assert response.mimetype == "text/html"
+    assert not response.json
+
+
+def test_public_acl_object_upload_file(
+    client,
+    public_indexd_client,
+):
+    """
+    Test `GET /data/upload/1` in which the `1` Indexd record has acl populated
+    with the public value.
+    """
+    path = "/data/upload/1"
+    response = client.get(path)
+
+    assert response.status_code == 401
+    assert response.data
+    assert response.mimetype == "text/html"
+    assert not response.json
+
+
+def test_public_authz_object_upload_file(
+    client,
+    indexd_client_accepting_record,
+    mock_arborist_requests,
+    user_client,
+    rsa_private_key,
+    kid,
+):
+    """
+    Test `GET /data/upload/1` in which the `1` Indexd record has authz
+    populated with the public value.
+    """
+    indexd_client_accepting_record(INDEXD_RECORD_WITH_PUBLIC_AUTHZ_POPULATED)
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+    path = "/data/upload/1"
+    response = client.get(path, headers=headers)
+    assert response.status_code == 200
+    assert "url" in response.json
+
+
+def test_public_authz_and_acl_object_upload_file_with_failed_authz_check(
+    client,
+    indexd_client_accepting_record,
+    mock_arborist_requests,
+    user_client,
+    rsa_private_key,
+    kid,
+):
+    """
+    Test `GET /data/upload/1` in which the `1` Indexd record has authz
+    populated with the public value, but the user doesn't have the correct
+    authz permission'
+    """
+    indexd_client_accepting_record(INDEXD_RECORD_WITH_PUBLIC_AUTHZ_AND_ACL_POPULATED)
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": False}, 200)}})
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+    path = "/data/upload/1"
+    response = client.get(path, headers=headers)
+    assert response.status_code == 401
+    assert response.data
+    assert response.mimetype == "text/html"
+    assert not response.json
+
+
+def test_public_authz_and_acl_object_upload_file(
+    client,
+    indexd_client_accepting_record,
+    mock_arborist_requests,
+    user_client,
+    rsa_private_key,
+    kid,
+):
+    """
+    Test `GET /data/upload/1` in which the `1` Indexd record has both authz and
+    acl populated with public values. In this case, authz takes precedence over
+    acl.
+    """
+    indexd_client_accepting_record(INDEXD_RECORD_WITH_PUBLIC_AUTHZ_AND_ACL_POPULATED)
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+    path = "/data/upload/1"
+    response = client.get(path, headers=headers)
+    assert response.status_code == 200
+    assert "url" in response.json
+
+
+def test_non_public_authz_and_public_acl_object_upload_file(
+    client,
+    indexd_client_accepting_record,
+    mock_arborist_requests,
+    user_client,
+    rsa_private_key,
+    kid,
+):
+    """
+    Test that a user can successfully generate an upload url for an Indexd
+    record with a non-public authz field and a public acl field.
+    """
+    indexd_record_with_non_public_authz_and_public_acl_populated = {
+        "did": "1",
+        "baseid": "",
+        "rev": "",
+        "size": 10,
+        "file_name": "file1",
+        "urls": ["s3://bucket1/key"],
+        "hashes": {},
+        "metadata": {},
+        "authz": ["/programs/DEV/projects/test"],
+        "acl": ["*"],
+        "form": "",
+        "created_date": "",
+        "updated_date": "",
+    }
+    indexd_client_accepting_record(
+        indexd_record_with_non_public_authz_and_public_acl_populated
+    )
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+    path = "/data/upload/1"
+    response = client.get(path, headers=headers)
+    assert response.status_code == 200
+    assert "url" in response.json
+
+
+def test_anonymous_download_with_public_authz(
+    client,
+    indexd_client_accepting_record,
+    mock_arborist_requests,
+):
+    """
+    Test that it is possible for a user who is not logged in to generate a
+    download url for a public authz record.
+    """
+    indexd_client_accepting_record(INDEXD_RECORD_WITH_PUBLIC_AUTHZ_POPULATED)
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
+
+    path = "/data/download/1"
+    response = client.get(path)
+    assert response.status_code == 200
+    assert "url" in response.json
+
+
+def test_download_fails_with_wrong_authz_and_public_acl(
+    client,
+    indexd_client_accepting_record,
+    mock_arborist_requests,
+    user_client,
+    rsa_private_key,
+    kid,
+):
+    """
+    Test that generating a download url returns a 401 when acl is public, but
+    authz is a permission the user doesn't have access to. Authz takes
+    precedence.
+    """
+    indexd_record_with_wrong_authz_and_public_acl = {
+        "did": "1",
+        "baseid": "",
+        "rev": "",
+        "size": 10,
+        "file_name": "file1",
+        "urls": ["s3://bucket1/key"],
+        "hashes": {},
+        "metadata": {},
+        "authz": ["/foo"],
+        "acl": ["*"],
+        "form": "",
+        "created_date": "",
+        "updated_date": "",
+    }
+    indexd_client_accepting_record(indexd_record_with_wrong_authz_and_public_acl)
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": False}, 200)}})
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+    path = "/data/download/1"
+    response = client.get(path, headers=headers)
+    assert response.status_code == 401
+    assert response.data
     assert response.mimetype == "text/html"
     assert not response.json
 
