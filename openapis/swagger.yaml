@@ -110,9 +110,20 @@ paths:
           required: false
           in: query
           description: >-
-            Upstream identity provider to use. Specifying `idp=shibboleth` lets
-            us specify a `shib_idp`. If no `idp` is specified, defaults to NIH
-            login.
+            Upstream identity provider to use. Specifying `idp=fence` lets
+            us specify a `fence_idp`. Specifying `idp=shibboleth` lets
+            us specify a `shib_idp`. If no `idp` is specified, defaults to
+            the configured default login.
+          schema:
+            type: string
+          example: 'google'
+        - name: fence_idp
+          required: false
+          in: query
+          description: >-
+            Upstream identity provider to use. Specifying `idp=fence` and
+            `fence_idp=shibboleth` lets us specify a `shib_idp`. If no
+            `fence_idp` is specified, defaults to NIH login.
           schema:
             type: string
           example: 'shibboleth'
