@@ -2,7 +2,8 @@ import flask
 import jwt
 import os
 from flask_sqlalchemy_session import current_session
-import urllib.request, urllib.parse, urllib.error
+import urllib.request, urllib.error
+from urllib.parse import urlparse, parse_qs
 
 from fence.models import GA4GHVisaV1, IdentityProvider
 
@@ -75,9 +76,10 @@ class RASCallback(DefaultOAuth2Callback):
         expires = config["RAS_REFRESH_EXPIRATION"]
 
         # User definied RAS refresh token expiration time
-        parsed_url = urllib.parse.parse_qs(flask.session.get("redirect"))
-        if parsed_url.get("upstream_expires_in"):
-            custom_refresh_expiration = parsed_url.get("upstream_expires_in")[0]
+        parsed_url = urlparse(flask.session.get("redirect"))
+        query_params = parse_qs(parsed_url.query)
+        if query_params.get("upstream_expires_in"):
+            custom_refresh_expiration = query_params.get("upstream_expires_in")[0]
             expires = get_valid_expiration(
                 custom_refresh_expiration,
                 expires,
