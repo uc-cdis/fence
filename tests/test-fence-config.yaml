@@ -80,6 +80,16 @@ OPENID_CONNECT:
     client_secret: ''
     # this is be the allowed redirect back to fence, should not need to change
     redirect_url: '{{BASE_URL}}/login/google/login'
+  okta:
+    discovery_url: ''
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/okta/login/'
+  generic:
+    discovery_url: ''
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/generic/login/'
   orcid:
     client_id: ''
     client_secret: ''

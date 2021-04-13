@@ -3,8 +3,8 @@ from .idp_oauth2 import Oauth2ClientBase
 
 GENERIC_IDP_NAME = "generic"
 
+
 class GenericOauth2Client(Oauth2ClientBase):
-    
     def __init__(self, settings, logger, HTTP_PROXY=None):
         super(GenericOauth2Client, self).__init__(
             settings,

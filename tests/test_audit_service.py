@@ -333,6 +333,12 @@ def test_login_log_login_endpoint(
             "given_name": username,
             "family_name": username,
         }
+    elif idp == "okta":
+        mocked_get_user_id = MagicMock()
+        get_user_id_value = {"okta": username}
+    elif idp == "generic":
+        mocked_get_user_id = MagicMock()
+        get_user_id_value = {"generic": username}
     elif idp == "orcid":
         mocked_get_user_id = MagicMock()
         get_user_id_value = {"orcid": username}
@@ -363,7 +369,7 @@ def test_login_log_login_endpoint(
         }
         flask.redirect_url = ""
 
-    if idp in ["google", "microsoft", "synapse", "cognito"]:
+    if idp in ["google", "microsoft", "synapse", "cognito", "okta", "generic"]:
         get_user_id_value["email"] = username
 
     get_user_id_patch = None
