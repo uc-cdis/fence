@@ -99,6 +99,7 @@ At the moment, supported IDPs include:
   - NIH iTrust
   - InCommon
   - eduGAIN
+- CILogon
 - Cognito
 - Synapse
 - Microsoft

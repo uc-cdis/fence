@@ -12,6 +12,7 @@ import requests
 
 from cdislogging import get_logger
 
+from fence.blueprints.login.cilogon import CilogonLogin, CilogonCallback
 from fence.blueprints.login.cognito import CognitoLogin, CognitoCallback
 from fence.blueprints.login.fence_login import FenceLogin, FenceCallback
 from fence.blueprints.login.google import GoogleLogin, GoogleCallback
@@ -36,6 +37,7 @@ IDP_URL_MAP = {
     "microsoft": "microsoft",
     "cognito": "cognito",
     "ras": "ras",
+    "cilogon": "cilogon",
 }
 
 
@@ -286,6 +288,13 @@ def make_login_blueprint(app):
         blueprint_api.add_resource(
             ShibbolethCallback, "/shib/login", strict_slashes=False
         )
+
+    if "cilogon" in configured_idps:
+        blueprint_api.add_resource(CilogonLogin, "/cilogon", strict_slashes=False)
+        blueprint_api.add_resource(
+            CilogonCallback, "/cilogon/login", strict_slashes=False
+        )
+
     return blueprint
 
 
