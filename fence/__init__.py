@@ -550,7 +550,9 @@ def set_csrf(response):
     """
     if not flask.request.cookies.get("csrftoken"):
         secure = config.get("SESSION_COOKIE_SECURE", True)
-        response.set_cookie("csrftoken", random_str(40), secure=secure, httponly=True)
+        # response.set_cookie("csrftoken", random_str(40), secure=secure, httponly=True)
+        # TODO ^ this broke oauthorize form but we probs don't want to revert
+        response.set_cookie("csrftoken", random_str(40), secure=secure, httponly=False)
 
     if flask.request.method in ["POST", "PUT", "DELETE"]:
         current_session.commit()

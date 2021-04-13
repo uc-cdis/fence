@@ -4,6 +4,7 @@
 <head>
   <meta charset="utf-8">
   <title>Register</title>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 </head>
 
 
@@ -111,4 +112,55 @@ button {
     opacity: 0.8;
 }
 </style>
+<script>
+    function getCookie(name) {
+        var value = "; " + document.cookie;
+        var parts = value.split("; " + name + "=");
+        if (parts.length == 2) return parts.pop().split(";").shift();
+    }
+
+
+    window.addEventListener( "load", function () {
+      function sendData() {
+
+        const XHR = new XMLHttpRequest();
+
+        // Bind the FormData object and the form element
+        const FD = new FormData( form );
+
+        // Define what happens on successful data submission
+        // TODO handle redirect... somehow
+        XHR.addEventListener( "load", function(event) {
+          alert( event.target.responseText );
+        } );
+
+        // Define what happens in case of error
+        XHR.addEventListener( "error", function( event ) {
+          alert( 'Oops! Something went wrong.' );
+        } );
+
+        // Set up our request
+        XHR.open( "POST", form.action);
+
+        // TODO because the cookie is now HttpOnly, the browser cannot read document.cookie.
+        // This only works if I set HttpOnly back to False, but obv the pentesters want it True.
+        // Yes, this means the oauthorize form has also been broken since that change
+        // Well, that's a problem. Options: Make a hidden form field? At that point just use WTForms right?
+        XHR.setRequestHeader('x-csrf-token', getCookie('csrftoken'));
+
+        // The data sent is what the user provided in the form
+        XHR.send( FD );
+      }
+
+      // Access the form element...
+      const form = document.querySelector("form");
+
+      // ...and take over its submit event.
+      form.addEventListener( "submit", function ( event ) {
+        event.preventDefault();
+
+        sendData();
+      } );
+    } );
+</script>
 </html>
