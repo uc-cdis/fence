@@ -1,6 +1,6 @@
 #!groovy
 
-@Library('cdis-jenkins-lib@master') _
+@Library('cdis-jenkins-lib@chore/identify_forked_repo_branches') _
 
 testPipeline {
 }
