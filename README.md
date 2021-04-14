@@ -185,7 +185,7 @@ Additionally, see the [OAuth2 specification](https://tools.ietf.org/html/rfc6749
 Currently fence works with another Gen3 service named
 [arborist](https://github.com/uc-cdis/arborist) to implement attribute-based access
 control for commons users. The YAML file of access control information (see
-[#create-user-access-file]()) contains a section `authz` which are data sent to
+[#create-user-access-file](#create-user-access-file)) contains a section `authz` which are data sent to
 arborist in order to set up the access control model.
 
 ## Accessing Data
