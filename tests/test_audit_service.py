@@ -339,6 +339,9 @@ def test_login_log_login_endpoint(
     elif idp == "shib":
         headers["persistent_id"] = username
         idp_name = "itrust"
+    elif idp == "okta":
+        mocked_get_user_id = MagicMock()
+        get_user_id_value = {"okta": username}
     elif idp == "fence":
         mocked_fetch_access_token = MagicMock(return_value={"id_token": jwt_string})
         patch(

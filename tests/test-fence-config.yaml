@@ -93,6 +93,8 @@ OPENID_CONNECT:
     client_id: ''
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/cognito/login/'
+  # For information on configuring an Okta tenant as an OIDC IdP refer to Okta documentation at:
+  # https://developer.okta.com/docs/reference/api/oidc/#2-okta-as-the-identity-platform-for-your-app-or-api  
   okta:
       discovery_url: ''
       client_id: ''
