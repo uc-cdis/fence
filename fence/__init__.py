@@ -9,6 +9,7 @@ from flask_sqlalchemy_session import flask_scoped_session, current_session
 from authutils.oauth2.client import OAuthClient
 from cdislogging import get_logger
 from gen3authz.client.arborist.client import ArboristClient
+from flask_wtf.csrf import validate_csrf
 from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from azure.storage.blob import BlobServiceClient
@@ -533,27 +534,24 @@ def check_csrf():
         return
     if not config.get("ENABLE_CSRF_PROTECTION", True):
         return
-    # cookie based authentication
     if flask.request.method != "GET":
-        csrf_header = flask.request.headers.get("x-csrf-token")
-        csrf_cookie = flask.request.cookies.get("csrftoken")
-        referer = flask.request.headers.get("referer")
-        logger.debug("HTTP REFERER " + str(referer))
-        if not all([csrf_cookie, csrf_header, csrf_cookie == csrf_header, referer]):
-            raise UserError("CSRF verification failed. Request aborted")
+        try:
+            csrf_header = flask.request.headers.get("x-csrf-token")
+            csrf_formfield = flask.request.form.get("csrf_token")
+            # validate_csrf checks the input (a signed token) against the raw
+            # token stored in session["csrf_token"].
+            # (session["csrf_token"] is managed by flask-wtf.)
+            # To pass CSRF check, there must exist EITHER an x-csrf-token header
+            # OR a csrf_token form field that matches the token in the session.
+            assert (
+                csrf_header
+                and validate_csrf(csrf_header) is None
+                or csrf_formfield
+                and validate_csrf(csrf_formfield) is None
+            )
 
-
-@app.after_request
-def set_csrf(response):
-    """
-    Create a cookie for CSRF protection if one does not yet exist
-    """
-    if not flask.request.cookies.get("csrftoken"):
-        secure = config.get("SESSION_COOKIE_SECURE", True)
-        # response.set_cookie("csrftoken", random_str(40), secure=secure, httponly=True)
-        # TODO ^ this broke oauthorize form but we probs don't want to revert
-        response.set_cookie("csrftoken", random_str(40), secure=secure, httponly=False)
-
-    if flask.request.method in ["POST", "PUT", "DELETE"]:
-        current_session.commit()
-    return response
+            referer = flask.request.headers.get("referer")
+            assert referer, "Referer header missing"
+            logger.debug("HTTP REFERER " + str(referer))
+        except Exception as e:
+            raise UserError("CSRF verification failed: {}. Request aborted".format(e))

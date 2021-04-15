@@ -72,6 +72,9 @@ SESSION_COOKIE_SECURE: true
 
 ENABLE_CSRF_PROTECTION: true
 
+# Signing key for WTForms to sign CSRF tokens with
+WTF_CSRF_SECRET_KEY: '{{ENCRYPTION_KEY}}'
+
 # fence (at the moment) attempts a migration on startup. setting this to false will disable that
 # WARNING: ONLY set to false if you do NOT want to automatically migrate your database.
 #          You should be careful about incompatible versions of your db schema with what
