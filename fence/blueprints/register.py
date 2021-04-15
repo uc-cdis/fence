@@ -6,12 +6,45 @@ in order to gain some predefined permissions.
 
 import flask
 from flask_sqlalchemy_session import current_session
+from flask_wtf import FlaskForm
+from wtforms import StringField
+from wtforms.validators import DataRequired, Email, StopValidation, ValidationError
 
 from fence import config
 from fence.auth import login_required, admin_login_required
+from fence.errors import UserError
 from fence.models import User
 
+
 blueprint = flask.Blueprint("register-user", __name__)
+
+
+class RegistrationForm(FlaskForm):
+    def EmailSometimesRequired(form, field):
+        """
+        Our current registration policy is that if user.email is present from the IdP,
+        then use that email; otherwise ask for email at registration.
+
+        Therefore the HTML/jinja form will render an email field only if user.email is None,
+        and this validator will check that one and only one of user.email or field.data
+        is non-empty.
+        """
+        if not flask.g.user.email and not field.data:
+            raise ValidationError("Email field is required")
+        if flask.g.user.email and field.data:
+            raise ValidationError(
+                "This user is connected to the email {} and the form should "
+                "not have an email field".format(flask.g.user.email)
+            )
+        if flask.g.user.email and not field.data:
+            # If user.email is non-empty, the form should not render an email field,
+            # and empty field.data is expected--all good
+            field.errors[:] = []
+            raise StopValidation()
+
+    name = StringField(label="Name", validators=[DataRequired()])
+    organization = StringField(label="Organization", validators=[DataRequired()])
+    email = StringField(label="Email", validators=[EmailSometimesRequired, Email()])
 
 
 @blueprint.route("/", methods=["GET", "POST"])
@@ -34,30 +67,30 @@ def register_user():
     it is a separate blob in order to avoid namespace collision and make clear that the
     information was self-declared by the user during registration.
 
-    The HTML form performs some dumb client-side validation, but actual verification
-    (for example, checking organization info against some trusted authority's records)
-    has been deemed out of scope.
+    Some basic validation is done on form inputs (non-empty fields, plausible emails),
+    but actual verification (for example, checking organization info against some trusted
+    authority's records) has been deemed out of scope.
     """
+    form = RegistrationForm()
+
     if flask.request.method == "GET":
         on_decline_redirect = flask.session.get("redirect") or config["BASE_URL"]
         return flask.render_template(
             "register_user.html",
             user=flask.g.user,
             on_decline_redirect=on_decline_redirect,
+            form=form,
         )
 
     assert flask.request.method == "POST"
 
-    # HTML form should require all fields, so no gets.
+    if not form.validate():
+        raise UserError("Form validation failed: {}".format(str(form.errors)))
+
+    # Validation passed--don't check form data here.
     name = flask.request.form["name"]
     org = flask.request.form["organization"]
-
-    if flask.g.user.email:
-        # If user.email is populated, the form should not have had an email field.
-        assert flask.request.form.get("email") is None
-        email = flask.g.user.email
-    else:
-        email = flask.request.form["email"]
+    email = flask.g.user.email or flask.request.form["email"]
 
     combined_info = {}
     if flask.g.user.additional_info is not None:
