@@ -1521,6 +1521,10 @@ class UserSyncer(object):
                 self.logger.debug(
                     "Trying to upsert policy with id {}".format(policy_id)
                 )
+                print("---------------------------------------------")
+                print(policy_id)
+                print(policy)
+                print("---------------------------------------------")
                 response = self.arborist_client.update_policy(
                     policy_id, policy, create_if_not_exist=True
                 )
@@ -1694,6 +1698,10 @@ class UserSyncer(object):
                         policy_id = _format_policy_id(path, permission)
                         if policy_id not in self._created_policies:
                             try:
+                                print("---------------------------------------------")
+                                print(policy_id)
+                                print(policy)
+                                print("---------------------------------------------")
                                 self.arborist_client.update_policy(
                                     policy_id,
                                     {
