@@ -1700,7 +1700,6 @@ class UserSyncer(object):
                             try:
                                 print("---------------------------------------------")
                                 print(policy_id)
-                                print(policy)
                                 print("---------------------------------------------")
                                 self.arborist_client.update_policy(
                                     policy_id,
@@ -2140,3 +2139,16 @@ class UserSyncer(object):
             self.sync_to_db_and_storage_backend(user_projects, user_info, sess, True)
         else:
             self.logger.info("No users for syncing")
+            
+        # update arborist db (user access)
+        if self.arborist_client:
+            self.logger.info("Synchronizing arborist with authorization info...")
+            success = self._update_authz_in_arborist(sess, user_projects, user_yaml)
+            if success:
+                self.logger.info(
+                    "Finished synchronizing authorization info to arborist"
+                )
+            else:
+                self.logger.error(
+                    "Could not synchronize authorization info successfully to arborist"
+                )

@@ -6,6 +6,8 @@ import urllib.request, urllib.error
 from urllib.parse import urlparse, parse_qs
 
 from fence.models import GA4GHVisaV1, IdentityProvider
+from cdislogging import get_logger
+from gen3authz.client.arborist.client import ArboristClient
 
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 
@@ -99,6 +101,11 @@ class RASCallback(DefaultOAuth2Callback):
             # not closing leads to partially updated records
             current_session.close()
             DB = os.environ.get("FENCE_DB") or config.get("DB")
+            arborist = ArboristClient(
+                arborist_base_url=config["ARBORIST"],
+                logger=get_logger("user_syncer.arborist_client"),
+                authz_provider="user-sync",
+            )
             if DB is None:
                 try:
                     from fence.settings import DB
@@ -112,6 +119,7 @@ class RASCallback(DefaultOAuth2Callback):
                 dbGaP,
                 None,
                 DB,
+                arborist=arborist,
             )
             sync.sync_single_user_visas(user, current_session)
 
