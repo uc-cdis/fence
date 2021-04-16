@@ -28,7 +28,7 @@ class CilogonOauth2Client(Oauth2ClientBase):
             "authorization_endpoint", "https://cilogon.org/authorize"
         )
 
-        uri, state = self.session.create_authorization_url(
+        uri, _ = self.session.create_authorization_url(
             authorization_endpoint, prompt="login"
         )
 
