@@ -59,14 +59,16 @@ def get_signed_url_for_file(action, file_id, file_name=None):
     # default to signing the url even if it's a public object
     # this will work so long as we're provided a user token
     force_signed_url = True
-    if flask.request.args.get("no_force_sign"):
+    no_force_sign_param = flask.request.args.get("no_force_sign")
+    if no_force_sign_param and no_force_sign_param.lower() == "true":
         force_signed_url = False
 
     indexed_file = IndexedFile(file_id)
-    expires_in = config.get("MAX_PRESIGNED_URL_TTL", 3600)
-    requested_expires_in = get_valid_expiration_from_request()
-    if requested_expires_in:
-        expires_in = min(requested_expires_in, expires_in)
+    default_expires_in = config.get("MAX_PRESIGNED_URL_TTL", 3600)
+    expires_in = get_valid_expiration_from_request(
+        max_limit=default_expires_in,
+        default=default_expires_in,
+    )
 
     signed_url = indexed_file.get_signed_url(
         requested_protocol,
@@ -470,15 +472,14 @@ class IndexedFile(object):
             urls (Optional[List[str]])
 
         Return:
-            None
+            Response (str: message, int: status code)
         """
         locations_to_delete = []
-        if urls is None and delete_all:
+        if not urls and delete_all:
             locations_to_delete = self.indexed_file_locations
         else:
-            locations_to_delete = [
-                location for location in locations_to_delete if location.url in urls
-            ]
+            locations_to_delete = list(map(IndexedFileLocation.from_url, urls))
+        response = ("No URLs to delete", 200)
         for location in locations_to_delete:
             bucket = location.bucket_name()
 
@@ -494,7 +495,11 @@ class IndexedFile(object):
                     file_suffix, bucket
                 )
             )
-            return location.delete(bucket, file_suffix)
+            response = location.delete(bucket, file_suffix)
+            # check status code not in 200s
+            if response[1] > 399:
+                break
+        return response
 
     @login_required({"data"})
     def delete(self):

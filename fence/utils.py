@@ -359,27 +359,40 @@ def send_email_ses(body, to_emails, subject):
     logging.warning(json.dumps(response))
     return response
 
-def get_valid_expiration_from_request():
+def get_valid_expiration_from_request(
+    expiry_param="expires_in", max_limit=None, default=None
+):
     """
-    Return the expires_in param if it is in the request, None otherwise.
-    Throw an error if the requested expires_in is not a positive integer.
+    Thin wrapper around get_valid_expiration; looks for default query parameter "expires_in"
+    in flask request, unless a different parameter name was specified.
     """
-    if "expires_in" in flask.request.args:
-        is_valid_expiration(flask.request.args["expires_in"])
-        return int(flask.request.args["expires_in"])
-    else:
-        return None
+    return get_valid_expiration(
+        flask.request.args.get(expiry_param), max_limit=max_limit, default=default
+    )
 
 
-def is_valid_expiration(expires_in):
+def get_valid_expiration(requested_expiration, max_limit=None, default=None):
     """
-    Throw an error if expires_in is not a positive integer.
+    If requested_expiration is not a positive integer and not None, throw error.
+    If max_limit is provided and requested_expiration exceeds max_limit,
+      return max_limit.
+    If requested_expiration is None, return default (which may also be None).
+    Else return requested_expiration.
     """
+    if requested_expiration is None:
+        return default
     try:
-        expires_in = int(flask.request.args["expires_in"])
-        assert expires_in > 0
+        rv = int(requested_expiration)
+        assert rv > 0
+        if max_limit:
+            rv = min(rv, max_limit)
+        return rv
     except (ValueError, AssertionError):
-        raise UserError("expires_in must be a positive integer")
+        raise UserError(
+            "Requested expiry must be a positive integer; instead got {}".format(
+                requested_expiration
+            )
+        )
 
 
 def _print_func_name(function):
