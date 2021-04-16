@@ -20,7 +20,8 @@ blueprint = flask.Blueprint("register-user", __name__)
 
 
 class RegistrationForm(FlaskForm):
-    def EmailSometimesRequired(form, field):
+    # Define custom validation for email field
+    def xor_with_user_email(form, field):
         """
         Our current registration policy is that if user.email is present from the IdP,
         then use that email; otherwise ask for email at registration.
@@ -33,8 +34,10 @@ class RegistrationForm(FlaskForm):
             raise ValidationError("Email field is required")
         if flask.g.user.email and field.data:
             raise ValidationError(
-                "This user is connected to the email {} and the form should "
-                "not have an email field".format(flask.g.user.email)
+                "Received unexpected 'email' field; this user is already associated with the "
+                "email {}, so the form should not have had an email field".format(
+                    flask.g.user.email
+                )
             )
         if flask.g.user.email and not field.data:
             # If user.email is non-empty, the form should not render an email field,
@@ -42,9 +45,10 @@ class RegistrationForm(FlaskForm):
             field.errors[:] = []
             raise StopValidation()
 
+    # Define form fields
     name = StringField(label="Name", validators=[DataRequired()])
     organization = StringField(label="Organization", validators=[DataRequired()])
-    email = StringField(label="Email", validators=[EmailSometimesRequired, Email()])
+    email = StringField(label="Email", validators=[xor_with_user_email, Email()])
 
 
 @blueprint.route("/", methods=["GET", "POST"])
