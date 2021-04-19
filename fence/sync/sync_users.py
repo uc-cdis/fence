@@ -1230,6 +1230,7 @@ class UserSyncer(object):
                             f"{username} {privileges} privileges in project: "
                             f"{study_common_exchange_areas[dbgap_project]}."
                         )
+                        start = time.time()
                         self._add_dbgap_project_for_user(
                             study_common_exchange_areas[dbgap_project],
                             privileges,
@@ -1238,9 +1239,15 @@ class UserSyncer(object):
                             user_projects,
                             dbgap_config,
                         )
+                        end = time.time()
+                        print("----------------------------------------------")
+                        print("add dbgap project time: {}".format(end-start))
+                        print("----------------------------------------------")
+
 
                     dbgap_project += "." + consent_code
 
+                start = time.time()
                 self._process_dbgap_project(
                     dbgap_project,
                     privileges,
@@ -1249,6 +1256,12 @@ class UserSyncer(object):
                     user_projects,
                     dbgap_config,
                 )
+                end = time.time()
+                print("----------------------------------------------")
+                print("process dbgap project time: {}".format(end-start))
+                print("----------------------------------------------")
+
+
 
     def sync(self):
         if self.session:
@@ -1524,10 +1537,6 @@ class UserSyncer(object):
                 self.logger.debug(
                     "Trying to upsert policy with id {}".format(policy_id)
                 )
-                print("---------------------------------------------")
-                print(policy_id)
-                print(policy)
-                print("---------------------------------------------")
                 response = self.arborist_client.update_policy(
                     policy_id, policy, create_if_not_exist=True
                 )
@@ -1630,7 +1639,13 @@ class UserSyncer(object):
         arborist_user_projects = {}
         try:
             # TODO: if single visa sync then just get that one user. Pass user as a field here. 
+            start = time.time()
             arborist_users = self.arborist_client.get_users().json["users"]
+            end = time.time()
+            print("---------------------------------------------")
+            print("arborist get user: {}".format(end-start))
+            print("---------------------------------------------")
+
             # construct user information, NOTE the lowering of the username. when adding/
             # removing access, the case in the Fence db is used. For combining access, it is
             # case-insensitive, so we lower
@@ -1651,14 +1666,20 @@ class UserSyncer(object):
         self.sync_two_phsids_dict(arborist_user_projects, user_projects)
 
         for username, user_project_info in user_projects.items():
+            print("---------------------------------------------")
+            print(username)
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
             if user:
                 username = user.username
 
+            start = time.time()
             self.arborist_client.create_user_if_not_exist(username)
             self.arborist_client.revoke_all_policies_for_user(username)
-
+            end = time.time()
+            print("---------------------------------------------")
+            print("create and revoke time: {}".format(end-start))
+            print("---------------------------------------------")
             for project, permissions in user_project_info.items():
 
                 # check if this is a dbgap project, if it is, we need to get the right
@@ -1676,7 +1697,7 @@ class UserSyncer(object):
                     "resource paths for project {}: {}".format(project, paths)
                 )
                 self.logger.debug("permissions: {}".format(permissions))
-
+                start = time.time()
                 for permission in permissions:
                     # "permission" in the dbgap sense, not the arborist sense
                     if permission not in self._created_roles:
@@ -1702,9 +1723,6 @@ class UserSyncer(object):
                         policy_id = _format_policy_id(path, permission)
                         if policy_id not in self._created_policies:
                             try:
-                                print("---------------------------------------------")
-                                print(policy_id)
-                                print("---------------------------------------------")
                                 self.arborist_client.update_policy(
                                     policy_id,
                                     {
@@ -1721,7 +1739,10 @@ class UserSyncer(object):
                             self._created_policies.add(policy_id)
 
                         self.arborist_client.grant_user_policy(username, policy_id)
-
+                end = time.time()
+                print("---------------------------------------------")
+                print("project permissions time: {}".format(end-start))
+                print("---------------------------------------------")
             if user_yaml:
                 for policy in user_yaml.policies.get(username, []):
                     self.arborist_client.grant_user_policy(username, policy)
@@ -2118,12 +2139,7 @@ class UserSyncer(object):
         user_projects[user.username] = projects
         user_info[user.username] = info
 
-        start = time.time()
         user_projects = self.parse_projects(user_projects)
-        end = time.time()
-        print("----------------------------------------------")
-        print("Parsing projects time: {}".format(end-start))
-        print("----------------------------------------------")
 
         if self.parse_consent_code and enable_common_exchange_area_access:
             self.logger.info(
@@ -2154,9 +2170,6 @@ class UserSyncer(object):
             start = time.time()
             self.sync_to_db_and_storage_backend(user_projects, user_info, sess, True)
             end = time.time()
-            print("----------------------------------------------")
-            print("Update fence db: {}".format(end-start))
-            print("----------------------------------------------")
         else:
             self.logger.info("No users for syncing")
             
