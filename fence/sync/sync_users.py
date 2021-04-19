@@ -1600,7 +1600,7 @@ class UserSyncer(object):
 
         return True
 
-    def _update_authz_in_arborist(self, session, user_projects, user_yaml=None):
+    def _update_authz_in_arborist(self, session, user_projects, user_yaml=None, single_user_sync=False):
         """
         Assign users policies in arborist from the information in
         ``user_projects`` and optionally a ``user_yaml``.
@@ -1637,49 +1637,40 @@ class UserSyncer(object):
         # get list of users from arborist to make sure users that are completely removed
         # from authorization sources get policies revoked
         arborist_user_projects = {}
-        try:
-            # TODO: if single visa sync then just get that one user. Pass user as a field here. 
-            start = time.time()
-            arborist_users = self.arborist_client.get_users().json["users"]
-            end = time.time()
-            print("---------------------------------------------")
-            print("arborist get user: {}".format(end-start))
-            print("---------------------------------------------")
+        if not single_user_sync:
+            try:
+                # TODO: if single visa sync then just get that one user. Pass user as a field here. 
+                start = time.time()
+                arborist_users = self.arborist_client.get_users().json["users"]
+                end = time.time()
 
-            # construct user information, NOTE the lowering of the username. when adding/
-            # removing access, the case in the Fence db is used. For combining access, it is
-            # case-insensitive, so we lower
-            arborist_user_projects = {
-                user["name"].lower(): {} for user in arborist_users
-            }
-        except (ArboristError, KeyError, AttributeError) as error:
-            # TODO usersync should probably exit with non-zero exit code at the end,
-            #      but sync should continue from this point so there are no partial
-            #      updates
-            self.logger.warning(
-                "Could not get list of users in Arborist, continuing anyway. "
-                "WARNING: this sync will NOT remove access for users no longer in "
-                f"authorization sources. Error: {error}"
-            )
+                # construct user information, NOTE the lowering of the username. when adding/
+                # removing access, the case in the Fence db is used. For combining access, it is
+                # case-insensitive, so we lower
+                arborist_user_projects = {
+                    user["name"].lower(): {} for user in arborist_users
+                }
+            except (ArboristError, KeyError, AttributeError) as error:
+                # TODO usersync should probably exit with non-zero exit code at the end,
+                #      but sync should continue from this point so there are no partial
+                #      updates
+                self.logger.warning(
+                    "Could not get list of users in Arborist, continuing anyway. "
+                    "WARNING: this sync will NOT remove access for users no longer in "
+                    f"authorization sources. Error: {error}"
+                )
 
-        # update the project info with users from arborist
-        self.sync_two_phsids_dict(arborist_user_projects, user_projects)
+            # update the project info with users from arborist
+            self.sync_two_phsids_dict(arborist_user_projects, user_projects)
 
         for username, user_project_info in user_projects.items():
-            print("---------------------------------------------")
-            print(username)
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
             if user:
                 username = user.username
 
-            start = time.time()
             self.arborist_client.create_user_if_not_exist(username)
             self.arborist_client.revoke_all_policies_for_user(username)
-            end = time.time()
-            print("---------------------------------------------")
-            print("create and revoke time: {}".format(end-start))
-            print("---------------------------------------------")
             for project, permissions in user_project_info.items():
 
                 # check if this is a dbgap project, if it is, we need to get the right
@@ -1739,10 +1730,6 @@ class UserSyncer(object):
                             self._created_policies.add(policy_id)
 
                         self.arborist_client.grant_user_policy(username, policy_id)
-                end = time.time()
-                print("---------------------------------------------")
-                print("project permissions time: {}".format(end-start))
-                print("---------------------------------------------")
             if user_yaml:
                 for policy in user_yaml.policies.get(username, []):
                     self.arborist_client.grant_user_policy(username, policy)
@@ -2177,7 +2164,7 @@ class UserSyncer(object):
         if self.arborist_client:
             self.logger.info("Synchronizing arborist with authorization info...")
             start = time.time()
-            success = self._update_authz_in_arborist(sess, user_projects, user_yaml)
+            success = self._update_authz_in_arborist(sess, user_projects, user_yaml, True)
             end = time.time()
             print("----------------------------------------------")
             print("Arborist update time: {}".format(end-start))
