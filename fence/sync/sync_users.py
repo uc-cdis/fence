@@ -1671,6 +1671,7 @@ class UserSyncer(object):
 
             self.arborist_client.create_user_if_not_exist(username)
             self.arborist_client.revoke_all_policies_for_user(username)
+            start = time.time()
             for project, permissions in user_project_info.items():
 
                 # check if this is a dbgap project, if it is, we need to get the right
@@ -1730,6 +1731,10 @@ class UserSyncer(object):
                             self._created_policies.add(policy_id)
 
                         self.arborist_client.grant_user_policy(username, policy_id)
+            end = time.time()
+            print("------------------------------------------")
+            print("Arborist garbage: {}".format(end-start))
+            print("------------------------------------------")
             if user_yaml:
                 for policy in user_yaml.policies.get(username, []):
                     self.arborist_client.grant_user_policy(username, policy)
