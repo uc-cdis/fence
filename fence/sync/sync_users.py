@@ -5,6 +5,9 @@ import re
 import subprocess as sp
 import yaml
 import copy
+
+import time 
+
 from contextlib import contextmanager
 from collections import defaultdict
 from csv import DictReader
@@ -1626,6 +1629,7 @@ class UserSyncer(object):
         # from authorization sources get policies revoked
         arborist_user_projects = {}
         try:
+            # TODO: if single visa sync then just get that one user. Pass user as a field here. 
             arborist_users = self.arborist_client.get_users().json["users"]
             # construct user information, NOTE the lowering of the username. when adding/
             # removing access, the case in the Fence db is used. For combining access, it is
@@ -2114,13 +2118,19 @@ class UserSyncer(object):
         user_projects[user.username] = projects
         user_info[user.username] = info
 
+        start = time.time()
         user_projects = self.parse_projects(user_projects)
+        end = time.time()
+        print("----------------------------------------------")
+        print("Parsing projects time: {}".format(end-start))
+        print("----------------------------------------------")
 
         if self.parse_consent_code and enable_common_exchange_area_access:
             self.logger.info(
                 f"using study to common exchange area mapping: {study_common_exchange_areas}"
             )
 
+        start = time.time()
         self._process_user_projects(
             user_projects,
             enable_common_exchange_area_access,
@@ -2128,6 +2138,11 @@ class UserSyncer(object):
             dbgap_config,
             sess,
         )
+        end = time.time()
+        print("----------------------------------------------")
+        print("process user projects time {}".format(end-start))
+        print("----------------------------------------------")
+
 
         if self.parse_consent_code:
             self._grant_all_consents_to_c999_users(
@@ -2136,14 +2151,24 @@ class UserSyncer(object):
         # update fence db
         if user_projects:
             self.logger.info("Sync to db and storage backend")
+            start = time.time()
             self.sync_to_db_and_storage_backend(user_projects, user_info, sess, True)
+            end = time.time()
+            print("----------------------------------------------")
+            print("Update fence db: {}".format(end-start))
+            print("----------------------------------------------")
         else:
             self.logger.info("No users for syncing")
             
         # update arborist db (user access)
         if self.arborist_client:
             self.logger.info("Synchronizing arborist with authorization info...")
+            start = time.time()
             success = self._update_authz_in_arborist(sess, user_projects, user_yaml)
+            end = time.time()
+            print("----------------------------------------------")
+            print("Arborist update time: {}".format(end-start))
+            print("----------------------------------------------")
             if success:
                 self.logger.info(
                     "Finished synchronizing authorization info to arborist"
