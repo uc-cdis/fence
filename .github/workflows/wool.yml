@@ -13,5 +13,6 @@ jobs:
     - uses: actions/checkout@master
 
     - uses: uc-cdis/wool@master
+      if: github.event.pull_request.head.repo.full_name == 'uc-cdis/cdis-manifest'
       env:
-        GITHUB_TOKEN: ${{ secrets.PLANXCYBORG_GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.PLANXCYBORG_GITHUB_TOKEN || 'ignore' }}
