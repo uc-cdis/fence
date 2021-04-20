@@ -12,6 +12,6 @@ jobs:
     steps:
     - uses: actions/checkout@master
 
-    - uses: uc-cdis/wool@master
+    - uses: uc-cdis/wool@feat/no-token
       env:
-        GITHUB_TOKEN: ${{ secrets.PLANXCYBORG_GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
