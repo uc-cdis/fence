@@ -14,4 +14,4 @@ jobs:
 
     - uses: uc-cdis/wool@master
       env:
-        GITHUB_TOKEN: ${{ secrets.PLANXCYBORG_GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
