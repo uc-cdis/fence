@@ -1199,7 +1199,9 @@ class UserSyncer(object):
         dbgap_config,
         sess,
     ):
+        
         for username in user_projects.keys():
+            start = time.time()
             for project in user_projects[username].keys():
                 phsid = project.split(".")
                 dbgap_project = phsid[0]
@@ -1239,15 +1241,9 @@ class UserSyncer(object):
                             user_projects,
                             dbgap_config,
                         )
-                        end = time.time()
-                        print("----------------------------------------------")
-                        print("add dbgap project time: {}".format(end-start))
-                        print("----------------------------------------------")
-
 
                     dbgap_project += "." + consent_code
 
-                start = time.time()
                 self._process_dbgap_project(
                     dbgap_project,
                     privileges,
@@ -1257,9 +1253,9 @@ class UserSyncer(object):
                     dbgap_config,
                 )
                 end = time.time()
-                print("----------------------------------------------")
-                print("process dbgap project time: {}".format(end-start))
-                print("----------------------------------------------")
+            print("----------------------------------------------")
+            print("process dbgap project time: {}".format(end-start))
+            print("----------------------------------------------")
 
 
 
@@ -1689,7 +1685,7 @@ class UserSyncer(object):
                     "resource paths for project {}: {}".format(project, paths)
                 )
                 self.logger.debug("permissions: {}".format(permissions))
-                start = time.time()
+                p_start = time.time()
                 for permission in permissions:
                     # "permission" in the dbgap sense, not the arborist sense
                     if permission not in self._created_roles:
@@ -1729,8 +1725,16 @@ class UserSyncer(object):
                                     "not creating policy in arborist; {}".format(str(e))
                                 )
                             self._created_policies.add(policy_id)
-
+                        grant_start = time.time()
                         self.arborist_client.grant_user_policy(username, policy_id)
+                        grant_end = time.time()
+                        print("----------------------------------")
+                        print("grant time: {}".format(grant_end- grant_start))
+                        print("----------------------------------")
+                p_end = time.time()
+                print("----------------------------------")
+                print("Permission time: {}".start(p_end - p_start))
+                print("----------------------------------")
             end = time.time()
             print("------------------------------------------")
             print("Arborist garbage: {}".format(end-start))
