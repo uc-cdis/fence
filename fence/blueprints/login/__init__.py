@@ -279,9 +279,7 @@ def make_login_blueprint(app):
 
     if "okta" in configured_idps:
         blueprint_api.add_resource(OktaLogin, "/okta", strict_slashes=False)
-        blueprint_api.add_resource(
-            OktaCallback, "/okta/login", strict_slashes=False
-        )
+        blueprint_api.add_resource(OktaCallback, "/okta/login", strict_slashes=False)
 
     if "cognito" in configured_idps:
         blueprint_api.add_resource(CognitoLogin, "/cognito", strict_slashes=False)

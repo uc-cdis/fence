@@ -2,8 +2,8 @@ from .idp_oauth2 import Oauth2ClientBase
 
 OKTA_IDP_NAME = "okta"
 
-class OktaOauth2Client(Oauth2ClientBase):
 
+class OktaOauth2Client(Oauth2ClientBase):
     def __init__(self, settings, logger, HTTP_PROXY=None):
         super(OktaOauth2Client, self).__init__(
             settings,
