@@ -1690,9 +1690,13 @@ class UserSyncer(object):
                     # "permission" in the dbgap sense, not the arborist sense
                     if permission not in self._created_roles:
                         try:
+                            start_role = time.time()
                             self.arborist_client.create_role(
                                 arborist_role_for_permission(permission)
                             )
+                            end_role = time.time()
+                            print("--------------------------------------")
+                            print("create role time: {}".format(end_role-start_role))
                         except ArboristError as e:
                             self.logger.info(
                                 "not creating role for permission `{}`; {}".format(
@@ -1711,6 +1715,7 @@ class UserSyncer(object):
                         policy_id = _format_policy_id(path, permission)
                         if policy_id not in self._created_policies:
                             try:
+                                start_update = time.time()
                                 self.arborist_client.update_policy(
                                     policy_id,
                                     {
@@ -1720,6 +1725,10 @@ class UserSyncer(object):
                                     },
                                     create_if_not_exist=True,
                                 )
+                                end_update = time.time()
+                                print("--------------------------------------")
+                                print("update policy time: {}".format(end_update-start_update))
+                                print("--------------------------------------")
                             except ArboristError as e:
                                 self.logger.info(
                                     "not creating policy in arborist; {}".format(str(e))
@@ -1733,7 +1742,7 @@ class UserSyncer(object):
                         print("----------------------------------")
                 p_end = time.time()
                 print("----------------------------------")
-                print("Permission time: {}".start(p_end - p_start))
+                print("Permission time: {}".format(p_end - p_start))
                 print("----------------------------------")
             end = time.time()
             print("------------------------------------------")
