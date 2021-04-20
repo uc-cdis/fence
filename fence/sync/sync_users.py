@@ -1252,10 +1252,6 @@ class UserSyncer(object):
                     user_projects,
                     dbgap_config,
                 )
-                end = time.time()
-            print("----------------------------------------------")
-            print("process dbgap project time: {}".format(end-start))
-            print("----------------------------------------------")
 
 
 
@@ -1636,9 +1632,7 @@ class UserSyncer(object):
         if not single_user_sync:
             try:
                 # TODO: if single visa sync then just get that one user. Pass user as a field here. 
-                start = time.time()
                 arborist_users = self.arborist_client.get_users().json["users"]
-                end = time.time()
 
                 # construct user information, NOTE the lowering of the username. when adding/
                 # removing access, the case in the Fence db is used. For combining access, it is
@@ -1660,6 +1654,9 @@ class UserSyncer(object):
             self.sync_two_phsids_dict(arborist_user_projects, user_projects)
 
         for username, user_project_info in user_projects.items():
+            print("----------------------------------------")
+            print(username)
+            print("----------------------------------------")
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
             if user:
@@ -1667,7 +1664,6 @@ class UserSyncer(object):
 
             self.arborist_client.create_user_if_not_exist(username)
             self.arborist_client.revoke_all_policies_for_user(username)
-            start = time.time()
             for project, permissions in user_project_info.items():
 
                 # check if this is a dbgap project, if it is, we need to get the right
@@ -1685,18 +1681,16 @@ class UserSyncer(object):
                     "resource paths for project {}: {}".format(project, paths)
                 )
                 self.logger.debug("permissions: {}".format(permissions))
-                p_start = time.time()
                 for permission in permissions:
                     # "permission" in the dbgap sense, not the arborist sense
                     if permission not in self._created_roles:
                         try:
-                            start_role = time.time()
+                            print("------------------------------------")
+                            print(arborist_role_for_permission(permission))
+                            print("----------------------------------------")
                             self.arborist_client.create_role(
                                 arborist_role_for_permission(permission)
                             )
-                            end_role = time.time()
-                            print("--------------------------------------")
-                            print("create role time: {}".format(end_role-start_role))
                         except ArboristError as e:
                             self.logger.info(
                                 "not creating role for permission `{}`; {}".format(
@@ -1715,7 +1709,6 @@ class UserSyncer(object):
                         policy_id = _format_policy_id(path, permission)
                         if policy_id not in self._created_policies:
                             try:
-                                start_update = time.time()
                                 self.arborist_client.update_policy(
                                     policy_id,
                                     {
@@ -1725,29 +1718,12 @@ class UserSyncer(object):
                                     },
                                     create_if_not_exist=True,
                                 )
-                                end_update = time.time()
-                                print("--------------------------------------")
-                                print("update policy time: {}".format(end_update-start_update))
-                                print("--------------------------------------")
                             except ArboristError as e:
                                 self.logger.info(
                                     "not creating policy in arborist; {}".format(str(e))
                                 )
                             self._created_policies.add(policy_id)
-                        grant_start = time.time()
                         self.arborist_client.grant_user_policy(username, policy_id)
-                        grant_end = time.time()
-                        print("----------------------------------")
-                        print("grant time: {}".format(grant_end- grant_start))
-                        print("----------------------------------")
-                p_end = time.time()
-                print("----------------------------------")
-                print("Permission time: {}".format(p_end - p_start))
-                print("----------------------------------")
-            end = time.time()
-            print("------------------------------------------")
-            print("Arborist garbage: {}".format(end-start))
-            print("------------------------------------------")
             if user_yaml:
                 for policy in user_yaml.policies.get(username, []):
                     self.arborist_client.grant_user_policy(username, policy)
@@ -2151,7 +2127,7 @@ class UserSyncer(object):
                 f"using study to common exchange area mapping: {study_common_exchange_areas}"
             )
 
-        start = time.time()
+        start_1 = time.time()
         self._process_user_projects(
             user_projects,
             enable_common_exchange_area_access,
@@ -2159,10 +2135,7 @@ class UserSyncer(object):
             dbgap_config,
             sess,
         )
-        end = time.time()
-        print("----------------------------------------------")
-        print("process user projects time {}".format(end-start))
-        print("----------------------------------------------")
+        end_1 = time.time()
 
 
         if self.parse_consent_code:
@@ -2184,9 +2157,6 @@ class UserSyncer(object):
             start = time.time()
             success = self._update_authz_in_arborist(sess, user_projects, user_yaml, True)
             end = time.time()
-            print("----------------------------------------------")
-            print("Arborist update time: {}".format(end-start))
-            print("----------------------------------------------")
             if success:
                 self.logger.info(
                     "Finished synchronizing authorization info to arborist"
@@ -2195,3 +2165,8 @@ class UserSyncer(object):
                 self.logger.error(
                     "Could not synchronize authorization info successfully to arborist"
                 )
+
+        print("----------------------------------------------")
+        print("process user projects time {}".format(end_1-start_1))
+        print("Arborist update time: {}".format(end-start))
+        print("----------------------------------------------")
