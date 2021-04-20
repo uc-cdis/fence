@@ -72,7 +72,7 @@ def app_init(
     config_path=None,
     config_file_name=None,
 ):
-    print('trigger black output')
+    print("trigger black output")
     app.__dict__["logger"] = warn_about_logger
 
     app_config(
