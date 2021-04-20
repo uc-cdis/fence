@@ -470,7 +470,7 @@ def main():
             sync_from_local_yaml_file=args.yaml,
             folder=args.folder,
             arborist=arborist,
-            json_from_api=None
+            json_from_api=None,
             sync_from_visas=sync_from_visas,
             fallback_to_dbgap_sftp=fallback_to_dbgap_sftp,
         )
