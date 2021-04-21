@@ -1,7 +1,5 @@
 from .idp_oauth2 import Oauth2ClientBase
 
-CILOGON_IDP_NAME = "cilogon"
-
 
 class CilogonOauth2Client(Oauth2ClientBase):
     """

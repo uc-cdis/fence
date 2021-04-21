@@ -1,7 +1,8 @@
 import flask
 
-from fence.resources.openid.cilogon_oauth2 import CILOGON_IDP_NAME
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
+
+CILOGON_IDP_NAME = "cilogon"
 
 
 class CilogonLogin(DefaultOAuth2Login):
