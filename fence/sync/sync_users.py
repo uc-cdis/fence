@@ -1709,6 +1709,7 @@ class UserSyncer(object):
                         policy_id = _format_policy_id(path, permission)
                         if policy_id not in self._created_policies:
                             try:
+                                print("-----------")
                                 self.arborist_client.update_bulk_policy(
                                     policy_id,
                                     {
