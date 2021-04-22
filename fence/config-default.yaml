@@ -175,7 +175,7 @@ OPENID_CONNECT:
     mock: false
     mock_default_user: 'test@example.com'
   # For information on configuring an Okta tenant as an OIDC IdP refer to Okta documentation at:
-  # https://developer.okta.com/docs/reference/api/oidc/#2-okta-as-the-identity-platform-for-your-app-or-api  
+  # https://developer.okta.com/docs/reference/api/oidc/#2-okta-as-the-identity-platform-for-your-app-or-api
   okta:
     discovery_url: ''
     client_id: ''
@@ -610,6 +610,16 @@ AUDIT_SERVICE: 'http://audit-service'
 ENABLE_AUDIT_LOGS:
   presigned_url: false
   login: false
+# `PUSH_AUDIT_LOGS_CONFIG.type` is one of: [api, aws_sqs].
+# - if type == api: logs are created by hitting the log creation endpoint.
+# - if type == aws_sqs: logs are pushed to an SQS and fields `sqs_url`,
+# `region`, `aws_access_key_id` and `aws_secret_access_key` must be filled out.
+PUSH_AUDIT_LOGS_CONFIG:
+  type: aws_sqs
+  sqs_url:
+  region:
+  aws_access_key_id:
+  aws_secret_access_key:
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # CLOUD API LIBRARY (CIRRUS) AND GOOGLE CONFIGURATION

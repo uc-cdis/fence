@@ -1,4 +1,6 @@
+import boto3
 import flask
+import json
 import requests
 import time
 
@@ -7,6 +9,7 @@ from fence.errors import InternalError
 
 
 def get_request_url():
+    # TODO replace “state” and “code” by “redacted”
     request_url = flask.request.url
     base_url = config.get("BASE_URL", "")
     if request_url.startswith(base_url):
@@ -15,7 +18,7 @@ def get_request_url():
 
 
 def is_audit_enabled(category=None):
-    enable_audit_logs = config.get("ENABLE_AUDIT_LOGS") or {}
+    enable_audit_logs = config["ENABLE_AUDIT_LOGS"] or {}
     if category:
         return enable_audit_logs and enable_audit_logs.get(category, False)
     return enable_audit_logs and any(v for v in enable_audit_logs.values())
@@ -25,11 +28,13 @@ class AuditServiceClient:
     def __init__(self, service_url, logger):
         self.service_url = service_url.rstrip("/")
         self.logger = logger
+        self.push_type = config["PUSH_AUDIT_LOGS_CONFIG"].get("type", "api")
 
         # audit logs should not be enabled if the audit-service is unavailable
         if is_audit_enabled():
             logger.info("Enabling audit logs")
             self.ping()
+            self.validate_config()
         else:
             logger.warn("NOT enabling audit logs")
 
@@ -50,6 +55,19 @@ class AuditServiceClient:
             f"Audit logs are enabled but audit-service is unreachable at {status_url}: {r.text}"
         )
 
+    def validate_config(self):
+        allowed_push_types = ["api", "aws_sqs"]
+        if self.push_type not in allowed_push_types:
+            raise Exception(
+                f"Configured PUSH_AUDIT_LOGS_CONFIG.type '{self.push_type}' is not one of known types {allowed_push_types}"
+            )
+
+        if self.push_type == "aws_sqs":
+            for field in ["sqs_url", "aws_access_key_id", "aws_secret_access_key"]:
+                assert config["PUSH_AUDIT_LOGS_CONFIG"].get(
+                    field
+                ), f"PUSH_AUDIT_LOGS_CONFIG.type is 'aws_sqs' but PUSH_AUDIT_LOGS_CONFIG.{field} is not configured"
+
     def check_response(self, resp, body):
         # The audit-service returns 201 before inserting the log in the DB.
         # This request should only error if the input is incorrect (status
@@ -61,6 +79,28 @@ class AuditServiceClient:
                 err = resp.text
             self.logger.error(f"Unable to POST audit log `{body}`. Details:\n{err}")
             raise InternalError("Unable to create audit log")
+
+    def create_audit_log(self, category, data):
+        if self.push_type == "api":
+            url = f"{self.service_url}/log/{category}"
+            resp = requests.post(url, json=data)
+            self.check_response(resp, data)
+        elif self.push_type == "aws_sqs":
+            sqs = boto3.client(  # TODO during init
+                "sqs",
+                region_name=config["PUSH_AUDIT_LOGS_CONFIG"]["region"],
+                aws_access_key_id=config["PUSH_AUDIT_LOGS_CONFIG"]["aws_access_key_id"],
+                aws_secret_access_key=config["PUSH_AUDIT_LOGS_CONFIG"][
+                    "aws_secret_access_key"
+                ],
+            )
+            data["category"] = category
+            response = sqs.send_message(
+                QueueUrl=config["PUSH_AUDIT_LOGS_CONFIG"]["sqs_url"],
+                MessageBody=json.dumps(data),
+            )
+
+        print(response["MessageId"])
 
     def create_presigned_url_log(
         self,
@@ -74,8 +114,7 @@ class AuditServiceClient:
         if not is_audit_enabled("presigned_url"):
             return
 
-        url = f"{self.service_url}/log/presigned_url"
-        body = {
+        data = {
             "request_url": get_request_url(),
             "status_code": 200,  # only record successful requests for now
             "username": username,
@@ -85,8 +124,7 @@ class AuditServiceClient:
             "action": action,
             "protocol": protocol,
         }
-        resp = requests.post(url, json=body)
-        self.check_response(resp, body)
+        self.create_audit_log("presigned_url", data)
 
     def create_login_log(
         self,
@@ -105,8 +143,7 @@ class AuditServiceClient:
         if shib_idp == "None":
             shib_idp = None
 
-        url = f"{self.service_url}/log/login"
-        body = {
+        data = {
             "request_url": get_request_url(),
             "status_code": 200,  # only record successful requests for now
             "username": username,
@@ -116,5 +153,4 @@ class AuditServiceClient:
             "shib_idp": shib_idp,
             "client_id": client_id,
         }
-        resp = requests.post(url, json=body)
-        self.check_response(resp, body)
+        self.create_audit_log("login", data)
