@@ -1529,7 +1529,7 @@ class UserSyncer(object):
                 self.logger.debug(
                     "Trying to upsert policy with id {}".format(policy_id)
                 )
-                response = self.arborist_client.update_policy(
+                response = self.arborist_client.update_bulk_policy(
                     policy_id, policy, create_if_not_exist=True
                 )
             except ArboristError as e:
@@ -1709,7 +1709,7 @@ class UserSyncer(object):
                         policy_id = _format_policy_id(path, permission)
                         if policy_id not in self._created_policies:
                             try:
-                                self.arborist_client.update_policy(
+                                self.arborist_client.update_bulk_policy(
                                     policy_id,
                                     {
                                         "description": "policy created by fence sync",
