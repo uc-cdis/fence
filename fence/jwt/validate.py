@@ -86,7 +86,7 @@ def validate_jwt(
             raise JWTError(e.message)
 
     assert (
-        type(scope) is set or type(scope) is list or scope is None
+        isinstance(scope, set) or isinstance(scope, list) or scope is None
     ), "scope argument must be set or list or None"
 
     # Can't set arg default to config[x] in fn def, so doing it this way.
