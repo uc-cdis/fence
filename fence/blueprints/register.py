@@ -19,33 +19,34 @@ from fence.models import User
 blueprint = flask.Blueprint("register-user", __name__)
 
 
-class RegistrationForm(FlaskForm):
-    # Define custom validation for email field
-    def xor_with_user_email(form, field):
-        """
-        Our current registration policy is that if user.email is present from the IdP,
-        then use that email; otherwise ask for email at registration.
+def xor_with_user_email(form, field):
+    """
+    Custom validator for the RegistrationForm email field.
 
-        Therefore the HTML/jinja form will render an email field only if user.email is None,
-        and this validator will check that one and only one of user.email or field.data
-        is non-empty.
-        """
-        if not flask.g.user.email and not field.data:
-            raise ValidationError("Email field is required")
-        if flask.g.user.email and field.data:
-            raise ValidationError(
-                "Received unexpected 'email' field; this user is already associated with the "
-                "email {}, so the form should not have had an email field".format(
-                    flask.g.user.email
-                )
+    Our current registration policy is that if user.email is present from the IdP,
+    then use that email; otherwise ask for email at registration.
+
+    Therefore the HTML/jinja form will render an email field only if user.email is None,
+    and this validator will check that one and only one of user.email or field.data
+    is non-empty.
+    """
+    if not flask.g.user.email and not field.data:
+        raise ValidationError("Email field is required")
+    if flask.g.user.email and field.data:
+        raise ValidationError(
+            "Received unexpected 'email' field; this user is already associated with the "
+            "email {}, so the form should not have had an email field".format(
+                flask.g.user.email
             )
-        if flask.g.user.email and not field.data:
-            # If user.email is non-empty, the form should not render an email field,
-            # and empty field.data is expected--all good
-            field.errors[:] = []
-            raise StopValidation()
+        )
+    if flask.g.user.email and not field.data:
+        # If user.email is non-empty, the form should not render an email field,
+        # and empty field.data is expected--all good
+        field.errors[:] = []
+        raise StopValidation()
 
-    # Define form fields
+
+class RegistrationForm(FlaskForm):
     name = StringField(label="Name", validators=[DataRequired()])
     organization = StringField(label="Organization", validators=[DataRequired()])
     email = StringField(label="Email", validators=[xor_with_user_email, Email()])
