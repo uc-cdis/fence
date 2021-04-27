@@ -156,11 +156,11 @@ class Oauth2ClientBase(object):
             proxies=self.get_proxies(),
             refresh_token=refresh_token,
         )
-        new_refresh_token = token_response["refresh_token"]
+        refresh_token = token_response["refresh_token"]
 
         self.store_refresh_token(
             user,
-            refresh_token=new_refresh_token,
+            refresh_token=refresh_token,
             expires=expires,
             db_session=db_session,
         )
