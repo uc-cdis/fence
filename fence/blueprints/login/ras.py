@@ -2,7 +2,8 @@ import flask
 import jwt
 import os
 from flask_sqlalchemy_session import current_session
-import urllib.request, urllib.parse, urllib.error
+import urllib.request, urllib.error
+from urllib.parse import urlparse, parse_qs
 
 from fence.models import GA4GHVisaV1, IdentityProvider
 
@@ -28,8 +29,7 @@ class RASCallback(DefaultOAuth2Callback):
             username_field="username",
         )
 
-    def post_login(self, user, token_result):
-
+    def post_login(self, user=None, token_result=None):
         # TODO: I'm not convinced this code should be in post_login.
         # Just putting it in here for now, but might refactor later.
         # This saves us a call to RAS /userinfo, but will not make sense
@@ -65,8 +65,10 @@ class RASCallback(DefaultOAuth2Callback):
             current_session.commit()
 
         # Store refresh token in db
-        refresh_token = flask.g.tokens.get("refresh_token")
-        id_token = flask.g.tokens.get("id_token")
+        assert "refresh_token" in flask.g.tokens, "No refresh_token in user tokens"
+        refresh_token = flask.g.tokens["refresh_token"]
+        assert "id_token" in flask.g.tokens, "No id_token in user tokens"
+        id_token = flask.g.tokens["id_token"]
         decoded_id = jwt.decode(id_token, verify=False)
 
         # Add 15 days to iat to calculate refresh token expiration time
@@ -74,9 +76,10 @@ class RASCallback(DefaultOAuth2Callback):
         expires = config["RAS_REFRESH_EXPIRATION"]
 
         # User definied RAS refresh token expiration time
-        parsed_url = urllib.parse.parse_qs(flask.redirect_url)
-        if parsed_url.get("upstream_expires_in"):
-            custom_refresh_expiration = parsed_url.get("upstream_expires_in")[0]
+        parsed_url = urlparse(flask.session.get("redirect"))
+        query_params = parse_qs(parsed_url.query)
+        if query_params.get("upstream_expires_in"):
+            custom_refresh_expiration = query_params.get("upstream_expires_in")[0]
             expires = get_valid_expiration(
                 custom_refresh_expiration,
                 expires,
@@ -87,9 +90,11 @@ class RASCallback(DefaultOAuth2Callback):
             user=user, refresh_token=refresh_token, expires=expires + issued_time
         )
 
-        # Check if user has any project_access from a previous session or from usersync
+        usersync = config.get("USERSYNC", {})
+        sync_from_visas = usersync.get("sync_from_visas", False)
+        # Check if user has any project_access from a previous session or from usersync AND if fence is configured to use visas as authZ source
         # if not do an on-the-fly usersync for this user to give them instant access after logging in through RAS
-        if not user.project_access:
+        if not user.project_access and sync_from_visas:
             # Close previous db sessions. Leaving it open causes a race condition where we're viewing user.project_access while trying to update it in usersync
             # not closing leads to partially updated records
             current_session.close()
@@ -109,3 +114,5 @@ class RASCallback(DefaultOAuth2Callback):
                 DB,
             )
             sync.sync_single_user_visas(user, current_session)
+
+        super(RASCallback, self).post_login()
