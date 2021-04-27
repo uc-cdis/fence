@@ -81,7 +81,7 @@ class FenceCallback(Resource):
             tokens["id_token"], aud={"openid"}, purpose="id", attempt_refresh=True
         )
         username = id_token_claims["context"]["user"]["name"]
-        login_user(flask.request, username, IdentityProvider.fence)
+        login_user(username, IdentityProvider.fence)
 
         if "redirect" in flask.session:
             return flask.redirect(flask.session.get("redirect"))

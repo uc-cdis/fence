@@ -232,10 +232,11 @@ class GoogleCredentialsList(Resource):
         """
         # requested time (in seconds) during which the access key will be valid
         # x days * 24 hr/day * 60 min/hr * 60 s/min = y seconds
-        expires_in = cirrus_config.SERVICE_KEY_EXPIRATION_IN_DAYS * 24 * 60 * 60
-        requested_expires_in = get_valid_expiration_from_request()
-        if requested_expires_in:
-            expires_in = min(expires_in, requested_expires_in)
+        default_expires_in = cirrus_config.SERVICE_KEY_EXPIRATION_IN_DAYS * 24 * 60 * 60
+        expires_in = get_valid_expiration_from_request(
+            max_limit=default_expires_in,
+            default=default_expires_in,
+        )
 
         expiration_time = int(time.time()) + int(expires_in)
         key_id = key.get("private_key_id")
