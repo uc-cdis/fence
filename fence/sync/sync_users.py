@@ -1714,6 +1714,7 @@ class UserSyncer(object):
 
                         if policy_id not in self._created_policies:
                             policy_json = {
+                                "id": policy_id,
                                 "description": "policy created by fence sync",
                                 "role_ids": [permission],
                                 "resource_paths": [path],
@@ -1741,13 +1742,13 @@ class UserSyncer(object):
                         try:
                             print("----------BULK stuff---------------")
                             self.arborist_client.update_bulk_policy(
-                                policy_json,
+                                policies,
                                 True,
                             )
-                            for policy in polcies:
-                                self._created_policies.add(policy)
-                        for policy in polcies:
-                            self.arborist_client.grant_user_policy(username, policy)
+                            for policy_id in policy_id_list:
+                                self._created_policies.add(policy_id)
+                        for policy_id in policy_id_list:
+                            self.arborist_client.grant_user_policy(username, policy_id)
             if user_yaml:
                 for policy in user_yaml.policies.get(username, []):
                     self.arborist_client.grant_user_policy(username, policy)
