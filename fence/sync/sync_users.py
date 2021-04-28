@@ -6,7 +6,7 @@ import subprocess as sp
 import yaml
 import copy
 
-import time 
+import time
 
 from contextlib import contextmanager
 from collections import defaultdict
@@ -1199,7 +1199,7 @@ class UserSyncer(object):
         dbgap_config,
         sess,
     ):
-        
+
         for username in user_projects.keys():
             start = time.time()
             for project in user_projects[username].keys():
@@ -1252,8 +1252,6 @@ class UserSyncer(object):
                     user_projects,
                     dbgap_config,
                 )
-
-
 
     def sync(self):
         if self.session:
@@ -1592,7 +1590,9 @@ class UserSyncer(object):
 
         return True
 
-    def _update_authz_in_arborist(self, session, user_projects, user_yaml=None, single_user_sync=False):
+    def _update_authz_in_arborist(
+        self, session, user_projects, user_yaml=None, single_user_sync=False
+    ):
         """
         Assign users policies in arborist from the information in
         ``user_projects`` and optionally a ``user_yaml``.
@@ -1631,7 +1631,7 @@ class UserSyncer(object):
         arborist_user_projects = {}
         if not single_user_sync:
             try:
-                # TODO: if single visa sync then just get that one user. Pass user as a field here. 
+                # TODO: if single visa sync then just get that one user. Pass user as a field here.
                 arborist_users = self.arborist_client.get_users().json["users"]
 
                 # construct user information, NOTE the lowering of the username. when adding/
@@ -1699,6 +1699,9 @@ class UserSyncer(object):
                             )
                         self._created_roles.add(permission)
 
+                    policy_id_list = []
+                    policies = []
+
                     for path in paths:
                         # If everything was created fine, grant a policy to
                         # this user which contains exactly just this resource,
@@ -1707,24 +1710,44 @@ class UserSyncer(object):
                         # format project '/x/y/z' -> 'x.y.z'
                         # so the policy id will be something like 'x.y.z-create'
                         policy_id = _format_policy_id(path, permission)
+                        policy_id_list.append(policy_id)
+
                         if policy_id not in self._created_policies:
-                            try:
-                                print("-----------")
-                                self.arborist_client.update_bulk_policy(
-                                    policy_id,
-                                    {
-                                        "description": "policy created by fence sync",
-                                        "role_ids": [permission],
-                                        "resource_paths": [path],
-                                    },
-                                    create_if_not_exist=True,
-                                )
-                            except ArboristError as e:
-                                self.logger.info(
-                                    "not creating policy in arborist; {}".format(str(e))
-                                )
-                            self._created_policies.add(policy_id)
-                        self.arborist_client.grant_user_policy(username, policy_id)
+                            policy_json = {
+                                "description": "policy created by fence sync",
+                                "role_ids": [permission],
+                                "resource_paths": [path],
+                            }
+                            policies.append(policy_json)
+
+                            # try:
+                            #     print("-----------")
+                            #     self.arborist_client.update_bulk_policy(
+                            #         policy_id,
+                            #         {
+                            #             "description": "policy created by fence sync",
+                            #             "role_ids": [permission],
+                            #             "resource_paths": [path],
+                            #         },
+                            #         create_if_not_exist=True,
+                            #     )
+                            # except ArboristError as e:
+                            #     self.logger.info(
+                            #         "not creating policy in arborist; {}".format(str(e))
+                            #     )
+                        #     self._created_policies.add(policy_id)
+                        # self.arborist_client.grant_user_policy(username, policy_id)
+                        
+                        try:
+                            print("----------BULK stuff---------------")
+                            self.arborist_client.update_bulk_policy(
+                                policy_json,
+                                True,
+                            )
+                            for policy in polcies:
+                                self._created_policies.add(policy)
+                        for policy in polcies:
+                            self.arborist_client.grant_user_policy(username, policy)
             if user_yaml:
                 for policy in user_yaml.policies.get(username, []):
                     self.arborist_client.grant_user_policy(username, policy)
@@ -2138,7 +2161,6 @@ class UserSyncer(object):
         )
         end_1 = time.time()
 
-
         if self.parse_consent_code:
             self._grant_all_consents_to_c999_users(
                 user_projects, user_yaml.project_to_resource
@@ -2151,12 +2173,14 @@ class UserSyncer(object):
             end = time.time()
         else:
             self.logger.info("No users for syncing")
-            
+
         # update arborist db (user access)
         if self.arborist_client:
             self.logger.info("Synchronizing arborist with authorization info...")
             start = time.time()
-            success = self._update_authz_in_arborist(sess, user_projects, user_yaml, True)
+            success = self._update_authz_in_arborist(
+                sess, user_projects, user_yaml, True
+            )
             end = time.time()
             if success:
                 self.logger.info(
@@ -2168,6 +2192,6 @@ class UserSyncer(object):
                 )
 
         print("----------------------------------------------")
-        print("process user projects time {}".format(end_1-start_1))
-        print("Arborist update time: {}".format(end-start))
+        print("process user projects time {}".format(end_1 - start_1))
+        print("Arborist update time: {}".format(end - start))
         print("----------------------------------------------")
