@@ -33,6 +33,7 @@ def config_idp_in_client(
         {
             "BASE_URL": "/",
             "MOCK_AUTH": False,
+            "DEFAULT_LOGIN_IDP": "fence",
             "DEFAULT_LOGIN_URL": "/login/fence",
             "OPENID_CONNECT": {
                 "fence": {

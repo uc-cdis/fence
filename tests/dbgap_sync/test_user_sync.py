@@ -739,8 +739,6 @@ def test_sync_in_login(
     user = models.query_for_user(
         session=db_session, username="TESTUSERB"
     )  # contains no information
-    assert len(user.project_access) == 0
-    db_session.close()
     syncer.sync_single_user_visas(user, db_session)
     user = models.query_for_user(
         session=db_session, username="TESTUSERB"

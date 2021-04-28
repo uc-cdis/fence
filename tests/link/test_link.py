@@ -307,9 +307,9 @@ def test_patch_google_link(
         .first()
     )
     # make sure the link is valid for the requested time
-    # (allow up to 15 sec for runtime)
+    # (allow up to 2 sec for runtime)
     diff = account_in_proxy_group.expires - int(time.time())
-    assert requested_exp <= diff <= requested_exp + 15
+    assert requested_exp - 2 <= diff <= requested_exp
 
 
 def test_patch_google_link_account_not_in_token(
