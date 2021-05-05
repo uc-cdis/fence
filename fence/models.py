@@ -542,6 +542,16 @@ class AssumeRoleCache(Base):
     aws_session_token = Column(String())
 
 
+class AssumeRoleCacheGCP(Base):
+    __tablename__="assume_role_cache"
+
+    arn = Column(String(), primary_key=True)
+    expires_at = Column(Integer())
+    gcp_access_key_id = Column(String())
+    gcp_secret_access_key = Column(String())
+    gcp_session_token = Column(String())
+
+
 class GA4GHVisaV1(Base):
 
     __tablename__ = "ga4gh_visa_v1"

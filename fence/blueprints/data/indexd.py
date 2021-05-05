@@ -610,6 +610,8 @@ class S3IndexedFileLocation(IndexedFileLocation):
         )
         expiry = time.time() + expires_in
 
+        print('this is the in mem cache:', _assume_role_cache)
+
         # try to retrieve from local in-memory cache
         rv, expires_at = cls._assume_role_cache.get(role_arn, (None, 0))
         if expires_at > expiry:
@@ -688,7 +690,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
                         aws_session_token = EXCLUDED.aws_session_token;""",
                     dict(arn=role_arn, expires_at=expires_at, **rv),
                 )
-
+        print("this is the final role value: ", rv)
         return rv
 
     def bucket_name(self):
@@ -1008,6 +1010,9 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         private_key, key_db_entry = get_or_create_primary_service_account_key(
             user_id=user_id, username=username, proxy_group_id=proxy_group_id
         )
+
+        print("this is the google private_key", private_key)
+        print("this is the key_db_entry", key_db_entry)
 
         # Make sure the service account key expiration is later
         # than the expiration for the signed url. If it's not, we need to
