@@ -1720,25 +1720,25 @@ class UserSyncer(object):
                                 "resource_paths": [path],
                             }
                             policies.append(policy_json)
-
-                            # try:
-                            #     print("-----------")
-                            #     self.arborist_client.update_bulk_policy(
-                            #         policy_id,
-                            #         {
-                            #             "description": "policy created by fence sync",
-                            #             "role_ids": [permission],
-                            #             "resource_paths": [path],
-                            #         },
-                            #         create_if_not_exist=True,
-                            #     )
-                            # except ArboristError as e:
-                            #     self.logger.info(
-                            #         "not creating policy in arborist; {}".format(str(e))
-                            #     )
-                        #     self._created_policies.add(policy_id)
-                        # self.arborist_client.grant_user_policy(username, policy_id)
-                        
+                        """
+                            try:
+                                print("-----------")
+                                self.arborist_client.update_bulk_policy(
+                                    policy_id,
+                                    {
+                                        "description": "policy created by fence sync",
+                                        "role_ids": [permission],
+                                        "resource_paths": [path],
+                                    },
+                                    create_if_not_exist=True,
+                                )
+                            except ArboristError as e:
+                                self.logger.info(
+                                    "not creating policy in arborist; {}".format(str(e))
+                                )
+                            self._created_policies.add(policy_id)
+                        self.arborist_client.grant_user_policy(username, policy_id)
+                        """
             try:
                 print("----------BULK stuff---------------")
                 self.arborist_client.update_bulk_policy(
