@@ -1739,19 +1739,19 @@ class UserSyncer(object):
                         #     self._created_policies.add(policy_id)
                         # self.arborist_client.grant_user_policy(username, policy_id)
                         
-                    try:
-                        print("----------BULK stuff---------------")
-                        self.arborist_client.update_bulk_policy(
-                            policies,
-                            True,
-                        )
-                        for policy_id in policy_id_list:
-                            self._created_policies.add(policy_id)
-                        for policy_id in policy_id_list:
-                            self.arborist_client.grant_user_policy(username, policy_id)
-                    except Exception as e:
-                        print("-----Exception------")
-                        print(e)
+            try:
+                print("----------BULK stuff---------------")
+                self.arborist_client.update_bulk_policy(
+                    policies,
+                    True,
+                )
+                for policy_id in policy_id_list:
+                    self._created_policies.add(policy_id)
+                for policy_id in policy_id_list:
+                    self.arborist_client.grant_user_policy(username, policy_id)
+            except Exception as e:
+                print("-----Exception------")
+                print(e)
             if user_yaml:
                 for policy in user_yaml.policies.get(username, []):
                     self.arborist_client.grant_user_policy(username, policy)
