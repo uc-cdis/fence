@@ -1012,7 +1012,6 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         else:
             proxy_group_id = get_or_create_proxy_group_id()
 
-
             private_key, key_db_entry = get_or_create_primary_service_account_key(
                 user_id=user_id, username=username, proxy_group_id=proxy_group_id
             )
