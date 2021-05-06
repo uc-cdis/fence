@@ -1521,8 +1521,20 @@ class UserSyncer(object):
 
         # update policies
         policies = user_yaml.authz.get("policies", [])
+        try:
+            response = self.arborist_client.update_bulk_policy(
+                policies, create_if_not_exist=True
+            )
+        except ArboristClient as e:
+            self.logger.error(e)
+        else:
+            if response:
+                self.logger.debug("Upserted policies :{}".format(policies))
+
         for policy in policies:
             policy_id = policy.pop("id")
+            self._created_policies.add(policy_id)
+            """
             try:
                 self.logger.debug(
                     "Trying to upsert policy with id {}".format(policy_id)
@@ -1537,7 +1549,7 @@ class UserSyncer(object):
                 if response:
                     self.logger.debug("Upserted policy with id {}".format(policy_id))
                     self._created_policies.add(policy_id)
-
+            """
         # update groups
         groups = user_yaml.authz.get("groups", [])
 
@@ -1743,7 +1755,7 @@ class UserSyncer(object):
                 print("----------BULK stuff---------------")
                 self.arborist_client.update_bulk_policy(
                     policies,
-                    True,
+                    create_if_not_exist=True,
                 )
                 for policy_id in policy_id_list:
                     self._created_policies.add(policy_id)
