@@ -2,6 +2,7 @@ import flask
 import requests
 import jwt
 import backoff
+import json
 from flask_sqlalchemy_session import current_session
 from jose import jwt as jose_jwt
 
@@ -61,6 +62,17 @@ class RASOauth2Client(Oauth2ClientBase):
             return {}
         return res.json()
 
+    def validate_passport(self, validation_endpoint, passport):
+        """
+        Validate passport with RAS's validation endpoint.
+        TODO: Remove this once we can locally validate passports
+        NOTE: RAS has an option to query a single visa with the /passport/validate?visa= but not using these since we hit the limit for an http header pretty quick
+        """
+        payload = json.dumps(passport)
+        headers = {"Content-Type": "application/json"}
+        res = requests.post(validation_endpoint, headers=headers, data=payload)
+        return res.text
+
     def get_user_id(self, code):
 
         err_msg = "Can't get user's info"
@@ -71,10 +83,15 @@ class RASOauth2Client(Oauth2ClientBase):
             userinfo_endpoint = self.get_value_from_discovery_doc(
                 "userinfo_endpoint", ""
             )
+            validation_endpoint = (
+                self.get_value_from_discovery_doc("issuer", "") + "/passport/validate"
+            )
 
             token = self.get_token(token_endpoint, code)
             keys = self.get_jwt_keys(jwks_endpoint)
             userinfo = self.get_userinfo(token, userinfo_endpoint)
+
+            validation = self.validate_passport(validation_endpoint, userinfo)
 
             claims = jose_jwt.decode(
                 token["id_token"],
@@ -106,7 +123,16 @@ class RASOauth2Client(Oauth2ClientBase):
             self.logger.info("Using {} field as username.".format(field_name))
 
             # Save userinfo and token in flask.g for later use in post_login
-            flask.g.userinfo = userinfo
+            flask.g.userinfo = {}
+            if validation == "Valid":
+                self.logger.info("Passport validated")
+                flask.g.userinfo = userinfo
+            else:
+                self.logger.error(
+                    "Passport validation failed. Not storing passport in database. Error: {}".format(
+                        validation
+                    )
+                )
             flask.g.tokens = token
 
         except Exception as e:
@@ -133,11 +159,28 @@ class RASOauth2Client(Oauth2ClientBase):
             )
             token = self.get_access_token(user, token_endpoint, db_session)
             userinfo = self.get_userinfo(token, userinfo_endpoint)
-            encoded_visas = userinfo.get("ga4gh_passport_v1", [])
         except Exception as e:
             err_msg = "Could not retrieve visa"
             self.logger.exception("{}: {}".format(err_msg, e))
             raise
+
+        validation_endpoint = (
+            self.get_value_from_discovery_doc("issuer", "") + "/passport/validate"
+        )
+        validation = self.validate_passport(validation_endpoint, userinfo)
+        encoded_visas = (
+            userinfo.get("ga4gh_passport_v1", []) if validation == "Valid" else []
+        )
+
+        encoded_visas = []
+        if validation == "Valid":
+            encoded_visas = userinfo.get("ga4gh_passport_v1", [])
+        else:
+            self.logger.error(
+                "Passport validation failed. Not storing passport in database. Error: {}".format(
+                    validation
+                )
+            )
 
         for encoded_visa in encoded_visas:
             try:
