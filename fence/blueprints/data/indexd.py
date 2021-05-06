@@ -38,6 +38,7 @@ from fence.resources.google.utils import (
 from fence.utils import get_valid_expiration_from_request
 from . import multipart_upload
 from ...models import AssumeRoleCache
+from ...models import AssumeRoleCacheGCP
 
 logger = get_logger(__name__)
 
@@ -610,8 +611,6 @@ class S3IndexedFileLocation(IndexedFileLocation):
         )
         expiry = time.time() + expires_in
 
-        print('this is the in mem cache:', _assume_role_cache)
-
         # try to retrieve from local in-memory cache
         rv, expires_at = cls._assume_role_cache.get(role_arn, (None, 0))
         if expires_at > expiry:
@@ -690,7 +689,6 @@ class S3IndexedFileLocation(IndexedFileLocation):
                         aws_session_token = EXCLUDED.aws_session_token;""",
                     dict(arn=role_arn, expires_at=expires_at, **rv),
                 )
-        print("this is the final role value: ", rv)
         return rv
 
     def bucket_name(self):
@@ -922,6 +920,8 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     An indexed file that lives in a Google Storage bucket.
     """
 
+    _assume_role_cache_gs = ()
+
     def get_resource_path(self):
         return self.parsed_url.netloc.strip("/") + "/" + self.parsed_url.path.strip("/")
 
@@ -1005,29 +1005,34 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         username,
         r_pays_project=None,
     ):
-        proxy_group_id = get_or_create_proxy_group_id()
 
-        private_key, key_db_entry = get_or_create_primary_service_account_key(
-            user_id=user_id, username=username, proxy_group_id=proxy_group_id
-        )
+        if self._assume_role_cache_gs != ():
+            proxy_group_id, private_key, key_db_entry = self._assume_role_cache_gs
 
-        print("this is the google private_key", private_key)
-        print("this is the key_db_entry", key_db_entry)
+        else:
+            proxy_group_id = get_or_create_proxy_group_id()
 
-        # Make sure the service account key expiration is later
-        # than the expiration for the signed url. If it's not, we need to
-        # provision a new service account key.
-        #
-        # NOTE: This should occur very rarely: only when the service account key
-        #       already exists and is very close to expiring.
-        #
-        #       If our scheduled maintainence script removes the url-signing key
-        #       before the expiration of the url then the url will NOT work
-        #       (even though the url itself isn't expired)
-        if key_db_entry and key_db_entry.expires < expiration_time:
-            private_key = create_primary_service_account_key(
+
+            private_key, key_db_entry = get_or_create_primary_service_account_key(
                 user_id=user_id, username=username, proxy_group_id=proxy_group_id
             )
+
+            # Make sure the service account key expiration is later
+            # than the expiration for the signed url. If it's not, we need to
+            # provision a new service account key.
+            #
+            # NOTE: This should occur very rarely: only when the service account key
+            #       already exists and is very close to expiring.
+            #
+            #       If our scheduled maintainence script removes the url-signing key
+            #       before the expiration of the url then the url will NOT work
+            #       (even though the url itself isn't expired)
+            if key_db_entry and key_db_entry.expires < expiration_time:
+                private_key = create_primary_service_account_key(
+                    user_id=user_id, username=username, proxy_group_id=proxy_group_id
+                )
+
+            self._assume_role_cache_gs = proxy_group_id, private_key, key_db_entry
 
         if config["ENABLE_AUTOMATIC_BILLING_PERMISSION_SIGNED_URLS"]:
             give_service_account_billing_access_if_necessary(

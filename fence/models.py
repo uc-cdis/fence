@@ -543,7 +543,7 @@ class AssumeRoleCache(Base):
 
 
 class AssumeRoleCacheGCP(Base):
-    __tablename__="assume_role_cache"
+    __tablename__="assume_role_cache_GCP"
 
     arn = Column(String(), primary_key=True)
     expires_at = Column(Integer())
