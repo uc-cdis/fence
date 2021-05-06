@@ -1525,7 +1525,7 @@ class UserSyncer(object):
             response = self.arborist_client.update_bulk_policy(
                 policies, create_if_not_exist=True
             )
-        except ArboristClient as e:
+        except ArboristError as e:
             self.logger.error(e)
         else:
             if response:
