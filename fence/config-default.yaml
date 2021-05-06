@@ -681,7 +681,7 @@ AWS_SES:
   AWS_SECRET_KEY: ""
 
 HUBSPOT:
-  API_KEY: ""
+  API_KEY: "DEV_KEY"
   
 # //////////////////////////////////////////////////////////////////////////////////////
 # DATA ACCESS: GOOGLE LINKING & SERVICE ACCOUNT REGISTRATION

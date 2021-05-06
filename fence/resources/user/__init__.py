@@ -60,6 +60,8 @@ def update_user(current_session, additional_info):
     #TODO revert comments for Hubspot
     additional_info_tmp = flask.g.user.additional_info.copy() if flask.g.user.additional_info else {}
     additional_info_tmp.update(additional_info)
+    # if flask.current_app.hubspot_api_key == "DEV_KEY":
+    #   use only fence, otherwise use hubspot
     # hubspot_id = hubspot.update_user_info(flask.g.user.username, additional_info)
     # additional_info_tmp = flask.g.user.additional_info or {}    
     # additional_info_tmp["hubspot_id"] = hubspot_id
