@@ -710,7 +710,6 @@ class S3IndexedFileLocation(IndexedFileLocation):
         self, action, expires_in, public_data=False, force_signed_url=True, **kwargs
     ):
 
-        print("AWS SIGNED URL")
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )

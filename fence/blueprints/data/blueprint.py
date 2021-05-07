@@ -296,9 +296,7 @@ def download_file(file_id):
     """
     Get a presigned url to download a file given by file_id.
     """
-    print("#### In download route #####")
     result = get_signed_url_for_file("download", file_id)
-    print(f"Result : {result}")
     if not "redirect" in flask.request.args or not "url" in result:
         return flask.jsonify(result)
     return flask.redirect(result["url"])
