@@ -709,6 +709,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
     def get_signed_url(
         self, action, expires_in, public_data=False, force_signed_url=True, **kwargs
     ):
+
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
@@ -877,16 +878,16 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         if public_data and not force_signed_url:
             url = "https://storage.cloud.google.com/" + resource_path
         elif public_data and _is_anonymous_user(user_info):
-            expiration_time = int(time.time()) + int(expires_in)
+            # expiration_time = int(time.time()) + int(expires_in)
             url = self._generate_anonymous_google_storage_signed_url(
-                ACTION_DICT["gs"][action], resource_path, expiration_time
+                ACTION_DICT["gs"][action], resource_path, int(expires_in)
             )
         else:
-            expiration_time = int(time.time()) + int(expires_in)
+            # expiration_time = int(time.time()) + int(expires_in)
             url = self._generate_google_storage_signed_url(
                 ACTION_DICT["gs"][action],
                 resource_path,
-                expiration_time,
+                int(expires_in),
                 user_info.get("user_id"),
                 user_info.get("username"),
                 r_pays_project=r_pays_project,
@@ -973,14 +974,11 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         # use configured project if it exists and no user project was given
         if config["BILLING_PROJECT_FOR_SIGNED_URLS"] and not r_pays_project:
             r_pays_project = config["BILLING_PROJECT_FOR_SIGNED_URLS"]
-
         final_url = cirrus.google_cloud.utils.get_signed_url(
             resource_path,
             http_verb,
             expiration_time,
             extension_headers=None,
-            content_type="",
-            md5_value="",
             service_account_creds=private_key,
             requester_pays_user_project=r_pays_project,
         )
