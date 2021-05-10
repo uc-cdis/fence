@@ -1081,7 +1081,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                             gcp_proxy_group_id = EXCLUDED.gcp_proxy_group_id,
                             gcp_private_key = EXCLUDED.gcp_private_key,
                             gcp_key_db_entry = EXCLUDED.gcp_key_db_entry;""",
-                        json.dumps(db_entry),
+                        db_entry,
                     )
 
         if config["ENABLE_AUTOMATIC_BILLING_PERMISSION_SIGNED_URLS"]:
