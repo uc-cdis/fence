@@ -547,7 +547,7 @@ class AssumeRoleCacheGCP(Base):
 
     gcp_proxy_group_id = Column(String(), primary_key=True)
     expires_at = Column(Integer())
-    gcp_private_key = Column(String())
+    gcp_private_key = Column(Json())
     gcp_key_db_entry = Column(String())
 
 
