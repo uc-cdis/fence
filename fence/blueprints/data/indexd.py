@@ -1064,7 +1064,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
 
             if hasattr(flask.current_app, "db"):  # we don't have db in startup
                 with flask.current_app.db.session as session:
-                    session.bind.execute(
+                    session.execute(
                         """\
                         INSERT INTO assume_role_cache_GCP (
                             expires_at,
