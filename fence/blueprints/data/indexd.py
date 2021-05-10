@@ -1073,6 +1073,8 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                         ),
                     )
 
+        private_key, key_db_entry = self._assume_role_cache_gs[proxy_group_id]
+
         if config["ENABLE_AUTOMATIC_BILLING_PERMISSION_SIGNED_URLS"]:
             give_service_account_billing_access_if_necessary(
                 private_key,
