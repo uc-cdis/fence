@@ -1023,12 +1023,14 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                 if cache and cache.expires_at and cache.expires_at > expiry:
                     rv = (cache.gcp_private_key, cache.gcp_key_db_entry)
                     self._assume_role_cache_gs[proxy_group_id] = rv
-            if proxy_group_id in self._assume_role_cache_gs and self._assume_role_cache_gs[proxy_group_id] != None:
+            if (
+                proxy_group_id in self._assume_role_cache_gs
+                and self._assume_role_cache_gs[proxy_group_id] != None
+            ):
                 private_key, key_db_entry = self._assume_role_cache_gs.get(
                     proxy_group_id
                 )
                 is_cached = True
-            
 
         # check again to see if we cached the creds if not we need to
         if is_cached == False:
@@ -1076,7 +1078,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                             gcp_proxy_group_id=proxy_group_id,
                             gcp_private_key=private_key,
                             gcp_key_db_entry=key_db_entry,
-                            expires_at=gcp_key_db_entry.expires,
+                            expires_at=key_db_entry.expires,
                         ),
                     )
 
