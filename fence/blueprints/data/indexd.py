@@ -1056,6 +1056,12 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
 
             self._assume_role_cache_gs[proxy_group_id] = (private_key, key_db_entry)
 
+            db_entry = {}
+            db_entry["gcp_proxy_group_id"] = proxy_group_id
+            db_entry["gcp_private_key"] = private_key
+            db_entry["gcp_key_db_entry"] = key_db_entry
+            db_entry["expires_at"] = expiration_time
+
             if hasattr(flask.current_app, "db"):  # we don't have db in startup
                 with flask.current_app.db.session as session:
                     session.execute(
@@ -1075,12 +1081,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                             gcp_proxy_group_id = EXCLUDED.gcp_proxy_group_id,
                             gcp_private_key = EXCLUDED.gcp_private_key,
                             gcp_key_db_entry = EXCLUDED.gcp_key_db_entry;""",
-                        dict(
-                            gcp_proxy_group_id=proxy_group_id,
-                            gcp_private_key=private_key,
-                            gcp_key_db_entry=key_db_entry,
-                            expires_at=expiration_time,
-                        ),
+                        json.dumps(db_entry),
                     )
 
         if config["ENABLE_AUTOMATIC_BILLING_PERMISSION_SIGNED_URLS"]:
