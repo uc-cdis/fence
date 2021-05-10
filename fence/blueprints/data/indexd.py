@@ -1022,7 +1022,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                     .first()
                 )
                 if cache and cache.expires_at and cache.expires_at > expiration_time:
-                    rv = (cache.gcp_private_key, cache.gcp_key_db_entry)
+                    rv = (json.loads(cache.gcp_private_key), cache.gcp_key_db_entry)
                     self._assume_role_cache_gs[proxy_group_id] = rv
             if (
                 proxy_group_id in self._assume_role_cache_gs
@@ -1058,7 +1058,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
 
             db_entry = {}
             db_entry["gcp_proxy_group_id"] = proxy_group_id
-            db_entry["gcp_private_key"] = private_key["type"]
+            db_entry["gcp_private_key"] = str(private_key)
             db_entry["gcp_key_db_entry"] = key_db_entry
             db_entry["expires_at"] = expiration_time
 
@@ -1081,7 +1081,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                             gcp_proxy_group_id = EXCLUDED.gcp_proxy_group_id,
                             gcp_private_key = EXCLUDED.gcp_private_key,
                             gcp_key_db_entry = EXCLUDED.gcp_key_db_entry;""",
-                        json.dumps(db_entry),
+                        db_entry,
                     )
 
         if config["ENABLE_AUTOMATIC_BILLING_PERMISSION_SIGNED_URLS"]:
