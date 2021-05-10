@@ -1008,8 +1008,11 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
 
         proxy_group_id = get_or_create_proxy_group_id()
 
+        is_cached = False
+
         if proxy_group_id in self._assume_role_cache_gs:
             private_key, key_db_entry = self._assume_role_cache_gs.get(proxy_group_id)
+            is_cached = True
         elif hasattr(flask.current_app, "db"):
             with flask.current_app.db.session as session:
                 cache = (
@@ -1020,10 +1023,14 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                 if cache and cache.expires_at and cache.expires_at > expiry:
                     rv = (cache.gcp_private_key, cache.gcp_key_db_entry)
                     self._assume_role_cache_gcp[proxy_group_id] = rv
-            private_key, key_db_entry = rv
+            if self._assume_role_cache_gcp[proxy_group_id] != None:
+                private_key, key_db_entry = self._assume_role_cache_gs.get(
+                    proxy_group_id
+                )
+            is_cached = True
 
         # check again to see if we cached the creds if not we need to
-        if proxy_group_id not in self._assume_role_cache_gs:
+        if is_cached == False:
             private_key, key_db_entry = get_or_create_primary_service_account_key(
                 user_id=user_id, username=username, proxy_group_id=proxy_group_id
             )
