@@ -920,7 +920,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     An indexed file that lives in a Google Storage bucket.
     """
 
-    _assume_role_cache_gs = ()
+    _assume_role_cache_gs = {}
 
     def get_resource_path(self):
         return self.parsed_url.netloc.strip("/") + "/" + self.parsed_url.path.strip("/")
@@ -1006,12 +1006,26 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         r_pays_project=None,
     ):
 
-        if self._assume_role_cache_gs != ():
-            proxy_group_id, private_key, key_db_entry = self._assume_role_cache_gs
+        proxy_group_id = get_or_create_proxy_group_id()
+
+        if (
+            "proxy_group_id" in self._assume_role_cache_gs
+            and self._assume_role_cache_gs["proxy_group_id"] == proxy_group_id != ()
+        ):
+            private_key, key_db_entry = self._assume_role_cache_gs.get(proxy_group_id)
+
+        elif hasattr(flask.current_app, "db"):
+            with flask.current_app.db.session as session:
+                cache = (
+                    session.query(AssumeRoleCacheGCP)
+                    .filter(AssumeRoleCacheGCP.gcp_proxy_group_id == proxy_group_id)
+                    .first()
+                )
+                if cache and cache.expires_at and cache.expires_at > expiry:
+                    rv = (cache.gcp_private_key, cache.gcp_key_db_entry)
+                    self._assume_role_cache_gcp[proxy_group_id] = rv
 
         else:
-            proxy_group_id = get_or_create_proxy_group_id()
-
             private_key, key_db_entry = get_or_create_primary_service_account_key(
                 user_id=user_id, username=username, proxy_group_id=proxy_group_id
             )
@@ -1031,7 +1045,33 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                     user_id=user_id, username=username, proxy_group_id=proxy_group_id
                 )
 
-            self._assume_role_cache_gs = proxy_group_id, private_key, key_db_entry
+            self._assume_role_cache_gs[proxy_group_id] = (private_key, key_db_entry)
+            if hasattr(flask.current_app, "db"):  # we don't have db in startup
+                with flask.current_app.db.session as session:
+                    session.execute(
+                        """\
+                        INSERT INTO assume_role_cache_GCP (
+                            expires_at,
+                            gcp_proxy_group_id,
+                            gcp_private_key,
+                            gcp_key_db_entry
+                        ) VALUES (
+                            :expires_at,
+                            :gcp_proxy_group_id,
+                            :gcp_private_key,
+                            :gcp_key_db_entry
+                        ) ON CONFLICT (gcp_proxy_group_id) DO UPDATE SET
+                            expires_at = EXCLUDED.expires_at,
+                            gcp_proxy_group_id = EXCLUDED.gcp_proxy_group_id,
+                            gcp_private_key = EXCLUDED.gcp_private_key,
+                            gcp_key_db_entry = EXCLUDED.gcp_key_db_entry;""",
+                        dict(
+                            gcp_proxy_group_id=proxy_group_id,
+                            gcp_private_key=private_key,
+                            gcp_key_db_entry=key_db_entry,
+                            expires_at=gcp_key_db_entry.expires,
+                        ),
+                    )
 
         if config["ENABLE_AUTOMATIC_BILLING_PERMISSION_SIGNED_URLS"]:
             give_service_account_billing_access_if_necessary(

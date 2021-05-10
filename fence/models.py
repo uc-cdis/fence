@@ -545,11 +545,10 @@ class AssumeRoleCache(Base):
 class AssumeRoleCacheGCP(Base):
     __tablename__ = "assume_role_cache_GCP"
 
-    arn = Column(String(), primary_key=True)
+    gcp_proxy_group_id = Column(String(), primary_key=True)
     expires_at = Column(Integer())
-    gcp_access_key_id = Column(String())
-    gcp_secret_access_key = Column(String())
-    gcp_session_token = Column(String())
+    gcp_private_key = Column(String())
+    gcp_key_db_entry = Column(String())
 
 
 class GA4GHVisaV1(Base):
