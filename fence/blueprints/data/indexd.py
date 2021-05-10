@@ -1020,7 +1020,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                     .filter(AssumeRoleCacheGCP.gcp_proxy_group_id == proxy_group_id)
                     .first()
                 )
-                if cache and cache.expires_at and cache.expires_at > expiry:
+                if cache and cache.expires_at and cache.expires_at > expiration_time:
                     rv = (cache.gcp_private_key, cache.gcp_key_db_entry)
                     self._assume_role_cache_gs[proxy_group_id] = rv
             if (
@@ -1078,7 +1078,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                             gcp_proxy_group_id=proxy_group_id,
                             gcp_private_key=private_key,
                             gcp_key_db_entry=key_db_entry,
-                            expires_at=key_db_entry.expires,
+                            expires_at=expiration_time,
                         ),
                     )
 
