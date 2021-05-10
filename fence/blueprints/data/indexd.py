@@ -1064,7 +1064,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
 
             if hasattr(flask.current_app, "db"):  # we don't have db in startup
                 with flask.current_app.db.session as session:
-                    session.execute(
+                    session.bind.execute(
                         """\
                         INSERT INTO assume_role_cache_GCP (
                             expires_at,
@@ -1081,7 +1081,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                             gcp_proxy_group_id = EXCLUDED.gcp_proxy_group_id,
                             gcp_private_key = EXCLUDED.gcp_private_key,
                             gcp_key_db_entry = EXCLUDED.gcp_key_db_entry;""",
-                        db_entry,
+                        json.dumps(db_entry),
                     )
 
         if config["ENABLE_AUTOMATIC_BILLING_PERMISSION_SIGNED_URLS"]:
