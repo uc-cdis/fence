@@ -59,9 +59,7 @@ def test_presigned_url_log(
     was made to create an audit log. Test with and without a requested
     protocol.
     """
-    mock_arborist_requests(
-        {"arborist/auth/request": {"POST": ('{"auth": "true"}', 200)}}
-    )
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
     audit_service_mocker = mock.patch(
         "fence.resources.audit_service_client.requests", new_callable=mock.Mock
     )
@@ -72,7 +70,7 @@ def test_presigned_url_log(
     if protocol:
         path += f"?protocol={protocol}"
     resource_paths = ["/my/resource/path1", "/path2"]
-    indexd_client = indexd_client_with_arborist(resource_paths)
+    indexd_client_with_arborist(resource_paths)
     headers = {
         "Authorization": "Bearer "
         + jwt.encode(
@@ -130,9 +128,7 @@ def test_presigned_url_log_acl(
     Same as `test_presigned_url_log`, but the record contains `acl` instead
     of `authz`. The ACL is ["phs000178", "phs000218"] as defined in conftest.
     """
-    mock_arborist_requests(
-        {"arborist/auth/request": {"POST": ('{"auth": "true"}', 200)}}
-    )
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
     audit_service_mocker = mock.patch(
         "fence.resources.audit_service_client.requests", new_callable=mock.Mock
     )
@@ -141,7 +137,7 @@ def test_presigned_url_log_acl(
     protocol = "gs"
     guid = "dg.hello/abc"
     path = f"/data/download/{guid}?protocol={protocol}"
-    indexd_client = indexd_client_with_arborist(None)
+    indexd_client_with_arborist(None)
     headers = {
         "Authorization": "Bearer "
         + jwt.encode(
@@ -230,9 +226,7 @@ def test_presigned_url_log_disabled(
     """
     Disable presigned URL logs, enable login logs, get a presigned URL from Fence and make sure no audit log was created.
     """
-    mock_arborist_requests(
-        {"arborist/auth/request": {"POST": ('{"auth": "true"}', 200)}}
-    )
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
     audit_service_mocker = mock.patch(
         "fence.resources.audit_service_client.requests", new_callable=mock.Mock
     )
@@ -246,7 +240,7 @@ def test_presigned_url_log_disabled(
     if protocol:
         path += f"?protocol={protocol}"
     resource_paths = ["/my/resource/path1", "/path2"]
-    indexd_client = indexd_client_with_arborist(resource_paths)
+    indexd_client_with_arborist(resource_paths)
     headers = {
         "Authorization": "Bearer "
         + jwt.encode(

@@ -612,8 +612,9 @@ ENABLE_AUDIT_LOGS:
   login: false
 # `PUSH_AUDIT_LOGS_CONFIG.type` is one of: [api, aws_sqs].
 # - if type == api: logs are created by hitting the log creation endpoint.
-# - if type == aws_sqs: logs are pushed to an SQS and fields `sqs_url`,
-# `region`, `aws_access_key_id` and `aws_secret_access_key` must be filled out.
+# - if type == aws_sqs: logs are pushed to an SQS and fields `sqs_url` and
+# `region` are required. Fields `aws_access_key_id` and
+# `aws_secret_access_key` are optional.
 PUSH_AUDIT_LOGS_CONFIG:
   type: aws_sqs
   sqs_url:

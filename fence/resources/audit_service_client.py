@@ -63,10 +63,9 @@ class AuditServiceClient:
             )
 
         if self.push_type == "aws_sqs":
-            for field in ["sqs_url", "aws_access_key_id", "aws_secret_access_key"]:
-                assert config["PUSH_AUDIT_LOGS_CONFIG"].get(
-                    field
-                ), f"PUSH_AUDIT_LOGS_CONFIG.type is 'aws_sqs' but PUSH_AUDIT_LOGS_CONFIG.{field} is not configured"
+            assert config["PUSH_AUDIT_LOGS_CONFIG"].get(
+                "sqs_url"
+            ), f"PUSH_AUDIT_LOGS_CONFIG.type is 'aws_sqs' but PUSH_AUDIT_LOGS_CONFIG.sqs_url is not configured"
 
     def check_response(self, resp, body):
         # The audit-service returns 201 before inserting the log in the DB.
@@ -89,18 +88,20 @@ class AuditServiceClient:
             sqs = boto3.client(  # TODO during init
                 "sqs",
                 region_name=config["PUSH_AUDIT_LOGS_CONFIG"]["region"],
-                aws_access_key_id=config["PUSH_AUDIT_LOGS_CONFIG"]["aws_access_key_id"],
-                aws_secret_access_key=config["PUSH_AUDIT_LOGS_CONFIG"][
+                aws_access_key_id=config["PUSH_AUDIT_LOGS_CONFIG"].get(
+                    "aws_access_key_id"
+                ),
+                aws_secret_access_key=config["PUSH_AUDIT_LOGS_CONFIG"].get(
                     "aws_secret_access_key"
-                ],
+                ),
             )
             data["category"] = category
-            response = sqs.send_message(
-                QueueUrl=config["PUSH_AUDIT_LOGS_CONFIG"]["sqs_url"],
-                MessageBody=json.dumps(data),
-            )
-
-        print(response["MessageId"])
+            sqs_url = config["PUSH_AUDIT_LOGS_CONFIG"]["sqs_url"]
+            try:
+                sqs.send_message(QueueUrl=sqs_url, MessageBody=json.dumps(data))
+            except Exception:
+                self.logger.error(f"Error pushing audit log to SQS '{sqs_url}'")
+                raise
 
     def create_presigned_url_log(
         self,
