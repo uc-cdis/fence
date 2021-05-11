@@ -1059,7 +1059,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             db_entry = {}
             db_entry["gcp_proxy_group_id"] = proxy_group_id
             db_entry["gcp_private_key"] = str(private_key)
-            db_entry["gcp_key_db_entry"] = key_db_entry
+            db_entry["gcp_key_db_entry"] = str(key_db_entry)
             db_entry["expires_at"] = expiration_time
 
             if hasattr(flask.current_app, "db"):  # we don't have db in startup
