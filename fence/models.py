@@ -543,7 +543,7 @@ class AssumeRoleCache(Base):
 
 
 class AssumeRoleCacheGCP(Base):
-    __tablename__ = "assume_role_cache_GCP"
+    __tablename__ = "gcp_assume_role_cache"
 
     gcp_proxy_group_id = Column(String(), primary_key=True)
     expires_at = Column(Integer())
