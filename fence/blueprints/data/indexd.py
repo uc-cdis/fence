@@ -1022,7 +1022,10 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                     .first()
                 )
                 if cache and cache.expires_at and cache.expires_at > expiration_time:
-                    rv = (json.loads(cache.gcp_private_key), json.loads(cache.gcp_key_db_entry))
+                    rv = (
+                        json.loads(cache.gcp_private_key),
+                        json.loads(cache.gcp_key_db_entry),
+                    )
                     self._assume_role_cache_gs[proxy_group_id] = rv
             if (
                 proxy_group_id in self._assume_role_cache_gs
