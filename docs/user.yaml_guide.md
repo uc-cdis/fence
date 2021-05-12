@@ -278,6 +278,8 @@ authz:
 
 Arborist is very flexible: we could define an open policy per public program, or per public project, or even a single open policy with a list of all open resources.
 
+Note that the same can be done with `all_users_policies` instead of `anonymous_policies` if access should be granted to all authenticated users instead of both authenticated and non-authenticated users.
+
 ### The "/open" resource
 
 `/open` is a special resource supported by Gen3. It is only used for data files (in the `authz` field of indexd records).
