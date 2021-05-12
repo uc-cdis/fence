@@ -39,7 +39,35 @@ tags:
     description: Google functionality
   - name: keys
     description: Get public keys used to validate JWTs issued by fence
+  - name: system
+    description: System endpoints
 paths:
+  /_status:
+    get:
+      tags:
+        - system
+      summary: Returns if Fence is healthy or not
+      description: >-
+        Health check endpoint
+      produces:
+        - application/text
+      responses:
+        '200':
+          description: Healthy
+        default:
+          description: Unhealthy
+  /_version:
+    get:
+      tags:
+        - system
+      summary: Returns the version of Fence
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: successful operation
+          schema:
+            $ref: '#/definitions/SystemVersionOutputRef'
   /oauth2/authorize:
     get:
       tags:
@@ -82,9 +110,20 @@ paths:
           required: false
           in: query
           description: >-
-            Upstream identity provider to use. Specifying `idp=shibboleth` lets
-            us specify a `shib_idp`. If no `idp` is specified, defaults to NIH
-            login.
+            Upstream identity provider to use. Specifying `idp=fence` lets
+            us specify a `fence_idp`. Specifying `idp=shibboleth` lets
+            us specify a `shib_idp`. If no `idp` is specified, defaults to
+            the configured default login.
+          schema:
+            type: string
+          example: 'google'
+        - name: fence_idp
+          required: false
+          in: query
+          description: >-
+            Upstream identity provider to use. Specifying `idp=fence` and
+            `fence_idp=shibboleth` lets us specify a `shib_idp`. If no
+            `fence_idp` is specified, defaults to NIH login.
           schema:
             type: string
           example: 'shibboleth'
@@ -104,6 +143,15 @@ paths:
           description: |
               Requested authorization scope. Must include `openid`. `user` allows getting a user's access information.
               > NOTE: This is required for [OIDC](http://openid.net/specs/openid-connect-core-1_0.html#AuthRequest)
+          schema:
+            type: string
+        - name: upstream_expires_in
+          required: false
+          in: query
+          description: |
+              the time (in seconds) during which the upstream refresh token (eg. RAS) is valid. Must be less
+              than the configured maximum. If it's greater,
+              the configured maximum will be used.
           schema:
             type: string
       responses:
@@ -155,6 +203,9 @@ paths:
                   type: string
                 scope:
                   description: Requested authorization scope. Must include `openid`. `user` allows getting a user's access information.
+                  type: string
+                upstream_expires_in:
+                  description: the time (in seconds) during which the upstream refresh token (eg. RAS) is valid. Must be less than the configured maximum. If it's greater, the configured maximum will be used.
                   type: string
               required:
                 - client_id

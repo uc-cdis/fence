@@ -73,7 +73,7 @@ def create_project(current_session, name, auth_id, storage_accesses):
             )
             current_session.add(new_storage_access)
         else:
-            raise NotFound()
+            raise NotFound(f"Provider {storage} does not exist")
     return new_project
 
 

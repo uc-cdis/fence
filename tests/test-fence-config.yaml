@@ -84,15 +84,35 @@ OPENID_CONNECT:
     client_id: ''
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/orcid/login'
+  cilogon:
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/cilogon/login'
   ras:
     client_id: ''
     client_secret: ''
-    redirect_url: '{{BASE_URL}}/login/ras/login'
+    redirect_url: '{{BASE_URL}}/login/ras/callback'
     discovery_url: 'https://sts.nih.gov/.well-known/openid-configuration'
   microsoft:
     client_id: ''
     client_secret: ''
-    redirect_url: '{{BASE_URL}}/login/microsoft/login/'
+    redirect_url: '{{BASE_URL}}/login/cognito/login/'
+  # For information on configuring an Okta tenant as an OIDC IdP refer to Okta documentation at:
+  # https://developer.okta.com/docs/reference/api/oidc/#2-okta-as-the-identity-platform-for-your-app-or-api  
+  okta:
+      discovery_url: ''
+      client_id: ''
+      client_secret: ''
+      redirect_url: '{{BASE_URL}}/login/okta/login/'
+  cognito:
+    client_id: ''
+    client_secret: ''
+    redirect_url: ''
+    discovery_url: ''
+  synapse:
+    client_id: ''
+    client_secret: ''
+    redirect_url: ''
   fence:
     client_id: ''
     client_secret: ''
@@ -147,6 +167,8 @@ SESSION_ALLOWED_SCOPES:
 #   Multi-tenant fence (e.g. another fence instance)? Use: '{{BASE_URL}}/login/fence'
 #   Sibboleth? Use: '{{BASE_URL}}/login/shib'
 DEFAULT_LOGIN_IDP: google
+
+# Default login URL: DEPRECATED and replaced by LOGIN_OPTIONS + DEFAULT_LOGIN_IDP configs
 DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
 
 # `LOGIN_REDIRECT_WHITELIST` is a list of extra whitelisted URLs which can be redirected
@@ -175,8 +197,12 @@ LOGIN_OPTIONS:
   - name: 'Orcid Login'
     idp: fence
     fence_idp: orcid
+  - name: 'CILogon Login'
+    idp: cilogon
   - name: 'Microsoft Login'
     idp: microsoft
+  - name: 'Okta Login'
+    idp: okta
   - name: 'NIH Login'
     idp: shibboleth
   - name: 'RAS Login'
@@ -442,6 +468,12 @@ INDEXD_PASSWORD: 'fake_password'
 
 # url where authz microservice is running
 ARBORIST: '/arborist'
+
+# url where the audit-service is running
+AUDIT_SERVICE: 'http://audit-service'
+ENABLE_AUDIT_LOGS:
+  presigned_url: false
+  login: false
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # CLOUD API LIBRARY (CIRRUS) CONFIGURATION
