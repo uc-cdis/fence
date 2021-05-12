@@ -246,7 +246,7 @@ The `user_project_to_resource` section can be used to avoid specifying a resourc
 
 ### Public access to resources
 
-Arborist can be configured to apply a policy to _all_ users who visit the system. This is done via the special `user.yaml` field `anonymous_policies`.
+Arborist can be configured to apply a policy to _all_ users who visit the system. This is done via the special `user.yaml` field `anonymous_policies`. Note that the same can be done with `all_users_policies` instead of `anonymous_policies` if access should be granted to all authenticated users instead of both authenticated and non-authenticated users.
 
 The example below shows the setup for a program `PUBLIC_PROGRAM` and a project `PROJECT_1` under it. Because the policy `PUBLIC_PROGRAM_reader`, which grants access to this program, is in `anonymous_policies`, this program and all the subresources under it are accessible to all users.
 
@@ -278,9 +278,9 @@ authz:
 
 Arborist is very flexible: we could define an open policy per public program, or per public project, or even a single open policy with a list of all open resources.
 
-Note that the same can be done with `all_users_policies` instead of `anonymous_policies` if access should be granted to all authenticated users instead of both authenticated and non-authenticated users.
-
 ### The "/open" resource
+
+> Note that we may alter the behavior around "/open" in the future so as not to have hard-coded resource logic in Fence, so relying on this behavior is not recommended.
 
 `/open` is a special resource supported by Gen3. It is only used for data files (in the `authz` field of indexd records).
 
