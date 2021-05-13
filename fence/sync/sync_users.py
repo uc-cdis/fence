@@ -1747,23 +1747,32 @@ class UserSyncer(object):
                         self.arborist_client.grant_user_policy(username, policy_id)
                         """
             try:
-                print("----------BULK stuff---------------")
-                print(policies)
-                print(policy_id_list)
+                start_a = time.time()
                 self.arborist_client.update_bulk_policy(
                     policies,
                     create_if_not_exist=True,
                 )
+                end_a = time.time()
+
+                start_b = time.time()
                 for policy_id in policy_id_list:
                     self._created_policies.add(policy_id)
-                for policy_id in policy_id_list:
                     self.arborist_client.grant_user_policy(username, policy_id)
+                end_b = time.time()
             except Exception as e:
-                print("-----Exception------")
                 print(e)
+            
             if user_yaml:
                 for policy in user_yaml.policies.get(username, []):
                     self.arborist_client.grant_user_policy(username, policy)
+
+            print("--------------------------------")
+            print("Update bulk policy time: {}".format(end_a-start_a))
+            print("Update grant user policy time : {}".format(end_b-start_b))
+            print("--------------------------------")
+
+        
+        
 
         if user_yaml:
             for client_name, client_details in user_yaml.clients.items():
@@ -2178,14 +2187,15 @@ class UserSyncer(object):
             self._grant_all_consents_to_c999_users(
                 user_projects, user_yaml.project_to_resource
             )
+        
+        start_2 = time.time()
         # update fence db
         if user_projects:
             self.logger.info("Sync to db and storage backend")
-            start = time.time()
             self.sync_to_db_and_storage_backend(user_projects, user_info, sess, True)
-            end = time.time()
         else:
             self.logger.info("No users for syncing")
+        end_2 = time.time()
 
         # update arborist db (user access)
         if self.arborist_client:
@@ -2206,5 +2216,6 @@ class UserSyncer(object):
 
         print("----------------------------------------------")
         print("process user projects time {}".format(end_1 - start_1))
+        print("Fence update time: {}".format(end_2-start_2))
         print("Arborist update time: {}".format(end - start))
         print("----------------------------------------------")
