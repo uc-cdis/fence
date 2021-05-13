@@ -1757,7 +1757,7 @@ class UserSyncer(object):
                 start_b = time.time()
                 for policy_id in policy_id_list:
                     self._created_policies.add(policy_id)
-                self.arborist_client.grant_bulk_user_policy(username, policy_id)
+                self.arborist_client.grant_bulk_user_policy(username, policy_id_list)
                 end_b = time.time()
             except Exception as e:
                 print(e)
