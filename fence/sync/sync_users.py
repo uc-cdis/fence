@@ -1665,10 +1665,11 @@ class UserSyncer(object):
             # update the project info with users from arborist
             self.sync_two_phsids_dict(arborist_user_projects, user_projects)
 
+
+        policy_id_list = []
+        policies = []
+
         for username, user_project_info in user_projects.items():
-            print("----------------------------------------")
-            print(username)
-            print("----------------------------------------")
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
             if user:
@@ -1697,9 +1698,6 @@ class UserSyncer(object):
                     # "permission" in the dbgap sense, not the arborist sense
                     if permission not in self._created_roles:
                         try:
-                            print("------------------------------------")
-                            print(arborist_role_for_permission(permission))
-                            print("----------------------------------------")
                             self.arborist_client.create_role(
                                 arborist_role_for_permission(permission)
                             )
@@ -1710,9 +1708,6 @@ class UserSyncer(object):
                                 )
                             )
                         self._created_roles.add(permission)
-
-                    policy_id_list = []
-                    policies = []
 
                     for path in paths:
                         # If everything was created fine, grant a policy to
@@ -1753,6 +1748,8 @@ class UserSyncer(object):
                         """
             try:
                 print("----------BULK stuff---------------")
+                print(policies)
+                print(policy_id_list)
                 self.arborist_client.update_bulk_policy(
                     policies,
                     create_if_not_exist=True,
