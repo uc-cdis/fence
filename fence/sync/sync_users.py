@@ -1757,7 +1757,7 @@ class UserSyncer(object):
                 start_b = time.time()
                 for policy_id in policy_id_list:
                     self._created_policies.add(policy_id)
-                    self.arborist_client.grant_user_policy(username, policy_id)
+                self.arborist_client.grant_user_policy(username, policy_id)
                 end_b = time.time()
             except Exception as e:
                 print(e)
@@ -1770,9 +1770,6 @@ class UserSyncer(object):
             print("Update bulk policy time: {}".format(end_a-start_a))
             print("Update grant user policy time : {}".format(end_b-start_b))
             print("--------------------------------")
-
-        
-        
 
         if user_yaml:
             for client_name, client_details in user_yaml.clients.items():
