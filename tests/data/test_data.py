@@ -10,7 +10,6 @@ import requests
 import fence.blueprints.data.indexd
 from fence.config import config
 from fence.errors import NotSupported
-from fence import registry
 
 from tests import utils
 
@@ -18,6 +17,8 @@ from unittest.mock import MagicMock, patch
 
 import cirrus
 from cirrus import GoogleCloudManager
+
+from fence import registry
 
 INDEXD_RECORD_WITH_PUBLIC_AUTHZ_POPULATED = {
     "did": "1",
@@ -74,7 +75,6 @@ def test_indexd_download_file(
         registry.get_sample_value(
             "pre_signed_url_req_total",
             {
-                "username": "test",
                 "guid": "1",
                 "requested_protocol": indexd_client["indexed_file_location"],
             },
@@ -104,7 +104,6 @@ def test_indexd_download_file(
     after = registry.get_sample_value(
         "pre_signed_url_req_total",
         {
-            "username": "test",
             "guid": "1",
             "requested_protocol": indexd_client["indexed_file_location"],
         },

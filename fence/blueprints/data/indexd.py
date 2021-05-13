@@ -9,8 +9,8 @@ from cdislogging import get_logger
 from cdispyutils.config import get_value
 from cdispyutils.hmac4 import generate_aws_presigned_url
 import flask
-from prometheus_flask_exporter import Counter
 import requests
+from prometheus_flask_exporter import Counter
 
 from fence.auth import (
     get_jwt,
