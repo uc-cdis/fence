@@ -500,8 +500,8 @@ oauth2client = ">=2.0.0,<4.0dev"
 [package.source]
 type = "git"
 url = "https://github.com/uc-cdis/cirrus"
-reference = "fix/update_get_signed_url_to_V4"
-resolved_reference = "51f64ee08590aa9bee2b34cb637f52943295dcb2"
+reference = "chore/update_googl_signurl_v4"
+resolved_reference = "cf3991d91a7ad5d80b1371e63ac073cc4372eadc"
 
 [[package]]
 name = "gen3config"
@@ -1362,7 +1362,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pyt
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "c10f9ebe559b2b4512aeb165ba6f5e4127b3376ad3b0f3e7925d53da3fb4b7d5"
+content-hash = "6b2e97ed470adf62afb0b19cd08f471246cb4ed1cd9c8cf4d64b5ff0ccddab2a"
 
 [metadata.files]
 addict = [
