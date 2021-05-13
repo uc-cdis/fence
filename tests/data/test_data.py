@@ -10,6 +10,7 @@ import requests
 import fence.blueprints.data.indexd
 from fence.config import config
 from fence.errors import NotSupported
+from fence import registry
 
 from tests import utils
 
@@ -18,7 +19,6 @@ from unittest.mock import MagicMock, patch
 import cirrus
 from cirrus import GoogleCloudManager
 
-from fence import registry
 
 INDEXD_RECORD_WITH_PUBLIC_AUTHZ_POPULATED = {
     "did": "1",
