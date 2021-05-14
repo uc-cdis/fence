@@ -94,7 +94,8 @@ def app_init(
 
 def setup_prometheus(app):
     if "prometheus_multiproc_dir" not in os.environ:
-        os.environ["prometheus_multiproc_dir"] = tempfile.TemporaryDirectory()
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            os.environ["prometheus_multiproc_dir"] = tmpdirname
 
     registry = CollectorRegistry()
     multiprocess.MultiProcessCollector(registry)
