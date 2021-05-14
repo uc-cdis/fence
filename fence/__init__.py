@@ -10,6 +10,9 @@ from urllib.parse import urljoin
 from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
+# This MUST be declared before the multiprocess lib is imported/initialized
+# to unblock unit testing without having to explicitly declare the env. variable
+# More details on this awkwardness: https://github.com/prometheus/client_python/issues/250
 tmp_dir = tempfile.TemporaryDirectory()
 os.environ["prometheus_multiproc_dir"] = tmp_dir.name
 
