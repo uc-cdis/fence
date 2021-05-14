@@ -275,10 +275,13 @@ def app_config(
 
     _setup_arborist_client(app)
     _setup_audit_service_client(app)
-    _setup_prometheus(app)
     _setup_data_endpoint_and_boto(app)
     _load_keys(app, root_dir)
     _set_authlib_cfgs(app)
+
+    app.prometheus_counters = {}
+    # TODO: if prometheus is disabled in config, do not setup
+    _setup_prometheus(app)
 
     app.storage_manager = StorageManager(config["STORAGE_CREDENTIALS"], logger=logger)
 
@@ -436,7 +439,7 @@ def _setup_prometheus(app):
     )
 
     # set up counters
-    app.pre_signed_url_req = Counter(
+    app.prometheus_counters["pre_signed_url_req"] = Counter(
         "pre_signed_url_req",
         "tracking presigned url requests",
         ["guid", "requested_protocol"],
