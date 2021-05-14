@@ -1,5 +1,6 @@
 from collections import OrderedDict
 import os
+import tempfile
 
 from authutils.oauth2.client import OAuthClient
 import flask
@@ -93,12 +94,12 @@ def app_init(
 
 def setup_prometheus(app):
     if "prometheus_multiproc_dir" not in os.environ:
-        os.environ["prometheus_multiproc_dir"] = "/tmp"
+        os.environ["prometheus_multiproc_dir"] = tempfile.TemporaryDirectory()
 
     registry = CollectorRegistry()
     multiprocess.MultiProcessCollector(registry)
 
-    metrics = UWsgiPrometheusMetrics(app)
+    UWsgiPrometheusMetrics(app)
 
     # Add prometheus wsgi middleware to route /metrics requests
     app.wsgi_app = DispatcherMiddleware(
