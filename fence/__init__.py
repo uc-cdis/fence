@@ -9,6 +9,10 @@ from flask_sqlalchemy_session import flask_scoped_session, current_session
 from urllib.parse import urljoin
 from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
+
+tmp_dir = tempfile.TemporaryDirectory()
+os.environ["prometheus_multiproc_dir"] = tmp_dir.name
+
 from prometheus_client import CollectorRegistry, multiprocess, make_wsgi_app
 from prometheus_flask_exporter.multiprocess import UWsgiPrometheusMetrics
 
@@ -93,14 +97,10 @@ def app_init(
 
 
 def setup_prometheus(app):
-    if "PROMETHEUS_MULTIPROC_DIR" not in os.environ:
-        tmp_dir = tempfile.TemporaryDirectory()
-        os.environ["PROMETHEUS_MULTIPROC_DIR"] = tmp_dir.name
-
     registry = CollectorRegistry()
     multiprocess.MultiProcessCollector(registry)
 
-    UWsgiPrometheusMetrics(app)
+    metrics = UWsgiPrometheusMetrics(app)
 
     # Add prometheus wsgi middleware to route /metrics requests
     app.wsgi_app = DispatcherMiddleware(

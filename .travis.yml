@@ -30,6 +30,3 @@ script:
 after_script:
   - python-codacy-coverage -r coverage.xml
   - COVERALLS_REPO_TOKEN=$COVERALLS_TOKEN coveralls
-
-env:
-  - PROMETHEUS_MULTIPROC_DIR=$TRAVIS_BUILD_DIR

@@ -2,6 +2,7 @@ import json
 import mock
 import urllib.parse
 import uuid
+import os
 
 import jwt
 import pytest
