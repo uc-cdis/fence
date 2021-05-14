@@ -10,14 +10,6 @@ from urllib.parse import urljoin
 from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
-# This MUST be declared before the multiprocess lib is imported/initialized
-# to unblock unit testing without having to explicitly declare the env. variable
-# More details on this awkwardness: https://github.com/prometheus/client_python/issues/250
-tmp_dir = tempfile.TemporaryDirectory()
-os.environ["prometheus_multiproc_dir"] = tmp_dir.name
-
-from prometheus_client import CollectorRegistry, multiprocess, make_wsgi_app
-from prometheus_flask_exporter.multiprocess import UWsgiPrometheusMetrics
 
 from fence.auth import logout, build_redirect_url
 from fence.blueprints.data.indexd import S3IndexedFileLocation
@@ -63,6 +55,12 @@ from cdispyutils.config import get_value
 
 from gen3authz.client.arborist.client import ArboristClient
 
+
+# for some reason the temp dir does not get created properly if we move
+# this statement to `_setup_prometheus()`
+PROMETHEUS_TMP_COUNTER_DIR = tempfile.TemporaryDirectory()
+
+
 # Can't read config yet. Just set to debug for now, else no handlers.
 # Later, in app_config(), will actually set level based on config
 logger = get_logger(__name__, log_level="debug")
@@ -97,20 +95,6 @@ def app_init(
     app_sessions(app)
     app_register_blueprints(app)
     server.init_app(app, query_client=query_client)
-
-
-def setup_prometheus(app):
-    registry = CollectorRegistry()
-    multiprocess.MultiProcessCollector(registry)
-
-    UWsgiPrometheusMetrics(app)
-
-    # Add prometheus wsgi middleware to route /metrics requests
-    app.wsgi_app = DispatcherMiddleware(
-        app.wsgi_app, {"/metrics": make_wsgi_app(registry=registry)}
-    )
-
-    return registry
 
 
 def app_sessions(app):
@@ -291,6 +275,7 @@ def app_config(
 
     _setup_arborist_client(app)
     _setup_audit_service_client(app)
+    _setup_prometheus(app)
     _setup_data_endpoint_and_boto(app)
     _load_keys(app, root_dir)
     _set_authlib_cfgs(app)
@@ -430,6 +415,34 @@ def _setup_audit_service_client(app):
     )
 
 
+def _setup_prometheus(app):
+    # This environment variable MUST be declared before importing the
+    # prometheus modules (or unit tests fail)
+    # More details on this awkwardness: https://github.com/prometheus/client_python/issues/250
+    os.environ["prometheus_multiproc_dir"] = PROMETHEUS_TMP_COUNTER_DIR.name
+
+    from prometheus_client import CollectorRegistry, multiprocess, make_wsgi_app
+    from prometheus_flask_exporter import Counter
+    from prometheus_flask_exporter.multiprocess import UWsgiPrometheusMetrics
+
+    app.prometheus_registry = CollectorRegistry()
+    multiprocess.MultiProcessCollector(app.prometheus_registry)
+
+    UWsgiPrometheusMetrics(app)
+
+    # Add prometheus wsgi middleware to route /metrics requests
+    app.wsgi_app = DispatcherMiddleware(
+        app.wsgi_app, {"/metrics": make_wsgi_app(registry=app.prometheus_registry)}
+    )
+
+    # set up counters
+    app.pre_signed_url_req = Counter(
+        "pre_signed_url_req",
+        "tracking presigned url requests",
+        ["guid", "requested_protocol"],
+    )
+
+
 @app.errorhandler(Exception)
 def handle_error(error):
     """
@@ -468,6 +481,3 @@ def set_csrf(response):
     if flask.request.method in ["POST", "PUT", "DELETE"]:
         current_session.commit()
     return response
-
-
-registry = setup_prometheus(app)
