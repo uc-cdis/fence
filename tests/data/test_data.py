@@ -2,7 +2,6 @@ import json
 import mock
 import urllib.parse
 import uuid
-import os
 
 import jwt
 import pytest
@@ -10,15 +9,10 @@ import requests
 
 import fence.blueprints.data.indexd
 from fence.config import config
-from fence.errors import NotSupported
-from fence import registry
 
 from tests import utils
 
 from unittest.mock import MagicMock, patch
-
-import cirrus
-from cirrus import GoogleCloudManager
 
 
 INDEXD_RECORD_WITH_PUBLIC_AUTHZ_POPULATED = {
@@ -58,6 +52,7 @@ INDEXD_RECORD_WITH_PUBLIC_AUTHZ_AND_ACL_POPULATED = {
     "indexd_client", ["gs", "s3", "gs_acl", "s3_acl", "s3_external"], indirect=True
 )
 def test_indexd_download_file(
+    app,
     client,
     oauth_client,
     user_client,
@@ -73,7 +68,7 @@ def test_indexd_download_file(
     Test ``GET /data/download/1``.
     """
     before = (
-        registry.get_sample_value(
+        app.prometheus_registry.get_sample_value(
             "pre_signed_url_req_total",
             {
                 "guid": "1",
@@ -102,13 +97,14 @@ def test_indexd_download_file(
     assert "url" in list(response.json.keys())
 
     # assert metrics have been processed successfully
-    after = registry.get_sample_value(
+    after = app.prometheus_registry.get_sample_value(
         "pre_signed_url_req_total",
         {
             "guid": "1",
             "requested_protocol": indexd_client["indexed_file_location"],
         },
     )
+    assert after, "1 presigned URL request should have been counted"
     assert 1 == (after - before), "1 presigned URL request should have been counted"
 
     # defaults to signing url, check that it's not just raw url

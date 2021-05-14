@@ -9,7 +9,6 @@ from cdislogging import get_logger
 from cdispyutils.config import get_value
 from cdispyutils.hmac4 import generate_aws_presigned_url
 import flask
-from prometheus_flask_exporter import Counter
 import requests
 
 from fence.auth import (
@@ -52,13 +51,6 @@ SUPPORTED_ACTIONS = ["upload", "download"]
 ANONYMOUS_USER_ID = "anonymous"
 ANONYMOUS_USERNAME = "anonymous"
 
-# gen3 metrics
-pre_signed_url_req = Counter(
-    "pre_signed_url_req",
-    "tracking presigned url requests",
-    ["guid", "requested_protocol"],
-)
-
 
 def get_signed_url_for_file(action, file_id, file_name=None):
     requested_protocol = flask.request.args.get("protocol", None)
@@ -88,7 +80,7 @@ def get_signed_url_for_file(action, file_id, file_name=None):
     )
 
     # increment counter for gen3-metrics
-    pre_signed_url_req.labels(file_id, requested_protocol).inc()
+    flask.current_app.pre_signed_url_req.labels(file_id, requested_protocol).inc()
 
     if action == "download":  # for now only record download requests
         create_presigned_url_audit_log(
