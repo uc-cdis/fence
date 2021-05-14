@@ -100,7 +100,7 @@ def setup_prometheus(app):
     registry = CollectorRegistry()
     multiprocess.MultiProcessCollector(registry)
 
-    metrics = UWsgiPrometheusMetrics(app)
+    UWsgiPrometheusMetrics(app)
 
     # Add prometheus wsgi middleware to route /metrics requests
     app.wsgi_app = DispatcherMiddleware(
