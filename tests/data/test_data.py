@@ -52,6 +52,44 @@ INDEXD_RECORD_WITH_PUBLIC_AUTHZ_AND_ACL_POPULATED = {
     "indexd_client", ["gs", "s3", "gs_acl", "s3_acl", "s3_external"], indirect=True
 )
 def test_indexd_download_file(
+    client,
+    oauth_client,
+    user_client,
+    indexd_client,
+    kid,
+    rsa_private_key,
+    google_proxy_group,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+):
+    """
+    Test ``GET /data/download/1``.
+    """
+    indexed_file_location = indexd_client["indexed_file_location"]
+    path = "/data/download/1"
+    query_string = {"protocol": indexed_file_location}
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+    response = client.get(path, headers=headers, query_string=query_string)
+    assert response.status_code == 200
+    assert "url" in list(response.json.keys())
+
+    # defaults to signing url, check that it's not just raw url
+    assert urllib.parse.urlparse(response.json["url"]).query != ""
+
+
+@pytest.mark.parametrize("indexd_client", ["s3"], indirect=True)
+def test_indexd_download_file(
     app,
     client,
     oauth_client,
@@ -78,6 +116,7 @@ def test_indexd_download_file(
         or 0
     )
 
+    # make a presigned URL request
     indexed_file_location = indexd_client["indexed_file_location"]
     path = "/data/download/1"
     query_string = {"protocol": indexed_file_location}
@@ -94,7 +133,6 @@ def test_indexd_download_file(
     }
     response = client.get(path, headers=headers, query_string=query_string)
     assert response.status_code == 200
-    assert "url" in list(response.json.keys())
 
     # assert metrics have been processed successfully
     after = app.prometheus_registry.get_sample_value(
@@ -104,7 +142,7 @@ def test_indexd_download_file(
             "requested_protocol": indexd_client["indexed_file_location"],
         },
     )
-    assert after, "1 presigned URL request should have been counted"
+    assert after, "Presigned URL requests should have been counted"
     assert 1 == (after - before), "1 presigned URL request should have been counted"
 
     # defaults to signing url, check that it's not just raw url
