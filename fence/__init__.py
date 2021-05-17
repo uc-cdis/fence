@@ -442,7 +442,7 @@ def _setup_prometheus(app):
     app.prometheus_counters["pre_signed_url_req"] = Counter(
         "pre_signed_url_req",
         "tracking presigned url requests",
-        ["guid", "requested_protocol"],
+        ["requested_protocol"],
     )
 
 

@@ -82,7 +82,7 @@ def get_signed_url_for_file(action, file_id, file_name=None):
     # increment counter for gen3-metrics
     counter = flask.current_app.prometheus_counters.get("pre_signed_url_req")
     if counter:
-        counter.labels(file_id, requested_protocol).inc()
+        counter.labels(requested_protocol).inc()
 
     if action == "download":  # for now only record download requests
         create_presigned_url_audit_log(

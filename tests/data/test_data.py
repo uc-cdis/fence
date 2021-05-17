@@ -109,7 +109,6 @@ def test_indexd_prometheus_presigned_url_counter(
         app.prometheus_registry.get_sample_value(
             "pre_signed_url_req_total",
             {
-                "guid": "1",
                 "requested_protocol": indexd_client["indexed_file_location"],
             },
         )
@@ -138,7 +137,6 @@ def test_indexd_prometheus_presigned_url_counter(
     after = app.prometheus_registry.get_sample_value(
         "pre_signed_url_req_total",
         {
-            "guid": "1",
             "requested_protocol": indexd_client["indexed_file_location"],
         },
     )
