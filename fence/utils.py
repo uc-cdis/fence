@@ -363,6 +363,14 @@ def exception_do_not_retry(error):
     return False
 
 
+def get_resource_paths(indexed_file):
+    resource_paths = indexed_file.index_document.get("authz", [])
+    if not resource_paths:
+        # fall back on ACL
+        resource_paths = indexed_file.index_document.get("acl", [])
+    return resource_paths
+
+
 # Default settings to control usage of backoff library.
 DEFAULT_BACKOFF_SETTINGS = {
     "on_backoff": log_backoff_retry,

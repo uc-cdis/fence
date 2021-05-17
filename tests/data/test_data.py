@@ -109,7 +109,7 @@ def test_indexd_download_file(
         app.prometheus_registry.get_sample_value(
             "pre_signed_url_req_total",
             {
-                "guid": "1",
+                "resource_path": indexd_client["resource_paths"][0],
                 "requested_protocol": indexd_client["indexed_file_location"],
             },
         )
@@ -138,7 +138,7 @@ def test_indexd_download_file(
     after = app.prometheus_registry.get_sample_value(
         "pre_signed_url_req_total",
         {
-            "guid": "1",
+            "resource_path": indexd_client["resource_paths"][0],
             "requested_protocol": indexd_client["indexed_file_location"],
         },
     )
