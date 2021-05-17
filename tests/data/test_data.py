@@ -89,7 +89,7 @@ def test_indexd_download_file(
 
 
 @pytest.mark.parametrize("indexd_client", ["s3"], indirect=True)
-def test_indexd_download_file(
+def test_indexd_prometheus_presigned_url_counter(
     app,
     client,
     oauth_client,
@@ -103,7 +103,7 @@ def test_indexd_download_file(
     google_signed_url,
 ):
     """
-    Test ``GET /data/download/1``.
+    Test that when a user requests a presigned URL, the prometheus counter is increased.
     """
     before = (
         app.prometheus_registry.get_sample_value(
