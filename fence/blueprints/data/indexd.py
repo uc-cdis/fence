@@ -36,7 +36,6 @@ from fence.resources.google.utils import (
     give_service_account_billing_access_if_necessary,
 )
 from fence.utils import get_valid_expiration_from_request
-from fence.utils import get_resource_paths
 from . import multipart_upload
 
 
@@ -83,9 +82,7 @@ def get_signed_url_for_file(action, file_id, file_name=None):
     # increment counter for gen3-metrics
     counter = flask.current_app.prometheus_counters.get("pre_signed_url_req")
     if counter:
-        # identify project associated with indexd record based on its authz/acl
-        resource_path = get_resource_paths(indexed_file)[0]
-        counter.labels(resource_path, requested_protocol).inc()
+        counter.labels(file_id, requested_protocol).inc()
 
     if action == "download":  # for now only record download requests
         create_presigned_url_audit_log(
@@ -97,7 +94,10 @@ def get_signed_url_for_file(action, file_id, file_name=None):
 
 def create_presigned_url_audit_log(indexed_file, action, protocol):
     user_info = _get_user_info(sub_to_string=False)
-    resource_paths = get_resource_paths(indexed_file)
+    resource_paths = indexed_file.index_document.get("authz", [])
+    if not resource_paths:
+        # fall back on ACL
+        resource_paths = indexed_file.index_document.get("acl", [])
     if not protocol and indexed_file.indexed_file_locations:
         protocol = indexed_file.indexed_file_locations[0].protocol
     flask.current_app.audit_service_client.create_presigned_url_log(
