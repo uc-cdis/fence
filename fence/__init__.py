@@ -279,8 +279,8 @@ def app_config(
     _load_keys(app, root_dir)
     _set_authlib_cfgs(app)
 
+    app.prometheus_counters = {}
     if config["ENABLE_PROMETHEUS_METRICS"]:
-        app.prometheus_counters = {}
         logger.info("Enabling Prometheus metrics...")
         _setup_prometheus(app)
     else:
