@@ -105,6 +105,7 @@ def test_indexd_prometheus_presigned_url_counter(
     """
     Test that when a user requests a presigned URL, the prometheus counter is increased.
     """
+    fence.auth.config["ENABLE_PROMETHEUS_METRICS"] = True
     before = (
         app.prometheus_registry.get_sample_value(
             "pre_signed_url_req_total",
