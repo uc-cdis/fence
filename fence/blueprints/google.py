@@ -31,6 +31,8 @@ from fence.resources.google.access_utils import (
     get_google_access_groups_for_service_account,
 )
 from fence.resources.google.utils import (
+    get_or_create_proxy_group_id,
+    get_or_create_service_account,
     get_monitoring_service_account_email,
     get_registered_service_accounts,
     get_project_access_from_service_accounts,
@@ -73,6 +75,12 @@ def make_google_blueprint():
 
     blueprint_api.add_resource(
         GoogleServiceAccount, "/service_accounts/<id_>", strict_slashes=False
+    )
+
+    blueprint_api.add_resource(
+        GoogleCredentialsPrimarySA,
+        "/primary_google_service_account",
+        strict_slashes=False,
     )
 
     return blueprint
@@ -591,6 +599,34 @@ class GoogleServiceAccountDryRun(Resource):
             status = 400
 
         return error_response, status
+
+
+class GoogleCredentialsPrimarySA(Resource):
+    """
+    For ``/google/primary_google_service_account`` endpoint.
+    """
+
+    @require_auth_header({"google_credentials"})
+    def post(self):
+        """
+        Force the creation of the User's Primary Google Service Account instead of
+        relying on lazy creation at first time of Google Data Access.
+        """
+        user_id = current_token["sub"]
+        client_id = current_token.get("azp") or None
+        proxy_group_id = get_or_create_proxy_group_id()
+        username = current_token.get("context", {}).get("user", {}).get("name")
+
+        service_account = get_or_create_service_account(
+            client_id=client_id,
+            user_id=user_id,
+            username=username,
+            proxy_group_id=proxy_group_id,
+        )
+
+        # NOTE: service_account_from_db.email is what gets populated in the UserInfo endpoint's
+        #       "primary_google_service_account" as well, so this remains consistent
+        return flask.jsonify({"primary_google_service_account": service_account.email})
 
 
 def _get_service_account_for_patch(id_):
