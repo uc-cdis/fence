@@ -71,11 +71,14 @@ def encoded_jwt_google_data_access(kid, rsa_private_key, user_client, oauth_clie
     encoded with the private key.
 
     Args:
-        claims (dict): fixture
-        rsa_private_key (str): fixture
+        kid (str): fixture for key id
+        rsa_private_key (str): fixture for getting private key
+        user_client: fixture that has dict containing test user info
+        oauth_client: fixture with dict containing test client info
 
     Return:
-        str: JWT containing claims encoded with private key
+        Dict[str]: dict with JWT containing claims encoded with private key, userid,
+                   and clientid
     """
     headers = {"kid": kid}
     return Dict(
