@@ -615,7 +615,6 @@ class S3IndexedFileLocation(IndexedFileLocation):
         # try to retrieve from local in-memory cache
         rv, expires_at = cls._assume_role_cache.get(role_arn, (None, 0))
         if expires_at > expiry:
-            print("Getting cached AWS roles from memory")
             return rv
 
         # try to retrieve from database cache
@@ -633,20 +632,26 @@ class S3IndexedFileLocation(IndexedFileLocation):
                         aws_session_token=cache.aws_session_token,
                     )
                     cls._assume_role_cache[role_arn] = rv, cache.expires_at
-                    print("Getting cached AWS roles from DB")
                     return rv
 
         # retrieve from AWS, with additional 30 minutes buffer for cache
         boto = boto or flask.current_app.boto
-        assumed_role = boto.assume_role(
-            role_arn,
-            expires_in + int(flask.current_app.config["ASSUME_ROLE_CACHE_SECONDS"]),
-            aws_creds_config,
-        )
+
+        if flask.current_app.config(["MAX_ROLE_SESSION_INCREASE"]):
+            assumed_role = boto.assume_role(
+                role_arn,
+                expires_in + int(flask.current_app.config["ASSUME_ROLE_CACHE_SECONDS"]),
+                aws_creds_config,
+            )
+        else:
+            assumed_role = boto.assume_role(
+                role_arn,
+                expires_in,
+                aws_creds_config,
+            )
         cred = get_value(
             assumed_role, "Credentials", InternalError("fail to assume role")
         )
-        print("Cached roles not in mem or DB, getting roles from AWS")
         rv = {
             "aws_access_key_id": get_value(
                 cred,
@@ -669,7 +674,6 @@ class S3IndexedFileLocation(IndexedFileLocation):
         ).timestamp()
 
         # stores back to cache
-        print("Caching roles back to mem and DB")
         cls._assume_role_cache[role_arn] = rv, expires_at
         if hasattr(flask.current_app, "db"):  # we don't have db in startup
             with flask.current_app.db.session as session:
@@ -1017,7 +1021,6 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
 
         if proxy_group_id in self._assume_role_cache_gs:
             private_key, key_db_entry = self._assume_role_cache_gs.get(proxy_group_id)
-            print("Getting cached GS roles from memory")
             is_cached = True
         elif hasattr(flask.current_app, "db"):
             with flask.current_app.db.session as session:
@@ -1039,12 +1042,10 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                 private_key, key_db_entry = self._assume_role_cache_gs.get(
                     proxy_group_id
                 )
-                print("Getting cached GS roless from DB")
                 is_cached = True
 
         # check again to see if we cached the creds if not we need to
         if is_cached == False:
-            print("GS roles are not cached, making request to google for creds")
             private_key, key_db_entry = get_or_create_primary_service_account_key(
                 user_id=user_id, username=username, proxy_group_id=proxy_group_id
             )
@@ -1063,7 +1064,6 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                 private_key = create_primary_service_account_key(
                     user_id=user_id, username=username, proxy_group_id=proxy_group_id
                 )
-            print("Caching GS roles back to mem and DB")
             self._assume_role_cache_gs[proxy_group_id] = (private_key, key_db_entry)
 
             db_entry = {}

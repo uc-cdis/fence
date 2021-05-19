@@ -802,7 +802,12 @@ SYNAPSE_URI: 'https://repo-prod.prod.sagebase.org/auth/v1'
 SYNAPSE_JWKS_URI:
 SYNAPSE_DISCOVERY_URL:
 SYNAPSE_AUTHZ_TTL: 86400
+
+# Role caching for generating presigned urls if max role session increase is true
+# then we can increase the amount of time that a session is valid for
+MAX_ROLE_SESSION_INCREASE: false
 ASSUME_ROLE_CACHE_SECONDS: 1800
+
 # RAS refresh_tokens expire in 15 days
 RAS_REFRESH_EXPIRATION: 1296000
 # Number of projects that can be registered to a Google Service Accont
