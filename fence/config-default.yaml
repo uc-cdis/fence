@@ -61,6 +61,11 @@ MOCK_STORAGE: true
 # WARNING: ONLY set to true when fence will be deployed in such a way that it will
 #          ONLY receive traffic from internal clients and can safely use HTTP.
 AUTHLIB_INSECURE_TRANSPORT: true
+# enable Prometheus Metrics for observability purposes
+#
+# WARNING: Any counters, gauges, histograms, etc. should be carefully
+# reviewed to make sure its labels do not contain any PII / PHI
+ENABLE_PROMETHEUS_METRICS: false
 
 # set if you want browsers to only send cookies with requests over HTTPS
 SESSION_COOKIE_SECURE: true
@@ -175,7 +180,7 @@ OPENID_CONNECT:
     mock: false
     mock_default_user: 'test@example.com'
   # For information on configuring an Okta tenant as an OIDC IdP refer to Okta documentation at:
-  # https://developer.okta.com/docs/reference/api/oidc/#2-okta-as-the-identity-platform-for-your-app-or-api  
+  # https://developer.okta.com/docs/reference/api/oidc/#2-okta-as-the-identity-platform-for-your-app-or-api
   okta:
     discovery_url: ''
     client_id: ''
