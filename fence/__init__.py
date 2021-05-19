@@ -280,8 +280,11 @@ def app_config(
     _set_authlib_cfgs(app)
 
     app.prometheus_counters = {}
-    # TODO: if prometheus is disabled in config, do not setup
-    _setup_prometheus(app)
+    if config["ENABLE_PROMETHEUS_METRICS"]:
+        logger.info("Enabling Prometheus metrics...")
+        _setup_prometheus(app)
+    else:
+        logger.info("Prometheus metrics are NOT enabled.")
 
     app.storage_manager = StorageManager(config["STORAGE_CREDENTIALS"], logger=logger)
 
