@@ -637,7 +637,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         # retrieve from AWS, with additional 30 minutes buffer for cache
         boto = boto or flask.current_app.boto
 
-        if flask.current_app.config(["MAX_ROLE_SESSION_INCREASE"]):
+        if flask.current_app.config["MAX_ROLE_SESSION_INCREASE"]:
             assumed_role = boto.assume_role(
                 role_arn,
                 expires_in + int(flask.current_app.config["ASSUME_ROLE_CACHE_SECONDS"]),
