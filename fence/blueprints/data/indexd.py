@@ -645,14 +645,16 @@ class S3IndexedFileLocation(IndexedFileLocation):
         # checking fence config if aws session can be longer than one hour
         role_cache_increase = 0
         if flask.current_app.config["MAX_ROLE_SESSION_INCREASE"]:
-            role_cache_increase = int(flask.current_app.config["ASSUME_ROLE_CACHE_SECONDS"])
-            
+            role_cache_increase = int(
+                flask.current_app.config["ASSUME_ROLE_CACHE_SECONDS"]
+            )
+
         assumed_role = boto.assume_role(
             role_arn,
             expires_in + role_cache_increase,
             aws_creds_config,
         )
-        
+
         cred = get_value(
             assumed_role, "Credentials", InternalError("fail to assume role")
         )
