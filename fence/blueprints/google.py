@@ -607,7 +607,7 @@ class GoogleCredentialsPrimarySA(Resource):
     """
 
     @require_auth_header({"google_credentials"})
-    def post():
+    def post(self):
         """
         Force the creation of the User's Primary Google Service Account instead of
         relying on lazy creation at first time of Google Data Access.
