@@ -65,6 +65,39 @@ def encoded_jwt_service_accounts_access(
 
 
 @pytest.fixture(scope="function")
+def encoded_jwt_google_data_access(kid, rsa_private_key, user_client, oauth_client):
+    """
+    Return a JWT and user_id for a new user containing the claims and
+    encoded with the private key.
+
+    Args:
+        kid (str): fixture for key id
+        rsa_private_key (str): fixture for getting private key
+        user_client: fixture that has dict containing test user info
+        oauth_client: fixture with dict containing test client info
+
+    Return:
+        Dict[str]: dict with JWT containing claims encoded with private key, userid,
+                   and clientid
+    """
+    headers = {"kid": kid}
+    return Dict(
+        jwt=jwt.encode(
+            utils.authorized_download_credentials_context_claims(
+                user_client["username"],
+                user_client["user_id"],
+                oauth_client["client_id"],
+            ),
+            key=rsa_private_key,
+            headers=headers,
+            algorithm="RS256",
+        ).decode("utf-8"),
+        user_id=user_client["user_id"],
+        client_id=oauth_client["client_id"],
+    )
+
+
+@pytest.fixture(scope="function")
 def valid_service_account_patcher():
     patches = []
 
