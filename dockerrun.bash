@@ -18,3 +18,19 @@ if [ -f /fence/jwt-keys.tar ]; then
     fi
   )
 fi
+
+if [ ! -z $NGINX_RATE_LIMIT ]; then
+  contains_rate_limit_override=$(cat /var/www/fence/fence-config.yaml | grep OVERRIDE_NGINX_RATE_LIMIT)
+  RC=$?
+  if [[ $RC -eq 0 ]]; then
+    rate_limit=$(echo $contains_rate_limit_override | cut -d"=" -f 2 | xargs)
+
+    # Add rate_limit config
+    rate_limit_conf="\ \ \ \ limit_req_zone \$binary_remote_addr zone=one:10m rate=${rate_limit}r/s;"
+    sed -i "/http\ {/a ${rate_limit_conf}" /etc/nginx/nginx.conf
+    if [ -f /etc/nginx/sites-available/uwsgi.conf ]; then
+      limit_req_config="\ \ \ \ \ \ \ \ limit_req zone=one;"
+      sed -i "/location\ \/\ {/a ${limit_req_config}" /etc/nginx/sites-available/uwsgi.conf
+    fi
+  fi
+fi
