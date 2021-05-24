@@ -293,13 +293,11 @@ def test_presigned_url_log_failure(client, indexd_client, db_session, monkeypatc
     "fence.resources.openid.ras_oauth2.RASOauth2Client.get_value_from_discovery_doc"
 )
 def test_login_log_login_endpoint(
-    mock_discovery,
     app,
     client,
     idp,
     mock_arborist_requests,
     rsa_private_key,
-    db_session,
     monkeypatch,
 ):
     """
