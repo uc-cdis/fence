@@ -49,6 +49,18 @@ class AuditServiceClient:
         else:
             logger.warn("NOT enabling audit logs")
 
+        if self.push_type == "aws_sqs":
+            self.sqs = boto3.client(
+                "sqs",
+                region_name=config["PUSH_AUDIT_LOGS_CONFIG"]["region"],
+                aws_access_key_id=config["PUSH_AUDIT_LOGS_CONFIG"].get(
+                    "aws_access_key_id"
+                ),
+                aws_secret_access_key=config["PUSH_AUDIT_LOGS_CONFIG"].get(
+                    "aws_secret_access_key"
+                ),
+            )
+
     def ping(self):
         max_tries = 3
         status_url = f"{self.service_url}/_status"
@@ -87,7 +99,9 @@ class AuditServiceClient:
                 err = resp.json()
             except Exception:
                 err = resp.text
-            self.logger.error(f"Unable to POST audit log `{body}`. Details:\n{err}")
+            self.logger.error(
+                f"Unable to POST audit log `{body}`. Status code: {resp.status_code} - Details:\n{err}"
+            )
             raise InternalError("Unable to create audit log")
 
     def create_audit_log(self, category, data):
@@ -96,20 +110,10 @@ class AuditServiceClient:
             resp = requests.post(url, json=data)
             self.check_response(resp, data)
         elif self.push_type == "aws_sqs":
-            sqs = boto3.client(  # TODO during init
-                "sqs",
-                region_name=config["PUSH_AUDIT_LOGS_CONFIG"]["region"],
-                aws_access_key_id=config["PUSH_AUDIT_LOGS_CONFIG"].get(
-                    "aws_access_key_id"
-                ),
-                aws_secret_access_key=config["PUSH_AUDIT_LOGS_CONFIG"].get(
-                    "aws_secret_access_key"
-                ),
-            )
             data["category"] = category
             sqs_url = config["PUSH_AUDIT_LOGS_CONFIG"]["sqs_url"]
             try:
-                sqs.send_message(QueueUrl=sqs_url, MessageBody=json.dumps(data))
+                self.sqs.send_message(QueueUrl=sqs_url, MessageBody=json.dumps(data))
             except Exception:
                 self.logger.error(f"Error pushing audit log to SQS '{sqs_url}'")
                 raise
