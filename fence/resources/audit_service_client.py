@@ -1,31 +1,10 @@
 import boto3
-import flask
 import json
 import requests
 import time
-from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from fence.config import config
 from fence.errors import InternalError
-
-
-def get_request_url(url=None):
-    """
-    Return the current request URL, removing sensitive data as needed.
-    """
-    request_url = url or flask.request.url
-
-    if "login" in request_url:
-        parsed_url = urlparse(request_url)
-        query_params = dict(parse_qsl(parsed_url.query, keep_blank_values=True))
-        for param in ["code", "state"]:
-            if param in query_params:
-                query_params[param] = "redacted"
-        url_parts = list(parsed_url)  # cast to list to override query params
-        url_parts[4] = urlencode(query=query_params)
-        request_url = urlunparse(url_parts)
-
-    return request_url
 
 
 def is_audit_enabled(category=None):
@@ -120,19 +99,21 @@ class AuditServiceClient:
 
     def create_presigned_url_log(
         self,
+        request_url,
+        status_code,
         username,
         sub,
         guid,
-        resource_paths,
         action,
-        protocol,
+        resource_paths=None,
+        protocol=None,
     ):
         if not is_audit_enabled("presigned_url"):
             return
 
         data = {
-            "request_url": get_request_url(),
-            "status_code": 200,  # only record successful requests for now
+            "request_url": request_url,
+            "status_code": status_code,
             "username": username,
             "sub": sub,
             "guid": guid,
@@ -144,6 +125,8 @@ class AuditServiceClient:
 
     def create_login_log(
         self,
+        request_url,
+        status_code,
         username,
         sub,
         idp,
@@ -160,8 +143,8 @@ class AuditServiceClient:
             shib_idp = None
 
         data = {
-            "request_url": get_request_url(),
-            "status_code": 200,  # only record successful requests for now
+            "request_url": request_url,
+            "status_code": status_code,
             "username": username,
             "sub": sub,
             "idp": idp,

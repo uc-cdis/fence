@@ -63,12 +63,23 @@ def get_signed_url_for_file(action, file_id, file_name=None):
     if no_force_sign_param and no_force_sign_param.lower() == "true":
         force_signed_url = False
 
+    # add the user details to `flask.g.audit_data` first, so they are
+    # included in the audit log if `IndexedFile(file_id)` raises a 404
+    # TODO manual test
+    user_info = _get_user_info(sub_to_string=False)
+    flask.g.audit_data = {
+        "username": user_info["username"],
+        "sub": user_info["user_id"],
+    }
+
     indexed_file = IndexedFile(file_id)
     default_expires_in = config.get("MAX_PRESIGNED_URL_TTL", 3600)
     expires_in = get_valid_expiration_from_request(
         max_limit=default_expires_in,
         default=default_expires_in,
     )
+
+    prepare_presigned_url_audit_log(requested_protocol, indexed_file)
 
     signed_url = indexed_file.get_signed_url(
         requested_protocol,
@@ -79,30 +90,21 @@ def get_signed_url_for_file(action, file_id, file_name=None):
         file_name=file_name,
     )
 
-    if action == "download":  # for now only record download requests
-        create_presigned_url_audit_log(
-            protocol=requested_protocol, indexed_file=indexed_file, action=action
-        )
-
     return {"url": signed_url}
 
 
-def create_presigned_url_audit_log(indexed_file, action, protocol):
-    user_info = _get_user_info(sub_to_string=False)
+def prepare_presigned_url_audit_log(protocol, indexed_file):
+    """
+    Store in `flask.g.audit_data` the data needed to record an audit log.
+    """
     resource_paths = indexed_file.index_document.get("authz", [])
     if not resource_paths:
         # fall back on ACL
         resource_paths = indexed_file.index_document.get("acl", [])
-    if not protocol and indexed_file.indexed_file_locations:
+    if not protocol and len(indexed_file.indexed_file_locations) > 0:
         protocol = indexed_file.indexed_file_locations[0].protocol
-    flask.current_app.audit_service_client.create_presigned_url_log(
-        username=user_info["username"],
-        sub=user_info["user_id"],
-        guid=indexed_file.file_id,
-        resource_paths=resource_paths,
-        action=action,
-        protocol=protocol,
-    )
+    flask.g.audit_data["resource_paths"] = resource_paths
+    flask.g.audit_data["protocol"] = protocol
 
 
 class BlankIndex(object):

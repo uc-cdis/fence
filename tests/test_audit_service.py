@@ -25,7 +25,7 @@ from unittest.mock import ANY, MagicMock, patch
 
 from fence.config import config
 from fence.blueprints.login import IDP_URL_MAP
-from fence.resources.audit_service_client import get_request_url
+from fence import clean_request_url
 from tests import utils
 
 
@@ -98,7 +98,7 @@ def test_presigned_url_log(
         audit_service_requests.post.assert_called_once_with(
             "http://audit-service/log/presigned_url",
             json={
-                "request_url": "http://localhost/user" + path,
+                "request_url": path,
                 "status_code": 200,
                 "username": user_client.username,
                 "sub": user_client.user_id,
@@ -162,7 +162,7 @@ def test_presigned_url_log_acl(
         audit_service_requests.post.assert_called_once_with(
             "http://audit-service/log/presigned_url",
             json={
-                "request_url": "http://localhost/user" + path,
+                "request_url": path,
                 "status_code": 200,
                 "username": user_client.username,
                 "sub": user_client.user_id,
@@ -199,7 +199,7 @@ def test_presigned_url_log_public(client, public_indexd_client, monkeypatch):
         audit_service_requests.post.assert_called_once_with(
             "http://audit-service/log/presigned_url",
             json={
-                "request_url": "http://localhost/user" + path,
+                "request_url": path,
                 "status_code": 200,
                 "username": "anonymous",
                 "sub": None,
@@ -269,7 +269,7 @@ def test_presigned_url_log_disabled(
 
 
 @pytest.mark.parametrize("indexd_client", ["s3_and_gs"], indirect=True)
-def test_presigned_url_log_failure(client, indexd_client, db_session, monkeypatch):
+def test_presigned_url_log_unauthorized(client, indexd_client, db_session, monkeypatch):
     """
     If Fence does not return a presigned URL, no audit log should be created.
     """
@@ -277,11 +277,29 @@ def test_presigned_url_log_failure(client, indexd_client, db_session, monkeypatc
         "fence.resources.audit_service_client.requests", new_callable=mock.Mock
     )
     monkeypatch.setitem(config, "ENABLE_AUDIT_LOGS", {"presigned_url": True})
-    path = "/data/download/1"
+
+    guid = "dg.hello/abc"
+    path = f"/data/download/{guid}"
     with audit_service_mocker as audit_service_requests:
+        audit_service_requests.post.return_value = MockResponse(
+            data={},
+            status_code=201,
+        )
         response = client.get(path)
         assert response.status_code == 401
-        audit_service_requests.post.assert_not_called()
+        audit_service_requests.post.assert_called_once_with(
+            "http://audit-service/log/presigned_url",
+            json={
+                "request_url": path,
+                "status_code": 401,
+                "username": "anonymous",
+                "sub": None,
+                "guid": guid,
+                "resource_paths": [],
+                "action": "download",
+                "protocol": "s3",
+            },
+        )
 
 
 ####################
@@ -299,6 +317,7 @@ def test_login_log_login_endpoint(
     idp,
     mock_arborist_requests,
     rsa_private_key,
+    db_session,  # do not remove :-) See note at top of file
     monkeypatch,
 ):
     """
@@ -383,7 +402,7 @@ def test_login_log_login_endpoint(
         audit_service_requests.post.assert_called_once_with(
             "http://audit-service/log/login",
             json={
-                "request_url": "http://localhost/user" + path,
+                "request_url": path,
                 "status_code": 200,
                 "username": username,
                 "sub": ANY,
@@ -398,11 +417,11 @@ def test_login_log_login_endpoint(
         get_user_id_patch.stop()
 
 
-def test_get_request_url():
+def test_clean_request_url():
     """
     Test that "code" and "state" query parameters in login URLs are redacted.
     """
-    redacted_url = get_request_url(
+    redacted_url = clean_request_url(
         "https://my-data-commons.com/login/fence/login?code=my-secret-code&state=my-secret-state&abc=my-other-param"
     )
     assert (

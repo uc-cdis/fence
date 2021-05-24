@@ -5,7 +5,7 @@ from authutils.oauth2.client import OAuthClient
 import flask
 from flask_cors import CORS
 from flask_sqlalchemy_session import flask_scoped_session, current_session
-from urllib.parse import urljoin
+from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
 from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.auth import logout, build_redirect_url
@@ -442,4 +442,56 @@ def set_csrf(response):
 
     if flask.request.method in ["POST", "PUT", "DELETE"]:
         current_session.commit()
+    return response
+
+
+def clean_request_url(request_url):
+    """
+    Remove sensitive data from a request URL.
+    """
+    if "login" in request_url:
+        parsed_url = urlparse(request_url)
+        query_params = dict(parse_qsl(parsed_url.query, keep_blank_values=True))
+        for param in ["code", "state"]:
+            if param in query_params:
+                query_params[param] = "redacted"
+        url_parts = list(parsed_url)  # cast to list to override query params
+        url_parts[4] = urlencode(query=query_params)
+        request_url = urlunparse(url_parts)
+
+    return request_url
+
+
+@app.after_request
+def create_audit_log(response):
+    """
+    Right before returning the response to the user, record an audit log.
+    The data we need to record the logs are stored in `flask.g.audit_data`
+    before reaching this code.
+    """
+    # TODO check what happens if it fails
+    method = flask.request.method
+    endpoint = flask.request.path
+    request_url = endpoint
+    if flask.request.query_string:
+        # could use `flask.request.url` but we don't want the root URL
+        request_url += f"?{flask.request.query_string.decode('utf-8')}"
+    request_url = clean_request_url(request_url)
+
+    if method == "GET" and endpoint.startswith("/data/download/"):
+        flask.current_app.audit_service_client.create_presigned_url_log(
+            status_code=response.status_code,
+            request_url=request_url,
+            guid=endpoint[len("/data/download/") :],
+            action="download",
+            **flask.g.audit_data,
+        )
+    elif method == "GET" and "login" in endpoint:
+        if hasattr(flask.g, "audit_data"):
+            flask.current_app.audit_service_client.create_login_log(
+                status_code=response.status_code,
+                request_url=request_url,
+                **flask.g.audit_data,
+            )
+
     return response
