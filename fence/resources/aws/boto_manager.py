@@ -66,6 +66,9 @@ class BotoManager(object):
             if config and "aws_access_key_id" in config:
                 self.sts_client = client("sts", **config)
             session_name_postfix = uuid.uuid4()
+            duration_seconds = max(
+                900, duration_seconds
+            )  # Since minimum time for aws assume role is 900 seconds as per boto docs
             return self.sts_client.assume_role(
                 RoleArn=role_arn,
                 DurationSeconds=duration_seconds,
