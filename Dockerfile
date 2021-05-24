@@ -56,9 +56,6 @@ COPY ./deployment/uwsgi/wsgi.py /$appname/wsgi.py
 COPY clear_prometheus_multiproc /$appname/clear_prometheus_multiproc
 WORKDIR /$appname
 
-# Set pre-fence-startup variables
-ENV OVERRIDE_NGINX_RATE_LIMIT=$(cat /fence/fence/config-default.yaml | sed -n -e 's/^.*OVERRIDE_NGINX_RATE_LIMIT: //p')
-
 # cache so that poetry install will run if these files change
 COPY poetry.lock pyproject.toml /$appname/
 
