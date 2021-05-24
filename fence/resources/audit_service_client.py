@@ -3,17 +3,28 @@ import flask
 import json
 import requests
 import time
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from fence.config import config
 from fence.errors import InternalError
 
 
-def get_request_url():
-    # TODO replace “state” and “code” by “redacted”
-    request_url = flask.request.url
-    base_url = config.get("BASE_URL", "")
-    if request_url.startswith(base_url):
-        request_url = request_url[len(base_url) :]
+def get_request_url(url=None):
+    """
+    Return the current request URL, removing sensitive data as needed.
+    """
+    request_url = url or flask.request.url
+
+    if "login" in request_url:
+        parsed_url = urlparse(request_url)
+        query_params = dict(parse_qsl(parsed_url.query, keep_blank_values=True))
+        for param in ["code", "state"]:
+            if param in query_params:
+                query_params[param] = "redacted"
+        url_parts = list(parsed_url)  # cast to list to override query params
+        url_parts[4] = urlencode(query=query_params)
+        request_url = urlunparse(url_parts)
+
     return request_url
 
 

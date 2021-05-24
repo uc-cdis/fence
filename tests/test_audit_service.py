@@ -25,6 +25,7 @@ from unittest.mock import ANY, MagicMock, patch
 
 from fence.config import config
 from fence.blueprints.login import IDP_URL_MAP
+from fence.resources.audit_service_client import get_request_url
 from tests import utils
 
 
@@ -97,7 +98,7 @@ def test_presigned_url_log(
         audit_service_requests.post.assert_called_once_with(
             "http://audit-service/log/presigned_url",
             json={
-                "request_url": path,
+                "request_url": "http://localhost/user" + path,
                 "status_code": 200,
                 "username": user_client.username,
                 "sub": user_client.user_id,
@@ -161,7 +162,7 @@ def test_presigned_url_log_acl(
         audit_service_requests.post.assert_called_once_with(
             "http://audit-service/log/presigned_url",
             json={
-                "request_url": path,
+                "request_url": "http://localhost/user" + path,
                 "status_code": 200,
                 "username": user_client.username,
                 "sub": user_client.user_id,
@@ -198,7 +199,7 @@ def test_presigned_url_log_public(client, public_indexd_client, monkeypatch):
         audit_service_requests.post.assert_called_once_with(
             "http://audit-service/log/presigned_url",
             json={
-                "request_url": path,
+                "request_url": "http://localhost/user" + path,
                 "status_code": 200,
                 "username": "anonymous",
                 "sub": None,
@@ -382,7 +383,7 @@ def test_login_log_login_endpoint(
         audit_service_requests.post.assert_called_once_with(
             "http://audit-service/log/login",
             json={
-                "request_url": path,
+                "request_url": "http://localhost/user" + path,
                 "status_code": 200,
                 "username": username,
                 "sub": ANY,
@@ -395,3 +396,16 @@ def test_login_log_login_endpoint(
 
     if get_user_id_patch:
         get_user_id_patch.stop()
+
+
+def test_get_request_url():
+    """
+    Test that "code" and "state" query parameters in login URLs are redacted.
+    """
+    redacted_url = get_request_url(
+        "https://my-data-commons.com/login/fence/login?code=my-secret-code&state=my-secret-state&abc=my-other-param"
+    )
+    assert (
+        redacted_url
+        == "https://my-data-commons.com/login/fence/login?code=redacted&state=redacted&abc=my-other-param"
+    )
