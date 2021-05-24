@@ -430,6 +430,8 @@ PRIVACY_POLICY_URL: null
 # //////////////////////////////////////////////////////////////////////////////////////
 # Configurations related to resiliency, fault-tolerance and availability
 # This is the number of requests per second that the Nginx proxy will accept before reaching fence
+# A new docker build is required if this configuration is ever changed
+# The value set in this config is utilized to declare an env. variable inside the Docker image (see Dockerfile)
 OVERRIDE_NGINX_RATE_LIMIT: 18
 
 # //////////////////////////////////////////////////////////////////////////////////////
