@@ -1,9 +1,11 @@
+from ddtrace import patch_all, tracer
+patch_all()
+
 from collections import OrderedDict
 import os
 import tempfile
 
 from authutils.oauth2.client import OAuthClient
-from ddtrace import patch_all, tracer
 import flask
 from flask_cors import CORS
 from flask_sqlalchemy_session import flask_scoped_session, current_session
@@ -471,7 +473,6 @@ def _setup_datadog(app):
     app.dd_profiler.start()
 
     # datadog profiler setup per https://ddtrace.readthedocs.io/en/stable/advanced_usage.html#uwsgi
-    patch_all()
     tracer.configure(collect_metrics=True)
     tracer.trace("uwsgi-app").__enter__()
 
