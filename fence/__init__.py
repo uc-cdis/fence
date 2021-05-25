@@ -1,7 +1,7 @@
 import os
 
 if os.environ.get("DD_PROFILING_ENABLED"):
-    logger.info("Enabling Datadog Continuous Profiler...")
+#     logger.info("Enabling Datadog Continuous Profiler...")
     from ddtrace import patch_all, tracer
     patch_all()
     from ddtrace.profiling import Profiler
