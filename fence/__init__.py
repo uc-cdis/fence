@@ -1,22 +1,8 @@
-import os
-
-if os.environ.get("DD_PROFILING_ENABLED"):
-#     logger.info("Enabling Datadog Continuous Profiler...")
-    from ddtrace import patch_all, tracer
-    patch_all()
-    from ddtrace.profiling import Profiler
-    dd_profiler = Profiler(
-        env=os.environ.get("DD_ENV"),
-        service=os.environ.get("DD_SERVICE"),
-        version=os.environ.get("DD_VERSION"),
-    )
-    dd_profiler.start()
-
-    # datadog profiler setup per https://ddtrace.readthedocs.io/en/stable/advanced_usage.html#uwsgi
-    tracer.configure(collect_metrics=True)
-    tracer.trace("uwsgi-app").__enter__()
+from ddtrace import patch_all, tracer
+patch_all()
 
 from collections import OrderedDict
+import os
 import tempfile
 
 from authutils.oauth2.client import OAuthClient
@@ -315,7 +301,7 @@ def app_config(
 
     if config["DD_PROFILING_ENABLED"]:
         logger.info("Enabling Datadog Continuous Profiler...")
-#        _setup_datadog(app)
+        _setup_datadog(app)
 
 
 def _setup_data_endpoint_and_boto(app):
