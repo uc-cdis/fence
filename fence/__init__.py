@@ -1,16 +1,16 @@
 import os
 
-if os.environ["DD_PROFILING_ENABLED"]:
+if os.environ.get("DD_PROFILING_ENABLED"):
     logger.info("Enabling Datadog Continuous Profiler...")
     from ddtrace import patch_all, tracer
     patch_all()
     from ddtrace.profiling import Profiler
-    app.dd_profiler = Profiler(
+    dd_profiler = Profiler(
         env=config["DD_ENV"],
         service=config["DD_SERVICE"],
         version=config["DD_VERSION"],
     )
-    app.dd_profiler.start()
+    dd_profiler.start()
 
     # datadog profiler setup per https://ddtrace.readthedocs.io/en/stable/advanced_usage.html#uwsgi
     tracer.configure(collect_metrics=True)
