@@ -3,6 +3,7 @@ import os
 import tempfile
 
 from authutils.oauth2.client import OAuthClient
+from ddtrace import patch_all, tracer
 import flask
 from flask_cors import CORS
 from flask_sqlalchemy_session import flask_scoped_session, current_session
@@ -296,6 +297,10 @@ def app_config(
 
     _check_s3_buckets(app)
 
+    if config["DD_PROFILING_ENABLED"]:
+        logger.info("Enabling Datadog Continuous Profiler...")
+        _setup_datadog(app)
+
 
 def _setup_data_endpoint_and_boto(app):
     if "AWS_CREDENTIALS" in config and len(config["AWS_CREDENTIALS"]) > 0:
@@ -447,6 +452,28 @@ def _setup_prometheus(app):
         "tracking presigned url requests",
         ["requested_protocol"],
     )
+
+
+def _setup_datadog(app):
+    from ddtrace.profiling import Profiler
+
+    logger.debug(f"DD_PROFILING_ENABLED: {config['DD_PROFILING_ENABLED']}")
+    logger.debug(f"DD_VERSION: {config['DD_VERSION']}")
+    logger.debug(f"DD_ENV: {config['DD_ENV']}")
+    logger.debug(f"DD_SERVICE: {config['DD_SERVICE']}")
+    logger.debug(f"DD_TAGS: {config['DD_TAGS']}")
+
+    app.dd_profiler = Profiler(
+        env=config["DD_ENV"],
+        service=config["DD_SERVICE"],
+        version=config["DD_VERSION"],
+    )
+    app.dd_profiler.start()
+
+    # datadog profiler setup per https://ddtrace.readthedocs.io/en/stable/advanced_usage.html#uwsgi
+    patch_all()
+    tracer.configure(collect_metrics=True)
+    tracer.trace("uwsgi-app").__enter__()
 
 
 @app.errorhandler(Exception)
