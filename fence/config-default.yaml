@@ -431,7 +431,7 @@ PRIVACY_POLICY_URL: null
 # Configurations related to resiliency, fault-tolerance and availability
 # This is the number of requests per second that the Nginx proxy will accept before reaching fence
 # The value defined in fence-config-public.yaml takes precedence over this one
-# In the absence of any OVERRIDE_ prefixed config, the legacy NGINX_RATE_LIMIT from the k8s deployment yaml is applied
+# In the absence of this OVERRIDE prefixed config, the legacy NGINX_RATE_LIMIT from the k8s deployment yaml is applied
 OVERRIDE_NGINX_RATE_LIMIT: 18
 
 # //////////////////////////////////////////////////////////////////////////////////////
