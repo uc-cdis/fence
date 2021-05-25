@@ -40,14 +40,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY . /fence
 WORKDIR /fence
+
+# install poetry
+RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
+
+# cache so that poetry install will run if these files change
+COPY poetry.lock pyproject.toml /fence/
+
+# install Fence and dependencies via poetry
+RUN source $HOME/.poetry/env \
+    && poetry config virtualenvs.create false \
+    && poetry install -vv --no-dev --no-interaction \
+    && poetry show -v
+
 #
 # Custom apache24 logging - see http://www.loadbalancer.org/blog/apache-and-x-forwarded-for-headers/
 #
 RUN ln -s /fence/wsgi.py /var/www/fence/wsgi.py \
-    && pip install -r requirements.txt \
     && COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" >fence/version_data.py \
     && VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >>fence/version_data.py \
-    && python setup.py develop \
     && echo '<VirtualHost *:80>\n\
     ServerName SERVERNAME \n\
     WSGIDaemonProcess /fence processes=2 threads=4 python-path=/var/www/fence/:/fence/:/usr/bin/python\n\
