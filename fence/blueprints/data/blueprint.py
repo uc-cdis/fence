@@ -55,8 +55,7 @@ def delete_data_file(file_id):
                 return flask.jsonify({"message": message}), status_code
 
             try:
-                delete_info = record.delete()
-                return flask.jsonify(delete_info)
+                return record.delete()
             except Exception as e:
                 logger.error(e)
                 return (
