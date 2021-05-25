@@ -1,4 +1,6 @@
-if config["DD_PROFILING_ENABLED"]:
+import os
+
+if os.environ["DD_PROFILING_ENABLED"]:
     logger.info("Enabling Datadog Continuous Profiler...")
     from ddtrace import patch_all, tracer
     patch_all()
@@ -15,7 +17,6 @@ if config["DD_PROFILING_ENABLED"]:
     tracer.trace("uwsgi-app").__enter__()
 
 from collections import OrderedDict
-import os
 import tempfile
 
 from authutils.oauth2.client import OAuthClient
