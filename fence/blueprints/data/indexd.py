@@ -1052,7 +1052,6 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                     )
                     is_cached = True
 
-
         # check again to see if we cached the creds if not we need to
         if is_cached == False:
             private_key, key_db_entry = get_or_create_primary_service_account_key(
