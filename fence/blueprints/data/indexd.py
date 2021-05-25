@@ -639,7 +639,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
                     cls._assume_role_cache[role_arn] = rv, cache.expires_at
                     return rv
 
-        # retrieve from AWS, with additional 30 minutes buffer for cache
+        # retrieve from AWS, with additional ASSUME_ROLE_CACHE_SECONDS buffer for cache
         boto = boto or flask.current_app.boto
 
         # checking fence config if aws session can be longer than one hour
