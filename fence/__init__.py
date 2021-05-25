@@ -1,5 +1,18 @@
-from ddtrace import patch_all, tracer
-patch_all()
+if config["DD_PROFILING_ENABLED"]:
+    logger.info("Enabling Datadog Continuous Profiler...")
+    from ddtrace import patch_all, tracer
+    patch_all()
+    from ddtrace.profiling import Profiler
+    app.dd_profiler = Profiler(
+        env=config["DD_ENV"],
+        service=config["DD_SERVICE"],
+        version=config["DD_VERSION"],
+    )
+    app.dd_profiler.start()
+
+    # datadog profiler setup per https://ddtrace.readthedocs.io/en/stable/advanced_usage.html#uwsgi
+    tracer.configure(collect_metrics=True)
+    tracer.trace("uwsgi-app").__enter__()
 
 from collections import OrderedDict
 import os
@@ -301,7 +314,7 @@ def app_config(
 
     if config["DD_PROFILING_ENABLED"]:
         logger.info("Enabling Datadog Continuous Profiler...")
-        _setup_datadog(app)
+#        _setup_datadog(app)
 
 
 def _setup_data_endpoint_and_boto(app):
