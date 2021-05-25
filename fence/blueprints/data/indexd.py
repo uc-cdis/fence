@@ -38,7 +38,7 @@ from fence.resources.google.utils import (
 )
 from fence.utils import get_valid_expiration_from_request
 from . import multipart_upload
-from ...models import AssumeRoleCache
+from ...models import AssumeRoleCacheAWS
 from ...models import AssumeRoleCacheGCP
 
 logger = get_logger(__name__)
@@ -597,8 +597,11 @@ class IndexedFileLocation(object):
 class S3IndexedFileLocation(IndexedFileLocation):
     """
     An indexed file that lives in an AWS S3 bucket.
+
+    _assume_role_cache is used as an in mem cache for holding role credentials
     """
 
+    # expected structure { role_arn: (rv, expires_at) }
     _assume_role_cache = {}
 
     @classmethod
@@ -626,8 +629,8 @@ class S3IndexedFileLocation(IndexedFileLocation):
         if hasattr(flask.current_app, "db"):  # we don't have db in startup
             with flask.current_app.db.session as session:
                 cache = (
-                    session.query(AssumeRoleCache)
-                    .filter(AssumeRoleCache.arn == role_arn)
+                    session.query(AssumeRoleCacheAWS)
+                    .filter(AssumeRoleCacheAWS.arn == role_arn)
                     .first()
                 )
                 if cache and cache.expires_at and cache.expires_at > expiry:
@@ -933,8 +936,11 @@ class S3IndexedFileLocation(IndexedFileLocation):
 class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     """
     An indexed file that lives in a Google Storage bucket.
+
+    _assume_role_cache_gs is used for in mem caching of GCP role credentials
     """
 
+    # expected structore { proxy_group_id: (private_key, key_db_entry) }
     _assume_role_cache_gs = {}
 
     def get_resource_path(self):
@@ -1035,20 +1041,17 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                     .filter(AssumeRoleCacheGCP.gcp_proxy_group_id == proxy_group_id)
                     .first()
                 )
-                if cache and cache.expires_at and cache.expires_at > expiration_time:
+                if cache and cache.expires_at > expiration_time:
                     rv = (
                         json.loads(cache.gcp_private_key),
                         json.loads(cache.gcp_key_db_entry),
                     )
                     self._assume_role_cache_gs[proxy_group_id] = rv
-            if (
-                proxy_group_id in self._assume_role_cache_gs
-                and self._assume_role_cache_gs[proxy_group_id] != None
-            ):
-                private_key, key_db_entry = self._assume_role_cache_gs.get(
-                    proxy_group_id
-                )
-                is_cached = True
+                    private_key, key_db_entry = self._assume_role_cache_gs.get(
+                        proxy_group_id
+                    )
+                    is_cached = True
+
 
         # check again to see if we cached the creds if not we need to
         if is_cached == False:

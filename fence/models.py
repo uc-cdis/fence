@@ -532,7 +532,7 @@ class ServiceAccountToGoogleBucketAccessGroup(Base):
     )
 
 
-class AssumeRoleCache(Base):
+class AssumeRoleCacheAWS(Base):
     __tablename__ = "assume_role_cache"
 
     arn = Column(String(), primary_key=True)
