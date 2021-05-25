@@ -620,10 +620,10 @@ class GoogleCredentialsPrimarySA(Resource):
 
         # do the same thing signed URL creation is doing, but don't use the resulting
         # key, just extract the service account email
-        _, key_db_entry = get_or_create_primary_service_account_key(
+        sa_private_key, _ = get_or_create_primary_service_account_key(
             user_id=user_id, username=username, proxy_group_id=proxy_group_id
         )
-        service_account_email = key_db_entry.google_service_account.email
+        service_account_email = sa_private_key.get("client_email")
 
         # NOTE: service_account_from_db.email is what gets populated in the UserInfo endpoint's
         #       "primary_google_service_account" as well, so this remains consistent

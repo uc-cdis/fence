@@ -1122,7 +1122,7 @@ def primary_google_service_account_google(
         "type": "service_account",
         "project_id": "project-id",
         "private_key_id": "some_number",
-        "client_email": "<api-name>api@project-id.iam.gserviceaccount.com",
+        "client_email": email,
         "client_id": "...",
         "auth_uri": "https://accounts.google.com/o/oauth2/auth",
         "token_uri": "https://accounts.google.com/o/oauth2/token",
