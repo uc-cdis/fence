@@ -300,6 +300,12 @@ SUPPORT_EMAIL_FOR_ERRORS: null
 # //////////////////////////////////////////////////////////////////////////////////////
 # assumes shibboleth is deployed under {{BASE_URL}}/shibboleth
 SHIBBOLETH_HEADER: 'persistent_id'
+
+# secondary header for getting unique ID
+# NOTE: For NIH's Shibboleth setup, NIH-internal employees (NIH/CIT setup no longer
+#       shares a common attribute for both internal/external employees)
+SHIBBOLETH_HEADER_SECONDARY: 'eduPersonPrincipalName'
+
 SSO_URL: 'https://auth.nih.gov/affwebservices/public/saml2sso?SPID={{BASE_URL}}/shibboleth&RelayState='
 ITRUST_GLOBAL_LOGOUT: 'https://auth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl='
 

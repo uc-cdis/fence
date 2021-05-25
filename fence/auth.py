@@ -183,6 +183,16 @@ def login_required(scope=None):
             if enable_shib and "SHIBBOLETH_HEADER" in config:
                 eppn = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
 
+                # if unique ID not in normal header, try secondary header
+                if not eppn and config["SHIBBOLETH_HEADER_SECONDARY"]:
+                    logger.debug(
+                        f"No user ID found in SHIBBOLETH_HEADER {config['SHIBBOLETH_HEADER']}. "
+                        f"Trying secondary header: {config['SHIBBOLETH_HEADER_SECONDARY']}"
+                    )
+                    eppn = flask.request.headers.get(
+                        config["SHIBBOLETH_HEADER_SECONDARY"]
+                    )
+
             if config.get("MOCK_AUTH") is True:
                 eppn = "test"
             # if there is authorization header for oauth
