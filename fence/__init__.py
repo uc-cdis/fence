@@ -6,9 +6,9 @@ if os.environ.get("DD_PROFILING_ENABLED"):
     patch_all()
     from ddtrace.profiling import Profiler
     dd_profiler = Profiler(
-        env=config["DD_ENV"],
-        service=config["DD_SERVICE"],
-        version=config["DD_VERSION"],
+        env=os.environ.get("DD_ENV"),
+        service=os.environ.get("DD_SERVICE"),
+        version=os.environ.get("DD_VERSION"),
     )
     dd_profiler.start()
 
