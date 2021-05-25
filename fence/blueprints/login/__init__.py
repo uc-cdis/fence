@@ -321,13 +321,23 @@ def get_all_shib_idps():
     assert (
         res.status_code == 200
     ), "Unable to get list of Shibboleth IDPs from {}".format(url)
-    return [
-        {
-            "idp": shib_idp["entityID"],
-            "name": get_shib_idp_en_name(shib_idp["DisplayNames"]),
-        }
-        for shib_idp in res.json()
-    ]
+
+    all_shib_idps = []
+    for shib_idp in res.json():
+        if "entityID" not in shib_idp:
+            logger.warn(f"get_all_shib_idps(): 'entityID' field not in IDP data: {shib_idp}. Skipping this IDP.")
+            continue
+        idp = shib_idp["entityID"]
+        if len(shib_idp.get("DisplayNames", [])) > 0:
+            name = get_shib_idp_en_name(shib_idp["DisplayNames"])
+        else:
+            logger.warn(f"get_all_shib_idps(): 'DisplayNames' field not in IDP data: {shib_idp}. Using IDP ID '{idp}' as IDP name.")
+            name = idp
+        all_shib_idps.append({
+            "idp": idp,
+            "name": name,
+        })
+    return all_shib_idps
 
 
 def get_shib_idp_en_name(names):
