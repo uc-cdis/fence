@@ -5,7 +5,7 @@
 # This Dockerfile is NOT compatible yet with the latest Fence (Python 3
 # and depdencency management via Poetry) - for now, use Fence 2.7.x.
 
-FROM ubuntu:16.04
+FROM quay.io/cdis/ubuntu:16.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
