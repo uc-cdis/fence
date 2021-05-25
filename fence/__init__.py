@@ -1,6 +1,3 @@
-from ddtrace import patch_all, tracer
-patch_all()
-
 from collections import OrderedDict
 import os
 import tempfile
@@ -472,9 +469,9 @@ def _setup_datadog(app):
     )
     app.dd_profiler.start()
 
-    # datadog profiler setup per https://ddtrace.readthedocs.io/en/stable/advanced_usage.html#uwsgi
-    tracer.configure(collect_metrics=True)
-    tracer.trace("uwsgi-app").__enter__()
+#     # datadog profiler setup per https://ddtrace.readthedocs.io/en/stable/advanced_usage.html#uwsgi
+#     tracer.configure(collect_metrics=True)
+#     tracer.trace("uwsgi-app").__enter__()
 
 
 @app.errorhandler(Exception)
