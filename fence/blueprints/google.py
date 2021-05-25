@@ -36,6 +36,7 @@ from fence.resources.google.utils import (
     get_monitoring_service_account_email,
     get_registered_service_accounts,
     get_project_access_from_service_accounts,
+    get_or_create_primary_service_account_key,
 )
 from fence.models import UserServiceAccount
 from fence.utils import get_valid_expiration_from_request
@@ -613,20 +614,20 @@ class GoogleCredentialsPrimarySA(Resource):
         relying on lazy creation at first time of Google Data Access.
         """
         user_id = current_token["sub"]
-        client_id = current_token.get("azp") or None
         proxy_group_id = get_or_create_proxy_group_id()
         username = current_token.get("context", {}).get("user", {}).get("name")
+        service_account_email = None
 
-        service_account = get_or_create_service_account(
-            client_id=client_id,
-            user_id=user_id,
-            username=username,
-            proxy_group_id=proxy_group_id,
+        # do the same thing signed URL creation is doing, but don't use the resulting
+        # key, just extract the service account email
+        _, key_db_entry = get_or_create_primary_service_account_key(
+            user_id=user_id, username=username, proxy_group_id=proxy_group_id
         )
+        service_account_email = key_db_entry.google_service_account.email
 
         # NOTE: service_account_from_db.email is what gets populated in the UserInfo endpoint's
         #       "primary_google_service_account" as well, so this remains consistent
-        return flask.jsonify({"primary_google_service_account": service_account.email})
+        return flask.jsonify({"primary_google_service_account": service_account_email})
 
 
 def _get_service_account_for_patch(id_):

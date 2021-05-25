@@ -11,6 +11,7 @@ import json
 import mock
 import os
 import copy
+import time
 
 from addict import Dict
 from authutils.testing.fixtures import (
@@ -1110,14 +1111,39 @@ def primary_google_service_account_google(
     db_session.add(service_account)
     db_session.commit()
 
+    service_account_key_db_entry = models.GoogleServiceAccountKey(
+        key_id=1, service_account_id=service_account.id, expires=int(time.time()) - 3600
+    )
+
+    db_session.add(service_account_key_db_entry)
+    db_session.commit()
+
+    private_key = {
+        "type": "service_account",
+        "project_id": "project-id",
+        "private_key_id": "some_number",
+        "client_email": "<api-name>api@project-id.iam.gserviceaccount.com",
+        "client_id": "...",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://accounts.google.com/o/oauth2/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_x509_cert_url": "https://www.googleapis.com/...<api-name>api%40project-id.iam.gserviceaccount.com",
+    }
+
     mock = MagicMock()
-    mock.return_value = service_account
-    patcher = patch("fence.blueprints.google.get_or_create_service_account", mock)
+    mock.return_value = private_key, service_account_key_db_entry
+    patcher = patch(
+        "fence.blueprints.google.get_or_create_primary_service_account_key", mock
+    )
     patcher.start()
 
     yield Dict(
         id=service_account_id, email=email, get_or_create_service_account_mock=mock
     )
+
+    db_session.delete(service_account)
+    db_session.delete(service_account_key_db_entry)
+    db_session.commit()
 
     patcher.stop()
 
