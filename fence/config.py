@@ -3,6 +3,7 @@ from yaml import safe_load as yaml_load
 import urllib.parse
 
 import cirrus
+from fence.version_data import VERSION, COMMIT
 from gen3config import Config
 
 from cdislogging import get_logger
@@ -111,6 +112,22 @@ class FenceConfig(Config):
                     "trusted, so we do not restrict this scope for clients."
                 )
                 self._configs["SESSION_ALLOWED_SCOPES"].remove("google_credentials")
+
+        if self._configs.get("DD_PROFILING_ENABLED"):
+            os.environ["DD_PROFILING_ENABLED"] = "true"
+
+            os.environ["DD_ENV"] = self._configs["DD_ENV"]
+            os.environ["DD_SERVICE"] = self._configs["DD_SERVICE"]
+
+            # add commit to tags (a comma-delimited list of key:value pairs)
+            dd_tags = f"{self._configs['DD_TAGS'].rstrip(',')},COMMIT:{COMMIT}".strip(
+                ","
+            )
+            self._configs["DD_TAGS"] = dd_tags
+            os.environ["DD_TAGS"] = dd_tags
+
+            self._configs["DD_VERSION"] = VERSION
+            os.environ["DD_VERSION"] = VERSION
 
 
 config = FenceConfig(DEFAULT_CFG_PATH)
