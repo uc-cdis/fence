@@ -504,7 +504,7 @@ def clean_request_url(request_url):
 
 
 @app.after_request
-def create_audit_log(response):
+def create_audit_log_for_request(response):
     """
     Right before returning the response to the user, record an audit log.
     The data we need to record the logs are stored in `flask.g.audit_data`

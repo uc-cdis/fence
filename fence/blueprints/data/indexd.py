@@ -107,7 +107,7 @@ def prepare_presigned_url_audit_log(protocol, indexed_file):
     if not resource_paths:
         # fall back on ACL
         resource_paths = indexed_file.index_document.get("acl", [])
-    if not protocol and len(indexed_file.indexed_file_locations) > 0:
+    if not protocol and indexed_file.indexed_file_locations:
         protocol = indexed_file.indexed_file_locations[0].protocol
     flask.g.audit_data["resource_paths"] = resource_paths
     flask.g.audit_data["protocol"] = protocol

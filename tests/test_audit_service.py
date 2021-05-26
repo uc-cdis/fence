@@ -2,6 +2,7 @@
 Tests for the Audit Service integration:
 - test the creation of presigned URL audit logs
 - test the creation of login audit logs
+- test the SQS flow
 
 Note 1: there is no test for the /oauth2 endpoint: the /oauth2 endpoint
 should redirect the user to the /login endpoint (tested in
@@ -16,17 +17,33 @@ tests looking at users are not affected.
 """
 
 
+import boto3
 import flask
+import json
 import jwt
 import mock
 import pytest
 import time
 from unittest.mock import ANY, MagicMock, patch
 
+import fence
 from fence.config import config
 from fence.blueprints.login import IDP_URL_MAP
-from fence import clean_request_url
+from fence import _setup_audit_service_client, clean_request_url
 from tests import utils
+
+
+def test_clean_request_url():
+    """
+    Test that "code" and "state" query parameters in login URLs are redacted.
+    """
+    redacted_url = clean_request_url(
+        "https://my-data-commons.com/login/fence/login?code=my-secret-code&state=my-secret-state&abc=my-other-param"
+    )
+    assert (
+        redacted_url
+        == "https://my-data-commons.com/login/fence/login?code=redacted&state=redacted&abc=my-other-param"
+    )
 
 
 ############################
@@ -420,14 +437,100 @@ def test_login_log_login_endpoint(
         get_user_id_patch.stop()
 
 
-def test_clean_request_url():
-    """
-    Test that "code" and "state" query parameters in login URLs are redacted.
-    """
-    redacted_url = clean_request_url(
-        "https://my-data-commons.com/login/fence/login?code=my-secret-code&state=my-secret-state&abc=my-other-param"
+##########################
+# Push audit logs to SQS #
+##########################
+
+
+def mock_audit_service_sqs(app):
+    # the `PUSH_AUDIT_LOGS_CONFIG` config has already been loaded during
+    # the app init, so monkeypatching it is not enough
+    fence.config["PUSH_AUDIT_LOGS_CONFIG"] = {
+        "type": "aws_sqs",
+        "sqs_url": "mocked-sqs-url",
+        "region": "region",
+    }
+
+    # mock the ping function so we don't try to reach the audit-service
+    mock.patch(
+        "fence.resources.audit_service_client.AuditServiceClient.ping",
+        new_callable=mock.Mock,
+    ).start()
+
+    # mock the SQS
+    mocked_sqs_client = MagicMock()
+    patch(
+        "fence.resources.audit_service_client.boto3.client", mocked_sqs_client
+    ).start()
+    mocked_sqs = boto3.client(
+        "sqs",
+        region_name=config["PUSH_AUDIT_LOGS_CONFIG"]["region"],
+        endpoint_url="http://localhost",
     )
-    assert (
-        redacted_url
-        == "https://my-data-commons.com/login/fence/login?code=redacted&state=redacted&abc=my-other-param"
+    mocked_sqs.url = config["PUSH_AUDIT_LOGS_CONFIG"]["sqs_url"]
+    mocked_sqs_client.return_value = mocked_sqs
+
+    # the audit-service client has already been loaded during the app
+    # init, so reload it with the new config
+    _setup_audit_service_client(app)
+
+    return mocked_sqs
+
+
+@pytest.mark.parametrize("indexd_client_with_arborist", ["s3_and_gs"], indirect=True)
+def test_push_to_audit_sqs(
+    app,
+    client,
+    user_client,
+    mock_arborist_requests,
+    indexd_client_with_arborist,
+    kid,
+    rsa_private_key,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+    monkeypatch,
+):
+    """
+    Get a presigned URL from Fence and make sure an audit log was pushed
+    to the configured SQS.
+    """
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
+    monkeypatch.setitem(config, "ENABLE_AUDIT_LOGS", {"presigned_url": True})
+    mocked_sqs = mock_audit_service_sqs(app)
+
+    # get a presigned URL
+    protocol = "gs"
+    guid = "dg.hello/abc"
+    path = f"/data/download/{guid}?protocol={protocol}"
+    resource_paths = ["/my/resource/path1", "/path2"]
+    indexd_client_with_arborist(resource_paths)
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, str(user_client.user_id)
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+    response = client.get(path, headers=headers)
+    assert response.status_code == 200, response
+    assert response.json.get("url")
+
+    expected_audit_data = {
+        "request_url": path,
+        "status_code": 200,
+        "username": user_client.username,
+        "sub": user_client.user_id,
+        "guid": guid,
+        "resource_paths": resource_paths,
+        "action": "download",
+        "protocol": protocol,
+        "category": "presigned_url",
+    }
+    mocked_sqs.send_message.assert_called_once_with(
+        MessageBody=json.dumps(expected_audit_data), QueueUrl=mocked_sqs.url
     )

@@ -68,6 +68,9 @@ class AuditServiceClient:
             assert config["PUSH_AUDIT_LOGS_CONFIG"].get(
                 "sqs_url"
             ), f"PUSH_AUDIT_LOGS_CONFIG.type is 'aws_sqs' but PUSH_AUDIT_LOGS_CONFIG.sqs_url is not configured"
+            assert config["PUSH_AUDIT_LOGS_CONFIG"].get(
+                "region"
+            ), f"PUSH_AUDIT_LOGS_CONFIG.type is 'aws_sqs' but PUSH_AUDIT_LOGS_CONFIG.region is not configured"
 
     def check_response(self, resp, body):
         # The audit-service returns 201 before inserting the log in the DB.
