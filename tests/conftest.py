@@ -1112,7 +1112,7 @@ def primary_google_service_account_google(
     db_session.commit()
 
     service_account_key_db_entry = models.GoogleServiceAccountKey(
-        key_id=1, service_account_id=service_account.id, expires=int(time.time()) - 3600
+        key_id=1, service_account_id=service_account.id, expires=int(time.time()) + 3600
     )
 
     db_session.add(service_account_key_db_entry)
