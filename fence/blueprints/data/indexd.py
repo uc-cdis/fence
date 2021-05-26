@@ -1,5 +1,6 @@
 import re
 import time
+import json
 from urllib.parse import urlparse
 
 from cached_property import cached_property
@@ -37,7 +38,8 @@ from fence.resources.google.utils import (
 )
 from fence.utils import get_valid_expiration_from_request
 from . import multipart_upload
-
+from ...models import AssumeRoleCacheAWS
+from ...models import AssumeRoleCacheGCP
 
 logger = get_logger(__name__)
 
@@ -596,7 +598,12 @@ class IndexedFileLocation(object):
 class S3IndexedFileLocation(IndexedFileLocation):
     """
     An indexed file that lives in an AWS S3 bucket.
+
+    _assume_role_cache is used as an in mem cache for holding role credentials
     """
+
+    # expected structure { role_arn: (rv, expires_at) }
+    _assume_role_cache = {}
 
     @classmethod
     def assume_role(cls, bucket_cred, expires_in, aws_creds_config, boto=None):
@@ -609,16 +616,53 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 outside of application context, to avoid errors when
                 using `flask.current_app`.
         """
-        boto = boto or flask.current_app.boto
-
         role_arn = get_value(
             bucket_cred, "role-arn", InternalError("role-arn of that bucket is missing")
         )
-        assumed_role = boto.assume_role(role_arn, expires_in, aws_creds_config)
+        expiry = time.time() + expires_in
+
+        # try to retrieve from local in-memory cache
+        rv, expires_at = cls._assume_role_cache.get(role_arn, (None, 0))
+        if expires_at > expiry:
+            return rv
+
+        # try to retrieve from database cache
+        if hasattr(flask.current_app, "db"):  # we don't have db in startup
+            with flask.current_app.db.session as session:
+                cache = (
+                    session.query(AssumeRoleCacheAWS)
+                    .filter(AssumeRoleCacheAWS.arn == role_arn)
+                    .first()
+                )
+                if cache and cache.expires_at and cache.expires_at > expiry:
+                    rv = dict(
+                        aws_access_key_id=cache.aws_access_key_id,
+                        aws_secret_access_key=cache.aws_secret_access_key,
+                        aws_session_token=cache.aws_session_token,
+                    )
+                    cls._assume_role_cache[role_arn] = rv, cache.expires_at
+                    return rv
+
+        # retrieve from AWS, with additional ASSUME_ROLE_CACHE_SECONDS buffer for cache
+        boto = boto or flask.current_app.boto
+
+        # checking fence config if aws session can be longer than one hour
+        role_cache_increase = 0
+        if flask.current_app.config["MAX_ROLE_SESSION_INCREASE"]:
+            role_cache_increase = int(
+                flask.current_app.config["ASSUME_ROLE_CACHE_SECONDS"]
+            )
+
+        assumed_role = boto.assume_role(
+            role_arn,
+            expires_in + role_cache_increase,
+            aws_creds_config,
+        )
+
         cred = get_value(
             assumed_role, "Credentials", InternalError("fail to assume role")
         )
-        return {
+        rv = {
             "aws_access_key_id": get_value(
                 cred,
                 "AccessKeyId",
@@ -632,9 +676,39 @@ class S3IndexedFileLocation(IndexedFileLocation):
             "aws_session_token": get_value(
                 cred,
                 "SessionToken",
-                InternalError("outdated format. Sesssion token missing"),
+                InternalError("outdated format. Session token missing"),
             ),
         }
+        expires_at = get_value(
+            cred, "Expiration", InternalError("outdated format. Expiration missing")
+        ).timestamp()
+
+        # stores back to cache
+        cls._assume_role_cache[role_arn] = rv, expires_at
+        if hasattr(flask.current_app, "db"):  # we don't have db in startup
+            with flask.current_app.db.session as session:
+                session.execute(
+                    """\
+                    INSERT INTO assume_role_cache (
+                        arn,
+                        expires_at,
+                        aws_access_key_id,
+                        aws_secret_access_key,
+                        aws_session_token
+                    ) VALUES (
+                        :arn,
+                        :expires_at,
+                        :aws_access_key_id,
+                        :aws_secret_access_key,
+                        :aws_session_token
+                    ) ON CONFLICT (arn) DO UPDATE SET
+                        expires_at = EXCLUDED.expires_at,
+                        aws_access_key_id = EXCLUDED.aws_access_key_id,
+                        aws_secret_access_key = EXCLUDED.aws_secret_access_key,
+                        aws_session_token = EXCLUDED.aws_session_token;""",
+                    dict(arn=role_arn, expires_at=expires_at, **rv),
+                )
+        return rv
 
     def bucket_name(self):
         """
@@ -863,7 +937,12 @@ class S3IndexedFileLocation(IndexedFileLocation):
 class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     """
     An indexed file that lives in a Google Storage bucket.
+
+    _assume_role_cache_gs is used for in mem caching of GCP role credentials
     """
+
+    # expected structore { proxy_group_id: (private_key, key_db_entry) }
+    _assume_role_cache_gs = {}
 
     def get_resource_path(self):
         return self.parsed_url.netloc.strip("/") + "/" + self.parsed_url.path.strip("/")
@@ -948,26 +1027,81 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         username,
         r_pays_project=None,
     ):
+
         proxy_group_id = get_or_create_proxy_group_id()
 
-        private_key, key_db_entry = get_or_create_primary_service_account_key(
-            user_id=user_id, username=username, proxy_group_id=proxy_group_id
-        )
+        is_cached = False
 
-        # Make sure the service account key expiration is later
-        # than the expiration for the signed url. If it's not, we need to
-        # provision a new service account key.
-        #
-        # NOTE: This should occur very rarely: only when the service account key
-        #       already exists and is very close to expiring.
-        #
-        #       If our scheduled maintainence script removes the url-signing key
-        #       before the expiration of the url then the url will NOT work
-        #       (even though the url itself isn't expired)
-        if key_db_entry and key_db_entry.expires < expiration_time:
-            private_key = create_primary_service_account_key(
+        if proxy_group_id in self._assume_role_cache_gs:
+            private_key, key_db_entry = self._assume_role_cache_gs.get(proxy_group_id)
+            is_cached = True
+        elif hasattr(flask.current_app, "db"):
+            with flask.current_app.db.session as session:
+                cache = (
+                    session.query(AssumeRoleCacheGCP)
+                    .filter(AssumeRoleCacheGCP.gcp_proxy_group_id == proxy_group_id)
+                    .first()
+                )
+                if cache and cache.expires_at > expiration_time:
+                    rv = (
+                        json.loads(cache.gcp_private_key),
+                        json.loads(cache.gcp_key_db_entry),
+                    )
+                    self._assume_role_cache_gs[proxy_group_id] = rv
+                    private_key, key_db_entry = self._assume_role_cache_gs.get(
+                        proxy_group_id
+                    )
+                    is_cached = True
+
+        # check again to see if we cached the creds if not we need to
+        if is_cached == False:
+            private_key, key_db_entry = get_or_create_primary_service_account_key(
                 user_id=user_id, username=username, proxy_group_id=proxy_group_id
             )
+
+            # Make sure the service account key expiration is later
+            # than the expiration for the signed url. If it's not, we need to
+            # provision a new service account key.
+            #
+            # NOTE: This should occur very rarely: only when the service account key
+            #       already exists and is very close to expiring.
+            #
+            #       If our scheduled maintainence script removes the url-signing key
+            #       before the expiration of the url then the url will NOT work
+            #       (even though the url itself isn't expired)
+            if key_db_entry and key_db_entry.expires < expiration_time:
+                private_key = create_primary_service_account_key(
+                    user_id=user_id, username=username, proxy_group_id=proxy_group_id
+                )
+            self._assume_role_cache_gs[proxy_group_id] = (private_key, key_db_entry)
+
+            db_entry = {}
+            db_entry["gcp_proxy_group_id"] = proxy_group_id
+            db_entry["gcp_private_key"] = str(private_key)
+            db_entry["gcp_key_db_entry"] = str(key_db_entry)
+            db_entry["expires_at"] = expiration_time
+
+            if hasattr(flask.current_app, "db"):  # we don't have db in startup
+                with flask.current_app.db.session as session:
+                    session.execute(
+                        """\
+                        INSERT INTO gcp_assume_role_cache (
+                            expires_at,
+                            gcp_proxy_group_id,
+                            gcp_private_key,
+                            gcp_key_db_entry
+                        ) VALUES (
+                            :expires_at,
+                            :gcp_proxy_group_id,
+                            :gcp_private_key,
+                            :gcp_key_db_entry
+                        ) ON CONFLICT (gcp_proxy_group_id) DO UPDATE SET
+                            expires_at = EXCLUDED.expires_at,
+                            gcp_proxy_group_id = EXCLUDED.gcp_proxy_group_id,
+                            gcp_private_key = EXCLUDED.gcp_private_key,
+                            gcp_key_db_entry = EXCLUDED.gcp_key_db_entry;""",
+                        db_entry,
+                    )
 
         if config["ENABLE_AUTOMATIC_BILLING_PERMISSION_SIGNED_URLS"]:
             give_service_account_billing_access_if_necessary(
