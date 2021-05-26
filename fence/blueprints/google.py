@@ -32,7 +32,6 @@ from fence.resources.google.access_utils import (
 )
 from fence.resources.google.utils import (
     get_or_create_proxy_group_id,
-    get_or_create_service_account,
     get_monitoring_service_account_email,
     get_registered_service_accounts,
     get_project_access_from_service_accounts,
