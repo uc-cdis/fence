@@ -84,6 +84,9 @@ class AuditServiceClient:
             raise InternalError("Unable to create audit log")
 
     def create_audit_log(self, category, data):
+        self.logger.debug(
+            f"Creating {category} audit log (push type: {self.push_type})"
+        )
         if self.push_type == "api":
             url = f"{self.service_url}/log/{category}"
             resp = requests.post(url, json=data)

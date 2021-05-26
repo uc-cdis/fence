@@ -66,7 +66,7 @@ def get_signed_url_for_file(action, file_id, file_name=None):
     # add the user details to `flask.g.audit_data` first, so they are
     # included in the audit log if `IndexedFile(file_id)` raises a 404
     # TODO manual test
-    user_info = _get_user_info(sub_to_string=False)
+    user_info = _get_user_info(sub_type=int)
     flask.g.audit_data = {
         "username": user_info["username"],
         "sub": user_info["user_id"],
@@ -1005,21 +1005,22 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             return ("Failed to delete data file.", status_code)
 
 
-def _get_user_info(sub_to_string=True):
+def _get_user_info(sub_type=str):
     """
     Attempt to parse the request for token to authenticate the user. fallback to
     populated information about an anonymous user.
+    By default, cast `sub` to str. Use `sub_type` to override this behavior.
     """
     try:
         set_current_token(validate_request(aud={"user"}))
         user_id = current_token["sub"]
-        if sub_to_string:
-            user_id = str(user_id)
+        if sub_type:
+            user_id = sub_type(user_id)
         username = current_token["context"]["user"]["name"]
     except JWTError:
         # this is fine b/c it might be public data, sign with anonymous username/id
         user_id = None
-        if sub_to_string:
+        if sub_type == str:
             user_id = ANONYMOUS_USER_ID
         username = ANONYMOUS_USERNAME
 

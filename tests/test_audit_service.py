@@ -76,7 +76,10 @@ def test_presigned_url_log(
         "Authorization": "Bearer "
         + jwt.encode(
             utils.authorized_download_context_claims(
-                user_client.username, user_client.user_id
+                # cast user_id to str because that's what we get back
+                # from the DB, but audit-service expects an int.
+                user_client.username,
+                str(user_client.user_id),
             ),
             key=rsa_private_key,
             headers={"kid": kid},
@@ -101,7 +104,7 @@ def test_presigned_url_log(
                 "request_url": path,
                 "status_code": 200,
                 "username": user_client.username,
-                "sub": user_client.user_id,
+                "sub": user_client.user_id,  # it's an int now
                 "guid": guid,
                 "resource_paths": resource_paths,
                 "action": "download",
@@ -143,7 +146,7 @@ def test_presigned_url_log_acl(
         "Authorization": "Bearer "
         + jwt.encode(
             utils.authorized_download_context_claims(
-                user_client.username, user_client.user_id
+                user_client.username, str(user_client.user_id)
             ),
             key=rsa_private_key,
             headers={"kid": kid},
@@ -246,7 +249,7 @@ def test_presigned_url_log_disabled(
         "Authorization": "Bearer "
         + jwt.encode(
             utils.authorized_download_context_claims(
-                user_client.username, user_client.user_id
+                user_client.username, str(user_client.user_id)
             ),
             key=rsa_private_key,
             headers={"kid": kid},
