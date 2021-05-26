@@ -6,8 +6,6 @@ import subprocess as sp
 import yaml
 import copy
 
-import time
-
 from contextlib import contextmanager
 from collections import defaultdict
 from csv import DictReader
@@ -1201,7 +1199,6 @@ class UserSyncer(object):
     ):
 
         for username in user_projects.keys():
-            start = time.time()
             for project in user_projects[username].keys():
                 phsid = project.split(".")
                 dbgap_project = phsid[0]
@@ -1232,7 +1229,6 @@ class UserSyncer(object):
                             f"{username} {privileges} privileges in project: "
                             f"{study_common_exchange_areas[dbgap_project]}."
                         )
-                        start = time.time()
                         self._add_dbgap_project_for_user(
                             study_common_exchange_areas[dbgap_project],
                             privileges,
@@ -1727,49 +1723,21 @@ class UserSyncer(object):
                                 "resource_paths": [path],
                             }
                             policies.append(policy_json)
-                        """
-                            try:
-                                print("-----------")
-                                self.arborist_client.update_bulk_policy(
-                                    policy_id,
-                                    {
-                                        "description": "policy created by fence sync",
-                                        "role_ids": [permission],
-                                        "resource_paths": [path],
-                                    },
-                                    create_if_not_exist=True,
-                                )
-                            except ArboristError as e:
-                                self.logger.info(
-                                    "not creating policy in arborist; {}".format(str(e))
-                                )
-                            self._created_policies.add(policy_id)
-                        self.arborist_client.grant_user_policy(username, policy_id)
-                        """
+
             try:
-                start_a = time.time()
                 self.arborist_client.update_bulk_policy(
                     policies,
                     create_if_not_exist=True,
                 )
-                end_a = time.time()
-
-                start_b = time.time()
                 for policy_id in policy_id_list:
                     self._created_policies.add(policy_id)
                 self.arborist_client.grant_bulk_user_policy(username, policy_id_list)
-                end_b = time.time()
             except Exception as e:
-                print(e)
+                self.logger.info("Couldn't update bulk policy for user {}: {}".format(username, e))
             
             if user_yaml:
                 for policy in user_yaml.policies.get(username, []):
                     self.arborist_client.grant_user_policy(username, policy)
-
-            print("--------------------------------")
-            print("Update bulk policy time: {}".format(end_a-start_a))
-            print("Update grant user policy time : {}".format(end_b-start_b))
-            print("--------------------------------")
 
         if user_yaml:
             for client_name, client_details in user_yaml.clients.items():
@@ -2170,7 +2138,6 @@ class UserSyncer(object):
                 f"using study to common exchange area mapping: {study_common_exchange_areas}"
             )
 
-        start_1 = time.time()
         self._process_user_projects(
             user_projects,
             enable_common_exchange_area_access,
@@ -2178,30 +2145,25 @@ class UserSyncer(object):
             dbgap_config,
             sess,
         )
-        end_1 = time.time()
 
         if self.parse_consent_code:
             self._grant_all_consents_to_c999_users(
                 user_projects, user_yaml.project_to_resource
             )
         
-        start_2 = time.time()
         # update fence db
         if user_projects:
             self.logger.info("Sync to db and storage backend")
             self.sync_to_db_and_storage_backend(user_projects, user_info, sess, True)
         else:
             self.logger.info("No users for syncing")
-        end_2 = time.time()
 
         # update arborist db (user access)
         if self.arborist_client:
             self.logger.info("Synchronizing arborist with authorization info...")
-            start = time.time()
             success = self._update_authz_in_arborist(
                 sess, user_projects, user_yaml, True
             )
-            end = time.time()
             if success:
                 self.logger.info(
                     "Finished synchronizing authorization info to arborist"
@@ -2210,9 +2172,3 @@ class UserSyncer(object):
                 self.logger.error(
                     "Could not synchronize authorization info successfully to arborist"
                 )
-
-        print("----------------------------------------------")
-        print("process user projects time {}".format(end_1 - start_1))
-        print("Fence update time: {}".format(end_2-start_2))
-        print("Arborist update time: {}".format(end - start))
-        print("----------------------------------------------")
