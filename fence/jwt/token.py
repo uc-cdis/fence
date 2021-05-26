@@ -418,6 +418,10 @@ def generate_signed_access_token(
     if client_id:
         claims["aud"].append(client_id)
 
+    # Keep scopes in aud claim in access tokens for backwards comp....
+    if scopes:
+        claims["aud"] += scopes
+
     if include_project_access:
         # NOTE: "THIS IS A TERRIBLE STOP-GAP SOLUTION SO THAT USERS WITH
         #       MINIMAL ACCESS CAN STILL USE LATEST VERSION OF FENCE
