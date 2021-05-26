@@ -1095,6 +1095,34 @@ def primary_google_service_account(app, db_session, user_client, google_proxy_gr
 
 
 @pytest.fixture(scope="function")
+def primary_google_service_account_google(
+    app, db_session, user_client, google_proxy_group
+):
+    service_account_id = "test-service-account-0"
+    email = fence.utils.random_str(40) + "@test.com"
+    service_account = models.GoogleServiceAccount(
+        google_unique_id=service_account_id,
+        email=email,
+        user_id=user_client.user_id,
+        client_id=None,
+        google_project_id="projectId-0",
+    )
+    db_session.add(service_account)
+    db_session.commit()
+
+    mock = MagicMock()
+    mock.return_value = service_account
+    patcher = patch("fence.blueprints.google.get_or_create_service_account", mock)
+    patcher.start()
+
+    yield Dict(
+        id=service_account_id, email=email, get_or_create_service_account_mock=mock
+    )
+
+    patcher.stop()
+
+
+@pytest.fixture(scope="function")
 def google_proxy_group(app, db_session, user_client):
     group_id = "test-proxy-group-0"
     email = fence.utils.random_str(40) + "@test.com"

@@ -61,6 +61,11 @@ MOCK_STORAGE: true
 # WARNING: ONLY set to true when fence will be deployed in such a way that it will
 #          ONLY receive traffic from internal clients and can safely use HTTP.
 AUTHLIB_INSECURE_TRANSPORT: true
+# enable Prometheus Metrics for observability purposes
+#
+# WARNING: Any counters, gauges, histograms, etc. should be carefully
+# reviewed to make sure its labels do not contain any PII / PHI
+ENABLE_PROMETHEUS_METRICS: false
 
 # set if you want browsers to only send cookies with requests over HTTPS
 SESSION_COOKIE_SECURE: true
@@ -419,6 +424,15 @@ RENEW_ACCESS_TOKEN_BEFORE_EXPIRATION: false
 # For displaying a privacy policy to users, we can either link to the URL specified by
 # PRIVACY_POLICY_URL, or default to the `static/privacy_policy.md` file in fence.
 PRIVACY_POLICY_URL: null
+
+# //////////////////////////////////////////////////////////////////////////////////////
+# RELIABILITY OPTS
+# //////////////////////////////////////////////////////////////////////////////////////
+# Configurations related to resiliency, fault-tolerance and availability
+# This is the number of requests per second that the Nginx proxy will accept before reaching fence
+# The value defined in fence-config-public.yaml takes precedence over this one
+# In the absence of this OVERRIDE prefixed config, the legacy NGINX_RATE_LIMIT from the k8s deployment yaml is applied
+OVERRIDE_NGINX_RATE_LIMIT: 18
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # SUPPORT INFO
