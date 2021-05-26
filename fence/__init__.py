@@ -1,12 +1,16 @@
 from collections import OrderedDict
-import os
-
-from authutils.oauth2.client import OAuthClient
 import flask
 from flask_cors import CORS
 from flask_sqlalchemy_session import flask_scoped_session, current_session
+import os
+import traceback
 from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
+
+from authutils.oauth2.client import OAuthClient
+from cdislogging import get_logger
+from gen3authz.client.arborist.client import ArboristClient
 from userdatamodel.driver import SQLAlchemyDriver
+
 
 from fence.auth import logout, build_redirect_url
 from fence.blueprints.data.indexd import S3IndexedFileLocation
@@ -46,11 +50,6 @@ import fence.blueprints.link
 import fence.blueprints.google
 import fence.blueprints.privacy
 
-from cdislogging import get_logger
-
-from cdispyutils.config import get_value
-
-from gen3authz.client.arborist.client import ArboristClient
 
 # Can't read config yet. Just set to debug for now, else no handlers.
 # Later, in app_config(), will actually set level based on config
@@ -469,29 +468,32 @@ def create_audit_log(response):
     The data we need to record the logs are stored in `flask.g.audit_data`
     before reaching this code.
     """
-    # TODO check what happens if it fails
-    method = flask.request.method
-    endpoint = flask.request.path
-    request_url = endpoint
-    if flask.request.query_string:
-        # could use `flask.request.url` but we don't want the root URL
-        request_url += f"?{flask.request.query_string.decode('utf-8')}"
-    request_url = clean_request_url(request_url)
+    try:
+        method = flask.request.method
+        endpoint = flask.request.path
+        request_url = endpoint
+        if flask.request.query_string:
+            # could use `flask.request.url` but we don't want the root URL
+            request_url += f"?{flask.request.query_string.decode('utf-8')}"
+        request_url = clean_request_url(request_url)
 
-    if method == "GET" and endpoint.startswith("/data/download/"):
-        flask.current_app.audit_service_client.create_presigned_url_log(
-            status_code=response.status_code,
-            request_url=request_url,
-            guid=endpoint[len("/data/download/") :],
-            action="download",
-            **flask.g.audit_data,
-        )
-    elif method == "GET" and "login" in endpoint:
-        if hasattr(flask.g, "audit_data"):
-            flask.current_app.audit_service_client.create_login_log(
+        if method == "GET" and endpoint.startswith("/data/download/"):
+            flask.current_app.audit_service_client.create_presigned_url_log(
                 status_code=response.status_code,
                 request_url=request_url,
+                guid=endpoint[len("/data/download/") :],
+                action="download",
                 **flask.g.audit_data,
             )
+        elif method == "GET" and "login" in endpoint:
+            if hasattr(flask.g, "audit_data"):
+                flask.current_app.audit_service_client.create_login_log(
+                    status_code=response.status_code,
+                    request_url=request_url,
+                    **flask.g.audit_data,
+                )
+    except:
+        traceback.print_exc()
+        logger.error(f"!!! Unable to create audit log! Returning response anyway...")
 
     return response

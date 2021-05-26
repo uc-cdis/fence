@@ -65,7 +65,6 @@ def get_signed_url_for_file(action, file_id, file_name=None):
 
     # add the user details to `flask.g.audit_data` first, so they are
     # included in the audit log if `IndexedFile(file_id)` raises a 404
-    # TODO manual test
     user_info = _get_user_info(sub_type=int)
     flask.g.audit_data = {
         "username": user_info["username"],
