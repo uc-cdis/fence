@@ -426,6 +426,15 @@ RENEW_ACCESS_TOKEN_BEFORE_EXPIRATION: false
 PRIVACY_POLICY_URL: null
 
 # //////////////////////////////////////////////////////////////////////////////////////
+# RELIABILITY OPTS
+# //////////////////////////////////////////////////////////////////////////////////////
+# Configurations related to resiliency, fault-tolerance and availability
+# This is the number of requests per second that the Nginx proxy will accept before reaching fence
+# The value defined in fence-config-public.yaml takes precedence over this one
+# In the absence of this OVERRIDE prefixed config, the legacy NGINX_RATE_LIMIT from the k8s deployment yaml is applied
+OVERRIDE_NGINX_RATE_LIMIT: 18
+
+# //////////////////////////////////////////////////////////////////////////////////////
 # SUPPORT INFO
 # //////////////////////////////////////////////////////////////////////////////////////
 # If you want an email address to show up when an unhandled error occurs, provide one
@@ -807,6 +816,12 @@ SYNAPSE_URI: 'https://repo-prod.prod.sagebase.org/auth/v1'
 SYNAPSE_JWKS_URI:
 SYNAPSE_DISCOVERY_URL:
 SYNAPSE_AUTHZ_TTL: 86400
+
+# Role caching for generating presigned urls if max role session increase is true
+# then we can increase the amount of time that a session is valid for
+MAX_ROLE_SESSION_INCREASE: false
+ASSUME_ROLE_CACHE_SECONDS: 1800
+
 # RAS refresh_tokens expire in 15 days
 RAS_REFRESH_EXPIRATION: 1296000
 # Number of projects that can be registered to a Google Service Accont

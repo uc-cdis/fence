@@ -19,7 +19,7 @@ The `/authorize` endpoint accepts the query parameters `ipd` and `shib_idp`. If 
 
 The `/login/shib` endpoint accepts the query parameter `shib_idp`. Fence checks this parameter to know which Shibboleth identity provider to use (by default, if no `shib_idp` is specified, NIH is used by default).
 
-After the user logs in and is redirected to `/login/shib/login`, we get the `eppn` (EduPerson Principal Name) from the request headers to use as username. If the `eppn` is not available, we use the `persistent-id` instead.
+After the user logs in and is redirected to `/login/shib/login`, we get the `eppn` (EduPerson Principal Name) from the request headers to use as username. If the `eppn` is not available, we use the `persistent-id` (or `cn`) instead.
 
 ![Shibboleth Login Flow](images/seq_diagrams/shibboleth_flow.png)
 
