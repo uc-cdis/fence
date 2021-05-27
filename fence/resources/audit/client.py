@@ -5,13 +5,7 @@ import time
 
 from fence.config import config
 from fence.errors import InternalError
-
-
-def is_audit_enabled(category=None):
-    enable_audit_logs = config["ENABLE_AUDIT_LOGS"] or {}
-    if category:
-        return enable_audit_logs and enable_audit_logs.get(category, False)
-    return enable_audit_logs and any(v for v in enable_audit_logs.values())
+from fence.resources.audit.utils import is_audit_enabled
 
 
 class AuditServiceClient:

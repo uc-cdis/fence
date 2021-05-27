@@ -29,28 +29,8 @@ from unittest.mock import ANY, MagicMock, patch
 import fence
 from fence.config import config
 from fence.blueprints.login import IDP_URL_MAP
-from fence import _setup_audit_service_client, _decorate_create_audit_log_for_request, clean_request_url
+from fence.resources.audit.utils import clean_request_url
 from tests import utils
-
-
-@pytest.fixture(scope="module", autouse=True)
-def enable_audit_service(app):
-    # the config has already been loaded during the app init,
-    # so monkeypatching it is not enough
-    fence.config["ENABLE_AUDIT_LOGS"] = {"presigned_url": True}
-
-    # this can only be called once at app startup!
-    _decorate_create_audit_log_for_request(app)
-
-    # mock the ping function so we don't try to reach the audit-service
-    mock.patch(
-        "fence.resources.audit_service_client.AuditServiceClient.ping",
-        new_callable=mock.Mock,
-    ).start()
-
-    # the audit-service client has already been loaded during the app
-    # init, so reload it with the new config
-    _setup_audit_service_client(app)
 
 
 def test_clean_request_url():
@@ -64,6 +44,55 @@ def test_clean_request_url():
         redacted_url
         == "https://my-data-commons.com/login/fence/login?code=redacted&state=redacted&abc=my-other-param"
     )
+
+
+@pytest.mark.parametrize("indexd_client_with_arborist", ["s3_and_gs"], indirect=True)
+def test_disabled_audit(
+    client,
+    user_client,
+    mock_arborist_requests,
+    indexd_client_with_arborist,
+    kid,
+    rsa_private_key,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+    monkeypatch,
+):
+    """
+    Disable all audit logs, get a presigned URL from Fence and make sure the
+    logic to create audit logs did not run.
+    """
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
+
+    protocol = "gs"
+    guid = "dg.hello/abc"
+    path = f"/data/download/{guid}"
+    if protocol:
+        path += f"?protocol={protocol}"
+    resource_paths = ["/my/resource/path1", "/path2"]
+    indexd_client_with_arborist(resource_paths)
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, str(user_client.user_id)
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+
+    audit_decorator_mocker = mock.patch(
+        "fence.resources.audit.utils.create_audit_log_for_request",
+        new_callable=mock.Mock,
+    )
+    with audit_decorator_mocker as audit_decorator:
+        response = client.get(path, headers=headers)
+        assert response.status_code == 200, response
+        assert response.json.get("url")
+        audit_decorator.assert_not_called()
 
 
 ############################
@@ -99,7 +128,7 @@ def test_presigned_url_log(
     """
     mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
     audit_service_mocker = mock.patch(
-        "fence.resources.audit_service_client.requests", new_callable=mock.Mock
+        "fence.resources.audit.client.requests", new_callable=mock.Mock
     )
     monkeypatch.setitem(config, "ENABLE_AUDIT_LOGS", {"presigned_url": True})
 
@@ -171,7 +200,7 @@ def test_presigned_url_log_acl(
     """
     mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
     audit_service_mocker = mock.patch(
-        "fence.resources.audit_service_client.requests", new_callable=mock.Mock
+        "fence.resources.audit.client.requests", new_callable=mock.Mock
     )
     monkeypatch.setitem(config, "ENABLE_AUDIT_LOGS", {"presigned_url": True})
 
@@ -221,7 +250,7 @@ def test_presigned_url_log_public(client, public_indexd_client, monkeypatch):
     public data.
     """
     audit_service_mocker = mock.patch(
-        "fence.resources.audit_service_client.requests", new_callable=mock.Mock
+        "fence.resources.audit.client.requests", new_callable=mock.Mock
     )
     monkeypatch.setitem(config, "ENABLE_AUDIT_LOGS", {"presigned_url": True})
 
@@ -265,11 +294,12 @@ def test_presigned_url_log_disabled(
     monkeypatch,
 ):
     """
-    Disable presigned URL logs, enable login logs, get a presigned URL from Fence and make sure no audit log was created.
+    Disable presigned URL logs, enable login logs, get a presigned URL from
+    Fence and make sure no audit log was created.
     """
     mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
     audit_service_mocker = mock.patch(
-        "fence.resources.audit_service_client.requests", new_callable=mock.Mock
+        "fence.resources.audit.client.requests", new_callable=mock.Mock
     )
     monkeypatch.setitem(
         config, "ENABLE_AUDIT_LOGS", {"presigned_url": False, "login": True}
@@ -314,7 +344,7 @@ def test_presigned_url_log_unauthorized(client, indexd_client, db_session, monke
     If Fence does not return a presigned URL, no audit log should be created.
     """
     audit_service_mocker = mock.patch(
-        "fence.resources.audit_service_client.requests", new_callable=mock.Mock
+        "fence.resources.audit.client.requests", new_callable=mock.Mock
     )
     monkeypatch.setitem(config, "ENABLE_AUDIT_LOGS", {"presigned_url": True})
 
@@ -366,7 +396,7 @@ def test_login_log_login_endpoint(
     """
     mock_arborist_requests()
     audit_service_mocker = mock.patch(
-        "fence.resources.audit_service_client.requests", new_callable=mock.Mock
+        "fence.resources.audit.client.requests", new_callable=mock.Mock
     )
     monkeypatch.setitem(config, "ENABLE_AUDIT_LOGS", {"login": True})
 
@@ -473,15 +503,13 @@ def mock_audit_service_sqs(app):
 
     # mock the ping function so we don't try to reach the audit-service
     mock.patch(
-        "fence.resources.audit_service_client.AuditServiceClient.ping",
+        "fence.resources.audit.client.AuditServiceClient.ping",
         new_callable=mock.Mock,
     ).start()
 
     # mock the SQS
     mocked_sqs_client = MagicMock()
-    patch(
-        "fence.resources.audit_service_client.boto3.client", mocked_sqs_client
-    ).start()
+    patch("fence.resources.audit.client.boto3.client", mocked_sqs_client).start()
     mocked_sqs = boto3.client(
         "sqs",
         region_name=config["PUSH_AUDIT_LOGS_CONFIG"]["region"],
@@ -492,7 +520,7 @@ def mock_audit_service_sqs(app):
 
     # the audit-service client has already been loaded during the app
     # init, so reload it with the new config
-    _setup_audit_service_client(app)
+    fence._setup_audit_service_client(app)
 
     return mocked_sqs
 

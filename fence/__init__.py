@@ -4,8 +4,7 @@ from flask_cors import CORS
 from flask_sqlalchemy_session import flask_scoped_session, current_session
 import os
 import tempfile
-import traceback
-from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
+from urllib.parse import urljoin
 
 from authutils.oauth2.client import OAuthClient
 from cdislogging import get_logger
@@ -21,7 +20,7 @@ from fence.jwt import keys
 from fence.models import migrate
 from fence.oidc.client import query_client
 from fence.oidc.server import server
-from fence.resources.audit_service_client import AuditServiceClient, is_audit_enabled
+from fence.resources.audit.client import AuditServiceClient
 from fence.resources.aws.boto_manager import BotoManager
 from fence.resources.openid.cilogon_oauth2 import CilogonOauth2Client as CilogonClient
 from fence.resources.openid.cognito_oauth2 import CognitoOauth2Client as CognitoClient
@@ -271,7 +270,6 @@ def app_config(
 
     _setup_arborist_client(app)
     _setup_audit_service_client(app)
-    _decorate_create_audit_log_for_request(app)
     _setup_data_endpoint_and_boto(app)
     _load_keys(app, root_dir)
     _set_authlib_cfgs(app)
@@ -418,18 +416,6 @@ def _setup_audit_service_client(app):
         service_url=service_url, logger=logger
     )
 
-def _decorate_create_audit_log_for_request(app):
-    # Only call `create_audit_log_for_request` if auditing is enabled.
-    # We can't decorate the `create_audit_log_for_request` function directly
-    # because `is_audit_enabled` depends on the config being loaded, so we
-    # do it manually.
-    # We need the ability to enable and disable auditing for unit tests, so
-    # the tests call `_setup_audit_service_client` more than once. But
-    # decorators can only be added during app startup, so we should only do
-    # the following once, which is why it's its own function.
-    if is_audit_enabled():
-        app.after_request(create_audit_log_for_request)
-
 
 def _setup_prometheus(app):
     # This environment variable MUST be declared before importing the
@@ -496,58 +482,4 @@ def set_csrf(response):
 
     if flask.request.method in ["POST", "PUT", "DELETE"]:
         current_session.commit()
-    return response
-
-
-def clean_request_url(request_url):
-    """
-    Remove sensitive data from a request URL.
-    """
-    if "login" in request_url:
-        parsed_url = urlparse(request_url)
-        query_params = dict(parse_qsl(parsed_url.query, keep_blank_values=True))
-        for param in ["code", "state"]:
-            if param in query_params:
-                query_params[param] = "redacted"
-        url_parts = list(parsed_url)  # cast to list to override query params
-        url_parts[4] = urlencode(query=query_params)
-        request_url = urlunparse(url_parts)
-
-    return request_url
-
-
-def create_audit_log_for_request(response):
-    """
-    Right before returning the response to the user, record an audit log.
-    The data we need to record the logs are stored in `flask.g.audit_data`
-    before reaching this code.
-    """
-    try:
-        method = flask.request.method
-        endpoint = flask.request.path
-        request_url = endpoint
-        if flask.request.query_string:
-            # could use `flask.request.url` but we don't want the root URL
-            request_url += f"?{flask.request.query_string.decode('utf-8')}"
-        request_url = clean_request_url(request_url)
-
-        if method == "GET" and endpoint.startswith("/data/download/"):
-            flask.current_app.audit_service_client.create_presigned_url_log(
-                status_code=response.status_code,
-                request_url=request_url,
-                guid=endpoint[len("/data/download/") :],
-                action="download",
-                **flask.g.audit_data,
-            )
-        elif method == "GET" and "login" in endpoint:
-            if hasattr(flask.g, "audit_data"):
-                flask.current_app.audit_service_client.create_login_log(
-                    status_code=response.status_code,
-                    request_url=request_url,
-                    **flask.g.audit_data,
-                )
-    except:
-        traceback.print_exc()
-        logger.error(f"!!! Unable to create audit log! Returning response anyway...")
-
     return response
