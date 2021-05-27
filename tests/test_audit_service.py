@@ -29,8 +29,28 @@ from unittest.mock import ANY, MagicMock, patch
 import fence
 from fence.config import config
 from fence.blueprints.login import IDP_URL_MAP
-from fence import _setup_audit_service_client, clean_request_url
+from fence import _setup_audit_service_client, _decorate_create_audit_log_for_request, clean_request_url
 from tests import utils
+
+
+@pytest.fixture(scope="module", autouse=True)
+def enable_audit_service(app):
+    # the config has already been loaded during the app init,
+    # so monkeypatching it is not enough
+    fence.config["ENABLE_AUDIT_LOGS"] = {"presigned_url": True}
+
+    # this can only be called once at app startup!
+    _decorate_create_audit_log_for_request(app)
+
+    # mock the ping function so we don't try to reach the audit-service
+    mock.patch(
+        "fence.resources.audit_service_client.AuditServiceClient.ping",
+        new_callable=mock.Mock,
+    ).start()
+
+    # the audit-service client has already been loaded during the app
+    # init, so reload it with the new config
+    _setup_audit_service_client(app)
 
 
 def test_clean_request_url():
