@@ -27,10 +27,11 @@ class RASOauth2Client(Oauth2ClientBase):
             idp="ras",
             HTTP_PROXY=HTTP_PROXY,
         )
+        
 
     def get_parse_visas(self):
         print("------is  parse?-----------------")
-        print(requests.get(self.parse_visas))
+        print(requests.get("parse_visas"))
 
     def get_auth_url(self):
         """

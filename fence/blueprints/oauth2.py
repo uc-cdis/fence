@@ -75,6 +75,7 @@ def authorize(*args, **kwargs):
     idp = flask.request.args.get("idp")
     fence_idp = flask.request.args.get("fence_idp")
     shib_idp = flask.request.args.get("shib_idp")
+    parse_visas = flask.request.args.get("parse_visas", None)
 
     login_url = None
     if not idp:  # use default login IDP
@@ -104,6 +105,10 @@ def authorize(*args, **kwargs):
                 params["shib_idp"] = shib_idp
         elif idp == "shibboleth" and shib_idp:
             params["shib_idp"] = shib_idp
+
+        # handle parsing visas for authz during login
+        if parse_visas:
+            params["parse_visas"] = parse_visas
 
         # store client_id for later use in login endpoint create_login_log()
         flask.session["client_id"] = flask.request.args.get("client_id")
