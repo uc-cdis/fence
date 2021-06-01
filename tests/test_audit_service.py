@@ -526,7 +526,7 @@ def mock_audit_service_sqs(app):
 
 
 @pytest.mark.parametrize("indexd_client_with_arborist", ["s3_and_gs"], indirect=True)
-def test_push_to_audit_sqs(
+def test_presigned_url_log_push_to_sqs(
     app,
     client,
     user_client,
@@ -582,3 +582,34 @@ def test_push_to_audit_sqs(
     mocked_sqs.send_message.assert_called_once_with(
         MessageBody=json.dumps(expected_audit_data), QueueUrl=mocked_sqs.url
     )
+
+
+def test_login_log_push_to_sqs(
+    app,
+    client,
+    mock_arborist_requests,
+    rsa_private_key,
+    db_session,  # do not remove :-) See note at top of file
+    monkeypatch,
+):
+    """
+    Log in and make sure an audit log was pushed to the configured SQS.
+    """
+    mock_arborist_requests()
+    monkeypatch.setitem(config, "ENABLE_AUDIT_LOGS", {"login": True})
+    mocked_sqs = mock_audit_service_sqs(app)
+
+    username = "test@test"
+    mocked_get_user_id = MagicMock(return_value={"email": username})
+    get_user_id_patch = patch(
+        "flask.current_app.google_client.get_user_id", mocked_get_user_id
+    )
+    get_user_id_patch.start()
+
+    path = "/login/google/login"
+    response = client.get(path)
+    assert response.status_code == 200, response
+    # not checking the parameters here because we can't json.dumps "sub: ANY"
+    mocked_sqs.send_message.assert_called_once()
+
+    get_user_id_patch.stop()
