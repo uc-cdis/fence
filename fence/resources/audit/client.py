@@ -51,13 +51,17 @@ class AuditServiceClient:
     @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
     def _ping(self):
         """
-        Hit the audit-service status endpoint
+        Hit the audit-service status endpoint.
         """
         status_url = f"{self.service_url}/_status"
         self.logger.debug(f"Checking audit-service availability at {status_url}")
         requests.get(status_url)
 
     def _validate_config(self):
+        """
+        Validate the audit configuration, making sure required fields
+        are populated.
+        """
         allowed_push_types = ["api", "aws_sqs"]
         if self.push_type not in allowed_push_types:
             raise Exception(
@@ -73,8 +77,16 @@ class AuditServiceClient:
             ), f"PUSH_AUDIT_LOGS_CONFIG.type is 'aws_sqs' but PUSH_AUDIT_LOGS_CONFIG.region is not configured"
 
     def _check_response(self, resp, body):
+        """
+        Check the status code after an audit log creation call, and in case
+        of error, log details and raise an exception.
+
+        Args:
+            resp (requests.Response): response from the audit log creation call
+            body (dict): audit log body for logging in case of error
+        """
         # The audit-service returns 201 before inserting the log in the DB.
-        # This request should only error if the input is incorrect (status
+        # The requests should only error if the input is incorrect (status
         # code 422) or if the service is unreachable.
         if resp.status_code != 201:
             try:
@@ -87,6 +99,14 @@ class AuditServiceClient:
             raise InternalError("Unable to create audit log")
 
     def _create_audit_log(self, category, data):
+        """
+        Create an audit log - make an API call or push to a queue depending
+        on the configuration.
+
+        Args:
+            category (str): audit log category
+            data (dict): audit log data
+        """
         self.logger.debug(
             f"Creating {category} audit log (push type: {self.push_type})"
         )
@@ -114,6 +134,12 @@ class AuditServiceClient:
         resource_paths=None,
         protocol=None,
     ):
+        """
+        Create a presigned URL audit log, or do nothing if auditing is
+        disabled.
+
+        Args: presigned URL audit log data fields
+        """
         if not is_audit_enabled("presigned_url"):
             return
 
@@ -140,6 +166,11 @@ class AuditServiceClient:
         shib_idp=None,
         client_id=None,
     ):
+        """
+        Create a login audit log, or do nothing if auditing is disabled.
+
+        Args: login audit log data fields
+        """
         if not is_audit_enabled("login"):
             return
 
