@@ -503,7 +503,7 @@ def mock_audit_service_sqs(app):
 
     # mock the ping function so we don't try to reach the audit-service
     mock.patch(
-        "fence.resources.audit.client.AuditServiceClient.ping",
+        "fence.resources.audit.client.AuditServiceClient._ping",
         new_callable=mock.Mock,
     ).start()
 

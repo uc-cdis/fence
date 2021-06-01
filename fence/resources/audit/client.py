@@ -1,11 +1,13 @@
+import backoff
 import boto3
 import json
 import requests
-import time
+import traceback
 
 from fence.config import config
 from fence.errors import InternalError
 from fence.resources.audit.utils import is_audit_enabled
+from fence.utils import DEFAULT_BACKOFF_SETTINGS
 
 
 class AuditServiceClient:
@@ -16,11 +18,22 @@ class AuditServiceClient:
 
         # audit logs should not be enabled if the audit-service is unavailable
         if is_audit_enabled():
-            logger.info("Enabling audit logs")
-            self.ping()
-            self.validate_config()
+            self.logger.info("Enabling audit logs")
+            self._validate_config()
+            try:
+                self._ping()
+            except Exception as e:
+                if self.push_type == "api":
+                    # the audit-service must be available when fence
+                    # is configured to make API calls to it
+                    raise e
+                else:
+                    traceback.print_exc()
+                    self.logger.warning(
+                        "Audit logs are enabled but audit-service is unreachable. Continuing anyway..."
+                    )
         else:
-            logger.warning("NOT enabling audit logs")
+            self.logger.warning("NOT enabling audit logs")
             return
 
         if self.push_type == "aws_sqs":
@@ -35,24 +48,16 @@ class AuditServiceClient:
                 ),
             )
 
-    def ping(self):
-        max_tries = 3
+    @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
+    def _ping(self):
+        """
+        Hit the audit-service status endpoint
+        """
         status_url = f"{self.service_url}/_status"
         self.logger.debug(f"Checking audit-service availability at {status_url}")
-        wait_time = 1
-        for t in range(max_tries):
-            r = requests.get(status_url)
-            if r.status_code == 200:
-                return  # all good!
-            if t + 1 < max_tries:
-                self.logger.debug(f"Retrying... (got status code {r.status_code})")
-                time.sleep(wait_time)
-                wait_time *= 2
-        raise Exception(
-            f"Audit logs are enabled but audit-service is unreachable at {status_url}: {r.text}"
-        )
+        requests.get(status_url)
 
-    def validate_config(self):
+    def _validate_config(self):
         allowed_push_types = ["api", "aws_sqs"]
         if self.push_type not in allowed_push_types:
             raise Exception(
@@ -67,7 +72,7 @@ class AuditServiceClient:
                 "region"
             ), f"PUSH_AUDIT_LOGS_CONFIG.type is 'aws_sqs' but PUSH_AUDIT_LOGS_CONFIG.region is not configured"
 
-    def check_response(self, resp, body):
+    def _check_response(self, resp, body):
         # The audit-service returns 201 before inserting the log in the DB.
         # This request should only error if the input is incorrect (status
         # code 422) or if the service is unreachable.
@@ -81,14 +86,14 @@ class AuditServiceClient:
             )
             raise InternalError("Unable to create audit log")
 
-    def create_audit_log(self, category, data):
+    def _create_audit_log(self, category, data):
         self.logger.debug(
             f"Creating {category} audit log (push type: {self.push_type})"
         )
         if self.push_type == "api":
             url = f"{self.service_url}/log/{category}"
             resp = requests.post(url, json=data)
-            self.check_response(resp, data)
+            self._check_response(resp, data)
         elif self.push_type == "aws_sqs":
             data["category"] = category
             sqs_url = config["PUSH_AUDIT_LOGS_CONFIG"]["sqs_url"]
@@ -122,7 +127,7 @@ class AuditServiceClient:
             "action": action,
             "protocol": protocol,
         }
-        self.create_audit_log("presigned_url", data)
+        self._create_audit_log("presigned_url", data)
 
     def create_login_log(
         self,
@@ -153,4 +158,4 @@ class AuditServiceClient:
             "shib_idp": shib_idp,
             "client_id": client_id,
         }
-        self.create_audit_log("login", data)
+        self._create_audit_log("login", data)
