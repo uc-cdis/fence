@@ -60,6 +60,8 @@ def update_user(current_session, additional_info):
     #TODO revert comments for Hubspot
     additional_info_tmp = flask.g.user.additional_info.copy() if flask.g.user.additional_info else {}
     additional_info_tmp.update(additional_info)
+    # if flask.current_app.hubspot_api_key == "DEV_KEY":
+    #   use only fence, otherwise use hubspot
     # hubspot_id = hubspot.update_user_info(flask.g.user.username, additional_info)
     # additional_info_tmp = flask.g.user.additional_info or {}    
     # additional_info_tmp["hubspot_id"] = hubspot_id
@@ -140,6 +142,11 @@ def get_user_info(current_session, username):
         "groups": groups,
         "message": "",
     }
+
+    if "fence_idp" in flask.session:
+        info["fence_idp"] = flask.session["fence_idp"]
+    if "shib_idp" in flask.session:
+        info["shib_idp"] = flask.session["shib_idp"]
 
     # User SAs are stored in db with client_id = None
     primary_service_account = get_service_account(client_id=None, user_id=user.id) or {}
@@ -235,7 +242,7 @@ def send_mail(send_from, send_to, subject, text, server, certificates=None):
     smtp.close()
 
 
-def get_user_accesses():
+def get_user_accesses(current_session):
     user = udm.get_user_accesses()
     if not user:
         raise InternalError("Error: %s user does not exist" % flask.g.user.username)
