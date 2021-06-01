@@ -18,20 +18,18 @@ def is_audit_enabled(category=None):
     return enable_audit_logs and any(v for v in enable_audit_logs.values())
 
 
-def clean_request_url(request_url):
+def _clean_authorization_request_url(request_url):
     """
-    Remove sensitive data from a request URL.
+    Remove sensitive data from a login request URL.
     """
-    if "login" in request_url:
-        parsed_url = urlparse(request_url)
-        query_params = dict(parse_qsl(parsed_url.query, keep_blank_values=True))
-        for param in ["code", "state"]:
-            if param in query_params:
-                query_params[param] = "redacted"
-        url_parts = list(parsed_url)  # cast to list to override query params
-        url_parts[4] = urlencode(query=query_params)
-        request_url = urlunparse(url_parts)
-
+    parsed_url = urlparse(request_url)
+    query_params = dict(parse_qsl(parsed_url.query, keep_blank_values=True))
+    for param in ["code", "state"]:
+        if param in query_params:
+            query_params[param] = "redacted"
+    url_parts = list(parsed_url)  # cast to list to override query params
+    url_parts[4] = urlencode(query=query_params)
+    request_url = urlunparse(url_parts)
     return request_url
 
 
@@ -45,11 +43,11 @@ def create_audit_log_for_request(response):
     try:
         method = flask.request.method
         endpoint = flask.request.path
+        audit_data = getattr(flask.g, "audit_data", {})
         request_url = endpoint
         if flask.request.query_string:
             # could use `flask.request.url` but we don't want the root URL
             request_url += f"?{flask.request.query_string.decode('utf-8')}"
-        request_url = clean_request_url(request_url)
 
         if method == "GET" and endpoint.startswith("/data/download/"):
             flask.current_app.audit_service_client.create_presigned_url_log(
@@ -57,15 +55,15 @@ def create_audit_log_for_request(response):
                 request_url=request_url,
                 guid=endpoint[len("/data/download/") :],
                 action="download",
-                **flask.g.audit_data,
+                **audit_data,
             )
-        elif method == "GET" and "login" in endpoint:
-            if hasattr(flask.g, "audit_data"):
-                flask.current_app.audit_service_client.create_login_log(
-                    status_code=response.status_code,
-                    request_url=request_url,
-                    **flask.g.audit_data,
-                )
+        elif method == "GET" and endpoint.startswith("/login/"):
+            request_url = _clean_authorization_request_url(request_url)
+            flask.current_app.audit_service_client.create_login_log(
+                status_code=response.status_code,
+                request_url=request_url,
+                **audit_data,
+            )
     except:
         traceback.print_exc()
         logger.error(f"!!! Unable to create audit log! Returning response anyway...")

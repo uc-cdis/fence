@@ -29,15 +29,15 @@ from unittest.mock import ANY, MagicMock, patch
 import fence
 from fence.config import config
 from fence.blueprints.login import IDP_URL_MAP
-from fence.resources.audit.utils import clean_request_url
+from fence.resources.audit.utils import _clean_authorization_request_url
 from tests import utils
 
 
-def test_clean_request_url():
+def test_clean_authorization_request_url():
     """
     Test that "code" and "state" query parameters in login URLs are redacted.
     """
-    redacted_url = clean_request_url(
+    redacted_url = _clean_authorization_request_url(
         "https://my-data-commons.com/login/fence/login?code=my-secret-code&state=my-secret-state&abc=my-other-param"
     )
     assert (
