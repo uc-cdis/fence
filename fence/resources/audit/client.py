@@ -22,11 +22,11 @@ class AuditServiceClient:
             self._validate_config()
             try:
                 self._ping()
-            except Exception as e:
+            except Exception:
                 if self.push_type == "api":
                     # the audit-service must be available when fence
                     # is configured to make API calls to it
-                    raise e
+                    raise
                 else:
                     traceback.print_exc()
                     self.logger.warning(

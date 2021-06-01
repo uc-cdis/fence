@@ -64,7 +64,7 @@ def create_audit_log_for_request(response):
                 request_url=request_url,
                 **audit_data,
             )
-    except:
+    except Exception:
         # TODO monitor this somehow
         traceback.print_exc()
         logger.error(f"!!! Unable to create audit log! Returning response anyway...")
