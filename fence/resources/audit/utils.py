@@ -80,6 +80,7 @@ def enable_audit_logging(f):
     so that performance is not impacted.
     The audit decorator is only added if auditing is enabled, so that
     performance is not impacted when auditing is disabled.
+    Possible improvement: pass a "category" argument to `is_audit_enabled`.
     """
 
     @wraps(f)

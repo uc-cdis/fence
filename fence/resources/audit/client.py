@@ -20,7 +20,8 @@ class AuditServiceClient:
             self.ping()
             self.validate_config()
         else:
-            logger.warn("NOT enabling audit logs")
+            logger.warning("NOT enabling audit logs")
+            return
 
         if self.push_type == "aws_sqs":
             self.sqs = boto3.client(
