@@ -28,11 +28,6 @@ class RASOauth2Client(Oauth2ClientBase):
             HTTP_PROXY=HTTP_PROXY,
             parse_visas=parse_visas,
         )
-        
-
-    def get_parse_visas(self):
-        print("------is  parse?-----------------")
-        print(self.parse_visas)
 
     def get_auth_url(self):
         """
@@ -72,7 +67,6 @@ class RASOauth2Client(Oauth2ClientBase):
         err_msg = "Can't get user's info"
 
         try:
-            self.get_parse_visas()
             token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
             jwks_endpoint = self.get_value_from_discovery_doc("jwks_uri", "")
             userinfo_endpoint = self.get_value_from_discovery_doc(

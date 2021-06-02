@@ -31,7 +31,7 @@ class RASCallback(DefaultOAuth2Callback):
             username_field="username",
         )
 
-    def post_login(self, user=None):
+    def post_login(self, user=None, token_result=None):
         # TODO: I'm not convinced this code should be in post_login.
         # Just putting it in here for now, but might refactor later.
         # This saves us a call to RAS /userinfo, but will not make sense
@@ -43,6 +43,7 @@ class RASCallback(DefaultOAuth2Callback):
         # we have multiple IdPs
         user.ga4gh_visas_v1 = []
         current_session.commit()
+        print 
 
         encoded_visas = flask.g.userinfo.get("ga4gh_passport_v1", [])
 
@@ -87,6 +88,11 @@ class RASCallback(DefaultOAuth2Callback):
                 expires,
                 expires,
             )
+
+
+        print("---------------------")
+        print(flask.current_app.ras_client.parse_visas)
+        print("---------------------")
 
         flask.current_app.ras_client.store_refresh_token(
             user=user, refresh_token=refresh_token, expires=expires + issued_time
