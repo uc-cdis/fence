@@ -168,6 +168,16 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
 
         # token is dict so just get the scope, don't use get_scope()
         original_scope = token.get("scope")
+
+        ##### begin refresh token patch block #####
+        # TODO: In the next release, remove this if block
+        # Old refresh tokens are not compatible with new validation, so to smooth
+        # the transition, allow old style refresh tokens with this patch;
+        # remove patch in next tag. Refresh tokens have default TTL of 30 days.
+        if not original_scope:
+            original_scope = token.get("aud")
+        ##### end refresh token patch block #####
+
         if not original_scope:
             raise InvalidScopeError("No scope claim found in original refresh token.")
 
