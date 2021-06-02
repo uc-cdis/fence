@@ -13,7 +13,7 @@ class Oauth2ClientBase(object):
     An generic oauth2 client class for interacting with an Identity Provider
     """
 
-    def __init__(self, settings, logger, scope, discovery_url, idp, HTTP_PROXY=None):
+    def __init__(self, settings, logger, scope, discovery_url, idp, HTTP_PROXY=None, parse_visas=False):
         self.logger = logger
         self.settings = settings
         self.session = OAuth2Session(
@@ -25,6 +25,7 @@ class Oauth2ClientBase(object):
         self.discovery_url = discovery_url
         self.idp = idp
         self.HTTP_PROXY = HTTP_PROXY
+        self.parse_visas = parse_visas
 
     @cached_property
     def discovery_doc(self):

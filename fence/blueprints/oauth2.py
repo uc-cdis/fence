@@ -109,6 +109,9 @@ def authorize(*args, **kwargs):
         # handle parsing visas for authz during login
         if parse_visas:
             params["parse_visas"] = parse_visas
+        print("--------------------------------------")
+        print(parse_visas)
+        print("--------------------------------------")
 
         # store client_id for later use in login endpoint create_login_log()
         flask.session["client_id"] = flask.request.args.get("client_id")
