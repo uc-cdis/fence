@@ -821,7 +821,7 @@ SYNAPSE_AUTHZ_TTL: 86400
 # then we can increase the amount of time that a session is valid for
 MAX_ROLE_SESSION_INCREASE: false
 ASSUME_ROLE_CACHE_SECONDS: 1800
-
+AWS_ASSUME_ROLE_MIN_LIMIT: 900
 # RAS refresh_tokens expire in 15 days
 RAS_REFRESH_EXPIRATION: 1296000
 # Number of projects that can be registered to a Google Service Accont
