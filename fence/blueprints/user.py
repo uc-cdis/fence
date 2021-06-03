@@ -24,6 +24,11 @@ def user_info():
         client_id = current_token["azp"]
     info = get_current_user_info()
     info["azp"] = client_id
+
+    # Atlas hack: Pretend this is actually a string.
+    # (sub is supposed to be string per the standard)
+    info["sub"] = str(info["sub"])
+
     return flask.jsonify(info)
 
 

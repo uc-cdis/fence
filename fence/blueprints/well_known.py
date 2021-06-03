@@ -47,6 +47,10 @@ def openid_configuration():
     )
     issuer = oidc_iss or config["BASE_URL"]
 
+    # Atlas hack: Atlas checks JWT issuer against openid-config issuer
+    # and midrc has bionimbus configured but unused
+    issuer = config["BASE_URL"]
+
     # "Subject type" means the method used to assign the ``sub`` field in JWTs.
     # Fence sets the ``sub`` field to the user ID, so ``sub`` is the same
     # across all clients for the same user, meaning that the subject type is
