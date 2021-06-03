@@ -498,7 +498,7 @@ oauth2client = ">=2.0.0,<4.0dev"
 type = "git"
 url = "https://github.com/uc-cdis/cirrus"
 reference = "chore/update_google_signedurls_v4"
-resolved_reference = "1ae5674b87808411119bd1121310acf8c2a77320"
+resolved_reference = "fb16de6b216512ac2e20ccf8c2c7de24fa993258"
 
 [[package]]
 name = "gen3config"
