@@ -1517,19 +1517,22 @@ class UserSyncer(object):
 
         # update policies
         policies = user_yaml.authz.get("policies", [])
-        try:
-            response = self.arborist_client.update_policy(
-                policies, create_if_not_exist=True
-            )
-        except ArboristError as e:
-            self.logger.error(e)
-        else:
-            if response:
-                self.logger.debug("Upserted policies :{}".format(policies))
-
         for policy in policies:
             policy_id = policy.pop("id")
-            self._created_policies.add(policy_id)
+            try:
+                self.logger.debug(
+                    "Trying to upsert policy with id {}".format(policy_id)
+                )
+                response = self.arborist_client.update_policy(
+                    policy_id, policy, create_if_not_exist=True
+                )
+            except ArboristError as e:
+                self.logger.error(e)
+                # keep going; maybe just some conflicts from things existing already
+            else:
+                if response:
+                    self.logger.debug("Upserted policy with id {}".format(policy_id))
+                    self._created_policies.add(policy_id)
 
         # update groups
         groups = user_yaml.authz.get("groups", [])
