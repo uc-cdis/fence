@@ -89,11 +89,6 @@ class RASCallback(DefaultOAuth2Callback):
                 expires,
             )
 
-
-        print("---------------------")
-        print(flask.current_app.ras_client.parse_visas)
-        print("---------------------")
-
         flask.current_app.ras_client.store_refresh_token(
             user=user, refresh_token=refresh_token, expires=expires + issued_time
         )
@@ -102,7 +97,7 @@ class RASCallback(DefaultOAuth2Callback):
         sync_from_visas = usersync.get("sync_from_visas", False)
         # Check if user has any project_access from a previous session or from usersync AND if fence is configured to use visas as authZ source
         # if not do an on-the-fly usersync for this user to give them instant access after logging in through RAS
-        if not user.project_access and sync_from_visas:
+        if not user.project_access and sync_from_visas and flask.current_app.ras_client.parse_visas:
             # Close previous db sessions. Leaving it open causes a race condition where we're viewing user.project_access while trying to update it in usersync
             # not closing leads to partially updated records
             current_session.close()
