@@ -16,7 +16,7 @@ class RASOauth2Client(Oauth2ClientBase):
     as openid connect is supported under oauth2
     """
 
-    def __init__(self, settings, logger, HTTP_PROXY=None, parse_visas=False):
+    def __init__(self, settings, logger, HTTP_PROXY=None):
         super(RASOauth2Client, self).__init__(
             settings,
             logger,
@@ -26,7 +26,6 @@ class RASOauth2Client(Oauth2ClientBase):
             ),
             idp="ras",
             HTTP_PROXY=HTTP_PROXY,
-            parse_visas=parse_visas,
         )
 
     def get_auth_url(self):

@@ -1,6 +1,7 @@
 import flask
 import jwt
 import os
+from distutils.util import strtobool
 from flask_sqlalchemy_session import current_session
 import urllib.request, urllib.error
 from urllib.parse import urlparse, parse_qs
@@ -43,7 +44,6 @@ class RASCallback(DefaultOAuth2Callback):
         # we have multiple IdPs
         user.ga4gh_visas_v1 = []
         current_session.commit()
-        print 
 
         encoded_visas = flask.g.userinfo.get("ga4gh_passport_v1", [])
 
@@ -92,12 +92,13 @@ class RASCallback(DefaultOAuth2Callback):
         flask.current_app.ras_client.store_refresh_token(
             user=user, refresh_token=refresh_token, expires=expires + issued_time
         )
-
+        
+        parse_visas = strtobool(query_params.get("parse_visas")) if query_params.get("parse_visas") else False
         usersync = config.get("USERSYNC", {})
         sync_from_visas = usersync.get("sync_from_visas", False)
         # Check if user has any project_access from a previous session or from usersync AND if fence is configured to use visas as authZ source
         # if not do an on-the-fly usersync for this user to give them instant access after logging in through RAS
-        if not user.project_access and sync_from_visas and flask.current_app.ras_client.parse_visas:
+        if not user.project_access and sync_from_visas and parse_visas:
             # Close previous db sessions. Leaving it open causes a race condition where we're viewing user.project_access while trying to update it in usersync
             # not closing leads to partially updated records
             current_session.close()
