@@ -54,7 +54,18 @@ def create_user_access_token(keypair, api_key, expires_in):
     """
     try:
         claims = validate_jwt(api_key, scope={"fence"}, purpose="api_key")
-        scopes = claims["scope"]
+        # scopes = claims["scope"]
+
+        ##### begin api key patch block #####
+        # TODO: In the next release, remove this block and uncomment line above.
+        # Old API keys are not compatible with new validation
+        # This is to help transition
+        try:
+            scopes = claims["scope"]
+        except KeyError as e:
+            scopes = claims["aud"]
+        ##### end api key patch block #####
+
         user = get_user_from_claims(claims)
     except Exception as e:
         raise Unauthorized(str(e))

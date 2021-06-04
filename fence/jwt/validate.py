@@ -121,12 +121,12 @@ def validate_jwt(
         )
     except authutils.errors.JWTError as e:
 
-        ##### begin refresh token patch block #####
-        # TODO: In the next release, remove this if block and take the else block
+        ##### begin refresh token and API key patch block #####
+        # TODO: In the next release, remove this if/elif block and take the else block
         # back out of the else.
-        # Old refresh tokens are not compatible with new validation, so to smooth
-        # the transition, allow old style refresh tokens with this patch;
-        # remove patch in next tag. Refresh tokens have default TTL of 30 days.
+        # Old refresh tokens and API keys are not compatible with new validation, so to smooth
+        # the transition, allow old style refresh tokens/API keys with this patch;
+        # remove patch in next tag. Refresh tokens and API keys have default TTL of 30 days.
         from authutils.errors import JWTAudienceError
 
         unverified_claims = jwt.decode(encoded_token, verify=False)
@@ -147,8 +147,25 @@ def validate_jwt(
                 )
             except Error as e:
                 raise JWTError("Invalid refresh token: {}".format(e))
+        elif unverified_claims.get("pur") == "api_key" and isinstance(
+            e, JWTAudienceError
+        ):
+            # Check everything else is fine minus the audience
+            try:
+                claims = authutils.token.validate.validate_jwt(
+                    encoded_token=encoded_token,
+                    aud="fence",
+                    scope=None,
+                    purpose="api_key",
+                    issuers=issuers,
+                    public_key=public_key,
+                    attempt_refresh=attempt_refresh,
+                    **kwargs
+                )
+            except Error as e:
+                raise JWTError("Invalid API key: {}".format(e))
         else:
-            ##### end refresh token patch block #####
+            ##### end refresh token, API key patch block #####
             msg = "Invalid token : {}".format(str(e))
             unverified_claims = jwt.decode(encoded_token, verify=False)
             if not unverified_claims.get("scope") or "" in unverified_claims["scope"]:
