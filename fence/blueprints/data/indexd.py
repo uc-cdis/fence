@@ -14,7 +14,6 @@ import requests
 
 from fence.auth import (
     get_jwt,
-    has_oauth,
     current_token,
     login_required,
     set_current_token,
@@ -1148,7 +1147,9 @@ def _get_user_info(sub_to_string=True):
     populated information about an anonymous user.
     """
     try:
-        set_current_token(validate_request(aud={"user"}))
+        set_current_token(
+            validate_request(scope={"user"}, audience=config.get("BASE_URL"))
+        )
         user_id = current_token["sub"]
         if sub_to_string:
             user_id = str(user_id)
