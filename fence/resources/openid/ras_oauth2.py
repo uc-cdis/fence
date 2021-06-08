@@ -131,7 +131,8 @@ class RASOauth2Client(Oauth2ClientBase):
         Updates user's RAS refresh token and uses the new access token to retrieve new visas from
         RAS's /userinfo endpoint and update the db with the new visa.
         - delete user's visas from db if we're not able to get a new access_token
-        - delete user's visas from db if we're not able to get a new visa
+        - delete user's visas from db if we're not able to get new visas
+        - only visas which pass validation are added to the database
         """
         # Note: in the cronjob this is called per-user per-visa.
         # So it should be noted that when there are more clients than just RAS,
