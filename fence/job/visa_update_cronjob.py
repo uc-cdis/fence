@@ -41,6 +41,13 @@ class Visa_Token_Update(object):
         self.n_workers = self.thread_pool_size + self.concurrency
         self.logger = logger
 
+        # This job runs without an application context, so it cannot use the
+        # current_app.jwt_public_keys cache.
+        # This is a simple dict with the same lifetime as the job.
+        # When there are many visas from many issuers it will make sense to
+        # implement a more persistent cache.
+        self.pkey_cache = {}
+
         self.visa_types = config.get("USERSYNC", {}).get("visa_types", {})
 
         # Initialize visa clients:
@@ -150,7 +157,7 @@ class Visa_Token_Update(object):
                             name, user.username
                         )
                     )
-                    client.update_user_visas(user, db_session)
+                    client.update_user_visas(user, db_session, self.pkey_cache)
             else:
                 # clear expired refresh tokens
                 if user.upstream_refresh_tokens:

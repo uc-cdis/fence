@@ -1,10 +1,20 @@
+import base64
 import flask
+import httpx
 import requests
 import jwt
 import backoff
 from flask_sqlalchemy_session import current_session
 from jose import jwt as jose_jwt
 
+from authutils.errors import JWTError
+from authutils.token.core import get_iss, get_keys_url, get_kid, get_iss, validate_jwt
+from authutils.token.keys import get_public_key_for_token
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+
+from fence.config import config
 from fence.models import GA4GHVisaV1
 from fence.utils import DEFAULT_BACKOFF_SETTINGS
 from .idp_oauth2 import Oauth2ClientBase
@@ -116,7 +126,7 @@ class RASOauth2Client(Oauth2ClientBase):
         return {"username": username, "email": userinfo.get("email")}
 
     @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
-    def update_user_visas(self, user, db_session=current_session):
+    def update_user_visas(self, user, db_session=current_session, pkey_cache={}):
         """
         Updates user's RAS refresh token and uses the new access token to retrieve new visas from
         RAS's /userinfo endpoint and update the db with the new visa.
@@ -140,24 +150,123 @@ class RASOauth2Client(Oauth2ClientBase):
             raise
 
         for encoded_visa in encoded_visas:
+            visa_issuer = get_iss(encoded_visa)
+            visa_kid = get_kid(encoded_visa)
+
+            # See if pkey is in cronjob cache; if not, update cache.
+            public_key = pkey_cache.get(visa_issuer, {}).get(visa_kid)
+            if not public_key:
+                jwks_url = get_keys_url(visa_issuer)
+                try:
+                    jwt_public_keys = httpx.get(jwks_url).json()["keys"]
+                except Exception as e:
+                    raise JWTError(
+                        "Could not get public key to validate visa: Could not fetch keys from JWKs url: {}".format(
+                            e
+                        )
+                    )
+
+                issuer_public_keys = {}
+                try:
+                    for key in jwt_public_keys:
+                        if "kty" in key and key["kty"] == "RSA":
+                            self.logger.debug(
+                                "Serializing RSA public key (kid: {}) to PEM format.".format(
+                                    key["kid"]
+                                )
+                            )
+                            # Decode public numbers https://tools.ietf.org/html/rfc7518#section-6.3.1
+                            n_padded_bytes = base64.urlsafe_b64decode(
+                                key["n"] + "=" * (4 - len(key["n"]) % 4)
+                            )
+                            e_padded_bytes = base64.urlsafe_b64decode(
+                                key["e"] + "=" * (4 - len(key["e"]) % 4)
+                            )
+                            n = int.from_bytes(n_padded_bytes, "big", signed=False)
+                            e = int.from_bytes(e_padded_bytes, "big", signed=False)
+                            # Serialize and encode public key--PyJWT decode/validation requires PEM
+                            rsa_public_key = rsa.RSAPublicNumbers(e, n).public_key(
+                                default_backend()
+                            )
+                            public_bytes = rsa_public_key.public_bytes(
+                                serialization.Encoding.PEM,
+                                serialization.PublicFormat.SubjectPublicKeyInfo,
+                            )
+                            # Cache the encoded key by issuer
+                            issuer_public_keys[key["kid"]] = public_bytes
+                        else:
+                            self.logger.debug(
+                                "Key type (kty) is not 'RSA'; assuming PEM format. "
+                                "Skipping key serialization. (kid: {})".format(key[0])
+                            )
+                            issuer_public_keys[key[0]] = key[1]
+
+                    pkey_cache.update({visa_issuer: issuer_public_keys})
+                    self.logger.info(
+                        "Refreshed cronjob pkey cache for visa issuer {}".format(
+                            visa_issuer
+                        )
+                    )
+                except Exception as e:
+                    self.logger.error(
+                        "Could not refresh cronjob pkey cache for visa issuer {}: "
+                        "Something went wrong during serialization: {}. Discarding visa.".format(
+                            visa_issuer, e
+                        )
+                    )
+                    continue  # Not raise: If issuer publishing malformed keys, does not make sense to retry
+
+                public_key = pkey_cache.get(visa_issuer, {}).get(visa_kid)
+
+            if not public_key:
+                self.logger.error(
+                    "Could not get public key to validate visa: Successfully fetched "
+                    "issuer's keys but did not find the visa's key id among them. Discarding visa."
+                )
+                continue  # Not raise: If issuer not publishing pkey, does not make sense to retry
+
             try:
-                # TODO: These visas must be validated!!!
-                decoded_visa = jwt.decode(encoded_visa, verify=False)
-                visa = GA4GHVisaV1(
-                    user=user,
-                    source=decoded_visa["ga4gh_visa_v1"]["source"],
-                    type=decoded_visa["ga4gh_visa_v1"]["type"],
-                    asserted=int(decoded_visa["ga4gh_visa_v1"]["asserted"]),
-                    expires=int(decoded_visa["exp"]),
-                    ga4gh_visa=encoded_visa,
+                # Validate the visa per GA4GH AAI "Embedded access token" format rules.
+                # pyjwt also validates signature and expiration.
+                decoded_visa = validate_jwt(
+                    encoded_visa,
+                    public_key,
+                    # Embedded token must not contain aud claim
+                    aud=None,
+                    # Embedded token must contain scope claim, which must include openid
+                    scope={"openid"},
+                    issuers=config.get("GA4GH_VISA_ISSUER_WHITELIST", []),
+                    # Embedded token must contain iss, sub, iat, exp claims
+                    # options={"require": ["iss", "sub", "iat", "exp"]},
+                    # ^ FIXME 2021-05-13: Above needs pyjwt>=v2.0.0, which requires cryptography>=3.
+                    # Once we can unpin and upgrade cryptography and pyjwt, switch to above "options" arg.
+                    # For now, pyjwt 1.7.1 is able to require iat and exp;
+                    # authutils' validate_jwt (i.e. the function being called) checks issuers already (see above);
+                    # and we will check separately for sub below.
+                    options={
+                        "require_iat": True,
+                        "require_exp": True,
+                    },
                 )
 
-                current_db_session = db_session.object_session(visa)
-
-                current_db_session.add(visa)
+                # Also require 'sub' claim (see note above about pyjwt and the options arg).
+                if "sub" not in decoded_visa:
+                    raise JWTError("Visa is missing the 'sub' claim.")
             except Exception as e:
-                err_msg = (
-                    f"Could not process visa '{encoded_visa}' - skipping this visa"
+                self.logger.error(
+                    "Visa failed validation: {}. Discarding visa.".format(e)
                 )
-                self.logger.exception("{}: {}".format(err_msg, e), exc_info=True)
+                continue
+
+            visa = GA4GHVisaV1(
+                user=user,
+                source=decoded_visa["ga4gh_visa_v1"]["source"],
+                type=decoded_visa["ga4gh_visa_v1"]["type"],
+                asserted=int(decoded_visa["ga4gh_visa_v1"]["asserted"]),
+                expires=int(decoded_visa["exp"]),
+                ga4gh_visa=encoded_visa,
+            )
+
+            current_db_session = db_session.object_session(visa)
+            current_db_session.add(visa)
             db_session.commit()
