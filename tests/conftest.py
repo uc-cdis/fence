@@ -460,6 +460,20 @@ def indexd_client(app, request):
             "created_date": "",
             "updated_date": "",
         }
+    elif protocol == "s3_assume_role":
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file1",
+            "urls": ["s3://bucket5/key"],
+            "hashes": {},
+            "metadata": {"acls": "phs000178,phs000218"},
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
     elif protocol == "no_urls":
         record = {
             "did": "",

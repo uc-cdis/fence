@@ -1075,24 +1075,27 @@ def test_indexd_download_with_uploader_authorized(
 
 
 @pytest.mark.parametrize("test_max_role_session_increase", [True, False])
-@pytest.mark.parametrize("preset_expires_in", [100, 1000])
+@pytest.mark.parametrize("presigned_url_expires_in", [100, 1000])
+@pytest.mark.parametrize("indexd_client", ["s3_assume_role"], indirect=True)
 def test_assume_role_time_limit(
     client,
     user_client,
     kid,
     rsa_private_key,
     test_max_role_session_increase,
-    preset_expires_in,
+    presigned_url_expires_in,
+    indexd_client,
+    monkeypatch,
 ):
     """
-    Test ``GET /data/download/1`` with authorized user (user is the uploader).
+    Test ``GET /data/download/1`` accessing data from bucket by assuming role.
     """
 
     fence.S3IndexedFileLocation._assume_role_cache.clear()
 
-    current_max_role_session_increase = config["MAX_ROLE_SESSION_INCREASE"]
-    config.update(MAX_ROLE_SESSION_INCREASE=test_max_role_session_increase)
-
+    monkeypatch.setitem(
+        config, "MAX_ROLE_SESSION_INCREASE", test_max_role_session_increase
+    )
     # Mocking STS client assume role
     duration_in_function = 0
     mocked_sts_client = MagicMock()
@@ -1116,31 +1119,13 @@ def test_assume_role_time_limit(
         "fence.resources.aws.boto_manager.client", mocked_sts_client
     )
     assume_role_patcher.start()
-    # Mocking indexd document
-    did = str(uuid.uuid4())
-    index_document = {
-        "did": did,
-        "baseid": "",
-        "uploader": user_client.username,
-        "rev": "",
-        "size": 10,
-        "file_name": "file1",
-        "urls": ["s3://bucket5/key-{}".format(did[:8])],
-        "acl": ["phs000178"],
-        "hashes": {},
-        "metadata": {},
-        "form": "",
-        "created_date": "",
-        "updated_date": "",
-    }
-    mock_index_document = mock.patch(
-        "fence.blueprints.data.indexd.IndexedFile.index_document", index_document
-    )
-    mock_index_document.start()
 
-    indexed_file_location = "s3"
+    indexed_file_location = indexd_client["indexed_file_location"]
     path = "/data/download/1"
-    query_string = {"protocol": indexed_file_location, "expires_in": preset_expires_in}
+    query_string = {
+        "protocol": indexed_file_location,
+        "expires_in": presigned_url_expires_in,
+    }
     headers = {
         "Authorization": "Bearer "
         + jwt.encode(
@@ -1154,26 +1139,23 @@ def test_assume_role_time_limit(
     }
     response = client.get(path, headers=headers, query_string=query_string)
 
+    AWS_ASSUME_ROLE_MIN_EXPIRATION = 900
     if config["MAX_ROLE_SESSION_INCREASE"]:
-        buffered_expires_in = preset_expires_in + int(
+        buffered_expires_in = presigned_url_expires_in + int(
             config["ASSUME_ROLE_CACHE_SECONDS"]
         )
     else:
         buffered_expires_in = max(
-            preset_expires_in, int(config["AWS_ASSUME_ROLE_MIN_LIMIT"])
+            presigned_url_expires_in, AWS_ASSUME_ROLE_MIN_EXPIRATION
         )
+
+    assume_role_patcher.stop()
 
     assert response.status_code == 200
     assert duration_in_function == buffered_expires_in  # assume role duration
     assert (
-        "X-Amz-Expires=" + str(preset_expires_in) + "&" in response.json["url"]
+        "X-Amz-Expires=" + str(presigned_url_expires_in) + "&" in response.json["url"]
     )  # Signed url duration
-
-    assume_role_patcher.stop()
-    mock_index_document.stop()
-    config.update(
-        MAX_ROLE_SESSION_INCREASE=current_max_role_session_increase
-    )  # Resetting the config value to original
 
 
 def test_assume_role_cache(
