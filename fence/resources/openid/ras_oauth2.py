@@ -133,6 +133,9 @@ class RASOauth2Client(Oauth2ClientBase):
         - delete user's visas from db if we're not able to get a new access_token
         - delete user's visas from db if we're not able to get a new visa
         """
+        # Note: in the cronjob this is called per-user per-visa.
+        # So it should be noted that when there are more clients than just RAS,
+        # this code as it stands can remove visas that the user has from other clients.
         user.ga4gh_visas_v1 = []
         db_session.commit()
 
