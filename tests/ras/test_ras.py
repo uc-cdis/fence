@@ -77,8 +77,8 @@ def test_update_visa_token(
     config,
     db_session,
     rsa_private_key,
+    rsa_public_key,
     kid,
-    kid_2,
 ):
     """
     Test to check visa table is updated when getting new visa
@@ -134,7 +134,7 @@ def test_update_visa_token(
         },
     }
 
-    headers = {"kid": kid_2}
+    headers = {"kid": kid}
 
     encoded_visa = jwt.encode(
         new_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
@@ -143,7 +143,12 @@ def test_update_visa_token(
     userinfo_response["ga4gh_passport_v1"] = [encoded_visa]
     mock_userinfo.return_value = userinfo_response
 
-    ras_client.update_user_visas(test_user)
+    pkey_cache = {
+        "https://stsstg.nih.gov": {
+            kid: rsa_public_key,
+        }
+    }
+    ras_client.update_user_visas(test_user, pkey_cache=pkey_cache)
 
     query_visa = db_session.query(GA4GHVisaV1).first()
     assert query_visa.ga4gh_visa
@@ -163,7 +168,6 @@ def test_update_visa_empty_visa_returned(
     db_session,
     rsa_private_key,
     kid,
-    kid_2,
 ):
     """
     Test to check if the db is emptied if the ras userinfo sends back an empty visa
@@ -223,8 +227,8 @@ def test_update_visa_token_with_invalid_visa(
     config,
     db_session,
     rsa_private_key,
+    rsa_public_key,
     kid,
-    kid_2,
 ):
     """
     Test to check the following case:
@@ -282,7 +286,7 @@ def test_update_visa_token_with_invalid_visa(
         },
     }
 
-    headers = {"kid": kid_2}
+    headers = {"kid": kid}
 
     encoded_visa = jwt.encode(
         new_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
@@ -291,7 +295,12 @@ def test_update_visa_token_with_invalid_visa(
     userinfo_response["ga4gh_passport_v1"] = [encoded_visa, [], encoded_visa]
     mock_userinfo.return_value = userinfo_response
 
-    ras_client.update_user_visas(test_user)
+    pkey_cache = {
+        "https://stsstg.nih.gov": {
+            kid: rsa_public_key,
+        }
+    }
+    ras_client.update_user_visas(test_user, pkey_cache=pkey_cache)
 
     query_visas = db_session.query(GA4GHVisaV1).filter_by(user=test_user).all()
     assert len(query_visas) == 2
@@ -311,8 +320,8 @@ def test_visa_update_cronjob(
     mock_userinfo,
     db_session,
     rsa_private_key,
+    rsa_public_key,
     kid,
-    kid_2,
 ):
     """
     Test to check visa table is updated when updating visas using cronjob
@@ -369,7 +378,7 @@ def test_visa_update_cronjob(
         },
     }
 
-    headers = {"kid": kid_2}
+    headers = {"kid": kid}
 
     encoded_visa = jwt.encode(
         new_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
@@ -380,6 +389,11 @@ def test_visa_update_cronjob(
 
     # test "fence-create update-visa"
     job = Visa_Token_Update()
+    job.pkey_cache = {
+        "https://stsstg.nih.gov": {
+            kid: rsa_public_key,
+        }
+    }
     loop = asyncio.get_event_loop()
     loop.run_until_complete(job.update_tokens(db_session))
 
