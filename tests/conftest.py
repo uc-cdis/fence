@@ -63,7 +63,6 @@ def mock_get_bucket_location(self, bucket, config):
 def claims_refresh():
     new_claims = tests.utils.default_claims()
     new_claims["pur"] = "refresh"
-    new_claims["aud"].append("fence")
     return new_claims
 
 
