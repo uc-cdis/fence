@@ -1098,7 +1098,6 @@ def test_assume_role_time_limit(
     )
     # Mocking STS client assume role
     duration_in_function = 0
-    mocked_sts_client = MagicMock()
 
     def mock_sts_client_assume_role(RoleArn, DurationSeconds, RoleSessionName=None):
         nonlocal duration_in_function
@@ -1113,31 +1112,28 @@ def test_assume_role_time_limit(
             "AssumedRoleUser": {"AssumedRoleId": "", "Arn": RoleArn},
         }
 
-    mocked_sts_client.assume_role = mock_sts_client_assume_role
-    mocked_sts_client.return_value = mocked_sts_client
-    assume_role_patcher = patch(
-        "fence.resources.aws.boto_manager.client", mocked_sts_client
-    )
-    assume_role_patcher.start()
-
-    indexed_file_location = indexd_client["indexed_file_location"]
-    path = "/data/download/1"
-    query_string = {
-        "protocol": indexed_file_location,
-        "expires_in": presigned_url_expires_in,
-    }
-    headers = {
-        "Authorization": "Bearer "
-        + jwt.encode(
-            utils.authorized_download_context_claims(
-                user_client.username, user_client.user_id
-            ),
-            key=rsa_private_key,
-            headers={"kid": kid},
-            algorithm="RS256",
-        ).decode("utf-8")
-    }
-    response = client.get(path, headers=headers, query_string=query_string)
+    with patch("fence.resources.aws.boto_manager.client") as mocked_sts_client:
+        mocked_sts_client.return_value = MagicMock(
+            assume_role=mock_sts_client_assume_role
+        )
+        indexed_file_location = indexd_client["indexed_file_location"]
+        path = "/data/download/1"
+        query_string = {
+            "protocol": indexed_file_location,
+            "expires_in": presigned_url_expires_in,
+        }
+        headers = {
+            "Authorization": "Bearer "
+            + jwt.encode(
+                utils.authorized_download_context_claims(
+                    user_client.username, user_client.user_id
+                ),
+                key=rsa_private_key,
+                headers={"kid": kid},
+                algorithm="RS256",
+            ).decode("utf-8")
+        }
+        response = client.get(path, headers=headers, query_string=query_string)
 
     AWS_ASSUME_ROLE_MIN_EXPIRATION = 900
     if config["MAX_ROLE_SESSION_INCREASE"]:
@@ -1148,8 +1144,6 @@ def test_assume_role_time_limit(
         buffered_expires_in = max(
             presigned_url_expires_in, AWS_ASSUME_ROLE_MIN_EXPIRATION
         )
-
-    assume_role_patcher.stop()
 
     assert response.status_code == 200
     assert duration_in_function == buffered_expires_in  # assume role duration
