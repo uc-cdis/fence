@@ -20,7 +20,7 @@ blueprint = flask.Blueprint("data", __name__)
 
 
 @blueprint.route("/<path:file_id>", methods=["DELETE"])
-@require_auth_header(aud={"data"})
+@require_auth_header(scope={"data"})
 @login_required({"data"})
 def delete_data_file(file_id):
     """
@@ -107,7 +107,7 @@ def delete_data_file(file_id):
 
 
 @blueprint.route("/upload", methods=["POST"])
-@require_auth_header(aud={"data"})
+@require_auth_header(scope={"data"})
 @login_required({"data"})
 def upload_data_file():
     """
@@ -182,7 +182,7 @@ def upload_data_file():
 
 
 @blueprint.route("/multipart/init", methods=["POST"])
-@require_auth_header(aud={"data"})
+@require_auth_header(scope={"data"})
 @login_required({"data"})
 @check_arborist_auth(resource="/data_file", method="file_upload")
 def init_multipart_upload():
@@ -213,7 +213,7 @@ def init_multipart_upload():
 
 
 @blueprint.route("/multipart/upload", methods=["POST"])
-@require_auth_header(aud={"data"})
+@require_auth_header(scope={"data"})
 @login_required({"data"})
 @check_arborist_auth(resource="/data_file", method="file_upload")
 def generate_multipart_upload_presigned_url():
@@ -247,7 +247,7 @@ def generate_multipart_upload_presigned_url():
 
 
 @blueprint.route("/multipart/complete", methods=["POST"])
-@require_auth_header(aud={"data"})
+@require_auth_header(scope={"data"})
 @login_required({"data"})
 @check_arborist_auth(resource="/data_file", method="file_upload")
 def complete_multipart_upload():

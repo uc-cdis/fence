@@ -53,10 +53,10 @@ def encoded_admin_jwt(kid, rsa_private_key):
     headers = {"kid": kid}
     claims = utils.default_claims()
     claims["context"]["user"]["name"] = "admin_user@fake.com"
-    claims["aud"].append("admin")
     claims["sub"] = "5678"
     claims["iss"] = config["BASE_URL"]
     claims["exp"] += 600
+    claims["scope"].append("admin")
     return jwt.encode(
         claims, key=rsa_private_key, headers=headers, algorithm="RS256"
     ).decode("utf-8")
