@@ -154,8 +154,16 @@ class RASOauth2Client(Oauth2ClientBase):
             raise
 
         for encoded_visa in encoded_visas:
-            visa_issuer = get_iss(encoded_visa)
-            visa_kid = get_kid(encoded_visa)
+            try:
+                visa_issuer = get_iss(encoded_visa)
+                visa_kid = get_kid(encoded_visa)
+            except Exception as e:
+                self.logger.error(
+                    "Could not get issuer or kid from visa: {}. Discarding visa.".format(
+                        e
+                    )
+                )
+                continue  # Not raise: If visa malformed, does not make sense to retry
 
             # See if pkey is in cronjob cache; if not, update cache.
             public_key = pkey_cache.get(visa_issuer, {}).get(visa_kid)
