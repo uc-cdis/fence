@@ -1096,7 +1096,6 @@ def test_assume_role_time_limit(
     monkeypatch.setitem(
         config, "MAX_ROLE_SESSION_INCREASE", test_max_role_session_increase
     )
-    # Mocking STS client assume role
     duration_in_function = 0
 
     def mock_sts_client_assume_role(RoleArn, DurationSeconds, RoleSessionName=None):
