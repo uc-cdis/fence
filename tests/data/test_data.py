@@ -1074,15 +1074,19 @@ def test_indexd_download_with_uploader_authorized(
     assert response.status_code == 200
 
 
-@pytest.mark.parametrize("test_max_role_session_increase", [True, False])
-@pytest.mark.parametrize("presigned_url_expires_in", [100, 1000])
 @pytest.mark.parametrize("indexd_client", ["s3_assume_role"], indirect=True)
+@pytest.mark.parametrize("presigned_url_expires_in", [100, 1000])
+@pytest.mark.parametrize(
+    "test_max_role_session_increase, test_assume_role_cache_seconds",
+    [(True, 100), (True, 1800), (False, 0)],
+)
 def test_assume_role_time_limit(
     client,
     user_client,
     kid,
     rsa_private_key,
     test_max_role_session_increase,
+    test_assume_role_cache_seconds,
     presigned_url_expires_in,
     indexd_client,
     monkeypatch,
@@ -1095,6 +1099,9 @@ def test_assume_role_time_limit(
 
     monkeypatch.setitem(
         config, "MAX_ROLE_SESSION_INCREASE", test_max_role_session_increase
+    )
+    monkeypatch.setitem(
+        config, "ASSUME_ROLE_CACHE_SECONDS", test_assume_role_cache_seconds
     )
     duration_in_function = 0
 
@@ -1135,14 +1142,11 @@ def test_assume_role_time_limit(
         response = client.get(path, headers=headers, query_string=query_string)
 
     AWS_ASSUME_ROLE_MIN_EXPIRATION = 900
+
+    buffered_expires_in = presigned_url_expires_in
     if config["MAX_ROLE_SESSION_INCREASE"]:
-        buffered_expires_in = presigned_url_expires_in + int(
-            config["ASSUME_ROLE_CACHE_SECONDS"]
-        )
-    else:
-        buffered_expires_in = max(
-            presigned_url_expires_in, AWS_ASSUME_ROLE_MIN_EXPIRATION
-        )
+        buffered_expires_in += int(config["ASSUME_ROLE_CACHE_SECONDS"])
+    buffered_expires_in = max(buffered_expires_in, AWS_ASSUME_ROLE_MIN_EXPIRATION)
 
     assert response.status_code == 200
     assert duration_in_function == buffered_expires_in  # assume role duration
