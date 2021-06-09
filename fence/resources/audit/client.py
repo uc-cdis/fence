@@ -37,15 +37,12 @@ class AuditServiceClient:
             return
 
         if self.push_type == "aws_sqs":
+            aws_sqs_config = config["PUSH_AUDIT_LOGS_CONFIG"]["aws_sqs_config"]
             self.sqs = boto3.client(
                 "sqs",
-                region_name=config["PUSH_AUDIT_LOGS_CONFIG"]["region"],
-                aws_access_key_id=config["PUSH_AUDIT_LOGS_CONFIG"].get(
-                    "aws_access_key_id"
-                ),
-                aws_secret_access_key=config["PUSH_AUDIT_LOGS_CONFIG"].get(
-                    "aws_secret_access_key"
-                ),
+                region_name=aws_sqs_config["region"],
+                aws_access_key_id=aws_sqs_config.get("aws_access_key_id"),
+                aws_secret_access_key=aws_sqs_config.get("aws_secret_access_key"),
             )
 
     @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
@@ -69,12 +66,16 @@ class AuditServiceClient:
             )
 
         if self.push_type == "aws_sqs":
-            assert config["PUSH_AUDIT_LOGS_CONFIG"].get(
+            aws_sqs_config = config["PUSH_AUDIT_LOGS_CONFIG"].get("aws_sqs_config", {})
+            assert (
+                aws_sqs_config
+            ), f"PUSH_AUDIT_LOGS_CONFIG.type is 'aws_sqs' but PUSH_AUDIT_LOGS_CONFIG.aws_sqs_config is not configured"
+            assert aws_sqs_config.get(
                 "sqs_url"
-            ), f"PUSH_AUDIT_LOGS_CONFIG.type is 'aws_sqs' but PUSH_AUDIT_LOGS_CONFIG.sqs_url is not configured"
-            assert config["PUSH_AUDIT_LOGS_CONFIG"].get(
+            ), f"PUSH_AUDIT_LOGS_CONFIG.type is 'aws_sqs' but PUSH_AUDIT_LOGS_CONFIG.aws_sqs_config.sqs_url is not configured"
+            assert aws_sqs_config.get(
                 "region"
-            ), f"PUSH_AUDIT_LOGS_CONFIG.type is 'aws_sqs' but PUSH_AUDIT_LOGS_CONFIG.region is not configured"
+            ), f"PUSH_AUDIT_LOGS_CONFIG.type is 'aws_sqs' but PUSH_AUDIT_LOGS_CONFIG.aws_sqs_config.region is not configured"
 
     def _check_response(self, resp, body):
         """
@@ -116,7 +117,7 @@ class AuditServiceClient:
             self._check_response(resp, data)
         elif self.push_type == "aws_sqs":
             data["category"] = category
-            sqs_url = config["PUSH_AUDIT_LOGS_CONFIG"]["sqs_url"]
+            sqs_url = config["PUSH_AUDIT_LOGS_CONFIG"]["aws_sqs_config"]["sqs_url"]
             try:
                 self.sqs.send_message(QueueUrl=sqs_url, MessageBody=json.dumps(data))
             except Exception:

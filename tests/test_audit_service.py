@@ -497,8 +497,10 @@ def mock_audit_service_sqs(app):
     # the app init, so monkeypatching it is not enough
     fence.config["PUSH_AUDIT_LOGS_CONFIG"] = {
         "type": "aws_sqs",
-        "sqs_url": "mocked-sqs-url",
-        "region": "region",
+        "aws_sqs_config": {
+            "sqs_url": "mocked-sqs-url",
+            "region": "region",
+        },
     }
 
     # mock the ping function so we don't try to reach the audit-service
@@ -512,10 +514,10 @@ def mock_audit_service_sqs(app):
     patch("fence.resources.audit.client.boto3.client", mocked_sqs_client).start()
     mocked_sqs = boto3.client(
         "sqs",
-        region_name=config["PUSH_AUDIT_LOGS_CONFIG"]["region"],
+        region_name=config["PUSH_AUDIT_LOGS_CONFIG"]["aws_sqs_config"]["region"],
         endpoint_url="http://localhost",
     )
-    mocked_sqs.url = config["PUSH_AUDIT_LOGS_CONFIG"]["sqs_url"]
+    mocked_sqs.url = config["PUSH_AUDIT_LOGS_CONFIG"]["aws_sqs_config"]["sqs_url"]
     mocked_sqs_client.return_value = mocked_sqs
 
     # the audit-service client has already been loaded during the app
