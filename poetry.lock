@@ -962,7 +962,6 @@ prometheus_client = "*"
 [[package]]
 name = "protobuf"
 version = "3.17.3"
-=======
 
 description = "Protocol Buffers"
 category = "main"
