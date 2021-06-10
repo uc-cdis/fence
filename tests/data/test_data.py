@@ -1074,6 +1074,87 @@ def test_indexd_download_with_uploader_authorized(
     assert response.status_code == 200
 
 
+@pytest.mark.parametrize("indexd_client", ["s3_assume_role"], indirect=True)
+@pytest.mark.parametrize("presigned_url_expires_in", [100, 1000])
+@pytest.mark.parametrize(
+    "test_max_role_session_increase, test_assume_role_cache_seconds",
+    [(True, 100), (True, 1800), (False, 0)],
+)
+def test_assume_role_time_limit(
+    client,
+    user_client,
+    kid,
+    rsa_private_key,
+    test_max_role_session_increase,
+    test_assume_role_cache_seconds,
+    presigned_url_expires_in,
+    indexd_client,
+    monkeypatch,
+):
+    """
+    Test ``GET /data/download/1`` accessing data from bucket by assuming role.
+    """
+
+    fence.S3IndexedFileLocation._assume_role_cache.clear()
+
+    monkeypatch.setitem(
+        config, "MAX_ROLE_SESSION_INCREASE", test_max_role_session_increase
+    )
+    monkeypatch.setitem(
+        config, "ASSUME_ROLE_CACHE_SECONDS", test_assume_role_cache_seconds
+    )
+    duration_in_function = 0
+
+    def mock_sts_client_assume_role(RoleArn, DurationSeconds, RoleSessionName=None):
+        nonlocal duration_in_function
+        duration_in_function = DurationSeconds
+        return {
+            "Credentials": {
+                "AccessKeyId": "",
+                "SecretAccessKey": "",
+                "SessionToken": "",
+                "Expiration": datetime.now() + timedelta(seconds=DurationSeconds),
+            },
+            "AssumedRoleUser": {"AssumedRoleId": "", "Arn": RoleArn},
+        }
+
+    with patch("fence.resources.aws.boto_manager.client") as mocked_sts_client:
+        mocked_sts_client.return_value = MagicMock(
+            assume_role=mock_sts_client_assume_role
+        )
+        indexed_file_location = indexd_client["indexed_file_location"]
+        path = "/data/download/1"
+        query_string = {
+            "protocol": indexed_file_location,
+            "expires_in": presigned_url_expires_in,
+        }
+        headers = {
+            "Authorization": "Bearer "
+            + jwt.encode(
+                utils.authorized_download_context_claims(
+                    user_client.username, user_client.user_id
+                ),
+                key=rsa_private_key,
+                headers={"kid": kid},
+                algorithm="RS256",
+            ).decode("utf-8")
+        }
+        response = client.get(path, headers=headers, query_string=query_string)
+
+    AWS_ASSUME_ROLE_MIN_EXPIRATION = 900
+
+    buffered_expires_in = presigned_url_expires_in
+    if config["MAX_ROLE_SESSION_INCREASE"]:
+        buffered_expires_in += int(config["ASSUME_ROLE_CACHE_SECONDS"])
+    buffered_expires_in = max(buffered_expires_in, AWS_ASSUME_ROLE_MIN_EXPIRATION)
+
+    assert response.status_code == 200
+    assert duration_in_function == buffered_expires_in  # assume role duration
+    assert (
+        "X-Amz-Expires=" + str(presigned_url_expires_in) + "&" in response.json["url"]
+    )  # Signed url duration
+
+
 def test_assume_role_cache(
     client,
     oauth_client,

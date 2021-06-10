@@ -59,17 +59,6 @@ def mock_get_bucket_location(self, bucket, config):
     return "us-east-1"
 
 
-@mock_sts
-def mock_assume_role(self, role_arn, duration_seconds, config=None):
-    sts_client = client("sts", **config)
-    session_name_postfix = uuid.uuid4()
-    return sts_client.assume_role(
-        RoleArn=role_arn,
-        DurationSeconds=duration_seconds,
-        RoleSessionName="{}-{}".format("gen3", session_name_postfix),
-    )
-
-
 @pytest.fixture(scope="session")
 def claims_refresh():
     new_claims = tests.utils.default_claims()
@@ -140,20 +129,15 @@ class Mocker(object):
             "fence.resources.aws.boto_manager.BotoManager.get_bucket_region",
             mock_get_bucket_location,
         )
-        self.assume_role_patcher = patch(
-            "fence.resources.aws.boto_manager.BotoManager.assume_role", mock_assume_role
-        )
         self.patcher.start()
         self.auth_patcher.start()
         self.boto_patcher.start()
-        self.assume_role_patcher.start()
         self.additional_patchers = []
 
     def unmock_functions(self):
         self.patcher.stop()
         self.auth_patcher.stop()
         self.boto_patcher.stop()
-        self.assume_role_patcher.stop()
         for patcher in self.additional_patchers:
             patcher.stop()
 
@@ -471,6 +455,20 @@ def indexd_client(app, request):
             "urls": ["s3://bucket2/key"],
             "hashes": {},
             "acl": ["phs000178", "phs000218"],
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
+    elif protocol == "s3_assume_role":
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file1",
+            "urls": ["s3://bucket5/key"],
+            "hashes": {},
+            "metadata": {"acls": "phs000178,phs000218"},
             "form": "",
             "created_date": "",
             "updated_date": "",
