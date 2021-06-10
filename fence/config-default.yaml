@@ -837,7 +837,7 @@ ASSUME_ROLE_CACHE_SECONDS: 1800
 # RAS refresh_tokens expire in 15 days
 RAS_REFRESH_EXPIRATION: 1296000
 # List of JWT issuers from which Fence will accept GA4GH visas
-GA4GH_VISA_ISSUER_WHITELIST:
+GA4GH_VISA_ISSUER_ALLOWLIST:
   - '{{BASE_URL}}'
   - 'https://sts.nih.gov'
   - 'https://stsstg.nih.gov'

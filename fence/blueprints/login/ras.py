@@ -75,7 +75,7 @@ class RASCallback(DefaultOAuth2Callback):
                     aud=None,
                     # Embedded token must contain scope claim, which must include openid
                     scope={"openid"},
-                    issuers=config.get("GA4GH_VISA_ISSUER_WHITELIST", []),
+                    issuers=config.get("GA4GH_VISA_ISSUER_ALLOWLIST", []),
                     # Embedded token must contain iss, sub, iat, exp claims
                     # options={"require": ["iss", "sub", "iat", "exp"]},
                     # ^ FIXME 2021-05-13: Above needs pyjwt>=v2.0.0, which requires cryptography>=3.
