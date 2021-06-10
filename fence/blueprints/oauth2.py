@@ -66,31 +66,47 @@ def authorize(*args, **kwargs):
         **kwargs: additional keyword arguments
     """
     need_authentication = False
+    user = None
     try:
         user = get_current_user()
     except Unauthorized:
         need_authentication = True
 
+    idp = flask.request.args.get("idp")
+    fence_idp = flask.request.args.get("fence_idp")
+    shib_idp = flask.request.args.get("shib_idp")
+
+    login_url = None
+    if not idp:  # use default login IDP
+        idp = config.get("DEFAULT_LOGIN_IDP")
+        if not idp:
+            if "default" in config.get("ENABLED_IDENTITY_PROVIDERS", {}):
+                # fall back on ENABLED_IDENTITY_PROVIDERS.default
+                idp = config["ENABLED_IDENTITY_PROVIDERS"]["default"]
+            else:
+                # fall back on deprecated DEFAULT_LOGIN_URL
+                login_url = config.get("DEFAULT_LOGIN_URL")
+
     if need_authentication or not user:
         redirect_url = config.get("BASE_URL") + flask.request.full_path
         params = {"redirect": redirect_url}
-        login_url = config.get("DEFAULT_LOGIN_URL")
-        idp = flask.request.args.get("idp")
-        if idp:
+
+        if not login_url:
             if idp not in IDP_URL_MAP or idp not in config["OPENID_CONNECT"]:
                 raise UserError("idp {} is not supported".format(idp))
             idp_url = IDP_URL_MAP[idp]
             login_url = "{}/login/{}".format(config.get("BASE_URL"), idp_url)
 
-            # handle valid extra params for fence multi-tenant and shib login
-            fence_idp = flask.request.args.get("fence_idp")
-            shib_idp = flask.request.args.get("shib_idp")
-            if idp == "fence" and fence_idp:
-                params["idp"] = fence_idp
-                if fence_idp == "shibboleth":
-                    params["shib_idp"] = shib_idp
-            elif idp == "shibboleth" and shib_idp:
+        # handle valid extra params for fence multi-tenant and shib login
+        if idp == "fence" and fence_idp:
+            params["idp"] = fence_idp
+            if fence_idp == "shibboleth":
                 params["shib_idp"] = shib_idp
+        elif idp == "shibboleth" and shib_idp:
+            params["shib_idp"] = shib_idp
+
+        # store client_id for later use in login endpoint create_login_log()
+        flask.session["client_id"] = flask.request.args.get("client_id")
 
         login_url = add_params_to_uri(login_url, params)
         return flask.redirect(login_url)
@@ -114,7 +130,7 @@ def authorize(*args, **kwargs):
         # redirect url in body because browser ajax POST doesn't follow
         # cross origin redirect
         if flask.request.method == "POST" and response.status_code == 302:
-            return flask.jsonify({"redirect": response.headers["Location"]})
+            response = flask.jsonify({"redirect": response.headers["Location"]})
     else:
         # no confirm param, so no confirmation has occured yet
         response = _authorize(user, grant, client)

@@ -13,6 +13,6 @@ repos:
     -   id: no-commit-to-branch
         args: [--branch, develop, --branch, master, --pattern, release/.*]
 -   repo: https://github.com/psf/black
-    rev: 20.8b1
+    rev: stable
     hooks:
     -   id: black

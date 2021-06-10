@@ -5,11 +5,12 @@ FROM quay.io/cdis/python-nginx:pybase3-1.5.1
 
 ENV appname=fence
 
-RUN apk update \
-    && apk add postgresql-libs postgresql-dev libffi-dev libressl-dev \
-    && apk add linux-headers musl-dev gcc \
-    && apk add curl bash git vim make lftp \
-    && apk update && apk add openssh && apk add libmcrypt-dev
+RUN pip install --upgrade pip
+RUN apk add --update \
+    postgresql-libs postgresql-dev libffi-dev libressl-dev \
+    linux-headers musl-dev gcc g++ \
+    curl bash git vim make lftp \
+    openssh libmcrypt-dev
 
 RUN mkdir -p /var/www/$appname \
     && mkdir -p /var/www/.cache/Python-Eggs/ \

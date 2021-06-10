@@ -22,6 +22,38 @@ from unittest.mock import MagicMock, patch
 import cirrus
 from cirrus import GoogleCloudManager
 
+INDEXD_RECORD_WITH_PUBLIC_AUTHZ_POPULATED = {
+    "did": "1",
+    "baseid": "",
+    "rev": "",
+    "size": 10,
+    "file_name": "file1",
+    "urls": ["s3://bucket1/key"],
+    "hashes": {},
+    "metadata": {},
+    "authz": ["/open"],
+    "acl": [],
+    "form": "",
+    "created_date": "",
+    "updated_date": "",
+}
+
+INDEXD_RECORD_WITH_PUBLIC_AUTHZ_AND_ACL_POPULATED = {
+    "did": "1",
+    "baseid": "",
+    "rev": "",
+    "size": 10,
+    "file_name": "file1",
+    "urls": ["s3://bucket1/key"],
+    "hashes": {},
+    "metadata": {},
+    "authz": ["/open"],
+    "acl": ["*"],
+    "form": "",
+    "created_date": "",
+    "updated_date": "",
+}
+
 
 @pytest.mark.parametrize(
     "indexd_client", ["gs", "s3", "gs_acl", "s3_acl", "s3_external"], indirect=True
@@ -64,7 +96,9 @@ def test_indexd_download_file(
 
 
 @pytest.mark.parametrize(
-    "indexd_client", ["gs", "s3", "gs_acl", "s3_acl", "s3_external"], indirect=True
+    "indexd_client",
+    ["gs", "s3", "gs_acl", "s3_acl", "s3_external", "no_urls"],
+    indirect=True,
 )
 def test_indexd_upload_file(
     client,
@@ -169,7 +203,7 @@ def test_indexd_upload_file_doesnt_exist(
     }
     response = client.get(path, headers=headers)
 
-    assert response.status_code == 401
+    assert response.status_code == 404
 
 
 @pytest.mark.parametrize(
@@ -471,13 +505,22 @@ def test_public_object_download_file_no_force_sign(
     """
     Test ``GET /data/download/1?no_force_sign=True``.
     """
-    path = "/data/download/1?no_force_sign=True"
-    response = client.get(path)
+
+    no_force_sign_enabled_path = "/data/download/1?no_force_sign=True"
+    response = client.get(no_force_sign_enabled_path)
     assert response.status_code == 200
     assert "url" in list(response.json.keys())
 
     # make sure we honor no_force_sign, check that response is unsigned raw url
     assert urllib.parse.urlparse(response.json["url"]).query == ""
+
+    no_force_sign_disabled_path = "/data/download/1?no_force_sign=False"
+    response = client.get(no_force_sign_disabled_path)
+    assert response.status_code == 200
+    assert "url" in list(response.json.keys())
+
+    # url should be signed, as normal
+    assert urllib.parse.urlparse(response.json["url"]).query != ""
 
 
 @pytest.mark.parametrize(
@@ -552,6 +595,235 @@ def test_public_bucket_unsupported_protocol_file(
     assert not response.json
 
 
+def test_public_acl_object_upload_file(
+    client,
+    public_indexd_client,
+):
+    """
+    Test `GET /data/upload/1` in which the `1` Indexd record has acl populated
+    with the public value.
+    """
+    path = "/data/upload/1"
+    response = client.get(path)
+
+    assert response.status_code == 401
+    assert response.data
+    assert response.mimetype == "text/html"
+    assert not response.json
+
+
+def test_public_authz_object_upload_file(
+    client,
+    indexd_client_accepting_record,
+    mock_arborist_requests,
+    user_client,
+    rsa_private_key,
+    kid,
+):
+    """
+    Test `GET /data/upload/1` in which the `1` Indexd record has authz
+    populated with the public value.
+    """
+    indexd_client_accepting_record(INDEXD_RECORD_WITH_PUBLIC_AUTHZ_POPULATED)
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+    path = "/data/upload/1"
+    response = client.get(path, headers=headers)
+    assert response.status_code == 200
+    assert "url" in response.json
+
+
+def test_public_authz_and_acl_object_upload_file_with_failed_authz_check(
+    client,
+    indexd_client_accepting_record,
+    mock_arborist_requests,
+    user_client,
+    rsa_private_key,
+    kid,
+):
+    """
+    Test `GET /data/upload/1` in which the `1` Indexd record has authz
+    populated with the public value, but the user doesn't have the correct
+    authz permission'
+    """
+    indexd_client_accepting_record(INDEXD_RECORD_WITH_PUBLIC_AUTHZ_AND_ACL_POPULATED)
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": False}, 200)}})
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+    path = "/data/upload/1"
+    response = client.get(path, headers=headers)
+    assert response.status_code == 401
+    assert response.data
+    assert response.mimetype == "text/html"
+    assert not response.json
+
+
+def test_public_authz_and_acl_object_upload_file(
+    client,
+    indexd_client_accepting_record,
+    mock_arborist_requests,
+    user_client,
+    rsa_private_key,
+    kid,
+):
+    """
+    Test `GET /data/upload/1` in which the `1` Indexd record has both authz and
+    acl populated with public values. In this case, authz takes precedence over
+    acl.
+    """
+    indexd_client_accepting_record(INDEXD_RECORD_WITH_PUBLIC_AUTHZ_AND_ACL_POPULATED)
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+    path = "/data/upload/1"
+    response = client.get(path, headers=headers)
+    assert response.status_code == 200
+    assert "url" in response.json
+
+
+def test_non_public_authz_and_public_acl_object_upload_file(
+    client,
+    indexd_client_accepting_record,
+    mock_arborist_requests,
+    user_client,
+    rsa_private_key,
+    kid,
+):
+    """
+    Test that a user can successfully generate an upload url for an Indexd
+    record with a non-public authz field and a public acl field.
+    """
+    indexd_record_with_non_public_authz_and_public_acl_populated = {
+        "did": "1",
+        "baseid": "",
+        "rev": "",
+        "size": 10,
+        "file_name": "file1",
+        "urls": ["s3://bucket1/key"],
+        "hashes": {},
+        "metadata": {},
+        "authz": ["/programs/DEV/projects/test"],
+        "acl": ["*"],
+        "form": "",
+        "created_date": "",
+        "updated_date": "",
+    }
+    indexd_client_accepting_record(
+        indexd_record_with_non_public_authz_and_public_acl_populated
+    )
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+    path = "/data/upload/1"
+    response = client.get(path, headers=headers)
+    assert response.status_code == 200
+    assert "url" in response.json
+
+
+def test_anonymous_download_with_public_authz(
+    client,
+    indexd_client_accepting_record,
+    mock_arborist_requests,
+):
+    """
+    Test that it is possible for a user who is not logged in to generate a
+    download url for a public authz record.
+    """
+    indexd_client_accepting_record(INDEXD_RECORD_WITH_PUBLIC_AUTHZ_POPULATED)
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
+
+    path = "/data/download/1"
+    response = client.get(path)
+    assert response.status_code == 200
+    assert "url" in response.json
+
+
+def test_download_fails_with_wrong_authz_and_public_acl(
+    client,
+    indexd_client_accepting_record,
+    mock_arborist_requests,
+    user_client,
+    rsa_private_key,
+    kid,
+):
+    """
+    Test that generating a download url returns a 401 when acl is public, but
+    authz is a permission the user doesn't have access to. Authz takes
+    precedence.
+    """
+    indexd_record_with_wrong_authz_and_public_acl = {
+        "did": "1",
+        "baseid": "",
+        "rev": "",
+        "size": 10,
+        "file_name": "file1",
+        "urls": ["s3://bucket1/key"],
+        "hashes": {},
+        "metadata": {},
+        "authz": ["/foo"],
+        "acl": ["*"],
+        "form": "",
+        "created_date": "",
+        "updated_date": "",
+    }
+    indexd_client_accepting_record(indexd_record_with_wrong_authz_and_public_acl)
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": False}, 200)}})
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+    path = "/data/download/1"
+    response = client.get(path, headers=headers)
+    assert response.status_code == 401
+    assert response.data
+    assert response.mimetype == "text/html"
+    assert not response.json
+
+
 def test_blank_index_upload(app, client, auth_client, encoded_creds_jwt, user_client):
     class MockResponse(object):
         def __init__(self, data, status_code=200):
@@ -565,7 +837,7 @@ def test_blank_index_upload(app, client, auth_client, encoded_creds_jwt, user_cl
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
     arborist_requests_mocker = mock.patch(
-        "gen3authz.client.arborist.client.requests.request", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
     )
     with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
         data_requests.post.return_value = MockResponse(
@@ -618,7 +890,7 @@ def test_blank_index_upload_authz(
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
     arborist_requests_mocker = mock.patch(
-        "gen3authz.client.arborist.client.requests.request", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
     )
     with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
         data_requests.post.return_value = MockResponse(
@@ -958,7 +1230,7 @@ def test_delete_file_locations(
         "updated_date": "",
     }
     arborist_requests_mocker = mock.patch(
-        "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
     )
     mock_indexed_file_delete_file = mock.patch(
         "fence.blueprints.data.indexd.IndexedFile.delete_files",
@@ -993,8 +1265,8 @@ def test_delete_file_locations(
     with mock.patch(
         "fence.blueprints.data.indexd.requests.delete", mock_delete
     ), arborist_requests_mocker as arborist_requests:
-        arborist_requests.request.return_value = MockResponse({"auth": True})
-        arborist_requests.request.return_value.status_code = 200
+        arborist_requests.return_value = MockResponse({"auth": True})
+        arborist_requests.return_value.status_code = 200
         headers = {"Authorization": "Bearer " + encoded_creds_jwt.jwt}
         response = client.delete("/data/{}".format(did), headers=headers)
         assert response.status_code == 204
@@ -1025,7 +1297,7 @@ def test_delete_file_locations_by_uploader(
         "updated_date": "",
     }
     arborist_requests_mocker = mock.patch(
-        "gen3authz.client.arborist.client.requests", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
     )
     mock_index_document = mock.patch(
         "fence.blueprints.data.indexd.IndexedFile.index_document", index_document
@@ -1074,8 +1346,8 @@ def test_delete_file_locations_by_uploader(
     with mock.patch(
         "fence.blueprints.data.indexd.requests.delete", mock_delete
     ), arborist_requests_mocker as arborist_requests, mock_gcm as mock_gcm_2:
-        arborist_requests.request.return_value = MockResponse({"auth": True})
-        arborist_requests.request.return_value.status_code = 200
+        arborist_requests.return_value = MockResponse({"auth": True})
+        arborist_requests.return_value.status_code = 200
         headers = {"Authorization": "Bearer " + encoded_creds_jwt.jwt}
         response = client.delete("/data/{}".format(did), headers=headers)
         assert response.status_code == 204
@@ -1101,7 +1373,7 @@ def test_blank_index_upload_unauthorized(
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
     arborist_requests_mocker = mock.patch(
-        "gen3authz.client.arborist.client.requests.request", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
     )
     with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
         # pretend arborist says "no"
@@ -1179,7 +1451,7 @@ def test_initialize_multipart_upload(
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
     arborist_requests_mocker = mock.patch(
-        "gen3authz.client.arborist.client.requests.request", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
     )
 
     fence.blueprints.data.indexd.BlankIndex.init_multipart_upload = MagicMock()
@@ -1233,7 +1505,7 @@ def test_multipart_upload_presigned_url(
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
     arborist_requests_mocker = mock.patch(
-        "gen3authz.client.arborist.client.requests.request", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
     )
 
     fence.blueprints.data.indexd.BlankIndex.generate_aws_presigned_url_for_part = (
@@ -1282,7 +1554,7 @@ def test_multipart_complete_upload(
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
     arborist_requests_mocker = mock.patch(
-        "gen3authz.client.arborist.client.requests.request", new_callable=mock.Mock
+        "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
     )
 
     fence.blueprints.data.indexd.BlankIndex.complete_multipart_upload = MagicMock()
@@ -1317,3 +1589,67 @@ def test_multipart_complete_upload(
         response = client.post("/data/multipart/complete", headers=headers, data=data)
 
         assert response.status_code == 200, response
+
+
+def test_delete_files(app, client, auth_client, encoded_creds_jwt, user_client):
+    fence.auth.config["MOCK_AUTH"] = True
+    did = str(uuid.uuid4())
+    did2 = str(uuid.uuid4())
+
+    indx = fence.blueprints.data.indexd.IndexedFile(did)
+    urls = [
+        "s3://bucket1/key-{}".format(did[:8]),
+        "s3://bucket1/key-{}".format(did2[:8]),
+    ]
+    with patch("fence.blueprints.data.indexd.S3IndexedFileLocation") as s3mock:
+        s3mock.return_value.bucket_name.return_value = "bucket"
+        s3mock.return_value.file_name.return_value = "file"
+        mocklocation = s3mock.return_value
+
+        # no urls, no files, no error
+        mocklocation.delete.return_value = ("ok", 200)
+        indx.indexed_file_locations = []
+        message, status = indx.delete_files(urls=None, delete_all=True)
+        assert 0 == mocklocation.delete.call_count
+        assert status == 200
+
+        # urls, files, no error
+        mocklocation.reset_mock()
+        indx.indexed_file_locations = [mocklocation, mocklocation]
+        message, status = indx.delete_files(urls, delete_all=True)
+        assert 2 == mocklocation.delete.call_count
+        assert status == 200
+
+        # no urls, files, no error
+        mocklocation.reset_mock()
+        message, status = indx.delete_files(urls=None)
+        assert 2 == mocklocation.delete.call_count
+        assert status == 200
+
+        # case for urls subset of total locations without error
+        mocklocation.reset_mock()
+        urls = ["s3://bucket1/key-{}".format(did2[:8])]
+        message, status = indx.delete_files(urls, delete_all=True)
+        assert 1 == mocklocation.delete.call_count
+        assert status == 200
+
+        # no urls, files, error
+        mocklocation.reset_mock()
+        mocklocation.delete.return_value = ("bad response", 400)
+        message, status = indx.delete_files(urls=None, delete_all=True)
+        assert 1 == mocklocation.delete.call_count
+        assert status == 400
+
+        # urls, files, error
+        mocklocation.reset_mock()
+        message, status = indx.delete_files(urls)
+        assert 1 == mocklocation.delete.call_count
+        assert status == 400
+
+        # case for urls subset of total locations with error
+        mocklocation.reset_mock()
+        message, status = indx.delete_files(urls, delete_all=True)
+        assert 1 == mocklocation.delete.call_count
+        assert status == 400
+
+    fence.auth.config["MOCK_AUTH"] = False
