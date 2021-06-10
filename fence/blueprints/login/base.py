@@ -56,7 +56,7 @@ class DefaultOAuth2Login(Resource):
 
 
 class DefaultOAuth2Callback(Resource):
-    def __init__(self, idp_name, client, username_field="email"):
+    def __init__(self, idp_name, client, username_field="email", email_field="email"):
         """
         Construct a resource for a login callback endpoint
 
@@ -66,10 +66,13 @@ class DefaultOAuth2Callback(Resource):
                 Some instaniation of this base client class or a child class
             username_field (str, optional): default field from response to
                 retrieve the username
+            email_field (str, optional): default field from response to
+                retrieve the email (if available)
         """
         self.idp_name = idp_name
         self.client = client
         self.username_field = username_field
+        self.email_field = email_field
 
     def get(self):
         # Check if user granted access
@@ -97,8 +100,9 @@ class DefaultOAuth2Callback(Resource):
         code = flask.request.args.get("code")
         result = self.client.get_user_id(code)
         username = result.get(self.username_field)
+        email = result.get(self.email_field)
         if username:
-            resp = _login(username, self.idp_name)
+            resp = _login(username, self.idp_name, email=email)
             self.post_login(flask.g.user, result)
             return resp
         raise UserError(result)
@@ -118,12 +122,12 @@ def create_login_log(idp_name):
     )
 
 
-def _login(username, idp_name):
+def _login(username, idp_name, email=None):
     """
     Login user with given username, then redirect if session has a saved
     redirect.
     """
-    login_user(username, idp_name)
+    login_user(username, idp_name, email=email)
     if flask.session.get("redirect"):
         return flask.redirect(flask.session.get("redirect"))
     return flask.jsonify({"username": username})

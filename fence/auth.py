@@ -57,7 +57,7 @@ def build_redirect_url(hostname, path):
     return redirect_base + path
 
 
-def login_user(username, provider, fence_idp=None, shib_idp=None):
+def login_user(username, provider, fence_idp=None, shib_idp=None, email=None):
     """
     Login a user with the given username and provider. Set values in Flask
     session to indicate the user being logged in. In addition, commit the user
@@ -66,7 +66,10 @@ def login_user(username, provider, fence_idp=None, shib_idp=None):
     Args:
         username (str): specific username of user to be logged in
         provider (str): specfic idp of user to be logged in
-
+        fence_idp (str, optional): Downstreawm fence IdP
+        shib_idp (str, optional): Downstreawm shibboleth IdP
+        email (str, optional): email of user (may or may not match username depending
+            on the IdP)
     """
 
     def set_flask_session_values(user):
@@ -96,7 +99,10 @@ def login_user(username, provider, fence_idp=None, shib_idp=None):
             set_flask_session_values(user)
             return
     else:
-        user = User(username=username)
+        if email:
+            user = User(username=username, email=email)
+        else:
+            user = User(username=username)
 
     idp = (
         current_session.query(IdentityProvider)
@@ -105,6 +111,12 @@ def login_user(username, provider, fence_idp=None, shib_idp=None):
     )
     if not idp:
         idp = IdentityProvider(name=provider)
+
+    if email and user.email != email:
+        logger.info(
+            f"Updating username {user.username}'s email from {user.email} to {email}"
+        )
+        user.email = email
 
     user.identity_provider = idp
     current_session.add(user)

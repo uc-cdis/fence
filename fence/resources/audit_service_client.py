@@ -31,7 +31,7 @@ class AuditServiceClient:
             logger.info("Enabling audit logs")
             self.ping()
         else:
-            logger.warn("NOT enabling audit logs")
+            logger.warning("NOT enabling audit logs")
 
     def ping(self):
         max_tries = 3

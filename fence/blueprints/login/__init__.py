@@ -70,7 +70,7 @@ def make_login_blueprint(app):
             # fall back on ENABLED_IDENTITY_PROVIDERS.default
             default_idp = config["ENABLED_IDENTITY_PROVIDERS"]["default"]
         else:
-            logger.warn("DEFAULT_LOGIN_IDP not configured")
+            logger.warning("DEFAULT_LOGIN_IDP not configured")
             default_idp = None
 
         # other login options
@@ -89,7 +89,7 @@ def make_login_blueprint(app):
                 for idp, details in enabled_providers.items()
             ]
         else:
-            logger.warn("LOGIN_OPTIONS not configured or empty")
+            logger.warning("LOGIN_OPTIONS not configured or empty")
             login_options = []
 
         def absolute_login_url(provider_id, fence_idp=None, shib_idp=None):
@@ -325,7 +325,7 @@ def get_all_shib_idps():
     all_shib_idps = []
     for shib_idp in res.json():
         if "entityID" not in shib_idp:
-            logger.warn(
+            logger.warning(
                 f"get_all_shib_idps(): 'entityID' field not in IDP data: {shib_idp}. Skipping this IDP."
             )
             continue
@@ -333,7 +333,7 @@ def get_all_shib_idps():
         if len(shib_idp.get("DisplayNames", [])) > 0:
             name = get_shib_idp_en_name(shib_idp["DisplayNames"])
         else:
-            logger.warn(
+            logger.warning(
                 f"get_all_shib_idps(): 'DisplayNames' field not in IDP data: {shib_idp}. Using IDP ID '{idp}' as IDP name."
             )
             name = idp
