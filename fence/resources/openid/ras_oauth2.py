@@ -2,14 +2,12 @@ import base64
 import flask
 import httpx
 import requests
-import jwt
 import backoff
 from flask_sqlalchemy_session import current_session
 from jose import jwt as jose_jwt
 
 from authutils.errors import JWTError
-from authutils.token.core import get_iss, get_keys_url, get_kid, get_iss, validate_jwt
-from authutils.token.keys import get_public_key_for_token
+from authutils.token.core import get_iss, get_keys_url, get_kid, validate_jwt
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
