@@ -13,6 +13,9 @@ class BotoManager(object):
 
     URL_EXPIRATION_DEFAULT = 1800  # 30 minutes
     URL_EXPIRATION_MAX = 86400  # 1 day
+    AWS_ASSUME_ROLE_MIN_EXPIRATION = (
+        900  # minimum time for aws assume role is 900 seconds as per boto docs
+    )
 
     def __init__(self, config, logger):
         self.sts_client = client("sts", **config)
@@ -66,6 +69,9 @@ class BotoManager(object):
             if config and "aws_access_key_id" in config:
                 self.sts_client = client("sts", **config)
             session_name_postfix = uuid.uuid4()
+            duration_seconds = max(
+                self.AWS_ASSUME_ROLE_MIN_EXPIRATION, duration_seconds
+            )  # Since minimum time for aws assume role is 900 seconds as per boto docs
             return self.sts_client.assume_role(
                 RoleArn=role_arn,
                 DurationSeconds=duration_seconds,
