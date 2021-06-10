@@ -59,11 +59,12 @@ def create_audit_log_for_request(response):
             )
         elif method == "GET" and endpoint.startswith("/login/"):
             request_url = _clean_authorization_request_url(request_url)
-            flask.current_app.audit_service_client.create_login_log(
-                status_code=response.status_code,
-                request_url=request_url,
-                **audit_data,
-            )
+            if audit_data:  # ignore login calls with no `username`/`sub`/`idp`
+                flask.current_app.audit_service_client.create_login_log(
+                    status_code=response.status_code,
+                    request_url=request_url,
+                    **audit_data,
+                )
     except Exception:
         # TODO monitor this somehow
         traceback.print_exc()
