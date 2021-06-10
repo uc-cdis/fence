@@ -209,7 +209,7 @@ def test_update_visa_empty_visa_returned(
         logger=logger,
     )
 
-    ras_client.update_user_visas(test_user)
+    ras_client.update_user_visas(test_user, pkey_cache={})
 
     query_visa = db_session.query(GA4GHVisaV1).first()
     assert query_visa == None

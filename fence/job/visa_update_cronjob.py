@@ -157,7 +157,7 @@ class Visa_Token_Update(object):
                             name, user.username
                         )
                     )
-                    client.update_user_visas(user, db_session, self.pkey_cache)
+                    client.update_user_visas(user, self.pkey_cache, db_session)
             else:
                 # clear expired refresh tokens
                 if user.upstream_refresh_tokens:
