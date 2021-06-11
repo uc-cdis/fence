@@ -479,6 +479,8 @@ AUDIT_SERVICE: 'http://audit-service'
 ENABLE_AUDIT_LOGS:
   presigned_url: false
   login: false
+PUSH_AUDIT_LOGS_CONFIG:
+  type: api
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # CLOUD API LIBRARY (CIRRUS) CONFIGURATION

@@ -23,6 +23,7 @@ from fence.blueprints.login.orcid import ORCIDLogin, ORCIDCallback
 from fence.blueprints.login.ras import RASLogin, RASCallback
 from fence.blueprints.login.synapse import SynapseLogin, SynapseCallback
 from fence.errors import InternalError
+from fence.resources.audit.utils import enable_audit_logging
 from fence.restful import RestfulApi
 from fence.config import config
 
@@ -56,7 +57,7 @@ def make_login_blueprint(app):
     """
 
     blueprint = flask.Blueprint("login", __name__)
-    blueprint_api = RestfulApi(blueprint)
+    blueprint_api = RestfulApi(blueprint, decorators=[enable_audit_logging])
 
     @blueprint.route("", methods=["GET"])
     def default_login():
