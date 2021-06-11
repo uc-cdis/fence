@@ -92,6 +92,8 @@ def login_user(username, provider, fence_idp=None, shib_idp=None, email=None):
 
     user = query_for_user(session=current_session, username=username)
     if user:
+        _update_users_email(user, email)
+
         #  This expression is relevant to those users who already have user and
         #  idp info persisted to the database. We return early to avoid
         #  unnecessarily re-saving that user and idp info.
@@ -112,11 +114,7 @@ def login_user(username, provider, fence_idp=None, shib_idp=None, email=None):
     if not idp:
         idp = IdentityProvider(name=provider)
 
-    if email and user.email != email:
-        logger.info(
-            f"Updating username {user.username}'s email from {user.email} to {email}"
-        )
-        user.email = email
+    _update_users_email(user, email)
 
     user.identity_provider = idp
     current_session.add(user)
@@ -261,3 +259,16 @@ def admin_required(f):
 def admin_login_required(function):
     """Compose the login required and admin required decorators."""
     return login_required({"admin"})(admin_required(function))
+
+
+def _update_users_email(user, email):
+    """
+    Update email if provided and doesn't match db entry.
+
+    NOTE: This does NOT commit to the db, do so outside this function
+    """
+    if email and user.email != email:
+        logger.info(
+            f"Updating username {user.username}'s email from {user.email} to {email}"
+        )
+        user.email = email
