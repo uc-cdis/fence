@@ -49,7 +49,7 @@ class DefaultOAuth2Login(Resource):
                 config.get("DEV_LOGIN_COOKIE_NAME"), mock_default_user
             )
             resp = _login(username, self.idp_name)
-            create_login_log(self.idp_name)
+            prepare_login_log(self.idp_name)
             return resp
 
         return flask.redirect(self.client.get_auth_url())
@@ -104,18 +104,18 @@ class DefaultOAuth2Callback(Resource):
         raise UserError(result)
 
     def post_login(self, user=None, token_result=None):
-        create_login_log(self.idp_name)
+        prepare_login_log(self.idp_name)
 
 
-def create_login_log(idp_name):
-    flask.current_app.audit_service_client.create_login_log(
-        username=flask.g.user.username,
-        sub=flask.g.user.id,
-        idp=idp_name,
-        fence_idp=flask.session.get("fence_idp"),
-        shib_idp=flask.session.get("shib_idp"),
-        client_id=flask.session.get("client_id"),
-    )
+def prepare_login_log(idp_name):
+    flask.g.audit_data = {
+        "username": flask.g.user.username,
+        "sub": flask.g.user.id,
+        "idp": idp_name,
+        "fence_idp": flask.session.get("fence_idp"),
+        "shib_idp": flask.session.get("shib_idp"),
+        "client_id": flask.session.get("client_id"),
+    }
 
 
 def _login(username, idp_name):
