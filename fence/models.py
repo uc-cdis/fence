@@ -753,7 +753,7 @@ def migrate(driver):
             _set_on_delete_cascades(driver, delete_user_session, md)
 
             delete_user_session.commit()
-        except:
+        except Exception:
             delete_user_session.rollback()
             raise
         finally:

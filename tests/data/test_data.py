@@ -1544,9 +1544,7 @@ def test_abac(
     cloud_manager,
     google_signed_url,
 ):
-    mock_arborist_requests(
-        {"arborist/auth/request": {"POST": ('{"auth": "true"}', 200)}}
-    )
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
     indexd_client = indexd_client_with_arborist("test_abac")
     indexed_file_location = indexd_client["indexed_file_location"]
     path = "/data/download/1"
@@ -1566,9 +1564,7 @@ def test_abac(
     assert response.status_code == 200
     assert "url" in list(response.json.keys())
 
-    mock_arborist_requests(
-        {"arborist/auth/request": {"POST": ('{"auth": "false"}', 403)}}
-    )
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": False}, 403)}})
     response = client.get(path, headers=headers, query_string=query_string)
     assert response.status_code == 403
 

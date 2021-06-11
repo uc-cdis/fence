@@ -168,7 +168,7 @@ def mock_arborist_requests(request):
                 "GET": ("", 200)
             },
             "arborist/auth/request": {
-                "POST": ('{"auth": "false"}', 403)
+                "POST": ({"auth": False}, 403)
             }
         }
     """

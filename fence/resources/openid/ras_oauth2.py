@@ -50,7 +50,7 @@ class RASOauth2Client(Oauth2ClientBase):
             msg = res.text
             try:
                 msg = res.json()
-            except:
+            except Exception:
                 pass
             self.logger.error(
                 "Unable to get visa: status_code: {}, message: {}".format(
