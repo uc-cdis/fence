@@ -7,6 +7,7 @@ from flask_sqlalchemy_session import current_session
 from cdislogging import get_logger
 
 from cirrus import GoogleCloudManager
+from fence.blueprints.login.redirect import validate_redirect
 from fence.restful import RestfulApi
 from fence.errors import NotFound
 from fence.errors import Unauthorized
@@ -100,6 +101,9 @@ class GoogleLinkRedirect(Resource):
     @staticmethod
     def _link_google_account():
         provided_redirect = flask.request.args.get("redirect")
+
+        # will raise UserError if invalid
+        validate_redirect(provided_redirect)
 
         if not provided_redirect:
             raise UserError({"error": "No redirect provided."})
