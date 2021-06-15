@@ -114,8 +114,6 @@ def login_user(username, provider, fence_idp=None, shib_idp=None, email=None):
     if not idp:
         idp = IdentityProvider(name=provider)
 
-    _update_users_email(user, email)
-
     user.identity_provider = idp
     current_session.add(user)
     current_session.commit()
@@ -264,11 +262,12 @@ def admin_login_required(function):
 def _update_users_email(user, email):
     """
     Update email if provided and doesn't match db entry.
-
-    NOTE: This does NOT commit to the db, do so outside this function
     """
     if email and user.email != email:
         logger.info(
             f"Updating username {user.username}'s email from {user.email} to {email}"
         )
         user.email = email
+
+        current_session.add(user)
+        current_session.commit()
