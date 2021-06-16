@@ -1649,7 +1649,6 @@ class UserSyncer(object):
             # update the project info with users from arborist
             self.sync_two_phsids_dict(arborist_user_projects, user_projects)
 
-
         policy_id_list = []
         policies = []
 
@@ -1721,8 +1720,10 @@ class UserSyncer(object):
                     self._created_policies.add(policy_id)
                 self.arborist_client.grant_bulk_user_policy(username, policy_id_list)
             except Exception as e:
-                self.logger.info("Couldn't update bulk policy for user {}: {}".format(username, e))
-            
+                self.logger.info(
+                    "Couldn't update bulk policy for user {}: {}".format(username, e)
+                )
+
             if user_yaml:
                 for policy in user_yaml.policies.get(username, []):
                     self.arborist_client.grant_user_policy(username, policy)
@@ -2138,7 +2139,7 @@ class UserSyncer(object):
             self._grant_all_consents_to_c999_users(
                 user_projects, user_yaml.project_to_resource
             )
-        
+
         # update fence db
         if user_projects:
             self.logger.info("Sync to db and storage backend")

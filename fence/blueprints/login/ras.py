@@ -92,8 +92,12 @@ class RASCallback(DefaultOAuth2Callback):
         flask.current_app.ras_client.store_refresh_token(
             user=user, refresh_token=refresh_token, expires=expires + issued_time
         )
-        
-        parse_visas = strtobool(query_params.get("parse_visas")[0]) if query_params.get("parse_visas") else False
+
+        parse_visas = (
+            strtobool(query_params.get("parse_visas")[0])
+            if query_params.get("parse_visas")
+            else False
+        )
         usersync = config.get("USERSYNC", {})
         sync_from_visas = usersync.get("sync_from_visas", False)
         # Check if user has any project_access from a previous session or from usersync AND if fence is configured to use visas as authZ source
