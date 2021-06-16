@@ -1818,7 +1818,7 @@ class UserSyncer(object):
 
     def _is_arborist_healthy(self):
         if not self.arborist_client:
-            self.logger.warn("no arborist client set; skipping arborist dbgap sync")
+            self.logger.warning("no arborist client set; skipping arborist dbgap sync")
             return False
         if not self.arborist_client.healthy():
             # TODO (rudyardrichter, 2019-01-07): add backoff/retry here

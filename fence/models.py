@@ -532,6 +532,25 @@ class ServiceAccountToGoogleBucketAccessGroup(Base):
     )
 
 
+class AssumeRoleCacheAWS(Base):
+    __tablename__ = "assume_role_cache"
+
+    arn = Column(String(), primary_key=True)
+    expires_at = Column(Integer())
+    aws_access_key_id = Column(String())
+    aws_secret_access_key = Column(String())
+    aws_session_token = Column(String())
+
+
+class AssumeRoleCacheGCP(Base):
+    __tablename__ = "gcp_assume_role_cache"
+
+    gcp_proxy_group_id = Column(String(), primary_key=True)
+    expires_at = Column(Integer())
+    gcp_private_key = Column(String())
+    gcp_key_db_entry = Column(String())
+
+
 class GA4GHVisaV1(Base):
 
     __tablename__ = "ga4gh_visa_v1"
@@ -734,7 +753,7 @@ def migrate(driver):
             _set_on_delete_cascades(driver, delete_user_session, md)
 
             delete_user_session.commit()
-        except:
+        except Exception:
             delete_user_session.rollback()
             raise
         finally:

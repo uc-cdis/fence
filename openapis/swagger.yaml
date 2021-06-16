@@ -1493,6 +1493,19 @@ paths:
             schema:
               $ref: '#/components/schemas/GoogleServiceAccountProjectAccess'
         description: ServiceAccount fields to update
+  /google/primary_google_service_account:
+    post:
+      tags:
+        - google
+      description: |
+        Force the creation of the User's Primary Google Service Account instead of
+        relying on lazy creation at first time of Google Data Access.
+      responses:
+        '200':
+          description: |
+            success, created User's Primary Google Service Account or already exists
+        '401':
+          description: 'invalid token provided (or none provided)'
   /.well-known/jwks:
     get:
       tags:
