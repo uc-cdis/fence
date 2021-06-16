@@ -95,11 +95,13 @@ class FenceCallback(DefaultOAuth2Callback):
             tokens["id_token"], scope="openid", purpose="id", attempt_refresh=True
         )
         username = id_token_claims["context"]["user"]["name"]
+        email = id_token_claims["context"]["user"].get("email")
         login_user(
             username,
             IdentityProvider.fence,
             fence_idp=flask.session.get("fence_idp"),
             shib_idp=flask.session.get("shib_idp"),
+            email=email,
         )
         self.post_login()
 

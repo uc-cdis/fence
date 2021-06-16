@@ -113,7 +113,7 @@ class RASOauth2Client(Oauth2ClientBase):
             self.logger.exception("{}: {}".format(err_msg, e))
             return {"error": err_msg}
 
-        return {"username": username}
+        return {"username": username, "email": userinfo.get("email")}
 
     @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
     def update_user_visas(self, user, db_session=current_session):
