@@ -93,40 +93,39 @@ class RASCallback(DefaultOAuth2Callback):
             user=user, refresh_token=refresh_token, expires=expires + issued_time
         )
 
-        parse_visas = (
-            strtobool(query_params.get("parse_visas")[0])
-            if query_params.get("parse_visas")
-            else False
-        )
-        usersync = config.get("USERSYNC", {})
-        sync_from_visas = usersync.get("sync_from_visas", False)
-        # Check if user has any project_access from a previous session or from usersync AND if fence is configured to use visas as authZ source
-        # if not do an on-the-fly usersync for this user to give them instant access after logging in through RAS
-        if not user.project_access and sync_from_visas and parse_visas:
-            # Close previous db sessions. Leaving it open causes a race condition where we're viewing user.project_access while trying to update it in usersync
-            # not closing leads to partially updated records
-            current_session.close()
-            DB = os.environ.get("FENCE_DB") or config.get("DB")
-            arborist = ArboristClient(
-                arborist_base_url=config["ARBORIST"],
-                logger=get_logger("user_syncer.arborist_client"),
-                authz_provider="user-sync",
-            )
-            if DB is None:
-                try:
-                    from fence.settings import DB
-                except ImportError:
-                    pass
-            dbGaP = os.environ.get("dbGaP") or config.get("dbGaP")
-            if not isinstance(dbGaP, list):
-                dbGaP = [dbGaP]
+        GLOBAL_PARSE_VISAS_ON_LOGIN = config.get("GLOBAL_PARSE_VISAS_ON_LOGIN", None)
 
-            sync = init_syncer(
-                dbGaP,
-                None,
-                DB,
-                arborist=arborist,
-            )
-            sync.sync_single_user_visas(user, current_session)
+        if GLOBAL_PARSE_VISAS_ON_LOGIN or GLOBAL_PARSE_VISAS_ON_LOGIN==None:
+            parse_visas = query_params.get("parse_visas")
+            usersync = config.get("USERSYNC", {})
+            sync_from_visas = usersync.get("sync_from_visas", False)
+            # Check if user has any project_access from a previous session or from usersync AND if fence is configured to use visas as authZ source
+            # if not do an on-the-fly usersync for this user to give them instant access after logging in through RAS
+            if GLOBAL_PARSE_VISAS_ON_LOGIN or (not user.project_access and parse_visas):
+                # Close previous db sessions. Leaving it open causes a race condition where we're viewing user.project_access while trying to update it in usersync
+                # not closing leads to partially updated records
+                current_session.close()
+                DB = os.environ.get("FENCE_DB") or config.get("DB")
+                arborist = ArboristClient(
+                    arborist_base_url=config["ARBORIST"],
+                    logger=get_logger("user_syncer.arborist_client"),
+                    authz_provider="user-sync",
+                )
+                if DB is None:
+                    try:
+                        from fence.settings import DB
+                    except ImportError:
+                        pass
+                dbGaP = os.environ.get("dbGaP") or config.get("dbGaP")
+                if not isinstance(dbGaP, list):
+                    dbGaP = [dbGaP]
+
+                sync = init_syncer(
+                    dbGaP,
+                    None,
+                    DB,
+                    arborist=arborist,
+                )
+                sync.sync_single_user_visas(user, current_session)
 
         super(RASCallback, self).post_login()

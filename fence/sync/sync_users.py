@@ -1627,7 +1627,6 @@ class UserSyncer(object):
         arborist_user_projects = {}
         if not single_user_sync:
             try:
-                # TODO: if single visa sync then just get that one user. Pass user as a field here.
                 arborist_users = self.arborist_client.get_users().json["users"]
 
                 # construct user information, NOTE the lowering of the username. when adding/
@@ -2143,7 +2142,7 @@ class UserSyncer(object):
         # update fence db
         if user_projects:
             self.logger.info("Sync to db and storage backend")
-            self.sync_to_db_and_storage_backend(user_projects, user_info, sess, True)
+            self.sync_to_db_and_storage_backend(user_projects, user_info, sess, single_visa_sync=True)
         else:
             self.logger.info("No users for syncing")
 
@@ -2151,7 +2150,7 @@ class UserSyncer(object):
         if self.arborist_client:
             self.logger.info("Synchronizing arborist with authorization info...")
             success = self._update_authz_in_arborist(
-                sess, user_projects, user_yaml, True
+                sess, user_projects, user_yaml=user_yaml, single_user_sync=True
             )
             if success:
                 self.logger.info(
@@ -2161,3 +2160,7 @@ class UserSyncer(object):
                 self.logger.error(
                     "Could not synchronize authorization info successfully to arborist"
                 )
+        else:
+            self.logger.error(
+                "No arborist client set; skipping arborist sync"
+            )
