@@ -10,7 +10,6 @@ from flask_sqlalchemy_session import current_session
 from urllib.parse import urlparse, parse_qs
 
 from fence.models import GA4GHVisaV1, IdentityProvider
-from cdislogging import get_logger
 from gen3authz.client.arborist.client import ArboristClient
 
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
@@ -138,7 +137,6 @@ class RASCallback(DefaultOAuth2Callback):
 
         if GLOBAL_PARSE_VISAS_ON_LOGIN or GLOBAL_PARSE_VISAS_ON_LOGIN == None:
             parse_visas = query_params.get("parse_visas")
-            usersync = config.get("USERSYNC", {})
             # Check if user has any project_access from a previous session or from usersync AND if fence is configured to use visas as authZ source
             # if not do an on-the-fly usersync for this user to give them instant access after logging in through RAS
             # If GLOBAL_PARSE_VISAS_ON_LOGIN is true then we want to run it regardless of whether or not the client sent parse_visas on request
