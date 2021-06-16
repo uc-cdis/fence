@@ -379,11 +379,11 @@ gmpy2 = ["gmpy2"]
 
 [[package]]
 name = "email-validator"
-version = "1.1.2"
+version = "1.1.3"
 description = "A robust email syntax and deliverability validation library for Python 2.x/3.x."
 category = "main"
 optional = false
-python-versions = "*"
+python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,>=2.7"
 
 [package.dependencies]
 dnspython = ">=1.15.0"
@@ -463,7 +463,7 @@ python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
 
 [[package]]
 name = "gen3authz"
-version = "1.0.5"
+version = "1.1.0"
 description = "Gen3 authz client"
 category = "main"
 optional = false
@@ -477,7 +477,7 @@ httpx = ">=0.12.1,<1.0.0"
 
 [[package]]
 name = "gen3cirrus"
-version = "1.4.0"
+version = "1.3.1"
 description = ""
 category = "main"
 optional = false
@@ -560,7 +560,7 @@ uritemplate = ">=3.0.0,<4dev"
 
 [[package]]
 name = "google-auth"
-version = "1.30.2"
+version = "1.31.0"
 description = "Google Authentication Library"
 category = "main"
 optional = false
@@ -592,7 +592,7 @@ six = "*"
 
 [[package]]
 name = "google-cloud-core"
-version = "1.6.0"
+version = "1.7.0"
 description = "Google Cloud API client core library"
 category = "main"
 optional = false
@@ -969,11 +969,11 @@ six = ">=1.9"
 
 [[package]]
 name = "psycopg2"
-version = "2.8.6"
+version = "2.9"
 description = "psycopg2 - Python-PostgreSQL Database Adapter"
 category = "main"
 optional = false
-python-versions = ">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*"
+python-versions = ">=3.6"
 
 [[package]]
 name = "py"
@@ -1373,7 +1373,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pyt
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "d40311e34d61061698e700457adf613f935dd03b18cbc3e4a9071ba9354f25e6"
+content-hash = "f6794046e1026ec0e1631b75e37ef2d446e2ac70f994121caa0b158e605bc9d9"
 
 [metadata.files]
 addict = [
@@ -1612,8 +1612,8 @@ ecdsa = [
     {file = "ecdsa-0.17.0.tar.gz", hash = "sha256:b9f500bb439e4153d0330610f5d26baaf18d17b8ced1bc54410d189385ea68aa"},
 ]
 email-validator = [
-    {file = "email-validator-1.1.2.tar.gz", hash = "sha256:1a13bd6050d1db4475f13e444e169b6fe872434922d38968c67cea9568cce2f0"},
-    {file = "email_validator-1.1.2-py2.py3-none-any.whl", hash = "sha256:094b1d1c60d790649989d38d34f69e1ef07792366277a2cf88684d03495d018f"},
+    {file = "email_validator-1.1.3-py2.py3-none-any.whl", hash = "sha256:5675c8ceb7106a37e40e2698a57c056756bf3f272cfa8682a4f87ebd95d8440b"},
+    {file = "email_validator-1.1.3.tar.gz", hash = "sha256:aa237a65f6f4da067119b7df3f13e89c25c051327b2b5b66dc075f33d62480d7"},
 ]
 flask = [
     {file = "Flask-1.1.4-py2.py3-none-any.whl", hash = "sha256:c34f04500f2cbbea882b1acb02002ad6fe6b7ffa64a6164577995657f50aed22"},
@@ -1634,11 +1634,11 @@ future = [
     {file = "future-0.18.2.tar.gz", hash = "sha256:b1bead90b70cf6ec3f0710ae53a525360fa360d306a86583adc6bf83a4db537d"},
 ]
 gen3authz = [
-    {file = "gen3authz-1.0.5-py3-none-any.whl", hash = "sha256:f610bfd1166361dc2d5bd41035cbb6e9997b064c0885cf43e05232366d4a0866"},
-    {file = "gen3authz-1.0.5.tar.gz", hash = "sha256:ff160385114e008484f468bf053bb0f3898441e610ec0f37dbbec63e419dcae2"},
+    {file = "gen3authz-1.1.0-py3-none-any.whl", hash = "sha256:7b3f7f09455687a6afd0721c76392f696196e9eeb0c2478d1f68a0d3144e6170"},
+    {file = "gen3authz-1.1.0.tar.gz", hash = "sha256:58e470e29e8492648dec2f6a4a001fb90c1fae0f65f6e1e18fed827916df9c30"},
 ]
 gen3cirrus = [
-    {file = "gen3cirrus-1.4.0.tar.gz", hash = "sha256:45f05952b34d473a76e2ec919aeda8585d909f3dd32164f1190600b969940e3b"},
+    {file = "gen3cirrus-1.3.1.tar.gz", hash = "sha256:e373c418ca7a967ca1e43ce202434c6aa10f545cd403e7195aad9be56631619b"},
 ]
 gen3config = [
     {file = "gen3config-0.1.9.tar.gz", hash = "sha256:2b2fa3e5f3d9a417d5173de26303d06e4b03f5f7d7005e44d4ba91f55e7b0fec"},
@@ -1655,16 +1655,16 @@ google-api-python-client = [
     {file = "google_api_python_client-1.11.0-py2.py3-none-any.whl", hash = "sha256:4f596894f702736da84cf89490a810b55ca02a81f0cddeacb3022e2900b11ec6"},
 ]
 google-auth = [
-    {file = "google-auth-1.30.2.tar.gz", hash = "sha256:9b235dbc876e49454cbedc52ae0abd540ef705ebccdf4fbe93553bb13f26b1a4"},
-    {file = "google_auth-1.30.2-py2.py3-none-any.whl", hash = "sha256:eb017521276a75492282c6ca4b718f26de112ed3bcbeaeeb02c1b82de425f909"},
+    {file = "google-auth-1.31.0.tar.gz", hash = "sha256:154f7889c5d679a6f626f36adb12afbd4dbb0a9a04ec575d989d6ba79c4fd65e"},
+    {file = "google_auth-1.31.0-py2.py3-none-any.whl", hash = "sha256:6d47c79b5d09fbc7e8355fd9594cc4cf65fdde5d401c63951eaac4baa1ba2ae1"},
 ]
 google-auth-httplib2 = [
     {file = "google-auth-httplib2-0.1.0.tar.gz", hash = "sha256:a07c39fd632becacd3f07718dfd6021bf396978f03ad3ce4321d060015cc30ac"},
     {file = "google_auth_httplib2-0.1.0-py2.py3-none-any.whl", hash = "sha256:31e49c36c6b5643b57e82617cb3e021e3e1d2df9da63af67252c02fa9c1f4a10"},
 ]
 google-cloud-core = [
-    {file = "google-cloud-core-1.6.0.tar.gz", hash = "sha256:c6abb18527545379fc82efc4de75ce9a3772ccad2fc645adace593ba097cbb02"},
-    {file = "google_cloud_core-1.6.0-py2.py3-none-any.whl", hash = "sha256:40d9c2da2d03549b5ac3dcccf289d4f15e6d1210044c6381ce45c92913e62904"},
+    {file = "google-cloud-core-1.7.0.tar.gz", hash = "sha256:2ab0cf260c11d0cc334573301970419abb6a1f3909c6cd136e4be996616372fe"},
+    {file = "google_cloud_core-1.7.0-py2.py3-none-any.whl", hash = "sha256:9bd528810423aeaa428a9a178e7320883bbb690a8b0bb38297b794dc319c415a"},
 ]
 google-cloud-storage = [
     {file = "google-cloud-storage-1.38.0.tar.gz", hash = "sha256:162011d66f64b8dc5d7936609a5daf0066cc521231546aea02c126a5559446c4"},
@@ -1865,21 +1865,15 @@ protobuf = [
     {file = "protobuf-3.17.3.tar.gz", hash = "sha256:72804ea5eaa9c22a090d2803813e280fb273b62d5ae497aaf3553d141c4fdd7b"},
 ]
 psycopg2 = [
-    {file = "psycopg2-2.8.6-cp27-cp27m-win32.whl", hash = "sha256:068115e13c70dc5982dfc00c5d70437fe37c014c808acce119b5448361c03725"},
-    {file = "psycopg2-2.8.6-cp27-cp27m-win_amd64.whl", hash = "sha256:d160744652e81c80627a909a0e808f3c6653a40af435744de037e3172cf277f5"},
-    {file = "psycopg2-2.8.6-cp34-cp34m-win32.whl", hash = "sha256:b8cae8b2f022efa1f011cc753adb9cbadfa5a184431d09b273fb49b4167561ad"},
-    {file = "psycopg2-2.8.6-cp34-cp34m-win_amd64.whl", hash = "sha256:f22ea9b67aea4f4a1718300908a2fb62b3e4276cf00bd829a97ab5894af42ea3"},
-    {file = "psycopg2-2.8.6-cp35-cp35m-win32.whl", hash = "sha256:26e7fd115a6db75267b325de0fba089b911a4a12ebd3d0b5e7acb7028bc46821"},
-    {file = "psycopg2-2.8.6-cp35-cp35m-win_amd64.whl", hash = "sha256:00195b5f6832dbf2876b8bf77f12bdce648224c89c880719c745b90515233301"},
-    {file = "psycopg2-2.8.6-cp36-cp36m-win32.whl", hash = "sha256:a49833abfdede8985ba3f3ec641f771cca215479f41523e99dace96d5b8cce2a"},
-    {file = "psycopg2-2.8.6-cp36-cp36m-win_amd64.whl", hash = "sha256:f974c96fca34ae9e4f49839ba6b78addf0346777b46c4da27a7bf54f48d3057d"},
-    {file = "psycopg2-2.8.6-cp37-cp37m-win32.whl", hash = "sha256:6a3d9efb6f36f1fe6aa8dbb5af55e067db802502c55a9defa47c5a1dad41df84"},
-    {file = "psycopg2-2.8.6-cp37-cp37m-win_amd64.whl", hash = "sha256:56fee7f818d032f802b8eed81ef0c1232b8b42390df189cab9cfa87573fe52c5"},
-    {file = "psycopg2-2.8.6-cp38-cp38-win32.whl", hash = "sha256:ad2fe8a37be669082e61fb001c185ffb58867fdbb3e7a6b0b0d2ffe232353a3e"},
-    {file = "psycopg2-2.8.6-cp38-cp38-win_amd64.whl", hash = "sha256:56007a226b8e95aa980ada7abdea6b40b75ce62a433bd27cec7a8178d57f4051"},
-    {file = "psycopg2-2.8.6-cp39-cp39-win32.whl", hash = "sha256:2c93d4d16933fea5bbacbe1aaf8fa8c1348740b2e50b3735d1b0bf8154cbf0f3"},
-    {file = "psycopg2-2.8.6-cp39-cp39-win_amd64.whl", hash = "sha256:d5062ae50b222da28253059880a871dc87e099c25cb68acf613d9d227413d6f7"},
-    {file = "psycopg2-2.8.6.tar.gz", hash = "sha256:fb23f6c71107c37fd667cb4ea363ddeb936b348bbd6449278eb92c189699f543"},
+    {file = "psycopg2-2.9-cp36-cp36m-win32.whl", hash = "sha256:e84c80be7a238d3c9c099b71f6890eaa35fc881146232cce888a88ab1bfb431e"},
+    {file = "psycopg2-2.9-cp36-cp36m-win_amd64.whl", hash = "sha256:f3d42bd42302293767b84206d9a446abc67ed4a133e4fe04dad8952de06c2091"},
+    {file = "psycopg2-2.9-cp37-cp37m-win32.whl", hash = "sha256:b6f47af317af8110818d255e693cfa80b7f1e435285be09778db7b66efd95789"},
+    {file = "psycopg2-2.9-cp37-cp37m-win_amd64.whl", hash = "sha256:22102cfeb904898254f287b1a77360bf66c636858e7476593acd5267e5c24ff9"},
+    {file = "psycopg2-2.9-cp38-cp38-win32.whl", hash = "sha256:03a485bf71498870e38b535c0e6e7162d6ac06a91487edddc3b959894d65f79c"},
+    {file = "psycopg2-2.9-cp38-cp38-win_amd64.whl", hash = "sha256:d549db98fc0e6db41a2aa0d65f7434c4308a9f64012adb209b9e489f26fe87c6"},
+    {file = "psycopg2-2.9-cp39-cp39-win32.whl", hash = "sha256:e44e39a46af7c30566b7667fb27e701e652ab0a51e05c263a01d3ff0e223b765"},
+    {file = "psycopg2-2.9-cp39-cp39-win_amd64.whl", hash = "sha256:8f4c1800e57ad128d20b2e91d222ca238fffd316cef65be781361cdf35e37979"},
+    {file = "psycopg2-2.9.tar.gz", hash = "sha256:b12073fdf2002e828e5921be2c39ff9c6eab361c5c0bd6c529619fc23677accc"},
 ]
 py = [
     {file = "py-1.10.0-py2.py3-none-any.whl", hash = "sha256:3b80836aa6d1feeaa108e046da6423ab8f6ceda6468545ae8d02d9d58d18818a"},
