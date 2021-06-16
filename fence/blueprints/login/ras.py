@@ -136,7 +136,7 @@ class RASCallback(DefaultOAuth2Callback):
 
         GLOBAL_PARSE_VISAS_ON_LOGIN = config.get("GLOBAL_PARSE_VISAS_ON_LOGIN", None)
 
-        if GLOBAL_PARSE_VISAS_ON_LOGIN or GLOBAL_PARSE_VISAS_ON_LOGIN==None:
+        if GLOBAL_PARSE_VISAS_ON_LOGIN or GLOBAL_PARSE_VISAS_ON_LOGIN == None:
             parse_visas = query_params.get("parse_visas")
             usersync = config.get("USERSYNC", {})
             sync_from_visas = usersync.get("sync_from_visas", False)

@@ -2142,7 +2142,9 @@ class UserSyncer(object):
         # update fence db
         if user_projects:
             self.logger.info("Sync to db and storage backend")
-            self.sync_to_db_and_storage_backend(user_projects, user_info, sess, single_visa_sync=True)
+            self.sync_to_db_and_storage_backend(
+                user_projects, user_info, sess, single_visa_sync=True
+            )
         else:
             self.logger.info("No users for syncing")
 
@@ -2161,6 +2163,4 @@ class UserSyncer(object):
                     "Could not synchronize authorization info successfully to arborist"
                 )
         else:
-            self.logger.error(
-                "No arborist client set; skipping arborist sync"
-            )
+            self.logger.error("No arborist client set; skipping arborist sync")
