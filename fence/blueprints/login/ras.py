@@ -139,10 +139,12 @@ class RASCallback(DefaultOAuth2Callback):
         if GLOBAL_PARSE_VISAS_ON_LOGIN or GLOBAL_PARSE_VISAS_ON_LOGIN == None:
             parse_visas = query_params.get("parse_visas")
             usersync = config.get("USERSYNC", {})
-            sync_from_visas = usersync.get("sync_from_visas", False)
             # Check if user has any project_access from a previous session or from usersync AND if fence is configured to use visas as authZ source
             # if not do an on-the-fly usersync for this user to give them instant access after logging in through RAS
-            if GLOBAL_PARSE_VISAS_ON_LOGIN or (not user.project_access and parse_visas):
+            # If GLOBAL_PARSE_VISAS_ON_LOGIN is true then we want to run it regardless of whether or not the client sent parse_visas on request
+            if (GLOBAL_PARSE_VISAS_ON_LOGIN or parse_visas) and (
+                not user.project_access
+            ):
                 # Close previous db sessions. Leaving it open causes a race condition where we're viewing user.project_access while trying to update it in usersync
                 # not closing leads to partially updated records
                 current_session.close()
