@@ -124,6 +124,9 @@ class GoogleServiceAccountRoot(Resource):
         """
         Register a new service account
         """
+        print(
+            "----------------------------------------------------------------------ROOT"
+        )
         user_id = current_token["sub"]
         payload = flask.request.get_json(silent=True) or {}
 
@@ -364,6 +367,9 @@ class GoogleServiceAccount(Resource):
         Args:
             id_ (str): Must be "_dry_run", otherwise, error
         """
+        print(
+            "----------------------------------------------------------------------NOT ROOT"
+        )
         if id_ != "_dry_run":
             raise UserError("Cannot post with account id_.")
 
