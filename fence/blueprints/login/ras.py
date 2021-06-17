@@ -133,7 +133,7 @@ class RASCallback(DefaultOAuth2Callback):
             user=user, refresh_token=refresh_token, expires=expires + issued_time
         )
 
-        GLOBAL_PARSE_VISAS_ON_LOGIN = config.get("GLOBAL_PARSE_VISAS_ON_LOGIN", None)
+        GLOBAL_PARSE_VISAS_ON_LOGIN = config["GLOBAL_PARSE_VISAS_ON_LOGIN"]
 
         if GLOBAL_PARSE_VISAS_ON_LOGIN or GLOBAL_PARSE_VISAS_ON_LOGIN == None:
             parse_visas = query_params.get("parse_visas")
