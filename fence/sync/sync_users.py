@@ -1728,17 +1728,23 @@ class UserSyncer(object):
                                 )
                             self._created_policies.add(policy_id)
 
-                        self.arborist_client.grant_user_policy(username, policy_id) if not single_user_sync else None
+                        self.arborist_client.grant_user_policy(
+                            username, policy_id
+                        ) if not single_user_sync else None
 
             if single_user_sync:
                 try:
                     self.arborist_client.update_bulk_policy(policies)
                     for policy_id in policy_id_list:
                         self._created_policies.add(policy_id)
-                    self.arborist_client.grant_bulk_user_policy(username, policy_id_list)
+                    self.arborist_client.grant_bulk_user_policy(
+                        username, policy_id_list
+                    )
                 except Exception as e:
                     self.logger.info(
-                        "Couldn't update bulk policy for user {}: {}".format(username, e)
+                        "Couldn't update bulk policy for user {}: {}".format(
+                            username, e
+                        )
                     )
 
             if user_yaml:
