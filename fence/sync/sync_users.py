@@ -1711,10 +1711,7 @@ class UserSyncer(object):
                             policies.append(policy_json)
 
             try:
-                self.arborist_client.update_bulk_policy(
-                    policies,
-                    create_if_not_exist=True,
-                )
+                self.arborist_client.update_bulk_policy(policies)
                 for policy_id in policy_id_list:
                     self._created_policies.add(policy_id)
                 self.arborist_client.grant_bulk_user_policy(username, policy_id_list)
