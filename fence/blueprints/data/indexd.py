@@ -986,6 +986,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             http_verb,
             expiration_time,
             extension_headers=None,
+            canonical_query_params=None,
             service_account_creds=private_key,
             requester_pays_user_project=r_pays_project,
         )
@@ -1114,6 +1115,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             http_verb,
             expiration_time,
             extension_headers=None,
+            canonical_query_params=None,
             service_account_creds=private_key,
             requester_pays_user_project=r_pays_project,
         )
