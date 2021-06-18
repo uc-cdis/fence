@@ -1,15 +1,16 @@
 from collections import OrderedDict
-import os
-import tempfile
-
-from authutils.oauth2.client import OAuthClient
 import flask
 from flask_cors import CORS
 from flask_sqlalchemy_session import flask_scoped_session, current_session
+import os
+import tempfile
 from urllib.parse import urljoin
+
+from authutils.oauth2.client import OAuthClient
+from cdislogging import get_logger
+from gen3authz.client.arborist.client import ArboristClient
 from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
-
 
 from fence.auth import logout, build_redirect_url
 from fence.blueprints.data.indexd import S3IndexedFileLocation
@@ -19,7 +20,7 @@ from fence.jwt import keys
 from fence.models import migrate
 from fence.oidc.client import query_client
 from fence.oidc.server import server
-from fence.resources.audit_service_client import AuditServiceClient
+from fence.resources.audit.client import AuditServiceClient
 from fence.resources.aws.boto_manager import BotoManager
 from fence.resources.openid.cilogon_oauth2 import CilogonOauth2Client as CilogonClient
 from fence.resources.openid.cognito_oauth2 import CognitoOauth2Client as CognitoClient
@@ -48,12 +49,6 @@ import fence.blueprints.well_known
 import fence.blueprints.link
 import fence.blueprints.google
 import fence.blueprints.privacy
-
-from cdislogging import get_logger
-
-from cdispyutils.config import get_value
-
-from gen3authz.client.arborist.client import ArboristClient
 
 
 # for some reason the temp dir does not get created properly if we move

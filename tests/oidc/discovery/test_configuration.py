@@ -36,6 +36,6 @@ def test_oidc_config_fields(app, client):
 
     for field in recommended_fields:
         if field not in response.json:
-            warnings.warn(
+            warnings.warning(
                 "OIDC configuration response missing recommended field: " + field
             )

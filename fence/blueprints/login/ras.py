@@ -1,6 +1,10 @@
 import flask
 import jwt
 import os
+from authutils.errors import JWTError
+from authutils.token.core import validate_jwt
+from authutils.token.keys import get_public_key_for_token
+from cdislogging import get_logger
 from flask_sqlalchemy_session import current_session
 import urllib.request, urllib.error
 from urllib.parse import urlparse, parse_qs
@@ -12,6 +16,8 @@ from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callbac
 from fence.config import config
 from fence.scripting.fence_create import init_syncer
 from fence.utils import get_valid_expiration
+
+logger = get_logger(__name__)
 
 
 class RASLogin(DefaultOAuth2Login):
@@ -45,13 +51,50 @@ class RASCallback(DefaultOAuth2Callback):
         encoded_visas = flask.g.userinfo.get("ga4gh_passport_v1", [])
 
         for encoded_visa in encoded_visas:
-            # TODO: These visas must be validated!!!
-            # i.e. (Remove `verify=False` in jwt.decode call)
-            # But: need a routine for getting public keys per visa.
-            # And we probably want to cache them.
-            # Also needs any ga4gh-specific validation.
-            # For now just read them without validation:
-            decoded_visa = jwt.decode(encoded_visa, verify=False)
+            try:
+                # Do not move out of loop unless we can assume every visa has same issuer and kid
+                public_key = get_public_key_for_token(
+                    encoded_visa, attempt_refresh=True
+                )
+            except Exception as e:
+                # (But don't log the visa contents!)
+                logger.error(
+                    "Could not get public key to validate visa: {}. Discarding visa.".format(
+                        e
+                    )
+                )
+                continue
+
+            try:
+                # Validate the visa per GA4GH AAI "Embedded access token" format rules.
+                # pyjwt also validates signature and expiration.
+                decoded_visa = validate_jwt(
+                    encoded_visa,
+                    public_key,
+                    # Embedded token must not contain aud claim
+                    aud=None,
+                    # Embedded token must contain scope claim, which must include openid
+                    scope={"openid"},
+                    issuers=config.get("GA4GH_VISA_ISSUER_ALLOWLIST", []),
+                    # Embedded token must contain iss, sub, iat, exp claims
+                    # options={"require": ["iss", "sub", "iat", "exp"]},
+                    # ^ FIXME 2021-05-13: Above needs pyjwt>=v2.0.0, which requires cryptography>=3.
+                    # Once we can unpin and upgrade cryptography and pyjwt, switch to above "options" arg.
+                    # For now, pyjwt 1.7.1 is able to require iat and exp;
+                    # authutils' validate_jwt (i.e. the function being called) checks issuers already (see above);
+                    # and we will check separately for sub below.
+                    options={
+                        "require_iat": True,
+                        "require_exp": True,
+                    },
+                )
+
+                # Also require 'sub' claim (see note above about pyjwt and the options arg).
+                if "sub" not in decoded_visa:
+                    raise JWTError("Visa is missing the 'sub' claim.")
+            except Exception as e:
+                logger.error("Visa failed validation: {}. Discarding visa.".format(e))
+                continue
 
             visa = GA4GHVisaV1(
                 user=user,

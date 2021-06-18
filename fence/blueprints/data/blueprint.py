@@ -3,14 +3,15 @@ import flask
 from cdislogging import get_logger
 
 from fence.auth import login_required, require_auth_header, current_token, get_jwt
+from fence.authz.auth import check_arborist_auth
 from fence.blueprints.data.indexd import (
     BlankIndex,
     IndexedFile,
     get_signed_url_for_file,
 )
 from fence.errors import Forbidden, InternalError, UserError, Forbidden
+from fence.resources.audit.utils import enable_audit_logging
 from fence.utils import get_valid_expiration
-from fence.authz.auth import check_arborist_auth
 
 
 logger = get_logger(__name__)
@@ -292,6 +293,7 @@ def upload_file(file_id):
 
 
 @blueprint.route("/download/<path:file_id>", methods=["GET"])
+@enable_audit_logging
 def download_file(file_id):
     """
     Get a presigned url to download a file given by file_id.

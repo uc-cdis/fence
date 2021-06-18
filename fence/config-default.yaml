@@ -624,6 +624,18 @@ AUDIT_SERVICE: 'http://audit-service'
 ENABLE_AUDIT_LOGS:
   presigned_url: false
   login: false
+# `PUSH_AUDIT_LOGS_CONFIG.type` is one of: [api, aws_sqs].
+# - if type == api: logs are created by hitting the log creation endpoint.
+# - if type == aws_sqs: logs are pushed to an SQS and `aws_sqs_config` fields
+# `sqs_url` and `region` are required. Fields `aws_access_key_id` and
+# `aws_secret_access_key` are optional.
+PUSH_AUDIT_LOGS_CONFIG:
+  type: aws_sqs
+  aws_sqs_config:
+    sqs_url:
+    region:
+    aws_access_key_id:
+    aws_secret_access_key:
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # CLOUD API LIBRARY (CIRRUS) AND GOOGLE CONFIGURATION
@@ -824,6 +836,11 @@ ASSUME_ROLE_CACHE_SECONDS: 1800
 
 # RAS refresh_tokens expire in 15 days
 RAS_REFRESH_EXPIRATION: 1296000
+# List of JWT issuers from which Fence will accept GA4GH visas
+GA4GH_VISA_ISSUER_ALLOWLIST:
+  - '{{BASE_URL}}'
+  - 'https://sts.nih.gov'
+  - 'https://stsstg.nih.gov'
 # Number of projects that can be registered to a Google Service Accont
 SERVICE_ACCOUNT_LIMIT: 6
 # Settings for usersync with visas
