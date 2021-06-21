@@ -91,8 +91,20 @@ class FenceCallback(DefaultOAuth2Callback):
         tokens = flask.current_app.fence_client.fetch_access_token(
             redirect_uri, **flask.request.args.to_dict()
         )
+        # After Fence 5.0.0 "remove scopes from aud claim" changes,
+        # this validate_jwt is supposed to look like this:
+        #     id_token_claims = validate_jwt(
+        #         tokens["id_token"], scope={"openid"}, purpose="id", attempt_refresh=True
+        #     )
+        # However, since fenceshib cannot be updated to issue "new-style" ID tokens
+        # (where scopes are in the scope claim and aud is in the aud claim),
+        # we will instead validate Fence ID tokens as "old-style" tokens.
         id_token_claims = validate_jwt(
-            tokens["id_token"], scope="openid", purpose="id", attempt_refresh=True
+            tokens["id_token"],
+            aud="openid",
+            scope=None,
+            purpose="id",
+            attempt_refresh=True,
         )
         username = id_token_claims["context"]["user"]["name"]
         email = id_token_claims["context"]["user"].get("email")
