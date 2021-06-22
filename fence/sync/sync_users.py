@@ -1394,6 +1394,8 @@ class UserSyncer(object):
                     "Could not synchronize authorization info successfully to arborist"
                 )
                 exit(1)
+        else:
+            self.logger.error("No arborist client set; skipping arborist sync")
 
         # Logging authz source
         for u, s in self.auth_source.items():
@@ -1700,18 +1702,10 @@ class UserSyncer(object):
                         # so the policy id will be something like 'x.y.z-create'
                         policy_id = _format_policy_id(path, permission)
 
-                        if single_user_sync:
-                            policy_id_list.append(policy_id)
-
-                            if policy_id not in self._created_policies:
-                                policy_json = {
-                                    "id": policy_id,
-                                    "description": "policy created by fence sync",
-                                    "role_ids": [permission],
-                                    "resource_paths": [path],
-                                }
-                                policies.append(policy_json)
-                        else:
+                        if (
+                            not single_user_sync
+                            and policy_id not in self._created_policies
+                        ):
                             try:
                                 self.arborist_client.update_policy(
                                     policy_id,
@@ -1727,16 +1721,23 @@ class UserSyncer(object):
                                     "not creating policy in arborist; {}".format(str(e))
                                 )
                             self._created_policies.add(policy_id)
+                            self.arborist_client.grant_user_policy(username, policy_id)
 
-                        self.arborist_client.grant_user_policy(
-                            username, policy_id
-                        ) if not single_user_sync else None
+                        if single_user_sync:
+                            policy_id_list.append(policy_id)
+
+                            if policy_id not in self._created_policies:
+                                policy_json = {
+                                    "id": policy_id,
+                                    "description": "policy created by fence sync",
+                                    "role_ids": [permission],
+                                    "resource_paths": [path],
+                                }
+                                policies.append(policy_json)
 
             if single_user_sync:
                 try:
                     self.arborist_client.update_bulk_policy(policies)
-                    for policy_id in policy_id_list:
-                        self._created_policies.add(policy_id)
                     self.arborist_client.grant_bulk_user_policy(
                         username, policy_id_list
                     )
@@ -2088,6 +2089,9 @@ class UserSyncer(object):
                     "Could not synchronize authorization info successfully to arborist"
                 )
                 exit(1)
+        else:
+            self.logger.error("No arborist client set; skipping arborist sync")
+
         # Logging authz source
         for u, s in self.auth_source.items():
             self.logger.info("Access for user {} from {}".format(u, s))
