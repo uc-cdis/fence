@@ -90,6 +90,14 @@ class RASOauth2Client(Oauth2ClientBase):
                 options={"verify_aud": False, "verify_at_hash": False},
             )
 
+            # Log txn in access token for RAS ISA compliance
+            at_claims = jose_jwt.decode(
+                token["access_token"], keys, options={"verify_aud": False}
+            )
+            self.logger.info(
+                "Received RAS access token with txn: {}".format(at_claims.get("txn"))
+            )
+
             username = None
             if userinfo.get("UserID"):
                 username = userinfo["UserID"]
