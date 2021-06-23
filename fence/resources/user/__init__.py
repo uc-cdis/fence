@@ -257,3 +257,15 @@ def remove_user_from_project(current_session, user, project):
         raise NotFound(
             "Project {0} not connected to user {1}".format(project.name, user.username)
         )
+
+
+def user_review_document(current_session, documents):
+    return udm.review_document(current_session, flask.g.user.username, documents) 
+
+
+def get_doc_to_be_reviewed(current_session):
+    return udm.get_doc_to_review(current_session, flask.g.user.username)
+
+
+
+

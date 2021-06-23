@@ -3,8 +3,8 @@ from flask_sqlalchemy_session import current_session
 
 from fence.auth import login_required, current_token
 from fence.errors import Unauthorized, UserError, NotFound
-from fence.models import Application, Certificate
-from fence.resources.user import send_mail, get_current_user_info, update_user
+from fence.models import Application, Certificate, DocumentSchema
+from fence.resources.user import send_mail, get_current_user_info, update_user, user_review_document, get_doc_to_be_reviewed
 from fence.config import config
 
 
@@ -161,3 +161,33 @@ def download_certificate(certificate):
         return resp
     else:
         raise NotFound("No certificate with name {} found".format(certificate))
+
+
+@blueprint.route("/documents", methods=["POST"])
+@login_required({"user"})
+def review_document():
+    # Confirm one or more document have been reviewed and accepted
+    body = flask.request.get_json()
+    documents = {}
+    # key is supposed to be the id of the Document and value a true/false check
+    for key, value in body.items():
+        documents[key] = value
+
+    project_schema = DocumentSchema(many=True)
+
+    ret = {}
+    ret["reviewed"] = project_schema.dump(user_review_document(current_session, documents))
+    ret["missing"] = project_schema.dump(get_doc_to_be_reviewed(current_session))
+
+    return flask.jsonify(ret)
+
+
+@blueprint.route("/documents", methods=["GET"])
+@login_required({"user"})
+def get_document():
+    # Returns a list of documents that need to be reviewed and accepted
+
+    project_schema = DocumentSchema(many=True)
+    return flask.jsonify(project_schema.dump(get_doc_to_be_reviewed(current_session)))
+
+

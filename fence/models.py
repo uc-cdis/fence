@@ -9,6 +9,7 @@ database migrations.
 
 from enum import Enum
 
+from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 from authlib.flask.oauth2.sqla import OAuth2AuthorizationCodeMixin, OAuth2ClientMixin
 import bcrypt
 import flask
@@ -23,6 +24,7 @@ from sqlalchemy import (
     MetaData,
     Table,
     text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import relationship, backref
@@ -89,6 +91,42 @@ class GrantType(Enum):
     refresh = "refresh_token"
     implicit = "implicit"
     client_credentials = "client_credentials"
+
+
+class Document(Base):
+    __tablename__ = "document"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    type = Column(String, nullable=False)
+    version = Column(Integer, nullable=False)
+    name = Column(String, nullable=False)
+    required = Column(Boolean)
+    raw = Column(String, nullable=False)
+    formatted = Column(String)
+
+    __table_args__ = (UniqueConstraint('type', 'version', name='doc_type_version_uc'),)
+
+
+class DocumentSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = Document
+
+
+class UserDocument(Base):
+    __tablename__ = "user_document"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    user_id = Column(Integer, ForeignKey(User.id), nullable=False)
+    user = relationship("User", backref=backref("documents"),)
+
+    document_id = Column(Integer, ForeignKey(Document.id), nullable=False)
+    document = relationship("Document",backref=backref("users"),)
+
+    accepted = Column(Boolean)
+    reviewed_on = Column(DateTime(timezone=False), server_default=func.now())
+
+    __table_args__ = (UniqueConstraint('user_id', 'document_id', name='user_doc_uc'),)
 
 
 class Client(Base, OAuth2ClientMixin):
@@ -1061,6 +1099,27 @@ def _remove_policy(driver, md):
         session.execute("DROP TABLE IF EXISTS users_to_policies;")
         session.execute("DROP TABLE IF EXISTS policy;")
         session.commit()
+
+# def _add_documents(driver, md):
+#     with driver.session as session:
+#         session.execute("INSERT INTO document(type, version, name, raw, formatted);")
+#         session.execute("DROP TABLE IF EXISTS policy;")
+#         session.commit()
+
+
+#                     INSERT INTO user_audit_logs (timestamp, operation, old_values)
+
+
+
+
+#     type = Column(String, nullable=False)
+#     version = Column(Integer, nullable=False)
+#     name = Column(String, nullable=False)
+#     raw = Column(String, nullable=False)
+#     formatted = Column(String)
+
+#     __table_args__ = (UniqueConstraint('type', 'version', name='doc_type_version_uc'),)
+
 
 
 def _add_google_project_id(driver, md):

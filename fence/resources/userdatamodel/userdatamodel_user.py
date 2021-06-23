@@ -1,4 +1,4 @@
-from sqlalchemy import func
+from sqlalchemy import func, and_
 
 from fence.errors import NotFound, UserError
 from fence.models import (
@@ -12,6 +12,8 @@ from fence.models import (
     Group,
     UserToGroup,
     query_for_user,
+    Document,
+    UserDocument
 )
 
 
@@ -22,6 +24,8 @@ __all__ = [
     "get_all_users",
     "get_user_groups",
     "update_user",
+    "review_document",
+    "get_doc_to_review",
 ]
 
 
@@ -93,3 +97,53 @@ def get_user_groups(current_session, username):
         )
         groups.append(group_to_retrieve.name)
     return {"groups": groups}
+
+
+def review_document(session, username, documents):
+    user = get_user(session, username)
+    if not user:
+        msg = "".join(["error: user with username ", user["username"], " not found"])
+        raise NotFound(msg)
+
+    user_docs = []
+    added_docs = []
+    for key, value in documents.items():
+        doc = session.query(Document).filter(Document.id == key).first()
+
+        if doc and not (doc.required == True and value == False):
+            added_docs.append(doc)
+            new_user_doc = UserDocument(user_id=user.id, document_id=doc.id, accepted=value)
+            user_docs.append(new_user_doc)
+
+    if len(user_docs) > 0:
+        # user.documents.extend(docs)
+        session.add_all(user_docs)
+        session.commit()
+        
+    return added_docs
+
+
+def get_doc_to_review(session, username):
+    # get latest docs
+    latest_docs_subq = session.query(Document.type, func.max(Document.version).label('version')).group_by(Document.type).subquery('latest_doc')
+    latest_docs = session.query(Document).join(latest_docs_subq, and_(Document.type == latest_docs_subq.c.type, Document.version == latest_docs_subq.c.version)).all()
+
+    # get user documents
+    user_docs = session.query(UserDocument).join(User).filter(func.lower(User.username) == username.lower()).join(Document).join(latest_docs_subq, and_(Document.type == latest_docs_subq.c.type, Document.version == latest_docs_subq.c.version)).all()
+
+    user_docs_id = [user_doc.document.id for user_doc in user_docs]
+    docs = [latest_doc for latest_doc in latest_docs if latest_doc.id not in user_docs_id]
+
+    # docs = []
+    # for doc in latest_docs:
+    #     present = False
+    #     for user_doc in user_docs:
+    #         if doc.id == user_doc.document.id:
+    #             present = True 
+
+    #     if not present:
+    #         docs.append(doc)
+
+    return docs
+
+
