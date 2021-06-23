@@ -1702,10 +1702,6 @@ class UserSyncer(object):
                         # so the policy id will be something like 'x.y.z-create'
                         policy_id = _format_policy_id(path, permission)
 
-                        # if (
-                        #     not single_user_sync
-                        #     and policy_id not in self._created_policies
-                        # ):
                         if not single_user_sync:
                             if policy_id not in self._created_policies:
                                 try:
@@ -1729,15 +1725,13 @@ class UserSyncer(object):
 
                         if single_user_sync:
                             policy_id_list.append(policy_id)
-
-                            if policy_id not in self._created_policies:
-                                policy_json = {
-                                    "id": policy_id,
-                                    "description": "policy created by fence sync",
-                                    "role_ids": [permission],
-                                    "resource_paths": [path],
-                                }
-                                policies.append(policy_json)
+                            policy_json = {
+                                "id": policy_id,
+                                "description": "policy created by fence sync",
+                                "role_ids": [permission],
+                                "resource_paths": [path],
+                            }
+                            policies.append(policy_json)
 
             if single_user_sync:
                 try:

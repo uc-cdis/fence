@@ -144,41 +144,37 @@ class RASCallback(DefaultOAuth2Callback):
                 else False
             )
         )
-
+        # if sync_from_visas and (global_parse_visas_on_login or global_parse_visas_on_login == None):
+        # Check if user has any project_access from a previous session or from usersync AND if fence is configured to use visas as authZ source
+        # if not do an on-the-fly usersync for this user to give them instant access after logging in through RAS
+        # If GLOBAL_PARSE_VISAS_ON_LOGIN is true then we want to run it regardless of whether or not the client sent parse_visas on request
         if sync_from_visas and parse_visas and not user.project_access:
-            # if sync_from_visas and (global_parse_visas_on_login or global_parse_visas_on_login == None):
-            # Check if user has any project_access from a previous session or from usersync AND if fence is configured to use visas as authZ source
-            # if not do an on-the-fly usersync for this user to give them instant access after logging in through RAS
-            # If GLOBAL_PARSE_VISAS_ON_LOGIN is true then we want to run it regardless of whether or not the client sent parse_visas on request
-            if (global_parse_visas_on_login or parse_visas) and (
-                not user.project_access
-            ):
-                # Close previous db sessions. Leaving it open causes a race condition where we're viewing user.project_access while trying to update it in usersync
-                # not closing leads to partially updated records
-                current_session.close()
+            # Close previous db sessions. Leaving it open causes a race condition where we're viewing user.project_access while trying to update it in usersync
+            # not closing leads to partially updated records
+            current_session.close()
 
-                DB = os.environ.get("FENCE_DB") or config.get("DB")
-                if DB is None:
-                    try:
-                        from fence.settings import DB
-                    except ImportError:
-                        pass
+            DB = os.environ.get("FENCE_DB") or config.get("DB")
+            if DB is None:
+                try:
+                    from fence.settings import DB
+                except ImportError:
+                    pass
 
-                arborist = ArboristClient(
-                    arborist_base_url=config["ARBORIST"],
-                    logger=get_logger("user_syncer.arborist_client"),
-                    authz_provider="user-sync",
-                )
-                dbGaP = os.environ.get("dbGaP") or config.get("dbGaP")
-                if not isinstance(dbGaP, list):
-                    dbGaP = [dbGaP]
+            arborist = ArboristClient(
+                arborist_base_url=config["ARBORIST"],
+                logger=get_logger("user_syncer.arborist_client"),
+                authz_provider="user-sync",
+            )
+            dbGaP = os.environ.get("dbGaP") or config.get("dbGaP")
+            if not isinstance(dbGaP, list):
+                dbGaP = [dbGaP]
 
-                sync = init_syncer(
-                    dbGaP,
-                    None,
-                    DB,
-                    arborist=arborist,
-                )
-                sync.sync_single_user_visas(user, current_session)
+            sync = init_syncer(
+                dbGaP,
+                None,
+                DB,
+                arborist=arborist,
+            )
+            sync.sync_single_user_visas(user, current_session)
 
         super(RASCallback, self).post_login()
