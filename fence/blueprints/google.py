@@ -353,7 +353,8 @@ class GoogleServiceAccount(Resource):
                       email used for monitoring purposes.
         """
         if id_ == "monitor":
-            return self._get_monitoring_service_account_response()
+            return get_monitoring_service_account_response()
+            # return self._get_monitoring_service_account_response()
 
         return ("Currently getting a specific service account is not supported.", 400)
 
