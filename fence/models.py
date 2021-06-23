@@ -780,6 +780,8 @@ def migrate(driver):
 
     _remove_policy(driver, md)
 
+    _add_documents(driver, md)
+
     add_column_if_not_exist(
         table_name=User.__tablename__,
         column=Column(
@@ -1100,26 +1102,26 @@ def _remove_policy(driver, md):
         session.execute("DROP TABLE IF EXISTS policy;")
         session.commit()
 
-# def _add_documents(driver, md):
-#     with driver.session as session:
-#         session.execute("INSERT INTO document(type, version, name, raw, formatted);")
-#         session.execute("DROP TABLE IF EXISTS policy;")
-#         session.commit()
+#TODO remove this and add in deployment process instead 
+def _add_documents(driver, md):
+    with driver.session as session:
+        session.execute(
+            """\
+INSERT INTO document (type, version, name, raw, formatted, required)
+VALUES ('privacy-policy', '1', 'Privacy Notice', 'https://github.com/chicagopcdc/Documents/blob/81d60130308b6961c38097b6686a21f8be729a2c/governance/privacy_policy/privacy_notice.md', 'https://github.com/chicagopcdc/Documents/blob/81d60130308b6961c38097b6686a21f8be729a2c/governance/privacy_policy/PCDC-Privacy-Notice.pdf', 'true')
+ON CONFLICT (type, version)
+DO NOTHING;"""
+        )
 
-
-#                     INSERT INTO user_audit_logs (timestamp, operation, old_values)
-
-
-
-
-#     type = Column(String, nullable=False)
-#     version = Column(Integer, nullable=False)
-#     name = Column(String, nullable=False)
-#     raw = Column(String, nullable=False)
-#     formatted = Column(String)
-
-#     __table_args__ = (UniqueConstraint('type', 'version', name='doc_type_version_uc'),)
-
+        session.execute(
+            """\
+INSERT INTO document (type, version, name, raw, formatted, required)
+VALUES ('terms-and-conditions', '1', 'Terms and Conditions', 'https://github.com/chicagopcdc/Documents/blob/fda4a7c914173e29d13ab6249ded7bc9adea5674/governance/terms_and_conditions/GEN3_portal/terms-and-conditions.md', 'https://github.com/chicagopcdc/Documents/blob/a5f4a87262f6597fc85d95b74c320e4fdf1e9097/governance/terms_and_conditions/GEN3_portal/Pediatric%20Cancer%20Data%20Commons%20-%20Terms%20and%20Conditions.pdf', 'true')
+ON CONFLICT (type, version)
+DO NOTHING;"""
+        )
+        # session.execute("INSERT INTO document(type, version, name, raw, formatted, required) values ('privacy-policy', '1', 'Privacy Notice', 'https://github.com/chicagopcdc/Documents/blob/81d60130308b6961c38097b6686a21f8be729a2c/governance/privacy_policy/privacy_notice.md', 'https://github.com/chicagopcdc/Documents/blob/81d60130308b6961c38097b6686a21f8be729a2c/governance/privacy_policy/PCDC-Privacy-Notice.pdf', 'true'), ('terms-and-conditions', '1', 'Terms and Conditions', 'https://github.com/chicagopcdc/Documents/blob/fda4a7c914173e29d13ab6249ded7bc9adea5674/governance/terms_and_conditions/GEN3_portal/terms-and-conditions.md', 'https://github.com/chicagopcdc/Documents/blob/a5f4a87262f6597fc85d95b74c320e4fdf1e9097/governance/terms_and_conditions/GEN3_portal/Pediatric%20Cancer%20Data%20Commons%20-%20Terms%20and%20Conditions.pdf', 'true');")
+        session.commit()
 
 
 def _add_google_project_id(driver, md):
