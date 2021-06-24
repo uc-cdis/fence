@@ -775,7 +775,10 @@ def _get_service_account_error_status(sa):
         == ValidationErrors.MONITOR_NOT_FOUND
     ):
         monitor_account = get_monitoring_service_account_response()
-        print(monitor_account)
+        print(
+            "MONITR ACCOUNT RESPONSE --------------------------------------------------------------------",
+            monitor_account,
+        )
         if response["errors"]["service_account_email"].get("status") == 200:
             response["errors"]["service_account_email"]["status"] = 400
             response["errors"]["service_account_email"][
