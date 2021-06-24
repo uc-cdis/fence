@@ -774,17 +774,12 @@ def _get_service_account_error_status(sa):
         response["errors"]["google_project_id"]["error"]
         == ValidationErrors.MONITOR_NOT_FOUND
     ):
-        print(get_monitoring_service_account_response()[0])
-        print(get_monitoring_service_account_response()[1])
         monitor_account = (
             get_monitoring_service_account_response()[0]["service_account_email"]
             if (get_monitoring_service_account_response()[1] == 200)
             else ""
         )
-        print(
-            "MONITR ACCOUNT RESPONSE --------------------------------------------------------------------",
-            monitor_account,
-        )
+
         if response["errors"]["service_account_email"].get("status") == 200:
             response["errors"]["service_account_email"]["status"] = 400
             response["errors"]["service_account_email"][
