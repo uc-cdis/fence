@@ -8,6 +8,9 @@
   - [Notes](#notes)
 - [Deprecated format](#deprecated-format)
   - [For Gen3 Data Commons that do not use Arborist or use the Google Data Access method of Google Service Account Registration](#for-gen3-data-commons-that-do-not-use-arborist-or-use-the-google-data-access-method-of-google-service-account-registration)
+- [Public data](#public-data)
+  - [Public access to resources](#public-access-to-resources)
+  - [The "/open" resource](#the-open-resource)
 
 ## Introduction
 
@@ -236,3 +239,71 @@ users:
 ```
 
 The `user_project_to_resource` section can be used to avoid specifying a resource path for each `users.projects.resource`.
+
+## Public data
+
+> What is involved in making a project "public"; that is, making both the metadata and object files accessible to anyone who visits the Data Commons?
+
+### Public access to resources
+
+Arborist can be configured to apply a policy to _all_ users who visit the system. This is done via the special `user.yaml` field `anonymous_policies`. Note that the same can be done with `all_users_policies` instead of `anonymous_policies` if access should be granted to all authenticated users instead of both authenticated and non-authenticated users.
+
+The example below shows the setup for a program `PUBLIC_PROGRAM` and a project `PROJECT_1` under it. Because the policy `PUBLIC_PROGRAM_reader`, which grants access to this program, is in `anonymous_policies`, this program and all the subresources under it are accessible to all users.
+
+Structured graph data in program `PUBLIC_PROGRAM` and data files whose indexd records' `authz` field includes `/programs/PUBLIC_PROGRAM/projects/PROJECT_1` will both be publicly accessible.
+
+```
+authz:
+    # policies automatically given to anyone, even if they haven't authenticated
+    anonymous_policies:
+    - PUBLIC_PROGRAM_reader
+
+    resources:
+    - name: programs
+      subresources:
+      - name: PUBLIC_PROGRAM
+        subresources:
+        - name: projects
+          subresources:
+          - name: PROJECT_1
+
+    policies:
+    - id: PUBLIC_PROGRAM_reader
+      role_ids:
+      - reader
+      - storage_reader
+      resource_paths:
+      - /programs/PUBLIC_PROGRAM
+```
+
+Arborist is very flexible: we could define an open policy per public program, or per public project, or even a single open policy with a list of all open resources.
+
+### The "/open" resource
+
+> Note that we may alter the behavior around "/open" in the future so as not to have hard-coded resource logic in Fence, so relying on this behavior is not recommended.
+
+`/open` is a special resource supported by Gen3. It is only used for data files (in the `authz` field of indexd records).
+
+An indexd record's `authz` field containing the resouce path `/open` means that Fence doesn't need to sign presigned URLs. Fence will assume the bucket is public. When a user tries to download the file, Fence will return a non-signed URL.
+
+If the bucket is _not_ public but the data should be publicly accessible, public access should be granted via the `user.yaml` file but `/open` should _not_ be added in the `authz` field.
+
+The example below shows how to set up public access to the `/open` resource.
+
+```
+authz:
+    # policies automatically given to anyone, even if they haven't authenticated
+    anonymous_policies:
+    - open_data_reader
+
+    resources:
+    - name: open
+
+    policies:
+    - id: open_data_reader
+      role_ids:
+      - reader
+      - storage_reader
+      resource_paths:
+      - /open
+```

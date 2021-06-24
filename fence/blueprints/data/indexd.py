@@ -1,5 +1,6 @@
 import re
 import time
+import json
 from urllib.parse import urlparse
 
 from cached_property import cached_property
@@ -13,7 +14,6 @@ import requests
 
 from fence.auth import (
     get_jwt,
-    has_oauth,
     current_token,
     login_required,
     set_current_token,
@@ -37,7 +37,8 @@ from fence.resources.google.utils import (
 )
 from fence.utils import get_valid_expiration_from_request
 from . import multipart_upload
-
+from ...models import AssumeRoleCacheAWS
+from ...models import AssumeRoleCacheGCP
 
 logger = get_logger(__name__)
 
@@ -63,12 +64,22 @@ def get_signed_url_for_file(action, file_id, file_name=None):
     if no_force_sign_param and no_force_sign_param.lower() == "true":
         force_signed_url = False
 
+    # add the user details to `flask.g.audit_data` first, so they are
+    # included in the audit log if `IndexedFile(file_id)` raises a 404
+    user_info = _get_user_info(sub_type=int)
+    flask.g.audit_data = {
+        "username": user_info["username"],
+        "sub": user_info["user_id"],
+    }
+
     indexed_file = IndexedFile(file_id)
     default_expires_in = config.get("MAX_PRESIGNED_URL_TTL", 3600)
     expires_in = get_valid_expiration_from_request(
         max_limit=default_expires_in,
         default=default_expires_in,
     )
+
+    prepare_presigned_url_audit_log(requested_protocol, indexed_file)
 
     signed_url = indexed_file.get_signed_url(
         requested_protocol,
@@ -79,30 +90,26 @@ def get_signed_url_for_file(action, file_id, file_name=None):
         file_name=file_name,
     )
 
-    if action == "download":  # for now only record download requests
-        create_presigned_url_audit_log(
-            protocol=requested_protocol, indexed_file=indexed_file, action=action
-        )
+    # increment counter for gen3-metrics
+    counter = flask.current_app.prometheus_counters.get("pre_signed_url_req")
+    if counter:
+        counter.labels(requested_protocol).inc()
 
     return {"url": signed_url}
 
 
-def create_presigned_url_audit_log(indexed_file, action, protocol):
-    user_info = _get_user_info(sub_to_string=False)
+def prepare_presigned_url_audit_log(protocol, indexed_file):
+    """
+    Store in `flask.g.audit_data` the data needed to record an audit log.
+    """
     resource_paths = indexed_file.index_document.get("authz", [])
     if not resource_paths:
         # fall back on ACL
         resource_paths = indexed_file.index_document.get("acl", [])
     if not protocol and indexed_file.indexed_file_locations:
         protocol = indexed_file.indexed_file_locations[0].protocol
-    flask.current_app.audit_service_client.create_presigned_url_log(
-        username=user_info["username"],
-        sub=user_info["user_id"],
-        guid=indexed_file.file_id,
-        resource_paths=resource_paths,
-        action=action,
-        protocol=protocol,
-    )
+    flask.g.audit_data["resource_paths"] = resource_paths
+    flask.g.audit_data["protocol"] = protocol
 
 
 class BlankIndex(object):
@@ -590,7 +597,12 @@ class IndexedFileLocation(object):
 class S3IndexedFileLocation(IndexedFileLocation):
     """
     An indexed file that lives in an AWS S3 bucket.
+
+    _assume_role_cache is used as an in mem cache for holding role credentials
     """
+
+    # expected structure { role_arn: (rv, expires_at) }
+    _assume_role_cache = {}
 
     @classmethod
     def assume_role(cls, bucket_cred, expires_in, aws_creds_config, boto=None):
@@ -603,16 +615,51 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 outside of application context, to avoid errors when
                 using `flask.current_app`.
         """
-        boto = boto or flask.current_app.boto
-
         role_arn = get_value(
             bucket_cred, "role-arn", InternalError("role-arn of that bucket is missing")
         )
-        assumed_role = boto.assume_role(role_arn, expires_in, aws_creds_config)
+        expiry = time.time() + expires_in
+
+        # try to retrieve from local in-memory cache
+        rv, expires_at = cls._assume_role_cache.get(role_arn, (None, 0))
+        if expires_at > expiry:
+            return rv
+
+        # try to retrieve from database cache
+        if hasattr(flask.current_app, "db"):  # we don't have db in startup
+            with flask.current_app.db.session as session:
+                cache = (
+                    session.query(AssumeRoleCacheAWS)
+                    .filter(AssumeRoleCacheAWS.arn == role_arn)
+                    .first()
+                )
+                if cache and cache.expires_at and cache.expires_at > expiry:
+                    rv = dict(
+                        aws_access_key_id=cache.aws_access_key_id,
+                        aws_secret_access_key=cache.aws_secret_access_key,
+                        aws_session_token=cache.aws_session_token,
+                    )
+                    cls._assume_role_cache[role_arn] = rv, cache.expires_at
+                    return rv
+
+        # retrieve from AWS, with additional ASSUME_ROLE_CACHE_SECONDS buffer for cache
+        boto = boto or flask.current_app.boto
+
+        # checking fence config if aws session can be longer than one hour
+        role_cache_increase = 0
+        if config["MAX_ROLE_SESSION_INCREASE"]:
+            role_cache_increase = int(config["ASSUME_ROLE_CACHE_SECONDS"])
+
+        assumed_role = boto.assume_role(
+            role_arn,
+            expires_in + role_cache_increase,
+            aws_creds_config,
+        )
+
         cred = get_value(
             assumed_role, "Credentials", InternalError("fail to assume role")
         )
-        return {
+        rv = {
             "aws_access_key_id": get_value(
                 cred,
                 "AccessKeyId",
@@ -626,9 +673,39 @@ class S3IndexedFileLocation(IndexedFileLocation):
             "aws_session_token": get_value(
                 cred,
                 "SessionToken",
-                InternalError("outdated format. Sesssion token missing"),
+                InternalError("outdated format. Session token missing"),
             ),
         }
+        expires_at = get_value(
+            cred, "Expiration", InternalError("outdated format. Expiration missing")
+        ).timestamp()
+
+        # stores back to cache
+        cls._assume_role_cache[role_arn] = rv, expires_at
+        if hasattr(flask.current_app, "db"):  # we don't have db in startup
+            with flask.current_app.db.session as session:
+                session.execute(
+                    """\
+                    INSERT INTO assume_role_cache (
+                        arn,
+                        expires_at,
+                        aws_access_key_id,
+                        aws_secret_access_key,
+                        aws_session_token
+                    ) VALUES (
+                        :arn,
+                        :expires_at,
+                        :aws_access_key_id,
+                        :aws_secret_access_key,
+                        :aws_session_token
+                    ) ON CONFLICT (arn) DO UPDATE SET
+                        expires_at = EXCLUDED.expires_at,
+                        aws_access_key_id = EXCLUDED.aws_access_key_id,
+                        aws_secret_access_key = EXCLUDED.aws_secret_access_key,
+                        aws_session_token = EXCLUDED.aws_session_token;""",
+                    dict(arn=role_arn, expires_at=expires_at, **rv),
+                )
+        return rv
 
     def bucket_name(self):
         """
@@ -709,6 +786,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
     def get_signed_url(
         self, action, expires_in, public_data=False, force_signed_url=True, **kwargs
     ):
+
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
@@ -857,7 +935,12 @@ class S3IndexedFileLocation(IndexedFileLocation):
 class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     """
     An indexed file that lives in a Google Storage bucket.
+
+    _assume_role_cache_gs is used for in mem caching of GCP role credentials
     """
+
+    # expected structore { proxy_group_id: (private_key, key_db_entry) }
+    _assume_role_cache_gs = {}
 
     def get_resource_path(self):
         return self.parsed_url.netloc.strip("/") + "/" + self.parsed_url.path.strip("/")
@@ -877,16 +960,14 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         if public_data and not force_signed_url:
             url = "https://storage.cloud.google.com/" + resource_path
         elif public_data and _is_anonymous_user(user_info):
-            expiration_time = int(time.time()) + int(expires_in)
             url = self._generate_anonymous_google_storage_signed_url(
-                ACTION_DICT["gs"][action], resource_path, expiration_time
+                ACTION_DICT["gs"][action], resource_path, int(expires_in)
             )
         else:
-            expiration_time = int(time.time()) + int(expires_in)
             url = self._generate_google_storage_signed_url(
                 ACTION_DICT["gs"][action],
                 resource_path,
-                expiration_time,
+                int(expires_in),
                 user_info.get("user_id"),
                 user_info.get("username"),
                 r_pays_project=r_pays_project,
@@ -895,14 +976,14 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         return url
 
     def _generate_anonymous_google_storage_signed_url(
-        self, http_verb, resource_path, expiration_time, r_pays_project=None
+        self, http_verb, resource_path, expires_in, r_pays_project=None
     ):
         # we will use the main fence SA service account to sign anonymous requests
         private_key = get_google_app_creds()
         final_url = cirrus.google_cloud.utils.get_signed_url(
             resource_path,
             http_verb,
-            expiration_time,
+            expires_in,
             extension_headers=None,
             content_type="",
             md5_value="",
@@ -937,31 +1018,87 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         self,
         http_verb,
         resource_path,
-        expiration_time,
+        expires_in,
         user_id,
         username,
         r_pays_project=None,
     ):
+
         proxy_group_id = get_or_create_proxy_group_id()
+        expiration_time = int(time.time()) + expires_in
 
-        private_key, key_db_entry = get_or_create_primary_service_account_key(
-            user_id=user_id, username=username, proxy_group_id=proxy_group_id
-        )
+        is_cached = False
 
-        # Make sure the service account key expiration is later
-        # than the expiration for the signed url. If it's not, we need to
-        # provision a new service account key.
-        #
-        # NOTE: This should occur very rarely: only when the service account key
-        #       already exists and is very close to expiring.
-        #
-        #       If our scheduled maintainence script removes the url-signing key
-        #       before the expiration of the url then the url will NOT work
-        #       (even though the url itself isn't expired)
-        if key_db_entry and key_db_entry.expires < expiration_time:
-            private_key = create_primary_service_account_key(
+        if proxy_group_id in self._assume_role_cache_gs:
+            private_key, key_db_entry = self._assume_role_cache_gs.get(proxy_group_id)
+            is_cached = True
+        elif hasattr(flask.current_app, "db"):
+            with flask.current_app.db.session as session:
+                cache = (
+                    session.query(AssumeRoleCacheGCP)
+                    .filter(AssumeRoleCacheGCP.gcp_proxy_group_id == proxy_group_id)
+                    .first()
+                )
+                if cache and cache.expires_at > expiration_time:
+                    rv = (
+                        json.loads(cache.gcp_private_key),
+                        json.loads(cache.gcp_key_db_entry),
+                    )
+                    self._assume_role_cache_gs[proxy_group_id] = rv
+                    private_key, key_db_entry = self._assume_role_cache_gs.get(
+                        proxy_group_id
+                    )
+                    is_cached = True
+
+        # check again to see if we cached the creds if not we need to
+        if is_cached == False:
+            private_key, key_db_entry = get_or_create_primary_service_account_key(
                 user_id=user_id, username=username, proxy_group_id=proxy_group_id
             )
+
+            # Make sure the service account key expiration is later
+            # than the expiration for the signed url. If it's not, we need to
+            # provision a new service account key.
+            #
+            # NOTE: This should occur very rarely: only when the service account key
+            #       already exists and is very close to expiring.
+            #
+            #       If our scheduled maintainence script removes the url-signing key
+            #       before the expiration of the url then the url will NOT work
+            #       (even though the url itself isn't expired)
+            if key_db_entry and key_db_entry.expires < expiration_time:
+                private_key = create_primary_service_account_key(
+                    user_id=user_id, username=username, proxy_group_id=proxy_group_id
+                )
+            self._assume_role_cache_gs[proxy_group_id] = (private_key, key_db_entry)
+
+            db_entry = {}
+            db_entry["gcp_proxy_group_id"] = proxy_group_id
+            db_entry["gcp_private_key"] = str(private_key)
+            db_entry["gcp_key_db_entry"] = str(key_db_entry)
+            db_entry["expires_at"] = expiration_time
+
+            if hasattr(flask.current_app, "db"):  # we don't have db in startup
+                with flask.current_app.db.session as session:
+                    session.execute(
+                        """\
+                        INSERT INTO gcp_assume_role_cache (
+                            expires_at,
+                            gcp_proxy_group_id,
+                            gcp_private_key,
+                            gcp_key_db_entry
+                        ) VALUES (
+                            :expires_at,
+                            :gcp_proxy_group_id,
+                            :gcp_private_key,
+                            :gcp_key_db_entry
+                        ) ON CONFLICT (gcp_proxy_group_id) DO UPDATE SET
+                            expires_at = EXCLUDED.expires_at,
+                            gcp_proxy_group_id = EXCLUDED.gcp_proxy_group_id,
+                            gcp_private_key = EXCLUDED.gcp_private_key,
+                            gcp_key_db_entry = EXCLUDED.gcp_key_db_entry;""",
+                        db_entry,
+                    )
 
         if config["ENABLE_AUTOMATIC_BILLING_PERMISSION_SIGNED_URLS"]:
             give_service_account_billing_access_if_necessary(
@@ -973,14 +1110,11 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         # use configured project if it exists and no user project was given
         if config["BILLING_PROJECT_FOR_SIGNED_URLS"] and not r_pays_project:
             r_pays_project = config["BILLING_PROJECT_FOR_SIGNED_URLS"]
-
         final_url = cirrus.google_cloud.utils.get_signed_url(
             resource_path,
             http_verb,
-            expiration_time,
+            expires_in,
             extension_headers=None,
-            content_type="",
-            md5_value="",
             service_account_creds=private_key,
             requester_pays_user_project=r_pays_project,
         )
@@ -1003,21 +1137,24 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             return ("Failed to delete data file.", status_code)
 
 
-def _get_user_info(sub_to_string=True):
+def _get_user_info(sub_type=str):
     """
     Attempt to parse the request for token to authenticate the user. fallback to
     populated information about an anonymous user.
+    By default, cast `sub` to str. Use `sub_type` to override this behavior.
     """
     try:
-        set_current_token(validate_request(aud={"user"}))
+        set_current_token(
+            validate_request(scope={"user"}, audience=config.get("BASE_URL"))
+        )
         user_id = current_token["sub"]
-        if sub_to_string:
-            user_id = str(user_id)
+        if sub_type:
+            user_id = sub_type(user_id)
         username = current_token["context"]["user"]["name"]
     except JWTError:
         # this is fine b/c it might be public data, sign with anonymous username/id
         user_id = None
-        if sub_to_string:
+        if sub_type == str:
             user_id = ANONYMOUS_USER_ID
         username = ANONYMOUS_USERNAME
 

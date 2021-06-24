@@ -58,6 +58,11 @@ MOCK_STORAGE: false
 # WARNING: ONLY set to true when fence will be deployed in such a way that it will
 #          ONLY receive traffic from internal clients and can safely use HTTP.
 AUTHLIB_INSECURE_TRANSPORT: true
+# enable Prometheus Metrics for observability purposes
+#
+# WARNING: Any counters, gauges, histograms, etc. should be carefully
+# reviewed to make sure its labels do not contain any PII / PHI
+ENABLE_PROMETHEUS_METRICS: true
 
 # set if you want browsers to only send cookies with requests over HTTPS
 SESSION_COOKIE_SECURE: true
@@ -98,7 +103,7 @@ OPENID_CONNECT:
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/cognito/login/'
   # For information on configuring an Okta tenant as an OIDC IdP refer to Okta documentation at:
-  # https://developer.okta.com/docs/reference/api/oidc/#2-okta-as-the-identity-platform-for-your-app-or-api  
+  # https://developer.okta.com/docs/reference/api/oidc/#2-okta-as-the-identity-platform-for-your-app-or-api
   okta:
       discovery_url: ''
       client_id: ''
@@ -474,6 +479,8 @@ AUDIT_SERVICE: 'http://audit-service'
 ENABLE_AUDIT_LOGS:
   presigned_url: false
   login: false
+PUSH_AUDIT_LOGS_CONFIG:
+  type: api
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # CLOUD API LIBRARY (CIRRUS) CONFIGURATION
@@ -587,3 +594,12 @@ GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS:
   - 'compute-system.iam.gserviceaccount.com'
   - 'gcp-sa-websecurityscanner.iam.gserviceaccount.com'
   - 'storage-transfer-service.iam.gserviceaccount.com'
+
+# Role caching for generating presigned urls if max role session increase is true
+# then we can increase the amount of time that a session is valid for
+MAX_ROLE_SESSION_INCREASE: true
+ASSUME_ROLE_CACHE_SECONDS: 1800
+
+# List of JWT issuers from which Fence will accept GA4GH visas
+GA4GH_VISA_ISSUER_ALLOWLIST:
+  - 'https://stsstg.nih.gov'

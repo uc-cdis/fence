@@ -105,7 +105,7 @@ def authorize(*args, **kwargs):
         elif idp == "shibboleth" and shib_idp:
             params["shib_idp"] = shib_idp
 
-        # store client_id for later use in login endpoint create_login_log()
+        # store client_id for later use in login endpoint prepare_login_log()
         flask.session["client_id"] = flask.request.args.get("client_id")
 
         login_url = add_params_to_uri(login_url, params)

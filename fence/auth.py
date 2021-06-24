@@ -57,7 +57,7 @@ def build_redirect_url(hostname, path):
     return redirect_base + path
 
 
-def login_user(username, provider, fence_idp=None, shib_idp=None):
+def login_user(username, provider, fence_idp=None, shib_idp=None, email=None):
     """
     Login a user with the given username and provider. Set values in Flask
     session to indicate the user being logged in. In addition, commit the user
@@ -66,7 +66,10 @@ def login_user(username, provider, fence_idp=None, shib_idp=None):
     Args:
         username (str): specific username of user to be logged in
         provider (str): specfic idp of user to be logged in
-
+        fence_idp (str, optional): Downstreawm fence IdP
+        shib_idp (str, optional): Downstreawm shibboleth IdP
+        email (str, optional): email of user (may or may not match username depending
+            on the IdP)
     """
 
     def set_flask_session_values(user):
@@ -89,6 +92,8 @@ def login_user(username, provider, fence_idp=None, shib_idp=None):
 
     user = query_for_user(session=current_session, username=username)
     if user:
+        _update_users_email(user, email)
+
         #  This expression is relevant to those users who already have user and
         #  idp info persisted to the database. We return early to avoid
         #  unnecessarily re-saving that user and idp info.
@@ -96,7 +101,10 @@ def login_user(username, provider, fence_idp=None, shib_idp=None):
             set_flask_session_values(user)
             return
     else:
-        user = User(username=username)
+        if email:
+            user = User(username=username, email=email)
+        else:
+            user = User(username=username)
 
     idp = (
         current_session.query(IdentityProvider)
@@ -209,7 +217,10 @@ def has_oauth(scope=None):
     scope = scope or set()
     scope.update({"openid"})
     try:
-        access_token_claims = validate_jwt(aud=scope, purpose="access")
+        access_token_claims = validate_jwt(
+            scope=scope,
+            purpose="access",
+        )
     except JWTError as e:
         raise Unauthorized("failed to validate token: {}".format(e))
     user_id = access_token_claims["sub"]
@@ -246,3 +257,17 @@ def admin_required(f):
 def admin_login_required(function):
     """Compose the login required and admin required decorators."""
     return login_required({"admin"})(admin_required(function))
+
+
+def _update_users_email(user, email):
+    """
+    Update email if provided and doesn't match db entry.
+    """
+    if email and user.email != email:
+        logger.info(
+            f"Updating username {user.username}'s email from {user.email} to {email}"
+        )
+        user.email = email
+
+        current_session.add(user)
+        current_session.commit()

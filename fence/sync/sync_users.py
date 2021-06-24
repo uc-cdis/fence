@@ -5,6 +5,7 @@ import re
 import subprocess as sp
 import yaml
 import copy
+
 from contextlib import contextmanager
 from collections import defaultdict
 from csv import DictReader
@@ -1196,6 +1197,7 @@ class UserSyncer(object):
         dbgap_config,
         sess,
     ):
+
         for username in user_projects.keys():
             for project in user_projects[username].keys():
                 phsid = project.split(".")
@@ -1392,6 +1394,8 @@ class UserSyncer(object):
                     "Could not synchronize authorization info successfully to arborist"
                 )
                 exit(1)
+        else:
+            self.logger.error("No arborist client set; skipping arborist sync")
 
         # Logging authz source
         for u, s in self.auth_source.items():
@@ -1584,7 +1588,9 @@ class UserSyncer(object):
 
         return True
 
-    def _update_authz_in_arborist(self, session, user_projects, user_yaml=None):
+    def _update_authz_in_arborist(
+        self, session, user_projects, user_yaml=None, single_user_sync=False
+    ):
         """
         Assign users policies in arborist from the information in
         ``user_projects`` and optionally a ``user_yaml``.
@@ -1621,26 +1627,31 @@ class UserSyncer(object):
         # get list of users from arborist to make sure users that are completely removed
         # from authorization sources get policies revoked
         arborist_user_projects = {}
-        try:
-            arborist_users = self.arborist_client.get_users().json["users"]
-            # construct user information, NOTE the lowering of the username. when adding/
-            # removing access, the case in the Fence db is used. For combining access, it is
-            # case-insensitive, so we lower
-            arborist_user_projects = {
-                user["name"].lower(): {} for user in arborist_users
-            }
-        except (ArboristError, KeyError, AttributeError) as error:
-            # TODO usersync should probably exit with non-zero exit code at the end,
-            #      but sync should continue from this point so there are no partial
-            #      updates
-            self.logger.warning(
-                "Could not get list of users in Arborist, continuing anyway. "
-                "WARNING: this sync will NOT remove access for users no longer in "
-                f"authorization sources. Error: {error}"
-            )
+        if not single_user_sync:
+            try:
+                arborist_users = self.arborist_client.get_users().json["users"]
 
-        # update the project info with users from arborist
-        self.sync_two_phsids_dict(arborist_user_projects, user_projects)
+                # construct user information, NOTE the lowering of the username. when adding/
+                # removing access, the case in the Fence db is used. For combining access, it is
+                # case-insensitive, so we lower
+                arborist_user_projects = {
+                    user["name"].lower(): {} for user in arborist_users
+                }
+            except (ArboristError, KeyError, AttributeError) as error:
+                # TODO usersync should probably exit with non-zero exit code at the end,
+                #      but sync should continue from this point so there are no partial
+                #      updates
+                self.logger.warning(
+                    "Could not get list of users in Arborist, continuing anyway. "
+                    "WARNING: this sync will NOT remove access for users no longer in "
+                    f"authorization sources. Error: {error}"
+                )
+
+            # update the project info with users from arborist
+            self.sync_two_phsids_dict(arborist_user_projects, user_projects)
+
+        policy_id_list = []
+        policies = []
 
         for username, user_project_info in user_projects.items():
             self.logger.info("processing user `{}`".format(username))
@@ -1650,7 +1661,6 @@ class UserSyncer(object):
 
             self.arborist_client.create_user_if_not_exist(username)
             self.arborist_client.revoke_all_policies_for_user(username)
-
             for project, permissions in user_project_info.items():
 
                 # check if this is a dbgap project, if it is, we need to get the right
@@ -1668,7 +1678,6 @@ class UserSyncer(object):
                     "resource paths for project {}: {}".format(project, paths)
                 )
                 self.logger.debug("permissions: {}".format(permissions))
-
                 for permission in permissions:
                     # "permission" in the dbgap sense, not the arborist sense
                     if permission not in self._created_roles:
@@ -1692,24 +1701,50 @@ class UserSyncer(object):
                         # format project '/x/y/z' -> 'x.y.z'
                         # so the policy id will be something like 'x.y.z-create'
                         policy_id = _format_policy_id(path, permission)
-                        if policy_id not in self._created_policies:
-                            try:
-                                self.arborist_client.update_policy(
-                                    policy_id,
-                                    {
-                                        "description": "policy created by fence sync",
-                                        "role_ids": [permission],
-                                        "resource_paths": [path],
-                                    },
-                                    create_if_not_exist=True,
-                                )
-                            except ArboristError as e:
-                                self.logger.info(
-                                    "not creating policy in arborist; {}".format(str(e))
-                                )
-                            self._created_policies.add(policy_id)
 
-                        self.arborist_client.grant_user_policy(username, policy_id)
+                        if not single_user_sync:
+                            if policy_id not in self._created_policies:
+                                try:
+                                    self.arborist_client.update_policy(
+                                        policy_id,
+                                        {
+                                            "description": "policy created by fence sync",
+                                            "role_ids": [permission],
+                                            "resource_paths": [path],
+                                        },
+                                        create_if_not_exist=True,
+                                    )
+                                except ArboristError as e:
+                                    self.logger.info(
+                                        "not creating policy in arborist; {}".format(
+                                            str(e)
+                                        )
+                                    )
+                                self._created_policies.add(policy_id)
+                            self.arborist_client.grant_user_policy(username, policy_id)
+
+                        if single_user_sync:
+                            policy_id_list.append(policy_id)
+                            policy_json = {
+                                "id": policy_id,
+                                "description": "policy created by fence sync",
+                                "role_ids": [permission],
+                                "resource_paths": [path],
+                            }
+                            policies.append(policy_json)
+
+            if single_user_sync:
+                try:
+                    self.arborist_client.update_bulk_policy(policies)
+                    self.arborist_client.grant_bulk_user_policy(
+                        username, policy_id_list
+                    )
+                except Exception as e:
+                    self.logger.info(
+                        "Couldn't update bulk policy for user {}: {}".format(
+                            username, e
+                        )
+                    )
 
             if user_yaml:
                 for policy in user_yaml.policies.get(username, []):
@@ -1806,7 +1841,7 @@ class UserSyncer(object):
 
     def _is_arborist_healthy(self):
         if not self.arborist_client:
-            self.logger.warn("no arborist client set; skipping arborist dbgap sync")
+            self.logger.warning("no arborist client set; skipping arborist dbgap sync")
             return False
         if not self.arborist_client.healthy():
             # TODO (rudyardrichter, 2019-01-07): add backoff/retry here
@@ -2052,6 +2087,9 @@ class UserSyncer(object):
                     "Could not synchronize authorization info successfully to arborist"
                 )
                 exit(1)
+        else:
+            self.logger.error("No arborist client set; skipping arborist sync")
+
         # Logging authz source
         for u, s in self.auth_source.items():
             self.logger.info("Access for user {} from {}".format(u, s))
@@ -2126,9 +2164,29 @@ class UserSyncer(object):
             self._grant_all_consents_to_c999_users(
                 user_projects, user_yaml.project_to_resource
             )
+
         # update fence db
         if user_projects:
             self.logger.info("Sync to db and storage backend")
-            self.sync_to_db_and_storage_backend(user_projects, user_info, sess, True)
+            self.sync_to_db_and_storage_backend(
+                user_projects, user_info, sess, single_visa_sync=True
+            )
         else:
             self.logger.info("No users for syncing")
+
+        # update arborist db (user access)
+        if self.arborist_client:
+            self.logger.info("Synchronizing arborist with authorization info...")
+            success = self._update_authz_in_arborist(
+                sess, user_projects, user_yaml=user_yaml, single_user_sync=True
+            )
+            if success:
+                self.logger.info(
+                    "Finished synchronizing authorization info to arborist"
+                )
+            else:
+                self.logger.error(
+                    "Could not synchronize authorization info successfully to arborist"
+                )
+        else:
+            self.logger.error("No arborist client set; skipping arborist sync")

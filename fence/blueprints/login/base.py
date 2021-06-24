@@ -49,14 +49,14 @@ class DefaultOAuth2Login(Resource):
                 config.get("DEV_LOGIN_COOKIE_NAME"), mock_default_user
             )
             resp = _login(username, self.idp_name)
-            create_login_log(self.idp_name)
+            prepare_login_log(self.idp_name)
             return resp
 
         return flask.redirect(self.client.get_auth_url())
 
 
 class DefaultOAuth2Callback(Resource):
-    def __init__(self, idp_name, client, username_field="email"):
+    def __init__(self, idp_name, client, username_field="email", email_field="email"):
         """
         Construct a resource for a login callback endpoint
 
@@ -66,10 +66,13 @@ class DefaultOAuth2Callback(Resource):
                 Some instaniation of this base client class or a child class
             username_field (str, optional): default field from response to
                 retrieve the username
+            email_field (str, optional): default field from response to
+                retrieve the email (if available)
         """
         self.idp_name = idp_name
         self.client = client
         self.username_field = username_field
+        self.email_field = email_field
 
     def get(self):
         # Check if user granted access
@@ -97,33 +100,34 @@ class DefaultOAuth2Callback(Resource):
         code = flask.request.args.get("code")
         result = self.client.get_user_id(code)
         username = result.get(self.username_field)
+        email = result.get(self.email_field)
         if username:
-            resp = _login(username, self.idp_name)
+            resp = _login(username, self.idp_name, email=email)
             self.post_login(flask.g.user, result)
             return resp
         raise UserError(result)
 
     def post_login(self, user=None, token_result=None):
-        create_login_log(self.idp_name)
+        prepare_login_log(self.idp_name)
 
 
-def create_login_log(idp_name):
-    flask.current_app.audit_service_client.create_login_log(
-        username=flask.g.user.username,
-        sub=flask.g.user.id,
-        idp=idp_name,
-        fence_idp=flask.session.get("fence_idp"),
-        shib_idp=flask.session.get("shib_idp"),
-        client_id=flask.session.get("client_id"),
-    )
+def prepare_login_log(idp_name):
+    flask.g.audit_data = {
+        "username": flask.g.user.username,
+        "sub": flask.g.user.id,
+        "idp": idp_name,
+        "fence_idp": flask.session.get("fence_idp"),
+        "shib_idp": flask.session.get("shib_idp"),
+        "client_id": flask.session.get("client_id"),
+    }
 
 
-def _login(username, idp_name):
+def _login(username, idp_name, email=None):
     """
     Login user with given username, then redirect if session has a saved
     redirect.
     """
-    login_user(username, idp_name)
+    login_user(username, idp_name, email=email)
     if flask.session.get("redirect"):
         return flask.redirect(flask.session.get("redirect"))
     return flask.jsonify({"username": username})
