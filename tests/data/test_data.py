@@ -1,4 +1,8 @@
 import json
+import time
+
+from datetime import datetime, timedelta
+
 import mock
 import urllib.parse
 import uuid
@@ -9,14 +13,11 @@ import requests
 
 import fence.blueprints.data.indexd
 from fence.config import config
-from fence.errors import NotSupported
 
 from tests import utils
 
 from unittest.mock import MagicMock, patch
 
-import cirrus
-from cirrus import GoogleCloudManager
 
 INDEXD_RECORD_WITH_PUBLIC_AUTHZ_POPULATED = {
     "did": "1",
@@ -86,6 +87,65 @@ def test_indexd_download_file(
     response = client.get(path, headers=headers, query_string=query_string)
     assert response.status_code == 200
     assert "url" in list(response.json.keys())
+
+    # defaults to signing url, check that it's not just raw url
+    assert urllib.parse.urlparse(response.json["url"]).query != ""
+
+
+@pytest.mark.parametrize("indexd_client", ["s3"], indirect=True)
+def test_indexd_prometheus_presigned_url_counter(
+    app,
+    client,
+    oauth_client,
+    user_client,
+    indexd_client,
+    kid,
+    rsa_private_key,
+    google_proxy_group,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+):
+    """
+    Test that when a user requests a presigned URL, the prometheus counter is increased.
+    """
+    before = (
+        app.prometheus_registry.get_sample_value(
+            "pre_signed_url_req_total",
+            {
+                "requested_protocol": indexd_client["indexed_file_location"],
+            },
+        )
+        or 0
+    )
+
+    # make a presigned URL request
+    indexed_file_location = indexd_client["indexed_file_location"]
+    path = "/data/download/1"
+    query_string = {"protocol": indexed_file_location}
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+    response = client.get(path, headers=headers, query_string=query_string)
+    assert response.status_code == 200
+
+    # assert metrics have been processed successfully
+    after = app.prometheus_registry.get_sample_value(
+        "pre_signed_url_req_total",
+        {
+            "requested_protocol": indexd_client["indexed_file_location"],
+        },
+    )
+    assert after, "Presigned URL requests should have been counted"
+    assert 1 == (after - before), "1 presigned URL request should have been counted"
 
     # defaults to signing url, check that it's not just raw url
     assert urllib.parse.urlparse(response.json["url"]).query != ""
@@ -1014,6 +1074,196 @@ def test_indexd_download_with_uploader_authorized(
     assert response.status_code == 200
 
 
+@pytest.mark.parametrize("indexd_client", ["s3_assume_role"], indirect=True)
+@pytest.mark.parametrize("presigned_url_expires_in", [100, 1000])
+@pytest.mark.parametrize(
+    "test_max_role_session_increase, test_assume_role_cache_seconds",
+    [(True, 100), (True, 1800), (False, 0)],
+)
+def test_assume_role_time_limit(
+    client,
+    user_client,
+    kid,
+    rsa_private_key,
+    test_max_role_session_increase,
+    test_assume_role_cache_seconds,
+    presigned_url_expires_in,
+    indexd_client,
+    monkeypatch,
+):
+    """
+    Test ``GET /data/download/1`` accessing data from bucket by assuming role.
+    """
+
+    fence.S3IndexedFileLocation._assume_role_cache.clear()
+
+    monkeypatch.setitem(
+        config, "MAX_ROLE_SESSION_INCREASE", test_max_role_session_increase
+    )
+    monkeypatch.setitem(
+        config, "ASSUME_ROLE_CACHE_SECONDS", test_assume_role_cache_seconds
+    )
+    duration_in_function = 0
+
+    def mock_sts_client_assume_role(RoleArn, DurationSeconds, RoleSessionName=None):
+        nonlocal duration_in_function
+        duration_in_function = DurationSeconds
+        return {
+            "Credentials": {
+                "AccessKeyId": "",
+                "SecretAccessKey": "",
+                "SessionToken": "",
+                "Expiration": datetime.now() + timedelta(seconds=DurationSeconds),
+            },
+            "AssumedRoleUser": {"AssumedRoleId": "", "Arn": RoleArn},
+        }
+
+    with patch("fence.resources.aws.boto_manager.client") as mocked_sts_client:
+        mocked_sts_client.return_value = MagicMock(
+            assume_role=mock_sts_client_assume_role
+        )
+        indexed_file_location = indexd_client["indexed_file_location"]
+        path = "/data/download/1"
+        query_string = {
+            "protocol": indexed_file_location,
+            "expires_in": presigned_url_expires_in,
+        }
+        headers = {
+            "Authorization": "Bearer "
+            + jwt.encode(
+                utils.authorized_download_context_claims(
+                    user_client.username, user_client.user_id
+                ),
+                key=rsa_private_key,
+                headers={"kid": kid},
+                algorithm="RS256",
+            ).decode("utf-8")
+        }
+        response = client.get(path, headers=headers, query_string=query_string)
+
+    AWS_ASSUME_ROLE_MIN_EXPIRATION = 900
+
+    buffered_expires_in = presigned_url_expires_in
+    if config["MAX_ROLE_SESSION_INCREASE"]:
+        buffered_expires_in += int(config["ASSUME_ROLE_CACHE_SECONDS"])
+    buffered_expires_in = max(buffered_expires_in, AWS_ASSUME_ROLE_MIN_EXPIRATION)
+
+    assert response.status_code == 200
+    assert duration_in_function == buffered_expires_in  # assume role duration
+    assert (
+        "X-Amz-Expires=" + str(presigned_url_expires_in) + "&" in response.json["url"]
+    )  # Signed url duration
+
+
+def test_assume_role_cache(
+    client,
+    oauth_client,
+    user_client,
+    kid,
+    rsa_private_key,
+    google_proxy_group,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+):
+    """
+    Test ``GET /data/download/1`` with authorized user (user is the uploader).
+    """
+
+    assume_role_called = 0
+
+    def mock_assume_role(self, role_arn, duration_seconds, config=None):
+        nonlocal assume_role_called
+        assume_role_called += 1
+        return {
+            "Credentials": {
+                "AccessKeyId": "",
+                "SecretAccessKey": "",
+                "SessionToken": "",
+                "Expiration": datetime.now() + timedelta(seconds=duration_seconds),
+            },
+            "AssumedRoleUser": {"AssumedRoleId": "", "Arn": role_arn},
+        }
+
+    assume_role_patcher = patch(
+        "fence.resources.aws.boto_manager.BotoManager.assume_role", mock_assume_role
+    )
+    assume_role_patcher.start()
+
+    did = str(uuid.uuid4())
+    index_document = {
+        "did": did,
+        "baseid": "",
+        "uploader": user_client.username,
+        "rev": "",
+        "size": 10,
+        "file_name": "file1",
+        "urls": ["s3://bucket5/key-{}".format(did[:8])],
+        "acl": ["phs000178"],
+        "hashes": {},
+        "metadata": {},
+        "form": "",
+        "created_date": "",
+        "updated_date": "",
+    }
+    mock_index_document = mock.patch(
+        "fence.blueprints.data.indexd.IndexedFile.index_document", index_document
+    )
+    mock_index_document.start()
+    indexed_file_location = "s3"
+    path = "/data/download/1"
+    query_string = {"protocol": indexed_file_location}
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+
+    # initial call
+    response = client.get(path, headers=headers, query_string=query_string)
+    assert response.status_code == 200
+    assert assume_role_called == 1
+
+    # in-memory cache
+    response = client.get(path, headers=headers, query_string=query_string)
+    assert response.status_code == 200
+    assert assume_role_called == 1
+
+    # use database cache if in-memory cache is missing
+    fence.S3IndexedFileLocation._assume_role_cache.clear()
+    response = client.get(path, headers=headers, query_string=query_string)
+    assert response.status_code == 200
+    assert assume_role_called == 1
+
+    # use database cache if in-memory cache is expired
+    arn, vals = list(fence.S3IndexedFileLocation._assume_role_cache.items())[0]
+    fence.S3IndexedFileLocation._assume_role_cache[arn] = vals[0], time.time() - 10
+    response = client.get(path, headers=headers, query_string=query_string)
+    assert response.status_code == 200
+    assert assume_role_called == 1
+
+    # in-memory cache is missing and database cache is expired
+    fence.S3IndexedFileLocation._assume_role_cache.clear()
+    import flask
+
+    with flask.current_app.db.session as session:
+        session.execute(
+            "UPDATE assume_role_cache SET expires_at = :ts", dict(ts=time.time() - 10)
+        )
+    response = client.get(path, headers=headers, query_string=query_string)
+    assert response.status_code == 200
+    assert assume_role_called == 2
+
+    assume_role_patcher.stop()
+    mock_index_document.stop()
+
+
 def test_indexd_download_with_uploader_unauthorized(
     client,
     oauth_client,
@@ -1294,9 +1544,7 @@ def test_abac(
     cloud_manager,
     google_signed_url,
 ):
-    mock_arborist_requests(
-        {"arborist/auth/request": {"POST": ('{"auth": "true"}', 200)}}
-    )
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
     indexd_client = indexd_client_with_arborist("test_abac")
     indexed_file_location = indexd_client["indexed_file_location"]
     path = "/data/download/1"
@@ -1316,9 +1564,7 @@ def test_abac(
     assert response.status_code == 200
     assert "url" in list(response.json.keys())
 
-    mock_arborist_requests(
-        {"arborist/auth/request": {"POST": ('{"auth": "false"}', 403)}}
-    )
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": False}, 403)}})
     response = client.get(path, headers=headers, query_string=query_string)
     assert response.status_code == 403
 

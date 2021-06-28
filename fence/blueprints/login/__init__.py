@@ -23,6 +23,7 @@ from fence.blueprints.login.orcid import ORCIDLogin, ORCIDCallback
 from fence.blueprints.login.ras import RASLogin, RASCallback
 from fence.blueprints.login.synapse import SynapseLogin, SynapseCallback
 from fence.errors import InternalError
+from fence.resources.audit.utils import enable_audit_logging
 from fence.restful import RestfulApi
 from fence.config import config
 
@@ -56,7 +57,7 @@ def make_login_blueprint(app):
     """
 
     blueprint = flask.Blueprint("login", __name__)
-    blueprint_api = RestfulApi(blueprint)
+    blueprint_api = RestfulApi(blueprint, decorators=[enable_audit_logging])
 
     @blueprint.route("", methods=["GET"])
     def default_login():
@@ -70,7 +71,7 @@ def make_login_blueprint(app):
             # fall back on ENABLED_IDENTITY_PROVIDERS.default
             default_idp = config["ENABLED_IDENTITY_PROVIDERS"]["default"]
         else:
-            logger.warn("DEFAULT_LOGIN_IDP not configured")
+            logger.warning("DEFAULT_LOGIN_IDP not configured")
             default_idp = None
 
         # other login options
@@ -89,7 +90,7 @@ def make_login_blueprint(app):
                 for idp, details in enabled_providers.items()
             ]
         else:
-            logger.warn("LOGIN_OPTIONS not configured or empty")
+            logger.warning("LOGIN_OPTIONS not configured or empty")
             login_options = []
 
         def absolute_login_url(provider_id, fence_idp=None, shib_idp=None):
@@ -321,13 +322,29 @@ def get_all_shib_idps():
     assert (
         res.status_code == 200
     ), "Unable to get list of Shibboleth IDPs from {}".format(url)
-    return [
-        {
-            "idp": shib_idp["entityID"],
-            "name": get_shib_idp_en_name(shib_idp["DisplayNames"]),
-        }
-        for shib_idp in res.json()
-    ]
+
+    all_shib_idps = []
+    for shib_idp in res.json():
+        if "entityID" not in shib_idp:
+            logger.warning(
+                f"get_all_shib_idps(): 'entityID' field not in IDP data: {shib_idp}. Skipping this IDP."
+            )
+            continue
+        idp = shib_idp["entityID"]
+        if len(shib_idp.get("DisplayNames", [])) > 0:
+            name = get_shib_idp_en_name(shib_idp["DisplayNames"])
+        else:
+            logger.warning(
+                f"get_all_shib_idps(): 'DisplayNames' field not in IDP data: {shib_idp}. Using IDP ID '{idp}' as IDP name."
+            )
+            name = idp
+        all_shib_idps.append(
+            {
+                "idp": idp,
+                "name": name,
+            }
+        )
+    return all_shib_idps
 
 
 def get_shib_idp_en_name(names):

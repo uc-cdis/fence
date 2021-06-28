@@ -178,7 +178,7 @@ def generate_signed_session_token(kid, private_key, expires_in, context=None):
 
     claims = {
         "pur": "session",
-        "aud": ["fence"],
+        "aud": ["fence", issuer],
         "sub": context.get("user_id", ""),
         "iss": issuer,
         "iat": iat,
@@ -204,6 +204,7 @@ def generate_signed_id_token(
     expires_in,
     client_id,
     audiences=None,
+    scopes=None,
     auth_time=None,
     max_age=None,
     nonce=None,
@@ -222,7 +223,10 @@ def generate_signed_id_token(
         user (fence.models.User): User to generate ID token for
         expires_in (int): seconds token should last
         client_id (str, optional): Client identifier
-        audiences (List(str), optional): Description
+        audiences (List(str), optional):
+            audiences the ID token is intended for (the aud claim).
+            client_id will get appended to this.
+        scopes (List[str], optional): oauth scopes for user
         auth_time (int, optional): Last time user authN'd in number of seconds
                                    from 1970-01-01T0:0:0Z as measured in
                                    UTC until the date/time
@@ -230,6 +234,13 @@ def generate_signed_id_token(
             max number of seconds allowed since last user AuthN
         nonce (str, optional):
             string value used to associate a Client session with an ID Token
+        include_project_access (bool, optional):
+            whether to include user.project_access in the token context.user.projects
+        auth_flow_type (AuthFlowTypes, optional):
+            which auth flow (Auth Code or Implicit) is issuing this token
+            (token validation will be different for each flow)
+        access_token (string, optional):
+            the access token tied to this id token; used to generate the at_hash claim
 
     Return:
         str: encoded JWT ID token signed with ``private_key``
@@ -240,6 +251,7 @@ def generate_signed_id_token(
         client_id,
         include_project_access=include_project_access,
         audiences=audiences,
+        scopes=scopes,
         auth_time=auth_time,
         max_age=max_age,
         nonce=nonce,
@@ -282,14 +294,18 @@ def generate_signed_refresh_token(
             )
     claims = {
         "pur": "refresh",
-        "aud": scopes,
         "sub": sub,
         "iss": iss,
+        "aud": [iss],
         "iat": iat,
         "exp": exp,
         "jti": jti,
         "azp": client_id or "",
+        "scope": scopes,
     }
+
+    if client_id:
+        claims["aud"].append(client_id)
 
     logger.info("issuing JWT refresh token with id [{}] to [{}]".format(jti, sub))
     logger.debug("issuing JWT refresh token\n" + json.dumps(claims, indent=4))
@@ -319,15 +335,17 @@ def generate_api_key(kid, private_key, user_id, expires_in, scopes, client_id):
     iat, exp = issued_and_expiration_times(expires_in)
     jti = str(uuid.uuid4())
     sub = str(user_id)
+    iss = config.get("BASE_URL")
     claims = {
         "pur": "api_key",
-        "aud": scopes,
         "sub": sub,
-        "iss": config.get("BASE_URL"),
+        "iss": iss,
+        "aud": [iss],
         "iat": iat,
         "exp": exp,
         "jti": jti,
         "azp": client_id or "",
+        "scope": scopes,
     }
     logger.info("issuing JWT API key with id [{}] to [{}]".format(jti, sub))
     logger.debug("issuing JWT API key\n" + json.dumps(claims, indent=4))
@@ -377,18 +395,12 @@ def generate_signed_access_token(
                 "must provide value for `iss` (issuer) field if"
                 " running outside of flask application"
             )
-    audiences = []
-    if client_id:
-        audiences.append(client_id)
-    # append scopes for backwards compatibility
-    # eventual goal is to remove scopes from `aud`
-    audiences = audiences + scopes
 
     claims = {
         "pur": "access",
-        "aud": audiences,
         "sub": sub,
         "iss": iss,
+        "aud": [iss],
         "iat": iat,
         "exp": exp,
         "jti": jti,
@@ -402,6 +414,13 @@ def generate_signed_access_token(
         },
         "azp": client_id or "",
     }
+
+    if client_id:
+        claims["aud"].append(client_id)
+
+    # Keep scopes in aud claim in access tokens for backwards comp....
+    if scopes:
+        claims["aud"] += scopes
 
     if include_project_access:
         # NOTE: "THIS IS A TERRIBLE STOP-GAP SOLUTION SO THAT USERS WITH
@@ -452,6 +471,7 @@ def generate_id_token(
     expires_in,
     client_id,
     audiences=None,
+    scopes=None,
     auth_time=None,
     max_age=None,
     nonce=None,
@@ -468,7 +488,10 @@ def generate_id_token(
         user (fence.models.User): User to generate ID token for
         expires_in (int): seconds token should last
         client_id (str, optional): Client identifier
-        audiences (List(str), optional): Description
+        audiences (List(str), optional):
+            audiences the ID token is intended for (the aud claim).
+            client_id will get appended to this.
+        scopes (List[str], optional): oauth scopes for user
         auth_time (int, optional):
             Last time user authN'd in number of seconds from 1970-01-01T0:0:0Z
             as measured in UTC until the date/time
@@ -476,6 +499,13 @@ def generate_id_token(
             max number of seconds allowed since last user AuthN
         nonce (str, optional):
             string value used to associate a Client session with an ID Token
+        include_project_access (bool, optional):
+            whether to include user.project_access in the token context.user.projects
+        auth_flow_type (AuthFlowTypes, optional):
+            which auth flow (Auth Code or Implicit) is issuing this token
+            (token validation will be different for each flow)
+        access_token (string, optional):
+            the access token tied to this id token; used to generate the at_hash claim
 
     Returns:
         UnsignedIDToken: Unsigned ID token
@@ -483,13 +513,6 @@ def generate_id_token(
 
     iat, exp = issued_and_expiration_times(expires_in)
     issuer = config.get("BASE_URL")
-
-    # include client_id if not already in audiences
-    if audiences:
-        if client_id not in audiences:
-            audiences.append(client_id)
-    else:
-        audiences = [client_id]
 
     # If not provided, assume auth time is time this ID token is issued
     auth_time = auth_time or iat
@@ -500,7 +523,6 @@ def generate_id_token(
     # ``fence/blueprints/well_known.py``.
     claims = {
         "pur": "id",
-        "aud": audiences,
         "sub": str(user.id),
         "iss": issuer,
         "iat": iat,
@@ -508,6 +530,7 @@ def generate_id_token(
         "jti": str(uuid.uuid4()),
         "auth_time": auth_time,
         "azp": client_id,
+        "scope": scopes,
         "context": {
             "user": {
                 "name": user.username,
@@ -518,6 +541,13 @@ def generate_id_token(
             }
         },
     }
+    aud = audiences.copy() if audiences else []
+    if client_id and client_id not in aud:
+        aud.append(client_id)
+    if issuer not in aud:
+        aud.append(issuer)
+    claims["aud"] = aud
+
     if user.tags:
         claims["context"]["user"]["tags"] = {tag.key: tag.value for tag in user.tags}
 

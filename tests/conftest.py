@@ -11,6 +11,7 @@ import json
 import mock
 import os
 import copy
+import time
 
 from addict import Dict
 from authutils.testing.fixtures import (
@@ -58,22 +59,10 @@ def mock_get_bucket_location(self, bucket, config):
     return "us-east-1"
 
 
-@mock_sts
-def mock_assume_role(self, role_arn, duration_seconds, config=None):
-    sts_client = client("sts", **config)
-    session_name_postfix = uuid.uuid4()
-    return sts_client.assume_role(
-        RoleArn=role_arn,
-        DurationSeconds=duration_seconds,
-        RoleSessionName="{}-{}".format("gen3", session_name_postfix),
-    )
-
-
 @pytest.fixture(scope="session")
 def claims_refresh():
     new_claims = tests.utils.default_claims()
     new_claims["pur"] = "refresh"
-    new_claims["aud"].append("fence")
     return new_claims
 
 
@@ -140,20 +129,15 @@ class Mocker(object):
             "fence.resources.aws.boto_manager.BotoManager.get_bucket_region",
             mock_get_bucket_location,
         )
-        self.assume_role_patcher = patch(
-            "fence.resources.aws.boto_manager.BotoManager.assume_role", mock_assume_role
-        )
         self.patcher.start()
         self.auth_patcher.start()
         self.boto_patcher.start()
-        self.assume_role_patcher.start()
         self.additional_patchers = []
 
     def unmock_functions(self):
         self.patcher.stop()
         self.auth_patcher.stop()
         self.boto_patcher.stop()
-        self.assume_role_patcher.stop()
         for patcher in self.additional_patchers:
             patcher.stop()
 
@@ -184,7 +168,7 @@ def mock_arborist_requests(request):
                 "GET": ("", 200)
             },
             "arborist/auth/request": {
-                "POST": ('{"auth": "false"}', 403)
+                "POST": ({"auth": False}, 403)
             }
         }
     """
@@ -471,6 +455,20 @@ def indexd_client(app, request):
             "urls": ["s3://bucket2/key"],
             "hashes": {},
             "acl": ["phs000178", "phs000218"],
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
+    elif protocol == "s3_assume_role":
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file1",
+            "urls": ["s3://bucket5/key"],
+            "hashes": {},
+            "metadata": {"acls": "phs000178,phs000218"},
             "form": "",
             "created_date": "",
             "updated_date": "",
@@ -1090,6 +1088,59 @@ def primary_google_service_account(app, db_session, user_client, google_proxy_gr
     yield Dict(
         id=service_account_id, email=email, get_or_create_service_account_mock=mock
     )
+
+    patcher.stop()
+
+
+@pytest.fixture(scope="function")
+def primary_google_service_account_google(
+    app, db_session, user_client, google_proxy_group
+):
+    service_account_id = "test-service-account-0"
+    email = fence.utils.random_str(40) + "@test.com"
+    service_account = models.GoogleServiceAccount(
+        google_unique_id=service_account_id,
+        email=email,
+        user_id=user_client.user_id,
+        client_id=None,
+        google_project_id="projectId-0",
+    )
+    db_session.add(service_account)
+    db_session.commit()
+
+    service_account_key_db_entry = models.GoogleServiceAccountKey(
+        key_id=1, service_account_id=service_account.id, expires=int(time.time()) + 3600
+    )
+
+    db_session.add(service_account_key_db_entry)
+    db_session.commit()
+
+    private_key = {
+        "type": "service_account",
+        "project_id": "project-id",
+        "private_key_id": "some_number",
+        "client_email": email,
+        "client_id": "...",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://accounts.google.com/o/oauth2/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_x509_cert_url": "https://www.googleapis.com/...<api-name>api%40project-id.iam.gserviceaccount.com",
+    }
+
+    mock = MagicMock()
+    mock.return_value = private_key, service_account_key_db_entry
+    patcher = patch(
+        "fence.blueprints.google.get_or_create_primary_service_account_key", mock
+    )
+    patcher.start()
+
+    yield Dict(
+        id=service_account_id, email=email, get_or_create_service_account_mock=mock
+    )
+
+    db_session.delete(service_account)
+    db_session.delete(service_account_key_db_entry)
+    db_session.commit()
 
     patcher.stop()
 

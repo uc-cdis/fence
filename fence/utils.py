@@ -10,6 +10,7 @@ import requests
 import boto3
 from urllib.parse import urlencode
 from urllib.parse import parse_qs, urlsplit, urlunsplit
+import sys
 
 from cdislogging import get_logger
 import flask
