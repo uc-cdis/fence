@@ -9,6 +9,7 @@ database migrations.
 
 from enum import Enum
 
+from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 from authlib.flask.oauth2.sqla import OAuth2AuthorizationCodeMixin, OAuth2ClientMixin
 import bcrypt
 import flask
@@ -23,6 +24,7 @@ from sqlalchemy import (
     MetaData,
     Table,
     text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import relationship, backref
@@ -89,6 +91,42 @@ class GrantType(Enum):
     refresh = "refresh_token"
     implicit = "implicit"
     client_credentials = "client_credentials"
+
+
+class Document(Base):
+    __tablename__ = "document"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    type = Column(String, nullable=False)
+    version = Column(Integer, nullable=False)
+    name = Column(String, nullable=False)
+    required = Column(Boolean)
+    raw = Column(String, nullable=False)
+    formatted = Column(String)
+
+    __table_args__ = (UniqueConstraint('type', 'version', name='doc_type_version_uc'),)
+
+
+class DocumentSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = Document
+
+
+class UserDocument(Base):
+    __tablename__ = "user_document"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    user_id = Column(Integer, ForeignKey(User.id), nullable=False)
+    user = relationship("User", backref=backref("documents"),)
+
+    document_id = Column(Integer, ForeignKey(Document.id), nullable=False)
+    document = relationship("Document",backref=backref("users"),)
+
+    accepted = Column(Boolean)
+    reviewed_on = Column(DateTime(timezone=False), server_default=func.now())
+
+    __table_args__ = (UniqueConstraint('user_id', 'document_id', name='user_doc_uc'),)
 
 
 class Client(Base, OAuth2ClientMixin):
@@ -742,6 +780,8 @@ def migrate(driver):
 
     _remove_policy(driver, md)
 
+    _add_documents(driver, md)
+
     add_column_if_not_exist(
         table_name=User.__tablename__,
         column=Column(
@@ -1060,6 +1100,27 @@ def _remove_policy(driver, md):
     with driver.session as session:
         session.execute("DROP TABLE IF EXISTS users_to_policies;")
         session.execute("DROP TABLE IF EXISTS policy;")
+        session.commit()
+
+#TODO remove this and add in deployment process instead 
+def _add_documents(driver, md):
+    with driver.session as session:
+        session.execute(
+            """\
+INSERT INTO document (type, version, name, raw, formatted, required)
+VALUES ('privacy-policy', '1', 'Privacy Notice', 'https://github.com/chicagopcdc/Documents/blob/81d60130308b6961c38097b6686a21f8be729a2c/governance/privacy_policy/privacy_notice.md', 'https://github.com/chicagopcdc/Documents/blob/81d60130308b6961c38097b6686a21f8be729a2c/governance/privacy_policy/PCDC-Privacy-Notice.pdf', 'true')
+ON CONFLICT (type, version)
+DO NOTHING;"""
+        )
+
+        session.execute(
+            """\
+INSERT INTO document (type, version, name, raw, formatted, required)
+VALUES ('terms-and-conditions', '1', 'Terms and Conditions', 'https://github.com/chicagopcdc/Documents/blob/fda4a7c914173e29d13ab6249ded7bc9adea5674/governance/terms_and_conditions/GEN3_portal/terms-and-conditions.md', 'https://github.com/chicagopcdc/Documents/blob/a5f4a87262f6597fc85d95b74c320e4fdf1e9097/governance/terms_and_conditions/GEN3_portal/Pediatric%20Cancer%20Data%20Commons%20-%20Terms%20and%20Conditions.pdf', 'true')
+ON CONFLICT (type, version)
+DO NOTHING;"""
+        )
+        # session.execute("INSERT INTO document(type, version, name, raw, formatted, required) values ('privacy-policy', '1', 'Privacy Notice', 'https://github.com/chicagopcdc/Documents/blob/81d60130308b6961c38097b6686a21f8be729a2c/governance/privacy_policy/privacy_notice.md', 'https://github.com/chicagopcdc/Documents/blob/81d60130308b6961c38097b6686a21f8be729a2c/governance/privacy_policy/PCDC-Privacy-Notice.pdf', 'true'), ('terms-and-conditions', '1', 'Terms and Conditions', 'https://github.com/chicagopcdc/Documents/blob/fda4a7c914173e29d13ab6249ded7bc9adea5674/governance/terms_and_conditions/GEN3_portal/terms-and-conditions.md', 'https://github.com/chicagopcdc/Documents/blob/a5f4a87262f6597fc85d95b74c320e4fdf1e9097/governance/terms_and_conditions/GEN3_portal/Pediatric%20Cancer%20Data%20Commons%20-%20Terms%20and%20Conditions.pdf', 'true');")
         session.commit()
 
 

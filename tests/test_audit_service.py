@@ -336,9 +336,15 @@ def test_login_log_login_endpoint(
     elif idp == "orcid":
         mocked_get_user_id = MagicMock()
         get_user_id_value = {"orcid": username}
+    elif idp == "cilogon":
+        mocked_get_user_id = MagicMock()
+        get_user_id_value = {"sub": username}
     elif idp == "shib":
         headers["persistent_id"] = username
         idp_name = "itrust"
+    elif idp == "okta":
+        mocked_get_user_id = MagicMock()
+        get_user_id_value = {"okta": username}
     elif idp == "fence":
         mocked_fetch_access_token = MagicMock(return_value={"id_token": jwt_string})
         patch(
@@ -362,7 +368,7 @@ def test_login_log_login_endpoint(
             "id_token": jwt_string,
         }
 
-    if idp in ["google", "microsoft", "synapse", "cognito"]:
+    if idp in ["google", "microsoft", "okta", "synapse", "cognito"]:
         get_user_id_value["email"] = username
 
     get_user_id_patch = None
