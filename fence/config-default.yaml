@@ -61,6 +61,11 @@ MOCK_STORAGE: true
 # WARNING: ONLY set to true when fence will be deployed in such a way that it will
 #          ONLY receive traffic from internal clients and can safely use HTTP.
 AUTHLIB_INSECURE_TRANSPORT: true
+# enable Prometheus Metrics for observability purposes
+#
+# WARNING: Any counters, gauges, histograms, etc. should be carefully
+# reviewed to make sure its labels do not contain any PII / PHI
+ENABLE_PROMETHEUS_METRICS: false
 
 # set if you want browsers to only send cookies with requests over HTTPS
 SESSION_COOKIE_SECURE: true
@@ -175,7 +180,7 @@ OPENID_CONNECT:
     mock: false
     mock_default_user: 'test@example.com'
   # For information on configuring an Okta tenant as an OIDC IdP refer to Okta documentation at:
-  # https://developer.okta.com/docs/reference/api/oidc/#2-okta-as-the-identity-platform-for-your-app-or-api  
+  # https://developer.okta.com/docs/reference/api/oidc/#2-okta-as-the-identity-platform-for-your-app-or-api
   okta:
     discovery_url: ''
     client_id: ''
@@ -421,6 +426,15 @@ RENEW_ACCESS_TOKEN_BEFORE_EXPIRATION: false
 PRIVACY_POLICY_URL: null
 
 # //////////////////////////////////////////////////////////////////////////////////////
+# RELIABILITY OPTS
+# //////////////////////////////////////////////////////////////////////////////////////
+# Configurations related to resiliency, fault-tolerance and availability
+# This is the number of requests per second that the Nginx proxy will accept before reaching fence
+# The value defined in fence-config-public.yaml takes precedence over this one
+# In the absence of this OVERRIDE prefixed config, the legacy NGINX_RATE_LIMIT from the k8s deployment yaml is applied
+OVERRIDE_NGINX_RATE_LIMIT: 18
+
+# //////////////////////////////////////////////////////////////////////////////////////
 # SUPPORT INFO
 # //////////////////////////////////////////////////////////////////////////////////////
 # If you want an email address to show up when an unhandled error occurs, provide one
@@ -610,6 +624,18 @@ AUDIT_SERVICE: 'http://audit-service'
 ENABLE_AUDIT_LOGS:
   presigned_url: false
   login: false
+# `PUSH_AUDIT_LOGS_CONFIG.type` is one of: [api, aws_sqs].
+# - if type == api: logs are created by hitting the log creation endpoint.
+# - if type == aws_sqs: logs are pushed to an SQS and `aws_sqs_config` fields
+# `sqs_url` and `region` are required. Fields `aws_access_key_id` and
+# `aws_secret_access_key` are optional.
+PUSH_AUDIT_LOGS_CONFIG:
+  type: aws_sqs
+  aws_sqs_config:
+    sqs_url:
+    region:
+    aws_access_key_id:
+    aws_secret_access_key:
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # CLOUD API LIBRARY (CIRRUS) AND GOOGLE CONFIGURATION
@@ -819,6 +845,12 @@ SYNAPSE_URI: 'https://repo-prod.prod.sagebase.org/auth/v1'
 SYNAPSE_JWKS_URI:
 SYNAPSE_DISCOVERY_URL:
 SYNAPSE_AUTHZ_TTL: 86400
+
+# Role caching for generating presigned urls if max role session increase is true
+# then we can increase the amount of time that a session is valid for
+MAX_ROLE_SESSION_INCREASE: false
+ASSUME_ROLE_CACHE_SECONDS: 1800
+
 # RAS refresh_tokens expire in 15 days
 RAS_REFRESH_EXPIRATION: 1296000
 # Number of projects that can be registered to a Google Service Accont

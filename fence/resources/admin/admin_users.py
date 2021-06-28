@@ -60,7 +60,7 @@ def connect_user_to_project(current_session, usr, project=None):
                 )
                 msg = "Success: user access" " created for a bucket in the project {0}"
                 response.append(msg.format(proj.name))
-            except:
+            except Exception:
                 msg = "Error user access not" " created for project {0} and bucket {2}"
                 response.append(msg.format(proj.name, bucket["name"]))
     return response

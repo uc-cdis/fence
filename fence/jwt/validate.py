@@ -40,6 +40,7 @@ def validate_purpose(claims, pur):
 def validate_jwt(
     encoded_token=None,
     aud=None,
+    scope={"openid"},
     purpose=None,
     public_key=None,
     attempt_refresh=False,
@@ -54,9 +55,16 @@ def validate_jwt(
 
     Args:
         encoded_token (str): the base64 encoding of the token
-        aud (Optional[Iterable[str]]):
-            list of audiences that the token must satisfy; defaults to
-            ``{'openid'}`` (minimum expected by OpenID provider)
+        aud (Optional[str]):
+            audience as which the app identifies, which the JWT will be
+            expected to include in its ``aud`` claim.
+            Optional; will default to issuer (config["BASE_URL"]).
+            To skip aud validation, pass the following as a kwarg:
+              options={"verify_aud": False}
+        scope (Optional[Iterable[str]]):
+            list of scopes each of which the token must satisfy; defaults
+            to ``{'openid'}`` (minimum expected by OpenID provider).
+            Explicitly set this to None to skip scope validation.
         purpose (Optional[str]):
             which purpose the token is supposed to be used for (access,
             refresh, or id)
@@ -77,8 +85,14 @@ def validate_jwt(
         except Unauthorized as e:
             raise JWTError(e.message)
 
-    aud = aud or {"openid"}
-    aud = set(aud)
+    assert (
+        isinstance(scope, set) or isinstance(scope, list) or scope is None
+    ), "scope argument must be set or list or None"
+
+    # Can't set arg default to config[x] in fn def, so doing it this way.
+    if aud is None:
+        aud = config["BASE_URL"]
+
     iss = config["BASE_URL"]
     issuers = [iss]
     oidc_iss = (
@@ -98,6 +112,7 @@ def validate_jwt(
         claims = authutils.token.validate.validate_jwt(
             encoded_token=encoded_token,
             aud=aud,
+            scope=scope,
             purpose=purpose,
             issuers=issuers,
             public_key=public_key,
@@ -105,11 +120,57 @@ def validate_jwt(
             **kwargs
         )
     except authutils.errors.JWTError as e:
-        msg = "Invalid token : {}".format(str(e))
+
+        ##### begin refresh token and API key patch block #####
+        # TODO: In the next release, remove this if/elif block and take the else block
+        # back out of the else.
+        # Old refresh tokens and API keys are not compatible with new validation, so to smooth
+        # the transition, allow old style refresh tokens/API keys with this patch;
+        # remove patch in next tag. Refresh tokens and API keys have default TTL of 30 days.
+        from authutils.errors import JWTAudienceError
+
         unverified_claims = jwt.decode(encoded_token, verify=False)
-        if "" in unverified_claims["aud"]:
-            msg += "; was OIDC client configured with scopes?"
-        raise JWTError(msg)
+        if unverified_claims.get("pur") == "refresh" and isinstance(
+            e, JWTAudienceError
+        ):
+            # Check everything else is fine minus the audience
+            try:
+                claims = authutils.token.validate.validate_jwt(
+                    encoded_token=encoded_token,
+                    aud="openid",
+                    scope=None,
+                    purpose="refresh",
+                    issuers=issuers,
+                    public_key=public_key,
+                    attempt_refresh=attempt_refresh,
+                    **kwargs
+                )
+            except Error as e:
+                raise JWTError("Invalid refresh token: {}".format(e))
+        elif unverified_claims.get("pur") == "api_key" and isinstance(
+            e, JWTAudienceError
+        ):
+            # Check everything else is fine minus the audience
+            try:
+                claims = authutils.token.validate.validate_jwt(
+                    encoded_token=encoded_token,
+                    aud="fence",
+                    scope=None,
+                    purpose="api_key",
+                    issuers=issuers,
+                    public_key=public_key,
+                    attempt_refresh=attempt_refresh,
+                    **kwargs
+                )
+            except Error as e:
+                raise JWTError("Invalid API key: {}".format(e))
+        else:
+            ##### end refresh token, API key patch block #####
+            msg = "Invalid token : {}".format(str(e))
+            unverified_claims = jwt.decode(encoded_token, verify=False)
+            if not unverified_claims.get("scope") or "" in unverified_claims["scope"]:
+                msg += "; was OIDC client configured with scopes?"
+            raise JWTError(msg)
     if purpose:
         validate_purpose(claims, purpose)
     if "pur" not in claims:
