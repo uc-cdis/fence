@@ -127,11 +127,10 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         if not user:
             raise InvalidRequestError('There is no "user" for this token.')
 
+        client = self.request.client
         scope = self.request.scope
         if not scope:
-            scope = credential["scope"]
-
-        client = self.request.client
+            scope = credential.get("scope", ["openid", "user", client.client_id])
         expires_in = credential["exp"]
         token = self.generate_token(
             client, self.GRANT_TYPE, user=user, expires_in=expires_in, scope=scope
