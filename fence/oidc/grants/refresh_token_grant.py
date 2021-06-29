@@ -127,11 +127,18 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         if not user:
             raise InvalidRequestError('There is no "user" for this token.')
 
+        client = self.request.client
         scope = self.request.scope
         if not scope:
-            scope = credential["scope"]
+            # scope = credential["scope"]
 
-        client = self.request.client
+            ##### begin refresh token patch block #####
+            # TODO: In the next release, remove this if block
+            # Old refresh tokens are not compatible with new validation, so to smooth
+            # the transition, allow old style refresh tokens with this patch;
+            # remove patch in next tag. Refresh tokens have default TTL of 30 days.
+            scope = credential.get("scope", ["openid", "user", client.client_id])
+            ##### end refresh token patch block #####
         expires_in = credential["exp"]
         token = self.generate_token(
             client, self.GRANT_TYPE, user=user, expires_in=expires_in, scope=scope
