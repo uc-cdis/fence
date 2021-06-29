@@ -584,26 +584,6 @@ class GoogleServiceAccountDryRun(Resource):
         return error_response, status
 
 
-def get_monitoring_service_account_response():
-    """
-    Return a response that includes our app's service account used
-    for monitoring user's Google projects.
-
-    Returns:
-        tuple(dict, int): (response_data, http_status_code)
-    """
-    monitoring_account_email = get_monitoring_service_account_email()
-    if not monitoring_account_email:
-        error = (
-            "No monitoring service account. Fence is not currently "
-            "configured to support user-registration of service accounts."
-        )
-        return {"message": error}, 404
-
-    response = {"service_account_email": monitoring_account_email}
-    return response, 200
-
-
 class GoogleCredentialsPrimarySA(Resource):
     """
     For ``/google/primary_google_service_account`` endpoint.
@@ -630,6 +610,26 @@ class GoogleCredentialsPrimarySA(Resource):
         # NOTE: service_account_from_db.email is what gets populated in the UserInfo endpoint's
         #       "primary_google_service_account" as well, so this remains consistent
         return flask.jsonify({"primary_google_service_account": service_account_email})
+
+
+def get_monitoring_service_account_response():
+    """
+    Return a response that includes our app's service account used
+    for monitoring user's Google projects.
+
+    Returns:
+        tuple(dict, int): (response_data, http_status_code)
+    """
+    monitoring_account_email = get_monitoring_service_account_email()
+    if not monitoring_account_email:
+        error = (
+            "No monitoring service account. Fence is not currently "
+            "configured to support user-registration of service accounts."
+        )
+        return {"message": error}, 404
+
+    response = {"service_account_email": monitoring_account_email}
+    return response, 200
 
 
 def _get_service_account_for_patch(id_):
@@ -810,9 +810,10 @@ def _get_service_account_error_status(sa):
         response["errors"]["google_project_id"]["error"]
         == ValidationErrors.MONITOR_NOT_FOUND
     ):
+        monitor_response = get_monitoring_service_account_response()
         monitor_account = (
-            get_monitoring_service_account_response()[0]["service_account_email"]
-            if (get_monitoring_service_account_response()[1] == 200)
+            monitor_response[0]["service_account_email"]
+            if (monitor_response[1] == 200)
             else ""
         )
 
