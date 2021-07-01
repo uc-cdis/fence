@@ -6,6 +6,7 @@ from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callbac
 from fence.blueprints.login.redirect import validate_redirect
 from fence.config import config
 from fence.errors import Unauthorized
+from fence.jwt.errors import JWTError
 from fence.jwt.validate import validate_jwt
 from fence.models import IdentityProvider
 
@@ -101,7 +102,7 @@ class FenceCallback(DefaultOAuth2Callback):
                 purpose="id",
                 attempt_refresh=True,
             )
-        except:
+        except JWTError:
             # Since fenceshib cannot be updated to issue "new-style" ID tokens
             # (where scopes are in the scope claim and aud is in the aud claim),
             # allow also "old-style" Fence ID tokens.
