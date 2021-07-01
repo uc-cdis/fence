@@ -14,15 +14,15 @@ that right now you have main-Fence set up, but not other-Fence.
 1. Make another config file. I have named mine other-fence-config.yaml.
    - Save it somewhere other than the default config directory where your
      default fence config lives. Otherwise the config code will complain.
-2. Make another database. I have named mine other_fence.
-3. In the other-config:
+1. Make another database. I have named mine other_fence.
+1. In the other-config:
    - set the BASE_URL to use a different port than does your main-Fence.
    - set the DB to your other-database.
    - set the default IdP to whatever you want. (Sadly, I have only tested with Google.)
    - set SESSION_COOKIE_NAME to something different from that of main-Fence,
      otherwise since both are on localhost the two Fences will eat each other's
      session tokens and there will be state errors on login.
-4. Now you have to register main-Fence as a client to other-Fence.
+1. Now you have to register main-Fence as a client to other-Fence.
    - fence-create will first look for a FENCE_DB environment variable and then
      look at the config. I don't think fence-create supports passing a config
      file on the command line, so let's just go with the envvar.
@@ -39,13 +39,13 @@ that right now you have main-Fence set up, but not other-Fence.
      the redirect in this setup.)
    - OK. Check that your other-database has this client in it, and then put the
      new credentials into your main-Fence config.
-5. Duplicate your runscript and name the duplicate other-runscript.py. Edit the
+1. Duplicate your runscript and name the duplicate other-runscript.py. Edit the
    port number to whatever your other-Fence is using.
    - If you have been using your own runscript and it is ancient, make sure to
      update it agaist run.py. The config/init code was updated mid-2021.
-6. Do whatever setup you need for your other-Fence's upstream IdP.
-7. Run your main Fence and run your other Fence!
+1. Do whatever setup you need for your other-Fence's upstream IdP.
+1. Run your main Fence and run your other Fence!
    For other-Fence your command will look something like this:
    `[poetry run] python run_other_way.py --config_path other-fence-config.yaml`
-8. Try: hit http://mainfence[/user]/login/fence
+1. Try: hit http://mainfence[/user]/login/fence
 
