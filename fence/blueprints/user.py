@@ -33,6 +33,7 @@ def update_user_info():
     firstName = flask.request.get_json().get("firstName", None)
     lastName = flask.request.get_json().get("lastName", None)
     institution = flask.request.get_json().get("institution", None)
+    role = flask.request.get_json().get("role", None)
     additional_info = {}
 
     if firstName:
@@ -41,6 +42,8 @@ def update_user_info():
         additional_info["lastName"] = lastName
     if institution:
         additional_info["institution"] = institution
+    if role:
+        additional_info["role"] = role
 
     #TODO make sure institution is present at all times at least for now
     return flask.jsonify(update_user(current_session, additional_info))
