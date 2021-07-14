@@ -11,6 +11,13 @@ from cdispyutils.config import get_value
 from cdispyutils.hmac4 import generate_aws_presigned_url
 import flask
 import requests
+from datetime import datetime, timedelta
+from azure.storage.blob import (
+    BlobServiceClient,
+    ResourceTypes,
+    AccountSasPermissions,
+    generate_blob_sas,
+)
 
 from fence.auth import (
     get_jwt,
@@ -45,6 +52,7 @@ logger = get_logger(__name__)
 ACTION_DICT = {
     "s3": {"upload": "PUT", "download": "GET"},
     "gs": {"upload": "PUT", "download": "GET"},
+    "az": {"upload": "PUT", "download": "GET"},
 }
 
 SUPPORTED_PROTOCOLS = ["s3", "http", "ftp", "https", "gs"]
@@ -194,9 +202,9 @@ class BlankIndex(object):
         )
         return document
 
-    def make_signed_url(self, file_name, expires_in=None):
+    def make_signed_url(self, file_name, protocol=None, expires_in=None):
         """
-        Works for upload only; S3 only (only supported case for data upload flow
+        Works for upload only; S3 or Azure Blob Storage only (only supported case for data upload flow
         currently).
 
         Args:
@@ -204,21 +212,45 @@ class BlankIndex(object):
             expires_in (int)
 
         Return:
-            S3IndexedFileLocation
+            S3IndexedFileLocation or AzureBlobStorageIndexedFileLocation
         """
-        try:
-            bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
-        except KeyError:
-            raise InternalError(
-                "fence not configured with data upload bucket; can't create signed URL"
+
+        # Can either do a protocol check (but would need to pass this in or else add new route)
+        # or a try / fail sequence?
+        # or try based off configuration?
+
+        if protocol != "https":
+            try:
+                bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
+            except KeyError:
+                raise InternalError(
+                    "fence not configured with data upload bucket; can't create signed URL"
+                )
+            s3_url = "s3://{}/{}/{}".format(bucket, self.guid, file_name)
+            url = S3IndexedFileLocation(s3_url).get_signed_url("upload", expires_in)
+            self.logger.info(
+                "created presigned URL to upload file {} with ID {}".format(
+                    file_name, self.guid
+                )
             )
-        s3_url = "s3://{}/{}/{}".format(bucket, self.guid, file_name)
-        url = S3IndexedFileLocation(s3_url).get_signed_url("upload", expires_in)
-        self.logger.info(
-            "created presigned URL to upload file {} with ID {}".format(
-                file_name, self.guid
+        else:
+            try:
+                container = flask.current_app.config["AZ_BLOB_CONTAINER_URL"]
+            except KeyError:
+                raise InternalError(
+                    "fence not configured with data upload container; can't create signed URL"
+                )
+            container_url = "{}/{}/{}".format(container, self.guid, file_name)
+
+            url = AzureBlobStorageIndexedFileLocation(container_url).get_signed_url(
+                "upload", expires_in
             )
-        )
+            self.logger.info(
+                "created presigned URL to upload file {} with ID {}".format(
+                    file_name, self.guid
+                )
+            )
+
         return url
 
     @staticmethod
@@ -311,7 +343,7 @@ class IndexedFile(object):
         self.file_id = file_id
 
     @cached_property
-    def indexd_server(self):
+    def indexd_server(self):  # pylint: disable=R0201
         indexd_server = (
             flask.current_app.config.get("INDEXD")
             or flask.current_app.config["BASE_URL"] + "/index"
@@ -406,7 +438,7 @@ class IndexedFile(object):
             #       app)
             blank_record = BlankIndex(uploader="", guid=self.index_document.get("did"))
             return blank_record.make_signed_url(
-                file_name=file_name, expires_in=expires_in
+                protocol=protocol, file_name=file_name, expires_in=expires_in
             )
 
         if not protocol:
@@ -586,6 +618,8 @@ class IndexedFileLocation(object):
             return S3IndexedFileLocation(url)
         elif protocol == "gs":
             return GoogleStorageIndexedFileLocation(url)
+        elif (protocol == "https") and (".blob.core.windows.net/" in url):
+            return AzureBlobStorageIndexedFileLocation(url)
         return IndexedFileLocation(url)
 
     def get_signed_url(
@@ -924,7 +958,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             parts,
         )
 
-    def delete(self, bucket, file_id):
+    def delete(self, bucket, file_id):  # pylint: disable=R0201
         try:
             return flask.current_app.boto.delete_data_file(bucket, file_id)
         except Exception as e:
@@ -945,7 +979,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     def get_resource_path(self):
         return self.parsed_url.netloc.strip("/") + "/" + self.parsed_url.path.strip("/")
 
-    def get_signed_url(
+    def get_signed_url(  # pylint: disable=W0221
         self,
         action,
         expires_in,
@@ -975,7 +1009,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
 
         return url
 
-    def _generate_anonymous_google_storage_signed_url(
+    def _generate_anonymous_google_storage_signed_url(  # pylint: disable=R0201
         self, http_verb, resource_path, expires_in, r_pays_project=None
     ):
         # we will use the main fence SA service account to sign anonymous requests
@@ -1135,6 +1169,97 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                 logger.error(exc)
                 status_code = 500
             return ("Failed to delete data file.", status_code)
+
+
+class AzureBlobStorageIndexedFileLocation(IndexedFileLocation):
+    """
+    An indexed file that lives in a Azure blob storage conatiner.
+    """
+
+    def _create_sas_query(  # pylint: disable=R0201
+        self, conn_str, container_name, blob_name, expires_in_seconds, permission
+    ):
+        blob_service_client = BlobServiceClient.from_connection_string(conn_str)
+
+        sas_query = generate_blob_sas(
+            blob_service_client.account_name,
+            container_name,
+            blob_name,
+            account_key=blob_service_client.credential.account_key,
+            resource_types=ResourceTypes(object=True),
+            permission=permission,
+            expiry=datetime.utcnow() + timedelta(seconds=expires_in_seconds),
+        )
+        return sas_query
+
+    def _generate_azure_blob_storage_sas(
+        self,
+        http_verb,
+        container_and_blob,
+        expires_in,
+        azure_creds,
+        user_id,
+        username,
+        permission,
+        r_pays_project=None,
+    ):
+        sas_query = self._create_sas_query(
+            azure_creds,
+            container_and_blob[0],
+            container_and_blob[1],
+            expires_in,
+            permission,
+        )
+        sas_url = self.url + "?" + sas_query
+        return sas_url
+
+    def _get_container_and_blob(self):
+        container_and_blob_parts = self.parsed_url.path.strip("/").split("/")
+        container_name = container_and_blob_parts[0]
+        blob_name = "/".join(container_and_blob_parts[1:])
+
+        return [container_name, blob_name]
+
+    def get_signed_url(
+        self,
+        action,
+        expires_in,
+        public_data=False,
+        force_signed_url=True,
+        r_pays_project=None,
+    ):
+        azure_creds = get_value(
+            config,
+            "AZ_BLOB_CREDENTIALS",
+            InternalError("Azure Blob credentials not configured"),
+        )
+
+        container_and_blob = self._get_container_and_blob()
+
+        user_info = _get_user_info()
+
+        # if it's public and we don't need to force the signed url, just return the raw
+        # url
+        # `azure_creds == "*"` is a special case to support public buckets
+        # where we do *not* want to try signing at all. the other case is that the
+        # data is public and user requested to not sign the url
+        if azure_creds == "*" or (public_data and not force_signed_url):
+            return self.url
+
+        url = self._generate_azure_blob_storage_sas(
+            ACTION_DICT["az"][action],
+            container_and_blob,
+            expires_in,
+            azure_creds,
+            user_info.get("user_id"),
+            user_info.get("username"),
+            permission=AccountSasPermissions(read=True)
+            if ACTION_DICT["az"][action] == "download"
+            else AccountSasPermissions(read=True, write=True),
+            r_pays_project=r_pays_project,
+        )
+
+        return url
 
 
 def _get_user_info(sub_type=str):

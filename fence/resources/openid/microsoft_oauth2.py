@@ -48,7 +48,7 @@ class MicrosoftOauth2Client(Oauth2ClientBase):
             )
             claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
 
-            if claims["email"]:
+            if "email" in claims:
                 return {"email": claims["email"]}
             else:
                 return {"error": "Can't get user's Microsoft email!"}

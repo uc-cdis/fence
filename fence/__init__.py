@@ -49,7 +49,7 @@ import fence.blueprints.well_known
 import fence.blueprints.link
 import fence.blueprints.google
 import fence.blueprints.privacy
-
+from azure.storage.blob import BlobServiceClient
 
 # for some reason the temp dir does not get created properly if we move
 # this statement to `_setup_prometheus()`
@@ -105,7 +105,7 @@ def app_sessions(app):
     else:
         logger.info("NOT running database migration.")
 
-    session = flask_scoped_session(app.db.Session, app)  # noqa
+    session = flask_scoped_session(app.db.Session, app)  # pylint: disable=W0612
     app.session_interface = UserSessionInterface()
 
 
@@ -137,7 +137,7 @@ def app_register_blueprints(app):
     fence.blueprints.misc.register_misc(app)
 
     @app.route("/")
-    def root():
+    def root():  # pylint: disable=W0612
         """
         Register the root URL.
         """
@@ -149,7 +149,7 @@ def app_register_blueprints(app):
         return flask.jsonify(endpoints)
 
     @app.route("/logout")
-    def logout_endpoint():
+    def logout_endpoint():  # pylint: disable=W0612
         root = config.get("BASE_URL", "")
         request_next = flask.request.args.get("next", root)
         force_era_global_logout = (
@@ -166,7 +166,7 @@ def app_register_blueprints(app):
         )
 
     @app.route("/jwt/keys")
-    def public_keys():
+    def public_keys():  # pylint: disable=W0612
         """
         Return the public keys which can be used to verify JWTs signed by fence.
 
@@ -182,6 +182,29 @@ def app_register_blueprints(app):
         return flask.jsonify(
             {"keys": [(keypair.kid, keypair.public_key) for keypair in app.keypairs]}
         )
+
+
+def _check_azure_storage(app):
+    """
+    Confirm access to Azure Storage Account and Containers
+    """
+    azure_creds = config.get("AZ_BLOB_CREDENTIALS", None)
+
+    if not azure_creds:
+        logger.warning(
+            "Azure Blob credentials are not configured.  Please set AZ_BLOB_CREDENTIALS to your Azure Blob Storage Connection String."
+        )
+        return
+
+    blob_service_client = BlobServiceClient.from_connection_string(azure_creds)
+    for c in blob_service_client.list_containers():
+        container_client = blob_service_client.get_container_client(c.name)
+
+        # check if container exists.  If it doesn't exist, log a warning.
+        if container_client.exists() == False:
+            logger.warning(
+                f"Unable to access Azure Blob Storage Container {c.name}.  You may run into issues resolving orphaned indexed files pointing to this container."
+            )
 
 
 def _check_s3_buckets(app):
@@ -291,6 +314,7 @@ def app_config(
 
     with app.app_context():
         _check_s3_buckets(app)
+        _check_azure_storage(app)
 
 
 def _setup_data_endpoint_and_boto(app):

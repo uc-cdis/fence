@@ -2,21 +2,22 @@ import json
 import time
 
 from datetime import datetime, timedelta
+from unittest.mock import MagicMock, patch
 
-import mock
 import urllib.parse
 import uuid
 
+import copy
 import jwt
 import pytest
 import requests
+
+import mock
 
 import fence.blueprints.data.indexd
 from fence.config import config
 
 from tests import utils
-
-from unittest.mock import MagicMock, patch
 
 
 INDEXD_RECORD_WITH_PUBLIC_AUTHZ_POPULATED = {
@@ -53,7 +54,9 @@ INDEXD_RECORD_WITH_PUBLIC_AUTHZ_AND_ACL_POPULATED = {
 
 
 @pytest.mark.parametrize(
-    "indexd_client", ["gs", "s3", "gs_acl", "s3_acl", "s3_external"], indirect=True
+    "indexd_client",
+    ["gs", "s3", "gs_acl", "s3_acl", "s3_external", "https_azure", "https"],
+    indirect=True,
 )
 def test_indexd_download_file(
     client,
@@ -89,7 +92,11 @@ def test_indexd_download_file(
     assert "url" in list(response.json.keys())
 
     # defaults to signing url, check that it's not just raw url
-    assert urllib.parse.urlparse(response.json["url"]).query != ""
+    # unless using the default IndexedFileLocation.get_signed_url
+    assert urllib.parse.urlparse(response.json["url"]).query != "" or (
+        indexd_client["indexed_file_location"] == "https"
+        and urllib.parse.urlparse(response.json["url"]).query == ""
+    )
 
 
 @pytest.mark.parametrize("indexd_client", ["s3"], indirect=True)
@@ -153,7 +160,7 @@ def test_indexd_prometheus_presigned_url_counter(
 
 @pytest.mark.parametrize(
     "indexd_client",
-    ["gs", "s3", "gs_acl", "s3_acl", "s3_external", "no_urls"],
+    ["gs", "s3", "gs_acl", "s3_acl", "s3_external", "no_urls", "https_azure"],
     indirect=True,
 )
 def test_indexd_upload_file(
@@ -192,7 +199,55 @@ def test_indexd_upload_file(
 
 
 @pytest.mark.parametrize(
-    "indexd_client", ["gs", "s3", "gs_acl", "s3_acl", "s3_external"], indirect=True
+    "indexd_client",
+    ["gs", "s3", "gs_acl", "s3_acl", "s3_external", "https_azure", "https"],
+    indirect=True,
+)
+def test_indexd_upload_file_key_error(
+    client,
+    oauth_client,
+    user_client,
+    indexd_client,
+    kid,
+    rsa_private_key,
+    google_proxy_group,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+):
+    """
+    Test ``GET /data/upload/1``.
+    """
+    file_id = "1"
+    indexed_file_location = indexd_client["indexed_file_location"]
+    path = f"/data/upload/{file_id}?protocol=" + indexed_file_location
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_upload_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+
+    current_app = fence.blueprints.data.indexd.flask.current_app
+    expected_value = copy.deepcopy(current_app.config)
+    del expected_value["DATA_UPLOAD_BUCKET"]
+    del expected_value["AZ_BLOB_CONTAINER_URL"]
+
+    with patch.object(current_app, "config", expected_value):
+        assert current_app.config == expected_value
+        response = client.get(path, headers=headers)
+        assert response.status_code == 500
+
+
+@pytest.mark.parametrize(
+    "indexd_client",
+    ["gs", "s3", "gs_acl", "s3_acl", "s3_external", "https_azure"],
+    indirect=True,
 )
 def test_indexd_upload_file_filename(
     client,
@@ -226,6 +281,51 @@ def test_indexd_upload_file_filename(
     assert response.status_code == 200
     assert "url" in list(response.json.keys())
     assert file_name in response.json.get("url")
+
+
+@pytest.mark.parametrize(
+    "indexd_client",
+    ["gs", "s3", "gs_acl", "s3_acl", "s3_external", "https_azure", "https"],
+    indirect=True,
+)
+def test_indexd_upload_file_filename_key_error(
+    client,
+    oauth_client,
+    user_client,
+    indexd_client,
+    kid,
+    rsa_private_key,
+    google_proxy_group,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+):
+    """
+    Test ``GET /data/upload/1``.
+    """
+    file_name = "some_test_file.txt"
+    path = "/data/upload/1?file_name=" + file_name
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_upload_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+
+    current_app = fence.blueprints.data.indexd.flask.current_app
+    expected_value = copy.deepcopy(current_app.config)
+    del expected_value["DATA_UPLOAD_BUCKET"]
+    del expected_value["AZ_BLOB_CONTAINER_URL"]
+
+    with patch.object(current_app, "config", expected_value):
+        assert current_app.config == expected_value
+        response = client.get(path, headers=headers)
+        assert response.status_code == 500
 
 
 @pytest.mark.parametrize("indexd_client", ["nonexistent_guid"], indirect=True)
@@ -263,7 +363,9 @@ def test_indexd_upload_file_doesnt_exist(
 
 
 @pytest.mark.parametrize(
-    "indexd_client", ["gs", "s3", "gs_acl", "s3_acl", "s3_external"], indirect=True
+    "indexd_client",
+    ["gs", "s3", "gs_acl", "s3_acl", "s3_external", "https_azure"],
+    indirect=True,
 )
 def test_indexd_download_file_no_protocol(
     client,
@@ -299,7 +401,7 @@ def test_indexd_download_file_no_protocol(
 
 
 @pytest.mark.parametrize(
-    "indexd_client", ["gs", "s3", "gs_acl", "s3_acl"], indirect=True
+    "indexd_client", ["gs", "s3", "gs_acl", "s3_acl", "https_azure"], indirect=True
 )
 def test_indexd_download_file_no_jwt(client, indexd_client, auth_client):
     """
@@ -315,7 +417,7 @@ def test_indexd_download_file_no_jwt(client, indexd_client, auth_client):
 
 
 @pytest.mark.parametrize(
-    "indexd_client", ["gs", "s3", "gs_acl", "s3_acl"], indirect=True
+    "indexd_client", ["gs", "s3", "gs_acl", "s3_acl", "https_azure"], indirect=True
 )
 def test_indexd_unauthorized_download_file(
     client,
@@ -338,7 +440,7 @@ def test_indexd_unauthorized_download_file(
 
 
 @pytest.mark.parametrize(
-    "indexd_client", ["gs", "s3", "gs_acl", "s3_acl"], indirect=True
+    "indexd_client", ["gs", "s3", "gs_acl", "s3_acl", "https_azure"], indirect=True
 )
 def test_unauthorized_indexd_download_file(
     client,
@@ -399,7 +501,7 @@ def test_unauthorized_indexd_download_file(
 
 
 @pytest.mark.parametrize(
-    "indexd_client", ["gs", "s3", "gs_acl", "s3_acl"], indirect=True
+    "indexd_client", ["gs", "s3", "gs_acl", "s3_acl", "https_azure"], indirect=True
 )
 def test_unauthorized_indexd_upload_file(
     client,
@@ -461,7 +563,9 @@ def test_unauthorized_indexd_upload_file(
 
 
 @pytest.mark.parametrize(
-    "unauthorized_indexd_client", ["gs", "s3", "gs_acl", "s3_acl"], indirect=True
+    "unauthorized_indexd_client",
+    ["gs", "s3", "gs_acl", "s3_acl", "https_azure"],
+    indirect=True,
 )
 def test_unavailable_indexd_upload_file(
     client,
@@ -523,7 +627,9 @@ def test_unavailable_indexd_upload_file(
 
 
 @pytest.mark.parametrize(
-    "public_indexd_client", ["gs", "s3", "gs_acl", "s3_acl"], indirect=True
+    "public_indexd_client",
+    ["gs", "s3", "gs_acl", "s3_acl", "https_azure"],
+    indirect=True,
 )
 def test_public_object_download_file(
     client,
@@ -547,7 +653,9 @@ def test_public_object_download_file(
 
 
 @pytest.mark.parametrize(
-    "public_indexd_client", ["gs", "s3", "gs_acl", "s3_acl"], indirect=True
+    "public_indexd_client",
+    ["gs", "s3", "gs_acl", "s3_acl", "https_azure"],
+    indirect=True,
 )
 def test_public_object_download_file_no_force_sign(
     client,
@@ -580,7 +688,9 @@ def test_public_object_download_file_no_force_sign(
 
 
 @pytest.mark.parametrize(
-    "public_bucket_indexd_client", ["gs", "s3", "gs_acl", "s3_acl"], indirect=True
+    "public_bucket_indexd_client",
+    ["gs", "s3", "gs_acl", "s3_acl", "https_azure"],
+    indirect=True,
 )
 def test_public_bucket_download_file(
     client,
@@ -606,7 +716,9 @@ def test_public_bucket_download_file(
 
 
 @pytest.mark.parametrize(
-    "public_bucket_indexd_client", ["gs", "s3", "gs_acl", "s3_acl"], indirect=True
+    "public_bucket_indexd_client",
+    ["gs", "s3", "gs_acl", "s3_acl", "https_azure"],
+    indirect=True,
 )
 def test_public_bucket_download_file_no_force_sign(
     client,
@@ -979,6 +1091,54 @@ def test_blank_index_upload_authz(
         assert response.status_code == 201, response
         assert "guid" in response.json
         assert "url" in response.json
+
+
+def test_blank_index_upload_missing_indexd_credentials(
+    app, client, auth_client, encoded_creds_jwt, user_client
+):
+    class MockResponse(object):
+        def __init__(self, data, status_code=200):
+            self.data = data
+            self.status_code = status_code
+
+        def json(self):
+            return self.data
+
+    data_requests_mocker = mock.patch(
+        "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
+    )
+    arborist_requests_mocker = mock.patch(
+        "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
+    )
+    with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
+        data_requests.post.return_value = MockResponse(
+            {
+                "did": str(uuid.uuid4()),
+                "rev": str(uuid.uuid4())[:8],
+                "baseid": str(uuid.uuid4()),
+            }
+        )
+        data_requests.post.return_value.status_code = 401
+        arborist_requests.return_value = MockResponse({"auth": True})
+        arborist_requests.return_value.status_code = 200
+        headers = {
+            "Authorization": "Bearer " + encoded_creds_jwt.jwt,
+            "Content-Type": "application/json",
+        }
+        file_name = "asdf"
+        data = json.dumps({"file_name": file_name})
+        response = client.post("/data/upload", headers=headers, data=data)
+        indexd_url = app.config.get("INDEXD") or app.config.get("BASE_URL") + "/index"
+        endpoint = indexd_url + "/index/blank/"
+        indexd_auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
+        data_requests.post.assert_called_once_with(
+            endpoint,
+            auth=indexd_auth,
+            json={"file_name": file_name, "uploader": user_client.username},
+            headers={},
+        )
+        assert response.status_code == 500, response
+        assert not response.json
 
 
 def test_indexd_download_with_uploader_unauthenticated(
