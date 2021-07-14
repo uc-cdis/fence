@@ -621,6 +621,8 @@ INDEXD_PASSWORD: ''
 # url where authz microservice is running
 ARBORIST: null
 
+BASIC_REGISTRATION_ACCESS_POLICY: []
+
 # url where the audit-service is running
 AUDIT_SERVICE: 'http://audit-service'
 ENABLE_AUDIT_LOGS:
