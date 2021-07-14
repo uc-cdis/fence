@@ -67,7 +67,7 @@ def register_arborist_user(user, policies=None):
 
     if policies is None:
         if "BASIC_REGISTRATION_ACCESS_POLICY" in config and len(config["BASIC_REGISTRATION_ACCESS_POLICY"]) > 0:
-            policies = ["login_no_access", "analysis"]
+            policies = config["BASIC_REGISTRATION_ACCESS_POLICY"]
         else:
             policies = []
 
