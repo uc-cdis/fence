@@ -269,6 +269,9 @@ def user_review_document(current_session, documents):
 def get_doc_to_be_reviewed(current_session):
     return udm.get_doc_to_review(current_session, flask.g.user.username)
 
+def get_up_to_date_doc(current_session):
+    return udm.get_docs(current_session)
+
 
 
 
