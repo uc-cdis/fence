@@ -424,8 +424,10 @@ RENEW_ACCESS_TOKEN_BEFORE_EXPIRATION: false
 # For displaying a privacy policy to users, we can either link to the URL specified by
 # PRIVACY_POLICY_URL, or default to the `static/privacy_policy.md` file in fence.
 PRIVACY_POLICY_URL: null
-INITIAL_PRIVACY_POLICY: 'https://github.com/chicagopcdc/Documents/blob/81d60130308b6961c38097b6686a21f8be729a2c/governance/privacy_policy/PCDC-Privacy-Notice.pdf'
-INITIAL_TERM_CONDITION: 'https://github.com/chicagopcdc/Documents/blob/a5f4a87262f6597fc85d95b74c320e4fdf1e9097/governance/terms_and_conditions/GEN3_portal/Pediatric%20Cancer%20Data%20Commons%20-%20Terms%20and%20Conditions.pdf'
+INITIAL_PRIVACY_POLICY: null
+INITIAL_PRIVACY_POLICY_RAW: null
+INITIAL_TERM_CONDITION: null
+INITIAL_TERM_CONDITION_RAW: null
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # RELIABILITY OPTS
