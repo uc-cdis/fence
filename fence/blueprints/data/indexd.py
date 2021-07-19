@@ -478,7 +478,10 @@ class IndexedFile(object):
 
     @cached_property
     def public(self):
-        return self.public_acl or self.public_authz
+        if self.index_document.get("authz", []):
+            return self.public_authz
+        else:
+            return self.public_acl
 
     @cached_property
     def public_acl(self):
