@@ -79,10 +79,15 @@ class RASOauth2Client(Oauth2ClientBase):
             userinfo_endpoint = self.get_value_from_discovery_doc(
                 "userinfo_endpoint", ""
             )
+            userinfo_endpoint = "https://stsstg.nih.gov/openid/connect/v1.1/userinfo"
 
             token = self.get_token(token_endpoint, code)
             keys = self.get_jwt_keys(jwks_endpoint)
             userinfo = self.get_userinfo(token, userinfo_endpoint)
+
+            print("-----------------v1.1--------------------")
+            print(userinfo)
+            print("--------------------------------")
 
             claims = jose_jwt.decode(
                 token["id_token"],
