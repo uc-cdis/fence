@@ -48,7 +48,11 @@ class RASCallback(DefaultOAuth2Callback):
         user.ga4gh_visas_v1 = []
         current_session.commit()
 
-        encoded_visas = flask.g.userinfo.get("ga4gh_passport_v1", [])
+        encoded_passport = flask.g.userinfo.get("passport_jwt_v11")
+        decoded_passport = jwt.decode(encoded_passport, verify=False)
+
+        # encoded_visas = flask.g.userinfo.get("ga4gh_passport_v1", [])
+        encoded_visas = decoded_passport.get("ga4gh_passport_v1", [])
 
         for encoded_visa in encoded_visas:
             try:
