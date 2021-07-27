@@ -154,7 +154,6 @@ def get_user_info(current_session, username):
             "Unable to check scopes in userinfo; some claims may not be included in response."
         )
         # expires_in = config["GEN3_PASSPORTS_EXPIRES_IN"]
-        generate_encoded_gen3_passport(user, expires_in=100000)
         encoded_access_token = None
 
     if encoded_access_token:
@@ -162,8 +161,8 @@ def get_user_info(current_session, username):
         if "ga4gh_passport_v1" in at_scopes:
             # encoded_visas = [row.ga4gh_visa for row in user.ga4gh_visas_v1]
             # info["ga4gh_passport_v1"] = encoded_visas
-
-            info["passport_jwt_v11"] = ""
+            info["passport_jwt_v11"] = generate_encoded_gen3_passport(user, expires_in=100000)
+            
 
     return info
 
@@ -195,7 +194,9 @@ def generate_encoded_gen3_passport(user, expires_in):
     logger.info("Issuing JWT Gen3 Passport")
     passport = jwt.encode(payload, keypair.private_key, headers=headers, algorithm="RS256")
     passport = to_unicode(passport, "UTF-8")
-
+    print("--------------------------------")
+    print(passport)
+    print("--------------------------------")
     return passport
 
 
