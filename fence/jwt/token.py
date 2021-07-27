@@ -396,13 +396,6 @@ def generate_signed_access_token(
                 " running outside of flask application"
             )
 
-    audiences = []
-    if client_id:
-        audiences.append(client_id)
-    # append scopes for backwards compatibility
-    # eventual goal is to remove scopes from `aud`
-    audiences = audiences + scopes
-
     claims = {
         "pur": "access",
         "sub": sub,
