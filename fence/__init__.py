@@ -184,7 +184,7 @@ def app_register_blueprints(app):
         )
 
 
-def _check_s3_buckets(app):
+def _check_aws_creds_and_region(app):
     """
     Function to ensure that all s3_buckets have a valid credential.
     Additionally, if there is no region it will produce a warning then try to fetch and cache the region.
@@ -238,6 +238,14 @@ def _check_s3_buckets(app):
             region = app.boto.get_bucket_region(bucket_name, credential)
             config["S3_BUCKETS"][bucket_name]["region"] = region
 
+    cred = config["PUSH_AUDIT_LOGS_CONFIG"].get("aws_sqs_config", {}).get("aws_cred")
+    if cred and cred not in aws_creds:
+        raise ValueError(
+            "Credential {} for PUSH_AUDIT_LOGS_CONFIG.aws_sqs_config.aws_cred is not defined in AWS_CREDENTIALS".format(
+                cred
+            )
+        )
+
 
 def app_config(
     app, settings="fence.settings", root_dir=None, config_path=None, file_name=None
@@ -290,7 +298,7 @@ def app_config(
     _setup_oidc_clients(app)
 
     with app.app_context():
-        _check_s3_buckets(app)
+        _check_aws_creds_and_region(app)
 
 
 def _setup_data_endpoint_and_boto(app):
