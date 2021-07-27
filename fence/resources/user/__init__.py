@@ -2,10 +2,13 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import COMMASPACE, formatdate
+import uuid
+from fence.jwt.token import issued_and_expiration_times
 
 import flask
 import jwt
 import smtplib
+from authlib.common.encoding import to_unicode
 from cdislogging import get_logger
 from gen3authz.client.arborist.errors import ArboristError
 
@@ -150,15 +153,50 @@ def get_user_info(current_session, username):
             "Session token present but no access token found. "
             "Unable to check scopes in userinfo; some claims may not be included in response."
         )
+        # expires_in = config["GEN3_PASSPORTS_EXPIRES_IN"]
+        generate_encoded_gen3_passport(user, expires_in=100000)
         encoded_access_token = None
 
     if encoded_access_token:
         at_scopes = jwt.decode(encoded_access_token, verify=False).get("scope", "")
         if "ga4gh_passport_v1" in at_scopes:
-            encoded_visas = [row.ga4gh_visa for row in user.ga4gh_visas_v1]
-            info["ga4gh_passport_v1"] = encoded_visas
+            # encoded_visas = [row.ga4gh_visa for row in user.ga4gh_visas_v1]
+            # info["ga4gh_passport_v1"] = encoded_visas
+
+            info["passport_jwt_v11"] = ""
 
     return info
+
+
+def generate_encoded_gen3_passport(user, expires_in):
+
+    keypair = flask.current_app.keypairs[0]
+
+    headers = {
+        "typ": "JWT",
+        "alg": "RS256",
+        "kid": keypair.kid,
+    }
+
+    issuer = config.get("BASE_URL")
+    iat, exp = issued_and_expiration_times(expires_in)
+    encoded_visas = [row.ga4gh_visa for row in user.ga4gh_visas_v1]
+    
+    payload = {
+        "iss": issuer,
+        "sub": user.id,
+        "iat": iat,
+        "exp": exp,
+        "jti": str(uuid.uuid4()),
+        "scope": "openid <ga4gh-spec-scopes>",
+        "ga4gh_passport_v1": encoded_visas,
+    }
+
+    logger.info("Issuing JWT Gen3 Passport")
+    passport = jwt.encode(payload, keypair.private_key, headers=headers, algorithm="RS256")
+    passport = to_unicode(passport, "UTF-8")
+
+    return passport
 
 
 def _get_optional_userinfo(user, claims):
