@@ -9,6 +9,7 @@ from fence.blueprints.data.indexd import (
     IndexedFile,
     get_signed_url_for_file,
 )
+from fence.config import config
 from fence.errors import Forbidden, InternalError, UserError, Forbidden
 from fence.resources.audit.utils import enable_audit_logging
 from fence.utils import get_valid_expiration
@@ -292,12 +293,27 @@ def upload_file(file_id):
     return flask.jsonify(result)
 
 
-@blueprint.route("/download/<path:file_id>", methods=["GET"])
+@blueprint.route("/download/<path:file_id>", methods=["GET", "POST"])
 @enable_audit_logging
 def download_file(file_id):
     """
     Get a presigned url to download a file given by file_id.
     """
+    if request.method == "POST":
+        passport = flask.request.get_json(force=True, silent=True).get(
+            config["GA4GH_DRS_POSTED_PASSPORT_FIELD"]
+        )
+
+        """ TODO
+        check cache
+        if not cache:
+            validate passport
+            parse visas
+            validate visas
+            update user table with visas
+            parse visa contents
+        """
+
     result = get_signed_url_for_file("download", file_id)
     if not "redirect" in flask.request.args or not "url" in result:
         return flask.jsonify(result)

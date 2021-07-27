@@ -417,6 +417,11 @@ TOKEN_PROJECTS_CUTOFF: 10
 # If set to true, will generate an new access token each time when a browser session update happens
 RENEW_ACCESS_TOKEN_BEFORE_EXPIRATION: false
 
+# The JSON field the GA4GH Passport is in when a request is POST-ed to DRS
+# We use the same field name for POSTs to /data/download for consistency
+GA4GH_DRS_POSTED_PASSPORT_FIELD: "auth"
+
+
 ########################################################################################
 #                               OPTIONAL CONFIGURATIONS                                #
 ########################################################################################
@@ -846,7 +851,7 @@ SERVICE_ACCOUNT_LIMIT: 6
 
 # Global sync visas during login
 # None(Default): Allow per client i.e. a fence client can pick whether or not to sync their visas during login with parse_visas param in /authorization endpoint
-# True: Parse for all clients i.e. a fence client will always sync their visas during login 
+# True: Parse for all clients i.e. a fence client will always sync their visas during login
 # False: Parse for no clients i.e. a fence client will not be able to sync visas during login even with parse_visas param
 GLOBAL_PARSE_VISAS_ON_LOGIN:
 # Settings for usersync with visas
