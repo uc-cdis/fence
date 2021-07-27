@@ -1385,6 +1385,7 @@ def _get_user_info(sub_type=str):
     populated information about an anonymous user.
     By default, cast `sub` to str. Use `sub_type` to override this behavior.
     """
+    # TODO Update to support POSTed passport
     try:
         set_current_token(
             validate_request(scope={"user"}, audience=config.get("BASE_URL"))
