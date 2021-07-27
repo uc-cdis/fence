@@ -299,7 +299,7 @@ def download_file(file_id):
     """
     Get a presigned url to download a file given by file_id.
     """
-    if request.method == "POST":
+    if flask.request.method == "POST":
         passport = flask.request.get_json(force=True, silent=True).get(
             config["GA4GH_DRS_POSTED_PASSPORT_FIELD"]
         )
