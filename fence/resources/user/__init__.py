@@ -180,7 +180,7 @@ def generate_encoded_gen3_passport(user, expires_in):
 
     # if visas are expired we dont want to include them in the passsport
     encoded_visas = [
-        row.ga4gh_visa for row in user.ga4gh_visas_v1 if row.expires < time.time()
+        row.ga4gh_visa for row in user.ga4gh_visas_v1 if row.expires > time.time()
     ]
 
     payload = {
