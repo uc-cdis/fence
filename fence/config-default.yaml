@@ -854,8 +854,8 @@ ASSUME_ROLE_CACHE_SECONDS: 1800
 # MIDRC user registration feature: Ask users to register (provide name/org/email) on login.
 # If user registers, add them to configured Arborist group; idea is that the Arborist group
 # will have access to download data.
-REGISTER_USERS_ON: false
-REGISTERED_USERS_GROUP: ''
+REGISTER_USERS_ON: true
+REGISTERED_USERS_GROUP: 'data_uploaders'
 # RAS refresh_tokens expire in 15 days
 RAS_REFRESH_EXPIRATION: 1296000
 # List of JWT issuers from which Fence will accept GA4GH visas
