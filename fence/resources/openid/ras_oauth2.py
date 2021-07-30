@@ -1,8 +1,9 @@
+import backoff
 import base64
 import flask
 import httpx
+import jwt
 import requests
-import backoff
 from flask_sqlalchemy_session import current_session
 from jose import jwt as jose_jwt
 
@@ -84,7 +85,7 @@ class RASOauth2Client(Oauth2ClientBase):
             token = self.get_token(token_endpoint, code)
             keys = self.get_jwt_keys(jwks_endpoint)
             userinfo = self.get_userinfo(token, userinfo_endpoint)
-            
+
             claims = jose_jwt.decode(
                 token["id_token"],
                 keys,
@@ -154,7 +155,10 @@ class RASOauth2Client(Oauth2ClientBase):
             )
             token = self.get_access_token(user, token_endpoint, db_session)
             userinfo = self.get_userinfo(token, userinfo_endpoint)
-            encoded_visas = userinfo.get("ga4gh_passport_v1", [])
+
+            encoded_passport = userinfo.get("passport_jwt_v11")
+            decoded_passport = jwt.decode(encoded_passport, verify=False)
+            encoded_visas = decoded_passport.get("ga4gh_passport_v1", [])
         except Exception as e:
             err_msg = "Could not retrieve visa"
             self.logger.exception("{}: {}".format(err_msg, e))
