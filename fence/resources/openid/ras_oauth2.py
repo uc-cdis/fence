@@ -157,7 +157,10 @@ class RASOauth2Client(Oauth2ClientBase):
             userinfo = self.get_userinfo(token, userinfo_endpoint)
 
             encoded_passport = userinfo.get("passport_jwt_v11")
+            print("-----------encoded passport ---------------------")
+            print(encoded_passport)
             decoded_passport = jwt.decode(encoded_passport, verify=False)
+            print("-----------------------")
             encoded_visas = decoded_passport.get("ga4gh_passport_v1", [])
         except Exception as e:
             err_msg = "Could not retrieve visa"
