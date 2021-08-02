@@ -142,7 +142,25 @@ def test_update_visa_token(
         new_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
     ).decode("utf-8")
 
-    userinfo_response["ga4gh_passport_v1"] = [encoded_visa]
+    passport_header = {
+        "type": "JWT",
+        "alg": "RS256",
+        "kid": kid,
+    }
+    new_passport = {
+        "iss": "https://something.gen3.com/",
+        "sub": "abcde12345aspdij",
+        "iat": int(time.time()),
+        "scope": "openid ga4gh_passport_v1 email profile",
+        "exp": int(time.time()) + 1000,
+        "ga4gh_passport_v1": [encoded_visa],
+    }
+
+    encoded_passport = jwt.encode(
+        new_passport, key=rsa_private_key, headers=passport_header, algorithm="RS256"
+    ).decode("utf-8")
+
+    userinfo_response["passport_jwt_v11"] = encoded_passport
     mock_userinfo.return_value = userinfo_response
 
     pkey_cache = {

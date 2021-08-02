@@ -80,7 +80,11 @@ class RASOauth2Client(Oauth2ClientBase):
             userinfo_endpoint = self.get_value_from_discovery_doc(
                 "userinfo_endpoint", ""
             )
-            userinfo_endpoint = "https://stsstg.nih.gov/openid/connect/v1.1/userinfo"
+            # as of now RAS does not provide their v1.1/userinfo in their .well-known/openid-configuration
+            # Need to manipuilate their v1 from the openid-config to say v1.1
+            # TODO: Remove this once RAS makes it availale in  (also in update_user_visas)
+            if "v1.1" not in userinfo_endpoint:
+                userinfo_endpoint = userinfo_endpoint.replace("v1", "v1.1")
 
             token = self.get_token(token_endpoint, code)
             keys = self.get_jwt_keys(jwks_endpoint)
@@ -153,16 +157,17 @@ class RASOauth2Client(Oauth2ClientBase):
             userinfo_endpoint = self.get_value_from_discovery_doc(
                 "userinfo_endpoint", ""
             )
+            # as of now RAS does not provide their v1.1/userinfo in their .well-known/openid-configuration
+            # Need to manipuilate their v1 from the openid-config to say v1.1
+            # TODO: Remove this once RAS makes it availale in (also in get_user_id)
+            if "v1.1" not in userinfo_endpoint:
+                userinfo_endpoint = userinfo_endpoint.replace("v1", "v1.1")
 
             token = self.get_access_token(user, token_endpoint, db_session)
-            userinfo_endpoint = "https://stsstg.nih.gov/openid/connect/v1.1/userinfo"
             userinfo = self.get_userinfo(token, userinfo_endpoint)
 
             encoded_passport = userinfo.get("passport_jwt_v11")
-            print("-----------encoded passport ---------------------")
-            print(encoded_passport)
             decoded_passport = jwt.decode(encoded_passport, verify=False)
-            print("-----------------------")
             encoded_visas = decoded_passport.get("ga4gh_passport_v1", [])
         except Exception as e:
             err_msg = "Could not retrieve visa"
