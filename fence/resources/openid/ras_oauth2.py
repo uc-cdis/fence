@@ -153,7 +153,9 @@ class RASOauth2Client(Oauth2ClientBase):
             userinfo_endpoint = self.get_value_from_discovery_doc(
                 "userinfo_endpoint", ""
             )
+
             token = self.get_access_token(user, token_endpoint, db_session)
+            userinfo_endpoint = "https://stsstg.nih.gov/openid/connect/v1.1/userinfo"
             userinfo = self.get_userinfo(token, userinfo_endpoint)
 
             encoded_passport = userinfo.get("passport_jwt_v11")
