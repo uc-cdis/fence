@@ -26,6 +26,7 @@ __all__ = [
     "update_user",
     "review_document",
     "get_doc_to_review",
+    "get_docs",
 ]
 
 
@@ -145,5 +146,11 @@ def get_doc_to_review(session, username):
     #         docs.append(doc)
 
     return docs
+
+def get_docs(session):
+    latest_docs_subq = session.query(Document.type, func.max(Document.version).label('version')).group_by(Document.type).subquery('latest_doc')
+    latest_docs = session.query(Document).join(latest_docs_subq, and_(Document.type == latest_docs_subq.c.type, Document.version == latest_docs_subq.c.version)).all()
+
+    return latest_docs
 
 

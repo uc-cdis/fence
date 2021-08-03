@@ -570,6 +570,25 @@ class ServiceAccountToGoogleBucketAccessGroup(Base):
     )
 
 
+class AssumeRoleCacheAWS(Base):
+    __tablename__ = "assume_role_cache"
+
+    arn = Column(String(), primary_key=True)
+    expires_at = Column(Integer())
+    aws_access_key_id = Column(String())
+    aws_secret_access_key = Column(String())
+    aws_session_token = Column(String())
+
+
+class AssumeRoleCacheGCP(Base):
+    __tablename__ = "gcp_assume_role_cache"
+
+    gcp_proxy_group_id = Column(String(), primary_key=True)
+    expires_at = Column(Integer())
+    gcp_private_key = Column(String())
+    gcp_key_db_entry = Column(String())
+
+
 class GA4GHVisaV1(Base):
 
     __tablename__ = "ga4gh_visa_v1"
@@ -772,7 +791,7 @@ def migrate(driver):
             _set_on_delete_cascades(driver, delete_user_session, md)
 
             delete_user_session.commit()
-        except:
+        except Exception:
             delete_user_session.rollback()
             raise
         finally:
@@ -1105,23 +1124,32 @@ def _remove_policy(driver, md):
 #TODO remove this and add in deployment process instead 
 def _add_documents(driver, md):
     with driver.session as session:
-        session.execute(
+        if config.get("INITIAL_PRIVACY_POLICY") and config.get("INITIAL_PRIVACY_POLICY_RAW"):
+            pp = config["INITIAL_PRIVACY_POLICY"]
+            pp_raw = config["INITIAL_PRIVACY_POLICY_RAW"]
+            session.execute(
             """\
 INSERT INTO document (type, version, name, raw, formatted, required)
-VALUES ('privacy-policy', '1', 'Privacy Notice', 'https://github.com/chicagopcdc/Documents/blob/81d60130308b6961c38097b6686a21f8be729a2c/governance/privacy_policy/privacy_notice.md', 'https://github.com/chicagopcdc/Documents/blob/81d60130308b6961c38097b6686a21f8be729a2c/governance/privacy_policy/PCDC-Privacy-Notice.pdf', 'true')
+VALUES ('privacy-policy', '1', 'Privacy Notice', '{}', '{}', 'true')
 ON CONFLICT (type, version)
-DO NOTHING;"""
+DO NOTHING;""".format(pp_raw, pp)
         )
+            session.commit()
 
+    if config.get("INITIAL_TERM_CONDITION") and config.get("INITIAL_TERM_CONDITION_RAW"):
+        tc = config["INITIAL_TERM_CONDITION"]
+        tc_raw = config["INITIAL_TERM_CONDITION_RAW"]
         session.execute(
             """\
 INSERT INTO document (type, version, name, raw, formatted, required)
-VALUES ('terms-and-conditions', '1', 'Terms and Conditions', 'https://github.com/chicagopcdc/Documents/blob/fda4a7c914173e29d13ab6249ded7bc9adea5674/governance/terms_and_conditions/GEN3_portal/terms-and-conditions.md', 'https://github.com/chicagopcdc/Documents/blob/a5f4a87262f6597fc85d95b74c320e4fdf1e9097/governance/terms_and_conditions/GEN3_portal/Pediatric%20Cancer%20Data%20Commons%20-%20Terms%20and%20Conditions.pdf', 'true')
+VALUES ('terms-and-conditions', '1', 'Terms and Conditions', '{}', '{}', 'true')
 ON CONFLICT (type, version)
-DO NOTHING;"""
+DO NOTHING;""".format(tc_raw, tc)
         )
-        # session.execute("INSERT INTO document(type, version, name, raw, formatted, required) values ('privacy-policy', '1', 'Privacy Notice', 'https://github.com/chicagopcdc/Documents/blob/81d60130308b6961c38097b6686a21f8be729a2c/governance/privacy_policy/privacy_notice.md', 'https://github.com/chicagopcdc/Documents/blob/81d60130308b6961c38097b6686a21f8be729a2c/governance/privacy_policy/PCDC-Privacy-Notice.pdf', 'true'), ('terms-and-conditions', '1', 'Terms and Conditions', 'https://github.com/chicagopcdc/Documents/blob/fda4a7c914173e29d13ab6249ded7bc9adea5674/governance/terms_and_conditions/GEN3_portal/terms-and-conditions.md', 'https://github.com/chicagopcdc/Documents/blob/a5f4a87262f6597fc85d95b74c320e4fdf1e9097/governance/terms_and_conditions/GEN3_portal/Pediatric%20Cancer%20Data%20Commons%20-%20Terms%20and%20Conditions.pdf', 'true');")
         session.commit()
+        
+        # session.execute("INSERT INTO document(type, version, name, raw, formatted, required) values ('privacy-policy', '1', 'Privacy Notice', 'https://github.com/chicagopcdc/Documents/blob/81d60130308b6961c38097b6686a21f8be729a2c/governance/privacy_policy/privacy_notice.md', 'https://github.com/chicagopcdc/Documents/blob/81d60130308b6961c38097b6686a21f8be729a2c/governance/privacy_policy/PCDC-Privacy-Notice.pdf', 'true'), ('terms-and-conditions', '1', 'Terms and Conditions', 'https://github.com/chicagopcdc/Documents/blob/fda4a7c914173e29d13ab6249ded7bc9adea5674/governance/terms_and_conditions/GEN3_portal/terms-and-conditions.md', 'https://github.com/chicagopcdc/Documents/blob/a5f4a87262f6597fc85d95b74c320e4fdf1e9097/governance/terms_and_conditions/GEN3_portal/Pediatric%20Cancer%20Data%20Commons%20-%20Terms%20and%20Conditions.pdf', 'true') ON CONFLICT (type, version) DO NOTHING;")
+        # session.commit()
 
 
 def _add_google_project_id(driver, md):

@@ -53,10 +53,10 @@ def encoded_admin_jwt(kid, rsa_private_key):
     headers = {"kid": kid}
     claims = utils.default_claims()
     claims["context"]["user"]["name"] = "admin_user@fake.com"
-    claims["aud"].append("admin")
     claims["sub"] = "5678"
     claims["iss"] = config["BASE_URL"]
     claims["exp"] += 600
+    claims["scope"].append("admin")
     return jwt.encode(
         claims, key=rsa_private_key, headers=headers, algorithm="RS256"
     ).decode("utf-8")
@@ -107,7 +107,7 @@ def test_user_d(db_session):
 
 @pytest.fixture(scope="function")
 def load_non_google_user_data(db_session, test_user_d):
-    """ Add general, non-Google user data to Fence db. """
+    """Add general, non-Google user data to Fence db."""
 
     client = Client(
         client_id=userd_dict["client_id"],
@@ -131,7 +131,7 @@ def load_non_google_user_data(db_session, test_user_d):
 
 @pytest.fixture(scope="function")
 def load_google_specific_user_data(db_session, test_user_d):
-    """ Add Google-specific user data to Fence db."""
+    """Add Google-specific user data to Fence db."""
 
     gpg = GoogleProxyGroup(id=userd_dict["gpg_id"], email=userd_dict["gpg_email"])
 
@@ -182,7 +182,7 @@ def load_google_specific_user_data(db_session, test_user_d):
 def test_get_user_username(
     client, admin_user, encoded_admin_jwt, db_session, test_user_a
 ):
-    """ GET /users/<username>: [get_user]: happy path """
+    """GET /users/<username>: [get_user]: happy path"""
     r = client.get(
         "/admin/users/test_a", headers={"Authorization": "Bearer " + encoded_admin_jwt}
     )
@@ -193,7 +193,7 @@ def test_get_user_username(
 def test_get_user_long_username(
     client, admin_user, encoded_admin_jwt, db_session, test_user_long
 ):
-    """ GET /users/<username>: [get_user]: happy path """
+    """GET /users/<username>: [get_user]: happy path"""
     r = client.get(
         "/admin/users/test_amazing_user_with_an_fancy_but_extremely_long_name",
         headers={"Authorization": "Bearer " + encoded_admin_jwt},
@@ -207,7 +207,7 @@ def test_get_user_long_username(
 def test_get_user_username_nonexistent(
     client, admin_user, encoded_admin_jwt, db_session
 ):
-    """ GET /users/<username>: [get_user]: When username does not exist """
+    """GET /users/<username>: [get_user]: When username does not exist"""
     r = client.get(
         "/admin/users/test_nonexistent",
         headers={"Authorization": "Bearer " + encoded_admin_jwt},
@@ -216,7 +216,7 @@ def test_get_user_username_nonexistent(
 
 
 def test_get_user_username_noauth(client, db_session):
-    """ GET /users/<username>: [get_user] but without authorization """
+    """GET /users/<username>: [get_user] but without authorization"""
     # This creates a "test" user, so don't remove db_session fixture
     r = client.get("/admin/users/test_a")
     assert r.status_code == 401
@@ -234,7 +234,7 @@ def test_get_user(
     test_user_b,
     test_user_long,
 ):
-    """ GET /user: [get_all_users] """
+    """GET /user: [get_all_users]"""
     r = client.get(
         "/admin/user", headers={"Authorization": "Bearer " + encoded_admin_jwt}
     )
@@ -248,7 +248,7 @@ def test_get_user(
 
 
 def test_get_user_noauth(client, db_session):
-    """ GET /user: [get_all_users] but without authorization (access token) """
+    """GET /user: [get_all_users] but without authorization (access token)"""
     r = client.get("/admin/user")
     assert r.status_code == 401
 
@@ -257,7 +257,7 @@ def test_get_user_noauth(client, db_session):
 
 
 def test_post_user(client, admin_user, encoded_admin_jwt, db_session):
-    """ POST /user: [create_user] """
+    """POST /user: [create_user]"""
     r = client.post(
         "/admin/user",
         headers={
@@ -282,7 +282,7 @@ def test_post_user(client, admin_user, encoded_admin_jwt, db_session):
 
 
 def test_post_user_no_fields_defined(client, admin_user, encoded_admin_jwt, db_session):
-    """ POST /user: [create_user] but no fields defined """
+    """POST /user: [create_user] but no fields defined"""
     r = client.post(
         "/admin/user",
         headers={
@@ -297,7 +297,7 @@ def test_post_user_no_fields_defined(client, admin_user, encoded_admin_jwt, db_s
 def test_post_user_only_email_defined(
     client, admin_user, encoded_admin_jwt, db_session
 ):
-    """ POST /user: [create_user] only email defined (in particular, no username) """
+    """POST /user: [create_user] only email defined (in particular, no username)"""
     r = client.post(
         "/admin/user",
         headers={
@@ -310,7 +310,7 @@ def test_post_user_only_email_defined(
 
 
 def test_post_user_only_role_defined(client, admin_user, encoded_admin_jwt, db_session):
-    """ POST /user: [create_user] only role defined (in particular, no username) """
+    """POST /user: [create_user] only role defined (in particular, no username)"""
     r = client.post(
         "/admin/user",
         headers={
@@ -325,7 +325,7 @@ def test_post_user_only_role_defined(client, admin_user, encoded_admin_jwt, db_s
 def test_post_user_only_username_defined(
     client, admin_user, encoded_admin_jwt, db_session
 ):
-    """ POST /user: [create_user] only username defined """
+    """POST /user: [create_user] only username defined"""
     r = client.post(
         "/admin/user",
         headers={
@@ -350,7 +350,7 @@ def test_post_user_only_username_defined(
 def test_post_user_already_exists(
     client, admin_user, encoded_admin_jwt, test_user_a, db_session
 ):
-    """ POST /user: [create_user] when user already exists """
+    """POST /user: [create_user] when user already exists"""
     r = client.post(
         "/admin/user",
         headers={
@@ -363,7 +363,7 @@ def test_post_user_already_exists(
 
 
 def test_post_user_noauth(client, db_session):
-    """ POST /user: [create_user] but without authorization """
+    """POST /user: [create_user] but without authorization"""
     r = client.post("/admin/user")
     assert r.status_code == 401
 
@@ -374,7 +374,7 @@ def test_post_user_noauth(client, db_session):
 def test_put_user_username(
     client, admin_user, encoded_admin_jwt, db_session, test_user_a
 ):
-    """ PUT /users/<username>: [update_user] """
+    """PUT /users/<username>: [update_user]"""
     r = client.put(
         "/admin/users/test_a",
         headers={
@@ -406,7 +406,7 @@ def test_put_user_username(
 def test_put_user_username_nonexistent(
     client, admin_user, encoded_admin_jwt, db_session
 ):
-    """ PUT /users/<username>: [update_user] username to be updated doesn't exist"""
+    """PUT /users/<username>: [update_user] username to be updated doesn't exist"""
     r = client.put(
         "/admin/users/test_nonexistent",
         headers={
@@ -426,7 +426,7 @@ def test_put_user_username_nonexistent(
 def test_put_user_username_already_exists(
     client, admin_user, encoded_admin_jwt, db_session, test_user_a, test_user_b
 ):
-    """ PUT /users/<username>: [update_user] desired new username already exists """
+    """PUT /users/<username>: [update_user] desired new username already exists"""
     r = client.put(
         "/admin/users/test_a",
         headers={
@@ -443,7 +443,7 @@ def test_put_user_username_already_exists(
 def test_put_user_username_try_delete_username(
     client, admin_user, encoded_admin_jwt, db_session, test_user_a
 ):
-    """ PUT /users/<username>: [update_user] try to delete username"""
+    """PUT /users/<username>: [update_user] try to delete username"""
     """
     This probably shouldn't be allowed. Conveniently, the code flow ends up
     the same as though the user had not tried to update 'name' at all,
@@ -468,7 +468,7 @@ def test_put_user_username_try_delete_username(
 def test_put_user_username_try_delete_role(
     client, admin_user, encoded_admin_jwt, db_session, test_user_a
 ):
-    """ PUT /users/<username>: [update_user] try to set role to None"""
+    """PUT /users/<username>: [update_user] try to set role to None"""
     """
     This probably shouldn't be allowed. Conveniently, the code flow ends up
     the same as though the user had not tried to update 'role' at all,
@@ -494,7 +494,7 @@ def test_put_user_username_try_delete_role(
 def test_put_user_username_without_updating_username(
     client, admin_user, encoded_admin_jwt, db_session, test_user_a
 ):
-    """ PUT /users/<username>: [update_user] update other fields but not username"""
+    """PUT /users/<username>: [update_user] update other fields but not username"""
     r = client.put(
         "/admin/users/test_a",
         headers={
@@ -511,7 +511,7 @@ def test_put_user_username_without_updating_username(
 def test_put_user_username_try_delete_email(
     client, admin_user, encoded_admin_jwt, db_session, test_user_a
 ):
-    """ PUT /users/<username>: [update_user] try to delete email"""
+    """PUT /users/<username>: [update_user] try to delete email"""
     r = client.put(
         "/admin/users/test_a",
         headers={
@@ -528,7 +528,7 @@ def test_put_user_username_try_delete_email(
 def test_put_user_username_remove_admin_self(
     client, admin_user, encoded_admin_jwt, db_session
 ):
-    """ PUT /users/<username>: [update_user] what if admin un-admins self?"""
+    """PUT /users/<username>: [update_user] what if admin un-admins self?"""
     """ It seems this is fine. """
     r = client.put(
         "/admin/users/admin_user",
@@ -544,7 +544,7 @@ def test_put_user_username_remove_admin_self(
 
 
 def test_put_user_username_noauth(client, db_session):
-    """ PUT /users/<username>: [update_user] but without authorization """
+    """PUT /users/<username>: [update_user] but without authorization"""
     r = client.put("/admin/users/test_a")
     assert r.status_code == 401
 
@@ -553,7 +553,7 @@ def test_put_user_username_noauth(client, db_session):
 
 
 def assert_non_google_data_remained(db_session):
-    """ Assert that test_user_d's non-Google data (client, group...) remain in Fence db. """
+    """Assert that test_user_d's non-Google data (client, group...) remain in Fence db."""
     client = db_session.query(Client).filter_by(client_id=userd_dict["client_id"]).all()
     assert len(client) == 1
     group = db_session.query(Group).filter_by(id=userd_dict["group_id"]).all()
@@ -567,7 +567,7 @@ def assert_non_google_data_remained(db_session):
 
 
 def assert_non_google_data_deleted(db_session):
-    """ Assert that test_user_d's non-Google data (client, group...) were removed from Fence db. """
+    """Assert that test_user_d's non-Google data (client, group...) were removed from Fence db."""
     client = db_session.query(Client).filter_by(client_id=userd_dict["client_id"]).all()
     assert len(client) == 0
     group = db_session.query(Group).filter_by(id=userd_dict["group_id"]).all()
@@ -581,7 +581,7 @@ def assert_non_google_data_deleted(db_session):
 
 
 def assert_google_service_account_data_remained(db_session):
-    """ Assert that test_user_d's Google SA and its key remain in Fence db."""
+    """Assert that test_user_d's Google SA and its key remain in Fence db."""
     gsa = (
         db_session.query(GoogleServiceAccount).filter_by(id=userd_dict["gsa_id"]).all()
     )
@@ -595,7 +595,7 @@ def assert_google_service_account_data_remained(db_session):
 
 
 def assert_google_service_account_data_deleted(db_session):
-    """ Assert that test_user_d's Google SA and its key are no longer in Fence db."""
+    """Assert that test_user_d's Google SA and its key are no longer in Fence db."""
     gsa = (
         db_session.query(GoogleServiceAccount).filter_by(id=userd_dict["gsa_id"]).all()
     )

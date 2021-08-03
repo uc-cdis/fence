@@ -5,6 +5,7 @@ import flask
 from fence.authz.errors import ArboristError
 from fence.errors import Forbidden, Unauthorized
 from fence.jwt.utils import get_jwt_header
+from fence.config import config
 
 
 def check_arborist_auth(resource, method, constraints=None):
@@ -65,7 +66,10 @@ def register_arborist_user(user, policies=None):
     created_user = flask.current_app.arborist.create_user(dict(name=user.username))
 
     if policies is None:
-        policies = ["login_no_access", "analysis"]
+        if "BASIC_REGISTRATION_ACCESS_POLICY" in config and len(config["BASIC_REGISTRATION_ACCESS_POLICY"]) > 0:
+            policies = config["BASIC_REGISTRATION_ACCESS_POLICY"]
+        else:
+            policies = []
 
     for policy_name in policies:
         policy = flask.current_app.arborist.get_policy(policy_name)

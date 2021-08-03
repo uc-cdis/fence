@@ -21,7 +21,7 @@ from fence.resources.userdatamodel import get_user_groups
 from fence.config import config
 from fence.errors import NotFound, Unauthorized, UserError, InternalError, Forbidden
 from fence.jwt.utils import get_jwt_header
-from fence.models import query_for_user
+from fence.models import query_for_user, DocumentSchema
 from fence.authz.auth import register_arborist_user
 from fence.crm import hubspot
 
@@ -121,6 +121,8 @@ def get_user_info(current_session, username):
     #     if user_info:
     #         additional_info_merged.update(user_info)
 
+    project_schema = DocumentSchema(many=True)
+
     groups = udm.get_user_groups(current_session, username)["groups"]
     info = {
         "user_id": user.id,  # TODO deprecated, use 'sub'
@@ -141,6 +143,7 @@ def get_user_info(current_session, username):
         "resources_granted": [],
         "groups": groups,
         "message": "",
+        "docs_to_be_reviewed": project_schema.dump(get_doc_to_be_reviewed(current_session))
     }
 
     if "fence_idp" in flask.session:
@@ -265,6 +268,9 @@ def user_review_document(current_session, documents):
 
 def get_doc_to_be_reviewed(current_session):
     return udm.get_doc_to_review(current_session, flask.g.user.username)
+
+def get_up_to_date_doc(current_session):
+    return udm.get_docs(current_session)
 
 
 

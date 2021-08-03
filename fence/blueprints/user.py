@@ -4,7 +4,7 @@ from flask_sqlalchemy_session import current_session
 from fence.auth import login_required, current_token
 from fence.errors import Unauthorized, UserError, NotFound
 from fence.models import Application, Certificate, DocumentSchema
-from fence.resources.user import send_mail, get_current_user_info, update_user, user_review_document, get_doc_to_be_reviewed
+from fence.resources.user import send_mail, get_current_user_info, update_user, user_review_document, get_doc_to_be_reviewed, get_up_to_date_doc
 from fence.config import config
 
 
@@ -33,6 +33,7 @@ def update_user_info():
     firstName = flask.request.get_json().get("firstName", None)
     lastName = flask.request.get_json().get("lastName", None)
     institution = flask.request.get_json().get("institution", None)
+    role = flask.request.get_json().get("role", None)
     additional_info = {}
 
     if firstName:
@@ -41,6 +42,8 @@ def update_user_info():
         additional_info["lastName"] = lastName
     if institution:
         additional_info["institution"] = institution
+    if role:
+        additional_info["role"] = role
 
     #TODO make sure institution is present at all times at least for now
     return flask.jsonify(update_user(current_session, additional_info))
@@ -189,5 +192,12 @@ def get_document():
 
     project_schema = DocumentSchema(many=True)
     return flask.jsonify(project_schema.dump(get_doc_to_be_reviewed(current_session)))
+
+@blueprint.route("/documents/latest", methods=["GET"])
+def get_latest_document():
+    # Returns the latest version for each document
+
+    project_schema = DocumentSchema(many=True)
+    return flask.jsonify(project_schema.dump(get_up_to_date_doc(current_session)))
 
 
