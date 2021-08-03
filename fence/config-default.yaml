@@ -859,8 +859,19 @@ ASSUME_ROLE_CACHE_SECONDS: 1800
 
 # RAS refresh_tokens expire in 15 days
 RAS_REFRESH_EXPIRATION: 1296000
+# List of JWT issuers from which Fence will accept GA4GH visas
+GA4GH_VISA_ISSUER_ALLOWLIST:
+  - '{{BASE_URL}}'
+  - 'https://sts.nih.gov'
+  - 'https://stsstg.nih.gov'
 # Number of projects that can be registered to a Google Service Accont
 SERVICE_ACCOUNT_LIMIT: 6
+
+# Global sync visas during login
+# None(Default): Allow per client i.e. a fence client can pick whether or not to sync their visas during login with parse_visas param in /authorization endpoint
+# True: Parse for all clients i.e. a fence client will always sync their visas during login 
+# False: Parse for no clients i.e. a fence client will not be able to sync visas during login even with parse_visas param
+GLOBAL_PARSE_VISAS_ON_LOGIN:
 # Settings for usersync with visas
 USERSYNC:
   sync_from_visas: false

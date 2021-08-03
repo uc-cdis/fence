@@ -41,6 +41,13 @@ class Visa_Token_Update(object):
         self.n_workers = self.thread_pool_size + self.concurrency
         self.logger = logger
 
+        # This job runs without an application context, so it cannot use the
+        # current_app.jwt_public_keys cache.
+        # This is a simple dict with the same lifetime as the job.
+        # When there are many visas from many issuers it will make sense to
+        # implement a more persistent cache.
+        self.pkey_cache = {}
+
         self.visa_types = config.get("USERSYNC", {}).get("visa_types", {})
 
         # Initialize visa clients:
@@ -128,17 +135,17 @@ class Visa_Token_Update(object):
 
     async def worker(self, name, queue, updater_queue):
         """
-        Create tasks to pass to updater to update visas AND pass updated visas to _verify_jwt_token for verification
+        Create tasks to pass to updater to update visas.
         """
         while not queue.empty():
             user = await queue.get()
             await updater_queue.put(user)
-            self._verify_jwt_token(user.ga4gh_visas_v1)
             queue.task_done()
 
     async def updater(self, name, updater_queue, db_session):
         """
-        Update visas in the updater_queue
+        Update visas in the updater_queue.
+        Note that only visas which pass validation will be saved.
         """
         while True:
             user = await updater_queue.get()
@@ -150,7 +157,7 @@ class Visa_Token_Update(object):
                             name, user.username
                         )
                     )
-                    client.update_user_visas(user, db_session)
+                    client.update_user_visas(user, self.pkey_cache, db_session)
             else:
                 # clear expired refresh tokens
                 if user.upstream_refresh_tokens:
@@ -179,8 +186,3 @@ class Visa_Token_Update(object):
                 "Visa Client not set up or not available for type {}".format(visa.type)
             )
         return client
-
-    def _verify_jwt_token(self, visa):
-        # NOT IMPLEMENTED
-        # TODO: Once local jwt verification is ready use thread_pool_size to determine how many users we want to verify the token for
-        pass

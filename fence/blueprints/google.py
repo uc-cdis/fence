@@ -132,6 +132,7 @@ class GoogleServiceAccountRoot(Resource):
         """
         Register a new service account
         """
+
         user_id = current_token["sub"]
         payload = flask.request.get_json(silent=True) or {}
 
@@ -360,7 +361,7 @@ class GoogleServiceAccount(Resource):
                       email used for monitoring purposes.
         """
         if id_ == "monitor":
-            return self._get_monitoring_service_account_response()
+            return get_monitoring_service_account_response()
 
         return ("Currently getting a specific service account is not supported.", 400)
 
@@ -372,6 +373,7 @@ class GoogleServiceAccount(Resource):
         Args:
             id_ (str): Must be "_dry_run", otherwise, error
         """
+
         if id_ != "_dry_run":
             raise UserError("Cannot post with account id_.")
 
@@ -482,25 +484,6 @@ class GoogleServiceAccount(Resource):
             )
 
         return self._delete(id_)
-
-    def _get_monitoring_service_account_response(self):
-        """
-        Return a response that includes our app's service account used
-        for monitoring user's Google projects.
-
-        Returns:
-            tuple(dict, int): (response_data, http_status_code)
-        """
-        monitoring_account_email = get_monitoring_service_account_email()
-        if not monitoring_account_email:
-            error = (
-                "No monitoring service account. Fence is not currently "
-                "configured to support user-registration of service accounts."
-            )
-            return {"message": error}, 404
-
-        response = {"service_account_email": monitoring_account_email}
-        return response, 200
 
     def _update_service_account_permissions(self, sa):
         """
@@ -627,6 +610,26 @@ class GoogleCredentialsPrimarySA(Resource):
         # NOTE: service_account_from_db.email is what gets populated in the UserInfo endpoint's
         #       "primary_google_service_account" as well, so this remains consistent
         return flask.jsonify({"primary_google_service_account": service_account_email})
+
+
+def get_monitoring_service_account_response():
+    """
+    Return a response that includes our app's service account used
+    for monitoring user's Google projects.
+
+    Returns:
+        tuple(dict, int): (response_data, http_status_code)
+    """
+    monitoring_account_email = get_monitoring_service_account_email()
+    if not monitoring_account_email:
+        error = (
+            "No monitoring service account. Fence is not currently "
+            "configured to support user-registration of service accounts."
+        )
+        return {"message": error}, 404
+
+    response = {"service_account_email": monitoring_account_email}
+    return response, 200
 
 
 def _get_service_account_for_patch(id_):
@@ -807,14 +810,23 @@ def _get_service_account_error_status(sa):
         response["errors"]["google_project_id"]["error"]
         == ValidationErrors.MONITOR_NOT_FOUND
     ):
+        monitor_response = get_monitoring_service_account_response()
+        monitor_account = (
+            monitor_response[0]["service_account_email"]
+            if (monitor_response[1] == 200)
+            else ""
+        )
+
         if response["errors"]["service_account_email"].get("status") == 200:
             response["errors"]["service_account_email"]["status"] = 400
             response["errors"]["service_account_email"][
                 "error"
             ] = ValidationErrors.MONITOR_NOT_FOUND
             response["errors"]["service_account_email"]["error_description"] = (
-                "Fence's monitoring service account was not found on the project so we "
-                "were unable to complete the necessary validation checks."
+                "Fence's monitoring service account {} was not found on the project so we "
+                "were unable to complete the necessary validation checks.".format(
+                    monitor_account
+                )
             )
         if response["errors"]["project_access"].get("status") == 200:
             response["errors"]["project_access"]["status"] = 400
@@ -822,8 +834,10 @@ def _get_service_account_error_status(sa):
                 "error"
             ] = ValidationErrors.MONITOR_NOT_FOUND
             response["errors"]["project_access"]["error_description"] = (
-                "Fence's monitoring service account was not found on the project so we "
-                "were unable to complete the necessary validation checks."
+                "Fence's monitoring service account {} was not found on the project so we "
+                "were unable to complete the necessary validation checks.".format(
+                    monitor_account
+                )
             )
 
     # all statuses must be 200 to be successful

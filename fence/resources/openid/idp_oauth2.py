@@ -128,7 +128,7 @@ class Oauth2ClientBase(object):
 
     def get_user_id(self, code):
         """
-        Must implement in inheriting class. Should return dictionary with "email" field
+        Must implement in inheriting class. Should return dictionary with necessary field(s)
         for successfully logged in user OR "error" field with details of the error.
         """
         raise NotImplementedError()
