@@ -14,7 +14,7 @@ def test_google_id_token_not_linked(oauth_test_client):
     data = {"confirm": "yes"}
     oauth_test_client.authorize(data=data)
     tokens = oauth_test_client.token()
-    id_token = jwt.decode(tokens.id_token, verify=False)
+    id_token = jwt.decode(tokens.id_token, algorithms="RS256", verify=False)
     assert id_token["context"]["user"].get("google") is None
 
 
@@ -48,7 +48,7 @@ def test_google_id_token_linked(db_session, encoded_creds_jwt, oauth_test_client
     data = {"confirm": "yes"}
     oauth_test_client.authorize(data=data)
     tokens = oauth_test_client.token()
-    id_token = jwt.decode(tokens.id_token, verify=False)
+    id_token = jwt.decode(tokens.id_token, algorithms="RS256", verify=False)
 
     assert "google" in id_token["context"]["user"]
     assert (
