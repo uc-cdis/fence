@@ -165,10 +165,17 @@ class RASOauth2Client(Oauth2ClientBase):
 
             token = self.get_access_token(user, token_endpoint, db_session)
             userinfo = self.get_userinfo(token, userinfo_endpoint)
-
+        
+            decoded_passport = None
+            encoded_visas = []
             encoded_passport = userinfo.get("passport_jwt_v11")
-            decoded_passport = jwt.decode(encoded_passport, verify=False)
-            encoded_visas = decoded_passport.get("ga4gh_passport_v1", [])
+
+            if encoded_passport:
+                decoded_passport = jwt.decode(encoded_passport, verify=False)
+                encoded_visas = decoded_passport.get("ga4gh_passport_v1", [])
+            else:
+                self.logger.error("Passport not available from RAS")
+                
         except Exception as e:
             err_msg = "Could not retrieve visa"
             self.logger.exception("{}: {}".format(err_msg, e))

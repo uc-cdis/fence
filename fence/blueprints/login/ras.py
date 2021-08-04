@@ -46,13 +46,21 @@ class RASCallback(DefaultOAuth2Callback):
         # TODO: This is not IdP-specific and will need a rethink when
         # we have multiple IdPs
         user.ga4gh_visas_v1 = []
+
         current_session.commit()
 
+        decoded_passport = None
+        encoded_visas = []
         encoded_passport = flask.g.userinfo.get("passport_jwt_v11")
-        decoded_passport = jwt.decode(encoded_passport, verify=False)
 
-        # encoded_visas = flask.g.userinfo.get("ga4gh_passport_v1", [])
-        encoded_visas = decoded_passport.get("ga4gh_passport_v1", [])
+        print("_-----------------------------")
+        print(encoded_passport)
+        print("_-----------------------------")
+
+
+        if encoded_passport:
+            decoded_passport = jwt.decode(encoded_passport, verify=False)
+            encoded_visas = decoded_passport.get("ga4gh_passport_v1", [])
 
         for encoded_visa in encoded_visas:
             try:
