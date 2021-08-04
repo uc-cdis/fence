@@ -252,6 +252,8 @@ def test_delete_users(app, db_session, example_usernames):
 
 
 def test_delete_user_with_access_privilege(app, db_session):
+    users = db_session.query(User).all()
+    before_insert_count = len(users)
     user = User(username="test-user-with-privilege")
     project = Project(id=1, name="test-project")
     access_privilege = AccessPrivilege(user=user, privilege=["read"], project=project)
@@ -261,7 +263,7 @@ def test_delete_user_with_access_privilege(app, db_session):
     db_session.commit()
     delete_users(config["DB"], [user.username])
     remaining_usernames = db_session.query(User.username).all()
-    assert db_session.query(User).count() == 0, remaining_usernames
+    assert db_session.query(User).count() == before_insert_count, remaining_usernames
 
 
 def test_create_user_access_token_with_no_found_user(

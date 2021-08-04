@@ -48,6 +48,7 @@ storageclient = {git = "https://github.com/uc-cdis/storage-client", rev = "1.0.2
 userdatamodel = "^2.3.3"
 werkzeug = "^1.0.0"
 cachelib = "^0.2.0"
+azure-storage-blob = "^12.6.0"
 
 [tool.poetry.dev-dependencies]
 addict = "^2.2.1"
