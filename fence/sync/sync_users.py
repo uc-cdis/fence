@@ -1551,6 +1551,7 @@ class UserSyncer(object):
                 self.arborist_client.delete_group(deleted_group)
 
         # create/update the groups defined in the user.yaml
+        self.logger.info("groups: {}".format(str(groups)))
         for group in groups:
             missing = {"name", "users", "policies"}.difference(set(group.keys()))
             if missing:
@@ -1575,13 +1576,14 @@ class UserSyncer(object):
         # First recreate these groups in order to clear out old, possibly deleted policies
         for builtin_group in ["anonymous", "logged-in"]:
             try:
+                self.logger.info("builtin groups: {}".format(str(builtin_group)))
                 response = self.arborist_client.put_group(builtin_group)
             except ArboristError as e:
                 self.logger.info("couldn't put group: {}".format(str(e)))
 
         # Now add back policies that are in the user.yaml
         for policy in user_yaml.authz.get("anonymous_policies", []):
-            self.logger.info("anon policy: {}".format(str(e)))
+            self.logger.info("anon policy: {}".format(str(policy)))
             self.arborist_client.grant_group_policy("anonymous", policy)
 
         for policy in user_yaml.authz.get("all_users_policies", []):
