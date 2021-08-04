@@ -1582,9 +1582,7 @@ class UserSyncer(object):
                 self.logger.info("couldn't put group: {}".format(str(e)))
 
         # Now add back policies that are in the user.yaml
-        self.logger.info(
-            "ANON POLICIES: {}".format(user_yaml.authz.get("anonymous_policies", []))
-        )
+        self.logger.info("YAML AUTHZ DICT: {}".format(user_yaml.authz))
         for policy in user_yaml.authz.get("anonymous_policies", []):
             self.logger.info("anon policy: {}".format(str(policy)))
             self.arborist_client.grant_group_policy("anonymous", policy)
