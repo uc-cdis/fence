@@ -1581,6 +1581,7 @@ class UserSyncer(object):
 
         # Now add back policies that are in the user.yaml
         for policy in user_yaml.authz.get("anonymous_policies", []):
+            self.logger.info("anon policy: {}".format(str(e)))
             self.arborist_client.grant_group_policy("anonymous", policy)
 
         for policy in user_yaml.authz.get("all_users_policies", []):
