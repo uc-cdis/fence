@@ -47,7 +47,9 @@ def xor_with_user_email(form, field):
 
 
 class RegistrationForm(FlaskForm):
-    name = StringField(label="Name", validators=[DataRequired()])
+    # name = StringField(label="Name", validators=[DataRequired()])
+    firstname = StringField(label="FirstName", validators=[DataRequired()])
+    lastname = StringField(label="LastName", validators=[DataRequired()])
     organization = StringField(label="Organization", validators=[DataRequired()])
     email = StringField(label="Email", validators=[xor_with_user_email, Email()])
 
