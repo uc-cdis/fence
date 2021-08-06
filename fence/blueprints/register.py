@@ -93,7 +93,9 @@ def register_user():
         raise UserError("Form validation failed: {}".format(str(form.errors)))
 
     # Validation passed--don't check form data here.
-    name = flask.request.form["name"]
+    # name = flask.request.form["name"]
+    firstname = flask.request.form["firstname"]
+    lastname = flask.request.form["lastname"]
     org = flask.request.form["organization"]
     email = flask.g.user.email or flask.request.form["email"]
 
@@ -101,7 +103,12 @@ def register_user():
     if flask.g.user.additional_info is not None:
         combined_info.update(flask.g.user.additional_info)
     registration_info = {
-        "registration_info": {"name": name, "org": org, "email": email}
+        "registration_info": {
+            "firstname": firstname,
+            "lastname": lastname,
+            "org": org,
+            "email": email,
+        }
     }
     combined_info.update(registration_info)
     flask.g.user.additional_info = combined_info

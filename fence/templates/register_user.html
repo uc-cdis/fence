@@ -18,7 +18,8 @@
     <h1 class="introduction">Register in order to get access to download data</h1>
     {{ form.csrf_token }}
     <ul>
-      <li> {{ form.name.label }} {{ form.name }} </li>
+      <li> {{ form.firstname.label }} {{ form.firstname }} </li>
+      <li> {{ form.lastname.label }} {{ form.lastname }} </li>
       <li> {{ form.organization.label }} {{ form.organization }} </li>
       <li>
           {% if user.email %}
