@@ -41,12 +41,6 @@ def openid_configuration():
     https://accounts.google.com/.well-known/openid-configuration
     """
 
-    # Get basic provider information.
-    oidc_iss = (
-        config.get("OPENID_CONNECT", {}).get("fence", {}).get("api_base_url", None)
-    )
-    issuer = oidc_iss or config["BASE_URL"]
-
     # "Subject type" means the method used to assign the ``sub`` field in JWTs.
     # Fence sets the ``sub`` field to the user ID, so ``sub`` is the same
     # across all clients for the same user, meaning that the subject type is
@@ -85,7 +79,7 @@ def openid_configuration():
 
     return flask.jsonify(
         {
-            "issuer": issuer,
+            "issuer": config["BASE_URL"],
             "authorization_endpoint": authorization_endpoint,
             "token_endpoint": token_endpoint,
             "userinfo_endpoint": userinfo_endpoint,
