@@ -397,8 +397,8 @@ paths:
         - data
       summary: delete all locations of a stored data file and remove its record from indexd
       description: >-
-        After a user uploads a data file and it is registered in indexd, but
-        before it is mapped into the graph via metadata submission, this
+        After a user uploads a data file and it is registered in indexd (before
+        or after it is mapped into the graph via metadata submission), this
         endpoint will delete the file from its storage locations (saved in the
         record in indexd) and delete the record in indexd.
       security:
