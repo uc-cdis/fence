@@ -193,6 +193,7 @@ class UserSessionInterface(SessionInterface):
                 expires=self.get_expiration_time(app, session),
                 httponly=True,
                 domain=domain,
+                samesite="Lax",
             )
             # try to get user, exception means they're not logged in
             try:
@@ -210,6 +211,7 @@ class UserSessionInterface(SessionInterface):
                     expires=0,
                     httponly=True,
                     domain=domain,
+                    samesite="Lax",
                 )
             # check that the current user is the one from the session,
             # clear access token if not
@@ -219,6 +221,7 @@ class UserSessionInterface(SessionInterface):
                     expires=0,
                     httponly=True,
                     domain=domain,
+                    samesite="Lax",
                 )
 
             # generate an access token and set in cookie if
@@ -249,6 +252,7 @@ class UserSessionInterface(SessionInterface):
                 expires=0,
                 httponly=True,
                 domain=domain,
+                samesite="Lax",
             )
 
 
@@ -327,6 +331,7 @@ def _create_access_token_cookie(app, session, response, user):
         expires=expiration,
         httponly=True,
         domain=domain,
+        samesite="Lax",
     )
 
     return response

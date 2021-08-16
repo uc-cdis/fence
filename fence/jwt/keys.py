@@ -188,7 +188,7 @@ class Keypair(object):
             except AttributeError:
                 # there is no need to decode values that are already strings
                 pass
-        jwk_dict.update({"use": "sig", "key_ops": "verify", "kid": self.kid})
+        jwk_dict.update({"use": "sig", "key_ops": ["verify"], "kid": self.kid})
         return jwk_dict
 
 
