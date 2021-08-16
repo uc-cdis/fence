@@ -1,7 +1,9 @@
 import re
 import time
 import json
-from urllib.parse import urlparse
+from urllib.parse import urlparse, ParseResult, urlunparse
+
+from datetime import datetime, timedelta
 
 from cached_property import cached_property
 import cirrus
@@ -11,6 +13,12 @@ from cdispyutils.config import get_value
 from cdispyutils.hmac4 import generate_aws_presigned_url
 import flask
 import requests
+from azure.storage.blob import (
+    BlobServiceClient,
+    ResourceTypes,
+    AccountSasPermissions,
+    generate_blob_sas,
+)
 
 from fence.auth import (
     get_jwt,
@@ -45,9 +53,10 @@ logger = get_logger(__name__)
 ACTION_DICT = {
     "s3": {"upload": "PUT", "download": "GET"},
     "gs": {"upload": "PUT", "download": "GET"},
+    "az": {"upload": "PUT", "download": "GET"},
 }
 
-SUPPORTED_PROTOCOLS = ["s3", "http", "ftp", "https", "gs"]
+SUPPORTED_PROTOCOLS = ["s3", "http", "ftp", "https", "gs", "az"]
 SUPPORTED_ACTIONS = ["upload", "download"]
 ANONYMOUS_USER_ID = "anonymous"
 ANONYMOUS_USERNAME = "anonymous"
@@ -194,31 +203,49 @@ class BlankIndex(object):
         )
         return document
 
-    def make_signed_url(self, file_name, expires_in=None):
+    def make_signed_url(self, file_name, protocol=None, expires_in=None):
         """
-        Works for upload only; S3 only (only supported case for data upload flow
-        currently).
+        Works for upload only; S3 or Azure Blob Storage only
+        (only supported case for data upload flow currently).
 
         Args:
             file_name (str)
             expires_in (int)
 
         Return:
-            S3IndexedFileLocation
+            S3IndexedFileLocation or AzureBlobStorageIndexedFileLocation
         """
-        try:
-            bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
-        except KeyError:
-            raise InternalError(
-                "fence not configured with data upload bucket; can't create signed URL"
+
+        # check if azure, and default to S3
+
+        if protocol == "az":
+            try:
+                container = flask.current_app.config["AZ_BLOB_CONTAINER_URL"]
+            except KeyError:
+                raise InternalError(
+                    "fence not configured with data upload container; can't create signed URL"
+                )
+            container_url = "{}/{}/{}".format(container, self.guid, file_name)
+
+            url = AzureBlobStorageIndexedFileLocation(container_url).get_signed_url(
+                "upload", expires_in
             )
-        s3_url = "s3://{}/{}/{}".format(bucket, self.guid, file_name)
-        url = S3IndexedFileLocation(s3_url).get_signed_url("upload", expires_in)
+        else:
+            try:
+                bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
+            except KeyError:
+                raise InternalError(
+                    "fence not configured with data upload bucket; can't create signed URL"
+                )
+            s3_url = "s3://{}/{}/{}".format(bucket, self.guid, file_name)
+            url = S3IndexedFileLocation(s3_url).get_signed_url("upload", expires_in)
+
         self.logger.info(
             "created presigned URL to upload file {} with ID {}".format(
                 file_name, self.guid
             )
         )
+
         return url
 
     @staticmethod
@@ -406,7 +433,7 @@ class IndexedFile(object):
             #       app)
             blank_record = BlankIndex(uploader="", guid=self.index_document.get("did"))
             return blank_record.make_signed_url(
-                file_name=file_name, expires_in=expires_in
+                protocol=protocol, file_name=file_name, expires_in=expires_in
             )
 
         if not protocol:
@@ -546,8 +573,11 @@ class IndexedFile(object):
                 )
             )
             response = location.delete(bucket, file_suffix)
+
             # check status code not in 200s
-            if response[1] > 399:
+            response_status_code = response[1]
+
+            if response_status_code > 399:
                 break
         return response
 
@@ -576,11 +606,20 @@ class IndexedFileLocation(object):
     def __init__(self, url):
         self.url = url
         self.parsed_url = urlparse(url)
-        self.protocol = self.parsed_url.scheme
+        self.protocol = IndexedFileLocation._get_protocol(url)
+
+    @staticmethod
+    def _get_protocol(url):
+        # Assume that urls are have internal storage protocol included
+        # e.g. az://storageaccount.blob.core.windows.net/containername/some/path/to/file.txt
+        # or s3://my-s3-url, gs://my-gs-url, https://my-https-url
+        parsed_url = urlparse(url)
+
+        return parsed_url.scheme
 
     @staticmethod
     def from_url(url):
-        protocol = urlparse(url).scheme
+        protocol = IndexedFileLocation._get_protocol(url)
         if (protocol is not None) and (protocol not in SUPPORTED_PROTOCOLS):
             raise NotSupported(
                 "The specified protocol {} is not supported".format(protocol)
@@ -589,10 +628,17 @@ class IndexedFileLocation(object):
             return S3IndexedFileLocation(url)
         elif protocol == "gs":
             return GoogleStorageIndexedFileLocation(url)
+        elif protocol == "az":
+            return AzureBlobStorageIndexedFileLocation(url)
         return IndexedFileLocation(url)
 
     def get_signed_url(
-        self, action, expires_in, public_data=False, force_signed_url=True, **kwargs
+        self,
+        action,
+        expires_in,
+        public_data=False,
+        force_signed_url=True,
+        **kwargs,
     ):
         return self.url
 
@@ -1128,6 +1174,201 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             ) as gcm:
                 gcm.delete_data_file(bucket, file_id)
             return ("", 204)
+        except Exception as e:
+            logger.error(e)
+            try:
+                status_code = e.resp.status
+            except Exception as exc:
+                logger.error(exc)
+                status_code = 500
+            return ("Failed to delete data file.", status_code)
+
+
+class AzureBlobStorageIndexedFileLocation(IndexedFileLocation):
+    """
+    An indexed file that lives in an Azure Blob Storage container.
+    """
+
+    def _generate_azure_blob_storage_sas(
+        self,
+        container_name,
+        blob_name,
+        expires_in,
+        azure_creds,
+        permission,
+    ):
+        """
+        Generate an Azure Blob Storage SAS URL
+
+        :param str container_name:
+            Name of container.
+        :param str blob_name:
+            Name of blob.
+        :param int expires_in:
+            The SAS token will expire in a given number of seconds from datetime.utcnow()
+        :param str azure_creds:
+            The Azure Blob Storage Account connection string
+        :param AccountSasPermissions permission:
+            The permissions associated with the shared access signature.
+        """
+        blob_service_client = BlobServiceClient.from_connection_string(azure_creds)
+
+        converted_url = self._get_converted_url()
+
+        # if the storage account used with the blob service client doesn't match the storage account
+        # used with self.url (az://<storageaccount>.blob.core.windows.net/<somecontainer>/some/path/to/file.txt)
+        # then return the converted url instead (https://<storageaccount>.blob.core.windows.net/<somecontainer>/some/path/to/file.txt)
+        # this will prevent adding a SAS token using the wrong storage account for the signed URL
+        if self._check_storage_account_name_matches(blob_service_client) is False:
+            return converted_url
+
+        sas_query = generate_blob_sas(
+            blob_service_client.account_name,
+            container_name,
+            blob_name,
+            account_key=blob_service_client.credential.account_key,
+            resource_types=ResourceTypes(object=True),
+            permission=permission,
+            expiry=datetime.utcnow() + timedelta(seconds=expires_in),
+        )
+
+        sas_url = converted_url + "?" + sas_query
+        return sas_url
+
+    def _check_storage_account_name_matches(self, blob_service_client):
+        # assumes that the url form is az://<storageaccount>.blob.core.windows.net/<somecontainer>/some/path/to/file.txt
+        return self.parsed_url.netloc == blob_service_client.primary_hostname
+
+    def _get_container_and_blob(self):
+        container_and_blob_parts = self.parsed_url.path.strip("/").split("/")
+        container_name = container_and_blob_parts[0]
+        blob_name = "/".join(container_and_blob_parts[1:])
+
+        return container_name, blob_name
+
+    def bucket_name(self):
+        """
+        Get the bucket name.
+        In this case it's the Azure Storage Blob Container name.
+        """
+        container_name, _ = self._get_container_and_blob()
+
+        return container_name
+
+    def file_name(self):
+        """
+        Get the blob name as a file name
+        Similar to getting a file_name for the other IndexedFileLocation(s)
+        """
+        _, blob_name = self._get_container_and_blob()
+
+        return blob_name
+
+    def _get_converted_url(self):
+        """
+        Convert url from internal representation
+        of az://<storageaccountname>.blob.core.windows.net/<containername>/some/path/to/file.txt
+        to https://<storageaccountname>.blob.core.windows.net/<containername>/some/path/to/file.txt
+        """
+        new_parsed_url = ParseResult(
+            scheme="https",
+            netloc=self.parsed_url.netloc,
+            path=self.parsed_url.path,
+            params=self.parsed_url.params,
+            query=self.parsed_url.query,
+            fragment=self.parsed_url.fragment,
+        )
+
+        return urlunparse(new_parsed_url)
+
+    def get_signed_url(
+        self, action, expires_in, public_data=False, force_signed_url=True, **kwargs
+    ):
+        """
+        Get a signed url for a given action
+
+        This call will check for AZ_BLOB_CREDENTIALS which should be
+        included in the fence configuration.
+
+        Set AZ_BLOB_CREDENTIALS to a valid Azure Blob Storage Account
+        connection string.
+
+        Set AZ_BLOB_CREDENTIALS to '*' if you have a public Azure Storage
+        account associated with the indexed file. In this case,
+        you should expect an unsigned URL for the file that's been indexed.
+
+        :param str action:
+            Get a signed url for an action like "upload" or "download".
+        :param int expires_in:
+            The SAS token will expire in a given number of seconds from datetime.utcnow()
+        :param bool public_data:
+            Indicate if the Azure Blob Storage Account has public access.
+            If it's public and we don't need to force the signed url, just return the raw
+            url.
+            The default for public_data is False.
+        :param bool force_signed_url:
+            Enforce signing the URL for the Azure Blob Storage Account using a SAS token.
+            The default is True.
+        """
+        azure_creds = get_value(
+            config,
+            "AZ_BLOB_CREDENTIALS",
+            InternalError("Azure Blob credentials not configured"),
+        )
+
+        container_name, blob_name = self._get_container_and_blob()
+
+        user_info = _get_user_info()
+        if user_info and user_info.get("user_id") == ANONYMOUS_USER_ID:
+            logger.info(f"Attempting to get a signed url an anonymous user")
+
+        # if it's public and we don't need to force the signed url, just return the raw
+        # url
+        # `azure_creds == "*"` is a special case to support public buckets
+        # where we do *not* want to try signing at all. the other case is that the
+        # data is public and user requested to not sign the url
+        if azure_creds == "*" or (public_data and not force_signed_url):
+            return self._get_converted_url()
+
+        url = self._generate_azure_blob_storage_sas(
+            container_name,
+            blob_name,
+            expires_in,
+            azure_creds,
+            permission=AccountSasPermissions(read=True)
+            if action == "download"
+            else AccountSasPermissions(read=True, write=True),
+        )
+
+        return url
+
+    def delete(self, container, blob):  # pylint: disable=R0201
+        """
+        Delete the container/blob, implementation for IndexedFileLocation.delete()
+
+        This call will check for AZ_BLOB_CREDENTIALS which should be
+        included in the fence configuration.
+
+        Set AZ_BLOB_CREDENTIALS to a valid Azure Blob Storage Account
+        connection string.
+
+        :param str container:
+            Name of container.
+        :param str blob:
+            Name of blob.
+        """
+        try:
+            azure_creds = get_value(
+                config,
+                "AZ_BLOB_CREDENTIALS",
+                InternalError("Azure Blob credentials not configured"),
+            )
+
+            blob_service_client = BlobServiceClient.from_connection_string(azure_creds)
+            blob_client = blob_service_client.get_blob_client(container, blob)
+            blob_client.delete_blob()
+
+            return (flask.jsonify({"message": f"deleted {blob} from {container}"}), 204)
         except Exception as e:
             logger.error(e)
             try:
