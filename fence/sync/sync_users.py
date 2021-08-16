@@ -160,12 +160,10 @@ class UserYAML(object):
         """
         data = {}
         if filepath:
-            logger.info("FILE PATH: {}".format(filepath))
             with _read_file(filepath, encrypted=encrypted, key=key, logger=logger) as f:
                 file_contents = f.read()
                 validate_user_yaml(file_contents)  # run user.yaml validation tests
                 data = yaml.safe_load(file_contents)
-                logger.info("FILE DATA: {}".format(data))
         else:
             if logger:
                 logger.info("Did not sync a user.yaml, no file path provided.")
@@ -1577,14 +1575,12 @@ class UserSyncer(object):
         # First recreate these groups in order to clear out old, possibly deleted policies
         for builtin_group in ["anonymous", "logged-in"]:
             try:
-                self.logger.info("BUILT IN GROUP: {}".format(str(builtin_group)))
                 response = self.arborist_client.put_group(builtin_group)
             except ArboristError as e:
                 self.logger.info("couldn't put group: {}".format(str(e)))
 
         # Now add back policies that are in the user.yaml
         for policy in user_yaml.authz.get("anonymous_policies", []):
-            self.logger.info("anon policy: {}".format(str(policy)))
             self.arborist_client.grant_group_policy("anonymous", policy)
 
         for policy in user_yaml.authz.get("all_users_policies", []):
