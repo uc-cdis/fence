@@ -617,6 +617,20 @@ INDEXD_USERNAME: 'fence'
 # this is the password which fence uses to make authenticated requests to indexd
 INDEXD_PASSWORD: ''
 
+# //////////////////////////////////////////////////////////////////////////////////////
+# AZURE STORAGE BLOB CONFIGURATION
+#   - Support Azure Blob Data Access Methods
+# //////////////////////////////////////////////////////////////////////////////////////
+
+# https://docs.microsoft.com/en-us/azure/storage/common/storage-account-keys-manage?toc=%2Fazure%2Fstorage%2Fblobs%2Ftoc.json&tabs=azure-portal#view-account-access-keys
+# AZ_BLOB_CREDENTIALS: 'fake connection string'
+AZ_BLOB_CREDENTIALS:
+
+# AZ_BLOB_CONTAINER_URL: 'https://storageaccount.blob.core.windows.net/container/'
+# this is the container used for uploading, and should match the storage account 
+# used in the connection string for AZ_BLOB_CREDENTIALS
+AZ_BLOB_CONTAINER_URL: 'https://myfakeblob.blob.core.windows.net/my-fake-container/'
+
 # url where authz microservice is running
 ARBORIST: null
 

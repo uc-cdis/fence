@@ -37,6 +37,9 @@ class MicrosoftOauth2Client(Oauth2ClientBase):
         return uri
 
     def get_user_id(self, code):
+        """
+        Get user id given an authorization code
+        """
         try:
             token_endpoint = self.get_value_from_discovery_doc(
                 "token_endpoint",
@@ -48,10 +51,9 @@ class MicrosoftOauth2Client(Oauth2ClientBase):
             )
             claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
 
-            if claims["email"]:
+            if claims.get("email"):
                 return {"email": claims["email"]}
-            else:
-                return {"error": "Can't get user's Microsoft email!"}
-        except Exception as e:
+            return {"error": "Can't get user's Microsoft email!"}
+        except Exception as exception:
             self.logger.exception("Can't get user info")
-            return {"error": "Can't get your Microsoft email: {}".format(e)}
+            return {"error": "Can't get your Microsoft email: {}".format(exception)}
