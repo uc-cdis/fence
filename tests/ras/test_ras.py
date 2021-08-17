@@ -174,6 +174,7 @@ def test_update_visa_token(
     assert query_visa.ga4gh_visa
     assert query_visa.ga4gh_visa == encoded_visa
 
+
 @mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_userinfo")
 @mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_access_token")
 @mock.patch(
@@ -226,7 +227,7 @@ def test_update_visa_empty_passport_returned(
         HTTP_PROXY=config.get("HTTP_PROXY"),
         logger=logger,
     )
-    
+
     pkey_cache = {
         "https://stsstg.nih.gov": {
             kid: rsa_public_key,
@@ -236,6 +237,7 @@ def test_update_visa_empty_passport_returned(
 
     query_visa = db_session.query(GA4GHVisaV1).first()
     assert query_visa == None
+
 
 @mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_userinfo")
 @mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_access_token")
@@ -312,6 +314,7 @@ def test_update_visa_empty_visa_returned(
 
     query_visa = db_session.query(GA4GHVisaV1).first()
     assert query_visa == None
+
 
 @mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_userinfo")
 @mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_access_token")

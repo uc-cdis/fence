@@ -53,11 +53,6 @@ class RASCallback(DefaultOAuth2Callback):
         encoded_visas = []
         encoded_passport = flask.g.userinfo.get("passport_jwt_v11")
 
-        print("_-----------------------------")
-        print(encoded_passport)
-        print("_-----------------------------")
-
-
         if encoded_passport:
             decoded_passport = jwt.decode(encoded_passport, verify=False)
             encoded_visas = decoded_passport.get("ga4gh_passport_v1", [])
