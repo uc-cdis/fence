@@ -630,7 +630,7 @@ INDEXD_PASSWORD: ''
 AZ_BLOB_CREDENTIALS:
 
 # AZ_BLOB_CONTAINER_URL: 'https://storageaccount.blob.core.windows.net/container/'
-# this is the container used for uploading, and should match the storage account 
+# this is the container used for uploading, and should match the storage account
 # used in the connection string for AZ_BLOB_CREDENTIALS
 AZ_BLOB_CONTAINER_URL: 'https://myfakeblob.blob.core.windows.net/my-fake-container/'
 
@@ -854,8 +854,8 @@ ASSUME_ROLE_CACHE_SECONDS: 1800
 # MIDRC user registration feature: Ask users to register (provide name/org/email) on login.
 # If user registers, add them to configured Arborist group; idea is that the Arborist group
 # will have access to download data.
-REGISTER_USERS_ON: true
-REGISTERED_USERS_GROUP: 'data_uploaders'
+REGISTER_USERS_ON: false
+REGISTERED_USERS_GROUP: ''
 # RAS refresh_tokens expire in 15 days
 RAS_REFRESH_EXPIRATION: 1296000
 # List of JWT issuers from which Fence will accept GA4GH visas
