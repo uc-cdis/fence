@@ -27,7 +27,11 @@ def test_google_login_http_headers_are_less_than_4k_for_user_with_many_projects(
         },
     )
     client.set_cookie(
-        "localhost", config["SESSION_COOKIE_NAME"], test_session_jwt, httponly=True
+        "localhost",
+        config["SESSION_COOKIE_NAME"],
+        test_session_jwt,
+        httponly=True,
+        samesite="Lax",
     )
 
     user_projects = {

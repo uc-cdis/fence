@@ -41,7 +41,7 @@ def test_response_values(app, client):
         assert key["alg"] == "RS256"
         assert key["kty"] == "RSA"
         assert key["use"] == "sig"
-        assert key["key_ops"] == "verify"
+        assert key["key_ops"] == ["verify"]
         assert key["kid"] in app_kids
         # Attempt to reproduce the public key from the JWK response.
         key_pem = jwk.construct(key).to_pem().decode("utf-8")

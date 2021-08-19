@@ -474,6 +474,19 @@ INDEXD_PASSWORD: 'fake_password'
 # url where authz microservice is running
 ARBORIST: '/arborist'
 
+# //////////////////////////////////////////////////////////////////////////////////////
+# AZURE STORAGE BLOB CONFIGURATION
+#   - Support Azure Blob Data Access Methods
+# //////////////////////////////////////////////////////////////////////////////////////
+
+# https://docs.microsoft.com/en-us/azure/storage/common/storage-account-keys-manage?toc=%2Fazure%2Fstorage%2Fblobs%2Ftoc.json&tabs=azure-portal#view-account-access-keys
+AZ_BLOB_CREDENTIALS: 'fake connection string'
+
+# AZ_BLOB_CONTAINER_URL: 'https://storageaccount.blob.core.windows.net/container/'
+# this is the container used for uploading, and should match the storage account 
+# used in the connection string for AZ_BLOB_CREDENTIALS
+AZ_BLOB_CONTAINER_URL: 'https://myfakeblob.blob.core.windows.net/my-fake-container/'
+
 # url where the audit-service is running
 AUDIT_SERVICE: 'http://audit-service'
 ENABLE_AUDIT_LOGS:

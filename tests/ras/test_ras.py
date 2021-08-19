@@ -21,8 +21,11 @@ logger = get_logger(__name__, log_level="debug")
 
 def add_test_user(db_session, username="admin_user", id="5678", is_admin=True):
     test_user = User(username=username, id=id, is_admin=is_admin)
-    db_session.add(test_user)
-    db_session.commit()
+    # id is part of primary key
+    check_user_exists = db_session.query(User).filter_by(id=id).first()
+    if not check_user_exists:
+        db_session.add(test_user)
+        db_session.commit()
     return test_user
 
 

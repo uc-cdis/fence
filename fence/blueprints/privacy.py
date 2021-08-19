@@ -18,7 +18,7 @@ import os
 
 import flask
 from markdown import Markdown
-from werkzeug.contrib.cache import SimpleCache
+from cachelib import SimpleCache
 
 from fence import config
 from fence.errors import NotFound

@@ -38,11 +38,27 @@ class AuditServiceClient:
 
         if self.push_type == "aws_sqs":
             aws_sqs_config = config["PUSH_AUDIT_LOGS_CONFIG"]["aws_sqs_config"]
+            # we know the cred is in AWS_CREDENTIALS (see `_check_aws_creds_and_region`)
+            aws_creds = (
+                config.get("AWS_CREDENTIALS", {})[aws_sqs_config["aws_cred"]]
+                if "aws_cred" in aws_sqs_config
+                else {}
+            )
+            if (
+                not aws_creds
+                and "aws_access_key_id" in aws_sqs_config
+                and "aws_secret_access_key" in aws_sqs_config
+            ):
+                # for backwards compatibility
+                aws_creds = {
+                    "aws_access_key_id": aws_sqs_config["aws_access_key_id"],
+                    "aws_secret_access_key": aws_sqs_config["aws_secret_access_key"],
+                }
             self.sqs = boto3.client(
                 "sqs",
                 region_name=aws_sqs_config["region"],
-                aws_access_key_id=aws_sqs_config.get("aws_access_key_id"),
-                aws_secret_access_key=aws_sqs_config.get("aws_secret_access_key"),
+                aws_access_key_id=aws_creds.get("aws_access_key_id"),
+                aws_secret_access_key=aws_creds.get("aws_secret_access_key"),
             )
 
     @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
