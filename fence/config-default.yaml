@@ -871,3 +871,4 @@ USERSYNC:
   visa_types:
     ras: [https://ras.nih.gov/visas/v1, https://ras.nih.gov/visas/v1.1]
 GEN3_PASSPORTS_EXPIRES_IN: 43200
+RAS_USERINFO_ENDPOINT_VERSION: 'v1.1'
