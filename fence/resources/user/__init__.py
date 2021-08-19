@@ -159,13 +159,19 @@ def get_user_info(current_session, username):
     if encoded_access_token:
         at_scopes = jwt.decode(encoded_access_token, verify=False).get("scope", "")
         if "ga4gh_passport_v1" in at_scopes:
-            expires_in = config["GEN3_PASSPORTS_EXPIRES_IN"]
-            info["passport_jwt_v11"] = generate_encoded_gen3_passport(user, expires_in)
+            encoded_visas = [row.ga4gh_visa for row in user.ga4gh_visas_v1]
+            info["ga4gh_passport_v1"] = encoded_visas
 
     return info
 
 
 def generate_encoded_gen3_passport(user, expires_in):
+    """
+    Generate fresh gen3 passports with Gen3 Visas
+    NOTE: This function isn't used yet. Originally made it to repackage RAS visas into a Gen3 Passport but 
+    due to RAS policies we aren't allowed to do that anymore.
+    Still keeping it here so that we could repurpose this later when we need to package our own Gen3 Visas.
+    """
 
     keypair = flask.current_app.keypairs[0]
 
@@ -178,11 +184,6 @@ def generate_encoded_gen3_passport(user, expires_in):
     issuer = config.get("BASE_URL")
     iat, exp = issued_and_expiration_times(expires_in)
 
-    # if visas are expired we dont want to include them in the passsport
-    encoded_visas = [
-        row.ga4gh_visa for row in user.ga4gh_visas_v1 if row.expires > time.time()
-    ]
-
     payload = {
         "iss": issuer,
         "sub": user.id,
@@ -190,7 +191,7 @@ def generate_encoded_gen3_passport(user, expires_in):
         "exp": exp,
         "jti": str(uuid.uuid4()),
         "scope": "openid <ga4gh-spec-scopes>",
-        "ga4gh_passport_v1": encoded_visas,
+        "ga4gh_passport_v1": [],
     }
 
     logger.info("Issuing JWT Gen3 Passport")
