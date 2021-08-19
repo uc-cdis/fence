@@ -168,7 +168,7 @@ def get_user_info(current_session, username):
 def generate_encoded_gen3_passport(user, expires_in):
     """
     Generate fresh gen3 passports with Gen3 Visas
-    NOTE: This function isn't used yet. Originally made it to repackage RAS visas into a Gen3 Passport but 
+    NOTE: This function isn't used yet. Originally made it to repackage RAS visas into a Gen3 Passport but
     due to RAS policies we aren't allowed to do that anymore.
     Still keeping it here so that we could repurpose this later when we need to package our own Gen3 Visas.
     """
