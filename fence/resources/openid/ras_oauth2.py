@@ -77,14 +77,16 @@ class RASOauth2Client(Oauth2ClientBase):
         try:
             token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
             jwks_endpoint = self.get_value_from_discovery_doc("jwks_uri", "")
-            issuer = self.get_value_from_discovery_doc(
-                "issuer", ""
-            )
+            issuer = self.get_value_from_discovery_doc("issuer", "")
             # as of now RAS does not provide their v1.1/userinfo in their .well-known/openid-configuration
-            # Need to manually change version at the moment with config 
+            # Need to manually change version at the moment with config
             # TODO: Remove this once RAS makes it availale in  (also in update_user_visas)
-            userinfo_endpoint_version = config.get("RAS_USERINFO_ENDPOINT_VERSION", "v1.1")
-            userinfo_endpoint = issuer + "/openid/connect/" + userinfo_endpoint_version + "/userinfo"
+            userinfo_endpoint_version = config.get(
+                "RAS_USERINFO_ENDPOINT_VERSION", "v1.1"
+            )
+            userinfo_endpoint = (
+                issuer + "/openid/connect/" + userinfo_endpoint_version + "/userinfo"
+            )
 
             token = self.get_token(token_endpoint, code)
             keys = self.get_jwt_keys(jwks_endpoint)
@@ -154,14 +156,16 @@ class RASOauth2Client(Oauth2ClientBase):
 
         try:
             token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
-            issuer = self.get_value_from_discovery_doc(
-                "issuer", ""
-            )
+            issuer = self.get_value_from_discovery_doc("issuer", "")
             # as of now RAS does not provide their v1.1/userinfo in their .well-known/openid-configuration
-            # Need to manually change version at the moment with config 
+            # Need to manually change version at the moment with config
             # TODO: Remove this once RAS makes it availale in  (also in update_user_visas)
-            userinfo_endpoint_version = config.get("RAS_USERINFO_ENDPOINT_VERSION", "v1.1")
-            userinfo_endpoint = issuer + "/openid/connect/" + userinfo_endpoint_version + "/userinfo"
+            userinfo_endpoint_version = config.get(
+                "RAS_USERINFO_ENDPOINT_VERSION", "v1.1"
+            )
+            userinfo_endpoint = (
+                issuer + "/openid/connect/" + userinfo_endpoint_version + "/userinfo"
+            )
 
             token = self.get_access_token(user, token_endpoint, db_session)
             userinfo = self.get_userinfo(token, userinfo_endpoint)
