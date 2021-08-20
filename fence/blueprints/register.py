@@ -16,7 +16,7 @@ from fence.errors import UserError
 from fence.models import User
 
 
-blueprint = flask.Blueprint("register-user", __name__)
+blueprint = flask.Blueprint("register", __name__)
 
 
 def xor_with_user_email(form, field):
@@ -47,7 +47,6 @@ def xor_with_user_email(form, field):
 
 
 class RegistrationForm(FlaskForm):
-    # name = StringField(label="Name", validators=[DataRequired()])
     firstname = StringField(label="First Name", validators=[DataRequired()])
     lastname = StringField(label="Last Name", validators=[DataRequired()])
     organization = StringField(label="Organization", validators=[DataRequired()])
@@ -95,7 +94,6 @@ def register_user():
         raise UserError("Form validation failed: {}".format(str(form.errors)))
 
     # Validation passed--don't check form data here.
-    # name = flask.request.form["name"]
     firstname = flask.request.form["firstname"]
     lastname = flask.request.form["lastname"]
     org = flask.request.form["organization"]

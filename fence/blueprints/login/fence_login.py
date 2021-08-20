@@ -127,7 +127,7 @@ class FenceCallback(DefaultOAuth2Callback):
         if config["REGISTER_USERS_ON"]:
             if not flask.g.user.additional_info.get("registration_info"):
                 return flask.redirect(
-                    config["BASE_URL"] + flask.url_for("register-user.register_user")
+                    config["BASE_URL"] + flask.url_for("register.register_user")
                 )
 
         if "redirect" in flask.session:
