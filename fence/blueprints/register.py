@@ -48,10 +48,12 @@ def xor_with_user_email(form, field):
 
 class RegistrationForm(FlaskForm):
     # name = StringField(label="Name", validators=[DataRequired()])
-    firstname = StringField(label="FirstName", validators=[DataRequired()])
-    lastname = StringField(label="LastName", validators=[DataRequired()])
+    firstname = StringField(label="First Name", validators=[DataRequired()])
+    lastname = StringField(label="Last Name", validators=[DataRequired()])
     organization = StringField(label="Organization", validators=[DataRequired()])
-    email = StringField(label="Email", validators=[xor_with_user_email, Email()])
+    email = StringField(
+        label="Email", validators=[xor_with_user_email, Email(), DataRequired()]
+    )
 
 
 @blueprint.route("/", methods=["GET", "POST"])
