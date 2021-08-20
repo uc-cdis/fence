@@ -60,10 +60,10 @@ def register_user():
     """
     - If config["REGISTER_USERS_ON"] is True, then unregistered users are redirected
       here after logging in.
-    - Users may then register or decline to register.
-    - Users may access this endpoint directly if they initially declined to register.
-    - At the moment, registration involves providing name, org, and (if user.email for
-      the user is None) email.
+    - Users may then register.
+    - Users may access this endpoint directly.
+    - At the moment, registration involves providing firstname, lastname, org, and
+      (if user.email for the user is None) email.
     - If a user registers, add the new information to the user's additional_info column,
       and add the user to the Arborist group specified in
       config["REGISTERED_USERS_GROUP"].
@@ -81,11 +81,9 @@ def register_user():
     form = RegistrationForm()
 
     if flask.request.method == "GET":
-        on_decline_redirect = flask.session.get("redirect") or config["BASE_URL"]
         return flask.render_template(
             "register_user.html",
             user=flask.g.user,
-            on_decline_redirect=on_decline_redirect,
             form=form,
         )
 
