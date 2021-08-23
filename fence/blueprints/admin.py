@@ -468,7 +468,7 @@ def delete_cloud_provider(providername):
     return response
 
 
-@blueprint.route("/admin/register", methods=["GET"])
+@blueprint.route("/register", methods=["GET"])
 @admin_login_required
 def get_registered_users():
     """
