@@ -128,7 +128,6 @@ def _login(username, idp_name, email=None):
     redirect.
     """
     login_user(username, idp_name, email=email)
-    assert flask.g.user is not None
 
     if config["REGISTER_USERS_ON"]:
         if not flask.g.user.additional_info.get("registration_info"):

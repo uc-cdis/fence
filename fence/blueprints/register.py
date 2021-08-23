@@ -88,8 +88,6 @@ def register_user():
             form=form,
         )
 
-    assert flask.request.method == "POST"
-
     if not form.validate():
         raise UserError("Form validation failed: {}".format(str(form.errors)))
 
@@ -129,7 +127,7 @@ def register_user():
     return flask.jsonify(registration_info)
 
 
-@blueprint.route("/list", methods=["GET"])
+@blueprint.route("/admin/register", methods=["GET"])
 @admin_login_required
 def get_registered_users():
     """

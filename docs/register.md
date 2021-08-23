@@ -17,3 +17,6 @@ This register functionality enables user to register before downloading from any
 - Log out. Log in again. There should be no redirect to the registration form.
 - You can hit /user/register directly to re-register.
 - Now log in with a user that is an admin. Hit the /user/register/list endpoint. You should see your first test user's registration info.
+- Register Users is an option feature
+- The user information provided during registration IS NOT VALIDATED IN ANY WAY currently
+- The registration page is not customizable at the moment
