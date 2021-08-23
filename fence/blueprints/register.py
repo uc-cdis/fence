@@ -125,22 +125,3 @@ def register_user():
     if flask.session.get("redirect"):
         return flask.redirect(flask.session.get("redirect"))
     return flask.jsonify(registration_info)
-
-
-@blueprint.route("/admin/register", methods=["GET"])
-@admin_login_required
-def get_registered_users():
-    """
-    - List registration info for every user for which there exists registration info.
-    - Endpoint accessible to admins only.
-    - Response json structure is provisional.
-    """
-    registered_users = (
-        current_session.query(User)
-        .filter(User.additional_info["registration_info"] != "{}")
-        .all()
-    )
-    registration_info_list = {
-        u.username: u.additional_info["registration_info"] for u in registered_users
-    }
-    return registration_info_list
