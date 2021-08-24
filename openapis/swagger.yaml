@@ -1546,10 +1546,12 @@ paths:
   /user/register:
     get:
       tags:
-        - register-user
+        - register
       summary: Register in order to get access to download data
       description: >-
-        This register functionality enables user to register before downloading from any commons. Registration means that a user provides their firstname, lastname, organization, and email, in order to gain some predefined permissions (i.e. to be automatically added to a preconfigured Arborist group).
+        This register functionality enables a registration page for users to provide basic information before "being added to a preconfigured group".
+        The GET request will redirects to a HTML page where users can provide their firstname, lastname, organization, and email, in order to gain some predefined permissions
+        (i.e. to be automatically added to a preconfigured Arborist group).
       responses:
         200:
           description: success
