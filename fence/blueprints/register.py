@@ -11,9 +11,8 @@ from wtforms import StringField
 from wtforms.validators import DataRequired, Email, StopValidation, ValidationError
 
 from fence import config
-from fence.auth import login_required, admin_login_required
+from fence.auth import login_required
 from fence.errors import UserError
-from fence.models import User
 
 
 blueprint = flask.Blueprint("register", __name__)
