@@ -1,5 +1,5 @@
 # Description:
-This register functionality enables user to register before downloading from any commons. Registration means that a user provides their name, organization, and email, in order to gain some predefined permissions (i.e. to be automatically added to a preconfigured Arborist group). This functionality adds the registration form itself along with an admin endpoint to list registered users and their information.
+This register functionality enables a registration page for users to provide basic information before "being added to a preconfigured group". Registration means that a user provides their name, organization, and email, in order to gain some predefined permissions (i.e. to be automatically added to a preconfigured Arborist group). This functionality adds the registration form itself along with an admin endpoint to list registered users and their information.
 
 # How to enable:
 - Set up a useryaml that has a GROUP with a policy (for example: "registered_users" with "data_upload" policy)
@@ -17,6 +17,6 @@ This register functionality enables user to register before downloading from any
 - Log out. Log in again. There should be no redirect to the registration form.
 - You can hit /user/register directly to re-register.
 - Now log in with a user that is an admin. Hit the /user/register/list endpoint. You should see your first test user's registration info.
-- Register Users is an option feature
+- Register Users is an optional feature
 - The user information provided during registration IS NOT VALIDATED IN ANY WAY currently
 - The registration page is not customizable at the moment
