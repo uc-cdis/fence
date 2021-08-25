@@ -478,7 +478,10 @@ class IndexedFile(object):
 
     @cached_property
     def public(self):
-        return self.public_acl or self.public_authz
+        if self.index_document.get("authz", []):
+            return self.public_authz
+        else:
+            return self.public_acl
 
     @cached_property
     def public_acl(self):
@@ -1100,12 +1103,12 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                         db_entry,
                     )
 
-        if config["ENABLE_AUTOMATIC_BILLING_PERMISSION_SIGNED_URLS"]:
-            give_service_account_billing_access_if_necessary(
-                private_key,
-                r_pays_project,
-                default_billing_project=config["BILLING_PROJECT_FOR_SIGNED_URLS"],
-            )
+            if config["ENABLE_AUTOMATIC_BILLING_PERMISSION_SIGNED_URLS"]:
+                give_service_account_billing_access_if_necessary(
+                    private_key,
+                    r_pays_project,
+                    default_billing_project=config["BILLING_PROJECT_FOR_SIGNED_URLS"],
+                )
 
         # use configured project if it exists and no user project was given
         if config["BILLING_PROJECT_FOR_SIGNED_URLS"] and not r_pays_project:
