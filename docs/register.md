@@ -16,4 +16,4 @@ This register functionality enables a registration page for users to provide bas
 - Check Fence db and confirm that the registration info you entered is now in the additional_info column.
 - Log out. Log in again. There should be no redirect to the registration form.
 - You can hit /user/register directly to re-register.
-- Now log in with a user that is an admin. Hit the /user/register/list endpoint. You should see your first test user's registration info.
+- Now log in with a user that is an admin. Hit the /user/admin/register endpoint. You should see user's registration info.
