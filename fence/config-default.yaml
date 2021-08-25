@@ -417,6 +417,9 @@ TOKEN_PROJECTS_CUTOFF: 10
 # If set to true, will generate an new access token each time when a browser session update happens
 RENEW_ACCESS_TOKEN_BEFORE_EXPIRATION: false
 
+# The maximum lifetime of a Gen3 passport in seconds
+GEN3_PASSPORT_EXPIRES_IN: 43200
+
 ########################################################################################
 #                               OPTIONAL CONFIGURATIONS                                #
 ########################################################################################
@@ -870,5 +873,4 @@ USERSYNC:
   fallback_to_dbgap_sftp: false
   visa_types:
     ras: [https://ras.nih.gov/visas/v1, https://ras.nih.gov/visas/v1.1]
-GEN3_PASSPORTS_EXPIRES_IN: 43200
 RAS_USERINFO_ENDPOINT_VERSION: 'v1.1'

@@ -48,14 +48,15 @@ class RASCallback(DefaultOAuth2Callback):
         user.ga4gh_visas_v1 = []
 
         current_session.commit()
-
-        decoded_passport = None
+        
         encoded_visas = []
-        encoded_passport = flask.g.userinfo.get("passport_jwt_v11")
-
-        if encoded_passport:
-            decoded_passport = jwt.decode(encoded_passport, verify=False)
-            encoded_visas = decoded_passport.get("ga4gh_passport_v1", [])
+        encoded_visas = flask.g.encoded_visas
+        # try:
+        #     encoded_visas = flask.current_app.ras_client.get_encoded_visas_v11_userinfo(flask.g.userinfo)
+        # except Exception as e:
+        #     err_msg = "Could not retrieve visas"
+        #     logger.error("{}: {}".format(e, err_msg))
+        #     raise
 
         for encoded_visa in encoded_visas:
             try:

@@ -151,7 +151,7 @@ def test_update_visa_token(
         "kid": kid,
     }
     new_passport = {
-        "iss": "https://something.gen3.com/",
+        "iss": "https://stsstg.nih.gov",
         "sub": "abcde12345aspdij",
         "iat": int(time.time()),
         "scope": "openid ga4gh_passport_v1 email profile",
@@ -284,7 +284,7 @@ def test_update_visa_empty_visa_returned(
         "kid": kid,
     }
     new_passport = {
-        "iss": "https://something.gen3.com/",
+        "iss": "https://stsstg.nih.gov",
         "sub": "abcde12345aspdij",
         "iat": int(time.time()),
         "scope": "openid ga4gh_passport_v1 email profile",
@@ -402,7 +402,7 @@ def test_update_visa_token_with_invalid_visa(
         "kid": kid,
     }
     new_passport = {
-        "iss": "https://something.gen3.com/",
+        "iss": "https://stsstg.nih.gov",
         "sub": "abcde12345aspdij",
         "iat": int(time.time()),
         "scope": "openid ga4gh_passport_v1 email profile",
@@ -485,7 +485,7 @@ def test_update_visa_fetch_pkey(
         "kid": kid,
     }
     new_passport = {
-        "iss": "https://something.gen3.com/",
+        "iss": "https://stsstg.nih.gov",
         "sub": "abcde12345aspdij",
         "iat": int(time.time()),
         "scope": "openid ga4gh_passport_v1 email profile",
@@ -604,7 +604,7 @@ def test_visa_update_cronjob(
         "kid": kid,
     }
     new_passport = {
-        "iss": "https://something.gen3.com/",
+        "iss": "https://stsstg.nih.gov",
         "sub": "abcde12345aspdij",
         "iat": int(time.time()),
         "scope": "openid ga4gh_passport_v1 email profile",
