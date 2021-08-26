@@ -81,7 +81,7 @@ class RASOauth2Client(Oauth2ClientBase):
 
     def get_encoded_visas_v11_userinfo(self, userinfo, pkey_cache={}):
         """
-        Validate Passport and get RAS
+        Validate Passport and get encoded visas
         """
         decoded_passport = {}
         encoded_passport = userinfo.get("passport_jwt_v11")
@@ -100,27 +100,28 @@ class RASOauth2Client(Oauth2ClientBase):
         public_key = pkey_cache.get(passport_issuer, {}).get(passport_kid)
         if not public_key:
             try:
+                self.logger.info("Fetching public key from flask app...")
                 public_key = get_public_key_for_token(
                     encoded_passport, attempt_refresh=True
                 )
             except Exception as e:
                 self.logger.error(
-                    "Could not get public key to validate passport: {}. Discarding passport.".format(
+                    "Could not fetch public key from flask app to validate passport: {}. Trying .".format(
                         e
                     )
                 )
-        if not public_key:
-            try:
-                public_key = self.refresh_cronjob_pkey_cache(
-                    passport_issuer, passport_kid, pkey_cache
-                )
-            except Exception as e:
-                self.logger.error(
-                    "Could not refresh public key: {}. Discarding passport.".format(e)
-                )
+                try:
+                    self.logger.info("Trying to Fetch public keys from JWKs url...")
+                    public_key = self.refresh_cronjob_pkey_cache(
+                        passport_issuer, passport_kid, pkey_cache
+                    )
+                except Exception as e:
+                    self.logger.error(
+                        "Could not fetch public key from JWKs key url: {}".format(e)
+                    )
         if not public_key:
             self.logger.error(
-                "Could not get public key to validate visa: Successfully fetched "
+                "Could not fetch public key to validate visa: Successfully fetched "
                 "issuer's keys but did not find the visa's key id among them. Discarding visa."
             )
         try:
@@ -209,7 +210,7 @@ class RASOauth2Client(Oauth2ClientBase):
             jwt_public_keys = httpx.get(jwks_url).json()["keys"]
         except Exception as e:
             raise JWTError(
-                "Could not get public key to validate visa: Could not fetch keys from JWKs url: {}".format(
+                "Could not get public key to validate Passport/Visa: Could not fetch keys from JWKs url: {}".format(
                     e
                 )
             )
@@ -251,12 +252,14 @@ class RASOauth2Client(Oauth2ClientBase):
 
             pkey_cache.update({issuer: issuer_public_keys})
             self.logger.info(
-                "Refreshed cronjob pkey cache for visa issuer {}".format(issuer)
+                "Refreshed cronjob pkey cache for Passport/Visa issuer {}".format(
+                    issuer
+                )
             )
         except Exception as e:
             self.logger.error(
-                "Could not refresh cronjob pkey cache for visa issuer {}: "
-                "Something went wrong during serialization: {}. Discarding visa.".format(
+                "Could not refresh cronjob pkey cache for issuer {}: "
+                "Something went wrong during serialization: {}. Discarding Passport/Visa.".format(
                     issuer, e
                 )
             )
