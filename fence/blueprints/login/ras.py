@@ -48,11 +48,13 @@ class RASCallback(DefaultOAuth2Callback):
         user.ga4gh_visas_v1 = []
 
         current_session.commit()
-        
+
         encoded_visas = []
-        
+
         try:
-            encoded_visas = flask.current_app.ras_client.get_encoded_visas_v11_userinfo(flask.g.userinfo)
+            encoded_visas = flask.current_app.ras_client.get_encoded_visas_v11_userinfo(
+                flask.g.userinfo
+            )
         except Exception as e:
             err_msg = "Could not retrieve visas"
             logger.error("{}: {}".format(e, err_msg))

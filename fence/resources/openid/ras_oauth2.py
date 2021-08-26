@@ -81,7 +81,7 @@ class RASOauth2Client(Oauth2ClientBase):
 
     def get_encoded_visas_v11_userinfo(self, userinfo, pkey_cache={}):
         """
-        Validate Passport and get visas
+        Validate Passport and get RAS
         """
         decoded_passport = {}
         encoded_passport = userinfo.get("passport_jwt_v11")
@@ -91,11 +91,11 @@ class RASOauth2Client(Oauth2ClientBase):
             passport_issuer = get_iss(encoded_passport)
             passport_kid = get_kid(encoded_passport)
         except Exception as e:
-                self.logger.error(
-                   "Could not get issuer or kid from passport: {}. Discarding passport.".format(
-                        e
-                    )
-                )           
+            self.logger.error(
+                "Could not get issuer or kid from passport: {}. Discarding passport.".format(
+                    e
+                )
+            )
 
         public_key = pkey_cache.get(passport_issuer, {}).get(passport_kid)
         if not public_key:
@@ -109,6 +109,20 @@ class RASOauth2Client(Oauth2ClientBase):
                         e
                     )
                 )
+        if not public_key:
+            try:
+                public_key = self.refresh_cronjob_pkey_cache(
+                    passport_issuer, passport_kid, pkey_cache
+                )
+            except Exception as e:
+                self.logger.error(
+                    "Could not refresh public key: {}. Discarding passport.".format(e)
+                )
+        if not public_key:
+            self.logger.error(
+                "Could not get public key to validate visa: Successfully fetched "
+                "issuer's keys but did not find the visa's key id among them. Discarding visa."
+            )
         try:
             decoded_passport = validate_jwt(
                 encoded_passport,
@@ -126,7 +140,6 @@ class RASOauth2Client(Oauth2ClientBase):
                 "Passport failed validation: {}. Discarding passport.".format(e)
             )
         return decoded_passport.get("ga4gh_passport_v1", [])
-
 
     def get_user_id(self, code):
 
@@ -190,6 +203,66 @@ class RASOauth2Client(Oauth2ClientBase):
 
         return {"username": username, "email": userinfo.get("email")}
 
+    def refresh_cronjob_pkey_cache(self, issuer, kid, pkey_cache):
+        jwks_url = get_keys_url(issuer)
+        try:
+            jwt_public_keys = httpx.get(jwks_url).json()["keys"]
+        except Exception as e:
+            raise JWTError(
+                "Could not get public key to validate visa: Could not fetch keys from JWKs url: {}".format(
+                    e
+                )
+            )
+
+        issuer_public_keys = {}
+        try:
+            for key in jwt_public_keys:
+                if "kty" in key and key["kty"] == "RSA":
+                    self.logger.debug(
+                        "Serializing RSA public key (kid: {}) to PEM format.".format(
+                            key["kid"]
+                        )
+                    )
+                    # Decode public numbers https://tools.ietf.org/html/rfc7518#section-6.3.1
+                    n_padded_bytes = base64.urlsafe_b64decode(
+                        key["n"] + "=" * (4 - len(key["n"]) % 4)
+                    )
+                    e_padded_bytes = base64.urlsafe_b64decode(
+                        key["e"] + "=" * (4 - len(key["e"]) % 4)
+                    )
+                    n = int.from_bytes(n_padded_bytes, "big", signed=False)
+                    e = int.from_bytes(e_padded_bytes, "big", signed=False)
+                    # Serialize and encode public key--PyJWT decode/validation requires PEM
+                    rsa_public_key = rsa.RSAPublicNumbers(e, n).public_key(
+                        default_backend()
+                    )
+                    public_bytes = rsa_public_key.public_bytes(
+                        serialization.Encoding.PEM,
+                        serialization.PublicFormat.SubjectPublicKeyInfo,
+                    )
+                    # Cache the encoded key by issuer
+                    issuer_public_keys[key["kid"]] = public_bytes
+                else:
+                    self.logger.debug(
+                        "Key type (kty) is not 'RSA'; assuming PEM format. "
+                        "Skipping key serialization. (kid: {})".format(key[0])
+                    )
+                    issuer_public_keys[key[0]] = key[1]
+
+            pkey_cache.update({issuer: issuer_public_keys})
+            self.logger.info(
+                "Refreshed cronjob pkey cache for visa issuer {}".format(issuer)
+            )
+        except Exception as e:
+            self.logger.error(
+                "Could not refresh cronjob pkey cache for visa issuer {}: "
+                "Something went wrong during serialization: {}. Discarding visa.".format(
+                    issuer, e
+                )
+            )
+
+        return pkey_cache.get(issuer, {}).get(kid)
+
     @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
     def update_user_visas(self, user, pkey_cache, db_session=current_session):
         """
@@ -231,68 +304,15 @@ class RASOauth2Client(Oauth2ClientBase):
             # See if pkey is in cronjob cache; if not, update cache.
             public_key = pkey_cache.get(visa_issuer, {}).get(visa_kid)
             if not public_key:
-                jwks_url = get_keys_url(visa_issuer)
                 try:
-                    jwt_public_keys = httpx.get(jwks_url).json()["keys"]
-                except Exception as e:
-                    raise JWTError(
-                        "Could not get public key to validate visa: Could not fetch keys from JWKs url: {}".format(
-                            e
-                        )
-                    )
-
-                issuer_public_keys = {}
-                try:
-                    for key in jwt_public_keys:
-                        if "kty" in key and key["kty"] == "RSA":
-                            self.logger.debug(
-                                "Serializing RSA public key (kid: {}) to PEM format.".format(
-                                    key["kid"]
-                                )
-                            )
-                            # Decode public numbers https://tools.ietf.org/html/rfc7518#section-6.3.1
-                            n_padded_bytes = base64.urlsafe_b64decode(
-                                key["n"] + "=" * (4 - len(key["n"]) % 4)
-                            )
-                            e_padded_bytes = base64.urlsafe_b64decode(
-                                key["e"] + "=" * (4 - len(key["e"]) % 4)
-                            )
-                            n = int.from_bytes(n_padded_bytes, "big", signed=False)
-                            e = int.from_bytes(e_padded_bytes, "big", signed=False)
-                            # Serialize and encode public key--PyJWT decode/validation requires PEM
-                            rsa_public_key = rsa.RSAPublicNumbers(e, n).public_key(
-                                default_backend()
-                            )
-                            public_bytes = rsa_public_key.public_bytes(
-                                serialization.Encoding.PEM,
-                                serialization.PublicFormat.SubjectPublicKeyInfo,
-                            )
-                            # Cache the encoded key by issuer
-                            issuer_public_keys[key["kid"]] = public_bytes
-                        else:
-                            self.logger.debug(
-                                "Key type (kty) is not 'RSA'; assuming PEM format. "
-                                "Skipping key serialization. (kid: {})".format(key[0])
-                            )
-                            issuer_public_keys[key[0]] = key[1]
-
-                    pkey_cache.update({visa_issuer: issuer_public_keys})
-                    self.logger.info(
-                        "Refreshed cronjob pkey cache for visa issuer {}".format(
-                            visa_issuer
-                        )
+                    public_key = self.refresh_cronjob_pkey_cache(
+                        visa_issuer, visa_kid, pkey_cache
                     )
                 except Exception as e:
                     self.logger.error(
-                        "Could not refresh cronjob pkey cache for visa issuer {}: "
-                        "Something went wrong during serialization: {}. Discarding visa.".format(
-                            visa_issuer, e
-                        )
+                        "Could not refresh public key cache: {}".format(e)
                     )
-                    continue  # Not raise: If issuer publishing malformed keys, does not make sense to retry
-
-                public_key = pkey_cache.get(visa_issuer, {}).get(visa_kid)
-
+                    continue
             if not public_key:
                 self.logger.error(
                     "Could not get public key to validate visa: Successfully fetched "
