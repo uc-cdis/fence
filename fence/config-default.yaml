@@ -72,6 +72,9 @@ SESSION_COOKIE_SECURE: true
 
 ENABLE_CSRF_PROTECTION: true
 
+# Signing key for WTForms to sign CSRF tokens with
+WTF_CSRF_SECRET_KEY: '{{ENCRYPTION_KEY}}'
+
 # fence (at the moment) attempts a migration on startup. setting this to false will disable that
 # WARNING: ONLY set to false if you do NOT want to automatically migrate your database.
 #          You should be careful about incompatible versions of your db schema with what
@@ -617,6 +620,20 @@ INDEXD_USERNAME: 'fence'
 # this is the password which fence uses to make authenticated requests to indexd
 INDEXD_PASSWORD: ''
 
+# //////////////////////////////////////////////////////////////////////////////////////
+# AZURE STORAGE BLOB CONFIGURATION
+#   - Support Azure Blob Data Access Methods
+# //////////////////////////////////////////////////////////////////////////////////////
+
+# https://docs.microsoft.com/en-us/azure/storage/common/storage-account-keys-manage?toc=%2Fazure%2Fstorage%2Fblobs%2Ftoc.json&tabs=azure-portal#view-account-access-keys
+# AZ_BLOB_CREDENTIALS: 'fake connection string'
+AZ_BLOB_CREDENTIALS:
+
+# AZ_BLOB_CONTAINER_URL: 'https://storageaccount.blob.core.windows.net/container/'
+# this is the container used for uploading, and should match the storage account
+# used in the connection string for AZ_BLOB_CREDENTIALS
+AZ_BLOB_CONTAINER_URL: 'https://myfakeblob.blob.core.windows.net/my-fake-container/'
+
 # url where authz microservice is running
 ARBORIST: null
 
@@ -834,6 +851,11 @@ SYNAPSE_AUTHZ_TTL: 86400
 MAX_ROLE_SESSION_INCREASE: false
 ASSUME_ROLE_CACHE_SECONDS: 1800
 
+# Optional user registration feature: Ask users to register (provide firstname/lastname/org/email) on login.
+# If user registers, add them to configured Arborist group; idea is that the Arborist group
+# will have access to download data.
+REGISTER_USERS_ON: false
+REGISTERED_USERS_GROUP: ''
 # RAS refresh_tokens expire in 15 days
 RAS_REFRESH_EXPIRATION: 1296000
 # List of JWT issuers from which Fence will accept GA4GH visas
