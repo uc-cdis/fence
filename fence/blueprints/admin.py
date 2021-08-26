@@ -13,6 +13,7 @@ from cdislogging import get_logger
 
 from fence.auth import admin_login_required
 from fence.resources import admin
+from fence.models import User
 
 
 logger = get_logger(__name__)
@@ -465,3 +466,22 @@ def delete_cloud_provider(providername):
     """
     response = jsonify(admin.delete_provider(current_session, providername))
     return response
+
+
+@blueprint.route("/register", methods=["GET"])
+@admin_login_required
+def get_registered_users():
+    """
+    - List registration info for every user for which there exists registration info.
+    - Endpoint accessible to admins only.
+    - Response json structure is provisional.
+    """
+    registered_users = (
+        current_session.query(User)
+        .filter(User.additional_info["registration_info"] != "{}")
+        .all()
+    )
+    registration_info_list = {
+        u.username: u.additional_info["registration_info"] for u in registered_users
+    }
+    return registration_info_list
