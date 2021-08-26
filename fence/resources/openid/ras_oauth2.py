@@ -79,7 +79,7 @@ class RASOauth2Client(Oauth2ClientBase):
             return {}
         return res.json()
 
-    def get_encoded_visas_v11_userinfo(self, userinfo, pkey_cache=None):
+    def get_encoded_visas_v11_userinfo(self, userinfo, pkey_cache={}):
         """
         Validate Passport and get visas
         """
@@ -177,12 +177,12 @@ class RASOauth2Client(Oauth2ClientBase):
 
             self.logger.info("Using {} field as username.".format(field_name))
 
-            encoded_visas = self.get_encoded_visas_v11_userinfo(userinfo, keys)
+            # encoded_visas = self.get_encoded_visas_v11_userinfo(userinfo, keys)
 
             # Save userinfo and token in flask.g for later use in post_login
             flask.g.userinfo = userinfo
             flask.g.tokens = token
-            flask.g.encoded_visas = encoded_visas 
+            flask.g.keys = keys
 
         except Exception as e:
             self.logger.exception("{}: {}".format(err_msg, e))
