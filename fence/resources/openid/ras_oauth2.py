@@ -2,7 +2,6 @@ import backoff
 import base64
 import flask
 import httpx
-import jwt
 import requests
 from flask_sqlalchemy_session import current_session
 from jose import jwt as jose_jwt
@@ -79,13 +78,16 @@ class RASOauth2Client(Oauth2ClientBase):
             return {}
         return res.json()
 
-    def get_encoded_visas_v11_userinfo(self, userinfo, pkey_cache={}):
+    def get_encoded_visas_v11_userinfo(self, userinfo, pkey_cache=None):
         """
         Validate Passport and get encoded visas
         """
         decoded_passport = {}
         encoded_passport = userinfo.get("passport_jwt_v11")
         passport_issuer, passport_kid = None, None
+
+        if not pkey_cache:
+            pkey_cache = {}
 
         try:
             passport_issuer = get_iss(encoded_passport)
