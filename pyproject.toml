@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fence"
-version = "5.3.3"
+version = "5.4.0"
 description = "Gen3 AuthN/AuthZ OIDC Service"
 authors = ["CTDS UChicago <cdis@uchicago.edu>"]
 license = "Apache-2.0"
@@ -49,6 +49,7 @@ userdatamodel = "^2.3.3"
 werkzeug = "^1.0.0"
 cachelib = "^0.2.0"
 azure-storage-blob = "^12.6.0"
+Flask-WTF = "^0.14.3"
 
 [tool.poetry.dev-dependencies]
 addict = "^2.2.1"
