@@ -54,12 +54,12 @@ class RASOauth2Client(Oauth2ClientBase):
     def get_userinfo(self, token):
         # As of now RAS does not provide their v1.1/userinfo in their .well-known/openid-configuration
         # Need to manually change version at the moment with config
-        # TODO: Remove this once RAS makes it availale in their openid-config
+        # TODO: Remove this once RAS makes it available in their openid-config
         issuer = self.get_value_from_discovery_doc("issuer", "")
-        userinfo_endpoint_version = config.get("RAS_USERINFO_ENDPOINT_VERSION", "v1.1")
-        userinfo_endpoint = (
-            issuer + "/openid/connect/" + userinfo_endpoint_version + "/userinfo"
+        userinfo_endpoint = config.get(
+            "RAS_USERINFO_ENDPOINT", "/openid/connect/v1.1/userinfo"
         )
+        userinfo_endpoint = issuer + userinfo_endpoint
         access_token = token["access_token"]
         header = {"Authorization": "Bearer " + access_token}
         res = requests.get(userinfo_endpoint, headers=header)
