@@ -24,6 +24,7 @@ def user_info():
         client_id = current_token["azp"]
     info = get_current_user_info()
     info["azp"] = client_id
+
     return flask.jsonify(info)
 
 
