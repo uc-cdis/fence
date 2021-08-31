@@ -419,7 +419,7 @@ RENEW_ACCESS_TOKEN_BEFORE_EXPIRATION: false
 
 # The JSON field the GA4GH Passport is in when a request is POST-ed to DRS
 # We use the same field name for POSTs to /data/download for consistency
-GA4GH_DRS_POSTED_PASSPORT_FIELD: "auth"
+GA4GH_DRS_POSTED_PASSPORT_FIELD: "passports"
 
 
 ########################################################################################

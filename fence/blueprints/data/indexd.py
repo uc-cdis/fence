@@ -53,7 +53,7 @@ ANONYMOUS_USER_ID = "anonymous"
 ANONYMOUS_USERNAME = "anonymous"
 
 
-def get_signed_url_for_file(action, file_id, file_name=None):
+def get_signed_url_for_file(action, file_id, file_name=None, ga4gh_passports=None):
     requested_protocol = flask.request.args.get("protocol", None)
     r_pays_project = flask.request.args.get("userProject", None)
 
@@ -63,6 +63,12 @@ def get_signed_url_for_file(action, file_id, file_name=None):
     no_force_sign_param = flask.request.args.get("no_force_sign")
     if no_force_sign_param and no_force_sign_param.lower() == "true":
         force_signed_url = False
+
+    user_ids_from_passports = None
+    if ga4gh_passports:
+        user_ids_from_passports = get_gen3_user_ids_from_ga4gh_passports(
+            ga4gh_passports
+        )
 
     # add the user details to `flask.g.audit_data` first, so they are
     # included in the audit log if `IndexedFile(file_id)` raises a 404
@@ -88,6 +94,7 @@ def get_signed_url_for_file(action, file_id, file_name=None):
         force_signed_url=force_signed_url,
         r_pays_project=r_pays_project,
         file_name=file_name,
+        user_ids_from_passports=user_ids_from_passports,
     )
 
     # increment counter for gen3-metrics
@@ -367,13 +374,17 @@ class IndexedFile(object):
         force_signed_url=True,
         r_pays_project=None,
         file_name=None,
+        user_ids_from_passports=None,
     ):
         if self.index_document.get("authz"):
             action_to_permission = {
                 "upload": "write-storage",
                 "download": "read-storage",
             }
-            if not self.check_authz(action_to_permission[action]):
+            if not self.check_authz(
+                action_to_permission[action],
+                user_ids_from_passports=user_ids_from_passports,
+            ):
                 raise Unauthorized(
                     f"Either you weren't logged in or you don't have "
                     f"{action_to_permission[action]} permission "
@@ -386,7 +397,9 @@ class IndexedFile(object):
                 )
             # don't check the authorization if the file is public
             # (downloading public files with no auth is fine)
-            if not self.public_acl and not self.check_authorization(action):
+            if not self.public_acl and not self.check_authorization(
+                action, user_ids_from_passports=user_ids_from_passports
+            ):
                 raise Unauthorized(
                     f"You don't have access permission on this file: {self.file_id}"
                 )
@@ -449,7 +462,7 @@ class IndexedFile(object):
         else:
             raise Unauthorized("This file is not accessible")
 
-    def check_authz(self, action):
+    def check_authz(self, action, user_ids_from_passports=None):
         if not self.index_document.get("authz"):
             raise ValueError("index record missing `authz`")
 
@@ -457,20 +470,33 @@ class IndexedFile(object):
             f"authz check can user {action} on {self.index_document['authz']} for fence?"
         )
 
-        try:
-            token = get_jwt()
-        except Unauthorized:
-            #  get_jwt raises an Unauthorized error when user is anonymous (no
-            #  availble token), so to allow anonymous users possible access to
-            #  public data, we still make the request to Arborist
-            token = None
+        # handle multiple GA4GH passports as a means of authn/z
+        if user_ids_from_passports:
+            for user_id in user_ids_from_passports:
+                authorized = flask.current_app.arborist.auth_request(
+                    user_id=user_id,
+                    service="fence",
+                    methods=action,
+                    resources=self.index_document["authz"],
+                )
+                # if any passport provides access, user is authorized
+                if authorized:
+                    return authorized
+        else:
+            try:
+                token = get_jwt()
+            except Unauthorized:
+                #  get_jwt raises an Unauthorized error when user is anonymous (no
+                #  availble token), so to allow anonymous users possible access to
+                #  public data, we still make the request to Arborist
+                token = None
 
-        return flask.current_app.arborist.auth_request(
-            jwt=token,
-            service="fence",
-            methods=action,
-            resources=self.index_document["authz"],
-        )
+            return flask.current_app.arborist.auth_request(
+                jwt=token,
+                service="fence",
+                methods=action,
+                resources=self.index_document["authz"],
+            )
 
     @cached_property
     def metadata(self):
@@ -489,7 +515,7 @@ class IndexedFile(object):
         return "/open" in self.index_document.get("authz", [])
 
     @login_required({"data"})
-    def check_authorization(self, action):
+    def check_authorization(self, action, user_ids_from_passports=None):
         # if we have a data file upload without corresponding metadata, the record can
         # have just the `uploader` field and no ACLs. in this just check that the
         # current user's username matches the uploader field
@@ -504,8 +530,29 @@ class IndexedFile(object):
             )
             return self.index_document.get("uploader") == username
 
-        given_acls = set(filter_auth_ids(action, flask.g.user.project_access))
-        return len(self.set_acls & given_acls) > 0
+        # handle multiple GA4GH passports as a means of authn/z
+        project_accesses = []
+        if user_ids_from_passports:
+            for user_id in user_ids_from_passports:
+                new_project_access = _get_project_access_for_user_id(user_id)
+                if new_project_access:
+                    project_accesses.append(new_project_access)
+
+        if not project_accesses:
+            # if we didn't get anything from passports, assume old JWT, get from flask context
+            project_accesses.append(flask.g.user.project_access)
+
+        has_access = False
+        for project_access in project_accesses:
+            given_acls = set(filter_auth_ids(action, project_access))
+            has_access = len(self.set_acls & given_acls) > 0
+
+            # if any of the project_access information results in a success,
+            # this user has access
+            if has_access:
+                break
+
+        return has_access
 
     @login_required({"data"})
     def delete_files(self, urls=None, delete_all=True):
@@ -1181,3 +1228,8 @@ def filter_auth_ids(action, list_auth_ids):
         if checked_permission in values:
             authorized_dbgaps.append(key)
     return authorized_dbgaps
+
+
+def _get_project_access_for_user_id(user_id):
+    # TODO
+    return {}
