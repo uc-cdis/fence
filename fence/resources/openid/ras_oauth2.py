@@ -113,7 +113,7 @@ class RASOauth2Client(Oauth2ClientBase):
                 )
             except Exception as e:
                 self.logger.info(
-                    "Could not fetch public key from flask app to validate passport: {}. Trying .".format(
+                    "Could not fetch public key from flask app to validate passport: {}. Trying  to fetch from source.".format(
                         e
                     )
                 )
