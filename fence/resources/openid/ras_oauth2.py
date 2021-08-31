@@ -56,9 +56,7 @@ class RASOauth2Client(Oauth2ClientBase):
         # Need to manually change version at the moment with config
         # TODO: Remove this once RAS makes it available in their openid-config
         issuer = self.get_value_from_discovery_doc("issuer", "")
-        userinfo_endpoint = config.get(
-            "RAS_USERINFO_ENDPOINT", "/openid/connect/v1.1/userinfo"
-        )
+        userinfo_endpoint = config["RAS_USERINFO_ENDPOINT"]
         userinfo_endpoint = issuer + userinfo_endpoint
         access_token = token["access_token"]
         header = {"Authorization": "Bearer " + access_token}
@@ -80,7 +78,14 @@ class RASOauth2Client(Oauth2ClientBase):
 
     def get_encoded_visas_v11_userinfo(self, userinfo, pkey_cache=None):
         """
-        Validate Passport and get encoded visas
+        Return encoded visas after extracting and validating passport from userinfo respoonse
+
+        Args:
+            userinfo (dict): userinfo response
+            pkey_cache (dict): app cache of public keys_dir
+
+        Return:
+            list: list of encoded GA4GH visas
         """
         decoded_passport = {}
         encoded_passport = userinfo.get("passport_jwt_v11")
@@ -107,7 +112,7 @@ class RASOauth2Client(Oauth2ClientBase):
                     encoded_passport, attempt_refresh=True
                 )
             except Exception as e:
-                self.logger.error(
+                self.logger.info(
                     "Could not fetch public key from flask app to validate passport: {}. Trying .".format(
                         e
                     )
@@ -118,7 +123,7 @@ class RASOauth2Client(Oauth2ClientBase):
                         passport_issuer, passport_kid, pkey_cache
                     )
                 except Exception as e:
-                    self.logger.error(
+                    self.logger.info(
                         "Could not fetch public key from JWKs key url: {}".format(e)
                     )
         if not public_key:
@@ -193,8 +198,6 @@ class RASOauth2Client(Oauth2ClientBase):
 
             self.logger.info("Using {} field as username.".format(field_name))
 
-            # encoded_visas = self.get_encoded_visas_v11_userinfo(userinfo, keys)
-
             # Save userinfo and token in flask.g for later use in post_login
             flask.g.userinfo = userinfo
             flask.g.tokens = token
@@ -207,6 +210,17 @@ class RASOauth2Client(Oauth2ClientBase):
         return {"username": username, "email": userinfo.get("email")}
 
     def refresh_cronjob_pkey_cache(self, issuer, kid, pkey_cache):
+        """
+        Update app public key cache for a specific Passport Visa issuer
+
+        Args:
+            issuer(str): Passport Visa issuer. Can be found under `issuer` in a Passport or a Visa
+            kid(str): Passsport Visa kid. Can be found in the header of an encoded Passport or encoded Visa
+            pkey_cache (dict): app cache of public keys_dir
+
+        Return:
+            dict: public key for given issuer
+        """
         jwks_url = get_keys_url(issuer)
         try:
             jwt_public_keys = httpx.get(jwks_url).json()["keys"]
