@@ -404,7 +404,7 @@ class IndexedFile(object):
                 raise Unauthorized(
                     f"Either you weren't logged in or you don't have "
                     f"{action_to_permission[action]} permission "
-                    f"on {self.index_document['authz']} for fence"
+                    f"on authz resource: {self.index_document['authz']}"
                 )
         else:
             if self.public_acl and action == "upload":
