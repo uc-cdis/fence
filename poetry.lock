@@ -983,8 +983,6 @@ rsa = ">=3.1.4"
 six = ">=1.6.1"
 
 [[package]]
-<<<<<<< HEAD
-=======
 name = "oauthlib"
 version = "3.1.1"
 description = "A generic, spec-compliant, thorough implementation of the OAuth request-signing logic"
@@ -998,7 +996,6 @@ signals = ["blinker (>=1.4.0)"]
 signedtoken = ["cryptography (>=3.0.0,<4)", "pyjwt (>=2.0.0,<3)"]
 
 [[package]]
->>>>>>> d9e9df72... (PXP-7565): User registration, plus CSRF changes (#906)
 name = "packaging"
 version = "21.0"
 description = "Core utilities for Python packages"
@@ -1582,8 +1579,6 @@ authutils = [
     {file = "authutils-6.0.2-py3-none-any.whl", hash = "sha256:b1ded486669ae181d451052e5c435300b33d3c9cb7edbe75da5ba9530f3e5128"},
     {file = "authutils-6.0.2.tar.gz", hash = "sha256:709e4c1bb95ebe29c7bf3ec1d6b9a0dca030495cdab61afe74064e507cf70ae4"},
 ]
-<<<<<<< HEAD
-=======
 aws-xray-sdk = [
     {file = "aws-xray-sdk-0.95.tar.gz", hash = "sha256:9e7ba8dd08fd2939376c21423376206bff01d0deaea7d7721c6b35921fed1943"},
     {file = "aws_xray_sdk-0.95-py2.py3-none-any.whl", hash = "sha256:72791618feb22eaff2e628462b0d58f398ce8c1bacfa989b7679817ab1fad60c"},
@@ -1596,7 +1591,6 @@ azure-storage-blob = [
     {file = "azure-storage-blob-12.8.1.zip", hash = "sha256:eb37b50ddfb6e558b29f6c8c03b0666514e55d6170bf4624e7261a3af93c6401"},
     {file = "azure_storage_blob-12.8.1-py2.py3-none-any.whl", hash = "sha256:e74c2c49fd04b80225f5b9734f1dbd417d89f280abfedccced3ac21509e1659d"},
 ]
->>>>>>> d9e9df72... (PXP-7565): User registration, plus CSRF changes (#906)
 backoff = [
     {file = "backoff-1.11.1-py2.py3-none-any.whl", hash = "sha256:61928f8fa48d52e4faa81875eecf308eccfb1016b018bb6bd21e05b5d90a96c5"},
     {file = "backoff-1.11.1.tar.gz", hash = "sha256:ccb962a2378418c667b3c979b504fdeb7d9e0d29c0579e3b13b86467177728cb"},
@@ -2049,13 +2043,10 @@ moto = [
 oauth2client = [
     {file = "oauth2client-3.0.0.tar.gz", hash = "sha256:5b5b056ec6f2304e7920b632885bd157fa71d1a7f3ddd00a43b1541a8d1a2460"},
 ]
-<<<<<<< HEAD
-=======
 oauthlib = [
     {file = "oauthlib-3.1.1-py2.py3-none-any.whl", hash = "sha256:42bf6354c2ed8c6acb54d971fce6f88193d97297e18602a3a886603f9d7730cc"},
     {file = "oauthlib-3.1.1.tar.gz", hash = "sha256:8f0215fcc533dd8dd1bee6f4c412d4f0cd7297307d43ac61666389e3bc3198a3"},
 ]
->>>>>>> d9e9df72... (PXP-7565): User registration, plus CSRF changes (#906)
 packaging = [
     {file = "packaging-21.0-py3-none-any.whl", hash = "sha256:c86254f9220d55e31cc94d69bade760f0847da8000def4dfe1c6b872fd14ff14"},
     {file = "packaging-21.0.tar.gz", hash = "sha256:7dc96269f53a4ccec5c0670940a4281106dd0bb343f47b7471f779df49c2fbe7"},
