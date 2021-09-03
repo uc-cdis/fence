@@ -208,7 +208,6 @@ def generate_signed_id_token(
     auth_time=None,
     max_age=None,
     nonce=None,
-    include_project_access=True,
     auth_flow_type=AuthFlowTypes.CODE,
     access_token=None,
     **kwargs
@@ -234,8 +233,6 @@ def generate_signed_id_token(
             max number of seconds allowed since last user AuthN
         nonce (str, optional):
             string value used to associate a Client session with an ID Token
-        include_project_access (bool, optional):
-            whether to include user.project_access in the token context.user.projects
         auth_flow_type (AuthFlowTypes, optional):
             which auth flow (Auth Code or Implicit) is issuing this token
             (token validation will be different for each flow)
@@ -249,7 +246,6 @@ def generate_signed_id_token(
         user,
         expires_in,
         client_id,
-        include_project_access=include_project_access,
         audiences=audiences,
         scopes=scopes,
         auth_time=auth_time,
@@ -365,7 +361,6 @@ def generate_signed_access_token(
     forced_exp_time=None,
     client_id=None,
     linked_google_email=None,
-    include_project_access=True,
 ):
     """
     Generate a JWT access token and output a UTF-8
@@ -422,31 +417,6 @@ def generate_signed_access_token(
     if scopes:
         claims["aud"] += scopes
 
-    if include_project_access:
-        # NOTE: "THIS IS A TERRIBLE STOP-GAP SOLUTION SO THAT USERS WITH
-        #       MINIMAL ACCESS CAN STILL USE LATEST VERSION OF FENCE
-        #       WITH VERSIONS OF PEREGRINE/SHEEPDOG THAT DO NOT CURENTLY
-        #       SUPPORT AUTHORIZATION CHECKS AGAINST ARBORIST (AND INSTEAD
-        #       RELY ON THE PROJECTS IN THE TOKEN). If the token is too large
-        #       everything breaks. I'm sorry" --See PXP-3717
-        if len(dict(user.project_access)) < config["TOKEN_PROJECTS_CUTOFF"]:
-            claims["context"]["user"]["projects"] = dict(user.project_access)
-        else:
-            # truncate to configured number of projects in token
-            projects = dict(user.project_access)
-            for key in list(projects)[config["TOKEN_PROJECTS_CUTOFF"] :]:
-                del projects[key]
-            claims["context"]["user"]["projects"] = projects
-            logger.warning(
-                "NOT including project_access = {} in claims for user {} because there are too many projects for the token\n".format(
-                    {
-                        k: dict(user.project_access)[k]
-                        for k in set(dict(user.project_access)) - set(projects)
-                    },
-                    user.username,
-                )
-            )
-
     # only add google linkage information if provided
     if linked_google_email:
         claims["context"]["user"]["google"][
@@ -475,7 +445,6 @@ def generate_id_token(
     auth_time=None,
     max_age=None,
     nonce=None,
-    include_project_access=True,
     auth_flow_type=AuthFlowTypes.CODE,
     access_token=None,
     **kwargs
@@ -499,8 +468,6 @@ def generate_id_token(
             max number of seconds allowed since last user AuthN
         nonce (str, optional):
             string value used to associate a Client session with an ID Token
-        include_project_access (bool, optional):
-            whether to include user.project_access in the token context.user.projects
         auth_flow_type (AuthFlowTypes, optional):
             which auth flow (Auth Code or Implicit) is issuing this token
             (token validation will be different for each flow)
@@ -565,9 +532,6 @@ def generate_id_token(
     # in ID token
     if nonce:
         claims["nonce"] = nonce
-
-    if include_project_access:
-        claims["context"]["user"]["projects"] = dict(user.project_access)
 
     if access_token:
         at_hash = to_unicode(create_half_hash(access_token, "RS256"))
