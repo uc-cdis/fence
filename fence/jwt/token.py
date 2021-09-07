@@ -533,6 +533,9 @@ def generate_id_token(
     if nonce:
         claims["nonce"] = nonce
 
+    if include_project_access:
+        claims["context"]["user"]["projects"] = dict(user.project_access)
+
     if access_token:
         at_hash = to_unicode(create_half_hash(access_token, "RS256"))
         claims["at_hash"] = at_hash
