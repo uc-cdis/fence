@@ -208,6 +208,7 @@ def generate_signed_id_token(
     auth_time=None,
     max_age=None,
     nonce=None,
+    include_project_access=True,
     auth_flow_type=AuthFlowTypes.CODE,
     access_token=None,
     **kwargs
@@ -233,6 +234,8 @@ def generate_signed_id_token(
             max number of seconds allowed since last user AuthN
         nonce (str, optional):
             string value used to associate a Client session with an ID Token
+        include_project_access (bool, optional):
+            whether to include user.project_access in the token context.user.projects
         auth_flow_type (AuthFlowTypes, optional):
             which auth flow (Auth Code or Implicit) is issuing this token
             (token validation will be different for each flow)
@@ -251,6 +254,7 @@ def generate_signed_id_token(
         auth_time=auth_time,
         max_age=max_age,
         nonce=nonce,
+        include_project_access=include_project_access,
         auth_flow_type=auth_flow_type,
         access_token=access_token,
         **kwargs
@@ -445,6 +449,7 @@ def generate_id_token(
     auth_time=None,
     max_age=None,
     nonce=None,
+    include_project_access=True,
     auth_flow_type=AuthFlowTypes.CODE,
     access_token=None,
     **kwargs
@@ -468,6 +473,8 @@ def generate_id_token(
             max number of seconds allowed since last user AuthN
         nonce (str, optional):
             string value used to associate a Client session with an ID Token
+        include_project_access (bool, optional):
+            whether to include user.project_access in the token context.user.projects
         auth_flow_type (AuthFlowTypes, optional):
             which auth flow (Auth Code or Implicit) is issuing this token
             (token validation will be different for each flow)
