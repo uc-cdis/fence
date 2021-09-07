@@ -249,12 +249,12 @@ def generate_signed_id_token(
         user,
         expires_in,
         client_id,
+        include_project_access=include_project_access,
         audiences=audiences,
         scopes=scopes,
         auth_time=auth_time,
         max_age=max_age,
         nonce=nonce,
-        include_project_access=include_project_access,
         auth_flow_type=auth_flow_type,
         access_token=access_token,
         **kwargs
