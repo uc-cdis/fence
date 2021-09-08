@@ -195,7 +195,6 @@ def generate_token_response(
         nonce=nonce,
         linked_google_email=linked_google_email,
         linked_google_account_exp=linked_google_account_exp,
-        include_project_access=False,
         auth_flow_type=AuthFlowTypes.CODE,
         access_token=access_token,
     ).token
