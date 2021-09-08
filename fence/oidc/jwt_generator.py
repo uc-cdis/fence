@@ -118,6 +118,7 @@ def generate_implicit_response(
         nonce=nonce,
         linked_google_email=linked_google_email,
         linked_google_account_exp=linked_google_account_exp,
+        include_project_access=False,
         auth_flow_type=AuthFlowTypes.IMPLICIT,
         access_token=access_token if include_access_token else None,
     ).token
