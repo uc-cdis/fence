@@ -489,6 +489,46 @@ paths:
           description: 'Invalid input: UUID not found or invalid location'
         '404':
           description: 'No location found for this file'
+  '/ga4gh/drs/v1/objects/{object_id}/access/{access_id}':
+    get:
+      summary: GA4GH DRS Access API to get a URL for fetching bytes.
+      description: >-
+        Returns a URL that can be used to fetch the bytes of a DrsObject.
+        This method only needs to be called when using an AccessMethod that contains an access_id
+        (e.g., for servers that use signed URLs for fetching object bytes).
+      operationId: GetAccessURL
+      responses:
+        '200':
+          description: The access URL was found successfully.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/AccessURL'
+        '400':
+          description: The request is malformed.
+        '401':
+          description: The request is unauthorized.
+        '404':
+          description: The requested access URL wasn't found
+        '403':
+          description: The requester is not authorized to perform this action.
+        '500':
+          description: An unexpected error occurred.
+      parameters:
+        - name: object_id
+          schema:
+            type: string
+          in: path
+          required: true
+          description: An id of a DrsObject
+        - name: access_id
+          schema:
+            type: string
+          in: path
+          required: true
+          description: An access_id from the access_methods list of a DrsObject
+      tags:
+        - data
   '/data/upload':
     post:
       tags:
@@ -2122,6 +2162,14 @@ components:
         email:
           type: string
           description: 'The email of the end-user'
+    AccessURL:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          description: 'A fully resolvable URL that can be used to fetch the actual object bytes.'
     UserInfo:
       type: object
       required:

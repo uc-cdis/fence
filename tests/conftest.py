@@ -568,7 +568,7 @@ def indexd_client(app, request):
             "created_date": "",
             "updated_date": "",
         }
-    elif request.param == "az":
+    elif protocol == "az":
         record = {
             "did": "",
             "baseid": "",
@@ -584,7 +584,7 @@ def indexd_client(app, request):
             "created_date": "",
             "updated_date": "",
         }
-    elif request.param == "https":
+    elif protocol == "https":
         record = {
             "did": "",
             "baseid": "",

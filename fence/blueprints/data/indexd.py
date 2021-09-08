@@ -62,8 +62,8 @@ ANONYMOUS_USER_ID = "anonymous"
 ANONYMOUS_USERNAME = "anonymous"
 
 
-def get_signed_url_for_file(action, file_id, file_name=None):
-    requested_protocol = flask.request.args.get("protocol", None)
+def get_signed_url_for_file(action, file_id, file_name=None, requested_protocol=None):
+    requested_protocol = requested_protocol or flask.request.args.get("protocol", None)
     r_pays_project = flask.request.args.get("userProject", None)
 
     # default to signing the url even if it's a public object
@@ -404,7 +404,7 @@ class IndexedFile(object):
                 raise Unauthorized(
                     f"Either you weren't logged in or you don't have "
                     f"{action_to_permission[action]} permission "
-                    f"on {self.index_document['authz']} for fence"
+                    f"on authz resource: {self.index_document['authz']}"
                 )
         else:
             if self.public_acl and action == "upload":

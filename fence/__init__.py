@@ -53,6 +53,7 @@ import fence.blueprints.link
 import fence.blueprints.google
 import fence.blueprints.privacy
 import fence.blueprints.register
+import fence.blueprints.ga4gh
 
 
 # for some reason the temp dir does not get created properly if we move
@@ -139,6 +140,7 @@ def app_register_blueprints(app):
     )
 
     app.register_blueprint(fence.blueprints.register.blueprint, url_prefix="/register")
+    app.register_blueprint(fence.blueprints.ga4gh.blueprint, url_prefix="/ga4gh")
 
     fence.blueprints.misc.register_misc(app)
 
