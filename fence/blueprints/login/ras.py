@@ -49,11 +49,13 @@ class RASCallback(DefaultOAuth2Callback):
 
         current_session.commit()
 
+        userinfo = flask.g.userinfo
+
         encoded_visas = []
 
         try:
             encoded_visas = flask.current_app.ras_client.get_encoded_visas_v11_userinfo(
-                flask.g.userinfo
+                userinfo
             )
         except Exception as e:
             err_msg = "Could not retrieve visas"
@@ -142,6 +144,12 @@ class RASCallback(DefaultOAuth2Callback):
         flask.current_app.ras_client.store_refresh_token(
             user=user, refresh_token=refresh_token, expires=expires + issued_time
         )
+
+        try:
+            # map user to idp
+            flask.current_app.map_user_idp_info(user, userinfo.get("sub"), "ras")
+        except Exception as e:
+            logger.error("Could not store user and idp info: {}".format(e))
 
         global_parse_visas_on_login = config["GLOBAL_PARSE_VISAS_ON_LOGIN"]
         usersync = config.get("USERSYNC", {})
