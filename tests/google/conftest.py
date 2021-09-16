@@ -800,8 +800,10 @@ def test_project(db_session):
 def test_user(db_session):
 
     user = User(id=1, email="google_test_user@gmail.com")
-    db_session.add(user)
-    db_session.commit()
+    test_user = db_session.query(User).filter_by(id=1).first()
+    if not test_user:
+        db_session.add(user)
+        db_session.commit()
 
     yield user
 
