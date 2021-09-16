@@ -76,7 +76,7 @@ def test_sync(
     syncer.sync()
 
     users = db_session.query(models.User).all()
-    assert len(users) == 13
+    assert len(users) == 14
 
     if parse_consent_code_config:
         user = models.query_for_user(session=db_session, username="USERC")
@@ -659,7 +659,7 @@ def test_user_sync_with_visas(
     assert len(expired_user.ga4gh_visas_v1) == 0
 
     if fallback_to_dbgap_sftp:
-        assert len(users) == 13
+        assert len(users) == 14
 
         if parse_consent_code_config:
             assert equal_project_access(
@@ -699,7 +699,7 @@ def test_user_sync_with_visas(
             )
 
     else:
-        assert len(users) == 11
+        assert len(users) == 12
         assert len(backup_user.project_access) == 0
         if parse_consent_code_config:
             assert equal_project_access(
