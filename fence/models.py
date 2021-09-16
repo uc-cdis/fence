@@ -611,7 +611,7 @@ class IdPUser(Base):
         ),
     )
     fk_to_User = Column(
-        String, ForeignKey(User.id, ondelete="CASCADE"), nullable=False
+        Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False
     )  #  foreign key for User table
     user = relationship(
         "User",
