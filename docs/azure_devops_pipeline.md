@@ -103,7 +103,7 @@ First, make sure you have already [imported your Azure DevOps Pipeline](https://
 
 Click on the pipeline and then click edit, which will let you update the variables in the Azure DevOps pipeline:
 
-![Click on Variables](azure_pipeline_config_1.png)
+![Click on Variables](./azure_devops_pipeline_config_1.png)
 
 Variable Name | Description  
 ------ | ------
@@ -117,8 +117,8 @@ GIT_REPO_TAG | This is the tag to use for the `fence` git repository, with a def
 
 After updating the variables, be sure to click **save**:
 
-![Save updated variables](azure_pipeline_config_2.png)
+![Save updated variables](./azure_devops_pipeline_config_2.png)
 
 You can run the pipeline to validate the `fence` build and push to ACR.
 
-![Run the pipeline](azure_pipeline_config_3.png)
+![Run the pipeline](./azure_devops_pipeline_config_3.png)
