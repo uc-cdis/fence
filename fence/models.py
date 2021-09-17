@@ -66,6 +66,10 @@ def query_for_user(session, username):
     )
 
 
+def query_for_sub(session, sub):
+    return session.query(IdPUser).filter(func.lower(IdPUser.sub) == sub).first()
+
+
 class ClientAuthType(Enum):
     """
     List the possible types of OAuth client authentication, which are

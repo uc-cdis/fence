@@ -9,7 +9,7 @@ from cdislogging import get_logger
 from flask_sqlalchemy_session import current_session
 from urllib.parse import urlparse, parse_qs
 
-from fence.models import GA4GHVisaV1, IdentityProvider
+from fence.models import GA4GHVisaV1, IdentityProvider, query_for_sub
 from gen3authz.client.arborist.client import ArboristClient
 
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
@@ -145,11 +145,14 @@ class RASCallback(DefaultOAuth2Callback):
             user=user, refresh_token=refresh_token, expires=expires + issued_time
         )
 
-        try:
-            # map user to idp
-            flask.current_app.ras_client.map_user_idp_info(user, userinfo.get("sub"), "ras")
-        except Exception as e:
-            logger.error("Could not store user and idp info: {}".format(e))
+        if not query_for_sub(current_session, userinfo.get("sub")):
+            try:
+                # map user to idp
+                flask.current_app.ras_client.map_user_idp_info(
+                    user, userinfo.get("sub"), "ras"
+                )
+            except Exception as e:
+                logger.error("Could not store user and idp info: {}".format(e))
 
         global_parse_visas_on_login = config["GLOBAL_PARSE_VISAS_ON_LOGIN"]
         usersync = config.get("USERSYNC", {})
