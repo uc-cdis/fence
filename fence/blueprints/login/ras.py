@@ -145,7 +145,7 @@ class RASCallback(DefaultOAuth2Callback):
             user=user, refresh_token=refresh_token, expires=expires + issued_time
         )
 
-        if not query_for_sub(current_session, userinfo.get("sub")):
+        if not user.idp_to_users:
             try:
                 # map user to idp
                 flask.current_app.ras_client.map_user_idp_info(
