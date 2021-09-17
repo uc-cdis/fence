@@ -9,7 +9,7 @@ from cdislogging import get_logger
 from flask_sqlalchemy_session import current_session
 from urllib.parse import urlparse, parse_qs
 
-from fence.models import GA4GHVisaV1, IdentityProvider, query_for_sub
+from fence.models import GA4GHVisaV1, IdentityProvider
 from gen3authz.client.arborist.client import ArboristClient
 
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback

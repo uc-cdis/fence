@@ -185,7 +185,13 @@ class Oauth2ClientBase(object):
 
     def map_user_idp_info(self, user, idp_sub, provider, extra_info=None):
         """
-        Map user with idp
+        Map user to idp.
+
+        Args:
+            user (User): User object
+            idp_sub (str): sub provided by the IdP
+            provider (str): name of the Identity Provider as seen on db
+            extra_info (dict): any info sent by the IdP that could be useful
         """
         idp = (
             current_session.query(IdentityProvider)

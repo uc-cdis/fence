@@ -65,6 +65,7 @@ def query_for_user(session, username):
         .first()
     )
 
+
 class ClientAuthType(Enum):
     """
     List the possible types of OAuth client authentication, which are
