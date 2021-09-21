@@ -46,9 +46,21 @@ class RASCallback(DefaultOAuth2Callback):
         # TODO: This is not IdP-specific and will need a rethink when
         # we have multiple IdPs
         user.ga4gh_visas_v1 = []
+
         current_session.commit()
 
-        encoded_visas = flask.g.userinfo.get("ga4gh_passport_v1", [])
+        userinfo = flask.g.userinfo
+
+        encoded_visas = []
+
+        try:
+            encoded_visas = flask.current_app.ras_client.get_encoded_visas_v11_userinfo(
+                userinfo
+            )
+        except Exception as e:
+            err_msg = "Could not retrieve visas"
+            logger.error("{}: {}".format(e, err_msg))
+            raise
 
         for encoded_visa in encoded_visas:
             try:
@@ -132,6 +144,15 @@ class RASCallback(DefaultOAuth2Callback):
         flask.current_app.ras_client.store_refresh_token(
             user=user, refresh_token=refresh_token, expires=expires + issued_time
         )
+
+        if not user.idp_to_users:
+            try:
+                # map user to idp
+                flask.current_app.ras_client.map_user_idp_info(
+                    user, userinfo.get("sub"), "ras"
+                )
+            except Exception as e:
+                logger.error("Could not store user and idp info: {}".format(e))
 
         global_parse_visas_on_login = config["GLOBAL_PARSE_VISAS_ON_LOGIN"]
         usersync = config.get("USERSYNC", {})

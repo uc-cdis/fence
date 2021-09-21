@@ -2,10 +2,14 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import COMMASPACE, formatdate
+import uuid
+from fence.jwt.token import issued_and_expiration_times
 
 import flask
 import jwt
 import smtplib
+import time
+from authlib.common.encoding import to_unicode
 from cdislogging import get_logger
 from gen3authz.client.arborist.errors import ArboristError
 
@@ -77,7 +81,7 @@ def get_user_info(current_session, username):
     groups = udm.get_user_groups(current_session, username)["groups"]
     info = {
         "user_id": user.id,  # TODO deprecated, use 'sub'
-        "sub": user.id,
+        "sub": str(user.id),
         # getattr b/c the identity_provider sqlalchemy relationship could not exists (be None)
         "idp": getattr(user.identity_provider, "name", ""),
         "username": user.username,  # TODO deprecated, use 'name'
@@ -155,10 +159,47 @@ def get_user_info(current_session, username):
     if encoded_access_token:
         at_scopes = jwt.decode(encoded_access_token, verify=False).get("scope", "")
         if "ga4gh_passport_v1" in at_scopes:
-            encoded_visas = [row.ga4gh_visa for row in user.ga4gh_visas_v1]
-            info["ga4gh_passport_v1"] = encoded_visas
+            info["ga4gh_passport_v1"] = []
 
     return info
+
+
+def generate_encoded_gen3_passport(user, expires_in):
+    """
+    Generate fresh gen3 passports with Gen3 Visas
+    NOTE: This function isn't used yet. Originally made it to repackage RAS visas into a Gen3 Passport but
+    due to RAS policies we aren't allowed to do that anymore.
+    Still keeping it here so that we could repurpose this later when we need to package our own Gen3 Visas.
+    """
+
+    keypair = flask.current_app.keypairs[0]
+
+    headers = {
+        "typ": "JWT",
+        "alg": "RS256",
+        "kid": keypair.kid,
+    }
+
+    issuer = config.get("BASE_URL")
+    iat, exp = issued_and_expiration_times(expires_in)
+
+    payload = {
+        "iss": issuer,
+        "sub": user.id,
+        "iat": iat,
+        "exp": exp,
+        "jti": str(uuid.uuid4()),
+        "scope": "openid <ga4gh-spec-scopes>",
+        "ga4gh_passport_v1": [],
+    }
+
+    logger.info("Issuing JWT Gen3 Passport")
+    passport = jwt.encode(
+        payload, keypair.private_key, headers=headers, algorithm="RS256"
+    )
+    passport = to_unicode(passport, "UTF-8")
+
+    return passport
 
 
 def _get_optional_userinfo(user, claims):

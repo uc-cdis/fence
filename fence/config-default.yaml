@@ -72,6 +72,9 @@ SESSION_COOKIE_SECURE: true
 
 ENABLE_CSRF_PROTECTION: true
 
+# Signing key for WTForms to sign CSRF tokens with
+WTF_CSRF_SECRET_KEY: '{{ENCRYPTION_KEY}}'
+
 # fence (at the moment) attempts a migration on startup. setting this to false will disable that
 # WARNING: ONLY set to false if you do NOT want to automatically migrate your database.
 #          You should be careful about incompatible versions of your db schema with what
@@ -421,6 +424,8 @@ RENEW_ACCESS_TOKEN_BEFORE_EXPIRATION: false
 # We use the same field name for POSTs to /data/download for consistency
 GA4GH_DRS_POSTED_PASSPORT_FIELD: "passports"
 
+# The maximum lifetime of a Gen3 passport in seconds
+GEN3_PASSPORT_EXPIRES_IN: 43200
 
 ########################################################################################
 #                               OPTIONAL CONFIGURATIONS                                #
@@ -575,6 +580,7 @@ AWS_CREDENTIALS: {}
 # NOTE: the region is optonal for s3_buckets, however it should be specified to avoid a
 # call to GetBucketLocation which you make lack the AWS ACLs for.
 # public buckets do not need the region field.
+# the cred values should be keys in section `AWS_CREDENTIALS`.
 S3_BUCKETS: {}
 # NOTE: Remove the {} and supply buckets if needed. Example in comments below
 #   bucket1:
@@ -621,6 +627,20 @@ INDEXD_USERNAME: 'fence'
 # this is the password which fence uses to make authenticated requests to indexd
 INDEXD_PASSWORD: ''
 
+# //////////////////////////////////////////////////////////////////////////////////////
+# AZURE STORAGE BLOB CONFIGURATION
+#   - Support Azure Blob Data Access Methods
+# //////////////////////////////////////////////////////////////////////////////////////
+
+# https://docs.microsoft.com/en-us/azure/storage/common/storage-account-keys-manage?toc=%2Fazure%2Fstorage%2Fblobs%2Ftoc.json&tabs=azure-portal#view-account-access-keys
+# AZ_BLOB_CREDENTIALS: 'fake connection string'
+AZ_BLOB_CREDENTIALS:
+
+# AZ_BLOB_CONTAINER_URL: 'https://storageaccount.blob.core.windows.net/container/'
+# this is the container used for uploading, and should match the storage account
+# used in the connection string for AZ_BLOB_CREDENTIALS
+AZ_BLOB_CONTAINER_URL: 'https://myfakeblob.blob.core.windows.net/my-fake-container/'
+
 # url where authz microservice is running
 ARBORIST: null
 
@@ -632,15 +652,14 @@ ENABLE_AUDIT_LOGS:
 # `PUSH_AUDIT_LOGS_CONFIG.type` is one of: [api, aws_sqs].
 # - if type == api: logs are created by hitting the log creation endpoint.
 # - if type == aws_sqs: logs are pushed to an SQS and `aws_sqs_config` fields
-# `sqs_url` and `region` are required. Fields `aws_access_key_id` and
-# `aws_secret_access_key` are optional.
+# `sqs_url` and `region` are required. Field `aws_cred` is optional and it
+# should be a key in section `AWS_CREDENTIALS`.
 PUSH_AUDIT_LOGS_CONFIG:
   type: aws_sqs
   aws_sqs_config:
     sqs_url:
     region:
-    aws_access_key_id:
-    aws_secret_access_key:
+    aws_cred:
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # CLOUD API LIBRARY (CIRRUS) AND GOOGLE CONFIGURATION
@@ -839,6 +858,11 @@ SYNAPSE_AUTHZ_TTL: 86400
 MAX_ROLE_SESSION_INCREASE: false
 ASSUME_ROLE_CACHE_SECONDS: 1800
 
+# Optional user registration feature: Ask users to register (provide firstname/lastname/org/email) on login.
+# If user registers, add them to configured Arborist group; idea is that the Arborist group
+# will have access to download data.
+REGISTER_USERS_ON: false
+REGISTERED_USERS_GROUP: ''
 # RAS refresh_tokens expire in 15 days
 RAS_REFRESH_EXPIRATION: 1296000
 # List of JWT issuers from which Fence will accept GA4GH visas
@@ -861,3 +885,4 @@ USERSYNC:
   fallback_to_dbgap_sftp: false
   visa_types:
     ras: [https://ras.nih.gov/visas/v1, https://ras.nih.gov/visas/v1.1]
+RAS_USERINFO_ENDPOINT: '/openid/connect/v1.1/userinfo'

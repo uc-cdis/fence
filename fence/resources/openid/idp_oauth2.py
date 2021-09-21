@@ -4,7 +4,7 @@ from jose import jwt
 import requests
 import time
 from fence.errors import AuthError
-from fence.models import UpstreamRefreshToken
+from fence.models import UpstreamRefreshToken, IdPUser, IdentityProvider
 from flask_sqlalchemy_session import current_session
 
 
@@ -182,3 +182,30 @@ class Oauth2ClientBase(object):
         current_db_session = db_session.object_session(upstream_refresh_token)
         current_db_session.add(upstream_refresh_token)
         db_session.commit()
+
+    def map_user_idp_info(self, user, idp_sub, provider, extra_info=None):
+        """
+        Map user to idp.
+        Args:
+            user (User): User object
+            idp_sub (str): sub provided by the IdP
+            provider (str): name of the Identity Provider as seen on db
+            extra_info (dict): any info sent by the IdP that could be useful
+        """
+        idp = (
+            current_session.query(IdentityProvider)
+            .filter(IdentityProvider.name == provider)
+            .first()
+        )
+        idp_id = idp.id
+        user_id = user.id
+
+        user_to_idp = IdPUser(
+            sub=idp_sub,
+            fk_to_idp=idp_id,
+            fk_to_User=user_id,
+            extra_info=extra_info,
+        )
+
+        current_session.add(user_to_idp)
+        current_session.commit()

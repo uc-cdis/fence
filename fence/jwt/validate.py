@@ -105,7 +105,7 @@ def validate_jwt(
     except jwt.InvalidTokenError as e:
         raise JWTError(e)
     attempt_refresh = attempt_refresh and (token_iss != iss)
-    public_key = authutils.token.keys.get_public_key_for_token(
+    public_key = public_key or authutils.token.keys.get_public_key_for_token(
         encoded_token, attempt_refresh=attempt_refresh
     )
     try:

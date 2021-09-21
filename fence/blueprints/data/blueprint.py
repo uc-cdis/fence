@@ -174,9 +174,13 @@ def upload_data_file():
         default=default_expires_in,
     )
 
+    protocol = params["protocol"] if "protocol" in params else None
+
     response = {
         "guid": blank_index.guid,
-        "url": blank_index.make_signed_url(params["file_name"], expires_in=expires_in),
+        "url": blank_index.make_signed_url(
+            file_name=params["file_name"], protocol=protocol, expires_in=expires_in
+        ),
     }
 
     return flask.jsonify(response), 201

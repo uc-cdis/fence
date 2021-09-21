@@ -5,13 +5,12 @@ TODO (rudyardrichter, 2018-11-06): clean up/consolidate indexd response mocks
 """
 
 from collections import OrderedDict
-from boto3 import client
-import uuid
 import json
-import mock
 import os
 import copy
 import time
+from datetime import datetime
+import mock
 
 from addict import Dict
 from authutils.testing.fixtures import (
@@ -27,7 +26,6 @@ import bcrypt
 from cdisutilstest.code.storage_client_mock import get_client
 import jwt
 from mock import patch, MagicMock, PropertyMock
-from moto import mock_sts
 import pytest
 import requests
 from sqlalchemy.ext.compiler import compiles
@@ -39,6 +37,7 @@ from fence import models
 from fence.jwt.keys import Keypair
 from fence.config import config
 from fence.errors import NotFound
+from fence.resources.openid.microsoft_oauth2 import MicrosoftOauth2Client
 
 import tests
 from tests import test_settings
@@ -129,21 +128,100 @@ class Mocker(object):
             "fence.resources.aws.boto_manager.BotoManager.get_bucket_region",
             mock_get_bucket_location,
         )
+        self.blob_client_patcher = patch(
+            "fence.BlobServiceClient",
+            return_value=FakeBlobServiceClient(),
+        )
         self.patcher.start()
         self.auth_patcher.start()
         self.boto_patcher.start()
+        self.blob_client_patcher.start()
         self.additional_patchers = []
 
     def unmock_functions(self):
         self.patcher.stop()
         self.auth_patcher.stop()
         self.boto_patcher.stop()
+        self.blob_client_patcher.stop()
         for patcher in self.additional_patchers:
             patcher.stop()
 
     def add_mock(self, patcher):
         patcher.start()
         self.additional_patchers.append(patcher)
+
+
+class FakeAzureCredential:
+    """
+    Fake Azure Credential for connecting to Fake Azure Storage
+    """
+
+    def __init__(self):
+        self.account_key = "FakefakeAccountKey"
+
+
+class FakeBlobServiceClient:
+    """
+    Fake blob service client for fence.blueprints.data.indexd.BlobServiceClient
+    """
+
+    def __init__(self):
+        self.account_name = "fakeAccountName"
+        self.credential = FakeAzureCredential()
+
+    @classmethod
+    def from_connection_string(cls, conn_str, credential=None, **kwargs):
+        """
+        Fake method to get a blob service client from a connection string
+        """
+        return FakeBlobServiceClient()
+
+    @classmethod
+    def list_containers(cls):
+        """
+        Fake method to get a list of containers
+        """
+
+        container_names = ["a", "b", "c"]
+        return_value = []
+        for container_name in container_names:
+            mock_object = MagicMock()
+            mock_object.name = container_name
+            return_value.append(mock_object)
+
+        return return_value
+
+    @classmethod
+    def get_container_client(self, container_name):
+        """
+        Fake method to get a container service client
+        """
+        return FakeContainerServiceClient(container_name=container_name)
+
+
+class FakeContainerServiceClient:
+    """
+    Fake Container Service Client for FakeBlobServiceClient e.g. for AzureBlobServiceClient
+    """
+
+    def __init__(self, container_name):
+        self.container_name = container_name
+
+    def exists(self):
+        """
+        check if container exists
+        """
+        return self.container_name in ["a", "c"]
+
+    def get_container_properties(self):
+        """
+        get container properties
+        """
+        return {
+            "name": self.container_name,
+            "last_modified": datetime.utcnow(),
+            "public_access": None,
+        }
 
 
 @pytest.fixture(scope="session")
@@ -215,6 +293,7 @@ def app(kid, rsa_private_key, rsa_public_key):
     """
     mocker = Mocker()
     mocker.mock_functions()
+
     root_dir = os.path.dirname(os.path.realpath(__file__))
 
     # delete the record operation from the data blueprint, because right now it calls a
@@ -248,7 +327,9 @@ def app(kid, rsa_private_key, rsa_public_key):
     config.update(BASE_URL=config["BASE_URL"])
     config.update(ENCRYPTION_KEY=Fernet.generate_key().decode("utf-8"))
 
-    return fence.app
+    yield fence.app
+
+    mocker.unmock_functions()
 
 
 @pytest.fixture(scope="function")
@@ -487,6 +568,36 @@ def indexd_client(app, request):
             "created_date": "",
             "updated_date": "",
         }
+    elif protocol == "az":
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file2",
+            # send to indexd as "az://fakeaccount.blob.core.windows.net/container5/blob6"
+            # as fence will convert to "https://fakeaccount.blob.core.windows.net/container5/blob6"
+            "urls": ["az://fakeaccount.blob.core.windows.net/container5/blob6"],
+            "hashes": {},
+            "acl": ["phs000178", "phs000218"],
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
+    elif protocol == "https":
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file2",
+            "urls": ["https://fakeaccount/container5/blob6"],
+            "hashes": {},
+            "acl": ["phs000178", "phs000218"],
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
     elif protocol == "nonexistent_guid":
         # throw an error when requested to simulate the GUID not existing
         # TODO (rudyardrichter, 2018-11-03): consolidate things needing to do this patch
@@ -522,6 +633,15 @@ def indexd_client(app, request):
             "updated_date": "",
         }
 
+    mock_blob_client_patcher = patch(
+        "fence.blueprints.data.indexd.BlobServiceClient",
+        return_value=FakeBlobServiceClient(),
+    )
+    mock_generate_blob_sas_patcher = patch(
+        "fence.blueprints.data.indexd.generate_blob_sas",
+        return_value="FAKE_SharedAccessSignature_STRING",
+    )
+
     # TODO (rudyardrichter, 2018-11-03): consolidate things needing to do this patch
     indexd_patcher = patch(
         "fence.blueprints.data.indexd.IndexedFile.index_document", record
@@ -531,12 +651,25 @@ def indexd_client(app, request):
     )
     mocker.add_mock(indexd_patcher)
     mocker.add_mock(blank_patcher)
+    mocker.add_mock(mock_blob_client_patcher)
+    mocker.add_mock(mock_generate_blob_sas_patcher)
 
-    output = {
-        "mocker": mocker,
-        # only gs or s3 for location, ignore specifiers after the _
-        "indexed_file_location": protocol.split("_")[0],
-    }
+    if record and record.get("urls") and len(record["urls"]) > 0:
+        output = {
+            "mocker": mocker,
+            # only gs or s3 for location, ignore specifiers after the _
+            "indexed_file_location": protocol.split("_")[0],
+            # pass URL for use with underlying indexed file location
+            "url": record["urls"][0],
+        }
+    else:
+        output = {
+            "mocker": mocker,
+            # only gs or s3 for location, ignore specifiers after the _
+            "indexed_file_location": protocol.split("_")[0],
+            # pass URL for use with underlying indexed file location
+            "url": None,
+        }
 
     yield output
 
@@ -546,7 +679,7 @@ def indexd_client(app, request):
 @pytest.fixture(scope="function")
 def indexd_client_with_arborist(app, request):
     record = {}
-
+    mocker = Mocker()
     protocol = "s3"
     if hasattr(request, "param"):
         protocol = request.param
@@ -659,7 +792,6 @@ def indexd_client_with_arborist(app, request):
                 "updated_date": "",
             }
 
-        mocker = Mocker()
         mocker.mock_functions()
 
         # TODO (rudyardrichter, 2018-11-03): consolidate things needing to do this patch
@@ -676,7 +808,9 @@ def indexd_client_with_arborist(app, request):
 
         return output
 
-    return do_patch
+    yield do_patch
+
+    mocker.unmock_functions()
 
 
 @pytest.fixture(scope="function")
@@ -686,8 +820,9 @@ def indexd_client_accepting_record():
     representing an Indexd record.
     """
 
+    mocker = Mocker()
+
     def do_patch(record):
-        mocker = Mocker()
         mocker.mock_functions()
 
         indexd_patcher = patch(
@@ -695,7 +830,9 @@ def indexd_client_accepting_record():
         )
         mocker.add_mock(indexd_patcher)
 
-    return do_patch
+    yield do_patch
+
+    mocker.unmock_functions()
 
 
 @pytest.fixture(scope="function")
@@ -770,6 +907,10 @@ def unauthorized_indexd_client(app, request):
     )
     mocker.add_mock(indexd_patcher)
 
+    yield
+
+    mocker.unmock_functions()
+
 
 @pytest.fixture(scope="function")
 def public_indexd_client(app, request):
@@ -842,6 +983,10 @@ def public_indexd_client(app, request):
     )
     mocker.add_mock(indexd_patcher)
 
+    yield
+
+    mocker.unmock_functions()
+
 
 @pytest.fixture(scope="session")
 def uploader_username():
@@ -913,6 +1058,22 @@ def public_bucket_indexd_client(app, request):
             "created_date": "",
             "updated_date": "",
         }
+    elif request.param == "az":
+        record = {
+            "did": "",
+            "baseid": "",
+            "rev": "",
+            "size": 10,
+            "file_name": "file2",
+            # index the file as "az://fakeaccount.blob.core.windows.net/container5/blob6"
+            # as fence should convert to "https://fakeaccount.blob.core.windows.net/container5/blob6"
+            "urls": ["az://fakeaccount.blob.core.windows.net/container5/blob6"],
+            "hashes": {},
+            "acl": ["*"],
+            "form": "",
+            "created_date": "",
+            "updated_date": "",
+        }
     else:
         record = {
             "did": "",
@@ -931,10 +1092,23 @@ def public_bucket_indexd_client(app, request):
     indexd_patcher = patch(
         "fence.blueprints.data.indexd.IndexedFile.index_document", record
     )
-    mocker.add_mock(indexd_patcher)
-    request.addfinalizer(indexd_patcher.stop)
 
-    return protocol
+    mock_blob_client_patcher = patch(
+        "fence.blueprints.data.indexd.BlobServiceClient",
+        return_value=FakeBlobServiceClient(),
+    )
+    mock_generate_blob_sas_patcher = patch(
+        "fence.blueprints.data.indexd.generate_blob_sas",
+        return_value="FAKE_SharedAccessSignature_STRING",
+    )
+
+    mocker.add_mock(indexd_patcher)
+    mocker.add_mock(mock_blob_client_patcher)
+    mocker.add_mock(mock_generate_blob_sas_patcher)
+
+    yield protocol
+
+    mocker.unmock_functions()
 
 
 @pytest.fixture(scope="function")
@@ -1064,6 +1238,15 @@ def oauth_test_client_B(client, oauth_client_B):
 @pytest.fixture(scope="function")
 def oauth_test_client_public(client, oauth_client_public):
     return OAuth2TestClient(client, oauth_client_public, confidential=False)
+
+
+@pytest.fixture(scope="session")
+def microsoft_oauth2_client():
+    settings = MagicMock()
+    logger = MagicMock()
+    client = MicrosoftOauth2Client(settings=settings, logger=logger)
+
+    return client
 
 
 @pytest.fixture(scope="function")

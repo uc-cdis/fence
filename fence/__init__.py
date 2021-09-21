@@ -1,16 +1,19 @@
 from collections import OrderedDict
-import flask
-from flask_cors import CORS
-from flask_sqlalchemy_session import flask_scoped_session, current_session
 import os
 import tempfile
 from urllib.parse import urljoin
+import flask
+from flask_cors import CORS
+from flask_sqlalchemy_session import flask_scoped_session, current_session
 
 from authutils.oauth2.client import OAuthClient
 from cdislogging import get_logger
 from gen3authz.client.arborist.client import ArboristClient
+from flask_wtf.csrf import validate_csrf
 from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
+from azure.storage.blob import BlobServiceClient
+from azure.core.exceptions import ResourceNotFoundError
 
 from fence.auth import logout, build_redirect_url
 from fence.blueprints.data.indexd import S3IndexedFileLocation
@@ -49,6 +52,8 @@ import fence.blueprints.well_known
 import fence.blueprints.link
 import fence.blueprints.google
 import fence.blueprints.privacy
+import fence.blueprints.register
+import fence.blueprints.ga4gh
 
 
 # for some reason the temp dir does not get created properly if we move
@@ -134,6 +139,9 @@ def app_register_blueprints(app):
         fence.blueprints.privacy.blueprint, url_prefix="/privacy-policy"
     )
 
+    app.register_blueprint(fence.blueprints.register.blueprint, url_prefix="/register")
+    app.register_blueprint(fence.blueprints.ga4gh.blueprint, url_prefix="/ga4gh")
+
     fence.blueprints.misc.register_misc(app)
 
     @app.route("/")
@@ -184,10 +192,56 @@ def app_register_blueprints(app):
         )
 
 
-def _check_s3_buckets(app):
+def _check_azure_storage(app):
+    """
+    Confirm access to Azure Storage Account and Containers
+    """
+    azure_creds = config.get("AZ_BLOB_CREDENTIALS", None)
+
+    # if this is a public bucket, Fence will not try to sign the URL
+    if azure_creds == "*":
+        return
+
+    if not azure_creds or azure_creds.strip() == "":
+        # Azure Blob credentials are not configured.
+        # If you're using Azure Blob Storage set AZ_BLOB_CREDENTIALS to your Azure Blob Storage Connection String.
+        logger.debug(
+            "Azure Blob credentials are not configured.  If you're using Azure Blob Storage, please set AZ_BLOB_CREDENTIALS to your Azure Blob Storage Connection String."
+        )
+        return
+
+    blob_service_client = BlobServiceClient.from_connection_string(azure_creds)
+
+    for c in blob_service_client.list_containers():
+        container_client = blob_service_client.get_container_client(c.name)
+
+        # check if container exists.  If it doesn't exist, log a warning.
+        if container_client.exists() is False:
+            logger.debug(
+                f"Unable to access Azure Blob Storage Container {c.name}. You may run into issues resolving orphaned indexed files pointing to this container."
+            )
+            continue
+
+        # verify that you can check the container properties
+        try:
+            container_properties = container_client.get_container_properties()
+            public_access = container_properties["public_access"]
+            # check container properties
+            logger.debug(
+                f"Azure Blob Storage Container {c.name} has public access {public_access}"
+            )
+        except ResourceNotFoundError as err:
+            logger.debug(
+                f"Unable to access Azure Blob Storage Container {c.name}. You may run into issues resolving orphaned indexed files pointing to this container."
+            )
+            logger.debug(err)
+
+
+def _check_aws_creds_and_region(app):
     """
     Function to ensure that all s3_buckets have a valid credential.
-    Additionally, if there is no region it will produce a warning then try to fetch and cache the region.
+    Additionally, if there is no region it will produce a warning
+    then try to fetch and cache the region.
     """
     buckets = config.get("S3_BUCKETS") or {}
     aws_creds = config.get("AWS_CREDENTIALS") or {}
@@ -238,9 +292,21 @@ def _check_s3_buckets(app):
             region = app.boto.get_bucket_region(bucket_name, credential)
             config["S3_BUCKETS"][bucket_name]["region"] = region
 
+    cred = config["PUSH_AUDIT_LOGS_CONFIG"].get("aws_sqs_config", {}).get("aws_cred")
+    if cred and cred not in aws_creds:
+        raise ValueError(
+            "Credential {} for PUSH_AUDIT_LOGS_CONFIG.aws_sqs_config.aws_cred is not defined in AWS_CREDENTIALS".format(
+                cred
+            )
+        )
+
 
 def app_config(
-    app, settings="fence.settings", root_dir=None, config_path=None, file_name=None
+    app,
+    settings="fence.settings",
+    root_dir=None,
+    config_path=None,
+    file_name=None,
 ):
     """
     Set up the config for the Flask app.
@@ -285,12 +351,13 @@ def app_config(
 
     app.debug = config["DEBUG"]
     # Following will update logger level, propagate, and handlers
-    get_logger(__name__, log_level="debug" if config["DEBUG"] == True else "info")
+    get_logger(__name__, log_level="debug" if config["DEBUG"] is True else "info")
 
     _setup_oidc_clients(app)
 
     with app.app_context():
-        _check_s3_buckets(app)
+        _check_aws_creds_and_region(app)
+        _check_azure_storage(app)
 
 
 def _setup_data_endpoint_and_boto(app):
@@ -423,9 +490,15 @@ def _setup_prometheus(app):
     # More details on this awkwardness: https://github.com/prometheus/client_python/issues/250
     os.environ["prometheus_multiproc_dir"] = PROMETHEUS_TMP_COUNTER_DIR.name
 
-    from prometheus_client import CollectorRegistry, multiprocess, make_wsgi_app
+    from prometheus_client import (
+        CollectorRegistry,
+        multiprocess,
+        make_wsgi_app,
+    )
     from prometheus_flask_exporter import Counter
-    from prometheus_flask_exporter.multiprocess import UWsgiPrometheusMetrics
+    from prometheus_flask_exporter.multiprocess import (
+        UWsgiPrometheusMetrics,
+    )
 
     app.prometheus_registry = CollectorRegistry()
     multiprocess.MultiProcessCollector(app.prometheus_registry)
@@ -461,25 +534,24 @@ def check_csrf():
         return
     if not config.get("ENABLE_CSRF_PROTECTION", True):
         return
-    # cookie based authentication
     if flask.request.method != "GET":
-        csrf_header = flask.request.headers.get("x-csrf-token")
-        csrf_cookie = flask.request.cookies.get("csrftoken")
-        referer = flask.request.headers.get("referer")
-        logger.debug("HTTP REFERER " + str(referer))
-        if not all([csrf_cookie, csrf_header, csrf_cookie == csrf_header, referer]):
-            raise UserError("CSRF verification failed. Request aborted")
+        try:
+            csrf_header = flask.request.headers.get("x-csrf-token")
+            csrf_formfield = flask.request.form.get("csrf_token")
+            # validate_csrf checks the input (a signed token) against the raw
+            # token stored in session["csrf_token"].
+            # (session["csrf_token"] is managed by flask-wtf.)
+            # To pass CSRF check, there must exist EITHER an x-csrf-token header
+            # OR a csrf_token form field that matches the token in the session.
+            assert (
+                csrf_header
+                and validate_csrf(csrf_header) is None
+                or csrf_formfield
+                and validate_csrf(csrf_formfield) is None
+            )
 
-
-@app.after_request
-def set_csrf(response):
-    """
-    Create a cookie for CSRF protection if one does not yet exist
-    """
-    if not flask.request.cookies.get("csrftoken"):
-        secure = config.get("SESSION_COOKIE_SECURE", True)
-        response.set_cookie("csrftoken", random_str(40), secure=secure, httponly=True)
-
-    if flask.request.method in ["POST", "PUT", "DELETE"]:
-        current_session.commit()
-    return response
+            referer = flask.request.headers.get("referer")
+            assert referer, "Referer header missing"
+            logger.debug("HTTP REFERER " + str(referer))
+        except Exception as e:
+            raise UserError("CSRF verification failed: {}. Request aborted".format(e))

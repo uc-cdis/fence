@@ -397,8 +397,8 @@ paths:
         - data
       summary: delete all locations of a stored data file and remove its record from indexd
       description: >-
-        After a user uploads a data file and it is registered in indexd, but
-        before it is mapped into the graph via metadata submission, this
+        After a user uploads a data file and it is registered in indexd (before
+        or after it is mapped into the graph via metadata submission), this
         endpoint will delete the file from its storage locations (saved in the
         record in indexd) and delete the record in indexd.
       security:
@@ -489,6 +489,46 @@ paths:
           description: 'Invalid input: UUID not found or invalid location'
         '404':
           description: 'No location found for this file'
+  '/ga4gh/drs/v1/objects/{object_id}/access/{access_id}':
+    get:
+      summary: GA4GH DRS Access API to get a URL for fetching bytes.
+      description: >-
+        Returns a URL that can be used to fetch the bytes of a DrsObject.
+        This method only needs to be called when using an AccessMethod that contains an access_id
+        (e.g., for servers that use signed URLs for fetching object bytes).
+      operationId: GetAccessURL
+      responses:
+        '200':
+          description: The access URL was found successfully.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/AccessURL'
+        '400':
+          description: The request is malformed.
+        '401':
+          description: The request is unauthorized.
+        '404':
+          description: The requested access URL wasn't found
+        '403':
+          description: The requester is not authorized to perform this action.
+        '500':
+          description: An unexpected error occurred.
+      parameters:
+        - name: object_id
+          schema:
+            type: string
+          in: path
+          required: true
+          description: An id of a DrsObject
+        - name: access_id
+          schema:
+            type: string
+          in: path
+          required: true
+          description: An access_id from the access_methods list of a DrsObject
+      tags:
+        - data
   '/data/upload':
     post:
       tags:
@@ -1543,6 +1583,22 @@ paths:
               schema:
                 type: string
                 example: "<h1>Gen3 Privacy Policy</h1> ..."
+  /user/register:
+    get:
+      tags:
+        - register
+      summary: Register in order to get access to download data
+      description: >-
+        This register functionality enables a registration page for users to provide basic information before being added to a preconfigured group.
+        The GET request will redirect to a HTML page where users can provide their first name, last name, organization, and email, in order to gain some predefined permissions
+        (i.e. to be automatically added to a preconfigured Arborist group).
+      responses:
+        200:
+          description: success
+          content:
+            text/markdown:
+              schema:
+                $ref: '#/components/schemas/RegisterUser'
   /.well-known/openid-configuration:
     get:
       tags:
@@ -2086,6 +2142,34 @@ components:
             e: AQAB
             alg: RS256
             kid: '2011-04-29'
+    RegisterUser:
+      type: object
+      required:
+        - firstname
+        - lastname
+        - org
+        - email
+      properties:
+        firstname:
+          type: string
+          description: 'The firstname of the end-user'
+        lastname:
+          type: string
+          description: 'The lastname of the end-user'
+        org:
+          type: string
+          description: 'The org of the end-user'
+        email:
+          type: string
+          description: 'The email of the end-user'
+    AccessURL:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          description: 'A fully resolvable URL that can be used to fetch the actual object bytes.'
     UserInfo:
       type: object
       required:
