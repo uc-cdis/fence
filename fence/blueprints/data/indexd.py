@@ -62,9 +62,11 @@ ANONYMOUS_USER_ID = "anonymous"
 ANONYMOUS_USERNAME = "anonymous"
 
 
-def get_signed_url_for_file(action, file_id, file_name=None, requested_protocol=None, ga4gh_passports=None):
+def get_signed_url_for_file(
+    action, file_id, file_name=None, requested_protocol=None, ga4gh_passports=None
+):
     requested_protocol = requested_protocol or flask.request.args.get("protocol", None)
-    r_pays_project = flask.request.args.get("userProject", None, requested_protocol=None)
+    r_pays_project = flask.request.args.get("userProject", None)
 
     # default to signing the url even if it's a public object
     # this will work so long as we're provided a user token
