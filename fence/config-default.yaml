@@ -420,12 +420,13 @@ TOKEN_PROJECTS_CUTOFF: 10
 # If set to true, will generate an new access token each time when a browser session update happens
 RENEW_ACCESS_TOKEN_BEFORE_EXPIRATION: false
 
+# The maximum lifetime of a Gen3 passport in seconds
+GEN3_PASSPORT_EXPIRES_IN: 43200
+
 # The JSON field the GA4GH Passport is in when a request is POST-ed to DRS
 # We use the same field name for POSTs to /data/download for consistency
 GA4GH_DRS_POSTED_PASSPORT_FIELD: "passports"
 
-# The maximum lifetime of a Gen3 passport in seconds
-GEN3_PASSPORT_EXPIRES_IN: 43200
 
 ########################################################################################
 #                               OPTIONAL CONFIGURATIONS                                #
