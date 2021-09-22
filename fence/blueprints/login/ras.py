@@ -149,7 +149,7 @@ class RASCallback(DefaultOAuth2Callback):
             try:
                 # map user to idp
                 flask.current_app.ras_client.map_user_idp_info(
-                    user, userinfo.get("sub"), "ras"
+                    user, userinfo.get("sub"), IdentityProvider.ras
                 )
             except Exception as e:
                 logger.error("Could not store user and idp info: {}".format(e))

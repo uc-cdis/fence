@@ -3,7 +3,7 @@ from cached_property import cached_property
 from jose import jwt
 import requests
 import time
-from fence.errors import AuthError
+from fence.errors import AuthError, UserError
 from fence.models import UpstreamRefreshToken, IdPUser, IdentityProvider
 from flask_sqlalchemy_session import current_session
 
@@ -197,6 +197,9 @@ class Oauth2ClientBase(object):
             .filter(IdentityProvider.name == provider)
             .first()
         )
+        if not idp:
+            raise UserError("IdP: {} not implemented".format(provider))
+
         idp_id = idp.id
         user_id = user.id
 
