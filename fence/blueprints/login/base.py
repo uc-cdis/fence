@@ -6,6 +6,7 @@ from fence.auth import login_user
 from fence.blueprints.login.redirect import validate_redirect
 from fence.config import config
 from fence.errors import UserError
+from fence.models import IdentityProvider, IdPUser
 
 
 class DefaultOAuth2Login(Resource):
@@ -109,6 +110,42 @@ class DefaultOAuth2Callback(Resource):
 
     def post_login(self, user=None, token_result=None):
         prepare_login_log(self.idp_name)
+
+    def map_user_idp_info(self, user, idp_sub, provider, extra_info=None):
+        """
+        Map user to idp.
+        Args:
+            user (User): User object
+            idp_sub (str): sub provided by the IdP
+            provider (str): name of the Identity Provider as seen on db
+            extra_info (dict): any info sent by the IdP that could be useful
+        """
+        idp = (
+            current_session.query(IdentityProvider)
+            .filter(IdentityProvider.name == provider)
+            .first()
+        )
+        if not idp:
+            # this is for cases where we might receive a passport that we haven't seen before.
+            # add to db if we haven't seen this before.
+            idp = IdentityProvider(
+                name=provider, description="IdP from foreign Passport"
+            )
+            current_session.add(idp)
+            current_session.commit()
+
+        idp_id = idp.id
+        user_id = user.id
+
+        user_to_idp = IdPUser(
+            sub=idp_sub,
+            fk_to_idp=idp_id,
+            fk_to_User=user_id,
+            extra_info=extra_info,
+        )
+
+        current_session.add(user_to_idp)
+        current_session.commit()
 
 
 def prepare_login_log(idp_name):
