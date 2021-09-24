@@ -3,8 +3,8 @@ from cached_property import cached_property
 from jose import jwt
 import requests
 import time
-from fence.errors import AuthError, UserError
-from fence.models import UpstreamRefreshToken, IdPUser, IdentityProvider
+from fence.errors import AuthError
+from fence.models import UpstreamRefreshToken 
 from flask_sqlalchemy_session import current_session
 
 
