@@ -111,7 +111,9 @@ class DefaultOAuth2Callback(Resource):
     def post_login(self, user=None, token_result=None):
         prepare_login_log(self.idp_name)
 
-    def map_user_idp_info(self, user, idp_sub, provider, extra_info=None):
+    def map_user_idp_info(
+        self, user, idp_sub, provider, current_session, extra_info=None
+    ):
         """
         Map user to idp.
         Args:

@@ -118,6 +118,7 @@ class RASCallback(DefaultOAuth2Callback):
             )
             current_session.add(visa)
             current_session.commit()
+            current_session.close()
 
         # Store refresh token in db
         assert "refresh_token" in flask.g.tokens, "No refresh_token in user tokens"
@@ -148,8 +149,11 @@ class RASCallback(DefaultOAuth2Callback):
         if not user.idp_to_users:
             try:
                 # map user to idp
-                self.map_user_idp_info(user, userinfo.get("sub"), IdentityProvider.ras)
+                self.map_user_idp_info(
+                    user, userinfo.get("sub"), IdentityProvider.ras, current_session
+                )
             except Exception as e:
+                current_session.rollback()
                 logger.error("Could not store user and idp info: {}".format(e))
 
         global_parse_visas_on_login = config["GLOBAL_PARSE_VISAS_ON_LOGIN"]
