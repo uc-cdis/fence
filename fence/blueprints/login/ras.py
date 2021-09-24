@@ -118,7 +118,6 @@ class RASCallback(DefaultOAuth2Callback):
             )
             current_session.add(visa)
             current_session.commit()
-            current_session.close()
 
         # Store refresh token in db
         assert "refresh_token" in flask.g.tokens, "No refresh_token in user tokens"
