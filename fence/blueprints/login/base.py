@@ -128,6 +128,13 @@ def _login(username, idp_name, email=None):
     redirect.
     """
     login_user(username, idp_name, email=email)
+
+    if config["REGISTER_USERS_ON"]:
+        if not flask.g.user.additional_info.get("registration_info"):
+            return flask.redirect(
+                config["BASE_URL"] + flask.url_for("register.register_user")
+            )
+
     if flask.session.get("redirect"):
         return flask.redirect(flask.session.get("redirect"))
     return flask.jsonify({"username": username})
