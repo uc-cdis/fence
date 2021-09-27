@@ -1,4 +1,5 @@
 import base64
+import httpx
 
 from authutils.errors import JWTError
 from authutils.token.core import get_iss, get_keys_url, get_kid, validate_jwt
