@@ -11,7 +11,7 @@ from authutils.token.core import get_iss, get_keys_url, get_kid, validate_jwt
 
 from fence.config import config
 from fence.models import GA4GHVisaV1
-from fence.resources.ga4gh.passports  import validate_single_passport
+from fence.resources.ga4gh.passports  import validate_single_passport, refresh_cronjob_pkey_cache
 from fence.utils import DEFAULT_BACKOFF_SETTINGS
 from .idp_oauth2 import Oauth2ClientBase
 
@@ -189,7 +189,7 @@ class RASOauth2Client(Oauth2ClientBase):
             public_key = pkey_cache.get(visa_issuer, {}).get(visa_kid)
             if not public_key:
                 try:
-                    public_key = self.refresh_cronjob_pkey_cache(
+                    public_key = refresh_cronjob_pkey_cache(
                         visa_issuer, visa_kid, pkey_cache
                     )
                 except Exception as e:
