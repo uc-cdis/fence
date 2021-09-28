@@ -9,7 +9,10 @@ from authutils.token.core import get_iss, get_keys_url, get_kid, validate_jwt
 
 from fence.config import config
 from fence.models import GA4GHVisaV1
-from fence.resources.ga4gh.passports  import validate_single_passport, refresh_cronjob_pkey_cache
+from fence.resources.ga4gh.passports import (
+    get_unvalidated_visas_from_valid_passport,
+    refresh_cronjob_pkey_cache,
+)
 from fence.utils import DEFAULT_BACKOFF_SETTINGS
 from .idp_oauth2 import Oauth2ClientBase
 
@@ -83,7 +86,7 @@ class RASOauth2Client(Oauth2ClientBase):
             list: list of encoded GA4GH visas
         """
         encoded_passport = userinfo.get("passport_jwt_v11")
-        return validate_single_passport(encoded_passport, pkey_cache)
+        return get_unvalidated_visas_from_valid_passport(encoded_passport, pkey_cache)
 
     def get_user_id(self, code):
 

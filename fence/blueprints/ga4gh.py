@@ -18,10 +18,13 @@ blueprint = flask.Blueprint("ga4gh", __name__)
     methods=["GET", "POST"],
 )
 def get_ga4gh_signed_url(object_id, access_id):
+
+    passports = flask.request.args.get("passports")
+
     if not access_id:
         raise UserError("Access ID/Protocol is required.")
 
     result = get_signed_url_for_file(
-        "download", object_id, requested_protocol=access_id
+        "download", object_id, requested_protocol=access_id, ga4gh_passports=passports,
     )
     return flask.jsonify(result)

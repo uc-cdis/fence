@@ -13,6 +13,7 @@ from fence.config import config
 
 logger = get_logger(__name__, log_level="debug")
 
+
 def get_gen3_user_ids_from_ga4gh_passports(passports):
     user_ids_from_passports = []
 
@@ -65,9 +66,75 @@ def get_gen3_user_ids_for_passport_from_cache(passport):
     return cached_user_ids
 
 
-def get_unvalidated_visas_from_valid_passport(passport):
-    # validate passport, return visas
-    return []
+def get_unvalidated_visas_from_valid_passport(passport, pkey_cache=None):
+    """
+    Return encoded visas after extracting and validating encoded passport
+
+    Args:
+        encoded_passport (string): encoded ga4gh passport
+        pkey_cache (dict): app cache of public keys_dir
+
+    Return:
+        list: list of encoded GA4GH visas
+    """
+    decoded_passport = {}
+    passport_issuer, passport_kid = None, None
+
+    if not pkey_cache:
+        pkey_cache = {}
+
+    try:
+        passport_issuer = get_iss(passport)
+        passport_kid = get_kid(passport)
+    except Exception as e:
+        logger.error(
+            "Could not get issuer or kid from passport: {}. Discarding passport.".format(
+                e
+            )
+        )
+
+    public_key = pkey_cache.get(passport_issuer, {}).get(passport_kid)
+    if not public_key:
+        try:
+            logger.info("Fetching public key from flask app...")
+            public_key = get_public_key_for_token(
+                passport, attempt_refresh=True
+            )
+        except Exception as e:
+            logger.info(
+                "Could not fetch public key from flask app to validate passport: {}. Trying  to fetch from source.".format(
+                    e
+                )
+            )
+            try:
+                logger.info("Trying to Fetch public keys from JWKs url...")
+                public_key = refresh_cronjob_pkey_cache(
+                    passport_issuer, passport_kid, pkey_cache
+                )
+            except Exception as e:
+                logger.info(
+                    "Could not fetch public key from JWKs key url: {}".format(e)
+                )
+    if not public_key:
+        logger.error(
+            "Could not fetch public key to validate visa: Successfully fetched "
+            "issuer's keys but did not find the visa's key id among them. Discarding visa."
+        )
+    try:
+        decoded_passport = validate_jwt(
+            passport,
+            public_key,
+            aud=None,
+            scope={"openid"},
+            issuers=config.get("GA4GH_VISA_ISSUER_ALLOWLIST", []),
+            options={
+                "require_iat": True,
+                "require_exp": True,
+            },
+        )
+    except Exception as e:
+        logger.error("Passport failed validation: {}. Discarding passport.".format(e))
+    return decoded_passport.get("ga4gh_passport_v1", [])
 
 
 def is_raw_visa_valid(raw_visa):
@@ -107,83 +174,6 @@ def sync_visa_authorization(raw_visa):
 
 def put_gen3_user_ids_for_passport_into_cache(passport, user_ids_from_passports):
     pass
-
-def validate_single_passport(encoded_passport, pkey_cache=None):
-    decoded_passport = {}
-    passport_issuer, passport_kid = None, None
-
-    if not pkey_cache:
-        pkey_cache = {}
-    
-    try:
-        passport_issuer = get_iss(encoded_passport)
-        passport_kid = get_kid(encoded_passport)
-    except Exception as e:
-        logger.error(
-            "Could not get issuer or kid from passport: {}. Discarding passport.".format(
-                e
-            )
-        )
-
-    public_key = pkey_cache.get(passport_issuer, {}).get(passport_kid) 
-    if not public_key:
-            try:
-                logger.info("Fetching public key from flask app...")
-                public_key = get_public_key_for_token(
-                    encoded_passport, attempt_refresh=True
-                )
-            except Exception as e:
-                logger.info(
-                    "Could not fetch public key from flask app to validate passport: {}. Trying  to fetch from source.".format(
-                        e
-                    )
-                )
-                try:
-                    logger.info("Trying to Fetch public keys from JWKs url...")
-                    public_key = refresh_cronjob_pkey_cache(
-                        passport_issuer, passport_kid, pkey_cache
-                    )
-                except Exception as e:
-                    logger.info(
-                        "Could not fetch public key from JWKs key url: {}".format(e)
-                    )
-    if not public_key:
-        logger.error(
-            "Could not fetch public key to validate visa: Successfully fetched "
-            "issuer's keys but did not find the visa's key id among them. Discarding visa."
-        )
-    try:
-        decoded_passport = validate_jwt(
-            encoded_passport,
-            public_key,
-            aud=None,
-            scope={"openid"},
-            issuers=config.get("GA4GH_VISA_ISSUER_ALLOWLIST", []),
-            options={
-                "require_iat": True,
-                "require_exp": True,
-            },
-        )
-    except Exception as e:
-        logger.error(
-            "Passport failed validation: {}. Discarding passport.".format(e)
-        )
-    return decoded_passport.get("ga4gh_passport_v1", [])
-
-
-
-def validate_multiple_passports(passports):
-    """
-    Validate multuple passports being sent to fence through POST /ga4gh/drs/v1/objects/<guid>/access/<access-method> endpoints
-
-    Args:
-        passports(list): list of encoded passports
-    """
-    pass
-
-def validate_multiple_visas(visas):
-    pass
-
 
 def refresh_cronjob_pkey_cache(issuer, kid, pkey_cache):
     """
@@ -244,9 +234,7 @@ def refresh_cronjob_pkey_cache(issuer, kid, pkey_cache):
 
         pkey_cache.update({issuer: issuer_public_keys})
         logger.info(
-            "Refreshed cronjob pkey cache for Passport/Visa issuer {}".format(
-                issuer
-            )
+            "Refreshed cronjob pkey cache for Passport/Visa issuer {}".format(issuer)
         )
     except Exception as e:
         logger.error(
