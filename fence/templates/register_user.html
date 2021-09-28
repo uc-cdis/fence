@@ -28,8 +28,25 @@
             {{ form.email.label }} {{ form.email }}
           {% endif %}
       </li>
+      <li>
+        {{ form.datauseagreement(disabled=True) }}
+        I have read and agree to the <a href="data_use_agreement" target="_blank" onclick=enableCheckbox()>Terms and Conditions.</a>
+          {% if not form.datauseagreement.checked %}
+            <p id="tempText">  Please click on <strong>Terms and Conditions</strong> to enable Checkbox</p>
+
+          {% endif %}
+          <script type="text/javascript">
+            function enableCheckbox()
+            {
+              document.getElementById("checkbox").disabled= false;
+              document.getElementById("tempText").remove();
+            }
+          </script>
+      </li>
+
     </ul>
     <button class="button-primary-orange" type="submit">Register</button>
+
   </form>
 {% endblock %}
 

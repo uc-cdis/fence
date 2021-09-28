@@ -5,9 +5,10 @@ in order to gain some predefined permissions.
 """
 
 import flask
+from flask.templating import render_template
 from flask_sqlalchemy_session import current_session
 from flask_wtf import FlaskForm
-from wtforms import StringField
+from wtforms import StringField, BooleanField
 from wtforms.validators import DataRequired, Email, StopValidation, ValidationError
 
 from fence import config
@@ -52,6 +53,9 @@ class RegistrationForm(FlaskForm):
     email = StringField(
         label="Email", validators=[xor_with_user_email, Email(), DataRequired()]
     )
+    datauseagreement = BooleanField(
+        validators=[DataRequired()], render_kw={"id": "checkbox"}
+    )
 
 
 @blueprint.route("/", methods=["GET", "POST"])
@@ -95,6 +99,7 @@ def register_user():
     lastname = flask.request.form["lastname"]
     org = flask.request.form["organization"]
     email = flask.g.user.email or flask.request.form["email"]
+    datauseagreement = flask.request.form["datauseagreement"]
 
     combined_info = {}
     if flask.g.user.additional_info is not None:
@@ -105,6 +110,7 @@ def register_user():
             "lastname": lastname,
             "org": org,
             "email": email,
+            "dataUseAgreement": datauseagreement,
         }
     }
     combined_info.update(registration_info)
@@ -124,3 +130,8 @@ def register_user():
     if flask.session.get("redirect"):
         return flask.redirect(flask.session.get("redirect"))
     return flask.jsonify(registration_info)
+
+
+@blueprint.route("/data_use_agreement/")
+def data_use_agreement():
+    return flask.render_template("data_use_agreement.html")
