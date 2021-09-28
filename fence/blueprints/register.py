@@ -5,7 +5,6 @@ in order to gain some predefined permissions.
 """
 
 import flask
-from flask.templating import render_template
 from flask_sqlalchemy_session import current_session
 from flask_wtf import FlaskForm
 from wtforms import StringField, BooleanField
