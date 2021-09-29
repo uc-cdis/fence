@@ -592,7 +592,7 @@ class UpstreamRefreshToken(Base):
     expires = Column(BigInteger, nullable=False)
 
 
-class IdPUser(Base):
+class IdPToUser(Base):
     # IdP & IdP sub mapping to Gen3 User sub
 
     __tablename__ = "idp_to_user"

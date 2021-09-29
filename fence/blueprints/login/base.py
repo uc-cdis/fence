@@ -6,7 +6,7 @@ from fence.auth import login_user
 from fence.blueprints.login.redirect import validate_redirect
 from fence.config import config
 from fence.errors import UserError
-from fence.models import IdentityProvider, IdPUser
+from fence.models import IdentityProvider, IdPToUser
 
 
 class DefaultOAuth2Login(Resource):
@@ -139,8 +139,8 @@ class DefaultOAuth2Callback(Resource):
         idp_id = idp.id
         user_id = user.id
 
-        user_to_idp = IdPUser(
-            sub=idp_sub,
+        user_to_idp = IdPToUser(
+            sub=idp_sub + provider,
             fk_to_idp=idp_id,
             fk_to_User=user_id,
             extra_info=extra_info,

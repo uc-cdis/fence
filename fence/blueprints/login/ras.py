@@ -104,6 +104,11 @@ class RASCallback(DefaultOAuth2Callback):
                 # Also require 'sub' claim (see note above about pyjwt and the options arg).
                 if "sub" not in decoded_visa:
                     raise JWTError("Visa is missing the 'sub' claim.")
+                if not user.idp_to_users:
+                    # map user to idp
+                    self.map_user_idp_info(
+                        user, userinfo.get("sub"), IdentityProvider.ras, current_session
+                    )
             except Exception as e:
                 logger.error("Visa failed validation: {}. Discarding visa.".format(e))
                 continue
@@ -144,16 +149,6 @@ class RASCallback(DefaultOAuth2Callback):
         flask.current_app.ras_client.store_refresh_token(
             user=user, refresh_token=refresh_token, expires=expires + issued_time
         )
-
-        if not user.idp_to_users:
-            try:
-                # map user to idp
-                self.map_user_idp_info(
-                    user, userinfo.get("sub"), IdentityProvider.ras, current_session
-                )
-            except Exception as e:
-                current_session.rollback()
-                logger.error("Could not store user and idp info: {}".format(e))
 
         global_parse_visas_on_login = config["GLOBAL_PARSE_VISAS_ON_LOGIN"]
         usersync = config.get("USERSYNC", {})
