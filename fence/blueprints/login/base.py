@@ -116,6 +116,7 @@ class DefaultOAuth2Callback(Resource):
     ):
         """
         Map user to idp.
+        NOTE: Only do this if and only if the passport has been validated.
         Args:
             user (User): User object
             idp_sub (str): sub provided by the IdP
@@ -140,7 +141,7 @@ class DefaultOAuth2Callback(Resource):
         user_id = user.id
 
         user_to_idp = IdPToUser(
-            sub=idp_sub + provider,
+            sub="{}_{}".format(provider, idp_sub),
             fk_to_idp=idp_id,
             fk_to_User=user_id,
             extra_info=extra_info,
