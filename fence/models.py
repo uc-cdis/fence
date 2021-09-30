@@ -600,7 +600,10 @@ class IdPToUser(Base):
     sub = Column(String(), primary_key=True)
 
     fk_to_idp = Column(
-        Integer, ForeignKey(IdentityProvider.id, ondelete="CASCADE"), nullable=False
+        Integer,
+        ForeignKey(IdentityProvider.id, ondelete="CASCADE"),
+        nullable=False,
+        primary_key=True,
     )  # foreign key for identity_provider table
     idp = relationship(
         "IdentityProvider",

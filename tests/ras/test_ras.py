@@ -659,7 +659,7 @@ def test_map_user_idp_info_for_ras(db_session):
     ras_callback.map_user_idp_info(test_user, user_sub, provider, db_session)
 
     query_idp_to_user = db_session.query(IdPToUser).first()
-    assert query_idp_to_user.sub == "{}_{}".format(provider, user_sub)
+    assert query_idp_to_user.sub == user_sub
     assert str(query_idp_to_user.fk_to_User) == str(test_user.id)
 
 
@@ -676,12 +676,13 @@ def test_map_idp_info_for_unknown_idp(db_session):
     assert len(query_idp_to_user) == 0
 
     query_idp = db_session.query(IdentityProvider).all()
-    assert len(query_idp) == 0
+    n_idp = len(query_idp)
 
     ras_callback.map_user_idp_info(test_user, user_sub, provider, db_session)
 
     query_idp_to_user = db_session.query(IdPToUser).first()
+    assert query_idp_to_user.sub == user_sub
+    assert str(query_idp_to_user.fk_to_User) == str(test_user.id)
+
     query_idp = db_session.query(IdentityProvider).all()
-    assert len(query_idp) == 1
-    assert query_idp[0].id == query_idp_to_user.fk_to_idp
-    assert query_idp[0].name == provider
+    assert len(query_idp) == n_idp + 1

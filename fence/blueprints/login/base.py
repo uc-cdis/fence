@@ -141,7 +141,7 @@ class DefaultOAuth2Callback(Resource):
         user_id = user.id
 
         user_to_idp = IdPToUser(
-            sub="{}_{}".format(provider, idp_sub),
+            sub=idp_sub,
             fk_to_idp=idp_id,
             fk_to_User=user_id,
             extra_info=extra_info,
