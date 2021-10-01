@@ -592,6 +592,43 @@ class UpstreamRefreshToken(Base):
     expires = Column(BigInteger, nullable=False)
 
 
+class IdPToUser(Base):
+    # IdP & IdP sub mapping to Gen3 User sub
+
+    __tablename__ = "idp_to_user"
+
+    sub = Column(String(), primary_key=True)
+
+    fk_to_idp = Column(
+        Integer,
+        ForeignKey(IdentityProvider.id, ondelete="CASCADE"),
+        nullable=False,
+        primary_key=True,
+    )  # foreign key for identity_provider table
+    idp = relationship(
+        "IdentityProvider",
+        backref=backref(
+            "idp_to_users",
+            cascade="all, delete-orphan",
+            passive_deletes=True,
+        ),
+    )
+    fk_to_User = Column(
+        Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False
+    )  #  foreign key for User table
+    user = relationship(
+        "User",
+        backref=backref(
+            "idp_to_users",
+            cascade="all, delete-orphan",
+            passive_deletes=True,
+        ),
+    )
+
+    # dump whatever idp provides in here
+    extra_info = Column(JSONB(), server_default=text("'{}'"))
+
+
 to_timestamp = (
     "CREATE OR REPLACE FUNCTION pc_datetime_to_timestamp(datetoconvert timestamp) "
     "RETURNS BIGINT AS "
