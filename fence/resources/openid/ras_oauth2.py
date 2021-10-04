@@ -16,6 +16,8 @@ from fence.resources.ga4gh.passports import (
 from fence.utils import DEFAULT_BACKOFF_SETTINGS
 from .idp_oauth2 import Oauth2ClientBase
 
+GLOBAL_USER_SUB_FROM_PASSPORT = []
+
 
 class RASOauth2Client(Oauth2ClientBase):
     """

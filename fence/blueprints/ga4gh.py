@@ -1,4 +1,5 @@
 import flask
+from flask import request
 from fence.errors import UserError
 
 from fence.blueprints.data.indexd import (
@@ -20,6 +21,8 @@ blueprint = flask.Blueprint("ga4gh", __name__)
 def get_ga4gh_signed_url(object_id, access_id):
 
     passports = flask.request.args.get("passports")
+    if passports:
+        return UserError("Passports not supported yet")
 
     if not access_id:
         raise UserError("Access ID/Protocol is required.")

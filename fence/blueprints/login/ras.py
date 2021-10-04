@@ -19,6 +19,8 @@ from fence.utils import get_valid_expiration
 
 logger = get_logger(__name__)
 
+GLOBAL_USER_SUB_FROM_PASSPORT = []
+
 
 class RASLogin(DefaultOAuth2Login):
     def __init__(self):

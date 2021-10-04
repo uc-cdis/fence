@@ -13,8 +13,10 @@ from fence.config import config
 
 logger = get_logger(__name__, log_level="debug")
 
+GLOBAL_USER_SUB_FROM_PASSPORT = []
 
 def get_gen3_user_ids_from_ga4gh_passports(passports):
+
     user_ids_from_passports = []
 
     was_cached = False
@@ -134,6 +136,8 @@ def get_unvalidated_visas_from_valid_passport(passport, pkey_cache=None):
         )
     except Exception as e:
         logger.error("Passport failed validation: {}. Discarding passport.".format(e))
+    
+    GLOBAL_USER_SUB_FROM_PASSPORT.append(decoded_passport.get("sub"))
     return decoded_passport.get("ga4gh_passport_v1", [])
 
 
