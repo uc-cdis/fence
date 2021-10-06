@@ -245,6 +245,9 @@ def test_get_presigned_url_with_query_params_post(
     cloud_manager,
     google_signed_url,
 ):
+    """
+    Temporary test for checking if we return 400 when we try to POST drs endpoint
+    """
     access_id = indexd_client["indexed_file_location"]
     test_guid = "1"
     user = {
@@ -263,10 +266,7 @@ def test_get_presigned_url_with_query_params_post(
     did = "dg.TEST%2Fed8f4658-6acd-4f96-9dd8-3709890c959e"
 
     res = client.post(
-        "/ga4gh/drs/v1/objects/"
-        + did
-        + "/access/"
-        + access_id,
-        data=json.dumps({"passports": "eyghnsapodkasdas;dksa;das;fjoingoiahfpi"})
+        "/ga4gh/drs/v1/objects/" + did + "/access/" + access_id,
+        data=json.dumps({"passports": "eyghnsapodkasdas;dksa;das;fjoingoiahfpi"}),
     )
-    assert res.status_code == 200
+    assert res.status_code == 400
