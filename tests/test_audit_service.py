@@ -444,7 +444,7 @@ def test_login_log_login_endpoint(
         get_user_id_value = {"username": username}
         endpoint = "callback"
         # these should be populated by a /login/<idp> call that we're skipping:
-        flask.g.userinfo = {}
+        flask.g.userinfo = {"sub": "testSub123"}
         flask.g.tokens = {
             "refresh_token": jwt_string,
             "id_token": jwt_string,

@@ -7,8 +7,15 @@ import jwt
 
 from cdislogging import get_logger
 
+from fence.blueprints.login.ras import RASCallback
 from fence.config import config
-from fence.models import User, UpstreamRefreshToken, GA4GHVisaV1
+from fence.models import (
+    User,
+    UpstreamRefreshToken,
+    GA4GHVisaV1,
+    IdentityProvider,
+    IdPToUser,
+)
 from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
 from fence.config import config
 from fence.resources.ga4gh.passports import GLOBAL_USER_SUB_FROM_PASSPORT
@@ -637,3 +644,48 @@ def test_visa_update_cronjob(
 
     for visa in query_visas:
         assert visa.ga4gh_visa == encoded_visa
+
+
+def test_map_user_idp_info_for_ras(db_session):
+    """
+    test regular flow where user and idp already exists in database and map it to the idp_to_user table
+    """
+
+    ras_callback = RASCallback()
+    test_user = add_test_user(db_session)
+    user_sub = "sub12345"
+    provider = IdentityProvider.ras
+
+    query_idp_to_user = db_session.query(IdPToUser).all()
+    assert len(query_idp_to_user) == 0
+
+    ras_callback.map_user_idp_info(test_user, user_sub, provider, db_session)
+
+    query_idp_to_user = db_session.query(IdPToUser).first()
+    assert query_idp_to_user.sub == user_sub
+    assert str(query_idp_to_user.fk_to_User) == str(test_user.id)
+
+
+def test_map_idp_info_for_unknown_idp(db_session):
+    """
+    Test flow where user exists in database but idp does not
+    """
+    ras_callback = RASCallback()
+    test_user = add_test_user(db_session)
+    user_sub = "sub12345"
+    provider = "new_idp"
+
+    query_idp_to_user = db_session.query(IdPToUser).all()
+    assert len(query_idp_to_user) == 0
+
+    query_idp = db_session.query(IdentityProvider).all()
+    n_idp = len(query_idp)
+
+    ras_callback.map_user_idp_info(test_user, user_sub, provider, db_session)
+
+    query_idp_to_user = db_session.query(IdPToUser).first()
+    assert query_idp_to_user.sub == user_sub
+    assert str(query_idp_to_user.fk_to_User) == str(test_user.id)
+
+    query_idp = db_session.query(IdentityProvider).all()
+    assert len(query_idp) == n_idp + 1

@@ -49,11 +49,13 @@ class RASCallback(DefaultOAuth2Callback):
 
         current_session.commit()
 
+        userinfo = flask.g.userinfo
+
         encoded_visas = []
 
         try:
             encoded_visas = flask.current_app.ras_client.get_encoded_visas_v11_userinfo(
-                flask.g.userinfo
+                userinfo
             )
         except Exception as e:
             err_msg = "Could not retrieve visas"
@@ -102,6 +104,11 @@ class RASCallback(DefaultOAuth2Callback):
                 # Also require 'sub' claim (see note above about pyjwt and the options arg).
                 if "sub" not in decoded_visa:
                     raise JWTError("Visa is missing the 'sub' claim.")
+                if not user.idp_to_users:
+                    # map user to idp
+                    self.map_user_idp_info(
+                        user, userinfo.get("sub"), IdentityProvider.ras, current_session
+                    )
             except Exception as e:
                 logger.error("Visa failed validation: {}. Discarding visa.".format(e))
                 continue
