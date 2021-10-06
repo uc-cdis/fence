@@ -11,6 +11,7 @@ from fence.config import config
 from fence.models import User, UpstreamRefreshToken, GA4GHVisaV1
 from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
 from fence.config import config
+from fence.resources.ga4gh.passports import GLOBAL_USER_SUB_FROM_PASSPORT
 
 from tests.dbgap_sync.conftest import add_visa_manually
 from fence.job.visa_update_cronjob import Visa_Token_Update
@@ -176,6 +177,7 @@ def test_update_visa_token(
     query_visa = db_session.query(GA4GHVisaV1).first()
     assert query_visa.ga4gh_visa
     assert query_visa.ga4gh_visa == encoded_visa
+    assert "abcde12345aspdij" in GLOBAL_USER_SUB_FROM_PASSPORT
 
 
 @mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_userinfo")

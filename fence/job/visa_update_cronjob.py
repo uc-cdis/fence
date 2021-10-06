@@ -17,8 +17,6 @@ from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
 
 logger = get_logger(__name__, log_level="debug")
 
-GLOBAL_USER_SUB_FROM_PASSPORT = []
-
 
 class Visa_Token_Update(object):
     def __init__(
