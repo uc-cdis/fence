@@ -102,7 +102,6 @@ def generate_implicit_response(
             scopes=scope,
             client_id=client.client_id,
             linked_google_email=linked_google_email,
-            include_project_access=False,
         ).token
         response["access_token"] = access_token
 

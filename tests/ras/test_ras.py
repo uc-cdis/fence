@@ -21,8 +21,11 @@ logger = get_logger(__name__, log_level="debug")
 
 def add_test_user(db_session, username="admin_user", id="5678", is_admin=True):
     test_user = User(username=username, id=id, is_admin=is_admin)
-    db_session.add(test_user)
-    db_session.commit()
+    # id is part of primary key
+    check_user_exists = db_session.query(User).filter_by(id=id).first()
+    if not check_user_exists:
+        db_session.add(test_user)
+        db_session.commit()
     return test_user
 
 
@@ -142,7 +145,25 @@ def test_update_visa_token(
         new_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
     ).decode("utf-8")
 
-    userinfo_response["ga4gh_passport_v1"] = [encoded_visa]
+    passport_header = {
+        "type": "JWT",
+        "alg": "RS256",
+        "kid": kid,
+    }
+    new_passport = {
+        "iss": "https://stsstg.nih.gov",
+        "sub": "abcde12345aspdij",
+        "iat": int(time.time()),
+        "scope": "openid ga4gh_passport_v1 email profile",
+        "exp": int(time.time()) + 1000,
+        "ga4gh_passport_v1": [encoded_visa],
+    }
+
+    encoded_passport = jwt.encode(
+        new_passport, key=rsa_private_key, headers=passport_header, algorithm="RS256"
+    ).decode("utf-8")
+
+    userinfo_response["passport_jwt_v11"] = encoded_passport
     mock_userinfo.return_value = userinfo_response
 
     pkey_cache = {
@@ -155,6 +176,70 @@ def test_update_visa_token(
     query_visa = db_session.query(GA4GHVisaV1).first()
     assert query_visa.ga4gh_visa
     assert query_visa.ga4gh_visa == encoded_visa
+
+
+@mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_userinfo")
+@mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_access_token")
+@mock.patch(
+    "fence.resources.openid.ras_oauth2.RASOauth2Client.get_value_from_discovery_doc"
+)
+def test_update_visa_empty_passport_returned(
+    mock_discovery,
+    mock_get_token,
+    mock_userinfo,
+    config,
+    db_session,
+    rsa_private_key,
+    rsa_public_key,
+    kid,
+):
+    """
+    Test to handle empty passport sent from RAS
+    """
+    mock_discovery.return_value = "https://ras/token_endpoint"
+    new_token = "refresh12345abcdefg"
+    token_response = {
+        "access_token": "abcdef12345",
+        "id_token": "id12345abcdef",
+        "refresh_token": new_token,
+    }
+    mock_get_token.return_value = token_response
+
+    userinfo_response = {
+        "sub": "abcd-asdj-sajpiasj12iojd-asnoin",
+        "name": "",
+        "preferred_username": "someuser@era.com",
+        "UID": "",
+        "UserID": "admin_user",
+        "email": "",
+        "passport_jwt_v11": "",
+    }
+    mock_userinfo.return_value = userinfo_response
+
+    test_user = add_test_user(db_session)
+    add_visa_manually(db_session, test_user, rsa_private_key, kid)
+    add_refresh_token(db_session, test_user)
+
+    visa_query = db_session.query(GA4GHVisaV1).filter_by(user=test_user).first()
+    initial_visa = visa_query.ga4gh_visa
+    assert initial_visa
+
+    oidc = config.get("OPENID_CONNECT", {})
+    ras_client = RASClient(
+        oidc["ras"],
+        HTTP_PROXY=config.get("HTTP_PROXY"),
+        logger=logger,
+    )
+
+    pkey_cache = {
+        "https://stsstg.nih.gov": {
+            kid: rsa_public_key,
+        }
+    }
+    ras_client.update_user_visas(test_user, pkey_cache=pkey_cache)
+
+    query_visa = db_session.query(GA4GHVisaV1).first()
+    assert query_visa == None
 
 
 @mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_userinfo")
@@ -192,8 +277,25 @@ def test_update_visa_empty_visa_returned(
         "UserID": "admin_user",
         "email": "",
     }
-    userinfo_response["ga4gh_passport_v1"] = []
 
+    passport_header = {
+        "type": "JWT",
+        "alg": "RS256",
+        "kid": kid,
+    }
+    new_passport = {
+        "iss": "https://stsstg.nih.gov",
+        "sub": "abcde12345aspdij",
+        "iat": int(time.time()),
+        "scope": "openid ga4gh_passport_v1 email profile",
+        "exp": int(time.time()) + 1000,
+        "ga4gh_passport_v1": [],
+    }
+    encoded_passport = jwt.encode(
+        new_passport, key=rsa_private_key, headers=passport_header, algorithm="RS256"
+    ).decode("utf-8")
+
+    userinfo_response["passport_jwt_v11"] = encoded_passport
     mock_userinfo.return_value = userinfo_response
 
     test_user = add_test_user(db_session)
@@ -294,7 +396,25 @@ def test_update_visa_token_with_invalid_visa(
         new_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
     ).decode("utf-8")
 
-    userinfo_response["ga4gh_passport_v1"] = [encoded_visa, [], encoded_visa]
+    passport_header = {
+        "type": "JWT",
+        "alg": "RS256",
+        "kid": kid,
+    }
+    new_passport = {
+        "iss": "https://stsstg.nih.gov",
+        "sub": "abcde12345aspdij",
+        "iat": int(time.time()),
+        "scope": "openid ga4gh_passport_v1 email profile",
+        "exp": int(time.time()) + 1000,
+    }
+    new_passport["ga4gh_passport_v1"] = [encoded_visa, [], encoded_visa]
+
+    encoded_passport = jwt.encode(
+        new_passport, key=rsa_private_key, headers=passport_header, algorithm="RS256"
+    ).decode("utf-8")
+    userinfo_response["passport_jwt_v11"] = encoded_passport
+
     mock_userinfo.return_value = userinfo_response
 
     pkey_cache = {
@@ -358,8 +478,27 @@ def test_update_visa_fetch_pkey(
     encoded_visa = jwt.encode(
         new_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
     ).decode("utf-8")
-    mock_userinfo.return_value = {
+
+    passport_header = {
+        "type": "JWT",
+        "alg": "RS256",
+        "kid": kid,
+    }
+    new_passport = {
+        "iss": "https://stsstg.nih.gov",
+        "sub": "abcde12345aspdij",
+        "iat": int(time.time()),
+        "scope": "openid ga4gh_passport_v1 email profile",
+        "exp": int(time.time()) + 1000,
         "ga4gh_passport_v1": [encoded_visa],
+    }
+
+    encoded_passport = jwt.encode(
+        new_passport, key=rsa_private_key, headers=passport_header, algorithm="RS256"
+    ).decode("utf-8")
+
+    mock_userinfo.return_value = {
+        "passport_jwt_v11": encoded_passport,
     }
 
     # Mock the call to the jwks endpoint so it returns the test app's keypairs,
@@ -459,7 +598,25 @@ def test_visa_update_cronjob(
         new_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
     ).decode("utf-8")
 
-    userinfo_response["ga4gh_passport_v1"] = [encoded_visa]
+    passport_header = {
+        "type": "JWT",
+        "alg": "RS256",
+        "kid": kid,
+    }
+    new_passport = {
+        "iss": "https://stsstg.nih.gov",
+        "sub": "abcde12345aspdij",
+        "iat": int(time.time()),
+        "scope": "openid ga4gh_passport_v1 email profile",
+        "exp": int(time.time()) + 1000,
+        "ga4gh_passport_v1": [encoded_visa],
+    }
+
+    encoded_passport = jwt.encode(
+        new_passport, key=rsa_private_key, headers=passport_header, algorithm="RS256"
+    ).decode("utf-8")
+
+    userinfo_response["passport_jwt_v11"] = encoded_passport
     mock_userinfo.return_value = userinfo_response
 
     # test "fence-create update-visa"
