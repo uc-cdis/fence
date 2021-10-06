@@ -234,7 +234,7 @@ def test_get_presigned_url_with_query_params(
 
 @responses.activate
 @pytest.mark.parametrize("indexd_client", ["s3", "gs"], indirect=True)
-def test_get_presigned_url_with_query_params_post(
+def test_get_presigned_url_with_query_params_post_400(
     client,
     user_client,
     indexd_client,
