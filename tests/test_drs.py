@@ -230,4 +230,3 @@ def test_get_presigned_url_with_query_params(
         headers=user,
     )
     assert res.status_code == 200
-
