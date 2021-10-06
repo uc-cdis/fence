@@ -11,9 +11,7 @@ from cryptography.hazmat.primitives import serialization
 
 from fence.config import config
 
-logger = get_logger(__name__, log_level="debug")
-
-GLOBAL_USER_SUB_FROM_PASSPORT = []
+logger = get_logger(__name__)
 
 
 def get_gen3_user_ids_from_ga4gh_passports(passports):
@@ -74,7 +72,7 @@ def get_unvalidated_visas_from_valid_passport(passport, pkey_cache=None):
     Return encoded visas after extracting and validating encoded passport
 
     Args:
-        encoded_passport (string): encoded ga4gh passport
+        passport (string): encoded ga4gh passport
         pkey_cache (dict): app cache of public keys_dir
 
     Return:
@@ -103,7 +101,7 @@ def get_unvalidated_visas_from_valid_passport(passport, pkey_cache=None):
             public_key = get_public_key_for_token(passport, attempt_refresh=True)
         except Exception as e:
             logger.info(
-                "Could not fetch public key from flask app to validate passport: {}. Trying  to fetch from source.".format(
+                "Could not fetch public key from flask app to validate passport: {}. Trying to fetch from source.".format(
                     e
                 )
             )
@@ -136,7 +134,6 @@ def get_unvalidated_visas_from_valid_passport(passport, pkey_cache=None):
     except Exception as e:
         logger.error("Passport failed validation: {}. Discarding passport.".format(e))
 
-    GLOBAL_USER_SUB_FROM_PASSPORT.append(decoded_passport.get("sub"))
     return decoded_passport.get("ga4gh_passport_v1", [])
 
 

@@ -20,10 +20,6 @@ blueprint = flask.Blueprint("ga4gh", __name__)
 )
 def get_ga4gh_signed_url(object_id, access_id):
 
-    if flask.request.method == "POST":
-        passports = flask.request.form.get("passports")
-        raise UserError("Passports not supported yet")
-
     if not access_id:
         raise UserError("Access ID/Protocol is required.")
 
