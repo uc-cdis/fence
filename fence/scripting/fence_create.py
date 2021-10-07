@@ -674,6 +674,58 @@ def delete_users(DB, usernames):
         session.commit()
 
 
+def delete_expired_google_access(DB):
+    """
+    Delete all expired Google data access (e.g. remove proxy groups from Google Bucket
+    Access Groups if expired).
+    """
+    cirrus_config.update(**config["CIRRUS_CFG"])
+
+    driver = SQLAlchemyDriver(DB)
+    with driver.session as session:
+        current_time = int(time.time())
+
+        # Get expires field from db, if None, default to NOT expired
+        records_to_delete = (
+            session.query(GoogleProxyGroupToGoogleBucketAccessGroup)
+            .filter(
+                (GoogleProxyGroupToGoogleBucketAccessGroup.expires or current_time + 1)
+                < current_time
+            )
+            .all()
+        )
+        if len(records_to_delete):
+            with GoogleCloudManager() as manager:
+                for record in records_to_delete:
+                    try:
+                        with GoogleCloudManager() as manager:
+                            member_email = record.proxy_group.email
+                            access_group_email = record.access_group.email
+                            manager.remove_member_from_group(
+                                member_email, access_group_email
+                            )
+                            logger.info(
+                                "Removed {} from {}, expired {}. Current time: {} ".format(
+                                    member_email,
+                                    access_group_email,
+                                    record.expires,
+                                    current_time,
+                                )
+                            )
+                        session.delete(record)
+                        session.commit()
+                    except Exception as e:
+                        logger.error(
+                            "ERROR: Could not remove Google group member {} from access group {}. Detail {}".format(
+                                member_email, access_group_email, e
+                            )
+                        )
+
+        logger.info(
+            f"Removed {len(records_to_delete)} expired Google Access records from db and Google."
+        )
+
+
 def delete_expired_service_accounts(DB):
     """
     Delete all expired service accounts.
