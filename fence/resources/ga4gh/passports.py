@@ -1,4 +1,5 @@
 import base64
+import flask
 import httpx
 
 from authutils.errors import JWTError
@@ -32,8 +33,12 @@ def get_gen3_user_ids_from_ga4gh_passports(passports):
                 was_cached = True
                 continue
 
+            pkey_cache = flask.current_app.pkey_cache or None
+
             # below function also validates passport (or raises exception)
-            raw_visas.extend(get_unvalidated_visas_from_valid_passport(passport))
+            raw_visas.extend(
+                get_unvalidated_visas_from_valid_passport(passport, pkey_cache)
+            )
         except Exception as exc:
             logger.warning(f"invalid passport provided, ignoring. Error: {exc}")
             continue
@@ -93,6 +98,8 @@ def get_unvalidated_visas_from_valid_passport(passport, pkey_cache=None):
                 e
             )
         )
+        # ignore malformed/invalid passports
+        return []
 
     public_key = pkey_cache.get(passport_issuer, {}).get(passport_kid)
     if not public_key:
@@ -107,7 +114,7 @@ def get_unvalidated_visas_from_valid_passport(passport, pkey_cache=None):
             )
             try:
                 logger.info("Trying to Fetch public keys from JWKs url...")
-                public_key = refresh_cronjob_pkey_cache(
+                public_key = refresh_pkey_cache(
                     passport_issuer, passport_kid, pkey_cache
                 )
             except Exception as e:
@@ -133,6 +140,8 @@ def get_unvalidated_visas_from_valid_passport(passport, pkey_cache=None):
         )
     except Exception as e:
         logger.error("Passport failed validation: {}. Discarding passport.".format(e))
+        # ignore malformed/invalid passports
+        return []
 
     return decoded_passport.get("ga4gh_passport_v1", [])
 
@@ -176,7 +185,7 @@ def put_gen3_user_ids_for_passport_into_cache(passport, user_ids_from_passports)
     pass
 
 
-def refresh_cronjob_pkey_cache(issuer, kid, pkey_cache):
+def refresh_pkey_cache(issuer, kid, pkey_cache):
     """
     Update app public key cache for a specific Passport Visa issuer
 
@@ -244,5 +253,7 @@ def refresh_cronjob_pkey_cache(issuer, kid, pkey_cache):
                 issuer, e
             )
         )
+
+    flask.current_app.pkey_cache = pkey_cache
 
     return pkey_cache.get(issuer, {}).get(kid)
