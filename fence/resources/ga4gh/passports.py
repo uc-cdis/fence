@@ -33,12 +33,8 @@ def get_gen3_user_ids_from_ga4gh_passports(passports):
                 was_cached = True
                 continue
 
-            pkey_cache = flask.current_app.pkey_cache or None
-
             # below function also validates passport (or raises exception)
-            raw_visas.extend(
-                get_unvalidated_visas_from_valid_passport(passport, pkey_cache)
-            )
+            raw_visas.extend(get_unvalidated_visas_from_valid_passport(passport))
         except Exception as exc:
             logger.warning(f"invalid passport provided, ignoring. Error: {exc}")
             continue
@@ -253,7 +249,5 @@ def refresh_pkey_cache(issuer, kid, pkey_cache):
                 issuer, e
             )
         )
-
-    flask.current_app.pkey_cache = pkey_cache
 
     return pkey_cache.get(issuer, {}).get(kid)

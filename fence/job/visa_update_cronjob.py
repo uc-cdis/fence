@@ -168,6 +168,10 @@ class Visa_Token_Update(object):
                     "User {} doesnt have visa. Skipping . . .".format(user.username)
                 )
 
+            self.logger.info(
+                "Updater {} updated visa for user {}".format(name, user.username)
+            )
+
             updater_queue.task_done()
 
     def _pick_client(self, visa):
