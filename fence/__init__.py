@@ -355,6 +355,9 @@ def app_config(
 
     _setup_oidc_clients(app)
 
+    # initialize public key cache under application context
+    app.pkey_cache = {}
+
     with app.app_context():
         _check_aws_creds_and_region(app)
         _check_azure_storage(app)

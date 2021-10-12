@@ -83,7 +83,10 @@ def get_unvalidated_visas_from_valid_passport(passport, pkey_cache=None):
     passport_issuer, passport_kid = None, None
 
     if not pkey_cache:
-        pkey_cache = {}
+        if flask.has_app_context() and flask.current_app.pkey_cache:
+            pkey_cache = flask.current_app.pkey_cache
+        else:
+            pkey_cache = {}
 
     try:
         passport_issuer = get_iss(passport)
@@ -249,5 +252,8 @@ def refresh_pkey_cache(issuer, kid, pkey_cache):
                 issuer, e
             )
         )
+
+    if flask.has_app_context():
+        flask.current_app.pkey_cache = pkey_cache
 
     return pkey_cache.get(issuer, {}).get(kid)
