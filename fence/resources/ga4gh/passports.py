@@ -83,6 +83,10 @@ def get_unvalidated_visas_from_valid_passport(passport, pkey_cache=None):
     passport_issuer, passport_kid = None, None
 
     if not pkey_cache:
+        # This function is shared by both fence-service (running inside of application context)
+        # and access token polling (running outside of application context)
+        # Flask doesn't really like running outside of context and setting this cache breaks things
+        # when running the access token polling.
         if flask.has_app_context() and flask.current_app.pkey_cache:
             pkey_cache = flask.current_app.pkey_cache
         else:
@@ -253,6 +257,10 @@ def refresh_pkey_cache(issuer, kid, pkey_cache):
             )
         )
 
+    # This function is shared by both fence-service (running inside of application context)
+    # and access token polling (running outside of application context)
+    # Flask doesn't really like running outside of context and setting this cache breaks things
+    # when running the access token polling.
     if flask.has_app_context():
         flask.current_app.pkey_cache = pkey_cache
 
