@@ -63,19 +63,24 @@ class RASCallback(DefaultOAuth2Callback):
             raise
 
         for encoded_visa in encoded_visas:
-            try:
-                # Do not move out of loop unless we can assume every visa has same issuer and kid
-                public_key = get_public_key_for_token(
-                    encoded_visa, attempt_refresh=True
-                )
-            except Exception as e:
-                # (But don't log the visa contents!)
-                logger.error(
-                    "Could not get public key to validate visa: {}. Discarding visa.".format(
-                        e
+            if flask.current_app.pkey_cache:
+                logger.info("Retrieving public key from flask app ...")
+                public_key = flask.current_app.pkey_cache
+            else:
+                logger.info("Failed to retrieve public key from flask app")
+                try:
+                    # Do not move out of loop unless we can assume every visa has same issuer and kid
+                    public_key = get_public_key_for_token(
+                        encoded_visa, attempt_refresh=True
                     )
-                )
-                continue
+                except Exception as e:
+                    # (But don't log the visa contents!)
+                    logger.error(
+                        "Could not get public key to validate visa: {}. Discarding visa.".format(
+                            e
+                        )
+                    )
+                    continue
 
             try:
                 # Validate the visa per GA4GH AAI "Embedded access token" format rules.
