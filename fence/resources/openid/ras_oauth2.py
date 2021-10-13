@@ -179,6 +179,9 @@ class RASOauth2Client(Oauth2ClientBase):
             if userinfo.get("UserID"):
                 username = userinfo["UserID"]
                 field_name = "UserID"
+            elif userinfo.get("userid"):
+                username = userinfo["userid"]
+                field_name = "userid"
             if not username:
                 self.logger.error(
                     "{}, received claims: {} and userinfo: {}".format(
