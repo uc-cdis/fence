@@ -694,26 +694,28 @@ def delete_expired_google_access(DB):
             )
             .all()
         )
-        if len(records_to_delete):
+        num_deleted_records = 0
+        if records_to_delete:
             with GoogleCloudManager() as manager:
                 for record in records_to_delete:
                     try:
-                        with GoogleCloudManager() as manager:
-                            member_email = record.proxy_group.email
-                            access_group_email = record.access_group.email
-                            manager.remove_member_from_group(
-                                member_email, access_group_email
+                        member_email = record.proxy_group.email
+                        access_group_email = record.access_group.email
+                        manager.remove_member_from_group(
+                            member_email, access_group_email
+                        )
+                        logger.info(
+                            "Removed {} from {}, expired {}. Current time: {} ".format(
+                                member_email,
+                                access_group_email,
+                                record.expires,
+                                current_time,
                             )
-                            logger.info(
-                                "Removed {} from {}, expired {}. Current time: {} ".format(
-                                    member_email,
-                                    access_group_email,
-                                    record.expires,
-                                    current_time,
-                                )
-                            )
+                        )
                         session.delete(record)
                         session.commit()
+
+                        num_deleted_records += 1
                     except Exception as e:
                         logger.error(
                             "ERROR: Could not remove Google group member {} from access group {}. Detail {}".format(
@@ -722,7 +724,7 @@ def delete_expired_google_access(DB):
                         )
 
         logger.info(
-            f"Removed {len(records_to_delete)} expired Google Access records from db and Google."
+            f"Removed {num_deleted_records} expired Google Access records from db and Google."
         )
 
 
