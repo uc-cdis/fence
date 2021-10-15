@@ -61,30 +61,27 @@ requests = "*"
 
 [[package]]
 name = "authutils"
-version = "6.0.2"
+version = "6.0.3"
 description = "Gen3 auth utility functions"
 category = "main"
 optional = false
-python-versions = "^3.6"
-develop = false
+python-versions = ">=3.6,<4.0"
 
 [package.dependencies]
-authlib = "~=0.11"
-cached-property = "~=1.4"
+authlib = ">=0.11,<1.0"
+cached-property = ">=1.4,<2.0"
 cdiserrors = "<2.0.0"
 httpx = ">=0.12.1,<1.0.0"
-pyjwt = {version = "~=1.5", extras = ["crypto"]}
-xmltodict = "~=0.9"
+pyjwt = {version = ">=1.5,<2.0", extras = ["crypto"]}
+xmltodict = ">=0.9,<1.0"
 
 [package.extras]
 flask = ["Flask (>=0.10.1)"]
 fastapi = ["fastapi (>=0.54.1,<0.55.0)"]
 
 [package.source]
-type = "git"
-url = "ssh://git@github.com/uc-cdis/authutils.git"
-reference = "84ad161"
-resolved_reference = "84ad16122504b8961844f3a2c166552180da6767"
+type = "file"
+url = "authutils-6.0.3.tar.gz"
 
 [[package]]
 name = "azure-core"
@@ -1512,7 +1509,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "0d358621fded6e7a80fdc2a51206a0d0f847ac7f8affcb5df23a87cc39281905"
+content-hash = "9c90fb78e45d355bb66b3756589360a05f2ad5529c95acaece1b4fd3e96dd369"
 
 [metadata.files]
 addict = [
@@ -1539,7 +1536,9 @@ authlib = [
     {file = "Authlib-0.11-py2.py3-none-any.whl", hash = "sha256:3a226f231e962a16dd5f6fcf0c113235805ba206e294717a64fa8e04ae3ad9c4"},
     {file = "Authlib-0.11.tar.gz", hash = "sha256:9741db6de2950a0a5cefbdb72ec7ab12f7e9fd530ff47219f1530e79183cbaaf"},
 ]
-authutils = []
+authutils = [
+    {file = "authutils-6.0.3.tar.gz", hash = "sha256:b89c95a97a310f805673df7e5b6794ab7fe643f2b26af397de545db89584e991"},
+]
 azure-core = [
     {file = "azure-core-1.19.0.zip", hash = "sha256:18d2a6cd3b7391489f005775fe69e4d0870f9384b755e45185efd45c050e2306"},
     {file = "azure_core-1.19.0-py2.py3-none-any.whl", hash = "sha256:4fbbe8b867ef077df77614b86b7927e4d87aa7a0bd54e771d9ba14f48dae2c4b"},
