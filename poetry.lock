@@ -83,8 +83,8 @@ fastapi = ["fastapi (>=0.54.1,<0.55.0)"]
 [package.source]
 type = "git"
 url = "ssh://git@github.com/uc-cdis/authutils.git"
-reference = "master"
-resolved_reference = "bb465909bb8b8b86688cc9892436777362df8000"
+reference = "84ad161"
+resolved_reference = "84ad16122504b8961844f3a2c166552180da6767"
 
 [[package]]
 name = "azure-core"
@@ -1512,7 +1512,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "63afb22aca669a0c0c7ba43e7a419c2eb9dca2fb868802557e87bd9790449918"
+content-hash = "0d358621fded6e7a80fdc2a51206a0d0f847ac7f8affcb5df23a87cc39281905"
 
 [metadata.files]
 addict = [

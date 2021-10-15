@@ -85,7 +85,6 @@ class RASOauth2Client(Oauth2ClientBase):
         Return:
             list: list of encoded GA4GH visas
         """
-        print("------------------------------")
         encoded_passport = userinfo.get("passport_jwt_v11")
         return get_unvalidated_visas_from_valid_passport(encoded_passport, pkey_cache)
 
