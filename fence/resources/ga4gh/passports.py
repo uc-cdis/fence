@@ -82,16 +82,6 @@ def get_unvalidated_visas_from_valid_passport(passport, pkey_cache=None):
     decoded_passport = {}
     passport_issuer, passport_kid = None, None
 
-    if not pkey_cache:
-        # This function is shared by both fence-service (running inside of application context)
-        # and access token polling (running outside of application context)
-        # Flask doesn't really like running outside of context and setting this cache breaks things
-        # when running the access token polling.
-        if flask.has_app_context() and flask.current_app.pkey_cache:
-            pkey_cache = flask.current_app.pkey_cache
-        else:
-            pkey_cache = {}
-
     try:
         passport_issuer = get_iss(passport)
         passport_kid = get_kid(passport)
@@ -108,22 +98,24 @@ def get_unvalidated_visas_from_valid_passport(passport, pkey_cache=None):
     if not public_key:
         try:
             logger.info("Fetching public key from flask app...")
-            public_key = get_public_key_for_token(passport, attempt_refresh=True)
+            public_key = get_public_key_for_token(
+                passport, attempt_refresh=True, pkey_cache=pkey_cache
+            )
         except Exception as e:
             logger.info(
                 "Could not fetch public key from flask app to validate passport: {}. Trying to fetch from source.".format(
                     e
                 )
             )
-            try:
-                logger.info("Trying to Fetch public keys from JWKs url...")
-                public_key = refresh_pkey_cache(
-                    passport_issuer, passport_kid, pkey_cache
-                )
-            except Exception as e:
-                logger.info(
-                    "Could not fetch public key from JWKs key url: {}".format(e)
-                )
+            # try:
+            #     logger.info("Trying to Fetch public keys from JWKs url...")
+            #     public_key = refresh_pkey_cache(
+            #         passport_issuer, passport_kid, pkey_cache
+            #     )
+            # except Exception as e:
+            #     logger.info(
+            #         "Could not fetch public key from JWKs key url: {}".format(e)
+            #     )
     if not public_key:
         logger.error(
             "Could not fetch public key to validate visa: Successfully fetched "
