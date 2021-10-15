@@ -27,7 +27,7 @@ flask-cors = "^3.0.3"
 flask-restful = "^0.3.6"
 flask_sqlalchemy_session = "^1.1"
 email_validator = "^1.1.1"
-gen3authz = "^1.1.0"
+gen3authz = { path = "./gen3authz-1.2.0.tar.gz"}
 gen3cirrus = "^2.0.0"
 gen3config = "^0.1.7"
 gen3users = "^0.6.0"
