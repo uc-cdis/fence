@@ -14,7 +14,9 @@ from gen3authz.client.arborist.client import ArboristClient
 
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 from fence.config import config
-from fence.scripting.fence_create import init_syncer
+
+# TODO comment for this, maybe move to top
+import fence.scripting.fence_create
 from fence.utils import get_valid_expiration
 
 logger = get_logger(__name__)
@@ -186,12 +188,12 @@ class RASCallback(DefaultOAuth2Callback):
             if not isinstance(dbGaP, list):
                 dbGaP = [dbGaP]
 
-            sync = init_syncer(
+            sync = fence.scripting.fence_create.init_syncer(
                 dbGaP,
                 None,
                 DB,
                 arborist=arborist,
             )
-            sync.sync_single_user_visas(user, current_session)
+            sync.sync_single_user_visas(user, user.ga4gh_visas_v1, current_session)
 
         super(RASCallback, self).post_login()
