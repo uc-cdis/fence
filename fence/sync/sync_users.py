@@ -1666,7 +1666,8 @@ class UserSyncer(object):
                 username = user.username
 
             self.arborist_client.create_user_if_not_exist(username)
-            self.arborist_client.revoke_all_policies_for_user(username)
+            if not single_user_sync:
+                self.arborist_client.revoke_all_policies_for_user(username)
             for project, permissions in user_project_info.items():
 
                 # check if this is a dbgap project, if it is, we need to get the right
