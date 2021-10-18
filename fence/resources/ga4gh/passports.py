@@ -82,6 +82,9 @@ def get_unvalidated_visas_from_valid_passport(passport, pkey_cache=None):
     decoded_passport = {}
     passport_issuer, passport_kid = None, None
 
+    if not pkey_cache:
+        pkey_cache = {}
+
     try:
         passport_issuer = get_iss(passport)
         passport_kid = get_kid(passport)
