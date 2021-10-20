@@ -61,7 +61,7 @@ requests = "*"
 
 [[package]]
 name = "authutils"
-version = "6.0.3"
+version = "6.0.4"
 description = "Gen3 auth utility functions"
 category = "main"
 optional = false
@@ -81,7 +81,7 @@ fastapi = ["fastapi (>=0.54.1,<0.55.0)"]
 
 [package.source]
 type = "file"
-url = "authutils-6.0.3.tar.gz"
+url = "authutils-6.0.4.tar.gz"
 
 [[package]]
 name = "aws-xray-sdk"
@@ -1595,7 +1595,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "11feb12da2ded2662dbb9caaddc069a74ff2d6fd7551ba184b7882f69c1722fb"
+content-hash = "4e8521a47aa2a7cafac36952fa4416c4a01ae007f371f47aab661a8086dc4bae"
 
 [metadata.files]
 addict = [
@@ -1623,7 +1623,7 @@ authlib = [
     {file = "Authlib-0.11.tar.gz", hash = "sha256:9741db6de2950a0a5cefbdb72ec7ab12f7e9fd530ff47219f1530e79183cbaaf"},
 ]
 authutils = [
-    {file = "authutils-6.0.3.tar.gz", hash = "sha256:2716eadd6eb038e4f4ae1efa5c37df31f76726c5057ab49db4da81acc29b4b5e"},
+    {file = "authutils-6.0.4.tar.gz", hash = "sha256:2bfed40ea514d61f98d71c2fe73681ee2674d7bb7bad8395613a26f2b98e6165"},
 ]
 aws-xray-sdk = [
     {file = "aws-xray-sdk-0.95.tar.gz", hash = "sha256:9e7ba8dd08fd2939376c21423376206bff01d0deaea7d7721c6b35921fed1943"},
