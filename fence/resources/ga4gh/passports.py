@@ -1,4 +1,5 @@
 import flask
+import os
 import collections
 import time
 import datetime
@@ -6,9 +7,6 @@ import gen3authz.client.arborist.client
 
 # TODO comment regarding circular imports
 import fence.scripting.fence_create
-
-# TODO take this out
-import jwt
 
 from flask_sqlalchemy_session import current_session
 from cdislogging import get_logger
@@ -44,28 +42,16 @@ def get_gen3_users_from_ga4gh_passports(passports):
         min_visa_expiration = int(time.time()) + datetime.timedelta(hours=1).seconds
         for raw_visa in raw_visas:
             try:
-                # TODO must be signed with RSA256
-                # TODO issuers could be more than just what's below. will need to use config var of some sort
-                # TODO why is subject_id a big long str?
-                # TODO conditions field
-                # issuers = ["https://stsstg.nih.gov"]
-                # decoded_visa = validate_jwt(raw_visa, attempt_refresh=True, issuers=issuers, options={"verify_aud": False})
-                # TODO: ONLY USE THIS FOR DEVELOPMENT
-                decoded_visa = jwt.decode(raw_visa, verify=False)
+                validated_decoded_visa = validate_visa(raw_visa)
                 identity_to_visas[
-                    (decoded_visa.get("iss"), decoded_visa.get("sub"))
-                ].append((raw_visa, decoded_visa))
-                min_visa_expiration = min(min_visa_expiration, decoded_visa.get("exp"))
-                # min_visa_expiration = decoded_visa.
-
-                # below function also validates visa (or raises exception) and
-                # extracts the subject id
-                # subject_id, issuer = get_sub_iss_from_visa(raw_visa)
-
-                # query idp user table
-                # gen3_user = get_or_create_gen3_user_from_sub_iss(decoded_visa.get("sub"), decoded_visa.get("iss"))
-                # user_ids_from_passports.append(gen3_user.id)
-
+                    (
+                        validated_decoded_visa.get("iss"),
+                        validated_decoded_visa.get("sub"),
+                    )
+                ].append((raw_visa, validated_decoded_visa))
+                min_visa_expiration = min(
+                    min_visa_expiration, validated_decoded_visa.get("exp")
+                )
             except Exception as exc:
                 logger.warning(f"invalid visa provided, ignoring. Error: {exc}")
                 continue
@@ -73,23 +59,19 @@ def get_gen3_users_from_ga4gh_passports(passports):
         usernames_from_current_passport = []
         for (issuer, subject_id), visas in identity_to_visas.items():
             gen3_user = get_or_create_gen3_user_from_iss_sub(issuer, subject_id)
-            # NOTE: does not validate, assumes validation occurs above.
-            # sync_visa_authorization(raw_visa)
 
-            # QUESTION: do all visas in a passport necessarily belong
-            # to the same Arborist defined user? relevant because you can only
-            # update policies in Arborist one user at a time
             ga4gh_visas = [
                 GA4GHVisaV1(
                     user=gen3_user,
-                    source=decoded_visa["ga4gh_visa_v1"]["source"],
-                    type=decoded_visa["ga4gh_visa_v1"]["type"],
-                    asserted=int(decoded_visa["ga4gh_visa_v1"]["asserted"]),
-                    expires=int(decoded_visa["exp"]),
+                    source=validated_decoded_visa["ga4gh_visa_v1"]["source"],
+                    type=validated_decoded_visa["ga4gh_visa_v1"]["type"],
+                    asserted=int(validated_decoded_visa["ga4gh_visa_v1"]["asserted"]),
+                    expires=int(validated_decoded_visa["exp"]),
                     ga4gh_visa=raw_visa,
                 )
-                for raw_visa, decoded_visa in visas
+                for raw_visa, validated_decoded_visa in visas
             ]
+            # NOTE: does not validate, assumes validation occurs above.
             sync_visa_authorization(gen3_user, ga4gh_visas, min_visa_expiration)
             usernames_from_current_passport.append(gen3_user.username)
 
@@ -107,40 +89,56 @@ def get_gen3_usernames_for_passport_from_cache(passport):
 
 
 def get_unvalidated_visas_from_valid_passport(passport):
-    # validate passport, return visas
-    # TODO put inside try block (i.e. shouldn't get a 500 for an expired passport)
-    # TODO if aud is provided, it must contain client id
-    # TODO dont hardcode issuers. it needed to be hardcoded because I think
-    # TODO init issuers list within function call
-    # list of allowed issuers comes from a config variable
-
-    # issuers = ["https://stsstg.nih.gov"]
-    # decoded_passport = validate_jwt(passport, attempt_refresh=True, issuers=issuers, options={"verify_aud": False})
-    # TODO: ONLY USE THIS FOR DEVELOPMENT
-    decoded_passport = jwt.decode(passport, verify=False)
-
-    return decoded_passport.get("ga4gh_passport_v1", [])
+    return []
 
 
-def is_raw_visa_valid(raw_visa):
-    # check signature
-    # is a type we recognize?
-    return False
+def validate_visa(raw_visa):
+    # TODO check that there is no JKU field in header?
+    decoded_visa = validate_jwt(
+        raw_visa,
+        attempt_refresh=True,
+        scope={"openid"},
+        require_purpose=False,
+        issuers=config.get("GA4GH_VISA_ISSUER_ALLOWLIST", []),
+        options={"require_iat": True, "require_exp": True, "verify_aud": False},
+    )
+    for claim in ["sub", "ga4gh_visa_v1"]:
+        if claim not in decoded_visa:
+            raise Exception(f'Visa does not contain REQUIRED "{claim}" claim')
 
+    if "aud" in decoded_visa:
+        raise Exception('Visa MUST NOT contain "aud" claim')
 
-def get_sub_iss_from_visa(raw_visa):
-    if not is_raw_visa_valid(raw_visa):
-        raise Exception()
+    # TODO may want to set these fields and values in config-default.yaml
+    field_to_expected_value = {
+        "type": "https://ras.nih.gov/visas/v1.1",
+        "asserted": None,
+        "value": "https://stsstg.nih.gov/passport/dbgap/v1.1",
+        "source": "https://ncbi.nlm.nih.gov/gap",
+    }
+    for field, expected_value in field_to_expected_value.items():
+        if field not in decoded_visa["ga4gh_visa_v1"]:
+            raise Exception(
+                f'"ga4gh_visa_v1" claim does not contain REQUIRED "{field}" field'
+            )
+        if expected_value:
+            if decoded_visa["ga4gh_visa_v1"][field] != expected_value:
+                raise Exception(
+                    f'"{field}" field in "ga4gh_visa_v1" does not equal expected value "{expected_value}"'
+                )
 
-    subject_id = None
-    issuer = None
+    if "conditions" in decoded_visa["ga4gh_visa_v1"]:
+        logger.warning(
+            'Condition checking is not yet supported, but a visa was received that contained the "conditions" field'
+        )
+        if decoded_visa["ga4gh_visa_v1"]["conditions"]:
+            raise Exception('"conditions" field in "ga4gh_visa_v1" is not empty')
 
-    # TODO
-
-    return subject_id, issuer
+    return decoded_visa
 
 
 def get_or_create_gen3_user_from_iss_sub(issuer, subject_id):
+    # TODO update mapping table
     # for idp_name, idp_config in config.get("OPENID_CONNECT", {}).items():
 
     # there are issues with syncing when "https://" is part of the username.
@@ -159,15 +157,22 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id):
 
 
 def sync_visa_authorization(gen3_user, ga4gh_visas, expiration):
-    # TODO might need to look in more places for db_url
-    db_url = config.get("DB")
+    # TODO set expiration for Google Access
     arborist_client = gen3authz.client.arborist.client.ArboristClient(
         arborist_base_url=config.get("ARBORIST"), logger=logger, authz_provider="GA4GH"
     )
-    # TODO check this
-    dbgap_config = config.get("dbGaP")
+
+    dbgap_config = os.environ.get("dbGaP") or config.get("dbGaP")
+    if not isinstance(dbgap_config, list):
+        dbgap_config = [dbgap_config]
+    DB = os.environ.get("FENCE_DB") or config.get("DB")
+    if DB is None:
+        try:
+            from fence.settings import DB
+        except ImportError:
+            pass
     syncer = fence.scripting.fence_create.init_syncer(
-        dbgap_config, None, db_url, arborist=arborist_client
+        dbgap_config, None, DB, arborist=arborist_client
     )
 
     syncer.sync_single_user_visas(
