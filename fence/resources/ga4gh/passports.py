@@ -3,7 +3,9 @@ import flask
 import httpx
 
 from authutils.errors import JWTError
-from authutils.token.core import get_iss, get_keys_url, get_kid, validate_jwt
+# from authutils.token.core import get_iss, get_keys_url, get_kid, validate_jwt
+from authutils.token.core import get_iss, get_keys_url, get_kid
+from fence.jwt.validate import validate_jwt
 from authutils.token.keys import get_public_key_for_token
 from cdislogging import get_logger
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -98,49 +100,52 @@ def get_unvalidated_visas_from_valid_passport(passport, pkey_cache=None):
         return []
 
     public_key = pkey_cache.get(passport_issuer, {}).get(passport_kid)
-    if not public_key:
-        try:
-            logger.info("Fetching public key from flask app...")
-            public_key = get_public_key_for_token(
-                passport, attempt_refresh=True, pkey_cache=pkey_cache
-            )
-        except Exception as e:
-            logger.info(
-                "Could not fetch public key from flask app to validate passport: {}. Trying to fetch from source.".format(
-                    e
-                )
-            )
-            # try:
-            #     logger.info("Trying to Fetch public keys from JWKs url...")
-            #     public_key = refresh_pkey_cache(
-            #         passport_issuer, passport_kid, pkey_cache
-            #     )
-            # except Exception as e:
-            #     logger.info(
-            #         "Could not fetch public key from JWKs key url: {}".format(e)
-            #     )
-    if not public_key:
-        logger.error(
-            "Could not fetch public key to validate visa: Successfully fetched "
-            "issuer's keys but did not find the visa's key id among them. Discarding visa."
-        )
+    # if not public_key:
+    #     try:
+    #         logger.info("Fetching public key from flask app...")
+    #         public_key = get_public_key_for_token(
+    #             passport, attempt_refresh=True, pkey_cache=pkey_cache
+    #         )
+    #     except Exception as e:
+    #         logger.info(
+    #             "Could not fetch public key from flask app to validate passport: {}. Trying to fetch from source.".format(
+    #                 e
+    #             )
+    #         )
+    #         # try:
+    #         #     logger.info("Trying to Fetch public keys from JWKs url...")
+    #         #     public_key = refresh_pkey_cache(
+    #         #         passport_issuer, passport_kid, pkey_cache
+    #         #     )
+    #         # except Exception as e:
+    #         #     logger.info(
+    #         #         "Could not fetch public key from JWKs key url: {}".format(e)
+    #         #     )
+    # if not public_key:
+    #     logger.error(
+    #         "Could not fetch public key to validate visa: Successfully fetched "
+    #         "issuer's keys but did not find the visa's key id among them. Discarding visa."
+    #     )
     try:
         decoded_passport = validate_jwt(
-            passport,
-            public_key,
+            encoded_token=passport,
+            public_key=public_key,
+            attempt_refresh=True,
+            require_purpose=False,
             aud=None,
             scope={"openid"},
             issuers=config.get("GA4GH_VISA_ISSUER_ALLOWLIST", []),
             options={
                 "require_iat": True,
                 "require_exp": True,
+                "verify_aud": False,
             },
         )
     except Exception as e:
         logger.error("Passport failed validation: {}. Discarding passport.".format(e))
         # ignore malformed/invalid passports
         return []
-
+    # TODO: need to check that aud is not in passport
     return decoded_passport.get("ga4gh_passport_v1", [])
 
 
