@@ -3,7 +3,6 @@ import jwt
 import os
 from distutils.util import strtobool
 from authutils.errors import JWTError
-from fence.jwt.validate import validate_jwt
 from authutils.token.keys import get_public_key_for_token
 from cdislogging import get_logger
 from flask_sqlalchemy_session import current_session
@@ -14,6 +13,7 @@ from gen3authz.client.arborist.client import ArboristClient
 
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 from fence.config import config
+from fence.jwt.validate import validate_jwt
 from fence.scripting.fence_create import init_syncer
 from fence.utils import get_valid_expiration
 
@@ -81,8 +81,8 @@ class RASCallback(DefaultOAuth2Callback):
                 # Validate the visa per GA4GH AAI "Embedded access token" format rules.
                 # pyjwt also validates signature and expiration.
                 decoded_visa = validate_jwt(
-                    encoded_visa,
-                    public_key,
+                    encoded_token=encoded_visa,
+                    public_key=public_key,
                     # Embedded token must contain scope claim, which must include openid
                     scope={"openid"},
                     issuers=config.get("GA4GH_VISA_ISSUER_ALLOWLIST", []),
