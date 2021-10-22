@@ -1,19 +1,10 @@
-import base64
-import flask
-import httpx
-
 from authutils.errors import JWTError
-
-# from authutils.token.core import get_iss, get_keys_url, get_kid, validate_jwt
-from authutils.token.core import get_iss, get_keys_url, get_kid
-from fence.jwt.validate import validate_jwt
-from authutils.token.keys import get_public_key_for_token
+from authutils.token.core import get_iss, get_kid
 from cdislogging import get_logger
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import serialization
 
 from fence.config import config
+from fence.jwt.validate import validate_jwt
+
 
 logger = get_logger(__name__)
 

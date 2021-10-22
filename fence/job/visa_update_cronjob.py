@@ -3,15 +3,9 @@ import datetime
 import time
 
 from cdislogging import get_logger
-from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.config import config
-from fence.models import (
-    GA4GHVisaV1,
-    User,
-    UpstreamRefreshToken,
-    query_for_user,
-)
+from fence.models import User
 from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
 
 

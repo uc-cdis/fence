@@ -1,7 +1,6 @@
 import authutils.errors
 import authutils.token.keys
 import authutils.token.validate
-import flask
 import jwt
 
 from fence.config import config
