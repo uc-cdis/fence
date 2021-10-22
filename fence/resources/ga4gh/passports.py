@@ -119,8 +119,6 @@ def get_unvalidated_visas_from_valid_passport(passport, pkey_cache=None):
 
         if "sub" not in decoded_passport:
             raise JWTError("Visa is missing the 'sub' claim.")
-        if "aud" in decoded_passport:
-            raise JWTError("Visa contains 'aud' calim")
     except Exception as e:
         logger.error("Passport failed validation: {}. Discarding passport.".format(e))
         # ignore malformed/invalid passports
