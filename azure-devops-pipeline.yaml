@@ -1,0 +1,117 @@
+trigger:
+  branches:
+    include:
+      - master
+variables:
+  - name: SP_CLIENT_ID
+    value: "MY_AZ_SP_CLIENT_ID"
+  - name: SP_CLIENT_PASS
+    value: "MY_AZ_SP_CLIENT_PASS"
+  - name: TENANT_ID
+    value: "MY_AZ_TENANT_ID"
+  - name: ACR_NAME
+    value: "myacrname"
+  - name: LOCAL_POSTGRESQL_PORT
+    value: 5433
+  - name: DESIRED_LOCAL_POSTGRESQL_PORT
+    value: 5432
+  - name: GIT_REPO_TAG
+    value: azure-support
+stages:
+  - stage: build
+    jobs:
+      - job: run_build_push_acr
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - script: |-
+              sudo apt-get update
+              sudo apt-get install python3
+            displayName: Install Python 3
+          - script: |-
+              python3 -m venv py38-venv
+            displayName: Create Python Virtual Environment
+          - script: |-
+              # install psql
+              sudo apt install postgresql-client-common
+              sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+              wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+              sudo apt-get update
+              sudo apt-get install postgresql-12
+              
+              sudo sed -i 's:port = $(LOCAL_POSTGRESQL_PORT):port = $(DESIRED_LOCAL_POSTGRESQL_PORT):g' /etc/postgresql/*/main/postgresql.conf 
+              sudo pg_ctlcluster 12 main start
+
+              # wait for psql to be ready
+              tail /var/log/postgresql/postgresql-12-main.log | sed '/^database system is ready to accept connections$/ q'
+
+              # changing a port requires a restart
+              sudo pg_ctlcluster 12 main restart
+              # wait for psql to be ready
+              tail /var/log/postgresql/postgresql-12-main.log | sed '/^database system is ready to accept connections$/ q'
+
+              # run psql scripts to initialize db
+              curDir=$(pwd)
+              ls "${curDir}/deployment/scripts/postgresql/postgresql_init.sql"
+              sudo -u postgres psql -f "${curDir}/deployment/scripts/postgresql/postgresql_init.sql" -p "$(DESIRED_LOCAL_POSTGRESQL_PORT)"
+            displayName: Setup Local Postgresql for Testing
+          - script: |-
+              . py38-venv/bin/activate
+              # Install Poetry
+              curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
+              source $HOME/.poetry/env
+
+              # Install Poetry dependencies
+              poetry install -vv --no-interaction && poetry show -v
+            displayName: Install Fence Dependencies
+          - script: |-
+              sudo rm -f /etc/boto.cfg
+              mkdir -p tests/resources/keys; cd tests/resources/keys; openssl genrsa -out test_private_key.pem 2048; openssl rsa -in test_private_key.pem -pubout -out test_public_key.pem
+              openssl genrsa -out test_private_key_2.pem 2048; openssl rsa -in test_private_key_2.pem -pubout -out test_public_key_2.pem
+              cd -
+            displayName: Setup Test Configuration
+          - script: |-
+              . py38-venv/bin/activate
+              python3 -m pytest -vv --cov=fence --cov-report xml --junitxml="test-results.xml" tests
+            displayName: Run Fence Test Suite
+            env:
+              PGPORT: $(DESIRED_LOCAL_POSTGRESQL_PORT)
+          - task: PublishTestResults@2
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFiles: '**/test-*.xml'
+              testRunTitle: 'Publish test results for Python $(python.version)'
+          - task: PublishCodeCoverageResults@1
+            inputs:
+              codeCoverageTool: Cobertura
+              summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
+              reportDirectory: '$(System.DefaultWorkingDirectory)/**/htmlcov'
+          - script: |-
+              set -e
+              echo "az login --service-principal --username $(SP_CLIENT_ID) --password $(SP_CLIENT_PASS) --tenant $(TENANT_ID)"
+              az login --service-principal --username "$(SP_CLIENT_ID)" --password "$(SP_CLIENT_PASS)" --tenant "$(TENANT_ID)"
+            displayName: Azure Login
+          - script: |-
+              pwd
+              ls -a  
+              # The dockerfile uses a git tag call, so add one in.
+              git tag $(GIT_REPO_TAG)
+            displayName: Tag Repo
+          - script: |-
+              set -e
+              echo "PWD:"
+              pwd
+              ls -a
+              export BUILD_REPO_NAME=$(echo $(Build.Repository.Name) | tr '[:upper:]' '[:lower:]')
+              export IMAGE_TAG=$(echo $(Build.SourceBranchName) | tr / - | tr . - | tr _ - )-$(Build.BuildNumber)
+              export IMAGE_NAME=$BUILD_REPO_NAME:$IMAGE_TAG
+              echo "Image Name: $IMAGE_NAME"
+              ACR_BUILD_COMMAND="az acr build -r $(ACR_NAME) --image $IMAGE_NAME ."
+
+              cd ./
+              echo "PWD:"
+              pwd
+              ls -a
+              echo "ACR BUILD COMMAND: $ACR_BUILD_COMMAND"
+              $ACR_BUILD_COMMAND
+            displayName: ACR Build and Publish
