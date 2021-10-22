@@ -46,6 +46,7 @@ def validate_jwt(
     public_key=None,
     attempt_refresh=False,
     issuers=None,
+    pkey_cache=None,
     **kwargs
 ):
     """
@@ -109,8 +110,9 @@ def validate_jwt(
         raise JWTError(e)
     attempt_refresh = attempt_refresh and (token_iss != iss)
     public_key = public_key or authutils.token.keys.get_public_key_for_token(
-        encoded_token, attempt_refresh=attempt_refresh
+        encoded_token, attempt_refresh=attempt_refresh, pkey_cache=pkey_cache
     )
+
     try:
         claims = authutils.token.validate.validate_jwt(
             encoded_token=encoded_token,

@@ -3,7 +3,7 @@ import jwt
 import os
 from distutils.util import strtobool
 from authutils.errors import JWTError
-from authutils.token.core import validate_jwt
+from fence.jwt.validate import validate_jwt
 from authutils.token.keys import get_public_key_for_token
 from cdislogging import get_logger
 from flask_sqlalchemy_session import current_session
@@ -88,6 +88,7 @@ class RASCallback(DefaultOAuth2Callback):
                     # Embedded token must contain scope claim, which must include openid
                     scope={"openid"},
                     issuers=config.get("GA4GH_VISA_ISSUER_ALLOWLIST", []),
+                    require_purpose=False,
                     # Embedded token must contain iss, sub, iat, exp claims
                     # options={"require": ["iss", "sub", "iat", "exp"]},
                     # ^ FIXME 2021-05-13: Above needs pyjwt>=v2.0.0, which requires cryptography>=3.
@@ -98,6 +99,7 @@ class RASCallback(DefaultOAuth2Callback):
                     options={
                         "require_iat": True,
                         "require_exp": True,
+                        "verify_aud": False,
                     },
                 )
 

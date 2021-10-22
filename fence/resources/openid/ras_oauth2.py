@@ -5,14 +5,13 @@ from flask_sqlalchemy_session import current_session
 from jose import jwt as jose_jwt
 
 from authutils.errors import JWTError
-from authutils.token.core import get_iss, get_keys_url, get_kid, validate_jwt
+from authutils.token.core import get_iss, get_kid
+
 
 from fence.config import config
+from fence.jwt.validate import validate_jwt
 from fence.models import GA4GHVisaV1
-from fence.resources.ga4gh.passports import (
-    get_unvalidated_visas_from_valid_passport,
-    refresh_pkey_cache,
-)
+from fence.resources.ga4gh.passports import get_unvalidated_visas_from_valid_passport
 from fence.utils import DEFAULT_BACKOFF_SETTINGS
 from .idp_oauth2 import Oauth2ClientBase
 
@@ -168,7 +167,6 @@ class RASOauth2Client(Oauth2ClientBase):
             token = self.get_access_token(user, token_endpoint, db_session)
             userinfo = self.get_userinfo(token)
             encoded_visas = self.get_encoded_visas_v11_userinfo(userinfo, pkey_cache)
-
         except Exception as e:
             err_msg = "Could not retrieve visas"
             self.logger.exception("{}: {}".format(err_msg, e))
@@ -188,31 +186,17 @@ class RASOauth2Client(Oauth2ClientBase):
 
             # See if pkey is in cronjob cache; if not, update cache.
             public_key = pkey_cache.get(visa_issuer, {}).get(visa_kid)
-            if not public_key:
-                try:
-                    public_key = refresh_pkey_cache(visa_issuer, visa_kid, pkey_cache)
-                except Exception as e:
-                    self.logger.error(
-                        "Could not refresh public key cache: {}".format(e)
-                    )
-                    continue
-            if not public_key:
-                self.logger.error(
-                    "Could not get public key to validate visa: Successfully fetched "
-                    "issuer's keys but did not find the visa's key id among them. Discarding visa."
-                )
-                continue  # Not raise: If issuer not publishing pkey, does not make sense to retry
-
+            i = 1
             try:
                 # Validate the visa per GA4GH AAI "Embedded access token" format rules.
                 # pyjwt also validates signature and expiration.
                 decoded_visa = validate_jwt(
-                    encoded_visa,
-                    public_key,
-                    # Embedded token must not contain aud claim
-                    aud=None,
+                    encoded_token=encoded_visa,
+                    public_key=public_key,
+                    attempt_refresh=True,
                     # Embedded token must contain scope claim, which must include openid
                     scope={"openid"},
+                    require_purpose=False,
                     issuers=config.get("GA4GH_VISA_ISSUER_ALLOWLIST", []),
                     # Embedded token must contain iss, sub, iat, exp claims
                     # options={"require": ["iss", "sub", "iat", "exp"]},
@@ -221,15 +205,20 @@ class RASOauth2Client(Oauth2ClientBase):
                     # For now, pyjwt 1.7.1 is able to require iat and exp;
                     # authutils' validate_jwt (i.e. the function being called) checks issuers already (see above);
                     # and we will check separately for sub below.
+                    pkey_cache=pkey_cache,
                     options={
                         "require_iat": True,
                         "require_exp": True,
+                        "verify_aud": False,
                     },
                 )
 
                 # Also require 'sub' claim (see note above about pyjwt and the options arg).
                 if "sub" not in decoded_visa:
                     raise JWTError("Visa is missing the 'sub' claim.")
+                # Embedded token must not contain aud claim
+                if "aud" in decoded_visa:
+                    raise JWTError("Visa contains 'aud' calim")
             except Exception as e:
                 self.logger.error(
                     "Visa failed validation: {}. Discarding visa.".format(e)
