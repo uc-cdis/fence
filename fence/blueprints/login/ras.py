@@ -105,8 +105,8 @@ class RASCallback(DefaultOAuth2Callback):
                 if "sub" not in decoded_visa:
                     raise JWTError("Visa is missing the 'sub' claim.")
                 # Embedded token must not contain aud claim
-                if "aud" not in decoded_visa:
-                    raise JWTError("Visa is contains the 'aud' claim.")
+                if "aud" in decoded_visa:
+                    raise JWTError("Visa contains the 'aud' claim.")
                 if not user.idp_to_users:
                     # map user to idp
                     self.map_user_idp_info(
