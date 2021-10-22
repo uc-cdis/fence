@@ -108,7 +108,6 @@ def get_unvalidated_visas_from_valid_passport(passport, pkey_cache=None):
             public_key=public_key,
             attempt_refresh=True,
             require_purpose=False,
-            aud=None,
             scope={"openid"},
             issuers=config.get("GA4GH_VISA_ISSUER_ALLOWLIST", []),
             options={

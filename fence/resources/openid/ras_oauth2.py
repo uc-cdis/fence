@@ -186,7 +186,6 @@ class RASOauth2Client(Oauth2ClientBase):
 
             # See if pkey is in cronjob cache; if not, update cache.
             public_key = pkey_cache.get(visa_issuer, {}).get(visa_kid)
-            i = 1
             try:
                 # Validate the visa per GA4GH AAI "Embedded access token" format rules.
                 # pyjwt also validates signature and expiration.

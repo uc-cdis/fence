@@ -83,8 +83,6 @@ class RASCallback(DefaultOAuth2Callback):
                 decoded_visa = validate_jwt(
                     encoded_visa,
                     public_key,
-                    # Embedded token must not contain aud claim
-                    aud=None,
                     # Embedded token must contain scope claim, which must include openid
                     scope={"openid"},
                     issuers=config.get("GA4GH_VISA_ISSUER_ALLOWLIST", []),
@@ -106,6 +104,9 @@ class RASCallback(DefaultOAuth2Callback):
                 # Also require 'sub' claim (see note above about pyjwt and the options arg).
                 if "sub" not in decoded_visa:
                     raise JWTError("Visa is missing the 'sub' claim.")
+                # Embedded token must not contain aud claim
+                if "aud" not in decoded_visa:
+                    raise JWTError("Visa is contains the 'aud' claim.")
                 if not user.idp_to_users:
                     # map user to idp
                     self.map_user_idp_info(
