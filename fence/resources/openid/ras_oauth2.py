@@ -151,7 +151,7 @@ class RASOauth2Client(Oauth2ClientBase):
 
     def get_user_id(self, code):
 
-        err_msg = "Can't get user's info"
+        err_msg = "Unable to parse UserID from RAS userinfo response"
 
         try:
             token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
@@ -182,12 +182,6 @@ class RASOauth2Client(Oauth2ClientBase):
             elif userinfo.get("userid"):
                 username = userinfo["userid"]
                 field_name = "userid"
-            elif userinfo.get("preferred_username"):
-                username = userinfo["preferred_username"]
-                field_name = "preferred_username"
-            elif claims.get("sub"):
-                username = claims["sub"]
-                field_name = "sub"
             if not username:
                 self.logger.error(
                     "{}, received claims: {} and userinfo: {}".format(
