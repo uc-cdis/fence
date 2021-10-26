@@ -1,5 +1,5 @@
 # To run: docker run --rm -d -v /path/to/fence-config.yaml:/var/www/fence/fence-config.yaml --name=fence -p 80:80 fence
-# To check running container: docker exec -it fence /bin/bash
+# To check running container do: docker exec -it fence /bin/bash
 
 FROM quay.io/cdis/python:feat_python3.6-buster
 
