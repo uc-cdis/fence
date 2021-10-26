@@ -5,7 +5,6 @@ from yaml import safe_load
 import json
 import pprint
 import asyncio
-
 from cirrus import GoogleCloudManager
 from cirrus.google_cloud.errors import GoogleAuthError
 from cirrus.config import config as cirrus_config
@@ -24,6 +23,7 @@ from userdatamodel.models import (
     User,
     ProjectToBucket,
 )
+from sqlalchemy import and_
 
 from fence.blueprints.link import (
     force_update_user_google_account_expiration,
@@ -685,12 +685,14 @@ def delete_expired_google_access(DB):
     with driver.session as session:
         current_time = int(time.time())
 
-        # Get expires field from db, if None, default to NOT expired
+        # Get expires field from db, if None default to NOT expired
         records_to_delete = (
             session.query(GoogleProxyGroupToGoogleBucketAccessGroup)
             .filter(
-                (GoogleProxyGroupToGoogleBucketAccessGroup.expires or current_time + 1)
-                < current_time
+                and_(
+                    GoogleProxyGroupToGoogleBucketAccessGroup.expires.isnot(None),
+                    GoogleProxyGroupToGoogleBucketAccessGroup.expires < current_time,
+                )
             )
             .all()
         )
