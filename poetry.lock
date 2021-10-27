@@ -61,7 +61,7 @@ requests = "*"
 
 [[package]]
 name = "authutils"
-version = "6.1.0"
+version = "6.1.2"
 description = "Gen3 auth utility functions"
 category = "main"
 optional = false
@@ -81,7 +81,7 @@ fastapi = ["fastapi (>=0.54.1,<0.55.0)"]
 
 [package.source]
 type = "file"
-url = "authutils-6.1.0.tar.gz"
+url = "authutils-6.1.2.tar.gz"
 
 [[package]]
 name = "aws-xray-sdk"
@@ -719,7 +719,7 @@ testing = ["pytest"]
 
 [[package]]
 name = "google-resumable-media"
-version = "2.0.3"
+version = "2.1.0"
 description = "Utilities for Google Media Downloads and Resumable Uploads"
 category = "main"
 optional = false
@@ -1093,7 +1093,7 @@ twisted = ["twisted"]
 
 [[package]]
 name = "prometheus-flask-exporter"
-version = "0.18.3"
+version = "0.18.4"
 description = "Prometheus metrics exporter for Flask"
 category = "main"
 optional = false
@@ -1355,7 +1355,7 @@ rsa = ["oauthlib[signedtoken] (>=3.0.0)"]
 
 [[package]]
 name = "responses"
-version = "0.14.0"
+version = "0.15.0"
 description = "A utility library for mocking out the `requests` Python library."
 category = "dev"
 optional = false
@@ -1595,7 +1595,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "79f17286d35ee683ccde196f96d10b7fa081dcb061631d9090912a70e2dd150e"
+content-hash = "63953e7bdfc0749415d59f4eddbd8501ab793ac967bb8b83854addd6f5af5ece"
 
 [metadata.files]
 addict = [
@@ -1623,7 +1623,7 @@ authlib = [
     {file = "Authlib-0.11.tar.gz", hash = "sha256:9741db6de2950a0a5cefbdb72ec7ab12f7e9fd530ff47219f1530e79183cbaaf"},
 ]
 authutils = [
-    {file = "authutils-6.1.0.tar.gz", hash = "sha256:d1a86853d679a5f0d9f4a2c88d25427887158926cb0c5cac87f15b0552fdef30"},
+    {file = "authutils-6.1.2.tar.gz", hash = "sha256:17e69064586e793958c4aecc5999136f45bee3587b279f5527d0b5dd3f1da0af"},
 ]
 aws-xray-sdk = [
     {file = "aws-xray-sdk-0.95.tar.gz", hash = "sha256:9e7ba8dd08fd2939376c21423376206bff01d0deaea7d7721c6b35921fed1943"},
@@ -1974,8 +1974,8 @@ google-crc32c = [
     {file = "google_crc32c-1.3.0-pp37-pypy37_pp73-win_amd64.whl", hash = "sha256:7f6fe42536d9dcd3e2ffb9d3053f5d05221ae3bbcefbe472bdf2c71c793e3183"},
 ]
 google-resumable-media = [
-    {file = "google-resumable-media-2.0.3.tar.gz", hash = "sha256:b4b4709d04a6a03cbec746c2b5cb18f1f9878bf1ef3cd61908842a3d94c20471"},
-    {file = "google_resumable_media-2.0.3-py2.py3-none-any.whl", hash = "sha256:efe23e22bc9838630f0fd185e21de503c731a726e66da90c1572653d8480e8e4"},
+    {file = "google-resumable-media-2.1.0.tar.gz", hash = "sha256:725b989e0dd387ef2703d1cc8e86217474217f4549593c477fd94f4024a0f911"},
+    {file = "google_resumable_media-2.1.0-py2.py3-none-any.whl", hash = "sha256:cdc75ea0361e39704dc7df7da59fbd419e73c8bc92eac94d8a020d36baa9944b"},
 ]
 googleapis-common-protos = [
     {file = "googleapis-common-protos-1.53.0.tar.gz", hash = "sha256:a88ee8903aa0a81f6c3cec2d5cf62d3c8aa67c06439b0496b49048fb1854ebf4"},
@@ -2141,8 +2141,8 @@ prometheus-client = [
     {file = "prometheus_client-0.9.0.tar.gz", hash = "sha256:9da7b32f02439d8c04f7777021c304ed51d9ec180604700c1ba72a4d44dceb03"},
 ]
 prometheus-flask-exporter = [
-    {file = "prometheus_flask_exporter-0.18.3-py3-none-any.whl", hash = "sha256:abc8207c74096444580771fa5899df6dfaa5834229c2a62f12dd31817f5f373a"},
-    {file = "prometheus_flask_exporter-0.18.3.tar.gz", hash = "sha256:96013537284154a83d90cedaf0bcd5011c6053d8f1a50e775dfebdb491eba7c7"},
+    {file = "prometheus_flask_exporter-0.18.4-py3-none-any.whl", hash = "sha256:dc3587a9890c86b9a9f0a489fa7db5c782f9e7f4616a2dec25d80350131d8c05"},
+    {file = "prometheus_flask_exporter-0.18.4.tar.gz", hash = "sha256:66d6eb2124f2d97bc983ae7573322dce9104291a3052b436e6a7fb43a25abdbd"},
 ]
 protobuf = [
     {file = "protobuf-3.17.3-cp27-cp27m-macosx_10_9_x86_64.whl", hash = "sha256:ab6bb0e270c6c58e7ff4345b3a803cc59dbee19ddf77a4719c5b635f1d547aa8"},
@@ -2351,8 +2351,8 @@ requests-oauthlib = [
     {file = "requests_oauthlib-1.3.0-py3.7.egg", hash = "sha256:fa6c47b933f01060936d87ae9327fead68768b69c6c9ea2109c48be30f2d4dbc"},
 ]
 responses = [
-    {file = "responses-0.14.0-py2.py3-none-any.whl", hash = "sha256:57bab4e9d4d65f31ea5caf9de62095032c4d81f591a8fac2f5858f7777b8567b"},
-    {file = "responses-0.14.0.tar.gz", hash = "sha256:93f774a762ee0e27c0d9d7e06227aeda9ff9f5f69392f72bb6c6b73f8763563e"},
+    {file = "responses-0.15.0-py2.py3-none-any.whl", hash = "sha256:5955ad3468fe8eb5fb736cdab4943457b7768f8670fa3624b4e26ff52dfe20c0"},
+    {file = "responses-0.15.0.tar.gz", hash = "sha256:866757987d1962aa908d9c8b3185739faefd72a359e95459de0c2e4e5369c9b2"},
 ]
 retry = [
     {file = "retry-0.9.2-py2.py3-none-any.whl", hash = "sha256:ccddf89761fa2c726ab29391837d4327f819ea14d244c232a1d24c67a2f98606"},
