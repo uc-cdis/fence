@@ -1,5 +1,5 @@
 from sqlalchemy import func, and_
-
+from cdislogging import get_logger
 from fence.errors import NotFound, UserError
 from fence.models import (
     Project,
@@ -16,12 +16,12 @@ from fence.models import (
     UserDocument
 )
 
-
 __all__ = [
     "get_user",
     "get_user_accesses",
     "create_user_by_username_project",
     "get_all_users",
+    "get_users",
     "get_user_groups",
     "update_user",
     "review_document",
@@ -29,6 +29,7 @@ __all__ = [
     "get_docs",
 ]
 
+logger = get_logger(__name__)
 
 def get_user(current_session, username):
     return query_for_user(session=current_session, username=username)
@@ -84,6 +85,17 @@ def create_user_by_username_project(current_session, new_user, proj):
 
 def get_all_users(current_session):
     return current_session.query(User).all()
+
+
+def get_users(current_session, usernames:list):
+    # logger.info(f"get_users usernames: {usernames}")
+    if not usernames:
+        return []
+    users = current_session.query(User).filter(
+        User.username.in_(usernames)
+    ).all()
+    # logger.info(f"get_users users found: {users}")
+    return users
 
 
 def get_user_groups(current_session, username):
