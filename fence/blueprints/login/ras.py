@@ -68,8 +68,8 @@ class RASCallback(DefaultOAuth2Callback):
                 decoded_visa = validate_jwt(
                     encoded_token=encoded_visa,
                     # Embedded token must contain scope claim, which must include openid
-                    scope={"openid"},
-                    issuers=config.get("GA4GH_VISA_ISSUER_ALLOWLIST", []),
+                    scope={"openid", "ga4gh_passport_v1"},
+                    issuers=config["GA4GH_VISA_ISSUER_ALLOWLIST"],
                     require_purpose=False,
                     # Embedded token must contain iss, sub, iat, exp claims
                     # options={"require": ["iss", "sub", "iat", "exp"]},
