@@ -5,6 +5,8 @@ import time
 import datetime
 import gen3authz.client.arborist.client
 
+from urllib.parse import urlparse, quote_plus
+
 # TODO comment regarding circular imports
 import fence.scripting.fence_create
 
@@ -13,7 +15,13 @@ from cdislogging import get_logger
 
 from fence.jwt.validate import validate_jwt
 from fence.config import config
-from fence.models import query_for_user, GA4GHVisaV1, User
+from fence.models import (
+    query_for_user,
+    GA4GHVisaV1,
+    User,
+    IdentityProvider,
+    IssSubPairToUser,
+)
 from fence.sync.passport_sync.ras_sync import RASVisa
 
 logger = get_logger(__name__)
@@ -109,7 +117,8 @@ def validate_visa(raw_visa):
     if "aud" in decoded_visa:
         raise Exception('Visa MUST NOT contain "aud" claim')
 
-    # TODO may want to set these fields and values in config-default.yaml
+    # TODO may want to set these fields and values in config-default.yaml or
+    # bring to top of file
     field_to_expected_value = {
         "type": "https://ras.nih.gov/visas/v1.1",
         "asserted": None,
@@ -138,22 +147,35 @@ def validate_visa(raw_visa):
 
 
 def get_or_create_gen3_user_from_iss_sub(issuer, subject_id):
-    # TODO update mapping table
-    # for idp_name, idp_config in config.get("OPENID_CONNECT", {}).items():
-
-    # there are issues with syncing when "https://" is part of the username.
-    # for example,  Arborist returns a 301 for a `POST /user/
-    # {username}/policy` request, possibly due to the slashes.
-    # TODO may want to use urllib to get rid of protocol
-    issuer = issuer.replace("https://", "")
-    username = issuer + "_" + subject_id
     with flask.current_app.db.session as db_session:
-        user = query_for_user(db_session, username)
-        if not user:
-            user = User(username=username)
-            db_session.add(user)
+        iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get(
+            (issuer, subject_id)
+        )
+        if not (iss_sub_pair_to_user and iss_sub_pair_to_user.user):
+            # There are issues with syncing when the unencoded scheme
+            # (i.e. "https://") is part of the username. For example,
+            # Arborist returns a 301 for a `POST /user/
+            # {username}/policy` request, possibly due to the double
+            # slashes.
+            username = quote_plus(issuer) + subject_id
+            gen3_user = User(username=username)
+            idp_name = flask.current_app.issuer_to_idp.get(issuer)
+            if idp_name:
+                idp = (
+                    db_session.query(IdentityProvider)
+                    .filter(IdentityProvider.name == idp_name)
+                    .first()
+                )
+                gen3_user.identity_provider = idp
+
+            iss_sub_pair_to_user = IssSubPairToUser(iss=issuer, sub=subject_id)
+            iss_sub_pair_to_user.user = gen3_user
+
+            db_session.add(gen3_user)
+            db_session.add(iss_sub_pair_to_user)
             db_session.commit()
-    return user
+
+    return iss_sub_pair_to_user.user
 
 
 def sync_visa_authorization(gen3_user, ga4gh_visas, expiration):

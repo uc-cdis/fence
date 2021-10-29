@@ -106,11 +106,6 @@ class RASCallback(DefaultOAuth2Callback):
                 # Also require 'sub' claim (see note above about pyjwt and the options arg).
                 if "sub" not in decoded_visa:
                     raise JWTError("Visa is missing the 'sub' claim.")
-                if not user.idp_to_users:
-                    # map user to idp
-                    self.map_user_idp_info(
-                        user, userinfo.get("sub"), IdentityProvider.ras, current_session
-                    )
             except Exception as e:
                 logger.error("Visa failed validation: {}. Discarding visa.".format(e))
                 continue

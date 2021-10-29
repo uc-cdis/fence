@@ -14,13 +14,14 @@ from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from azure.storage.blob import BlobServiceClient
 from azure.core.exceptions import ResourceNotFoundError
+from urllib.parse import urlparse
 
 from fence.auth import logout, build_redirect_url
 from fence.blueprints.data.indexd import S3IndexedFileLocation
 from fence.blueprints.login.utils import allowed_login_redirects, domain
 from fence.errors import UserError
 from fence.jwt import keys
-from fence.models import migrate
+from fence.models import migrate, IdentityProvider
 from fence.oidc.client import query_client
 from fence.oidc.server import server
 from fence.resources.audit.client import AuditServiceClient
@@ -424,6 +425,10 @@ def _setup_oidc_clients(app):
             HTTP_PROXY=config.get("HTTP_PROXY"),
             logger=logger,
         )
+        # TODO maybe get this from discovery doc or from the config file
+        split_url = urlparse(app.ras_client.discovery_url)
+        issuer = f"{split_url.scheme}://{split_url.netloc}"
+        app.issuer_to_idp = {issuer: IdentityProvider.ras}
 
     # Add OIDC client for Synapse if configured.
     if "synapse" in oidc:

@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 from fence.config import config
-from fence.models import GA4GHVisaV1
+from fence.models import GA4GHVisaV1, IdentityProvider, User, IssSubPairToUser
 from fence.utils import DEFAULT_BACKOFF_SETTINGS
 from .idp_oauth2 import Oauth2ClientBase
 
@@ -198,6 +198,12 @@ class RASOauth2Client(Oauth2ClientBase):
 
             self.logger.info("Using {} field as username.".format(field_name))
 
+            email = userinfo.get("email")
+            issuer = self.get_value_from_discovery_doc("issuer")
+            subject_id = userinfo.get("sub")
+            # TODO log error message if issuer, subject_id not available
+            self.map_iss_sub_pair_to_user(issuer, subject_id, username, email)
+
             # Save userinfo and token in flask.g for later use in post_login
             flask.g.userinfo = userinfo
             flask.g.tokens = token
@@ -207,7 +213,34 @@ class RASOauth2Client(Oauth2ClientBase):
             self.logger.exception("{}: {}".format(err_msg, e))
             return {"error": err_msg}
 
-        return {"username": username, "email": userinfo.get("email")}
+        return {"username": username, "email": email}
+
+    @staticmethod
+    def map_iss_sub_pair_to_user(issuer, subject_id, username, email):
+        user = query_for_user(username)
+        if not user:
+            user = User(username=username, email=email)
+            idp = (
+                current_session.query(IdentityProvider)
+                .filter(IdentityProvider.name == IdentityProvider.ras)
+                .first()
+            )
+            if not idp:
+                idp = IdentityProvider(name=IdentityProvider.ras)
+            user.identity_provider = idp
+            current_session.add(user)
+
+        iss_sub_pair_to_user = current_session.query(IssSubPairToUser).get(
+            (issuer, subject_id)
+        )
+        if not iss_sub_pair_to_user:
+            iss_sub_pair_to_user = IssSubPairToUser(iss=issuer, sub=subject_id)
+            iss_sub_pair_to_user.user = user
+            current_session.add(iss_sub_pair_to_user)
+        elif iss_sub_pair_to_user.user.username != user.username:
+            iss_sub_pair_to_user.user.username = user.username
+            # TODO change username in Arborist as well
+        current_session.commit()
 
     def refresh_cronjob_pkey_cache(self, issuer, kid, pkey_cache):
         """
