@@ -1,4 +1,5 @@
 import flask
+from flask import request
 from fence.errors import UserError
 
 from fence.blueprints.data.indexd import (
@@ -18,10 +19,13 @@ blueprint = flask.Blueprint("ga4gh", __name__)
     methods=["GET", "POST"],
 )
 def get_ga4gh_signed_url(object_id, access_id):
+
     if not access_id:
         raise UserError("Access ID/Protocol is required.")
 
     result = get_signed_url_for_file(
-        "download", object_id, requested_protocol=access_id
+        "download",
+        object_id,
+        requested_protocol=access_id,
     )
     return flask.jsonify(result)

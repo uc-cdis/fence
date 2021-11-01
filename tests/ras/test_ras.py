@@ -17,6 +17,7 @@ from fence.models import (
     IdPToUser,
 )
 from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
+from fence.config import config
 
 from tests.dbgap_sync.conftest import add_visa_manually
 from fence.job.visa_update_cronjob import Visa_Token_Update

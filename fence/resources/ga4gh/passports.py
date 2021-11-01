@@ -1,4 +1,16 @@
+from authutils.errors import JWTError
+from authutils.token.core import get_iss, get_kid
+from cdislogging import get_logger
+
+from fence.config import config
+from fence.jwt.validate import validate_jwt
+
+
+logger = get_logger(__name__)
+
+
 def get_gen3_user_ids_from_ga4gh_passports(passports):
+
     user_ids_from_passports = []
 
     was_cached = False
@@ -50,9 +62,60 @@ def get_gen3_user_ids_for_passport_from_cache(passport):
     return cached_user_ids
 
 
-def get_unvalidated_visas_from_valid_passport(passport):
-    # validate passport, return visas
-    return []
+def get_unvalidated_visas_from_valid_passport(passport, pkey_cache=None):
+    """
+    Return encoded visas after extracting and validating encoded passport
+
+    Args:
+        passport (string): encoded ga4gh passport
+        pkey_cache (dict): app cache of public keys_dir
+
+    Return:
+        list: list of encoded GA4GH visas
+    """
+    decoded_passport = {}
+    passport_issuer, passport_kid = None, None
+
+    if not pkey_cache:
+        pkey_cache = {}
+
+    try:
+        passport_issuer = get_iss(passport)
+        passport_kid = get_kid(passport)
+    except Exception as e:
+        logger.error(
+            "Could not get issuer or kid from passport: {}. Discarding passport.".format(
+                e
+            )
+        )
+        # ignore malformed/invalid passports
+        return []
+
+    public_key = pkey_cache.get(passport_issuer, {}).get(passport_kid)
+
+    try:
+        decoded_passport = validate_jwt(
+            encoded_token=passport,
+            public_key=public_key,
+            attempt_refresh=True,
+            require_purpose=False,
+            scope={"openid"},
+            issuers=config.get("GA4GH_VISA_ISSUER_ALLOWLIST", []),
+            options={
+                "require_iat": True,
+                "require_exp": True,
+                "verify_aud": False,
+            },
+        )
+
+        if "sub" not in decoded_passport:
+            raise JWTError("Visa is missing the 'sub' claim.")
+    except Exception as e:
+        logger.error("Passport failed validation: {}. Discarding passport.".format(e))
+        # ignore malformed/invalid passports
+        return []
+
+    return decoded_passport.get("ga4gh_passport_v1", [])
 
 
 def is_raw_visa_valid(raw_visa):
