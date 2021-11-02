@@ -1,10 +1,12 @@
 name: CI Workflow
 
+name: Unit Tests
+
 on: [push]
 
 jobs:
 
-  test:
+  pytest:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -43,6 +45,7 @@ jobs:
         poetry show
     - name: Setup database
       run: |
+        sudo service postgresql start
         psql -c 'SELECT version();' -U postgres
         psql -U postgres -c "create database fence_test_tmp"
     - name: Test with pytest
