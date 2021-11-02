@@ -1,0 +1,62 @@
+name: CI Workflow
+
+on: [push]
+
+jobs:
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:9.6
+        env:
+          POSTGRES_USER: postgres_user
+          POSTGRES_PASSWORD: postgres_pass  # pragma: allowlist secret
+          POSTGRES_DB: fence
+        ports:
+        - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+    - uses: actions/checkout@v1
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.10
+    - uses: actions/cache@preview
+      with:
+        path: ~/.cache/pypoetry/virtualenvs
+        key: ${{ runner.os }}-poetry-${{ hashFiles(format('{0}{1}', github.workspace, '/poetry.lock')) }}
+        restore-keys: |
+          ${{ runner.os }}-poetry-
+    - name: Cleanup
+      run: |
+        sudo rm -f /etc/boto.cfg
+    - name: Setup keys for testing
+      run: |
+        mkdir -p tests/resources/keys; cd tests/resources/keys; openssl genrsa -out test_private_key.pem 2048; openssl rsa -in test_private_key.pem -pubout -out test_public_key.pem
+        openssl genrsa -out test_private_key_2.pem 2048; openssl rsa -in test_private_key_2.pem -pubout -out test_public_key_2.pem
+        cd -
+    - name: Install dependencies
+      run: |
+        curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/install-poetry.py | python
+        $HOME/.local/bin/poetry install -vvv
+        poetry show
+    - name: Setup database
+      run: |
+        psql -c 'SELECT version();' -U postgres
+        psql -U postgres -c "create database fence_test_tmp"
+    - name: Test with pytest
+      env:
+        DB_HOST: localhost
+        DB_PORT: ${{ job.services.postgres.ports[5432] }}
+        DB_USER: postgres_user
+        DB_PASSWORD: postgres_pass  # pragma: allowlist secret
+      run: |
+        $HOME/.local/bin/poetry run pytest --cov=src --cov=migrations/versions --cov-report xml
+    - name: Submit coverage report
+      if: github.ref == 'refs/heads/master'
+      env:
+        COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
+      run: |
+        pip install coveralls
+        coveralls
