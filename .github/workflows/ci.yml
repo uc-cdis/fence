@@ -57,7 +57,7 @@ jobs:
       run: |
         PGPASSWORD=$DB_PASSWORD psql --host $DB_HOST --port $DB_PORT -c 'SELECT version();' -U $DB_USER
         PGPASSWORD=$DB_PASSWORD psql --host $DB_HOST --port $DB_PORT -U $DB_USER -c "create database fence_test_tmp"
-        $HOME/.local/bin/poetry run pytest --cov=src --cov=migrations/versions --cov-report xml
+        $HOME/.local/bin/poetry run pytest --cov=fence --cov-report xml
     - name: Submit coverage report
       if: github.ref == 'refs/heads/master'
       env:
