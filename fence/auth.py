@@ -1,23 +1,26 @@
-import flask
-from flask_sqlalchemy_session import current_session
+import urllib.error
+import urllib.parse
+import urllib.request
+import flask 
+from configparser import RawConfigParser
 from functools import wraps
-import urllib.request, urllib.parse, urllib.error
 
 from authutils.errors import JWTError, JWTExpiredError
 from authutils.token.validate import (
-    current_token,
+    current_token, 
     require_auth_header,
-    set_current_token,
-    validate_request,
+    set_current_token, 
+    validate_request
 )
-from cdislogging import get_logger
-
-from fence.errors import Unauthorized, InternalError
+from flask_sqlalchemy_session import current_session
+from fence.config import config
+from fence.errors import InternalError, Unauthorized
 from fence.jwt.validate import validate_jwt
 from fence.models import User, IdentityProvider, query_for_user
 from fence.user import get_current_user
 from fence.utils import clear_cookies
-from fence.config import config
+from cdislogging import get_logger
+from pcdcutils.gen3 import Gen3RequestManager
 
 logger = get_logger(__name__)
 
@@ -38,7 +41,6 @@ def get_jwt():
     if bearer.lower() != "bearer":
         raise Unauthorized("expected bearer token in auth header")
     return token
-
 
 def build_redirect_url(hostname, path):
     """
@@ -173,7 +175,10 @@ def login_required(scope=None):
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
+            # logger.debug("Decorator login_required wrapper")
+
             if flask.session.get("username"):
+                # logger.debug("Decorator login_required wrapper, login_user")
                 login_user(flask.session["username"], flask.session["provider"])
                 return f(*args, **kwargs)
 
@@ -195,17 +200,21 @@ def login_required(scope=None):
                 eppn = "test"
             # if there is authorization header for oauth
             if "Authorization" in flask.request.headers:
+                # logger.debug("Decorator login_required wrapper, if 'Authorization'")
                 has_oauth(scope=scope)
                 return f(*args, **kwargs)
             # if there is shibboleth session, then create user session and
             # log user in
             elif eppn:
+                # logger.debug("Decorator login_required wrapper, if eppn")
                 username = eppn.split("!")[-1]
                 flask.session["username"] = username
                 flask.session["provider"] = IdentityProvider.itrust
                 login_user(username, flask.session["provider"])
                 return f(*args, **kwargs)
             else:
+                # logger.debug("Decorator login_required wrapper, all else failed")
+                # logger.debug(f"Decorator login_required wrapper, headers: {str(flask.request.headers)}")
                 raise Unauthorized("Please login")
 
         return wrapper
@@ -245,10 +254,19 @@ def admin_required(f):
 
     @wraps(f)
     def wrapper(*args, **kwargs):
+        # logger.debug("Decorator:  admin required, wrapper")
         if not flask.g.user:
+            # logger.debug("Decorator admin required, wrapper: not flask.g.user")
             raise Unauthorized("Require login")
         if flask.g.user.is_admin is not True:
-            raise Unauthorized("Require admin user")
+            # logger.debug("Decorator admin required, wrapper: flask.g.user.is_admin is not True")
+            g3rm = Gen3RequestManager(headers=flask.request.headers)
+            if g3rm.is_gen3_signed():
+                data = flask.request.get_json.get('data', None)
+                if not g3rm.valid_gen3_signature(data, config):
+                    raise Unauthorized("Gen3 signed request is invalid")
+            else:
+                raise Unauthorized("Require admin user")
         return f(*args, **kwargs)
 
     return wrapper
@@ -256,6 +274,7 @@ def admin_required(f):
 
 def admin_login_required(function):
     """Compose the login required and admin required decorators."""
+    # logger.debug("Decorator:  admin_login_required")
     return login_required({"admin"})(admin_required(function))
 
 

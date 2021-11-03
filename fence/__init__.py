@@ -54,6 +54,7 @@ import fence.blueprints.google
 import fence.blueprints.privacy
 import fence.blueprints.register
 import fence.blueprints.ga4gh
+from pcdcutils.signature import SignatureManager
 
 
 # for some reason the temp dir does not get created properly if we move
@@ -359,6 +360,10 @@ def app_config(
     with app.app_context():
         _check_aws_creds_and_region(app)
         _check_azure_storage(app)
+
+    # load amanuensis public key for cross-service access
+    key_path = config.get("AMANUENSIS_PUBLIC_KEY_PATH", None)
+    config["AMANUENSIS_PUBLIC_KEY"] = SignatureManager(key_path=key_path).get_key()
 
 
 def _setup_data_endpoint_and_boto(app):

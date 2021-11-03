@@ -21,6 +21,7 @@ __all__ = [
     "connect_user_to_project",
     "get_user_info",
     "get_all_users",
+    "get_users",
     "get_user_groups",
     "create_user",
     "update_user",
@@ -82,6 +83,17 @@ def get_all_users(current_session):
             new_user["role"] = "user"
         users_names.append(new_user)
     return {"users": users_names}
+
+
+def get_users(current_session, usernames):
+    users_found = udm.get_users(current_session, usernames)
+    users = []
+    for user in users_found:
+        new_user = {}
+        new_user['id'] = user.id
+        new_user["name"] = user.username
+        users.append(new_user)
+    return {"users": users}
 
 
 def get_user_groups(current_session, username):
