@@ -48,8 +48,6 @@ jobs:
         poetry show
     - name: Setup db & test with pytest
       env:
-        # use postgres for the host here because we have specified a container for the job.
-        # If we were running the job on the VM this would be localhost
         DB_HOST: 0.0.0.0
         DB_PORT: 5432
         DB_USER: postgres
