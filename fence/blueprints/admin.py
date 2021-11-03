@@ -81,9 +81,9 @@ def get_users():
     Returns a json object of one or more user records
     """
     usernames = request.get_json().get('usernames', None)
-    # logger.info(f"get_users usernames: {usernames}")
+    # logger.debug(f"get_users usernames: {usernames}")
     users = admin.get_users(current_session, usernames)
-    # logger.info(f"get_users users returned: {users}")
+    # logger.debug(f"get_users users returned: {users}")
     return jsonify(users)
 
 

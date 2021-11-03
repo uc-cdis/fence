@@ -2,26 +2,25 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import flask 
-import binascii
 from configparser import RawConfigParser
 from functools import wraps
-from os import environ
-
-from Crypto.PublicKey import RSA
-from Crypto.Signature import pkcs1_15
-from Crypto.Hash import SHA256
 
 from authutils.errors import JWTError, JWTExpiredError
-from authutils.token.validate import (current_token, require_auth_header,
-                                      set_current_token, validate_request)
+from authutils.token.validate import (
+    current_token, 
+    require_auth_header,
+    set_current_token, 
+    validate_request
+)
 from flask_sqlalchemy_session import current_session
 from fence.config import config
 from fence.errors import InternalError, Unauthorized
 from fence.jwt.validate import validate_jwt
-from fence.models import IdentityProvider, User, query_for_user
+from fence.models import User, IdentityProvider, query_for_user
 from fence.user import get_current_user
 from fence.utils import clear_cookies
 from cdislogging import get_logger
+from pcdcutils.gen3 import Gen3RequestManager
 
 logger = get_logger(__name__)
 
@@ -42,79 +41,6 @@ def get_jwt():
     if bearer.lower() != "bearer":
         raise Unauthorized("expected bearer token in auth header")
     return token
-
-def requested_by_gen3_service():
-    """
-    Returns the contents of the Gen3-Service header or False
-    """
-    header_utf8 = flask.request.headers.get("Gen3-Service", '')
-    if header_utf8:
-        header = header_utf8.decode('utf-8')
-        logger.info(f"Fence auth requested_by_gen3_service header: {header}")
-        return header
-    
-    return False
-
-def request_is_gen3_signed():
-    """
-    Returns bool if Signature header is present
-    """
-    header_utf8 = flask.request.headers.get("Signature", '')
-    header = header_utf8.decode('utf-8')
-    logger.info(f"Fence auth request_is_gen3_signed header: {header}")
-    return (bool(header) and bool(requested_by_gen3_service()))
-
-def get_request_signature():
-    """
-    Return the signature header from another service. Requires flask application context.
-    Raises:
-        - Unauthorized, if header is missing or not in the correct format
-    """
-    header = flask.request.headers.get("Signature", None)
-    if not header:
-        raise Unauthorized("missing signature header")
-    try:
-        signature_string = header.decode('utf-8')
-        prefix, hexed_signature = signature_string.split(" ")
-        signature = binascii.unhexlify(hexed_signature)
-    except ValueError:
-        raise Unauthorized("signature header not in expected format")
-    if prefix.lower() != "signature":
-        raise Unauthorized("expected signature token in auth header")
-    return signature
-
-def verify_request_signature(public_key_path, data, signature):
-    """
-    Check if the signature header is valid
-    """
-    if not public_key_path and not signature and not data:
-        return False
-    try:
-        pub_key = open(public_key_path, "r").read()
-        rsakey = RSA.importKey(pub_key)
-        hash = SHA256.new(data)
-        pkcs1_15.new(rsakey).verify(hash, signature)
-        return True
-    except ValueError as e:
-        raise Unauthorized("unable to verify request signature")
-    
-def valid_gen3_signature():
-    """
-    Tests an authorized Gen3 request signature for validity, returns bool
-    """
-    public_key_path = ''
-    service_name = requested_by_gen3_service()
-    signature = get_request_signature()
-    # get the signed post data
-    data = flask.request.get_json.get('data', None)
-
-    if "amanuensis" == service_name.lower():
-        public_key_path = environ['AMANUENSIS_PUBLIC_KEY']
-    else:
-        raise Unauthorized(f"'{service_name}' is not a valid Gen3 service name")
-    
-    return verify_request_signature(public_key_path, data, signature)
-
 
 def build_redirect_url(hostname, path):
     """
@@ -249,10 +175,10 @@ def login_required(scope=None):
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
-            logger.info("Decorator login_required wrapper")
+            # logger.debug("Decorator login_required wrapper")
 
             if flask.session.get("username"):
-                logger.info("Decorator login_required wrapper, login_user")
+                # logger.debug("Decorator login_required wrapper, login_user")
                 login_user(flask.session["username"], flask.session["provider"])
                 return f(*args, **kwargs)
 
@@ -274,21 +200,21 @@ def login_required(scope=None):
                 eppn = "test"
             # if there is authorization header for oauth
             if "Authorization" in flask.request.headers:
-                logger.info("Decorator login_required wrapper, if 'Authorization'")
+                # logger.debug("Decorator login_required wrapper, if 'Authorization'")
                 has_oauth(scope=scope)
                 return f(*args, **kwargs)
             # if there is shibboleth session, then create user session and
             # log user in
             elif eppn:
-                logger.info("Decorator login_required wrapper, if eppn")
+                # logger.debug("Decorator login_required wrapper, if eppn")
                 username = eppn.split("!")[-1]
                 flask.session["username"] = username
                 flask.session["provider"] = IdentityProvider.itrust
                 login_user(username, flask.session["provider"])
                 return f(*args, **kwargs)
             else:
-                logger.info("Decorator login_required wrapper, all else failed")
-                logger.info(f"Decorator login_required wrapper, headers: {str(flask.request.headers)}")
+                # logger.debug("Decorator login_required wrapper, all else failed")
+                # logger.debug(f"Decorator login_required wrapper, headers: {str(flask.request.headers)}")
                 raise Unauthorized("Please login")
 
         return wrapper
@@ -328,14 +254,16 @@ def admin_required(f):
 
     @wraps(f)
     def wrapper(*args, **kwargs):
-        logger.info("Decorator:  admin required, wrapper")
+        # logger.debug("Decorator:  admin required, wrapper")
         if not flask.g.user:
-            logger.info("Decorator admin required, wrapper: not flask.g.user")
+            # logger.debug("Decorator admin required, wrapper: not flask.g.user")
             raise Unauthorized("Require login")
         if flask.g.user.is_admin is not True:
-            logger.info("Decorator admin required, wrapper: flask.g.user.is_admin is not True")
-            if request_is_gen3_signed():
-                if not valid_gen3_signature():
+            # logger.debug("Decorator admin required, wrapper: flask.g.user.is_admin is not True")
+            g3rm = Gen3RequestManager(headers=flask.request.headers)
+            if g3rm.is_gen3_signed():
+                data = flask.request.get_json.get('data', None)
+                if not g3rm.valid_gen3_signature(data, config):
                     raise Unauthorized("Gen3 signed request is invalid")
             else:
                 raise Unauthorized("Require admin user")
@@ -346,7 +274,7 @@ def admin_required(f):
 
 def admin_login_required(function):
     """Compose the login required and admin required decorators."""
-    logger.info("Decorator:  admin_login_required")
+    # logger.debug("Decorator:  admin_login_required")
     return login_required({"admin"})(admin_required(function))
 
 

@@ -88,13 +88,13 @@ def get_all_users(current_session):
 
 
 def get_users(current_session, usernames:list):
-    # logger.info(f"get_users usernames: {usernames}")
+    # logger.debug(f"get_users usernames: {usernames}")
     if not usernames:
         return []
     users = current_session.query(User).filter(
         User.username.in_(usernames)
     ).all()
-    # logger.info(f"get_users users found: {users}")
+    # logger.debug(f"get_users users found: {users}")
     return users
 
 

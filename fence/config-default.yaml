@@ -751,7 +751,6 @@ SEND_TO: 'example@gmail.com'
 # NOTE: Example in comments below
 AWS_SES:
   SENDER: ""
-  SENDER_NAME: ""
   RECIPIENT: ""
   AWS_REGION: "us-east-1"
   AWS_ACCESS_KEY: ""
