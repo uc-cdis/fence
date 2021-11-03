@@ -42,8 +42,15 @@ jobs:
         $HOME/.local/bin/poetry install -vvv
         poetry show
     - name: Setup database
+      env:
+        # use postgres for the host here because we have specified a container for the job.
+        # If we were running the job on the VM this would be localhost
+        POSTGRES_HOST: postgres
+        POSTGRES_PORT: ${{ job.services.postgres.ports[5432] }}
       run: |
         sudo service postgresql start
+        ps -ef | grep postgres
+        sudo find /tmp/ -name .s.PGSQL.5432
         psql -c 'SELECT version();' -U postgres
         psql -U postgres -c "create database fence_test_tmp"
     - name: Test with pytest
