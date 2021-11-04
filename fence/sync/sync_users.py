@@ -688,7 +688,7 @@ class UserSyncer(object):
                 self.auth_source[user].add(source2)
 
     def sync_to_db_and_storage_backend(
-        self, user_project, user_info, sess, single_visa_sync=False
+        self, user_project, user_info, sess, single_visa_sync=False, expires=None
     ):
         """
         sync user access control to database and storage backend
@@ -759,6 +759,7 @@ class UserSyncer(object):
             user_project_lowercase,
             sess,
             google_bulk_mapping=google_bulk_mapping,
+            expires=expires,
         )
 
         self._grant_from_db(
@@ -775,6 +776,7 @@ class UserSyncer(object):
             user_project_lowercase,
             sess,
             google_bulk_mapping=google_bulk_mapping,
+            expires=expires,
         )
         self._update_from_db(sess, to_update, user_project_lowercase)
 
@@ -989,7 +991,9 @@ class UserSyncer(object):
                     google_bulk_mapping=google_bulk_mapping,
                 )
 
-    def _grant_from_storage(self, to_add, user_project, sess, google_bulk_mapping=None):
+    def _grant_from_storage(
+        self, to_add, user_project, sess, google_bulk_mapping=None, expires=None
+    ):
         """
         If a project have storage backend, grant user's access to buckets in
         the storage backend.
@@ -1029,6 +1033,7 @@ class UserSyncer(object):
                     access=access,
                     session=sess,
                     google_bulk_mapping=google_bulk_mapping,
+                    expires=expires,
                 )
 
     def _init_projects(self, user_project, sess):
@@ -1589,7 +1594,12 @@ class UserSyncer(object):
         return True
 
     def _update_authz_in_arborist(
-        self, session, user_projects, user_yaml=None, single_user_sync=False
+        self,
+        session,
+        user_projects,
+        user_yaml=None,
+        single_user_sync=False,
+        expires=None,
     ):
         """
         Assign users policies in arborist from the information in
@@ -1660,6 +1670,8 @@ class UserSyncer(object):
                 username = user.username
 
             self.arborist_client.create_user_if_not_exist(username)
+
+            # TODO make this smarter - it should do a diff, not revoke all and add
             self.arborist_client.revoke_all_policies_for_user(username)
             for project, permissions in user_project_info.items():
 
@@ -1705,6 +1717,7 @@ class UserSyncer(object):
                         if not single_user_sync:
                             if policy_id not in self._created_policies:
                                 try:
+                                    # TODO use expires
                                     self.arborist_client.update_policy(
                                         policy_id,
                                         {
@@ -2102,7 +2115,7 @@ class UserSyncer(object):
                 self._sync_visas(s)
         # if returns with some failure use telemetry file
 
-    def sync_single_user_visas(self, user, sess=None):
+    def sync_single_user_visas(self, user, sess=None, expires=None):
         """
         Sync a single user's visa during login
         """
@@ -2169,7 +2182,7 @@ class UserSyncer(object):
         if user_projects:
             self.logger.info("Sync to db and storage backend")
             self.sync_to_db_and_storage_backend(
-                user_projects, user_info, sess, single_visa_sync=True
+                user_projects, user_info, sess, single_visa_sync=True, expires=expires
             )
         else:
             self.logger.info("No users for syncing")
@@ -2178,7 +2191,11 @@ class UserSyncer(object):
         if self.arborist_client:
             self.logger.info("Synchronizing arborist with authorization info...")
             success = self._update_authz_in_arborist(
-                sess, user_projects, user_yaml=user_yaml, single_user_sync=True
+                sess,
+                user_projects,
+                user_yaml=user_yaml,
+                single_user_sync=True,
+                expires=expires,
             )
             if success:
                 self.logger.info(

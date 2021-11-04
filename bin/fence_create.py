@@ -17,6 +17,7 @@ from fence.scripting.fence_create import (
     create_sample_data,
     delete_client_action,
     delete_users,
+    delete_expired_google_access,
     google_init,
     list_client_action,
     link_external_bucket,
@@ -147,6 +148,7 @@ def parse_arguments():
 
     subparsers.add_parser("expired-service-account-delete")
     subparsers.add_parser("bucket-access-group-verify")
+    subparsers.add_parser("delete-expired-google-access")
 
     hmac_create = subparsers.add_parser("hmac-create")
     hmac_create.add_argument("yaml-input")
@@ -459,6 +461,8 @@ def main():
         delete_expired_service_accounts(DB)
     elif args.action == "bucket-access-group-verify":
         verify_bucket_access_group(DB)
+    elif args.action == "delete-expired-google-access":
+        delete_expired_google_access(DB)
     elif args.action == "sync":
         sync_users(
             dbGaP,

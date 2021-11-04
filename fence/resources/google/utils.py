@@ -515,7 +515,7 @@ def _update_service_account_db_entry(
     return service_account_db_entry
 
 
-def get_or_create_proxy_group_id():
+def get_or_create_proxy_group_id(expires=None):
     """
     If no username returned from token or database, create a new proxy group
     for the give user. Also, add the access privileges.
@@ -551,6 +551,7 @@ def get_or_create_proxy_group_id():
                         project=p.project,
                         access=p.privilege,
                         session=current_session,
+                        expires=expires,
                     )
 
     return proxy_group_id
