@@ -3,14 +3,11 @@ import os
 import collections
 import time
 import datetime
-import gen3authz.client.arborist.client
 
-from urllib.parse import urlparse, quote_plus
-
-# TODO comment regarding circular imports
+# the whole fence_create module is imported to avoid issue with circular imports
 import fence.scripting.fence_create
 
-from flask_sqlalchemy_session import current_session
+from gen3authz.client.arborist.client import ArboristClient
 from cdislogging import get_logger
 
 from fence.jwt.validate import validate_jwt
@@ -47,6 +44,7 @@ def get_gen3_users_from_ga4gh_passports(passports):
             continue
 
         identity_to_visas = collections.defaultdict(list)
+        # TODO need to subtract 5 minutes
         min_visa_expiration = int(time.time()) + datetime.timedelta(hours=1).seconds
         for raw_visa in raw_visas:
             try:
@@ -105,7 +103,7 @@ def validate_visa(raw_visa):
     decoded_visa = validate_jwt(
         raw_visa,
         attempt_refresh=True,
-        scope={"openid"},
+        scope={"openid", "ga4gh_passport_v1"},
         require_purpose=False,
         issuers=config.get("GA4GH_VISA_ISSUER_ALLOWLIST", []),
         options={"require_iat": True, "require_exp": True, "verify_aud": False},
@@ -152,12 +150,7 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id):
             (issuer, subject_id)
         )
         if not (iss_sub_pair_to_user and iss_sub_pair_to_user.user):
-            # There are issues with syncing when the unencoded scheme
-            # (i.e. "https://") is part of the username. For example,
-            # Arborist returns a 301 for a `POST /user/
-            # {username}/policy` request, possibly due to the double
-            # slashes.
-            username = quote_plus(issuer) + subject_id
+            username = subject_id + issuer[len("https://") :]
             gen3_user = User(username=username)
             idp_name = flask.current_app.issuer_to_idp.get(issuer)
             if idp_name:
@@ -179,8 +172,7 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id):
 
 
 def sync_visa_authorization(gen3_user, ga4gh_visas, expiration):
-    # TODO set expiration for Google Access
-    arborist_client = gen3authz.client.arborist.client.ArboristClient(
+    arborist_client = ArboristClient(
         arborist_base_url=config.get("ARBORIST"), logger=logger, authz_provider="GA4GH"
     )
 
@@ -197,9 +189,11 @@ def sync_visa_authorization(gen3_user, ga4gh_visas, expiration):
         dbgap_config, None, DB, arborist=arborist_client
     )
 
-    syncer.sync_single_user_visas(
-        gen3_user, ga4gh_visas, current_session, expiration=expiration
-    )
+    with flask.current_app.db.session as db_session:
+        # TODO set expiration for Google Access
+        syncer.sync_single_user_visas(
+            gen3_user, ga4gh_visas, db_session, expiration=expiration
+        )
 
 
 def put_gen3_usernames_for_passport_into_cache(passport, usernames_from_passports):

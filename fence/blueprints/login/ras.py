@@ -1,6 +1,9 @@
 import flask
 import jwt
 import os
+
+# the whole fence_create module is imported to avoid issue with circular imports
+import fence.scripting.fence_create
 from distutils.util import strtobool
 from authutils.errors import JWTError
 from authutils.token.core import validate_jwt
@@ -15,8 +18,6 @@ from gen3authz.client.arborist.client import ArboristClient
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 from fence.config import config
 
-# TODO comment for this, maybe move to top
-import fence.scripting.fence_create
 from fence.utils import get_valid_expiration
 
 logger = get_logger(__name__)

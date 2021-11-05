@@ -646,8 +646,8 @@ def test_visa_update_cronjob(
 
 
 def test_map_iss_sub_pair_to_user_when_iss_and_sub_are_not_mapped(db_session):
-    iss = "http://domain.tld"
-    sub = "123"
+    iss = "https://domain.tld"
+    sub = "123_abc"
     username = "johnsmith"
     email = "johnsmith@domain.tld"
     oidc = config.get("OPENID_CONNECT", {})
@@ -661,8 +661,9 @@ def test_map_iss_sub_pair_to_user_when_iss_and_sub_are_not_mapped(db_session):
     iss_sub_pair_to_user_records = db_session.query(IssSubPairToUser).all()
     assert len(iss_sub_pair_to_user_records) == 0
 
-    ras_client.map_iss_sub_pair_to_user(iss, sub, username, email)
+    username_to_login = ras_client.map_iss_sub_pair_to_user(iss, sub, username, email)
 
+    assert username_to_login == username
     iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get((iss, sub))
     assert iss_sub_pair_to_user.user.username == username
     assert iss_sub_pair_to_user.user.email == email
@@ -671,8 +672,8 @@ def test_map_iss_sub_pair_to_user_when_iss_and_sub_are_not_mapped(db_session):
 
 
 def test_map_iss_sub_pair_to_user_when_iss_and_sub_are_already_mapped(db_session):
-    iss = "http://domain.tld"
-    sub = "123"
+    iss = "https://domain.tld"
+    sub = "123_abc"
     username = "johnsmith"
     email = "johnsmith@domain.tld"
     oidc = config.get("OPENID_CONNECT", {})
@@ -686,12 +687,37 @@ def test_map_iss_sub_pair_to_user_when_iss_and_sub_are_already_mapped(db_session
     iss_sub_pair_to_user_records = db_session.query(IssSubPairToUser).all()
     assert len(iss_sub_pair_to_user_records) == 1
     iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get((iss, sub))
-    assert iss_sub_pair_to_user.user.username == "http%3A%2F%2Fdomain.tld123"
+    assert iss_sub_pair_to_user.user.username == "123_abcdomain.tld"
 
-    ras_client.map_iss_sub_pair_to_user(iss, sub, username, email)
+    username_to_login = ras_client.map_iss_sub_pair_to_user(iss, sub, username, email)
 
+    assert username_to_login == username
     iss_sub_pair_to_user_records = db_session.query(IssSubPairToUser).all()
     assert len(iss_sub_pair_to_user_records) == 1
     iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get((iss, sub))
     assert iss_sub_pair_to_user.user.username == username
     assert iss_sub_pair_to_user.user.email == email
+
+
+def test_map_iss_sub_pair_to_user_when_iss_and_sub_are_already_mapped_and_user_exists(
+    db_session,
+):
+    iss = "https://domain.tld"
+    sub = "123_abc"
+    username = "johnsmith"
+    email = "johnsmith@domain.tld"
+    oidc = config.get("OPENID_CONNECT", {})
+    ras_client = RASClient(
+        oidc["ras"],
+        HTTP_PROXY=config.get("HTTP_PROXY"),
+        logger=logger,
+    )
+    user = User(username=username, email=email)
+    db_session.add(user)
+    db_session.commit()
+
+    get_or_create_gen3_user_from_iss_sub(iss, sub)
+    username_to_login = ras_client.map_iss_sub_pair_to_user(iss, sub, username, email)
+    assert username_to_login == "123_abcdomain.tld"
+    iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get((iss, sub))
+    assert iss_sub_pair_to_user.user.username == "123_abcdomain.tld"
