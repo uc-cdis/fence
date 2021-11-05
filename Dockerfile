@@ -14,6 +14,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/
 
 RUN mkdir -p /var/www/$appname \
+    && mkdir -p /amanuensis \
     && mkdir -p /var/www/.cache/Python-Eggs/ \
     && mkdir /run/nginx/ \
     && ln -sf /dev/stdout /var/log/nginx/access.log \
