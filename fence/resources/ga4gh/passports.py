@@ -115,14 +115,7 @@ def validate_visa(raw_visa):
     if "aud" in decoded_visa:
         raise Exception('Visa MUST NOT contain "aud" claim')
 
-    # TODO may want to set these fields and values in config-default.yaml or
-    # bring to top of file
-    field_to_expected_value = {
-        "type": "https://ras.nih.gov/visas/v1.1",
-        "asserted": None,
-        "value": "https://stsstg.nih.gov/passport/dbgap/v1.1",
-        "source": "https://ncbi.nlm.nih.gov/gap",
-    }
+    field_to_expected_value = config.get("GA4GH_VISA_V1_CLAIM_REQUIRED_FIELDS")
     for field, expected_value in field_to_expected_value.items():
         if field not in decoded_visa["ga4gh_visa_v1"]:
             raise Exception(

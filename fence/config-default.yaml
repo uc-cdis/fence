@@ -871,7 +871,13 @@ GA4GH_VISA_ISSUER_ALLOWLIST:
   - '{{BASE_URL}}'
   - 'https://sts.nih.gov'
   - 'https://stsstg.nih.gov'
-# Number of projects that can be registered to a Google Service Accont
+GA4GH_VISA_V1_CLAIM_REQUIRED_FIELDS:
+  type: "https://ras.nih.gov/visas/v1.1"
+  asserted: 0
+  value: "https://stsstg.nih.gov/passport/dbgap/v1.1"
+  source: "https://ncbi.nlm.nih.gov/gap"
+
+# Number of projects that can be registered to a Google Service Account
 SERVICE_ACCOUNT_LIMIT: 6
 
 # Global sync visas during login
