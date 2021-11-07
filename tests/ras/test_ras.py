@@ -645,7 +645,7 @@ def test_visa_update_cronjob(
         assert visa.ga4gh_visa == encoded_visa
 
 
-def test_map_iss_sub_pair_to_user_when_iss_and_sub_are_not_mapped(db_session):
+def test_map_iss_sub_pair_to_user_with_no_prior_DRS_access(db_session):
     iss = "https://domain.tld"
     sub = "123_abc"
     username = "johnsmith"
@@ -671,7 +671,7 @@ def test_map_iss_sub_pair_to_user_when_iss_and_sub_are_not_mapped(db_session):
     assert len(iss_sub_pair_to_user_records) == 1
 
 
-def test_map_iss_sub_pair_to_user_when_iss_and_sub_are_already_mapped(db_session):
+def test_map_iss_sub_pair_to_user_with_prior_DRS_access(db_session):
     iss = "https://domain.tld"
     sub = "123_abc"
     username = "johnsmith"
@@ -699,7 +699,7 @@ def test_map_iss_sub_pair_to_user_when_iss_and_sub_are_already_mapped(db_session
     assert iss_sub_pair_to_user.user.email == email
 
 
-def test_map_iss_sub_pair_to_user_when_iss_and_sub_are_already_mapped_and_user_exists(
+def test_map_iss_sub_pair_to_user_with_prior_login_and_prior_DRS_access(
     db_session,
 ):
     iss = "https://domain.tld"

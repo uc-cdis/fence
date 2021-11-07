@@ -159,6 +159,8 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id):
                     .filter(IdentityProvider.name == idp_name)
                     .first()
                 )
+                if not idp:
+                    idp = IdentityProvider(name=idp_name)
                 gen3_user.identity_provider = idp
 
             iss_sub_pair_to_user = IssSubPairToUser(iss=issuer, sub=subject_id)
