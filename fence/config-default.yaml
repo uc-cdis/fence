@@ -876,6 +876,7 @@ GA4GH_VISA_V1_CLAIM_REQUIRED_FIELDS:
   asserted: 0
   value: "https://stsstg.nih.gov/passport/dbgap/v1.1"
   source: "https://ncbi.nlm.nih.gov/gap"
+DELETE_EXPIRED_GOOGLE_ACCESS_JOB_FREQUENCY_IN_SECONDS: 300
 
 # Number of projects that can be registered to a Google Service Account
 SERVICE_ACCOUNT_LIMIT: 6

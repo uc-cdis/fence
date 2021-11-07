@@ -207,7 +207,10 @@ class RASOauth2Client(Oauth2ClientBase):
             email = userinfo.get("email")
             issuer = self.get_value_from_discovery_doc("issuer")
             subject_id = userinfo.get("sub")
-            # TODO log error message if issuer, subject_id not available
+            if not issuer or not subject_id:
+                err_msg = "Could not determine both issuer and subject id"
+                self.logger.error(err_msg)
+                return {"error": err_msg}
             username = self.map_iss_sub_pair_to_user(
                 issuer, subject_id, username, email
             )
@@ -223,30 +226,39 @@ class RASOauth2Client(Oauth2ClientBase):
 
         return {"username": username, "email": email}
 
-    @staticmethod
-    def map_iss_sub_pair_to_user(issuer, subject_id, username, email):
+    def map_iss_sub_pair_to_user(self, issuer, subject_id, username, email):
         with flask.current_app.db.session as db_session:
             iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get(
                 (issuer, subject_id)
             )
             user = query_for_user(db_session, username)
             if iss_sub_pair_to_user:
-                # only change the username if there exists one user created
-                # from the DRS endpoint. two users means that a user logged
-                # in through RAS, didn't get sub mapped, accessed the DRS
-                # endpoint, and is now logging in again, in which case we
-                # render the user created from the first login stale, and
-                # choose to proceed with the user created from the DRS
-                # endpoint
-                # TODO improve comment
-                if not user and iss_sub_pair_to_user.user.username != username:
-                    # TODO change username in Arborist
+                if not user:
+                    self.logger.info(
+                        "Issuer and subject id have already been mapped to a "
+                        "Fence user created from the DRS/data endpoints. "
+                        "Changing said user's username to the username "
+                        "returned from the RAS userinfo endpoint."
+                    )
+                    # TODO also change username in Arborist
                     iss_sub_pair_to_user.user.username = username
                     iss_sub_pair_to_user.user.email = email
                     db_session.commit()
+                elif iss_sub_pair_to_user.user.username != username:
+                    self.logger.warning(
+                        "Two users exist in the Fence database corresponding "
+                        "to the RAS user who is currently trying to log in: one "
+                        "created from an earlier login and one created from "
+                        "the DRS/data endpoints. The one created from the "
+                        "DRS/data endpoints will be logged in, rendering the "
+                        "other one inaccessible."
+                    )
                 return iss_sub_pair_to_user.user.username
 
             if not user:
+                self.logger.info(
+                    "Creating a user in the Fence database before mapping issuer and subject id"
+                )
                 user = User(username=username, email=email)
                 idp = (
                     db_session.query(IdentityProvider)
@@ -258,6 +270,7 @@ class RASOauth2Client(Oauth2ClientBase):
                 user.identity_provider = idp
                 db_session.add(user)
 
+            self.logger.info("Mapping issuer and subject id to Fence user")
             iss_sub_pair_to_user = IssSubPairToUser(iss=issuer, sub=subject_id)
             iss_sub_pair_to_user.user = user
             db_session.add(iss_sub_pair_to_user)

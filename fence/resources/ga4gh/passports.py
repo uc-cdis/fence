@@ -62,6 +62,19 @@ def get_gen3_users_from_ga4gh_passports(passports):
                 logger.warning(f"invalid visa provided, ignoring. Error: {exc}")
                 continue
 
+        delete_expired_google_access_job_frequency = config.get(
+            "DELETE_EXPIRED_GOOGLE_ACCESS_JOB_FREQUENCY_IN_SECONDS", 300
+        )
+        min_visa_expiration -= delete_expired_google_access_job_frequency
+        if min_visa_expiration <= int(time.now()):
+            logger.warning(
+                "the passport's minimum visa expiration time fell within "
+                f"{delete_expired_google_access_job_frequency} seconds of now, "
+                "which is the frequency of the delete_expired_google_access job. "
+                "for this reason, the passport will be ignored"
+            )
+            continue
+
         usernames_from_current_passport = []
         for (issuer, subject_id), visas in identity_to_visas.items():
             gen3_user = get_or_create_gen3_user_from_iss_sub(issuer, subject_id)
@@ -108,6 +121,8 @@ def validate_visa(raw_visa):
         issuers=config.get("GA4GH_VISA_ISSUER_ALLOWLIST", []),
         options={"require_iat": True, "require_exp": True, "verify_aud": False},
     )
+    # TODO log jti?
+    # TODO log txn?
     for claim in ["sub", "ga4gh_visa_v1"]:
         if claim not in decoded_visa:
             raise Exception(f'Visa does not contain REQUIRED "{claim}" claim')
@@ -129,11 +144,12 @@ def validate_visa(raw_visa):
 
     if "conditions" in decoded_visa["ga4gh_visa_v1"]:
         logger.warning(
-            'Condition checking is not yet supported, but a visa was received that contained the "conditions" field'
+            'condition checking is not yet supported, but a visa was received that contained the "conditions" field'
         )
         if decoded_visa["ga4gh_visa_v1"]["conditions"]:
             raise Exception('"conditions" field in "ga4gh_visa_v1" is not empty')
 
+    logger.info("visa was successfully validated")
     return decoded_visa
 
 
@@ -142,7 +158,12 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id):
         iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get(
             (issuer, subject_id)
         )
-        if not (iss_sub_pair_to_user and iss_sub_pair_to_user.user):
+        if not iss_sub_pair_to_user:
+            logger.info(
+                "creating a new Fence user with a username formed from subject "
+                "id and issuer. mapping subject id and issuer combination to "
+                "said user"
+            )
             username = subject_id + issuer[len("https://") :]
             gen3_user = User(username=username)
             idp_name = flask.current_app.issuer_to_idp.get(issuer)
